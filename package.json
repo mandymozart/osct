@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -13,10 +13,7 @@
     "vite": "^6.0.3"
   },
   "dependencies": {
-    "aframe": "^1.6.0",
-    "haunted": "^5.0.0",
     "lit": "^3.2.1",
-    "mind-ar": "^1.2.5",
-    "three": "^0.171.0"
+    "xstate": "^5.19.1"
   }
 }

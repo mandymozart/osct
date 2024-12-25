@@ -1,10 +1,12 @@
-import { LitElement, css, html } from 'lit';
-import './components/user-interface.js';
-import './scenes/book-scene.js';
-import './scenes/home-scene.js';
-import './scenes/index-scene.js';
-import { scenes } from './scenes/index.js';
+import { LitElement, css, html } from "lit";
+import "./tracking.js";
+import "./components/user-interface.js";
+import "./scenes/book-scene.js";
+import "./scenes/home-scene.js";
+import "./scenes/index-scene.js";
+import { scenes } from "./scenes/index.js";
 
+// TrackingApp.init()
 /**
  * XR App main element.
  */
@@ -27,16 +29,16 @@ export class XRApp extends LitElement {
 
   render() {
     return html`
-    <div class="scenes">
-      ${this.currentScene === scenes.HOME
-        ? html`<home-scene></home-scene>`
-        : ''}
-      ${this.currentScene === scenes.BOOK
-        ? html`<book-scene></book-scene>`
-        : ''}
-      ${this.currentScene === scenes.INDEX
-        ? html`<index-scene></index-scene>`
-        : ''}
+      <div class="scenes">
+        ${this.currentScene === scenes.HOME
+          ? html`<home-scene></home-scene>`
+          : ""}
+        ${this.currentScene === scenes.BOOK
+          ? html`<book-scene></book-scene>`
+          : ""}
+        ${this.currentScene === scenes.INDEX
+          ? html`<index-scene></index-scene>`
+          : ""}
       </div>
       <user-interface @change-scene=${this.handleSceneChange}></user-interface>
     `;
@@ -61,10 +63,9 @@ export class XRApp extends LitElement {
         position: fixed;
         top: 0;
         left: 0;
-        
       }
     `;
   }
 }
 
-window.customElements.define('xr-app', XRApp);
+window.customElements.define("xr-app", XRApp);
