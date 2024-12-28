@@ -4,10 +4,14 @@
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    <link rel="stylesheet" href="./src/style.css" />
-    <script type="module" src="/src/tracking.js"></script>
-    <script type="module" src="/src/app.js"></script>
-    <script type="module" src="/src/aframe/colorify.js"></script>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./tracking.js"></script>
+    <script type="module" src="./components/user-interface.js"></script>
+    <script type="module" src="./scenes/book-scene.js"></script>
+    <script type="module" src="./scenes/home-scene.js"></script>
+    <script type="module" src="./scenes/index-scene.js"></script>
+    <script type="module" src="./app.js"></script>
+    <script type="module" src="/aframe/colorify.js"></script>
   </head>
   <body>
     <!-- Kevin Bray Scene -->
@@ -38,22 +42,51 @@
 
     <!-- Example Scene -->
     <!-- <a-scene mindar-image="imageTargetSrc:  https://localhost:5173/targets/pegasus.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"> -->
-    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/band.mind; maxTrack: 2" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-    <a-assets>
-        <a-asset-item id="bearModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"></a-asset-item>
-        <a-asset-item id="raccoonModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"></a-asset-item>
+    <a-scene
+      mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/band.mind; maxTrack: 2"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+      <a-assets>
+        <a-asset-item
+          id="bearModel"
+          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"
+        ></a-asset-item>
+        <a-asset-item
+          id="raccoonModel"
+          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
+        ></a-asset-item>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="target-1" mindar-image-target="targetIndex: 0">
-        <a-gltf-model rotation="0 0 0 " position="0 -0.25 0" scale="0.05 0.05 0.05" src="#raccoonModel" animation-mixer>
+        <a-gltf-model
+          rotation="0 0 0 "
+          position="0 -0.25 0"
+          scale="0.05 0.05 0.05"
+          src="#raccoonModel"
+          animation-mixer
+        />
       </a-entity>
       <a-entity id="target-2" mindar-image-target="targetIndex: 1">
-        <a-gltf-model rotation="0 0 0 " position="0 -0.25 0" scale="0.05 0.05 0.05" src="#bearModel" animation-mixer>
+        <a-gltf-model
+          rotation="0 0 0 "
+          position="0 -0.25 0"
+          scale="0.05 0.05 0.05"
+          src="#bearModel"
+          animation-mixer
+        />
       </a-entity>
     </a-scene>
-    <xr-app></xr-app>
+    <div class="scenes">
+      <home-scene class="scene" id="home-scene" />
+      <book-scene class="scene" id="book-scene" />
+      <index-scene class="scene" id="index-scene" />
+    </div>
+    <user-interface id="user-interface" />
     <div style="position: absolute; z-index: 1000">
       <button id="start-button">Start</button>
       <button id="stop-button">Stop</button>
