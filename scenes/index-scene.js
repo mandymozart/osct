@@ -5,19 +5,9 @@ export class IndexScene extends HTMLElement {
 
     this.currentState = "idle";
 
-    const style = document.createElement("style");
-    style.textContent = `
-      :host {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-    `;
-
     this.template = document.createElement("template");
     this.updateTemplate();
 
-    this.shadowRoot.appendChild(style);
     this.shadowRoot.appendChild(this.template.content.cloneNode(true));
   }
 
@@ -42,11 +32,18 @@ export class IndexScene extends HTMLElement {
 
   handleStateChange(newState) {
     this.currentState = newState;
-    this.updateTemplate(); // Re-render with the updated state
+    this.updateTemplate();
   }
 
   updateTemplate() {
-    this.template.innerHTML = `
+    this.template.innerHTML = /*html*/ `
+      <style>
+        :host {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+      </style>
       <h2>Index</h2>
       <p>Current State: ${JSON.stringify(this.currentState)}</p>
     `;

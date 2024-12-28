@@ -58,6 +58,10 @@ button:focus-visible {
   }
 }
 
+.a-enter-vr-button {
+  /* style if you like */
+}
+
 .scenes {
   position: fixed;
   top: 0;
@@ -72,9 +76,4 @@ button:focus-visible {
 }
 .scene.active {
   display: block;
-}
-user-interface {
-  position: fixed;
-  top: 0;
-  left: 0;
 }
