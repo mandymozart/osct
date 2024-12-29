@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -5,13 +6,11 @@
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <link rel="stylesheet" href="style.css" />
-    <script type="module" src="tracking.js"></script>
-    <script type="module" src="user-interface.js"></script>
-    <script type="module" src="scenes/book-scene.js"></script>
-    <script type="module" src="scenes/home-scene.js"></script>
-    <script type="module" src="scenes/index-scene.js"></script>
     <script type="module" src="app.js"></script>
-    <script type="module" src="aframe/colorify.js"></script>
+    <script type="module" src="user-interface.js"></script>
+    <script type="module" src="scenes/info-scene.js"></script>
+    <script type="module" src="scenes/index-scene.js"></script>
+    <script type="module" src="scenes/error-screen.js"></script>
   </head>
   <body>
     <!-- Kevin Bray Scene -->
@@ -69,7 +68,7 @@
           scale="0.05 0.05 0.05"
           src="#raccoonModel"
           animation-mixer
-        />
+        ></a-gltf-model>
       </a-entity>
       <a-entity id="target-2" mindar-image-target="targetIndex: 1">
         <a-gltf-model
@@ -78,18 +77,18 @@
           scale="0.05 0.05 0.05"
           src="#bearModel"
           animation-mixer
-        />
+        ></a-gltf-model>
       </a-entity>
     </a-scene>
     <div class="scenes">
-      <home-scene class="scene" id="home-scene" />
-      <book-scene class="scene" id="book-scene" />
-      <index-scene class="scene" id="index-scene" />
+      <info-scene class="scene" id="info-scene"></info-scene>
+      <index-scene class="scene" id="index-scene"></index-scene>
     </div>
-    <user-interface id="user-interface" />
-    <div style="position: absolute; z-index: 1000">
+    <user-interface id="user-interface"></user-interface>
+    <!-- <div style="position: absolute; z-index: 1000">
       <button id="start-button">Start</button>
       <button id="stop-button">Stop</button>
-    </div>
+    </div> -->
+    <error-screen id="error-screen"></error-screen>
   </body>
 </html>
