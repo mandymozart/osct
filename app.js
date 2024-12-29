@@ -1,5 +1,6 @@
 import { gameStore } from "./stores/GameStore.js";
 import { scenes } from "./scenes/index.js";
+import trackingTargets from "./targets/testingTargets.js";
 
 class App {
   constructor() {
@@ -103,7 +104,7 @@ class App {
 
           targetEl.addEventListener("targetFound", (event) => {
             console.log(`Target Found: ${i}`);
-            alert("Target Found");
+            const target = trackingTargets[i];
 
             if (target) {
               gameStore.addTarget(i);
