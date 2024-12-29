@@ -1,5 +1,7 @@
-import { gameStore } from "./stores/GameStore.js";
 import { scenes } from "./scenes/index.js";
+import { gameStore } from "./stores/GameStore.js";
+import { trackingStore } from "./stores/TrackingStore.js";
+import trackingTargets from "./targets/testingTargets.js";
 
 class App {
   constructor() {
@@ -12,23 +14,9 @@ class App {
   }
 
   init() {
-    this.initializeStore();
     this.updateSceneVisibility();
     this.setupEventListeners();
     this.initTracking();
-  }
-
-  initializeStore() {
-    gameStore.initialize();
-
-    if (!document.gameStore) {
-      Object.defineProperty(document, "gameStore", {
-        value: gameStore,
-        writable: false,
-        enumerable: false,
-        configurable: false,
-      });
-    }
   }
 
   updateSceneVisibility() {
@@ -49,8 +37,8 @@ class App {
   }
 
   setupEventListeners() {
-    gameStore.subscribe((newState) => {
-      this.currentScene = newState.scene;
+    gameStore.subscribe((newScene) => {
+      this.currentScene = newScene;
       this.updateSceneVisibility();
     });
 
@@ -70,18 +58,6 @@ class App {
         return;
       }
 
-      const handleError = (message, error) => {
-        if (error.detail.error === "VIDEO_FAIL") {
-          const errorScreen = document.getElementById("error-screen");
-          if (errorScreen) {
-            errorScreen.active = true;
-          }
-          console.error("Please enable camera access to use this app");
-        } else {
-          console.error(message, error);
-        }
-      };
-
       sceneEl.addEventListener("loaded", () => {
         const arSystem = sceneEl.systems["mindar-image-system"];
 
@@ -92,8 +68,8 @@ class App {
 
         // Listen for MindAR system events
         sceneEl.addEventListener("arReady", () => console.log("MindAR ready"));
-        sceneEl.addEventListener("arError", (error) =>
-          handleError("MindAR error", error)
+        sceneEl.addEventListener("arError", () =>
+          console.error("MindAR error")
         );
 
         // Set up target event listeners
@@ -105,22 +81,20 @@ class App {
             console.log(`Target Found: ${i}`);
             alert("Target Found");
 
-            if (target) {
-              gameStore.addTarget(i);
-            } else {
-              console.warn(`Target ${i} not found in trackingTargets`);
-            }
+            trackingStore.addTarget(i);
+            const targetInfo = trackingTargets[i];
+            console.log("Target Info:", targetInfo);
           });
 
           targetEl.addEventListener("targetLost", () => {
             console.log(`Target Lost: ${i}`);
-            gameStore.removeTarget(i);
+            trackingStore.removeTarget(i);
           });
         }
       });
 
-      gameStore.subscribe((newState) => {
-        console.log("GameStore state changed:", newState);
+      trackingStore.subscribe((newState) => {
+        console.log("TrackingStore state changed:", newState);
       });
     });
   }
@@ -128,4 +102,3 @@ class App {
 
 const app = new App();
 app.init();
-document.app = app;

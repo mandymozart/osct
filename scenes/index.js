@@ -1,5 +1,4 @@
 export const scenes = {
-  HOME: "home",
-  BOOK: "book",
+  INFO: "info",
   INDEX: "index",
 };
