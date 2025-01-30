@@ -65,6 +65,7 @@ export class InfoScene extends HTMLElement {
         </div>
         <p>App by Tilman Porschuetz</p>
         <p>Requires a WebXR compatible browser and a copy of the book.</p>
+        <a href="test.html">Developer: AR Tests</a>
       </div>
       <button class="close-button">×</button>
     `;
