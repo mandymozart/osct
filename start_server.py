@@ -31,6 +31,7 @@ def get_network_ip():
 
 network_ip = get_network_ip()
 server_url = f"https://{network_ip}:{server_address[1]}/"
+server_stage_url = "https://osct.netlify.app/"
 
 # Generate and save QR code for each HTML file in the root directory
 for html_file in script_root.glob("*.html"):
@@ -40,6 +41,14 @@ for html_file in script_root.glob("*.html"):
     with open(qr_path, "wb") as f:
         qr.save(f)
     print(f"QR code saved to {qr_path} for {html_file.name}")
+
+# for html_file in script_root.glob("*.html"):
+#     file_url = f"{server_stage_url}{html_file.name}"
+#     qr = qrcode.make(file_url, image_factory=SvgImage)
+#     qr_path = public_dir / f"stage/{html_file.stem}_qr.svg"
+#     with open(qr_path, "wb") as f:
+#         qr.save(f)
+#     print(f"QR code saved to {qr_path} for {html_file.name}")
 
 
 # Log the server and IP address
