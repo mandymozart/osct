@@ -61,3 +61,49 @@ button:focus-visible {
   z-index: 1001;
   pointer-events: none;
 }
+
+.test-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.test-navigation div {
+  padding: 1rem;
+}
+.test-navigation ul {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 0;
+  gap: 1rem;
+}
+.test-navigation li {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid;
+  padding: 1rem;
+}
+
+.test-info {
+  z-index: 100;
+  position: fixed;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 10vw;
+  padding: 1rem;
+  background: white;
+  border-radius: 1rem;
+  margin: 1rem;
+  max-height: calc(100dvh - 4rem);
+}
+.test-info .image {
+  width: 100%;
+  border-radius: 0.5rem;
+}
+.test-info .images {
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
