@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+   
+    <a-scene
+      mindar-image="imageTargetSrc: https://localhost:8443/targets/single-image.mind"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+      <a-assets>
+        <a-asset-item
+          id="raccoonModel"
+          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
+        ></a-asset-item>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity id="target-1" mindar-image-target="targetIndex: 0">
+            <a-gltf-model rotation="0 0 0" position="0 -0.25 0" scale="0.05 0.05 0.05" src="#raccoonModel" animation-mixer></a-gltf-model>
+        </a-entity>
+    </a-scene>
+    <div class="test-info">
+        <div>Open this page on other device</div>
+        <img class="qr" src="/public/single-image-test_qr.svg" alt="qr"/>
+        <div>Find this image</div>
+        <img class="image" src="/images/images-022.jpg" alt="test image"/>
+    </div>
+  </body>
+</html>
