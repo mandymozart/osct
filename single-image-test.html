@@ -17,21 +17,30 @@
       device-orientation-permission-ui="enabled: false"
     >
       <a-assets>
-        <a-asset-item
-          id="raccoonModel"
-          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
-        ></a-asset-item>
+        <video
+          id="edgeVideo"
+          autoplay
+          loop="true"
+          src="videos/what_is_on_the_edge.mp4"
+        ></video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity id="target-1" mindar-image-target="targetIndex: 0">
-            <a-gltf-model rotation="0 0 0" position="0 -0.25 0" scale="0.05 0.05 0.05" src="#raccoonModel" animation-mixer></a-gltf-model>
+          <a-video
+          src="#edgeVideo"
+          width="16"
+          height="9"
+          rotation="0 0 0"
+          position="0 -0.25 0"
+          scale="0.2 0.2 0.2"
+        ></a-video>
         </a-entity>
     </a-scene>
     <div class="test-info">
         <div>Open this page on other device</div>
-        <img class="qr" src="/public/single-image-test_qr.svg" alt="qr"/>
+        <img class="qr" src="/public/stage/single-image-test_qr.svg" alt="qr"/>
         <div>Find this image</div>
         <img class="image" src="/images/images-022.jpg" alt="test image"/>
     </div>
