@@ -42,13 +42,13 @@ for html_file in script_root.glob("*.html"):
         qr.save(f)
     print(f"QR code saved to {qr_path} for {html_file.name}")
 
-# for html_file in script_root.glob("*.html"):
-#     file_url = f"{server_stage_url}{html_file.name}"
-#     qr = qrcode.make(file_url, image_factory=SvgImage)
-#     qr_path = public_dir / f"stage/{html_file.stem}_qr.svg"
-#     with open(qr_path, "wb") as f:
-#         qr.save(f)
-#     print(f"QR code saved to {qr_path} for {html_file.name}")
+for html_file in script_root.glob("*.html"):
+    file_url = f"{server_stage_url}{html_file.name}"
+    qr = qrcode.make(file_url, image_factory=SvgImage)
+    qr_path = public_dir / f"stage/{html_file.stem}_qr.svg"
+    with open(qr_path, "wb") as f:
+        qr.save(f)
+    print(f"QR code saved to {qr_path} for {html_file.name}")
 
 
 # Log the server and IP address
