@@ -1,0 +1,30 @@
+{
+  "name": "osct-game-store",
+  "version": "1.0.0",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/game-store.umd.js",
+  "module": "./dist/game-store.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/game-store.js",
+      "require": "./dist/game-store.umd.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "immer": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "typescript": "^5.8.2",
+    "vite": "^5.4.14"
+  }
+}
