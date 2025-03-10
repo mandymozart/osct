@@ -1,4 +1,4 @@
-import trackingTargets from "../targets/testingTargets.js";
+import trackingTargets from "../../targets/testingTargets.js";
 
 class GameStore {
   constructor() {
