@@ -1,5 +1,5 @@
-import { gameStore } from "./stores/GameStore.js";
 import { scenes } from "./scenes/index.js";
+import { gameStore } from "./src/legacy/GameStore.bak.js";
 import trackingTargets from "./targets/testingTargets.js";
 
 class App {
