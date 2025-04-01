@@ -5,11 +5,20 @@ let videoElement, canvasElement, canvasContext;
 let scanningActive = false;
 let onCodeScanned = null;
 
+// TODO: refactor into a webcomponent and complete strict typing
+
 export function initQRScanner(callback) {
   // Create and configure elements
   videoElement = document.getElementById('qr-video');
   canvasElement = document.getElementById('qr-canvas');
   canvasContext = canvasElement.getContext('2d');
+
+  if (!videoElement) {
+    throw new Error("Video element is missing");
+  }
+  if(!canvasElement) {
+    throw new Error("Canvas element is missing");
+  }
   
   // Store callback
   onCodeScanned = callback;

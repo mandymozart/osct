@@ -1,23 +1,69 @@
 import { produce } from 'immer';
 import { chapters } from "../../data/chapters.js";
-import { TargetHistoryEntry } from "../types.js";
+import { ConfigurationVersion, GameStore, TargetHistoryEntry } from "../types.js";
 
 /**
  * Manages user history and progress tracking
  */
 export class HistoryManager {
-  private store: any; // Reference to the main store
+  private store: GameStore; // Reference to the main store
   private targetHistory: TargetHistoryEntry[] = [];
   private readonly HISTORY_STORAGE_KEY = 'ar-game-target-history';
-  
-  constructor(store: any) {
+  private readonly CONFIG_VERSION_KEY = 'ar-game-config-version';
+
+  constructor(store: GameStore) {
     this.store = store;
   }
   
   /**
+   * Check if configuration has changed
+   */
+  private checkConfigurationVersion(): void {
+    try {
+      const storedVersion = localStorage.getItem(this.CONFIG_VERSION_KEY);
+      const currentVersion = this.store.configuration.version;
+      
+      if (!storedVersion) {
+        this.saveConfigurationVersion();
+        return;
+      }
+
+      const { version, timestamp } = JSON.parse(storedVersion) as ConfigurationVersion;
+      
+      if (version !== currentVersion) {
+        console.warn(
+          `Game configuration has changed from version ${version} to ${currentVersion}. ` +
+          `Last update was on ${new Date(timestamp).toLocaleDateString()}. ` +
+          `Some chapter or target data might have changed.`
+        );
+      }
+
+      this.saveConfigurationVersion();
+    } catch (error) {
+      console.warn('Failed to check configuration version:', error);
+    }
+  }
+
+  /**
+   * Save current configuration version
+   */
+  private saveConfigurationVersion(): void {
+    try {
+      const versionData: ConfigurationVersion = {
+        version: this.store.configuration.version,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(this.CONFIG_VERSION_KEY, JSON.stringify(versionData));
+    } catch (error) {
+      console.warn('Failed to save configuration version:', error);
+    }
+  }
+
+  /**
    * Load target history from local storage
    */
   loadHistory(): void {
+    this.checkConfigurationVersion();
     this.loadTargetHistory();
   }
 

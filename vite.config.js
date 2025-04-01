@@ -10,12 +10,29 @@ export default defineConfig({
       formats: ['es', 'umd']
     },
     rollupOptions: {
-      external: ['immer'], // Add any external dependencies here
+      external: ['three','aframe'], 
       output: {
         globals: {
-          immer: 'immer'
+          three: 'THREE',
+          aframe: 'AFRAME'
         }
       }
     }
+  },
+  test: {
+    environment: 'happy-dom',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'src/**/*.d.ts',
+        'src/**/*.test.ts',
+      ],
+      reportsDirectory: './coverage'
+    },
+    globals: true,
+    include: ['src/**/*.{test,spec}.{js,ts}'],
+    setupFiles: ['./src/test/setup.ts']
   }
 });

@@ -1,13 +1,13 @@
 import { produce } from 'immer';
-import { Target } from "../types";
+import { GameStore, Target } from "../types";
 
 /**
  * Manages target tracking during gameplay
  */
 export class TargetTracker {
-  private store: any; // Reference to the main store
+  private store: GameStore; // Reference to the main store
   
-  constructor(store: any) {
+  constructor(store: GameStore) {
     this.store = store;
   }
   

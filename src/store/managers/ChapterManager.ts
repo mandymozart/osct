@@ -1,15 +1,13 @@
 import { produce } from 'immer';
-import { chapters } from "../../data/chapters.js";
-import { LoadableStore } from '../LoadableStore.js';
-import { Asset, Chapter, ChapterData, ErrorCode } from '../types.js';
+import { Asset, Chapter, ChapterData, ErrorCode, GameStore } from '../types';
 
 /**
  * Manages chapter loading, initialization, and caching
  */
 export class ChapterManager {
-  private store: LoadableStore; // Reference to the main store
+  private store: GameStore; // Reference to the main store
   
-  constructor(store: any) {
+  constructor(store: GameStore) {
     this.store = store;
   }
   
@@ -18,7 +16,8 @@ export class ChapterManager {
    */
   getCachedChapter(chapterId: string): Chapter | null {
     const cachedChapter = this.store.state.cachedChapters[chapterId];
-    if (cachedChapter && cachedChapter.loaded) {
+    console.log(`getCachedChapter: ${chapterId}`, cachedChapter);
+    if (cachedChapter) {
       return cachedChapter;
     }
     return null;
@@ -43,7 +42,7 @@ export class ChapterManager {
     }
     
     // Find the chapter in our data
-    const chapterData = chapters.find((ch: any) => ch.id === chapterId);
+    const chapterData = this.store.getChaptersData().find((ch: any) => ch.id === chapterId);
     if (!chapterData) {
       const errorMsg = `Chapter ${chapterId} not found.`;
       console.error(errorMsg);

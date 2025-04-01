@@ -3,7 +3,6 @@ import { ErrorCode, LoadableResource } from './types';
 
 /**
  * Base class for implementing stores that manage loadable resources
- * Enhanced with Immer for simpler state updates
  */
 export class LoadableStore {
   state: Record<string, any>;
