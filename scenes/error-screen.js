@@ -1,3 +1,4 @@
+/* @deprecated */
 class ErrorScreen extends HTMLElement {
   constructor() {
     super();

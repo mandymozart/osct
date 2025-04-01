@@ -1,60 +1,138 @@
-import { LoadableStore } from './LoadableStore';
-import { ChapterManager } from './managers/ChapterManager';
-import { HistoryManager } from './managers/HistoryManager';
-import { TargetTracker } from './managers/TargetTracker';
-import { Chapter, GameState, Target } from './types';
+import { Scene } from "aframe";
+import { LoadableStore } from "./LoadableStore";
+import { ChapterManager } from "./managers/ChapterManager";
+import { HistoryManager } from "./managers/HistoryManager";
+import { SceneManager } from "./managers/SceneManager";
+import { TargetTracker } from "./managers/TargetTracker";
+import {
+  Chapter,
+  ChapterData,
+  ErrorInfo,
+  GameConfiguration,
+  GameMode,
+  GameState,
+  GameStore,
+  Route,
+  Target,
+} from "./types";
+import { QRManager } from "./managers/QRManager";
+import { PageRouter } from "./managers/PageRouter";
 
 /**
  * Game-specific store that manages chapter loading and target tracking
  * Uses specialized managers for different concerns
  */
-export class GameStore extends LoadableStore {
+export class Game extends LoadableStore implements GameStore {
   state: GameState;
-  
+  public configuration: GameConfiguration;
+
   // Specialized managers
+  private sceneManager: SceneManager;
   private chapterManager: ChapterManager;
   private targetTracker: TargetTracker;
   private historyManager: HistoryManager;
-  
+  private pageRouter: PageRouter;
+  private qrManager: QRManager;
+
+
   constructor() {
     super();
-    
-    // Initialize with game-specific state
+
+    this.configuration = {
+      version: null,
+      chapters: [],
+      router: null
+    };
+
     this.state = {
+      // TODO: evaluate getScene vs. direct calling of mode
       scene: null,
+      mode: GameMode.DEFAULT,
+      currentRoute: null,
       trackedTargets: [],
       currentChapter: null,
       cachedChapters: {},
     };
-    
-    // Initialize specialized managers
+
     this.chapterManager = new ChapterManager(this);
     this.targetTracker = new TargetTracker(this);
     this.historyManager = new HistoryManager(this);
+    this.sceneManager = new SceneManager(this);
+    this.pageRouter = new PageRouter(this);
+    this.qrManager = new QRManager(this);
     
-    this.initialize();
   }
 
   /**
    * Initialize the game store
    */
-  private initialize(): void {
-    console.log("GameStore initialized");
+  public initialize(configuration: GameConfiguration): void {
+    this.configuration = Object.freeze({
+      version: Object.freeze(configuration.version),
+      chapters: Object.freeze([...configuration.chapters]),
+      router: configuration.router
+    });
+    console.log(
+      "GameStore initialized with configuration:",
+      this.configuration
+    );
     this.historyManager.loadHistory();
+  }
+
+  /**
+   * Get available chapters data
+   */
+  getChaptersData(): ReadonlyArray<ChapterData> {
+    return this.configuration.chapters;
+  }
+
+  /**
+   * Attach the A-Frame scene to the store
+   */
+  public async attachScene(sceneSelector: Scene | string): Promise<void> {
+    return this.sceneManager.attachScene(sceneSelector);
   }
 
   /**
    * Get the A-Frame scene
    */
-  getScene(): any {
-    return this.state.scene;
+  getScene(): Scene | null {
+    return this.sceneManager.getScene();
   }
 
   /**
-   * Set the A-Frame scene
+   * Check if scene is ready for AR
    */
-  setScene(scene: any): void {
-    this.set({ scene });
+  isSceneReady(): boolean {
+    return this.sceneManager.isSceneReady();
+  }
+
+  /**
+   * Enter VR mode
+   */
+  async enterVR(): Promise<void> {
+    return this.sceneManager.enterVR();
+  }
+
+  /**
+   * Exit VR mode
+   */
+  async exitVR(): Promise<void> {
+    return this.sceneManager.exitVR();
+  }
+
+  /**
+   * Start QR scanning mode
+   */
+  public startQRScanning(): void {
+    this.qrManager.startScanning();
+  }
+
+  /**
+   * Stop QR scanning mode
+   */
+  public stopQRScanning(): void {
+    this.qrManager.stopScanning();
   }
 
   /**
@@ -147,6 +225,24 @@ export class GameStore extends LoadableStore {
   resetAllHistory(): void {
     this.historyManager.resetAllHistory();
   }
+
+  /**
+   * Navigate to page overlay 
+   */
+  navigate(route: Route): void {
+    this.pageRouter.navigate(route)
+  }
+
+  showError(error: ErrorInfo): void {
+    this.pageRouter.showError(error)
+  }
+
+  /**
+   * Close page overlay
+   */
+  closePage(): void {
+    this.pageRouter.close();
+  }
 }
 
-export const gameStore = new GameStore();
+export const createGameStore = () => new Game();
