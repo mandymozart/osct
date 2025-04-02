@@ -1,8 +1,8 @@
-import { createGameStore } from "./store";
-import { Chapter, ErrorInfo, GameConfiguration, GameMode, Route } from '../store/types';
 import config from './game.config.json';
-import { router } from "./router";
 import { LoadingPageInterface } from "./pages/loading-page";
+import { router } from "./router";
+import { createGameStore } from "./store";
+import { Chapter, GameConfiguration, GameMode, Route } from './store/types';
 
 export class AppShell extends HTMLElement {
     private game = createGameStore();
