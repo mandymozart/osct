@@ -30,7 +30,7 @@ export abstract class Page extends HTMLElement {
     }
   
     static get observedAttributes() {
-      return ["active"];
+      return ["active", "route-params"];
     }
   
     get active() {
@@ -40,6 +40,34 @@ export abstract class Page extends HTMLElement {
     set active(value: boolean) {
       this._active = value;
       this.setAttribute("active", value.toString());
+    }
+
+    /**
+     * Handle attribute changes
+     * @param name The name of the attribute that changed
+     * @param oldValue The previous value of the attribute
+     * @param newValue The new value of the attribute
+     */
+    attributeChangedCallback(name: string, oldValue: string, newValue: string): void {
+      if (name === 'active' && oldValue !== newValue) {
+        this._active = newValue === 'true';
+        // Additional handling for active state could be done here
+      }
+      
+      if (name === 'route-params' && oldValue !== newValue) {
+        // Subclasses can override handleRouteParamsChange to implement their behavior
+        this.handleRouteParamsChange(newValue);
+      }
+    }
+    
+    /**
+     * Handle route parameter changes
+     * This method is meant to be overridden by subclasses that need routing
+     * @param params The route parameters as a JSON string
+     */
+    protected handleRouteParamsChange(params: string): void {
+      // Default implementation does nothing
+      // Subclasses should override this method to implement their own routing behavior
     }
 
     protected get baseStyles(): string {
