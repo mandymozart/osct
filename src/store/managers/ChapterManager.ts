@@ -22,6 +22,13 @@ export class ChapterManager {
     }
     return null;
   }
+
+  /**
+   * Get chapter
+   */
+  getChapter(): Chapter | null {
+    return this.store.state.currentChapter;
+  }
   
   /**
    * Switch to a different chapter

@@ -25,7 +25,7 @@ export class TutorialPage extends Page {
   protected get template(): string {
     return `
       <div class="content">
-      <h2>How it works</h2>
+      <h2>Tutorial</h2>
       </div>
     `;
   }

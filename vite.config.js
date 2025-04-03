@@ -3,17 +3,24 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   build: {
+    sourcemap: true,
+    server: {
+      sourcemap: 'inline',
+      watch: {
+        usePolling: true,
+        interval: 100
+      }
+    },
     lib: {
-      entry: resolve(__dirname, 'src/store/index.ts'),
-      name: 'GameStore',
-      fileName: 'game-store',
+      entry: resolve(__dirname, 'src/main.ts'),
+      name: 'Book Game',
+      fileName: 'book-game',
       formats: ['es', 'umd']
     },
     rollupOptions: {
-      external: ['three','aframe'], 
+      external: ['aframe'], 
       output: {
         globals: {
-          three: 'THREE',
           aframe: 'AFRAME'
         }
       }

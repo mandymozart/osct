@@ -1,5 +1,5 @@
 import { produce } from 'immer';
-import { chapters } from "../../data/chapters.js";
+import config from "./../../game.config.json";
 import { ConfigurationVersion, GameStore, TargetHistoryEntry } from "../types.js";
 
 /**
@@ -116,7 +116,7 @@ export class HistoryManager {
    */
   getChapterCompletionPercentage(chapterId: string): number {
     const chapter = this.store.state.cachedChapters[chapterId] || 
-                   chapters.find(ch => ch.id === chapterId);
+                   config.chapters.find(ch => ch.id === chapterId);
     
     if (!chapter) return 0;
     

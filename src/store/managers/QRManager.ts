@@ -1,10 +1,10 @@
 import { GameStore, GameMode, Route } from "../types";
-import { initQRScanner } from "../../lib/qrScanner";
 import { URLSearchParams } from "url";
 
 export class QRManager {
   private store: GameStore;
   private isInitialized: boolean = false;
+  private qrScannerElement: HTMLElement | null = null;
 
   constructor(store: GameStore) {
     this.store = store;
@@ -15,10 +15,12 @@ export class QRManager {
    * Start QR scanning mode
    */
   public startScanning(): void {
+    // Initialize QR scanner component if not already done
     if (!this.isInitialized) {
-      initQRScanner(this.handleQRCodeScanned);
+      this.initializeQRScanner();
       this.isInitialized = true;
     }
+    
     this.store.set({ mode: GameMode.QR });
   }
 
@@ -27,6 +29,30 @@ export class QRManager {
    */
   public stopScanning(): void {
     this.store.set({ mode: GameMode.DEFAULT });
+  }
+
+  /**
+   * Initialize the QR scanner component
+   */
+  private initializeQRScanner(): void {
+    // Check if QR scanner already exists in the DOM
+    this.qrScannerElement = document.querySelector('qr-scanner');
+    
+    // If not, create and append it
+    if (!this.qrScannerElement) {
+      this.qrScannerElement = document.createElement('qr-scanner');
+      document.body.appendChild(this.qrScannerElement);
+    }
+    
+    // Listen for QR code scanned events
+    this.qrScannerElement.addEventListener('qr-code-scanned', (event: Event) => {
+      // Cast to CustomEvent to access the detail property
+      const customEvent = event as CustomEvent;
+      const { data } = customEvent.detail;
+      
+      // Handle the scanned QR code
+      this.handleQRCodeScanned(data);
+    });
   }
 
   private getRouteFromUri(): Route | null {
@@ -48,8 +74,14 @@ export class QRManager {
   /**
    * Handle QR code scan result
    */
-  private handleQRCodeScanned(qrCode: string): void {
+  public handleQRCodeScanned(qrCode: string): void {
     console.log("QR code scanned", qrCode);
+    if(qrCode === '<empty string>') { 
+      console.warn('QR code not valid')
+      return 
+
+    }
+      // TODO: 
     // TODO: Decode QR code
     // Assign action according to uri parameters.
     // mode = m
@@ -86,6 +118,17 @@ export class QRManager {
    */
   public cleanup(): void {
     this.stopScanning();
+    
+    // Remove QR scanner element if it exists
+    if (this.qrScannerElement && this.qrScannerElement.parentNode) {
+      this.qrScannerElement.removeEventListener('qr-code-scanned', (event: Event) => {
+        const customEvent = event as CustomEvent;
+        this.handleQRCodeScanned(customEvent.detail.data);
+      });
+      this.qrScannerElement.parentNode.removeChild(this.qrScannerElement);
+      this.qrScannerElement = null;
+    }
+    
     this.isInitialized = false;
   }
 }

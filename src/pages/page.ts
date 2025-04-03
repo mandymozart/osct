@@ -1,7 +1,6 @@
-import { GameStore } from "../store";
-
-/* @ts-ignore */
-const game = window.game;
+import { GameStore } from "../store/types";
+import { GameStoreService } from "../services/GameStoreService";
+import { assert } from "../utils/assert";
 
 export interface BasePage extends HTMLElement {
     active: boolean;
@@ -23,7 +22,11 @@ export abstract class Page extends HTMLElement {
       this.attachShadow({ mode: "open" });
       this._active = false;
       this._template = document.createElement('template');
-      this.game = game;
+      
+      // Get game instance from GameStoreService
+      const gameStore = GameStoreService.getInstance().getGameStore();
+      assert(gameStore, 'Page: Game instance not available from GameStoreService');
+      this.game = gameStore;
     }
   
     static get observedAttributes() {
@@ -43,20 +46,22 @@ export abstract class Page extends HTMLElement {
       return /* css */ `
         :host {
           position: fixed;
-          top: 0;
+          top: var(--offset-top, 3rem);
           left: 0;
           width: 100%;
-          height: 100%;
+          height: calc(100% - var(--offset-top, 3rem));
           display: flex;
           flex-direction: column;
           background: var(--color-background);
+          border-radius: 1.5rem 1.5rem 0 0;
           z-index: var(--page-z-index, 1000);
           transition: all 0.3s ease;
           transform: translateY(20vh);
           opacity: 0;
           visibility: hidden;
+          overflow-y: auto;
         }
-        :host[active=true] {
+        :host([active=true]) {
           visibility: visible;
           transform: translateY(0);
           opacity: 1;

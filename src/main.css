@@ -1,0 +1,134 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-size: 16px;
+  font-weight: 400;
+
+  /* Gray Scale System */
+  --primary-100: #f4f4f5;
+  --primary-200: #e4e4e7;
+  --primary-300: #d4d4d8;
+  --primary-400: #a1a1aa;
+  --primary-500: #71717a;
+  --primary-600: #52525b;
+  --primary-700: #3f3f46;
+  --primary-800: #27272a;
+  --primary-900: #18181b;
+
+  /* Secondary Color Scale (Lavender) */
+  --secondary-100: #eeefff;
+  --secondary-200: #e0e1ff;
+  --secondary-300: #c4c6ff;
+  --secondary-400: #a4a7ff;
+  --secondary-500: #8588ff;
+  --secondary-600: #747bff;  /* Your original secondary color */
+  --secondary-700: #5d63cc;
+  --secondary-800: #464b99;
+  --secondary-900: #2f3266;
+
+  /* Update existing colors to use scales */
+  --color-primary: var(--primary-900);
+  --color-secondary: var(--secondary-600);
+  --color-background: var(--primary-100);
+
+  --offset-top: 4rem;
+
+  color-scheme: light;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  color: var(--color-primary);
+  background-color: var(--color-secondary);
+}
+
+button {
+  border-radius: 1rem;
+  border: 1px solid var(--color-primary);
+  padding: 0.6em 1.2em;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: var(--color-background);
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+.a-enter-vr-button {
+  /* style if you like */
+  display: none !important;
+}
+
+.scenes {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  pointer-events: none;
+}
+
+.test-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.test-navigation div {
+  padding: 1rem;
+}
+.test-navigation ul {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 0;
+  gap: 1rem;
+}
+.test-navigation li {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid;
+  padding: 1rem;
+}
+
+.test-info {
+  z-index: 100;
+  position: fixed;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 10vw;
+  padding: 1rem;
+  background: white;
+  border-radius: 1rem;
+  margin: 1rem;
+  max-height: calc(100dvh - 4rem);
+}
+.test-info .image {
+  width: 100%;
+  border-radius: 0.5rem;
+}
+.test-info .images {
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
