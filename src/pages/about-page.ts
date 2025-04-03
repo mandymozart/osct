@@ -4,10 +4,9 @@ export class AboutPage extends Page {
   protected get styles(): string {
     return /* css */ `
       .content {
-          padding: 0 2rem;
+          padding: 0 1rem;
           overflow-y: auto;
-          height: calc(100vh - 8rem);
-          margin-top: 2rem;
+          height: calc(100vh - var(--offset-top));
         } 
         .close-button {
           position: absolute;
@@ -36,6 +35,7 @@ export class AboutPage extends Page {
   protected get template(): string {
     return `
       <div class="content">
+        <h2>About</h2>
         <h2>Kevin Bray</h2>
         <h1>Onion Skin and Crocodile Tears</h1>
         <p>&copy; 2025</p>
@@ -54,11 +54,12 @@ export class AboutPage extends Page {
   }
 
   setupEventListeners() {
-    this.shadowRoot
-      .querySelector(".close-button")
-      .addEventListener("click", () => {
-        game.setScene(null);
+    const closeButton = this.shadowRoot?.querySelector(".close-button");
+    if (closeButton) {
+      closeButton.addEventListener("click", () => {
+        this.game.closePage();
       });
+    }
   }
   constructor() {
     super();

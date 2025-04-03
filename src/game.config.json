@@ -4,6 +4,8 @@
       {
         "id": "chapter1",
         "order": 0,
+        "firstPage": 1,
+        "lastPage": 3,
         "title": "The Beginning",
         "imageTargetSrc": "/targets/single-image.mind",
         "targets": [
@@ -38,6 +40,8 @@
       {
         "id": "chapter2",
         "order": 1,
+        "firstPage": 4,
+        "lastPage": 9,
         "title": "The Castle Gates",
         "imageTargetSrc": "/targets/single-image.mind",
         "targets": [
@@ -72,6 +76,8 @@
       {
         "id": "chapter3",
         "order": 2,
+        "firstPage": 10,
+        "lastPage": 15,
         "title": "The Dragon's Lair",
         "imageTargetSrc": "/targets/single-image.mind",
         "targets": [

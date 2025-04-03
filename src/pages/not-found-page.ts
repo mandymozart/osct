@@ -6,8 +6,10 @@ export class NotFoundPage extends Page {
       .content {
           padding: 0 2rem;
           overflow-y: auto;
-          height: calc(100vh - 8rem);
           margin-top: 2rem;
+          display: flex;
+          justify-content: center;
+          align-items: stretch;
         } 
     `;
   }
@@ -15,7 +17,7 @@ export class NotFoundPage extends Page {
   protected get template(): string {
     return `
       <div class="content">
-      Page not found
+      🙅🏾 Page not found
       </div>
     `;
   }

@@ -1,5 +1,6 @@
 import { Scene } from "aframe";
 import { LoadableStore } from "./LoadableStore";
+import { Page } from "../pages/base-page";
 
 /**
  * Common interface for resources that can be loaded
@@ -59,6 +60,8 @@ export interface ConfigurationVersion {
 export interface ChapterData {
   id: string;
   order: number;
+  firstPage: number;
+  lastPage: number;  
   title: string;
   imageTargetSrc: string;
   targets: TargetData[];
@@ -176,7 +179,8 @@ export interface GameStore extends LoadableStore {
   stopQRScanning(): void;
 
   // Page Router 
-  navigate(route: Route): void;
+  currentRoute: Route;
+  navigate(to: Pages | string, params?: RouteParam[]): void;
   showError(error: ErrorInfo): void;
   closePage(): void;
 }
@@ -197,20 +201,28 @@ export interface RouterConfig {
   routes: Route[];
 }
 
-export interface Route {
+export type PageRoute = {
   page: Pages;
+  params?: RouteParam[];
+}
+
+export type SlugRoute = {
   slug: string;
   params?: RouteParam[];
 }
 
-export interface RouteParam {
+export type Route = PageRoute | SlugRoute;
+
+export type RouteParam = {
   key: string;
+  value: string | number | boolean | Record<string, unknown>;
 }
 
 export enum Pages {
   HOME = "home",
   TUTORIAL = "tutorial",
   CHAPTERS = "chapters",
+  CHAPTER = "chapter",
   ABOUT = "about",
   ERROR = "error",
   NOT_FOUND = "not-found",

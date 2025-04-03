@@ -1,16 +1,28 @@
 // File: qrScanner.js
 import jsQR from 'jsqr';
 
-let videoElement, canvasElement, canvasContext;
+interface QRScannerElements {
+  video: HTMLVideoElement;
+  canvas: HTMLCanvasElement;
+  context: CanvasRenderingContext2D;
+}
+
+let videoElement: HTMLVideoElement,
+    canvasElement: HTMLCanvasElement,
+    canvasContext: CanvasRenderingContext2D | null;
 let scanningActive = false;
-let onCodeScanned = null;
+interface QRCodeCallback {
+  (chapterId: string): void;
+}
+
+let onCodeScanned: QRCodeCallback | null = null;
 
 // TODO: refactor into a webcomponent and complete strict typing
 
-export function initQRScanner(callback) {
+export function initQRScanner(callback: QRCodeCallback): void {
   // Create and configure elements
-  videoElement = document.getElementById('qr-video');
-  canvasElement = document.getElementById('qr-canvas');
+  videoElement = document.getElementById('qr-video') as HTMLVideoElement;
+  canvasElement = document.getElementById('qr-canvas') as HTMLCanvasElement;
   canvasContext = canvasElement.getContext('2d');
 
   if (!videoElement) {
@@ -31,7 +43,7 @@ export function startQRScanner() {
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
     .then(stream => {
       videoElement.srcObject = stream;
-      videoElement.setAttribute('playsinline', true); // Required for iOS
+      videoElement.setAttribute('playsinline', 'true'); // Required for iOS
       videoElement.play();
       scanningActive = true;
       requestAnimationFrame(scanQRCode);
@@ -46,7 +58,7 @@ export function stopQRScanner() {
   if (!scanningActive) return;
   
   // Stop all video tracks
-  const stream = videoElement.srcObject;
+  const stream = videoElement.srcObject as MediaStream;
   if (stream) {
     const tracks = stream.getTracks();
     tracks.forEach(track => track.stop());
@@ -66,6 +78,9 @@ function scanQRCode() {
     canvasElement.width = videoElement.videoWidth;
     
     // Draw video frame to canvas
+    if (!canvasContext) {
+      throw new Error("Canvas context is null");
+    }
     canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
     
     // Get image data for QR processing

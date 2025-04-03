@@ -12,11 +12,13 @@ import {
   GameMode,
   GameState,
   GameStore,
+  Pages,
   Route,
+  RouteParam,
   Target,
 } from "./types";
 import { QRManager } from "./managers/QRManager";
-import { PageRouter } from "./managers/PageRouter";
+import { PagesRouterManager } from "./managers/PagesRouterManager";
 
 /**
  * Game-specific store that manages chapter loading and target tracking
@@ -31,7 +33,7 @@ export class Game extends LoadableStore implements GameStore {
   private chapterManager: ChapterManager;
   private targetTracker: TargetTracker;
   private historyManager: HistoryManager;
-  private pageRouter: PageRouter;
+  private pageRouter: PagesRouterManager;
   private qrManager: QRManager;
 
 
@@ -46,6 +48,7 @@ export class Game extends LoadableStore implements GameStore {
 
     this.state = {
       // TODO: evaluate getScene vs. direct calling of mode
+      // TODO: type safety for state
       scene: null,
       mode: GameMode.DEFAULT,
       currentRoute: null,
@@ -58,7 +61,7 @@ export class Game extends LoadableStore implements GameStore {
     this.targetTracker = new TargetTracker(this);
     this.historyManager = new HistoryManager(this);
     this.sceneManager = new SceneManager(this);
-    this.pageRouter = new PageRouter(this);
+    this.pageRouter = new PagesRouterManager(this);
     this.qrManager = new QRManager(this);
     
   }
@@ -229,8 +232,12 @@ export class Game extends LoadableStore implements GameStore {
   /**
    * Navigate to page overlay 
    */
-  navigate(route: Route): void {
-    this.pageRouter.navigate(route)
+  getCurrentRoute(): Route {
+    return this.pageRouter.getCurrentRoute();
+  };
+
+  navigate(to: Pages | string, params?: RouteParam[]): void {
+    this.pageRouter.navigate(to, params);
   }
 
   showError(error: ErrorInfo): void {
@@ -245,4 +252,4 @@ export class Game extends LoadableStore implements GameStore {
   }
 }
 
-export const createGameStore = () => new Game();
+export const createGameStore = () => new Game() as unknown as GameStore;
