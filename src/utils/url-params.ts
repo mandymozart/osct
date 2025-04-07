@@ -1,5 +1,5 @@
-import { GameMode, Pages, Route, RouteParam } from "../store/types";
 import { router } from "../router";
+import { GameMode, Pages, RouteParam } from "../types";
 
 interface ParsedParams {
   page?: Pages;

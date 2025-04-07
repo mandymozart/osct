@@ -1,4 +1,4 @@
-import { RouteParam } from "../store/types";
+import { RouteParam } from "../types";
 
 /**
  * Parse route parameters from an HTML element

@@ -1,7 +1,7 @@
-import { GameMode, GameStore } from '../store/types';
 import { GameStoreService } from '../services/GameStoreService';
 import jsQR from 'jsqr';
 import { assert } from '../utils/assert';
+import { GameMode, IGame, IQRScanner } from '../types';
 
 /**
  * QR Scanner Web Component
@@ -10,9 +10,9 @@ import { assert } from '../utils/assert';
  * It uses the device camera to scan QR codes and integrates with
  * the game's QR manager.
  */
-export class QRScanner extends HTMLElement {
+export class QRScanner extends HTMLElement implements IQRScanner {
     // Game store reference
-    private game: GameStore | null = null;
+    private game: IGame | null = null;
     
     // Camera and scanning state
     private scanningActive = false;
@@ -39,11 +39,9 @@ export class QRScanner extends HTMLElement {
     /**
      * Called when the element is added to the DOM
      */
-    connectedCallback() {
-        console.log("QR Scanner connectedCallback")
-        
+    public connectedCallback() {        
         // Get game instance from GameStoreService
-        this.game = GameStoreService.getInstance().getGameStore();
+        this.game = GameStoreService.getInstance().getGame();
         
         this.render();
         this.initializeElements();
@@ -53,7 +51,7 @@ export class QRScanner extends HTMLElement {
     /**
      * Called when the element is removed from the DOM
      */
-    disconnectedCallback() {
+    public disconnectedCallback() {
         this.cleanupResources();
     }
 
@@ -199,7 +197,7 @@ export class QRScanner extends HTMLElement {
         const closeButton = this.shadowRoot.querySelector('.close-button');
         closeButton?.addEventListener('click', () => {
             if (this.game) {
-                this.game.stopQRScanning();
+                this.game.qr.stopScanning();
             }
         });
         
@@ -253,7 +251,7 @@ export class QRScanner extends HTMLElement {
     /**
      * Start the camera and begin QR scanning
      */
-    private async startCamera() {
+    public async startCamera() {
         if (!this.videoElement || !this.canvasElement || this.scanningActive) {
             return;
         }
@@ -291,7 +289,7 @@ export class QRScanner extends HTMLElement {
     /**
      * Stop the camera and QR scanning
      */
-    private stopCamera() {
+    public stopCamera() {
         if (!this.scanningActive) return;
         
         // Stop animation frame
@@ -386,14 +384,14 @@ export class QRScanner extends HTMLElement {
                 const chapterId = data.split(':')[1];
                 const confirmed = confirm(`Navigate to Chapter ${chapterId}?`);
                 if (confirmed) {
-                    this.game.switchChapter(chapterId);
+                    this.game.chapters.switchChapter(chapterId);
                 }
             }
             
             // Exit QR mode after successful scan
             setTimeout(() => {
                 if (this.game) {
-                    this.game.stopQRScanning();
+                    this.game.qr.stopQRScanning();
                 }
             }, 1500);
         } catch (error) {

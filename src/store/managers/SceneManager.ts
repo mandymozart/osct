@@ -1,23 +1,24 @@
-import { Scene } from 'aframe';
-import { GameMode, GameStore } from "../types";
+import { Scene } from "aframe";
+import { ErrorCode, GameMode, IGame, ISceneManager } from "./../../types";
 
-export class SceneManager {
-  private store: GameStore;
-  
-  constructor(store: GameStore) {
-    this.store = store;
+export class SceneManager implements ISceneManager {
+  private game: IGame;
+
+  constructor(game: IGame) {
+    this.game = game;
   }
 
   /**
    * Attach an A-Frame scene to the store
    * @param sceneSelector Scene instance or DOM selector
    */
-  async attachScene(sceneSelector: Scene | string): Promise<void> {
+  public async attachScene(sceneSelector: Scene | string): Promise<void> {
     try {
       // Get scene element
-      const scene = typeof sceneSelector === 'string' 
-        ? document.querySelector(sceneSelector) as Scene
-        : sceneSelector;
+      const scene =
+        typeof sceneSelector === "string"
+          ? (document.querySelector(sceneSelector) as Scene)
+          : sceneSelector;
 
       if (!scene) {
         throw new Error(`Scene not found: ${sceneSelector}`);
@@ -27,10 +28,10 @@ export class SceneManager {
       if (!scene.hasLoaded) {
         await new Promise<void>((resolve) => {
           const handler = () => {
-            scene.removeEventListener('loaded', handler);
+            scene.removeEventListener("loaded", handler);
             resolve();
           };
-          scene.addEventListener('loaded', handler);
+          scene.addEventListener("loaded", handler);
         });
       }
 
@@ -40,98 +41,101 @@ export class SceneManager {
       }
 
       // Store scene reference
-      this.store.set({ scene });
-      console.log('A-Frame scene attached and ready');
-
+      this.game.set({ scene });
+      console.log("A-Frame scene attached and ready");
     } catch (error) {
-      console.error('Failed to attach scene:', error);
+      console.error("Failed to attach scene:", error);
       throw error;
     }
   }
 
   /**
-   * Get the current A-Frame scene
-   */
-  getScene(): Scene | null {
-    return this.store.state.scene;
-  }
-
-  /**
    * Check if scene is ready for AR/VR
    */
-  isSceneReady(): boolean {
-    const scene = this.getScene();
+  public isSceneReady(): boolean {
+    const { scene } = this.game.state;
     return !!(scene && scene.hasLoaded && scene.isPlaying);
   }
 
-  public updateSceneVisibility(): void {
-    const scene = this.getScene();
-    if (!scene) return;
+  /**
+   * Update scene visibility based on current game mode
+   */
+  public async updateSceneVisibility(): Promise<void> {
+    if (!this.game.state.scene) return;
 
-    switch (this.store.state.mode) {
-      case GameMode.DEFAULT:
-        scene.setAttribute("visible", "true");
-        scene.play();
-        // Ensure we're not in VR
-        if (scene.is('vr-mode')) {
-          scene.exitVR();
-        }
-        break;
-      case GameMode.VR:
-        scene.setAttribute("visible", "true");
-        scene.play();
-        // Enter VR if not already
-        if (!scene.is('vr-mode')) {
-          scene.enterVR();
-        }
-        break;
-      case GameMode.QR:
-        scene.setAttribute("visible", "false");
-        scene.pause();
-        // Always exit VR in QR mode
-        if (scene.is('vr-mode')) {
-          scene.exitVR();
-        }
-        break;
+    try {
+      switch (this.game.state.mode) {
+        case GameMode.DEFAULT:
+          this.game.state.scene.setAttribute("visible", "true");
+          this.game.state.scene.play();
+          await this.exitVR();
+          break;
+
+        case GameMode.VR:
+          this.game.state.scene.setAttribute("visible", "true");
+          this.game.state.scene.play();
+          await this.enterVR();
+          break;
+
+        case GameMode.QR:
+          this.game.state.scene.setAttribute("visible", "false");
+          this.game.state.scene.pause();
+          await this.exitVR();
+          break;
+      }
+    } catch (error) {
+      console.error("Failed to update scene visibility:", error);
+      this.game.state.scene.setAttribute("visible", "true");
+      this.game.state.scene.play();
+      this.game.notifyError({
+        code: ErrorCode.FAILED_TO_UPDATE_SCENE,
+        msg: "Failed to update scene mode",
+      });
+      throw error;
     }
   }
 
   /**
    * Enter VR mode if available
    */
-  async enterVR(): Promise<void> {
-    const scene = this.getScene();
+  public async enterVR(): Promise<void> {
+    const { scene } = this.game.state;
     if (!scene) {
-      throw new Error('No scene attached');
+      throw new Error("No scene attached");
     }
 
     try {
-      if (!scene.is('vr-mode')) {
+      if (!scene.is("vr-mode")) {
         await scene.enterVR();
-        this.store.set({ mode: GameMode.VR });
+        this.game.set({ mode: GameMode.VR });
       }
     } catch (error) {
-      console.error('Failed to enter VR mode:', error);
-      // Fallback to default mode
-      this.store.set({ mode: GameMode.DEFAULT });
+      this.game.set({ mode: GameMode.DEFAULT });
+      this.game.notifyError({
+        code: ErrorCode.FAILED_TO_ENTER_VR,
+        msg: "Failed to enter VR mode",
+      });
       throw error;
     }
   }
 
   /**
-   * Exit VR mode
+   * Exit VR mode if active
    */
-  async exitVR(): Promise<void> {
-    const scene = this.getScene();
+  public async exitVR(): Promise<void> {
+    const { scene } = this.game.state;
     if (!scene) return;
 
     try {
-      if (scene.is('vr-mode')) {
+      if (scene.is("vr-mode")) {
         await scene.exitVR();
+        this.game.set({ mode: GameMode.DEFAULT });
       }
-      this.store.set({ mode: GameMode.DEFAULT });
     } catch (error) {
-      console.error('Failed to exit VR mode:', error);
+      this.game.notifyError({
+        code: ErrorCode.FAILED_TO_EXIT_VR,
+        msg: "Failed to exit VR mode",
+      });
       throw error;
     }
   }
@@ -140,10 +144,10 @@ export class SceneManager {
    * Clean up scene resources
    */
   cleanup(): void {
-    const scene = this.getScene();
+    const { scene } = this.game.state;
     if (scene) {
       scene.pause();
-      this.store.set({ scene: null });
+      this.game.set({ scene: null });
     }
   }
 }

@@ -1,16 +1,16 @@
-import { GameMode, GameStore } from "../store/types";
 import { GameStoreService } from "../services/GameStoreService";
+import { IGame, GameMode } from "../types";
 
-export interface QRButtonInterface extends HTMLElement {
+export interface IQRButton extends HTMLElement {
   toggleQRMode(): void;
 }
 
-export class QRButton extends HTMLElement {
+export class QRButton extends HTMLElement implements IQRButton {
   private button: HTMLButtonElement | null = null;
   private unsubscribe: (() => void) | null = null;
 
   // Game store reference
-  private game: GameStore | null = null;
+  private game: IGame | null = null;
 
   constructor() {
     super();
@@ -21,7 +21,7 @@ export class QRButton extends HTMLElement {
 
   connectedCallback() {
     // Get game instance from GameStoreService
-    this.game = GameStoreService.getInstance().getGameStore();
+    this.game = GameStoreService.getInstance().getGame();
 
     this.render();
     this.setupListeners();
@@ -39,45 +39,8 @@ export class QRButton extends HTMLElement {
                 :host {
                     display: inline-block;
                 }
-                
-                button {
-                    font-weight: 500;
-                    color: var(--color-primary, #333);
-                    text-decoration: inherit;
-                    border-radius: 1em;
-                    border: 1px solid var(--color-primary, #333);
-                    padding: 0 1em;
-                    font-size: 1em;
-                    line-height: 2em;
-                    font-family: inherit;
-                    background-color: var(--color-background, #fff);
-                    cursor: pointer;
-                    transition: all 0.25s ease;
-                }
-
-                button:hover {
-                    border-color: var(--color-secondary, #666);
-                    color: var(--color-secondary, #666);
-                }
-
-                button:focus,
-                button:focus-visible {
-                    outline: 4px auto -webkit-focus-ring-color;
-                }
-
-                button.active {
-                    border-color: var(--color-secondary, #666);
-                    background-color: var(--color-accent, #f0f0f0);
-                    color: var(--color-secondary, #666);
-                    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
-                }
-                
-                button[disabled] {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
             </style>
-            <button>
+            <button is="text-button">
                 ${this.buttonText}
             </button>
         `;
@@ -148,9 +111,9 @@ export class QRButton extends HTMLElement {
 
     try {
       if (this.game.state.mode === GameMode.QR) {
-        this.game.stopQRScanning();
+        this.game.qr.stopScanning();
       } else if (this.game.state.mode !== GameMode.VR) {
-        this.game.startQRScanning();
+        this.game.qr.startScanning();
       }
     } catch (error) {
       console.error("Error toggling QR scanning mode:", error);

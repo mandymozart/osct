@@ -151,7 +151,7 @@ export class TextButton extends HTMLButtonElement {
       this.removeEventListener('click', this.handleClick);
     }
     
-    handleClick = (e) => {
+    handleClick = (e:Event) => {
       // Dispatch custom event in addition to normal button click
       this.dispatchEvent(new CustomEvent('button-click', {
         bubbles: true,

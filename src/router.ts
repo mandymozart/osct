@@ -1,5 +1,3 @@
-import { Pages } from "./store";
-
 /**
  * Actual router is defined in managers/PageRouter.
  *
@@ -12,6 +10,8 @@ import { Pages } from "./store";
  * 404 Page Not Found does not appear here.
  * TODO: May
  */
+
+import { Pages } from "./types";
 
 export const router = {
   baseUrl: "",

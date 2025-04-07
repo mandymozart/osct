@@ -1,18 +1,18 @@
 import { produce } from 'immer';
 import config from "./../../game.config.json";
-import { ConfigurationVersion, GameStore, TargetHistoryEntry } from "../types.js";
+import { ConfigurationVersion, IGame, TargetHistoryEntry as HistoryEntry, IHistoryManager } from '@/types';
 
 /**
  * Manages user history and progress tracking
  */
-export class HistoryManager {
-  private store: GameStore; // Reference to the main store
-  private targetHistory: TargetHistoryEntry[] = [];
+export class HistoryManager implements IHistoryManager {
+  private game: IGame; // Reference to the main store
+  private history: HistoryEntry[] = [];
   private readonly HISTORY_STORAGE_KEY = 'ar-game-target-history';
   private readonly CONFIG_VERSION_KEY = 'ar-game-config-version';
 
-  constructor(store: GameStore) {
-    this.store = store;
+  constructor(game: IGame) {
+    this.game = game;
   }
   
   /**
@@ -21,7 +21,7 @@ export class HistoryManager {
   private checkConfigurationVersion(): void {
     try {
       const storedVersion = localStorage.getItem(this.CONFIG_VERSION_KEY);
-      const currentVersion = this.store.configuration.version;
+      const currentVersion = this.game.configuration.version;
       
       if (!storedVersion) {
         this.saveConfigurationVersion();
@@ -50,7 +50,7 @@ export class HistoryManager {
   private saveConfigurationVersion(): void {
     try {
       const versionData: ConfigurationVersion = {
-        version: this.store.configuration.version,
+        version: this.game.configuration.version,
         timestamp: Date.now()
       };
       localStorage.setItem(this.CONFIG_VERSION_KEY, JSON.stringify(versionData));
@@ -62,7 +62,7 @@ export class HistoryManager {
   /**
    * Load target history from local storage
    */
-  loadHistory(): void {
+  public load(): void {
     this.checkConfigurationVersion();
     this.loadTargetHistory();
   }
@@ -70,14 +70,14 @@ export class HistoryManager {
   /**
    * Mark a target as seen by the user
    */
-  markTargetAsSeen(chapterId: string, targetIndex: number): void {
-    const existingEntry = this.targetHistory.find(
+  public markTargetAsSeen(chapterId: string, targetIndex: number): void {
+    const existingEntry = this.history.find(
       entry => entry.chapterId === chapterId && entry.targetIndex === targetIndex
     );
     
     if (!existingEntry) {
       // Use Immer to update history
-      this.targetHistory = produce(this.targetHistory, draft => {
+      this.history = produce(this.history, draft => {
         draft.push({
           chapterId,
           targetIndex,
@@ -89,15 +89,15 @@ export class HistoryManager {
       this.saveTargetHistory();
       
       // Notify listeners of change
-      this.store.notifyListeners();
+      this.game.notifyListeners();
     }
   }
 
   /**
    * Check if a target has been seen before
    */
-  hasTargetBeenSeen(chapterId: string, targetIndex: number): boolean {
-    return this.targetHistory.some(
+  public hasTargetBeenSeen(chapterId: string, targetIndex: number): boolean {
+    return this.history.some(
       entry => entry.chapterId === chapterId && entry.targetIndex === targetIndex
     );
   }
@@ -105,8 +105,8 @@ export class HistoryManager {
   /**
    * Get all target indices that have been seen in a specific chapter
    */
-  getSeenTargetsForChapter(chapterId: string): number[] {
-    return this.targetHistory
+  public getSeenTargetsForChapter(chapterId: string): number[] {
+    return this.history
       .filter(entry => entry.chapterId === chapterId)
       .map(entry => entry.targetIndex);
   }
@@ -114,8 +114,8 @@ export class HistoryManager {
   /**
    * Calculate the percentage of targets seen in a chapter
    */
-  getChapterCompletionPercentage(chapterId: string): number {
-    const chapter = this.store.state.cachedChapters[chapterId] || 
+  public getChapterCompletionPercentage(chapterId: string): number {
+    const chapter = this.game.state.chapters[chapterId] || 
                    config.chapters.find(ch => ch.id === chapterId);
     
     if (!chapter) return 0;
@@ -130,30 +130,30 @@ export class HistoryManager {
   /**
    * Check if all targets in a chapter have been seen
    */
-  isChapterComplete(chapterId: string): boolean {
+  public isChapterComplete(chapterId: string): boolean {
     return this.getChapterCompletionPercentage(chapterId) === 100;
   }
 
   /**
    * Reset seen history for a specific chapter
    */
-  resetChapterHistory(chapterId: string): void {
+  public resetChapterHistory(chapterId: string): void {
     // Use Immer to filter out entries for the specified chapter
-    this.targetHistory = produce(this.targetHistory, draft => {
+    this.history = produce(this.history, draft => {
       return draft.filter(entry => entry.chapterId !== chapterId);
     });
     
     this.saveTargetHistory();
-    this.store.notifyListeners();
+    this.game.notifyListeners();
   }
 
   /**
    * Reset all target history
    */
-  resetAllHistory(): void {
-    this.targetHistory = [];
+  public reset(): void {
+    this.history = [];
     this.saveTargetHistory();
-    this.store.notifyListeners();
+    this.game.notifyListeners();
   }
 
   /**
@@ -163,7 +163,7 @@ export class HistoryManager {
     try {
       localStorage.setItem(
         this.HISTORY_STORAGE_KEY, 
-        JSON.stringify(this.targetHistory)
+        JSON.stringify(this.history)
       );
     } catch (error) {
       console.warn('Failed to save target history to localStorage:', error);
@@ -177,7 +177,7 @@ export class HistoryManager {
     try {
       const storedHistory = localStorage.getItem(this.HISTORY_STORAGE_KEY);
       if (storedHistory) {
-        this.targetHistory = JSON.parse(storedHistory);
+        this.history = JSON.parse(storedHistory);
       }
     } catch (error) {
       console.warn('Failed to load target history from localStorage:', error);

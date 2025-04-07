@@ -1,10 +1,10 @@
 import { Page } from "./page";
-import { Chapter } from "../store/types";
-import { getParam, getParams } from "../utils/route-params";
-import "./../components/text-button"
+import { getParam } from "../utils/route-params";
+import { ChapterResource, GameState } from "../types";
+import { assert } from "../utils/assert";
 
 export class ChapterPage extends Page {
-  private chapter: Chapter | null = null;
+  private chapter: ChapterResource | null = null;
   private chapterId?: string;
 
   protected get styles(): string {
@@ -65,18 +65,7 @@ export class ChapterPage extends Page {
 
   constructor() {
     super();
-    console.log("[ChapterPage] Constructor called",this.game);
     this.handleStateChange = this.handleStateChange.bind(this);
-    
-    // The game property is already initialized in the Page base class constructor
-    // We can just verify it's available
-    if (!this.game) {
-      console.warn("ChapterPage: GameStore not available from Page constructor");
-    }
-  }
-
-  static get observedAttributes() {
-    return ["active", "route-params"];
   }
 
   /**
@@ -92,146 +81,110 @@ export class ChapterPage extends Page {
    * Load the chapter from the game store
    */
   private loadCurrentChapter(): void {
-    if (!this.game) {
-      console.error("Cannot load chapter: GameStore not available");
-      return;
-    }
-    
-    console.log("[ChapterPage] Loading chapter, chapterId:", this.chapterId);
-    console.log("[ChapterPage] Current chapter in state:", this.game.state.currentChapter);
-    
+    assert(this.game, "GameStore not available in loadCurrentChapter");
+
     if (this.chapterId) {
       // First check if we already have the chapter in state
-      if (this.game.state.currentChapter && this.game.state.currentChapter.id === this.chapterId) {
-        console.log(`[ChapterPage] Using current chapter from state, id: ${this.chapterId}`);
+      if (
+        this.game.state.currentChapter &&
+        this.game.state.currentChapter.id === this.chapterId
+      ) {
         this.chapter = this.game.state.currentChapter;
         this.updateView();
       } else {
         // Try to get from cache first
-        const cachedChapter = this.game.getCachedChapter(this.chapterId);
+        const cachedChapter = this.game.chapters.getCachedChapter(this.chapterId);
         if (cachedChapter) {
-          console.log(`[ChapterPage] Using cached chapter, id: ${this.chapterId}`);
           this.chapter = cachedChapter;
           this.updateView();
         } else {
-          console.log(`[ChapterPage] Switching to chapter, id: ${this.chapterId}`);
           // Switch to the requested chapter
-          this.game.switchChapter(this.chapterId);
+          this.game.chapters.switchChapter(this.chapterId);
           // The state will update and handleStateChange will be called
         }
       }
     } else if (this.game.state.currentChapter) {
-      console.log(`[ChapterPage] No chapter ID provided, using current chapter: ${this.game.state.currentChapter.id}`);
       // Use the existing current chapter if no specific ID is provided
       this.chapter = this.game.state.currentChapter;
       this.updateView();
     } else {
-      console.warn("[ChapterPage] No chapter ID provided and no current chapter in state");
-      console.log("[ChapterPage] Available chapters:", this.game.getChaptersData());
+      // No chapter available
+      // this.game.notifyError({
+      //   msg: "No chapter available to display",
+      //   code: "no-chapter-available"
+      // });
     }
   }
 
   connectedCallback() {
     super.connectedCallback();
-    console.log("[ChapterPage] Connected, checking GameStore...");
-    
-    // Ensure game store is available
-    if (!this.game) {
-      console.error("[ChapterPage] Game store not available after super.connectedCallback()");
-      return;
-    }
-    console.log("[ChapterPage] GameStore available");
+    assert(this.game, "GameStore not available in connectedCallback");
 
-    console.log("[ChapterPage] Subscribing to state changes");
     this.game.subscribe(this.handleStateChange);
-    
-    console.log("[ChapterPage] Processing route params");
+
     // Check for route params
     this.processRouteParams();
-    
+
     // If we still don't have a chapter ID, check if there's one in the state
     if (!this.chapterId && this.game.state.currentChapter) {
-      console.log(`[ChapterPage] No chapterId from route, using current: ${this.game.state.currentChapter.id}`);
       this.chapterId = this.game.state.currentChapter.id;
     }
-    
-    console.log("[ChapterPage] Loading chapter");
+
     // Load chapter either from provided ID or from state
     this.loadCurrentChapter();
-    
-    console.log("[ChapterPage] Setting up event listeners");
     this.setupListeners();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.game?.unsubscribe(this.handleStateChange);
+    assert(this.game, "GameStore not available in disconnectedCallback");
+    this.game.unsubscribe(this.handleStateChange);
   }
 
-  attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-    if (name === 'route-params' && oldValue !== newValue) {
-      this.processRouteParams();
-    }
-  }
-  
-  private processRouteParams() {
-    this.chapterId = getParam<string>(this, 'chapterId');;
-    
+  protected handleRouteParamsChange(paramsJson: string): void {
+    this.processRouteParams();
+
     if (this.chapterId) {
       this.loadCurrentChapter();
-    } else {
-        console.warn("[ChapterPage] No chapterId found in route params");
     }
   }
 
-  private handleStateChange(state: { currentChapter: Chapter | null }) {
-    console.log("[ChapterPage] State changed, current chapter:", state.currentChapter);
-    
-    if (!this.game) {
-      console.error("[ChapterPage] GameStore not available in handleStateChange");
-      return;
+  private processRouteParams() {
+    this.chapterId = getParam<string>(this, "chapterId");
+
+    if (this.chapterId) {
+      this.loadCurrentChapter();
     }
-    
+  }
+
+  private handleStateChange(state: GameState) {
+    assert(this.game, "GameStore not available in handleStateChange");
+
     if (state.currentChapter) {
       // Update our chapterId if a new chapter was loaded
       this.chapterId = state.currentChapter.id;
       this.chapter = state.currentChapter;
-      console.log(`[ChapterPage] Chapter updated from state change: ${state.currentChapter.id}`);
       this.updateView();
-    } else {
-      console.warn("[ChapterPage] State changed but no current chapter is set");
     }
   }
 
   private updateView() {
-    console.log("[ChapterPage] Updating view");
-    
-    if (!this.shadowRoot || !this.game) {
-      console.error("[ChapterPage] Cannot update view: Missing shadowRoot or GameStore");
-      return;
-    }
+    console.log('ChapterPage.updateView()', this.chapter);
+    assert(this.shadowRoot, "ShadowRoot not available in updateView");
+    assert(this.game, "GameStore not available in updateView");
 
     const content = this.shadowRoot.querySelector(".chapter-content");
-    if (!content) {
-      console.error("[ChapterPage] Content element not found");
-      return;
-    }
+    assert(content, "Content element not found");
 
     if (!this.chapter) {
-      console.warn("[ChapterPage] No chapter available to display");
       content.innerHTML = "<p>No chapter selected</p>";
       return;
     }
-    
-    console.log(`[ChapterPage] Rendering chapter: ${this.chapter.id} - ${this.chapter.title}`);
 
-    const completion = this.game.getChapterCompletionPercentage(
+    const completion = this.game.history.getChapterCompletionPercentage(
       this.chapter.id
     );
-    const seenTargets = this.game.getSeenTargetsForChapter(this.chapter.id);
-    
-    console.log(`[ChapterPage] Chapter completion: ${completion}%`);
-    console.log(`[ChapterPage] Seen targets: ${seenTargets.length}/${this.chapter.targets.length}`);
+    const seenTargets = this.game.history.getSeenTargetsForChapter(this.chapter.id);
 
     // Update chapter header
     const headerTitle = this.shadowRoot.querySelector(".chapter-header h2");
@@ -246,7 +199,7 @@ export class ChapterPage extends Page {
       <p>Progress: ${completion}% complete</p>
       
       <div class="target-list">
-        ${this.chapter.targets
+        ${this.chapter?.targets
           .map(
             (target, index) => /* html */ `
           <div 
@@ -261,20 +214,18 @@ export class ChapterPage extends Page {
           .join("")}
       </div>
     `;
-
-    // We've removed the target click handlers as requested
-    // The page is now purely for displaying chapter content
   }
 
-  // We've removed the onTargetClick handler as requested
-  // This page is now purely for displaying chapter content
-
   private setupListeners() {
-    if (!this.game || !this.shadowRoot) return;
-    
+    assert(this.shadowRoot, "ShadowRoot not available in setupListeners");
+    assert(this.game, "GameStore not available in setupListeners");
+    assert(this.game.router, "Router not available in setupListeners");
+
     const backButton = this.shadowRoot.querySelector(".back-button");
-    backButton?.addEventListener("click", () => {
-      this.game?.navigate('/chapters');
+    assert(backButton, "Back button not found");
+    
+    backButton.addEventListener("click", () => {
+      this.game.router.navigate("/chapters");
     });
   }
 }

@@ -1,5 +1,5 @@
-import { GameMode, GameStore } from "../store/types";
 import { GameStoreService } from "../services/GameStoreService";
+import { GameMode } from "../types";
 import { assert } from "../utils/assert";
 
 /**
@@ -91,7 +91,7 @@ export class SceneButton extends HTMLElement {
         }
         
         // Get game instance from GameStoreService
-        const game = GameStoreService.getInstance().getGameStore();
+        const game = GameStoreService.getInstance().getGame();
         
         // Use assert to ensure game is available
         assert(game, 'Scene Button: Game instance not available from GameStoreService');
@@ -117,7 +117,7 @@ export class SceneButton extends HTMLElement {
     private updateButtonState() {
         if (!this.button) return;
         
-        const game = GameStoreService.getInstance().getGameStore();
+        const game = GameStoreService.getInstance().getGame();
         assert(game, 'Scene Button: Game instance not available when updating button state');
         
         const isVRMode = game.state.mode === GameMode.VR;
@@ -145,7 +145,7 @@ export class SceneButton extends HTMLElement {
     }
 
     private handleClick() {
-        const game = GameStoreService.getInstance().getGameStore();
+        const game = GameStoreService.getInstance().getGame();
         assert(game, 'Scene Button: Game instance not available when handling click');
         
         try {

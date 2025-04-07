@@ -1,6 +1,6 @@
 import { Page } from "./page";
 
-export interface ErrorPageInterface extends HTMLElement {
+export interface IErrorPage extends HTMLElement {
     showError(msg: string, duration?: number): void;
 }
 
@@ -14,7 +14,7 @@ export interface ErrorPageInterface extends HTMLElement {
  * // Show persistent error
  * showError({ code: 'FATAL', msg: 'Fatal error occurred' }, 0);
  */
-class ErrorPage extends Page {
+class ErrorPage extends Page implements IErrorPage {
   private message: string = '';
 
   protected get styles(): string {
