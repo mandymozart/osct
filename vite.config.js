@@ -4,6 +4,18 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   build: {
     sourcemap: true,
+    alias: {
+      '@': resolve(__dirname, './src'),
+      '@types': resolve(__dirname, './src/types'),
+      '@components': resolve(__dirname, './src/components'),
+      '@services': resolve(__dirname, './src/services'),
+      '@utils': resolve(__dirname, './src/utils'),
+      '@pages': resolve(__dirname, './src/pages'),
+      '@stores': resolve(__dirname, './src/stores'),
+      '@targets': resolve(__dirname, './src/targets'),
+      '@assets': resolve(__dirname, './src/assets'),
+      '@deps': resolve(__dirname, './src/deps'),
+    },
     server: {
       sourcemap: 'inline',
       watch: {

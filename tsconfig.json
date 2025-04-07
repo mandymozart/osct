@@ -14,8 +14,21 @@
       "resolveJsonModule": true,
       "isolatedModules": true,
       "noEmit": false,
-      "types":  ["vite/client","aframe", "three"]
+      "types":  ["vite/client","aframe", "three"],
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"],
+        "@types": ["./src/types"],
+        "@components": ["./src/components/*"],
+        "@services": ["./src/services/*"],
+        "@utils": ["./src/utils/*"],
+        "@pages": ["./src/pages/*"],
+        "@stores": ["./src/stores/*"],
+        "@targets": ["./src/targets/*"],
+        "@assets": ["./src/assets/*"],
+        "@deps": ["./src/deps/*"]
+      },
     },
-    "include": ["src/**/*.ts"],
-    "exclude": ["node_modules", "**/*.spec.ts"]
+    "include": ["./src/**/*.ts"],
+    "exclude": ["./node_modules", "**/*.spec.ts"]
   }

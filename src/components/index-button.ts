@@ -1,5 +1,5 @@
-import { GameStore, Pages, Route } from "../store/types";
 import { GameStoreService } from "../services/GameStoreService";
+import { Route, Pages } from "../types";
 import { assert } from "../utils/assert";
 
 /**
@@ -79,7 +79,7 @@ export class IndexButton extends HTMLElement {
         }
         
         // Get game instance and assert it exists
-        const game = GameStoreService.getInstance().getGameStore();
+        const game = GameStoreService.getInstance().getGame();
         assert(game, 'Index Button: Game instance not available from GameStoreService');
     }
 
@@ -96,7 +96,7 @@ export class IndexButton extends HTMLElement {
 
     private handleClick() {
         // Get game instance and assert it exists
-        const game = GameStoreService.getInstance().getGameStore();
+        const game = GameStoreService.getInstance().getGame();
         assert(game, 'Index Button: Game instance not available when handling click');
         
         try {

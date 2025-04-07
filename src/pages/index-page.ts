@@ -1,5 +1,5 @@
 import { Page } from "./page";
-import { GameMode, Target } from "../store/types";
+import { GameMode, Target } from "../types";
 import { assert } from "../utils/assert";
 
 export class IndexPage extends Page {
@@ -58,7 +58,7 @@ export class IndexPage extends Page {
     assert(this.game, 'Game store not initialized');
     
     this.game.subscribe(this.handleStateChange);
-    this.trackedTargets = this.game.getTrackedTargetObjects();
+    this.trackedTargets = this.game.targets.getTrackedTargetObjects();
     this.updateView();
   }
 
@@ -71,13 +71,14 @@ export class IndexPage extends Page {
     assert(this.game, 'Game store not initialized');
     
     // Get full target objects instead of just indices
-    this.trackedTargets = this.game.getTrackedTargetObjects();
+    this.trackedTargets = this.game.targets.getTrackedTargetObjects();
     this.updateView();
   }
 
   private updateView() {
     assert(this.shadowRoot, 'Shadow root not initialized');
     
+    // TODO: Evaluate which target type is used here. TargetData
     const targetList = this.trackedTargets
       .filter((target) => target.mode === "index")
       .map(

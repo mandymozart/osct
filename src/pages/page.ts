@@ -1,8 +1,9 @@
-import { GameStore } from "../store/types";
 import { GameStoreService } from "../services/GameStoreService";
 import { assert } from "../utils/assert";
+import { IGame } from "../types";
 
-export interface BasePage extends HTMLElement {
+// TODO: Fix protected properties in the abstract class def
+export interface IPage extends HTMLElement {
     active: boolean;
     readonly styles: string;
     readonly template: string;
@@ -15,7 +16,7 @@ export interface BasePage extends HTMLElement {
 export abstract class Page extends HTMLElement {
     protected _active: boolean;
     private _template: HTMLTemplateElement;
-    protected game: GameStore
+    protected game: IGame | null;
     
     constructor() {
       super();
@@ -24,7 +25,7 @@ export abstract class Page extends HTMLElement {
       this._template = document.createElement('template');
       
       // Get game instance from GameStoreService
-      const gameStore = GameStoreService.getInstance().getGameStore();
+      const gameStore = GameStoreService.getInstance().getGame();
       assert(gameStore, 'Page: Game instance not available from GameStoreService');
       this.game = gameStore;
     }

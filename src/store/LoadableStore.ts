@@ -1,10 +1,10 @@
 import { produce } from 'immer';
-import { ErrorCode, LoadableResource } from './types';
+import { ErrorCode, ILoadableStore, LoadableResource } from './../types';
 
 /**
  * Base class for implementing stores that manage loadable resources
  */
-export class LoadableStore {
+export class LoadableStore implements ILoadableStore{
   state: Record<string, any>;
   listeners: Function[];
   

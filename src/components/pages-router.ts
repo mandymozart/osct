@@ -1,14 +1,12 @@
-import { Route, GameStore, Pages, RouteParam } from "../store/types";
 import { GameStoreService } from "../services/GameStoreService";
+import { GameState, IGame, IPagesRouter, IRouterManager, Route, RouteParam } from "../types";
 import { assert } from "../utils/assert";
+import { router as routerConfig } from "../router";
 
-export interface PagesRouterInterface extends HTMLElement {
-  updateRoute(route: Route | null): void;
-}
-
-export class PagesRouter extends HTMLElement {
+export class PagesRouter extends HTMLElement implements IPagesRouter {
   private pages: Map<string, HTMLElement> = new Map();
-  private game: GameStore | null = null;
+  private game: IGame | null = null;
+  private router: IRouterManager | null = null;
 
   constructor() {
     super();
@@ -17,16 +15,18 @@ export class PagesRouter extends HTMLElement {
   }
 
   connectedCallback() {
-    this.game = GameStoreService.getInstance().getGameStore();
+    this.game = GameStoreService.getInstance().getGame();
     assert(this.game, "Game store not initialized");
+    this.router = this.game.router;
+    assert(this.router, "Router manager not initialized");
 
     this.render();
     this.setupPages();
     this.setupListeners();
 
-    // Show home page by default if no route is set
-    if (!this.game.state.currentRoute) {
-      this.game.navigate("/"); // Use slug for home page
+    // Only navigate to home if there's no current route AND we're at the root URL
+    if (!this.game.state.currentRoute && (window.location.pathname === '/' || window.location.pathname === '')) {
+      this.game.router.navigate("/"); // Use slug for home page
     }
   }
 
@@ -36,7 +36,7 @@ export class PagesRouter extends HTMLElement {
     }
   }
 
-  private handleStateChange(state: GameStore) {
+  private handleStateChange(state: GameState) {
     this.updateRoute(state.currentRoute);
   }
 
@@ -55,7 +55,7 @@ export class PagesRouter extends HTMLElement {
       return `${route.page.toLowerCase()}-page`;
     }
     // For slug routes, try to find matching route in configuration
-    const configRoute = this.game?.configuration.router?.routes.find(
+    const configRoute = routerConfig.routes.find(
       (r) => "slug" in r && r.slug === route.slug
     );
 

@@ -1,6 +1,5 @@
-import { GameStore } from "../store/types";
+import { GameConfiguration, IGame } from "@/types";
 import { createGameStore } from "../store";
-import { GameConfiguration } from "../store/types";
 
 /**
  * Singleton service for accessing the game store globally
@@ -8,11 +7,11 @@ import { GameConfiguration } from "../store/types";
  */
 export class GameStoreService {
   private static instance: GameStoreService;
-  private _gameStore: GameStore | null = null;
+  private game: IGame | null = null;
 
   private constructor() {
     // Create the game store when the service is instantiated
-    this._gameStore = createGameStore();
+    this.game = createGameStore();
   }
 
   /**
@@ -30,20 +29,20 @@ export class GameStoreService {
    * @param config The game configuration
    * @returns The initialized game store
    */
-  public initialize(config: GameConfiguration): GameStore {
-    if (!this._gameStore) {
-      this._gameStore = createGameStore();
+  public initialize(): IGame {
+    if (!this.game) {
+      this.game = createGameStore();
     }
     
-    this._gameStore.initialize(config);
-    return this._gameStore;
+    this.game.initialize();
+    return this.game;
   }
 
   /**
    * Get the game store instance
    * @returns The game store or null if not initialized
    */
-  public getGameStore(): GameStore | null {
-    return this._gameStore;
+  public getGame(): IGame | null {
+    return this.game;
   }
 }

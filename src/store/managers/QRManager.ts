@@ -1,13 +1,12 @@
-import { GameStore, GameMode, Route } from "../types";
-import { URLSearchParams } from "url";
+import { GameMode, IGame, Route } from "./../../types";
 
 export class QRManager {
-  private store: GameStore;
+  private game: IGame;
   private isInitialized: boolean = false;
   private qrScannerElement: HTMLElement | null = null;
 
-  constructor(store: GameStore) {
-    this.store = store;
+  constructor(game: IGame) {
+    this.game = game;
     this.handleQRCodeScanned = this.handleQRCodeScanned.bind(this);
   }
 
@@ -21,14 +20,14 @@ export class QRManager {
       this.isInitialized = true;
     }
     
-    this.store.set({ mode: GameMode.QR });
+    this.game.set({ mode: GameMode.QR });
   }
 
   /**
    * Stop QR scanning mode
    */
   public stopScanning(): void {
-    this.store.set({ mode: GameMode.DEFAULT });
+    this.game.set({ mode: GameMode.DEFAULT });
   }
 
   /**
@@ -107,7 +106,7 @@ export class QRManager {
     if(chapter){
       const confirmed = confirm(`Enter Chapter ${chapter}?`);
       if (confirmed) {
-        this.store.switchChapter(chapter);
+        this.game.chapters.switchChapter(chapter);
         this.stopScanning();
       }
     }

@@ -1,6 +1,6 @@
-import { BasePage, Page } from "./page";
+import { IPage, Page } from "./page";
 
-export interface LoadingPageInterface extends BasePage {
+export interface ILoadingPage extends IPage {
     showLoading(msg?: string, duration?: number): void;
     hideLoading(): void;
 }

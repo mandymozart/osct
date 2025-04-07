@@ -1,5 +1,4 @@
 import { Page } from "./page";
-import "./../components/text-button";
 import { assert} from "./../utils/assert";
 
 export class HomePage extends Page {
@@ -65,12 +64,12 @@ export class HomePage extends Page {
 
   private handleStart() {
     assert(this.game, 'Game store not initialized');
-    this.game.closePage();
+    this.game.router.close();
   }
 
   private handleTutorial() {
     assert(this.game, 'Game store not initialized');
-    this.game.navigate('/tutorial');
+    this.game.router.navigate('/tutorial');
   }
 }
 

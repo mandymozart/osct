@@ -1,43 +1,37 @@
 import { Page } from "./page";
+import "../components/common/close-button"; // Import close button component
 
 export class AboutPage extends Page {
   protected get styles(): string {
     return /* css */ `
       .content {
-          padding: 0 1rem;
+          padding: 0 2rem;
           overflow-y: auto;
-          height: calc(100vh - var(--offset-top));
+          height: calc(100vh - var(--offset-top)-2rem);
         } 
-        .close-button {
-          position: absolute;
-          top: 2rem;
-          right: 2rem;
-          background-color: var(--color-primary);
-          color: white;
-          border: none;
-          border-radius: 50%;
-          width: 2rem;
-          height: 2rem;
-          font-size: 1.5rem;
-          cursor: pointer;
-        }
-        .close-button:hover {
-          border-color: var(--color-secondary);
-          background-color: var(--color-background);
-          color: var(--color-secondary);
-        }
         .logo {
           height: 6em;
         }
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 400;
+            margin-bottom: 1rem;
+            line-height: 6rem;
+            color: var(--primary-500);
+          }
+          h2 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            margin-bottom: 1rem;
+          }
     `;
   }
 
   protected get template(): string {
     return `
       <div class="content">
-        <h2>About</h2>
-        <h2>Kevin Bray</h2>
-        <h1>Onion Skin and Crocodile Tears</h1>
+        <div class="page-title">About</div>
+        <h2>Kevin Bray &mdash; Onion Skin and Crocodile Tears</h1>
         <p>&copy; 2025</p>
         <p>Published by buildingfictions</p>
         <div>
@@ -47,17 +41,18 @@ export class AboutPage extends Page {
         </div>
         <p>App by Tilman Porschuetz</p>
         <p>Requires a WebXR compatible browser and a copy of the book.</p>
-        <a href="test.html">Developer: AR Tests</a>
       </div>
-      <button class="close-button">×</button>
+      <close-button></close-button>
     `;
   }
 
   setupEventListeners() {
-    const closeButton = this.shadowRoot?.querySelector(".close-button");
+    const closeButton = this.shadowRoot?.querySelector("close-button");
     if (closeButton) {
-      closeButton.addEventListener("click", () => {
-        this.game.closePage();
+      closeButton.addEventListener("close", () => {
+        if (this.game) {
+          this.game.router.close();
+        }
       });
     }
   }

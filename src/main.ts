@@ -1,16 +1,18 @@
 import config from "./game.config.json";
-import { LoadingPageInterface } from "./pages/loading-page";
+import { ILoadingPage } from "./pages/loading-page";
 import { router } from "./router";
 import {
-  Chapter,
+  ChapterResource,
   GameConfiguration,
   GameMode,
-  Pages,
+  IPagesRouter,
   Route,
-} from "./store/types";
+} from "./types";
 import { Scene } from "aframe";
 import { GameStoreService } from "./services/GameStoreService";
 import "./components/qr-scanner";
+import "./components/icons/cross-icon";
+import "./components/common/close-button";
 import "./components/qr-button";
 import "./components/index-button";
 import "./components/scene-button";
@@ -20,16 +22,16 @@ import "./components/pages-router";
 import "./deps/aframe.min.js";
 import "./deps/aframe-extras.min.js";
 import "./deps/mindar-image-aframe.prod.js";
-import { PagesRouterInterface } from "./components/pages-router";
-import { ErrorPageInterface } from "./pages/error-page";
-import { QRButtonInterface } from "./components/qr-button";
+import { IErrorPage } from "./pages/error-page";
+import { IQRButton } from "./components/qr-button";
 import { getURLParam, getURLParams } from "./utils/url-params";
+import { assert } from "./utils/assert";
 
 export class BookGame extends HTMLElement {
-  private errorPage: ErrorPageInterface | null = null;
-  private loadingPage: LoadingPageInterface | null = null;
-  private qrButton: QRButtonInterface | null = null;
-  private pagesRouter: PagesRouterInterface | null = null;
+  private errorPage: IErrorPage | null = null;
+  private loadingPage: ILoadingPage | null = null;
+  private qrButton: IQRButton | null = null;
+  private pagesRouter: IPagesRouter | null = null;
 
   constructor() {
     super();
@@ -37,70 +39,97 @@ export class BookGame extends HTMLElement {
   }
 
   connectedCallback() {
-    console.log("Game Book connectedCallback called");
     this.render();
     this.initializeComponents();
     this.setupGameState();
   }
 
+  styles = /* css */ `
+    :host {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    header {
+      width: 100%;
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: var(--offset-top,4rem);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      cursor: pointer;
+    }
+    
+    .header-left {
+      padding-left: 1rem;
+    }
+    
+    .header-right {
+      padding-right: 1rem;
+    }
+    
+    .header-dash {
+      flex: 1;
+      background-color: var(--color-primary);
+      height: 0.2rem;
+      transform: translateY(.1rem);
+      border-radius: 0.05rem;
+    }
+    
+    .interface {
+      position: fixed;
+      bottom: 1rem;
+      width: 100%;
+      display: flex;
+      align-content: center;
+      align-items: center;
+      justify-content: center;
+    }
+  `;
+
+  template = /* html */ `
+    <a-scene id="scene">
+    </a-scene>
+    
+    <header id="main-header">
+      <div class="header-left">Kevin Bray</div>
+      <div class="header-dash"></div>
+      <div class="header-right">Onion Skin and Crocodile Tears</div>
+    </header>
+    
+    <qr-scanner></qr-scanner>
+    <loading-page></loading-page>
+    
+
+    
+    <pages-router>
+      <error-page></error-page>
+      <about-page></about-page>
+      <not-found-page></not-found-page>
+      <home-page></home-page>
+      <tutorial-page></tutorial-page>
+      <index-page></index-page>
+      <chapters-page></chapters-page>
+      <chapter-page></chapter-page>
+    </pages-router>
+
+    <div class="interface">
+      <qr-button></qr-button>
+    </div>
+  `;
+
   private render() {
-    this.shadowRoot!.innerHTML = /* html */ `
-      <style>
-        :host {
-          display: block;
-          width: 100vw;
-          height: 100vh;
-        }
-        header {
-          width: 100%;
-          position: fixed;
-          top: 0;
-          right: 0;
-          height: var(--offset-top,4rem);
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          cursor: pointer;
-        }
-        .header-left {
-          padding-left: 1rem;
-        }
-        .header-right {
-          padding-right: 1rem;
-        }
-        .header-dash {
-          flex: 1;
-          background-color: var(--color-primary);
-          height: 0.2rem;
-          transform: translateY(.1rem);
-          border-radius: 0.05rem;
-        }
-      </style>
-      <!-- A-Frame Scene -->
-      <a-scene id="scene">
-      </a-scene>
-      <header id="main-header">
-        <div class="header-left">Kevin Bray</div>
-        <div class="header-dash"></div>
-        <div class="header-right">Onion Skin and Crocodile Tears</div>
-      </header>
-      <qr-scanner></qr-scanner>
-  
-      <loading-page></loading-page>
-      <div class="interface">
-        <qr-button></qr-button>
-      </div>
-      <pages-router>
-        <error-page></error-page>
-        <about-page></about-page>
-        <not-found-page></not-found-page>
-        <home-page></home-page>
-        <tutorial-page></tutorial-page>
-        <index-page></index-page>
-        <chapters-page></chapters-page>
-        <chapter-page></chapter-page>
-      </pages-router>
-    `;
+    if (!this.shadowRoot) return;
+
+    this.shadowRoot.innerHTML = `
+    <style>
+      ${this.styles}
+    </style>
+    ${this.template}
+  `;
   }
 
   private async initializeComponents() {
@@ -111,26 +140,23 @@ export class BookGame extends HTMLElement {
     this.pagesRouter = this.shadowRoot!.querySelector("pages-router");
 
     // Add header click handler
-    const header = this.shadowRoot!.querySelector('#main-header');
-    header?.addEventListener('click', () => {
-      const game = GameStoreService.getInstance().getGameStore();
+    const header = this.shadowRoot!.querySelector("#main-header");
+    header?.addEventListener("click", () => {
+      const game = GameStoreService.getInstance().getGame();
       if (game) {
-        game.navigate('/about');
+        game.router.navigate("/about");
       }
     });
 
     try {
       // Get the GameStoreService instance
       const gameService = GameStoreService.getInstance();
-
-      // Initialize game with configuration
-      const configWithRouter = { ...config, router } as GameConfiguration;
-      const game = gameService.initialize(configWithRouter);
+      const game = gameService.initialize();
 
       const sceneElement = this.shadowRoot!.querySelector(
         "#scene"
       ) as unknown as Scene;
-      await game.attachScene(sceneElement);
+      await game.scene.attachScene(sceneElement);
 
       /* @ts-ignore - Expose game for debugging */
       window.BOOKGAME = game;
@@ -140,36 +166,37 @@ export class BookGame extends HTMLElement {
   }
 
   private setupGameState() {
-    const game = GameStoreService.getInstance().getGameStore();
-    if (!game) {
-      console.error("Game store not initialized");
-      return;
-    }
+    const game = GameStoreService.getInstance().getGame();
+    assert(game, "Game store not initialized");
 
-    const { page, slug, mode, params } = getURLParams();
+    const { slug, mode, params } = getURLParams();
 
     // Handle mode
     if (mode === GameMode.QR) {
-      game.startQRScanning();
+      game.qr.startScanning();
+    }
+    // TODO: Double check Scene visbility game.scene.updateVisibility(mode);
+    if (mode === GameMode.VR) {
+      game.scene.updateSceneVisibility();
     }
 
-    const chapterId = getURLParam('id');
+    const chapterId = getURLParam("id");
     if (chapterId) {
-      game.switchChapter(chapterId);
+      game.chapters.switchChapter(chapterId);
     }
 
     // Navigate to page
     if (slug) {
-      game.navigate(slug, params);
+      game.router.navigate(slug, params);
     } else {
-      game.navigate("/");
+      game.router.navigate("/chapters");
     }
 
     game.subscribe(this.handleStateChange.bind(this));
   }
 
   private handleStateChange(state: {
-    currentChapter: Chapter | null;
+    currentChapter: ChapterResource | null;
     mode: GameMode;
     currentRoute: Route | null;
   }) {
@@ -179,7 +206,7 @@ export class BookGame extends HTMLElement {
     this.updateRouteState(state.currentRoute);
   }
 
-  private updateChapterState(chapter: Chapter | null) {
+  private updateChapterState(chapter: ChapterResource | null) {
     if (!chapter) return;
 
     if (this.loadingPage) {
