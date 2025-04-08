@@ -1,0 +1,41 @@
+1. My build system is vite
+2. My testing system is vitetest
+3. I use aframe for 3D rendering
+4. I use mindar for image target tracking
+5. I use jsQr for qr scanning
+6. I use immer for state management
+7. I use a custom monolithic game store which has an interface IGame
+8. I use vanilla custom web components
+9. I deploy the app to netlify for staging
+10. I use an ftp git action to deploy the production to a remote server
+
+# Build Configuration
+FRAMEWORK = vite
+BUILD_COMMAND = npm run build
+INSTALL_COMMAND = npm install
+NODE_VERSION = 18
+PUBLISH_DIRECTORY = dist
+
+# SPA Configuration
+SPA = true
+
+# Files to include in deployment
+INCLUDE = [
+  "dist/**", 
+  "public/**", 
+  "index.html"
+]
+
+# Files to exclude from deployment
+EXCLUDE = [
+  "node_modules/**",
+  ".git/**",
+  "coverage/**",
+  "**/*.test.ts",
+  "**/*.spec.ts",
+]
+
+# Cache settings for static assets
+CACHE_CONTROL = [
+  { pattern = "dist/assets/**/*", value = "public, max-age=31536000" }
+]

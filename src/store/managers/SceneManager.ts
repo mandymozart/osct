@@ -253,12 +253,12 @@ export class SceneManager implements ISceneManager {
     
     // Based on the code structure, each target has a single entity which has multiple assets
     chapter.targets.forEach(target => {
-      if (!target.loaded || !target.entity || !target.entity.loaded) return;
+      if (target.status !== LoadingState.LOADED || !target.entity || target.entity.status !== LoadingState.LOADED) return;
       
       // Add assets from this entity
       if (target.entity.assets && Array.isArray(target.entity.assets)) {
         target.entity.assets.forEach(asset => {
-          if (asset.loaded && asset.id && asset.src) {
+          if (asset.status === LoadingState.LOADED && asset.id && asset.src) {
             assetsToAdd.push({
               id: asset.id, 
               src: asset.src
@@ -290,7 +290,7 @@ export class SceneManager implements ISceneManager {
 
     // Add each target entity
     chapter.targets.forEach((target, index) => {
-      if (!target.loaded || !target.entity || !target.entity.loaded) {
+      if (target.status !== LoadingState.LOADED || !target.entity || target.entity.status !== LoadingState.LOADED) {
         console.warn(`Target or its entity not fully loaded, skipping index ${index}`);
         return;
       }

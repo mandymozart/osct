@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <link
+      rel="stylesheet"
+      href="style.css" />
+  </head>
+  <body>
+    <a-scene
+      mindar-image="imageTargetSrc: /targets/all-images.mind; maxTrack: 121"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+      <a-assets>
+        <a-asset-item
+          id="raccoonModel"
+          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"></a-asset-item>
+      </a-assets>
+
+      <a-camera
+        position="0 0 0"
+        look-controls="enabled: false"></a-camera>
+
+      <!-- Generate 121 targets using the raccoon model -->
+      <a-entity
+        id="target-1"
+        mindar-image-target="targetIndex: 0">
+        <a-gltf-model
+          rotation="0 0 0"
+          position="0 -0.25 0"
+          scale="0.05 0.05 0.05"
+          src="#raccoonModel"
+          animation-mixer></a-gltf-model>
+      </a-entity>
+
+      <!-- Auto-generate the rest of the targets -->
+      <script>
+        const scene = document.querySelector('a-scene');
+        for (let i = 2; i <= 121; i++) {
+          const entity = document.createElement('a-entity');
+          entity.setAttribute('id', `target-${i}`);
+          entity.setAttribute('mindar-image-target', `targetIndex: ${i - 1}`);
+          entity.innerHTML = `
+                <a-gltf-model rotation='0 0 0' position='0 -0.25 0' scale='0.05 0.05 0.05' src='#raccoonModel' animation-mixer></a-gltf-model>
+            `;
+          scene.appendChild(entity);
+        }
+      </script>
+    </a-scene>
+
+    <div class="test-info">
+      <div>Open this page on other device</div>
+      <img
+        class="qr"
+        src="/public/all-images-test_qr.svg"
+        alt="qr" />
+      <div>Find 121 images</div>
+      <div class="images"></div>
+      <script>
+        const images = document.querySelector('.images');
+        const totalImages = 120;
+      
+        for (let i = 0; i <= totalImages; i++) {
+          const image = document.createElement('img');
+          const imageNumber = String(i + 1).padStart(3, '0');
+          image.setAttribute('data-target-id', `target-${i}`);
+          image.setAttribute('id', `image-${imageNumber}`);
+          image.setAttribute('data-src', `/images/images-${imageNumber}.jpg`); // Store the src in a custom attribute
+          image.setAttribute('class', 'image');
+          image.setAttribute('alt', `targetIndex: ${i - 1}`);
+          image.setAttribute('loading', 'lazy'); // Use native lazy loading as a fallback
+          images.appendChild(image);
+        }
+      
+        // Intersection Observer to load images when they come into view
+        const observer = new IntersectionObserver((entries, observer) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const img = entry.target;
+              img.src = img.getAttribute('data-src'); // Set the actual src when the image is in view
+              observer.unobserve(img); // Stop observing after it has been loaded
+            }
+          });
+        }, { rootMargin: '100px' }); // Load images a bit before they actually come into view
+      
+        // Observe each image
+        const allImages = document.querySelectorAll('.image');
+        allImages.forEach(img => {
+          observer.observe(img);
+        });
+      </script>
+    </div>
+
+  </body>
+</html>
