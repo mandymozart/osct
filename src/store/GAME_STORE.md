@@ -13,43 +13,11 @@ import { createGameStore } from './store/GameStore';
 import config from './game.config.json';
 
 const gameStore = createGameStore();
-gameStore.initialize({version: '1.0.0', chaptersData: []});
-```
-
-### Using an API
-
-```typescript
-import { createGameStore } from './store/GameStore';
-
-async function initializeGame() {
-  const gameStore = createGameStore();
-  const config = await fetch('/api/config').then(r => r.json());
-  
-  gameStore.initialize(config);
-}
-```
-
-### Using HTML Configuration
-
-```html
-<script type="application/json" id="game-config">
-{
-    version: "1.0.0",
-    chapters: []
-}
-</script>
-
-<script>
-import { createGameStore } from './store/GameStore';
-
-const gameStore = createGameStore();
-const config = JSON.parse(document.getElementById('game-config').textContent);
-gameStore.initialize(config);
-</script>
+gameStore.initialize();
 ```
 
 ## Configuration Structure
-
+@deprecated 
 The game configuration object follows this structure:
 
 ```typescript
@@ -76,31 +44,11 @@ interface GameConfiguration {
 }
 ```
 
+TODO: tutorial configuration is missing
+
 ## Development Tips
 
 - During development, you can use the `mockChapters` from your test files
 - Use TypeScript for configuration files to get type checking
 - Consider environment-specific configurations
 - Monitor the console for initialization messages
-
-## Testing
-
-When testing components that use the game store, initialize it with mock data:
-
-```typescript
-import { createGameStore } from './store/GameStore';
-import { mockChapters } from './mocks/mockChapters';
-
-describe('GameComponent', () => {
-  let gameStore;
-
-  beforeEach(() => {
-    gameStore = createGameStore();
-    gameStore.initialize({
-      chapters: mockChapters
-    });
-  });
-
-  // ... tests
-});
-```
