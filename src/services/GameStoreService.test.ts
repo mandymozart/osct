@@ -85,9 +85,9 @@ describe("GameStoreService", () => {
   describe("initialize", () => {
     it("should initialize the game with the provided configuration", () => {
       const service = GameStoreService.getInstance();
-      const result = service.initialize(mockConfig);
+      const result = service.initialize();
       
-      expect(mockGame.initialize).toHaveBeenCalledWith(mockConfig);
+      expect(mockGame.initialize).toHaveBeenCalled();
       expect(result).toBe(mockGame);
     });
     
@@ -100,7 +100,7 @@ describe("GameStoreService", () => {
       // Reset the mock to verify it's called again
       vi.mocked(storeModule.createGameStore).mockClear();
       
-      service.initialize(mockConfig);
+      service.initialize();
       
       expect(storeModule.createGameStore).toHaveBeenCalledTimes(1);
     });
@@ -111,7 +111,7 @@ describe("GameStoreService", () => {
       // Reset the mock to verify it's not called again
       vi.mocked(storeModule.createGameStore).mockClear();
       
-      service.initialize(mockConfig);
+      service.initialize();
       
       expect(storeModule.createGameStore).not.toHaveBeenCalled();
     });
