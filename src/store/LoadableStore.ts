@@ -1,5 +1,5 @@
 import { produce } from 'immer';
-import { ErrorCode, ILoadableStore, LoadableResource } from './../types';
+import { AssetType, ErrorCode, ILoadableStore, LoadableResource, LoadingState } from './../types';
 
 /**
  * Base class for implementing stores that manage loadable resources
@@ -67,37 +67,59 @@ export class LoadableStore implements ILoadableStore{
   
   /**
    * Mark a resource as loading
+   * @param resource Resource to mark as loading
+   * @returns Resource with loading state
    */
-  markAsLoading<T>(resource: T): T {
-    return this.setResourceState(resource, {
+  markAsLoading<T extends LoadableResource>(resource: T): T {
+    return {
+      ...resource,
+      status: LoadingState.LOADING,
+      // Keep for backward compatibility
       isLoading: true,
       loaded: false,
-      error: null
-    });
+      error: null,
+    };
   }
-  
+
   /**
    * Mark a resource as loaded
+   * @param resource Resource to mark as loaded
+   * @returns Resource with loaded state
    */
-  markAsLoaded<T>(resource: T): T {
-    return this.setResourceState(resource, {
+  markAsLoaded<T extends LoadableResource>(resource: T): T {
+    return {
+      ...resource,
+      status: LoadingState.LOADED,
+      // Keep for backward compatibility
       isLoading: false,
-      loaded: true
-    });
+      loaded: true,
+      error: null,
+    };
   }
-  
+
   /**
-   * Mark a resource as failed with an error
+   * Mark a resource as failed
+   * @param resource Resource to mark as failed
+   * @param code Error code
+   * @param message Error message
+   * @returns Resource with error state
    */
-  markAsFailed<T>(resource: T, errorCode: string, errorMsg: string): T {
-    return this.setResourceState(resource, {
+  markAsFailed<T extends LoadableResource>(
+    resource: T,
+    code: ErrorCode,
+    message: string
+  ): T {
+    return {
+      ...resource,
+      status: LoadingState.ERROR,
+      // Keep for backward compatibility
       isLoading: false,
       loaded: false,
       error: {
-        code: errorCode,
-        msg: errorMsg
-      }
-    });
+        code,
+        msg: message,
+      },
+    };
   }
   
   /**
@@ -124,131 +146,184 @@ export class LoadableStore implements ILoadableStore{
   }
   
   /**
-   * Load a single asset with proper error handling
+   * Load multiple assets in parallel
+   * @param assets Array of assets to load
+   * @returns Promise that resolves with loaded assets
+   */
+  async loadAssets<T extends LoadableResource>(assets: T[]): Promise<T[]> {
+    if (!assets || assets.length === 0) {
+      return [];
+    }
+
+    console.log(`Loading ${assets.length} assets...`);
+
+    // Mark all assets as loading
+    const loadingAssets = assets.map(asset => ({
+      ...asset,
+      status: LoadingState.LOADING,
+      // Keep for backward compatibility
+      isLoading: true,
+      loaded: false,
+      error: null
+    }));
+
+    // Load all assets in parallel
+    const results = await Promise.allSettled(
+      loadingAssets.map(async (asset) => {
+        try {
+          await this.loadAsset(asset.src, asset.type);
+          return {
+            ...asset,
+            status: LoadingState.LOADED,
+            // Keep for backward compatibility
+            isLoading: false,
+            loaded: true,
+            error: null
+          };
+        } catch (error) {
+          console.error(`Error loading asset: ${asset.src}`, error);
+          return {
+            ...asset,
+            status: LoadingState.ERROR,
+            // Keep for backward compatibility
+            isLoading: false,
+            loaded: false,
+            error: {
+              code: ErrorCode.ASSET_LOAD_FAILED,
+              msg: error instanceof Error ? error.message : "Unknown error loading asset"
+            }
+          };
+        }
+      })
+    );
+
+    // Process results
+    return results.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } else {
+        // This should not happen with our try/catch, but just in case
+        return {
+          ...loadingAssets[index],
+          status: LoadingState.ERROR,
+          // Keep for backward compatibility
+          isLoading: false,
+          loaded: false,
+          error: {
+            code: ErrorCode.ASSET_LOAD_FAILED,
+            msg: result.reason?.message || "Failed to load asset"
+          }
+        };
+      }
+    });
+  }
+
+  /**
+   * Load a single asset
    * @param src Asset source URL
    * @param type Asset type (image, gltf, etc.)
    * @returns Promise that resolves when the asset is loaded
    */
-  loadAsset(src: string, type: string = 'image'): Promise<void> {
+  loadAsset(src: string, type: AssetType = 'image'): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`Timeout loading asset: ${src}`));
       }, 30000); // 30 second timeout
-      
-      // Different loading strategies based on asset type
-      switch (type?.toLowerCase()) {
-        case 'image':
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => {
-            clearTimeout(timeout);
-            resolve();
-          };
-          img.onerror = () => {
-            clearTimeout(timeout);
-            reject(new Error(`Failed to load image: ${src}`));
-          };
-          img.src = src;
-          break;
-          
-        case 'gltf':
-        case 'glb':
-          // For GLTF models, we pre-fetch to check availability
-          fetch(src)
-            .then(response => {
-              if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
-              }
-              clearTimeout(timeout);
-              resolve();
-            })
-            .catch(error => {
-              clearTimeout(timeout);
-              reject(error);
-            });
-          break;
-          
-        case 'audio':
-          const audio = new Audio();
-          audio.oncanplaythrough = () => {
-            clearTimeout(timeout);
-            resolve();
-          };
-          audio.onerror = () => {
-            clearTimeout(timeout);
-            reject(new Error(`Failed to load audio: ${src}`));
-          };
-          audio.src = src;
-          break;
-          
-        case 'video':
-          const video = document.createElement('video');
-          video.oncanplaythrough = () => {
-            clearTimeout(timeout);
-            resolve();
-          };
-          video.onerror = () => {
-            clearTimeout(timeout);
-            reject(new Error(`Failed to load video: ${src}`));
-          };
-          video.src = src;
-          video.load();
-          break;
-          
-        default:
-          // For unknown types, just try to fetch the file
-          fetch(src)
-            .then(response => {
-              if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
-              }
-              clearTimeout(timeout);
-              resolve();
-            })
-            .catch(error => {
-              clearTimeout(timeout);
-              reject(error);
-            });
+
+      try {
+        switch (type) {
+          case 'image':
+            this.loadImageAsset(src, timeout, resolve, reject);
+            break;
+          case 'gltf':
+          case 'glb':
+            this.loadGLTFAsset(src, timeout, resolve, reject);
+            break;
+          case 'audio':
+            this.loadAudioAsset(src, timeout, resolve, reject);
+            break;
+          case 'video':
+            this.loadVideoAsset(src, timeout, resolve, reject);
+            break;
+          default:
+            // For unknown types, we'll just try to fetch the resource
+            this.loadGenericAsset(src, timeout, resolve, reject);
+        }
+      } catch (error) {
+        clearTimeout(timeout);
+        reject(error);
       }
     });
   }
-  
-  /**
-   * Load multiple assets in parallel with individual error handling
-   * @param assets Array of asset objects
-   * @returns Promise that resolves with updated asset objects
-   */
-  async loadAssets<T extends LoadableResource>(assets: T[]): Promise<T[]> {
-    try {
-      // Mark all assets as loading first
-      let workingAssets = assets.map(asset => this.markAsLoading(asset));
-      
-      // Create loading promises for all assets
-      const loadingPromises = workingAssets.map((asset, index) => 
-        this.loadAsset(asset['src'], asset['type'])
-          .then(() => {
-            // Mark asset as loaded
-            workingAssets[index] = this.markAsLoaded(asset);
-            return workingAssets[index];
-          })
-          .catch(error => {
-            // Mark asset as failed
-            workingAssets[index] = this.markAsFailed(
-              asset, 
-              ErrorCode.ASSET_LOAD_FAILED,
-              error.message || `Failed to load asset: ${asset['src']}`
-            );
-            return workingAssets[index];
-          })
-      );
-      
-      // Wait for all assets to finish loading (success or failure)
-      await Promise.allSettled(loadingPromises);
-      
-      return workingAssets;
-    } catch (error) {
-      console.error("Error in loadAssets:", error);
-      throw error;
-    }
+
+  loadImageAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      clearTimeout(timeout);
+      resolve();
+    };
+    img.onerror = () => {
+      clearTimeout(timeout);
+      reject(new Error(`Failed to load image: ${src}`));
+    };
+    img.src = src;
+  }
+
+  loadGLTFAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
+    fetch(src)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+        clearTimeout(timeout);
+        resolve();
+      })
+      .catch(error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+  }
+
+  loadAudioAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
+    const audio = new Audio();
+    audio.oncanplaythrough = () => {
+      clearTimeout(timeout);
+      resolve();
+    };
+    audio.onerror = () => {
+      clearTimeout(timeout);
+      reject(new Error(`Failed to load audio: ${src}`));
+    };
+    audio.src = src;
+  }
+
+  loadVideoAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
+    const video = document.createElement('video');
+    video.oncanplaythrough = () => {
+      clearTimeout(timeout);
+      resolve();
+    };
+    video.onerror = () => {
+      clearTimeout(timeout);
+      reject(new Error(`Failed to load video: ${src}`));
+    };
+    video.src = src;
+    video.load();
+  }
+
+  loadGenericAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
+    fetch(src)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+        clearTimeout(timeout);
+        resolve();
+      })
+      .catch(error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
   }
 }

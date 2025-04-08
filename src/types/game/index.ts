@@ -58,6 +58,7 @@ export enum ErrorCode {
   IMAGE_TARGET_NOT_FOUND = "missing-image-target",
   CHAPTER_NOT_FOUND = "chapter-not-found",
   CHAPTERS_LOAD_FAILED = "chapters-load-failed",
+  CHAPTER_LOAD_FAILED = "chapter-load-failed",
 
   // Entity errors
   ENTITY_LOAD_FAILED = "entity-load-failed",
@@ -115,7 +116,6 @@ export interface EntityData {
 export interface AssetData {
   id?: string;
   src: string;
-  type?: string;
 }
 
 /**

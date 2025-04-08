@@ -1,14 +1,18 @@
-import { ErrorInfo } from "@/types";
+import { ErrorInfo, LoadingState } from "@/types";
+
+/**
+ * Asset type definition for consistent type usage across the system
+ */
+export type AssetType = 'image' | 'gltf' | 'glb' | 'audio' | 'video' | string;
 
 /**
  * Common interface for resources that can be loaded
  */
 export interface LoadableResource {
-  isLoading: boolean;
-  loaded: boolean;
   error: ErrorInfo | null;
   src: string;
-  type?: string;
+  type?: AssetType;
+  status: LoadingState;
 }
 
 /**
@@ -54,17 +58,21 @@ export interface ILoadableStore {
   /**
    * Mark a resource as loading
    */
-  markAsLoading<T>(resource: T): T;
+  markAsLoading<T extends LoadableResource>(resource: T): T;
 
   /**
    * Mark a resource as loaded
    */
-  markAsLoaded<T>(resource: T): T;
+  markAsLoaded<T extends LoadableResource>(resource: T): T;
 
   /**
    * Mark a resource as failed with an error
+   * @param resource Resource to mark as failed
+   * @param code Error code
+   * @param message Error message
+   * @returns Resource with error state
    */
-  markAsFailed<T>(resource: T, errorCode: string, errorMsg: string): T;
+  markAsFailed<T extends LoadableResource>(resource: T, code: string, message: string): T;
 
   /**
    * Initialize loading state properties on a resource and its children
@@ -74,7 +82,7 @@ export interface ILoadableStore {
   /**
    * Load a single asset with proper error handling
    */
-  loadAsset(src: string, type?: string): Promise<void>;
+  loadAsset(src: string, type?: AssetType): Promise<void>;
 
   /**
    * Load multiple assets in parallel with individual error handling
@@ -88,7 +96,7 @@ export interface ILoadableStore {
 export interface AssetLoadOptions {
   timeout?: number;
   crossOrigin?: boolean;
-  type?: 'image' | 'gltf' | 'glb' | 'audio' | 'video' | string;
+  type?: AssetType;
 }
 
 /**
