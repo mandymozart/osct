@@ -5,3 +5,4 @@ export * from "./icons";
 export * from "./pages-router";
 export * from "./qr-scanner";
 export * from "./tutorial";
+export * from "./navigation"

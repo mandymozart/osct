@@ -68,21 +68,12 @@ export class BookGame extends HTMLElement {
       transform: translateY(.1rem);
       border-radius: 0.05rem;
     }
-    
-    .interface {
-      position: fixed;
-      bottom: 1rem;
-      width: 100%;
-      display: flex;
-      align-content: center;
-      align-items: center;
-      justify-content: center;
-    }
   `;
 
   template = /* html */ `
     <a-scene id="scene">
     </a-scene>
+    <qr-scanner></qr-scanner>
     
     <header id="main-header">
       <div class="header-left">Kevin Bray</div>
@@ -90,27 +81,21 @@ export class BookGame extends HTMLElement {
       <div class="header-right">Onion Skin and Crocodile Tears</div>
     </header>
     
-    <qr-scanner></qr-scanner>
-    <loading-page></loading-page>
-    
-    
     <pages-router>
-    <error-page></error-page>
-    <about-page></about-page>
+      <error-page></error-page>
+      <about-page></about-page>
       <not-found-page></not-found-page>
       <home-page></home-page>
       <tutorial-page></tutorial-page>
       <index-page></index-page>
       <chapters-page></chapters-page>
       <chapter-page></chapter-page>
-      </pages-router>
+    </pages-router>
       
-      <debug-overlay></debug-overlay>
-    <div class="interface">
-      <qr-button></qr-button>
-      <index-button></index-button>
-      <scene-button></scene-button>
-    </div>
+    <navigation-bar></navigation-bar>
+    <loading-page></loading-page>
+    
+    <debug-overlay></debug-overlay>
   `;
 
   private render() {
@@ -128,7 +113,6 @@ export class BookGame extends HTMLElement {
     // Cache component references
     this.errorPage = this.shadowRoot!.querySelector("error-page");
     this.loadingPage = this.shadowRoot!.querySelector("loading-screen");
-    this.qrButton = this.shadowRoot!.querySelector("qr-button");
     this.pagesRouter = this.shadowRoot!.querySelector("pages-router");
 
     // Add header click handler
@@ -194,7 +178,6 @@ export class BookGame extends HTMLElement {
   }) {
     // Delegate state changes to components
     this.updateChapterState(state.currentChapter);
-    this.updateModeState(state.mode);
     this.updateRouteState(state.currentRoute);
   }
 
@@ -211,15 +194,6 @@ export class BookGame extends HTMLElement {
 
     if (chapter.error) {
       this.handleError(chapter.error);
-    }
-  }
-
-  private updateModeState(mode: GameMode) {
-    if (this.qrButton) {
-      const modeEvent = new CustomEvent("mode-change", {
-        detail: { mode },
-      });
-      this.qrButton.dispatchEvent(modeEvent);
     }
   }
 

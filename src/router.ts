@@ -39,6 +39,10 @@ export const router = {
       params: [{ key: "step" }],
     },
     {
+      page: Pages.INDEX,
+      slug: "/index",
+    },
+    {
       page: Pages.ERROR,
       slug: "/error",
     },
