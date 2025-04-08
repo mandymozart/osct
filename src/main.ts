@@ -1,9 +1,6 @@
-import config from "./game.config.json";
 import { ILoadingPage } from "./pages/loading-page";
-import { router } from "./router";
 import {
   ChapterResource,
-  GameConfiguration,
   GameMode,
   IPagesRouter,
   Route,
@@ -16,11 +13,11 @@ import "./components/icons/cross-icon";
 import "./components/common/close-button";
 import "./components/qr-button";
 import "./components/index-button";
-import "./components/scene-button";
-import "./components/text-button";
+import "./components/buttons/scene-button";
+import "./components/common/text-button";
 import "./components/debug/debug-overlay";
 import "./pages";
-import "./components/pages-router";
+import "./components/pages-router/pages-router";
 import "./deps/aframe.min.js";
 import "./deps/aframe-extras.min.js";
 import "./deps/mindar-image-aframe.prod.js";

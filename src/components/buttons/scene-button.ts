@@ -1,6 +1,6 @@
-import { GameStoreService } from "../services/GameStoreService";
-import { GameMode } from "../types";
-import { assert } from "../utils/assert";
+import { GameStoreService } from "../../services/GameStoreService";
+import { GameMode } from "../../types";
+import { assert } from "../../utils/assert";
 
 /**
  * Scene Button Component
@@ -150,9 +150,9 @@ export class SceneButton extends HTMLElement {
         
         try {
             if (game.state.mode === GameMode.VR) {
-                game.exitVR();
+                game.scene.exitVR();
             } else if (game.state.mode !== GameMode.QR) {
-                game.enterVR();
+                game.scene.enterVR();
             }
         } catch (error) {
             console.error('Error toggling VR mode:', error);
