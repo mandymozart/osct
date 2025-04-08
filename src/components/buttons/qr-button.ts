@@ -1,113 +1,70 @@
-import { GameStoreService } from "../services/GameStoreService";
-import { IGame, GameMode } from "../types";
+import { GameStoreService } from "@/services/GameStoreService";
+import { IGame, GameMode } from "@/types";
+import { BaseNavigationButton } from "./base-navigation-button";
 
 export interface IQRButton extends HTMLElement {
   toggleQRMode(): void;
 }
 
-export class QRButton extends HTMLElement implements IQRButton {
-  private button: HTMLButtonElement | null = null;
-  private unsubscribe: (() => void) | null = null;
-
-  // Game store reference
-  private game: IGame | null = null;
-
+export class QRButton extends BaseNavigationButton implements IQRButton {
   constructor() {
     super();
-    this.attachShadow({ mode: "open" });
-    this.handleModeChange = this.handleModeChange.bind(this);
-    this.handleClick = this.handleClick.bind(this);
   }
 
-  connectedCallback() {
-    // Get game instance from GameStoreService
-    this.game = GameStoreService.getInstance().getGame();
-
-    this.render();
-    this.setupListeners();
-  }
-
-  disconnectedCallback() {
-    this.cleanupListeners();
-  }
-
-  private render() {
+  protected render() {
     if (!this.shadowRoot) return;
-
+    
+    const activeClass = this._active ? "active" : "";
+    const disabledAttr = this._disabled ? "disabled" : "";
+    
     this.shadowRoot.innerHTML = /* html */ `
-            <style>
-                :host {
-                    display: inline-block;
-                }
-            </style>
-            <button is="text-button">
-                ${this.buttonText}
-            </button>
-        `;
+        <style>
+            :host {
+                display: inline-block;
+            }
+        </style>
+        <button is="text-button" class="${activeClass}" ${disabledAttr} size="sm">
+            <qr-icon slot="icon"></qr-icon>
+            <span class="button-text">${this.buttonText}</span>
+        </button>
+    `;
 
-    this.button = this.shadowRoot.querySelector("button");
-    this.updateButtonState();
+    this.button = this.shadowRoot.querySelector('button');
   }
 
-  private setupListeners() {
-    if (this.button) {
-      this.button.addEventListener("click", this.handleClick);
-    }
-
-    if (this.game) {
-      this.unsubscribe = this.game.subscribe(this.handleModeChange);
-    } else {
-      console.warn(
-        "QR Button: Game instance not available from GameStoreService"
-      );
-      if (this.button) {
-        this.button.disabled = true;
-        this.button.title = "QR scanning not available";
-      }
-    }
-  }
-
-  private cleanupListeners() {
-    if (this.button) {
-      this.button.removeEventListener("click", this.handleClick);
-    }
-
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
-    }
-  }
-
-  private handleModeChange(state: { mode: GameMode }) {
-    this.updateButtonState();
-  }
-
-  private updateButtonState() {
+  protected updateButtonState() {
     if (!this.button || !this.game) return;
 
     const isQRMode = this.game.state.mode === GameMode.QR;
     const isVRMode = this.game.state.mode === GameMode.VR;
 
+    // Update active state
+    this._active = isQRMode;
+    
     // Disable button in VR mode
-    this.button.disabled = isVRMode;
-
-    // Update active state and text based on current mode
-    this.button.classList.toggle("active", isQRMode);
-
-    if (isQRMode) {
-      this.button.textContent = "Return to AR";
-      this.button.title = "Exit QR scanning mode";
-    } else if (isVRMode) {
-      this.button.textContent = "QR Unavailable in VR";
-      this.button.title = "Exit VR mode to scan QR codes";
-    } else {
-      this.button.textContent = "Scan QR Code";
-      this.button.title = "Scan a QR code to navigate to a chapter";
+    this._disabled = isVRMode;
+    
+    if (this.button) {
+      // Update button appearance
+      this.button.classList.toggle('active', this._active);
+      this.button.disabled = this._disabled;
+      
+      // Update button text based on current mode
+      const textSpan = this.button.querySelector('.button-text');
+      if (textSpan) {
+        if (isQRMode) {
+          textSpan.textContent = "AR";
+        } else if (isVRMode) {
+          textSpan.textContent = "QR";
+        } else {
+          textSpan.textContent = "QR";
+        }
+      }
     }
   }
 
-  private handleClick() {
-    if (!this.game) return;
+  protected handleClick() {
+    if (!this.game || this._disabled) return;
 
     try {
       if (this.game.state.mode === GameMode.QR) {
@@ -120,8 +77,8 @@ export class QRButton extends HTMLElement implements IQRButton {
     }
   }
 
-  private get buttonText(): string {
-    return this.textContent?.trim() || "Scan QR Code";
+  protected get buttonText(): string {
+    return this.getAttribute('text') || this.textContent?.trim() || 'QR';
   }
 
   /**

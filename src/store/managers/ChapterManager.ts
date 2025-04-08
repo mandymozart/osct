@@ -229,27 +229,13 @@ export class ChapterManager implements IChapterManager {
                   entity.assets
                 );
 
-                // Debug loaded assets
-                console.log('Loaded assets details:', loadedAssets.map(asset => ({
-                  id: asset.id,
-                  src: asset.src,
-                  loadingState: asset.status,
-                  error: asset.error
-                })));
-
                 // Check if any assets failed to load
                 const failedAssets = loadedAssets.filter(
                   (asset) => asset.status === LoadingState.ERROR
                 );
 
                 // Debug any failed assets and their errors
-                if (failedAssets.length > 0) {
-                  console.warn('Failed assets:', failedAssets.map(asset => ({
-                    id: asset.id,
-                    src: asset.src,
-                    error: asset.error
-                  })));
-                  
+                if (failedAssets.length > 0) {                  
                   // Add errors to collection
                   failedAssets.forEach((asset, assetIndex) => {
                     allErrors.push({

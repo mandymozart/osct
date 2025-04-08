@@ -1,121 +1,73 @@
-import { GameStoreService } from "../services/GameStoreService";
-import { Route, Pages } from "../types";
-import { assert } from "../utils/assert";
+import { GameStoreService } from "@/services/GameStoreService";
+import { Pages } from "@/types";
+import { BaseNavigationButton } from "./base-navigation-button";
 
 /**
  * Index Button Component
  * 
- * A button component that navigates to the index/home page
+ * A button component that navigates to the index overlay page
  */
-export class IndexButton extends HTMLElement {
-    private button: HTMLButtonElement | null = null;
-    private unsubscribe: (() => void) | null = null;
+export class IndexButton extends BaseNavigationButton {
+  constructor() {
+    super();
+  }
+
+  protected render() {
+    if (!this.shadowRoot) return;
     
-    constructor() {
-        super();
-        this.attachShadow({ mode: "open" });
-        this.handleClick = this.handleClick.bind(this);
-    }
-
-    connectedCallback() {
-        this.render();
-        this.setupListeners();
-    }
-
-    disconnectedCallback() {
-        this.cleanupListeners();
-    }
-
-    private render() {
-        if (!this.shadowRoot) return;
-        
-        this.shadowRoot.innerHTML = /* html */ `
-            <style>
-                :host {
-                    display: inline-block;
-                }
-                
-                button {
-                    font-weight: 500;
-                    color: var(--color-primary, #333);
-                    text-decoration: inherit;
-                    border-radius: 1em;
-                    border: 1px solid var(--color-primary, #333);
-                    padding: 0 1em;
-                    font-size: 1em;
-                    line-height: 2em;
-                    font-family: inherit;
-                    background-color: var(--color-background, #fff);
-                    cursor: pointer;
-                    transition: all 0.25s ease;
-                }
-
-                button:hover {
-                    border-color: var(--color-secondary, #666);
-                    color: var(--color-secondary, #666);
-                }
-
-                button:focus,
-                button:focus-visible {
-                    outline: 4px auto -webkit-focus-ring-color;
-                }
-                
-                button[disabled] {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-            </style>
-            <button title="Go to index page">
-                ${this.buttonText}
-            </button>
-        `;
-
-        this.button = this.shadowRoot.querySelector('button');
-    }
-
-    private setupListeners() {
-        if (this.button) {
-            this.button.addEventListener('click', this.handleClick);
+    const activeClass = this._active ? "active" : "";
+    const disabledAttr = this._disabled ? "disabled" : "";
+    
+    this.shadowRoot.innerHTML = /* html */ `
+      <style>
+        :host {
+          display: inline-block;
         }
-        
-        // Get game instance and assert it exists
-        const game = GameStoreService.getInstance().getGame();
-        assert(game, 'Index Button: Game instance not available from GameStoreService');
-    }
+      </style>
+      <button is="text-button" class="${activeClass}" ${disabledAttr} size="sm">
+        <index-icon slot="icon"></index-icon>
+        <span class="button-text">${this.buttonText}</span>
+      </button>
+    `;
 
-    private cleanupListeners() {
-        if (this.button) {
-            this.button.removeEventListener('click', this.handleClick);
-        }
-        
-        if (this.unsubscribe) {
-            this.unsubscribe();
-            this.unsubscribe = null;
-        }
-    }
+    this.button = this.shadowRoot.querySelector('button');
+  }
 
-    private handleClick() {
-        // Get game instance and assert it exists
-        const game = GameStoreService.getInstance().getGame();
-        assert(game, 'Index Button: Game instance not available when handling click');
-        
-        try {
-            // Create a proper Route object with both page and slug properties
-            const homeRoute: Route = {
-                page: Pages.HOME,
-                slug: 'home'
-            };
-            
-            // Navigate to the home/index page
-            game.navigate(homeRoute);
-        } catch (error) {
-            console.error('Error navigating to index page:', error);
-        }
+  protected updateButtonState() {
+    if (!this.button || !this.game) return;
+    
+    // Check if the current route is the index page
+    const isIndexPage = this.game.state.currentRoute && 
+      this.game.state.currentRoute.hasOwnProperty('page') && 
+      (this.game.state.currentRoute as any).page === Pages.INDEX;
+    
+    // Update active state
+    this._active = Boolean(isIndexPage);
+    
+    // Index is disabled when no current chapter is available
+    this._disabled = !this.game.state.currentChapter;
+    
+    // Update button appearance
+    if (this.button) {
+      this.button.classList.toggle('active', this._active);
+      this.button.disabled = this._disabled;
     }
+  }
 
-    private get buttonText(): string {
-        return this.textContent?.trim() || 'Index';
+  protected handleClick() {
+    if (!this.game || this._disabled) return;
+    
+    try {
+      // Navigate to index page
+      this.game.router.navigate('/index');
+    } catch (error) {
+      console.error("Error navigating to index page:", error);
     }
+  }
+
+  protected get buttonText(): string {
+    return this.getAttribute('text') || this.textContent?.trim() || 'IX';
+  }
 }
 
-customElements.define('index-button', IndexButton);
+customElements.define("index-button", IndexButton);

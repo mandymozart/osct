@@ -39,7 +39,6 @@ export class DebugOverlay extends HTMLElement {
           position: fixed;
           top: .5rem;
           right: .5rem;
-          left: .5rem;
           background-color: rgba(0, 0, 0, 0.7);
           color: #00ff00;
           font-family: monospace;
@@ -187,10 +186,11 @@ export class DebugOverlay extends HTMLElement {
         target.entity.assets.forEach((asset, i) => {
           html += `
             <div class="asset">
-              Asset #${i}: ${asset.id || 'unnamed'} (${asset.type || 'unknown'}) - 
+              Asset #${i}: (${asset.type || 'unknown'})
               ${this.getStatusLabel(asset)}
               ${asset.error ? `<div class="error">Error: ${asset.error.msg}</div>` : ''}
-              <div class="info">Source: ${asset.src}</div>
+              <div class="asset-meta">ID: ${asset.id || 'unnamed'}</div>
+              <div class="info">Source: ${this.truncateFilePath(asset.src)}</div>
             </div>
           `;
         });
@@ -230,6 +230,20 @@ export class DebugOverlay extends HTMLElement {
     } else {
       return '<span class="info">Idle</span>';
     }
+  }
+
+  /**
+   * Truncates a file path to show only the filename with an ellipsis
+   * For example: "/long/path/to/scene.gltf" becomes ".../scene.gltf"
+   */
+  private truncateFilePath(path: string): string {
+    if (!path) return '';
+    const parts = path.split('/');
+    if (parts.length <= 1) return path;
+    
+    // Get the filename (last part)
+    const filename = parts[parts.length - 1];
+    return `.../${filename}`;
   }
 }
 

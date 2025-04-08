@@ -1,174 +1,82 @@
-import { GameStoreService } from "../../services/GameStoreService";
-import { GameMode } from "../../types";
-import { assert } from "../../utils/assert";
+import { GameStoreService } from "@/services/GameStoreService";
+import { IGame, GameMode } from "@/types";
+import { BaseNavigationButton } from "./base-navigation-button";
 
 /**
  * Scene Button Component
  * 
  * A button component that toggles between VR and AR modes
  */
-export class SceneButton extends HTMLElement {
-    private button: HTMLButtonElement | null = null;
-    private unsubscribe: (() => void) | null = null;
-    private _active = false;
+export class SceneButton extends BaseNavigationButton {
+  constructor() {
+    super();
+  }
+
+  protected render() {
+    if (!this.shadowRoot) return;
     
-    constructor() {
-        super();
-        this.attachShadow({ mode: "open" });
-        this.handleModeChange = this.handleModeChange.bind(this);
-        this.handleClick = this.handleClick.bind(this);
-    }
-
-    connectedCallback() {
-        this.render();
-        this.setupListeners();
-        this.updateButtonState();
-    }
-
-    disconnectedCallback() {
-        this.cleanupListeners();
-    }
-
-    private render() {
-        if (!this.shadowRoot) return;
-        
-        const activeClass = this._active ? "active" : "";
-        
-        this.shadowRoot.innerHTML = /* html */ `
-            <style>
-                :host {
-                    display: inline-block;
-                }
-                
-                button {
-                    font-weight: 500;
-                    color: var(--color-primary, #333);
-                    text-decoration: inherit;
-                    border-radius: 1em;
-                    border: 1px solid var(--color-primary, #333);
-                    padding: 0 1em;
-                    font-size: 1em;
-                    line-height: 2em;
-                    font-family: inherit;
-                    background-color: var(--color-background, #fff);
-                    cursor: pointer;
-                    transition: all 0.25s ease;
-                }
-
-                button:hover {
-                    border-color: var(--color-secondary, #666);
-                    color: var(--color-secondary, #666);
-                }
-
-                button:focus,
-                button:focus-visible {
-                    outline: 4px auto -webkit-focus-ring-color;
-                }
-
-                button.active {
-                    border-color: var(--color-secondary, #666);
-                    background-color: var(--color-accent, #f0f0f0);
-                    color: var(--color-secondary, #666);
-                    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
-                }
-                
-                button[disabled] {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-            </style>
-            <button class="${activeClass}">
-                ${this.buttonText}
-            </button>
-        `;
-
-        this.button = this.shadowRoot.querySelector('button');
-    }
-
-    private setupListeners() {
-        if (this.button) {
-            this.button.addEventListener('click', this.handleClick);
+    const activeClass = this._active ? "active" : "";
+    const disabledAttr = this._disabled ? "disabled" : "";
+    
+    this.shadowRoot.innerHTML = /* html */ `
+      <style>
+        :host {
+          display: inline-block;
         }
-        
-        // Get game instance from GameStoreService
-        const game = GameStoreService.getInstance().getGame();
-        
-        // Use assert to ensure game is available
-        assert(game, 'Scene Button: Game instance not available from GameStoreService');
-        
-        this.unsubscribe = game.subscribe(this.handleModeChange);
-    }
+      </style>
+      <button is="text-button" class="${activeClass}" ${disabledAttr} size="sm">
+        <ghost-icon slot="icon"></ghost-icon>
+        <span class="button-text">${this.buttonText}</span>
+      </button>
+    `;
 
-    private cleanupListeners() {
-        if (this.button) {
-            this.button.removeEventListener('click', this.handleClick);
-        }
-        
-        if (this.unsubscribe) {
-            this.unsubscribe();
-            this.unsubscribe = null;
-        }
-    }
+    this.button = this.shadowRoot.querySelector('button');
+  }
 
-    private handleModeChange(state: { mode: GameMode }) {
-        this.updateButtonState();
-    }
+  protected updateButtonState() {
+    if (!this.button || !this.game) return;
 
-    private updateButtonState() {
-        if (!this.button) return;
-        
-        const game = GameStoreService.getInstance().getGame();
-        assert(game, 'Scene Button: Game instance not available when updating button state');
-        
-        const isVRMode = game.state.mode === GameMode.VR;
-        const isQRMode = game.state.mode === GameMode.QR;
-        
-        // Update active state
-        this._active = isVRMode;
-        
-        // Disable button in QR mode
-        this.button.disabled = isQRMode;
-        
-        // Update active state and text based on current mode
-        this.button.classList.toggle('active', isVRMode);
-        
+    const isQRMode = this.game.state.mode === GameMode.QR;
+    const isVRMode = this.game.state.mode === GameMode.VR;
+
+    // Update active state
+    this._active = isVRMode;
+    
+    // Disable button in QR mode
+    this._disabled = isQRMode;
+
+    // Update button appearance
+    if (this.button) {
+      this.button.classList.toggle("active", this._active);
+      this.button.disabled = this._disabled;
+      
+      // Update text based on current mode
+      const textSpan = this.button.querySelector('.button-text');
+      if (textSpan) {
         if (isVRMode) {
-            this.button.textContent = 'Exit VR';
-            this.button.title = 'Return to AR mode';
+          textSpan.textContent = "AR";
         } else if (isQRMode) {
-            this.button.textContent = 'VR Unavailable';
-            this.button.title = 'Exit QR scanning mode to enter VR';
+          textSpan.textContent = "VR";
         } else {
-            this.button.textContent = 'Enter VR';
-            this.button.title = 'Switch to VR mode';
+          textSpan.textContent = "VR";
         }
+      }
     }
+  }
 
-    private handleClick() {
-        const game = GameStoreService.getInstance().getGame();
-        assert(game, 'Scene Button: Game instance not available when handling click');
-        
-        try {
-            if (game.state.mode === GameMode.VR) {
-                game.scene.exitVR();
-            } else if (game.state.mode !== GameMode.QR) {
-                game.scene.enterVR();
-            }
-        } catch (error) {
-            console.error('Error toggling VR mode:', error);
-        }
-    }
+  protected handleClick() {
+    if (!this.game || this._disabled) return;
 
-    private get buttonText(): string {
-        return this.textContent?.trim() || 'Enter VR';
+    if (this.game.state.mode === GameMode.VR) {
+      this.game.scene.exitVR();
+    } else if (this.game.state.mode !== GameMode.QR) {
+      this.game.scene.enterVR();
     }
-    
-    /**
-     * Programmatically toggle VR mode
-     */
-    public toggleVRMode(): void {
-        this.handleClick();
-    }
+  }
+
+  protected get buttonText(): string {
+    return this.getAttribute('text') || this.textContent?.trim() || 'VR';
+  }
 }
 
-customElements.define('scene-button', SceneButton);
+customElements.define("scene-button", SceneButton);

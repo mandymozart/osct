@@ -24,6 +24,16 @@ class LoadingPage extends Page {
 
     protected get styles(): string {
         return /* css */ `
+            :host {
+                top: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100%;
+                border-radius: 0;
+                transform: translateY(0);
+            }
+            
             .loading {
                 font-size: 1em;
                 color: var(--color-primary);
