@@ -1,5 +1,5 @@
 import { Scene } from "aframe";
-import { ErrorCode, GameMode, IGame, ISceneManager } from "./../../types";
+import { ErrorCode, GameMode, IGame, ISceneManager, ChapterResource, Asset, Entity, Target, LoadingState } from "./../../types";
 
 export class SceneManager implements ISceneManager {
   private game: IGame;
@@ -141,6 +141,21 @@ export class SceneManager implements ISceneManager {
   }
 
   /**
+   * Detach the scene from the store
+   */
+  public detachScene(): void {
+    // Cleanup before detaching
+    if (this.game.state.scene) {
+      this.clearSceneAssets(this.game.state.scene);
+      this.clearSceneTargets(this.game.state.scene);
+      
+      // Set scene to null in the game state
+      this.game.set({ scene: null });
+      console.log('Scene detached from game state');
+    }
+  }
+
+  /**
    * Clean up scene resources
    */
   cleanup(): void {
@@ -149,5 +164,246 @@ export class SceneManager implements ISceneManager {
       scene.pause();
       this.game.set({ scene: null });
     }
+  }
+
+  /**
+   * Update scene with chapter resources
+   * Handles the A-Frame DOM updates based on chapter data
+   */
+  public updateSceneWithChapter(chapter: ChapterResource): void {
+    if (!this.isSceneReady() || !chapter) {
+      console.warn('Scene not ready or chapter not provided for updateSceneWithChapter');
+      return;
+    }
+
+    const scene = this.game.state.scene;
+    if (!scene) return;
+
+    // Clear the scene using our unified clearScene method
+    this.clearScene();
+
+    // Then add new chapter assets and targets
+    this.addChapterAssetsToScene(scene, chapter);
+    this.addChapterTargetsToScene(scene, chapter);
+
+    console.log(`Updated scene with chapter ID: ${chapter.id}`);
+  }
+
+  /**
+   * Clear all dynamically added assets from the scene
+   */
+  private clearSceneAssets(scene: Scene): void {
+    const assetEl = scene.querySelector('a-assets');
+    if (!assetEl) return;
+
+    // Keep only built-in assets (those without the 'dynamic-asset' class)
+    const dynamicAssets = assetEl.querySelectorAll('.dynamic-asset');
+    dynamicAssets.forEach(asset => asset.remove());
+  }
+
+  /**
+   * Clear all dynamically added target entities from the scene
+   */
+  private clearSceneTargets(scene: Scene): void {
+    // Remove entities with the 'dynamic-target' class
+    const dynamicTargets = scene.querySelectorAll('.dynamic-target');
+    dynamicTargets.forEach(target => target.remove());
+  }
+
+  /**
+   * Clear the MindAR target file to allow changing targets
+   */
+  private clearMindARTarget(scene: Scene): void {
+    // Find and remove the mindar-image-system component
+    const mindARSystem = scene.querySelector('[mindar-image-system]');
+    if (mindARSystem) {
+      // Remove the attribute to reset the AR tracking
+      mindARSystem.removeAttribute('mindar-image-system');
+    }
+  }
+
+  /**
+   * Clear all dynamic scene elements
+   * This method should be called before updating the scene with new chapter content
+   */
+  public clearScene(): void {
+    const { scene } = this.game.state;
+    if (!scene) {
+      console.warn('Cannot clear scene: no scene is attached');
+      return;
+    }
+
+    // Remove assets, targets, and MindAR target file
+    this.clearSceneAssets(scene);
+    this.clearSceneTargets(scene);
+    this.clearMindARTarget(scene);
+
+    console.log('Scene cleared: all dynamic elements removed');
+  }
+
+  /**
+   * Add chapter assets to the scene
+   */
+  private addChapterAssetsToScene(scene: Scene, chapter: ChapterResource): void {
+    const assetEl = scene.querySelector('a-assets');
+    if (!assetEl) return;
+
+    // Collect all assets from the chapter
+    const assetsToAdd: Array<{id: string, src: string}> = [];
+    
+    // Based on the code structure, each target has a single entity which has multiple assets
+    chapter.targets.forEach(target => {
+      if (!target.loaded || !target.entity || !target.entity.loaded) return;
+      
+      // Add assets from this entity
+      if (target.entity.assets && Array.isArray(target.entity.assets)) {
+        target.entity.assets.forEach(asset => {
+          if (asset.loaded && asset.id && asset.src) {
+            assetsToAdd.push({
+              id: asset.id, 
+              src: asset.src
+            });
+          }
+        });
+      }
+    });
+
+    // Now add assets to the scene
+    assetsToAdd.forEach(asset => {
+      // Create asset elements
+      const assetItem = document.createElement('a-asset-item');
+      assetItem.id = asset.id;
+      assetItem.setAttribute('src', asset.src);
+      assetItem.classList.add('dynamic-asset'); // Mark as dynamically added
+      assetEl.appendChild(assetItem);
+    });
+  }
+
+  /**
+   * Add chapter target entities to the scene
+   */
+  private addChapterTargetsToScene(scene: Scene, chapter: ChapterResource): void {
+    if (!chapter.targets || chapter.targets.length === 0) {
+      console.warn('No targets found in chapter');
+      return;
+    }
+
+    // Add each target entity
+    chapter.targets.forEach((target, index) => {
+      if (!target.loaded || !target.entity || !target.entity.loaded) {
+        console.warn(`Target or its entity not fully loaded, skipping index ${index}`);
+        return;
+      }
+
+      // Create target entity
+      const targetEntity = document.createElement('a-entity');
+      targetEntity.setAttribute('id', `target-${index}`);
+      targetEntity.classList.add('dynamic-target'); // Mark as dynamically added
+      targetEntity.setAttribute('mindar-image-target', `targetIndex: ${index}`);
+
+      // Create entity based on target.entity configuration
+      const entity = target.entity;
+      
+      // Create the specific element based on entity type
+      const entityElement = this.createEntityElement(entity);
+      if (entityElement) {
+        targetEntity.appendChild(entityElement);
+      }
+
+      // Add target to scene
+      scene.appendChild(targetEntity);
+    });
+  }
+
+  /**
+   * Add a single target to the scene
+   * @param target The target to add to the scene
+   * @param index The index of the target in the chapter
+   */
+  public addTargetToScene(target: Target, index: number): void {
+    const { scene } = this.game.state;
+    if (!scene || !this.isSceneReady()) {
+      console.warn('Cannot add target to scene: scene not ready');
+      return;
+    }
+
+    if (!target || target.status !== LoadingState.LOADED) {
+      console.warn(`Cannot add target to scene: target ${index} not loaded`);
+      return;
+    }
+
+    // Create target entity
+    const targetEntity = document.createElement('a-entity');
+    targetEntity.setAttribute('id', `target-${index}`);
+    targetEntity.classList.add('dynamic-target'); // Mark as dynamically added
+    targetEntity.setAttribute('mindar-image-target', `targetIndex: ${index}`);
+
+    // Create entity based on target.entity configuration
+    if (target.entity && target.entity.status === LoadingState.LOADED) {
+      // Create the specific element based on entity type
+      const entityElement = this.createEntityElement(target.entity);
+      if (entityElement) {
+        targetEntity.appendChild(entityElement);
+      }
+    }
+
+    // Add target to scene
+    scene.appendChild(targetEntity);
+    console.log(`Added target ${index} to scene`);
+  }
+
+  /**
+   * Create appropriate entity element based on entity type
+   */
+  private createEntityElement(entity: {type?: string, [key: string]: any}): HTMLElement | null {
+    let element: HTMLElement | null = null;
+
+    // Create element based on type (model, video, image, etc.)
+    switch (entity.type) {
+      case 'model':
+        element = document.createElement('a-gltf-model');
+        element.setAttribute('src', `#${entity.assetId || entity.assets?.[0]?.id}`);
+        if (entity.animation) {
+          element.setAttribute('animation-mixer', '');
+        }
+        break;
+      
+      case 'video':
+        element = document.createElement('a-video');
+        element.setAttribute('src', `#${entity.assetId || entity.assets?.[0]?.id}`);
+        break;
+      
+      case 'image':
+        element = document.createElement('a-image');
+        element.setAttribute('src', `#${entity.assetId || entity.assets?.[0]?.id}`);
+        break;
+      
+      default:
+        // Default to model if type not specified
+        element = document.createElement('a-gltf-model');
+        element.setAttribute('src', `#${entity.assetId || entity.assets?.[0]?.id}`);
+        break;
+    }
+
+    // Set common properties
+    if (entity.position) {
+      element.setAttribute('position', entity.position);
+    } else {
+      element.setAttribute('position', '0 -0.25 0');
+    }
+    
+    if (entity.rotation) {
+      element.setAttribute('rotation', entity.rotation);
+    } else {
+      element.setAttribute('rotation', '0 0 0');
+    }
+    
+    if (entity.scale) {
+      element.setAttribute('scale', entity.scale);
+    } else {
+      element.setAttribute('scale', '0.05 0.05 0.05');
+    }
+
+    return element;
   }
 }

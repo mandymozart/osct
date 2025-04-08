@@ -1,6 +1,6 @@
 import { Page } from "./page";
 import { assert } from "../utils/assert";
-import { GameState, ChapterData } from "../types";
+import { GameState, ChapterData, LoadingState } from "../types";
 import { chapters } from "../game.config.json";
 
 export class ChaptersPage extends Page {
@@ -139,7 +139,7 @@ export class ChaptersPage extends Page {
         const isActive = currentChapter?.id === chapterData.id;
         
         // Get loading status from the resource if available, otherwise assume not loading
-        const loadingStatus = chapterResource?.isLoading ? '(Loading...)' : '';
+        const loadingStatus = chapterResource?.status === LoadingState.LOADING ? '(Loading...)' : '';
 
         return /* html */ `
       <div class="chapter-card ${isActive ? "active" : ""}" 

@@ -7,6 +7,7 @@ import {
   GameMode,
   IPagesRouter,
   Route,
+  LoadingState,
 } from "./types";
 import { Scene } from "aframe";
 import { GameStoreService } from "./services/GameStoreService";
@@ -17,6 +18,7 @@ import "./components/qr-button";
 import "./components/index-button";
 import "./components/scene-button";
 import "./components/text-button";
+import "./components/debug/debug-overlay";
 import "./pages";
 import "./components/pages-router";
 import "./deps/aframe.min.js";
@@ -103,7 +105,7 @@ export class BookGame extends HTMLElement {
     <qr-scanner></qr-scanner>
     <loading-page></loading-page>
     
-
+    <debug-overlay></debug-overlay>
     
     <pages-router>
       <error-page></error-page>
@@ -210,7 +212,7 @@ export class BookGame extends HTMLElement {
     if (!chapter) return;
 
     if (this.loadingPage) {
-      if (chapter.isLoading) {
+      if (chapter.status === LoadingState.LOADING) {
         this.loadingPage.showLoading(`Loading chapter ${chapter.id}...`);
       } else {
         this.loadingPage.hideLoading();
