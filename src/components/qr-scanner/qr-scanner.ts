@@ -1,7 +1,7 @@
-import { GameStoreService } from '../services/GameStoreService';
+import { GameStoreService } from '@/services/GameStoreService';
 import jsQR from 'jsqr';
-import { assert } from '../utils/assert';
-import { GameMode, IGame, IQRScanner } from '../types';
+import { assert } from '@/utils';
+import { GameMode, IGame, IQRScanner } from '@/types';
 
 /**
  * QR Scanner Web Component

@@ -5,26 +5,17 @@ import {
   IPagesRouter,
   Route,
   LoadingState,
-} from "./types";
+} from "@/types";
 import { Scene } from "aframe";
-import { GameStoreService } from "./services/GameStoreService";
-import "./components/qr-scanner";
-import "./components/icons/cross-icon";
-import "./components/common/close-button";
-import "./components/qr-button";
-import "./components/index-button";
-import "./components/buttons/scene-button";
-import "./components/common/text-button";
-import "./components/debug/debug-overlay";
-import "./pages";
-import "./components/pages-router/pages-router";
-import "./deps/aframe.min.js";
-import "./deps/aframe-extras.min.js";
-import "./deps/mindar-image-aframe.prod.js";
-import { IErrorPage } from "./pages/error-page";
-import { IQRButton } from "./components/qr-button";
-import { getURLParam, getURLParams } from "./utils/url-params";
-import { assert } from "./utils/assert";
+import { GameStoreService } from "@/services/GameStoreService";
+import "@/components";
+import "@/pages";
+import "@/deps/aframe.min.js";
+import "@/deps/aframe-extras.min.js";
+import "@/deps/mindar-image-aframe.prod.js";
+import { IErrorPage } from "@/pages/error-page";
+import { IQRButton } from "@/components/buttons/qr-button";
+import { getURLParam, getURLParams, assert } from "@/utils";
 
 export class BookGame extends HTMLElement {
   private errorPage: IErrorPage | null = null;
@@ -102,21 +93,23 @@ export class BookGame extends HTMLElement {
     <qr-scanner></qr-scanner>
     <loading-page></loading-page>
     
-    <debug-overlay></debug-overlay>
     
     <pages-router>
-      <error-page></error-page>
-      <about-page></about-page>
+    <error-page></error-page>
+    <about-page></about-page>
       <not-found-page></not-found-page>
       <home-page></home-page>
       <tutorial-page></tutorial-page>
       <index-page></index-page>
       <chapters-page></chapters-page>
       <chapter-page></chapter-page>
-    </pages-router>
-
+      </pages-router>
+      
+      <debug-overlay></debug-overlay>
     <div class="interface">
       <qr-button></qr-button>
+      <index-button></index-button>
+      <scene-button></scene-button>
     </div>
   `;
 

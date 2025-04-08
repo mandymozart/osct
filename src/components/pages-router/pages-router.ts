@@ -1,7 +1,7 @@
-import { GameStoreService } from "../../services/GameStoreService";
-import { GameState, IGame, IPagesRouter, IRouterManager, Route, RouteParam } from "../../types";
-import { assert } from "../../utils/assert";
-import { router as routerConfig } from "../../router";
+import { GameStoreService } from "@/services/GameStoreService";
+import { GameState, IGame, IPagesRouter, IRouterManager, Route, RouteParam } from "@/types";
+import { assert } from "@/utils";
+import { router as routerConfig } from "@/router";
 
 export class PagesRouter extends HTMLElement implements IPagesRouter {
   private pages: Map<string, HTMLElement> = new Map();
