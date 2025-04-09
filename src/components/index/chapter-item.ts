@@ -1,5 +1,6 @@
-import { ChapterData, ChapterResource } from "@/types";
+import { ChapterData, ChapterResource, LoadingState } from "@/types";
 import { chapters } from "@/game.config.json";
+import { GameStoreService } from "@/services/GameStoreService";
 
 export interface IChapterItem extends HTMLElement {
   chapter: ChapterResource | null;
@@ -16,6 +17,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
   private _chapter: ChapterResource | null = null;
   private _isCurrent = false;
   private _chapterData: ChapterData | null = null;
+  private game = GameStoreService.getInstance().getGame();
   
   static get observedAttributes() {
     return ['is-current'];
@@ -46,10 +48,23 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
   private render() {
     if (!this.shadowRoot || !this._chapter) return;
     
+    // Get loading status if available
+    const loadingStatus = this._chapter.status === LoadingState.LOADING ? '(Loading...)' : '';
+    
+    // Get completion percentage from history
+    const completionPercentage = this.game?.history.getChapterCompletionPercentage(this._chapter.id) ?? 0;
+    
+    // Get info about seen targets
+    const seenTargets = this.game?.history.getSeenTargetsForChapter(this._chapter.id) ?? [];
+    const seenCount = seenTargets.length;
+    const isComplete = this.game?.history.isChapterComplete(this._chapter.id) ?? false;
+    const statusText = isComplete ? 'Complete' : seenCount > 0 ? `${seenCount} targets seen` : 'Not started';
+    
     this.shadowRoot.innerHTML = /* html */`
       <style>
         :host {
           display: block;
+          border-bottom: .1rem solid var(--color-primary);
         }
         
         .chapter-header {
@@ -59,7 +74,6 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
           gap: 1rem;
           line-height: 3rem;
           cursor: pointer;
-          border-bottom: .1rem solid var(--color-primary);
         }
         
         .chapter-pages {
@@ -74,11 +88,47 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
           color: var(--primary-400);
           border-color: var(--primary-400);
         }
+        
+        .chapter-meta {
+          color: var(--primary-400);
+          font-size: 0.75rem;
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 0.5rem;
+        }
+        
+        .loading-indicator {
+          font-style: italic;
+          color: var(--primary-300);
+          margin-left: 0.5rem;
+        }
+        
+        .progress-bar {
+          width: 100%;
+          height: 0.25rem;
+          background: var(--primary-200);
+          border-radius: .25rem;
+          margin: 0.25rem 0;
+        }
+        
+        .progress-bar div {
+          height: 100%;
+          background: var(--color-primary);
+          border-radius: 4px;
+          transition: width 0.3s ease;
+        }
       </style>
       
       <div class="chapter-header ${this._isCurrent ? 'current' : 'muted'}">
-        <span class="chapter-title">📑 ${this._chapterData?.title || 'Untitled'}</span>
+        <span class="chapter-title">📑 ${this._chapterData?.title || 'Untitled'} <span class="loading-indicator">${loadingStatus}</span></span>
         <span class="chapter-pages">${this._chapterData?.firstPage} &mdash; ${this._chapterData?.lastPage}</span>
+      </div>
+      <div class="progress-bar">
+        <div style="width: ${completionPercentage}%"></div>
+      </div>
+      <div class="chapter-meta">
+        <div class="completion">Completion: <span>${completionPercentage}%</span></div>
+        <div class="status">${statusText}</div>
       </div>
     `;
   }
