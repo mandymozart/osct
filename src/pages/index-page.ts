@@ -1,38 +1,46 @@
 import { Page } from "./page";
-import { GameMode, Target } from "../types";
-import { assert } from "../utils/assert";
+import { assert } from "@/utils";
+import { IGame } from "@/types";
+import { GameStoreService } from "@/services/GameStoreService";
 
-export class IndexPage extends Page {
-  private trackedTargets: Target[] = [];
+// Import to ensure the components are registered
+// TODO: this is not ideal. use event system rather than the instance
+// not sure why the import is needed
+import "@/components/index";
+import { ChapterList } from "@/components/index/chapter-list";
+
+export interface IIndexPage extends HTMLElement {
+  scrollToCurrentChapter(): void;
+}
+
+export class IndexPage extends Page implements IIndexPage {
+  protected game: IGame | null = null;
+
+  constructor() {
+    super();
+    this.handleStateChange = this.handleStateChange.bind(this);
+  }
 
   protected get styles(): string {
     return /* css */ `
-      .content {
-        padding: 0 2rem;
-        overflow-y: auto;
-        height: calc(100vh - 8rem);
-        margin-top: 2rem;
-      }
-      h2 {
-        margin: 0 0 1rem 0;
-      }
-      ul {
-        list-style-type: none;
-        padding: 0;
-      }
-      li {
-        margin: 0;
-        padding: 1rem 0;
-        border-bottom: 1px solid var(--color-primary);
-        display: flex;  
-        justify-content: space-between;
-      }
-      li img {
-        width: calc(50vw - 2rem);
+      :host {
         display: block;
+        height: 100%;
       }
-      li:last-child {
-        border: none;
+      
+      .content {
+        padding: 2rem;
+        overflow-y: auto;
+        height: calc(100vh - var(--offset-top)-2rem);
+
+        margin: 0 0 10rem 0;
+      }
+      
+      h1 {
+        margin: 0 0 2rem 0;
+        font-weight: 400;
+        font-size: 1.5rem;
+        color: var(--primary-500);
       }
     `;
   }
@@ -40,26 +48,22 @@ export class IndexPage extends Page {
   protected get template(): string {
     return /* html */ `
       <div class="content">
-        <h2>Index</h2>
-        <ul id="targets-list">
-          <p>No targets in view</p>
-        </ul>
+        <h1>Index</h1>
+        <chapter-list id="chapter-list"></chapter-list>
       </div>
     `;
   }
 
-  constructor() {
-    super();
-    this.handleStateChange = this.handleStateChange.bind(this);
-  }
-
   connectedCallback() {
     super.connectedCallback();
-    assert(this.game, 'Game store not initialized');
+    assert(this.shadowRoot, 'Shadow root not initialized');
     
+    // Get game instance
+    this.game = GameStoreService.getInstance().getGame();
+    assert(this.game, 'Game not initialized');
+    
+    // Subscribe to state changes
     this.game.subscribe(this.handleStateChange);
-    this.trackedTargets = this.game.targets.getTrackedTargetObjects();
-    this.updateView();
   }
 
   disconnectedCallback() {
@@ -67,36 +71,21 @@ export class IndexPage extends Page {
     this.game?.unsubscribe(this.handleStateChange);
   }
 
-  private handleStateChange(state: { mode: GameMode, trackedTargets: number[] }) {
-    assert(this.game, 'Game store not initialized');
-    
-    // Get full target objects instead of just indices
-    this.trackedTargets = this.game.targets.getTrackedTargetObjects();
-    this.updateView();
+  private handleStateChange() {
+    // Use the static instance to access methods directly
+    if (ChapterList.instance) {
+      ChapterList.instance.updateChapters();
+    }
   }
 
-  private updateView() {
-    assert(this.shadowRoot, 'Shadow root not initialized');
-    
-    // TODO: Evaluate which target type is used here. TargetData
-    const targetList = this.trackedTargets
-      .filter((target) => target.mode === "index")
-      .map(
-        (target) => /* html */ `<li>
-            <div>
-              ${target.book} &mdash; ${target.description}
-            </div>
-            <div>
-              <img src="/images/images-${target.image}.jpg" alt="Image of ${target.description}" />
-            </div>
-          </li>`
-      )
-      .join("");
-
-    const targetsList = this.shadowRoot.querySelector("#targets-list");
-    assert(targetsList, 'Targets list element not found');
-    
-    targetsList.innerHTML = targetList || "<p>No targets in view</p>";
+  /**
+   * Public method to scroll to the current chapter
+   */
+  public scrollToCurrentChapter() {
+    // Use the static instance to access methods directly
+    if (ChapterList.instance) {
+      ChapterList.instance.scrollToCurrentChapter();
+    }
   }
 }
 

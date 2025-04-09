@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services/GameStoreService";
-import { Pages } from "@/types";
+import { PageRoute, Pages } from "@/types";
 import { BaseNavigationButton } from "./base-navigation-button";
 
 /**
@@ -12,50 +12,28 @@ export class IndexButton extends BaseNavigationButton {
     super();
   }
 
-  protected render() {
-    if (!this.shadowRoot) return;
-    
-    const activeClass = this._active ? "active" : "";
-    const disabledAttr = this._disabled ? "disabled" : "";
-    
-    this.shadowRoot.innerHTML = /* html */ `
-      <style>
-        :host {
-          display: inline-block;
-        }
-      </style>
-      <button is="text-button" class="${activeClass}" ${disabledAttr} size="sm">
-        <index-icon slot="icon"></index-icon>
-        <span class="button-text">${this.buttonText}</span>
-      </button>
-    `;
-
-    this.button = this.shadowRoot.querySelector('button');
+  protected getButtonIconHTML(): string {
+    return `<index-icon slot="icon"></index-icon>`;
+  }
+  
+  protected getButtonText(): string {
+    return this.getAttribute('text') || this.textContent?.trim() || 'Index';
   }
 
   protected updateButtonState() {
-    if (!this.button || !this.game) return;
+    if (!this.game) return;
     
     // Check if the current route is the index page
     const isIndexPage = this.game.state.currentRoute && 
       this.game.state.currentRoute.hasOwnProperty('page') && 
-      (this.game.state.currentRoute as any).page === Pages.INDEX;
+      (this.game.state.currentRoute as PageRoute).page === Pages.INDEX;
     
     // Update active state
-    this._active = Boolean(isIndexPage);
-    
-    // Index is disabled when no current chapter is available
-    this._disabled = !this.game.state.currentChapter;
-    
-    // Update button appearance
-    if (this.button) {
-      this.button.classList.toggle('active', this._active);
-      this.button.disabled = this._disabled;
-    }
+    this.active = Boolean(isIndexPage);
   }
 
   protected handleClick() {
-    if (!this.game || this._disabled) return;
+    if (!this.game || this.disabled) return;
     
     try {
       // Navigate to index page
@@ -63,10 +41,6 @@ export class IndexButton extends BaseNavigationButton {
     } catch (error) {
       console.error("Error navigating to index page:", error);
     }
-  }
-
-  protected get buttonText(): string {
-    return this.getAttribute('text') || this.textContent?.trim() || 'IX';
   }
 }
 

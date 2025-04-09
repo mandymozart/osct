@@ -6,3 +6,4 @@ export * from "./pages-router";
 export * from "./qr-scanner";
 export * from "./tutorial";
 export * from "./navigation"
+export * from "./index";

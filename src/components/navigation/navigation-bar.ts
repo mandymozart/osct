@@ -1,5 +1,6 @@
+import { Page } from "@/pages/page";
 import { GameStoreService } from "@/services/GameStoreService";
-import { GameMode, Pages } from "@/types";
+import { GameMode, PageRoute, Pages } from "@/types";
 import { assert } from "@/utils";
 
 /**
@@ -113,21 +114,22 @@ export class NavigationBar extends HTMLElement {
         
         // Route-based states (check if the currentRoute has a page property with the right value)
         const isIndexPage = currentRoute && currentRoute.hasOwnProperty('page') && 
-                           (currentRoute as any).page === Pages.INDEX;
+                           (currentRoute as PageRoute).page === Pages.INDEX;
         const isChaptersPage = currentRoute && currentRoute.hasOwnProperty('page') && 
-                              (currentRoute as any).page === Pages.CHAPTERS;
+                              (currentRoute as PageRoute).page === Pages.CHAPTERS;
         
         // QR and Scene buttons are mutually exclusive
         // QR button is disabled in VR mode, Scene button is disabled in QR mode
-        this.qrButton.classList.toggle('disabled', isVRMode);
-        this.sceneButton.classList.toggle('disabled', isQRMode);
+        (this.qrButton as any).disabled = isVRMode;
+        (this.sceneButton as any).disabled = isQRMode;
+        
+        // Set active states based on game mode for QR and Scene buttons
+        (this.qrButton as any).active = isQRMode;
+        (this.sceneButton as any).active = isVRMode;
         
         // Index and Chapters buttons can both be active based on current route
-        this.indexButton.classList.toggle('active', Boolean(isIndexPage));
-        this.chaptersButton.classList.toggle('active', Boolean(isChaptersPage));
-        
-        // Index button is disabled when no chapter is loaded
-        this.indexButton.classList.toggle('disabled', !currentChapter);
+        (this.indexButton as any).active = Boolean(isIndexPage);
+        (this.chaptersButton as any).active = Boolean(isChaptersPage);
     }
 }
 

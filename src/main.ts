@@ -20,7 +20,6 @@ import { getURLParam, getURLParams, assert } from "@/utils";
 export class BookGame extends HTMLElement {
   private errorPage: IErrorPage | null = null;
   private loadingPage: ILoadingPage | null = null;
-  private qrButton: IQRButton | null = null;
   private pagesRouter: IPagesRouter | null = null;
 
   constructor() {
@@ -94,7 +93,7 @@ export class BookGame extends HTMLElement {
       
     <navigation-bar></navigation-bar>
     <loading-page></loading-page>
-    
+
     <debug-overlay></debug-overlay>
   `;
 

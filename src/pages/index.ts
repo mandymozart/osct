@@ -6,3 +6,4 @@ import "./tutorial-page";
 import "./chapter-page"
 import "./chapters-page"
 import "./loading-page";
+import "./index-page";
