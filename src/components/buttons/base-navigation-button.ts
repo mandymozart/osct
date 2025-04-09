@@ -21,7 +21,7 @@ export abstract class BaseNavigationButton extends HTMLElement {
         super();
         this.attachShadow({ mode: "open" });
         // Bind methods once in constructor and store references
-        this.boundHandleClick = this.handleClick.bind(this);
+        this.boundHandleClick = this._handleClick.bind(this);
         this.boundHandleStateChange = this.handleStateChange.bind(this);
     }
 
@@ -31,7 +31,6 @@ export abstract class BaseNavigationButton extends HTMLElement {
         assert(this.game, `${this.constructor.name}: Game instance not available`);
         
         this.render();
-        this.setupListeners();
         this.updateButtonState();
     }
 
@@ -40,13 +39,11 @@ export abstract class BaseNavigationButton extends HTMLElement {
     }
 
     /**
-     * Render button template
+     * Render button template - Template method
+     * This implementation should not be overridden by subclasses
      */
     protected render() {
         if (!this.shadowRoot) return;
-        
-        const activeClass = this._active ? "active" : "";
-        const disabledAttr = this._disabled ? "disabled" : "";
         
         this.shadowRoot.innerHTML = /* html */ `
             <style>
@@ -55,16 +52,11 @@ export abstract class BaseNavigationButton extends HTMLElement {
                     width: 100%;
                 }
                 
-                button[is="text-button"] {
+                button {
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     width: 100%;
-                }
-                
-                button[is="text-button"].active {
-                    background-color: var(--color-accent, #f0f0f0);
-                    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
                 }
                 
                 ::slotted(*) {
@@ -81,19 +73,54 @@ export abstract class BaseNavigationButton extends HTMLElement {
                     .button-text {
                         display: none;
                     }
-                    
-                    ::slotted(*) {
-                        
-                    }
                 }
+
+                ${this.getAdditionalStyles()}
             </style>
-            <button is="text-button" class="${activeClass}" ${disabledAttr} size="sm">
-                <slot name="icon"></slot>
-                <span class="button-text">${this.buttonText}</span>
+            <button is="text-button" ${this._active ? 'active' : ''} ${this._disabled ? 'disabled' : ''} size="sm">
+                ${this.getButtonIconHTML()}
+                <span class="button-text">${this.getButtonText()}</span>
             </button>
         `;
 
         this.button = this.shadowRoot.querySelector('button');
+        
+        // Sync active and disabled states with the button element
+        if (this.button) {
+            if (this._active) {
+                this.button.classList.add('active');
+                this.button.setAttribute('active', '');
+            } else {
+                this.button.classList.remove('active');
+                this.button.removeAttribute('active');
+            }
+            this.button.disabled = this._disabled;
+        }
+        
+        // Setup event listeners after the button is created
+        this.setupListeners();
+    }
+
+    /**
+     * Get additional styles for the button
+     * Can be overridden by subclasses to add specific styles
+     */
+    protected getAdditionalStyles(): string {
+        return "";
+    }
+
+    /**
+     * Get HTML for button icon
+     * Should be implemented by subclasses
+     */
+    protected abstract getButtonIconHTML(): string;
+
+    /**
+     * Get button text
+     * Can be overridden by subclasses if needed
+     */
+    protected getButtonText(): string {
+        return this.getAttribute('text') || this.textContent?.trim() || '';
     }
 
     /**
@@ -137,35 +164,104 @@ export abstract class BaseNavigationButton extends HTMLElement {
     protected abstract updateButtonState(): void;
 
     /**
+     * Handle button click event
+     * This handles the DOM event and calls the abstract handleClick method
+     * @param event 
+     */
+    private _handleClick(event: Event) {
+        if (this._disabled) {
+            event.preventDefault();
+            return;
+        }
+        
+        this.handleClick();
+        
+        // Force an update of all navigation buttons
+        // This ensures active states are properly updated after navigation
+        // TODO: I don't like the timeout
+        if (this.game) {
+            // Give the navigation a moment to complete
+            setTimeout(() => {
+                this.updateButtonState();
+                // Manually dispatch an event to signal state change
+                window.dispatchEvent(new CustomEvent('navigation-complete'));
+            }, 50);
+        }
+    }
+
+    /**
      * Handle button click
      * Should be implemented by subclasses
      */
     protected abstract handleClick(): void;
-
-    /**
-     * Get button text
-     */
-    protected get buttonText(): string {
-        return this.getAttribute('text') || this.textContent?.trim() || '';
-    }
     
+    /**
+     * Called when an observed attribute changes
+     */
+    attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+        console.log(`[BaseNavigationButton] attributeChangedCallback: ${name}, oldValue: ${oldValue}, newValue: ${newValue}`);
+        if (name === 'active') {
+            this._active = this.hasAttribute('active');
+            if (this.button) {
+                if (this._active) {
+                    this.button.classList.add('active');
+                    this.button.setAttribute('active', '');
+                } else {
+                    this.button.classList.remove('active');
+                    this.button.removeAttribute('active');
+                }
+            }
+        } else if (name === 'disabled') {
+            this._disabled = this.hasAttribute('disabled');
+            if (this.button) {
+                this.button.disabled = this._disabled;
+            }
+        }
+    }
+
     /**
      * Set button active state
      */
     set active(value: boolean) {
-        this._active = value;
-        if (this.button) {
-            this.button.classList.toggle('active', value);
+        if (value !== this._active) {
+            this._active = value;
+            if (value) {
+                this.setAttribute('active', '');
+            } else {
+                this.removeAttribute('active');
+            }
         }
     }
-    
+
     /**
-     * Set button disabled state
+     * Get button active state
+     */
+    get active(): boolean {
+        return this._active;
+    }
+
+    /**
+     * Set button disabled state 
      */
     set disabled(value: boolean) {
-        this._disabled = value;
-        if (this.button) {
-            this.button.disabled = value;
+        if (value !== this._disabled) {
+            this._disabled = value;
+            if (value) {
+                this.setAttribute('disabled', '');
+            } else {
+                this.removeAttribute('disabled');
+            }
         }
+    }
+
+    /**
+     * Get button disabled state
+     */
+    get disabled(): boolean {
+        return this._disabled;
+    }
+
+    static get observedAttributes(): string[] {
+        return ['active', 'disabled'];
     }
 }

@@ -7,7 +7,7 @@ export class TextButton extends HTMLButtonElement {
     }
   
     static get observedAttributes() {
-      return ["variant", "size", "disabled"];
+      return ["variant", "size", "disabled", "active"];
     }
   
     // Getter and setter for text content
@@ -17,6 +17,21 @@ export class TextButton extends HTMLButtonElement {
     
     get text() {
       return this.textContent;
+    }
+  
+    /**
+     * Get and set active state
+     */
+    get active() {
+      return this.hasAttribute('active');
+    }
+    
+    set active(value) {
+      if (value) {
+        this.setAttribute('active', '');
+      } else {
+        this.removeAttribute('active');
+      }
     }
   
     // CSS styles as a string
@@ -44,21 +59,37 @@ export class TextButton extends HTMLButtonElement {
   
         :host button[is="text-button"]:hover,
         button[is="text-button"]:hover {
-          border-color: var(--color-secondary, #747bff);
-          color: var(--color-secondary, #747bff);
+          border-color: var(--color-secondary, #646cff);
+          color: var(--color-secondary, #646cff);
         }
-  
-        :host button[is="text-button"]:focus,
-        :host button[is="text-button"]:focus-visible,
-        button[is="text-button"]:focus,
-        button[is="text-button"]:focus-visible {
-          outline: 4px auto -webkit-focus-ring-color;
+        
+        :host button[is="text-button"]:active,
+        button[is="text-button"]:active {
+          color: var(--color-secondary, #646cff);
+          background-color: rgba(100, 108, 255, 0.1);
         }
-  
+        
+        /* Add active state selector with class */
+        :host button[is="text-button"].active,
+        button[is="text-button"].active,
+        /* Also keep attribute selector for backward compatibility */
+        :host button[is="text-button"][active],
+        button[is="text-button"][active] {
+          color: var(--color-secondary, #646cff);
+          border-color: var(--color-secondary, #646cff);
+          background-color: rgba(100, 108, 255, 0.1);
+        }
+        
         :host button[is="text-button"][variant="secondary"],
         button[is="text-button"][variant="secondary"] {
           border-color: var(--color-secondary, #747bff);
           color: var(--color-secondary, #747bff);
+        }
+        
+        :host button[is="text-button"][variant="secondary"][active],
+        button[is="text-button"][variant="secondary"][active] {
+          background-color: var(--color-secondary, #747bff);
+          color: var(--color-background, #f9f9f9);
         }
   
         :host button[is="text-button"][variant="inverted"],
@@ -67,12 +98,18 @@ export class TextButton extends HTMLButtonElement {
           color: var(--color-background, #f9f9f9);
           border-color: var(--color-primary, #000);
         }
-  
+        
         :host button[is="text-button"][variant="inverted"]:hover,
         button[is="text-button"][variant="inverted"]:hover {
           background-color: var(--color-secondary, #747bff);
           border-color: var(--color-secondary, #747bff);
           color: var(--color-background, #f9f9f9);
+        }
+        
+        :host button[is="text-button"][variant="inverted"][active],
+        button[is="text-button"][variant="inverted"][active] {
+          background-color: var(--color-secondary, #747bff);
+          border-color: var(--color-secondary, #747bff);
         }
   
         :host button[is="text-button"][variant="secondary-inverted"],
@@ -80,6 +117,13 @@ export class TextButton extends HTMLButtonElement {
           background-color: var(--color-secondary, #747bff);
           color: var(--color-background, #f9f9f9);
           border-color: var(--color-secondary, #747bff);
+        }
+        
+        :host button[is="text-button"][variant="secondary-inverted"][active],
+        button[is="text-button"][variant="secondary-inverted"][active] {
+          background-color: var(--color-primary, #000);
+          border-color: var(--color-primary, #000);
+          color: var(--color-background, #f9f9f9);
         }
   
         :host button[is="text-button"][size="sm"],

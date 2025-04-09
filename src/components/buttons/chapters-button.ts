@@ -12,29 +12,16 @@ export class ChaptersButton extends BaseNavigationButton {
         super();
     }
 
-    protected render() {
-        if (!this.shadowRoot) return;
-        
-        const activeClass = this._active ? "active" : "";
-        const disabledAttr = this._disabled ? "disabled" : "";
-        
-        this.shadowRoot.innerHTML = /* html */ `
-            <style>
-                :host {
-                    display: inline-block;
-                }
-            </style>
-            <button is="text-button" class="${activeClass}" ${disabledAttr} size="sm">
-                <bf-icon slot="icon"></bf-icon>
-                <span class="button-text">${this.buttonText}</span>
-            </button>
-        `;
-
-        this.button = this.shadowRoot.querySelector('button');
+    protected getButtonIconHTML(): string {
+        return `<bf-icon slot="icon"></bf-icon>`;
+    }
+    
+    protected getButtonText(): string {
+        return this.getAttribute('text') || this.textContent?.trim() || 'Chapters';
     }
 
     protected updateButtonState() {
-        if (!this.button || !this.game) return;
+        if (!this.game) return;
         
         // Check if the current route is the chapters page
         const isChaptersPage = this.game.state.currentRoute && 
@@ -42,20 +29,14 @@ export class ChaptersButton extends BaseNavigationButton {
             (this.game.state.currentRoute as PageRoute).page === Pages.CHAPTERS;
         
         // Update active state
-        this._active = Boolean(isChaptersPage);
+        this.active = Boolean(isChaptersPage);
         
         // Chapter button is always enabled
-        this._disabled = false;
-        
-        // Update button appearance
-        if (this.button) {
-            this.button.classList.toggle('active', this._active);
-            this.button.disabled = this._disabled;
-        }
+        this.disabled = false;
     }
 
     protected handleClick() {
-        if (!this.game || this._disabled) return;
+        if (!this.game || this.disabled) return;
         
         try {
             // Navigate to chapters page
@@ -63,10 +44,6 @@ export class ChaptersButton extends BaseNavigationButton {
         } catch (error) {
             console.error("Error navigating to chapters page:", error);
         }
-    }
-
-    protected get buttonText(): string {
-        return this.getAttribute('text') || this.textContent?.trim() || 'CH';
     }
 }
 
