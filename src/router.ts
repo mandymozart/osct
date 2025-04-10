@@ -3,17 +3,15 @@
  *
  * In case independent states make more sense, this place becomes a factory
  *
- * The router handles overlay pages and helps to organize
- * QR code direct linkes. It's very basic.
+ * The router handles overlay pages. It's very basic.
  *
  * Reminder: Scenes, QR and default modes handle the visibility of the game.
  * 404 Page Not Found does not appear here.
- * TODO: May
  */
 
-import { Pages } from "./types";
+import { PageRouterConfiguration, Pages } from "./types";
 
-export const router = {
+export const router: PageRouterConfiguration = {
   baseUrl: "",
   routes: [
     {
@@ -27,7 +25,7 @@ export const router = {
     {
       page: Pages.CHAPTER,
       slug: "/chapter",
-      params: [{ key: "id" }],
+      param: "chapterId"
     },
     {
       page: Pages.ABOUT,
@@ -36,7 +34,7 @@ export const router = {
     {
       page: Pages.TUTORIAL,
       slug: "/tutorial",
-      params: [{ key: "step" }],
+      param: "step"
     },
     {
       page: Pages.INDEX,

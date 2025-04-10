@@ -1,11 +1,11 @@
 import { ErrorInfo } from "../../types";
 
 export interface IPagesRouter extends HTMLElement {
-  updateRoute(route: Route | null): void;
+  updateRoute(route: PageRoute | null): void;
 }
 
 export interface RouterManagerState {
-  currentRoute: Route | null;
+  currentRoute: PageRoute | null;
 }
 
 export interface IRouterManager {
@@ -14,7 +14,7 @@ export interface IRouterManager {
    * @param to Target page (Pages enum or URL slug)
    * @param params Optional route parameters
    */
-  navigate(to: Pages | string, params?: RouteParam[]): void;
+  navigate(to: string, param?: RouteParam): void;
 
   /**
    * Show error page with error information
@@ -28,31 +28,20 @@ export interface IRouterManager {
   close(): void;
 }
 
-export interface PageRouter {
+export interface IPageRouter {
   navigate(): void;
   close(): void;
 }
 
-export interface RouterConfig {
-  baseUrl: string;
-  routes: Route[];
-}
-
 export type PageRoute = {
   page: Pages;
-  params?: RouteParam[];
-}
-
-export type SlugRoute = {
   slug: string;
-  params?: RouteParam[];
+  param?: RouteParam;
 }
-
-export type Route = PageRoute | SlugRoute;
 
 export type RouteParam = {
   key: string;
-  value: string | number | boolean | Record<string, unknown>;
+  value: string | number;
 }
 
 export enum Pages {
@@ -65,3 +54,14 @@ export enum Pages {
   INDEX = "index",
   NOT_FOUND = "not-found",
 }
+
+export interface PageRouteDefinition {
+  page: Pages;
+  slug: string;
+  param?: string;
+}
+
+export type PageRouterConfiguration = {
+  baseUrl: string;
+  routes: PageRouteDefinition[];
+};

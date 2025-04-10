@@ -54,7 +54,10 @@ export class TextButton extends HTMLButtonElement {
           cursor: pointer;
           transition: border-color 0.25s, background-color 0.25s, color 0.25s;
           outline: none;
-          display: inline-block;
+          display: flex;
+          gap: 1rem;
+          align-items: center;
+          justify-content: center;
         }
   
         :host button[is="text-button"]:hover,
@@ -66,7 +69,7 @@ export class TextButton extends HTMLButtonElement {
         :host button[is="text-button"]:active,
         button[is="text-button"]:active {
           color: var(--color-secondary, #646cff);
-          background-color: rgba(100, 108, 255, 0.1);
+          background-color: var(--color-background, #f9f9f9);
         }
         
         /* Add active state selector with class */
@@ -77,7 +80,7 @@ export class TextButton extends HTMLButtonElement {
         button[is="text-button"][active] {
           color: var(--color-secondary, #646cff);
           border-color: var(--color-secondary, #646cff);
-          background-color: rgba(100, 108, 255, 0.1);
+          background-color: var(--color-background, #f9f9f9);
         }
         
         :host button[is="text-button"][variant="secondary"],
@@ -140,8 +143,8 @@ export class TextButton extends HTMLButtonElement {
   
         :host button[is="text-button"]:disabled,
         button[is="text-button"]:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
+          opacity: 1;
+          cursor: pointer;
         }
       `;
     }

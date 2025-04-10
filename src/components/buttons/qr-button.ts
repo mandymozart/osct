@@ -1,5 +1,4 @@
-import { GameStoreService } from "@/services/GameStoreService";
-import { IGame, GameMode } from "@/types";
+import { GameMode } from "@/types";
 import { BaseNavigationButton } from "./base-navigation-button";
 
 export interface IQRButton extends HTMLElement {

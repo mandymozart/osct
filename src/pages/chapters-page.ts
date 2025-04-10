@@ -1,10 +1,9 @@
 import { Page } from "./page";
 import { assert } from "../utils/assert";
-import { GameState, ChapterData, LoadingState } from "../types";
+import { GameState, ChapterData, LoadingState, Pages } from "../types";
 import { chapters } from "../game.config.json";
 
 export class ChaptersPage extends Page {
-
   protected get styles(): string {
     return /* css */ `
     :host {
@@ -133,13 +132,17 @@ export class ChaptersPage extends Page {
       .map((chapterData: ChapterData) => {
         // Get the corresponding chapter resource from the state if available
         const chapterResource = this.game?.state.chapters[chapterData.id];
-        
+
         const completionPercentage =
-          this.game!.history.getChapterCompletionPercentage(chapterData.id) ?? 0;
+          this.game!.history.getChapterCompletionPercentage(chapterData.id) ??
+          0;
         const isActive = currentChapter?.id === chapterData.id;
-        
+
         // Get loading status from the resource if available, otherwise assume not loading
-        const loadingStatus = chapterResource?.status === LoadingState.LOADING ? '(Loading...)' : '';
+        const loadingStatus =
+          chapterResource?.status === LoadingState.LOADING
+            ? "(Loading...)"
+            : "";
 
         return /* html */ `
       <div class="chapter-card ${isActive ? "active" : ""}" 
@@ -170,7 +173,6 @@ export class ChaptersPage extends Page {
   }
 
   private handleClick(event: Event) {
-    assert(this.game, "GameStore not available in handleClick");
     const target = event.target as HTMLElement;
     const chapterCard = target.closest(".chapter-card") as HTMLElement;
 
@@ -178,13 +180,16 @@ export class ChaptersPage extends Page {
       const chapterId = chapterCard.dataset.chapterId;
       if (chapterId) {
         this.game.chapters.switchChapter(chapterId);
+        this.game.router.navigate("/chapter", {
+          key: "chapterId",
+          value: chapterId,
+        });
       }
     }
   }
 
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
     if (name === "active" && newValue !== oldValue && newValue === "true") {
-      assert(this.game, "GameStore not available in attributeChangedCallback");
       this.updateView();
     }
   }

@@ -1,4 +1,4 @@
-import { Target } from "@/types";
+import { IGame, Target } from "@/types";
 import { assert } from "@/utils";
 import { GameStoreService } from "@/services/GameStoreService";
 
@@ -19,7 +19,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
   private _target: Target | null = null;
   private _isCurrent = false;
   private _isExpanded = false;
-  private game = GameStoreService.getInstance().getGame();
+  private game: Readonly<IGame>;
   private _chapterId: string | null = null;
   private _targetIndex: number = -1;
 
@@ -29,6 +29,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
 
   constructor() {
     super();
+    this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
     this.handleClick = this.handleClick.bind(this);
   }

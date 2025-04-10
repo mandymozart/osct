@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services/GameStoreService";
-import { ChapterData, ChapterResource } from "@/types";
+import { ChapterData, ChapterResource, IGame } from "@/types";
 import { assert } from "@/utils";
 import * as gameConfig from "@/game.config.json";
 // Import sub-components explicitly
@@ -17,7 +17,7 @@ export interface IChapterList extends HTMLElement {
  * Container for all chapters and their targets in the index page
  */
 export class ChapterList extends HTMLElement implements IChapterList {
-  private game = GameStoreService.getInstance().getGame();
+  private game: Readonly<IGame>;
   private chapters: ChapterResource[] = [];
   private expandedTargetId: string | null = null;
   private unsubscribe: (() => void) | null = null;
@@ -27,6 +27,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
   
   constructor() {
     super();
+    this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: 'open' });
     this.handleStateChange = this.handleStateChange.bind(this);
     this.handleChapterSelect = this.handleChapterSelect.bind(this);

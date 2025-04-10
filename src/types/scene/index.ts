@@ -10,7 +10,7 @@ export interface ISceneManager {
     /**
      * Attach an A-Frame scene to the manager
      */
-    attachScene(sceneSelector: Scene | string): Promise<void>;
+    attachScene(sceneSelector: string): Promise<void>;
     
     /**
      * Check if scene is ready for AR/VR operations
@@ -22,6 +22,11 @@ export interface ISceneManager {
      */
     updateSceneVisibility(): Promise<void>;
     
+    /**
+     * Hide scene for QR scanning
+     */
+    hideSceneForQRScanning(): Promise<void>;
+
     /**
      * Enter VR mode if available
      */

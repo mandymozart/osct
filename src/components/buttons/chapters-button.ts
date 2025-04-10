@@ -13,7 +13,7 @@ export class ChaptersButton extends BaseNavigationButton {
     }
 
     protected getButtonIconHTML(): string {
-        return `<bf-icon slot="icon"></bf-icon>`;
+        return `<span slot="icon">📑</span>`;
     }
     
     protected getButtonText(): string {

@@ -13,6 +13,7 @@ export class SceneManager implements ISceneManager {
    * @param sceneSelector Scene instance or DOM selector
    */
   public async attachScene(sceneSelector: Scene | string): Promise<void> {
+    return new Promise<void>(async (resolve) => {
     try {
       // Get scene element
       const scene =
@@ -42,11 +43,13 @@ export class SceneManager implements ISceneManager {
 
       // Store scene reference
       this.game.set({ scene });
-      console.log("A-Frame scene attached and ready");
+      console.log("[Scene Manager] A-Frame scene attached and ready");
     } catch (error) {
       console.error("Failed to attach scene:", error);
       throw error;
     }
+    resolve();
+  });
   }
 
   /**
@@ -61,6 +64,7 @@ export class SceneManager implements ISceneManager {
    * Update scene visibility based on current game mode
    */
   public async updateSceneVisibility(): Promise<void> {
+    return new Promise<void>(async (resolve) => {
     if (!this.game.state.scene) return;
 
     try {
@@ -80,6 +84,7 @@ export class SceneManager implements ISceneManager {
         case GameMode.QR:
           this.game.state.scene.setAttribute("visible", "false");
           this.game.state.scene.pause();
+          await this.hideSceneForQRScanning();
           await this.exitVR();
           break;
       }
@@ -93,12 +98,26 @@ export class SceneManager implements ISceneManager {
       });
       throw error;
     }
+    resolve();
+  })
+  }
+
+  public async hideSceneForQRScanning(): Promise<void> {
+    return new Promise<void>(async (resolve) => {
+    const { scene } = this.game.state;
+    if (!scene) return;
+
+    scene.setAttribute("visible", "false");
+    scene.pause();
+    resolve();
+  });
   }
 
   /**
    * Enter VR mode if available
    */
   public async enterVR(): Promise<void> {
+    return new Promise<void>(async (resolve) => {
     const { scene } = this.game.state;
     if (!scene) {
       throw new Error("No scene attached");
@@ -117,6 +136,8 @@ export class SceneManager implements ISceneManager {
       });
       throw error;
     }
+    resolve();
+  });
   }
 
   /**
@@ -144,14 +165,10 @@ export class SceneManager implements ISceneManager {
    * Detach the scene from the store
    */
   public detachScene(): void {
-    // Cleanup before detaching
     if (this.game.state.scene) {
       this.clearSceneAssets(this.game.state.scene);
       this.clearSceneTargets(this.game.state.scene);
-      
-      // Set scene to null in the game state
       this.game.set({ scene: null });
-      console.log('Scene detached from game state');
     }
   }
 
@@ -178,15 +195,9 @@ export class SceneManager implements ISceneManager {
 
     const scene = this.game.state.scene;
     if (!scene) return;
-
-    // Clear the scene using our unified clearScene method
     this.clearScene();
-
-    // Then add new chapter assets and targets
     this.addChapterAssetsToScene(scene, chapter);
     this.addChapterTargetsToScene(scene, chapter);
-
-    console.log(`Updated scene with chapter ID: ${chapter.id}`);
   }
 
   /**
@@ -237,8 +248,6 @@ export class SceneManager implements ISceneManager {
     this.clearSceneAssets(scene);
     this.clearSceneTargets(scene);
     this.clearMindARTarget(scene);
-
-    console.log('Scene cleared: all dynamic elements removed');
   }
 
   /**
@@ -346,10 +355,7 @@ export class SceneManager implements ISceneManager {
         targetEntity.appendChild(entityElement);
       }
     }
-
-    // Add target to scene
     scene.appendChild(targetEntity);
-    console.log(`Added target ${index} to scene`);
   }
 
   /**

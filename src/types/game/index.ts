@@ -1,33 +1,22 @@
+import { ChapterData, ChapterState, IChapterManager } from "../chapters";
+import { ErrorListener, ErrorInfo } from "../errors";
+import { HistoryManagerState, IHistoryManager } from "../history";
+import { IQRManager } from "../qr";
 import {
-  ChapterData,
-  ChapterState,
-  ErrorInfo,
-  ErrorListener,
-  HistoryManagerState,
-  IChapterManager,
-  IHistoryManager,
-  IQRManager,
   IRouterManager,
-  ISceneManager,
-  ITargetManager,
-  ITutorialManager,
-  LoadableResource,
-  ILoadableStore,
-  RouterConfig,
+  PageRouterConfiguration,
   RouterManagerState,
-  SceneManagerState,
-  TargetManagerState,
-  TutorialState,
-  TutorialStepData,
-  LoadingState,
-} from "../";
+} from "../router";
+import { ISceneManager, SceneManagerState } from "../scene";
+import { ITargetManager, TargetManagerState } from "../targets";
+import { ILoadableStore, LoadableResource } from "../loadable-store";
+import { LoadingState } from "../common.js";
 
 export interface IGame extends ILoadableStore {
-  configuration: GameConfiguration;
+  version: ConfigurationVersion; // History and Game version have to match. 
   state: GameState;
 
   scene: ISceneManager;
-  tutorial: ITutorialManager;
   chapters: IChapterManager;
   router: IRouterManager;
   targets: ITargetManager;
@@ -42,10 +31,10 @@ export interface IGame extends ILoadableStore {
 export interface GameState
   extends SceneManagerState,
     TargetManagerState,
-    TutorialState,
     ChapterState,
     HistoryManagerState,
     RouterManagerState {
+  id: string;
   loading: LoadingState;
   mode: GameMode;
 }
@@ -78,18 +67,25 @@ export enum ErrorCode {
   FAILED_TO_EXIT_VR = "failed-to-exit-vr",
   SCENE_NOT_FOUND = "scene-not-found",
   FAILED_TO_UPDATE_SCENE = "failed-to-update-scene",
+
+  // QR errors
+  INVALID_QR_URL = "invalid-qr-url",
 }
 
 export interface GameConfiguration {
-  version: string | null; // Semantic version like "1.0.0"
+  version: string; // Semantic version like "1.0.0"
+  initialChapterId: string; // ID of the initial chapter
   chapters: readonly ChapterData[];
-  router: RouterConfig | null;
-  tutorial: readonly TutorialStepData[];
+  router: PageRouterConfiguration;
 }
 
 export interface ConfigurationVersion {
-  version: string | null;
-  timestamp: number;
+  version: string;
+  timestamp: string;
+}
+export interface GameVersion {
+  version: string;
+  timestamp: string;
 }
 
 /**
@@ -146,6 +142,12 @@ export interface TargetHistoryEntry {
   timestamp: number;
 }
 
+/**
+ * Game mode lets us know which state the game is in.
+ * VR: User is in VR mode (This one is rarely used)
+ * QR: User is in QR mode (Only needed when scanning QR codes)
+ * DEFAULT: User is in default mode (This is the most common mode)
+ */
 export enum GameMode {
   VR = "vr",
   QR = "qr",

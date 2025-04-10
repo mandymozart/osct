@@ -1,5 +1,9 @@
 {
-  "version": "1.0.0",
+  "version": {
+    "version": "1.0.0",
+    "timestamp": "2025-04-10T00:00:00Z"
+  },
+  "initialChapterId": "chapter1",
   "chapters": [
     {
       "id": "chapter1",
@@ -124,45 +128,39 @@
   ],
   "tutorial": [
     {
-      "id": "step-1",
+      "index": 0,
       "title": "Let's get you started with the XR app",
       "description": "This app enhances the book with interactive videos, animations, and references. Follow these steps to unlock the content.",
-      "illustration": "/assets/illustrations/tutorial-step-1.svg",
-      "next": "step-2"
+      "illustration": "/assets/illustrations/tutorial-step-1.svg"
     },
     {
-      "id": "step-2",
+      "index": 1,
       "title": "Using the Controllers",
       "description": "Learn how to use the VR controllers to interact with objects in the virtual environment.",
-      "illustration": "/assets/illustrations/tutorial-step-2.svg",
-      "next": "step-3"
+      "illustration": "/assets/illustrations/tutorial-step-2.svg"
     },
     {
-      "id": "step-3",
+      "index": 2,
       "title": "Movement in VR",
       "description": "Learn how to move around in the virtual space using teleportation and smooth locomotion.",
-      "illustration": "/assets/illustrations/tutorial-step-3.svg",
-      "next": "step-4"
+      "illustration": "/assets/illustrations/tutorial-step-3.svg"
     },
     {
-      "id": "step-4",
+      "index": 3,
       "title": "Scan Content",
       "description": "Point your camera at the marked images in the book. The app will scan and display available videos or animations.",
-      "illustration": "/assets/illustrations/tutorial-step-4.svg",
-      "next": "step-5"
+      "illustration": "/assets/illustrations/tutorial-step-4.svg"
     },
     {
-      "id": "step-5",
+      "index": 4,
       "title": "Access Interactive Index",
-      "description":"Use the index button on the bottom to find additional references and details about Kevin's inspirations.\n\nIt works just like a regular index. Just point the camera at the marked images that interest you.",
-      "illustration": "/assets/illustrations/tutorial-step-5.svg",
-      "next": "complete"
+      "description": "Use the index button on the bottom to find additional references and details about Kevin's inspirations.\n\nIt works just like a regular index. Just point the camera at the marked images that interest you.",
+      "illustration": "/assets/illustrations/tutorial-step-5.svg"
     },
     {
-      "id": "complete",
+      "index": 5,
       "title": "Congratulations!",
-      "description": "Now you got all you need to enjoy the book.\n\nDon't forget to check back. We will add additional content every year on CROCODILES DAY June 17th!",
-      "illustration": "/assets/illustrations/complete.svg"
+      "description": "Now you got all you need to enjoy the book.\n\nDon't forget to check back. We will add additional content every year on CROCODILES DAY June 17th!"
     }
   ]
 }
