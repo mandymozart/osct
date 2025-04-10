@@ -130,7 +130,7 @@ export class QRManager {
         if (confirmed) {
           this.game.chapters.switchChapter(chapter);
           this.stopScanning();
-          this.game.router.navigate(Pages.CHAPTER, [{ key: 'chapterId', value: chapter }]);
+          this.game.router.navigate('/chapter', { key: 'chapterId', value: chapter });
         }
       } else {
         // For other pages, just navigate to them

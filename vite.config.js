@@ -33,15 +33,15 @@ export default defineConfig({
       fileName: 'book-game',
       formats: ['es', 'umd']
     },
-    rollupOptions: {
-      external: [],
-      output: {
-        manualChunks: {
-          vendor: ['src/deps/aframe.min.js', 'src/deps/aframe-extras.min.js', 'src/deps/mindar-image-aframe.prod.js'],
-        },
-        chunkFileNames: 'assets/[name].js',
-      }
-    }
+    // rollupOptions: {
+    //   external: [],
+    //   output: {
+    //     manualChunks: {
+    //       vendor: ['src/deps/aframe.min.js', 'src/deps/aframe-extras.min.js', 'src/deps/mindar-image-aframe.prod.js'],
+    //     },
+    //     chunkFileNames: 'assets/[name].js',
+    //   }
+    // }
   },
   optimizeDeps: {
     include: [],

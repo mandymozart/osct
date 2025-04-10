@@ -1,6 +1,5 @@
 export * from "./common"
 export * from "./errors"
-export * from "./api/index"
 export * from "./game/index"
 export * from "./qr/index"
 export * from "./chapters/index"
