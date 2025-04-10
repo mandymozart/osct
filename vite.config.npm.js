@@ -11,23 +11,28 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
-    outDir: 'dist',
-    assetsDir: 'assets',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html')
-      },
-      output: {
-        assetFileNames: (assetInfo) => {
-          // Keep original directory structure for deps folder
-          if (assetInfo.fileName?.includes('deps/')) {
-            return assetInfo.fileName;
-          }
-          return 'assets/[name]-[hash][extname]';
-        },
+    server: {
+      sourcemap: 'inline',
+      watch: {
+        usePolling: true,
+        interval: 100
       }
-    }
+    },
+    lib: {
+      entry: resolve(__dirname, 'src/main.ts'),
+      name: 'Book Game',
+      fileName: 'book-game',
+      formats: ['es', 'umd']
+    },
+    // rollupOptions: {
+    //   external: [],
+    //   output: {
+    //     manualChunks: {
+    //       vendor: ['src/deps/aframe.min.js', 'src/deps/aframe-extras.min.js', 'src/deps/mindar-image-aframe.prod.js'],
+    //     },
+    //     chunkFileNames: 'assets/[name].js',
+    //   }
+    // }
   },
   optimizeDeps: {
     include: [],
