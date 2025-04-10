@@ -7,41 +7,27 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      '@types': resolve(__dirname, 'src/types'),
-      '@components': resolve(__dirname, 'src/components'),
-      '@services': resolve(__dirname, 'src/services'),
-      '@utils': resolve(__dirname, 'src/utils'),
-      '@pages': resolve(__dirname, 'src/pages'),
-      '@stores': resolve(__dirname, 'src/stores'),
-      '@targets': resolve(__dirname, 'src/targets'),
-      '@assets': resolve(__dirname, 'src/assets'),
-      '@deps': resolve(__dirname, 'src/deps'),
     }
   },
   build: {
     sourcemap: true,
-    server: {
-      sourcemap: 'inline',
-      watch: {
-        usePolling: true,
-        interval: 100
+    outDir: 'dist',
+    assetsDir: 'assets',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html')
+      },
+      output: {
+        assetFileNames: (assetInfo) => {
+          // Keep original directory structure for deps folder
+          if (assetInfo.fileName?.includes('deps/')) {
+            return assetInfo.fileName;
+          }
+          return 'assets/[name]-[hash][extname]';
+        },
       }
-    },
-    lib: {
-      entry: resolve(__dirname, 'src/main.ts'),
-      name: 'Book Game',
-      fileName: 'book-game',
-      formats: ['es', 'umd']
-    },
-    // rollupOptions: {
-    //   external: [],
-    //   output: {
-    //     manualChunks: {
-    //       vendor: ['src/deps/aframe.min.js', 'src/deps/aframe-extras.min.js', 'src/deps/mindar-image-aframe.prod.js'],
-    //     },
-    //     chunkFileNames: 'assets/[name].js',
-    //   }
-    // }
+    }
   },
   optimizeDeps: {
     include: [],
