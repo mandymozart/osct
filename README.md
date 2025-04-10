@@ -6,6 +6,10 @@ Kevin Bray for buildingfictions
 
 https://osct.glitch.me/
 
+https://osct.netlify.app 
+
+[![Netlify Status](https://api.netlify.com/api/v1/badges/98de0d7b-4e71-4848-b987-6caa89675835/deploy-status)](https://app.netlify.com/sites/osct/deploys)
+
 ## Technology
 
 MindAR using tensoryflow, three, and aframe to display WebXR overlays.
