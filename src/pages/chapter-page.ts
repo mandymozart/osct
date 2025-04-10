@@ -95,7 +95,7 @@ export class ChapterPage extends Page {
     this.updateView();
 }
 
-private setupEventListeners() {
+protected setupEventListeners() {
     this.shadowRoot?.querySelector('.chapter-card')?.addEventListener('click', () => {
         if (this.game) {
             this.game.router.navigate('/chapters');
