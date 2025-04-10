@@ -1,51 +1,81 @@
-export interface ITutorialManager {
-  getCurrentStepId(): string | null;
-  next(): boolean;
-  previous(): boolean;
-  navigateToStep(stepId: string): void;
-  isTutorialComplete(): boolean;
-  completeTutorial(): void;
-}
-
-// Step types - simplified to only INFO
-export enum TutorialStepTypes {
-  INFO = "info"
-}
-export type TutorialStepType = TutorialStepTypes.INFO;
-
 /**
  * Base data structure for a step that can be loaded from JSON configuration
  */
 export interface TutorialStepData {
-  id: string;
+  index: number;
   title: string;
   description: string;
-  illustration: string;
-  next?: string; // Next step ID (empty for last step)
+  illustration?: string;
 }
 
 /**
- * Interface for tutorial state data in GameStore
- */
-export interface TutorialState {
-  currentTutorialStepId: string | null;
-  tutorialComplete: boolean;
-}
-
-/**
- * Interface for tutorial events
- */
-export interface TutorialEventMap {
-  "step-change": CustomEvent<{ stepId: string }>;
-  "tutorial-complete": CustomEvent<void>;
-}
-
-/**
- * Array of TutorialStepData representing tutorial configuration
+ * Configuration type for tutorial steps
  */
 export type TutorialConfiguration = TutorialStepData[];
 
 /**
- * Callback type for step change listeners
+ * Interface for the TutorialNavigation component
+ * Defines the public API that TutorialPage can interact with
  */
-export type TutorialStepChangeListener = (stepId: string, state: TutorialState) => void;
+export interface ITutorialNavigation extends HTMLElement {
+  /**
+   * Sets the current step number for the navigation
+   * @param value The step number as a string
+   */
+  setAttribute(name: 'current-step', value: string): void;
+  
+  /**
+   * Gets the current step attribute
+   */
+  getAttribute(name: 'current-step'): string | null;
+}
+
+/**
+ * Interface for the TutorialContent component
+ * Defines the public API for displaying tutorial content
+ */
+export interface ITutorialContent extends HTMLElement {
+  /**
+   * Sets the current step for the content display
+   * @param value The step number as a string
+   */
+  setAttribute(name: 'current-step', value: string): void;
+  
+  /**
+   * Gets the current step
+   */
+  getAttribute(name: 'current-step'): string | null;
+  
+  /**
+   * Sets the title of the tutorial step
+   * @param value The title text
+   */
+  setAttribute(name: 'title', value: string): void;
+  
+  /**
+   * Gets the title
+   */
+  getAttribute(name: 'title'): string | null;
+  
+  /**
+   * Sets the description of the tutorial step
+   * @param value The description text
+   */
+  setAttribute(name: 'description', value: string): void;
+  
+  /**
+   * Gets the description
+   */
+  getAttribute(name: 'description'): string | null;
+  
+  /**
+   * Sets the illustration path for the tutorial step
+   * @param value The illustration path
+   */
+  setAttribute(name: 'illustration', value: string): void;
+  
+  /**
+   * Gets the illustration path
+   */
+  getAttribute(name: 'illustration'): string | null;
+}

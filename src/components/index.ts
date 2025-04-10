@@ -7,3 +7,4 @@ export * from "./qr-scanner";
 export * from "./tutorial";
 export * from "./navigation"
 export * from "./index";
+export * from "./header";

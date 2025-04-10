@@ -1,11 +1,9 @@
 import { produce } from "immer";
-import { 
-  Asset, 
-  ChapterResource, 
-  ErrorCode, 
-  IGame, 
-  LoadingState, 
-  Target 
+import {
+  ChapterResource,
+  ErrorCode,
+  IGame,
+  LoadingState,
 } from "../../../types";
 
 /**
@@ -13,7 +11,7 @@ import {
  */
 export class ChapterLoader {
   private game: IGame;
-  
+
   constructor(game: IGame) {
     this.game = game;
   }
@@ -22,113 +20,112 @@ export class ChapterLoader {
    * Load all resources for a chapter
    * @returns Promise that resolves when all resources are loaded
    */
-  async loadChapterResources(chapter: ChapterResource): Promise<ChapterResource> {
-    console.log(`Loading resources for chapter: ${chapter.id}`);
-    
-    // Track all errors that occur during loading
+  async loadChapterResources(
+    chapter: ChapterResource
+  ): Promise<ChapterResource> {
     const allErrors: any[] = [];
-    
-    // Start with the chapter marked as loading
     let workingChapter = chapter;
-    
-    // Load all targets and their entities/assets
     for (let i = 0; i < workingChapter.targets.length; i++) {
       const target = workingChapter.targets[i];
-      
+
       try {
-        // Process entity and assets if they exist
         if (target.entity) {
-          // Check if entity has assets to load
           if (target.entity.assets && target.entity.assets.length > 0) {
             try {
-              // Load all assets in parallel
-              const loadedAssets = await this.game.loadAssets(target.entity.assets);
-              
-              // Log loading results for debugging
-              console.log('Loaded assets details:', loadedAssets.map(asset => ({
-                id: asset.id,
-                src: asset.src,
-                loadingState: asset.status,
-                error: asset.error
-              })));
+              const loadedAssets = await this.game.loadAssets(
+                target.entity.assets
+              );
 
-              // Check for any failed assets
               const failedAssets = loadedAssets.filter(
                 (asset) => asset.status === LoadingState.ERROR
               );
 
-              // Update entity and target state based on asset loading results
-              workingChapter = produce(workingChapter, (draft: ChapterResource) => {
-                if (failedAssets.length > 0) {
-                  // Some assets failed - mark entity as failed
+              workingChapter = produce(
+                workingChapter,
+                (draft: ChapterResource) => {
+                  if (failedAssets.length > 0) {
+                    // Some assets failed - mark entity as failed
+                    draft.targets[i].entity.status = LoadingState.ERROR;
+                    draft.targets[i].entity.error = {
+                      code: ErrorCode.SOME_ASSETS_NOT_FOUND,
+                      msg: `Failed to load ${failedAssets.length} assets`,
+                      details: failedAssets.map((a) => a.error),
+                    };
+
+                    // Also mark target as failed since its entity failed
+                    draft.targets[i].status = LoadingState.ERROR;
+                    draft.targets[i].error = {
+                      code: ErrorCode.SOME_ASSETS_NOT_FOUND,
+                      msg: `Entity failed to load due to asset errors`,
+                      details: failedAssets.map((a) => a.error),
+                    };
+
+                    // Store the updated assets even if some failed
+                    draft.targets[i].entity.assets = loadedAssets;
+
+                    // Add error details to the collection
+                    allErrors.push(...failedAssets.map((a) => a.error));
+                  } else {
+                    // All assets loaded successfully
+                    draft.targets[i].entity.status = LoadingState.LOADED;
+                    draft.targets[i].entity.error = null;
+
+                    // Mark target as loaded since its entity loaded
+                    draft.targets[i].status = LoadingState.LOADED;
+                    draft.targets[i].error = null;
+
+                    // Store the successfully loaded assets
+                    draft.targets[i].entity.assets = loadedAssets;
+                  }
+                }
+              );
+            } catch (error) {
+              console.error(
+                `Error loading assets for entity in target ${i}:`,
+                error
+              );
+
+              const errorMsg =
+                error instanceof Error
+                  ? error.message
+                  : "Unknown error loading entity assets";
+
+              // Update entity and target states
+              workingChapter = produce(
+                workingChapter,
+                (draft: ChapterResource) => {
+                  // Mark entity as failed
                   draft.targets[i].entity.status = LoadingState.ERROR;
                   draft.targets[i].entity.error = {
-                    code: ErrorCode.SOME_ASSETS_NOT_FOUND,
-                    msg: `Failed to load ${failedAssets.length} assets`,
-                    details: failedAssets.map(a => a.error)
+                    code: ErrorCode.ASSET_LOAD_FAILED,
+                    msg: errorMsg,
                   };
-                  
-                  // Also mark target as failed since its entity failed
+
+                  // Also mark target as failed
                   draft.targets[i].status = LoadingState.ERROR;
                   draft.targets[i].error = {
-                    code: ErrorCode.SOME_ASSETS_NOT_FOUND,
-                    msg: `Entity failed to load due to asset errors`,
-                    details: failedAssets.map(a => a.error)
+                    code: ErrorCode.ASSET_LOAD_FAILED,
+                    msg: "Entity failed to load assets",
                   };
-                  
-                  // Store the updated assets even if some failed
-                  draft.targets[i].entity.assets = loadedAssets;
-                  
-                  // Add error details to the collection
-                  allErrors.push(...failedAssets.map(a => a.error));
-                } else {
-                  // All assets loaded successfully
-                  draft.targets[i].entity.status = LoadingState.LOADED;
-                  draft.targets[i].entity.error = null;
-                  
-                  // Mark target as loaded since its entity loaded
-                  draft.targets[i].status = LoadingState.LOADED;
-                  draft.targets[i].error = null;
-                  
-                  // Store the successfully loaded assets
-                  draft.targets[i].entity.assets = loadedAssets;
                 }
-              });
-            } catch (error) {
-              console.error(`Error loading assets for entity in target ${i}:`, error);
-              
-              const errorMsg = error instanceof Error ? error.message : 'Unknown error loading entity assets';
-              
-              // Update entity and target states
-              workingChapter = produce(workingChapter, (draft: ChapterResource) => {
-                // Mark entity as failed
-                draft.targets[i].entity.status = LoadingState.ERROR;
-                draft.targets[i].entity.error = {
-                  code: ErrorCode.ASSET_LOAD_FAILED,
-                  msg: errorMsg,
-                };
-                
-                // Also mark target as failed
-                draft.targets[i].status = LoadingState.ERROR;
-                draft.targets[i].error = {
-                  code: ErrorCode.ASSET_LOAD_FAILED,
-                  msg: "Entity failed to load assets",
-                };
-              });
-              
+              );
+
               // Add to global errors collection
               allErrors.push(error);
             }
           } else {
             // No assets to load, mark entity as loaded
-            workingChapter = produce(workingChapter, (draft: ChapterResource) => {
-              draft.targets[i].entity.status = LoadingState.LOADED;
-              draft.targets[i].entity.error = null;
-              
-              // Mark target as loaded
-              draft.targets[i].status = LoadingState.LOADED;
-              draft.targets[i].error = null;
-            });
+            workingChapter = produce(
+              workingChapter,
+              (draft: ChapterResource) => {
+                draft.targets[i].entity.status = LoadingState.LOADED;
+                draft.targets[i].entity.error = null;
+
+                // Mark target as loaded
+                draft.targets[i].status = LoadingState.LOADED;
+                draft.targets[i].error = null;
+              }
+            );
           }
         } else {
           // No entity, mark target as loaded
@@ -151,7 +148,7 @@ export class ChapterLoader {
         draft.error = {
           code: ErrorCode.CHAPTER_LOAD_FAILED,
           msg: `Chapter failed to load with ${allErrors.length} errors`,
-          details: allErrors // Store all errors for debugging
+          details: allErrors, // Store all errors for debugging
         };
       } else {
         // All targets loaded successfully

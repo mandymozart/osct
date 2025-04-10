@@ -2,6 +2,11 @@ import { Page } from "./page";
 import "../components/common/close-button"; // Import close button component
 
 export class AboutPage extends Page {
+
+  constructor() {
+    super();
+  }
+  
   protected get styles(): string {
     return /* css */ `
       .content {
@@ -55,9 +60,6 @@ export class AboutPage extends Page {
         }
       });
     }
-  }
-  constructor() {
-    super();
   }
 }
 

@@ -1,4 +1,4 @@
-import { ChapterData, ChapterResource, LoadingState } from "@/types";
+import { ChapterData, ChapterResource, IGame, LoadingState } from "@/types";
 import { chapters } from "@/game.config.json";
 import { GameStoreService } from "@/services/GameStoreService";
 
@@ -17,7 +17,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
   private _chapter: ChapterResource | null = null;
   private _isCurrent = false;
   private _chapterData: ChapterData | null = null;
-  private game = GameStoreService.getInstance().getGame();
+  private game: Readonly<IGame>;
   
   static get observedAttributes() {
     return ['is-current'];
@@ -25,6 +25,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
   
   constructor() {
     super();
+    this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: 'open' });
     this.handleClick = this.handleClick.bind(this);
   }

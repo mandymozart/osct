@@ -155,9 +155,6 @@ export class LoadableStore implements ILoadableStore{
       return [];
     }
 
-    console.log(`Loading ${assets.length} assets...`);
-
-    // Mark all assets as loading
     const loadingAssets = assets.map(asset => ({
       ...asset,
       status: LoadingState.LOADING,

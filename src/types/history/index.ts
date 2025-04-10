@@ -1,11 +1,11 @@
-import { TargetHistoryEntry } from '../GameStore.types';
+import { ConfigurationVersion, TargetHistoryEntry } from "@/types/game";
 
 /**
  * History Manager State
  */
 export interface HistoryManagerState {
   history: TargetHistoryEntry[];
-  configVersion: string | null;
+  configVersion: ConfigurationVersion | null;
 }
 
 /**

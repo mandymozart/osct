@@ -1,105 +1,111 @@
 import { GameStoreService } from "@/services/GameStoreService";
-import { GameState, IGame, IPagesRouter, IRouterManager, Route, RouteParam } from "@/types";
-import { assert } from "@/utils";
-import { router as routerConfig } from "@/router";
+import {
+  GameState,
+  IGame,
+  IPagesRouter,
+  IRouterManager,
+  PageRoute,
+  RouteParam,
+} from "@/types";
+import { assert, camelToKebab } from "@/utils";
 
 export class PagesRouter extends HTMLElement implements IPagesRouter {
   private pages: Map<string, HTMLElement> = new Map();
-  private game: IGame | null = null;
+  private game: Readonly<IGame>;
   private router: IRouterManager | null = null;
 
   constructor() {
     super();
+    this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
     this.handleStateChange = this.handleStateChange.bind(this);
   }
 
   connectedCallback() {
-    this.game = GameStoreService.getInstance().getGame();
-    assert(this.game, "Game store not initialized");
-    this.router = this.game.router;
-    assert(this.router, "Router manager not initialized");
-
     this.render();
     this.setupPages();
     this.setupListeners();
 
-    // Only navigate to home if there's no current route AND we're at the root URL
-    if (!this.game.state.currentRoute && (window.location.pathname === '/' || window.location.pathname === '')) {
-      this.game.router.navigate("/"); // Use slug for home page
+    if (!this.game.state.currentRoute) {
+      this.game.router.navigate("/");
     }
   }
 
   disconnectedCallback() {
-    if (this.game) {
-      this.game.unsubscribe(this.handleStateChange);
-    }
+    this.game.unsubscribe(this.handleStateChange);
   }
 
   private handleStateChange(state: GameState) {
     this.updateRoute(state.currentRoute);
   }
 
-  public updateRoute(route: Route | null) {
+  public updateRoute(route: PageRoute | null) {
     if (!route) {
       this.hideAllPages();
       return;
     }
 
     const pageTag = this.getPageTag(route);
-    this.updatePageVisibility(pageTag, route.params);
+    this.updatePageVisibility(pageTag, route.param);
   }
 
-  private getPageTag(route: Route): string {
-    if ("page" in route) {
-      return `${route.page.toLowerCase()}-page`;
-    }
-    // For slug routes, try to find matching route in configuration
-    const configRoute = routerConfig.routes.find(
-      (r) => "slug" in r && r.slug === route.slug
-    );
-
-    return configRoute && "page" in configRoute
-      ? `${configRoute.page.toLowerCase()}-page`
-      : "not-found-page";
+  private getPageTag(route: PageRoute): string {
+    return `${route.page}-page`;
   }
 
-  private hideAllPages() {
+  private hideAllPages(exceptTag?: string) {
     this.pages.forEach((page) => {
+      if (page.tagName.toLowerCase() === exceptTag) return;
       page.setAttribute("active", "false");
+      this.cleanupParamAttributes(page);
     });
   }
 
-  private updatePageVisibility(pageTag: string, params?: RouteParam[]) {
-    this.hideAllPages();
+  /**
+   * Remove all parameter attributes that were previously set
+   */
+  private cleanupParamAttributes(page: HTMLElement) {
+    const attributeNames = page.getAttributeNames();
+
+    const standardAttrs = ["active", "class", "style", "id"];
+    const paramAttrs = attributeNames.filter(
+      (name) => !standardAttrs.includes(name)
+    );
+    paramAttrs.forEach((attr) => page.removeAttribute(attr));
+  }
+
+  private updatePageVisibility(pageTag: string, param?: RouteParam) {
+    this.hideAllPages(pageTag);
 
     const activePage = this.pages.get(pageTag);
     if (activePage) {
       activePage.setAttribute("active", "true");
-      if (params) {
-        activePage.setAttribute("route-params", JSON.stringify(params));
-      } else {
-        activePage.removeAttribute("route-params");
-      }
+      if (param)
+        activePage.setAttribute(
+          camelToKebab(param.key),
+          param.value.toString()
+        );
+    } else {
+      console.warn(`Page not found for tag: <${pageTag}>`);
     }
   }
 
   private setupListeners() {
-    assert(this.game, "Game store not initialized");
-    this.game.subscribe(this.handleStateChange);
+    this.game.subscribe(this.handleStateChange.bind(this));
   }
 
   private setupPages() {
     const slot = this.shadowRoot!.querySelector("slot");
     assert(slot, "Slot element not found");
 
-    slot.addEventListener("slotchange", () => {
-      const elements = slot.assignedElements();
-      elements.forEach((page) => {
+    // Initial page setup from existing slot elements
+    const initialElements = slot.assignedElements();
+    if (initialElements.length > 0) {
+      initialElements.forEach((page) => {
         const tagName = page.tagName.toLowerCase();
         this.pages.set(tagName, page as HTMLElement);
       });
-    });
+    }
   }
 
   private render() {

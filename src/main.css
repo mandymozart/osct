@@ -53,6 +53,10 @@ body {
   background-color: var(--color-secondary);
 }
 
+book-game {
+  z-index: 1000;
+}
+
 .a-enter-vr-button {
   /* style if you like */
   display: none !important;

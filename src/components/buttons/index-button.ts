@@ -13,7 +13,7 @@ export class IndexButton extends BaseNavigationButton {
   }
 
   protected getButtonIconHTML(): string {
-    return `<index-icon slot="icon"></index-icon>`;
+    return `<span slot="icon">🗂️</span>`;
   }
   
   protected getButtonText(): string {

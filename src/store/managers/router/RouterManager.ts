@@ -5,34 +5,27 @@ import {
   RouteParam,
   PageRoute,
   IRouterManager,
-} from "../../../types";
-import { BrowserHistoryManager, RouteResolver } from "./helpers";
+} from "@/types";
+import { RouteResolver } from "./helpers";
 
 /**
- * Manages routing and navigation
+ * Manages routing and navigation.
+ * Currently only handles in-game navigation.
  */
 export class RouterManager implements IRouterManager {
   private game: IGame;
-  private historyManager: BrowserHistoryManager;
 
   constructor(game: IGame) {
     this.game = game;
-    this.historyManager = new BrowserHistoryManager(game);
-    
-    // Handle the initial URL when the application starts
-    this.historyManager.handleInitialUrl();
   }
 
   /**
    * Navigate to a different page
    * @param to Pages enum or string of url slug
-   * @param params Optional route parameters
+   * @param param Optional route parameters
    */
-  public navigate(to: Pages | string, params?: RouteParam[]): void {
-    // Create a route object from the input
-    const route = RouteResolver.createRoute(to, params);
-    
-    // Don't navigate if we're already on this page
+  public navigate(to: string, param?: RouteParam): void {
+    const route = RouteResolver.createRoute(to, param);
     if (
       this.game.state.currentRoute && 
       RouteResolver.isSameRoute(route, this.game.state.currentRoute)
@@ -42,15 +35,10 @@ export class RouterManager implements IRouterManager {
 
     // Check if route exists in configuration
     if (RouteResolver.routeExists(route)) {
-      // Update browser URL
-      this.historyManager.pushState(route);
-      
-      // Update application state
       this.game.set({ currentRoute: route });
     } else {
-      // Handle 404 for unknown routes
-      const notFoundRoute = { page: Pages.NOT_FOUND } as PageRoute;
-      this.historyManager.pushState(notFoundRoute);
+      console.error(`[RouterManager] Route not found, showing 404`);
+      const notFoundRoute = { page: Pages.NOT_FOUND, slug: "/not-found" } as PageRoute;
       this.game.set({ currentRoute: notFoundRoute });
     }
   }
@@ -62,7 +50,7 @@ export class RouterManager implements IRouterManager {
   public showError(error: ErrorInfo): void {
     console.error(error);
     // Navigate to error page and pass error details as parameters
-    this.navigate(Pages.ERROR, [{ key: "message", value: error.msg }]);
+    this.navigate(Pages.ERROR, { key: "message", value: error.msg });
   }
 
   /**

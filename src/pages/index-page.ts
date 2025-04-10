@@ -14,10 +14,11 @@ export interface IIndexPage extends HTMLElement {
 }
 
 export class IndexPage extends Page implements IIndexPage {
-  protected game: IGame | null = null;
+  protected game: Readonly<IGame>;
 
   constructor() {
     super();
+    this.game = GameStoreService.getInstance();
     this.handleStateChange = this.handleStateChange.bind(this);
   }
 
@@ -50,6 +51,7 @@ export class IndexPage extends Page implements IIndexPage {
       <div class="content">
         <h1>Index</h1>
         <chapter-list id="chapter-list"></chapter-list>
+        <close-button></close-button>
       </div>
     `;
   }
@@ -57,18 +59,30 @@ export class IndexPage extends Page implements IIndexPage {
   connectedCallback() {
     super.connectedCallback();
     assert(this.shadowRoot, 'Shadow root not initialized');
-    
-    // Get game instance
-    this.game = GameStoreService.getInstance().getGame();
-    assert(this.game, 'Game not initialized');
-    
-    // Subscribe to state changes
     this.game.subscribe(this.handleStateChange);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.game?.unsubscribe(this.handleStateChange);
+    this.game.unsubscribe(this.handleStateChange);
+  }
+
+  private handleClose = () => 
+      this.game.router.close();
+    
+
+  protected setupEventListeners(): void {
+    const closeButton = this.shadowRoot?.querySelector("close-button");
+    if (closeButton) {
+      closeButton.addEventListener("close", this.handleClose);
+    }
+  }
+
+  protected cleanupEventListeners(): void {
+    const closeButton = this.shadowRoot?.querySelector("close-button");
+    if (closeButton) {
+      closeButton.removeEventListener("close", this.handleClose);
+    }
   }
 
   private handleStateChange() {

@@ -34,13 +34,18 @@ export default defineConfig({
       formats: ['es', 'umd']
     },
     rollupOptions: {
-      external: ['aframe'], 
+      external: [],
       output: {
-        globals: {
-          aframe: 'AFRAME'
-        }
+        manualChunks: {
+          vendor: ['src/deps/aframe.min.js', 'src/deps/aframe-extras.min.js', 'src/deps/mindar-image-aframe.prod.js'],
+        },
+        chunkFileNames: 'assets/[name].js',
       }
     }
+  },
+  optimizeDeps: {
+    include: [],
+    force: true
   },
   test: {
     environment: 'happy-dom',

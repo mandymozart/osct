@@ -1,5 +1,4 @@
-import { GameStoreService } from "@/services/GameStoreService";
-import { IGame, GameMode } from "@/types";
+import { GameMode } from "@/types";
 import { BaseNavigationButton } from "./base-navigation-button";
 
 /**
@@ -15,7 +14,7 @@ export class SceneButton extends BaseNavigationButton {
   }
 
   protected getButtonIconHTML(): string {
-    return `<ghost-icon slot="icon"></ghost-icon>`;
+    return `<span slot="icon">👻</span>`;
   }
   
   protected getButtonText(): string {
@@ -25,36 +24,28 @@ export class SceneButton extends BaseNavigationButton {
   protected updateButtonState() {
     if (!this.game) return;
 
+    const isSceneMode = this.game.state.mode === GameMode.VR || this.game.state.mode === GameMode.DEFAULT;
     const isQRMode = this.game.state.mode === GameMode.QR;
-    const isVRMode = this.game.state.mode === GameMode.VR;
 
     // Update active state
-    this.active = isVRMode;
+    this.active = isSceneMode;
     
     // Disable button in QR mode
     this.disabled = isQRMode;
 
     // Update text based on current mode
-    if (isVRMode) {
+    if (isSceneMode) {
       this._buttonTextContent = "AR";
     } else {
       this._buttonTextContent = "VR";
     }
   }
 
-  protected handleClick() {
+  protected async handleClick() {
     if (!this.game || this.disabled) return;
 
-    try {
-      const isVRMode = this.game.state.mode === GameMode.VR;
-      
-      if (isVRMode) {
-        // Switch to AR mode
-        this.game.scene.exitVR();
-      } else {
-        // Switch to VR mode
-        this.game.scene.enterVR();
-      }
+    try {     
+      await this.game.scene.updateSceneVisibility()
     } catch (error) {
       console.error("Error toggling VR mode:", error);
     }

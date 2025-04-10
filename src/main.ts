@@ -1,29 +1,27 @@
 import { ILoadingPage } from "./pages/loading-page";
-import {
-  ChapterResource,
-  GameMode,
-  IPagesRouter,
-  Route,
-  LoadingState,
-} from "@/types";
-import { Scene } from "aframe";
 import { GameStoreService } from "@/services/GameStoreService";
 import "@/components";
 import "@/pages";
-import "@/deps/aframe.min.js";
-import "@/deps/aframe-extras.min.js";
-import "@/deps/mindar-image-aframe.prod.js";
 import { IErrorPage } from "@/pages/error-page";
-import { IQRButton } from "@/components/buttons/qr-button";
-import { getURLParam, getURLParams, assert } from "@/utils";
+import {
+  IGame,
+  IPagesRouter,
+  ChapterResource,
+  GameMode,
+  LoadingState,
+  PageRoute,
+} from "@/types/";
+import { waitForDOMReady } from "./utils/dom";
 
 export class BookGame extends HTMLElement {
+  private game: Readonly<IGame>;
   private errorPage: IErrorPage | null = null;
   private loadingPage: ILoadingPage | null = null;
   private pagesRouter: IPagesRouter | null = null;
 
   constructor() {
     super();
+    this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
   }
 
@@ -39,46 +37,10 @@ export class BookGame extends HTMLElement {
       width: 100vw;
       height: 100vh;
     }
-    
-    header {
-      width: 100%;
-      position: fixed;
-      top: 0;
-      right: 0;
-      height: var(--offset-top,4rem);
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      cursor: pointer;
-    }
-    
-    .header-left {
-      padding-left: 1rem;
-    }
-    
-    .header-right {
-      padding-right: 1rem;
-    }
-    
-    .header-dash {
-      flex: 1;
-      background-color: var(--color-primary);
-      height: 0.2rem;
-      transform: translateY(.1rem);
-      border-radius: 0.05rem;
-    }
   `;
 
   template = /* html */ `
-    <a-scene id="scene">
-    </a-scene>
-    <qr-scanner></qr-scanner>
-    
-    <header id="main-header">
-      <div class="header-left">Kevin Bray</div>
-      <div class="header-dash"></div>
-      <div class="header-right">Onion Skin and Crocodile Tears</div>
-    </header>
+    <game-header></game-header>
     
     <pages-router>
       <error-page></error-page>
@@ -92,7 +54,7 @@ export class BookGame extends HTMLElement {
     </pages-router>
       
     <navigation-bar></navigation-bar>
-    <loading-page></loading-page>
+    <loading-page active></loading-page>
 
     <debug-overlay></debug-overlay>
   `;
@@ -108,78 +70,41 @@ export class BookGame extends HTMLElement {
   `;
   }
 
-  private async initializeComponents() {
+  private initializeComponents() {
     // Cache component references
     this.errorPage = this.shadowRoot!.querySelector("error-page");
     this.loadingPage = this.shadowRoot!.querySelector("loading-screen");
     this.pagesRouter = this.shadowRoot!.querySelector("pages-router");
+    this.loadingPage?.showLoading();
+  }
 
-    // Add header click handler
-    const header = this.shadowRoot!.querySelector("#main-header");
-    header?.addEventListener("click", () => {
-      const game = GameStoreService.getInstance().getGame();
-      if (game) {
-        game.router.navigate("/about");
-      }
-    });
-
+  private async setupGameState() {
     try {
-      // Get the GameStoreService instance
-      const gameService = GameStoreService.getInstance();
-      const game = gameService.initialize();
-
-      const sceneElement = this.shadowRoot!.querySelector(
-        "#scene"
-      ) as unknown as Scene;
-      await game.scene.attachScene(sceneElement);
-
-      /* @ts-ignore - Expose game for debugging */
-      window.BOOKGAME = game;
+      await waitForDOMReady();
+      await this.game.scene.attachScene("#scene");
+      window.BOOKGAME = this.game;
+      console.log(
+        `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
+      );
     } catch (error) {
       this.handleError(error);
     }
-  }
 
-  private setupGameState() {
-    const game = GameStoreService.getInstance().getGame();
-    assert(game, "Game store not initialized");
-
-    const { slug, mode, params } = getURLParams();
-
-    // Handle mode
-    if (mode === GameMode.QR) {
-      game.qr.startScanning();
-    }
-    // TODO: Double check Scene visbility game.scene.updateVisibility(mode);
-    if (mode === GameMode.VR) {
-      game.scene.updateSceneVisibility();
-    }
-
-    const chapterId = getURLParam("id");
-    if (chapterId) {
-      game.chapters.switchChapter(chapterId);
-    }
-
-    // Navigate to page
-    if (slug) {
-      game.router.navigate(slug, params);
-    } else {
-      game.router.navigate("/chapters");
-    }
-
-    game.subscribe(this.handleStateChange.bind(this));
+    this.game.subscribe(this.handleStateChange.bind(this));
   }
 
   private handleStateChange(state: {
     currentChapter: ChapterResource | null;
-    mode: GameMode;
-    currentRoute: Route | null;
+    currentRoute: PageRoute | null;
   }) {
-    // Delegate state changes to components
     this.updateChapterState(state.currentChapter);
     this.updateRouteState(state.currentRoute);
   }
 
+  // TODO: Refactor so loading is handled by the loading page
+  // as a consequence of the game state.
+  // The chapter tree be granular enough to handle loading specifically
+  // for each chapter's assets.
   private updateChapterState(chapter: ChapterResource | null) {
     if (!chapter) return;
 
@@ -196,7 +121,7 @@ export class BookGame extends HTMLElement {
     }
   }
 
-  private updateRouteState(route: Route | null) {
+  private updateRouteState(route: PageRoute | null) {
     if (this.pagesRouter) {
       this.pagesRouter.updateRoute(route);
     }

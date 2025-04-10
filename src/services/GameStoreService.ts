@@ -1,48 +1,23 @@
-import { GameConfiguration, IGame } from "@/types";
-import { createGameStore } from "../store";
+import { IGame } from "@/types";
+import { createGameStore } from "@/store/GameStore";
 
 /**
  * Singleton service for accessing the game store globally
- * This provides a type-safe way to access the game store from any component
  */
 export class GameStoreService {
-  private static instance: GameStoreService;
-  private game: IGame | null = null;
+  private static instance: IGame;
 
-  private constructor() {
-    // Create the game store when the service is instantiated
-    this.game = createGameStore();
-  }
+  private constructor() {}
 
   /**
-   * Get the singleton instance of GameStoreService
+   * Get the singleton game store instance
    */
-  public static getInstance(): GameStoreService {
+  public static getInstance(): Readonly<IGame> {
     if (!GameStoreService.instance) {
-      GameStoreService.instance = new GameStoreService();
+      const game = createGameStore();
+      game.initialize();
+      GameStoreService.instance = game;
     }
     return GameStoreService.instance;
-  }
-
-  /**
-   * Initialize the game store with configuration
-   * @param config The game configuration
-   * @returns The initialized game store
-   */
-  public initialize(): IGame {
-    if (!this.game) {
-      this.game = createGameStore();
-    }
-    
-    this.game.initialize();
-    return this.game;
-  }
-
-  /**
-   * Get the game store instance
-   * @returns The game store or null if not initialized
-   */
-  public getGame(): IGame | null {
-    return this.game;
   }
 }

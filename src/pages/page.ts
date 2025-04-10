@@ -16,22 +16,18 @@ export interface IPage extends HTMLElement {
 export abstract class Page extends HTMLElement {
     protected _active: boolean;
     private _template: HTMLTemplateElement;
-    protected game: IGame | null;
+    protected game: Readonly<IGame>;
     
     constructor() {
       super();
+      this.game = GameStoreService.getInstance();;
       this.attachShadow({ mode: "open" });
       this._active = false;
       this._template = document.createElement('template');
-      
-      // Get game instance from GameStoreService
-      const gameStore = GameStoreService.getInstance().getGame();
-      assert(gameStore, 'Page: Game instance not available from GameStoreService');
-      this.game = gameStore;
     }
   
     static get observedAttributes() {
-      return ["active", "route-params"];
+      return ["active"];
     }
   
     get active() {
@@ -54,21 +50,6 @@ export abstract class Page extends HTMLElement {
         this._active = newValue === 'true';
         // Additional handling for active state could be done here
       }
-      
-      if (name === 'route-params' && oldValue !== newValue) {
-        // Subclasses can override handleRouteParamsChange to implement their behavior
-        this.handleRouteParamsChange(newValue);
-      }
-    }
-    
-    /**
-     * Handle route parameter changes
-     * This method is meant to be overridden by subclasses that need routing
-     * @param params The route parameters as a JSON string
-     */
-    protected handleRouteParamsChange(params: string): void {
-      // Default implementation does nothing
-      // Subclasses should override this method to implement their own routing behavior
     }
 
     protected get baseStyles(): string {
@@ -94,6 +75,11 @@ export abstract class Page extends HTMLElement {
           visibility: visible;
           transform: translateY(0);
           opacity: 1;
+        }
+        .content {
+          bottom: 10rem;
+          top: 0;
+          position: relative;
         }
       `;
     }

@@ -4,11 +4,9 @@ import { HistoryManager } from "./managers/HistoryManager";
 import { SceneManager } from "./managers/SceneManager";
 import { TargetManager } from "./managers/TargetManager";
 import {
-  GameConfiguration,
   GameMode,
   GameState,
   IGame,
-  ITutorialManager,
   IChapterManager,
   IRouterManager,
   ITargetManager,
@@ -16,51 +14,44 @@ import {
   IHistoryManager,
   ErrorInfo,
   IQRManager,
-  LoadingState
+  LoadingState,
+  GameVersion,
+  ConfigurationVersion
 } from "../types";
 import { QRManager } from "./managers/QRManager";
 import { RouterManager } from "./managers/router/RouterManager";
-import { TutorialManager } from "./managers/TutorialManager";
-
+import { uniqueId } from "@/utils";
+import { version as configVersion } from "@/game.config.json";
+import * as gameVersion from "./version.json";
 
 /**
  * Game-specific store that manages chapter loading and target tracking
  * Uses specialized managers for different concerns
  */
-export class Game extends LoadableStore implements IGame {
+class Game extends LoadableStore implements IGame {
   public state: GameState;
-  public configuration: GameConfiguration;
+  public version: GameVersion =gameVersion as GameVersion;
 
-  // Specialized managers
   public scene: ISceneManager;
   public chapters: IChapterManager;
   public targets: ITargetManager;
   public history: IHistoryManager;
   public router: IRouterManager;
   public qr: IQRManager;
-  public tutorial: ITutorialManager;
 
   constructor() {
     super();
 
-    this.configuration = {
-      version: null,
-      chapters: [],
-      router: null,
-      tutorial: [],
-    };
-
     this.state = {
+      id: uniqueId(),
       scene: null,
       mode: GameMode.DEFAULT,
       currentRoute: null,
       trackedTargets: [],
       currentChapter: null,
       chapters: {}, 
-      currentTutorialStepId: null,
-      tutorialSteps: {},
       history: [],
-      configVersion: null,
+      configVersion: configVersion as ConfigurationVersion,
       loading: LoadingState.INITIAL,
     };
 
@@ -70,18 +61,15 @@ export class Game extends LoadableStore implements IGame {
     this.history = new HistoryManager(this);
     this.router = new RouterManager(this);
     this.qr = new QRManager(this);
-    this.tutorial = new TutorialManager(this);
   }
 
   /**
    * Initialize the game store
-   * // TODO: evaluate which managers should be initialized here
    */
   public initialize(): void {
     this.history.load();
   }
 
-  
   /**
    * Error listeners
    *
@@ -89,7 +77,7 @@ export class Game extends LoadableStore implements IGame {
    * In a component or manager
    *
    * const cleanup = game.onError((error) => {
-   *    console.log(`Error occurred: ${error.message}`);
+   *    console.error(`Error occurred: ${error.message}`);
    *    // Handle error in UI
    * });
    *
@@ -104,7 +92,7 @@ export class Game extends LoadableStore implements IGame {
    */
   public notifyError(error: ErrorInfo): void {
     const { code, msg } = error;
-    console.log("Error occurred:", error);
+    console.error("[ErrorInfo]:", error);
 
     // Show error in error page
     this.router.showError(error);

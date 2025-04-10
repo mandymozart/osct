@@ -1,10 +1,10 @@
 import { produce } from "immer";
-import { 
-  ChapterData, 
-  ChapterResource, 
-  IGame, 
-  LoadingState, 
-  Target 
+import {
+  ChapterData,
+  ChapterResource,
+  IGame,
+  LoadingState,
+  Target,
 } from "../../../types";
 
 /**
@@ -12,7 +12,7 @@ import {
  */
 export class ChapterInitializer {
   private game: IGame;
-  
+
   constructor(game: IGame) {
     this.game = game;
   }
@@ -25,11 +25,11 @@ export class ChapterInitializer {
     if (!this.game.state.chapters) {
       this.game.set({
         chapters: {},
-        currentChapter: null
+        currentChapter: null,
       });
     }
   }
-  
+
   /**
    * Create a properly initialized chapter resource with loading states
    */
@@ -40,24 +40,26 @@ export class ChapterInitializer {
       src: chapterData.imageTargetSrc,
       status: LoadingState.INITIAL,
       error: null,
-      targets: chapterData.targets.map(targetData => {
+      targets: chapterData.targets.map((targetData) => {
         return {
           ...targetData,
           status: LoadingState.INITIAL,
           error: null,
-          entity: targetData.entity ? {
-            ...targetData.entity,
-            status: LoadingState.INITIAL,
-            error: null,
-            assets: targetData.entity.assets.map(asset => ({
-              ...asset,
-              status: LoadingState.INITIAL,
-              error: null,
-              src: asset.src,
-            }))
-          } : null
+          entity: targetData.entity
+            ? {
+                ...targetData.entity,
+                status: LoadingState.INITIAL,
+                error: null,
+                assets: targetData.entity.assets.map((asset) => ({
+                  ...asset,
+                  status: LoadingState.INITIAL,
+                  error: null,
+                  src: asset.src,
+                })),
+              }
+            : null,
         } as Target;
-      })
+      }),
     };
 
     return chapter;

@@ -6,7 +6,7 @@ import { ConfigurationVersion, IGame, TargetHistoryEntry as HistoryEntry, IHisto
  * Manages user history and progress tracking
  */
 export class HistoryManager implements IHistoryManager {
-  private game: IGame; // Reference to the main store
+  private game: IGame;
   private history: HistoryEntry[] = [];
   private readonly HISTORY_STORAGE_KEY = 'ar-game-target-history';
   private readonly CONFIG_VERSION_KEY = 'ar-game-config-version';
@@ -21,19 +21,19 @@ export class HistoryManager implements IHistoryManager {
   private checkConfigurationVersion(): void {
     try {
       const storedVersion = localStorage.getItem(this.CONFIG_VERSION_KEY);
-      const currentVersion = this.game.configuration.version;
+      const currentVersion = config.version;
       
       if (!storedVersion) {
         this.saveConfigurationVersion();
         return;
       }
 
-      const { version, timestamp } = JSON.parse(storedVersion) as ConfigurationVersion;
+      const storageVersion = JSON.parse(storedVersion) as ConfigurationVersion;
       
-      if (version !== currentVersion) {
+      if (storageVersion.version !== currentVersion.version) {
         console.warn(
-          `Game configuration has changed from version ${version} to ${currentVersion}. ` +
-          `Last update was on ${new Date(timestamp).toLocaleDateString()}. ` +
+          `Game configuration has changed from version ${storageVersion.version} to ${currentVersion.version}. ` +
+          `Last update was on ${new Date(storageVersion.timestamp).toLocaleDateString()}. ` +
           `Some chapter or target data might have changed.`
         );
       }
@@ -50,8 +50,8 @@ export class HistoryManager implements IHistoryManager {
   private saveConfigurationVersion(): void {
     try {
       const versionData: ConfigurationVersion = {
-        version: this.game.configuration.version,
-        timestamp: Date.now()
+        version: config.version.version,
+        timestamp: new Date().toISOString()
       };
       localStorage.setItem(this.CONFIG_VERSION_KEY, JSON.stringify(versionData));
     } catch (error) {
