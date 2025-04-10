@@ -141,8 +141,8 @@
     },
     {
       "index": 2,
-      "title": "Movement in VR",
-      "description": "Learn how to move around in the virtual space using teleportation and smooth locomotion.",
+      "title": "Ensure Proper Lighting",
+      "description": "Place the book in a well-lit area. Avoid shadows or glare for accurate scanning and detection of target images.",
       "illustration": "/assets/illustrations/tutorial-step-3.svg"
     },
     {
