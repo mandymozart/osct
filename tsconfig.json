@@ -1,34 +1,33 @@
 {
-    "compilerOptions": {
-      "target": "es2020",
-      "module": "esnext",
-      "lib": ["es2020", "dom"],
-      "declaration": true,
-      "declarationDir": "./dist",
-      "outDir": "./dist",
-      "strict": true,
-      "esModuleInterop": true,
-      "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true,
-      "moduleResolution": "node",
-      "resolveJsonModule": true,
-      "isolatedModules": true,
-      "noEmit": false,
-      "types":  ["vite/client","aframe", "three"],
-      "baseUrl": ".",
-      "paths": {
-        "@/*": ["./src/*"],
-        "@types/*": ["./src/types/*"],
-        "@components/*": ["./src/components/*"],
-        "@services/*": ["./src/services/*"],
-        "@utils/*": ["./src/utils/*"],
-        "@pages/*": ["./src/pages/*"],
-        "@stores/*": ["./src/stores/*"],
-        "@targets/*": ["./src/targets/*"],
-        "@assets/*": ["./src/assets/*"],
-        "@deps/*": ["./src/deps/*"]
-      },
-    },
-    "include": ["./src/**/*.ts"],
-    "exclude": ["./node_modules", "**/*.spec.ts"]
-  }
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "declaration": true,
+    "declarationDir": "./dist",
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": false,
+    "types": ["vite/client", "aframe", "three"],
+    "baseUrl": ".",
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types"
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "./src/**/*.ts", 
+    "./src/**/*.d.ts",
+    "src/types/env.d.ts"
+  ],
+  "exclude": ["./node_modules", "**/*.spec.ts"]
+}

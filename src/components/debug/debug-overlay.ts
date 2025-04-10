@@ -5,13 +5,20 @@ import { ChapterResource, IGame, LoadingState, Target } from "../../types";
 export class DebugOverlay extends HTMLElement {
   private shadow: ShadowRoot;
   private unsubscribe: (() => void) | null = null;
-  private expanded: boolean = true;
+  private expanded: boolean = false;
   private game: Readonly<IGame>;
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
     this.shadow = this.attachShadow({ mode: "open" });
+
+    // Hide in production
+    // TODO: temporary solution, should be handled by a build step
+    // or a more robust feature flag system
+    if (!import.meta.env.DEV) {
+      this.style.display = "none";
+    }
   }
 
   private async initialize(): Promise<void> {
@@ -55,8 +62,8 @@ export class DebugOverlay extends HTMLElement {
       <style>
         :host {
           position: fixed;
-          top: .5rem;
-          right: .5rem;
+          top: .25rem;
+          right: .25rem;
           background-color: rgba(0, 0, 0, 0.7);
           color: #00ff00;
           font-family: monospace;
@@ -70,6 +77,7 @@ export class DebugOverlay extends HTMLElement {
           user-select: text;
           cursor: pointer;
           transition: opacity 0.3s;
+          display: ${import.meta.env.DEV ? "block" : "none"};
         }
         :host(:hover) {
           opacity: 1;
@@ -140,7 +148,7 @@ export class DebugOverlay extends HTMLElement {
       (t) => t.status === LoadingState.LOADED
     ).length;
 
-    // Count total entities and loaded entities
+    // Count entities and assets
     let totalEntities = 0;
     let loadedEntities = 0;
     let totalAssets = 0;
@@ -160,12 +168,25 @@ export class DebugOverlay extends HTMLElement {
       }
     });
 
+    const getStatusDot = (isLoaded: boolean, isError?: boolean) => {
+      if (isError) return '<span class="error">◉</span>';
+      return isLoaded
+        ? '<span class="loaded">◉</span>'
+        : '<span class="loading">◉</span>';
+    };
+
+    const sceneStatus = getStatusDot(
+      !!this.game.state.scene,
+      !this.game.state.scene
+    );
+    const chapterStatus = getStatusDot(chapter.status === LoadingState.LOADED);
+    const targetsStatus = getStatusDot(loadedTargets === targets.length);
+    const entitiesStatus = getStatusDot(loadedEntities === totalEntities);
+    const assetsStatus = getStatusDot(loadedAssets === totalAssets);
+
     return `
-      <div>Chapter: ${chapter.id}</div>
-      <div>Status: ${this.getStatusLabel(chapter)}</div>
-      <div>Targets: ${loadedTargets}/${targets.length} loaded</div>
-      <div>Entities: ${loadedEntities}/${totalEntities} loaded</div>
-      <div>Assets: ${loadedAssets}/${totalAssets} loaded</div>
+      <div>S${sceneStatus} C${chapterStatus}${chapter.id}</div>
+      <div>T${targetsStatus}${loadedTargets}/${targets.length} E${entitiesStatus}${loadedEntities}/${totalEntities} A${assetsStatus}${loadedAssets}/${totalAssets}</div>
     `;
   }
 

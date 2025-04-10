@@ -4,6 +4,12 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  define: {
+    __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+    __VITE_APP_VERSION__: process.env.NODE_ENV === 'production' ? 
+    JSON.stringify(process.env.npm_package_version) : 
+    JSON.stringify(process.env.npm_package_version),
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
