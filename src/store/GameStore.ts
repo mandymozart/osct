@@ -22,7 +22,6 @@ import { QRManager } from "./managers/QRManager";
 import { RouterManager } from "./managers/router/RouterManager";
 import { uniqueId } from "@/utils";
 import { version as configVersion } from "@/game.config.json";
-import * as gameVersion from "./version.json";
 
 /**
  * Game-specific store that manages chapter loading and target tracking
@@ -30,7 +29,7 @@ import * as gameVersion from "./version.json";
  */
 class Game extends LoadableStore implements IGame {
   public state: GameState;
-  public version: GameVersion =gameVersion as GameVersion;
+  public version: GameVersion = { version: __VITE_APP_VERSION__, timestamp: __VITE_BUILD_DATE__} as GameVersion;
 
   public scene: ISceneManager;
   public chapters: IChapterManager;

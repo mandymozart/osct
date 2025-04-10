@@ -38,7 +38,7 @@ export class ChapterPage extends Page {
         transform: translateX(-8rem);
         transition: all 0.3s ease;
         pointer-events: auto;
-        width: 20rem;
+        width: 15rem;
       }
       .chapter-card .chapter-icon {
         font-size: 2rem;
@@ -87,22 +87,28 @@ export class ChapterPage extends Page {
     `;
   }
 
-  constructor() {
-    super();
-    this.handleStateChange = this.handleStateChange.bind(this);
-  }
-
   connectedCallback() {
     super.connectedCallback();
     this.chapterId = this.getAttribute("chapterId");
-    this.game?.subscribe(this.handleStateChange);
+    this.game?.subscribe(this.handleStateChange.bind(this));
+    this.setupEventListeners();
     this.updateView();
-  }
+}
 
-  disconnectedCallback() {
+private setupEventListeners() {
+    this.shadowRoot?.querySelector('.chapter-card')?.addEventListener('click', () => {
+        if (this.game) {
+            this.game.router.navigate('/chapters');
+        }
+    });
+}
+
+disconnectedCallback() {
     super.disconnectedCallback();
     this.game?.unsubscribe(this.handleStateChange);
-  }
+    // Clean up event listeners
+    this.shadowRoot?.querySelector('.chapter-card')?.removeEventListener('click', () => {});
+}
 
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
     if (name === "chapter-id" && newValue !== oldValue) {
@@ -123,7 +129,6 @@ export class ChapterPage extends Page {
     assert(cardContainer, "Chapter card element not found");
 
     if (!this.chapterId) {
-      console.warn(`Applying "${initialChapterId}" from config as initial chapter.`);
       this.chapterId = initialChapterId;
       return;
     }
