@@ -62,47 +62,59 @@ export class DebugOverlay extends HTMLElement {
       <style>
         :host {
           position: fixed;
-          top: .25rem;
+          top: 0;
           right: .25rem;
+          left: 0.25rem;
+          max-height: calc(100vh - 6rem);
           background-color: rgba(0, 0, 0, 0.7);
           color: #00ff00;
           font-family: monospace;
-          font-size: 12px;
-          padding: 10px;
-          border-radius: 5px;
+          font-size: .75rem;
+          padding: .1rem .5rem;
+          border-radius: 0 0 .5rem 0.5rem;
           z-index: 9999;
-          max-width: 400px;
-          max-height: 80vh;
           overflow-y: auto;
           user-select: text;
           cursor: pointer;
           transition: opacity 0.3s;
           display: ${import.meta.env.DEV ? "block" : "none"};
         }
-        :host(:hover) {
-          opacity: 1;
-        }
         .title {
           font-weight: bold;
-          font-size: 14px;
-          margin-bottom: 8px;
+          font-size: .75rem;
+          margin-bottom: .5rem;
           text-align: center;
           color: #ffffff;
         }
         .section {
-          border-bottom: 1px solid #333;
+          border-bottom: 1px solid #0F0;
+        }
+        .section--summary, .section-summary {
+          border: none;
+
         }
         .loading { color: orange; }
         .loaded { color: lime; }
         .error { color: red; }
         .info { color: cyan; }
-        .target, .entity, .asset {
-          margin-left: 10px;
-          padding: 2px 0;
+        .target-list {
+          display: flex;
+          overflow-x: auto;
+          gap: .5rem;
         }
-        .entity { margin-left: 20px; }
-        .asset { margin-left: 30px; }
-        .hidden { display: none; }
+        .target img {
+          display: block;
+          aspect-ratio: 1/1;
+          width: 16rem;
+          object-fit: contain;
+          background: white;
+          padding: .5rem;
+        }
+        .target, .entity, .asset {
+          padding: .25rem 0;
+          }
+        .entity { margin-left: 0rem; }
+        .asset { margin-left: 1rem; }
         .toggle { cursor: pointer; }
       </style>
       <div id="content">Loading...</div>
@@ -136,7 +148,7 @@ export class DebugOverlay extends HTMLElement {
       const summary = currentChapter
         ? this.generateChapterSummary(currentChapter)
         : "No chapter loaded";
-      html = `<div class="section">${summary}</div>`;
+      html = `<div class="section section--summary">${summary}</div>`;
     }
 
     contentEl.innerHTML = html;
@@ -185,8 +197,7 @@ export class DebugOverlay extends HTMLElement {
     const assetsStatus = getStatusDot(loadedAssets === totalAssets);
 
     return `
-      <div>S${sceneStatus} C${chapterStatus}${chapter.id}</div>
-      <div>T${targetsStatus}${loadedTargets}/${targets.length} E${entitiesStatus}${loadedEntities}/${totalEntities} A${assetsStatus}${loadedAssets}/${totalAssets}</div>
+      <div>S${sceneStatus} C${chapterStatus}${chapter.id} T${targetsStatus}${loadedTargets}/${targets.length} E${entitiesStatus}${loadedEntities}/${totalEntities} A${assetsStatus}${loadedAssets}/${totalAssets}</div>
     `;
   }
 
@@ -195,19 +206,20 @@ export class DebugOverlay extends HTMLElement {
       <div class="section">
         <div>Chapter: ${chapter.id || "unknown"}</div>
         <div>Status: ${this.getStatusLabel(chapter)}</div>
+        <qr-generator></qr-generator>
       </div>
     `;
 
     // Targets
     if (chapter.targets && chapter.targets.length > 0) {
-      html += `<div class="section">`;
-      html += `<div>Targets (${chapter.targets.length}):</div>`;
+      html += `<div class="section section--targets">`;
+      html += `<div>Targets (${chapter.targets.length}):</div><div class="target-list">`;
 
       chapter.targets.forEach((target, i) => {
         html += this.renderTargetInfo(target, i);
       });
 
-      html += `</div>`;
+      html += `</div></div>`;
     }
 
     return html;
@@ -217,6 +229,7 @@ export class DebugOverlay extends HTMLElement {
     let html = `
       <div class="target">
         <div>Target #${index}: ${this.getStatusLabel(target)}</div>
+        <div><img src="assets/images/images-${target.bookId}.jpg" alt="${target.title}" /></div>
     `;
 
     if (target.entity) {
@@ -302,4 +315,6 @@ export class DebugOverlay extends HTMLElement {
   }
 }
 
-customElements.define("debug-overlay", DebugOverlay);
+if (import.meta.env.DEV) {
+  customElements.define("debug-overlay", DebugOverlay);
+}
