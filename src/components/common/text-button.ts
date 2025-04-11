@@ -128,11 +128,19 @@ export class TextButton extends HTMLButtonElement {
           border-color: var(--color-primary, #000);
           color: var(--color-background, #f9f9f9);
         }
+
+        :host button[is="text-button"][size="xs"],
+        button[is="text-button"][size="xs"] {
+          font-size: .75rem;
+          padding: 0 .5rem;
+          line-height: 1rem;
+        }
   
         :host button[is="text-button"][size="sm"],
         button[is="text-button"][size="sm"] {
           font-size: 1rem;
           padding: 0 1rem;
+          line-height: 2rem;
         }
   
         :host button[is="text-button"][size="lg"],

@@ -7,12 +7,11 @@ import {
   IGame,
   IPagesRouter,
   ChapterResource,
-  GameMode,
   LoadingState,
   PageRoute,
 } from "@/types/";
 import { waitForDOMReady } from "./utils/dom";
-
+console.log(import.meta.env)
 export class BookGame extends HTMLElement {
   private game: Readonly<IGame>;
   private errorPage: IErrorPage | null = null;
