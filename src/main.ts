@@ -11,7 +11,7 @@ import {
   PageRoute,
 } from "@/types/";
 import { waitForDOMReady } from "./utils/dom";
-console.log(import.meta.env)
+
 export class BookGame extends HTMLElement {
   private game: Readonly<IGame>;
   private errorPage: IErrorPage | null = null;
@@ -42,18 +42,22 @@ export class BookGame extends HTMLElement {
     <game-header></game-header>
     
     <pages-router>
-      <error-page></error-page>
       <about-page></about-page>
-      <not-found-page></not-found-page>
-      <home-page></home-page>
-      <tutorial-page></tutorial-page>
-      <index-page></index-page>
-      <chapters-page></chapters-page>
       <chapter-page></chapter-page>
+      <chapters-page></chapters-page>
+      <home-page></home-page>
+      <index-page></index-page>
+      <tutorial-page></tutorial-page>
+      <not-found-page></not-found-page>
+      <error-page></error-page>
     </pages-router>
-      
+    
     <navigation-bar></navigation-bar>
+
     <loading-page active></loading-page>
+
+    <scene-bridge></scene-bridge>
+    <qr-scanner></qr-scanner>
 
     <debug-overlay></debug-overlay>
   `;

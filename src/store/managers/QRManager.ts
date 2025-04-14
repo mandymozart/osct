@@ -51,6 +51,9 @@ export class QRManager {
    */
   private initializeQRScanner(): void {
     // Create QR scanner element if it doesn't exist
+    // TODO: remove initialisation for it can create conflicts.
+    // refactor so dom listeners and manipulation is handled by qr-scanner
+    // itself
     if (!document.querySelector('qr-scanner')) {
       this.qrScannerElement = document.createElement('qr-scanner');
       document.body.appendChild(this.qrScannerElement);

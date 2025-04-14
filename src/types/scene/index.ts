@@ -21,11 +21,6 @@ export interface ISceneManager {
      * Update scene visibility based on current game mode
      */
     updateSceneVisibility(): Promise<void>;
-    
-    /**
-     * Hide scene for QR scanning
-     */
-    hideSceneForQRScanning(): Promise<void>;
 
     /**
      * Enter VR mode if available

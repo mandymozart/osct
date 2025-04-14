@@ -65,3 +65,14 @@ book-game {
 img {
   display: inline-block;
 }
+
+a-scene {
+  pointer-events: none;
+  transition: opacity .2s linear;
+  opacity: 0;
+}
+
+a-scene.active {
+  pointer-events: all;
+  opacity: 1;
+}
