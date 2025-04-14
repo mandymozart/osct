@@ -1,6 +1,5 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import jsQR from "jsqr";
-import { assert } from "@/utils";
 import { GameMode, IGame, IQRScanner } from "@/types";
 
 /**
@@ -67,24 +66,27 @@ export class QRScanner extends HTMLElement implements IQRScanner {
     const style = document.createElement('style');
     style.textContent = `
       qr-scanner {
-        display: none;
+        display: flex;
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.01);
-        backdrop-filter: blur(10px);
         z-index: 1;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         color: var(--color-primary);
-        font-family: sans-serif;
+        
+        // active state management
+        pointer-events: none;
+        transition: opacity .2s linear;
+        opacity: 0;
       }
 
       qr-scanner.active {
-        display: flex;
+        pointer-events: all;
+        opacity: 1;
       }
 
       .${this.CONTAINER_CLASS} {
@@ -218,17 +220,18 @@ export class QRScanner extends HTMLElement implements IQRScanner {
    * Handle game mode changes
    */
   private handleModeChange(state: { mode: GameMode }) {
-    assert(this.game, "GameStore is missing");
-    assert(state, "Game mode needs to be set in a state");
 
     const isQRMode = state.mode === GameMode.QR;
 
     // Toggle visibility based on mode
     this.classList.toggle("active", isQRMode);
 
+    // TODO: Double check to avoid dual cameras on scene and qr scanner
     if (isQRMode && !this.scanningActive) {
+      console.log("[QR Scanner] activate qr mode");
       this.startCamera();
     } else if (!isQRMode && this.scanningActive) {
+      console.log("[QR Scanner] deactivate qr mode");
       this.stopCamera();
     }
   }
