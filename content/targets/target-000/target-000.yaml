@@ -1,0 +1,8 @@
+type: target
+id: target-000
+title: Shadows
+description: Light plays a role in architecture.
+assetType: link
+assetUrl: https://lizard.reptile/?action=dislocated
+relatedTargets: target-001, target-002, target-003
+relatedChapter: chapter1
