@@ -1,4 +1,8 @@
+@deprecated
+replaced by CONTENT.md
+
 # Targets
+
 
 ## testing.mind
 
