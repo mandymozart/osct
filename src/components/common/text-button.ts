@@ -7,7 +7,7 @@ export class TextButton extends HTMLButtonElement {
     }
   
     static get observedAttributes() {
-      return ["variant", "size", "disabled", "active"];
+      return ["variant", "size", "disabled", "active", "inverted"];
     }
   
     // Getter and setter for text content
@@ -31,6 +31,21 @@ export class TextButton extends HTMLButtonElement {
         this.setAttribute('active', '');
       } else {
         this.removeAttribute('active');
+      }
+    }
+  
+    /**
+     * Get and set inverted state
+     */
+    get inverted() {
+      return this.hasAttribute('inverted');
+    }
+    
+    set inverted(value) {
+      if (value) {
+        this.setAttribute('inverted', '');
+      } else {
+        this.removeAttribute('inverted');
       }
     }
   
@@ -95,35 +110,37 @@ export class TextButton extends HTMLButtonElement {
           color: var(--color-background, #f9f9f9);
         }
   
-        :host button[is="text-button"][variant="inverted"],
-        button[is="text-button"][variant="inverted"] {
+        /* Inverted flag - can be applied to any variant */
+        :host button[is="text-button"][inverted],
+        button[is="text-button"][inverted] {
           background-color: var(--color-primary, #000);
           color: var(--color-background, #f9f9f9);
           border-color: var(--color-primary, #000);
         }
         
-        :host button[is="text-button"][variant="inverted"]:hover,
-        button[is="text-button"][variant="inverted"]:hover {
+        :host button[is="text-button"][inverted]:hover,
+        button[is="text-button"][inverted]:hover {
           background-color: var(--color-secondary, #747bff);
           border-color: var(--color-secondary, #747bff);
           color: var(--color-background, #f9f9f9);
         }
         
-        :host button[is="text-button"][variant="inverted"][active],
-        button[is="text-button"][variant="inverted"][active] {
+        :host button[is="text-button"][inverted][active],
+        button[is="text-button"][inverted][active] {
           background-color: var(--color-secondary, #747bff);
           border-color: var(--color-secondary, #747bff);
         }
-  
-        :host button[is="text-button"][variant="secondary-inverted"],
-        button[is="text-button"][variant="secondary-inverted"] {
+        
+        /* Inverted when combined with secondary variant */
+        :host button[is="text-button"][variant="secondary"][inverted],
+        button[is="text-button"][variant="secondary"][inverted] {
           background-color: var(--color-secondary, #747bff);
           color: var(--color-background, #f9f9f9);
           border-color: var(--color-secondary, #747bff);
         }
         
-        :host button[is="text-button"][variant="secondary-inverted"][active],
-        button[is="text-button"][variant="secondary-inverted"][active] {
+        :host button[is="text-button"][variant="secondary"][inverted][active],
+        button[is="text-button"][variant="secondary"][inverted][active] {
           background-color: var(--color-primary, #000);
           border-color: var(--color-primary, #000);
           color: var(--color-background, #f9f9f9);
@@ -149,10 +166,10 @@ export class TextButton extends HTMLButtonElement {
           padding: 0 3rem;
         }
   
-        :host button[is="text-button"]:disabled,
-        button[is="text-button"]:disabled {
-          opacity: 1;
-          cursor: pointer;
+        :host button[is="text-button"][disabled],
+        button[is="text-button"][disabled] {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
       `;
     }
