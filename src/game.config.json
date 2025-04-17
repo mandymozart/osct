@@ -135,8 +135,8 @@
     },
     {
       "index": 1,
-      "title": "Using the Controllers",
-      "description": "Learn how to use the VR controllers to interact with objects in the virtual environment.",
+      "title": "Give Camera Access",
+      "description": "Give camera access to the app to unlock the content.",
       "illustration": "/assets/illustrations/tutorial-step-2.svg"
     },
     {

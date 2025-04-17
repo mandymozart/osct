@@ -79,12 +79,14 @@ class ErrorPage extends Page implements IErrorPage {
               position: fixed;
               top: 0;
               left: 0;
-              width: 100%;
-              display: flex !important;
+              right: 0;
+              bottom: 0;
               height: 100%;
+              display: flex !important;
               border-radius: 0;
-              background-color: rgba(0, 0, 0, 0.8);
+              background-color: var(--primary-800);
               z-index: 1000;
+
               justify-content: center;
               align-items: center;
               pointer-events: none;
@@ -97,36 +99,35 @@ class ErrorPage extends Page implements IErrorPage {
           }
           
           .message {
-              font-size: 1.2em;
-              color: var(--color-primary, white);
+              font-size: 1.5rem;
+              padding: 2rem;
+              color: var(--color-background);
               text-align: center;
-              margin-bottom: 20px;
+              margin-bottom: 1rem;
           }
-          
-          .error-code {
-              font-size: 0.8em;
-              color: var(--color-accent, #f5f5f5);
-              margin-bottom: 24px;
-              opacity: 0.7;
-          }
-          
+                  
           .actions {
               display: flex;
+              padding: 2rem;
               gap:1rem;
+          }
+          @media (max-width: 768px) {
+            .actions {
+                flex-direction: column-reverse;
+            }
           }
           
       `;
   }
 
   protected get template(): string {
-    console.log('[ErrorPage] Rendering with actionButton:', this.actionButton);
+    console.log('[ErrorPage] Error:', this.errorCode);
     return /* html */ `
       <div class="message">${this.message}</div>
-        ${this.errorCode ? `<div class="error-code">Error: ${this.errorCode}</div>` : ''}
       <div class="actions">
-          <button is="text-button" variant="${this.actionButton ? 'primary' : 'secondary'}" id="dismiss-error">Dismiss</button>
+          <button is="text-button" variant="${this.actionButton ? 'primary' : 'secondary'}" inverted id="dismiss-error">Dismiss</button>
           ${this.actionButton
-    ? `<button is="text-button" variant="secondary" id="action-button">${this.actionButton.text}</button>`
+    ? `<button is="text-button" variant="secondary" inverted id="action-button">${this.actionButton.text}</button>`
     : ''}
       </div>
       `;

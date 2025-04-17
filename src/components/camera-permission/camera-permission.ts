@@ -87,11 +87,13 @@ export class CameraPermission extends Page {
     return /* css */ `
       :host {
         position: absolute;
+        border-radius: 0;
         z-index: -1;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
+        background-color: var(--color-background);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -105,11 +107,10 @@ export class CameraPermission extends Page {
       
       .message {
         font-size: 1.1em;
-        color: var(--primary, white);
+        color: var(--color-primary);
         padding: 2rem;
         text-align: center;
         max-width: 80%;
-        background-color: rgba(0, 0, 0, 0.8);
         border-radius: 8px;
       }
       
@@ -119,7 +120,6 @@ export class CameraPermission extends Page {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background-color: rgba(0, 0, 0, 0.5);
         width: 100%;
         height: 100%;
       }
@@ -129,16 +129,19 @@ export class CameraPermission extends Page {
       }
     `;
   }
-  
+  // TODO: BOTH SAME
   private getContent() {
     return /* html */ `
       <div class="prompt ${this.currentPermissionStatus === CameraPermissionStatus.PROMPT ? '' : 'hidden'}">
-        <div class="message">Please allow camera access to use AR features</div>
-      </div>
+        <img src="/assets/illustrations/tutorial-step-2.svg" alt="Camera" width="100" height="100">
+        <div class="message">Camera access was denied. Please enable camera permissions in your browser settings to use AR features.</div>
+      <button is="text-button" inverted id="settings-button">Open Settings</button>
+        </div>
       
       <div class="denied ${this.currentPermissionStatus === CameraPermissionStatus.DENIED ? '' : 'hidden'}">
-        <div class="message"></div>
-        <button is="text-button" id="settings-button">Open Settings</button>
+      <img src="/assets/illustrations/tutorial-step-2.svg" alt="Camera" width="100" height="100">
+        <div class="message">Camera access was denied. Please enable camera permissions in your browser settings to use AR features.</div>
+        <button is="text-button" inverted id="settings-button">Open Settings</button>
       </div>
     `;
   }
