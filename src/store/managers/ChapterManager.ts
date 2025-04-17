@@ -82,6 +82,8 @@ export class ChapterManager implements IChapterManager {
       ) {
         // Even if already on this chapter, ensure scene is updated
         this.updateSceneWithCurrentChapter();
+        // Make sure to set loading state back to LOADED before returning
+        this.game.set({loading: LoadingState.LOADED});
         return;
       }
 
@@ -92,6 +94,8 @@ export class ChapterManager implements IChapterManager {
 
         // Update scene with cached chapter
         this.updateSceneWithCurrentChapter();
+        // Also make sure to set loading state back to LOADED here
+        this.game.set({loading: LoadingState.LOADED});
         return;
       }
 

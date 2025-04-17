@@ -13,13 +13,13 @@ export class ChapterPage extends Page {
   private chapterData: ChapterData | null = null;
   private chapterId: string | null = null;
   
+// TODO: pointer events propagation when overlayed. but this depends on how we want to handle the overlay.
 
   protected get styles(): string {
     return /* css */ `
       :host {
         background: transparent;
         border-radius: 0;
-        pointer-events: none;
       }
       .content {
         overflow-y: auto;

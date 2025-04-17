@@ -6,6 +6,7 @@ export interface IPagesRouter extends HTMLElement {
 
 export interface RouterManagerState {
   currentRoute: PageRoute | null;
+  currentError: ErrorInfo | null;
 }
 
 export interface IRouterManager {

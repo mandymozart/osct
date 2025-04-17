@@ -20,13 +20,15 @@ export class RouterManager implements IRouterManager {
   }
 
   /**
-   * Navigate to a different page
-   * @param to Pages enum or string of url slug
-   * @param param Optional route parameters
+   * Navigate to a route
+   * @param to Path or page to navigate to
+   * @param param Optional parameter for the route
+   * @param force Force navigation even if already on the route
    */
-  public navigate(to: string, param?: RouteParam): void {
+  public navigate(to: string | Pages, param?: RouteParam, force: boolean = false): void {
     const route = RouteResolver.createRoute(to, param);
     if (
+      !force && 
       this.game.state.currentRoute && 
       RouteResolver.isSameRoute(route, this.game.state.currentRoute)
     ) {
@@ -46,17 +48,28 @@ export class RouterManager implements IRouterManager {
   /**
    * Show error page with error details
    * @param error Error information to display
+   * @param force Force navigation even if already on the error page
    */
-  public showError(error: ErrorInfo): void {
-    console.error(error);
-    // Navigate to error page and pass error details as parameters
-    this.navigate(Pages.ERROR, { key: "message", value: error.msg });
+  public showError(error: ErrorInfo, force: boolean = false): void {
+    console.error('[RouterManager] Showing error:', error);
+    
+    // Store the error in router state
+    this.game.set({ 
+      currentRoute: { 
+        page: Pages.ERROR, 
+        slug: "/error" 
+      },
+      currentError: error
+    });
   }
 
   /**
    * Close overlay pages
    */
   public close(): void {
-    this.game.set({ currentRoute: null });
+    this.game.set({ 
+      currentRoute: null,
+      currentError: null
+    });
   }
 }

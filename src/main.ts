@@ -6,6 +6,7 @@ import {
   IGame,
 } from "@/types/";
 import { waitForDOMReady } from "./utils/dom";
+import "./components/camera-permission/camera-permission";
 
 export class BookGame extends HTMLElement {
   private game: Readonly<IGame>;
@@ -32,6 +33,7 @@ export class BookGame extends HTMLElement {
   `;
 
   template = /* html */ `
+    <camera-permission></camera-permission>
     <game-header></game-header>
     
     <pages-router>

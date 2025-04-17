@@ -3,7 +3,6 @@ import {
   GameState,
   IGame,
   IPagesRouter,
-  IRouterManager,
   PageRoute,
   RouteParam,
 } from "@/types";
@@ -12,7 +11,6 @@ import { assert, camelToKebab } from "@/utils";
 export class PagesRouter extends HTMLElement implements IPagesRouter {
   private pages: Map<string, HTMLElement> = new Map();
   private game: Readonly<IGame>;
-  private router: IRouterManager | null = null;
 
   constructor() {
     super();

@@ -1,5 +1,4 @@
 import { GameStoreService } from "../services/GameStoreService";
-import { assert } from "../utils/assert";
 import { IGame } from "../types";
 
 // TODO: Fix protected properties in the abstract class def
