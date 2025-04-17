@@ -6,6 +6,10 @@ export interface ErrorInfo {
   msg: string;
   type?: "critical" | "warning" | "info";
   details?: any;
+  action?: {
+    text: string;
+    callback: () => void;
+  };
 }
 
 export type ErrorListener = (error: ErrorInfo) => void;

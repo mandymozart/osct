@@ -16,12 +16,15 @@ import {
   IQRManager,
   LoadingState,
   GameVersion,
-  ConfigurationVersion
+  ConfigurationVersion,
+  CameraPermissionStatus,
+  ICameraManager
 } from "../types";
 import { QRManager } from "./managers/QRManager";
 import { RouterManager } from "./managers/router/RouterManager";
 import { uniqueId } from "@/utils";
 import { version as configVersion } from "@/game.config.json";
+import { CameraManager } from "./managers/CameraManager";
 
 /**
  * Game-specific store that manages chapter loading and target tracking
@@ -37,6 +40,7 @@ class Game extends LoadableStore implements IGame {
   public history: IHistoryManager;
   public router: IRouterManager;
   public qr: IQRManager;
+  public camera: ICameraManager;
 
   constructor() {
     super();
@@ -46,12 +50,14 @@ class Game extends LoadableStore implements IGame {
       scene: null,
       mode: GameMode.IDLE,
       currentRoute: null,
+      currentError: null,
       trackedTargets: [],
       currentChapter: null,
       chapters: {}, 
       history: [],
       configVersion: configVersion as ConfigurationVersion,
       loading: LoadingState.LOADING,
+      cameraPermission: CameraPermissionStatus.UNKNOWN
     };
 
     this.scene = new SceneManager(this);
@@ -60,6 +66,7 @@ class Game extends LoadableStore implements IGame {
     this.history = new HistoryManager(this);
     this.router = new RouterManager(this);
     this.qr = new QRManager(this);
+    this.camera = new CameraManager(this);
   }
 
   /**

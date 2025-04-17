@@ -28,13 +28,21 @@ export class SceneBridge extends HTMLElement {
     try {
       await waitForDOMReady();
       await this.game.scene.attachScene("#scene");
+      
+      // Complete loading immediately, regardless of camera permission
+      this.game.finishLoading();
+      
+      // Check camera permission in the background without blocking
+      this.game.camera.checkPermission().catch(error => {
+        console.warn("[Scene Bridge] Camera permission check failed:", error);
+      });
     } catch (error) {
       this.game.notifyError({
         code: ErrorCode.SCENE_NOT_FOUND,
         msg: "Failed to attach scene",
       });
+      this.game.finishLoading(); // Still finish loading even if scene fails
     }
-    this.game.finishLoading();  
   }
 
   protected setupListeners() {
@@ -62,8 +70,12 @@ export class SceneBridge extends HTMLElement {
     console.log("[Scene Bridge] activate scene mode");
 
     if (this.scene) {
-      this.scene.play();
-      this.scene.classList.add("active", "true");
+      this.game.camera.checkPermission().then(granted => {
+        if (granted) {
+          this.scene?.play();
+          this.scene?.classList.add("active", "true");
+        }
+      });
     }
   }
 

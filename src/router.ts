@@ -43,6 +43,7 @@ export const router: PageRouterConfiguration = {
     {
       page: Pages.ERROR,
       slug: "/error",
+      param: "message"
     },
   ],
 };

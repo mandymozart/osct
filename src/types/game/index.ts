@@ -11,6 +11,7 @@ import { ISceneManager, SceneManagerState } from "../scene";
 import { ITargetManager, TargetManagerState } from "../targets";
 import { ILoadableStore, LoadableResource } from "../loadable-store";
 import { LoadingState } from "../common.js";
+import { CameraManagerState, ICameraManager } from "../camera";
 
 export interface IGame extends ILoadableStore {
   version: ConfigurationVersion; // History and Game version have to match. 
@@ -22,6 +23,7 @@ export interface IGame extends ILoadableStore {
   targets: ITargetManager;
   qr: IQRManager;
   history: IHistoryManager;
+  camera: ICameraManager;
 
   initialize(): void;
   startLoading(): void;
@@ -36,7 +38,8 @@ export interface GameState
     TargetManagerState,
     ChapterState,
     HistoryManagerState,
-    RouterManagerState {
+    RouterManagerState,
+    CameraManagerState {
   id: string;
   loading: LoadingState;
   mode: GameMode;
@@ -73,6 +76,9 @@ export enum ErrorCode {
 
   // QR errors
   INVALID_QR_URL = "invalid-qr-url",
+  
+  // Camera errors
+  CAMERA_PERMISSION_DENIED = "camera-permission-denied",
 }
 
 export interface GameConfiguration {
