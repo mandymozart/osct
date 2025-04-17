@@ -76,3 +76,45 @@ a-scene.active {
   pointer-events: all;
   opacity: 1;
 }
+#initial-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-background, #000);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000; /* Ensure it's above everything */
+  transition: opacity 0.5s ease;
+}
+
+#initial-loader .loading-message {
+  font-size: 1rem;
+  color: var(--color-primary, #fff);
+  margin-bottom: 20px;
+}
+
+#initial-loader .loading-animation {
+  font-size: 1rem;
+  color: var(--color-primary, #fff);
+}
+
+#initial-loader .loading-animation::after {
+  content: '...';
+  animation: init-dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes init-dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80%, 100% { content: '...'; }
+}
+
+/* Hide A-Frame scene initially */
+#scene {
+  visibility: hidden;
+}

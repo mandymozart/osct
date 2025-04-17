@@ -11,6 +11,12 @@
     <link rel="icon" type="image/png" href="./assets/favicon.ico" />
   </head>
   <body>
+    <!-- Initial loader that will be present before any JS loads -->
+    <div id="initial-loader">
+      <div class="loading-message">Loading book</div>
+      <div class="loading-animation">&nbsp;</div>
+    </div>
+
     <a-scene id="scene" mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/band.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       <a-assets>
         <a-asset-item id="bearModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"></a-asset-item>
@@ -27,5 +33,24 @@
       </a-entity>
     </a-scene>
     <book-game id="book-game"></book-game>
+
+    <script>
+      // Script to handle initial loader
+      document.addEventListener('DOMContentLoaded', function() {
+        // Hide the initial loader when the application signals it's ready
+        window.hideInitialLoader = function() {
+          const loader = document.getElementById('initial-loader');
+          if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => {
+              loader.style.display = 'none';
+              // Make scene visible when loader is hidden
+              const scene = document.getElementById('scene');
+              if (scene) scene.style.visibility = 'visible';
+            }, 500);
+          }
+        };
+      });
+    </script>
   </body>
 </html>
