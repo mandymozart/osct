@@ -16,26 +16,14 @@ MindAR using tensoryflow, three, and aframe to display WebXR overlays.
 
 Use MindAR compiler to generate image tracking targets.
 
-# Starting the Secure Development Server
+### `npm run install`
 
-## Prerequisites
-1. Ensure Python is installed on your system.
-2. Install the required dependencies:
+Known issue: Use npm install --ignore-scripts if you want to build on windows with node version >22. or use 18. since there are canvas build scripts running which have issues with GTK3. So dlls are missing. works fine on netlify inside a docker.
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+alternatively use this for a more permanent solution:
 
-## Running the Server
-1. Run the script:
-
-   ```bash
-   python start_server.py
-   ```
-
-2. Access the server:
-   - Local: `https://localhost:8443/`
-   - Network: `https://<your_network_ip>:8443/`
-
-## Stopping the Server
-Press `Ctrl + C` in the terminal to stop the server.
+```
+"canvas": {
+  "skip-install": true
+}
+```
