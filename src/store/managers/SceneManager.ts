@@ -5,11 +5,10 @@ import {
   IGame,
   ISceneManager,
   ChapterResource,
-  Asset,
-  Entity,
   Target,
   LoadingState,
 } from "./../../types";
+import { waitForDOMReady } from "@/utils";
 
 export class SceneManager implements ISceneManager {
   private game: IGame;
@@ -21,45 +20,56 @@ export class SceneManager implements ISceneManager {
   /**
    * Attach an A-Frame scene to the store
    * @param sceneSelector Scene instance or DOM selector
+   * @param timeoutMs Optional timeout in milliseconds (default: 10000)
    */
-  public async attachScene(sceneSelector: Scene | string): Promise<void> {
-    return new Promise<void>(async (resolve) => {
-      try {
-        // Get scene element
-        const scene =
-          typeof sceneSelector === "string"
-            ? (document.querySelector(sceneSelector) as Scene)
-            : sceneSelector;
+  public async attachScene(sceneSelector: Scene | string, timeoutMs: number = 10000): Promise<void> {
+    try {
+      await waitForDOMReady();
+      // Get scene element
+      const scene =
+        typeof sceneSelector === "string"
+          ? (document.querySelector(sceneSelector) as Scene)
+          : sceneSelector;
 
-        if (!scene) {
-          throw new Error(`Scene not found: ${sceneSelector}`);
-        }
+      if (!scene) {
+        throw new Error(`Scene not found: ${sceneSelector}`);
+      }
 
-        // Wait for scene to be ready if not already loaded
-        if (!scene.hasLoaded) {
-          await new Promise<void>((resolve) => {
+      // Wait for scene to be ready if not already loaded
+      if (!scene.hasLoaded) {
+        await Promise.race([
+          new Promise<void>((resolve) => {
             const handler = () => {
               scene.removeEventListener("loaded", handler);
               resolve();
             };
             scene.addEventListener("loaded", handler);
-          });
-        }
-
-        // Initialize scene
-        if (!scene.isPlaying) {
-          scene.play();
-        }
-
-        // Store scene reference
-        this.game.set({ scene });
-        console.log("[Scene Manager] A-Frame scene attached and ready");
-      } catch (error) {
-        console.error("Failed to attach scene:", error);
-        throw error;
+          }),
+          new Promise<void>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error("Scene loading timed out after " + timeoutMs + "ms"));
+            }, timeoutMs);
+          })
+        ]);
       }
-      resolve();
-    });
+
+      // Initialize scene
+      if (!scene.isPlaying) {
+        // scene.play();
+        console.log("[Scene Manager] Skip playing scene");
+      }
+
+      // Store scene reference
+      this.game.set({ scene });
+      console.log("[Scene Manager] A-Frame scene attached and ready");
+    } catch (error) {
+      console.error("[Scene Manager] Failed to attach scene:", error);
+      this.game.notifyError({
+        code: ErrorCode.SCENE_NOT_FOUND,
+        msg: error instanceof Error ? error.message : "Failed to attach scene"
+      });
+      throw error;
+    }
   }
 
   /**

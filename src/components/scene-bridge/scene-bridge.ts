@@ -1,5 +1,6 @@
 import { GameStoreService } from "@/services/GameStoreService";
-import { GameMode, IGame } from "@/types";
+import { ErrorCode, GameMode, IGame } from "@/types";
+import { waitForDOMReady } from "@/utils";
 import { Scene } from "aframe";
 
 /**
@@ -14,11 +15,26 @@ export class SceneBridge extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this.game = GameStoreService.getInstance();
+    this.setupScene();
   }
 
   connectedCallback() {
     this.scene = this.game.state.scene;
+    this.system = this.scene?.systems["mindar-image-system"] as unknown as AFRAME.MindARImageSystem;
     this.setupListeners();
+  }
+
+  protected async setupScene() {
+    try {
+      await waitForDOMReady();
+      await this.game.scene.attachScene("#scene");
+    } catch (error) {
+      this.game.notifyError({
+        code: ErrorCode.SCENE_NOT_FOUND,
+        msg: "Failed to attach scene",
+      });
+    }
+    this.game.finishLoading();  
   }
 
   protected setupListeners() {
@@ -31,7 +47,9 @@ export class SceneBridge extends HTMLElement {
 
   private handleModeChange(mode: GameMode) {
     const isSceneMode = mode === GameMode.DEFAULT || GameMode.VR;
-    isSceneMode ? this.activate() : this.deactive();
+    // skip change if game is initialized or in idle mode
+    if(!GameMode.IDLE || !this.scene || !this.system) return;
+    isSceneMode ? this.activate() : this.deactivate();
   }
 
   private activate() {
@@ -49,7 +67,7 @@ export class SceneBridge extends HTMLElement {
     }
   }
 
-  private deactive() {
+  private deactivate() {
     // TODO: scene.pause, hide scene, remove scanlines and loading
     console.log("[Scene Bridge] deactivate scene mode");
 

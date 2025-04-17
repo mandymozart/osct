@@ -1,9 +1,8 @@
+import { GameMode, IGame, LoadingState } from "@/types";
 import { IPage, Page } from "./page";
+import { GameStoreService } from "@/services/GameStoreService";
 
-export interface ILoadingPage extends IPage {
-  showLoading(msg?: string, duration?: number): void;
-  hideLoading(): void;
-}
+export interface ILoadingPage extends IPage {}
 
 /**
  * Loading Page is a simple overlay page that displays
@@ -21,15 +20,50 @@ export interface ILoadingPage extends IPage {
  */
 class LoadingPage extends Page {
   private message: string = "Loading...";
+  protected game: Readonly<IGame>;
+  private currentLoadingState: LoadingState;
+
+  constructor() {
+    super();
+    this.game = GameStoreService.getInstance();
+    // Initialize with current state
+    this.currentLoadingState = this.game.state.loading;
+    
+    // Set initial UI state based on loading state
+    if (this.isLoading(this.currentLoadingState)) {
+      this.showLoading();
+    } else {
+      this.hideLoading();
+    }
+    
+    this.setupListeners();
+  }
+
+  protected setupListeners(): void {
+    this.game.subscribe(this.handleStateChange.bind(this));
+  }
 
   /**
-   * Handle attribute changes
+   * Helper to check if a state is considered "loading"
    */
-  attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-    if (oldValue === newValue) return;
+  private isLoading(state: LoadingState): boolean {
+    return state === LoadingState.LOADING || state === LoadingState.INITIAL;
+  }
 
-    if (name === "active") {
-      this.active = newValue === "true";
+  /**
+   * Handle game state changes, only updating UI when loading state changes
+   */
+  protected handleStateChange(state: { loading: LoadingState }) {
+    // Only process if loading state has actually changed
+    if (state.loading !== this.currentLoadingState) {
+      console.log("[LoadingPage] Loading state changed:", this.currentLoadingState, "->", state.loading);
+      this.currentLoadingState = state.loading;
+      
+      if (this.isLoading(state.loading)) {
+        this.showLoading();
+      } else {
+        this.hideLoading();
+      }
     }
   }
 
@@ -42,6 +76,7 @@ class LoadingPage extends Page {
                 align-items: center;
                 height: 100%;
                 border-radius: 0;
+                z-index: 1000;
             }
             
             .loading {
@@ -71,20 +106,17 @@ class LoadingPage extends Page {
         `;
   }
 
-  public showLoading(msg: string = "Loading...", duration: number = 0): void {
+  private showLoading(msg: string = "Loading"): void {
+    console.log("[LoadingPage] showLoading");
     this.message = msg;
-    this.render();
     this.active = true;
-
-    if (duration > 0) {
-      setTimeout(() => {
-        this.hideLoading();
-      }, duration);
-    }
+    this.render();
   }
 
-  public hideLoading(): void {
+  private hideLoading(): void {
+    console.log("[LoadingPage] hideLoading");
     this.active = false;
+    this.render();
   }
 }
 

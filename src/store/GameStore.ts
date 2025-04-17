@@ -44,14 +44,14 @@ class Game extends LoadableStore implements IGame {
     this.state = {
       id: uniqueId(),
       scene: null,
-      mode: GameMode.DEFAULT,
+      mode: GameMode.IDLE,
       currentRoute: null,
       trackedTargets: [],
       currentChapter: null,
       chapters: {}, 
       history: [],
       configVersion: configVersion as ConfigurationVersion,
-      loading: LoadingState.INITIAL,
+      loading: LoadingState.LOADING,
     };
 
     this.scene = new SceneManager(this);
@@ -64,9 +64,30 @@ class Game extends LoadableStore implements IGame {
 
   /**
    * Initialize the game store
+   * TODO: Move to history manager or main.ts
    */
   public initialize(): void {
     this.history.load();
+  }
+
+  /**
+   * Signals that loading is complete
+   */
+  public finishLoading(): void {
+    this.set({ loading: LoadingState.LOADED });
+    
+    // Hide the initial loader added to index.html
+    if (typeof window !== 'undefined' && window.hideInitialLoader) {
+      window.hideInitialLoader();
+    }
+  }
+
+  public startLoading(): void {
+    this.set({ loading: LoadingState.LOADING });
+  }
+
+  public setLoadingState(state: LoadingState): void {
+    this.set({ loading: state });
   }
 
   /**

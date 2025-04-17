@@ -1,22 +1,15 @@
-import { ILoadingPage } from "./pages/loading-page";
 import { GameStoreService } from "@/services/GameStoreService";
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages/error-page";
 import {
   IGame,
-  IPagesRouter,
-  ChapterResource,
-  LoadingState,
-  PageRoute,
 } from "@/types/";
 import { waitForDOMReady } from "./utils/dom";
 
 export class BookGame extends HTMLElement {
   private game: Readonly<IGame>;
   private errorPage: IErrorPage | null = null;
-  private loadingPage: ILoadingPage | null = null;
-  private pagesRouter: IPagesRouter | null = null;
 
   constructor() {
     super();
@@ -74,59 +67,20 @@ export class BookGame extends HTMLElement {
   }
 
   private initializeComponents() {
-    // Cache component references
+    this.game.startLoading();
+    // TODO: move error handling to centralized error page and game state.
     this.errorPage = this.shadowRoot!.querySelector("error-page");
-    this.loadingPage = this.shadowRoot!.querySelector("loading-screen");
-    this.pagesRouter = this.shadowRoot!.querySelector("pages-router");
-    this.loadingPage?.showLoading();
   }
 
   private async setupGameState() {
     try {
       await waitForDOMReady();
-      await this.game.scene.attachScene("#scene");
       window.BOOKGAME = this.game;
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
       );
     } catch (error) {
       this.handleError(error);
-    }
-
-    this.game.subscribe(this.handleStateChange.bind(this));
-  }
-
-  private handleStateChange(state: {
-    currentChapter: ChapterResource | null;
-    currentRoute: PageRoute | null;
-  }) {
-    this.updateChapterState(state.currentChapter);
-    this.updateRouteState(state.currentRoute);
-  }
-
-  // TODO: Refactor so loading is handled by the loading page
-  // as a consequence of the game state.
-  // The chapter tree be granular enough to handle loading specifically
-  // for each chapter's assets.
-  private updateChapterState(chapter: ChapterResource | null) {
-    if (!chapter) return;
-
-    if (this.loadingPage) {
-      if (chapter.status === LoadingState.LOADING) {
-        this.loadingPage.showLoading(`Loading chapter ${chapter.id}...`);
-      } else {
-        this.loadingPage.hideLoading();
-      }
-    }
-
-    if (chapter.error) {
-      this.handleError(chapter.error);
-    }
-  }
-
-  private updateRouteState(route: PageRoute | null) {
-    if (this.pagesRouter) {
-      this.pagesRouter.updateRoute(route);
     }
   }
 

@@ -32,16 +32,24 @@ export class ChapterManager implements IChapterManager {
    * Sets the initial chapter
    * @returns void
    */
-  public initialize(): void {
+  public async initialize(): Promise<void> {
+    console.log("[Chapter Manager] Initializing chapter manager");
+    this.game.set({loading: LoadingState.LOADING});
     const chapters: Record<string, ChapterResource> = {};
+    try {
+      this.data.forEach((chapterData) => {
+        const chapterResource = this.initializeChapterLoadingStates(chapterData);
+        chapters[chapterData.id] = chapterResource;
+      });
+      this.game.set({ chapters });
+      // TODO: No async waiting till all assets are loaded for initial chapter
+      await this.switchChapter(initialChapterId);
 
-    this.data.forEach((chapterData) => {
-      const chapterResource = this.initializeChapterLoadingStates(chapterData);
-      chapters[chapterData.id] = chapterResource;
-    });
-    this.game.set({ chapters });
-    this.switchChapter(initialChapterId);
+    } catch (error) {
+      console.error("[Chapter Manager] Failed to initialize chapter manager:", error);
+    }
 
+    this.game.set({loading: LoadingState.LOADED});
     this.game.notifyListeners();
   }
 
@@ -64,6 +72,8 @@ export class ChapterManager implements IChapterManager {
    * @returns Promise that resolves when chapter is fully loaded
    */
   public async switchChapter(chapterId: string): Promise<void> {
+    console.log(`[Chapter Manager] Switching to chapter: ${chapterId}`);
+    this.game.set({loading: LoadingState.LOADING}); 
     try {
       // Check if already on this chapter
       if (
@@ -121,6 +131,7 @@ export class ChapterManager implements IChapterManager {
         draft.chapters[chapterId] = loadedChapter;
       });
 
+      this.game.set({loading: LoadingState.LOADED});
       this.game.notifyListeners();
 
       // Update scene with newly loaded chapter

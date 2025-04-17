@@ -24,6 +24,9 @@ export interface IGame extends ILoadableStore {
   history: IHistoryManager;
 
   initialize(): void;
+  startLoading(): void;
+  finishLoading(): void;
+  setLoadingState(state: LoadingState): void;
   notifyError(error: ErrorInfo): void;
   onError(listener: ErrorListener): void;
 }
@@ -152,4 +155,5 @@ export enum GameMode {
   VR = "vr",
   QR = "qr",
   DEFAULT = "default",
+  IDLE = "idle",
 }
