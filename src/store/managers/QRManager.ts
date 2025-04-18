@@ -142,7 +142,8 @@ export class QRManager {
       }
     } catch (error) {
       console.warn('Invalid QR code URL');
-      this.game.router.navigate(Pages.HOME);
+      this.game.set({ mode: GameMode.DEFAULT })
+      this.game.router.close();
       this.stopScanning();
     }
   }

@@ -33,7 +33,6 @@ export class ChapterManager implements IChapterManager {
    * @returns void
    */
   public async initialize(): Promise<void> {
-    console.log("[Chapter Manager] Initializing chapter manager");
     this.game.set({loading: LoadingState.LOADING});
     const chapters: Record<string, ChapterResource> = {};
     try {
@@ -72,7 +71,6 @@ export class ChapterManager implements IChapterManager {
    * @returns Promise that resolves when chapter is fully loaded
    */
   public async switchChapter(chapterId: string): Promise<void> {
-    console.log(`[Chapter Manager] Switching to chapter: ${chapterId}`);
     this.game.set({loading: LoadingState.LOADING}); 
     try {
       // Check if already on this chapter

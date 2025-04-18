@@ -73,7 +73,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 1;
+        z-index: 10000;
         flex-direction: column;
         justify-content: center;
         align-items: center;
@@ -82,7 +82,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         // active state management
         pointer-events: none;
         transition: opacity .2s linear;
-        opacity: 0;
+        opacity: 1;
       }
 
       :host.active {
@@ -122,7 +122,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         position: absolute;
         width: 100%;
         height: 0.5rem;
-        background-color: var(--color-secondary);
+        background-color: red;
         top: 50%;
         left: 0;
         transform: translateY(-50%);
@@ -211,18 +211,20 @@ export class QRScanner extends HTMLElement implements IQRScanner {
     }
 
     // Subscribe to game state changes
-    this.unsubscribe = this.game.subscribe(this.handleModeChange);
+    this.unsubscribe = this.game.subscribe(this.handleModeChange.bind(this));
 
     // Check initial state
-    this.handleModeChange({ mode: this.game.state.mode });
+    if(this.game.state.mode === GameMode.QR ) {
+      this.handleModeChange(this.game.state.mode);
+    }
   }
 
   /**
    * Handle game mode changes
    */
-  private handleModeChange(state: { mode: GameMode }) {
+  private handleModeChange(mode: GameMode) {
 
-    const isQRMode = state.mode === GameMode.QR;
+    const isQRMode = mode === GameMode.QR;
 
     // Toggle visibility based on mode
     this.classList.toggle("active", isQRMode);

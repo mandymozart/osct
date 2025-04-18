@@ -118,6 +118,7 @@ export class NavigationBar extends HTMLElement {
     // Mode-based states
     const isSceneMode = mode === GameMode.VR || mode === GameMode.DEFAULT;
     const isQRMode = mode === GameMode.QR;
+    console.log("[Navigation Bar] Mode:", mode, isSceneMode ? "isSceneMode" : "false", isQRMode ? "isQRMode" : "false");
 
     // Route-based states (check if the currentRoute has a page property with the right value)
     const isIndexPage =
