@@ -19,7 +19,7 @@ export class CameraPermission extends Page {
     super();
     this.game = GameStoreService.getInstance();
     this.currentPermissionStatus = this.game.state.cameraPermission;
-    
+
     if (this.currentPermissionStatus === CameraPermissionStatus.DENIED) {
       this.showDeniedOverlay();
     } else if (this.currentPermissionStatus === CameraPermissionStatus.PROMPT) {
@@ -27,28 +27,28 @@ export class CameraPermission extends Page {
     } else {
       this.hideOverlay();
     }
-    
+
     this.setupListeners();
   }
-  
+
   connectedCallback() {
     super.connectedCallback();
   }
-  
+
   disconnectedCallback() {
     super.disconnectedCallback();
-    
+
     if (this.cleanupListener) {
       this.cleanupListener();
       this.cleanupListener = null;
     }
   }
-  
-  protected setupListeners(): void {
+
+  setupListeners(): void {
     this.cleanupListener = this.game.camera.onPermissionChange(this.handlePermissionChange.bind(this));
     this.game.subscribe(this.handleStateChange.bind(this));
   }
-  
+
   /**
    * Handle game state changes, only updating UI when permission state changes
    */
@@ -57,13 +57,13 @@ export class CameraPermission extends Page {
       this.handlePermissionChange(state.cameraPermission);
     }
   }
-  
+
   /**
    * Handle permission change events
    */
   private handlePermissionChange(status: CameraPermissionStatus) {
     this.currentPermissionStatus = status;
-    
+
     switch (status) {
       case CameraPermissionStatus.GRANTED:
         this.hideOverlay();
@@ -79,8 +79,8 @@ export class CameraPermission extends Page {
         break;
     }
   }
-  
-  protected get styles(): string {
+
+  get styles(): string {
     return /* css */ `
       :host {
         position: absolute;
@@ -123,7 +123,7 @@ export class CameraPermission extends Page {
       
     `;
   }
-  
+
   /**
    * Get browser-specific camera permission instructions
    */
@@ -150,21 +150,21 @@ export class CameraPermission extends Page {
       </div>
     `;
   }
-  
-  protected get template(): string {
+
+  get template(): string {
     return this.getContent();
   }
-  
+
   private showPromptOverlay(): void {
     this.setAttribute('active', 'true');
     this.render();
   }
-  
+
   private showDeniedOverlay(): void {
     this.setAttribute('active', 'true');
     this.render();
   }
-  
+
   private hideOverlay(): void {
     this.removeAttribute('active');
     this.render();

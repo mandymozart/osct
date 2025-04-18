@@ -70,7 +70,7 @@ export class SceneBridge extends HTMLElement {
     // while loading resources here.
     // clear separation of state and view responsibility
     // for improved maintainance
-    console.log("[Scene Bridge] activate scene mode:", this.system?.video.style);
+    console.log("[Scene Bridge] activate scene mode:", this.system?.video?.style);
 
     if (this.scene !== null) {
       this.game.camera.checkPermission().then(granted => {
