@@ -70,7 +70,7 @@ export class RouterManager implements IRouterManager {
   public close(): void {
     this.game.set({ 
       mode: GameMode.DEFAULT,
-      currentRoute: null,
+      currentRoute: { page: Pages.CHAPTER, slug: "/chapter" },
       currentError: null
     });
   }

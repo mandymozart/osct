@@ -1,163 +1,119 @@
-import { PageRoute, Pages } from "@/types/router";
-import { router } from "@/router";
-import { IGame, GameMode } from "@/types/game";
+import { IGame, GameMode, ErrorCode, ErrorInfo } from "@/types";
+import { IQRManager } from "@/types/qr";
+import { Pages } from "@/types/router";
+import { createChapterRoute, parseQRCodeURL } from "@/utils/qr";
 
 /**
- * Manages QR code scanning functionality
+ * Manages QR scanning game state
  */
-export class QRManager {
+export class QRManager implements IQRManager {
   private game: IGame;
-  private isInitialized: boolean = false;
-  private qrScannerElement: HTMLElement | null = null;
 
   constructor(game: IGame) {
     this.game = game;
     this.handleQRCodeScanned = this.handleQRCodeScanned.bind(this);
+    this.handleTryAgain = this.handleTryAgain.bind(this);
   }
 
   /**
-   * Start QR scanning mode
+   * Start QR scanning mode by setting game mode to QR
    */
   public startScanning(): void {
-    // Initialize QR scanner if needed
-    if (!this.isInitialized) {
-      this.initializeQRScanner();
-    }
-
-    // Switch to QR mode
-    this.game.set({ mode: GameMode.QR });
-
-    // Show QR scanner
-    if (this.qrScannerElement) {
-      this.qrScannerElement.style.display = 'block';
-    }
+    // Switch to QR mode and clear any previous errors
+    this.game.set({ 
+      mode: GameMode.QR,
+      currentError: null 
+    });
   }
 
   /**
-   * Stop QR scanning mode
+   * Stop QR scanning mode by switching back to default mode
    */
   public stopScanning(): void {
     // Switch back to default mode
     this.game.set({ mode: GameMode.DEFAULT });
-
-    // Hide QR scanner
-    if (this.qrScannerElement) {
-      this.qrScannerElement.style.display = 'none';
-    }
   }
 
   /**
-   * Initialize the QR scanner component
+   * Error handler to try scanning again
    */
-  private initializeQRScanner(): void {
-    // Create QR scanner element if it doesn't exist
-    // TODO: remove initialisation for it can create conflicts.
-    // refactor so dom listeners and manipulation is handled by qr-scanner
-    // itself
-    if (!document.querySelector('qr-scanner')) {
-      this.qrScannerElement = document.createElement('qr-scanner');
-      document.body.appendChild(this.qrScannerElement);
-    } else {
-      this.qrScannerElement = document.querySelector('qr-scanner');
-    }
-
-    // Set up event listener for QR code scanned
-    if (this.qrScannerElement) {
-      this.qrScannerElement.addEventListener('qr-code-scanned', 
-        ((e: Event) => {
-          const customEvent = e as CustomEvent;
-          this.handleQRCodeScanned(customEvent.detail.qrCode);
-        }) as EventListener);
-    }
-
-    this.isInitialized = true;
-  }
-
-  public getRouteFromUri(uri: string): PageRoute {
-    // Extract the route path from the URI
-    // For this simple example, we'll assume the URI format is like "osct://chapter/chapter1"
-    const parts = uri.split('://');
-    if (parts.length !== 2 || parts[0] !== 'osct') {
-      throw new Error('Invalid QR code URI format');
-    }
-
-    const path = parts[1]; // e.g., "chapter/chapter1"
-    const pathParts = path.split('/');
-
-    // Check if we have enough parts to extract page and chapter
-    if (pathParts.length < 1) {
-      throw new Error('Invalid QR code path');
-    }
-
-    const page = pathParts[0]; // e.g., "chapter"
-    
-    // Look up the corresponding Pages enum value
-    let pageEnum: Pages | undefined;
-    Object.entries(Pages).forEach(([key, value]) => {
-      if (value.toLowerCase() === page.toLowerCase()) {
-        pageEnum = value as Pages;
-      }
-    });
-
-    if (!pageEnum) {
-      throw new Error(`Unknown page: ${page}`);
-    }
-
-    return { page: pageEnum } as PageRoute;
+  private handleTryAgain(): void {
+    // Clear error and stay in QR mode
+    this.startScanning();
   }
 
   /**
-   * Handle QR code scan result
+   * Handle QR code data after scanning
+   * This method will be called by the QRScanner component
    */
-  public handleQRCodeScanned(qrCode: string): void {
+  public handleQRCodeScanned(data: string): void {
     try {
-      console.log('QR Code scanned:', qrCode);
+      console.log('[QR Manager] QR code scanned:', data);
       
-      // Parse the QR code as a URI
-      // Example format: osct://chapter/chapter1
-      const parts = qrCode.split('://');
-      if (parts.length < 2 || parts[0] !== 'osct') {
-        throw new Error('Invalid QR code format');
-      }
-      
-      const path = parts[1];
-      const pathParts = path.split('/');
-      const page = pathParts[0];
-      const chapter = pathParts.length > 1 ? pathParts[1] : undefined;
-      
-      const route = this.getRouteFromUri(qrCode);
-
-      // Handle chapter-specific navigation
-      if (route.page === Pages.CHAPTER && chapter) {
-        const confirmed = confirm(`Enter Chapter ${chapter}?`);
-        if (confirmed) {
-          this.game.chapters.switchChapter(chapter);
+      // Handle URLs with http/https
+      if (data.startsWith('http://') || data.startsWith('https://')) {
+        // Parse URL to extract chapter information
+        const chapterId = parseQRCodeURL(data);
+        
+        if (chapterId) {
+          // Navigate to the chapter
+          const route = createChapterRoute(chapterId);
+          this.game.router.navigate(`/${route.slug}`, route.param);
           this.stopScanning();
-          this.game.router.navigate('/chapter', { key: 'chapterId', value: chapter });
+        } else {
+          // Notify error for invalid chapter code
+          this.notifyError({
+            code: ErrorCode.INVALID_QR_URL,
+            msg: "The QR code does not contain a valid chapter code",
+            type: "warning",
+            details: { scannedData: data }
+          });
         }
       } else {
-        // For other pages, just navigate to them
-        this.game.router.navigate(route.page);
-        this.stopScanning();
+        // Notify error for unrecognized format
+        this.notifyError({
+          code: ErrorCode.INVALID_QR_URL,
+          msg: "Unrecognized QR code format, expecting a URL",
+          type: "warning",
+          details: { scannedData: data }
+        });
       }
     } catch (error) {
-      console.warn('Invalid QR code URL');
-      this.game.set({ mode: GameMode.DEFAULT })
-      this.game.router.close();
-      this.stopScanning();
+      // Notify error for any scanning issues
+      this.notifyError({
+        code: ErrorCode.INVALID_QR_URL,
+        msg: "Failed to process QR code data",
+        type: "warning",
+        details: error
+      });
     }
   }
-
+  
   /**
-   * Clean up resources
+   * Display error notification with try again option
+   */
+  private notifyError(errorInfo: Omit<ErrorInfo, "action">): void {
+    // Add try again action to the error
+    const error: ErrorInfo = {
+      ...errorInfo,
+      action: {
+        text: "Try Again",
+        callback: this.handleTryAgain
+      }
+    };
+    
+    // Update game state with error
+    this.game.set({
+      mode: GameMode.DEFAULT,
+      currentError: error
+    });
+  }
+  
+  /**
+   * Clean up QR scanner resources
    */
   public cleanup(): void {
-    if (this.qrScannerElement) {
-      this.qrScannerElement.removeEventListener('qr-code-scanned', 
-        ((e: Event) => {
-          const customEvent = e as CustomEvent;
-          this.handleQRCodeScanned(customEvent.detail.qrCode);
-        }) as EventListener);
-    }
+    // No DOM cleanup needed anymore, state is cleaned up by stopScanning
+    this.stopScanning();
   }
 }

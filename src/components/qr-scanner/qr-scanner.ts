@@ -1,6 +1,6 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import jsQR from "jsqr";
-import { GameMode, IGame, IQRScanner } from "@/types";
+import { GameMode, IGame, IQRScanner, QRScanEvent, QRScanEventDetail } from "@/types";
 
 /**
  * QR Scanner Web Component
@@ -15,10 +15,10 @@ export class QRScanner extends HTMLElement implements IQRScanner {
 
   // Camera and scanning state
   private scanningActive = false;
-  private videoElement: HTMLVideoElement | null = null;
-  private canvasElement: HTMLCanvasElement | null = null;
-  private canvasContext: CanvasRenderingContext2D | null = null;
-  private messageElement: HTMLDivElement | null = null;
+  private video: HTMLVideoElement | null = null;
+  private canvas: HTMLCanvasElement | null = null;
+  private canvasCtx: CanvasRenderingContext2D | null = null;
+  private message: HTMLDivElement | null = null;
 
   // Resource cleanup
   private unsubscribe: (() => void) | null = null;
@@ -29,6 +29,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
     super();
     this.attachShadow({ mode: "open" });
     this.game = GameStoreService.getInstance();
+    
     // Bind methods to maintain 'this' context
     this.handleModeChange = this.handleModeChange.bind(this);
     this.scanQRCode = this.scanQRCode.bind(this);
@@ -55,17 +56,18 @@ export class QRScanner extends HTMLElement implements IQRScanner {
    * Render the component's HTML structure
    */
   private render() {
-    // Add the CSS styles
-    const style = document.createElement('style');
-    style.textContent = `
+    if (!this.shadowRoot) return;
+    
+    // Define styles
+    const styles = `
       :host {
         display: flex;
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 10000;
+        right: 0;
+        bottom: 0;
+        z-index: -1;
         flex-direction: column;
         justify-content: center;
         align-items: center;
@@ -74,63 +76,24 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         // active state management
         pointer-events: none;
         transition: opacity .2s linear;
-        opacity: 1;
+        opacity: 0;
       }
 
-      :host.active {
+      :host(.active) {
         pointer-events: all;
         opacity: 1;
-      }
-
-      .qr-scanner-container {
-        position: relative;
-        width: 100%;
-        height: 100%;
+        z-index: 10000;
       }
 
       #qr-scanner-video {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        display: block;
+        display: none;
       }
 
       #qr-scanner-canvas {
-        display: block;
-      }
-
-      .qr-scanner-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border-radius: 1rem;
-        box-sizing: border-box;
-        pointer-events: none;
-      }
-
-      .scanner-line {
-        position: absolute;
-        width: 100%;
-        height: 0.5rem;
-        background-color: red;
-        top: 50%;
-        left: 0;
-        transform: translateY(-50%);
-        animation: scan 2s linear infinite;
-      }
-
-      @keyframes scan {
-        0% {
-          top: 10%;
-        }
-        50% {
-          top: 90%;
-        }
-        100% {
-          top: 10%;
-        }
+        display: none;
       }
 
       .qr-scanner-message {
@@ -138,56 +101,70 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         font-size: 1rem;
         max-width: 80%;
         padding: 1rem;
+        color: white;
+
+      }
+
+      .info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        position: absolute;
+        bottom: 1rem;
+      }
+      
+      button {
+        
       }
     `;
 
-    // Create and append HTML elements
-    this.innerHTML = `
-      <div class="qr-scanner-container">
-        <video id="qr-scanner-video" playsinline></video>
-        <canvas id="qr-scanner-canvas"></canvas>
-        <div class="qr-scanner-overlay">
-          <div class="scanner-line"></div>
-        </div>
-      </div>
-      
+    // Create HTML template for shadow DOM
+    this.shadowRoot.innerHTML = `
+      <style>${styles}</style>
+
+      <video id="qr-scanner-video" playsinline></video>
+      <canvas id="qr-scanner-canvas"></canvas>
+      <qr-square-window-overlay></qr-square-window-overlay>
+      <div class="info">
+
       <div class="qr-scanner-message">
         Position a QR code within the frame to scan
+        </div>
+      <button is="text-button" inverted id="qr-scanner-close-button">Cancel</button>
       </div>
+        
     `;
-
-    // Append the style to the document head if not already present
-    const styleId = 'qr-scanner-style';
-    if (!document.head.querySelector(`style#${styleId}`)) {
-      style.id = styleId;
-      document.head.appendChild(style);
-    }
   }
 
   /**
    * Initialize component elements and event handlers
    */
   private initializeElements() {
-    this.videoElement = document.getElementById("qr-scanner-video") as HTMLVideoElement;
-    this.canvasElement = document.getElementById("qr-scanner-canvas") as HTMLCanvasElement;
-    this.canvasContext = this.canvasElement?.getContext("2d") || null;
-    this.messageElement = this.querySelector(".qr-scanner-message") as HTMLDivElement;
+    if (!this.shadowRoot) return;
+    
+    this.video = this.shadowRoot.getElementById("qr-scanner-video") as HTMLVideoElement;
+    this.canvas = this.shadowRoot.getElementById("qr-scanner-canvas") as HTMLCanvasElement;
+    this.canvasCtx = this.canvas?.getContext("2d") || null;
+    this.message = this.shadowRoot.querySelector(".qr-scanner-message") as HTMLDivElement;
 
     // Set up close button
-    const closeButton = this.querySelector(".qr-scanner-close-button");
-    closeButton?.addEventListener("click", () => {
-      if (this.game) {
-        this.game.qr.stopScanning();
-      }
-    });
+    const closeButton = this.shadowRoot.querySelector("#qr-scanner-close-button");
+    if (closeButton) {
+      closeButton.addEventListener("click", () => {
+        if (this.game) {
+          this.game.qr.stopScanning();
+        }
+      });
+    }
 
     // Set up video element
-    if (this.videoElement && this.canvasElement) {
+    if (this.video && this.canvas) {
       // Set canvas dimensions to match video when metadata is loaded
-      this.videoElement.addEventListener("loadedmetadata", () => {
-        if (this.canvasElement && this.videoElement) {
-          this.canvasElement.width = this.videoElement.videoWidth;
-          this.canvasElement.height = this.videoElement.videoHeight;
+      this.video.addEventListener("loadedmetadata", () => {
+        if (this.canvas && this.video) {
+          this.canvas.width = this.video.videoWidth;
+          this.canvas.height = this.video.videoHeight;
         }
       });
     }
@@ -197,31 +174,27 @@ export class QRScanner extends HTMLElement implements IQRScanner {
    * Set up event listeners for game state changes
    */
   private setupListeners() {
-    if (!this.game) {
-      console.warn("QR Scanner: Game instance not available");
-      return;
-    }
-
-    // Subscribe to game state changes
-    this.unsubscribe = this.game.subscribe(this.handleModeChange.bind(this));
+    // Subscribe to game state changes to handle mode changes
+    this.unsubscribe = this.game.subscribe((state: { mode?: GameMode }) => {
+      if ('mode' in state && state.mode !== undefined) {
+        this.handleModeChange(state.mode);
+      }
+    });
 
     // Check initial state
-    if(this.game.state.mode === GameMode.QR ) {
-      this.handleModeChange(this.game.state.mode);
-    }
+    this.handleModeChange(this.game.state.mode);
   }
 
   /**
    * Handle game mode changes
    */
   private handleModeChange(mode: GameMode) {
-
     const isQRMode = mode === GameMode.QR;
-
+    
     // Toggle visibility based on mode
     this.classList.toggle("active", isQRMode);
-
-    // TODO: Double check to avoid dual cameras on scene and qr scanner
+    
+    // Start or stop camera based on mode
     if (isQRMode && !this.scanningActive) {
       console.log("[QR Scanner] activate qr mode");
       this.startCamera();
@@ -235,7 +208,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
    * Start the camera and begin QR scanning
    */
   public async startCamera() {
-    if (!this.videoElement || !this.canvasElement || this.scanningActive) {
+    if (!this.video || !this.canvas || this.scanningActive) {
       return;
     }
 
@@ -246,23 +219,23 @@ export class QRScanner extends HTMLElement implements IQRScanner {
       });
 
       // Set video source and play
-      this.videoElement.srcObject = this.stream;
-      await this.videoElement.play();
+      this.video.srcObject = this.stream;
+      await this.video.play();
 
       // Start scanning
       this.scanningActive = true;
       this.animationFrameId = requestAnimationFrame(this.scanQRCode);
 
       // Update message
-      if (this.messageElement) {
-        this.messageElement.textContent = "Position a QR code within the frame to scan";
+      if (this.message) {
+        this.message.textContent = "Position a QR code within the frame to scan";
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
 
       // Show error message
-      if (this.messageElement) {
-        this.messageElement.textContent = "Camera access denied. Please enable camera permissions.";
+      if (this.message) {
+        this.message.textContent = "Camera access denied. Please enable camera permissions.";
       }
     }
   }
@@ -286,8 +259,8 @@ export class QRScanner extends HTMLElement implements IQRScanner {
     }
 
     // Clear video source
-    if (this.videoElement) {
-      this.videoElement.srcObject = null;
+    if (this.video) {
+      this.video.srcObject = null;
     }
 
     this.scanningActive = false;
@@ -299,34 +272,34 @@ export class QRScanner extends HTMLElement implements IQRScanner {
   private scanQRCode() {
     if (
       !this.scanningActive ||
-      !this.videoElement ||
-      !this.canvasElement ||
-      !this.canvasContext
+      !this.video ||
+      !this.canvas ||
+      !this.canvasCtx
     ) {
       return;
     }
 
     // Check if video has enough data to process
-    if (this.videoElement.readyState === this.videoElement.HAVE_ENOUGH_DATA) {
+    if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
       // Set canvas dimensions to match video
-      this.canvasElement.width = this.videoElement.videoWidth;
-      this.canvasElement.height = this.videoElement.videoHeight;
+      this.canvas.width = this.video.videoWidth;
+      this.canvas.height = this.video.videoHeight;
 
       // Draw video frame to canvas
-      this.canvasContext.drawImage(
-        this.videoElement,
+      this.canvasCtx.drawImage(
+        this.video,
         0,
         0,
-        this.canvasElement.width,
-        this.canvasElement.height
+        this.canvas.width,
+        this.canvas.height
       );
 
       // Get image data for QR processing
-      const imageData = this.canvasContext.getImageData(
+      const imageData = this.canvasCtx.getImageData(
         0,
         0,
-        this.canvasElement.width,
-        this.canvasElement.height
+        this.canvas.width,
+        this.canvas.height
       );
 
       // Process with jsQR
@@ -353,40 +326,26 @@ export class QRScanner extends HTMLElement implements IQRScanner {
 
     try {
       // Provide visual feedback
-      if (this.messageElement) {
-        this.messageElement.textContent = `QR Code detected: ${data}`;
+      if (this.message) {
+        this.message.textContent = `QR Code detected: ${data}`;
       }
 
-      // Create a custom event to notify the QR manager
-      const qrEvent = new CustomEvent("qr-code-scanned", {
-        detail: { data },
-        bubbles: true,
-        composed: true,
-      });
-      this.dispatchEvent(qrEvent);
+      // Directly notify QR manager
+      this.game.qr.handleQRCodeScanned(data);
 
-      // Try to handle the QR code directly
-      // This is a fallback in case the event doesn't work
-      if (data.startsWith("chapter:")) {
-        const chapterId = data.split(":")[1];
-        const confirmed = confirm(`Navigate to Chapter ${chapterId}?`);
-        if (confirmed) {
-          this.game.chapters.switchChapter(chapterId);
-        }
-      }
-
-      // Exit QR mode after successful scan
+      // Pause scanning briefly to prevent multiple scans
       setTimeout(() => {
-        if (this.game) {
-          this.game.qr.stopScanning();
+        // If still in QR mode, resume scanning
+        if (this.game.state.mode === GameMode.QR) {
+          this.animationFrameId = requestAnimationFrame(this.scanQRCode);
         }
       }, 1500);
     } catch (error) {
       console.error("Error processing QR code:", error);
 
       // Show error message
-      if (this.messageElement) {
-        this.messageElement.textContent = "Invalid QR code format. Please try again.";
+      if (this.message) {
+        this.message.textContent = "Invalid QR code format. Please try again.";
       }
 
       // Resume scanning after error
@@ -405,8 +364,10 @@ export class QRScanner extends HTMLElement implements IQRScanner {
       this.unsubscribe = null;
     }
 
-    const closeButton = this.querySelector(".qr-scanner-close-button");
-    closeButton?.removeEventListener("click", () => {});
+    if (this.shadowRoot) {
+      const closeButton = this.shadowRoot.querySelector(".qr-scanner-close-button");
+      closeButton?.removeEventListener("click", () => {});
+    }
   }
 }
 

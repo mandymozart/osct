@@ -3,7 +3,7 @@ export * from "./common";
 export * from "./dev-tools";
 export * from "./icons";
 export * from "./pages-router";
-export * from "./qr-scanner/qr-scanner";
+export * from "./qr-scanner";
 export * from "./scene-bridge/scene-bridge";
 export * from "./tutorial";
 export * from "./navigation"

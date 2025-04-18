@@ -1,8 +1,7 @@
 import { GameMode } from "@/types";
-import { BaseNavigationButton } from "./base-navigation-button";
+import { BaseNavigationButton, IBaseNavigationButton } from "./base-navigation-button";
 
-export interface IQRButton extends HTMLElement {
-  toggleQRMode(): void;
+export interface IQRButton extends IBaseNavigationButton {
 }
 
 export class QRButton extends BaseNavigationButton implements IQRButton {
@@ -21,48 +20,34 @@ export class QRButton extends BaseNavigationButton implements IQRButton {
   }
 
   protected updateButtonState() {
-    if (!this.game) return;
-
-    const isQRMode = this.game.state.mode === GameMode.QR;
-    const isVRMode = this.game.state.mode === GameMode.VR;
-
-    // Update active state
-    this.active = isQRMode;
-    
-    // Disable button in VR mode
-    this.disabled = isVRMode;
-    
-    // Update button text based on current mode
-    if (isQRMode) {
-      this._buttonTextContent = "AR";
-    } else {
-      this._buttonTextContent = "QR";
-    }
+    this.active = this.isQRMode();
   }
 
   protected handleClick() {
-    if (this._disabled) return;
     this.toggleQRMode();
   }
 
   /**
    * Toggle QR scanning mode
    */
-  public toggleQRMode() {
-    if (!this.game) return;
-    
+  private toggleQRMode() {
     try {
-      const isQRMode = this.game.state.mode === GameMode.QR;
-      if (isQRMode) {
-        // Switch to AR mode
+      if (this.isQRMode()) {
+        // TODO: Does this need to be here or isnt it handled by the gamestate? qr scanner and qr manager?
         this.game.qr.stopScanning();
       } else {
-        // Switch to QR mode
         this.game.qr.startScanning();
       }
     } catch (error) {
       console.error("Error toggling QR mode:", error);
     }
+  }
+
+  /**
+   * Check if the game is currently in QR mode
+   */
+  private isQRMode(): boolean {
+    return this.game?.state.mode === GameMode.QR;
   }
 }
 
