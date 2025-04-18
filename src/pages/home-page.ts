@@ -1,3 +1,4 @@
+import { GameMode } from "@/types";
 import { PageMinimal } from "./page-minimal";
 
 export class HomePage extends PageMinimal {

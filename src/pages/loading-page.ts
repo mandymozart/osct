@@ -56,7 +56,6 @@ class LoadingPage extends Page {
   protected handleStateChange(state: { loading: LoadingState }) {
     // Only process if loading state has actually changed
     if (state.loading !== this.currentLoadingState) {
-      console.log("[LoadingPage] Loading state changed:", this.currentLoadingState, "->", state.loading);
       this.currentLoadingState = state.loading;
       
       if (this.isLoading(state.loading)) {
@@ -107,14 +106,12 @@ class LoadingPage extends Page {
   }
 
   private showLoading(msg: string = "Loading"): void {
-    console.log("[LoadingPage] showLoading");
     this.message = msg;
     this.active = true;
     this.render();
   }
 
   private hideLoading(): void {
-    console.log("[LoadingPage] hideLoading");
     this.active = false;
     this.render();
   }

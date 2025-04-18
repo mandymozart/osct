@@ -29,14 +29,12 @@ class ErrorPage extends Page implements IErrorPage {
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
-    console.log('[ErrorPage] Initialized');
   }
 
   connectedCallback() {
     super.connectedCallback();
     // Subscribe to game state changes
     this.game.subscribe(this.handleStateChange.bind(this));
-    console.log('[ErrorPage] Connected to DOM');
   }
 
   disconnectedCallback() {
@@ -52,7 +50,6 @@ class ErrorPage extends Page implements IErrorPage {
     // Only process if currentError state has actually changed
     if (state.currentError !== undefined &&
       JSON.stringify(state.currentError) !== JSON.stringify(this.currentError)) {
-      console.log('[ErrorPage] Error state changed:', this.currentError, '->', state.currentError);
 
       // Update our stored reference
       this.currentError = state.currentError;
@@ -71,7 +68,7 @@ class ErrorPage extends Page implements IErrorPage {
     }
   }
 
-  protected get styles(): string {
+   get styles(): string {
     return /* css */ `
           :host {
               opacity: 0;
@@ -120,8 +117,7 @@ class ErrorPage extends Page implements IErrorPage {
       `;
   }
 
-  protected get template(): string {
-    console.log('[ErrorPage] Error:', this.errorCode);
+   get template(): string {
     return /* html */ `
       <div class="message">${this.message}</div>
       <div class="actions">

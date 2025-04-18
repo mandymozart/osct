@@ -5,6 +5,7 @@ import {
   RouteParam,
   PageRoute,
   IRouterManager,
+  GameMode,
 } from "@/types";
 import { RouteResolver } from "./helpers";
 
@@ -68,6 +69,7 @@ export class RouterManager implements IRouterManager {
    */
   public close(): void {
     this.game.set({ 
+      mode: GameMode.DEFAULT,
       currentRoute: null,
       currentError: null
     });
