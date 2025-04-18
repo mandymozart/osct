@@ -1,16 +1,19 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
 
+export interface IBaseNavigationButton {
+  readonly active?: boolean;
+}
+
 /**
  * Base class for navigation buttons
  * Provides common functionality and styling for navigation buttons
  */
-export abstract class BaseNavigationButton extends HTMLElement {
+export abstract class BaseNavigationButton extends HTMLElement implements IBaseNavigationButton {
   protected button: HTMLButtonElement | null = null;
   protected unsubscribe: (() => void) | null = null;
   protected game: Readonly<IGame>;
   protected _active = false;
-  protected _disabled = false;
 
   // Bound methods
   private boundHandleClick: (e: Event) => void;
@@ -73,9 +76,7 @@ export abstract class BaseNavigationButton extends HTMLElement {
 
                 ${this.getAdditionalStyles()}
             </style>
-            <button is="text-button" ${this._active ? "active" : ""} ${
-      this._disabled ? "disabled" : ""
-    } size="sm">
+            <button is="text-button" ${this._active ? `inverted=""` : ""} size="sm">
                 ${this.getButtonIconHTML()}
                 <span class="button-text">${this.getButtonText()}</span>
             </button>
@@ -92,7 +93,6 @@ export abstract class BaseNavigationButton extends HTMLElement {
         this.button.classList.remove("active");
         this.button.removeAttribute("active");
       }
-      this.button.disabled = this._disabled;
     }
 
     // Setup event listeners after the button is created
@@ -167,10 +167,6 @@ export abstract class BaseNavigationButton extends HTMLElement {
    * @param event
    */
   private _handleClick(event: Event) {
-    if (this._disabled) {
-      event.preventDefault();
-      return;
-    }
 
     this.handleClick();
 
@@ -208,11 +204,6 @@ export abstract class BaseNavigationButton extends HTMLElement {
           this.button.removeAttribute("active");
         }
       }
-    } else if (name === "disabled") {
-      this._disabled = this.hasAttribute("disabled");
-      if (this.button) {
-        this.button.disabled = this._disabled;
-      }
     }
   }
 
@@ -237,28 +228,7 @@ export abstract class BaseNavigationButton extends HTMLElement {
     return this._active;
   }
 
-  /**
-   * Set button disabled state
-   */
-  set disabled(value: boolean) {
-    if (value !== this._disabled) {
-      this._disabled = value;
-      if (value) {
-        this.setAttribute("disabled", "");
-      } else {
-        this.removeAttribute("disabled");
-      }
-    }
-  }
-
-  /**
-   * Get button disabled state
-   */
-  get disabled(): boolean {
-    return this._disabled;
-  }
-
   static get observedAttributes(): string[] {
-    return ["active", "disabled"];
+    return ["active"];
   }
 }

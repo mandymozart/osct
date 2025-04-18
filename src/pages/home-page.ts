@@ -6,7 +6,7 @@ export class HomePage extends PageMinimal {
     return /* css */ `
     :host {
       pointer-events: none;
-      bottom: 5rem;
+      bottom: 0;
       position: fixed;
       width: 100%;
     }
