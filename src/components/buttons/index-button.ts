@@ -1,4 +1,3 @@
-import { GameStoreService } from "@/services/GameStoreService";
 import { PageRoute, Pages } from "@/types";
 import { BaseNavigationButton } from "./base-navigation-button";
 
@@ -33,8 +32,6 @@ export class IndexButton extends BaseNavigationButton {
   }
 
   protected handleClick() {
-    if (!this.game || this.disabled) return;
-    
     try {
       // Navigate to index page
       this.game.router.navigate('/index');
