@@ -1,4 +1,4 @@
-import { CameraPermissionStatus, ICameraManager, IGame, ErrorCode } from "@/types";
+import { CameraPermissionStatus, ICameraManager, IGame } from "@/types";
 
 /**
  * Manages camera permission state and operations
@@ -79,7 +79,7 @@ export class CameraManager implements ICameraManager {
         return await this.requestAccess();
       }
     } catch (error) {
-      console.error('[Camera Manager] Error checking camera permission:', error);
+      console.warn('[Camera Manager] Warning checking camera permission:', error);
       this.setPermissionStatus(CameraPermissionStatus.DENIED);
       return false;
     }
@@ -100,80 +100,12 @@ export class CameraManager implements ICameraManager {
       this.setPermissionStatus(CameraPermissionStatus.GRANTED);
       return true;
     } catch (error) {
-      console.error('[Camera Manager] Error requesting camera:', error);
+      console.warn('[Camera Manager] Requesting access failed', error);
       
       // First set the permission status to DENIED - this will trigger the overlay
       this.setPermissionStatus(CameraPermissionStatus.DENIED);
-      
-      // Then notify game about the error with action button for settings
-      this.game.notifyError({
-        code: ErrorCode.CAMERA_PERMISSION_DENIED,
-        msg: "Camera access was denied. Please enable camera permissions to use AR features.",
-        action: {
-          text: "Open Settings", 
-          callback: () => {
-            console.log("[Camera Manager] Showing settings instructions");
-            this.showSettings();
-            // Keep the camera permission overlay visible even after closing the error
-            // Don't clear the camera permission status
-            this.game.router.close();
-          }
-        }
-      });
-      
+    
       return false;
     }
-  }
-  
-  /**
-   * Show instructions for enabling camera access in browser settings
-   * Different browsers have different ways to manage permissions
-   */
-  public showSettings(): void {
-    const browser = this.detectBrowser();
-    let instructions = '';
-    
-    switch (browser) {
-      case 'chrome':
-        instructions = 'To enable camera access in Chrome:\n\n' +
-          '1. Click the lock icon (🔒) in the address bar\n' +
-          '2. Select "Site settings"\n' +
-          '3. Allow camera permissions\n' +
-          '4. Refresh the page';
-        break;
-      case 'firefox':
-        instructions = 'To enable camera access in Firefox:\n\n' +
-          '1. Click the lock icon (🔒) in the address bar\n' +
-          '2. Clear the current setting\n' +
-          '3. Refresh the page and allow access when prompted';
-        break;
-      case 'safari':
-        instructions = 'To enable camera access in Safari:\n\n' +
-          '1. Open Safari Preferences\n' +
-          '2. Go to Websites > Camera\n' +
-          '3. Find this website and select "Allow"\n' +
-          '4. Refresh the page';
-        break;
-      default:
-        instructions = 'To enable camera access:\n\n' +
-          '1. Check your browser settings for camera permissions\n' +
-          '2. Allow this site to use your camera\n' +
-          '3. Refresh the page';
-    }
-    
-    alert(instructions);
-  }
-  
-  /**
-   * Simple browser detection for tailoring instructions
-   */
-  private detectBrowser(): string {
-    const userAgent = navigator.userAgent.toLowerCase();
-    
-    if (userAgent.indexOf('chrome') > -1) return 'chrome';
-    if (userAgent.indexOf('firefox') > -1) return 'firefox'; 
-    if (userAgent.indexOf('safari') > -1) return 'safari';
-    
-    return 'unknown';
   }
 }

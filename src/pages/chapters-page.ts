@@ -1,18 +1,22 @@
-import { Page } from "./page";
-import { assert } from "../utils/assert";
-import { GameState, ChapterData, LoadingState, Pages } from "../types";
 import { chapters } from "../game.config.json";
+import { ChapterData, GameState, LoadingState } from "../types";
+import { assert } from "../utils/assert";
+import { PageMinimal } from "./page-minimal";
 
-export class ChaptersPage extends Page {
-  protected get styles(): string {
+export class ChaptersPage extends PageMinimal {
+   get styles(): string {
     return /* css */ `
     :host {
         background: transparent;
         border-radius: 0;
         pointer-events: none;
     }
+    ::slotted(*) {
+        pointer-events: none;
+    }
       .content {
         overflow-y: auto;
+        pointer-events: none;
         height: calc(100vh - var(--offset-top, 4rem) - 2rem);
       }
       .chapters-header {
@@ -84,7 +88,7 @@ export class ChaptersPage extends Page {
     `;
   }
 
-  protected get template(): string {
+   get template(): string {
     return /* html */ `
       <div class="content">
         <div class="chapter-list"></div>

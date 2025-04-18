@@ -35,6 +35,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
 
   constructor() {
     super();
+    this.attachShadow({ mode: "open" });
     this.game = GameStoreService.getInstance();
     // Bind methods to maintain 'this' context
     this.handleModeChange = this.handleModeChange.bind(this);
@@ -65,7 +66,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
     // Add the CSS styles
     const style = document.createElement('style');
     style.textContent = `
-      qr-scanner {
+      :host {
         display: flex;
         position: fixed;
         top: 0;
@@ -84,7 +85,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         opacity: 0;
       }
 
-      qr-scanner.active {
+      :host.active {
         pointer-events: all;
         opacity: 1;
       }

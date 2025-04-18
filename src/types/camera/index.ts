@@ -38,8 +38,9 @@ export interface ICameraManager {
   
   /**
    * Show instructions for enabling camera access in browser settings
+   * (Responsibility handled by camera-permission component)
    */
-  showSettings(): void;
+  // showSettings(): void;
   
   /**
    * Add permission status change listener

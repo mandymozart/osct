@@ -52,3 +52,23 @@ TODO: tutorial configuration is missing
 - Use TypeScript for configuration files to get type checking
 - Consider environment-specific configurations
 - Monitor the console for initialization messages
+
+### Error Notifications
+
+The game offers a error notification method which opens an `<error-page></error-page>` overlay which displays errors and allows for a custom action to be injected as a callback function.
+
+Example:
+
+```typescript
+this.game.notifyError({
+  code: ErrorCode.CAMERA_PERMISSION_DENIED,
+  msg: "Camera access was denied. Please enable camera permissions to use AR features.",
+  action: {
+    text: "Open Settings", 
+    callback: () => {
+      console.log("[Camera Manager] Showing settings instructions");
+      this.game.router.close();
+    }
+  }
+});
+```

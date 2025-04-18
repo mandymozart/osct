@@ -1,6 +1,5 @@
-import { IGame, Target } from "@/types";
-import { assert } from "@/utils";
 import { GameStoreService } from "@/services/GameStoreService";
+import { IGame, Target } from "@/types";
 
 export interface ITargetItem extends HTMLElement {
   target: Target | null;

@@ -1,10 +1,9 @@
-import { Page } from "./page";
-import { ChapterResource, GameState, ChapterData, LoadingState } from "../types";
+import { chapters, initialChapterId } from "@/game.config.json";
+import { ChapterData, ChapterResource, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
-import { chapters } from "@/game.config.json";
-import { initialChapterId } from "@/game.config.json";
+import { PageMinimal } from "./page-minimal";
 
-export class ChapterPage extends Page {
+export class ChapterPage extends PageMinimal {
   static get observedAttributes() {
     return ["chapter-id"];
   }
@@ -15,7 +14,7 @@ export class ChapterPage extends Page {
   
 // TODO: pointer events propagation when overlayed. but this depends on how we want to handle the overlay.
 
-  protected get styles(): string {
+   get styles(): string {
     return /* css */ `
       :host {
         background: transparent;
@@ -79,7 +78,7 @@ export class ChapterPage extends Page {
     `;
   }
 
-  protected get template(): string {
+   get template(): string {
     return /* html */ `
       <div class="content">
         <div class="chapter-card"></div>
@@ -95,7 +94,7 @@ export class ChapterPage extends Page {
     this.updateView();
 }
 
-protected setupEventListeners() {
+ setupEventListeners() {
     this.shadowRoot?.querySelector('.chapter-card')?.addEventListener('click', () => {
         if (this.game) {
             this.game.router.navigate('/chapters');
