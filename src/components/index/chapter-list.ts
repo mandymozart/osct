@@ -61,6 +61,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
       <style>
         :host {
           display: block;
+          margin-bottom: 2rem;
         }
         
         .no-chapters {

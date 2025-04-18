@@ -26,20 +26,30 @@ export class IndexPage extends Page implements IIndexPage {
     return /* css */ `
       :host {
         display: block;
-        height: 100%;
         pointer-events: all;
+        bottom: 4rem;
       }
       
-      // .content {
-      //   padding: 2rem 1rem;
-      //   overflow-y: auto;
-      //   height: calc(100vh - var(--offset-top)-2rem);
-
-      //   margin: 0 0 10rem 0;
-      // }
+      .content {
+        padding: 0;
+        position: absolute;
+        top: 6rem;
+        overflow-y: auto;
+        bottom: 4rem;
+        width: 100%;
+      }
+      
+      .header {
+        display: flex;
+        height: 6rem;
+        background: var(--color-background);
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+      }
       
       h1 {
-        margin: 0 0 2rem 0;
+        padding: 0 1rem;
         font-weight: 400;
         font-size: 1.5rem;
         color: var(--primary-500);
@@ -49,11 +59,11 @@ export class IndexPage extends Page implements IIndexPage {
 
   get template(): string {
     return /* html */ `
-    <div slot="title">Index</div>
-    <div slot="close">
-    <close-button></close-button>
-    </div>
-      <div slot="content">
+    <div class="header">
+            <h1>Index</h1>
+        <close-button></close-button>
+        </div>
+      <div class="content">
         <chapter-list id="chapter-list"></chapter-list>
       </div>
     `;

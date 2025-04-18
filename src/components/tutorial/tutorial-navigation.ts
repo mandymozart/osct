@@ -67,6 +67,10 @@ export class TutorialNavigation
           display: flex;
           justify-content: space-between;
           width: 100%;
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
           padding: 1rem 0;
           box-sizing: border-box;
           flex-direction: column-reverse;

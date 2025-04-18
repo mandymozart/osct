@@ -10,6 +10,7 @@ export class ChaptersPage extends PageMinimal {
         background: transparent;
         border-radius: 0;
         pointer-events: none;
+        margin-top: var(--offset-top, 4rem);
     }
     ::slotted(*) {
         pointer-events: none;
