@@ -1,7 +1,7 @@
 import { Page } from "./page";
 
 export class NotFoundPage extends Page {
-  protected get styles(): string {
+  get styles(): string {
     return /* css */ `
       .content {
           padding: 0 2rem;
@@ -14,7 +14,7 @@ export class NotFoundPage extends Page {
     `;
   }
 
-  protected get template(): string {
+  get template(): string {
     return `
       <div class="content">
       🙅🏾 Page not found

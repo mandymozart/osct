@@ -7,17 +7,9 @@ import { GameMode, IGame, IQRScanner } from "@/types";
  *
  * A web component that provides QR code scanning functionality.
  * It uses the device camera to scan QR codes and integrates with
- * the game's QR manager. This component is attached to the document body.
+ * the game's QR manager.
  */
 export class QRScanner extends HTMLElement implements IQRScanner {
-  // Element IDs for preventing conflicts with A-Frame and MindAR
-  private readonly VIDEO_ID = "qr-scanner-video";
-  private readonly CANVAS_ID = "qr-scanner-canvas";
-  private readonly CONTAINER_CLASS = "qr-scanner-container";
-  private readonly OVERLAY_CLASS = "qr-scanner-overlay";
-  private readonly MESSAGE_CLASS = "qr-scanner-message";
-  private readonly CLOSE_BTN_CLASS = "qr-scanner-close-button";
-
   // Game store reference
   private game: Readonly<IGame>;
 
@@ -90,24 +82,24 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         opacity: 1;
       }
 
-      .${this.CONTAINER_CLASS} {
+      .qr-scanner-container {
         position: relative;
         width: 100%;
         height: 100%;
       }
 
-      #${this.VIDEO_ID} {
+      #qr-scanner-video {
         width: 100%;
         height: 100%;
         object-fit: cover;
         display: block;
       }
 
-      #${this.CANVAS_ID} {
-        display: blocm;
+      #qr-scanner-canvas {
+        display: block;
       }
 
-      .${this.OVERLAY_CLASS} {
+      .qr-scanner-overlay {
         position: absolute;
         top: 0;
         left: 0;
@@ -141,7 +133,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         }
       }
 
-      .${this.MESSAGE_CLASS} {
+      .qr-scanner-message {
         text-align: center;
         font-size: 1rem;
         max-width: 80%;
@@ -151,15 +143,15 @@ export class QRScanner extends HTMLElement implements IQRScanner {
 
     // Create and append HTML elements
     this.innerHTML = `
-      <div class="${this.CONTAINER_CLASS}">
-        <video id="${this.VIDEO_ID}" playsinline></video>
-        <canvas id="${this.CANVAS_ID}"></canvas>
-        <div class="${this.OVERLAY_CLASS}">
+      <div class="qr-scanner-container">
+        <video id="qr-scanner-video" playsinline></video>
+        <canvas id="qr-scanner-canvas"></canvas>
+        <div class="qr-scanner-overlay">
           <div class="scanner-line"></div>
         </div>
       </div>
       
-      <div class="${this.MESSAGE_CLASS}">
+      <div class="qr-scanner-message">
         Position a QR code within the frame to scan
       </div>
     `;
@@ -176,13 +168,13 @@ export class QRScanner extends HTMLElement implements IQRScanner {
    * Initialize component elements and event handlers
    */
   private initializeElements() {
-    this.videoElement = document.getElementById(this.VIDEO_ID) as HTMLVideoElement;
-    this.canvasElement = document.getElementById(this.CANVAS_ID) as HTMLCanvasElement;
+    this.videoElement = document.getElementById("qr-scanner-video") as HTMLVideoElement;
+    this.canvasElement = document.getElementById("qr-scanner-canvas") as HTMLCanvasElement;
     this.canvasContext = this.canvasElement?.getContext("2d") || null;
-    this.messageElement = this.querySelector(`.${this.MESSAGE_CLASS}`) as HTMLDivElement;
+    this.messageElement = this.querySelector(".qr-scanner-message") as HTMLDivElement;
 
     // Set up close button
-    const closeButton = this.querySelector(`.${this.CLOSE_BTN_CLASS}`);
+    const closeButton = this.querySelector(".qr-scanner-close-button");
     closeButton?.addEventListener("click", () => {
       if (this.game) {
         this.game.qr.stopScanning();
@@ -413,7 +405,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
       this.unsubscribe = null;
     }
 
-    const closeButton = this.querySelector(`.${this.CLOSE_BTN_CLASS}`);
+    const closeButton = this.querySelector(".qr-scanner-close-button");
     closeButton?.removeEventListener("click", () => {});
   }
 }
