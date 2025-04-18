@@ -30,14 +30,9 @@ export class ChaptersButton extends BaseNavigationButton {
 
     // Update active state
     this.active = Boolean(isChaptersPage);
-
-    // Chapter button is always enabled
-    this.disabled = false;
   }
 
   protected handleClick() {
-    if (!this.game || this.disabled) return;
-
     try {
       // Navigate to chapters page
       this.game.router.navigate("/chapters");
