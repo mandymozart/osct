@@ -119,7 +119,7 @@ export class PagesRouter extends HTMLElement implements IPagesRouter {
         }
         ::slotted(*) {
           display: none;
-          pointer-events: auto;
+          // pointer-events: auto;
         }
         ::slotted([active="true"]) {
           display: block;

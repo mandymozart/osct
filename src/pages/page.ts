@@ -12,7 +12,7 @@ export interface IPage extends HTMLElement {
     render(): void;
 }
 
-export abstract class Page extends HTMLElement {
+export abstract class Page extends HTMLElement implements IPage {
     protected _active: boolean;
     private _template: HTMLTemplateElement;
     protected game: Readonly<IGame>;
@@ -51,7 +51,7 @@ export abstract class Page extends HTMLElement {
       }
     }
 
-    protected get baseStyles(): string {
+    public get baseStyles(): string {
       return /* css */ `
         :host {
           position: fixed;
@@ -69,11 +69,31 @@ export abstract class Page extends HTMLElement {
           opacity: 0;
           visibility: hidden;
           overflow-y: auto;
+          box-shadow: 0px 1px 14px 0px rgba(0,0,0,0.34);
+          -webkit-box-shadow: 0px 1px 14px 0px rgba(0,0,0,0.34);
+          -moz-box-shadow: 0px 1px 14px 0px rgba(0,0,0,0.34);
         }
         :host([active=true]) {
           visibility: visible;
           transform: translateY(0);
           opacity: 1;
+        }
+        .header {
+          height: 6rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: absolute;
+          top: 0;
+          width: 100%;
+        }
+        .header h2 {
+          margin:0;
+          font-weight: 400;
+          font-size: 1.5rem;
+          color: var(--primary-500);
+          line-height: 6rem;
+          padding: 2rem 5rem 1rem 1rem;
         }
         .content {
           bottom: 10rem;
@@ -83,10 +103,14 @@ export abstract class Page extends HTMLElement {
       `;
     }
 
-    protected get template(): string {
+    public get template(): string {
       return /* html */ `
+        <div class="header">
+          <h2><slot name="title"></slot></h2>
+          <slot name="close"></slot>
+        </div>
         <div class="content">
-          <slot></slot>
+          <slot name="content"></slot>
         </div>
       `;
     }
@@ -94,7 +118,7 @@ export abstract class Page extends HTMLElement {
     /**
      * Additional styles - must be implemented by child classes
      */
-    protected abstract get styles(): string;
+    public abstract get styles(): string;
   
     connectedCallback() {
       this.render();
@@ -105,7 +129,7 @@ export abstract class Page extends HTMLElement {
       this.cleanupEventListeners();
     }
   
-    protected render() {
+    public render() {
       // Clear existing content
       while (this.shadowRoot!.firstChild) {
         this.shadowRoot!.removeChild(this.shadowRoot!.firstChild);
@@ -124,7 +148,7 @@ export abstract class Page extends HTMLElement {
       this.shadowRoot!.appendChild(this._template.content.cloneNode(true));
     }
 
-    protected setupEventListeners(): void {}
+    public setupEventListeners(): void {}
 
-    protected cleanupEventListeners(): void {}
+    public cleanupEventListeners(): void {}
 }

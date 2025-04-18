@@ -1,4 +1,3 @@
-import { Page } from "@/pages/page";
 import { GameStoreService } from "@/services/GameStoreService";
 import { GameMode, IGame, PageRoute, Pages } from "@/types";
 import { assert } from "@/utils";
@@ -46,9 +45,9 @@ export class NavigationBar extends HTMLElement {
                 :host {
                     display: flex;
                     position: fixed;
-                    bottom: 2rem;
-                    left: 2rem;
-                    right: 2rem;
+                    bottom: 1rem;
+                    left: 1rem;
+                    right: 1rem;
                     gap: 1rem;
                     z-index: 1;
                 }
