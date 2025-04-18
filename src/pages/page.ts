@@ -64,8 +64,7 @@ export abstract class Page extends HTMLElement implements IPage {
           background: var(--color-background);
           border-radius: 1.5rem 1.5rem 0 0;
           z-index: var(--page-z-index, 1000);
-          transition: all 0.3s ease;
-          transform: translateY(20vh);
+          transition: all 1s ease;
           opacity: 0;
           visibility: hidden;
           overflow-y: auto;
@@ -75,7 +74,6 @@ export abstract class Page extends HTMLElement implements IPage {
         }
         :host([active=true]) {
           visibility: visible;
-          transform: translateY(0);
           opacity: 1;
         }
         .header {

@@ -1,18 +1,24 @@
 import { Page } from "./page";
 import "../components/common/close-button"; // Import close button component
+import { GameStoreService } from "@/services/GameStoreService";
+import { IGame } from "@/types";
 
 export class AboutPage extends Page {
+  protected game: Readonly<IGame>;
 
   constructor() {
     super();
+    this.game = GameStoreService.getInstance();
+    this.setupEventListeners();
   }
   
-  protected get styles(): string {
+  get styles(): string {
     return /* css */ `
       .content {
-          padding: 0 2rem;
+          padding: 0 1rem;
           overflow-y: auto;
           height: calc(100vh - var(--offset-top)-2rem);
+          pointer-events: auto;
         } 
         .logo {
           height: 6em;
@@ -32,7 +38,7 @@ export class AboutPage extends Page {
     `;
   }
 
-  protected get template(): string {
+  get template(): string {
     return `
       <div class="content">
         <div class="page-title">About</div>
@@ -45,21 +51,44 @@ export class AboutPage extends Page {
           </a>
         </div>
         <p>App by Tilman Porschuetz</p>
+        <div class="buttons">
+          <button is="text-button" id="tutorial-btn">Tutorial</button>
+        </div>
         <p>Requires a WebXR compatible browser and a copy of the book.</p>
+        <p>Android: Chrome</p>
+        <p>Desktop: Chrome, Firefox, Safari</p>
+        <p>iOS: Safari, Chrome</p>
+        <close-button></close-button>
       </div>
-      <close-button></close-button>
     `;
   }
 
   setupEventListeners() {
     const closeButton = this.shadowRoot?.querySelector("close-button");
-    if (closeButton) {
-      closeButton.addEventListener("close", () => {
-        if (this.game) {
-          this.game.router.close();
-        }
-      });
-    }
+    closeButton?.addEventListener("close", this.handleClose.bind(this));
+    
+    const tutorialButton = this.shadowRoot?.querySelector("#tutorial-btn");
+    tutorialButton?.addEventListener("click", this.handleTutorial.bind(this));
+  }
+  
+  cleanupEventListeners() {
+    const closeButton = this.shadowRoot?.querySelector("close-button");
+    closeButton?.removeEventListener("close", this.handleClose.bind(this));
+    
+    const tutorialButton = this.shadowRoot?.querySelector("#tutorial-btn");
+    tutorialButton?.removeEventListener("click", this.handleTutorial.bind(this));
+  }
+  
+  private handleClose() {
+    this.game.router.close();
+  }
+  
+  private handleTutorial() {
+    this.game.router.navigate("/tutorial");
+  }
+
+  disconnectedCallback() {
+    this.cleanupEventListeners();
   }
 }
 

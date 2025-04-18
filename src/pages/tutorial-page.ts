@@ -2,47 +2,52 @@ import { Page } from "./page";
 import { assert } from "../utils/assert";
 import { tutorial } from "@/game.config.json";
 import { TutorialStepData, ITutorialNavigation } from "@/types/tutorial";
-import { GameState } from "@/types/game";
+import { GameState, IGame } from "@/types/game";
 
 import "../components/tutorial/tutorial-content";
 import "../components/tutorial/tutorial-navigation";
+import { GameStoreService } from "@/services/GameStoreService";
 
 export class TutorialPage extends Page {
   static get observedAttributes() {
     return ["active", "step"];
   }
 
-  protected get styles(): string {
+   get styles(): string {
     return /* css */ `
       :host {
         display: flex;
         flex-direction: column;
-        height: 100%;
+        bottom: 0;
         overflow: hidden;
         background-color: var(--color-background, #fff);
         color: var(--color-text, #333);
+        pointer-events: all;
       }
       
       .content {
-        position: relative;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: var(--offset-top, 4rem);
         display: flex;
         flex-direction: column;
-        padding: 2rem;
+        margin: 0 1rem;
         gap: 2rem;
-        height: calc(100vh - 8rem);
         box-sizing: border-box;
         overflow-y: auto;
       }  
     `;
   }
 
-  protected get template(): string {
+   get template(): string {
     return /* html */ `
       <div class="content">
         <tutorial-content></tutorial-content>
         <tutorial-navigation></tutorial-navigation>
-        <close-button></close-button>
       </div>
+      <close-button></close-button>
     `;
   }
 
@@ -50,21 +55,23 @@ export class TutorialPage extends Page {
   private currentStep: string | null = null;
   private content: HTMLElement | null = null;
   private navigation: ITutorialNavigation | null = null;
+  protected readonly game: Readonly<IGame>;
 
   constructor() {
     super();
+    this.game = GameStoreService.getInstance();
     this.handleStateChange = this.handleStateChange.bind(this);
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this.game?.subscribe(this.handleStateChange);
+    this.game?.subscribe(this.handleStateChange.bind(this));
     this.setupComponents();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.game?.unsubscribe(this.handleStateChange);
+    this.game?.unsubscribe(this.handleStateChange.bind(this));
   }
 
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
@@ -84,20 +91,18 @@ export class TutorialPage extends Page {
     this.updateView();
   }
 
-  protected setupEventListeners() {
+   setupEventListeners() {
     const closeButton = this.shadowRoot?.querySelector("close-button");
-    closeButton?.addEventListener("close", this.handleClose);
+    closeButton?.addEventListener("close", this.handleClose.bind(this));
   }
 
-  protected cleanupEventListeners() {
+   cleanupEventListeners() {
     const closeButton = this.shadowRoot?.querySelector("close-button");
-    closeButton?.removeEventListener("close", this.handleClose);
+    closeButton?.removeEventListener("close", this.handleClose.bind(this));
   }
 
   private handleClose() {
-    if (this.game) {
-      this.game.router.close();
-    }
+    this.game.router.close();
   }
 
   private setupComponents() {

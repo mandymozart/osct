@@ -17,8 +17,9 @@ export class ChapterPage extends PageMinimal {
    get styles(): string {
     return /* css */ `
       :host {
-        background: transparent;
+        background: none;
         border-radius: 0;
+        margin-top: var(--offset-top, 4rem);
       }
       .content {
         overflow-y: auto;

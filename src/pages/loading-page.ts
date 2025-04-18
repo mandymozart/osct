@@ -39,7 +39,7 @@ class LoadingPage extends Page {
     this.setupListeners();
   }
 
-  protected setupListeners(): void {
+   setupListeners(): void {
     this.game.subscribe(this.handleStateChange.bind(this));
   }
 
@@ -67,7 +67,7 @@ class LoadingPage extends Page {
     }
   }
 
-  protected get styles(): string {
+   get styles(): string {
     return /* css */ `
             :host {
                 top: 0;
@@ -100,7 +100,7 @@ class LoadingPage extends Page {
         `;
   }
 
-  protected get template(): string {
+   get template(): string {
     return /* html */ `
             <div class="loading">${this.message}</div>
         `;

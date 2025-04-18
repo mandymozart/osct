@@ -23,7 +23,7 @@ export class CloseButton extends HTMLElement {
       .close-button {
         position: absolute;
         top: 2rem;
-        right: 2rem;
+        right: 1rem;
         background-color: var(--color-primary);
         color: white;
         border: none;

@@ -143,38 +143,59 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
           }
           
           .step-header {
+           height: 6rem;
             font-size: 1.25rem;
             color: var(--primary-500);
-            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
           }
-          
+          .content-container {
+            position: absolute;
+            top: 6rem;
+            display: grid;
+            grid-template-rows: 8rem auto;
+            bottom: 9rem;
+            width: 100%;
+            overflow-y: auto;
+            gap: 1rem;
+          }
           .illustration {
-            margin: 5rem 0;
-            height: 4rem;
-          }
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            }
+            .illustration img {
+              height: 4rem;
+            }
           
           .title {
             font-size: 1.5rem;
             font-weight: 400;
-            margin-bottom: 1rem;
+            margin: 0 0 1rem 0;
           }
           
           .description {
             font-size: 1.25rem;
             line-height: 1.5;
-            margin-bottom: 2rem;
+            margin: 0;
           }
         </style>
         
+        <div class="step-header">Step ${this._currentStep + 1} of ${
+          tutorial.length - 1
+        }</div>
         <div class="content-container">
-          <div class="step-header">Step ${this._currentStep + 1} of ${
-      tutorial.length - 1
-    }</div>
-          <img class="illustration" alt="${this._title}" src="${
-      this._illustration
-    }" />
-          <h2 class="title">${this._title}</h2>
-          <p class="description">${this._description}</p>
+          <div class="illustration">
+            <img alt="${this._title}" src="${this._illustration}" />
+          </div>
+          <div class="text">
+            <h2 class="title">${this._title}</h2>
+            <p class="description">${this._description}</p>
+          </div>
         </div>
       `;
   }

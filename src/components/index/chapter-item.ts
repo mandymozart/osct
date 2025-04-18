@@ -65,6 +65,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
       <style>
         :host {
           display: block;
+          margin: 0 1rem;
           border-bottom: .1rem solid var(--color-primary);
         }
         
@@ -95,7 +96,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
           font-size: 0.75rem;
           display: flex;
           justify-content: space-between;
-          margin-bottom: 0.5rem;
+          margin: 0 0 0.5rem 0;
         }
         
         .loading-indicator {
@@ -121,7 +122,9 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
       </style>
       
       <div class="chapter-header ${this._isCurrent ? 'current' : 'muted'}">
-        <span class="chapter-title">📑 ${this._chapterData?.title || 'Untitled'} <span class="loading-indicator">${loadingStatus}</span></span>
+        <span class="chapter-title">📑 ${this._chapterData?.title || 'Untitled'} <span class="loading-indicator">${loadingStatus}</span> 
+        ${!this._isCurrent ? '<button is="text-button" size="xs" style="display: inline-block;">Select</button>' : ''}
+        </span>
         <span class="chapter-pages">${this._chapterData?.firstPage} &mdash; ${this._chapterData?.lastPage}</span>
       </div>
       <div class="progress-bar">

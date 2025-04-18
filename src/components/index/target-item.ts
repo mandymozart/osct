@@ -83,6 +83,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
           display: grid;
           grid-template-columns: 4rem auto 8rem;
           gap: 1rem;
+          margin: 0 1rem;
           line-height: 3rem;
           border-bottom: .1rem solid var(--color-primary);
         }
