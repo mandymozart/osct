@@ -1,35 +1,49 @@
 /**
- * Schema definitions for content types
- * This file defines validation and ordering rules for each content type
+ * Content schema definitions for validation
  */
 
-export const schemas = {
+// Define schema field interface
+interface SchemaField {
+  type: string;
+  required: boolean;
+  default?: any;
+  enum?: string[];
+  rel?: string;
+}
+
+// Define schema interface
+interface Schema {
+  orderBy?: string;
+  fields: Record<string, SchemaField>;
+}
+
+// Export schemas object
+export const schemas: Record<string, Schema> = {
   // Chapter schema
   chapter: {
     orderBy: "order",
     fields: {
       type: { type: "String", required: true, default: "chapter" },
-      id: { type: "String", required: false },
+      id: { type: "String", required: true },
       order: { type: "Number", required: false, default: 0 },
       title: { type: "String", required: true },
       firstPage: { type: "Number", required: false, default: 1 },
       lastPage: { type: "Number", required: false, default: 1 },
-      imageTargetSrc: { type: "String", required: false, default: "" },
-      targets: { type: "List", required: false, default: [], rel: "target" },
+      imageTargetSrc: { type: "String", required: false },
     },
   },
 
   // Target schema
   target: {
-    orderBy: "mindarTargetIndex",
+    orderBy: "order",
     fields: {
       type: { type: "String", required: true, default: "target" },
       id: { type: "String", required: true },
       title: { type: "String", required: true },
       description: { type: "String", required: false, default: "" },
       relatedChapter: { type: "String", required: true, rel: "chapter" },
-      mindarTargetIndex: { type: "Number", required: false, default: 0 },
-      imageTargetSrc: { type: "String", required: true, default: "" },
+      order: { type: "Number", required: false, default: 0 },
+      imageTargetSrc: { type: "String", required: true },
       bookId: { type: "String", required: false },
       targetType: {
         type: "String",
@@ -38,49 +52,37 @@ export const schemas = {
         enum: ["basic", "model", "video", "link"],
       },
       assets: { type: "List", required: false, default: [], rel: "asset" },
-      relatedTargets: { type: "List", required: false },
+      relatedTargets: { type: "List", required: false, default: [] },
       tags: { type: "List", required: false, default: [] },
     },
   },
 
   // Asset schema
   asset: {
-    orderBy: null,
     fields: {
       type: { type: "String", required: true, default: "asset" },
       id: { type: "String", required: true },
-      src: { type: "String", required: false },
-      assetType: { 
-        type: "String", 
-        required: false, 
-        default: "string", 
-        options: ["image", "gltf", "glb", "video", "audio", "link"], 
+      assetType: {
+        type: "String",
+        required: true,
+        enum: ["model", "image", "video", "audio", "glb", "gltf"],
       },
+      src: { type: "String", required: true },
+      title: { type: "String", required: false },
+      alt: { type: "String", required: false },
     },
   },
 
-  // Step schema
+  // Step schema for tutorial content
   step: {
-    orderBy: "index",
+    orderBy: "order",
     fields: {
       type: { type: "String", required: true, default: "step" },
-      index: { type: "Number", required: true },
+      id: { type: "String", required: true },
+      order: { type: "Number", required: false, default: 0 },
       title: { type: "String", required: true },
       description: { type: "String", required: true },
-      illustration: { type: "String", required: false },
+      image: { type: "String", required: false },
     },
   },
-
-  // Add more content type schemas as needed
-
-  // Custom type (example)
-  // customType: {
-  //   orderBy: 'customOrder',
-  //   fields: {
-  //     type: { type: 'String', required: true, default: 'customType' },
-  //     id: { type: 'String', required: true },
-  //     customOrder: { type: 'Number', required: false, default: 0 },
-  //     // Add other fields as needed
-  //   }
-  // }
 };

@@ -21,7 +21,7 @@ export class HistoryManager implements IHistoryManager {
   private checkConfigurationVersion(): void {
     try {
       const storedVersion = localStorage.getItem(this.CONFIG_VERSION_KEY);
-      const currentVersion = config.version;
+      const currentVersion = config;
       
       if (!storedVersion) {
         this.saveConfigurationVersion();
@@ -49,10 +49,7 @@ export class HistoryManager implements IHistoryManager {
    */
   private saveConfigurationVersion(): void {
     try {
-      const versionData: ConfigurationVersion = {
-        version: config.version.version,
-        timestamp: new Date().toISOString()
-      };
+      const versionData: ConfigurationVersion = config.version as unknown as ConfigurationVersion;
       localStorage.setItem(this.CONFIG_VERSION_KEY, JSON.stringify(versionData));
     } catch (error) {
       console.warn('Failed to save configuration version:', error);

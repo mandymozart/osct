@@ -1,0 +1,12 @@
+id: target-102
+type: target
+title: Ancient Tree
+description: A mystical tree stands tall.
+relatedChapter: chapter1
+order: 2
+bookId: "102"
+targetType: model
+imageTargetSrc: images-102.jpg
+assets: tree
+relatedTargets: target-001
+tags: forest,nature

@@ -1,0 +1,20 @@
+{
+  "name": "osct-scripts",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && vite build",
+    "build:content": "node dist/index.js",
+    "start": "npm run build && npm run build:content"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.5",
+    "@types/node": "^22.14.1",
+    "typescript": "~5.7.2",
+    "vite": "^6.3.2"
+  }
+}

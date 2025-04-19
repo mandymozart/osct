@@ -6,7 +6,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-coverage
 
 node_modules
 dist
@@ -23,13 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.venv
-
-
-# Local Netlify folder
-.netlify
-
-# Mind AR temporary folders
-/mind-ar*
-/mind-ar
-mind-ar

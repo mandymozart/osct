@@ -16,7 +16,7 @@ MindAR using tensoryflow, three, and aframe to display WebXR overlays.
 
 Use MindAR compiler to generate image tracking targets.
 
-### `npm run install`
+### `cd client; npm run install`
 
 Known issue: Use npm install --ignore-scripts if you want to build on windows with node version >22. or use 18. since there are canvas build scripts running which have issues with GTK3. So dlls are missing. works fine on netlify inside a docker.
 
