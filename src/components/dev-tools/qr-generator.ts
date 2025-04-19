@@ -83,7 +83,7 @@ export class QRGenerator extends HTMLElement {
           margin-bottom: 1rem;
           border-radius: 0;
           background: var(--color-background);
-          color: var(--primary);
+          color: var(--color-primary);
           border: 1px solid var(--color-border);
           pointer-events: all;
         }
