@@ -1,10 +1,6 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-// import { fileURLToPath } from 'url';
-
-// Local imports
-// import { validateContent } from './utils/validation';
 import { projectRoot,CONTENT_DIR, OUTPUT_FILE, MINDAR_DIR } from './config';
 
 // Import types from main project
@@ -21,31 +17,6 @@ import type {
   GameConfiguration,
   TargetData
 } from './types/game';
-
-// ES6 modules don't have __dirname, so we need to create it
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
-// // Parse command line arguments
-// const args = process.argv.slice(2);
-// let projectRoot: string;
-
-// // Check for --project-root flag
-// const projectRootIndex = args.indexOf('--project-root');
-// if (projectRootIndex !== -1 && args.length > projectRootIndex + 1) {
-//   // If --project-root is provided, use the next argument as the project root
-//   const relativePath = args[projectRootIndex + 1];
-//   projectRoot = path.resolve(process.cwd(), relativePath);
-//   console.log(`Using provided project root: ${projectRoot}`);
-// } else {
-//   // Fallback: assume script is in scripts/content and project root is two levels up
-//   projectRoot = path.resolve(__dirname, '../..');
-//   console.log(`Using default project root: ${projectRoot}`);
-// }
-
-// const CONTENT_DIR = path.join(projectRoot, 'content');
-// const OUTPUT_FILE = path.join(projectRoot, 'src/game.config.json');
-// const MINDAR_DIR = path.join(projectRoot, 'mind-ar');
 
 console.log('Project root:', projectRoot);
 console.log('Content directory:', CONTENT_DIR);
