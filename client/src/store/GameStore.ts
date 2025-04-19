@@ -55,7 +55,7 @@ class Game extends LoadableStore implements IGame {
       currentChapter: null,
       chapters: {}, 
       history: [],
-      configVersion: configVersion as ConfigurationVersion,
+      configVersion: configVersion as unknown as ConfigurationVersion,
       loading: LoadingState.LOADING,
       cameraPermission: CameraPermissionStatus.UNKNOWN
     };

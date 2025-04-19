@@ -31,3 +31,5 @@ dist-ssr
 
 # Mind AR temporary folders
 /mind-ar*
+/mind-ar
+mind-ar

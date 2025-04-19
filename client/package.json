@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build && tsc",
-    "build:config": "node ./scripts/content/build",
+    "build:config": "cd scripts && npm run build:content",
     "preview": "vite preview",
     "prepublishOnly": "npm run build",
     "watch": "vitest watch",

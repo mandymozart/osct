@@ -92,8 +92,8 @@ export enum ErrorCode {
 }
 
 export interface GameConfiguration {
-  version: string; // Semantic version like "1.0.0"
-  initialChapterId: string; // ID of the initial chapter
+  version: ConfigurationVersion; 
+  initialChapterId: string;
   chapters: readonly ChapterData[];
   tutorial: readonly TutorialStepData[];
 }
