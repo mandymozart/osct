@@ -1,0 +1,12 @@
+id: target-001
+chapterId: chapter1
+mindarTargetIndex: 0
+bookId: "001"
+title: Bear
+description: A curious bear appears in the woods.
+type: model
+assetId: raccoon
+assetType: gltf
+assetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf
+relatedTargets: target-002
+tags: forest,animal

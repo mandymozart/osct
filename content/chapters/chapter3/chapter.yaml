@@ -1,7 +1,7 @@
 type: chapter
-id: chapter1
-order: 0
-title: The Beginning
-firstPage: 1
-lastPage: 3
+id: chapter3
+order: 2
+title: The Dragon's Lair
+firstPage: 10
+lastPage: 15
 imageTargetSrc: /targets/single-image.mind

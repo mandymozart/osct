@@ -1,4 +1,5 @@
 type: step
-title: 
-description: 
-illustration: 
+title: Let's get you started with the XR app
+description: This app enhances the book with interactive videos, animations, and references. Follow these steps to unlock the content.
+illustration: /assets/illustrations/tutorial-step-1.svg
+index: 0

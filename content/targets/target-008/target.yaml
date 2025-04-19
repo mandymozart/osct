@@ -1,0 +1,13 @@
+id: target-008
+chapterId: chapter2
+mindarTargetIndex: 1
+bookId: "008"
+title: Link Example
+description: A demonstration of a link with an image billboard
+type: link
+assetId: sample-link
+assetType: link
+assetSrc: https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API
+billboardImageSrc: /assets/images/info-billboard.jpg
+relatedTargets: target-003,target-004
+tags: demo,link

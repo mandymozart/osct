@@ -1,0 +1,12 @@
+id: target-007
+chapterId: chapter1
+mindarTargetIndex: 0
+bookId: "007"
+title: Video Example
+description: A demonstration of video content in AR
+type: video
+assetId: sample-video
+assetType: video
+assetSrc: https://www.w3schools.com/html/mov_bbb.mp4
+relatedTargets: target-001,target-002
+tags: demo,video

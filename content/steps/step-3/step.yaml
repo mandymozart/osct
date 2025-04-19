@@ -1,4 +1,5 @@
 type: step
-title: 
-description: 
-illustration: 
+title: Ensure Proper Lighting
+description: Place the book in a well-lit area. Avoid shadows or glare for accurate scanning and detection of target images.
+illustration: /assets/illustrations/tutorial-step-3.svg
+index: 2

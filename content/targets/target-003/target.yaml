@@ -1,0 +1,12 @@
+id: target-003
+chapterId: chapter2
+mindarTargetIndex: 0
+bookId: "003"
+title: Old Castle
+description: An ancient castle filled with secrets.
+type: model
+assetId: castle
+assetType: gltf
+assetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf
+relatedTargets: target-004
+tags: medieval,architecture

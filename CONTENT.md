@@ -15,6 +15,19 @@ content/
 │   │   └── chapter.md
 │   └── chapter3/
 │       └── chapter.md
+├── steps/
+│   ├── step-1/
+│   │   └── step.md
+│   ├── step-2/
+│   │   └── step.md
+│   ├── step-3/
+│   │   └── step.md
+│   ├── step-4/
+│   │   └── step.md
+│   ├── step-5/
+│   │   └── step.md
+│   └── step-6/
+│       └── step.md
 └── targets/
     ├── target-001/
     │   ├── target.md

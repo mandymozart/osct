@@ -1,4 +1,5 @@
 type: step
-title: 
-description: 
-illustration: 
+title: Scan Content
+description: Point your camera at the marked images in the book. The app will scan and display available videos or animations.
+illustration: /assets/illustrations/tutorial-step-4.svg
+index: 3
