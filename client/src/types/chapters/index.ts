@@ -23,7 +23,7 @@ export interface ChapterData {
   firstPage: number;
   lastPage: number;
   title: string;
-  imageTargetSrc: string;
+  mindSrc: string;
   targets: TargetData[];
 }
 

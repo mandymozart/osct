@@ -3,6 +3,9 @@ import yaml from 'js-yaml';
 import path from 'path';
 import { projectRoot, CONTENT_DIR, OUTPUT_FILE, MINDAR_DIR, CLIENT_PUBLIC_ASSETS_DIR } from './config';
 
+// Global mapping between target ID and folder name
+const targetFolderMap: Record<string, string> = {};
+
 // Import types from main project
 import type {
   AssetContent,
@@ -164,6 +167,9 @@ function readContentFiles(): ContentWithMetadata[] {
             
             // Add to tracked IDs
             targetIDs.add(targetData.id);
+            
+            // Store the mapping between target ID and folder name for later use
+            targetFolderMap[targetData.id] = folder;
             
             // Look for asset files in the same folder
             const assetFiles = fs.readdirSync(targetFolder)
@@ -581,8 +587,11 @@ function isExternalUrl(url: string): boolean {
 
 /**
  * Adjust a path to be relative to the assets/content directory
+ * @param originalPath The original path to adjust
+ * @param sourceType The type of source ('chapter' or 'target')
+ * @param folderName The folder name where the content is stored
  */
-function adjustPath(originalPath: string): string {
+function adjustPath(originalPath: string, sourceType?: string, folderName?: string): string {
   if (!originalPath || isExternalUrl(originalPath)) {
     return originalPath;
   }
@@ -590,7 +599,27 @@ function adjustPath(originalPath: string): string {
   // Remove any leading slashes
   const cleanPath = originalPath.replace(/^\/+/, '');
   
-  // Create a path relative to the assets/content directory
+  // If path already includes full structure, just ensure it has leading slash
+  if (cleanPath.startsWith('assets/content/')) {
+    return `/${cleanPath}`;
+  }
+  
+  // For target images or mind files, preserve folder structure based on type and folder name
+  if (sourceType === 'target' && folderName) {
+    return `/assets/content/targets/${folderName}/${cleanPath}`;
+  }
+  
+  // For chapter files, use chapter folder
+  if (sourceType === 'chapter' && folderName) {
+    return `/assets/content/chapters/${folderName}/${cleanPath}`;
+  }
+  
+  // For asset files, associate with target folder
+  if (sourceType === 'asset' && folderName) {
+    return `/assets/content/targets/${folderName}/${cleanPath}`;
+  }
+  
+  // Default case - simple path in assets/content
   return `/assets/content/${cleanPath}`;
 }
 
@@ -661,25 +690,29 @@ function adjustConfigPaths(config: GameConfiguration): GameConfiguration {
       const chapterData = chapter as any;
       
       if (chapterData.mindSrc) {
-        chapterData.mindSrc = adjustPath(chapterData.mindSrc);
+        chapterData.mindSrc = adjustPath(chapterData.mindSrc, 'chapter', chapterData._folderName);
       }
       
       // Process targets in the chapter
       if (chapterData.targets && Array.isArray(chapterData.targets)) {
         for (const target of chapterData.targets) {
+          // Use the target ID to look up the folder name from our mapping
+          const targetId = target.id;
+          const targetFolder = targetFolderMap[targetId] || targetId;
+          
           // Adjust image and mind paths
           if (target.imageTargetSrc) {
-            target.imageTargetSrc = adjustPath(target.imageTargetSrc);
+            target.imageTargetSrc = adjustPath(target.imageTargetSrc, 'target', targetFolder);
           }
           if (target.mindSrc) {
-            target.mindSrc = adjustPath(target.mindSrc);
+            target.mindSrc = adjustPath(target.mindSrc, 'target', targetFolder);
           }
           
           // Adjust asset paths
           if (target.entity && target.entity.assets && Array.isArray(target.entity.assets)) {
             for (const asset of target.entity.assets) {
-              if (asset.src) {
-                asset.src = adjustPath(asset.src);
+              if (asset.src && typeof asset.src === 'string') {
+                asset.src = adjustPath(asset.src, 'asset', targetFolder);
               }
             }
           }
