@@ -7,6 +7,7 @@ order: 0
 bookId: "003"
 targetType: model
 imageTargetSrc: images-022.jpg
+mindSrc: images-022.mind
 assets: castle
 relatedTargets: target-004
 tags: medieval,architecture

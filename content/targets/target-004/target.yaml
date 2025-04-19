@@ -7,6 +7,7 @@ order: 1
 bookId: "004"
 targetType: model
 imageTargetSrc: images-045.jpg
+mindSrc: images-045.mind
 assets: cardboard-boxes
 relatedTargets: target-003
 tags: medieval,statue

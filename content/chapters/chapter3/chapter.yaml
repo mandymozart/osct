@@ -4,4 +4,4 @@ order: 2
 title: The Dragon's Lair
 firstPage: 10
 lastPage: 15
-imageTargetSrc: /targets/single-image.mind
+mindSrc: chapter3.mind

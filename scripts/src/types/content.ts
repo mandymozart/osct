@@ -10,6 +10,7 @@ export interface BaseContent {
 export interface ChapterContent extends BaseContent {
   type: 'chapter';
   order: number;
+  mindSrc: string;
 }
 
 export interface TargetContent extends BaseContent {
@@ -19,6 +20,7 @@ export interface TargetContent extends BaseContent {
   bookId: string;
   targetType: string;
   imageTargetSrc: string;
+  mindSrc: string;
   assets: string | string[];
   relatedTargets?: string | string[];
   tags?: string | string[];
@@ -28,9 +30,21 @@ export interface AssetContent extends BaseContent {
   type: 'asset';
   assetType: string;
   src: string;
-  position?: any;
-  rotation?: any;
-  scale?: any;
+  position?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  rotation?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  scale?: {
+    x: number;
+    y: number;
+    z: number;
+  };
 }
 
 export interface StepContent extends BaseContent {

@@ -7,6 +7,7 @@ order: 3
 bookId: "005"
 targetType: model
 imageTargetSrc: images-001.jpg
+mindSrc: images-001.mind
 assets: dragon
 relatedTargets: target-006
 tags: fantasy,creature

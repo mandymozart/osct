@@ -7,6 +7,7 @@ order: 3
 bookId: "007"
 targetType: video
 imageTargetSrc: images-007.jpg
+mindSrc: images-007.mind
 assets: bunny-video
 relatedTargets: target-001,target-102
 tags: demo,video

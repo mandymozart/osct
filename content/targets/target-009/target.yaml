@@ -7,6 +7,7 @@ order: 1
 bookId: "009"
 targetType: video
 imageTargetSrc: images-004.jpg
+mindSrc: images-004.mind
 assets: sploosh
 relatedTargets: target-008
 tags: alpha
