@@ -1,7 +1,7 @@
 {
   "version": {
     "version": "1.0.0",
-    "timestamp": "2025-04-19T20:27:10.967Z"
+    "timestamp": "2025-04-19T20:52:27.561Z"
   },
   "initialChapterId": "chapter1",
   "chapters": [
@@ -11,7 +11,7 @@
       "title": "The Beginning",
       "firstPage": 1,
       "lastPage": 3,
-      "imageTargetSrc": "/targets/single-image.mind",
+      "mindSrc": "chapter1.mind",
       "targets": [
         {
           "id": "target-000",
@@ -19,6 +19,7 @@
           "description": "Light plays a role in architecture.",
           "bookId": "000",
           "imageTargetSrc": "images-000.jpg",
+          "mindSrc": "images-000.mind",
           "relatedTargets": [
             "target-001",
             "target-102",
@@ -46,6 +47,7 @@
           "description": "A beast, a friend, a dimension jumper.",
           "bookId": "001",
           "imageTargetSrc": "images-028.jpg",
+          "mindSrc": "images-028.mind",
           "relatedTargets": [
             "target-002"
           ],
@@ -71,6 +73,7 @@
           "description": "A mystical tree stands tall.",
           "bookId": "102",
           "imageTargetSrc": "images-102.jpg",
+          "mindSrc": "images-102.mind",
           "relatedTargets": [
             "target-001"
           ],
@@ -96,6 +99,7 @@
           "description": "A mighty dragon resting in its lair.",
           "bookId": "005",
           "imageTargetSrc": "images-001.jpg",
+          "mindSrc": "images-001.mind",
           "relatedTargets": [
             "target-006"
           ],
@@ -123,7 +127,7 @@
       "title": "The Castle Gates",
       "firstPage": 4,
       "lastPage": 9,
-      "imageTargetSrc": "/targets/single-image.mind",
+      "mindSrc": "chapter2.mind",
       "targets": [
         {
           "id": "target-003",
@@ -131,6 +135,7 @@
           "description": "An ancient castle filled with secrets.",
           "bookId": "003",
           "imageTargetSrc": "images-022.jpg",
+          "mindSrc": "images-022.mind",
           "relatedTargets": [
             "target-004"
           ],
@@ -156,6 +161,7 @@
           "description": "A stone statue guarding the entrance.",
           "bookId": "004",
           "imageTargetSrc": "images-045.jpg",
+          "mindSrc": "images-045.mind",
           "relatedTargets": [
             "target-003"
           ],
@@ -181,6 +187,7 @@
           "description": "A pile of gold and relics hidden in the shadows.",
           "bookId": "006",
           "imageTargetSrc": "images-003.jpg",
+          "mindSrc": "images-003.mind",
           "relatedTargets": [
             "target-005"
           ],
@@ -206,6 +213,7 @@
           "description": "A demonstration of video content in AR",
           "bookId": "007",
           "imageTargetSrc": "images-007.jpg",
+          "mindSrc": "images-007.mind",
           "relatedTargets": [
             "target-001",
             "target-102"
@@ -234,7 +242,7 @@
       "title": "The Dragon's Lair",
       "firstPage": 10,
       "lastPage": 15,
-      "imageTargetSrc": "/targets/single-image.mind",
+      "mindSrc": "chapter3.mind",
       "targets": [
         {
           "id": "target-008",
@@ -242,6 +250,7 @@
           "description": "A demonstration of a video with an image billboard",
           "bookId": "008",
           "imageTargetSrc": "images-060.jpg",
+          "mindSrc": "images-060.mind",
           "relatedTargets": [
             "target-009"
           ],
@@ -267,6 +276,7 @@
           "description": "A demonstration of a video with alpha channel",
           "bookId": "009",
           "imageTargetSrc": "images-004.jpg",
+          "mindSrc": "images-004.mind",
           "relatedTargets": [
             "target-008"
           ],

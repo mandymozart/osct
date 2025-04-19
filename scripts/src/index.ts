@@ -45,33 +45,7 @@ type StepWithMetadata = StepContent & MetadataFields;
 type AssetWithMetadata = AssetContent & MetadataFields;
 type ContentWithMetadata = BaseContent & MetadataFields;
 
-/**
- * Parse a YAML file with schema validation
- */
-// function parseYamlFile<T extends BaseContent>(filePath: string): T | null {
-//   try {
-//     const fileContent = fs.readFileSync(filePath, 'utf8');
-//     const parsedContent = yaml.load(fileContent) as T;
-    
-//     if (!parsedContent || !parsedContent.type) {
-//       console.error(`Error: Missing "type" field in ${filePath}`);
-//       return null;
-//     }
-    
-//     // Validate content against schema
-//     try {
-//       const validatedContent = validateContent(parsedContent, parsedContent.type) as T;
-//       return validatedContent;
-//     } catch (validationError) {
-//       console.error(`Validation error in ${filePath}:`, validationError);
-//       // Return the original content if validation fails
-//       return parsedContent;
-//     }
-//   } catch (error) {
-//     console.error(`Error parsing YAML file ${filePath}:`, error);
-//     return null;
-//   }
-// }
+// TODO: Add schema validation
 
 /**
  * Convert a string or array value to an array
@@ -220,6 +194,7 @@ function readContentFiles(): ContentWithMetadata[] {
               }
             }
             
+            // TODO: this can be handled by schema validation and type conversion
             // If the target has a comma-separated assets field, convert it to an array
             if (typeof targetData.assets === 'string') {
               targetData.assetIds = ensureArray(targetData.assets);

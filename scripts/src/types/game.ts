@@ -102,6 +102,7 @@ export interface ChapterData {
   title: string;
   description: string;
   order: number;
+  mindSrc: string;
   targets: string[];
 }
 
@@ -115,6 +116,8 @@ export interface TutorialStepData {
 export interface TargetData {
   id: string;
   mindarTargetIndex: number;
+  imageTargetSrc: string;
+  mindSrc: string;
   bookId: string;
   title: string;
   description: string;
