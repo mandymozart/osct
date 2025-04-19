@@ -116,6 +116,8 @@ export interface TargetData {
   title: string;
   description: string;
   entity: EntityData;
+  imageTargetSrc: string;
+  mindSrc: string;
   tags: readonly string[];
   relatedTargets: readonly string[];
 }

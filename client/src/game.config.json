@@ -1,7 +1,7 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2025-04-19T21:16:04.433Z"
+    "timestamp": "2025-04-19T22:27:46.562Z"
   },
   "initialChapterId": "chapter1",
   "chapters": [
@@ -18,8 +18,8 @@
           "title": "Shadows",
           "description": "Light plays a role in architecture.",
           "bookId": "000",
-          "imageTargetSrc": "/assets/content/images-000.jpg",
-          "mindSrc": "/assets/content/images-000.mind",
+          "imageTargetSrc": "/assets/content/targets/target-000/images-000.jpg",
+          "mindSrc": "/assets/content/targets/target-000/images-000.mind",
           "relatedTargets": [
             "target-001",
             "target-102",
@@ -46,8 +46,8 @@
           "title": "Racoon",
           "description": "A beast, a friend, a dimension jumper.",
           "bookId": "001",
-          "imageTargetSrc": "/assets/content/images-028.jpg",
-          "mindSrc": "/assets/content/images-028.mind",
+          "imageTargetSrc": "/assets/content/targets/target-001/images-028.jpg",
+          "mindSrc": "/assets/content/targets/target-001/images-028.mind",
           "relatedTargets": [
             "target-002"
           ],
@@ -61,7 +61,7 @@
               {
                 "id": "racoon",
                 "type": "asset",
-                "src": "/assets/content/racoon.glb"
+                "src": "/assets/content/targets/target-001/racoon.glb"
               }
             ]
           },
@@ -72,8 +72,8 @@
           "title": "Ancient Tree",
           "description": "A mystical tree stands tall.",
           "bookId": "102",
-          "imageTargetSrc": "/assets/content/images-102.jpg",
-          "mindSrc": "/assets/content/images-102.mind",
+          "imageTargetSrc": "/assets/content/targets/target-002/images-102.jpg",
+          "mindSrc": "/assets/content/targets/target-002/images-102.mind",
           "relatedTargets": [
             "target-001"
           ],
@@ -87,7 +87,7 @@
               {
                 "id": "tree",
                 "type": "asset",
-                "src": "/assets/content/tree.glb"
+                "src": "/assets/content/targets/target-002/tree.glb"
               }
             ]
           },
@@ -98,8 +98,8 @@
           "title": "Sleeping Dragon",
           "description": "A mighty dragon resting in its lair.",
           "bookId": "005",
-          "imageTargetSrc": "/assets/content/images-001.jpg",
-          "mindSrc": "/assets/content/images-001.mind",
+          "imageTargetSrc": "/assets/content/targets/target-005/images-001.jpg",
+          "mindSrc": "/assets/content/targets/target-005/images-001.mind",
           "relatedTargets": [
             "target-006"
           ],
@@ -113,7 +113,7 @@
               {
                 "id": "dragon",
                 "type": "asset",
-                "src": "/assets/content/dragon.glb"
+                "src": "/assets/content/targets/target-005/dragon.glb"
               }
             ]
           },
@@ -134,8 +134,8 @@
           "title": "Old Castle",
           "description": "An ancient castle filled with secrets.",
           "bookId": "003",
-          "imageTargetSrc": "/assets/content/images-022.jpg",
-          "mindSrc": "/assets/content/images-022.mind",
+          "imageTargetSrc": "/assets/content/targets/target-003/images-022.jpg",
+          "mindSrc": "/assets/content/targets/target-003/images-022.mind",
           "relatedTargets": [
             "target-004"
           ],
@@ -149,7 +149,7 @@
               {
                 "id": "castle",
                 "type": "asset",
-                "src": "/assets/content/castle.glb"
+                "src": "/assets/content/targets/target-003/castle.glb"
               }
             ]
           },
@@ -160,8 +160,8 @@
           "title": "Stone Guardian",
           "description": "A stone statue guarding the entrance.",
           "bookId": "004",
-          "imageTargetSrc": "/assets/content/images-045.jpg",
-          "mindSrc": "/assets/content/images-045.mind",
+          "imageTargetSrc": "/assets/content/targets/target-004/images-045.jpg",
+          "mindSrc": "/assets/content/targets/target-004/images-045.mind",
           "relatedTargets": [
             "target-003"
           ],
@@ -175,7 +175,7 @@
               {
                 "id": "cardboard-boxes",
                 "type": "asset",
-                "src": "/assets/content/cardboard-boxes.glb"
+                "src": "/assets/content/targets/target-004/cardboard-boxes.glb"
               }
             ]
           },
@@ -186,8 +186,8 @@
           "title": "Treasure Hoard",
           "description": "A pile of gold and relics hidden in the shadows.",
           "bookId": "006",
-          "imageTargetSrc": "/assets/content/images-003.jpg",
-          "mindSrc": "/assets/content/images-003.mind",
+          "imageTargetSrc": "/assets/content/targets/target-006/images-003.jpg",
+          "mindSrc": "/assets/content/targets/target-006/images-003.mind",
           "relatedTargets": [
             "target-005"
           ],
@@ -201,7 +201,7 @@
               {
                 "id": "treasure",
                 "type": "asset",
-                "src": "/assets/content/treasure.glb"
+                "src": "/assets/content/targets/target-006/treasure.glb"
               }
             ]
           },
@@ -212,8 +212,8 @@
           "title": "Video Example",
           "description": "A demonstration of video content in AR",
           "bookId": "007",
-          "imageTargetSrc": "/assets/content/images-007.jpg",
-          "mindSrc": "/assets/content/images-007.mind",
+          "imageTargetSrc": "/assets/content/targets/target-007/images-007.jpg",
+          "mindSrc": "/assets/content/targets/target-007/images-007.mind",
           "relatedTargets": [
             "target-001",
             "target-102"
@@ -249,8 +249,8 @@
           "title": "Edge",
           "description": "A demonstration of a video with an image billboard",
           "bookId": "008",
-          "imageTargetSrc": "/assets/content/images-060.jpg",
-          "mindSrc": "/assets/content/images-060.mind",
+          "imageTargetSrc": "/assets/content/targets/target-008/images-060.jpg",
+          "mindSrc": "/assets/content/targets/target-008/images-060.mind",
           "relatedTargets": [
             "target-009"
           ],
@@ -264,7 +264,7 @@
               {
                 "id": "edge",
                 "type": "asset",
-                "src": "/assets/content/edge.mp4"
+                "src": "/assets/content/targets/target-008/edge.mp4"
               }
             ]
           },
@@ -275,8 +275,8 @@
           "title": "Sploosh the sheep",
           "description": "A demonstration of a video with alpha channel",
           "bookId": "009",
-          "imageTargetSrc": "/assets/content/images-004.jpg",
-          "mindSrc": "/assets/content/images-004.mind",
+          "imageTargetSrc": "/assets/content/targets/target-009/images-004.jpg",
+          "mindSrc": "/assets/content/targets/target-009/images-004.mind",
           "relatedTargets": [
             "target-008"
           ],
@@ -289,7 +289,7 @@
               {
                 "id": "sploosh",
                 "type": "asset",
-                "src": "/assets/content/sploosh.mp4"
+                "src": "/assets/content/targets/target-009/sploosh.mp4"
               }
             ]
           },

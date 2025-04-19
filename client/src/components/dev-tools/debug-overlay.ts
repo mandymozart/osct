@@ -227,7 +227,7 @@ export class DebugOverlay extends HTMLElement {
     let html = `
       <div class="target">
         <div>Target #${index}: ${this.getStatusLabel(target)}</div>
-        <div><img src="assets/images/images-${target.bookId}.jpg" alt="${target.title}" /></div>
+        <div><img src="${target.imageTargetSrc}" alt="${target.title}" /></div>
     `;
 
     if (target.entity) {

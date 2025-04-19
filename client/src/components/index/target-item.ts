@@ -173,7 +173,8 @@ export class TargetItem extends HTMLElement implements ITargetItem {
 
   private getTargetImageUrl(): string {
     if (!this._target) return "";
-    return `assets/images/images-${this._target.bookId}.jpg`;
+    return this._target.imageTargetSrc;
+    // return `assets/images/images-${this._target.bookId}.jpg`;
   }
 
   private handleClick(event: Event) {

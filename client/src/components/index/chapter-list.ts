@@ -182,7 +182,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
     const config = gameConfig;
     if (config && config.chapters) {
       return config.chapters.find(
-        (chapter: ChapterData) => chapter.id === chapterId,
+        (chapter: ChapterData) => chapter.id === chapterId
       );
     }
     return null;
