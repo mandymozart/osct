@@ -351,12 +351,8 @@ function transformTargetData(target: TargetWithMetadata): TargetData {
   delete result.targetType;
   delete result.order; // Remove order since we've converted it to mindarTargetIndex
   
-  // Remove all properties with underscore prefix (private metadata)
-  for (const key of Object.keys(result)) {
-    if (key.startsWith('_')) {
-      delete result[key];
-    }
-  }
+  // IMPORTANT: DO NOT remove metadata properties yet - they are needed for the prepareTargetImages function
+  // These properties will be removed after the images are processed
   
   return result as TargetData;
 }
@@ -434,39 +430,111 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
       // Filter targets to only include those with imageTargetSrc specified
       const targetsWithImages = (chapter as any).targets.filter((target: any) => target.imageTargetSrc);
       
+      console.log(`DEBUG: Chapter ${chapter.id} has ${targetsWithImages.length} targets with imageTargetSrc`);
+      
       // First pass: Check which targets have valid image files
       const validTargets: any[] = [];
       
       for (const target of targetsWithImages) {
-        // Determine the correct source path for the image
-        let sourcePath: string;
+        console.log(`\nDEBUG: Processing target ${target.id} with imageTargetSrc: ${target.imageTargetSrc}`);
+        // Print all available metadata to help debug
+        console.log(`DEBUG: Target metadata:
+- _filePath: ${target._filePath || 'undefined'}
+- _folderPath: ${target._folderPath || 'undefined'}
+- _folderName: ${target._folderName || 'undefined'}
+- _originalId: ${target._originalId || 'undefined'}`);
         
-        if (target._folderPath) {
-          // Use the folder where the target.yaml was found (preferred method)
-          sourcePath = path.join(target._folderPath, target.imageTargetSrc);
-        } else if (target._folderName) {
-          // Use the folder name if available
-          const targetDir = path.join(CONTENT_DIR, 'targets', target._folderName);
-          sourcePath = path.join(targetDir, target.imageTargetSrc);
-        } else {
-          // Fallback to using the target ID (least reliable)
-          const originalId = target._originalId || target.id;
-          // If the ID has been modified due to duplication, extract the original folder name
-          const folderName = target.id.includes('-target-') 
-            ? target.id.split('-target-')[1] 
-            : originalId;
-          const targetDir = path.join(CONTENT_DIR, 'targets', folderName);
-          sourcePath = path.join(targetDir, target.imageTargetSrc);
+        // Determine the correct source path for the image
+        let sourcePath: string | null = null;
+        
+        // PRIMARY METHOD: Look for the image file in the same directory as the target.yaml file
+        if (target._filePath) {
+          const targetDir = path.dirname(target._filePath);
+          const potentialPath = path.join(targetDir, target.imageTargetSrc);
+          console.log(`DEBUG: Trying path relative to target.yaml: ${potentialPath}`);
+          if (fs.existsSync(potentialPath)) {
+            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
+            sourcePath = potentialPath;
+          } else {
+            console.log(`DEBUG: File does not exist at ${potentialPath}`);
+          }
         }
         
-        if (fs.existsSync(sourcePath)) {
+        // FALLBACK 1: If target has _folderPath defined, use that
+        if (!sourcePath && target._folderPath) {
+          const potentialPath = path.join(target._folderPath, target.imageTargetSrc);
+          console.log(`DEBUG: Trying path relative to folderPath: ${potentialPath}`);
+          if (fs.existsSync(potentialPath)) {
+            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
+            sourcePath = potentialPath;
+          } else {
+            console.log(`DEBUG: File does not exist at ${potentialPath}`);
+          }
+        }
+        
+        // FALLBACK 2: Use folder name if available
+        if (!sourcePath && target._folderName) {
+          const targetDir = path.join(CONTENT_DIR, 'targets', target._folderName);
+          const potentialPath = path.join(targetDir, target.imageTargetSrc);
+          console.log(`DEBUG: Trying path using folderName: ${potentialPath}`);
+          if (fs.existsSync(potentialPath)) {
+            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
+            sourcePath = potentialPath;
+          } else {
+            console.log(`DEBUG: File does not exist at ${potentialPath}`);
+          }
+        }
+        
+        // FALLBACK 3: Try using the target ID (least reliable)
+        if (!sourcePath) {
+          const originalId = target._originalId || target.id;
+          // If the ID has been modified due to duplication, extract the original folder name
+          const folderName = target.id.includes('-') 
+            ? target.id.split('-').pop() 
+            : originalId;
+          const targetDir = path.join(CONTENT_DIR, 'targets', folderName);
+          const potentialPath = path.join(targetDir, target.imageTargetSrc);
+          console.log(`DEBUG: Trying path using target ID: ${potentialPath}`);
+          if (fs.existsSync(potentialPath)) {
+            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
+            sourcePath = potentialPath;
+          } else {
+            console.log(`DEBUG: File does not exist at ${potentialPath}`);
+          }
+        }
+        
+        // FALLBACK 4: Check directly in targets directory (might be a legacy format)
+        if (!sourcePath) {
+          const potentialPath = path.join(CONTENT_DIR, 'targets', target.imageTargetSrc);
+          console.log(`DEBUG: Trying direct path in targets directory: ${potentialPath}`);
+          if (fs.existsSync(potentialPath)) {
+            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
+            sourcePath = potentialPath;
+          } else {
+            console.log(`DEBUG: File does not exist at ${potentialPath}`);
+          }
+        }
+        
+        // FALLBACK 5: Try the content root directly
+        if (!sourcePath) {
+          const potentialPath = path.join(CONTENT_DIR, target.imageTargetSrc);
+          console.log(`DEBUG: Trying path in content root: ${potentialPath}`);
+          if (fs.existsSync(potentialPath)) {
+            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
+            sourcePath = potentialPath;
+          } else {
+            console.log(`DEBUG: File does not exist at ${potentialPath}`);
+          }
+        }
+        
+        if (sourcePath) {
           // This target has a valid image file
           validTargets.push({
             ...target,
             _sourcePath: sourcePath // Store the full source path for later use
           });
         } else {
-          console.warn(`Target ${target.id} excluded: Image file not found at ${sourcePath}`);
+          console.warn(`Target ${target.id} excluded: Image file not found. Tried all possible locations.`);
         }
       }
       
