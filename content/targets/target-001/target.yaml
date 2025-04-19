@@ -1,12 +1,12 @@
 id: target-001
-chapterId: chapter1
-mindarTargetIndex: 0
+type: target
+title: Racoon
+description: A beast, a friend, a dimension jumper.
+relatedChapter: chapter1
+order: 1
 bookId: "001"
-title: Bear
-description: A curious bear appears in the woods.
-type: model
-assetId: raccoon
-assetType: gltf
-assetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf
+targetType: model
+imageTargetSrc: images-028.jpg
+assets: racoon
 relatedTargets: target-002
 tags: forest,animal

@@ -1,12 +1,12 @@
 id: target-004
-chapterId: chapter2
-mindarTargetIndex: 1
-bookId: "004"
+type: target
 title: Stone Guardian
 description: A stone statue guarding the entrance.
-type: model
-assetId: guardian
-assetType: gltf
-assetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf
+relatedChapter: chapter2
+order: 1
+bookId: "004"
+targetType: model
+imageTargetSrc: images-045.jpg
+assets: cardboard-boxes
 relatedTargets: target-003
 tags: medieval,statue

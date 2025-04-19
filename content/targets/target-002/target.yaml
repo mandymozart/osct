@@ -1,12 +1,12 @@
-id: target-002
-chapterId: chapter1
-mindarTargetIndex: 1
-bookId: "002"
+id: target-102
+type: target
 title: Ancient Tree
 description: A mystical tree stands tall.
-type: model
-assetId: tree
-assetType: gltf
-assetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf
+relatedChapter: chapter1
+order: 2
+bookId: "102"
+targetType: model
+imageTargetSrc: images-102.jpg
+assets: tree
 relatedTargets: target-001
 tags: forest,nature

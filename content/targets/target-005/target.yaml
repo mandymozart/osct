@@ -1,12 +1,12 @@
 id: target-005
-chapterId: chapter3
-mindarTargetIndex: 0
-bookId: "005"
+type: target
 title: Sleeping Dragon
 description: A mighty dragon resting in its lair.
-type: model
-assetId: dragon
-assetType: gltf
-assetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf
+relatedChapter: chapter1
+order: 3
+bookId: "005"
+targetType: model
+imageTargetSrc: images-001.jpg
+assets: dragon
 relatedTargets: target-006
 tags: fantasy,creature

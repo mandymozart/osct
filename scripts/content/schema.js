@@ -6,9 +6,7 @@
 export const schemas = {
   // Chapter schema
   chapter: {
-    // Field used for ordering chapters
     orderBy: "order",
-    // Field definitions with types and defaults
     fields: {
       type: { type: "String", required: true, default: "chapter" },
       id: { type: "String", required: false },
@@ -17,22 +15,21 @@ export const schemas = {
       firstPage: { type: "Number", required: false, default: 1 },
       lastPage: { type: "Number", required: false, default: 1 },
       imageTargetSrc: { type: "String", required: false, default: "" },
-      targets: { type: "List", required: false, default: [] },
+      targets: { type: "List", required: false, default: [], rel: "target" },
     },
   },
 
   // Target schema
   target: {
-    // No default ordering for targets (they're ordered within chapters)
-    orderBy: null,
-    // Field definitions with types and defaults
+    orderBy: "mindarTargetIndex",
     fields: {
       type: { type: "String", required: true, default: "target" },
       id: { type: "String", required: true },
       title: { type: "String", required: true },
       description: { type: "String", required: false, default: "" },
-      relatedChapter: { type: "String", required: true },
+      relatedChapter: { type: "String", required: true, rel: "chapter" },
       mindarTargetIndex: { type: "Number", required: false, default: 0 },
+      imageTargetSrc: { type: "String", required: true, default: "" },
       bookId: { type: "String", required: false },
       targetType: {
         type: "String",
@@ -40,20 +37,31 @@ export const schemas = {
         default: "basic",
         enum: ["basic", "model", "video", "link"],
       },
-      url: { type: "String", required: false },
-      assetId: { type: "String", required: false },
-      assetType: { type: "String", required: false, default: "gltf" },
-      assetSrc: { type: "String", required: false },
+      assets: { type: "List", required: false, default: [], rel: "asset" },
       relatedTargets: { type: "List", required: false },
       tags: { type: "List", required: false, default: [] },
     },
   },
 
+  // Asset schema
+  asset: {
+    orderBy: null,
+    fields: {
+      type: { type: "String", required: true, default: "asset" },
+      id: { type: "String", required: true },
+      src: { type: "String", required: false },
+      assetType: { 
+        type: "String", 
+        required: false, 
+        default: "string", 
+        options: ["image", "gltf", "glb", "video", "audio", "link"], 
+      },
+    },
+  },
+
   // Step schema
   step: {
-    // Field used for ordering tutorial steps
     orderBy: "index",
-    // Field definitions with types and defaults
     fields: {
       type: { type: "String", required: true, default: "step" },
       index: { type: "Number", required: true },

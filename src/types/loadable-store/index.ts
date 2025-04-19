@@ -3,7 +3,7 @@ import { ErrorInfo, LoadingState } from "@/types";
 /**
  * Asset type definition for consistent type usage across the system
  */
-export type AssetType = 'image' | 'gltf' | 'glb' | 'audio' | 'video' | string;
+export type AssetType = 'image' | 'gltf' | 'glb' | 'audio' | 'video' | 'link' | string;
 
 /**
  * Common interface for resources that can be loaded

@@ -4,6 +4,8 @@
  * @param {String} type - The content type to validate against
  * @returns {Object} - Validated and normalized content object
  */
+import { schemas } from '../schema.js';
+
 export function validateContent(content, type) {
   if (!schemas[type]) {
     throw new Error(`Unknown content type: ${type}`);
