@@ -68,13 +68,29 @@ export class TextButton extends HTMLButtonElement {
           color: var(--color-primary, #000);
           cursor: pointer;
           transition: border-color 0.25s, background-color 0.25s, color 0.25s;
+          -webkit-transition: border-color 0.25s, background-color 0.25s, color 0.25s;
           outline: none;
+          /* iOS Safari compatibility fixes */
+          -webkit-appearance: none;
+          appearance: none;
+          box-sizing: border-box;
+          /* Flex display for all browsers */
+          display: -webkit-box;
+          display: -webkit-flex;
           display: flex;
-          gap: 1rem;
+          -webkit-box-align: center;
+          -webkit-align-items: center;
           align-items: center;
+          -webkit-box-pack: center;
+          -webkit-justify-content: center;
           justify-content: center;
+          /* Hardware acceleration for smoother transitions */
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+          /* Fix for Safari flex gaps */
+          margin: 0;
         }
-  
+
         :host button[is="text-button"]:hover,
         button[is="text-button"]:hover {
           border-color: var(--color-secondary, #646cff);

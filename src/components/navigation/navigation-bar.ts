@@ -38,17 +38,29 @@ export class NavigationBar extends HTMLElement {
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host {
+            display: -webkit-box;
+            display: -webkit-flex;
             display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: center;
+            -webkit-justify-content: center;
+            justify-content: center;
             position: fixed;
             bottom: 1rem;
             left: 1rem;
             right: 1rem;
             gap: 1rem;
             z-index: 1;
+            /* Force hardware acceleration */
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            pointer-events: none;
         }
         
-        qr-button, scene-button, index-button, chapters-button {
-            flex: 1;
+        qr-button, index-button {
+            pointer-events: all;
         }
       </style>
       

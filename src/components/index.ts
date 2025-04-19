@@ -1,5 +1,6 @@
 export * from "./buttons";
 export * from "./common";
+export * from "./camera-permission/camera-permission";
 export * from "./dev-tools";
 export * from "./icons";
 export * from "./pages-router";

@@ -30,6 +30,7 @@
   --color-primary: var(--primary-900);
   --color-secondary: var(--secondary-600);
   --color-background: var(--primary-100);
+  --color-border: var(--primary-300);
 
   --offset-top: 4rem;
 
@@ -41,9 +42,26 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* iOS Safari specific fixes without @supports */
+html, body {
+  height: 100vh;
+  height: -webkit-fill-available; /* Fix for 100vh issue in iOS Safari */
+}
+
+/* Force hardware acceleration for active elements */
+.active, [active], a-scene.active {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
 body {
   margin: 0;
+  display: -webkit-box;
+  display: -webkit-flex;
   display: flex;
+  -webkit-box-align: center;
+  -webkit-align-items: center;
+  align-items: center;
   place-items: center;
   margin: 0;
   width: 100vw;
@@ -68,6 +86,7 @@ img {
 
 a-scene {
   pointer-events: none;
+  -webkit-transition: opacity .2s linear;
   transition: opacity .2s linear;
   opacity: 0;
 }
@@ -76,6 +95,7 @@ a-scene.active {
   pointer-events: all;
   opacity: 1;
 }
+
 #initial-loader {
   position: fixed;
   top: 0;
