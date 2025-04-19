@@ -92,17 +92,59 @@ export class CameraManager implements ICameraManager {
     try {
       this.setPermissionStatus(CameraPermissionStatus.PROMPT);
       
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // Get device dimensions for adaptive constraints
+      const screenWidth = window.screen.width;
+      const screenHeight = window.screen.height;
       
-      // Clean up the stream we just requested
-      stream.getTracks().forEach(track => track.stop());
+      // Calculate reasonable camera resolution based on device
+      // Using 75% of the screen dimensions as a reasonable target
+      const targetWidth = Math.round(screenWidth * 0.75);
+      const targetHeight = Math.round(screenHeight * 0.75);
       
-      this.setPermissionStatus(CameraPermissionStatus.GRANTED);
-      return true;
+      // Outer try/catch for progressive fallback
+      try {
+        // First try with adaptive constraints based on device dimensions
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: targetWidth },
+            height: { ideal: targetHeight }
+          } 
+        });
+        
+        // Clean up the stream we just requested
+        stream.getTracks().forEach(track => track.stop());
+        
+        this.setPermissionStatus(CameraPermissionStatus.GRANTED);
+        return true;
+      } catch (constraintError) {
+        // Only catch OverconstrainedError here - this happens often on iOS Safari
+        if (constraintError instanceof OverconstrainedError || 
+            (constraintError as any)?.name === 'OverconstrainedError') {
+          console.warn('[Camera Manager] Detailed constraints failed, trying with simpler constraints');
+          
+          // Try with minimal constraints for iOS compatibility
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+          });
+          
+          fallbackStream.getTracks().forEach(track => track.stop());
+          this.setPermissionStatus(CameraPermissionStatus.GRANTED);
+          return true;
+        }
+        
+        // If it's not an OverconstrainedError, try the original simple approach
+        // This maintains compatibility with browsers that worked before
+        console.warn('[Camera Manager] Trying with original simple constraints');
+        const legacyStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        legacyStream.getTracks().forEach(track => track.stop());
+        this.setPermissionStatus(CameraPermissionStatus.GRANTED);
+        return true;
+      }
     } catch (error) {
       console.warn('[Camera Manager] Requesting access failed', error);
       
-      // First set the permission status to DENIED - this will trigger the overlay
+      // Set the permission status to DENIED - this will trigger the overlay
       this.setPermissionStatus(CameraPermissionStatus.DENIED);
     
       return false;
