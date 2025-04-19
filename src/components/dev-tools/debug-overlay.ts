@@ -14,9 +14,7 @@ export class DebugOverlay extends HTMLElement {
     this.shadow = this.attachShadow({ mode: "open" });
 
     // Hide in production
-    // TODO: temporary solution, should be handled by a build step
-    // or a more robust feature flag system
-    if (!import.meta.env.DEV) {
+    if (!import.meta.env.DEV && !import.meta.env.DEBUG) {
       this.style.display = "none";
     }
   }
@@ -248,7 +246,7 @@ export class DebugOverlay extends HTMLElement {
               ${this.getStatusLabel(asset)}
               ${
                 asset.error
-                  ? `<div class="error">Error: ${asset.error.msg}</div>`
+                  ? `<div class="error">${asset.error.msg}</div>`
                   : ""
               }
               <div class="asset-meta">ID: ${asset.id || "unnamed"}</div>
@@ -278,7 +276,7 @@ export class DebugOverlay extends HTMLElement {
         case LoadingState.LOADED:
           return '<span class="loaded">Loaded</span>';
         case LoadingState.ERROR:
-          return `<span class="error">Error: ${
+          return `<span class="error">${
             resource.error?.code || "unknown"
           }</span>`;
         default:
@@ -290,7 +288,7 @@ export class DebugOverlay extends HTMLElement {
     if (resource.isLoading) {
       return '<span class="loading">Loading...</span>';
     } else if (resource.error) {
-      return `<span class="error">Error: ${
+      return `<span class="error">${
         resource.error.code || "unknown"
       }</span>`;
     } else if (resource.loaded) {

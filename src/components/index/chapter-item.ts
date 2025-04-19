@@ -1,5 +1,4 @@
 import { ChapterData, ChapterResource, IGame, LoadingState } from "@/types";
-import { chapters } from "@/game.config.json";
 import { GameStoreService } from "@/services/GameStoreService";
 
 export interface IChapterItem extends HTMLElement {

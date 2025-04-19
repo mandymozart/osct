@@ -64,7 +64,7 @@ export class QRManager implements IQRManager {
         } else {
           // Notify error for invalid chapter code
           this.notifyError({
-            code: ErrorCode.INVALID_QR_URL,
+            code: ErrorCode.INVALID_QR_CODE,
             msg: "The QR code does not contain a valid chapter code",
             type: "warning",
             details: { scannedData: data }
@@ -82,7 +82,7 @@ export class QRManager implements IQRManager {
     } catch (error) {
       // Notify error for any scanning issues
       this.notifyError({
-        code: ErrorCode.INVALID_QR_URL,
+        code: ErrorCode.FAILED_TO_SCAN_QR,
         msg: "Failed to process QR code data",
         type: "warning",
         details: error

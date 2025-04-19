@@ -1,124 +1,289 @@
 {
   "version": {
     "version": "1.0.0",
-    "timestamp": "2025-04-10T00:00:00Z"
+    "timestamp": "2025-04-19T16:57:39.169Z"
   },
   "initialChapterId": "chapter1",
   "chapters": [
     {
+      "type": "chapter",
       "id": "chapter1",
       "order": 0,
+      "title": "The Beginning",
       "firstPage": 1,
       "lastPage": 3,
-      "title": "The Beginning",
       "imageTargetSrc": "/targets/single-image.mind",
       "targets": [
         {
-          "mindarTargetIndex": 0,
-          "bookId": "001",
-          "title": "Bear",
-          "description": "A curious bear appears in the woods.",
-          "entity": {
-            "assets": [
-              {
-                "id": "raccoon",
-                "type": "gltf",
-                "src": "https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
-              }
-            ]
-          }
-        },
-        {
-          "mindarTargetIndex": 1,
-          "bookId": "002",
+          "id": "target-102",
           "title": "Ancient Tree",
           "description": "A mystical tree stands tall.",
+          "mindarTargetIndex": 1,
+          "bookId": "102",
+          "imageTargetSrc": "images-102.jpg",
+          "relatedTargets": [
+            "target-001"
+          ],
+          "tags": [
+            "forest",
+            "nature"
+          ],
           "entity": {
+            "type": "model",
             "assets": [
               {
                 "id": "tree",
-                "type": "gltf",
-                "src": "https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "chapter2",
-      "order": 1,
-      "firstPage": 4,
-      "lastPage": 9,
-      "title": "The Castle Gates",
-      "imageTargetSrc": "/targets/single-image.mind",
-      "targets": [
-        {
-          "mindarTargetIndex": 0,
-          "bookId": "003",
-          "title": "Old Castle",
-          "description": "An ancient castle filled with secrets.",
-          "entity": {
-            "assets": [
-              {
-                "id": "castle",
-                "type": "gltf",
-                "src": "https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
+                "type": "glb",
+                "src": "/tree.glb"
               }
             ]
           }
         },
         {
-          "mindarTargetIndex": 1,
-          "bookId": "004",
-          "title": "Stone Guardian",
-          "description": "A stone statue guarding the entrance.",
+          "id": "target-001",
+          "title": "Racoon",
+          "description": "A beast, a friend, a dimension jumper.",
+          "mindarTargetIndex": 0,
+          "bookId": "001",
+          "imageTargetSrc": "images-028.jpg",
+          "relatedTargets": [
+            "target-002"
+          ],
+          "tags": [
+            "forest",
+            "animal"
+          ],
           "entity": {
+            "type": "model",
             "assets": [
               {
-                "id": "guardian",
-                "type": "gltf",
-                "src": "https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
+                "id": "racoon",
+                "type": "glb",
+                "src": "/racoon.glb"
               }
             ]
           }
-        }
-      ]
-    },
-    {
-      "id": "chapter3",
-      "order": 2,
-      "firstPage": 10,
-      "lastPage": 15,
-      "title": "The Dragon's Lair",
-      "imageTargetSrc": "/targets/single-image.mind",
-      "targets": [
+        },
         {
+          "id": "target-000",
+          "title": "Shadows",
+          "description": "Light plays a role in architecture.",
           "mindarTargetIndex": 0,
-          "bookId": "005",
+          "bookId": "000",
+          "imageTargetSrc": "images-000.jpg",
+          "relatedTargets": [
+            "target-001",
+            "target-102",
+            "target-003"
+          ],
+          "tags": [
+            "architecture",
+            "lighting"
+          ],
+          "entity": {
+            "type": "link",
+            "assets": [
+              {
+                "id": "shadows-link",
+                "type": "link",
+                "src": "https://experiment-woodkid-volcano-robot.vercel.app/"
+              }
+            ]
+          }
+        },
+        {
+          "id": "target-005",
           "title": "Sleeping Dragon",
           "description": "A mighty dragon resting in its lair.",
+          "mindarTargetIndex": 0,
+          "bookId": "005",
+          "imageTargetSrc": "images-001.jpg",
+          "relatedTargets": [
+            "target-006"
+          ],
+          "tags": [
+            "fantasy",
+            "creature"
+          ],
           "entity": {
+            "type": "model",
             "assets": [
               {
                 "id": "dragon",
-                "type": "gltf",
-                "src": "https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
+                "type": "glb",
+                "src": "/dragon.glb"
               }
             ]
           }
         },
         {
-          "mindarTargetIndex": 1,
-          "bookId": "006",
+          "id": "target-006",
           "title": "Treasure Hoard",
           "description": "A pile of gold and relics hidden in the shadows.",
+          "mindarTargetIndex": 1,
+          "bookId": "006",
+          "imageTargetSrc": "images-003.jpg",
+          "relatedTargets": [
+            "target-005"
+          ],
+          "tags": [
+            "fantasy",
+            "treasure"
+          ],
           "entity": {
+            "type": "model",
             "assets": [
               {
                 "id": "treasure",
-                "type": "gltf",
-                "src": "https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
+                "type": "glb",
+                "src": "/treasure.glb"
+              }
+            ]
+          }
+        },
+        {
+          "id": "target-007",
+          "title": "Video Example",
+          "description": "A demonstration of video content in AR",
+          "mindarTargetIndex": 0,
+          "bookId": "007",
+          "imageTargetSrc": "images-007.jpg",
+          "relatedTargets": [
+            "target-001",
+            "target-102"
+          ],
+          "tags": [
+            "demo",
+            "video"
+          ],
+          "entity": {
+            "type": "video",
+            "assets": [
+              {
+                "id": "bunny-video",
+                "type": "video",
+                "src": "https://cdn.aframe.io/videos/bunny.mp4"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "chapter",
+      "id": "chapter2",
+      "order": 1,
+      "title": "The Castle Gates",
+      "firstPage": 4,
+      "lastPage": 9,
+      "imageTargetSrc": "/targets/single-image.mind",
+      "targets": [
+        {
+          "id": "target-003",
+          "title": "Old Castle",
+          "description": "An ancient castle filled with secrets.",
+          "mindarTargetIndex": 0,
+          "bookId": "003",
+          "imageTargetSrc": "images-022.jpg",
+          "relatedTargets": [
+            "target-004"
+          ],
+          "tags": [
+            "medieval",
+            "architecture"
+          ],
+          "entity": {
+            "type": "model",
+            "assets": [
+              {
+                "id": "castle",
+                "type": "glb",
+                "src": "/castle.glb"
+              }
+            ]
+          }
+        },
+        {
+          "id": "target-004",
+          "title": "Stone Guardian",
+          "description": "A stone statue guarding the entrance.",
+          "mindarTargetIndex": 1,
+          "bookId": "004",
+          "imageTargetSrc": "images-045.jpg",
+          "relatedTargets": [
+            "target-003"
+          ],
+          "tags": [
+            "medieval",
+            "statue"
+          ],
+          "entity": {
+            "type": "model",
+            "assets": [
+              {
+                "id": "cardboard-boxes",
+                "type": "glb",
+                "src": "/cardboard-boxes.glb"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "chapter",
+      "id": "chapter3",
+      "order": 2,
+      "title": "The Dragon's Lair",
+      "firstPage": 10,
+      "lastPage": 15,
+      "imageTargetSrc": "/targets/single-image.mind",
+      "targets": [
+        {
+          "id": "target-008",
+          "title": "Edge",
+          "description": "A demonstration of a video with an image billboard",
+          "mindarTargetIndex": 1,
+          "bookId": "008",
+          "imageTargetSrc": "images-060.jpg",
+          "relatedTargets": [
+            "target-009"
+          ],
+          "tags": [
+            "demo",
+            "video"
+          ],
+          "entity": {
+            "type": "video",
+            "assets": [
+              {
+                "id": "edge",
+                "type": "video",
+                "src": "/edge.mp4"
+              }
+            ]
+          }
+        },
+        {
+          "id": "target-009",
+          "title": "Sploosh the sheep",
+          "description": "A demonstration of a video with alpha channel",
+          "mindarTargetIndex": 1,
+          "bookId": "009",
+          "imageTargetSrc": "images-004.jpg",
+          "relatedTargets": [
+            "target-008"
+          ],
+          "tags": [
+            "alpha"
+          ],
+          "entity": {
+            "type": "video",
+            "assets": [
+              {
+                "id": "sploosh",
+                "type": "video",
+                "src": "/sploosh.mp4"
               }
             ]
           }
@@ -128,39 +293,51 @@
   ],
   "tutorial": [
     {
-      "index": 0,
+      "type": "step",
       "title": "Let's get you started with the XR app",
       "description": "This app enhances the book with interactive videos, animations, and references. Follow these steps to unlock the content.",
-      "illustration": "/assets/illustrations/tutorial-step-1.svg"
+      "illustration": "/assets/illustrations/tutorial-step-1.svg",
+      "index": 0,
+      "id": "step-1"
     },
     {
-      "index": 1,
+      "type": "step",
       "title": "Give Camera Access",
       "description": "Give camera access to the app to unlock the content.",
-      "illustration": "/assets/illustrations/tutorial-step-2.svg"
+      "illustration": "/assets/illustrations/tutorial-step-2.svg",
+      "index": 1,
+      "id": "step-2"
     },
     {
-      "index": 2,
+      "type": "step",
       "title": "Ensure Proper Lighting",
       "description": "Place the book in a well-lit area. Avoid shadows or glare for accurate scanning and detection of target images.",
-      "illustration": "/assets/illustrations/tutorial-step-3.svg"
+      "illustration": "/assets/illustrations/tutorial-step-3.svg",
+      "index": 2,
+      "id": "step-3"
     },
     {
-      "index": 3,
+      "type": "step",
       "title": "Scan Content",
       "description": "Point your camera at the marked images in the book. The app will scan and display available videos or animations.",
-      "illustration": "/assets/illustrations/tutorial-step-4.svg"
+      "illustration": "/assets/illustrations/tutorial-step-4.svg",
+      "index": 3,
+      "id": "step-4"
     },
     {
-      "index": 4,
+      "type": "step",
       "title": "Access Interactive Index",
-      "description": "Use the index button on the bottom to find additional references and details about Kevin's inspirations.\n\nIt works just like a regular index. Just point the camera at the marked images that interest you.",
-      "illustration": "/assets/illustrations/tutorial-step-5.svg"
+      "description": "Use the index button on the bottom to find additional references and details about Kevin's inspirations. It works just like a regular index. Just point the camera at the marked images that interest you.",
+      "illustration": "/assets/illustrations/tutorial-step-5.svg",
+      "index": 4,
+      "id": "step-5"
     },
     {
-      "index": 5,
+      "type": "step",
       "title": "Congratulations!",
-      "description": "Now you got all you need to enjoy the book.\n\nDon't forget to check back. We will add additional content every year on CROCODILES DAY June 17th!"
+      "description": "Now you got all you need to enjoy the book. Don't forget to check back. We will add additional content every year on CROCODILES DAY June 17th!",
+      "index": 5,
+      "id": "step-6"
     }
   ]
 }

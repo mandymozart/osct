@@ -1,6 +1,4 @@
 import { GameStoreService } from "../../services/GameStoreService";
-import { Pages } from "@/types/router";
-import { assert } from "@/utils/assert";
 import { tutorial } from "@/game.config.json";
 import { IGame } from "@/types/game";
 import { ITutorialNavigation } from "@/types/tutorial";

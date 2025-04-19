@@ -4,7 +4,6 @@ import { HistoryManagerState, IHistoryManager } from "../history";
 import { IQRManager } from "../qr";
 import {
   IRouterManager,
-  PageRouterConfiguration,
   RouterManagerState,
 } from "../router";
 import { ISceneManager, SceneManagerState } from "../scene";
@@ -12,11 +11,11 @@ import { ITargetManager, TargetManagerState } from "../targets";
 import { ILoadableStore, LoadableResource } from "../loadable-store";
 import { LoadingState } from "../common.js";
 import { CameraManagerState, ICameraManager } from "../camera";
+import { TutorialStepData } from "../tutorial";
 
 export interface IGame extends ILoadableStore {
   version: ConfigurationVersion; // History and Game version have to match. 
   state: GameState;
-
   scene: ISceneManager;
   chapters: IChapterManager;
   router: IRouterManager;
@@ -34,10 +33,10 @@ export interface IGame extends ILoadableStore {
 }
 
 export interface GameState
-  extends SceneManagerState,
+  extends ChapterState,
     TargetManagerState,
-    ChapterState,
     HistoryManagerState,
+    SceneManagerState,
     RouterManagerState,
     CameraManagerState {
   id: string;
@@ -49,34 +48,45 @@ export interface GameState
  * Error code constants
  */
 export enum ErrorCode {
-  // Chapter errors
-  IMAGE_TARGET_NOT_FOUND = "missing-image-target",
-  CHAPTER_NOT_FOUND = "chapter-not-found",
-  CHAPTERS_LOAD_FAILED = "chapters-load-failed",
-  CHAPTER_LOAD_FAILED = "chapter-load-failed",
-
-  // Entity errors
-  ENTITY_LOAD_FAILED = "entity-load-failed",
-  SOME_ASSETS_NOT_FOUND = "some-assets-not-found",
-
-  // Asset errors
-  ASSET_LOAD_FAILED = "asset-load-failed",
-  ASSET_NOT_FOUND = "asset-not-found",
-
   // Generic errors
   UNKNOWN_ERROR = "unknown-error",
+  INITIALIZATION_FAILED = "initialization-failed",
+  NOT_SUPPORTED = "not-supported",
+  NOT_FOUND = "not-found",
+  NOT_READY = "not-ready",
+  NAVIGATION_FAILED = "navigation-failed",
   NETWORK_ERROR = "network-error",
   TIMEOUT = "timeout",
 
+  // Chapter errors
+  CHAPTER_NOT_FOUND = "chapter-not-found",
+  ENTITY_LOAD_FAILED = "entity-load-failed",
+  CHAPTERS_LOAD_FAILED = "chapters-load-failed",
+  CHAPTER_LOAD_FAILED = "chapter-load-failed",
+  IMAGE_TARGET_NOT_FOUND = "missing-image-target",
+  
+  CHAPTER_NOT_READY = "chapter-not-ready",
+  SOME_ASSETS_NOT_FOUND = "some-assets-not-found",
+
+  // Asset errors
+  ASSET_NOT_FOUND = "asset-not-found",
+  ASSET_TYPE_INVALID = "asset-type-invalid",
+  ASSET_LOAD_FAILED = "asset-load-failed",
+  ASSET_NOT_READY = "asset-not-ready",
+
+
   // Scene errors
+  SCENE_NOT_FOUND = "scene-not-found",
+  SCENE_NOT_READY = "scene-not-ready",
+  FAILED_TO_UPDATE_SCENE = "failed-to-update-scene",
   FAILED_TO_ENTER_VR = "failed-to-enter-vr",
   FAILED_TO_EXIT_VR = "failed-to-exit-vr",
-  SCENE_NOT_FOUND = "scene-not-found",
-  FAILED_TO_UPDATE_SCENE = "failed-to-update-scene",
 
   // QR errors
+  FAILED_TO_SCAN_QR = "failed-to-scan-qr",
+  INVALID_QR_CODE = "invalid-qr-code",
   INVALID_QR_URL = "invalid-qr-url",
-  
+
   // Camera errors
   CAMERA_PERMISSION_DENIED = "camera-permission-denied",
 }
@@ -85,7 +95,7 @@ export interface GameConfiguration {
   version: string; // Semantic version like "1.0.0"
   initialChapterId: string; // ID of the initial chapter
   chapters: readonly ChapterData[];
-  router: PageRouterConfiguration;
+  tutorial: readonly TutorialStepData[];
 }
 
 export interface ConfigurationVersion {
@@ -106,6 +116,8 @@ export interface TargetData {
   title: string;
   description: string;
   entity: EntityData;
+  tags: readonly string[];
+  relatedTargets: readonly string[];
 }
 
 /**
@@ -119,8 +131,8 @@ export interface EntityData {
  * Base data structure for an asset without loading state
  */
 export interface AssetData {
-  id?: string;
-  src: string;
+  id: string;
+
 }
 
 /**
