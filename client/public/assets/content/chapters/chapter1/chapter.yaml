@@ -1,0 +1,7 @@
+type: chapter
+id: chapter1
+order: 0
+title: The Beginning
+firstPage: 1
+lastPage: 3
+mindSrc: chapter1.mind

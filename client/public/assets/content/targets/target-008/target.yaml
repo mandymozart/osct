@@ -1,0 +1,13 @@
+id: target-008
+type: target
+title: Edge
+description: A demonstration of a video with an image billboard
+relatedChapter: chapter3
+order: 0
+bookId: "008"
+targetType: video
+imageTargetSrc: images-060.jpg
+mindSrc: images-060.mind
+assets: edge
+relatedTargets: target-009
+tags: demo,video

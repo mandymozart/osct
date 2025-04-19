@@ -1,0 +1,13 @@
+id: target-003
+type: target
+title: Old Castle
+description: An ancient castle filled with secrets.
+relatedChapter: chapter2
+order: 0
+bookId: "003"
+targetType: model
+imageTargetSrc: images-022.jpg
+mindSrc: images-022.mind
+assets: castle
+relatedTargets: target-004
+tags: medieval,architecture

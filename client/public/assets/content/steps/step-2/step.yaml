@@ -1,0 +1,5 @@
+type: step
+title: Give Camera Access
+description: Give camera access to the app to unlock the content.
+illustration: /assets/illustrations/tutorial-step-2.svg
+index: 1

@@ -1,0 +1,4 @@
+type: asset
+id: bunny-video
+assetType: video
+src: https://cdn.aframe.io/videos/bunny.mp4

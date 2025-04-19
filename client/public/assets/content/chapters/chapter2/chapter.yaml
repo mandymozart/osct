@@ -1,0 +1,7 @@
+type: chapter
+id: chapter2
+order: 1
+title: The Castle Gates
+firstPage: 4
+lastPage: 9
+mindSrc: chapter2.mind

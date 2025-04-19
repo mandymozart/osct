@@ -1,0 +1,13 @@
+id: target-000
+type: target
+title: Shadows
+description: Light plays a role in architecture.
+relatedChapter: chapter1
+order: 0
+bookId: "000"
+targetType: link
+imageTargetSrc: images-000.jpg
+mindSrc: images-000.mind
+assets: shadows-link
+relatedTargets: target-001,target-102,target-003
+tags: architecture,lighting

@@ -1,5 +1,6 @@
 /**
  * Validates a content object against its schema
+ * TODO: Needs to be update but also implemented in the build script.
  */
 import { schemas } from './schema.js';
 

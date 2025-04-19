@@ -1,7 +1,7 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-import { projectRoot,CONTENT_DIR, OUTPUT_FILE, MINDAR_DIR } from './config';
+import { projectRoot, CONTENT_DIR, OUTPUT_FILE, MINDAR_DIR, CLIENT_PUBLIC_ASSETS_DIR } from './config';
 
 // Import types from main project
 import type {
@@ -18,15 +18,18 @@ import type {
   TargetData
 } from './types/game';
 
-console.log('Project root:', projectRoot);
-console.log('Content directory:', CONTENT_DIR);
-console.log('Output file:', OUTPUT_FILE);
-console.log('MindAR directory:', MINDAR_DIR);
+console.log('🚀 OSCT Content Build Tool 🚀');
+console.log('----------------------------');
+console.log('📁 Project root:', projectRoot);
+console.log('📁 Content directory:', CONTENT_DIR);
+console.log('📄 Output file:', OUTPUT_FILE);
+console.log('📁 MindAR directory:', MINDAR_DIR);
+console.log('📁 Client public assets directory:', CLIENT_PUBLIC_ASSETS_DIR);
 
 // Check if directories exist to help with debugging
-console.log('Content directory exists:', fs.existsSync(CONTENT_DIR));
-console.log('Content/chapters exists:', fs.existsSync(path.join(CONTENT_DIR, 'chapters')));
-console.log('Content/targets exists:', fs.existsSync(path.join(CONTENT_DIR, 'targets')));
+console.log('📂 Content directory exists:', fs.existsSync(CONTENT_DIR));
+console.log('📂 Content/chapters exists:', fs.existsSync(path.join(CONTENT_DIR, 'chapters')));
+console.log('📂 Content/targets exists:', fs.existsSync(path.join(CONTENT_DIR, 'targets')));
 
 // Extended interfaces to track file paths and metadata
 interface MetadataFields {
@@ -383,7 +386,7 @@ function associateTargets(chapters: ChapterWithMetadata[], targets: TargetWithMe
 function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetadata[] {
   // Clean the mind-ar directory if it exists
   if (fs.existsSync(MINDAR_DIR)) {
-    console.log(`Cleaning mind-ar directory at: ${MINDAR_DIR}`);
+    console.log(`🧹 Cleaning mind-ar directory at: ${MINDAR_DIR}`);
     deleteFolderRecursive(MINDAR_DIR);
   }
   
@@ -405,20 +408,12 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
       // Filter targets to only include those with imageTargetSrc specified
       const targetsWithImages = (chapter as any).targets.filter((target: any) => target.imageTargetSrc);
       
-      console.log(`DEBUG: Chapter ${chapter.id} has ${targetsWithImages.length} targets with imageTargetSrc`);
+      console.log(`🔍 Processing ${targetsWithImages.length} targets for chapter ${chapter.id}`);
       
       // First pass: Check which targets have valid image files
       const validTargets: any[] = [];
       
       for (const target of targetsWithImages) {
-        console.log(`\nDEBUG: Processing target ${target.id} with imageTargetSrc: ${target.imageTargetSrc}`);
-        // Print all available metadata to help debug
-        console.log(`DEBUG: Target metadata:
-- _filePath: ${target._filePath || 'undefined'}
-- _folderPath: ${target._folderPath || 'undefined'}
-- _folderName: ${target._folderName || 'undefined'}
-- _originalId: ${target._originalId || 'undefined'}`);
-        
         // Determine the correct source path for the image
         let sourcePath: string | null = null;
         
@@ -426,24 +421,16 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
         if (target._filePath) {
           const targetDir = path.dirname(target._filePath);
           const potentialPath = path.join(targetDir, target.imageTargetSrc);
-          console.log(`DEBUG: Trying path relative to target.yaml: ${potentialPath}`);
           if (fs.existsSync(potentialPath)) {
-            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
             sourcePath = potentialPath;
-          } else {
-            console.log(`DEBUG: File does not exist at ${potentialPath}`);
           }
         }
         
         // FALLBACK 1: If target has _folderPath defined, use that
         if (!sourcePath && target._folderPath) {
           const potentialPath = path.join(target._folderPath, target.imageTargetSrc);
-          console.log(`DEBUG: Trying path relative to folderPath: ${potentialPath}`);
           if (fs.existsSync(potentialPath)) {
-            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
             sourcePath = potentialPath;
-          } else {
-            console.log(`DEBUG: File does not exist at ${potentialPath}`);
           }
         }
         
@@ -451,12 +438,8 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
         if (!sourcePath && target._folderName) {
           const targetDir = path.join(CONTENT_DIR, 'targets', target._folderName);
           const potentialPath = path.join(targetDir, target.imageTargetSrc);
-          console.log(`DEBUG: Trying path using folderName: ${potentialPath}`);
           if (fs.existsSync(potentialPath)) {
-            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
             sourcePath = potentialPath;
-          } else {
-            console.log(`DEBUG: File does not exist at ${potentialPath}`);
           }
         }
         
@@ -469,36 +452,24 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
             : originalId;
           const targetDir = path.join(CONTENT_DIR, 'targets', folderName);
           const potentialPath = path.join(targetDir, target.imageTargetSrc);
-          console.log(`DEBUG: Trying path using target ID: ${potentialPath}`);
           if (fs.existsSync(potentialPath)) {
-            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
             sourcePath = potentialPath;
-          } else {
-            console.log(`DEBUG: File does not exist at ${potentialPath}`);
           }
         }
         
         // FALLBACK 4: Check directly in targets directory (might be a legacy format)
         if (!sourcePath) {
           const potentialPath = path.join(CONTENT_DIR, 'targets', target.imageTargetSrc);
-          console.log(`DEBUG: Trying direct path in targets directory: ${potentialPath}`);
           if (fs.existsSync(potentialPath)) {
-            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
             sourcePath = potentialPath;
-          } else {
-            console.log(`DEBUG: File does not exist at ${potentialPath}`);
           }
         }
         
         // FALLBACK 5: Try the content root directly
         if (!sourcePath) {
           const potentialPath = path.join(CONTENT_DIR, target.imageTargetSrc);
-          console.log(`DEBUG: Trying path in content root: ${potentialPath}`);
           if (fs.existsSync(potentialPath)) {
-            console.log(`DEBUG: SUCCESS - Image found at: ${potentialPath}`);
             sourcePath = potentialPath;
-          } else {
-            console.log(`DEBUG: File does not exist at ${potentialPath}`);
           }
         }
         
@@ -509,11 +480,13 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
             _sourcePath: sourcePath // Store the full source path for later use
           });
         } else {
-          console.warn(`Target ${target.id} excluded: Image file not found. Tried all possible locations.`);
+          console.warn(`⚠️ Target ${target.id} excluded: Image file not found. Please check ${target.imageTargetSrc} exists relative to target.yaml.`);
         }
       }
       
       // Second pass: Process valid targets and assign sequential indices
+      console.log(`✅ Found ${validTargets.length} valid targets with images for chapter ${chapter.id}`);
+      
       for (let j = 0; j < validTargets.length; j++) {
         const target = validTargets[j];
         try {
@@ -533,7 +506,7 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
           
           // Copy the file to the target directory with the new filename
           fs.copyFileSync(sourcePath, targetPath);
-          console.log(`Copied target image: ${sourcePath} -> ${targetPath} (mindarTargetIndex: ${j})`);
+          console.log(`📷 ${target.id}: ${path.basename(sourcePath)} → ${newFileName} (index: ${j})`);
           
           // Update the target's mindarTargetIndex to match the file sequence
           target.mindarTargetIndex = j;
@@ -545,7 +518,7 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
           delete target._originalId;
           delete target._folderName;
         } catch (error) {
-          console.error(`Error copying target image for ${target.id}:`, error);
+          console.error(`❌ Error copying target image for ${target.id}:`, error);
         }
       }
       
@@ -569,7 +542,7 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
     }
   }
   
-  console.log(`Target images prepared in: ${MINDAR_DIR}`);
+  console.log(`🎯 Target images prepared in: ${MINDAR_DIR}`);
   return chapters;
 }
 
@@ -600,6 +573,137 @@ function cleanupObject(obj: any): any {
 }
 
 /**
+ * Check if a URL is external (starts with http:// or https://)
+ */
+function isExternalUrl(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://');
+}
+
+/**
+ * Adjust a path to be relative to the assets/content directory
+ */
+function adjustPath(originalPath: string): string {
+  if (!originalPath || isExternalUrl(originalPath)) {
+    return originalPath;
+  }
+  
+  // Remove any leading slashes
+  const cleanPath = originalPath.replace(/^\/+/, '');
+  
+  // Create a path relative to the assets/content directory
+  return `/assets/content/${cleanPath}`;
+}
+
+/**
+ * Copy the content directory to the client's public assets directory
+ */
+function copyContentToPublic(): void {
+  console.log(`\n📦 Copying content to client public assets directory...`);
+  
+  // Clear the existing directory if it exists
+  if (fs.existsSync(CLIENT_PUBLIC_ASSETS_DIR)) {
+    console.log(`🧹 Cleaning client public assets directory: ${CLIENT_PUBLIC_ASSETS_DIR}`);
+    deleteFolderRecursive(CLIENT_PUBLIC_ASSETS_DIR);
+  }
+  
+  // Create the directory
+  fs.mkdirSync(CLIENT_PUBLIC_ASSETS_DIR, { recursive: true });
+  
+  // Copy the content directory
+  const fileCount = copyFolderRecursive(CONTENT_DIR, CLIENT_PUBLIC_ASSETS_DIR);
+  
+  console.log(`✅ ${fileCount} content files successfully copied to: ${CLIENT_PUBLIC_ASSETS_DIR}`);
+}
+
+/**
+ * Recursively copy a directory
+ * @returns Number of files copied
+ */
+function copyFolderRecursive(source: string, target: string): number {
+  // Create target directory if it doesn't exist
+  if (!fs.existsSync(target)) {
+    fs.mkdirSync(target, { recursive: true });
+  }
+  
+  // Get all files and subdirectories in the source directory
+  const files = fs.readdirSync(source);
+  let fileCount = 0;
+  
+  for (const file of files) {
+    const sourcePath = path.join(source, file);
+    const targetPath = path.join(target, file);
+    
+    // Check if it's a file or directory
+    if (fs.statSync(sourcePath).isDirectory()) {
+      // Recursive call for directories
+      fileCount += copyFolderRecursive(sourcePath, targetPath);
+    } else {
+      // Copy file
+      fs.copyFileSync(sourcePath, targetPath);
+      fileCount++;
+    }
+  }
+  
+  return fileCount;
+}
+
+/**
+ * Process the config to adjust paths for client usage
+ */
+function adjustConfigPaths(config: GameConfiguration): GameConfiguration {
+  // Deep clone to avoid modifying the original
+  const result = JSON.parse(JSON.stringify(config)) as GameConfiguration;
+  
+  // Adjust paths in chapters
+  if (result.chapters && Array.isArray(result.chapters)) {
+    for (const chapter of result.chapters) {
+      // Type assertion to access properties
+      const chapterData = chapter as any;
+      
+      if (chapterData.mindSrc) {
+        chapterData.mindSrc = adjustPath(chapterData.mindSrc);
+      }
+      
+      // Process targets in the chapter
+      if (chapterData.targets && Array.isArray(chapterData.targets)) {
+        for (const target of chapterData.targets) {
+          // Adjust image and mind paths
+          if (target.imageTargetSrc) {
+            target.imageTargetSrc = adjustPath(target.imageTargetSrc);
+          }
+          if (target.mindSrc) {
+            target.mindSrc = adjustPath(target.mindSrc);
+          }
+          
+          // Adjust asset paths
+          if (target.entity && target.entity.assets && Array.isArray(target.entity.assets)) {
+            for (const asset of target.entity.assets) {
+              if (asset.src) {
+                asset.src = adjustPath(asset.src);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Adjust paths in tutorial steps if present
+  if (result.tutorial && Array.isArray(result.tutorial)) {
+    for (const step of result.tutorial) {
+      // Type assertion to access properties
+      const stepData = step as any;
+      // Adjust any image paths in tutorial steps
+      if (stepData.image) {
+        stepData.image = adjustPath(stepData.image);
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
  * Build the final config object
  */
 function buildConfig(): GameConfiguration {
@@ -609,10 +713,10 @@ function buildConfig(): GameConfiguration {
   const targets = content.filter(item => item.type === 'target') as TargetWithMetadata[];
   const steps = content.filter(item => item.type === 'step') as StepWithMetadata[];
   
-  console.log(`Found ${chapters.length} chapters, ${targets.length} targets, and ${steps.length} steps`);
+  console.log(`✨ Found ${chapters.length} chapters, ${targets.length} targets, and ${steps.length} steps`);
   
   if (chapters.length === 0) {
-    console.error('ERROR: No chapters found! Check your content/chapters directory.');
+    console.error('❌ ERROR: No chapters found! Check your content/chapters directory.');
     console.log('Content items found:', content.map(item => `${item.type}: ${item.id}`).join(', '));
   }
   
@@ -622,10 +726,12 @@ function buildConfig(): GameConfiguration {
   // Prepare mind-ar target images
   const processedChapters = prepareTargetImages(chaptersWithTargets);
   
-  console.log(`Final config will have ${processedChapters.length} chapters and ${targets.length} targets`);
+  console.log(`✨ Final config will have ${processedChapters.length} chapters and ${targets.length} targets`);
   
   const versionStr = process.env.npm_package_version || "1.0.0";
   const timestamp = new Date().toISOString();
+  
+  console.log(`📊 Building config version: ${versionStr} (${timestamp})`);
   
   // Create configuration object with version information
   // We need to use type assertion because the GameConfiguration interface 
@@ -649,8 +755,15 @@ function buildConfig(): GameConfiguration {
   };
   
   // Final cleanup to remove any leftover private properties
-  const config = cleanupObject(configData) as GameConfiguration;
-  return config;
+  const cleanConfig = cleanupObject(configData) as GameConfiguration;
+  
+  // Copy content to public directory
+  copyContentToPublic();
+  
+  // Adjust paths for client usage
+  const finalConfig = adjustConfigPaths(cleanConfig);
+  
+  return finalConfig;
 }
 
 /**
@@ -669,12 +782,14 @@ function generateConfigFile(): void {
     
     // Write to file
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify(config, null, 2));
-    console.log(`Successfully generated ${OUTPUT_FILE}`);
+    console.log(`🎉 Successfully generated ${OUTPUT_FILE} (version: ${(config as any).version.version})`);
   } catch (error) {
-    console.error('Error generating config file:', error);
+    console.error('❌ Error generating config file:', error);
     process.exit(1);
   }
 }
 
 // Execute the script
+console.log('\n🔄 Starting content build process...');
 generateConfigFile();
+console.log('✨ Content build process completed successfully ✨');
