@@ -1,5 +1,6 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
+import { MEDIA_QUERY } from "@/constants";
 
 export interface IBaseNavigationButton {
   readonly active?: boolean;
@@ -48,14 +49,22 @@ export abstract class BaseNavigationButton extends HTMLElement implements IBaseN
             <style>
                 :host {
                     display: inline-block;
-                    width: 100%;
                 }
                 
                 button {
+                    display: -webkit-box;
+                    display: -webkit-flex;
                     display: flex;
+                    -webkit-box-align: center;
+                    -webkit-align-items: center;
                     align-items: center;
+                    -webkit-box-pack: center;
+                    -webkit-justify-content: center;
                     justify-content: center;
                     width: 100%;
+                    /* Force hardware acceleration for better performance on iOS */
+                    -webkit-transform: translateZ(0);
+                    transform: translateZ(0);
                 }
                 
                 ::slotted(*) {
@@ -64,7 +73,7 @@ export abstract class BaseNavigationButton extends HTMLElement implements IBaseN
                     margin-right: 0.5em;
                 }
                 
-                @media (max-width: 600px) {
+                @media ${MEDIA_QUERY.MOBILE} {
                     button[is="text-button"] {
                         padding: 0 0.5em;
                     }
@@ -76,7 +85,7 @@ export abstract class BaseNavigationButton extends HTMLElement implements IBaseN
 
                 ${this.getAdditionalStyles()}
             </style>
-            <button is="text-button" ${this._active ? `inverted=""` : ""} size="sm">
+            <button is="text-button" ${this._active ? `inverted=""` : ""}>
                 ${this.getButtonIconHTML()}
                 <span class="button-text">${this.getButtonText()}</span>
             </button>

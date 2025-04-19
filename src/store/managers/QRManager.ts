@@ -22,6 +22,7 @@ export class QRManager implements IQRManager {
     // Switch to QR mode and clear any previous errors
     this.game.set({ 
       mode: GameMode.QR,
+      currentRoute: { page: Pages.CHAPTER, slug: "/chapter" },
       currentError: null 
     });
   }

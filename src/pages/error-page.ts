@@ -1,6 +1,7 @@
 import { Page } from "./page";
 import { ErrorCode, IGame } from "@/types";
 import { GameStoreService } from "@/services/GameStoreService";
+import { MEDIA_QUERY } from "@/constants";
 
 export interface IErrorPage extends HTMLElement {
   showError(msg: string, options?: ErrorOptions): void;
@@ -108,7 +109,7 @@ class ErrorPage extends Page implements IErrorPage {
               padding: 2rem;
               gap:1rem;
           }
-          @media (max-width: 768px) {
+          @media ${MEDIA_QUERY.TABLET} {
             .actions {
                 flex-direction: column-reverse;
             }

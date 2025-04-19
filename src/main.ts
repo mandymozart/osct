@@ -6,7 +6,17 @@ import {
   IGame,
 } from "@/types/";
 import { waitForDOMReady } from "./utils/dom";
-import "./components/camera-permission/camera-permission";
+
+// Detect iOS Safari for compatibility fixes
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+// Add class to document root for CSS targeting
+if (isIOS || isSafari) {
+  document.documentElement.classList.add('ios-device');
+  console.log('[BookGame] iOS/Safari detected, applying compatibility fixes');
+}
 
 export class BookGame extends HTMLElement {
   private game: Readonly<IGame>;
@@ -29,6 +39,11 @@ export class BookGame extends HTMLElement {
       display: block;
       width: 100vw;
       height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
     }
   `;
 

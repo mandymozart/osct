@@ -61,6 +61,8 @@ export class QRScanner extends HTMLElement implements IQRScanner {
     // Define styles
     const styles = `
       :host {
+        display: -webkit-box;
+        display: -webkit-flex;
         display: flex;
         position: fixed;
         top: 0;
@@ -68,15 +70,25 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         right: 0;
         bottom: 0;
         z-index: -1;
+        -webkit-box-orient: vertical;
+        -webkit-flex-direction: column;
         flex-direction: column;
+        -webkit-box-pack: center;
+        -webkit-justify-content: center;
         justify-content: center;
+        -webkit-box-align: center;
+        -webkit-align-items: center;
         align-items: center;
         color: var(--color-primary);
         
-        // active state management
+        /* active state management */
         pointer-events: none;
+        -webkit-transition: opacity .2s linear;
         transition: opacity .2s linear;
         opacity: 0;
+        /* Force hardware acceleration */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
       }
 
       :host(.active) {
@@ -88,8 +100,16 @@ export class QRScanner extends HTMLElement implements IQRScanner {
       #qr-scanner-video {
         width: 100%;
         height: 100%;
+        -webkit-object-fit: cover;
         object-fit: cover;
         display: none;
+        /* iOS video positioning */
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
       }
 
       #qr-scanner-canvas {
@@ -102,16 +122,29 @@ export class QRScanner extends HTMLElement implements IQRScanner {
         max-width: 80%;
         padding: 1rem;
         color: white;
-
+        position: relative;
+        z-index: 2;
       }
 
       .info {
+        display: -webkit-box;
+        display: -webkit-flex;
         display: flex;
+        -webkit-box-orient: vertical;
+        -webkit-flex-direction: column;
         flex-direction: column;
+        -webkit-box-align: center;
+        -webkit-align-items: center;
         align-items: center;
         gap: 1rem;
         position: absolute;
         bottom: 1rem;
+        z-index: 3;
+      }
+
+      /* iOS Safari flex gap fallback for older versions */
+      .info > * {
+        margin: 0.5rem 0;
       }
       
       button {
