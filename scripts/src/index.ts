@@ -190,7 +190,7 @@ function readContentFiles(): ContentWithMetadata[] {
             
             // Look for asset files in the same folder
             const assetFiles = fs.readdirSync(targetFolder)
-              .filter(file => (file.endsWith('.yaml') || file.endsWith('.yml')) && file.startsWith('asset-'));
+              .filter(file => (file.endsWith('.asset.yaml') || file.endsWith('.asset.yml')));
             
             // Initialize arrays for assets
             const assetObjects: AssetWithMetadata[] = [];

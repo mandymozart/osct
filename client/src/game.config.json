@@ -1,7 +1,7 @@
 {
   "version": {
     "version": "1.0.0",
-    "timestamp": "2025-04-19T20:17:07.083Z"
+    "timestamp": "2025-04-19T20:27:10.967Z"
   },
   "initialChapterId": "chapter1",
   "chapters": [
@@ -91,31 +91,6 @@
           "mindarTargetIndex": 2
         },
         {
-          "id": "target-102-target-abc",
-          "title": "Ancient Tree",
-          "description": "A mystical tree stands tall.",
-          "bookId": "102",
-          "imageTargetSrc": "images-102.jpg",
-          "relatedTargets": [
-            "target-001"
-          ],
-          "tags": [
-            "forest",
-            "nature"
-          ],
-          "entity": {
-            "type": "model",
-            "assets": [
-              {
-                "id": "tree",
-                "type": "asset",
-                "src": "tree.glb"
-              }
-            ]
-          },
-          "mindarTargetIndex": 3
-        },
-        {
           "id": "target-005",
           "title": "Sleeping Dragon",
           "description": "A mighty dragon resting in its lair.",
@@ -138,7 +113,7 @@
               }
             ]
           },
-          "mindarTargetIndex": 4
+          "mindarTargetIndex": 3
         }
       ]
     },
