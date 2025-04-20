@@ -1,10 +1,11 @@
 import { produce } from "immer";
 import {
+  Asset,
   ChapterResource,
   ErrorCode,
   IGame,
   LoadingState,
-} from "../../../types";
+} from "@/types";
 
 /**
  * Responsible for loading chapter resources and handling loading errors
@@ -33,7 +34,7 @@ export class ChapterLoader {
           if (target.entity.assets && target.entity.assets.length > 0) {
             try {
               const loadedAssets = await this.game.loadAssets(
-                target.entity.assets
+                target.entity.assets as Asset[]
               );
 
               const failedAssets = loadedAssets.filter(

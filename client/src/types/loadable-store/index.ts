@@ -10,8 +10,8 @@ export type AssetType = 'image' | 'gltf' | 'glb' | 'audio' | 'video' | 'link' | 
  */
 export interface LoadableResource {
   error: ErrorInfo | null;
-  src: string;
-  type?: AssetType;
+  src?: string;
+  type: AssetType;
   status: LoadingState;
 }
 

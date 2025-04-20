@@ -1,5 +1,6 @@
 import { produce } from 'immer';
 import { AssetType, ErrorCode, ILoadableStore, LoadableResource, LoadingState } from './../types';
+import { loader } from './loader';
 
 /**
  * Base class for implementing stores that manage loadable resources
@@ -74,9 +75,6 @@ export class LoadableStore implements ILoadableStore{
     return {
       ...resource,
       status: LoadingState.LOADING,
-      // Keep for backward compatibility
-      isLoading: true,
-      loaded: false,
       error: null,
     };
   }
@@ -90,9 +88,6 @@ export class LoadableStore implements ILoadableStore{
     return {
       ...resource,
       status: LoadingState.LOADED,
-      // Keep for backward compatibility
-      isLoading: false,
-      loaded: true,
       error: null,
     };
   }
@@ -112,9 +107,6 @@ export class LoadableStore implements ILoadableStore{
     return {
       ...resource,
       status: LoadingState.ERROR,
-      // Keep for backward compatibility
-      isLoading: false,
-      loaded: false,
       error: {
         code,
         msg: message,
@@ -151,67 +143,68 @@ export class LoadableStore implements ILoadableStore{
    * @returns Promise that resolves with loaded assets
    */
   async loadAssets<T extends LoadableResource>(assets: T[]): Promise<T[]> {
+    // Early return for empty asset arrays
     if (!assets || assets.length === 0) {
       return [];
     }
 
-    const loadingAssets = assets.map(asset => ({
+    // Mark all assets as loading
+    const assetsInLoadingState = assets.map(asset => ({
       ...asset,
       status: LoadingState.LOADING,
-      // Keep for backward compatibility
-      isLoading: true,
-      loaded: false,
       error: null
     }));
 
-    // Load all assets in parallel
-    const results = await Promise.allSettled(
-      loadingAssets.map(async (asset) => {
-        try {
+    // Function to load a single asset and return its final state
+    const loadSingleAsset = async (asset: T) => {
+      try {
+        // Only attempt to load assets with a source URL
+        if (asset.src) {
           await this.loadAsset(asset.src, asset.type);
-          return {
-            ...asset,
-            status: LoadingState.LOADED,
-            // Keep for backward compatibility
-            isLoading: false,
-            loaded: true,
-            error: null
-          };
-        } catch (error) {
-          console.error(`Error loading asset: ${asset.src}`, error);
-          return {
-            ...asset,
-            status: LoadingState.ERROR,
-            // Keep for backward compatibility
-            isLoading: false,
-            loaded: false,
-            error: {
-              code: ErrorCode.ASSET_LOAD_FAILED,
-              msg: error instanceof Error ? error.message : "Unknown error loading asset"
-            }
-          };
         }
-      })
-    );
-
-    // Process results
-    return results.map((result, index) => {
-      if (result.status === 'fulfilled') {
-        return result.value;
-      } else {
-        // This should not happen with our try/catch, but just in case
+        
+        // Return successfully loaded asset
         return {
-          ...loadingAssets[index],
+          ...asset,
+          status: LoadingState.LOADED,
+          error: null
+        };
+      } catch (error) {
+        // Log and return asset with error state
+        console.error(`Error loading asset: ${asset.src}`, error);
+        return {
+          ...asset,
           status: LoadingState.ERROR,
-          // Keep for backward compatibility
-          isLoading: false,
-          loaded: false,
           error: {
             code: ErrorCode.ASSET_LOAD_FAILED,
-            msg: result.reason?.message || "Failed to load asset"
+            msg: error instanceof Error ? error.message : "Unknown error loading asset"
           }
         };
       }
+    };
+
+    // Load all assets in parallel and collect results
+    const assetLoadResults = await Promise.allSettled(
+      assetsInLoadingState.map(loadSingleAsset)
+    );
+    
+    // Process the final results
+    return assetLoadResults.map((result, index) => {
+      // If the Promise was fulfilled, return the asset state from our try/catch handler
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } 
+      
+      // This fallback should rarely happen since our loadSingleAsset has its own try/catch,
+      // but provides an additional safety net
+      return {
+        ...assetsInLoadingState[index],
+        status: LoadingState.ERROR,
+        error: {
+          code: ErrorCode.ASSET_LOAD_FAILED,
+          msg: result.reason?.message || "Failed to load asset"
+        }
+      };
     });
   }
 
@@ -221,106 +214,11 @@ export class LoadableStore implements ILoadableStore{
    * @param type Asset type (image, gltf, etc.)
    * @returns Promise that resolves when the asset is loaded
    */
-  loadAsset(src: string, type: AssetType = 'image'): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error(`Timeout loading asset: ${src}`));
-      }, 30000); // 30 second timeout
-
-      try {
-        switch (type) {
-          case 'image':
-            this.loadImageAsset(src, timeout, resolve, reject);
-            break;
-          case 'gltf':
-          case 'glb':
-            this.loadGLTFAsset(src, timeout, resolve, reject);
-            break;
-          case 'audio':
-            this.loadAudioAsset(src, timeout, resolve, reject);
-            break;
-          case 'video':
-            this.loadVideoAsset(src, timeout, resolve, reject);
-            break;
-          default:
-            // For unknown types, we'll just try to fetch the resource
-            this.loadGenericAsset(src, timeout, resolve, reject);
-        }
-      } catch (error) {
-        clearTimeout(timeout);
-        reject(error);
-      }
-    });
-  }
-
-  loadImageAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      clearTimeout(timeout);
-      resolve();
-    };
-    img.onerror = () => {
-      clearTimeout(timeout);
-      reject(new Error(`Failed to load image: ${src}`));
-    };
-    img.src = src;
-  }
-
-  loadGLTFAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
-    fetch(src)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error: ${response.status}`);
-        }
-        clearTimeout(timeout);
-        resolve();
-      })
-      .catch(error => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-  }
-
-  loadAudioAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
-    const audio = new Audio();
-    audio.oncanplaythrough = () => {
-      clearTimeout(timeout);
-      resolve();
-    };
-    audio.onerror = () => {
-      clearTimeout(timeout);
-      reject(new Error(`Failed to load audio: ${src}`));
-    };
-    audio.src = src;
-  }
-
-  loadVideoAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
-    const video = document.createElement('video');
-    video.oncanplaythrough = () => {
-      clearTimeout(timeout);
-      resolve();
-    };
-    video.onerror = () => {
-      clearTimeout(timeout);
-      reject(new Error(`Failed to load video: ${src}`));
-    };
-    video.src = src;
-    video.load();
-  }
-
-  loadGenericAsset(src: string, timeout: NodeJS.Timeout, resolve: (value: void | PromiseLike<void>) => void, reject: (reason: any) => void): void {
-    fetch(src)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error: ${response.status}`);
-        }
-        clearTimeout(timeout);
-        resolve();
-      })
-      .catch(error => {
-        clearTimeout(timeout);
-        reject(error);
-      });
+  async loadAsset(src: string, type: AssetType = 'image'): Promise<void> {
+    const result = await loader.load({ src, type });
+    
+    if (!result.success && result.error) {
+      throw result.error;
+    }
   }
 }

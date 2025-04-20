@@ -89,7 +89,7 @@ export class ChapterManager implements IChapterManager {
         );
       }
 
-      let chapter = this.initializer.initializeChapter(chapterData);
+      let chapter = this.initializer.createChapterResource(chapterData);
       this.repository.cacheChapter(chapter);
       this.repository.setCurrentChapter(chapter);
       chapter = this.initializer.markChapterAsLoading(chapter);

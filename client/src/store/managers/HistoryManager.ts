@@ -21,7 +21,7 @@ export class HistoryManager implements IHistoryManager {
   private checkConfigurationVersion(): void {
     try {
       const storedVersion = localStorage.getItem(this.CONFIG_VERSION_KEY);
-      const currentVersion = config;
+      const currentVersion = config.version;
       
       if (!storedVersion) {
         this.saveConfigurationVersion();

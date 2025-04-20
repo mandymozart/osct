@@ -27,6 +27,7 @@ export class ChapterErrorHandler {
   ): ChapterResource {
     // Create minimal error chapter structure
     const failedChapter: ChapterResource = {
+      type: 'chapter',
       id: chapterId,
       src: "",
       status: LoadingState.ERROR,

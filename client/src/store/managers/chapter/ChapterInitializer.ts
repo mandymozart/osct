@@ -1,5 +1,6 @@
 import { produce } from "immer";
 import {
+  AssetData,
   ChapterData,
   ChapterResource,
   IGame,
@@ -33,11 +34,12 @@ export class ChapterInitializer {
   /**
    * Create a properly initialized chapter resource with loading states
    */
-  initializeChapter(chapterData: ChapterData): ChapterResource {
+  createChapterResource(chapterData: ChapterData): ChapterResource {
     // Create a default chapter structure
     const chapter: ChapterResource = {
+      type: 'chapter',
       id: chapterData.id,
-      src: chapterData.imageTargetSrc,
+      src: chapterData.mindSrc,
       status: LoadingState.INITIAL,
       error: null,
       targets: chapterData.targets.map((targetData) => {
@@ -50,11 +52,10 @@ export class ChapterInitializer {
                 ...targetData.entity,
                 status: LoadingState.INITIAL,
                 error: null,
-                assets: targetData.entity.assets.map((asset) => ({
+                assets: targetData.entity.assets.map((asset: AssetData) => ({
                   ...asset,
                   status: LoadingState.INITIAL,
                   error: null,
-                  src: asset.src,
                 })),
               }
             : null,
