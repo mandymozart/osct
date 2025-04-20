@@ -24,7 +24,6 @@ export interface IGame extends ILoadableStore {
   history: IHistoryManager;
   camera: ICameraManager;
 
-  initialize(): void;
   startLoading(): void;
   finishLoading(): void;
   setLoadingState(state: LoadingState): void;

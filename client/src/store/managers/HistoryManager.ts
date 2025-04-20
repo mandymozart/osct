@@ -1,6 +1,6 @@
 import { produce } from 'immer';
 import config from "./../../game.config.json";
-import { ConfigurationVersion, IGame, TargetHistoryEntry as HistoryEntry, IHistoryManager } from '@/types';
+import { ConfigurationVersion, IGame, TargetHistoryEntry as HistoryEntry, IHistoryManager, ErrorInfo } from '@/types';
 
 /**
  * Manages user history and progress tracking
@@ -13,8 +13,9 @@ export class HistoryManager implements IHistoryManager {
 
   constructor(game: IGame) {
     this.game = game;
+    this.load();
   }
-  
+
   /**
    * Check if configuration has changed
    */
@@ -22,14 +23,14 @@ export class HistoryManager implements IHistoryManager {
     try {
       const storedVersion = localStorage.getItem(this.CONFIG_VERSION_KEY);
       const currentVersion = config.version;
-      
+
       if (!storedVersion) {
         this.saveConfigurationVersion();
         return;
       }
 
       const storageVersion = JSON.parse(storedVersion) as ConfigurationVersion;
-      
+
       if (storageVersion.version !== currentVersion.version) {
         console.warn(
           `Game configuration has changed from version ${storageVersion.version} to ${currentVersion.version}. ` +
@@ -60,8 +61,43 @@ export class HistoryManager implements IHistoryManager {
    * Load target history from local storage
    */
   public load(): void {
-    this.checkConfigurationVersion();
-    this.loadTargetHistory();
+    try {
+      // Check if configuration has changed
+      this.checkConfigurationVersion();
+      
+      // Get history from localStorage
+      const historyJson = localStorage.getItem(this.HISTORY_STORAGE_KEY);
+      
+      if (historyJson) {
+        // Parse history
+        const loadedHistory = JSON.parse(historyJson) as HistoryEntry[];
+        this.history = loadedHistory;
+        
+        // If there are previous entries, notify the user they can resume
+        if (loadedHistory.length > 0) {
+          // Get the most recent entry
+          const lastEntry = loadedHistory.sort((a, b) => b.timestamp - a.timestamp)[0];
+          
+          // Find chapter in config 
+          const chapterConfig = config.chapters.find(ch => ch.id === lastEntry.chapterId);
+          const chapterName = chapterConfig?.title || lastEntry.chapterId;
+          
+          // Create a notification with resume action
+          this.game.notifyError({
+            msg: `You have a previous session in chapter "${chapterName}".`,
+            action: {
+                text: 'Resume',
+                callback: () => {
+                  // Resume the last chapter using switchChapter
+                  this.game.chapters.switchChapter(lastEntry.chapterId);
+                }
+            }
+          } as ErrorInfo);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load history:", error);
+    }
   }
 
   /**
@@ -71,7 +107,7 @@ export class HistoryManager implements IHistoryManager {
     const existingEntry = this.history.find(
       entry => entry.chapterId === chapterId && entry.targetIndex === targetIndex
     );
-    
+
     if (!existingEntry) {
       // Use Immer to update history
       this.history = produce(this.history, draft => {
@@ -81,10 +117,10 @@ export class HistoryManager implements IHistoryManager {
           timestamp: Date.now()
         });
       });
-      
+
       // Save updated history
       this.saveTargetHistory();
-      
+
       // Notify listeners of change
       this.game.notifyListeners();
     }
@@ -112,14 +148,14 @@ export class HistoryManager implements IHistoryManager {
    * Calculate the percentage of targets seen in a chapter
    */
   public getChapterCompletionPercentage(chapterId: string): number {
-    const chapter = this.game.state.chapters[chapterId] || 
-                   config.chapters.find(ch => ch.id === chapterId);
-    
+    const chapter = this.game.state.chapters[chapterId] ||
+      config.chapters.find(ch => ch.id === chapterId);
+
     if (!chapter) return 0;
-    
+
     const totalTargets = chapter.targets?.length || 0;
     if (totalTargets === 0) return 100; // No targets = 100% complete
-    
+
     const seenTargets = this.getSeenTargetsForChapter(chapterId).length;
     return Math.round((seenTargets / totalTargets) * 100);
   }
@@ -139,7 +175,7 @@ export class HistoryManager implements IHistoryManager {
     this.history = produce(this.history, draft => {
       return draft.filter(entry => entry.chapterId !== chapterId);
     });
-    
+
     this.saveTargetHistory();
     this.game.notifyListeners();
   }
@@ -159,7 +195,7 @@ export class HistoryManager implements IHistoryManager {
   private saveTargetHistory(): void {
     try {
       localStorage.setItem(
-        this.HISTORY_STORAGE_KEY, 
+        this.HISTORY_STORAGE_KEY,
         JSON.stringify(this.history)
       );
     } catch (error) {
