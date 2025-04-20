@@ -8,7 +8,7 @@ import {
 } from "../router";
 import { ISceneManager, SceneManagerState } from "../scene";
 import { ITargetManager, TargetManagerState } from "../targets";
-import { ILoadableStore, LoadableResource } from "../loadable-store";
+import { AssetType, ILoadableStore, LoadableResource } from "../loadable-store";
 import { LoadingState } from "../common.js";
 import { CameraManagerState, ICameraManager } from "../camera";
 import { TutorialStepData } from "../tutorial";
@@ -118,8 +118,8 @@ export interface TargetData {
   entity: EntityData;
   imageTargetSrc: string;
   mindSrc: string;
-  tags: readonly string[];
-  relatedTargets: readonly string[];
+  tags: string[];
+  relatedTargets: string[];
 }
 
 /**
@@ -134,7 +134,8 @@ export interface EntityData {
  */
 export interface AssetData {
   id: string;
-
+  type: AssetType;
+  src?: string;
 }
 
 /**

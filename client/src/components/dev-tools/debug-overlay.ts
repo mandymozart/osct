@@ -1,6 +1,6 @@
 import { waitForDOMReady } from "@/utils";
 import { GameStoreService } from "../../services/GameStoreService";
-import { ChapterResource, IGame, LoadingState, Target } from "../../types";
+import { Asset, ChapterResource, IGame, LoadingState, Target } from "../../types";
 
 export class DebugOverlay extends HTMLElement {
   private shadow: ShadowRoot;
@@ -239,7 +239,7 @@ export class DebugOverlay extends HTMLElement {
       if (target.entity.assets && target.entity.assets.length > 0) {
         html += `<div class="entity">Assets (${target.entity.assets.length}):</div>`;
 
-        target.entity.assets.forEach((asset, i) => {
+        target.entity.assets.forEach((asset: Asset, i) => {
           html += `
             <div class="asset">
               Asset #${i}: (${asset.type || "unknown"})
@@ -251,7 +251,7 @@ export class DebugOverlay extends HTMLElement {
               }
               <div class="asset-meta">ID: ${asset.id || "unnamed"}</div>
               <div class="info">Source: ${this.truncateFilePath(
-                asset.src
+                asset.src || "N/A"
               )}</div>
             </div>
           `;
