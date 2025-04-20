@@ -15,7 +15,6 @@ export class GameStoreService {
   public static getInstance(): Readonly<IGame> {
     if (!GameStoreService.instance) {
       const game = createGameStore();
-      game.initialize();
       GameStoreService.instance = game;
     }
     return GameStoreService.instance;

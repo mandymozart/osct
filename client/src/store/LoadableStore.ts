@@ -138,6 +138,20 @@ export class LoadableStore implements ILoadableStore{
   }
   
   /**
+   * Load a single asset
+   * @param src Asset source URL
+   * @param type Asset type (image, gltf, etc.)
+   * @returns Promise that resolves when the asset is loaded
+   */
+  async loadAsset(src: string, type: AssetType = 'image'): Promise<void> {
+    const result = await loader.load({ src, type });
+    
+    if (!result.success && result.error) {
+      throw result.error;
+    }
+  }
+
+  /**
    * Load multiple assets in parallel
    * @param assets Array of assets to load
    * @returns Promise that resolves with loaded assets
@@ -155,70 +169,59 @@ export class LoadableStore implements ILoadableStore{
       error: null
     }));
 
-    // Function to load a single asset and return its final state
-    const loadSingleAsset = async (asset: T) => {
-      try {
-        // Only attempt to load assets with a source URL
-        if (asset.src) {
-          await this.loadAsset(asset.src, asset.type);
-        }
-        
-        // Return successfully loaded asset
+    // Process assets based on whether they need loading
+    const assetsRequiringLoad = assetsInLoadingState
+      .filter(asset => !!asset.src && asset.type !== 'link'); // Filter out link-type assets (no loading required)
+
+    // Load assets requiring an actual resource
+    const loadOptions = assetsRequiringLoad.map(asset => ({
+      src: asset.src as string,
+      type: asset.type
+    }));
+    
+    const assetLoadResults = loadOptions.length > 0 
+      ? await loader.loadMany(loadOptions) 
+      : [];
+    
+    // Process the final results - combine link-type assets (auto success) with loaded assets
+    return assetsInLoadingState.map(asset => {
+      // Link-type assets are automatically considered loaded
+      if (asset.type === 'link' || !asset.src) {
         return {
           ...asset,
           status: LoadingState.LOADED,
           error: null
         };
-      } catch (error) {
-        // Log and return asset with error state
-        console.error(`Error loading asset: ${asset.src}`, error);
+      }
+      
+      // Find the loading result for this asset
+      const index = assetsRequiringLoad.findIndex(loadAsset => 
+        loadAsset.src === asset.src && loadAsset.type === asset.type);
+        
+      if (index === -1) {
+        // This shouldn't happen, but handle it just in case
+        console.warn(`No load result found for asset: ${asset.src}`);
+        return asset;
+      }
+      
+      const result = assetLoadResults[index];
+      
+      if (result.success) {
+        return {
+          ...asset,
+          status: LoadingState.LOADED,
+          error: null
+        };
+      } else {
         return {
           ...asset,
           status: LoadingState.ERROR,
           error: {
             code: ErrorCode.ASSET_LOAD_FAILED,
-            msg: error instanceof Error ? error.message : "Unknown error loading asset"
+            msg: result.error?.message || "Failed to load asset"
           }
         };
       }
-    };
-
-    // Load all assets in parallel and collect results
-    const assetLoadResults = await Promise.allSettled(
-      assetsInLoadingState.map(loadSingleAsset)
-    );
-    
-    // Process the final results
-    return assetLoadResults.map((result, index) => {
-      // If the Promise was fulfilled, return the asset state from our try/catch handler
-      if (result.status === 'fulfilled') {
-        return result.value;
-      } 
-      
-      // This fallback should rarely happen since our loadSingleAsset has its own try/catch,
-      // but provides an additional safety net
-      return {
-        ...assetsInLoadingState[index],
-        status: LoadingState.ERROR,
-        error: {
-          code: ErrorCode.ASSET_LOAD_FAILED,
-          msg: result.reason?.message || "Failed to load asset"
-        }
-      };
     });
-  }
-
-  /**
-   * Load a single asset
-   * @param src Asset source URL
-   * @param type Asset type (image, gltf, etc.)
-   * @returns Promise that resolves when the asset is loaded
-   */
-  async loadAsset(src: string, type: AssetType = 'image'): Promise<void> {
-    const result = await loader.load({ src, type });
-    
-    if (!result.success && result.error) {
-      throw result.error;
-    }
   }
 }

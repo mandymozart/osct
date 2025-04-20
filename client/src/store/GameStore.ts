@@ -32,7 +32,7 @@ import { CameraManager } from "./managers/CameraManager";
  */
 class Game extends LoadableStore implements IGame {
   public state: GameState;
-  public version: GameVersion = { version: __VITE_APP_VERSION__, timestamp: __VITE_BUILD_DATE__} as GameVersion;
+  public version: GameVersion = { version: __VITE_APP_VERSION__, timestamp: __VITE_BUILD_DATE__ } as GameVersion;
 
   public scene: ISceneManager;
   public chapters: IChapterManager;
@@ -41,6 +41,23 @@ class Game extends LoadableStore implements IGame {
   public router: IRouterManager;
   public qr: IQRManager;
   public camera: ICameraManager;
+
+  /**
+ * Notification and Error listeners
+ *
+ * Usage:
+ * In a component or manager
+ *
+ * const cleanup = game.onError((error) => {
+ *    console.error(`Error occurred: ${error.message}`);
+ *    // Handle error in UI
+ * });
+ *
+ * Later, when done
+ *
+ * cleanup();
+ */
+  private errorListeners: Array<(error: ErrorInfo) => void> = [];
 
   constructor() {
     super();
@@ -53,11 +70,11 @@ class Game extends LoadableStore implements IGame {
       currentError: null,
       trackedTargets: [],
       currentChapter: null,
-      chapters: {}, 
+      chapters: {},
       history: [],
       configVersion: configVersion as unknown as ConfigurationVersion,
       loading: LoadingState.LOADING,
-      cameraPermission: CameraPermissionStatus.UNKNOWN
+      cameraPermission: CameraPermissionStatus.UNKNOWN,
     };
 
     this.scene = new SceneManager(this);
@@ -70,19 +87,11 @@ class Game extends LoadableStore implements IGame {
   }
 
   /**
-   * Initialize the game store
-   * TODO: Move to history manager or main.ts
-   */
-  public initialize(): void {
-    this.history.load();
-  }
-
-  /**
    * Signals that loading is complete
    */
   public finishLoading(): void {
     this.set({ loading: LoadingState.LOADED });
-    
+
     // Hide the initial loader added to index.html
     if (typeof window !== 'undefined' && window.hideInitialLoader) {
       window.hideInitialLoader();
@@ -98,36 +107,12 @@ class Game extends LoadableStore implements IGame {
   }
 
   /**
-   * Error listeners
-   *
-   * Usage:
-   * In a component or manager
-   *
-   * const cleanup = game.onError((error) => {
-   *    console.error(`Error occurred: ${error.message}`);
-   *    // Handle error in UI
-   * });
-   *
-   * Later, when done
-   *
-   * cleanup();
-   */
-  private errorListeners: ((error: ErrorInfo) => void)[] = [];
-
-  /**
    * Notify listeners about an error
    */
   public notifyError(error: ErrorInfo): void {
     const { code, msg } = error;
-    console.error("[ErrorInfo]:", error);
-
-    // Show error in error page
     this.router.showError(error);
-
-    // Notify error listeners
     this.errorListeners.forEach((listener) => listener(error));
-
-    // Log error for debugging
     console.error(`[Game] Error: ${msg} (${code})`);
   }
 

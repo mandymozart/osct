@@ -52,6 +52,7 @@ export enum Pages {
   CHAPTER = "chapter",
   ABOUT = "about",
   ERROR = "error",
+  NOTIFICATION = "notification",
   INDEX = "index",
   NOT_FOUND = "not-found",
 }
