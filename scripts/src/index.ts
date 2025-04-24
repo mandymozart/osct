@@ -112,6 +112,7 @@ function readContentFiles(): ContentWithMetadata[] {
           
           // Store file path in the data for reference
           data._filePath = chapterFile;
+          data._folderName = chapterDir; // Store folder name for path resolution
           
           if (data) {
             // Ensure type is set to chapter
@@ -788,16 +789,16 @@ function buildConfig(): GameConfiguration {
     })
   };
   
+  // Adjust paths for client usage
+  const adjustedConfig = adjustConfigPaths(configData);
+  
   // Final cleanup to remove any leftover private properties
-  const cleanConfig = cleanupObject(configData) as GameConfiguration;
+  const cleanConfig = cleanupObject(adjustedConfig) as GameConfiguration;
   
   // Copy content to public directory
   copyContentToPublic();
   
-  // Adjust paths for client usage
-  const finalConfig = adjustConfigPaths(cleanConfig);
-  
-  return finalConfig;
+  return cleanConfig;
 }
 
 /**

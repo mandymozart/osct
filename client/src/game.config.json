@@ -1,7 +1,7 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2025-04-23T11:51:02.371Z"
+    "timestamp": "2025-04-24T15:28:35.165Z"
   },
   "initialChapterId": "chapter1",
   "chapters": [
@@ -11,7 +11,7 @@
       "title": "The Beginning",
       "firstPage": 1,
       "lastPage": 3,
-      "mindSrc": "/assets/content/chapter1.mind",
+      "mindSrc": "/assets/content/chapters/chapter1/chapter1.mind",
       "targets": [
         {
           "id": "target-000",
@@ -131,7 +131,7 @@
       "title": "The Castle Gates",
       "firstPage": 4,
       "lastPage": 9,
-      "mindSrc": "/assets/content/chapter2.mind",
+      "mindSrc": "/assets/content/chapters/chapter2/chapter2.mind",
       "targets": [
         {
           "id": "target-003",
@@ -250,7 +250,7 @@
       "title": "The Dragon's Lair",
       "firstPage": 10,
       "lastPage": 15,
-      "mindSrc": "/assets/content/chapter3.mind",
+      "mindSrc": "/assets/content/chapters/chapter3/chapter3.mind",
       "targets": [
         {
           "id": "target-008",
