@@ -1,22 +1,35 @@
 import { GameStoreService } from '@/services/GameStoreService';
+import { sceneService } from '@/services/SceneService';
 import { ErrorCode, GameState, IGame, LoadingState } from '@/types';
 import { EntityState } from '@/types/entities';
 import { waitForDOMReady } from '@/utils';
-import { Entity } from 'aframe';
+import { Entity, Scene } from 'aframe';
 
-interface IEntityBridge {}
 
-class EntityBridge implements IEntityBridge {
+class EntityBridge extends HTMLElement {
   private game: IGame;
   private entitiesEl: Entity[] = [];
   private initialized: boolean = false;
+  private sceneCleanupCallback: (() => void) | null = null;
+  private entitySubscriptionCleanup: (() => void) | null = null;
 
   constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
     this.game = GameStoreService.getInstance();
-    this.setup();
+    this.sceneCleanupCallback = sceneService.onSceneReady(this.setupWithScene.bind(this));
+    this.entitySubscriptionCleanup = this.game.subscribeToProperty(
+      'entities',
+      this.handleEntitiesStateChange.bind(this)
+    );
+    console.log('[EntityBridge] Setting up entities')
   }
 
-  protected async setup() {
+  private setupWithScene(scene: Scene) {
+    this.setup(scene);
+  }
+
+  protected async setup(scene: Scene) {
     // Prevent multiple initialization attempts
     if (this.initialized) {
       console.log(
@@ -29,7 +42,7 @@ class EntityBridge implements IEntityBridge {
     try {
       await waitForDOMReady();
 
-      this.entitiesEl = this.game.state.scene?.querySelectorAll(
+      this.entitiesEl = scene.querySelectorAll(
         'a-entity',
       ) as unknown as Entity[];
 
@@ -57,21 +70,14 @@ class EntityBridge implements IEntityBridge {
         status: LoadingState.INITIAL,
       };
 
-      this.game.entities.registerEntity(entityId, entityState);
+      this.game.entities.register(entityId, entityState);
     });
   }
 
-  protected setupListeners() {
-    this.game.subscribe(this.handleStateChange.bind(this));
-  }
-
-  private handleStateChange(state: GameState) {
-    if (state.entities) {
-      this.handleEntitiesStateChange(state.entities);
-    }
-  }
   private handleEntitiesStateChange(entities: Record<string, EntityState>) {
-    console.log(entities);
+    // Only process entities if we're initialized
+    if (!this.initialized) return;
+    
     // TODO: figure out what triggers the clear method for example. because entities need to be removed before new ones are added.
     if (entities) {
       // TODO: Do
@@ -79,15 +85,35 @@ class EntityBridge implements IEntityBridge {
   }
 
   private createEntity(id: string) {
-    const entityId = `${this.game.state.currentChapter?.id}-entity_${id}`;
-
-    this.game.state.scene?.appendChild;
+    const entityId = id;
+    const scene = sceneService.getScene();
+    
+    if (scene) {
+      // TODO: Implement entity creation
+    }
   }
 
   private clear(): void {
-    const entities = this.game.state.scene?.querySelectorAll(
+    const scene = sceneService.getScene();
+    if (!scene) return;
+    
+    const entities = scene.querySelectorAll(
       'a-entity',
     ) as unknown as Entity[];
     entities.forEach((target) => target.remove());
   }
+  
+  public disconnect() {
+    if (this.sceneCleanupCallback) {
+      this.sceneCleanupCallback();
+      this.sceneCleanupCallback = null;
+    }
+    
+    if (this.entitySubscriptionCleanup) {
+      this.entitySubscriptionCleanup();
+      this.entitySubscriptionCleanup = null;
+    }
+  }
 }
+
+customElements.define('entity-bridge', EntityBridge);

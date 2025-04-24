@@ -1,10 +1,9 @@
-import { LoadingState } from "../common";
+import { LoadingState } from "@/types/common";
 
 /**
  * State of an individual entity
  */
 export interface EntityState {
-  id: string;          // Entity ID
   status: LoadingState; // Current loading state
   error?: Error;        // Error information if loading failed
 }

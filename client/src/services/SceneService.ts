@@ -49,15 +49,12 @@ export class SceneService implements ISceneService {
    * @returns Cleanup function to unregister the callback
    */
   public onSceneReady(callback: (scene: Scene) => void): () => void {
-    // If scene is already available, call immediately
     if (this.sceneInstance) {
       callback(this.sceneInstance);
     } else {
-      // Otherwise add to queue
       this.sceneReadyCallbacks.push(callback);
     }
     
-    // Return cleanup function
     return () => {
       const index = this.sceneReadyCallbacks.indexOf(callback);
       if (index !== -1) {
