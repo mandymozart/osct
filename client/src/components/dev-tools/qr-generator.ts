@@ -1,7 +1,7 @@
 import { environments } from "@/environments";
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
-import { IQRCode, IQRCodeStatic } from "@/types/qr/qrcode";
+import { IQRCode } from "@/types/qr/qrcode";
 
 export class QRGenerator extends HTMLElement {
   private shadow: ShadowRoot;
@@ -138,8 +138,9 @@ export class QRGenerator extends HTMLElement {
       selector.addEventListener("mousedown", (e) => e.stopPropagation());
       selector.addEventListener("change", (e) => {
         e.stopPropagation();
-        if (!this.game.state.currentChapter) return;
-        this.generateQR(this.game.state.currentChapter, selector.value);
+        const currentChapter = this.game.state.currentChapter;
+        if (!currentChapter) return;
+        this.generateQR(currentChapter, selector.value);
       });
     }
   }
@@ -190,8 +191,9 @@ export class QRGenerator extends HTMLElement {
   }
 
   private downloadSVG() {
-    if (!this.game?.state?.currentChapter) return;
-    const chapterId = this.game.state.currentChapter;
+    const currentChapter = this.game.state.currentChapter;
+    if (!currentChapter) return;
+    
     const svg = this.shadow.querySelector("svg");
     if (!svg) return;
 
@@ -201,7 +203,7 @@ export class QRGenerator extends HTMLElement {
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = `osct-qr-c-${chapterId}.svg`;
+    link.download = `osct-qr-c-${currentChapter}.svg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -209,4 +211,4 @@ export class QRGenerator extends HTMLElement {
   }
 }
 
-customElements.define("qr-generator", QRGenerator);
+  customElements.define("qr-generator", QRGenerator);
