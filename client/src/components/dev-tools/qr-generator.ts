@@ -9,7 +9,7 @@ export class QRGenerator extends HTMLElement {
   private serverUrl: string =
     environments[import.meta.env.PROD ? "production" : "staging"].url;
   private game: Readonly<IGame>;
-  private unsubscribe: (() => void) | null = null;
+  private subscriptionCleanup: (() => void) | null = null;
 
   constructor() {
     super();
@@ -18,21 +18,23 @@ export class QRGenerator extends HTMLElement {
   }
 
   async connectedCallback() {
-    if (!import.meta.env.DEV) {
-      this.remove();
-      return;
-    }
-
     await this.loadQRScript();
     this.render();
     this.setupListeners();
 
-    // Subscribe to game state changes
-    this.unsubscribe = this.game.subscribe(() => {
-      if (this.game.state.currentChapter) {
-        this.generateQR(this.game.state.currentChapter.id);
+    // Subscribe to current chapter changes only
+    this.subscriptionCleanup = this.game.subscribeToProperty('currentChapter', (newChapterId) => {
+      if (newChapterId) {
+        this.generateQR(newChapterId);
       }
     });
+  }
+
+  disconnectedCallback() {
+    if (this.subscriptionCleanup) {
+      this.subscriptionCleanup();
+      this.subscriptionCleanup = null;
+    }
   }
 
   private async loadQRScript(): Promise<void> {
@@ -118,7 +120,7 @@ export class QRGenerator extends HTMLElement {
 
     // Generate initial QR code if chapter exists
     if (this.game.state.currentChapter) {
-      this.generateQR(this.game.state.currentChapter.id);
+      this.generateQR(this.game.state.currentChapter);
     }
   }
 
@@ -137,7 +139,7 @@ export class QRGenerator extends HTMLElement {
       selector.addEventListener("change", (e) => {
         e.stopPropagation();
         if (!this.game.state.currentChapter) return;
-        this.generateQR(this.game.state.currentChapter.id, selector.value);
+        this.generateQR(this.game.state.currentChapter, selector.value);
       });
     }
   }
@@ -188,8 +190,8 @@ export class QRGenerator extends HTMLElement {
   }
 
   private downloadSVG() {
-    if (!this.game?.state?.currentChapter?.id) return;
-    const chapterId = this.game.state.currentChapter.id;
+    if (!this.game?.state?.currentChapter) return;
+    const chapterId = this.game.state.currentChapter;
     const svg = this.shadow.querySelector("svg");
     if (!svg) return;
 
@@ -205,17 +207,6 @@ export class QRGenerator extends HTMLElement {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
-
-  disconnectedCallback() {
-    if (this.qrInstance) {
-      this.qrInstance.clear();
-    }
-    if (this.unsubscribe) {
-      this.unsubscribe();
-    }
-  }
 }
 
-if (import.meta.env.DEV) {
-  customElements.define("qr-generator", QRGenerator);
-}
+customElements.define("qr-generator", QRGenerator);
