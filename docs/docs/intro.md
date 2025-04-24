@@ -58,7 +58,6 @@ To get started with OSCT, navigate through the sections in this documentation:
 - [Game Store](/docs/store/game-store): Learn about the state management system
 - [Base Store](/docs/store/base-store): Understand the underlying state management architecture
 - [Components](/docs/components/example-usage): Discover how to use and extend the components
-- [Pages](/docs/pages/PAGES): Learn about the page structure and navigation system
 
 ## Architecture Diagram
 
