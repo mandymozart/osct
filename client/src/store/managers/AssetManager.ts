@@ -13,148 +13,71 @@ export class AssetManager implements IAssetManager {
     this.game = game;
   }
 
-  public register(id: string): void {
-    if (this.game.state.assets[id]) {
-      console.warn(`[AssetManager] Asset ${id} already registered, skipping`);
-      return;
-    }
-    
-    console.log('Current assets before register:', this.game.state.assets);
-    
-    const updatedAssets = {
-      ...this.game.state.assets,
-      [id]: {
-        id,
+  public register(id: string, state?: AssetState): void {
+    if (this.game.state.assets[id]) return;
+
+    this.game.update((draft) => {
+      draft.assets[id] = state || {
         status: LoadingState.INITIAL,
-      }
-    };
-    
-    this.game.set({
-      assets: updatedAssets
+      };
     });
-    
-    console.log('Assets after register attempt:', this.game.state.assets);
   }
 
   public markLoading(id: string) {
     if (!this.game.state.assets[id]) {
-      console.warn(`[AssetManager] Asset ${id} not found, registering first`);
       this.register(id);
-      
+
       // Return early since register() might not update state immediately
       setTimeout(() => this.markLoading(id), 0);
       return;
     }
-    
     const asset = this.game.state.assets[id];
-    console.log(`[AssetManager] Marking asset ${id} as loading. Current status:`, 
-      asset ? asset.status : 'undefined');
-    
-    if (asset && asset.status !== LoadingState.INITIAL) {
-      console.log(`[AssetManager] Asset ${id} not in INITIAL state, skipping`);
-      return;
-    }
-    
-    const updatedAssets = {
-      ...this.game.state.assets,
-      [id]: {
-        ...this.game.state.assets[id],
-        status: LoadingState.LOADING
-      }
-    };
-    
-    this.game.set({
-      assets: updatedAssets
+    if (asset && asset.status !== LoadingState.INITIAL) return;
+
+    this.game.update((draft) => {
+      draft.assets[id].status = LoadingState.LOADING;
     });
-    
-    console.log(`[AssetManager] Asset ${id} marked as loading`);
   }
 
   public markLoaded(id: string): void {
     if (!this.game.state.assets[id]) {
-      console.warn(`[AssetManager] Asset ${id} not found, registering and marking as loaded`);
-      
-      const updatedAssets = {
-        ...this.game.state.assets,
-        [id]: {
-          id,
-          status: LoadingState.LOADED
-        }
-      };
-      this.game.set({
-        assets: updatedAssets
+      this.game.update((draft) => {
+        draft.assets[id] = {
+          status: LoadingState.LOADED,
+        };
       });
-      
-      console.log(`[AssetManager] Asset ${id} created and marked as loaded`);
       return;
     }
-    
+
     const asset = this.game.state.assets[id];
-    if (asset.status === LoadingState.LOADED) {
-      console.log(`[AssetManager] Asset ${id} already loaded, skipping`);
-      return;
-    }
-    
-    // Create a new assets object with the updated asset
-    const updatedAssets = {
-      ...this.game.state.assets,
-      [id]: {
-        ...this.game.state.assets[id],
-        status: LoadingState.LOADED
-      }
-    };
-    
-    // Update state
-    this.game.set({
-      assets: updatedAssets
+    if (asset.status === LoadingState.LOADED) return;
+
+    this.game.update((draft) => {
+      draft.assets[id].status = LoadingState.LOADED;
     });
-    
-    console.log(`[AssetManager] Asset ${id} marked as loaded`);
   }
 
   public markFailed(id: string, error: Error): void {
     if (!this.game.state.assets[id]) {
-      console.warn(`[AssetManager] Asset ${id} not found, registering and marking as failed`);
-      
-      const updatedAssets = {
-        ...this.game.state.assets,
-        [id]: {
-          id,
+      this.game.update((draft) => {
+        draft.assets[id] = {
           status: LoadingState.ERROR,
-          error
-        }
-      };
-      
-      this.game.set({
-        assets: updatedAssets
+          error,
+        };
       });
-      
-      console.error(`[AssetManager] Asset ${id} created and marked as failed:`, error);
       return;
     }
-    
-    const updatedAssets = {
-      ...this.game.state.assets,
-      [id]: {
-        ...this.game.state.assets[id],
-        status: LoadingState.ERROR,
-        error
-      }
-    };
-    
-    this.game.set({
-      assets: updatedAssets
+    this.game.update((draft) => {
+      draft.assets[id].status = LoadingState.ERROR;
+      draft.assets[id].error = error;
     });
-    
-    console.error(`[AssetManager] Asset ${id} marked as failed:`, error);
   }
 
   public areChapterAssetsLoaded(chapterId: string): boolean {
     const chapterAssets = this.getChapterAssets(chapterId);
     if (chapterAssets.length === 0) {
-      return true; 
+      return true;
     }
-
     return chapterAssets.every((asset) => asset.status === LoadingState.LOADED);
   }
 

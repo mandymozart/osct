@@ -15,5 +15,3 @@ export * from "./store"
 export * from "./targets"
 export * from "./tutorial"
 
-// @deprecated
-export * from "./loadable-store/index"
