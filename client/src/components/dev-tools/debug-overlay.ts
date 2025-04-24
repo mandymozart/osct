@@ -160,12 +160,9 @@ export class DebugOverlay extends HTMLElement {
   private generateChapterSummary(id: string): string {
     const chapter = getChapter(id);
     
-    // Get loading statistics from managers
     const entityStats = this.game.entities.getLoadingStatus();
     const assetStats = this.game.assets.getLoadingStatus();
-    const chapterStats = this.game.chapters.getLoadingStatus();
 
-    // Check chapter loading state
     const isChapterLoaded = this.game.chapters.isLoaded(id);
     
     const getStatusDot = (isLoaded: boolean, isError?: boolean) => {
@@ -175,7 +172,6 @@ export class DebugOverlay extends HTMLElement {
         : '<span class="loading">◉</span>';
     };
 
-    // Get scene status
     const sceneStatus = getStatusDot(
       !!this.sceneService.getScene(),
       false
@@ -186,7 +182,7 @@ export class DebugOverlay extends HTMLElement {
     const assetsStatus = getStatusDot(assetStats.loaded === assetStats.total && assetStats.total > 0);
 
     return `
-      <div>S${sceneStatus} C${chapterStatus}${chapter?.id} T${targetsStatus}${entityStats.loaded}/${entityStats.total} E${entitiesStatus}${entityStats.loaded}/${entityStats.total} A${assetsStatus}${assetStats.loaded}/${assetStats.total}</div>
+      <div>S${sceneStatus} C${chapterStatus}${chapter?.id} E${entitiesStatus}${entityStats.loaded}/${entityStats.total} A${assetsStatus}${assetStats.loaded}/${assetStats.total}</div>
     `;
   }
 
@@ -243,7 +239,7 @@ export class DebugOverlay extends HTMLElement {
     if (entityState) {
       html += `
         <div class="entity">
-          <div>Entity: ${this.getStatusLabel(entityState)}</div>
+          <div>Status: ${this.getStatusLabel(entityState)}</div>
       `;
 
       // Get assets configuration for this target entity
@@ -259,7 +255,7 @@ export class DebugOverlay extends HTMLElement {
           html += `
             <div class="asset">
               Asset #${i}: (${assetConfig.assetType || "unknown"})
-              ${assetState ? this.getStatusLabel(assetState) : '<span class="info">Not Tracked</span>'}
+              ${assetState ? this.getStatusLabel(assetState) : '<span class="info">N/A</span>'}
               ${
                 assetState?.error
                   ? `<div class="error">${assetState.error.message || assetState.error}</div>`

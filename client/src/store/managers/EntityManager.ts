@@ -21,18 +21,12 @@ export class EntityManager implements IEntityManager {
       console.warn(`[EntityManager] Entity ${id} already registered, skipping`);
       return;
     }
-    console.log(id)
-
-    const updatedEntities = {
-      ...this.game.state.entities,
-      [id]: {
+    
+    this.game.update(draft => {
+      draft.entities[id] = {
         id,
         status: LoadingState.INITIAL
-      }
-    };
-    
-    this.game.set({
-      entities: updatedEntities
+      };
     });
   }
 
@@ -43,10 +37,8 @@ export class EntityManager implements IEntityManager {
       return;
     }
     
-    const { [id]: removed, ...remainingEntities } = this.game.state.entities;
-    
-    this.game.set({
-      entities: remainingEntities
+    this.game.update(draft => {
+      delete draft.entities[id];
     });
     
     console.log(`[EntityManager] Entity ${id} removed`);
@@ -63,20 +55,10 @@ export class EntityManager implements IEntityManager {
       return;
     }
 
-    if (entity.status === LoadingState.LOADED) {
-      return; // Already loaded
-    }
+    if (entity.status === LoadingState.LOADED) return;
 
-    const updatedEntities = {
-      ...this.game.state.entities,
-      [id]: {
-        ...this.game.state.entities[id],
-        status: LoadingState.LOADED
-      }
-    };
-    
-    this.game.set({
-      entities: updatedEntities
+    this.game.update(draft => {
+      draft.entities[id].status = LoadingState.LOADED;
     });
   }
 
@@ -92,17 +74,9 @@ export class EntityManager implements IEntityManager {
       return;
     }
 
-    const updatedEntities = {
-      ...this.game.state.entities,
-      [id]: {
-        ...this.game.state.entities[id],
-        status: LoadingState.ERROR,
-        error
-      }
-    };
-    
-    this.game.set({
-      entities: updatedEntities
+    this.game.update(draft => {
+      draft.entities[id].status = LoadingState.ERROR;
+      draft.entities[id].error = error;
     });
 
     console.error(`[EntityManager] Entity ${id} failed to load:`, error);

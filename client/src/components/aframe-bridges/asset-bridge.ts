@@ -1,6 +1,6 @@
 import { GameStoreService } from '@/services/GameStoreService';
 import { sceneService } from '@/services/SceneService';
-import { AssetData, GameState, IGame, LoadingState } from '@/types';
+import { AssetData, IGame, LoadingState } from '@/types';
 import { AssetState } from '@/types/assets';
 import { getAsset } from '@/utils/config';
 import { Entity, Scene } from 'aframe';
