@@ -1,0 +1,126 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  /* Color scheme from OSCT main.css */
+  /* Primary color (Grays) */
+  --primary-100: #f4f4f5;
+  --primary-200: #e4e4e7;
+  --primary-300: #d4d4d8;
+  --primary-400: #a1a1aa;
+  --primary-500: #71717a;
+  --primary-600: #52525b;
+  --primary-700: #3f3f46;
+  --primary-800: #27272a;
+  --primary-900: #18181b;
+
+  /* Secondary color (Lavender) */
+  --secondary-100: #eeefff;
+  --secondary-200: #e0e1ff;
+  --secondary-300: #c4c6ff;
+  --secondary-400: #a4a7ff;
+  --secondary-500: #8588ff;
+  --secondary-600: #747bff;
+  --secondary-700: #5d63cc;
+  --secondary-800: #464b99;
+  --secondary-900: #2f3266;
+
+  /* Set Docusaurus theme colors based on OSCT palette */
+  --ifm-color-primary: var(--secondary-600);
+  --ifm-color-primary-dark: var(--secondary-700);
+  --ifm-color-primary-darker: var(--secondary-800);
+  --ifm-color-primary-darkest: var(--secondary-900);
+  --ifm-color-primary-light: var(--secondary-500);
+  --ifm-color-primary-lighter: var(--secondary-400);
+  --ifm-color-primary-lightest: var(--secondary-300);
+  
+  --ifm-background-color: var(--primary-100);
+  --ifm-navbar-background-color: var(--primary-100);
+  --ifm-footer-background-color: var(--primary-800);
+  
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Typography */
+  --ifm-font-family-base: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --ifm-heading-font-family: var(--ifm-font-family-base);
+  --ifm-heading-color: var(--primary-900);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: var(--secondary-500);
+  --ifm-color-primary-dark: var(--secondary-600);
+  --ifm-color-primary-darker: var(--secondary-700);
+  --ifm-color-primary-darkest: var(--secondary-800);
+  --ifm-color-primary-light: var(--secondary-400);
+  --ifm-color-primary-lighter: var(--secondary-300);
+  --ifm-color-primary-lightest: var(--secondary-200);
+  
+  --ifm-background-color: var(--primary-900);
+  --ifm-navbar-background-color: var(--primary-800);
+  --ifm-footer-background-color: var(--primary-900);
+  
+  --ifm-heading-color: var(--primary-100);
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
+}
+
+.hero--primary {
+  background-color: var(--primary-800);
+  color: var(--primary-100);
+}
+
+/* OSCT Button Styles from the main project */
+.button {
+  border-radius: 2rem !important;
+  border: 1px solid var(--ifm-color-primary) !important;
+  padding: 0 2rem !important;
+  line-height: 4rem !important;
+  font-size: 1.5rem !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  transition: border-color 0.25s, background-color 0.25s, color 0.25s !important;
+  outline: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  font-family: var(--ifm-font-family-base) !important;
+}
+
+.button--secondary {
+  background-color: transparent !important;
+  color: var(--secondary-600) !important;
+  border-color: var(--secondary-600) !important;
+}
+
+.button--secondary:hover {
+  background-color: var(--secondary-600) !important;
+  color: white !important;
+  border-color: var(--secondary-600) !important;
+}
+
+.button--primary {
+  background-color: var(--primary-900) !important;
+  color: var(--primary-100) !important;
+  border-color: var(--primary-900) !important;
+}
+
+.button--primary:hover {
+  background-color: var(--secondary-600) !important;
+  color: white !important;
+  border-color: var(--secondary-600) !important;
+}
+
+/* Style for active state buttons */
+.button.button--active,
+.button[data-active=true] {
+  color: var(--primary-100) !important;
+  background-color: var(--secondary-600) !important;
+  border-color: var(--secondary-600) !important;
+}

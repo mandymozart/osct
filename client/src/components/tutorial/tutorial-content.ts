@@ -9,7 +9,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
   private _title: string = "";
   private _description: string = "";
   private _illustration: string = "";
-  private _currentStep: number = 0;
+  private _currentStep: number = 1;
 
   constructor() {
     super();
@@ -112,7 +112,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
         break;
 
       case "current-step":
-        this._currentStep = parseInt(newValue) || 0;
+        this._currentStep = parseInt(newValue) || 1;
         break;
     }
 
@@ -185,7 +185,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
           }
         </style>
         
-        <div class="step-header">Step ${this._currentStep + 1} of ${
+        <div class="step-header">Step ${this._currentStep} of ${
           tutorial.length - 1
         }</div>
         <div class="content-container">

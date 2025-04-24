@@ -78,16 +78,6 @@ export interface ILoadableStore {
    * Initialize loading state properties on a resource and its children
    */
   initializeLoadingStates<T>(data: T): T & LoadableResource;
-
-  /**
-   * Load a single asset with proper error handling
-   */
-  loadAsset(src: string, type?: AssetType): Promise<void>;
-
-  /**
-   * Load multiple assets in parallel with individual error handling
-   */
-  loadAssets<T extends LoadableResource>(assets: T[]): Promise<T[]>;
 }
 
 /**

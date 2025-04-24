@@ -132,6 +132,7 @@ export interface EntityData {
 
 export interface AssetData {
   id: string;
+  assetType: string;
   type: string;
   src: string;
   position?: {

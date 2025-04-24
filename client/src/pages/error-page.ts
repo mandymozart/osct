@@ -1,7 +1,7 @@
-import { Page } from "./page";
-import { ErrorCode, IGame } from "@/types";
-import { GameStoreService } from "@/services/GameStoreService";
 import { MEDIA_QUERY } from "@/constants";
+import { GameStoreService } from "@/services/GameStoreService";
+import { IGame } from "@/types";
+import { Page } from "./page";
 
 export interface IErrorPage extends HTMLElement {
   showError(msg: string, options?: ErrorOptions): void;
@@ -149,6 +149,7 @@ class ErrorPage extends Page implements IErrorPage {
 
     this.render();
     this.active = true; // Use the setter from Page class
+    this.game.finishLoading();
 
     // Add event listeners to buttons
     setTimeout(() => {

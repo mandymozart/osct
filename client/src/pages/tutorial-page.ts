@@ -1,12 +1,12 @@
-import { Page } from "./page";
-import { assert } from "../utils/assert";
 import { tutorial } from "@/game.config.json";
-import { TutorialStepData, ITutorialNavigation } from "@/types/tutorial";
 import { GameState, IGame } from "@/types/game";
+import { ITutorialNavigation, TutorialStepData } from "@/types/tutorial";
+import { assert } from "../utils/assert";
+import { Page } from "./page";
 
+import { GameStoreService } from "@/services/GameStoreService";
 import "../components/tutorial/tutorial-content";
 import "../components/tutorial/tutorial-navigation";
-import { GameStoreService } from "@/services/GameStoreService";
 
 export class TutorialPage extends Page {
   static get observedAttributes() {
@@ -30,7 +30,7 @@ export class TutorialPage extends Page {
         top: 0;
         left: 0;
         right: 0;
-        bottom: var(--offset-top, 4rem);
+        bottom: 0;
         display: flex;
         flex-direction: column;
         margin: 0 1rem;
@@ -140,12 +140,13 @@ export class TutorialPage extends Page {
       console.warn(`Tutorial step not found: ${step}`);
       return;
     }
+    this.content.setAttribute("current-step", step.toString());
     this.content.setAttribute("title", stepData.title);
     this.content.setAttribute("description", stepData.description);
     if (stepData.illustration) {
       this.content.setAttribute("illustration", stepData.illustration ?? null);
     }
-
+    
     this.navigation.setAttribute("current-step", step.toString());
   }
 }
