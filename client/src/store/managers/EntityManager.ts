@@ -24,7 +24,6 @@ export class EntityManager implements IEntityManager {
     
     this.game.update(draft => {
       draft.entities[id] = {
-        id,
         status: LoadingState.INITIAL
       };
     });
