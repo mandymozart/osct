@@ -61,6 +61,11 @@ class EntityBridge extends HTMLElement {
 
     this.entitiesEl.forEach((entityEl) => {
       const entityId = entityEl.getAttribute('id');
+      const isLight = entityEl.getAttribute('light') !== null;
+      if(isLight){
+        console.warn('[EntityBridge] Skipping lights', entityEl);
+        return;
+      }
       if (!entityId) {
         console.warn('[EntityBridge] Found entity without ID', entityEl);
         return;
