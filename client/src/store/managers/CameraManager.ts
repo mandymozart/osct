@@ -21,8 +21,12 @@ export class CameraManager implements ICameraManager {
   /**
    * Set permission status and notify listeners
    */
-  private setPermissionStatus(status: CameraPermissionStatus): void {
-    this.game.set({ cameraPermission: status });
+  public setPermissionStatus(status: CameraPermissionStatus): void {
+    this.game.set({ 
+      cameraPermission: status,
+     
+    });
+    
     this.notifyPermissionListeners(status);
   }
   

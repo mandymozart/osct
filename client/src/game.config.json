@@ -1,7 +1,7 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2025-04-20T11:23:29.131Z"
+    "timestamp": "2025-04-23T11:51:02.371Z"
   },
   "initialChapterId": "chapter1",
   "chapters": [
@@ -34,6 +34,7 @@
             "assets": [
               {
                 "id": "shadows-link",
+                "assetType": "link",
                 "type": "asset",
                 "src": "https://experiment-woodkid-volcano-robot.vercel.app/"
               }
@@ -60,6 +61,7 @@
             "assets": [
               {
                 "id": "racoon",
+                "assetType": "glb",
                 "type": "asset",
                 "src": "/assets/content/targets/target-001/racoon.glb"
               }
@@ -86,6 +88,7 @@
             "assets": [
               {
                 "id": "tree",
+                "assetType": "glb",
                 "type": "asset",
                 "src": "/assets/content/targets/target-002/tree.glb"
               }
@@ -112,6 +115,7 @@
             "assets": [
               {
                 "id": "dragon",
+                "assetType": "glb",
                 "type": "asset",
                 "src": "/assets/content/targets/target-005/dragon.glb"
               }
@@ -148,6 +152,7 @@
             "assets": [
               {
                 "id": "castle",
+                "assetType": "glb",
                 "type": "asset",
                 "src": "/assets/content/targets/target-003/castle.glb"
               }
@@ -174,6 +179,7 @@
             "assets": [
               {
                 "id": "cardboard-boxes",
+                "assetType": "glb",
                 "type": "asset",
                 "src": "/assets/content/targets/target-004/cardboard-boxes.glb"
               }
@@ -200,6 +206,7 @@
             "assets": [
               {
                 "id": "treasure",
+                "assetType": "glb",
                 "type": "asset",
                 "src": "/assets/content/targets/target-006/treasure.glb"
               }
@@ -227,8 +234,9 @@
             "assets": [
               {
                 "id": "bunny-video",
+                "assetType": "video",
                 "type": "asset",
-                "src": "https://cdn.aframe.io/videos/bunny.mp4"
+                "src": "/assets/content/targets/target-007/bunny.mp4"
               }
             ]
           },
@@ -263,6 +271,7 @@
             "assets": [
               {
                 "id": "edge",
+                "assetType": "video",
                 "type": "asset",
                 "src": "/assets/content/targets/target-008/edge.mp4"
               }
@@ -288,6 +297,7 @@
             "assets": [
               {
                 "id": "sploosh",
+                "assetType": "video",
                 "type": "asset",
                 "src": "/assets/content/targets/target-009/sploosh.mp4"
               }

@@ -1,89 +1,94 @@
-import { LoadableStore } from "./LoadableStore";
-import { ChapterManager } from "./managers/ChapterManager";
-import { HistoryManager } from "./managers/HistoryManager";
-import { SceneManager } from "./managers/SceneManager";
-import { TargetManager } from "./managers/TargetManager";
+import { version as configVersion } from "@/game.config.json";
 import {
+  CameraPermissionStatus,
+  ConfigurationVersion,
+  ErrorInfo,
   GameMode,
   GameState,
-  IGame,
+  GameVersion,
+  IAssetManager,
+  ICameraManager,
   IChapterManager,
+  IEntityManager,
+  IGame,
+  IHistoryManager,
+  IQRManager,
   IRouterManager,
   ITargetManager,
-  ISceneManager,
-  IHistoryManager,
-  ErrorInfo,
-  IQRManager,
-  LoadingState,
-  GameVersion,
-  ConfigurationVersion,
-  CameraPermissionStatus,
-  ICameraManager
-} from "../types";
+  LoadingState
+} from "@/types";
+import { uniqueId } from "@/utils";
+import { BaseStore } from "./BaseStore";
+import { AssetManager } from "./managers/AssetManager";
+import { CameraManager } from "./managers/CameraManager";
+import { ChapterManager } from "./managers/ChapterManager";
+import { EntityManager } from "./managers/EntityManager";
+import { HistoryManager } from "./managers/HistoryManager";
 import { QRManager } from "./managers/QRManager";
 import { RouterManager } from "./managers/router/RouterManager";
-import { uniqueId } from "@/utils";
-import { version as configVersion } from "@/game.config.json";
-import { CameraManager } from "./managers/CameraManager";
+import { TargetManager } from "./managers/TargetManager";
+
+const initialState: GameState = {
+  id: uniqueId(),
+  mode: GameMode.IDLE,
+  currentRoute: null,
+  currentError: null,
+  trackedTargets: [],
+  currentChapter: null,
+  chapters: {}, 
+  history: [],
+  configVersion: configVersion as unknown as ConfigurationVersion,
+  loading: LoadingState.LOADING,
+  cameraPermission: CameraPermissionStatus.UNKNOWN,
+  assets: {},
+  entities: {}
+}
 
 /**
- * Game-specific store that manages chapter loading and target tracking
+ * Game-specific store
  * Uses specialized managers for different concerns
  */
-class Game extends LoadableStore implements IGame {
-  public state: GameState;
+class Game extends BaseStore<GameState> implements IGame {
   public version: GameVersion = { version: __VITE_APP_VERSION__, timestamp: __VITE_BUILD_DATE__ } as GameVersion;
 
-  public scene: ISceneManager;
+  // Managers
   public chapters: IChapterManager;
   public targets: ITargetManager;
   public history: IHistoryManager;
   public router: IRouterManager;
   public qr: IQRManager;
   public camera: ICameraManager;
+  public assets: IAssetManager;
+  public entities: IEntityManager;
 
   /**
- * Notification and Error listeners
- *
- * Usage:
- * In a component or manager
- *
- * const cleanup = game.onError((error) => {
- *    console.error(`Error occurred: ${error.message}`);
- *    // Handle error in UI
- * });
- *
- * Later, when done
- *
- * cleanup();
- */
+   * Notification and Error listeners
+   *
+   * Usage:
+   * In a component or manager
+   *
+   * const cleanup = game.onError((error) => {
+   *    console.error(`Error occurred: ${error.message}`);
+   *    // Handle error in UI
+   * });
+   *
+   * Later, when done
+   *
+   * cleanup();
+   */
   private errorListeners: Array<(error: ErrorInfo) => void> = [];
 
   constructor() {
-    super();
+    super(initialState);
 
-    this.state = {
-      id: uniqueId(),
-      scene: null,
-      mode: GameMode.IDLE,
-      currentRoute: null,
-      currentError: null,
-      trackedTargets: [],
-      currentChapter: null,
-      chapters: {},
-      history: [],
-      configVersion: configVersion as unknown as ConfigurationVersion,
-      loading: LoadingState.LOADING,
-      cameraPermission: CameraPermissionStatus.UNKNOWN,
-    };
-
-    this.scene = new SceneManager(this);
-    this.chapters = new ChapterManager(this);
-    this.targets = new TargetManager(this);
-    this.history = new HistoryManager(this);
-    this.router = new RouterManager(this);
-    this.qr = new QRManager(this);
+    this.assets = new AssetManager(this);
     this.camera = new CameraManager(this);
+    this.chapters = new ChapterManager(this);
+    this.entities = new EntityManager(this);
+    this.history = new HistoryManager(this);
+    this.targets = new TargetManager(this);
+    this.qr = new QRManager(this);
+    this.router = new RouterManager(this);
   }
 
   /**

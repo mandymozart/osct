@@ -52,7 +52,7 @@ export class NavigationBar extends HTMLElement {
             left: 1rem;
             right: 1rem;
             gap: 1rem;
-            z-index: 1;
+            z-index: 0;
             /* Force hardware acceleration */
             -webkit-transform: translateZ(0);
             transform: translateZ(0);

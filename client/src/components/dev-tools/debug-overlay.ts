@@ -1,22 +1,27 @@
+import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
+import { getChapter, getTarget, } from "@/utils/config";
 import { GameStoreService } from "../../services/GameStoreService";
-import { Asset, ChapterResource, IGame, LoadingState, Target } from "../../types";
+import { SceneService } from '../../services/SceneService';
 
 export class DebugOverlay extends HTMLElement {
   private shadow: ShadowRoot;
   private unsubscribe: (() => void) | null = null;
   private expanded: boolean = false;
   private game: Readonly<IGame>;
+  private sceneService: SceneService; // declare sceneService as a class property
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
+    this.sceneService = SceneService.getInstance(); // initialize sceneService in the constructor
     this.shadow = this.attachShadow({ mode: "open" });
 
     // Hide in production
-    if (!import.meta.env.DEV && !import.meta.env.DEBUG) {
+    if (!import.meta.env.DEV && !import.meta.env.VITE_DEBUG) {
       this.style.display = "none";
     }
+    console.log('[DebugOverlay] constructor')
   }
 
   private async initialize(): Promise<void> {
@@ -122,13 +127,13 @@ export class DebugOverlay extends HTMLElement {
   private updateContent() {
     const contentEl = this.shadow.getElementById("content");
     if (!contentEl) return;
-    const { currentChapter, scene } = this.game.state;
+    const { currentChapter } = this.game.state;
     let html = "";
 
     // Scene status
     html += `<div class="section">
       <div>Scene: ${
-        scene
+        this.sceneService.getScene()
           ? '<span class="loaded">Attached</span>'
           : '<span class="error">Not Attached</span>'
       }</div>
@@ -152,32 +157,17 @@ export class DebugOverlay extends HTMLElement {
     contentEl.innerHTML = html;
   }
 
-  private generateChapterSummary(chapter: ChapterResource): string {
-    const targets = chapter.targets || [];
-    const loadedTargets = targets.filter(
-      (t) => t.status === LoadingState.LOADED
-    ).length;
+  private generateChapterSummary(id: string): string {
+    const chapter = getChapter(id);
+    
+    // Get loading statistics from managers
+    const entityStats = this.game.entities.getLoadingStatus();
+    const assetStats = this.game.assets.getLoadingStatus();
+    const chapterStats = this.game.chapters.getLoadingStatus();
 
-    // Count entities and assets
-    let totalEntities = 0;
-    let loadedEntities = 0;
-    let totalAssets = 0;
-    let loadedAssets = 0;
-
-    targets.forEach((target) => {
-      if (target.entity) {
-        totalEntities++;
-        if (target.entity.status === LoadingState.LOADED) loadedEntities++;
-
-        if (target.entity.assets) {
-          totalAssets += target.entity.assets.length;
-          loadedAssets += target.entity.assets.filter(
-            (a) => a.status === LoadingState.LOADED
-          ).length;
-        }
-      }
-    });
-
+    // Check chapter loading state
+    const isChapterLoaded = this.game.chapters.isLoaded(id);
+    
     const getStatusDot = (isLoaded: boolean, isError?: boolean) => {
       if (isError) return '<span class="error">◉</span>';
       return isLoaded
@@ -185,21 +175,24 @@ export class DebugOverlay extends HTMLElement {
         : '<span class="loading">◉</span>';
     };
 
+    // Get scene status
     const sceneStatus = getStatusDot(
-      !!this.game.state.scene,
-      !this.game.state.scene
+      !!this.sceneService.getScene(),
+      false
     );
-    const chapterStatus = getStatusDot(chapter.status === LoadingState.LOADED);
-    const targetsStatus = getStatusDot(loadedTargets === targets.length);
-    const entitiesStatus = getStatusDot(loadedEntities === totalEntities);
-    const assetsStatus = getStatusDot(loadedAssets === totalAssets);
+    const chapterStatus = getStatusDot(isChapterLoaded);
+    const targetsStatus = getStatusDot(entityStats.loaded === entityStats.total && entityStats.total > 0);
+    const entitiesStatus = getStatusDot(entityStats.loaded === entityStats.total && entityStats.total > 0);
+    const assetsStatus = getStatusDot(assetStats.loaded === assetStats.total && assetStats.total > 0);
 
     return `
-      <div>S${sceneStatus} C${chapterStatus}${chapter.id} T${targetsStatus}${loadedTargets}/${targets.length} E${entitiesStatus}${loadedEntities}/${totalEntities} A${assetsStatus}${loadedAssets}/${totalAssets}</div>
+      <div>S${sceneStatus} C${chapterStatus}${chapter?.id} T${targetsStatus}${entityStats.loaded}/${entityStats.total} E${entitiesStatus}${entityStats.loaded}/${entityStats.total} A${assetsStatus}${assetStats.loaded}/${assetStats.total}</div>
     `;
   }
 
-  private renderChapterInfo(chapter: ChapterResource): string {
+  private renderChapterInfo(id: string): string {
+    const chapter = getChapter(id);
+    if (!chapter) return "";
     let html = `
       <div class="section">
         <div>Chapter: ${chapter.id || "unknown"}</div>
@@ -224,35 +217,58 @@ export class DebugOverlay extends HTMLElement {
   }
 
   private renderTargetInfo(target: Target, index: number): string {
+    // Get the target's entity ID
+    const entityId = `${target.id}`;
+    
+    // Get entity state if it exists
+    const entityState = this.game.state.entities[entityId];
+    
+    // Get target configuration
+    const targetConfig = getTarget(entityId);
+    
     let html = `
       <div class="target">
-        <div>Target #${index}: ${this.getStatusLabel(target)}</div>
-        <div><img src="${target.imageTargetSrc}" alt="${target.title}" /></div>
+        <div>Target #${index}: ${target.id ? target.id : 'unnamed'}</div>
     `;
 
-    if (target.entity) {
+    // Add image preview if available
+    if (targetConfig && targetConfig.imageTargetSrc) {
+      html += `
+        <div class="target-image">
+          <img src="${targetConfig.imageTargetSrc}" alt="${targetConfig.title || target.id}" />
+        </div>
+      `;
+    }
+
+    if (entityState) {
       html += `
         <div class="entity">
-          <div>Entity: ${this.getStatusLabel(target.entity)}</div>
+          <div>Entity: ${this.getStatusLabel(entityState)}</div>
       `;
 
-      if (target.entity.assets && target.entity.assets.length > 0) {
-        html += `<div class="entity">Assets (${target.entity.assets.length}):</div>`;
+      // Get assets configuration for this target entity
+      const assetConfigs = targetConfig?.entity?.assets || [];
+      
+      if (assetConfigs.length > 0) {
+        html += `<div class="entity">Assets (${assetConfigs.length}):</div>`;
 
-        target.entity.assets.forEach((asset: Asset, i) => {
+        assetConfigs.forEach((assetConfig, i) => {
+          // Get asset state from the game state
+          const assetState = this.game.state.assets[assetConfig.id];
+          
           html += `
             <div class="asset">
-              Asset #${i}: (${asset.type || "unknown"})
-              ${this.getStatusLabel(asset)}
+              Asset #${i}: (${assetConfig.assetType || "unknown"})
+              ${assetState ? this.getStatusLabel(assetState) : '<span class="info">Not Tracked</span>'}
               ${
-                asset.error
-                  ? `<div class="error">${asset.error.msg}</div>`
+                assetState?.error
+                  ? `<div class="error">${assetState.error.message || assetState.error}</div>`
                   : ""
               }
-              <div class="asset-meta">ID: ${asset.id || "unnamed"}</div>
-              <div class="info">Source: ${this.truncateFilePath(
-                asset.src || "N/A"
-              )}</div>
+              <div class="asset-meta">ID: ${assetConfig.id || "unnamed"}</div>
+              ${assetConfig.src ? 
+                `<div class="info">Source: ${this.truncateFilePath(assetConfig.src)}</div>` 
+                : ''}
             </div>
           `;
         });
@@ -312,7 +328,6 @@ export class DebugOverlay extends HTMLElement {
     return `.../${filename}`;
   }
 }
-
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && import.meta.env.VITE_DEBUG) {
   customElements.define("debug-overlay", DebugOverlay);
 }

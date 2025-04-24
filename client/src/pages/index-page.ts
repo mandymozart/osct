@@ -35,7 +35,7 @@ export class IndexPage extends Page implements IIndexPage {
         position: absolute;
         top: 6rem;
         overflow-y: auto;
-        bottom: 4rem;
+        bottom: 0;
         width: 100%;
       }
       

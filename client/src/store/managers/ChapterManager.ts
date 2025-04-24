@@ -1,448 +1,185 @@
-import { produce } from "immer";
-import {
-  Asset,
-  ErrorCode,
-  IGame,
-  ChapterResource,
-  ChapterData,
-  IChapterManager,
-  LoadingState,
-  Target,
-} from "../../types";
-import {
-  chapters as chaptersData,
-  initialChapterId,
-} from "./../../game.config.json";
+import { ChapterState, IChapterManager, IGame, LoadingState } from '@/types';
+import { getChapter, getChapters, getInitialChapterId } from '@/utils/config';
 
 /**
- * Manages chapter loading, initialization, and caching
+ * Manages chapters through game state
  */
 export class ChapterManager implements IChapterManager {
   private game: IGame;
-  private data: ChapterData[] = chaptersData as ChapterData[];
 
   constructor(game: IGame) {
     this.game = game;
-    this.initialize();
+    this.initialize()
   }
 
   /**
-   * Initialize the game state with empty chapter resources
-   * Maps static chapter data to mutable chapter resources in the game state
-   * Sets the initial chapter
-   * @returns void
-   */
-  public async initialize(): Promise<void> {
-    this.game.set({loading: LoadingState.LOADING});
-    const chapters: Record<string, ChapterResource> = {};
-    try {
-      this.data.forEach((chapterData) => {
-        const chapterResource = this.initializeChapterLoadingStates(chapterData);
-        chapters[chapterData.id] = chapterResource;
-      });
-      this.game.set({ chapters });
-      // TODO: No async waiting till all assets are loaded for initial chapter
-      await this.switchChapter(initialChapterId);
-
-    } catch (error) {
-      console.error("[Chapter Manager] Failed to initialize chapter manager:", error);
-    }
-
-    this.game.set({loading: LoadingState.LOADED});
-    this.game.notifyListeners();
+   * Initialize chapters from configuration
+  */
+  private initialize(): void {
+    const chaptersData = getChapters();
+    const chaptersState: Record<string, ChapterState> = {};
+    
+    chaptersData.forEach(chapter => {
+      chaptersState[chapter.id] = {
+        id: chapter.id,
+        status: LoadingState.INITIAL
+      };
+    });
+    this.game.update(draft => {
+      draft.currentChapter = getInitialChapterId();
+      draft.chapters = chaptersState;
+    });
   }
 
   /**
-   * Get a cached chapter if available
+   * Get the current chapter ID
    */
-  public getCachedChapter(chapterId: string): ChapterResource | null {
-    return this.game.state.chapters[chapterId] || null;
-  }
-
-  /**
-   * Get chapter
-   */
-  public getCurrentChapter(): ChapterResource | null {
+  public getCurrentChapter(): string | null {
     return this.game.state.currentChapter;
   }
 
   /**
    * Switch to a different chapter
-   * @returns Promise that resolves when chapter is fully loaded
+   * @param id The ID of the chapter to switch to
    */
-  public async switchChapter(chapterId: string): Promise<void> {
-    this.game.set({loading: LoadingState.LOADING}); 
-    try {
-      // Check if already on this chapter
-      if (
-        this.game.state.currentChapter?.id === chapterId &&
-        this.game.state.currentChapter.status === LoadingState.LOADED
-      ) {
-        // Even if already on this chapter, ensure scene is updated
-        this.updateSceneWithCurrentChapter();
-        // Make sure to set loading state back to LOADED before returning
-        this.game.set({loading: LoadingState.LOADED});
-        return;
-      }
-
-      // Check cache first
-      const cachedChapter = this.getCachedChapter(chapterId);
-      if (cachedChapter && cachedChapter.status === LoadingState.LOADED) {
-        this.game.set({ currentChapter: cachedChapter });
-
-        // Update scene with cached chapter
-        this.updateSceneWithCurrentChapter();
-        // Also make sure to set loading state back to LOADED here
-        this.game.set({loading: LoadingState.LOADED});
-        return;
-      }
-
-      // Find the chapter in our data
-      const chapterData = this.data.find((ch) => ch.id === chapterId);
-      if (!chapterData) {
-        const errorMsg = `Chapter ${chapterId} not found.`;
-        this.handleChapterError(
-          chapterId,
-          ErrorCode.CHAPTER_NOT_FOUND,
-          errorMsg
-        );
-        throw new Error(errorMsg);
-      }
-
-      // Initialize and start loading
-      const newChapter = this.initializeChapterLoadingStates(chapterData);
-
-      // Mark chapter as loading and update state
-      const loadingChapter = {
-        ...newChapter,
-        loadingState: LoadingState.LOADING,
-        error: null,
-      };
-
-      this.game.set({
-        currentChapter: loadingChapter,
-        trackedTargets: [],
-      });
-
-      // Load all chapter resources
-      const loadedChapter = await this.loadChapterResources(loadingChapter);
-
-      // Update cache with fully loaded chapter
-      this.game.state = produce(this.game.state, (draft) => {
-        draft.currentChapter = loadedChapter;
-        draft.chapters[chapterId] = loadedChapter;
-      });
-
-      this.game.set({loading: LoadingState.LOADED});
-      this.game.notifyListeners();
-
-      // Update scene with newly loaded chapter
-      this.updateSceneWithCurrentChapter();
-    } catch (error) {
-      const errorMsg =
-        error instanceof Error ? error.message : "Failed to load chapter";
-      this.handleChapterError(chapterId, ErrorCode.UNKNOWN_ERROR, errorMsg);
-      throw error;
+  public switchChapter(id: string): void {
+    const chapterData = getChapter(id);
+    if (!chapterData) {
+      console.error(`[ChapterManager] "${id}" not found in configuration`);
+      return 
     }
-  }
 
-  /**
-   * Handle chapter error with consistent error reporting
-   */
-  private handleChapterError(
-    chapterId: string,
-    errorCode: ErrorCode,
-    errorMsg: string
-  ): void {
-    const failedChapter = {
-      id: chapterId,
-      status: LoadingState.ERROR,
-      error: {
-        code: errorCode,
-        msg: errorMsg,
-      },
-    } as ChapterResource;
-
-    this.game.set({
-      currentChapter: failedChapter,
-      trackedTargets: [],
-    });
-
-    this.game.notifyError({
-      msg: errorMsg,
-      code: errorCode,
-    });
-  }
-
-  /**
-   * Initialize loading states specifically for a chapter structure
-   */
-  private initializeChapterLoadingStates(
-    chapterData: ChapterData
-  ): ChapterResource {
-    // Create deep clone of chapter to avoid modifying original data
-    const chapter = JSON.parse(JSON.stringify(chapterData));
-
-    // Use Immer for initialization
-    return produce<ChapterResource>(chapter, (draft) => {
-      // Initialize chapter's loading state
-      draft.status = LoadingState.INITIAL;
-      draft.error = null;
-
-      // Initialize each target and its entity
-      if (draft.targets) {
-        draft.targets = draft.targets.map((target: Target) => {
-          // Initialize target loading state
-          target.status = LoadingState.INITIAL;
-          target.error = null;
-
-          // Initialize entity loading state
-          if (target.entity) {
-            target.entity.status = LoadingState.INITIAL;
-            target.entity.error = null;
-
-            // Initialize asset loading states
-            if (target.entity.assets) {
-              target.entity.assets = target.entity.assets.map(
-                (asset: Asset) => ({
-                  ...asset,
-                  loadingState: LoadingState.INITIAL,
-                  error: null,
-                })
-              );
-            }
-          }
-
-          return target;
-        });
-      }
-    });
-  }
-
-  /**
-   * Load chapter and all its nested resources
-   */
-  private async loadChapterResources(
-    chapter: ChapterResource
-  ): Promise<ChapterResource> {
-    try {
-      let workingChapter = { ...chapter };
-
-      const allErrors: {
-        target: number;
-        entity: boolean;
-        asset: number;
-        error: any;
-      }[] = [];
-
-      // Process each target
-      if (workingChapter.targets) {
-        for (let i = 0; i < workingChapter.targets.length; i++) {
-          // Use Immer to update the working chapter
-          workingChapter = produce(workingChapter, (draft: ChapterResource) => {
-            const target = draft.targets[i];
-
-            // Mark target as loading
-            target.status = LoadingState.LOADING;
-            target.error = null;
-
-            // Mark entity as loading if it exists
-            if (target.entity) {
-              target.entity.status = LoadingState.LOADING;
-              target.entity.error = null;
-            }
-          });
-
-          // Update state to show progress
-          this.game.set({ currentChapter: workingChapter });
-
-          const target = workingChapter.targets[i];
-
-          if (target.entity) {
-            // Mark entity as loading
-            const entity = target.entity;
-
-            // Process assets if they exist
-            if (entity.assets && entity.assets.length > 0) {
-              try {
-                const loadedAssets = await this.game.loadAssets<Asset>(
-                  entity.assets
-                );
-
-                // Check if any assets failed to load
-                const failedAssets = loadedAssets.filter(
-                  (asset) => asset.status === LoadingState.ERROR
-                );
-
-                // Debug any failed assets and their errors
-                if (failedAssets.length > 0) {
-                  // Add errors to collection
-                  failedAssets.forEach((asset, assetIndex) => {
-                    allErrors.push({
-                      target: i,
-                      entity: true,
-                      asset: assetIndex,
-                      error: asset.error,
-                    });
-                  });
-                }
-
-                // Update with loaded assets using Immer
-                workingChapter = produce(
-                  workingChapter,
-                  (draft: ChapterResource) => {
-                    if (failedAssets.length > 0) {
-                      // Some assets failed - mark entity as failed
-                      draft.targets[i].entity.status = LoadingState.ERROR;
-                      draft.targets[i].entity.error = {
-                        code: ErrorCode.SOME_ASSETS_NOT_FOUND,
-                        msg: `Failed to load ${failedAssets.length} assets`,
-                      };
-
-                      // Also mark target as failed since its entity failed
-                      draft.targets[i].status = LoadingState.ERROR;
-                      draft.targets[i].error = {
-                        code: ErrorCode.SOME_ASSETS_NOT_FOUND,
-                        msg: `Entity failed to load due to asset errors`,
-                      };
-
-                      // Store all assets (both successful and failed)
-                      draft.targets[i].entity.assets = loadedAssets;
-                    } else {
-                      // All assets loaded successfully
-                      draft.targets[i].entity.status = LoadingState.LOADED;
-                      draft.targets[i].entity.error = null;
-
-                      // Mark target as loaded since its entity loaded
-                      draft.targets[i].status = LoadingState.LOADED;
-                      draft.targets[i].error = null;
-
-                      draft.targets[i].entity.assets = loadedAssets;
-                    }
-                  }
-                );
-              } catch (error) {
-                // Handle errors in asset loading
-                const errorMsg =
-                  error instanceof Error
-                    ? error.message
-                    : "Unknown error loading assets";
-
-                // Add to error collection
-                allErrors.push({
-                  target: i,
-                  entity: true,
-                  asset: -1, // -1 indicates a general entity asset loading error
-                  error: {
-                    code: ErrorCode.ASSET_LOAD_FAILED,
-                    msg: errorMsg,
-                  },
-                });
-
-                // Update entity and target states
-                workingChapter = produce(
-                  workingChapter,
-                  (draft: ChapterResource) => {
-                    // Mark entity as failed
-                    draft.targets[i].entity.status = LoadingState.ERROR;
-                    draft.targets[i].entity.error = {
-                      code: ErrorCode.ASSET_LOAD_FAILED,
-                      msg: errorMsg,
-                    };
-
-                    // Also mark target as failed
-                    draft.targets[i].status = LoadingState.ERROR;
-                    draft.targets[i].error = {
-                      code: ErrorCode.ASSET_LOAD_FAILED,
-                      msg: "Entity failed to load assets",
-                    };
-                  }
-                );
-              }
-            } else {
-              // No assets to load, mark entity as loaded
-              workingChapter = produce(
-                workingChapter,
-                (draft: ChapterResource) => {
-                  draft.targets[i].entity.status = LoadingState.LOADED;
-                  draft.targets[i].entity.error = null;
-
-                  // Mark target as loaded
-                  draft.targets[i].status = LoadingState.LOADED;
-                  draft.targets[i].error = null;
-                }
-              );
-            }
-          } else {
-            // No entity, mark target as loaded
-            workingChapter = produce(
-              workingChapter,
-              (draft: ChapterResource) => {
-                draft.targets[i].status = LoadingState.LOADED;
-                draft.targets[i].error = null;
-              }
-            );
-          }
-        }
-      }
-
-      // Final chapter state update based on all targets
-      workingChapter = produce(workingChapter, (draft: ChapterResource) => {
-        if (allErrors.length > 0) {
-          // If any targets/entities/assets failed, mark chapter as failed
-          draft.status = LoadingState.ERROR;
-          draft.error = {
-            code: ErrorCode.CHAPTER_LOAD_FAILED,
-            msg: `Chapter failed to load with ${allErrors.length} errors`,
-            details: allErrors, // Store all errors for debugging
-          };
-        } else {
-          // All targets loaded successfully
-          draft.status = LoadingState.LOADED;
-          draft.error = null;
-        }
-      });
-
-      return workingChapter;
-    } catch (error) {
-      // Handle any unexpected errors in the loading process
-      const errorMsg =
-        error instanceof Error
-          ? error.message
-          : "Unknown error loading chapter";
-
-      // Create error chapter
-      const errorChapter = produce(chapter, (draft: ChapterResource) => {
-        draft.status = LoadingState.ERROR;
-        draft.error = {
-          code: ErrorCode.UNKNOWN_ERROR,
-          msg: errorMsg,
-        };
-      });
-
-      return errorChapter;
+    if (!this.game.state.chapters[id]) {
+      this.register(id);
     }
+
+    this.game.update(draft => {
+      draft.currentChapter = id;
+    });
+
+    console.log(`[ChapterManager] Switched to "${id}"`);
+    return
   }
 
   /**
-   * Update the A-Frame scene with the current chapter
+   * Register a chapter in the state
    */
-  private updateSceneWithCurrentChapter(): void {
-    const currentChapter = this.getCurrentChapter();
-
-    if (!currentChapter || currentChapter.status !== LoadingState.LOADED) {
-      console.warn(
-        "Cannot update scene: current chapter not available or not loaded"
-      );
+  public register(id: string): void {
+    if (this.game.state.chapters[id]) {
+      console.warn(`[ChapterManager] "${id}" already registered, skipping`);
       return;
     }
 
-    // Get the scene manager and update the scene
-    const sceneManager = this.game.scene;
-    if (sceneManager) {
-      sceneManager.updateSceneWithChapter(currentChapter);
-    } else {
-      console.warn("Cannot update scene: scene manager not available");
+    this.game.update(draft => {
+      draft.chapters[id] = {
+        id,
+        status: LoadingState.INITIAL
+      };
+    });
+
+    console.log(`[ChapterManager] Registered "${id}"`);
+  }
+
+  /**
+   * Mark chapter as loading
+   */
+  public markLoading(id: string): void {
+    if (!this.game.state.chapters[id]) {
+      console.warn(`[ChapterManager] "${id}" not found, registering first`);
+      this.register(id);
     }
+
+    const chapter = this.game.state.chapters[id];
+    if (chapter && chapter.status !== LoadingState.INITIAL) {
+      console.log(`[ChapterManager] "${id}" not in INITIAL state, skipping`);
+      return;
+    }
+
+    this.game.update(draft => {
+      if (draft.chapters[id]) {
+        draft.chapters[id].status = LoadingState.LOADING;
+      }
+    });
+
+    console.log(`[ChapterManager] "${id}" marked as loading`);
+  }
+
+  /**
+   * Mark chapter as loaded
+   */
+  public markLoaded(id: string): void {
+    if (!this.game.state.chapters[id]) {
+      console.warn(`[ChapterManager] "${id}" not found, registering and marking as loaded`);
+
+      this.game.update(draft => {
+        draft.chapters[id] = {
+          id,
+          status: LoadingState.LOADED
+        };
+      });
+
+      console.log(`[ChapterManager] "${id}" created and marked as loaded`);
+      return;
+    }
+
+    this.game.update(draft => {
+      if (draft.chapters[id]) {
+        draft.chapters[id].status = LoadingState.LOADED;
+      }
+    });
+
+    console.log(`[ChapterManager] "${id}" marked as loaded`);
+  }
+
+  /**
+   * Mark chapter as failed
+   */
+  public markFailed(id: string, error: Error): void {
+    if (!this.game.state.chapters[id]) {
+      console.warn(`[ChapterManager] "${id}" not found, registering and marking as failed`);
+
+      this.game.update(draft => {
+        draft.chapters[id] = {
+          id,
+          status: LoadingState.ERROR,
+          error
+        };
+      });
+
+      console.error(`[ChapterManager] "${id}" created and marked as failed:`, error);
+      return;
+    }
+
+    this.game.update(draft => {
+      if (draft.chapters[id]) {
+        draft.chapters[id].status = LoadingState.ERROR;
+        draft.chapters[id].error = error;
+      }
+    });
+
+    console.error(`[ChapterManager] "${id}" marked as failed:`, error);
+  }
+
+  /**
+   * Check if a chapter is loaded
+   */
+  public isLoaded(id: string): boolean {
+    const chapter = this.game.state.chapters[id];
+    return chapter?.status === LoadingState.LOADED;
+  }
+
+  /**
+   * Get chapter loading status
+   */
+  public getLoadingStatus(): { loaded: number; total: number } {
+    const chapters = Object.values(this.game.state.chapters);
+    const loaded = chapters.filter(
+      (chapter) => chapter.status === LoadingState.LOADED
+    ).length;
+
+    return {
+      loaded,
+      total: chapters.length
+    };
   }
 }

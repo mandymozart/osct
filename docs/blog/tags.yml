@@ -1,0 +1,9 @@
+osct:
+  label: OSCT
+  permalink: /osct
+  description: OSCT tag description
+
+documentation:
+  label: Documentation
+  permalink: /documentation
+  description: Documentation tag description

@@ -1,7 +1,7 @@
-import { GameStoreService } from "@/services/GameStoreService";
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages/error-page";
+import { GameStoreService } from "@/services/GameStoreService";
 import {
   IGame,
 } from "@/types/";
@@ -50,6 +50,8 @@ export class BookGame extends HTMLElement {
   template = /* html */ `
     <camera-permission></camera-permission>
     <game-header></game-header>
+
+    <navigation-bar></navigation-bar>
     
     <pages-router>
       <about-page></about-page>
@@ -61,12 +63,13 @@ export class BookGame extends HTMLElement {
       <not-found-page></not-found-page>
       <error-page></error-page>
     </pages-router>
-    
-    <navigation-bar></navigation-bar>
 
     <loading-page active></loading-page>
 
     <scene-bridge></scene-bridge>
+    <entity-bridge></entity-bridge>
+    <asset-bridge></asset-bridge>
+    
     <qr-scanner></qr-scanner>
 
     <debug-overlay></debug-overlay>

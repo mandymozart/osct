@@ -298,6 +298,7 @@ function transformTargetData(target: TargetWithMetadata): TargetData {
         if (assetFile) {
           const assetData: AssetData = {
             id: assetFile.id,
+            assetType: assetFile.assetType,
             type: assetFile.type,
             src: assetFile.src
           };

@@ -29,7 +29,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
     super();
     this.attachShadow({ mode: "open" });
     this.game = GameStoreService.getInstance();
-    
+
     // Bind methods to maintain 'this' context
     this.handleModeChange = this.handleModeChange.bind(this);
     this.scanQRCode = this.scanQRCode.bind(this);
@@ -57,7 +57,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
    */
   private render() {
     if (!this.shadowRoot) return;
-    
+
     // Define styles
     const styles = `
       :host {
@@ -175,7 +175,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
    */
   private initializeElements() {
     if (!this.shadowRoot) return;
-    
+
     this.video = this.shadowRoot.getElementById("qr-scanner-video") as HTMLVideoElement;
     this.canvas = this.shadowRoot.getElementById("qr-scanner-canvas") as HTMLCanvasElement;
     this.canvasCtx = this.canvas?.getContext("2d") || null;
@@ -203,31 +203,20 @@ export class QRScanner extends HTMLElement implements IQRScanner {
     }
   }
 
-  /**
-   * Set up event listeners for game state changes
-   */
   private setupListeners() {
-    // Subscribe to game state changes to handle mode changes
-    this.unsubscribe = this.game.subscribe((state: { mode?: GameMode }) => {
-      if ('mode' in state && state.mode !== undefined) {
-        this.handleModeChange(state.mode);
-      }
-    });
-
-    // Check initial state
+    this.unsubscribe = this.game.subscribeToProperty('mode', this.handleModeChange);
     this.handleModeChange(this.game.state.mode);
   }
 
-  /**
-   * Handle game mode changes
-   */
-  private handleModeChange(mode: GameMode) {
+  private handleModeChange(mode: GameMode, prevMode?: GameMode) {
+    if (prevMode !== undefined && mode === prevMode) {
+      return;
+    }
+    
     const isQRMode = mode === GameMode.QR;
     
-    // Toggle visibility based on mode
     this.classList.toggle("active", isQRMode);
     
-    // Start or stop camera based on mode
     if (isQRMode && !this.scanningActive) {
       console.log("[QR Scanner] activate qr mode");
       this.startCamera();
@@ -399,7 +388,7 @@ export class QRScanner extends HTMLElement implements IQRScanner {
 
     if (this.shadowRoot) {
       const closeButton = this.shadowRoot.querySelector(".qr-scanner-close-button");
-      closeButton?.removeEventListener("click", () => {});
+      closeButton?.removeEventListener("click", () => { });
     }
   }
 }

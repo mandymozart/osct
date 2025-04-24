@@ -223,19 +223,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
 
   private activateChapter(chapterId: string) {
     if (!this.game) return;
-
-    // Ask user to confirm chapter switch
-    const chapterData = this.getChapterData(chapterId);
-
-    try {
-      this.game.chapters.switchChapter(chapterId);
-    } catch (error) {
-      console.error(`Failed to switch to chapter ${chapterId}:`, error);
-      this.game.notifyError({
-        code: ErrorCode.CHAPTER_LOAD_FAILED,
-        msg: `Failed to switch to chapter ${chapterId}:`,
-      });
-    }
+    this.game.chapters.switchChapter(chapterId);
   }
 
   public scrollToCurrentChapter() {
