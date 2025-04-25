@@ -1,8 +1,6 @@
-import * as gameConfig from '@/game.config.json';
 import { GameStoreService } from '@/services/GameStoreService';
-import { ChapterData, ErrorCode, IGame, TargetData } from '@/types';
+import { ChapterData, IGame, TargetData } from '@/types';
 import { assert } from '@/utils';
-// Import sub-components explicitly
 import './chapter-item';
 import './target-item';
 import { getChapter, getChapters } from '@/utils/config';
