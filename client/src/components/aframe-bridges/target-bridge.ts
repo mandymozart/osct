@@ -9,18 +9,13 @@ import { setupTargetListeners } from "./utils";
  * and handles cleanup when scenes change.
  */
 export class TargetBridge extends HTMLElement {
-  private game: Readonly<IGame>;
   private sceneService: ISceneService;
-  private currentChapter: string | null = null;
   private cleanupListeners: (() => void) | null = null;
-  
   private initialized = false;
-  private chapterUnsubscribe: (() => void) | null = null;
-  private sceneUnsubscribe: (() => void) | null = null;
+  private sceneChangeUnsubscribe: (() => void) | null = null;
 
   constructor() {
     super();
-    this.game = GameStoreService.getInstance();
     this.sceneService = SceneService.getInstance();
     this.setupSubscriptions();
   }
@@ -37,36 +32,22 @@ export class TargetBridge extends HTMLElement {
   }
 
   /**
-   * Set up subscriptions to game state and scene changes
+   * Set up subscriptions to scene changes
    */
   private setupSubscriptions(): void {
-    // Subscribe to chapter changes
-    this.chapterUnsubscribe = this.game.subscribeToProperty("currentChapter", 
-      this.handleChapterChange.bind(this));
-    
-    // Subscribe to scene changes from SceneService
-    this.sceneUnsubscribe = this.sceneService.onSceneReady(
-      this.handleSceneReady.bind(this));
+    // Subscribe to scene changes - this is more efficient than polling
+    this.sceneChangeUnsubscribe = this.sceneService.onSceneChanged(
+      this.handleSceneChange.bind(this));
   }
-
+  
   /**
-   * Handle chapter changes by potentially setting up new target listeners
+   * Handle scene changes
    */
-  private handleChapterChange(chapterId: string | null): void {
-    if (chapterId && chapterId !== this.currentChapter) {
-      console.log(`[TargetBridge] Chapter changed to: ${chapterId}`);
-      this.currentChapter = chapterId;
-      
-      // The scene will be updated separately, and handleSceneReady will be called
+  private handleSceneChange(scene: HTMLElement): void {
+    if (scene) {
+      console.log(`[TargetBridge] Scene changed, reconnecting targets`);
+      this.connectToCurrentScene();
     }
-  }
-
-  /**
-   * Handle scene ready event
-   */
-  private handleSceneReady(scene: HTMLElement): void {
-    console.log(`[TargetBridge] Scene ready, connecting targets`);
-    this.connectToCurrentScene();
   }
 
   /**
@@ -84,11 +65,13 @@ export class TargetBridge extends HTMLElement {
       return;
     }
     
+    console.log("[TargetBridge] Scene available, setting up target listeners");
+    
     // Wait a moment for the scene to fully initialize
     setTimeout(() => {
       console.log("[TargetBridge] Setting up target listeners");
       // Set up new target listeners and store the cleanup function
-      this.cleanupListeners = setupTargetListeners(this.game, sceneElement);
+      this.cleanupListeners = setupTargetListeners();
     }, 300); // Give A-Frame and MindAR time to set up components
   }
 
@@ -109,14 +92,9 @@ export class TargetBridge extends HTMLElement {
   private cleanup(): void {
     this.cleanupTargetListeners();
     
-    if (this.chapterUnsubscribe) {
-      this.chapterUnsubscribe();
-      this.chapterUnsubscribe = null;
-    }
-    
-    if (this.sceneUnsubscribe) {
-      this.sceneUnsubscribe();
-      this.sceneUnsubscribe = null;
+    if (this.sceneChangeUnsubscribe) {
+      this.sceneChangeUnsubscribe();
+      this.sceneChangeUnsubscribe = null;
     }
     
     this.initialized = false;

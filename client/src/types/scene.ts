@@ -22,4 +22,12 @@ export interface ISceneService {
    * @returns Cleanup function to unregister the callback
    */
   onSceneReady(callback: (scene: Scene) => void): () => void;
+  
+  /**
+   * Register a callback for when the scene changes
+   * This will be called whenever a new scene is set and is different from the previous scene
+   * @param callback Function to call when scene changes
+   * @returns Cleanup function to unregister the callback
+   */
+  onSceneChanged(callback: (scene: Scene) => void): () => void;
 }

@@ -160,7 +160,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
           // Create and append target item
           const targetItem = document.createElement('target-item') as any;
           targetItem.target = target;
-          targetItem.isCurrent = isCurrent;
+          targetItem.isCurrent = isCurrent; // TODO: Is current makes no sense to inject via attribute
           targetItem.isExpanded = this.expandedTargetId === target.bookId;
           container.appendChild(targetItem);
         });
