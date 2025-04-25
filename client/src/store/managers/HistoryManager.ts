@@ -1,6 +1,7 @@
 import config from "./../../game.config.json";
 import { ConfigurationVersion, IGame, TargetHistoryEntry as HistoryEntry, IHistoryManager, ErrorInfo } from '@/types';
 import { getTargets } from '@/utils/config';
+import { SceneService } from '@/services/SceneService';
 
 /**
  * Manages user history and progress tracking
@@ -9,10 +10,15 @@ export class HistoryManager implements IHistoryManager {
   private game: IGame;
   private readonly HISTORY_STORAGE_KEY = 'ar-game-target-history';
   private readonly CONFIG_VERSION_KEY = 'ar-game-config-version';
+  private sceneService: SceneService;
 
   constructor(game: IGame) {
     this.game = game;
-    this.load();
+    this.sceneService = SceneService.getInstance();
+    this.sceneService.onSceneReady(() => {
+      console.log("[HistoryManager] Scene is ready, loading history");
+      this.load();
+    });
   }
 
   /**
@@ -60,44 +66,33 @@ export class HistoryManager implements IHistoryManager {
    * Load target history from local storage
    */
   public load(): void {
-    try {
-      // Check if configuration has changed
-      this.checkConfigurationVersion();
+    // Check if configuration has changed
+    this.checkConfigurationVersion();
+    
+    // Load history from localStorage
+    this.loadTargetHistory();
+    
+    // If there are previous entries, notify the user they can resume
+    if (this.game.state.history.length > 0) {
+      // Get the most recent entry
+      const lastEntry = [...this.game.state.history].sort((a, b) => b.timestamp - a.timestamp)[0];
       
-      // Get history from localStorage
-      const historyJson = localStorage.getItem(this.HISTORY_STORAGE_KEY);
+      // Find chapter in config 
+      const chapterConfig = config.chapters.find(ch => ch.id === lastEntry.chapterId);
+      const chapterName = chapterConfig?.title || lastEntry.chapterId;
       
-      if (historyJson) {
-        // Parse history
-        const loadedHistory = JSON.parse(historyJson) as HistoryEntry[];
-        this.game.update(draft => {
-          draft.history = loadedHistory;
-        });
-        
-        // If there are previous entries, notify the user they can resume
-        if (loadedHistory.length > 0) {
-          // Get the most recent entry
-          const lastEntry = loadedHistory.sort((a, b) => b.timestamp - a.timestamp)[0];
-          
-          // Find chapter in config 
-          const chapterConfig = config.chapters.find(ch => ch.id === lastEntry.chapterId);
-          const chapterName = chapterConfig?.title || lastEntry.chapterId;
-          
-          // Create a notification with resume action
-          this.game.notifyError({
-            msg: `You have a previous session in chapter "${chapterName}".`,
-            action: {
-                text: 'Resume',
-                callback: () => {
-                  // Resume the last chapter using switchChapter
-                  this.game.chapters.switchChapter(lastEntry.chapterId);
-                }
+      // Create a notification with resume action
+      this.game.notifyError({
+        msg: `You have a previous session in chapter "${chapterName}".`,
+        action: {
+            text: 'Resume',
+            callback: () => {
+              // Resume the last chapter using switchChapter
+              this.game.chapters.switchChapter(lastEntry.chapterId);
+              this.game.router.navigate('/chapter');
             }
-          } as ErrorInfo);
         }
-      }
-    } catch (error) {
-      console.error("Failed to load history:", error);
+      } as ErrorInfo);
     }
   }
 
@@ -229,7 +224,9 @@ export class HistoryManager implements IHistoryManager {
     try {
       const storedHistory = localStorage.getItem(this.HISTORY_STORAGE_KEY);
       if (storedHistory) {
-        this.history = JSON.parse(storedHistory);
+        this.game.update(draft => {
+          draft.history = JSON.parse(storedHistory);
+        });
       }
     } catch (error) {
       console.warn('Failed to load target history from localStorage:', error);
