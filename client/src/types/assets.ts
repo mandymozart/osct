@@ -21,7 +21,7 @@ export interface AssetData {
 /**
  * Asset type definition for consistent type usage across the system
  */
-export type AssetType = 'image' | 'gltf' | 'glb' | 'audio' | 'video' | 'link' | string;
+export type AssetType = 'image' | 'gltf' | 'glb' | 'audio' | 'video' | 'link';
 
 /**
  * State managed by the AssetManager

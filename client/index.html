@@ -3,6 +3,7 @@
   <head>
     <title>Onion Skin and Crocodile Tears - Kevin Bray (buildingfictions)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <script src="./assets/deps/aframe.min.js"></script>
     <script src="./assets/deps/aframe-extras.min.js"></script>
     <script src="./assets/deps/mindar-image-aframe.prod.js"></script>
@@ -17,7 +18,7 @@
       <div class="loading-animation">&nbsp;</div>
     </div>
 
-    <a-scene 
+    <!-- <a-scene 
       id="scene" 
       mindar-image="imageTargetSrc: ./assets/content/chapters/chapter1/chapter1.mind; maxTrack: 4;" 
       color-space="sRGB" 
@@ -25,7 +26,6 @@
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
       <a-assets>
-        <!-- Chapter 1 assets -->
         <a-asset-item id="racoon" src="/assets/content/targets/target-001/racoon.glb"></a-asset-item>
         <a-asset-item id="tree" src="/assets/content/targets/target-002/tree.glb"></a-asset-item>
         <a-asset-item id="dragon" src="/assets/content/targets/target-005/dragon.glb"></a-asset-item>
@@ -33,7 +33,6 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Shadow target entity (link) - Target 0 -->
       <a-entity id="target-000" mindar-image-target="targetIndex: 0">
         <a-text value="Shadows: Light plays a role in architecture" 
                 color="#FFFFFF" 
@@ -44,22 +43,20 @@
         <a-plane color="#000066" opacity="0.5" position="0 0 -0.01" width="2" height="0.5"></a-plane>
       </a-entity>
       
-      <!-- Raccoon target entity - Target 1 -->
       <a-entity id="target-001" mindar-image-target="targetIndex: 1">
         <a-gltf-model rotation="0 0 0" position="0 -0.25 0" scale="0.05 0.05 0.05" src="#racoon" animation-mixer></a-gltf-model>
       </a-entity>
       
-      <!-- Ancient Tree target entity - Target 2 -->
       <a-entity id="target-102" mindar-image-target="targetIndex: 2">
         <a-gltf-model rotation="0 0 0" position="0 -0.25 0" scale="0.05 0.05 0.05" src="#tree" animation-mixer></a-gltf-model>
       </a-entity>
       
-      <!-- Sleeping Dragon target entity - Target 3 -->
       <a-entity id="target-005" mindar-image-target="targetIndex: 3">
         <a-gltf-model rotation="0 0 0" position="0 -0.25 0" scale="0.05 0.05 0.05" src="#dragon" animation-mixer></a-gltf-model>
       </a-entity>
       
-    </a-scene>
+    </a-scene> -->
+    <div id="scene-container"></div>
     <book-game id="book-game"></book-game>
 
     <script>

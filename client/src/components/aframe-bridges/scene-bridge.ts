@@ -3,6 +3,8 @@ import { SceneService } from "@/services/SceneService";
 import { ErrorCode, GameMode, GameState, IGame, ISceneService } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { Scene } from "aframe";
+import { connectScene } from "./utils/connectScene";
+import { createScene } from "./utils/createScene";
 
 /**
  * SceneBridge provides a simplified API to the main Aframe scene.
@@ -12,10 +14,13 @@ export class SceneBridge extends HTMLElement {
   private game: Readonly<IGame>;
   private sceneService: ISceneService;
   private currentMode: GameMode | null = null;
-  private system: AFRAME.MindARImageSystem | null = null as unknown as AFRAME.MindARImageSystem
+  private currentChapter: string | null = null;
+  private system: AFRAME.MindARImageSystem | null = null as unknown as AFRAME.MindARImageSystem;
+  private sceneContainer: HTMLElement | null = null;
 
   private initialized = false;
-  private unsubscribe: (() => void) | null = null;
+  private modeUnsubscribe: (() => void) | null = null;
+  private chapterUnsubscribe: (() => void) | null = null;
 
   constructor() {
     super();
@@ -27,13 +32,34 @@ export class SceneBridge extends HTMLElement {
 
   connectedCallback() {
     this.setupListeners();
+    this.setupSceneContainer();
   }
 
   disconnectedCallback() {
-    // Clean up subscription when component is removed
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
+    // Clean up subscriptions when component is removed
+    if (this.modeUnsubscribe) {
+      this.modeUnsubscribe();
+      this.modeUnsubscribe = null;
+    }
+    
+    if (this.chapterUnsubscribe) {
+      this.chapterUnsubscribe();
+      this.chapterUnsubscribe = null;
+    }
+    
+    // Reset scene in service
+    this.sceneService.setScene(null);
+  }
+  
+  /**
+   * Create a container div for the scene if it doesn't exist
+   */
+  private setupSceneContainer() {
+    this.sceneContainer = document.getElementById('scene-container');
+    if (!this.sceneContainer) {
+      this.sceneContainer = document.createElement('div');
+      this.sceneContainer.id = 'scene-container';
+      document.body.appendChild(this.sceneContainer);
     }
   }
 
@@ -48,12 +74,30 @@ export class SceneBridge extends HTMLElement {
     try {
       await waitForDOMReady();
       
-      // Initialize A-Frame scene via SceneService
-      await this.attachScene("#scene");
+      // Check if there's an existing scene in the DOM first
+      const existingScene = await connectScene(
+        "#scene", 
+        5000, 
+        (code, msg) => {
+          console.log(`[SceneBridge] No existing scene found, will create dynamically`);
+        }
+      );
       
-      // Get scene from SceneService
+      if (existingScene) {
+        // Use the existing scene
+        this.sceneService.setScene(existingScene);
+        console.log("[SceneBridge] Connected to existing scene");
+      } else {
+        // No existing scene, get the current chapter and create one
+        const currentChapter = this.game.chapters.getCurrentChapter();
+        if (currentChapter) {
+          await this.createSceneForChapter(currentChapter);
+        } else {
+          console.warn("[SceneBridge] No current chapter to create scene for");
+        }
+      }
+      
       const scene = this.sceneService.getScene();
-      
       if (!scene) {
         console.error("[SceneBridge] Scene not attached correctly");
         this.initialized = false; // Reset so we can try again
@@ -79,59 +123,84 @@ export class SceneBridge extends HTMLElement {
     }
   }
 
+  /**
+   * Creates a new scene for the specified chapter
+   * @param chapterId The chapter ID to create a scene for
+   */
+  private async createSceneForChapter(chapterId: string): Promise<void> {
+    try {
+      console.log(`[SceneBridge] Creating new scene for chapter: ${chapterId}`);
+      
+      // Remove any existing scene from the DOM
+      const oldScene = this.sceneService.getScene();
+      if (oldScene) {
+        this.deactivate();
+        oldScene.parentNode?.removeChild(oldScene);
+        this.sceneService.setScene(null);
+      }
+      
+      // Create new scene
+      const newScene = createScene(chapterId);
+      
+      // Add to DOM
+      if (this.sceneContainer) {
+        this.sceneContainer.appendChild(newScene);
+      } else {
+        document.body.appendChild(newScene);
+      }
+      
+      // Wait for the scene to load
+      await new Promise<void>((resolve) => {
+        if (newScene.hasLoaded) {
+          resolve();
+        } else {
+          newScene.addEventListener('loaded', () => resolve(), { once: true });
+        }
+      });
+      
+      // Set in service
+      this.sceneService.setScene(newScene);
+      
+      // Update mindar system reference
+      this.system = newScene.systems["mindar-image-system"] as unknown as AFRAME.MindARImageSystem;
+      
+      // Mark current chapter
+      this.currentChapter = chapterId;
+      
+      console.log(`[SceneBridge] Scene created and loaded for chapter: ${chapterId}`);
+      
+      // Reactivate if we were previously in scene mode
+      if (this.currentMode === GameMode.DEFAULT || this.currentMode === GameMode.VR) {
+        this.activate();
+      }
+    } catch (error) {
+      console.error(`[SceneBridge] Failed to create scene for chapter ${chapterId}:`, error);
+      this.game.notifyError({
+        code: ErrorCode.FAILED_TO_UPDATE_SCENE,
+        msg: `Failed to create scene for chapter ${chapterId}`
+      });
+      throw error;
+    }
+  }
+
   protected setupListeners() {
-    // Use property-specific subscription for better performance
-    this.unsubscribe = this.game.subscribeToProperty("mode", (mode) => {
+    // Subscribe to mode changes
+    this.modeUnsubscribe = this.game.subscribeToProperty("mode", (mode) => {
       if (mode !== this.currentMode && this.system) {
         this.handleModeChange(mode);
       }
     });
-  }
-
-  /**
-   * Attach an A-Frame scene to the store
-   * @param selector Scene DOM selector
-   */
-  public async attachScene(selector: string, timeoutMs = 10000): Promise<void> {
-    try {
-      await waitForDOMReady();
-      
-      // Get scene element
-      const sceneElement = document.querySelector(selector) as Scene;
-      
-      if (!sceneElement) {
-        throw new Error(`Scene not found: ${selector}`);
+    
+    // Subscribe to chapter changes
+    this.chapterUnsubscribe = this.game.subscribeToProperty("currentChapter", async (chapter) => {
+      if (chapter && chapter !== this.currentChapter) {
+        try {
+          await this.createSceneForChapter(chapter);
+        } catch (error) {
+          console.error("[SceneBridge] Error creating scene for new chapter:", error);
+        }
       }
-
-      // Wait for scene to be ready if not already loaded
-      if (!sceneElement.hasLoaded) {
-        await Promise.race([
-          new Promise<void>((resolve) => {
-            const handler = () => {
-              sceneElement.removeEventListener("loaded", handler);
-              resolve();
-            };
-            sceneElement.addEventListener("loaded", handler);
-          }),
-          new Promise<void>((_, reject) => {
-            setTimeout(() => {
-              reject(new Error("Scene loading timed out after " + timeoutMs + "ms"));
-            }, timeoutMs);
-          })
-        ]);
-      }
-
-      // Store scene reference in SceneService
-      this.sceneService.setScene(sceneElement);
-      console.log("[SceneBridge] A-Frame ready");
-    } catch (error) {
-      console.error("[SceneBridge] Failed to attach scene:", error);
-      this.game.notifyError({
-        code: ErrorCode.SCENE_NOT_FOUND,
-        msg: error instanceof Error ? error.message : "Failed to attach scene"
-      });
-      throw error;
-    }
+    });
   }
 
   /**
