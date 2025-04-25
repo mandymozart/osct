@@ -64,7 +64,7 @@ description: A beast, a friend, a dimension jumper.
 relatedChapter: chapter1    # Which chapter this target belongs to
 order: 1                    # Order within the chapter
 bookId: "001"               # Book reference ID
-targetType: model           # Type of AR experience (model, video, image, link)
+entityType: model           # Type of AR experience (model, video, image, link)
 imageTargetSrc: images-028.jpg  # Source image for recognition
 mindSrc: images-028.mind    # MindAR data for this target
 assets: racoon              # Referenced asset ID(s)
