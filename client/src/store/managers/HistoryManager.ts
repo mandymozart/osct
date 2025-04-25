@@ -1,6 +1,6 @@
-import { produce } from 'immer';
 import config from "./../../game.config.json";
 import { ConfigurationVersion, IGame, TargetHistoryEntry as HistoryEntry, IHistoryManager, ErrorInfo } from '@/types';
+import { getTargets } from '@/utils/config';
 
 /**
  * Manages user history and progress tracking
@@ -109,20 +109,24 @@ export class HistoryManager implements IHistoryManager {
     );
 
     if (!existingEntry) {
-      // Use Immer to update history
-      this.history = produce(this.history, draft => {
-        draft.push({
+      // Update history using game store update pattern
+      this.game.update(draft => {
+        if (!draft.history) {
+          draft.history = [];
+        }
+        
+        draft.history.push({
           chapterId,
           targetIndex,
           timestamp: Date.now()
         });
+        
+        // Update local reference to match store state
+        this.history = draft.history;
       });
 
       // Save updated history
       this.saveTargetHistory();
-
-      // Notify listeners of change
-      this.game.notifyListeners();
     }
   }
 
@@ -153,7 +157,7 @@ export class HistoryManager implements IHistoryManager {
 
     if (!chapter) return 0;
 
-    const totalTargets = chapter.targets?.length || 0;
+    const totalTargets = getTargets(chapterId).length || 0;
     if (totalTargets === 0) return 100; // No targets = 100% complete
 
     const seenTargets = this.getSeenTargetsForChapter(chapterId).length;
@@ -171,22 +175,33 @@ export class HistoryManager implements IHistoryManager {
    * Reset seen history for a specific chapter
    */
   public resetChapterHistory(chapterId: string): void {
-    // Use Immer to filter out entries for the specified chapter
-    this.history = produce(this.history, draft => {
-      return draft.filter(entry => entry.chapterId !== chapterId);
+    // Update history using game store update pattern
+    this.game.update(draft => {
+      if (!draft.history) {
+        draft.history = [];
+        return;
+      }
+      
+      draft.history = draft.history.filter((entry: { chapterId: string }) => entry.chapterId !== chapterId);
+      
+      // Update local reference to match store state
+      this.history = draft.history;
     });
 
     this.saveTargetHistory();
-    this.game.notifyListeners();
   }
 
   /**
    * Reset all target history
    */
   public reset(): void {
-    this.history = [];
+    this.game.update(draft => {
+      draft.history = [];
+      // Update local reference
+      this.history = [];
+    });
+    
     this.saveTargetHistory();
-    this.game.notifyListeners();
   }
 
   /**

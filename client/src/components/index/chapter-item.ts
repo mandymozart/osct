@@ -1,8 +1,8 @@
-import { ChapterData, ChapterResource, IGame, LoadingState } from "@/types";
+import { ChapterData, IGame } from "@/types";
 import { GameStoreService } from "@/services/GameStoreService";
 
 export interface IChapterItem extends HTMLElement {
-  chapter: ChapterResource | null;
+  chapter: ChapterData | null;
   isCurrent: boolean;
   chapterData: ChapterData | null;
 }
@@ -13,7 +13,7 @@ export interface IChapterItem extends HTMLElement {
  * Displays a chapter header in the index page
  */
 export class ChapterItem extends HTMLElement implements IChapterItem {
-  private _chapter: ChapterResource | null = null;
+  private _chapter: ChapterData | null = null;
   private _isCurrent = false;
   private _chapterData: ChapterData | null = null;
   private game: Readonly<IGame>;
@@ -47,9 +47,6 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
   
   private render() {
     if (!this.shadowRoot || !this._chapter) return;
-    
-    // Get loading status if available
-    const loadingStatus = this._chapter.status === LoadingState.LOADING ? '(Loading...)' : '';
     
     // Get completion percentage from history
     const completionPercentage = this.game?.history.getChapterCompletionPercentage(this._chapter.id) ?? 0;
@@ -98,12 +95,6 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
           margin: 0 0 0.5rem 0;
         }
         
-        .loading-indicator {
-          font-style: italic;
-          color: var(--primary-300);
-          margin-left: 0.5rem;
-        }
-        
         .progress-bar {
           width: 100%;
           height: 0.25rem;
@@ -121,7 +112,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
       </style>
       
       <div class="chapter-header ${this._isCurrent ? 'current' : 'muted'}">
-        <span class="chapter-title">📑 ${this._chapterData?.title || 'Untitled'} <span class="loading-indicator">${loadingStatus}</span> 
+        <span class="chapter-title">📑 ${this._chapterData?.title || 'Untitled'} 
         ${!this._isCurrent ? '<button is="text-button" size="xs" style="display: inline-block;">Select</button>' : ''}
         </span>
         <span class="chapter-pages">${this._chapterData?.firstPage} &mdash; ${this._chapterData?.lastPage}</span>
@@ -150,11 +141,11 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
   }
   
   // Getters and setters
-  get chapter(): ChapterResource | null {
+  get chapter(): ChapterData | null {
     return this._chapter;
   }
   
-  set chapter(value: ChapterResource | null) {
+  set chapter(value: ChapterData | null) {
     this._chapter = value;
     this.render();
   }

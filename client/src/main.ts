@@ -67,8 +67,7 @@ export class BookGame extends HTMLElement {
     <loading-page active></loading-page>
 
     <static-scene-bridge></static-scene-bridge>
-    <entity-bridge></entity-bridge>
-    <asset-bridge></asset-bridge>
+    <app-router></app-router>
     
     <qr-scanner></qr-scanner>
 

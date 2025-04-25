@@ -1,4 +1,4 @@
-import { ConfigurationVersion, TargetHistoryEntry } from "@/types/game";
+import { ConfigurationVersion, TargetHistoryEntry } from "@/types";
 
 /**
  * History Manager State

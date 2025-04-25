@@ -1,4 +1,4 @@
-import { AssetType } from '../loadable-store';
+import { AssetType } from "@/types";
 
 /**
  * Options for loading assets

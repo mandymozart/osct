@@ -154,7 +154,7 @@ export class SceneBridge extends HTMLElement {
         if (newScene.hasLoaded) {
           resolve();
         } else {
-          newScene.addEventListener('loaded', () => resolve(), { once: true });
+          newScene.addEventListener('loaded', () => resolve());
         }
       });
       

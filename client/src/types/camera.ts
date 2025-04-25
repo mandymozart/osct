@@ -20,11 +20,6 @@ export interface CameraManagerState {
  */
 export interface ICameraManager {
   /**
-   * Current permission status
-   */
-  permissionStatus: CameraPermissionStatus;
-  
-  /**
    * Check and handle camera permission
    * @returns Promise resolving to true if permission granted, false otherwise
    */
@@ -41,11 +36,4 @@ export interface ICameraManager {
    * (Responsibility handled by camera-permission component)
    */
   // showSettings(): void;
-  
-  /**
-   * Add permission status change listener
-   * @param listener Function to call when permission status changes
-   * @returns Cleanup function to remove listener
-   */
-  onPermissionChange(listener: (status: CameraPermissionStatus) => void): () => void;
 }

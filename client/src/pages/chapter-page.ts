@@ -1,15 +1,15 @@
 import { chapters, initialChapterId } from "@/game.config.json";
-import { ChapterData, ChapterResource, GameState, LoadingState } from "../types";
+import { ChapterData, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
+import { getChapter } from "@/utils/config";
 
 export class ChapterPage extends PageMinimal {
   static get observedAttributes() {
     return ["chapter-id"];
   }
 
-  private chapter: ChapterResource | null = null;
-  private chapterData: ChapterData | null = null;
+  private chapter: ChapterData | undefined = undefined;
   private chapterId: string | null = null;
   
 // TODO: pointer events propagation when overlayed. but this depends on how we want to handle the overlay.
@@ -128,28 +128,26 @@ disconnectedCallback() {
     const cardContainer = this.shadowRoot.querySelector(".chapter-card");
     assert(cardContainer, "Chapter card element not found");
 
+    console.log("[ChapterPage] chapterId:", this.chapterId)
     if (!this.chapterId) {
       this.chapterId = initialChapterId;
       return;
     }
 
-    this.chapterData = chapters.find(c => c.id === this.chapterId) || null;
-    if (!this.chapterData) {
+    this.chapter = getChapter(this.chapterId);
+    if (!this.chapter) {
       console.warn(`Chapter not found: ${this.chapterId}`);
       cardContainer.innerHTML = '<div class="error">Chapter not found</div>';
       return;
     }
-
-    this.chapter = this.game.state.chapters[this.chapterId];
     const completionPercentage = this.game.history.getChapterCompletionPercentage(this.chapterId) ?? 0;
-    const loadingStatus = this.chapter?.status === LoadingState.LOADING ? '(Loading...)' : '';
 
     cardContainer.innerHTML = /* html */ `
       <div class="chapter-icon">📑</div>
       <div class="chapter-info">
-        <h3>${this.chapterData.title} ${loadingStatus}</h3>
+        <h3>${this.chapter.title}</h3>
         <div class="chapter-meta">
-          <div class="page-range">Pages ${this.chapterData.firstPage} - ${this.chapterData.lastPage} <span>(${completionPercentage}%)</span></div>
+          <div class="page-range">Pages ${this.chapter.firstPage} - ${this.chapter.lastPage} <span>(${completionPercentage}%)</span></div>
           <div class="progress-bar">
             <div style="width: ${completionPercentage}%"></div>
           </div>

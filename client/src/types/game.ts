@@ -1,17 +1,13 @@
 import {
-  AssetManagerState,
   CameraManagerState,
   ChapterData,
   ChapterManagerState,
-  EntityManagerState,
   ErrorInfo,
   ErrorListener,
   HistoryManagerState,
-  IAssetManager,
   IBaseStore,
   ICameraManager,
   IChapterManager,
-  IEntityManager,
   IHistoryManager,
   IQRManager,
   IRouterManager,
@@ -32,8 +28,6 @@ export interface IGame extends IBaseStore<GameState> {
   qr: IQRManager;
   history: IHistoryManager;
   camera: ICameraManager;
-  assets: IAssetManager;
-  entities: IEntityManager;
 
   startLoading(): void;
   finishLoading(): void;
@@ -47,9 +41,7 @@ export interface GameState
   TargetManagerState,
   HistoryManagerState,
   RouterManagerState,
-  CameraManagerState,
-  AssetManagerState,
-  EntityManagerState {
+  CameraManagerState {
   id: string;
   loading: LoadingState;
   mode: GameMode;

@@ -1,14 +1,4 @@
-import { AssetType } from "./assets";
 import { EntityData } from "./entities";
-
-
-/**
- * Represents a tracking target in AR with loading state
- * Tightly connected to Entities in our setup. so proper typing is crucial
- * @deprecated redundant interface with optional id, string id is fine */
-export interface Target {
-  id?: string;
-}
 
 /**
  * Track the history of seen targets
@@ -27,7 +17,6 @@ export interface TargetManagerState {
  * Base data structure for a target without loading state
  */
 export interface TargetData {
-  type: AssetType
   id: string;
   mindarTargetIndex: number;
   bookId: string;
@@ -58,10 +47,4 @@ export interface ITargetManager {
    * @returns Array of tracked target indices
    */
   getTrackedTargets(): number[];
-
-  /**
-   * Get targets from current chapter that are currently tracked
-   * @returns Array of tracked Target objects from current chapter
-   */
-  getTrackedTargetObjects(): Target[];
 }
