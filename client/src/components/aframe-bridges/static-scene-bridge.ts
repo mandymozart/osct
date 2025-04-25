@@ -2,10 +2,8 @@ import { GameStoreService } from "@/services/GameStoreService";
 import { SceneService } from "@/services/SceneService";
 import { ErrorCode, GameMode, IGame, ISceneService } from "@/types";
 import { waitForDOMReady } from "@/utils";
+import { getOrCreateTemplate } from "./utils";
 import { Scene } from "aframe";
-import { chapter1 } from "./static/chapter1";
-import { chapter2 } from "./static/chapter2";
-import { chapter3 } from "./static/chapter3";
 
 /**
  * StaticSceneBridge provides a bridge between the game state and static HTML scene templates.
@@ -25,12 +23,8 @@ export class StaticSceneBridge extends HTMLElement {
   private modeUnsubscribe: (() => void) | null = null;
   private chapterUnsubscribe: (() => void) | null = null;
 
-  // Map of chapter IDs to their HTML templates
-  private templates: Record<string, string> = {
-    chapter1,
-    chapter2,
-    chapter3
-  };
+  // Templates are now generated dynamically from the game config
+  private templates: Record<string, string> = {};
 
   constructor() {
     super();
@@ -115,7 +109,10 @@ export class StaticSceneBridge extends HTMLElement {
   private async createSceneForChapter(chapterId: string): Promise<void> {
     this.game.startLoading();
     try {
-      if (!this.templates[chapterId]) {
+      // Generate template from game config at runtime
+      const template = getOrCreateTemplate(chapterId);
+      
+      if (!template) {
         throw new Error(`No template found for chapter: ${chapterId}`);
       }
       
@@ -126,7 +123,7 @@ export class StaticSceneBridge extends HTMLElement {
         throw new Error("Scene container not found");
       }
       
-      this.sceneContainer.innerHTML = this.templates[chapterId];
+      this.sceneContainer.innerHTML = template;
       this.sceneElement = this.sceneContainer.querySelector('a-scene') as Scene;
       
       if (!this.sceneElement) {
