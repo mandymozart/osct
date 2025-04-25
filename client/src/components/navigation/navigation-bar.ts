@@ -39,7 +39,7 @@ export class NavigationBar extends HTMLElement {
         :host {
             display: -webkit-box;
             display: -webkit-flex;
-            display: flex;
+            display: none;
             -webkit-box-align: center;
             -webkit-align-items: center;
             align-items: center;
