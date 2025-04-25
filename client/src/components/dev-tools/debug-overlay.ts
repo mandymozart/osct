@@ -249,7 +249,7 @@ export class DebugOverlay extends HTMLElement {
     }
   }
 }
-
-if (import.meta.env.DEV || import.meta.env.VITE_DEBUG) {
+console.log("DebugOverlay loaded",import.meta.env.DEV, import.meta.env.VITE_DEBUG);
+// if (import.meta.env.DEV || import.meta.env.VITE_DEBUG) {
   customElements.define("debug-overlay", DebugOverlay);
-}
+// }
