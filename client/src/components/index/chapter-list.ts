@@ -1,10 +1,11 @@
 import * as gameConfig from '@/game.config.json';
 import { GameStoreService } from '@/services/GameStoreService';
-import { ChapterData, ChapterResource, ErrorCode, IGame } from '@/types';
+import { ChapterData, ErrorCode, IGame, TargetData } from '@/types';
 import { assert } from '@/utils';
 // Import sub-components explicitly
 import './chapter-item';
 import './target-item';
+import { getChapter, getChapters } from '@/utils/config';
 
 export interface IChapterList extends HTMLElement {
   updateChapters(): void;
@@ -18,7 +19,7 @@ export interface IChapterList extends HTMLElement {
  */
 export class ChapterList extends HTMLElement implements IChapterList {
   private game: Readonly<IGame>;
-  private chapters: ChapterResource[] = [];
+  private chapters: ChapterData[] = [];
   private expandedTargetId: string | null = null;
   private unsubscribe: (() => void) | null = null;
 
@@ -113,14 +114,11 @@ export class ChapterList extends HTMLElement implements IChapterList {
   public updateChapters() {
     assert(this.game, 'Game store not initialized');
 
-    // Get all chapters from the game state
-    const chaptersRecord = this.game.state.chapters;
-    this.chapters = Object.values(chaptersRecord);
+    this.chapters = getChapters();
 
-    // Sort chapters by order if available, otherwise by ID
     this.chapters.sort((a, b) => {
-      const aData = this.getChapterData(a.id);
-      const bData = this.getChapterData(b.id);
+      const aData = getChapter(a.id);
+      const bData = getChapter(b.id);
       if (aData && bData) {
         return aData.order - bData.order;
       }
@@ -144,12 +142,12 @@ export class ChapterList extends HTMLElement implements IChapterList {
     // Clear the container
     container.innerHTML = '';
 
-    const currentChapterId = this.game?.state.currentChapter?.id || null;
+    const currentChapterId = this.game.state.currentChapter || null;
 
     // Create and append chapter and target elements
     this.chapters.forEach((chapter) => {
       const isCurrent = chapter.id === currentChapterId;
-      const chapterData = this.getChapterData(chapter.id);
+      const chapterData = getChapter(chapter.id);
 
       // Create and append chapter item
       const chapterItem = document.createElement('chapter-item') as any;
@@ -160,7 +158,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
 
       // Append targets if they exist
       if (chapter.targets && chapter.targets.length > 0) {
-        chapter.targets.forEach((target) => {
+        chapter.targets.forEach((target: TargetData) => {
           // Create and append target item
           const targetItem = document.createElement('target-item') as any;
           targetItem.target = target;
@@ -176,16 +174,6 @@ export class ChapterList extends HTMLElement implements IChapterList {
         container.appendChild(noTargets);
       }
     });
-  }
-
-  private getChapterData(chapterId: string) {
-    const config = gameConfig;
-    if (config && config.chapters) {
-      return config.chapters.find(
-        (chapter: ChapterData) => chapter.id === chapterId
-      );
-    }
-    return null;
   }
 
   private handleChapterSelect(event: CustomEvent) {
@@ -212,9 +200,9 @@ export class ChapterList extends HTMLElement implements IChapterList {
     // Find the chapter that contains this target
     for (const chapter of this.chapters) {
       const targetExists = chapter.targets.some(
-        (target) => target.bookId === targetId,
+        (target: TargetData) => target.bookId === targetId,
       );
-      if (targetExists && chapter.id !== this.game?.state.currentChapter?.id) {
+      if (targetExists && chapter.id !== this.game?.state.currentChapter) {
         this.activateChapter(chapter.id);
         break;
       }
@@ -231,7 +219,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
 
     // Give the DOM time to update
     setTimeout(() => {
-      const currentChapterId = this.game?.state.currentChapter?.id;
+      const currentChapterId = this.game?.state.currentChapter;
       if (currentChapterId) {
         const currentChapter = this.shadowRoot?.querySelector(
           `chapter-item[is-current="true"]`,
