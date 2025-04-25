@@ -10,7 +10,7 @@ export const chapter2 = /* html */`
       <a-asset-item id="castle" src="/assets/content/targets/target-003/castle.glb"></a-asset-item>
       <a-asset-item id="cardboard-boxes" src="/assets/content/targets/target-004/cardboard-boxes.glb"></a-asset-item>
       <a-asset-item id="treasure" src="/assets/content/targets/target-006/treasure.glb"></a-asset-item>
-      <video id="bunny-video" src="/assets/content/targets/target-007/bunny.mp4" preload="auto" loop crossorigin="anonymous"></video>
+      <video id="bunny-video" src="/assets/content/targets/target-007/bunny.mp4" preload="auto" webkit-playsinline playsinline loop crossorigin="anonymous"></video>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>

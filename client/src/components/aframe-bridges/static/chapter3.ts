@@ -7,8 +7,8 @@ export const chapter3 = /* html */`
     vr-mode-ui="enabled: false" 
     device-orientation-permission-ui="enabled: false">
     <a-assets>
-      <video id="edge" src="/assets/content/targets/target-008/edge.mp4" preload="auto" loop crossorigin="anonymous"></video>
-      <video id="sploosh" src="/assets/content/targets/target-009/sploosh.webm" preload="auto" loop crossorigin="anonymous"></video>
+      <video id="edge" src="/assets/content/targets/target-008/edge.mp4" webkit-playsinline playsinline preload="auto" loop crossorigin="anonymous"></video>
+      <video id="sploosh" src="/assets/content/targets/target-009/sploosh.webm" webkit-playsinline playsinline preload="auto" loop crossorigin="anonymous"></video>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
