@@ -10,7 +10,6 @@ import { assert } from "@/utils";
 export class NavigationBar extends HTMLElement {
   private game: Readonly<IGame>;
   private unsubscribe: (() => void) | null = null;
-  private currentMode: GameMode | undefined = undefined;
 
   constructor() {
     super();
@@ -21,8 +20,8 @@ export class NavigationBar extends HTMLElement {
   connectedCallback() {
     assert(this.game, "Navigation Bar: Game instance not available");
     this.render();
-    this.unsubscribe = this.game.subscribe(this.handleGameStateChange.bind(this));
-    this.updateVisibility(this.game.state.mode);
+    this.game.subscribeToProperty("mode", this.updateVisibility.bind(this));
+    this.unsubscribe = this.game.subscribeToProperty("mode",this.updateVisibility.bind(this));
   }
 
   disconnectedCallback() {
@@ -67,13 +66,6 @@ export class NavigationBar extends HTMLElement {
       <qr-button></qr-button>
       <index-button></index-button>
     `;
-  }
-
-  private handleGameStateChange(state: { mode?: GameMode }) {
-    if (this.currentMode !== state.mode) {
-      this.currentMode = state.mode;
-      this.updateVisibility(state.mode);
-    }
   }
 
   private updateVisibility(mode?: GameMode) {

@@ -18,6 +18,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
   private _target: TargetData | null = null;
   private _isCurrent = false;
   private _isExpanded = false;
+  private _hasBeenSeen = false;
   private game: Readonly<IGame>;
   private _chapterId: string | null = null;
   private _targetIndex: number = -1;
@@ -32,14 +33,32 @@ export class TargetItem extends HTMLElement implements ITargetItem {
     this.attachShadow({ mode: "open" });
     this.handleClick = this.handleClick.bind(this);
   }
-
+  
   connectedCallback() {
     this.render();
+    // this.game.subscribeToProperty("history", this.handleHistoryStateChanged.bind(this));
+    // this.game.subscribeToProperty("trackedTargets", this.handleTrackedTargetsChanged.bind(this));
     this.addEventListener("click", this.handleClick);
   }
 
   disconnectedCallback() {
     this.removeEventListener("click", this.handleClick);
+  }
+
+  private handleHistoryStateChanged() {
+    const hasBeenSeen = this.game?.history.hasTargetBeenSeen(this._chapterId || "", this._targetIndex) ?? false;
+    console.log("[TargetItem] hasBeenSeen:", hasBeenSeen, this._chapterId, this._targetIndex, this._target);
+    if(this._hasBeenSeen !== hasBeenSeen) {
+      this._hasBeenSeen = hasBeenSeen;
+      this.render();
+    }
+  }
+
+  private handleTrackedTargetsChanged() {
+
+    const isCurrent = (this.game?.state.trackedTargets ?? []).includes(this._target?.mindarTargetIndex ?? -1);
+    console.log("[TargetItem] isCurrent:", isCurrent, this._target?.mindarTargetIndex);
+    this.shadowRoot?.querySelector(".target-item")?.classList.toggle("current", isCurrent);
   }
 
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
@@ -64,13 +83,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
     if (!this.shadowRoot || !this._target) return;
 
     // Determine if this target has been seen
-    const hasBeenSeen =
-      this._chapterId && this._targetIndex >= 0
-        ? this.game?.history.hasTargetBeenSeen(
-            this._chapterId,
-            this._targetIndex
-          ) ?? false
-        : false;
+    const hasBeenSeen = this._hasBeenSeen;
 
     this.shadowRoot.innerHTML = /* html */ `
       <style>
@@ -130,9 +143,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
           height: 0.75rem;
           border-radius: 50%;
           margin-left: 0.5rem;
-          background-color: ${
-            hasBeenSeen ? "var(--color-success, green)" : "var(--primary-300)"
-          };
+          background-color: var(--primary-300);
         }
         
         .meta-info {

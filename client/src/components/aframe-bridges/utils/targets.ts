@@ -1,5 +1,7 @@
 import { getTarget } from "@/utils/config";
-import { IGame, TargetData } from "@/types";
+import { IGame } from "@/types";
+import { GameStoreService } from "@/services/GameStoreService";
+import { SceneService } from "@/services/SceneService";
 
 /**
  * Maps target IDs to their corresponding numeric indices for the game store
@@ -18,16 +20,14 @@ export const getTargetIndexFromId = (targetId: string): number => {
 /**
  * Sets up event listeners for target entities in the current scene
  * 
- * @param game The game store instance
- * @param sceneElement The a-scene element containing targets
  * @returns A cleanup function to remove the event listeners
  */
-export const setupTargetListeners = (
-  game: Readonly<IGame>,
-  sceneElement: HTMLElement | null
-): (() => void) => {
+export const setupTargetListeners = (): (() => void) => {
+  const game = GameStoreService.getInstance();
+  const sceneService = SceneService.getInstance();
+  const sceneElement = sceneService.getScene();
   if (!sceneElement) {
-    console.warn("[TargetUtils] No scene element provided to setup target listeners");
+    console.warn("[TargetUtils] No scene element available to setup target listeners");
     return () => {}; // No-op cleanup function
   }
 
