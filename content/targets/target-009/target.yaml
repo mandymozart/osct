@@ -5,7 +5,7 @@ description: A demonstration of a video with alpha channel
 relatedChapter: chapter3
 order: 1
 bookId: "009"
-targetType: video
+entityType: video
 imageTargetSrc: images-004.jpg
 mindSrc: images-004.mind
 assets: sploosh

@@ -1,4 +1,5 @@
 import { LoadingState } from "@/types/common";
+import { AssetData } from "./assets";
 
 /**
  * State of an individual entity
@@ -7,6 +8,20 @@ export interface EntityState {
   status: LoadingState; // Current loading state
   error?: Error;        // Error information if loading failed
 }
+
+
+/**
+ * Base data structure for an entity without loading state
+ */
+export interface EntityData {
+  type: EntityType;
+  assets: AssetData[];
+}
+
+/**
+ * Type of an entity
+ */
+export type EntityType = 'basic' | 'model' | 'video' | 'link';
 
 /**
  * State managed by the EntityManager

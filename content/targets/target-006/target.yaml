@@ -5,7 +5,7 @@ description: A pile of gold and relics hidden in the shadows.
 relatedChapter: chapter2
 order: 2
 bookId: "006"
-targetType: model
+entityType: model
 imageTargetSrc: images-003.jpg
 mindSrc: images-003.mind
 assets: treasure

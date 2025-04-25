@@ -5,7 +5,7 @@ description: Light plays a role in architecture.
 relatedChapter: chapter1
 order: 0
 bookId: "000"
-targetType: link
+entityType: link
 imageTargetSrc: images-000.jpg
 mindSrc: images-000.mind
 assets: shadows-link

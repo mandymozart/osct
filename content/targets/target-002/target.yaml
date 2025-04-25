@@ -5,7 +5,7 @@ description: A mystical tree stands tall.
 relatedChapter: chapter1
 order: 2
 bookId: "102"
-targetType: model
+entityType: model
 imageTargetSrc: images-102.jpg
 mindSrc: images-102.mind
 assets: tree

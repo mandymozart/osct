@@ -5,7 +5,7 @@ description: A stone statue guarding the entrance.
 relatedChapter: chapter2
 order: 1
 bookId: "004"
-targetType: model
+entityType: model
 imageTargetSrc: images-045.jpg
 mindSrc: images-045.mind
 assets: cardboard-boxes

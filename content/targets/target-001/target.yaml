@@ -5,7 +5,7 @@ description: A beast, a friend, a dimension jumper.
 relatedChapter: chapter1
 order: 1
 bookId: "001"
-targetType: model
+entityType: model
 imageTargetSrc: images-028.jpg
 mindSrc: images-028.mind
 assets: racoon

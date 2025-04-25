@@ -1,5 +1,5 @@
 import { LoadingState } from "./common";
-import { TargetData } from "./game";
+import { TargetData } from "./targets";
 
 export interface IChapterManager {
   getCurrentChapter(): string | null;

@@ -1,6 +1,8 @@
 // Game-related type definitions for build scripts
 // These are imported from client/src/types/game/index.ts
 
+import { AssetType, EntityType } from "./content";
+
 export interface IGame {
   version: GameVersion;
   state: GameState;
@@ -127,13 +129,14 @@ export interface TargetData {
 }
 
 export interface EntityData {
+  type: EntityType;
   assets: AssetData[];
 }
 
 export interface AssetData {
   id: string;
   assetType: string;
-  type: string;
+  type: AssetType;
   src: string;
   position?: {
     x: number;

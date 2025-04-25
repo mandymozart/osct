@@ -5,7 +5,7 @@ description: An ancient castle filled with secrets.
 relatedChapter: chapter2
 order: 0
 bookId: "003"
-targetType: model
+entityType: model
 imageTargetSrc: images-022.jpg
 mindSrc: images-022.mind
 assets: castle

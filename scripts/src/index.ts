@@ -275,10 +275,10 @@ function readContentFiles(): ContentWithMetadata[] {
 function transformTargetData(target: TargetWithMetadata): TargetData {
   // Deep clone to avoid modifying original
   const result = { ...target } as any;
-  
+  console.log(target)
   // Create entity structure expected by GameConfiguration
   result.entity = {
-    type: result.targetType || 'basic',
+    type: result.entityType || 'basic',
     assets: [] as AssetData[] // Initialize with empty array
   };
   
@@ -334,7 +334,7 @@ function transformTargetData(target: TargetWithMetadata): TargetData {
   delete result.assets;
   delete result.type;
   delete result.relatedChapter;
-  delete result.targetType;
+  delete result.entityType;
   delete result.order; // Remove order since we've converted it to mindarTargetIndex
   
   // IMPORTANT: DO NOT remove metadata properties yet - they are needed for the prepareTargetImages function

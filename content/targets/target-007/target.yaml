@@ -5,7 +5,7 @@ description: A demonstration of video content in AR
 relatedChapter: chapter2
 order: 3
 bookId: "007"
-targetType: video
+entityType: video
 imageTargetSrc: images-007.jpg
 mindSrc: images-007.mind
 assets: bunny-video
