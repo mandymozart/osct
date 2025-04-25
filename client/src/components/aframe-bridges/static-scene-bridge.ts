@@ -223,13 +223,6 @@ export class StaticSceneBridge extends HTMLElement {
     mindAROverlays.forEach(overlay => {
       overlay.remove();
     });
-    
-    ['mindar-ui-loading', 'mindar-ui-container', 'mindar-ui-scanning'].forEach(className => {
-      const elements = document.querySelectorAll(`.${className}`);
-      if (elements.length > 0) {
-        elements.forEach(el => el.remove());
-      }
-    });
   }
   
   /**
