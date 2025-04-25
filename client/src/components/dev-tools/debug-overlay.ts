@@ -82,7 +82,7 @@ export class DebugOverlay extends HTMLElement {
           user-select: text;
           cursor: pointer;
           transition: opacity 0.3s;
-          display: ${import.meta.env.DEV ? "block" : "none"};
+          display: "block";
         }
         .title {
           font-weight: bold;
@@ -249,7 +249,7 @@ export class DebugOverlay extends HTMLElement {
     }
   }
 }
-console.log("DebugOverlay loaded",import.meta.env.DEV, import.meta.env.VITE_DEBUG);
-// if (import.meta.env.DEV || import.meta.env.VITE_DEBUG) {
+
+if (import.meta.env.DEV || import.meta.env.VITE_DEBUG) {
   customElements.define("debug-overlay", DebugOverlay);
-// }
+}
