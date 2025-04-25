@@ -6,10 +6,8 @@ import {
   GameMode,
   GameState,
   GameVersion,
-  IAssetManager,
   ICameraManager,
   IChapterManager,
-  IEntityManager,
   IGame,
   IHistoryManager,
   IQRManager,
@@ -19,10 +17,8 @@ import {
 } from "@/types";
 import { uniqueId } from "@/utils";
 import { BaseStore } from "./BaseStore";
-import { AssetManager } from "./managers/AssetManager";
 import { CameraManager } from "./managers/CameraManager";
 import { ChapterManager } from "./managers/ChapterManager";
-import { EntityManager } from "./managers/EntityManager";
 import { HistoryManager } from "./managers/HistoryManager";
 import { QRManager } from "./managers/QRManager";
 import { RouterManager } from "./managers/router/RouterManager";
@@ -39,9 +35,7 @@ const initialState: GameState = {
   history: [],
   configVersion: configVersion as unknown as ConfigurationVersion,
   loading: LoadingState.LOADING,
-  cameraPermission: CameraPermissionStatus.UNKNOWN,
-  assets: {},
-  entities: {}
+  cameraPermission: CameraPermissionStatus.UNKNOWN
 }
 
 /**
@@ -58,8 +52,6 @@ class Game extends BaseStore<GameState> implements IGame {
   public router: IRouterManager;
   public qr: IQRManager;
   public camera: ICameraManager;
-  public assets: IAssetManager;
-  public entities: IEntityManager;
 
   /**
    * Notification and Error listeners
@@ -81,10 +73,8 @@ class Game extends BaseStore<GameState> implements IGame {
   constructor() {
     super(initialState);
 
-    this.assets = new AssetManager(this);
     this.camera = new CameraManager(this);
     this.chapters = new ChapterManager(this);
-    this.entities = new EntityManager(this);
     this.history = new HistoryManager(this);
     this.targets = new TargetManager(this);
     this.qr = new QRManager(this);

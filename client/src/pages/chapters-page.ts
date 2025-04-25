@@ -1,4 +1,4 @@
-import { chapters } from "../game.config.json";
+import { getChapter, getChapters } from "@/utils/config";
 import { ChapterData, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
@@ -133,28 +133,20 @@ export class ChaptersPage extends PageMinimal {
 
     const currentChapter = this.game.state.currentChapter;
 
-    list.innerHTML = chapters
+    list.innerHTML = getChapters()
       .map((chapterData: ChapterData) => {
-        // Get the corresponding chapter resource from the state if available
-        const chapterResource = this.game?.state.chapters[chapterData.id];
-
         const completionPercentage =
           this.game!.history.getChapterCompletionPercentage(chapterData.id) ??
           0;
-        const isActive = currentChapter?.id === chapterData.id;
+        const isActive = currentChapter === chapterData.id;
 
-        // Get loading status from the resource if available, otherwise assume not loading
-        const loadingStatus =
-          chapterResource?.status === LoadingState.LOADING
-            ? "(Loading...)"
-            : "";
 
         return /* html */ `
       <div class="chapter-card ${isActive ? "active" : ""}" 
            data-chapter-id="${chapterData.id}">
            <div class="chapter-icon">📑</div>
            <div class="chapter-info">
-        <h3>${chapterData.title} ${loadingStatus}</h3>
+        <h3>${chapterData.title}</h3>
         <div class="chapter-meta">
           <div class="page-range">Pages ${chapterData.firstPage} - ${
           chapterData.lastPage

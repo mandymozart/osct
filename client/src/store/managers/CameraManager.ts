@@ -1,55 +1,22 @@
 import { CameraPermissionStatus, ICameraManager, IGame } from "@/types";
 
 /**
- * Manages camera permission state and operations
+ * Manages camera permissions and access
  */
 export class CameraManager implements ICameraManager {
   private game: IGame;
-  private permissionChangeListeners: ((status: CameraPermissionStatus) => void)[] = [];
   
   constructor(game: IGame) {
     this.game = game;
   }
   
   /**
-   * Get current permission status
+   * Set the current permission status
    */
-  get permissionStatus(): CameraPermissionStatus {
-    return this.game.state.cameraPermission;
-  }
-  
-  /**
-   * Set permission status and notify listeners
-   */
-  public setPermissionStatus(status: CameraPermissionStatus): void {
-    this.game.set({ 
-      cameraPermission: status,
-     
+  private setPermissionStatus(status: CameraPermissionStatus): void {
+    this.game.update(draft => {
+      draft.cameraPermission = status;
     });
-    
-    this.notifyPermissionListeners(status);
-  }
-  
-  /**
-   * Notify permission change listeners
-   */
-  private notifyPermissionListeners(status: CameraPermissionStatus): void {
-    this.permissionChangeListeners.forEach(listener => listener(status));
-  }
-  
-  /**
-   * Add permission status change listener
-   */
-  public onPermissionChange(listener: (status: CameraPermissionStatus) => void): () => void {
-    this.permissionChangeListeners.push(listener);
-    
-    // Return cleanup function
-    return () => {
-      const index = this.permissionChangeListeners.indexOf(listener);
-      if (index > -1) {
-        this.permissionChangeListeners.splice(index, 1);
-      }
-    };
   }
   
   /**

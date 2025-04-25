@@ -45,17 +45,14 @@ export class CameraPermission extends Page {
   }
 
   setupListeners(): void {
-    this.cleanupListener = this.game.camera.onPermissionChange(this.handlePermissionChange.bind(this));
-    this.game.subscribe(this.handleStateChange.bind(this));
-  }
-
-  /**
-   * Handle game state changes, only updating UI when permission state changes
-   */
-  protected handleStateChange(state: { cameraPermission: CameraPermissionStatus }) {
-    if (state.cameraPermission !== this.currentPermissionStatus) {
-      this.handlePermissionChange(state.cameraPermission);
-    }
+    this.cleanupListener = this.game.subscribeToProperty(
+      'cameraPermission',
+      (newStatus, prevStatus) => {
+        if (newStatus !== prevStatus) {
+          this.handlePermissionChange(newStatus);
+        }
+      }
+    );
   }
 
   /**

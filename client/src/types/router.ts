@@ -1,4 +1,4 @@
-import { ErrorInfo } from "../../types";
+import { ErrorInfo } from "@/types";
 
 export interface IPagesRouter extends HTMLElement {
   updateRoute(route: PageRoute | null): void;

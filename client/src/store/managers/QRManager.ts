@@ -20,10 +20,10 @@ export class QRManager implements IQRManager {
    */
   public startScanning(): void {
     // Switch to QR mode and clear any previous errors
-    this.game.set({ 
-      mode: GameMode.QR,
-      currentRoute: { page: Pages.CHAPTER, slug: "/chapter" },
-      currentError: null 
+    this.game.update(draft => {
+      draft.mode = GameMode.QR;
+      draft.currentRoute = { page: Pages.CHAPTER, slug: "/chapter" };
+      draft.currentError = null;
     });
   }
 
@@ -32,7 +32,9 @@ export class QRManager implements IQRManager {
    */
   public stopScanning(): void {
     // Switch back to default mode
-    this.game.set({ mode: GameMode.DEFAULT });
+    this.game.update(draft => {
+      draft.mode = GameMode.DEFAULT;
+    });
   }
 
   /**
@@ -55,9 +57,10 @@ export class QRManager implements IQRManager {
       if (data.startsWith('http://') || data.startsWith('https://')) {
         // Parse URL to extract chapter information
         const chapterId = parseQRCodeURL(data);
-        
+        console.log('[QR Manager] Chapter ID:', chapterId);
         if (chapterId) {
           // Navigate to the chapter
+          this.game.chapters.switchChapter(chapterId);
           const route = createChapterRoute(chapterId);
           this.game.router.navigate(`/${route.slug}`, route.param);
           this.stopScanning();
@@ -104,9 +107,9 @@ export class QRManager implements IQRManager {
     };
     
     // Update game state with error
-    this.game.set({
-      mode: GameMode.DEFAULT,
-      currentError: error
+    this.game.update(draft => {
+      draft.mode = GameMode.DEFAULT;
+      draft.currentError = error;
     });
   }
   

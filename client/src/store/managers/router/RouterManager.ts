@@ -38,11 +38,15 @@ export class RouterManager implements IRouterManager {
 
     // Check if route exists in configuration
     if (RouteResolver.routeExists(route)) {
-      this.game.set({ currentRoute: route });
+      this.game.update(draft => {
+        draft.currentRoute = route;
+      });
     } else {
       console.error(`[RouterManager] Route not found, showing 404`);
       const notFoundRoute = { page: Pages.NOT_FOUND, slug: "/not-found" } as PageRoute;
-      this.game.set({ currentRoute: notFoundRoute });
+      this.game.update(draft => {
+        draft.currentRoute = notFoundRoute;
+      });
     }
   }
 
@@ -55,12 +59,12 @@ export class RouterManager implements IRouterManager {
     console.error('[RouterManager] Showing error:', error);
     
     // Store the error in router state
-    this.game.set({ 
-      currentRoute: { 
+    this.game.update(draft => {
+      draft.currentRoute = { 
         page: Pages.ERROR, 
         slug: "/error" 
-      },
-      currentError: error
+      };
+      draft.currentError = error;
     });
   }
 
@@ -68,10 +72,10 @@ export class RouterManager implements IRouterManager {
    * Close overlay pages
    */
   public close(): void {
-    this.game.set({ 
-      mode: GameMode.DEFAULT,
-      currentRoute: { page: Pages.CHAPTER, slug: "/chapter" },
-      currentError: null
+    this.game.update(draft => {
+      draft.mode = GameMode.DEFAULT;
+      draft.currentRoute = { page: Pages.CHAPTER, slug: "/chapter" };
+      draft.currentError = null;
     });
   }
 }

@@ -1,8 +1,8 @@
 import { GameStoreService } from "@/services/GameStoreService";
-import { IGame, Target } from "@/types";
+import { IGame, TargetData } from "@/types";
 
 export interface ITargetItem extends HTMLElement {
-  target: Target | null;
+  target: TargetData | null;
   isCurrent: boolean;
   isExpanded: boolean;
   chapterId?: string | null;
@@ -15,7 +15,7 @@ export interface ITargetItem extends HTMLElement {
  * Displays a target item in the index page
  */
 export class TargetItem extends HTMLElement implements ITargetItem {
-  private _target: Target | null = null;
+  private _target: TargetData | null = null;
   private _isCurrent = false;
   private _isExpanded = false;
   private game: Readonly<IGame>;
@@ -202,11 +202,11 @@ export class TargetItem extends HTMLElement implements ITargetItem {
   }
 
   // Getters and setters
-  get target(): Target | null {
+  get target(): TargetData | null {
     return this._target;
   }
 
-  set target(value: Target | null) {
+  set target(value: TargetData | null) {
     this._target = value;
     this.render();
   }
