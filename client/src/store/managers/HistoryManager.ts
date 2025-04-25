@@ -7,7 +7,6 @@ import { getTargets } from '@/utils/config';
  */
 export class HistoryManager implements IHistoryManager {
   private game: IGame;
-  private history: HistoryEntry[] = [];
   private readonly HISTORY_STORAGE_KEY = 'ar-game-target-history';
   private readonly CONFIG_VERSION_KEY = 'ar-game-config-version';
 
@@ -71,7 +70,9 @@ export class HistoryManager implements IHistoryManager {
       if (historyJson) {
         // Parse history
         const loadedHistory = JSON.parse(historyJson) as HistoryEntry[];
-        this.history = loadedHistory;
+        this.game.update(draft => {
+          draft.history = loadedHistory;
+        });
         
         // If there are previous entries, notify the user they can resume
         if (loadedHistory.length > 0) {
@@ -104,7 +105,7 @@ export class HistoryManager implements IHistoryManager {
    * Mark a target as seen by the user
    */
   public markTargetAsSeen(chapterId: string, targetIndex: number): void {
-    const existingEntry = this.history.find(
+    const existingEntry = this.game.state.history.find(
       entry => entry.chapterId === chapterId && entry.targetIndex === targetIndex
     );
 
@@ -122,7 +123,9 @@ export class HistoryManager implements IHistoryManager {
         });
         
         // Update local reference to match store state
-        this.history = draft.history;
+        this.game.update(draft => {
+          draft.history = draft.history;
+        });
       });
 
       // Save updated history
@@ -134,7 +137,7 @@ export class HistoryManager implements IHistoryManager {
    * Check if a target has been seen before
    */
   public hasTargetBeenSeen(chapterId: string, targetIndex: number): boolean {
-    return this.history.some(
+    return this.game.state.history.some(
       entry => entry.chapterId === chapterId && entry.targetIndex === targetIndex
     );
   }
@@ -143,7 +146,8 @@ export class HistoryManager implements IHistoryManager {
    * Get all target indices that have been seen in a specific chapter
    */
   public getSeenTargetsForChapter(chapterId: string): number[] {
-    return this.history
+
+    return this.game.state.history
       .filter(entry => entry.chapterId === chapterId)
       .map(entry => entry.targetIndex);
   }
@@ -185,7 +189,9 @@ export class HistoryManager implements IHistoryManager {
       draft.history = draft.history.filter((entry: { chapterId: string }) => entry.chapterId !== chapterId);
       
       // Update local reference to match store state
-      this.history = draft.history;
+      this.game.update(draft => {
+        draft.history = draft.history;
+      });
     });
 
     this.saveTargetHistory();
@@ -197,8 +203,6 @@ export class HistoryManager implements IHistoryManager {
   public reset(): void {
     this.game.update(draft => {
       draft.history = [];
-      // Update local reference
-      this.history = [];
     });
     
     this.saveTargetHistory();
@@ -211,7 +215,7 @@ export class HistoryManager implements IHistoryManager {
     try {
       localStorage.setItem(
         this.HISTORY_STORAGE_KEY,
-        JSON.stringify(this.history)
+        JSON.stringify(this.game.state.history)
       );
     } catch (error) {
       console.warn('Failed to save target history to localStorage:', error);
