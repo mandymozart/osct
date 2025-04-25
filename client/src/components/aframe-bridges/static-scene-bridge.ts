@@ -75,11 +75,11 @@ export class StaticSceneBridge extends HTMLElement {
       return;
     }
     this.initialized = true;
-
+    this.game.startLoading()
     try {
       await waitForDOMReady();
       
-      const currentChapter = this.game.chapters.getCurrentChapter() || 'chapter1';
+      const currentChapter = this.game.chapters.getCurrentChapter() || 'chapter2';
       
       if (currentChapter) {
         await this.createSceneForChapter(currentChapter);
@@ -113,6 +113,7 @@ export class StaticSceneBridge extends HTMLElement {
    * @param chapterId The chapter ID to create a scene for
    */
   private async createSceneForChapter(chapterId: string): Promise<void> {
+    this.game.startLoading();
     try {
       if (!this.templates[chapterId]) {
         throw new Error(`No template found for chapter: ${chapterId}`);
@@ -158,6 +159,7 @@ export class StaticSceneBridge extends HTMLElement {
       });
       throw error;
     }
+    this.game.finishLoading();
   }
   
   /**
