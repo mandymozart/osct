@@ -1,7 +1,43 @@
-import { Target } from './../';
+import { AssetType } from "./assets";
+import { EntityData } from "./entities";
+
+
+/**
+ * Represents a tracking target in AR with loading state
+ * Tightly connected to Entities in our setup. so proper typing is crucial
+ * @deprecated redundant interface with optional id, string id is fine */
+export interface Target {
+  id?: string;
+}
+
+/**
+ * Track the history of seen targets
+ */
+export interface TargetHistoryEntry {
+  chapterId: string;
+  targetIndex: number;
+  timestamp: number;
+}
 
 export interface TargetManagerState {
   trackedTargets: number[];
+}
+
+/**
+ * Base data structure for a target without loading state
+ */
+export interface TargetData {
+  type: AssetType
+  id: string;
+  mindarTargetIndex: number;
+  bookId: string;
+  title: string;
+  description: string;
+  entity: EntityData;
+  imageTargetSrc: string;
+  mindSrc: string;
+  tags: string[];
+  relatedTargets: string[];
 }
 
 export interface ITargetManager {

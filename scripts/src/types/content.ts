@@ -3,7 +3,7 @@
 export interface BaseContent {
   id: string;
   type: string;
-  title: string;
+  title: 'chapter' | 'target' | 'asset' | 'step';
   description: string;
 }
 
@@ -18,7 +18,7 @@ export interface TargetContent extends BaseContent {
   relatedChapter: string;
   order: number;
   bookId: string;
-  targetType: string;
+  entityType: EntityType; // This were we link targets to entities
   imageTargetSrc: string;
   mindSrc: string;
   assets: string | string[];
@@ -26,9 +26,13 @@ export interface TargetContent extends BaseContent {
   tags?: string | string[];
 }
 
+export type EntityType = 'basic' | 'model' | 'video' | 'link';
+
+export type AssetType = 'image' | 'gltf' | 'glb' | 'audio' | 'video' | 'link' | string;
+
 export interface AssetContent extends BaseContent {
   type: 'asset';
-  assetType: string;
+  assetType: AssetType;
   src: string;
   position?: {
     x: number;

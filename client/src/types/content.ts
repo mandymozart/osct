@@ -3,7 +3,12 @@
  * 
  * These interfaces define the structure of the YAML content files
  * used to generate the game.config.json file.
+ * 
+ * DANGER: Types need to be kept up to date with scripts package
  */
+
+import { AssetType } from "./assets";
+import { EntityType } from "./entities";
 
 // Common base interface for all content types
 export interface BaseContent {
@@ -25,7 +30,7 @@ export interface ChapterContent extends BaseContent {
 export interface AssetContent extends BaseContent {
   type: 'asset';
   id: string;
-  assetType: 'image' | 'gltf' | 'glb' | 'video' | 'audio' | 'link';
+  assetType: AssetType;
   src: string;
   title?: string;
   description?: string;
@@ -34,18 +39,15 @@ export interface AssetContent extends BaseContent {
 
 // Target content schema
 export interface TargetContent extends BaseContent {
-  type: 'target';
   title: string;
   description: string;
   relatedChapter: string;
   order: number;
   bookId: string;
   imageTargetSrc?: string;
-  targetType?: 'basic' | 'model' | 'video' | 'link';
+  entityType: EntityType;
   // Assets is just a reference list of asset IDs, not the full asset objects
   assets: string | string[];
-  // These asset objects are loaded separately from asset-*.yaml files
-  assetFiles?: AssetContent[];
   relatedTargets: string | string[];
   tags: string | string[];
 }

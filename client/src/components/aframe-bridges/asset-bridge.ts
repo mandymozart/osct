@@ -125,58 +125,59 @@ class AssetBridge extends HTMLElement {
    * @param id Asset ID
    */
   private createAssetElement(id: string): void {
-    if (!this.assetsEl) return;
+    // TODO: Deactivate for now, I reload the entire scene instead of manually updating. 
+    return;
+    // if (!this.assetsEl) return;
+    // const asset: AssetData | undefined = getAsset(id);
+    // if (!asset) {
+    //   console.error(`Asset ${id} not found in configuration`);
+    //   return;
+    // }
 
-    const asset: AssetData | undefined = getAsset(id);
-    if (!asset) {
-      console.error(`Asset ${id} not found in configuration`);
-      return;
-    }
+    // const scene = sceneService.getScene();
+    // const existingEl = scene?.querySelector(`#${id}`);
+    // if (existingEl) return
 
-    const scene = sceneService.getScene();
-    const existingEl = scene?.querySelector(`#${id}`);
-    if (existingEl) return
+    // if (asset.assetType === 'link') {
+    //   this.game.assets.markLoaded(id);
+    //   return;
+    // }
+    // if (!asset.src) {
+    //   console.error(`Asset "${id}" of type ${asset.assetType} requires src attribute`);
+    //   this.game.assets.markFailed(id, new Error('Missing src attribute'));
+    //   return;
+    // }
 
-    if (asset.assetType === 'link') {
-      this.game.assets.markLoaded(id);
-      return;
-    }
-    if (!asset.src) {
-      console.error(`Asset "${id}" of type ${asset.assetType} requires src attribute`);
-      this.game.assets.markFailed(id, new Error('Missing src attribute'));
-      return;
-    }
+    // let tagName: string;
+    // console.log(asset.assetType)
+    // switch (asset.assetType) {
+    //   case 'image':
+    //     tagName = 'img';
+    //     break;
+    //   case 'audio':
+    //     tagName = 'audio';
+    //     break;
+    //   case 'video':
+    //     tagName = 'video';
+    //     break;
+    //   case 'gltf':
+    //   case 'glb':
+    //   default:
+    //     tagName = 'a-asset-item';
+    // }
 
-    let tagName: string;
-    console.log(asset.assetType)
-    switch (asset.assetType) {
-      case 'image':
-        tagName = 'img';
-        break;
-      case 'audio':
-        tagName = 'audio';
-        break;
-      case 'video':
-        tagName = 'video';
-        break;
-      case 'gltf':
-      case 'glb':
-      default:
-        tagName = 'a-asset-item';
-    }
+    // const assetEl = document.createElement(tagName);
+    // assetEl.id = id;
+    // assetEl.setAttribute('src', asset.src);
+    // assetEl.setAttribute('crossorigin', 'anonymous');
 
-    const assetEl = document.createElement(tagName);
-    assetEl.id = id;
-    assetEl.setAttribute('src', asset.src);
-    assetEl.setAttribute('crossorigin', 'anonymous');
+    // if (tagName === 'a-asset-item') {
+    //   assetEl.setAttribute('response-type', 'arraybuffer');
+    // }
 
-    if (tagName === 'a-asset-item') {
-      assetEl.setAttribute('response-type', 'arraybuffer');
-    }
-
-    this.game.assets.markLoading(id);
-    this.setupAssetEventHandlers(assetEl, id);
-    this.assetsEl.appendChild(assetEl);
+    // this.game.assets.markLoading(id);
+    // this.setupAssetEventHandlers(assetEl, id);
+    // this.assetsEl.appendChild(assetEl);
   }
 
   /**

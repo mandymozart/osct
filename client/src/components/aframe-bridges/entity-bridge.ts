@@ -1,10 +1,11 @@
 import { GameStoreService } from '@/services/GameStoreService';
 import { sceneService } from '@/services/SceneService';
-import { ErrorCode, GameState, IGame, LoadingState } from '@/types';
+import { ErrorCode, IGame, LoadingState } from '@/types';
 import { EntityState } from '@/types/entities';
 import { waitForDOMReady } from '@/utils';
+import { getTarget } from '@/utils/config';
 import { Entity, Scene } from 'aframe';
-
+import { createEntity } from './utils/targetEntities';
 
 class EntityBridge extends HTMLElement {
   private game: IGame;
@@ -43,7 +44,7 @@ class EntityBridge extends HTMLElement {
       await waitForDOMReady();
 
       this.entitiesEl = scene.querySelectorAll(
-        'a-entity',
+        '[mindar-image-target]',
       ) as unknown as Entity[];
 
       if (!this.entitiesEl) {
@@ -61,9 +62,9 @@ class EntityBridge extends HTMLElement {
 
     this.entitiesEl.forEach((entityEl) => {
       const entityId = entityEl.getAttribute('id');
-      const isLight = entityEl.getAttribute('light') !== null;
-      if(isLight){
-        console.warn('[EntityBridge] Skipping lights', entityEl);
+      const isMindArImageTarget = entityEl.getAttribute('mindar-image-target') !== null;
+      if(!isMindArImageTarget){
+        console.warn('[EntityBridge] Not an MindAr Image Target', entityEl);
         return;
       }
       if (!entityId) {
@@ -83,30 +84,54 @@ class EntityBridge extends HTMLElement {
     // Only process entities if we're initialized
     if (!this.initialized) return;
     
-    // TODO: figure out what triggers the clear method for example. because entities need to be removed before new ones are added.
+    // TODO: implement state changes on properties and add event handlers based on configuration,links, etc.
+
     if (entities) {
-      // TODO: Do
+      // this.clear();
+      // TODO: Update state on entites rather than removing them. 
+      // Object.entries(entities).forEach(([entityId, entityState]) => {
+      //   this.create(entityId, entityState);
+      // });
     }
   }
 
-  private createEntity(id: string) {
-    const entityId = id;
-    const scene = sceneService.getScene();
-    
-    if (scene) {
-      // TODO: Implement entity creation
-    }
+  private create(id: string, entityState: EntityState) {
+    // TODO: Deactivate for now, I reload the entire scene instead of manually updating. 
+    return;
+    // const entityId = id;
+    // const scene = sceneService.getScene();
+    // const target = getTarget(entityId);
+    // if(!target) {
+    //   console.error(`[EntityBridge] Could not find target for entity: ${entityId}`);
+    //   return;
+    // }
+    // console.log('[EntityBridge] Creating entity for target:', target.entity.type);
+
+    // if (scene && target && target.entity) {
+    //   try {
+    //     const entity = createEntity(target);
+    //     scene.appendChild(entity);
+    //     console.log(`[EntityBridge] Created entity for target: ${entityId}, type: ${target.entity.type}`);
+    //   } catch (error) {
+    //     console.error(`[EntityBridge] Error creating entity for target: ${entityId}`, error);
+    //   }
+    // } else {
+    //   console.warn(`[EntityBridge] Could not create entity for target: ${entityId} - missing configuration`);
+    // }
   }
 
-  private clear(): void {
-    const scene = sceneService.getScene();
-    if (!scene) return;
+  // private clear(): void {
+  //   const scene = sceneService.getScene();
+  //   if (!scene) return;
     
-    const entities = scene.querySelectorAll(
-      'a-entity',
-    ) as unknown as Entity[];
-    entities.forEach((target) => target.remove());
-  }
+  //   const entities = scene.querySelectorAll(
+  //     '[mindar-image-target]',
+  //   ) as unknown as Entity[];
+  //   entities.forEach((target) => {
+  //     console.log(target.nodeType)
+  //     target.remove()
+  // });
+  // }
   
   public disconnect() {
     if (this.sceneCleanupCallback) {
@@ -116,8 +141,7 @@ class EntityBridge extends HTMLElement {
     
     if (this.entitySubscriptionCleanup) {
       this.entitySubscriptionCleanup();
-      this.entitySubscriptionCleanup = null;
-    }
+      this.entitySubscriptionCleanup = null;    }
   }
 }
 
