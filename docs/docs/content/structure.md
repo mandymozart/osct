@@ -63,6 +63,7 @@ title: Racoon               # Display title
 description: A beast, a friend, a dimension jumper.
 relatedChapter: chapter1    # Which chapter this target belongs to
 order: 1                    # Order within the chapter
+hideFromIndex: false        # (optional) (DEFAULT: false) hides target from index
 bookId: "001"               # Book reference ID
 entityType: model           # Type of AR experience (model, video, image, link)
 imageTargetSrc: images-028.jpg  # Source image for recognition
@@ -77,7 +78,7 @@ tags: forest,animal         # Categorization tags
 ```yaml
 type: asset                # Type must be 'asset'
 id: racoon                 # Unique asset identifier
-assetType: glb             # Asset type (REQUIRED - glb, image, video, audio)
+assetType: glb             # Asset type (REQUIRED - glb, image, video, audio, link)
 src: racoon.glb            # Asset source file
 ```
 
