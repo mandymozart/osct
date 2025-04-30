@@ -1,3 +1,5 @@
+import '@ungap/custom-elements';
+
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages/error-page";
