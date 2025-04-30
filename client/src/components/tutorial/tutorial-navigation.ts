@@ -1,6 +1,6 @@
 import { GameStoreService } from "../../services/GameStoreService";
 import { tutorial } from "@/game.config.json";
-import { IGame } from "@/types/game";
+import { GameMode, IGame } from "@/types/game";
 import { ITutorialNavigation } from "@/types/tutorial";
 
 /**
@@ -176,6 +176,9 @@ export class TutorialNavigation
   private handleNext() {
     const isLastStep = this.currentStep >= tutorial.length - 1;
     if (isLastStep) {
+      this.game.update((draft) => {
+        draft.mode = GameMode.DEFAULT;
+      });
       this.game.router.navigate("/chapters");
     } else {
       const nextStep = this.currentStep + 1;
