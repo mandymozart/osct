@@ -1,7 +1,7 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2025-04-25T13:06:44.948Z"
+    "timestamp": "2025-04-30T12:57:02.592Z"
   },
   "initialChapterId": "chapter1",
   "chapters": [
@@ -13,35 +13,6 @@
       "lastPage": 3,
       "mindSrc": "/assets/content/chapters/chapter1/chapter1.mind",
       "targets": [
-        {
-          "id": "target-000",
-          "title": "Shadows",
-          "description": "Light plays a role in architecture.",
-          "bookId": "000",
-          "imageTargetSrc": "/assets/content/targets/target-000/images-000.jpg",
-          "mindSrc": "/assets/content/targets/target-000/images-000.mind",
-          "relatedTargets": [
-            "target-001",
-            "target-102",
-            "target-003"
-          ],
-          "tags": [
-            "architecture",
-            "lighting"
-          ],
-          "entity": {
-            "type": "link",
-            "assets": [
-              {
-                "id": "shadows-link",
-                "assetType": "link",
-                "type": "asset",
-                "src": "https://experiment-woodkid-volcano-robot.vercel.app/"
-              }
-            ]
-          },
-          "mindarTargetIndex": 0
-        },
         {
           "id": "target-001",
           "title": "Racoon",
@@ -67,7 +38,7 @@
               }
             ]
           },
-          "mindarTargetIndex": 1
+          "mindarTargetIndex": 0
         },
         {
           "id": "target-102",
@@ -94,7 +65,7 @@
               }
             ]
           },
-          "mindarTargetIndex": 2
+          "mindarTargetIndex": 1
         },
         {
           "id": "target-005",
@@ -121,7 +92,7 @@
               }
             ]
           },
-          "mindarTargetIndex": 3
+          "mindarTargetIndex": 2
         }
       ]
     },
@@ -259,6 +230,7 @@
           "bookId": "008",
           "imageTargetSrc": "/assets/content/targets/target-008/images-060.jpg",
           "mindSrc": "/assets/content/targets/target-008/images-060.mind",
+          "hideFromIndex": true,
           "relatedTargets": [
             "target-009"
           ],

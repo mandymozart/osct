@@ -22,6 +22,7 @@ export interface TargetContent extends BaseContent {
   imageTargetSrc: string;
   mindSrc: string;
   assets: string | string[];
+  hideFromIndex?: boolean;
   relatedTargets?: string | string[];
   tags?: string | string[];
 }

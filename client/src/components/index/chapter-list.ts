@@ -157,6 +157,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
       // Append targets if they exist
       if (chapter.targets && chapter.targets.length > 0) {
         chapter.targets.forEach((target: TargetData) => {
+          if(target.hideFromIndex) return;
           // Create and append target item
           const targetItem = document.createElement('target-item') as any;
           targetItem.target = target;
