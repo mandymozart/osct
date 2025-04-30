@@ -1,3 +1,5 @@
+import '@ungap/custom-elements';
+
 import { ILoadingPage } from "./pages/loading-page";
 import { GameStoreService } from "@/services/GameStoreService";
 import "@/components";
