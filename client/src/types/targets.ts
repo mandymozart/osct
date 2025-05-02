@@ -11,6 +11,7 @@ export interface TargetHistoryEntry {
 
 export interface TargetManagerState {
   trackedTargets: number[];
+  activeTarget: string | null;
 }
 
 /**

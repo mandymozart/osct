@@ -32,6 +32,7 @@ export class GameHeader extends HTMLElement {
                     align-items: center;
                     gap: 1rem;
                     cursor: pointer;
+                    pointer-events: all;
                 }
                 
                 .header-left {

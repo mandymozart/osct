@@ -30,6 +30,7 @@ const initialState: GameState = {
   currentRoute: null,
   currentError: null,
   trackedTargets: [],
+  activeTarget: null,
   currentChapter: null,
   chapters: {}, 
   history: [],

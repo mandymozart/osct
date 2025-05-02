@@ -38,7 +38,7 @@ export const createEntityElement = (target: TargetData): string => {
   
   if (!entity || !entity.assets || entity.assets.length === 0) {
     return `
-    <a-entity id="${entityId}" mindar-image-target="targetIndex: ${targetIndex}"></a-entity>`;
+    <a-entity id="${entityId}" bookgame-clickable bookgame-index-target="targetId: ${target.id}" mindar-image-target="targetIndex: ${targetIndex}"><a-sphere color="red" radius="1" position="0 -0.25 0"></a-sphere></a-entity>`;
   }
   
   switch (entity.type) {
@@ -87,7 +87,10 @@ export const createEntityElement = (target: TargetData): string => {
   }
   
   return `
-    <a-entity id="${entityId}" mindar-image-target="targetIndex: ${targetIndex}">${entityContent}
+    <a-entity id="${entityId}" 
+    animation="startEvents: click; property: scale;
+          from: 2 2 2; to: 1 1 1; dur: 1000"
+    bookgame-index-target="targetId: ${target.id}" bookgame-clickable mindar-image-target="targetIndex: ${targetIndex}">${entityContent}
     </a-entity>`;
 };
 
@@ -139,6 +142,7 @@ export const createTemplateFromConfig = (chapterId: string): string => {
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
 ${entitiesSection}
 </a-scene>
 `;

@@ -6,6 +6,8 @@ import {
   IGame,
 } from "@/types/";
 import { waitForDOMReady } from "./utils/dom";
+// Register AFRAME Components
+import '@/components/aframe-bridges/components/clickableTarget';
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -44,6 +46,8 @@ export class BookGame extends HTMLElement {
       left: 0;
       right: 0;
       bottom: 0;
+      pointer-events: none;
+
     }
   `;
 
