@@ -26,8 +26,9 @@ export interface TargetData {
   entity: EntityData;
   imageTargetSrc: string;
   mindSrc: string;
-  tags: string[];
-  relatedTargets: string[];
+  hideFromIndex?: boolean;
+  tags?: string[];
+  relatedTargets?: string[];
 }
 
 export interface ITargetManager {

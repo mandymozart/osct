@@ -9,5 +9,6 @@ entityType: video
 imageTargetSrc: images-060.jpg
 mindSrc: images-060.mind
 assets: edge
+hideFromIndex: true
 relatedTargets: target-009
 tags: demo,video
