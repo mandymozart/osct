@@ -1,7 +1,13 @@
-import config from "./../../game.config.json";
-import { ConfigurationVersion, IGame, TargetHistoryEntry as HistoryEntry, IHistoryManager, ErrorInfo } from '@/types';
-import { getTargets } from '@/utils/config';
 import { SceneService } from '@/services/SceneService';
+import {
+  ConfigurationVersion,
+  ErrorInfo,
+  GameMode,
+  IGame,
+  IHistoryManager
+} from '@/types';
+import { getTargets } from '@/utils/config';
+import config from './../../game.config.json';
 
 /**
  * Manages user history and progress tracking
@@ -16,7 +22,7 @@ export class HistoryManager implements IHistoryManager {
     this.game = game;
     this.sceneService = SceneService.getInstance();
     this.sceneService.onSceneReady(() => {
-      console.log("[HistoryManager] Scene is ready, loading history");
+      console.log('[HistoryManager] Scene is ready, loading history');
       this.load();
     });
   }
@@ -39,8 +45,8 @@ export class HistoryManager implements IHistoryManager {
       if (storageVersion.version !== currentVersion.version) {
         console.warn(
           `Game configuration has changed from version ${storageVersion.version} to ${currentVersion.version}. ` +
-          `Last update was on ${new Date(storageVersion.timestamp).toLocaleDateString()}. ` +
-          `Some chapter or target data might have changed.`
+            `Last update was on ${new Date(storageVersion.timestamp).toLocaleDateString()}. ` +
+            `Some chapter or target data might have changed.`,
         );
       }
 
@@ -55,8 +61,12 @@ export class HistoryManager implements IHistoryManager {
    */
   private saveConfigurationVersion(): void {
     try {
-      const versionData: ConfigurationVersion = config.version as unknown as ConfigurationVersion;
-      localStorage.setItem(this.CONFIG_VERSION_KEY, JSON.stringify(versionData));
+      const versionData: ConfigurationVersion =
+        config.version as unknown as ConfigurationVersion;
+      localStorage.setItem(
+        this.CONFIG_VERSION_KEY,
+        JSON.stringify(versionData),
+      );
     } catch (error) {
       console.warn('Failed to save configuration version:', error);
     }
@@ -68,30 +78,37 @@ export class HistoryManager implements IHistoryManager {
   public load(): void {
     // Check if configuration has changed
     this.checkConfigurationVersion();
-    
+
     // Load history from localStorage
     this.loadTargetHistory();
-    
+
     // If there are previous entries, notify the user they can resume
     if (this.game.state.history.length > 0) {
       // Get the most recent entry
-      const lastEntry = [...this.game.state.history].sort((a, b) => b.timestamp - a.timestamp)[0];
-      
-      // Find chapter in config 
-      const chapterConfig = config.chapters.find(ch => ch.id === lastEntry.chapterId);
+      const lastEntry = [...this.game.state.history].sort(
+        (a, b) => b.timestamp - a.timestamp,
+      )[0];
+
+      // Find chapter in config
+      const chapterConfig = config.chapters.find(
+        (ch) => ch.id === lastEntry.chapterId,
+      );
       const chapterName = chapterConfig?.title || lastEntry.chapterId;
-      
+
       // Create a notification with resume action
       this.game.notifyError({
         msg: `You have a previous session in chapter "${chapterName}".`,
         action: {
-            text: 'Resume',
-            callback: () => {
-              // Resume the last chapter using switchChapter
-              this.game.chapters.switchChapter(lastEntry.chapterId);
-              this.game.router.navigate('/chapter');
-            }
-        }
+          text: 'Resume',
+          callback: () => {
+            // Resume the last chapter using switchChapter
+            this.game.chapters.switchChapter(lastEntry.chapterId);
+            this.game.update((draft) => {
+              draft.mode = GameMode.DEFAULT;
+            });
+            this.game.router.navigate('/chapter');
+          },
+        },
       } as ErrorInfo);
     }
   }
@@ -101,24 +118,25 @@ export class HistoryManager implements IHistoryManager {
    */
   public markTargetAsSeen(chapterId: string, targetIndex: number): void {
     const existingEntry = this.game.state.history.find(
-      entry => entry.chapterId === chapterId && entry.targetIndex === targetIndex
+      (entry) =>
+        entry.chapterId === chapterId && entry.targetIndex === targetIndex,
     );
 
     if (!existingEntry) {
       // Update history using game store update pattern
-      this.game.update(draft => {
+      this.game.update((draft) => {
         if (!draft.history) {
           draft.history = [];
         }
-        
+
         draft.history.push({
           chapterId,
           targetIndex,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
-        
+
         // Update local reference to match store state
-        this.game.update(draft => {
+        this.game.update((draft) => {
           draft.history = draft.history;
         });
       });
@@ -133,7 +151,8 @@ export class HistoryManager implements IHistoryManager {
    */
   public hasTargetBeenSeen(chapterId: string, targetIndex: number): boolean {
     return this.game.state.history.some(
-      entry => entry.chapterId === chapterId && entry.targetIndex === targetIndex
+      (entry) =>
+        entry.chapterId === chapterId && entry.targetIndex === targetIndex,
     );
   }
 
@@ -141,18 +160,18 @@ export class HistoryManager implements IHistoryManager {
    * Get all target indices that have been seen in a specific chapter
    */
   public getSeenTargetsForChapter(chapterId: string): number[] {
-
     return this.game.state.history
-      .filter(entry => entry.chapterId === chapterId)
-      .map(entry => entry.targetIndex);
+      .filter((entry) => entry.chapterId === chapterId)
+      .map((entry) => entry.targetIndex);
   }
 
   /**
    * Calculate the percentage of targets seen in a chapter
    */
   public getChapterCompletionPercentage(chapterId: string): number {
-    const chapter = this.game.state.chapters[chapterId] ||
-      config.chapters.find(ch => ch.id === chapterId);
+    const chapter =
+      this.game.state.chapters[chapterId] ||
+      config.chapters.find((ch) => ch.id === chapterId);
 
     if (!chapter) return 0;
 
@@ -175,16 +194,18 @@ export class HistoryManager implements IHistoryManager {
    */
   public resetChapterHistory(chapterId: string): void {
     // Update history using game store update pattern
-    this.game.update(draft => {
+    this.game.update((draft) => {
       if (!draft.history) {
         draft.history = [];
         return;
       }
-      
-      draft.history = draft.history.filter((entry: { chapterId: string }) => entry.chapterId !== chapterId);
-      
+
+      draft.history = draft.history.filter(
+        (entry: { chapterId: string }) => entry.chapterId !== chapterId,
+      );
+
       // Update local reference to match store state
-      this.game.update(draft => {
+      this.game.update((draft) => {
         draft.history = draft.history;
       });
     });
@@ -196,10 +217,10 @@ export class HistoryManager implements IHistoryManager {
    * Reset all target history
    */
   public reset(): void {
-    this.game.update(draft => {
+    this.game.update((draft) => {
       draft.history = [];
     });
-    
+
     this.saveTargetHistory();
   }
 
@@ -210,7 +231,7 @@ export class HistoryManager implements IHistoryManager {
     try {
       localStorage.setItem(
         this.HISTORY_STORAGE_KEY,
-        JSON.stringify(this.game.state.history)
+        JSON.stringify(this.game.state.history),
       );
     } catch (error) {
       console.warn('Failed to save target history to localStorage:', error);
@@ -224,7 +245,7 @@ export class HistoryManager implements IHistoryManager {
     try {
       const storedHistory = localStorage.getItem(this.HISTORY_STORAGE_KEY);
       if (storedHistory) {
-        this.game.update(draft => {
+        this.game.update((draft) => {
           draft.history = JSON.parse(storedHistory);
         });
       }
