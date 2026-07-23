@@ -20,8 +20,8 @@ export class NavigationBar extends HTMLElement {
   connectedCallback() {
     assert(this.game, "Navigation Bar: Game instance not available");
     this.render();
-    this.game.subscribeToProperty("mode", this.updateVisibility.bind(this));
-    this.unsubscribe = this.game.subscribeToProperty("mode",this.updateVisibility.bind(this));
+    this.unsubscribe = this.game.subscribeToProperty("mode", this.updateVisibility.bind(this));
+    this.updateVisibility(this.game.state.mode);
   }
 
   disconnectedCallback() {
