@@ -4,6 +4,28 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Phase 1a done (QR removed)
+
+- [x] QR scanning removed completely (components, manager, types, utils, deps `jsqr`,
+      `qrcode(.min).js`, `GameMode.QR`, QR error codes).
+- [x] The client had **no test files**. Added a basic suite (27 tests, `client/src/**/__tests__/`):
+      `BaseStore` (change detection, cleanup, immutability), `RouteResolver`/`RouterManager`,
+      `HistoryManager` + `TargetManager` (seen/persist/resume/corrupt storage), and a
+      **content-config** check on the built `game.config.json` (≤ 5 targets per group, MindAR indices
+      0..n-1, unique ids, referenced files exist in `public/`). These guard Phase 1c/1d/2.
+- [ ] Found by the tests: `RouterManager.navigate()` with an unknown slug **throws** in
+      `RouteResolver.createRoute`, so the `/not-found` branch is unreachable. Documented in a test;
+      fix in Phase 2 together with `isSameRoute` (that one is an `it.fails` test – drop `.fails` when fixed).
+- [ ] Browser smoke run (in-app browser, camera blocked there): home, tutorial, scan HUD, index open
+      without console errors; nav bar now only shows INDEX. AR tracking needs a real device.
+- [ ] `hideFromIndex` (target-008 "Edge") is an existing content flag that hides a target from the
+      index. Keep an equivalent on entries in 1c/1d – don't drop it in the rename.
+- [ ] `beta/` (old prototype sandbox) still generates QR codes to open its test pages on a phone
+      (`start_server.py`, `requirements.txt: qrcode`). Not app QR scanning → left untouched. Ask whether
+      `beta/` is still needed at all. Docs (`docs/docs/*`) cleaned of QR; the 2025 blog post stays as history.
+- [ ] Chapter → spread rename changes persisted history (`chapterId` in localStorage). Existing
+      sessions only get the "configuration changed" warning; Phase 2 re-keys history anyway.
+
 ## 2026-09-24 – Naming, cardinality, maxTrack
 
 - [x] Page group is called **spread** (chapter → spread rename pending).
