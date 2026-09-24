@@ -20,9 +20,14 @@ outcome in the line (or move it into a dated decision block).
       without console errors; nav bar now only shows INDEX. AR tracking needs a real device.
 - [ ] `hideFromIndex` (target-008 "Edge") is an existing content flag that hides a target from the
       index. Keep an equivalent on entries in 1c/1d – don't drop it in the rename.
-- [ ] `beta/` (old prototype sandbox) still generates QR codes to open its test pages on a phone
-      (`start_server.py`, `requirements.txt: qrcode`). Not app QR scanning → left untouched. Ask whether
-      `beta/` is still needed at all. Docs (`docs/docs/*`) cleaned of QR; the 2025 blog post stays as history.
+- [x] **Dev overlay QR generator is kept** (user, 2026-09-24): needed to open the dev server on a
+      phone for testing. It was removed in 1a by mistake and restored (`qr-generator.ts`,
+      `types/qr/qrcode.ts`, `qrcode.js`, `window.QRCode` type). Only in-app QR *scanning* is gone.
+      Its "invalid/wrong" test variants targeted the removed scanner – harmless, left as is.
+- [ ] Generator URL shows `osct=undefined`: it reads `import.meta.env.VITE_APP_VERSION`, but vite
+      defines `__VITE_APP_VERSION__`. Pre-existing, cosmetic.
+- [x] `beta/` (old prototype sandbox) removed on request (2026-09-24). Docs (`docs/docs/*`) cleaned
+      of QR; the 2025 blog post stays as history.
 - [ ] Chapter → spread rename changes persisted history (`chapterId` in localStorage). Existing
       sessions only get the "configuration changed" warning; Phase 2 re-keys history anyway.
 

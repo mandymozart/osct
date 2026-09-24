@@ -10,7 +10,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
 - UI: vanilla custom web components (shadow DOM), no framework
 - Page/view management is self-made (`pages-router`, `RouterManager`). No routing or animation
   libraries. Transitions stay simple CSS.
-- ~~jsQR~~ – QR scanning is being removed.
+- ~~jsQR~~ – in-app QR scanning is removed. The **dev overlay QR generator stays**
+  (`dev-tools/qr-generator.ts` + `public/assets/deps/qrcode.js`): it opens the dev server on a phone.
 
 ## Working rules
 1. **Ask before removing any feature, page, component or manager.** We are restructuring,

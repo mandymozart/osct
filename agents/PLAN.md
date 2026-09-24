@@ -41,10 +41,11 @@ Confirmed removal. Everything QR-related:
 - `client/src/components/qr-scanner/*`
 - `client/src/store/managers/QRManager.ts`, `IQRManager` in `types/game.ts`, `game.qr`
 - `client/src/components/buttons/qr-button.ts`, `components/icons/qr-icon.ts`, `src/assets/qr-icon.svg`
-- `client/src/utils/qr.ts`, `client/src/types/qr/*`
-- `client/src/components/dev-tools/qr-generator.ts`
+- `client/src/utils/qr.ts`, `client/src/types/qr/*` (except `qrcode.ts`, used by the dev generator)
+- ~~`client/src/components/dev-tools/qr-generator.ts`~~ **keep** – dev overlay QR codes open the
+  dev server on a phone for testing (restored 2026-09-24).
 - `GameMode.QR` and its uses (`qr-scanner.ts`, `qr-button.ts`, `QRManager.ts`)
-- deps: `jsqr` (package.json), `client/public/assets/deps/qrcode.js`, `qrcode.min.js`
+- deps: `jsqr` (package.json), `qrcode.min.js` (unused). **Keep** `qrcode.js` (dev generator).
 - `<qr-scanner>` in `client/src/main.ts`, `<qr-button>` in `navigation-bar.ts`
 - Chapters page currently "activates QR scanner" → only remove the QR trigger, keep the page.
 - [x] Removed all of the above, plus the `FAILED_TO_SCAN_QR` / `INVALID_QR_*` error codes
