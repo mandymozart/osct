@@ -8,10 +8,17 @@ outcome in the line (or move it into a dated decision block).
 
 - [x] Demo spreads now cover pages **1–2, 3–4, 5–6** (like the final book). Only page ranges changed;
       target assignment and `.mind` files unchanged.
-- [ ] Demo content bug: `target-000` "Shadows" (entityType **link**) is silently dropped by the build –
-      its YAML says `imageTargetSrc: images-000.jpg` but the folder has `images-010.jpg`. Re-adding it
-      shifts MindAR indices in spread1 → recompile `spread1.mind`. Relevant for 1d (Links category demo);
-      the build should **fail** (not skip) on missing target images.
+- [x] `target-000` "Shadows" removed (user). It was silently dropped by the build (YAML pointed at a
+      missing `images-000.jpg`) **but was still image 0 in `spread1.mind`** → every spread1 target was
+      off by one in AR (Shadows image showed the racoon, dragon page showed nothing). Fixed by removing
+      its entry from `spread1.mind` (msgpack `dataList`, per-image entries are independent – same result
+      as recompiling the 3 images). New test: each spread `.mind` must contain exactly its targets'
+      images in `mindarTargetIndex` order (compares image sizes with each target's own `.mind`).
+- [ ] 1d: the build should **fail** (not skip) on a missing target image, and ideally run the same
+      `.mind` ↔ targets check.
+- [ ] Dead code: `client/src/components/aframe-bridges/static/spread{1,2,3}.ts` (not imported anywhere)
+      and a commented-out scene in `client/index.html` – hand-written scenes with the old indices
+      (still show Shadows at index 0). Ask before removing.
 
 - [x] Rename done in code, content, build script, routes, tests (see PLAN 1c). QR prefix `c-` kept.
 - [x] Saved history from before the rename (`chapterId` entries, or spreads that no longer exist) is
