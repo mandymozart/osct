@@ -78,11 +78,13 @@ describe("game configuration guards", () => {
     config.entries[2].id = "racoon";
     config.entries[1].target.id = "racoon";
     config.initialSpreadId = "spread9";
+    config.entries[2].page = 7;
 
     expect(problemsOf(config)).toEqual([
       'config.initialSpreadId: unknown spread "spread9"',
       'entries[0].target.entity.ref: unknown entity "missing"',
       'entries[1].target.id: duplicate target id "racoon"',
+      'entries[2].page: page 7 is not part of any spread',
       'entries[2].id: duplicate entry id "racoon"',
     ]);
   });

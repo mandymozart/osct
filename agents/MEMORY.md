@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Game configuration errors: build time vs runtime
+
+- [x] Two layers, both kept (user agreed): `GameConfigurationError` (shared guard) = developer detail,
+      every problem with its path; used by the **build** (collects them, exit 1) and logged by the app.
+      `ErrorCode` + `ErrorInfo` = the **app's** error contract (code, message, type, details).
+      `shared/` must not depend on app types; an assertion function has to throw to narrow.
+- [x] Mapping at the app boundary: `utils/game-config.ts` catches the guard error, logs the problems,
+      keeps `ErrorInfo { code: ErrorCode.GAME_CONFIGURATION_INVALID, type: "critical", details }` and
+      falls back to an empty model so modules can load. `main.ts` checks `getConfigurationError()`
+      first and renders a critical error screen instead of the app (no scene/camera), hides the loader;
+      problem list shown in dev only. Before: the app hung on "Loading book" with the error only in the console.
+- [x] The "page is part of a spread" rule moved into the shared guard (the app model maps entries to
+      spreads by page; a config that passes the guard can always be mapped).
+- [ ] Phase 2: the startup compatibility checks (app ↔ content ↔ storage) use the same path, e.g.
+      content ahead of app → `ErrorCode.NOT_SUPPORTED`.
+
 ## 2026-09-24 – Unused types audit (cleanup by Tilman, see RULES #15)
 
 Scanned `client/src`, `shared/`, `scripts/src` (exported types + enum members). Not counted as unused:

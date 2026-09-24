@@ -7,7 +7,7 @@
  * (`Spread`, `Entry`, `Target`, `Step`) and builds in-memory indexes.
  */
 import raw from '@/game.config.json';
-import { assertGameConfiguration, isEntityRef } from '@shared/guards/game-config';
+import { assertGameConfiguration, GameConfigurationError, isEntityRef } from '@shared/guards/game-config';
 import {
   AssetData,
   BookData,
@@ -15,14 +15,54 @@ import {
   EntityData,
   EntityRefData,
   Entry,
+  ErrorCode,
+  ErrorInfo,
   GameConfiguration,
   Spread,
   Step,
   Target,
 } from '@/types';
 
-assertGameConfiguration(raw);
-const config: GameConfiguration = raw;
+/** Used when the JSON is invalid, so modules can load and the app can show the error */
+const EMPTY_CONFIGURATION: GameConfiguration = {
+  version: { version: '0.0.0', timestamp: '' },
+  book: { id: '', title: '', author: '' },
+  maxTargetsPerSpread: 0,
+  initialSpreadId: '',
+  spreads: [],
+  entries: [],
+  entities: {},
+  tutorial: [],
+};
+
+/**
+ * Runtime error handling: the guard's `GameConfigurationError` (every problem with its path, same
+ * as the build reports) goes to the console; the app gets an `ErrorInfo` with an `ErrorCode`.
+ * `main.ts` checks `getConfigurationError()` before starting and shows a critical error instead.
+ */
+let configurationError: ErrorInfo | null = null;
+
+const loadConfiguration = (): GameConfiguration => {
+  try {
+    assertGameConfiguration(raw);
+    return raw;
+  } catch (error) {
+    const problems = error instanceof GameConfigurationError ? error.problems : [String(error)];
+    console.error(`[game-config] Invalid game configuration:\n  - ${problems.join('\n  - ')}`);
+    configurationError = {
+      code: ErrorCode.GAME_CONFIGURATION_INVALID,
+      msg: 'The book content could not be loaded.',
+      type: 'critical',
+      details: problems,
+    };
+    return EMPTY_CONFIGURATION;
+  }
+};
+
+const config: GameConfiguration = loadConfiguration();
+
+/** Set when the game configuration is invalid; the app must not start then */
+export const getConfigurationError = (): ErrorInfo | null => configurationError;
 
 const resolveEntity = (entity?: EntityData | EntityRefData): EntityData | undefined =>
   entity && isEntityRef(entity) ? config.entities[entity.ref] : entity;

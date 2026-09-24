@@ -23,6 +23,8 @@ export enum ErrorCode {
   UNKNOWN_ERROR = "unknown-error",
   INITIALIZATION_FAILED = "initialization-failed",
   NOT_SUPPORTED = "not-supported",
+  // game.config.json does not match the contract (shared/guards) – details in ErrorInfo.details
+  GAME_CONFIGURATION_INVALID = "game-configuration-invalid",
   NOT_FOUND = "not-found",
   NOT_READY = "not-ready",
   NAVIGATION_FAILED = "navigation-failed",

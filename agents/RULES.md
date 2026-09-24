@@ -54,6 +54,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
     items in `MEMORY.md`) still needs them (future phase or unfinished item). Before removing, check
     for duplicates – the code may have become redundant rather than unused, so keep one version.
     Removing features/pages/managers still needs the user's okay (rule 1).
+16. Errors: build time reports every problem to the author (collected, exit 1). At runtime the app uses
+    `ErrorCode` + `ErrorInfo` (`types/errors.ts`); shared/low-level code throws typed errors and the app
+    boundary maps them to an `ErrorCode`. The app never hangs silently on a startup error.
 
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server

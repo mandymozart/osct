@@ -5,9 +5,11 @@ import "@/pages";
 import { IErrorPage } from "@/pages/error-page";
 import { GameStoreService } from "@/services/GameStoreService";
 import {
+  ErrorInfo,
   IGame,
 } from "@/types/";
 import { waitForDOMReady } from "./utils/dom";
+import { getConfigurationError } from "./utils/game-config";
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -31,6 +33,13 @@ export class BookGame extends HTMLElement {
   }
 
   connectedCallback() {
+    // Startup check: an invalid game configuration must not start the app (no scene, no camera)
+    const configurationError = getConfigurationError();
+    if (configurationError) {
+      this.renderCriticalError(configurationError);
+      return;
+    }
+
     this.render();
     this.initializeComponents();
     this.setupGameState();
@@ -84,6 +93,41 @@ export class BookGame extends HTMLElement {
     </style>
     ${this.template}
   `;
+  }
+
+  /**
+   * Full-screen error when the app cannot start. Uses no pages or store, which depend on content.
+   */
+  private renderCriticalError(error: ErrorInfo) {
+    if (!this.shadowRoot) return;
+    const details: string[] = import.meta.env.DEV && Array.isArray(error.details) ? error.details : [];
+    const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+    this.shadowRoot.innerHTML = /* html */ `
+      <style>
+        ${this.styles}
+        :host {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--color-background, #fff);
+          color: var(--color-primary, #000);
+          font-family: inherit;
+        }
+        .critical-error { max-width: 36rem; padding: 2rem; }
+        h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+        .code { opacity: .6; font-size: .8rem; }
+        ul { font-family: monospace; font-size: .75rem; padding-left: 1rem; }
+      </style>
+      <div class="critical-error" role="alert">
+        <h1>${escape(error.msg)}</h1>
+        <div class="code">${escape(error.code)}</div>
+        ${details.length ? `<ul>${details.map(d => `<li>${escape(d)}</li>`).join("")}</ul>` : ""}
+      </div>
+    `;
+    // hideInitialLoader is defined on DOMContentLoaded (index.html)
+    waitForDOMReady().then(() => window.hideInitialLoader?.());
+    console.error(`[BookGame] Not started: ${error.code}`);
   }
 
   private initializeComponents() {
