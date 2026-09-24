@@ -8,5 +8,4 @@ export * from "./icons";
 export * from "./index";
 export * from "./navigation";
 export * from "./pages-router";
-export * from "./qr-scanner";
 export * from "./tutorial";

@@ -9,7 +9,6 @@ import {
   ICameraManager,
   IChapterManager,
   IHistoryManager,
-  IQRManager,
   IRouterManager,
   ITargetManager,
   LoadingState,
@@ -25,7 +24,6 @@ export interface IGame extends IBaseStore<GameState> {
   chapters: IChapterManager;
   router: IRouterManager;
   targets: ITargetManager;
-  qr: IQRManager;
   history: IHistoryManager;
   camera: ICameraManager;
 
@@ -66,12 +64,10 @@ export interface GameVersion {
 /**
  * Game mode lets us know which state the game is in.
  * VR: User is in VR mode (This one is rarely used)
- * QR: User is in QR mode (Only needed when scanning QR codes)
  * DEFAULT: User is in default mode (This is the most common mode)
  */
 export enum GameMode {
   VR = "vr",
-  QR = "qr",
   DEFAULT = "default",
   IDLE = "idle",
 }

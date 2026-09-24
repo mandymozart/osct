@@ -47,9 +47,6 @@ export enum ErrorCode {
   FAILED_TO_UPDATE_SCENE = "failed-to-update-scene",
   FAILED_TO_ENTER_VR = "failed-to-enter-vr",
   FAILED_TO_EXIT_VR = "failed-to-exit-vr",
-  FAILED_TO_SCAN_QR = "failed-to-scan-qr",
-  INVALID_QR_CODE = "invalid-qr-code",
-  INVALID_QR_URL = "invalid-qr-url",
   CAMERA_PERMISSION_DENIED = "camera-permission-denied"
 }
 
@@ -64,7 +61,6 @@ export interface ErrorInfo {
 
 export enum GameMode {
   VR = "vr",
-  QR = "qr",
   DEFAULT = "default",
   IDLE = "idle"
 }

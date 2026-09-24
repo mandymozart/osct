@@ -19,7 +19,6 @@ GameStore (extends BaseStore<GameState>)
 │   ├── ChapterManager  // Handles chapter loading/state
 │   ├── RouterManager   // Manages UI navigation 
 │   ├── CameraManager   // Camera permissions and access
-│   ├── QRManager       // QR code scanning
 │   ├── AssetManager    // Asset loading and tracking
 │   └── EntityManager   // 3D entity management
 └── Services            // Utility functions and services

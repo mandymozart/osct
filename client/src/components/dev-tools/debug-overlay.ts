@@ -189,7 +189,6 @@ export class DebugOverlay extends HTMLElement {
       <div class="section">
         <div>Chapter: ${chapter.id || "unknown"}</div>
         <div>Status: ${this.getStatusLabel(this.game.state.chapters[chapterId])}</div>
-        <qr-generator></qr-generator>
       </div>
     `;
 

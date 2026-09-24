@@ -72,8 +72,6 @@ export class BookGame extends HTMLElement {
     <target-bridge></target-bridge>
     <app-router></app-router>
     
-    <qr-scanner></qr-scanner>
-
     <debug-overlay></debug-overlay>
   `;
 

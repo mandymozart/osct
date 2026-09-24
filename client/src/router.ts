@@ -5,7 +5,7 @@
  *
  * The router handles overlay pages. It's very basic.
  *
- * Reminder: Scenes, QR and default modes handle the visibility of the game.
+ * Reminder: Scenes and default modes handle the visibility of the game.
  * 404 Page Not Found does not appear here.
  */
 

@@ -21,7 +21,6 @@ OSCT is an augmented reality (AR) web application built with modern web technolo
 - **Testing**: Vite Test
 - **3D Rendering**: [A-Frame](https://aframe.io/)
 - **Image Target Tracking**: [MindAR](https://hiukim.github.io/mind-ar-js-doc/) using TensorFlow
-- **QR Scanning**: [jsQR](https://github.com/cozmo/jsQR)
 - **State Management**: [Immer](https://immerjs.github.io/immer/)
 - **Component Architecture**: Vanilla Custom Web Components
 - **Deployment**: Netlify for staging, FTP for production
@@ -73,7 +72,6 @@ Onion Skin
 └── Services
     ├── Camera & Permissions
     ├── Asset Management
-    ├── QR Scanning
     └── Chapter Management
 ```
 
