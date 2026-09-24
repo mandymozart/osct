@@ -148,6 +148,36 @@ entry (top level, category)
     `RouterManager.test.ts` – remove `.fails` when fixed.
   - Unknown slugs throw in `RouteResolver.createRoute` → `/not-found` is unreachable. Route them to
     `/not-found` instead (update the test that documents the throw).
+- **Versioning: app version vs content version**  `[ ]` – owner: **Tilman** (agents: don't build, keep in sync)
+  Two independent versions. Keep them apart in code, storage and QR codes.
+
+  | | App version | Content version |
+  |---|---|---|
+  | What | the client code | spreads, targets, entries, media |
+  | Source today | `client/package.json` → `__VITE_APP_VERSION__` → `game.version.version` | `scripts/package.json` → `npm_package_version` in `scripts/src/index.ts` → `game.config.json` `version` |
+  | Used by | dev QR generator (`osct=`) | `HistoryManager` storage check (`ar-game-config-version`) |
+
+  Current state / issues:
+  - The content version comes from the **scripts package version**, not from the content itself →
+    content changes don't bump it. Should be versioned **by the content builder** (e.g. explicit
+    version in `content/`, or a hash of the bundle).
+  - `game.config.json` is **imported at build time** → content is baked into the app build. A future
+    **CDN upload** from the content builder needs the config (+ assets) to be fetched at runtime,
+    with the content version in the path/manifest, and a check which app versions can read it.
+  - Saved progress should be keyed/migrated against the **content version** (ties into the
+    HistoryManager rethink above).
+- **Deep links from printed QR codes**  `[ ]` – owner: **Tilman**
+  Printed QR codes (book) are scanned with the phone's native camera and open the app URL, e.g.
+  `/?code=c-<chapter>&osct=<version>`. Today **nothing reads these params on load** (`getUrlParam` in
+  `utils/url-params.ts` is unused; the old parser `parseQRCodeURL` was deleted with the in-app scanner
+  in 1a – see commit `f18618b:client/src/utils/qr.ts` for its logic).
+  - Read `code` + version on startup, open the spread (later maybe an entry) via
+    `RouterManager.navigate` (sets SCAN mode – RULES #2), handle unknown code / version mismatch.
+  - Decide the prefix after the rename: `c-` (chapter) → `s-` (spread), `e-` (entry)? Keep `c-`
+    working if codes are already printed.
+  - Decide which version `osct` carries (app or content) – see versioning above.
+  - Dev QR generator (`dev-tools/qr-generator.ts`) produces these URLs for testing
+    ("Valid" / "Wrong App Version").
 - `.mind` preloading via a **Preloader utility**: fetch into the browser cache only.
   Do **not** touch the A-Frame scene before the group is actually activated.
   Keeping two scene contexts alive is a later topic – not now.
@@ -249,3 +279,5 @@ Phase 3 can run in parallel at any point; it mostly restyles existing tutorial p
 | 8 | ~~Entry ↔ target cardinality~~ → 1:1 for now | 1c ✓ |
 | 9 | ~~Design PDF in repo?~~ → yes, plus extracted images in `reference/` | ✓ |
 | 10 | ~~Role of `/spreads`~~ → dev view for now | 2 ✓ |
+| 11 | Content versioning via content builder (+ CDN) vs app version – Tilman | 2 |
+| 12 | Deep link code prefix (`c-` / `s-` / `e-`) and which version `osct` carries – Tilman | 2 |

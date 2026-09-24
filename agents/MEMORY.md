@@ -29,8 +29,12 @@ outcome in the line (or move it into a dated decision block).
       `HistoryManager` for storage versioning). The QR `osct=` param is the app version. Fixed
       `osct=undefined` (read a non-existent `import.meta.env.VITE_APP_VERSION`); removed the phantom
       `VITE_*` entries from `ImportMetaEnv` so this can't happen silently again.
-- [ ] Nothing reads `?code=` / `?osct=` on page load since the scanner is gone, so "Wrong App Version"
-      has no visible effect yet. Hook it into the planned versioned storage / resume check when that lands.
+- [x] **Printed QR codes are a real entry point** (user): scanned with the phone camera, they open
+      `/?code=…&osct=…`. The app does not read these params on load yet → planned in PLAN Phase 2
+      "Deep links from printed QR codes". **Owner: Tilman** (agents don't build it).
+- [x] **App version ≠ content version** – very important, keep them apart. Content should be versioned
+      by the content builder (possibly uploading to a CDN later). PLAN Phase 2 "Versioning".
+      **Owner: Tilman.**
 - [x] `beta/` (old prototype sandbox) removed on request (2026-09-24). Docs (`docs/docs/*`) cleaned
       of QR; the 2025 blog post stays as history.
 - [ ] Chapter → spread rename changes persisted history (`chapterId` in localStorage). Existing

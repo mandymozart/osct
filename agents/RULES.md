@@ -36,6 +36,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
    Tests of removed features are not wanted – test behaviour that stays.
+10. Keep **app version** (`client/package.json`, `game.version`) and **content version**
+    (content builder → `game.config.json` `version`) separate. Never use one for the other.
+    Versioning and QR deep links are owned by Tilman – don't implement them unasked.
 
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server
