@@ -50,6 +50,10 @@ Extend as we go: add a rule when a decision should hold for all future work.
 14. Only `client/src/utils/game-config.ts` imports `game.config.json` (type guard, then map). Everything
     else asks `utils/game-config.ts`. Vocabulary: *content* = authored input (`content/`),
     *game configuration* = build output (`game.config.json`).
+15. Unused types, methods, functions etc. are removed unless a planning document (`PLAN.md`, open
+    items in `MEMORY.md`) still needs them (future phase or unfinished item). Before removing, check
+    for duplicates – the code may have become redundant rather than unused, so keep one version.
+    Removing features/pages/managers still needs the user's okay (rule 1).
 
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server
