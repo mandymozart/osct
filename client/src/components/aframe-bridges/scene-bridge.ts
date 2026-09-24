@@ -170,7 +170,7 @@ export class SceneBridge extends HTMLElement {
       console.log(`[SceneBridge] Scene created and loaded for spread: ${spreadId}`);
       
       // Reactivate if we were previously in scene mode
-      if (this.currentMode === GameMode.DEFAULT || this.currentMode === GameMode.VR) {
+      if (this.currentMode === GameMode.SCAN || this.currentMode === GameMode.VR) {
         this.activate();
       }
     } catch (error) {
@@ -208,7 +208,7 @@ export class SceneBridge extends HTMLElement {
    * @param mode New game mode
    */
   private handleModeChange(mode: GameMode) {
-    const isSceneMode = mode === GameMode.DEFAULT || mode === GameMode.VR;
+    const isSceneMode = mode === GameMode.SCAN || mode === GameMode.VR;
     this.currentMode = mode;
     isSceneMode ? this.activate() : this.deactivate();
   }

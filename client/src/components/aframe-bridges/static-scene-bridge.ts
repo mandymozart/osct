@@ -139,7 +139,7 @@ export class StaticSceneBridge extends HTMLElement {
       scene.addEventListener("arReady", () => {
         if (scene !== this.sceneElement) return; // a newer spread replaced this scene
         this.arReady = true;
-        if (this.currentMode === GameMode.DEFAULT || this.currentMode === GameMode.VR) {
+        if (this.currentMode === GameMode.SCAN || this.currentMode === GameMode.VR) {
           this.activate();
         }
       });
@@ -159,7 +159,7 @@ export class StaticSceneBridge extends HTMLElement {
       await new Promise(resolve => setTimeout(resolve, 200));
       this.currentSpread = spreadId;
       
-      if (this.currentMode === GameMode.DEFAULT || this.currentMode === GameMode.VR) {
+      if (this.currentMode === GameMode.SCAN || this.currentMode === GameMode.VR) {
         this.activate();
       }
     } catch (error) {
@@ -291,7 +291,7 @@ export class StaticSceneBridge extends HTMLElement {
    * @param mode New game mode
    */
   private handleModeChange(mode: GameMode) {
-    const isSceneMode = mode === GameMode.DEFAULT || mode === GameMode.VR;
+    const isSceneMode = mode === GameMode.SCAN || mode === GameMode.VR;
     this.currentMode = mode;
     isSceneMode ? this.activate() : this.deactivate();
   }

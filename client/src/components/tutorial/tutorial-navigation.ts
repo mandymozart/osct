@@ -2,7 +2,7 @@ import { GameStoreService } from "../../services/GameStoreService";
 import { getTutorial } from "@/utils/game-config";
 
 const tutorial = getTutorial();
-import { GameMode, IGame } from "@/types/game";
+import { IGame } from "@/types/game";
 import { ITutorialNavigation } from "@/types/tutorial";
 
 /**
@@ -178,9 +178,7 @@ export class TutorialNavigation
   private handleNext() {
     const isLastStep = this.currentStep >= tutorial.length - 1;
     if (isLastStep) {
-      this.game.update((draft) => {
-        draft.mode = GameMode.DEFAULT;
-      });
+      // The route sets scan mode
       this.game.router.navigate("/spreads");
     } else {
       const nextStep = this.currentStep + 1;

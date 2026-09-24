@@ -1,15 +1,12 @@
 /**
- * Actual router is defined in managers/PageRouter.
+ * Route table. Navigation is done by `RouterManager` (store/managers/router).
  *
- * In case independent states make more sense, this place becomes a factory
- *
- * The router handles overlay pages. It's very basic.
- *
- * Reminder: Scenes and default modes handle the visibility of the game.
- * 404 Page Not Found does not appear here.
+ * Views = routes → pages (one exclusive page, one param). Each route declares the game mode it
+ * belongs to; `navigate()` sets route and mode in one update (PLAN Phase 2 "Modes vs views").
+ * Routes without a mode (error, not-found) are overlays and keep the current mode.
  */
 
-import { PageRouterConfiguration, Pages } from "./types";
+import { GameMode, PageRouterConfiguration, Pages } from "./types";
 
 export const router: PageRouterConfiguration = {
   baseUrl: "",
@@ -17,33 +14,43 @@ export const router: PageRouterConfiguration = {
     {
       page: Pages.HOME,
       slug: "/",
+      mode: GameMode.IDLE,
     },
     {
       page: Pages.SPREADS,
       slug: "/spreads",
+      mode: GameMode.SCAN,
     },
     {
       page: Pages.SPREAD,
       slug: "/spread",
+      mode: GameMode.SCAN,
       param: "spreadId"
     },
     {
       page: Pages.ABOUT,
       slug: "/about",
+      mode: GameMode.CONSULTATION,
     },
     {
       page: Pages.TUTORIAL,
       slug: "/tutorial",
+      mode: GameMode.IDLE,
       param: "step"
     },
     {
       page: Pages.INDEX,
       slug: "/index",
+      mode: GameMode.CONSULTATION,
     },
     {
       page: Pages.ERROR,
       slug: "/error",
       param: "message"
+    },
+    {
+      page: Pages.NOT_FOUND,
+      slug: "/not-found",
     },
   ],
 };

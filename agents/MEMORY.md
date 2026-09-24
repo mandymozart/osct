@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Phase 2: modes vs views implemented, git over SSH
+
+- [x] Modes/routes as planned (see PLAN Phase 2). `GameMode.DEFAULT` is now `SCAN`; `CONSULTATION` is new
+      (index, about → scene paused). Close / START / resume / last tutorial step all reach scan mode
+      through the route, not by setting the mode.
+- [ ] The scene is still *playing* in IDLE (home) – MindAR `autoStart` starts the camera on load.
+      Covered by "camera only in scan mode" (Phase 5 "Grant access" / Phase 6 `autoStart: false`).
+- [ ] TF.js warns "High memory usage in GPU" after several scene switches (1.17 MB in the pane) →
+      check on devices in Phase 7 ("memory when switching groups").
+- [x] (user) `origin` switched to SSH (`git@github.com:mandymozart/osct.git`); the user's SSH key
+      authenticates, so agents can push. HTTPS had no credential helper configured.
+
 ## 2026-09-24 – Game configuration errors: build time vs runtime
 
 - [x] Two layers, both kept (user agreed): `GameConfigurationError` (shared guard) = developer detail,

@@ -200,7 +200,7 @@ file name stays) · **`*Data`** = the typed pieces inside it · **app model** = 
 **F. Tests**: guards (valid + invalid bundles), content rules (page within a spread, 1:1 entry ↔ target,
 index order, refs resolve), `.mind` order vs image dimensions, single-import rule.
 
-## Phase 2 – State  `[ ]` (after 1c)
+## Phase 2 – State  `[~]` (modes vs views in progress)
 
 - **HistoryManager rethink.** Today history is keyed by `chapterId + targetIndex` (fragile if
   groups are re-cut). Key by stable ID (entry/target, depending on 1c).
@@ -215,7 +215,13 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
 - Persist the last selected category (for "Entries" button → back to list with latest
   category, p.21) and last active page group (resume). Names follow 1c.
 - Rename `switchChapter` → `switchSpread` (with the 1c rename).
-- **Modes vs views** `[x]` proposal confirmed 2026-09-24.
+- **Modes vs views** `[x]` proposal confirmed 2026-09-24 · **implemented 2026-09-24**:
+  `GameMode` = `IDLE` / `SCAN` / `CONSULTATION` / `VR`; every route in `router.ts` declares its mode;
+  `RouterManager` applies route + mode (+ `close()` clearing the error) in one update; the direct
+  `draft.mode = …` writes are gone; `isSameRoute` compares param key + value; unknown slugs → `/not-found`
+  (keeps the mode). Tests cover each route's mode, single update, overlays. Browser flow verified.
+  **Moved to Phase 4** (need their pages): rename `/index` → `/entries` (param `category`) and the new
+  `/entry` route (param `entryId`). The mode toggle via Mark the Page is Phase 3.
 
   **Current code (as reviewed):**
   - `GameMode` (IDLE / DEFAULT / QR / VR) is global store state. Subscribers: the scene bridges
@@ -252,10 +258,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     | `/entries` (was `/index`, param `category`) | CONSULTATION | index page restructured |
     | `/entry` (new, param `entryId`) | CONSULTATION | entry detail as its own view (today entries expand inline in `target-item`) |
         | `/error`, `/not-found` | – (keep) | overlay |
-  - Fix `isSameRoute` param comparison (key + value). Test exists as `it.fails` in
-    `RouterManager.test.ts` – remove `.fails` when fixed.
-  - Unknown slugs throw in `RouteResolver.createRoute` → `/not-found` is unreachable. Route them to
-    `/not-found` instead (update the test that documents the throw).
+  - [x] Fix `isSameRoute` param comparison (key + value).
+  - [x] Unknown slugs → `/not-found` (was unreachable: `RouteResolver.createRoute` threw).
 - **Versioning: app version vs content version**  `[ ]` – owner: **Tilman** (agents: don't build, keep in sync)
   Two independent versions. Keep them apart in code, storage and QR codes.
 
@@ -352,6 +356,9 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
 ---
 
 ## Phase 4 – Consultation mode (formerly Index)  `[ ]`
+
+- From Phase 2: rename route `/index` → `/entries` (param `category`, mode CONSULTATION) and add `/entry`
+  (param `entryId`, mode CONSULTATION) together with their pages.
 
 - Entries list (p.17–29): category dropdown (Glossary / Videos / Texts / Links), count per
   category "consulted / total", alphabetical headers for glossary.

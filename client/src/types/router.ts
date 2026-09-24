@@ -1,4 +1,4 @@
-import { ErrorInfo } from "@/types";
+import { ErrorInfo, GameMode } from "@/types";
 
 export interface IPagesRouter extends HTMLElement {
   updateRoute(route: PageRoute | null): void;
@@ -61,6 +61,8 @@ export interface PageRouteDefinition {
   page: Pages;
   slug: string;
   param?: string;
+  /** Mode applied when navigating here; routes without a mode (overlays) keep the current mode */
+  mode?: GameMode;
 }
 
 export type PageRouterConfiguration = {

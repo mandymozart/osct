@@ -2,7 +2,6 @@ import { SceneService } from '@/services/SceneService';
 import {
   ConfigurationVersion,
   ErrorInfo,
-  GameMode,
   IGame,
   IHistoryManager,
   TargetHistoryEntry
@@ -100,9 +99,7 @@ export class HistoryManager implements IHistoryManager {
           callback: () => {
             // Resume the last spread using switchSpread
             this.game.spreads.switchSpread(lastEntry.spreadId);
-            this.game.update((draft) => {
-              draft.mode = GameMode.DEFAULT;
-            });
+            // The route sets scan mode
             this.game.router.navigate('/spread');
           },
         },
