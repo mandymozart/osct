@@ -50,12 +50,17 @@ export interface GameVersion {
 }
 
 /**
- * Game mode lets us know which state the game is in.
- * VR: User is in VR mode (This one is rarely used)
- * DEFAULT: User is in default mode (This is the most common mode)
+ * Game mode = global app state: decides whether the scene runs and which chrome is shown.
+ * Set only through routes – each route declares its mode, `RouterManager.navigate` applies it
+ * together with the route (RULES #2).
+ * IDLE: home, tutorial – scene not running.
+ * SCAN: scan HUD – scene + tracking run.
+ * CONSULTATION: entries, about/info – scene paused.
+ * VR: rarely used, left as it is.
  */
 export enum GameMode {
   VR = "vr",
-  DEFAULT = "default",
+  SCAN = "scan",
+  CONSULTATION = "consultation",
   IDLE = "idle",
 }
