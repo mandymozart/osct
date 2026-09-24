@@ -21,13 +21,15 @@
       "./src/types"
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/*": ["../shared/*"]
     }
   },
   "include": [
     "src/**/*.ts", 
     "src/**/*.d.ts",
-    "src/types/env.d.ts"
+    "src/types/env.d.ts",
+    "../shared/**/*.ts"
   ],
   "exclude": ["./node_modules", "**/*.spec.ts"]
 }

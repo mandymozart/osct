@@ -33,11 +33,16 @@ export default defineConfig(({command,mode})=>{
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      '@shared': resolve(__dirname, '../shared'),
     }
   },
   server: {
     host: true, // Same as --host flag
     port: port,
+    fs: {
+      // shared/ (game configuration contract) lives next to client/
+      allow: [resolve(__dirname), resolve(__dirname, '../shared')],
+    },
   },
   build: {
     sourcemap: true,
