@@ -96,6 +96,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
   str(root, "initialSpreadId", "config");
 
   const spreadIds = new Set<string>();
+  const pageRanges: [number, number][] = [];
   arr(root, "spreads", "config").forEach((s, i) => {
     const path = `spreads[${i}]`;
     const spread = obj(s, path);
@@ -105,6 +106,9 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     if (typeof spread.id === "string") {
       if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);
       spreadIds.add(spread.id);
+    }
+    if (typeof spread.firstPage === "number" && typeof spread.lastPage === "number") {
+      pageRanges.push([spread.firstPage, spread.lastPage]);
     }
   });
   if (typeof root.initialSpreadId === "string" && !spreadIds.has(root.initialSpreadId)) {
@@ -124,6 +128,11 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     ["author", "image", "media"].forEach(key => str(entry, key, path, true));
     if (typeof entry.body !== "string") fail(`${path}.body`, "expected a string");
     num(entry, "page", path);
+    // The access page decides the spread
+    const page = entry.page;
+    if (typeof page === "number" && !pageRanges.some(([first, last]) => page >= first && page <= last)) {
+      fail(`${path}.page`, `page ${page} is not part of any spread`);
+    }
     if (!isEntryCategory(entry.category)) {
       fail(`${path}.category`, `"${entry.category}" is not one of ${ENTRY_CATEGORIES.join(", ")}`);
     }

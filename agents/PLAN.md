@@ -294,7 +294,9 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     *schema* version (or a minimum app version) separately from its data version/hash; the app
     declares which content schema range it supports and refuses/falls back otherwise. Matters as soon
     as content is loaded at runtime (CDN) instead of baked into the app build.
-  - **Startup compatibility check** between the three: app ↔ storage (can I read saved data?),
+  - **Startup compatibility check** between the three – reuse the startup path built for invalid
+    game configurations (`getConfigurationError()` → critical screen in `main.ts`, `ErrorCode`
+    mapping in `utils/game-config.ts`): app ↔ storage (can I read saved data?),
     app ↔ content (can I read this bundle?), content ↔ saved progress (do the saved ids still exist?).
   - **Migrations** instead of silent filtering: `migrate(fromStorageVersion)` steps. The pre-rename
     `chapterId` filter in `HistoryManager.loadTargetHistory` (1c) is a stopgap for exactly this.
