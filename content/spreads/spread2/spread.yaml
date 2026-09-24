@@ -2,6 +2,6 @@ type: spread
 id: spread2
 order: 1
 title: The Castle Gates
-firstPage: 4
-lastPage: 9
+firstPage: 3
+lastPage: 4
 mindSrc: spread2.mind
