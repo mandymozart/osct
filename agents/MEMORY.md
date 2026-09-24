@@ -4,6 +4,13 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Phases renumbered to execution order
+
+- [x] (user) Phase numbers now follow the order of work: 2 State · 3 Scan (was 4) · 4 Consultation
+      (was 5) · 5 Onboarding (was 3) · 6 A-Frame bridges · 7 Polish. References in agents/*.md and code
+      comments were updated; **commit messages before this date use the old numbers**.
+- [x] Reference scenes renamed `static/spread{1,2,3}.ref.ts` (+ `static/README.md`); still not imported.
+
 ## 2026-09-24 – A-Frame bridges: Phase 6, keep the static bridge until then
 
 - [x] (user) Clean A-Frame bridge API (`ArScene` + one `<ar-bridge>`) becomes **Phase 6**; Polish moves
@@ -13,7 +20,7 @@ outcome in the line (or move it into a dated decision block).
       the DOM lets the browser handle it and target listeners reconnect correctly.
       `scene-bridge.ts` is an artefact of that earlier attempt.
 - [x] Clarified: the live scene HTML is generated from `game.config.json` by `utils/templates.ts`
-      (content-driven). `static/spread{1,2,3}.ts` and the commented scene in `index.html` are not
+      (content-driven). `static/spread{1,2,3}.ts` (now `.ref.ts`) and the commented scene in `index.html` are not
       imported – kept as reference until Phase 6.
 
 ## 2026-09-24 – `utils/config.ts` renamed to `utils/content.ts`
@@ -33,7 +40,7 @@ outcome in the line (or move it into a dated decision block).
       event; no re-init in the catch. Pre-existing, not caused by the maxTrack change.
 - [x] Fast switching raced (older load finished last → wrong scene, leaked camera streams). Scene loads
       are now queued; each step loads the spread wanted at that moment (stale ones are skipped).
-      This was the Phase 4 "guard against stale loads" item. Debounce for the scroll menu still Phase 4.
+      This was the Phase 3 "guard against stale loads" item. Debounce for the scroll menu still Phase 3.
 - [x] Verified in the browser pane with a fake camera (canvas `captureStream`, one fresh stream per
       `getUserMedia` call – reusing one stream breaks MindAR restarts because `stop()` ends its tracks):
       5 sequential + 4 rapid switches → right `.mind`, 1 scene, 1 live camera stream, no errors.
@@ -48,11 +55,11 @@ Agent decisions (reversible, flagged for review):
 - [x] The 6 demo 3D-model targets became **glossary** entries (categories are fixed; 3D models are demo
       leftovers). The 3 demo videos → videos, Shadows → links.
 - [x] Shadows keeps its target entity type `link` (client scene code unchanged) **and** the entry has the
-      URL as `media`. The duplication goes away when entities are reworked (Phase 4: target without AR
+      URL as `media`. The duplication goes away when entities are reworked (Phase 3: target without AR
       entity → found indicator).
 - [x] Two scene builders set `maxTrack`: `templates.ts` (used by `static-scene-bridge`) and
       `createScene.ts` (used by `scene-bridge`). Both used `targets.length`; both use the constant now
-      (verified in the browser: `maxTrack: 5`). Two parallel scene bridges → worth a look in Phase 4.
+      (verified in the browser: `maxTrack: 5`). Two parallel scene bridges → worth a look in Phase 3.
 - [ ] Build validation stops at the first blocking error per entry (e.g. duplicate target), so later
       checks for that entry show up on the next run.
 
@@ -71,9 +78,8 @@ Agent decisions (reversible, flagged for review):
       deletes the folder before copying. The stale file only lingered because the build hadn't run yet.
 - [ ] 1d: the build should **fail** (not skip) on a missing target image, and ideally run the same
       `.mind` ↔ targets check.
-- [ ] Dead code: `client/src/components/aframe-bridges/static/spread{1,2,3}.ts` (not imported anywhere)
-      and a commented-out scene in `client/index.html` – hand-written scenes with the old indices
-      (still show Shadows at index 0). Ask before removing.
+- [x] ~~Dead code: `static/spread{1,2,3}.ts` + commented scene in `index.html`~~ → kept as reference
+      (user), renamed to `*.ref.ts`. See the Phase 6 decision above.
 
 - [x] Rename done in code, content, build script, routes, tests (see PLAN 1c). QR prefix `c-` kept.
 - [x] Saved history from before the rename (`chapterId` entries, or spreads that no longer exist) is
@@ -84,7 +90,7 @@ Agent decisions (reversible, flagged for review):
 - [ ] Pre-existing bug (not from the rename, verified on the pre-rename commit): switching spreads
       while MindAR never started (camera denied) throws `Cannot read properties of undefined (reading
       'stopProcessVideo')` from MindAR during scene teardown (`static-scene-bridge.ts`). Guard in
-      the scene bridge, relevant for Phase 4 spread menu switching.
+      the scene bridge, relevant for Phase 3 spread menu switching.
 - [x] Lesson: on Windows the running vite dev server locks files. **Stop the preview server before
       `git stash` / `git checkout` / `git reset`** – a stash with the server running half-reset the tree
       (recovered fully from the stash, verified identical).

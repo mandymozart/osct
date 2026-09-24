@@ -79,7 +79,7 @@ Entries vs targets – **decided** (2026-09-24):
 - [x] A target *may* have an AR entity projected in A-Frame. Today that is only **video**.
       Later possibly **3D models / other A-Frame entities** (to discuss with Kévin) →
       keep the entity type open/extensible, don't hardcode "video only".
-- [x] Found target **without** AR entity → shows the image-with-drop-shadow indicator (Phase 4).
+- [x] Found target **without** AR entity → shows the image-with-drop-shadow indicator (Phase 3).
 - [x] **One target ↔ one entry** for now.
 
 ```
@@ -108,7 +108,7 @@ Done:
       (validated with the existing `validateContent`).
 - [x] Targets keep only tracking data (spread, image, `.mind`, entity, bookId, tags). Title / description /
       `hideFromIndex` moved to the entry; the build copies them onto the target output (+ `entryId`)
-      so the current index keeps working until Phase 5.
+      so the current index keeps working until Phase 4.
 - [x] Output: `game.config.json` gets `entries[]` (sorted by category, title; with `targetId`, `spreadId`)
       and `maxTargetsPerSpread`. Client types `types/entries.ts`, helpers `getEntries()` / `getEntry()`.
 - [x] Build **fails** (exit 1, nothing written) on: missing target image, > 5 targets per spread, target
@@ -161,7 +161,7 @@ Done:
     | Route / page | Mode | Notes |
     |---|---|---|
     | `/` home | IDLE | restyle |
-    | `/tutorial` (step) | IDLE | = onboarding, Phase 3 |
+    | `/tutorial` (step) | IDLE | = onboarding, Phase 5 |
     | `/about` | CONSULTATION | **= Info** (keep the name `about`, no rename) (frames 32–34): opened via the "i" button, info text + colophon, "Entries" back to the list |
     | `/spread` (was `/chapter`) | SCAN | HUD: Mark, counter, spread menu |
     | `/spreads` (was `/chapters`) | SCAN | **dev view** for now (list of all spreads/targets for testing) |
@@ -208,21 +208,8 @@ Done:
 
 ---
 
-## Phase 3 – Onboarding = Tutorial  `[ ]`
 
-Adopt the tutorial flow and pages to the design (p.1–5). The tutorial stays; its steps become:
-1. Splash: Mark + "Onion Skin & Crocodile Tears"
-2. Title + "Kévin Bray" + "Building Fictions" – **fade-in 1s**
-3. Intro text + **Continue** – no fade, next frame appears directly
-4. Camera text + **Grant access** (hooks into existing `camera.requestPermission` / `camera-permission`)
-5. "Thank you!" + **Access scan** → scan mode
-
-- Content is placeholder; final texts follow.
-- Home / about stay and get restyled.
-
----
-
-## Phase 4 – Scan mode  `[ ]`
+## Phase 3 – Scan mode  `[ ]`
 
 - **Mark the Page** – own component (e.g. `<mark-the-page mode="scan|consultation">`).
   - Placeholder for now: `reference/images/mark/` (scan + consultation state, large version)
@@ -245,11 +232,11 @@ Adopt the tutorial flow and pages to the design (p.1–5). The tutorial stays; i
 - **AR videos** (p.37–40): **autoplay** when the target is found. No "zoom out" hint needed:
   MindAR only plays once the target is fully in view.
 - Deliverable for designers: the proper video must render correctly → also a consultation
-  version (see Phase 5).
+  version (see Phase 4).
 
 ---
 
-## Phase 5 – Consultation mode (formerly Index)  `[ ]`
+## Phase 4 – Consultation mode (formerly Index)  `[ ]`
 
 - Entries list (p.17–29): category dropdown (Glossary / Videos / Texts / Links), count per
   category "consulted / total", alphabetical headers for glossary.
@@ -266,6 +253,19 @@ Adopt the tutorial flow and pages to the design (p.1–5). The tutorial stays; i
 - "Entries" button → back to list with latest category (p.21).
 - Info (p.32–34) = the existing **About page**, restyled: info text + colophon, opened via the
   "i" button in consultation mode.
+
+---
+## Phase 5 – Onboarding = Tutorial  `[ ]`
+
+Adopt the tutorial flow and pages to the design (p.1–5). The tutorial stays; its steps become:
+1. Splash: Mark + "Onion Skin & Crocodile Tears"
+2. Title + "Kévin Bray" + "Building Fictions" – **fade-in 1s**
+3. Intro text + **Continue** – no fade, next frame appears directly
+4. Camera text + **Grant access** (hooks into existing `camera.requestPermission` / `camera-permission`)
+5. "Thank you!" + **Access scan** → scan mode
+
+- Content is placeholder; final texts follow.
+- Home / about stay and get restyled.
 
 ---
 
@@ -289,7 +289,7 @@ link between app/game state and A-Frame/MindAR state, behind a small API.
 | `utils/templates.ts` (**live**) | Generates the scene HTML per spread from `game.config.json` (content-driven, cached) | `getAllTemplates` uses `require()` in ESM (broken, unused); model scale 0.5 |
 | `utils/createEntities.ts` | DOM builders, switch on **asset** type | Model scale 0.05 (≠ templates), video without size/loop/playsinline, `link` → blue plane |
 | `utils/createAssets.ts`, `createScene.ts`, `connectScene.ts` | DOM helpers for the unused bridge | `connectScene` path obsolete |
-| `static/spread{1,2,3}.ts`, commented scene in `index.html` | Hand-written scenes (reference for the template approach) | Not imported anywhere – the live scenes come from `templates.ts`; indices are pre-1d. Keep for now |
+| `static/spread{1,2,3}.ref.ts`, commented scene in `index.html` | Hand-written scenes (reference for the template approach) | Not imported anywhere – the live scenes come from `templates.ts`; indices are pre-1d. Keep for now |
 | `SceneService` | Holds the scene, `onSceneReady/onSceneChanged` | `HistoryManager` loads history on *scene ready* (unrelated coupling) |
 | Store | `mode`, `currentSpread`, `trackedTargets: number[]` | `target-item` compares `trackedTargets` with `mindarTargetIndex` while the bridge pushes id-numbers → mismatch |
 
@@ -328,11 +328,11 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
 2. **`<ar-bridge>`** – one thin custom element in `main.ts`, the only glue (replaces all three bridges):
    store → AR: `currentSpread` → `load()`, `mode` → `start()/pause()/stop()`;
    AR → store: found/lost → `game.targets`, status → new `arStatus` state (loading page, camera denied,
-   debug overlay, Phase 4 UI).
+   debug overlay, Phase 3 UI).
 3. **Entity registry** – `registerEntity(type, builder)`; a builder creates the entity and may return
    `onFound/onLost` hooks. Video: sized, `loop`, `muted`, `playsinline`, **autoplay on found, pause on
-   lost** (Phase 4 requirement). Model as today. Target without entity → nothing in A-Frame (the found
-   indicator is app UI, Phase 4). Extensible for 3D/other types (RULES #7).
+   lost** (Phase 3 requirement). Model as today. Target without entity → nothing in A-Frame (the found
+   indicator is app UI, Phase 3). Extensible for 3D/other types (RULES #7).
 4. **Store**: `trackedTargets: string[]` (target ids). History keeps today's key until the Phase 2 rekey.
    `HistoryManager` no longer waits for the scene.
 5. **Tests**: `<ar-bridge>` + store mapping against a fake `IArScene` (happy-dom can't run A-Frame);
@@ -346,16 +346,16 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
 
 ### Removals (need confirmation – RULES #1)
 `static-scene-bridge.ts`, `scene-bridge.ts`, `target-bridge.ts` (merged into `<ar-bridge>`),
-`utils/templates.ts`, `utils/connectScene.ts`, `static/spread{1,2,3}.ts`, commented scene in
+`utils/templates.ts`, `utils/connectScene.ts`, `static/spread{1,2,3}.ref.ts`, commented scene in
 `index.html`, `SceneService` (replaced by `ArScene`; debug overlay reads from it). `utils/createScene`,
 `createEntities`, `createAssets` are folded into `ArScene` + entity registry.
 
 ### Until then (Phases 2–5 on the current bridge)
-- Phase 4 video autoplay / found indicator: implement in `templates.ts` + `static-scene-bridge.ts`.
+- Phase 3 video autoplay / found indicator: implement in `templates.ts` + `static-scene-bridge.ts`.
 - Stale-load guard: already done (queued scene loads, `arReady`).
-- Camera only in scan mode / at "Grant access" (Phase 3) needs `autoStart: false` – can be set in
+- Camera only in scan mode / at "Grant access" (Phase 5) needs `autoStart: false` – can be set in
   `templates.ts` if needed earlier.
-- `trackedTargets` id mismatch (`target-item`): fix when Phase 5 rebuilds the index.
+- `trackedTargets` id mismatch (`target-item`): fix when Phase 4 rebuilds the index.
 
 ### Open questions (decide when Phase 6 starts)
 1. One bridge (`<ar-bridge>`) instead of scene + target bridge?
@@ -383,8 +383,8 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
 
 ## Suggested order
 
-1a → 1c (decision) → 1d → 2 → 4 → 5 → 3 → 6 (A-Frame bridges) → 7 (polish).
-Phase 3 can run in parallel at any point; it mostly restyles existing tutorial pages.
+0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 (phases are numbered in execution order since 2026-09-24).
+Phase 5 can run in parallel at any point; it mostly restyles existing tutorial pages.
 
 ## Open decisions (summary)
 
@@ -394,8 +394,8 @@ Phase 3 can run in parallel at any point; it mostly restyles existing tutorial p
 | 2 | ~~Entry ↔ target relation~~ → entries top level, optional target, optional entity | 1c ✓ |
 | 3 | ~~Consulted = visited?~~ → yes, term: consulted | 2 ✓ |
 | 4 | ~~Modes vs views split~~ → mode declared per route, set by `navigate()`; IDLE / SCAN / CONSULTATION | 2 ✓ |
-| 5 | ~~Header counter~~ → consulted / total entries | 4 ✓ |
-| 6 | ~~Found-target indicator~~ → scan: shown, tap opens entry; consultation: visible for now | 4 ✓ |
+| 5 | ~~Header counter~~ → consulted / total entries | 3 ✓ |
+| 6 | ~~Found-target indicator~~ → scan: shown, tap opens entry; consultation: visible for now | 3 ✓ |
 | 7 | ~~`maxTrack`~~ → = max targets per spread (5), reduce after usability test | 0 ✓ |
 | 8 | ~~Entry ↔ target cardinality~~ → 1:1 for now | 1c ✓ |
 | 9 | ~~Design PDF in repo?~~ → yes, plus extracted images in `reference/` | ✓ |
