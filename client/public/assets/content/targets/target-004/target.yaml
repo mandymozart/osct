@@ -1,7 +1,5 @@
 id: target-004
 type: target
-title: Stone Guardian
-description: A stone statue guarding the entrance.
 relatedSpread: spread2
 order: 1
 bookId: "004"

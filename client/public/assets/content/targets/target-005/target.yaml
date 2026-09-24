@@ -1,7 +1,5 @@
 id: target-005
 type: target
-title: Sleeping Dragon
-description: A mighty dragon resting in its lair.
 relatedSpread: spread1
 order: 3
 bookId: "005"

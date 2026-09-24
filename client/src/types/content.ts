@@ -9,6 +9,7 @@
 
 import { AssetType } from "./assets";
 import { EntityType } from "./entities";
+import { EntryCategory } from "./entries";
 
 // Common base interface for all content types
 export interface BaseContent {
@@ -37,10 +38,22 @@ export interface AssetContent extends BaseContent {
   tags?: string | string[];
 }
 
+// Entry content schema (title and text live here, not on the target)
+export interface EntryContent extends BaseContent {
+  type: 'entry';
+  category: EntryCategory;
+  title: string;
+  page: number;
+  author?: string;
+  body?: string;
+  image?: string;
+  media?: string;
+  target?: string;
+  hideFromIndex?: boolean;
+}
+
 // Target content schema
 export interface TargetContent extends BaseContent {
-  title: string;
-  description: string;
   relatedSpread: string;
   order: number;
   bookId: string;

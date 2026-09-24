@@ -1,5 +1,5 @@
 import { AssetData, SpreadData, TargetData } from "@/types";
-import { getAssets, getSpread, getTargets } from "@/utils/config";
+import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/config";
 
 /**
  * Creates an asset HTML element string for the A-Frame scene
@@ -129,7 +129,7 @@ export const createTemplateFromConfig = (spreadId: string): string => {
   return /* html */`
 <a-scene 
     id="scene" 
-    mindar-image="imageTargetSrc: ${spread.mindSrc}; maxTrack: ${targets.length};" 
+    mindar-image="imageTargetSrc: ${spread.mindSrc}; maxTrack: ${getMaxTargetsPerSpread()};" 
     color-space="sRGB" 
     renderer="colorManagement: true, physicallyCorrectLights" 
     vr-mode-ui="enabled: false" 

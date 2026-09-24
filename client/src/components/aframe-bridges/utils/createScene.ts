@@ -1,4 +1,4 @@
-import { getAssets, getSpread, getTargets } from "@/utils/config";
+import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/config";
 import { Scene } from "aframe";
 import { attachAssets, attachEntities } from "./createEntities";
 import { AssetData, TargetData } from "@/types";
@@ -20,7 +20,7 @@ export const createScene = (id: string): Scene => {
     // Set scene attributes
     scene.setAttribute('id', 'scene');
     scene.setAttribute('mindar-image', 
-      `imageTargetSrc: ${spreadData.mindSrc}; maxTrack: ${spreadData.targets.length}`);
+      `imageTargetSrc: ${spreadData.mindSrc}; maxTrack: ${getMaxTargetsPerSpread()}`);
     scene.setAttribute('color-space', 'sRGB');
     scene.setAttribute('renderer', 'colorManagement: true, physicallyCorrectLights');
     scene.setAttribute('vr-mode-ui', 'enabled: false');

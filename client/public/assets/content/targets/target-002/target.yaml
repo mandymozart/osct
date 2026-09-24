@@ -1,7 +1,5 @@
 id: target-102
 type: target
-title: Ancient Tree
-description: A mystical tree stands tall.
 relatedSpread: spread1
 order: 2
 bookId: "102"

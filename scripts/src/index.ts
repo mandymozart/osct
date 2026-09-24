@@ -1,15 +1,27 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-import { projectRoot, CONTENT_DIR, OUTPUT_FILE, MINDAR_DIR, CLIENT_PUBLIC_ASSETS_DIR } from './config';
+import {
+  projectRoot,
+  CONTENT_DIR,
+  OUTPUT_FILE,
+  MINDAR_DIR,
+  CLIENT_PUBLIC_ASSETS_DIR,
+  MAX_TARGETS_PER_SPREAD
+} from './config';
+import { validateContent } from './utils/validation';
 
 // Global mapping between target ID and folder name
 const targetFolderMap: Record<string, string> = {};
+
+// Content errors collected during the build. Any error fails the build before files are written.
+const buildErrors: string[] = [];
 
 // Import types from main project
 import type {
   AssetContent,
   BaseContent,
+  EntryContent,
   SpreadContent,
   StepContent,
   TargetContent
@@ -17,6 +29,7 @@ import type {
 
 import type {
   AssetData,
+  EntryData,
   GameConfiguration,
   TargetData
 } from './types/game';
@@ -49,6 +62,7 @@ type SpreadWithMetadata = SpreadContent & MetadataFields;
 type TargetWithMetadata = TargetContent & MetadataFields;
 type StepWithMetadata = StepContent & MetadataFields;
 type AssetWithMetadata = AssetContent & MetadataFields;
+type EntryWithMetadata = EntryContent & MetadataFields;
 type ContentWithMetadata = BaseContent & MetadataFields;
 
 // TODO: Add schema validation
@@ -227,6 +241,32 @@ function readContentFiles(): ContentWithMetadata[] {
     }
   }
   
+  // Read entries from subdirectories
+  const entriesDir = path.join(CONTENT_DIR, 'entries');
+  if (fs.existsSync(entriesDir)) {
+    const entryDirs = fs.readdirSync(entriesDir, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+
+    for (const entryDir of entryDirs) {
+      const entryFile = path.join(entriesDir, entryDir, 'entry.yaml');
+      if (!fs.existsSync(entryFile)) continue;
+
+      try {
+        const data = yaml.load(fs.readFileSync(entryFile, 'utf8')) as EntryWithMetadata;
+        if (data) {
+          data.type = 'entry';
+          data.id = data.id || entryDir;
+          data._filePath = entryFile;
+          data._folderName = entryDir;
+          result.push(data as unknown as ContentWithMetadata);
+        }
+      } catch (error) {
+        buildErrors.push(`Error reading entry file ${entryFile}: ${error}`);
+      }
+    }
+  }
+
   // Read tutorial steps from subdirectories
   const stepsDir = path.join(CONTENT_DIR, 'steps');
   if (fs.existsSync(stepsDir)) {
@@ -275,7 +315,7 @@ function readContentFiles(): ContentWithMetadata[] {
 function transformTargetData(target: TargetWithMetadata): TargetData {
   // Deep clone to avoid modifying original
   const result = { ...target } as any;
-  console.log(target)
+
   // Create entity structure expected by GameConfiguration
   result.entity = {
     type: result.entityType || 'basic',
@@ -353,7 +393,11 @@ function associateTargets(spreads: SpreadWithMetadata[], targets: TargetWithMeta
   for (const target of targets) {
     const spreadId = target.relatedSpread;
     if (!spreadId) {
-      console.warn(`Target ${target.id} has no relatedSpread, skipping...`);
+      buildErrors.push(`Target ${target.id} has no relatedSpread.`);
+      continue;
+    }
+    if (!spreads.some(spread => spread.id === spreadId)) {
+      buildErrors.push(`Target ${target.id}: relatedSpread "${spreadId}" does not exist.`);
       continue;
     }
     
@@ -369,6 +413,12 @@ function associateTargets(spreads: SpreadWithMetadata[], targets: TargetWithMeta
     // Get targets for this spread
     const spreadTargets = targetsBySpread[spread.id] || [];
     
+    if (spreadTargets.length > MAX_TARGETS_PER_SPREAD) {
+      buildErrors.push(
+        `Spread ${spread.id} has ${spreadTargets.length} targets, max is ${MAX_TARGETS_PER_SPREAD}.`
+      );
+    }
+
     // Sort targets by their original order/mindarTargetIndex
     spreadTargets.sort((a, b) => a.mindarTargetIndex - b.mindarTargetIndex);
     
@@ -384,6 +434,90 @@ function associateTargets(spreads: SpreadWithMetadata[], targets: TargetWithMeta
   }
   
   return spreads;
+}
+
+/**
+ * Validate entries and link them 1:1 to their targets.
+ * Entry text (title, description, hideFromIndex) is copied onto the target output until the
+ * index is rebuilt around entries (Phase 5).
+ */
+function linkEntries(entries: EntryWithMetadata[], spreads: SpreadWithMetadata[]): EntryData[] {
+  const targets = new Map<string, { target: any; spread: SpreadWithMetadata }>();
+  for (const spread of spreads) {
+    for (const target of (spread as any).targets ?? []) {
+      targets.set(target.id, { target, spread });
+    }
+  }
+
+  const entryByTarget = new Map<string, string>();
+  const result: EntryData[] = [];
+
+  for (const raw of entries) {
+    let entry: EntryWithMetadata;
+    try {
+      entry = { ...validateContent(raw, 'entry'), _folderName: raw._folderName };
+    } catch (error) {
+      buildErrors.push(`Entry ${raw.id}: ${(error as Error).message}`);
+      continue;
+    }
+
+    let spreadId: string | undefined;
+    if (entry.target) {
+      const linked = targets.get(entry.target);
+      if (!linked) {
+        buildErrors.push(`Entry ${entry.id}: target "${entry.target}" does not exist.`);
+        continue;
+      }
+      if (entryByTarget.has(entry.target)) {
+        buildErrors.push(
+          `Entry ${entry.id}: target "${entry.target}" already belongs to entry ${entryByTarget.get(entry.target)}.`
+        );
+        continue;
+      }
+
+      const { target, spread } = linked;
+      const firstPage = (spread as any).firstPage;
+      const lastPage = (spread as any).lastPage;
+      if (entry.page < firstPage || entry.page > lastPage) {
+        buildErrors.push(
+          `Entry ${entry.id}: page ${entry.page} is outside spread ${spread.id} (pages ${firstPage}-${lastPage}).`
+        );
+      }
+
+      entryByTarget.set(entry.target, entry.id);
+      spreadId = spread.id;
+      target.entryId = entry.id;
+      target.title = entry.title;
+      target.description = entry.body;
+      target.hideFromIndex = entry.hideFromIndex;
+    }
+
+    if (entry.image && !fs.existsSync(path.join(CONTENT_DIR, 'entries', entry._folderName!, entry.image))) {
+      buildErrors.push(`Entry ${entry.id}: image "${entry.image}" not found next to entry.yaml.`);
+    }
+
+    result.push({
+      id: entry.id,
+      category: entry.category,
+      title: entry.title,
+      page: entry.page,
+      author: entry.author,
+      body: entry.body,
+      image: entry.image ? adjustPath(entry.image, 'entry', entry._folderName) : undefined,
+      media: entry.media,
+      targetId: entry.target,
+      spreadId,
+      hideFromIndex: entry.hideFromIndex,
+    });
+  }
+
+  for (const [targetId] of targets) {
+    if (!entryByTarget.has(targetId)) {
+      buildErrors.push(`Target ${targetId} has no entry (every target reveals exactly one entry).`);
+    }
+  }
+
+  return result.sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title));
 }
 
 /**
@@ -488,7 +622,8 @@ function prepareTargetImages(spreads: SpreadWithMetadata[]): SpreadWithMetadata[
             _sourcePath: sourcePath // Store the full source path for later use
           });
         } else {
-          console.warn(`⚠️ Target ${target.id} excluded: Image file not found. Please check ${target.imageTargetSrc} exists relative to target.yaml.`);
+          // Skipping would shift the MindAR indices of all following targets in this spread
+          buildErrors.push(`Target ${target.id}: image file "${target.imageTargetSrc}" not found next to target.yaml.`);
         }
       }
       
@@ -616,6 +751,11 @@ function adjustPath(originalPath: string, sourceType?: string, folderName?: stri
     return `/assets/content/spreads/${folderName}/${cleanPath}`;
   }
   
+  // For entry files (images), use entry folder
+  if (sourceType === 'entry' && folderName) {
+    return `/assets/content/entries/${folderName}/${cleanPath}`;
+  }
+
   // For asset files, associate with target folder
   if (sourceType === 'asset' && folderName) {
     return `/assets/content/targets/${folderName}/${cleanPath}`;
@@ -747,8 +887,9 @@ function buildConfig(): GameConfiguration {
   const spreads = content.filter(item => item.type === 'spread') as SpreadWithMetadata[];
   const targets = content.filter(item => item.type === 'target') as TargetWithMetadata[];
   const steps = content.filter(item => item.type === 'step') as StepWithMetadata[];
-  
-  console.log(`✨ Found ${spreads.length} spreads, ${targets.length} targets, and ${steps.length} steps`);
+  const entries = content.filter(item => item.type === 'entry') as unknown as EntryWithMetadata[];
+
+  console.log(`✨ Found ${spreads.length} spreads, ${targets.length} targets, ${entries.length} entries and ${steps.length} steps`);
   
   if (spreads.length === 0) {
     console.error('❌ ERROR: No spreads found! Check your content/spreads directory.');
@@ -760,8 +901,15 @@ function buildConfig(): GameConfiguration {
   
   // Prepare mind-ar target images
   const processedSpreads = prepareTargetImages(spreadsWithTargets);
-  
-  console.log(`✨ Final config will have ${processedSpreads.length} spreads and ${targets.length} targets`);
+
+  // Link entries to targets (1:1) and validate them
+  const entryData = linkEntries(entries, processedSpreads);
+
+  if (buildErrors.length > 0) {
+    throw new Error(`${buildErrors.length} content error(s):\n  - ${buildErrors.join('\n  - ')}`);
+  }
+
+  console.log(`✨ Final config will have ${processedSpreads.length} spreads, ${targets.length} targets and ${entryData.length} entries`);
   
   const versionStr = process.env.npm_package_version || "1.0.0";
   const timestamp = new Date().toISOString();
@@ -776,12 +924,14 @@ function buildConfig(): GameConfiguration {
       version: versionStr,
       timestamp: timestamp
     },
+    maxTargetsPerSpread: MAX_TARGETS_PER_SPREAD,
     initialSpreadId: processedSpreads.length > 0 ? processedSpreads[0].id : "spread1",
     spreads: processedSpreads.map(spread => {
       // Remove type field from spread
       const { type, ...spreadData } = spread;
       return spreadData;
     }),
+    entries: entryData,
     tutorial: steps.map(step => {
       // Remove type field from step
       const { type, ...stepData } = step;

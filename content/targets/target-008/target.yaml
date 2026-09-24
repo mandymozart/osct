@@ -1,7 +1,5 @@
 id: target-008
 type: target
-title: Edge
-description: A demonstration of a video with an image billboard
 relatedSpread: spread3
 order: 0
 bookId: "008"
@@ -9,6 +7,5 @@ entityType: video
 imageTargetSrc: images-060.jpg
 mindSrc: images-060.mind
 assets: edge
-hideFromIndex: true
 relatedTargets: target-009
 tags: demo,video

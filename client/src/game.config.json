@@ -1,8 +1,9 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2026-09-24T08:44:07.771Z"
+    "timestamp": "2026-09-24T08:54:59.525Z"
   },
+  "maxTargetsPerSpread": 5,
   "initialSpreadId": "spread1",
   "spreads": [
     {
@@ -15,8 +16,6 @@
       "targets": [
         {
           "id": "target-000",
-          "title": "Shadows",
-          "description": "Light plays a role in architecture.",
           "bookId": "000",
           "imageTargetSrc": "/assets/content/targets/target-000/images-000.jpg",
           "mindSrc": "/assets/content/targets/target-000/images-000.mind",
@@ -40,12 +39,14 @@
               }
             ]
           },
-          "mindarTargetIndex": 0
+          "mindarTargetIndex": 0,
+          "entryId": "shadows",
+          "title": "Shadows",
+          "description": "Light plays a role in architecture.",
+          "hideFromIndex": false
         },
         {
           "id": "target-001",
-          "title": "Racoon",
-          "description": "A beast, a friend, a dimension jumper.",
           "bookId": "001",
           "imageTargetSrc": "/assets/content/targets/target-001/images-028.jpg",
           "mindSrc": "/assets/content/targets/target-001/images-028.mind",
@@ -67,12 +68,14 @@
               }
             ]
           },
-          "mindarTargetIndex": 1
+          "mindarTargetIndex": 1,
+          "entryId": "racoon",
+          "title": "Racoon",
+          "description": "A beast, a friend, a dimension jumper.",
+          "hideFromIndex": false
         },
         {
           "id": "target-102",
-          "title": "Ancient Tree",
-          "description": "A mystical tree stands tall.",
           "bookId": "102",
           "imageTargetSrc": "/assets/content/targets/target-002/images-102.jpg",
           "mindSrc": "/assets/content/targets/target-002/images-102.mind",
@@ -94,12 +97,14 @@
               }
             ]
           },
-          "mindarTargetIndex": 2
+          "mindarTargetIndex": 2,
+          "entryId": "ancient-tree",
+          "title": "Ancient Tree",
+          "description": "A mystical tree stands tall.",
+          "hideFromIndex": false
         },
         {
           "id": "target-005",
-          "title": "Sleeping Dragon",
-          "description": "A mighty dragon resting in its lair.",
           "bookId": "005",
           "imageTargetSrc": "/assets/content/targets/target-005/images-001.jpg",
           "mindSrc": "/assets/content/targets/target-005/images-001.mind",
@@ -121,7 +126,11 @@
               }
             ]
           },
-          "mindarTargetIndex": 3
+          "mindarTargetIndex": 3,
+          "entryId": "sleeping-dragon",
+          "title": "Sleeping Dragon",
+          "description": "A mighty dragon resting in its lair.",
+          "hideFromIndex": false
         }
       ]
     },
@@ -135,8 +144,6 @@
       "targets": [
         {
           "id": "target-003",
-          "title": "Old Castle",
-          "description": "An ancient castle filled with secrets.",
           "bookId": "003",
           "imageTargetSrc": "/assets/content/targets/target-003/images-022.jpg",
           "mindSrc": "/assets/content/targets/target-003/images-022.mind",
@@ -158,12 +165,14 @@
               }
             ]
           },
-          "mindarTargetIndex": 0
+          "mindarTargetIndex": 0,
+          "entryId": "old-castle",
+          "title": "Old Castle",
+          "description": "An ancient castle filled with secrets.",
+          "hideFromIndex": false
         },
         {
           "id": "target-004",
-          "title": "Stone Guardian",
-          "description": "A stone statue guarding the entrance.",
           "bookId": "004",
           "imageTargetSrc": "/assets/content/targets/target-004/images-045.jpg",
           "mindSrc": "/assets/content/targets/target-004/images-045.mind",
@@ -185,12 +194,14 @@
               }
             ]
           },
-          "mindarTargetIndex": 1
+          "mindarTargetIndex": 1,
+          "entryId": "stone-guardian",
+          "title": "Stone Guardian",
+          "description": "A stone statue guarding the entrance.",
+          "hideFromIndex": false
         },
         {
           "id": "target-006",
-          "title": "Treasure Hoard",
-          "description": "A pile of gold and relics hidden in the shadows.",
           "bookId": "006",
           "imageTargetSrc": "/assets/content/targets/target-006/images-003.jpg",
           "mindSrc": "/assets/content/targets/target-006/images-003.mind",
@@ -212,12 +223,14 @@
               }
             ]
           },
-          "mindarTargetIndex": 2
+          "mindarTargetIndex": 2,
+          "entryId": "treasure-hoard",
+          "title": "Treasure Hoard",
+          "description": "A pile of gold and relics hidden in the shadows.",
+          "hideFromIndex": false
         },
         {
           "id": "target-007",
-          "title": "Video Example",
-          "description": "A demonstration of video content in AR",
           "bookId": "007",
           "imageTargetSrc": "/assets/content/targets/target-007/images-007.jpg",
           "mindSrc": "/assets/content/targets/target-007/images-007.mind",
@@ -240,7 +253,11 @@
               }
             ]
           },
-          "mindarTargetIndex": 3
+          "mindarTargetIndex": 3,
+          "entryId": "video-example",
+          "title": "Video Example",
+          "description": "A demonstration of video content in AR.",
+          "hideFromIndex": false
         }
       ]
     },
@@ -254,12 +271,9 @@
       "targets": [
         {
           "id": "target-008",
-          "title": "Edge",
-          "description": "A demonstration of a video with an image billboard",
           "bookId": "008",
           "imageTargetSrc": "/assets/content/targets/target-008/images-060.jpg",
           "mindSrc": "/assets/content/targets/target-008/images-060.mind",
-          "hideFromIndex": true,
           "relatedTargets": [
             "target-009"
           ],
@@ -278,12 +292,14 @@
               }
             ]
           },
-          "mindarTargetIndex": 0
+          "mindarTargetIndex": 0,
+          "entryId": "edge",
+          "title": "Edge",
+          "description": "A demonstration of a video with an image billboard.",
+          "hideFromIndex": true
         },
         {
           "id": "target-009",
-          "title": "Sploosh the sheep",
-          "description": "A demonstration of a video with alpha channel",
           "bookId": "009",
           "imageTargetSrc": "/assets/content/targets/target-009/images-004.jpg",
           "mindSrc": "/assets/content/targets/target-009/images-004.mind",
@@ -304,9 +320,134 @@
               }
             ]
           },
-          "mindarTargetIndex": 1
+          "mindarTargetIndex": 1,
+          "entryId": "sploosh-the-sheep",
+          "title": "Sploosh the sheep",
+          "description": "A demonstration of a video with alpha channel.",
+          "hideFromIndex": false
         }
       ]
+    }
+  ],
+  "entries": [
+    {
+      "id": "ancient-tree",
+      "category": "glossary",
+      "title": "Ancient Tree",
+      "page": 2,
+      "body": "A mystical tree stands tall.",
+      "targetId": "target-102",
+      "spreadId": "spread1",
+      "hideFromIndex": false
+    },
+    {
+      "id": "metafiction",
+      "category": "glossary",
+      "title": "Metafiction",
+      "page": 2,
+      "body": "Placeholder – glossary entry without a target. Final text follows.",
+      "image": "/assets/content/entries/metafiction/metafiction.jpg",
+      "hideFromIndex": false
+    },
+    {
+      "id": "old-castle",
+      "category": "glossary",
+      "title": "Old Castle",
+      "page": 3,
+      "body": "An ancient castle filled with secrets.",
+      "targetId": "target-003",
+      "spreadId": "spread2",
+      "hideFromIndex": false
+    },
+    {
+      "id": "racoon",
+      "category": "glossary",
+      "title": "Racoon",
+      "page": 1,
+      "body": "A beast, a friend, a dimension jumper.",
+      "targetId": "target-001",
+      "spreadId": "spread1",
+      "hideFromIndex": false
+    },
+    {
+      "id": "sleeping-dragon",
+      "category": "glossary",
+      "title": "Sleeping Dragon",
+      "page": 2,
+      "body": "A mighty dragon resting in its lair.",
+      "targetId": "target-005",
+      "spreadId": "spread1",
+      "hideFromIndex": false
+    },
+    {
+      "id": "stone-guardian",
+      "category": "glossary",
+      "title": "Stone Guardian",
+      "page": 3,
+      "body": "A stone statue guarding the entrance.",
+      "targetId": "target-004",
+      "spreadId": "spread2",
+      "hideFromIndex": false
+    },
+    {
+      "id": "treasure-hoard",
+      "category": "glossary",
+      "title": "Treasure Hoard",
+      "page": 4,
+      "body": "A pile of gold and relics hidden in the shadows.",
+      "targetId": "target-006",
+      "spreadId": "spread2",
+      "hideFromIndex": false
+    },
+    {
+      "id": "shadows",
+      "category": "links",
+      "title": "Shadows",
+      "page": 1,
+      "body": "Light plays a role in architecture.",
+      "media": "https://experiment-woodkid-volcano-robot.vercel.app/",
+      "targetId": "target-000",
+      "spreadId": "spread1",
+      "hideFromIndex": false
+    },
+    {
+      "id": "building-fictions",
+      "category": "texts",
+      "title": "On Building Fictions",
+      "page": 4,
+      "author": "Placeholder Author",
+      "body": "Placeholder – text entry without a target. The final essay follows.",
+      "hideFromIndex": false
+    },
+    {
+      "id": "edge",
+      "category": "videos",
+      "title": "Edge",
+      "page": 5,
+      "body": "A demonstration of a video with an image billboard.",
+      "targetId": "target-008",
+      "spreadId": "spread3",
+      "hideFromIndex": true
+    },
+    {
+      "id": "sploosh-the-sheep",
+      "category": "videos",
+      "title": "Sploosh the sheep",
+      "page": 6,
+      "body": "A demonstration of a video with alpha channel.",
+      "targetId": "target-009",
+      "spreadId": "spread3",
+      "hideFromIndex": false
+    },
+    {
+      "id": "video-example",
+      "category": "videos",
+      "title": "Video Example",
+      "page": 4,
+      "body": "A demonstration of video content in AR.",
+      "targetId": "target-007",
+      "spreadId": "spread2",
+      "hideFromIndex": false
     }
   ],
   "tutorial": [
