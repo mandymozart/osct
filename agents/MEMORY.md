@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – A-Frame bridges: Phase 6, keep the static bridge until then
+
+- [x] (user) Clean A-Frame bridge API (`ArScene` + one `<ar-bridge>`) becomes **Phase 6**; Polish moves
+      to **Phase 7**. Phases 2–5 keep working on the current bridge; fix issues as we go.
+- [x] The DOM-replacement approach (`static-scene-bridge` injects scene HTML via `innerHTML`) is
+      **deliberate**: injecting entities / resetting targets dynamically caused issues before; replacing
+      the DOM lets the browser handle it and target listeners reconnect correctly.
+      `scene-bridge.ts` is an artefact of that earlier attempt.
+- [x] Clarified: the live scene HTML is generated from `game.config.json` by `utils/templates.ts`
+      (content-driven). `static/spread{1,2,3}.ts` and the commented scene in `index.html` are not
+      imported – kept as reference until Phase 6.
+
 ## 2026-09-24 – `utils/config.ts` renamed to `utils/content.ts`
 
 - [x] (user) The client module only reads built content, it configures nothing → `utils/content.ts`

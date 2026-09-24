@@ -122,94 +122,6 @@ Done:
 
 ---
 
-## Interim Phase 1.1 – A-Frame bridges  `[?]` (before Phase 2, in discussion)
-
-Goal: remove the static-template workaround and replace the bridges with one clean, dynamic
-link between app/game state and A-Frame/MindAR state, behind a small API.
-
-### Current state (analysis 2026-09-24)
-
-| Piece | What it does | Problems |
-|---|---|---|
-| `static-scene-bridge.ts` (**live**, in `main.ts`) | Builds the scene from an **HTML string** (`templates.ts`), subscribes to `mode` + `currentSpread`, starts/pauses MindAR | String templates + cache; mode handling, loading, camera, MindAR internals all in one element; fixed sleeps (500/200/150/50 ms) |
-| `scene-bridge.ts` (**not used**) | Same job, builds the scene with DOM calls (`createScene.ts`) | Duplicate of the above; can also "connect" to a scene in `index.html` (`connectScene.ts`) |
-| `target-bridge.ts` (live) | Re-attaches `targetFound/Lost` listeners on every scene change (300 ms delay) | Index = number parsed from the target **id** (`target-003` → 3), not the MindAR index |
-| `utils/templates.ts` | HTML strings per entity type | Uses `require()` in ESM (`getAllTemplates` is broken, unused); model scale 0.5 |
-| `utils/createEntities.ts` | DOM builders, switch on **asset** type | Model scale 0.05 (≠ templates), video without size/loop/playsinline, `link` → blue plane |
-| `utils/createAssets.ts`, `createScene.ts`, `connectScene.ts` | DOM helpers for the unused bridge | `connectScene` path obsolete |
-| `static/spread{1,2,3}.ts`, commented scene in `index.html` | Hand-written scenes | Dead code, stale indices |
-| `SceneService` | Holds the scene, `onSceneReady/onSceneChanged` | `HistoryManager` loads history on *scene ready* (unrelated coupling) |
-| Store | `mode`, `currentSpread`, `trackedTargets: number[]` | `target-item` compares `trackedTargets` with `mindarTargetIndex` while the bridge pushes id-numbers → mismatch |
-
-MindAR facts that shape the design (verified in the vendored build):
-- `autoStart` defaults to **true** → the camera starts when *any* scene renders, i.e. already on the
-  home page. The app does not control when the camera is requested.
-- Removing the `mindar-image` component calls `system.stop()` → throws if the camera never started
-  (the `stopProcessVideo` / `getTracks` errors seen earlier).
-- `pause(true)` keeps the camera stream (fits consultation mode); `unpause()` before `arReady` throws.
-- One `.mind` per MindAR start; switching spreads = new controller. Today: new scene + new camera.
-
-### Proposal
-
-```
-Game store ──(mode, currentSpread)──▶  <ar-bridge>  ──commands──▶  ArScene (API)  ──▶ A-Frame + MindAR
-Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events────  ArScene
-```
-
-1. **`ArScene`** – the only code that touches A-Frame/MindAR. Plain class, no store access.
-   ```ts
-   type ArStatus = "idle" | "loading" | "ready" | "running" | "paused" | "error";
-   interface IArScene {
-     readonly status: ArStatus;
-     readonly spreadId: string | null;
-     load(spread: SpreadData): Promise<void>; // queued, latest wins; builds anchors + entities
-     start(): Promise<void>;                  // camera + tracking; waits for arReady
-     pause(keepCamera?: boolean): void;       // consultation keeps the stream
-     stop(): void;                            // release camera (idle)
-     on(e: "targetFound" | "targetLost", cb: (targetId: string) => void): () => void;
-     on(e: "status", cb: (s: ArStatus, error?: string) => void): () => void;
-   }
-   ```
-   - `mindar-image="autoStart: false"` → the app decides when the camera starts.
-   - Scene built with DOM calls (no HTML strings, no template cache).
-   - Target listeners attached by `ArScene` when it builds the anchors (no 300 ms re-scan).
-2. **`<ar-bridge>`** – one thin custom element in `main.ts`, the only glue (replaces all three bridges):
-   store → AR: `currentSpread` → `load()`, `mode` → `start()/pause()/stop()`;
-   AR → store: found/lost → `game.targets`, status → new `arStatus` state (loading page, camera denied,
-   debug overlay, Phase 4 UI).
-3. **Entity registry** – `registerEntity(type, builder)`; a builder creates the entity and may return
-   `onFound/onLost` hooks. Video: sized, `loop`, `muted`, `playsinline`, **autoplay on found, pause on
-   lost** (Phase 4 requirement). Model as today. Target without entity → nothing in A-Frame (the found
-   indicator is app UI, Phase 4). Extensible for 3D/other types (RULES #7).
-4. **Store**: `trackedTargets: string[]` (target ids). History keeps today's key until the Phase 2 rekey.
-   `HistoryManager` no longer waits for the scene.
-5. **Tests**: `<ar-bridge>` + store mapping against a fake `IArScene` (happy-dom can't run A-Frame);
-   `ArScene` verified in the browser pane with the fake camera + on devices.
-
-### Spread switching – two options
-- **A (recommended first):** new scene per spread, as today but through the API (proven to work now).
-- **B (spike, later):** one persistent scene, keep the camera, swap the MindAR target set
-  (`pause(true)` → dispose controller → new anchors → restart AR on the same video). Faster, no camera
-  re-request (iOS), less memory churn, but relies on MindAR internals (`_startAR`). The API stays the same.
-
-### Removals (need confirmation – RULES #1)
-`static-scene-bridge.ts`, `scene-bridge.ts`, `target-bridge.ts` (merged into `<ar-bridge>`),
-`utils/templates.ts`, `utils/connectScene.ts`, `static/spread{1,2,3}.ts`, commented scene in
-`index.html`, `SceneService` (replaced by `ArScene`; debug overlay reads from it). `utils/createScene`,
-`createEntities`, `createAssets` are folded into `ArScene` + entity registry.
-
-### Covers from later phases
-Phase 4: video autoplay on found, stale-load guard (already done), camera only in scan mode.
-Phase 3: camera permission only at "Grant access" (possible once `autoStart` is off).
-
-### Open questions → discuss
-1. One bridge (`<ar-bridge>`) instead of scene + target bridge?
-2. Option A now, B as a later spike?
-3. Camera only when entering scan mode (not on app load)?
-4. `trackedTargets` by target id (string)?
-5. Confirm the removals above.
-6. Drop the AR rendering of `link` targets (links are entries, not AR entities)?
-
 ## Phase 2 – State  `[ ]` (after 1c)
 
 - **HistoryManager rethink.** Today history is keyed by `chapterId + targetIndex` (fragile if
@@ -357,7 +269,103 @@ Adopt the tutorial flow and pages to the design (p.1–5). The tutorial stays; i
 
 ---
 
-## Phase 6 – Polish  `[ ]`
+## Phase 6 – A-Frame bridges  `[ ]` (moved from interim 1.1, decided 2026-09-24)
+
+Decision: keep the current DOM-replacement approach (scene HTML generated from content via
+`templates.ts`, injected with `innerHTML`) through Phases 2–5 – it was chosen deliberately because
+injecting entities / resetting targets caused issues before, and replacing the DOM lets the browser
+handle it (target listeners reconnect correctly). Fix issues as we go; do the clean API here.
+
+Goal: remove the static-template workaround and replace the bridges with one clean, dynamic
+link between app/game state and A-Frame/MindAR state, behind a small API.
+
+### Current state (analysis 2026-09-24)
+
+| Piece | What it does | Problems |
+|---|---|---|
+| `static-scene-bridge.ts` (**live**, in `main.ts`) | Replaces the scene DOM with an **HTML string** generated from content (`templates.ts`), subscribes to `mode` + `currentSpread`, starts/pauses MindAR | Deliberate workaround (see decision above). Mode handling, loading, camera, MindAR internals all in one element; fixed sleeps (500/200/150/50 ms) |
+| `scene-bridge.ts` (**not used**) | Artefact of the previous attempt: builds the scene with DOM calls (`createScene.ts`) | Entity injection / target reset issues led to the static bridge |
+| `target-bridge.ts` (live) | Re-attaches `targetFound/Lost` listeners on every scene change (300 ms delay) | Index = number parsed from the target **id** (`target-003` → 3), not the MindAR index |
+| `utils/templates.ts` (**live**) | Generates the scene HTML per spread from `game.config.json` (content-driven, cached) | `getAllTemplates` uses `require()` in ESM (broken, unused); model scale 0.5 |
+| `utils/createEntities.ts` | DOM builders, switch on **asset** type | Model scale 0.05 (≠ templates), video without size/loop/playsinline, `link` → blue plane |
+| `utils/createAssets.ts`, `createScene.ts`, `connectScene.ts` | DOM helpers for the unused bridge | `connectScene` path obsolete |
+| `static/spread{1,2,3}.ts`, commented scene in `index.html` | Hand-written scenes (reference for the template approach) | Not imported anywhere – the live scenes come from `templates.ts`; indices are pre-1d. Keep for now |
+| `SceneService` | Holds the scene, `onSceneReady/onSceneChanged` | `HistoryManager` loads history on *scene ready* (unrelated coupling) |
+| Store | `mode`, `currentSpread`, `trackedTargets: number[]` | `target-item` compares `trackedTargets` with `mindarTargetIndex` while the bridge pushes id-numbers → mismatch |
+
+MindAR facts that shape the design (verified in the vendored build):
+- `autoStart` defaults to **true** → the camera starts when *any* scene renders, i.e. already on the
+  home page. The app does not control when the camera is requested.
+- Removing the `mindar-image` component calls `system.stop()` → throws if the camera never started
+  (the `stopProcessVideo` / `getTracks` errors seen earlier).
+- `pause(true)` keeps the camera stream (fits consultation mode); `unpause()` before `arReady` throws.
+- One `.mind` per MindAR start; switching spreads = new controller. Today: new scene + new camera.
+
+### Proposal
+
+```
+Game store ──(mode, currentSpread)──▶  <ar-bridge>  ──commands──▶  ArScene (API)  ──▶ A-Frame + MindAR
+Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events────  ArScene
+```
+
+1. **`ArScene`** – the only code that touches A-Frame/MindAR. Plain class, no store access.
+   ```ts
+   type ArStatus = "idle" | "loading" | "ready" | "running" | "paused" | "error";
+   interface IArScene {
+     readonly status: ArStatus;
+     readonly spreadId: string | null;
+     load(spread: SpreadData): Promise<void>; // queued, latest wins; builds anchors + entities
+     start(): Promise<void>;                  // camera + tracking; waits for arReady
+     pause(keepCamera?: boolean): void;       // consultation keeps the stream
+     stop(): void;                            // release camera (idle)
+     on(e: "targetFound" | "targetLost", cb: (targetId: string) => void): () => void;
+     on(e: "status", cb: (s: ArStatus, error?: string) => void): () => void;
+   }
+   ```
+   - `mindar-image="autoStart: false"` → the app decides when the camera starts.
+   - Scene built with DOM calls (no HTML strings, no template cache).
+   - Target listeners attached by `ArScene` when it builds the anchors (no 300 ms re-scan).
+2. **`<ar-bridge>`** – one thin custom element in `main.ts`, the only glue (replaces all three bridges):
+   store → AR: `currentSpread` → `load()`, `mode` → `start()/pause()/stop()`;
+   AR → store: found/lost → `game.targets`, status → new `arStatus` state (loading page, camera denied,
+   debug overlay, Phase 4 UI).
+3. **Entity registry** – `registerEntity(type, builder)`; a builder creates the entity and may return
+   `onFound/onLost` hooks. Video: sized, `loop`, `muted`, `playsinline`, **autoplay on found, pause on
+   lost** (Phase 4 requirement). Model as today. Target without entity → nothing in A-Frame (the found
+   indicator is app UI, Phase 4). Extensible for 3D/other types (RULES #7).
+4. **Store**: `trackedTargets: string[]` (target ids). History keeps today's key until the Phase 2 rekey.
+   `HistoryManager` no longer waits for the scene.
+5. **Tests**: `<ar-bridge>` + store mapping against a fake `IArScene` (happy-dom can't run A-Frame);
+   `ArScene` verified in the browser pane with the fake camera + on devices.
+
+### Spread switching – two options
+- **A (recommended first):** new scene per spread, as today but through the API (proven to work now).
+- **B (spike, later):** one persistent scene, keep the camera, swap the MindAR target set
+  (`pause(true)` → dispose controller → new anchors → restart AR on the same video). Faster, no camera
+  re-request (iOS), less memory churn, but relies on MindAR internals (`_startAR`). The API stays the same.
+
+### Removals (need confirmation – RULES #1)
+`static-scene-bridge.ts`, `scene-bridge.ts`, `target-bridge.ts` (merged into `<ar-bridge>`),
+`utils/templates.ts`, `utils/connectScene.ts`, `static/spread{1,2,3}.ts`, commented scene in
+`index.html`, `SceneService` (replaced by `ArScene`; debug overlay reads from it). `utils/createScene`,
+`createEntities`, `createAssets` are folded into `ArScene` + entity registry.
+
+### Until then (Phases 2–5 on the current bridge)
+- Phase 4 video autoplay / found indicator: implement in `templates.ts` + `static-scene-bridge.ts`.
+- Stale-load guard: already done (queued scene loads, `arReady`).
+- Camera only in scan mode / at "Grant access" (Phase 3) needs `autoStart: false` – can be set in
+  `templates.ts` if needed earlier.
+- `trackedTargets` id mismatch (`target-item`): fix when Phase 5 rebuilds the index.
+
+### Open questions (decide when Phase 6 starts)
+1. One bridge (`<ar-bridge>`) instead of scene + target bridge?
+2. Option A now, B as a later spike?
+3. Camera only when entering scan mode (not on app load)?
+4. `trackedTargets` by target id (string)?
+5. Confirm the removals above (`static/` + `index.html` scenes stay until then).
+6. Drop the AR rendering of `link` targets (links are entries, not AR entities)?
+
+## Phase 7 – Polish  `[ ]`
 
 - Mark the Page WebM integration (alpha: WebM for Android, HEVC for iOS if needed), size variants.
 - Device tests: iOS Safari + Android Chrome – memory when switching groups, video autoplay.
@@ -375,7 +383,7 @@ Adopt the tutorial flow and pages to the design (p.1–5). The tutorial stays; i
 
 ## Suggested order
 
-1a → 1c (decision) → 1d → **1.1** → 2 → 4 → 5 → 3 → 6.
+1a → 1c (decision) → 1d → 2 → 4 → 5 → 3 → 6 (A-Frame bridges) → 7 (polish).
 Phase 3 can run in parallel at any point; it mostly restyles existing tutorial pages.
 
 ## Open decisions (summary)
@@ -394,4 +402,4 @@ Phase 3 can run in parallel at any point; it mostly restyles existing tutorial p
 | 10 | ~~Role of `/spreads`~~ → dev view for now | 2 ✓ |
 | 11 | Content versioning via content builder (+ CDN) vs app version – Tilman | 2 |
 | 12 | Deep link code prefix (`c-` / `s-` / `e-`) and which version `osct` carries – Tilman | 2 |
-| 13 | A-Frame bridges: one bridge + `ArScene` API, spread switching A/B, camera start, removals | 1.1 |
+| 13 | A-Frame bridges: one bridge + `ArScene` API, spread switching A/B, camera start, removals | 6 |
