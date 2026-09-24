@@ -18,8 +18,10 @@ Extend as we go: add a rule when a decision should hold for all future work.
    not deleting. The only agreed removal is QR scanning.
 2. Naming: page group = **spread** (not chapter), opened entry = **consulted** (not visited).
    Use these terms in code, content and UI.
-   Modes: `IDLE`, `SCAN`, `CONSULTATION`. "About" and "Info" are the same page (`about`).
+   Modes: `IDLE`, `SCAN`, `CONSULTATION` (UI context). "About" and "Info" are the same page (`about`).
    Set the mode only through routes (`RouterManager.navigate`), never with `draft.mode = …` in components.
+   The scene state is derived from mode + route (`utils/scene-state.ts`), never set directly;
+   overlay routes (no mode) pause the scene.
 3. Max **5 image targets per spread** (`.mind` group); `maxTrack` uses the same value.
    Keep it one shared constant; the content build must enforce it.
 4. Preloading `.mind` files = browser cache only. Never modify the A-Frame scene

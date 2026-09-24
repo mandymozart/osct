@@ -55,8 +55,6 @@ export enum ErrorCode {
   SCENE_NOT_FOUND = "scene-not-found",
   SCENE_NOT_READY = "scene-not-ready",
   FAILED_TO_UPDATE_SCENE = "failed-to-update-scene",
-  FAILED_TO_ENTER_VR = "failed-to-enter-vr",
-  FAILED_TO_EXIT_VR = "failed-to-exit-vr",
 
   // Camera errors
   CAMERA_PERMISSION_DENIED = "camera-permission-denied",
