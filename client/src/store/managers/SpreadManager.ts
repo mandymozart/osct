@@ -1,5 +1,5 @@
 import { SpreadState, ISpreadManager, IGame, LoadingState } from '@/types';
-import { getSpread, getSpreads, getInitialSpreadId } from '@/utils/content';
+import { getSpread, getSpreads, getInitialSpreadId } from '@/utils/game-config';
 
 /**
  * Manages spreads through game state
