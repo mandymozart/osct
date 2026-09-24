@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { router } from "@/router";
 import { RouteResolver } from "@/store/managers/router/helpers";
 import { GameMode, Pages, SceneState } from "@/types";
-import { getSceneState, isOverlayRoute, SCENE_STATE_BY_MODE } from "@/utils/scene-state";
+import { SCENE_STATE_BY_MODE, SceneService } from "@/services/SceneService";
+
+const sceneService = SceneService.getInstance();
+const getSceneState = sceneService.getSceneState.bind(sceneService);
+const isOverlayRoute = sceneService.isOverlayRoute.bind(sceneService);
 
 const route = (slug: string) => RouteResolver.createRoute(slug);
 
-describe("scene state", () => {
+describe("SceneService scene state", () => {
   it("has a scene state for every game mode", () => {
     for (const mode of Object.values(GameMode)) {
       expect(SCENE_STATE_BY_MODE[mode], mode).toBeDefined();

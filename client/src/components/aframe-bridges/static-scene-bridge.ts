@@ -2,7 +2,6 @@ import { GameStoreService } from "@/services/GameStoreService";
 import { SceneService } from "@/services/SceneService";
 import { ErrorCode, IGame, ISceneService, SceneState } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { getSceneState } from "@/utils/scene-state";
 import { getOrCreateTemplate } from "./utils";
 import { Scene } from "aframe";
 
@@ -297,10 +296,10 @@ export class StaticSceneBridge extends HTMLElement {
   }
 
   /**
-   * Apply the scene state derived from the current mode and route (`utils/scene-state.ts`)
+   * Apply the scene state derived from the current mode and route (`SceneService.getSceneState`)
    */
   private applySceneState() {
-    const next = getSceneState(this.game.state.mode, this.game.state.currentRoute);
+    const next = this.sceneService.getSceneState(this.game.state.mode, this.game.state.currentRoute);
     if (next === this.sceneState) return;
     this.sceneState = next;
     next === SceneState.RUNNING ? this.activate() : this.deactivate();

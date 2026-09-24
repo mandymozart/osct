@@ -20,7 +20,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
    Use these terms in code, content and UI.
    Modes: `IDLE`, `SCAN`, `CONSULTATION` (UI context). "About" and "Info" are the same page (`about`).
    Set the mode only through routes (`RouterManager.navigate`), never with `draft.mode = …` in components.
-   The scene state is derived from mode + route (`utils/scene-state.ts`), never set directly;
+   The scene state is derived from mode + route (`SceneService.getSceneState`), never set directly;
    overlay routes (no mode) pause the scene.
 3. Max **5 image targets per spread** (`.mind` group); `maxTrack` uses the same value.
    Keep it one shared constant; the content build must enforce it.
@@ -59,6 +59,12 @@ Extend as we go: add a rule when a decision should hold for all future work.
 16. Errors: build time reports every problem to the author (collected, exit 1). At runtime the app uses
     `ErrorCode` + `ErrorInfo` (`types/errors.ts`); shared/low-level code throws typed errors and the app
     boundary maps them to an `ErrorCode`. The app never hangs silently on a startup error.
+17. Where code lives: **store managers** hold app state (`store/managers`); **bridges** create DOM and
+    connect it to the game state (`components/aframe-bridges`); **services** are singletons for
+    runtime things outside the immutable store and their logic (`SceneService`: the A-Frame scene and
+    what it should be doing; `GameStoreService`: the store instance); **`utils/`** only for helpers used
+    across several of these layers (e.g. `utils/game-config.ts`, used by components, pages, managers,
+    bridges). Domain logic used in one place goes next to its owner, not into `utils/`.
 
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server
