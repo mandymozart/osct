@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Code placement (RULES #17)
+
+- [x] (user) `getSceneState` / `isOverlayRoute` / `SCENE_STATE_BY_MODE` moved from `utils/scene-state.ts`
+      into `SceneService` (scene logic, not store state, creates no DOM). Test:
+      `services/__tests__/SceneService.test.ts`.
+- [x] `utils/game-config.ts` stays in `utils/` – used across components, pages, managers and bridges.
+- [x] (user) Empty `components/slotted-page/` removed (untracked, empty). `components/three-bridges/` is
+      empty too – [ ] ask whether to remove. Old `.mind` files in `client/src/targets/` → Tilman's cleanup.
+
 ## 2026-09-24 – Mode vs scene state, overlays pause the scene
 
 - [x] (user) Question: what separates SCAN, VR and CONSULTATION if consultation is an overlay? → Two

@@ -223,8 +223,7 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   **Refined 2026-09-24 (definitions):**
   - **Mode** = UI context from the design (which chrome, what Mark the Page does): `IDLE` (home,
     onboarding), `SCAN`, `CONSULTATION`. `VR` removed (never set, VR UI disabled in every scene).
-  - **Scene state** = derived, never set directly: `getSceneState(mode, route)` in
-    `utils/scene-state.ts` → `RUNNING` (scan) / `PAUSED` (consultation; idle for now) / `STOPPED`
+  - **Scene state** = derived, never set directly: `SceneService.getSceneState(mode, route)` → `RUNNING` (scan) / `PAUSED` (consultation; idle for now) / `STOPPED`
     (idle, once `autoStart` is off – Phase 5/6). PAUSED = MindAR tracking + camera video paused, stream
     kept, last frame frozen behind the (dark, slightly transparent) UI, instant resume.
   - **Overlay** = route without a mode (error, not-found): keeps the mode, **pauses the scene** (saves
