@@ -4,6 +4,37 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Unused types audit (cleanup by Tilman, see RULES #15)
+
+Scanned `client/src`, `shared/`, `scripts/src` (exported types + enum members). Not counted as unused:
+custom element classes (used by tag name), `.d.ts` declaration merging (`HTMLElementTagNameMap`,
+`ImportMeta`, MindAR `Components`/`Systems`), `I*` component interfaces used by their own `implements`.
+
+**Keep – part of a phase (use or drop there):**
+- Phase 2: `LoadOptions`, `LoadResult` (`types/loader.ts`, early asset loader → `.mind` preloader);
+  `ErrorCode.NAVIGATION_FAILED` (unreachable not-found route); `ErrorCode.NOT_SUPPORTED`,
+  `NETWORK_ERROR` (versioning: content ahead of app, later CDN).
+- Phase 3: `ErrorCode.SPREAD_LOAD_FAILED`, `SPREAD_NOT_READY`, `IMAGE_TARGET_NOT_FOUND` (spread menu);
+  `ErrorCode.ENTITY_LOAD_FAILED`, `ASSET_NOT_FOUND`, `ASSET_TYPE_INVALID`, `ASSET_LOAD_FAILED`,
+  `ASSET_NOT_READY` (video autoplay / entity loading); `Pages.NOTIFICATION` (no page yet – resume offers
+  reuse the error page; candidate for "New entry unlocked" / notifications).
+- Phase 5: `ErrorCode.CAMERA_PERMISSION_DENIED` (onboarding "Grant access").
+- Phase 6: `EntityEvents` augmentation (`asset-loaded`, `asset-failed`, never emitted – entity registry);
+  `scene-bridge.ts` (`SceneBridge`, not registered – artefact, decided to keep until Phase 6).
+- VR (left untouched by the plan): `ErrorCode.FAILED_TO_ENTER_VR`, `FAILED_TO_EXIT_VR`.
+
+**Removal candidates (no plan item) – check for duplicates/redundancy first (RULES #15):**
+- [ ] `IPageRouter` (`types/router.ts`, `navigate()`/`close()`) – looks superseded by `IRouterManager`.
+- [ ] `ILoadingPage` (`pages/loading-page.ts`) – declared, not implemented by `LoadingPage`.
+- [ ] `ErrorCode.UNKNOWN_ERROR`, `INITIALIZATION_FAILED`, `NOT_READY`, `SPREADS_LOAD_FAILED`,
+      `SOME_ASSETS_NOT_FOUND`, `ENTITY_NOT_FOUND` – generic or overlapping with the codes above.
+
+**`page` on entries is not legacy** (checked 2026-09-24): the design shows "Access page 186" in every
+entry detail ("Go to access page 186 in scan mode to see the video"); the spread menu shows the spread
+range ("Pages activated: 24–25"). `page` stays the single source: the spread is derived from it
+(an explicit `spread` field would be redundant and could contradict the page). The legacy field was
+the per-target `bookId`.
+
 ## 2026-09-24 – Phase 1e done (content model + types)
 
 - [x] Content migrated with `git mv` (history kept): targets nested into entries, media next to the
