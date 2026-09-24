@@ -182,6 +182,11 @@ Done:
   | Used by | dev QR generator (`osct=`) | `HistoryManager` storage check (`ar-game-config-version`) |
 
   Current state / issues:
+  - [x] (2026-09-24) The content build stores `version.hash` = sha256 of `content/` + `scripts/src/` +
+    package version and **skips the build** when it is unchanged (`--force` / `npm run
+    build:content:force` to rebuild). `version.timestamp` now means "inputs last changed". The hash
+    is a natural candidate for the storage/content version check (HistoryManager still compares
+    `version.version`).
   - The content version comes from the **scripts package version**, not from the content itself →
     content changes don't bump it. Should be versioned **by the content builder** (e.g. explicit
     version in `content/`, or a hash of the bundle).

@@ -57,7 +57,8 @@ export interface GameConfiguration {
 
 export interface ConfigurationVersion {
   version: string;
-  timestamp: string;
+  timestamp: string; // when the content build inputs last changed
+  hash?: string; // checksum of the content build inputs
 }
 export interface GameVersion {
   version: string;

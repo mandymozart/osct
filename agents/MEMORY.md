@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Content build checksum
+
+- [x] (user) Build computes a sha256 over `content/`, `scripts/src/` (build logic) and the package version
+      (text line endings normalised). Same hash as in `game.config.json` + public copy present →
+      exit early, nothing rewritten, timestamp unchanged. `--force` rebuilds. Tested: first build,
+      unchanged rerun (file untouched), content change, undo (hash back to the original), `--force`,
+      missing public copy.
+- [x] No more manual revert of timestamp-only `game.config.json` changes.
+
 ## 2026-09-24 – Phases renumbered to execution order
 
 - [x] (user) Phase numbers now follow the order of work: 2 State · 3 Scan (was 4) · 4 Consultation

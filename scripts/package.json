@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc && vite build",
     "build:content": "node dist/index.js",
+    "build:content:force": "node dist/index.js --force",
     "start": "npm run build && npm run build:content"
   },
   "dependencies": {

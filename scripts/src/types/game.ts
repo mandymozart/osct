@@ -103,7 +103,8 @@ export interface EntryData {
 
 export interface ConfigurationVersion {
   version: string;
-  timestamp: string;
+  timestamp: string; // when the build inputs last changed
+  hash: string; // sha256 of content + build script + version; unchanged hash = build skipped
 }
 
 export interface GameVersion {

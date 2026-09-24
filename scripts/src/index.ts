@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
@@ -7,8 +8,12 @@ import {
   OUTPUT_FILE,
   MINDAR_DIR,
   CLIENT_PUBLIC_ASSETS_DIR,
+  SCRIPTS_SRC_DIR,
   MAX_TARGETS_PER_SPREAD
 } from './config';
+
+// Text files get normalised line endings before hashing
+const TEXT_FILE = /\.(ya?ml|json|ts|js|md|txt|html|css)$/i;
 import { validateContent } from './utils/validation';
 
 // Global mapping between target ID and folder name
@@ -881,7 +886,7 @@ function adjustConfigPaths(config: GameConfiguration): GameConfiguration {
 /**
  * Build the final config object
  */
-function buildConfig(): GameConfiguration {
+function buildConfig(versionStr: string, inputHash: string): GameConfiguration {
   // Read content types
   const content = readContentFiles();
   const spreads = content.filter(item => item.type === 'spread') as SpreadWithMetadata[];
@@ -911,10 +916,9 @@ function buildConfig(): GameConfiguration {
 
   console.log(`✨ Final config will have ${processedSpreads.length} spreads, ${targets.length} targets and ${entryData.length} entries`);
   
-  const versionStr = process.env.npm_package_version || "1.0.0";
   const timestamp = new Date().toISOString();
-  
-  console.log(`📊 Building config version: ${versionStr} (${timestamp})`);
+
+  console.log(`📊 Building config version: ${versionStr} (${timestamp}, hash ${inputHash.slice(0, 12)})`);
   
   // Create configuration object with version information
   // We need to use type assertion because the GameConfiguration interface 
@@ -922,7 +926,8 @@ function buildConfig(): GameConfiguration {
   const configData: any = {
     version: {
       version: versionStr,
-      timestamp: timestamp
+      timestamp: timestamp, // when the build inputs last changed
+      hash: inputHash
     },
     maxTargetsPerSpread: MAX_TARGETS_PER_SPREAD,
     initialSpreadId: processedSpreads.length > 0 ? processedSpreads[0].id : "spread1",
@@ -952,12 +957,66 @@ function buildConfig(): GameConfiguration {
 }
 
 /**
+ * List all files below a directory (sorted, relative paths with forward slashes)
+ */
+function listFiles(dir: string, base = dir): string[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .flatMap(dirent => {
+      const fullPath = path.join(dir, dirent.name);
+      return dirent.isDirectory() ? listFiles(fullPath, base) : [path.relative(base, fullPath).split(path.sep).join('/')];
+    })
+    .sort();
+}
+
+/**
+ * Checksum of everything that determines the build output: content files, the build logic
+ * and the package version. Line endings of text files are normalised so Windows and Unix
+ * checkouts produce the same hash.
+ */
+function hashBuildInputs(version: string): string {
+  const hash = createHash('sha256');
+  hash.update(`version:${version}\n`);
+  for (const [label, dir] of [['content', CONTENT_DIR], ['scripts', SCRIPTS_SRC_DIR]] as const) {
+    for (const file of listFiles(dir)) {
+      let data = fs.readFileSync(path.join(dir, file));
+      if (TEXT_FILE.test(file)) {
+        data = Buffer.from(data.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
+      }
+      hash.update(`${label}/${file}\n`);
+      hash.update(data);
+    }
+  }
+  return hash.digest('hex');
+}
+
+/**
+ * Hash stored in the current output file, if any
+ */
+function readPreviousHash(): string | null {
+  try {
+    return JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf8')).version?.hash ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Main function to generate the config file
  */
 function generateConfigFile(): void {
   try {
+    // Skip the build (and keep the timestamp) when nothing that affects the output changed
+    const versionStr = process.env.npm_package_version || "1.0.0";
+    const inputHash = hashBuildInputs(versionStr);
+    const force = process.argv.includes('--force');
+    if (!force && inputHash === readPreviousHash() && fs.existsSync(CLIENT_PUBLIC_ASSETS_DIR)) {
+      console.log(`✅ Content unchanged (hash ${inputHash.slice(0, 12)}), nothing to build. Use --force to rebuild.`);
+      return;
+    }
+
     // Generate the config
-    const config = buildConfig();
+    const config = buildConfig(versionStr, inputHash);
     
     // Ensure output directory exists
     const outputDir = path.dirname(OUTPUT_FILE);
