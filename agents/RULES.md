@@ -44,6 +44,11 @@ Extend as we go: add a rule when a decision should hold for all future work.
 12. Until Phase 6, scenes are built by `static-scene-bridge.ts` from HTML generated in
     `utils/templates.ts` (DOM replacement, deliberate). Extend that path (e.g. Phase 3 video autoplay);
     don't switch to dynamic entity injection or revive `scene-bridge.ts` before Phase 6.
+13. Type naming: bundle/JSON types `*Data` (defined once in `client/src/types/bundle/`, also used by
+    `scripts/`), app-internal objects plain names (`Spread`, `Target`, `Entry`, `Step`), services and
+    controllers `I*` interfaces, runtime state `*State`. No second copy of a type in another package.
+14. Only `client/src/utils/content.ts` imports `game.config.json` (type guard, then map). Everything
+    else asks `utils/content.ts`.
 
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server

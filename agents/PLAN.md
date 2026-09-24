@@ -35,7 +35,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
-## Phase 1 – Cleanup + taxonomy  `[x]`
+## Phase 1 – Cleanup + taxonomy  `[~]` (1e open)
 
 ### 1a. Remove QR  `[x]` done 2026-09-24
 Confirmed removal. Everything QR-related:
@@ -122,10 +122,81 @@ Done:
 
 ---
 
+### 1e. Content model + types  `[ ]` (decided 2026-09-24, before Phase 2)
+Why: 1d left redundancy (entry text copied onto targets, references in three directions, two copies
+of every type, six files reading `game.config.json` directly, casts without runtime checks).
+
+**A. Source (YAML) – references in one direction only**
+- `content/book.yaml`: `id: osct`, title, author → bundle `book` (app reusable for other books; id
+  usable in storage keys / QR codes).
+- `content/spreads/<id>/spread.yaml`: title, `firstPage`, `lastPage`, `mind`.
+- `content/entries/<id>/entry.yaml`: category, title, `page` (**decides the spread**), body, author,
+  image, media, `tags` (optional, not in the design yet – kept for a future content manager / filters),
+  `hideFromIndex`, and an optional **nested** `target`:
+  ```yaml
+  target:
+    id: video-example        # optional, defaults to the entry id (override e.g. when the image is re-shot)
+    image: images-007.jpg
+    order: 0                 # optional tie-breaker for the MindAR order
+    entity: { type: video, src: bunny.mp4, params: {...} }   # inline …
+    # entity: { ref: castle-scene }                         # … or reference
+  ```
+- `content/entities/<id>/entity.yaml` for complex / reusable entities: `type`, `assets[]`, `params`.
+  **No logic in content**: behaviour is a client entity type (until Phase 6: a case in `templates.ts`,
+  RULES #12).
+- Dropped: `content/targets/`, `*.asset.yaml`, `relatedSpread`, `relatedTargets`, per-target `bookId`
+  (→ page), per-target `.mind` (the `.mind` order test compares with the image dimensions instead).
+
+**B. Bundle (`game.config.json`) – mirrors the source nesting, no redundancy**
+`version`, `book`, `maxTargetsPerSpread`, `spreads[]` (no targets inside), `entries[]` (with nested
+`target: { id, index, imageSrc, entity }`), `entities{}` (only for `ref`s), `tutorial[]`.
+The build adds only what it must decide: target `index` (MindAR order: page → order → id, must match
+the `.mind`), absolute paths, defaults. No copied text, no reverse references.
+
+**C. Types and naming – one name per layer, one definition**
+| Layer | Where | Naming |
+|---|---|---|
+| Bundle contract (DTO, "loaded from JSON") | `client/src/types/bundle/` – imported by the app **and** `scripts/` | `*Data` (`EntryData`, `SpreadData`, `TargetData`, `EntityData`, `BookData`, root type) + type guards |
+| App model ("alive" objects, relations resolved) | `client/src/types` | plain names: `Spread`, `Target`, `Entry`, `Step` |
+| Services / controllers | `client/src/types` | `I*` interfaces |
+| Runtime state | store | `*State` |
+- **No `*Source` interfaces**: the build reads YAML as `unknown`, validates it with `scripts/src/utils/schema.ts`
+  (authoring rules) and normalises it straight into `*Data`.
+- `EntityData` stays the description of an A-Frame entity (a plain `Entity` would clash with A-Frame's
+  `Entity`). `EntitySpec = InlineEntity | EntityRef`, `EntityDefinition` for the `entities` table.
+- Remove duplicates: `scripts/src/types/game.ts`, `scripts/src/types/content.ts`,
+  `client/src/types/content.ts`, `SpreadConfiguration`.
+- Type guards (part of 1e): `isEntryCategory`, `isEntityType`, `isEntityRef`, `assertBundle` – literal
+  unions defined once from `as const` arrays. The build runs `assertBundle` **before writing**; the app
+  runs it on load.
+
+**D. Single entry point**
+- Only `utils/content.ts` imports `game.config.json`: `assertBundle` → map to `Spread`/`Target`/`Entry`
+  → in-memory indexes (entry by id, spread by id, entries/targets by spread, target → entry/spread,
+  resolved entity refs). All data is loaded at startup anyway, so indexes cost nothing extra.
+- Replace the direct imports in `templates.ts`, `tutorial-content.ts`, `tutorial-navigation.ts`,
+  `spread-page.ts`, `tutorial-page.ts`, `GameStore.ts`, `HistoryManager.ts`.
+- A test fails if any other file imports `game.config.json`.
+
+**E. App changes**
+- Scene element ids = target ids; the target listener reads the MindAR index from
+  `mindar-image-target` instead of parsing a number out of the id. `trackedTargets` → target ids (not persisted).
+- **History stays numeric (`spreadId` + MindAR index) until Phase 2** (decision (b)).
+- Index / debug overlay read from the app model.
+
+**F. Tests**: guards (valid + invalid bundles), content rules (page within a spread, 1:1 entry ↔ target,
+index order, refs resolve), `.mind` order vs image dimensions, single-import rule.
+
 ## Phase 2 – State  `[ ]` (after 1c)
 
 - **HistoryManager rethink.** Today history is keyed by `chapterId + targetIndex` (fragile if
   groups are re-cut). Key by stable ID (entry/target, depending on 1c).
+  **After 1e history is still numeric (`spreadId` + MindAR index) – decision (b), fix it here:** key
+  by target id (found) / entry id (consulted).
+  **Depends on the versioning concept below** (storage schema version + migrations) – the rekey is a
+  breaking storage change and must be the first one that goes through it. It also needs a way to tell
+  which entries/targets are *unchanged* between two content versions even when the total number
+  changed (stable ids + per-item identity/hash, see versioning).
 - [x] "Consulted" = "visited": the same thing (entry opened → marked in history).
   Use **consulted** everywhere.
 - Persist the last selected category (for "Entries" button → back to list with latest
@@ -195,6 +266,30 @@ Done:
     with the content version in the path/manifest, and a check which app versions can read it.
   - Saved progress should be keyed/migrated against the **content version** (ties into the
     HistoryManager rethink above).
+
+  **Semver concept – three version axes** (added 2026-09-24, owner Tilman):
+
+  | Axis | Describes | MAJOR | MINOR | PATCH |
+  |---|---|---|---|---|
+  | **App** (`client/package.json`) | client code, incl. which content schema + storage schema it can read | app can no longer read older content/storage | new features, reads the same formats | fixes |
+  | **Content** (content build) | the content bundle: schema (fields/structure) + data (entries, targets, media) | content schema changed → older apps can't read it | additive (new entries/fields old apps can ignore) | text/media fixes |
+  | **Storage** (localStorage schema) | shape of saved data: history, last spread/category, settings | saved data unreadable → migrate or discard (tell the user) | additive | – |
+
+  Open work:
+  - **Content ahead of app is breaking**: a bundle built for a newer app (e.g. new content schema,
+    new entity type) must be detected by an older app. The bundle should declare the content
+    *schema* version (or a minimum app version) separately from its data version/hash; the app
+    declares which content schema range it supports and refuses/falls back otherwise. Matters as soon
+    as content is loaded at runtime (CDN) instead of baked into the app build.
+  - **Startup compatibility check** between the three: app ↔ storage (can I read saved data?),
+    app ↔ content (can I read this bundle?), content ↔ saved progress (do the saved ids still exist?).
+  - **Migrations** instead of silent filtering: `migrate(fromStorageVersion)` steps. The pre-rename
+    `chapterId` filter in `HistoryManager.loadTargetHistory` (1c) is a stopgap for exactly this.
+  - **Item identity across content versions**: stable ids per entry/target, plus a per-item hash in the
+    bundle (e.g. entry hash, target image/`.mind` hash) to tell unchanged / changed / removed / new
+    items apart even when counts change. A changed target image invalidates "found", a changed entry
+    text probably doesn't invalidate "consulted" – rules to define.
+  - The bundle `version.hash` (content build checksum) identifies a whole bundle, not single items.
 - **Deep links from printed QR codes**  `[ ]` – owner: **Tilman**
   Printed QR codes (book) are scanned with the phone's native camera and open the app URL, e.g.
   `/?code=c-<chapter>&osct=<version>`. Today **nothing reads these params on load** (`getUrlParam` in
@@ -388,7 +483,7 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
 
 ## Suggested order
 
-0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 (phases are numbered in execution order since 2026-09-24).
+0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 7 (phases are numbered in execution order since 2026-09-24).
 Phase 5 can run in parallel at any point; it mostly restyles existing tutorial pages.
 
 ## Open decisions (summary)
@@ -408,3 +503,4 @@ Phase 5 can run in parallel at any point; it mostly restyles existing tutorial p
 | 11 | Content versioning via content builder (+ CDN) vs app version – Tilman | 2 |
 | 12 | Deep link code prefix (`c-` / `s-` / `e-`) and which version `osct` carries – Tilman | 2 |
 | 13 | A-Frame bridges: one bridge + `ArScene` API, spread switching A/B, camera start, removals | 6 |
+| 14 | ~~Content model + type naming~~ → nested target, inline/ref entities, `*Data` bundle contract in `types/bundle/`, app model plain names, single entry point | 1e ✓ |

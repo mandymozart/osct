@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Content model + type naming (→ Phase 1e)
+
+- [x] (user) Bundle types keep the **`*Data`** suffix ("loaded from JSON", DTO). App-internal objects use plain
+      names (`Spread`, `Target`, `Entry`, `Step`); services/controllers `I*`; runtime state `*State`.
+      `EntityData` = description of an A-Frame entity.
+- [x] (user) The build uses `client/src/types` as reference; shared contract lives in
+      `client/src/types/bundle/` (not all types move out of the app).
+- [x] (user) Single source of truth: only `utils/content.ts` reads `game.config.json` (type guard → map).
+- [x] (user) Nest the target in the entry; target id defaults to the entry id (no conflict with the MindAR
+      index, which is positional). Entities inline **or** `ref` to `content/entities/<id>`; no logic in content.
+- [x] (user) `book.yaml` with `id: osct`; drop `relatedTargets`; keep `tags` (not in the design – only the four
+      categories – but useful for a future content manager / frontend filters).
+- [x] (user) History stays numeric until Phase 2 (option b).
+- [x] Agent proposal: no `*Source` interfaces – YAML is parsed (`unknown` → validated → `*Data`); the schema
+      holds the authoring rules. Bundle mirrors the source nesting; no reverse references in the JSON
+      (indexes are built in memory – all content is loaded at startup anyway).
+
 ## 2026-09-24 – Content build checksum
 
 - [x] (user) Build computes a sha256 over `content/`, `scripts/src/` (build logic) and the package version
