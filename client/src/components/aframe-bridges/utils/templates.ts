@@ -1,5 +1,5 @@
 import { AssetData, SpreadData, TargetData } from "@/types";
-import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/content";
+import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/game-config";
 
 /**
  * Creates an asset HTML element string for the A-Frame scene

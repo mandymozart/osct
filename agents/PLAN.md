@@ -99,7 +99,7 @@ entry (top level, category)
 ### 1d. Content pipeline  `[x]` done 2026-09-24
 - Extend `content/*` YAML + `scripts/src` build with the new taxonomy.
 - Keep the existing `hideFromIndex` flag (as an entry flag).
-- Extend `utils/__tests__/content.test.ts` to the new taxonomy.
+- Extend the content tests (now `utils/__tests__/game-config.test.ts`) to the new taxonomy.
 
 Done:
 - [x] `content/entries/<id>/entry.yaml` (+ optional image next to it). Fields: `category`
@@ -131,8 +131,9 @@ of every type, six files reading `game.config.json` directly, casts without runt
   usable in storage keys / QR codes).
 - `content/spreads/<id>/spread.yaml`: title, `firstPage`, `lastPage`, `mind`.
 - `content/entries/<id>/entry.yaml`: category, title, `page` (**decides the spread**), body, author,
-  image, media, `tags` (optional, not in the design yet – kept for a future content manager / filters),
-  `hideFromIndex`, and an optional **nested** `target`:
+  image, media, `tags` (optional, not in the design yet – kept for a future content manager / filters)
+  and an optional **nested** `target`. **`hideFromIndex` is dropped** (one reader, one use – Edge;
+  the design's "unconsulted entries hidden" flag covers it):
   ```yaml
   target:
     id: video-example        # optional, defaults to the entry id (override e.g. when the image is re-shot)
@@ -154,9 +155,12 @@ The build adds only what it must decide: target `index` (MindAR order: page → 
 the `.mind`), absolute paths, defaults. No copied text, no reverse references.
 
 **C. Types and naming – one name per layer, one definition**
+Vocabulary: **content** = what authors write (`content/`, content build in `scripts/`) ·
+**game configuration** = what the build emits (`game.config.json`, root type `GameConfiguration`,
+file name stays) · **`*Data`** = the typed pieces inside it · **app model** = `Spread`, `Entry`, `Target`, `Step`.
 | Layer | Where | Naming |
 |---|---|---|
-| Bundle contract (DTO, "loaded from JSON") | `client/src/types/bundle/` – imported by the app **and** `scripts/` | `*Data` (`EntryData`, `SpreadData`, `TargetData`, `EntityData`, `BookData`, root type) + type guards |
+| Game configuration contract (DTO, "loaded from JSON") | top-level **`shared/types/`** (+ guards in `shared/guards/`) – imported by the app **and** `scripts/`; only this contract moves out, app types stay in `client/src/types` | `*Data` (`EntryData`, `SpreadData`, `TargetData`, `EntityData`, `BookData`, root type) + type guards |
 | App model ("alive" objects, relations resolved) | `client/src/types` | plain names: `Spread`, `Target`, `Entry`, `Step` |
 | Services / controllers | `client/src/types` | `I*` interfaces |
 | Runtime state | store | `*State` |
@@ -165,13 +169,17 @@ the `.mind`), absolute paths, defaults. No copied text, no reverse references.
 - `EntityData` stays the description of an A-Frame entity (a plain `Entity` would clash with A-Frame's
   `Entity`). `EntitySpec = InlineEntity | EntityRef`, `EntityDefinition` for the `entities` table.
 - Remove duplicates: `scripts/src/types/game.ts`, `scripts/src/types/content.ts`,
-  `client/src/types/content.ts`, `SpreadConfiguration`.
-- Type guards (part of 1e): `isEntryCategory`, `isEntityType`, `isEntityRef`, `assertBundle` – literal
-  unions defined once from `as const` arrays. The build runs `assertBundle` **before writing**; the app
+  `client/src/types/content.ts`, `SpreadConfiguration`. Rename `TutorialStepData` → `StepData`.
+- `GameConfiguration`: `version`, `book: BookData`, `maxTargetsPerSpread`, `initialSpreadId`,
+  `spreads: SpreadData[]`, `entries: EntryData[]` (nested `target?: TargetData`),
+  `entities: Record<string, EntityDefinitionData>` (refs only), `tutorial: StepData[]`.
+- Wiring: `@shared` alias in the client (vite, tsconfig paths + include), relative import in `scripts/`.
+- Type guards (part of 1e): `isEntryCategory`, `isEntityType`, `isEntityRef`, `assertGameConfiguration` – literal
+  unions defined once from `as const` arrays. The build runs `assertGameConfiguration` **before writing**; the app
   runs it on load.
 
 **D. Single entry point**
-- Only `utils/content.ts` imports `game.config.json`: `assertBundle` → map to `Spread`/`Target`/`Entry`
+- Only `utils/game-config.ts` imports `game.config.json`: `assertGameConfiguration` → map to `Spread`/`Target`/`Entry`
   → in-memory indexes (entry by id, spread by id, entries/targets by spread, target → entry/spread,
   resolved entity refs). All data is loaded at startup anyway, so indexes cost nothing extra.
 - Replace the direct imports in `templates.ts`, `tutorial-content.ts`, `tutorial-navigation.ts`,
@@ -503,4 +511,4 @@ Phase 5 can run in parallel at any point; it mostly restyles existing tutorial p
 | 11 | Content versioning via content builder (+ CDN) vs app version – Tilman | 2 |
 | 12 | Deep link code prefix (`c-` / `s-` / `e-`) and which version `osct` carries – Tilman | 2 |
 | 13 | A-Frame bridges: one bridge + `ArScene` API, spread switching A/B, camera start, removals | 6 |
-| 14 | ~~Content model + type naming~~ → nested target, inline/ref entities, `*Data` bundle contract in `types/bundle/`, app model plain names, single entry point | 1e ✓ |
+| 14 | ~~Content model + type naming~~ → nested target, inline/ref entities, `*Data` game-configuration contract in top-level `shared/`, app model plain names, single entry point | 1e ✓ |

@@ -1,6 +1,6 @@
 import { IGame, LoadingState, TargetData } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { getAssets, getSpread, getTarget, getTargets } from "@/utils/content";
+import { getAssets, getSpread, getTarget, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "../../services/GameStoreService";
 import { SceneService } from '../../services/SceneService';
 

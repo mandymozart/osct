@@ -1,4 +1,4 @@
-import { getTarget } from "@/utils/content";
+import { getTarget } from "@/utils/game-config";
 import { IGame } from "@/types";
 import { GameStoreService } from "@/services/GameStoreService";
 import { SceneService } from "@/services/SceneService";

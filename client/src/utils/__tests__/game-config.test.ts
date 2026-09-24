@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import config from "@/game.config.json";
-import { getAssets, getEntries, getMaxTargetsPerSpread, getSpread, getSpreads } from "@/utils/content";
+import { getAssets, getEntries, getMaxTargetsPerSpread, getSpread, getSpreads } from "@/utils/game-config";
 
 /**
  * Guards the built content (`game.config.json`) written by the content build.
