@@ -4,3 +4,4 @@ export * from './createEntities';
 export * from './createScene';
 export * from './templates';
 export * from './targets';
+export * from './scene-state';

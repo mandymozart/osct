@@ -52,7 +52,7 @@ export interface GameVersion {
 /**
  * Game mode = UI context (from the design): which chrome is shown and what Mark the Page does.
  * Set only through routes – each route declares its mode, `RouterManager.navigate` applies it
- * together with the route (RULES #2). The scene state follows from it (`SceneService.getSceneState`).
+ * together with the route (RULES #2). The scene state follows from it (`aframe-bridges/utils/scene-state.ts`).
  * IDLE: home, onboarding/tutorial – no AR chrome.
  * SCAN: scan mode – Mark (scan), counter, spread menu; scene running.
  * CONSULTATION: consultation mode – Mark (consultation), entries, info; scene paused underneath.
