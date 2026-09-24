@@ -93,10 +93,7 @@ export class QRGenerator extends HTMLElement {
       
       <select id="qr-type-selector">
         <option value="valid">Valid Chapter QR</option>
-        <option value="invalid-code">Invalid Code Format</option>
-        <option value="wrong-chapter">Non-existent Chapter</option>
         <option value="wrong-version">Wrong App Version</option>
-        <option value="plain-text">Plain Text (Non-URL)</option>
       </select>
       
       <div id="qr-output"></div>
@@ -148,44 +145,11 @@ export class QRGenerator extends HTMLElement {
   private generateQR(chapterId: string, testType: string = "valid") {
     if (!this.qrInstance) return;
 
-    let url = "";
-    
-    switch(testType) {
-      case "invalid-code":
-        // Missing the 'c-' prefix for chapter code
-        url = `${
-          __VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl
-        }/?code=${chapterId}&osct=${import.meta.env.VITE_APP_VERSION}`;
-        break;
-        
-      case "wrong-chapter":
-        // Non-existent chapter ID
-        url = `${
-          __VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl
-        }/?code=c-nonexistent123&osct=${import.meta.env.VITE_APP_VERSION}`;
-        break;
-        
-      case "wrong-version":
-        // Wrong app version
-        url = `${
-          __VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl
-        }/?code=c-${chapterId}&osct=999.0.0`;
-        break;
-        
-      case "plain-text":
-        // Non-URL text to trigger format error
-        url = `This is not a URL format`;
-        break;
-        
-      case "valid":
-      default:
-        // Standard valid QR code
-        url = `${
-          __VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl
-        }/?code=c-${chapterId}&osct=${import.meta.env.VITE_APP_VERSION}`;
-        break;
-    }
-    
+    const baseUrl = __VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl;
+    // osct = app version (client package.json), see GameStore.version
+    const appVersion = testType === "wrong-version" ? "999.0.0" : this.game.version.version;
+    const url = `${baseUrl}/?code=c-${chapterId}&osct=${appVersion}`;
+
     this.qrInstance.clear();
     this.qrInstance.makeCode(url);
   }
