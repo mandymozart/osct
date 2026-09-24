@@ -96,14 +96,14 @@ export class TargetItem extends HTMLElement implements ITargetItem {
         .target-item {
           cursor: pointer;
           display: grid;
-          grid-template-columns: 4rem auto 8rem;
+          grid-template-columns: auto 8rem;
           gap: 1rem;
           margin: 0 1rem;
           line-height: 3rem;
           border-bottom: .1rem solid var(--color-primary);
         }
         
-        .target-id, .target-title {
+        .target-title {
           font-weight: 600;
         }
 
@@ -158,7 +158,6 @@ export class TargetItem extends HTMLElement implements ITargetItem {
       <div class="target-item ${this._isCurrent ? "current" : "muted"} ${
       this._isExpanded ? "expanded" : ""
     }">
-          <div class="target-id">p.&nbsp;${entry?.page ?? ""}</div>
           <div class="target-text">
             <div class="target-title">
               ${entry?.title || "Untitled Target"}
