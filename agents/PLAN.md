@@ -29,12 +29,13 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 - [x] Limit decided: **5 targets per group**.
 - [x] `maxTrack` (AR targets tracked at once) decided: **same as max targets per spread (5)**.
       Scale down after the usability test.
-- [ ] Set it explicitly in `client/src/components/aframe-bridges/utils/templates.ts`
-      (currently `maxTrack: ${targets.length}`) from one shared constant (also used by the build check).
+- [x] One shared constant `MAX_TARGETS_PER_SPREAD` in `scripts/src/config.ts`, written into
+      `game.config.json` as `maxTargetsPerSpread`. Client `maxTrack` (`createScene.ts`, `templates.ts`)
+      and the content tests read it via `getMaxTargetsPerSpread()`. Build fails above it.
 
 ---
 
-## Phase 1 – Cleanup + taxonomy  `[~]`
+## Phase 1 – Cleanup + taxonomy  `[x]`
 
 ### 1a. Remove QR  `[x]` done 2026-09-24
 Confirmed removal. Everything QR-related:
@@ -95,10 +96,27 @@ entry (top level, category)
 - Entry fields seen in the design: name, access page, category, author (texts), body, image,
   media (link/embed or AR video).
 
-### 1d. Content pipeline  `[ ]` (after 1c)
+### 1d. Content pipeline  `[x]` done 2026-09-24
 - Extend `content/*` YAML + `scripts/src` build with the new taxonomy.
 - Keep the existing `hideFromIndex` flag (as an entry flag).
 - Extend `utils/__tests__/content-config.test.ts` to the new taxonomy.
+
+Done:
+- [x] `content/entries/<id>/entry.yaml` (+ optional image next to it). Fields: `category`
+      (glossary / videos / texts / links), `title`, `page` (access page), `author`, `body`, `image`,
+      `media` (link URL), `target` (optional, 1:1), `hideFromIndex`. Schema in `scripts/src/utils/schema.ts`
+      (validated with the existing `validateContent`).
+- [x] Targets keep only tracking data (spread, image, `.mind`, entity, bookId, tags). Title / description /
+      `hideFromIndex` moved to the entry; the build copies them onto the target output (+ `entryId`)
+      so the current index keeps working until Phase 5.
+- [x] Output: `game.config.json` gets `entries[]` (sorted by category, title; with `targetId`, `spreadId`)
+      and `maxTargetsPerSpread`. Client types `types/entries.ts`, helpers `getEntries()` / `getEntry()`.
+- [x] Build **fails** (exit 1, nothing written) on: missing target image, > 5 targets per spread, target
+      with missing/unknown spread, target without entry, entry with unknown/already used target,
+      invalid category / required field, access page outside the target's spread, missing entry image.
+- [x] Demo: 12 entries – one per target (10) + Metafiction (glossary, no target, designers' example image)
+      + a placeholder text (texts, no target). All four categories covered.
+- [x] Tests: shared limit, entry ids/categories, 1:1 entry ↔ target, page within spread, entry images exist.
 - Build fails if a group has > 5 targets.
 - Keep `client/public/assets/content` in sync as today.
 

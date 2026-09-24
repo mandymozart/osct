@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Phase 1d done (entries) + Phase 0 constant
+
+Agent decisions (reversible, flagged for review):
+- [x] Entry → target link lives on the **entry** (`target: target-000`), since an entry may have a target.
+- [x] The 6 demo 3D-model targets became **glossary** entries (categories are fixed; 3D models are demo
+      leftovers). The 3 demo videos → videos, Shadows → links.
+- [x] Shadows keeps its target entity type `link` (client scene code unchanged) **and** the entry has the
+      URL as `media`. The duplication goes away when entities are reworked (Phase 4: target without AR
+      entity → found indicator).
+- [x] Two scene builders set `maxTrack`: `templates.ts` (used by `static-scene-bridge`) and
+      `createScene.ts` (used by `scene-bridge`). Both used `targets.length`; both use the constant now
+      (verified in the browser: `maxTrack: 5`). Two parallel scene bridges → worth a look in Phase 4.
+- [ ] Build validation stops at the first blocking error per entry (e.g. duplicate target), so later
+      checks for that entry show up on the next run.
+
 ## 2026-09-24 – Phase 1c rename done (chapter → spread)
 
 - [x] Demo spreads now cover pages **1–2, 3–4, 5–6** (like the final book). Only page ranges changed;
@@ -15,8 +30,8 @@ outcome in the line (or move it into a dated decision block).
       removal in `6ad6d8e` was rolled back.) New test: each spread `.mind` must contain exactly its
       targets' images in `mindarTargetIndex` order. The "files exist" test skips external link URLs.
 - [x] Unreferenced `target-000/images-010.jpg` deleted (user), incl. its copy in `client/public`.
-- [ ] 1d: the content build copies into `client/public/assets/content` but never removes stale files
-      → deleted/renamed content lingers there. Clean the target dir (or sync) on build.
+- [x] ~~Build never removes stale files in `client/public`~~ – wrong: `copyContentToPublic` already
+      deletes the folder before copying. The stale file only lingered because the build hadn't run yet.
 - [ ] 1d: the build should **fail** (not skip) on a missing target image, and ideally run the same
       `.mind` ↔ targets check.
 - [ ] Dead code: `client/src/components/aframe-bridges/static/spread{1,2,3}.ts` (not imported anywhere)
