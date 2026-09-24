@@ -14,8 +14,9 @@ outcome in the line (or move it into a dated decision block).
       Shadows (link), Racoon, Ancient Tree, Sleeping Dragon, matching the original `.mind`. (A short-lived
       removal in `6ad6d8e` was rolled back.) New test: each spread `.mind` must contain exactly its
       targets' images in `mindarTargetIndex` order. The "files exist" test skips external link URLs.
-- [ ] `content/targets/target-000/images-010.jpg` (254×650, same size) is unreferenced – probably the
-      same picture under an old name. Ask before removing.
+- [x] Unreferenced `target-000/images-010.jpg` deleted (user), incl. its copy in `client/public`.
+- [ ] 1d: the content build copies into `client/public/assets/content` but never removes stale files
+      → deleted/renamed content lingers there. Clean the target dir (or sync) on build.
 - [ ] 1d: the build should **fail** (not skip) on a missing target image, and ideally run the same
       `.mind` ↔ targets check.
 - [ ] Dead code: `client/src/components/aframe-bridges/static/spread{1,2,3}.ts` (not imported anywhere)
