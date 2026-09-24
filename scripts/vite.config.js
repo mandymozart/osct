@@ -10,7 +10,7 @@ export default defineConfig({
       fileName: (format) => `index.${format === 'es' ? 'mjs' : 'cjs'}`,
     },
     rollupOptions: {
-      external: ['lodash', 'path', 'fs', 'url'],
+      external: ['lodash', 'path', 'fs', 'url', 'crypto'],
     },
     target: 'node18', // Specify Node.js version 18
     ssr: true, // Enable Server Side Rendering mode

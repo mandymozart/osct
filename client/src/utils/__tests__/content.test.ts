@@ -18,6 +18,10 @@ type MindFile = { dataList: { targetImage: { width: number; height: number } }[]
 describe("content config", () => {
   const spreads = getSpreads();
 
+  it("carries the content build checksum", () => {
+    expect(config.version.hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
   it("has an existing initial spread", () => {
     expect(getSpread(config.initialSpreadId)).toBeDefined();
   });
