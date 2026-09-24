@@ -77,7 +77,7 @@ outcome in the line (or move it into a dated decision block).
       `getUserMedia` call – reusing one stream breaks MindAR restarts because `stop()` ends its tracks):
       5 sequential + 4 rapid switches → right `.mind`, 1 scene, 1 live camera stream, no errors.
       User tested the changes on 2026-09-24 ("tested everything") – no issues reported.
-- [ ] Target listeners use the number in the target **id** as "index" (`target-003` → 3), not the
+- [~] (fixed in 1e, section E) Target listeners use the number in the target **id** as "index" (`target-003` → 3), not the
       MindAR index; history is keyed by it. Works but fragile → Phase 2 history rekey.
 
 ## 2026-09-24 – Phase 1d done (entries) + Phase 0 constant
@@ -108,7 +108,7 @@ Agent decisions (reversible, flagged for review):
 - [x] Unreferenced `target-000/images-010.jpg` deleted (user), incl. its copy in `client/public`.
 - [x] ~~Build never removes stale files in `client/public`~~ – wrong: `copyContentToPublic` already
       deletes the folder before copying. The stale file only lingered because the build hadn't run yet.
-- [ ] 1d: the build should **fail** (not skip) on a missing target image, and ideally run the same
+- [x] 1d: the build should **fail** (not skip) on a missing target image (done in 1d), and ideally run the same
       `.mind` ↔ targets check.
 - [x] ~~Dead code: `static/spread{1,2,3}.ts` + commented scene in `index.html`~~ → kept as reference
       (user), renamed to `*.ref.ts`. See the Phase 6 decision above.
@@ -139,7 +139,7 @@ Agent decisions (reversible, flagged for review):
 - [ ] Found by the tests: `RouterManager.navigate()` with an unknown slug **throws** in
       `RouteResolver.createRoute`, so the `/not-found` branch is unreachable. Documented in a test;
       fix in Phase 2 together with `isSameRoute` (that one is an `it.fails` test – drop `.fails` when fixed).
-- [ ] Browser smoke run (in-app browser, camera blocked there): home, tutorial, scan HUD, index open
+- [x] Browser smoke run (in-app browser, camera blocked there): home, tutorial, scan HUD, index open
       without console errors; nav bar now only shows INDEX. AR tracking needs a real device.
 - [x] ~~Keep `hideFromIndex` as an entry flag~~ → dropped in 1e (user; the design's hidden-unconsulted flag covers it).
 - [x] **Dev overlay QR generator is kept** (user, 2026-09-24): needed to open the dev server on a

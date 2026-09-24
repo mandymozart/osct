@@ -122,7 +122,8 @@ Done:
 
 ---
 
-### 1e. Content model + types  `[ ]` (decided 2026-09-24, before Phase 2)
+### 1e. Content model + types  `[~]` (decided 2026-09-24, before Phase 2)
+Progress: [x] step 1 shared contract + guards · [ ] step 2 build + content · [ ] step 3 app
 Why: 1d left redundancy (entry text copied onto targets, references in three directions, two copies
 of every type, six files reading `game.config.json` directly, casts without runtime checks).
 
