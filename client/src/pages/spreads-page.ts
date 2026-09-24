@@ -1,4 +1,4 @@
-import { getSpread, getSpreads } from "@/utils/config";
+import { getSpread, getSpreads } from "@/utils/content";
 import { SpreadData, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
