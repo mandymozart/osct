@@ -39,6 +39,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
 10. Keep **app version** (`client/package.json`, `game.version`) and **content version**
     (content builder → `game.config.json` `version`) separate. Never use one for the other.
     Versioning and QR deep links are owned by Tilman – don't implement them unasked.
+11. Windows: stop the dev/preview server before any git command that rewrites the working tree
+    (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
 
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server

@@ -62,9 +62,15 @@ holds targets; targets reveal **entries**; entries have a category.
 
 Naming for "chapter":
 - [x] **`spread`** – sticks closely to the app's use case. Keep `firstPage`/`lastPage`.
-- [ ] Rename chapter → spread. Touches: `ChapterManager`, `switchChapter`, `currentChapter`, `chapters` state,
+- [x] Rename chapter → spread (2026-09-24). Touches: `ChapterManager`, `switchChapter`, `currentChapter`, `chapters` state,
   `ChapterData`, `chapter-page`, `chapters-page`, `chapter-item`, `chapter-list`,
   `static/chapter*.ts`, content folders `content/chapters/*`, build script, route slugs.
+  Done: all of the above incl. `IChapterManager`→`ISpreadManager`, `game.chapters`→`game.spreads`,
+  `initialChapterId`→`initialSpreadId`, `relatedChapter`→`relatedSpread` (YAML), history entries
+  `chapterId`→`spreadId`, content ids `chapterN`→`spreadN`, slugs `/spread` + `/spreads`,
+  `Pages.SPREAD(S)`, elements `spread-page`, `spreads-page`, `spread-item`, `spread-list`, `spreads-button`.
+  Rebuilt content with the renamed build script → identical `game.config.json` (except timestamp).
+  **Not renamed:** QR code prefix `c-` (open decision #12), `docs/`, legacy `client/public/assets/targets/chapter*.mind`.
 
 Entries vs targets – **decided** (2026-09-24):
 - [x] **Entries are top level** (own content type, e.g. `content/entries/<id>/`).

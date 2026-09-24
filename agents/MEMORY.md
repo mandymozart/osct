@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Phase 1c rename done (chapter → spread)
+
+- [x] Rename done in code, content, build script, routes, tests (see PLAN 1c). QR prefix `c-` kept.
+- [x] Saved history from before the rename (`chapterId` entries, or spreads that no longer exist) is
+      dropped on load instead of offering a broken resume (`HistoryManager.loadTargetHistory`, tested).
+      Proper migration → Phase 2 (stable IDs + content version).
+- [ ] `docs/` (Docusaurus) still uses chapter terminology throughout – update or retire later.
+- [ ] `client/public/assets/targets/chapter{1,2,3}.mind` are unreferenced legacy files. Ask before removing.
+- [ ] Pre-existing bug (not from the rename, verified on the pre-rename commit): switching spreads
+      while MindAR never started (camera denied) throws `Cannot read properties of undefined (reading
+      'stopProcessVideo')` from MindAR during scene teardown (`static-scene-bridge.ts`). Guard in
+      the scene bridge, relevant for Phase 4 spread menu switching.
+- [x] Lesson: on Windows the running vite dev server locks files. **Stop the preview server before
+      `git stash` / `git checkout` / `git reset`** – a stash with the server running half-reset the tree
+      (recovered fully from the stash, verified identical).
+
 ## 2026-09-24 – Phase 1a done (QR removed)
 
 - [x] QR scanning removed completely (components, manager, types, utils, deps `jsqr`,
