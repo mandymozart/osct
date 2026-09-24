@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createGameStore } from "@/store/GameStore";
 import { IGame, Pages } from "@/types";
-import { getSpreads, getTargets } from "@/utils/config";
+import { getSpreads, getTargets } from "@/utils/content";
 
 const HISTORY_KEY = "ar-game-target-history";
 

@@ -7,7 +7,7 @@ import {
   IHistoryManager,
   TargetHistoryEntry
 } from '@/types';
-import { getSpread, getTargets } from '@/utils/config';
+import { getSpread, getTargets } from '@/utils/content';
 import config from './../../game.config.json';
 
 /**

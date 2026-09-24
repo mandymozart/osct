@@ -3,7 +3,7 @@ import { SpreadData, IGame, TargetData } from '@/types';
 import { assert } from '@/utils';
 import './spread-item';
 import './target-item';
-import { getSpread, getSpreads } from '@/utils/config';
+import { getSpread, getSpreads } from '@/utils/content';
 
 export interface ISpreadList extends HTMLElement {
   updateSpreads(): void;

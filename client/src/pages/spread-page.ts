@@ -2,7 +2,7 @@ import { spreads, initialSpreadId } from "@/game.config.json";
 import { SpreadData, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
-import { getSpread } from "@/utils/config";
+import { getSpread } from "@/utils/content";
 
 export class SpreadPage extends PageMinimal {
   static get observedAttributes() {

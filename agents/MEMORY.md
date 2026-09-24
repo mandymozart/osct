@@ -4,6 +4,14 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – `utils/config.ts` renamed to `utils/content.ts`
+
+- [x] (user) The client module only reads built content, it configures nothing → `utils/content.ts`
+      (test: `utils/__tests__/content.test.ts`). `scripts/src/config.ts` stays: it is real build config.
+- [ ] Later, with runtime/CDN content loading (Tilman's versioning work), this becomes an async
+      `ContentService` (`load()` + the same getters), like `SceneService` / `GameStoreService`.
+- [ ] Rename `game.config.json` → `content.json`? Open, Tilman's call (touches versioning).
+
 ## 2026-09-24 – Spread switch reload loop fixed
 
 - [x] Reported by user: switching spreads caused a reload loop. Cause: `StaticSceneBridge.activate()`

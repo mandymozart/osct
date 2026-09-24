@@ -99,7 +99,7 @@ entry (top level, category)
 ### 1d. Content pipeline  `[x]` done 2026-09-24
 - Extend `content/*` YAML + `scripts/src` build with the new taxonomy.
 - Keep the existing `hideFromIndex` flag (as an entry flag).
-- Extend `utils/__tests__/content-config.test.ts` to the new taxonomy.
+- Extend `utils/__tests__/content.test.ts` to the new taxonomy.
 
 Done:
 - [x] `content/entries/<id>/entry.yaml` (+ optional image next to it). Fields: `category`

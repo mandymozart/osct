@@ -1,4 +1,4 @@
-import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/config";
+import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/content";
 import { Scene } from "aframe";
 import { attachAssets, attachEntities } from "./createEntities";
 import { AssetData, TargetData } from "@/types";
