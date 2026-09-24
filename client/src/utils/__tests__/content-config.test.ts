@@ -3,15 +3,12 @@ import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import config from "@/game.config.json";
-import { getAssets, getSpread, getSpreads } from "@/utils/config";
+import { getAssets, getEntries, getMaxTargetsPerSpread, getSpread, getSpreads } from "@/utils/config";
 
 /**
  * Guards the built content (`game.config.json`) written by the content build.
  * Runs against the real data, so broken content fails here before it fails in the browser.
  */
-
-// RULES.md #3 – replace with the shared constant once Phase 0 introduces it.
-const MAX_TARGETS_PER_GROUP = 5;
 
 const publicDir = resolve(__dirname, "../../../public");
 const publicFile = (src: string) => resolve(publicDir, src.replace(/^\//, ""));
@@ -32,10 +29,14 @@ describe("content config", () => {
     expect(new Set(targetIds).size).toBe(targetIds.length);
   });
 
+  it("uses the shared target limit (RULES.md #3)", () => {
+    expect(getMaxTargetsPerSpread()).toBe(5);
+  });
+
   it.each(spreads.map(c => [c.id, c] as const))(
     "%s stays within the target limit and indexes its targets 0..n-1",
     (_id, spread) => {
-      expect(spread.targets.length).toBeLessThanOrEqual(MAX_TARGETS_PER_GROUP);
+      expect(spread.targets.length).toBeLessThanOrEqual(getMaxTargetsPerSpread());
       expect(spread.targets.map(t => t.mindarTargetIndex)).toEqual(spread.targets.map((_, i) => i));
     },
   );
@@ -64,9 +65,43 @@ describe("content config", () => {
       ...spreads.map(c => c.mindSrc),
       ...spreads.flatMap(c => c.targets.map(t => t.imageTargetSrc)),
       ...getAssets().map(a => a.src),
+      ...getEntries().map(e => e.image),
     ].filter(src => src && !/^https?:\/\//.test(src)) as string[]; // links point to external URLs
 
     const missing = files.filter(src => !existsSync(publicFile(src)));
     expect(missing).toEqual([]);
+  });
+
+  describe("entries", () => {
+    const entries = getEntries();
+    const targets = spreads.flatMap(s => s.targets.map(t => ({ ...t, spread: s })));
+
+    it("have unique ids and a known category", () => {
+      expect(new Set(entries.map(e => e.id)).size).toBe(entries.length);
+      for (const entry of entries) {
+        expect(["glossary", "videos", "texts", "links"]).toContain(entry.category);
+      }
+    });
+
+    // Taxonomy (RULES.md #7): every target reveals exactly one entry; entries may have no target.
+    it("link 1:1 with targets", () => {
+      for (const target of targets) {
+        const linked = entries.filter(e => e.targetId === target.id);
+        expect(linked.map(e => e.id), target.id).toEqual([target.entryId]);
+      }
+    });
+
+    it("with a target sit on a page of the target's spread", () => {
+      for (const entry of entries.filter(e => e.targetId)) {
+        const target = targets.find(t => t.id === entry.targetId)!;
+        expect(entry.spreadId).toBe(target.spread.id);
+        expect(entry.page).toBeGreaterThanOrEqual(target.spread.firstPage);
+        expect(entry.page).toBeLessThanOrEqual(target.spread.lastPage);
+      }
+    });
+
+    it("cover every category", () => {
+      expect(new Set(entries.map(e => e.category))).toEqual(new Set(["glossary", "videos", "texts", "links"]));
+    });
   });
 });

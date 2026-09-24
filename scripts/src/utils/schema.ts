@@ -39,8 +39,6 @@ export const schemas: Record<string, Schema> = {
     fields: {
       type: { type: "String", required: true, default: "target" },
       id: { type: "String", required: true },
-      title: { type: "String", required: true },
-      description: { type: "String", required: false, default: "" },
       relatedSpread: { type: "String", required: true, rel: "spread" },
       order: { type: "Number", required: false, default: 0 },
       imageTargetSrc: { type: "String", required: true },
@@ -54,6 +52,27 @@ export const schemas: Record<string, Schema> = {
       assets: { type: "List", required: false, default: [], rel: "asset" },
       relatedTargets: { type: "List", required: false, default: [] },
       tags: { type: "List", required: false, default: [] },
+    },
+  },
+
+  // Entry schema – top-level content revealed by a target (or listed without one)
+  entry: {
+    fields: {
+      type: { type: "String", required: true, default: "entry" },
+      id: { type: "String", required: true },
+      category: {
+        type: "String",
+        required: true,
+        enum: ["glossary", "videos", "texts", "links"],
+      },
+      title: { type: "String", required: true },
+      page: { type: "Number", required: true },
+      author: { type: "String", required: false },
+      body: { type: "String", required: false, default: "" },
+      image: { type: "String", required: false },
+      media: { type: "String", required: false },
+      target: { type: "String", required: false, rel: "target" },
+      hideFromIndex: { type: "Boolean", required: false, default: false },
     },
   },
 

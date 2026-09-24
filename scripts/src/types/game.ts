@@ -1,7 +1,7 @@
 // Game-related type definitions for build scripts
 // These are imported from client/src/types/game/index.ts
 
-import { AssetType, EntityType } from "./content";
+import { AssetType, EntityType, EntryCategory } from "./content";
 
 export interface IGame {
   version: GameVersion;
@@ -80,9 +80,25 @@ export enum CameraPermissionStatus {
 
 export interface GameConfiguration {
   version: ConfigurationVersion;
+  maxTargetsPerSpread: number;
   initialSpreadId: string;
   spreads: SpreadData[];
+  entries: EntryData[];
   tutorial: TutorialStepData[];
+}
+
+export interface EntryData {
+  id: string;
+  category: EntryCategory;
+  title: string;
+  page: number;
+  author?: string;
+  body: string;
+  image?: string;
+  media?: string;
+  targetId?: string;
+  spreadId?: string;
+  hideFromIndex: boolean;
 }
 
 export interface ConfigurationVersion {
@@ -117,8 +133,11 @@ export interface TargetData {
   imageTargetSrc: string;
   mindSrc: string;
   bookId: string;
+  entryId: string;
+  // Copied from the entry until the index is rebuilt around entries (Phase 5)
   title: string;
   description: string;
+  hideFromIndex: boolean;
   tags: string[];
   relatedTargets: string[];
   entity: EntityData;

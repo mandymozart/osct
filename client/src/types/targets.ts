@@ -20,12 +20,14 @@ export interface TargetData {
   id: string;
   mindarTargetIndex: number;
   bookId: string;
+  entryId: string;
+  // Copied from the entry by the content build until the index is rebuilt around entries (Phase 5)
   title: string;
   description: string;
+  hideFromIndex: boolean;
   entity: EntityData;
   imageTargetSrc: string;
   mindSrc: string;
-  hideFromIndex?: boolean;
   tags?: string[];
   relatedTargets?: string[];
 }

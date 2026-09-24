@@ -1,7 +1,16 @@
 import config from '@/game.config.json';
-import { AssetData, SpreadData, TargetData } from '@/types';
+import { AssetData, EntryData, SpreadData, TargetData } from '@/types';
 
 const spreadsData: SpreadData[] = config.spreads as SpreadData[]
+const entriesData: EntryData[] = config.entries as EntryData[]
+
+/** Max image targets per spread (.mind group) = MindAR maxTrack. Set by the content build. */
+export const getMaxTargetsPerSpread = (): number => config.maxTargetsPerSpread;
+
+export const getEntries = (): EntryData[] => [...entriesData];
+
+export const getEntry = (id: string): EntryData | undefined =>
+  entriesData.find((entry) => entry.id === id);
 
 export const getSpreads = (): SpreadData[] => [...spreadsData];
 

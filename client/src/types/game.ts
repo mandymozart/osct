@@ -1,5 +1,6 @@
 import {
   CameraManagerState,
+  EntryData,
   SpreadData,
   SpreadManagerState,
   ErrorInfo,
@@ -47,8 +48,10 @@ export interface GameState
 
 export interface GameConfiguration {
   version: ConfigurationVersion;
+  maxTargetsPerSpread: number;
   initialSpreadId: string;
   spreads: readonly SpreadData[];
+  entries: readonly EntryData[];
   tutorial: readonly TutorialStepData[];
 }
 
