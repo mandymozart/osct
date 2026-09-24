@@ -24,6 +24,7 @@
     "three": "^0.174.0"
   },
   "devDependencies": {
+    "@msgpack/msgpack": "^2.8.0",
     "@types/aframe": "^1.2.8",
     "@types/node": "^22.13.9",
     "@types/three": "^0.174.0",
