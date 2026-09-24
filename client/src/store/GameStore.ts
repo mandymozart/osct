@@ -10,7 +10,6 @@ import {
   IChapterManager,
   IGame,
   IHistoryManager,
-  IQRManager,
   IRouterManager,
   ITargetManager,
   LoadingState
@@ -20,7 +19,6 @@ import { BaseStore } from "./BaseStore";
 import { CameraManager } from "./managers/CameraManager";
 import { ChapterManager } from "./managers/ChapterManager";
 import { HistoryManager } from "./managers/HistoryManager";
-import { QRManager } from "./managers/QRManager";
 import { RouterManager } from "./managers/router/RouterManager";
 import { TargetManager } from "./managers/TargetManager";
 
@@ -50,7 +48,6 @@ class Game extends BaseStore<GameState> implements IGame {
   public targets: ITargetManager;
   public history: IHistoryManager;
   public router: IRouterManager;
-  public qr: IQRManager;
   public camera: ICameraManager;
 
   /**
@@ -77,7 +74,6 @@ class Game extends BaseStore<GameState> implements IGame {
     this.chapters = new ChapterManager(this);
     this.history = new HistoryManager(this);
     this.targets = new TargetManager(this);
-    this.qr = new QRManager(this);
     this.router = new RouterManager(this);
   }
 

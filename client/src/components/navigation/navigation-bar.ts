@@ -58,12 +58,11 @@ export class NavigationBar extends HTMLElement {
             pointer-events: none;
         }
         
-        qr-button, index-button {
+        index-button {
             pointer-events: all;
         }
       </style>
       
-      <qr-button></qr-button>
       <index-button></index-button>
     `;
   }

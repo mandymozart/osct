@@ -15,8 +15,7 @@
   },
   "dependencies": {
     "@ungap/custom-elements": "^1.3.0",
-    "immer": "^10.0.0",
-    "jsqr": "^1.0.0"
+    "immer": "^10.0.0"
   },
   "peerDependencies": {
     "aframe": "^1.7.0",
