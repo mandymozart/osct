@@ -1,7 +1,8 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import { SceneService } from "@/services/SceneService";
-import { ErrorCode, GameMode, IGame, ISceneService } from "@/types";
+import { ErrorCode, IGame, ISceneService, SceneState } from "@/types";
 import { waitForDOMReady } from "@/utils";
+import { getSceneState } from "@/utils/scene-state";
 import { getOrCreateTemplate } from "./utils";
 import { Scene } from "aframe";
 
@@ -12,7 +13,8 @@ import { Scene } from "aframe";
 export class StaticSceneBridge extends HTMLElement {
   private game: Readonly<IGame>;
   private sceneService: ISceneService;
-  private currentMode: GameMode | null = null;
+  // Desired scene state (from mode + route); applied to each scene once MindAR is ready
+  private sceneState: SceneState = SceneState.PAUSED;
   private currentSpread: string | null = null;
   private system: AFRAME.MindARImageSystem | null = null as unknown as AFRAME.MindARImageSystem;
   private sceneContainer: HTMLElement | null = null;
@@ -25,6 +27,7 @@ export class StaticSceneBridge extends HTMLElement {
   private arReady = false;
   private sceneQueue: Promise<void> = Promise.resolve();
   private modeUnsubscribe: (() => void) | null = null;
+  private routeUnsubscribe: (() => void) | null = null;
   private spreadUnsubscribe: (() => void) | null = null;
 
   // Templates are now generated dynamically from the game config
@@ -46,6 +49,11 @@ export class StaticSceneBridge extends HTMLElement {
     if (this.modeUnsubscribe) {
       this.modeUnsubscribe();
       this.modeUnsubscribe = null;
+    }
+
+    if (this.routeUnsubscribe) {
+      this.routeUnsubscribe();
+      this.routeUnsubscribe = null;
     }
     
     if (this.spreadUnsubscribe) {
@@ -139,9 +147,12 @@ export class StaticSceneBridge extends HTMLElement {
       scene.addEventListener("arReady", () => {
         if (scene !== this.sceneElement) return; // a newer spread replaced this scene
         this.arReady = true;
-        if (this.currentMode === GameMode.SCAN || this.currentMode === GameMode.VR) {
-          this.activate();
-        }
+        // MindAR emits arReady and then starts tracking by itself (processVideo), so apply the
+        // desired state on the next tick – otherwise a pause would be overridden right away
+        setTimeout(() => {
+          if (scene !== this.sceneElement) return;
+          this.sceneState === SceneState.RUNNING ? this.activate() : this.deactivate();
+        }, 0);
       });
 
       await this.waitForSceneToLoad();
@@ -159,7 +170,7 @@ export class StaticSceneBridge extends HTMLElement {
       await new Promise(resolve => setTimeout(resolve, 200));
       this.currentSpread = spreadId;
       
-      if (this.currentMode === GameMode.SCAN || this.currentMode === GameMode.VR) {
+      if (this.sceneState === SceneState.RUNNING) {
         this.activate();
       }
     } catch (error) {
@@ -265,11 +276,10 @@ export class StaticSceneBridge extends HTMLElement {
   }
 
   protected setupListeners() {
-    this.modeUnsubscribe = this.game.subscribeToProperty("mode", (mode) => {
-      if (mode !== this.currentMode) {
-        this.handleModeChange(mode);
-      }
-    });
+    // Scene state = f(mode, route): overlays pause the scene too
+    this.modeUnsubscribe = this.game.subscribeToProperty("mode", () => this.applySceneState());
+    this.routeUnsubscribe = this.game.subscribeToProperty("currentRoute", () => this.applySceneState());
+    this.applySceneState();
     
     this.spreadUnsubscribe = this.game.subscribeToProperty("currentSpread", () => {
       // Load scenes one at a time. Each queued step loads the spread wanted *now*, so fast
@@ -287,13 +297,13 @@ export class StaticSceneBridge extends HTMLElement {
   }
 
   /**
-   * Handle game mode changes
-   * @param mode New game mode
+   * Apply the scene state derived from the current mode and route (`utils/scene-state.ts`)
    */
-  private handleModeChange(mode: GameMode) {
-    const isSceneMode = mode === GameMode.SCAN || mode === GameMode.VR;
-    this.currentMode = mode;
-    isSceneMode ? this.activate() : this.deactivate();
+  private applySceneState() {
+    const next = getSceneState(this.game.state.mode, this.game.state.currentRoute);
+    if (next === this.sceneState) return;
+    this.sceneState = next;
+    next === SceneState.RUNNING ? this.activate() : this.deactivate();
   }
   
   /**
@@ -309,8 +319,8 @@ export class StaticSceneBridge extends HTMLElement {
         return;
       }
 
-      // Not ready yet: the scene's arReady handler calls activate() again
-      if (!this.arReady) {
+      // Not ready yet (or no longer wanted): the scene's arReady handler applies the state again
+      if (!this.arReady || this.sceneState !== SceneState.RUNNING) {
         return;
       }
 
@@ -331,14 +341,22 @@ export class StaticSceneBridge extends HTMLElement {
   }
 
   /**
-   * Deactivate the scene mode
+   * Pause the scene: stop tracking and the camera video (stream kept for an instant resume),
+   * stop A-Frame ticks. The last frame stays visible behind the UI.
    */
   private deactivate() {
     if (!this.sceneElement || !this.system) {
       return;
     }
-    
-    this.sceneElement.exitVR();
+
+    // Before arReady MindAR has no controller yet (pause would throw); arReady calls us again
+    if (this.arReady) {
+      try {
+        this.system.pause();
+      } catch (error) {
+        console.warn("[StaticSceneBridge] Error pausing MindAR:", error);
+      }
+    }
     this.sceneElement.pause();
     this.sceneElement.classList.remove("active");
     window.document.body.classList.remove("scene-active");

@@ -50,16 +50,14 @@ export interface GameVersion {
 }
 
 /**
- * Game mode = global app state: decides whether the scene runs and which chrome is shown.
+ * Game mode = UI context (from the design): which chrome is shown and what Mark the Page does.
  * Set only through routes – each route declares its mode, `RouterManager.navigate` applies it
- * together with the route (RULES #2).
- * IDLE: home, tutorial – scene not running.
- * SCAN: scan HUD – scene + tracking run.
- * CONSULTATION: entries, about/info – scene paused.
- * VR: rarely used, left as it is.
+ * together with the route (RULES #2). The scene state follows from it (`utils/scene-state.ts`).
+ * IDLE: home, onboarding/tutorial – no AR chrome.
+ * SCAN: scan mode – Mark (scan), counter, spread menu; scene running.
+ * CONSULTATION: consultation mode – Mark (consultation), entries, info; scene paused underneath.
  */
 export enum GameMode {
-  VR = "vr",
   SCAN = "scan",
   CONSULTATION = "consultation",
   IDLE = "idle",

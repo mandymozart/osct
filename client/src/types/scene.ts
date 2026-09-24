@@ -31,3 +31,14 @@ export interface ISceneService {
    */
   onSceneChanged(callback: (scene: Scene) => void): () => void;
 }
+/**
+ * What the A-Frame scene / MindAR should be doing. Derived from the game mode and the current
+ * route (`utils/scene-state.ts`), applied by the scene bridge. Ordered from least to most active.
+ * STOPPED: camera released · PAUSED: tracking + video paused, camera stream kept (instant resume,
+ * last frame frozen behind the UI) · RUNNING: camera, tracking and rendering.
+ */
+export enum SceneState {
+  STOPPED = 0,
+  PAUSED = 1,
+  RUNNING = 2,
+}

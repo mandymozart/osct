@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Mode vs scene state, overlays pause the scene
+
+- [x] (user) Question: what separates SCAN, VR and CONSULTATION if consultation is an overlay? → Two
+      dimensions were mixed. Mode = UI context (design); scene state = derived from mode + route.
+      VR removed (user okay): never set, A-Frame VR UI disabled everywhere; enum value, 2 error codes,
+      `exitVR()` calls gone.
+- [x] (user asked to check) Should overlays stop the scene? Checked: the design's consultation is dark and
+      slightly transparent (the scan view shows through faintly, frames 15/17) → a frozen frame looks the
+      same. Measured: consultation and overlays only paused A-Frame, **MindAR kept tracking** underneath.
+      Decision: overlays pause the scene (resources + no targets firing behind a page).
+- [x] MindAR emits `arReady` and starts tracking itself right after → the bridge applies the scene
+      state on the next tick, otherwise the pause is overridden (seen in the browser, fixed).
+- [x] Verified in the browser (fake camera): tracking only in scan without overlay; paused in home,
+      consultation, error/not-found overlays and after a spread switch while consulting; one live stream.
+
 ## 2026-09-24 – Phase 2: modes vs views implemented, git over SSH
 
 - [x] Modes/routes as planned (see PLAN Phase 2). `GameMode.DEFAULT` is now `SCAN`; `CONSULTATION` is new
