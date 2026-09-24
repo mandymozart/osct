@@ -23,9 +23,14 @@ outcome in the line (or move it into a dated decision block).
 - [x] **Dev overlay QR generator is kept** (user, 2026-09-24): needed to open the dev server on a
       phone for testing. It was removed in 1a by mistake and restored (`qr-generator.ts`,
       `types/qr/qrcode.ts`, `qrcode.js`, `window.QRCode` type). Only in-app QR *scanning* is gone.
-      Its "invalid/wrong" test variants targeted the removed scanner – harmless, left as is.
-- [ ] Generator URL shows `osct=undefined`: it reads `import.meta.env.VITE_APP_VERSION`, but vite
-      defines `__VITE_APP_VERSION__`. Pre-existing, cosmetic.
+      Options trimmed to **Valid** + **Wrong App Version** (invalid code / wrong chapter / plain text removed).
+- [x] Versions: **app version** = `game.version.version` (`__VITE_APP_VERSION__` ← `client/package.json`);
+      **content version** = `game.config.json` `version` (← `scripts/package.json`, used by
+      `HistoryManager` for storage versioning). The QR `osct=` param is the app version. Fixed
+      `osct=undefined` (read a non-existent `import.meta.env.VITE_APP_VERSION`); removed the phantom
+      `VITE_*` entries from `ImportMetaEnv` so this can't happen silently again.
+- [ ] Nothing reads `?code=` / `?osct=` on page load since the scanner is gone, so "Wrong App Version"
+      has no visible effect yet. Hook it into the planned versioned storage / resume check when that lands.
 - [x] `beta/` (old prototype sandbox) removed on request (2026-09-24). Docs (`docs/docs/*`) cleaned
       of QR; the 2025 blog post stays as history.
 - [ ] Chapter → spread rename changes persisted history (`chapterId` in localStorage). Existing
