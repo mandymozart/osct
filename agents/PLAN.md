@@ -34,9 +34,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
-## Phase 1 – Cleanup + taxonomy
+## Phase 1 – Cleanup + taxonomy  `[~]`
 
-### 1a. Remove QR  `[ ]`
+### 1a. Remove QR  `[x]` done 2026-09-24
 Confirmed removal. Everything QR-related:
 - `client/src/components/qr-scanner/*`
 - `client/src/store/managers/QRManager.ts`, `IQRManager` in `types/game.ts`, `game.qr`
@@ -47,6 +47,9 @@ Confirmed removal. Everything QR-related:
 - deps: `jsqr` (package.json), `client/public/assets/deps/qrcode.js`, `qrcode.min.js`
 - `<qr-scanner>` in `client/src/main.ts`, `<qr-button>` in `navigation-bar.ts`
 - Chapters page currently "activates QR scanner" → only remove the QR trigger, keep the page.
+- [x] Removed all of the above, plus the `FAILED_TO_SCAN_QR` / `INVALID_QR_*` error codes
+      (client + `scripts/src/types/game.ts`). `tsc` + `vite build` pass. Chapters page had no
+      QR trigger in code (only in `PAGES.md`, updated).
 
 ### 1b. Keep & restructure (NOT remove)
 Home, tutorial, about, index, chapters, chapter pages, `components/index/*`, resume session.
@@ -87,6 +90,8 @@ entry (top level, category)
 
 ### 1d. Content pipeline  `[ ]` (after 1c)
 - Extend `content/*` YAML + `scripts/src` build with the new taxonomy.
+- Keep the existing `hideFromIndex` flag (as an entry flag).
+- Extend `utils/__tests__/content-config.test.ts` to the new taxonomy.
 - Build fails if a group has > 5 targets.
 - Keep `client/public/assets/content` in sync as today.
 
@@ -138,7 +143,10 @@ entry (top level, category)
     | `/entries` (was `/index`, param `category`) | CONSULTATION | index page restructured |
     | `/entry` (new, param `entryId`) | CONSULTATION | entry detail as its own view (today entries expand inline in `target-item`) |
         | `/error`, `/not-found` | – (keep) | overlay |
-  - Fix `isSameRoute` param comparison (key + value).
+  - Fix `isSameRoute` param comparison (key + value). Test exists as `it.fails` in
+    `RouterManager.test.ts` – remove `.fails` when fixed.
+  - Unknown slugs throw in `RouteResolver.createRoute` → `/not-found` is unreachable. Route them to
+    `/not-found` instead (update the test that documents the throw).
 - `.mind` preloading via a **Preloader utility**: fetch into the browser cache only.
   Do **not** touch the A-Frame scene before the group is actually activated.
   Keeping two scene contexts alive is a later topic – not now.

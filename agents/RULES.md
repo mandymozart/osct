@@ -32,6 +32,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
    target. Never assume an entity is video-only – keep entity types extensible.
 8. Content lives in `content/` (YAML) → built by `scripts/` into `client/src/game.config.json`
    and `client/public/assets/content`.
+9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
+   Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
+   Tests of removed features are not wanted – test behaviour that stays.
 
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server
