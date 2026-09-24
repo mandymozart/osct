@@ -1,8 +1,9 @@
 import { GameStoreService } from "@/services/GameStoreService";
-import { IGame, TargetData } from "@/types";
+import { IGame, Target } from "@/types";
+import { getEntry } from "@/utils/game-config";
 
 export interface ITargetItem extends HTMLElement {
-  target: TargetData | null;
+  target: Target | null;
   isCurrent: boolean;
   isExpanded: boolean;
   spreadId?: string | null;
@@ -15,7 +16,7 @@ export interface ITargetItem extends HTMLElement {
  * Displays a target item in the index page
  */
 export class TargetItem extends HTMLElement implements ITargetItem {
-  private _target: TargetData | null = null;
+  private _target: Target | null = null;
   private _isCurrent = false;
   private _isExpanded = false;
   private _hasBeenSeen = false;
@@ -56,8 +57,8 @@ export class TargetItem extends HTMLElement implements ITargetItem {
 
   private handleTrackedTargetsChanged() {
 
-    const isCurrent = (this.game?.state.trackedTargets ?? []).includes(this._target?.mindarTargetIndex ?? -1);
-    console.log("[TargetItem] isCurrent:", isCurrent, this._target?.mindarTargetIndex);
+    const isCurrent = (this.game?.state.trackedTargets ?? []).includes(this._target?.id ?? "");
+    console.log("[TargetItem] isCurrent:", isCurrent, this._target?.id);
     this.shadowRoot?.querySelector(".target-item")?.classList.toggle("current", isCurrent);
   }
 
@@ -84,6 +85,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
 
     // Determine if this target has been seen
     const hasBeenSeen = this._hasBeenSeen;
+    const entry = getEntry(this._target.entryId);
 
     this.shadowRoot.innerHTML = /* html */ `
       <style>
@@ -156,17 +158,17 @@ export class TargetItem extends HTMLElement implements ITargetItem {
       <div class="target-item ${this._isCurrent ? "current" : "muted"} ${
       this._isExpanded ? "expanded" : ""
     }">
-          <div class="target-id">${this._target.bookId}</div>
+          <div class="target-id">p.&nbsp;${entry?.page ?? ""}</div>
           <div class="target-text">
             <div class="target-title">
-              ${this._target.title || "Untitled Target"}
+              ${entry?.title || "Untitled Target"}
               <span class="seen-indicator" title="${
                 hasBeenSeen ? "Already seen" : "Not seen yet"
               }"></span>
             </div>
             
             <div class="target-description"><p>${
-              this._target.description || "No description available"
+              entry?.body || "No description available"
             }</p>
             <div class="meta-info">${
               hasBeenSeen ? "Seen" : "Not seen yet"
@@ -175,7 +177,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
           </div>
           <div class="target-image">
             <img src="${this.getTargetImageUrl()}" alt="${
-      this._target.description || "target image"
+      entry?.title || "target image"
     }" loading="lazy">
           </div>
       </div>
@@ -184,8 +186,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
 
   private getTargetImageUrl(): string {
     if (!this._target) return "";
-    return this._target.imageTargetSrc;
-    // return `assets/images/images-${this._target.bookId}.jpg`;
+    return this._target.imageSrc;
   }
 
   private handleClick(event: Event) {
@@ -196,7 +197,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
       new CustomEvent("target-toggle", {
         bubbles: true,
         composed: true,
-        detail: { targetId: this._target.bookId },
+        detail: { targetId: this._target.id },
       })
     );
 
@@ -206,18 +207,18 @@ export class TargetItem extends HTMLElement implements ITargetItem {
         new CustomEvent("target-select", {
           bubbles: true,
           composed: true,
-          detail: { targetId: this._target.bookId },
+          detail: { targetId: this._target.id },
         })
       );
     }
   }
 
   // Getters and setters
-  get target(): TargetData | null {
+  get target(): Target | null {
     return this._target;
   }
 
-  set target(value: TargetData | null) {
+  set target(value: Target | null) {
     this._target = value;
     this.render();
   }

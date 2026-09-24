@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Phase 1e done (content model + types)
+
+- [x] Content migrated with `git mv` (history kept): targets nested into entries, media next to the
+      entry, `castle` became a shared entity (`content/entities/castle`, `ref: castle`) to exercise refs.
+      Removed: `content/targets/`, `*.asset.yaml`, per-target `.mind`, `relatedTargets`, `relatedSpread`,
+      `hideFromIndex`, per-target `bookId`, `scripts/src/types/*`, `client/src/types/{assets,entities,content}.ts`.
+- [x] Target ids are now entry ids (`target-003` → `old-castle`). Scene element id = target id; the
+      listener gets the MindAR index from the configuration (no more number parsing). `trackedTargets`
+      = target ids.
+- [x] History stays numeric (decision b) but the number is now the **MindAR index** (before: the number
+      parsed from the target id, e.g. 3/4/6/7 for spread2 – which also made completion % wrong).
+      Saved dev history from before 1e may point at different targets. Proper rekey: Phase 2.
+- [x] `link` entity has no asset any more: it renders the entry's title/body; the URL is the entry's `media`.
+- [x] Fixed on the way: video asset markup had `playsinlinecrossorigin` (one word) → neither attribute was set.
+- [x] Edge is now listed in the index (hideFromIndex dropped); index rows show the page instead of `bookId`.
+
 ## 2026-09-24 – Content model + type naming (→ Phase 1e)
 
 - [x] (user) Bundle types keep the **`*Data`** suffix ("loaded from JSON", DTO). App-internal objects use plain

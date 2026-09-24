@@ -1,364 +1,57 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2026-09-24T10:18:59.617Z",
-    "hash": "9a456df08efbd9bbb5c6b0b5aa528e3770f1b82506424faa1e4753b2d96e80a9"
+    "timestamp": "2026-09-24T11:42:45.969Z",
+    "hash": "da1c3433c010aa66f303322dab85a37ffd7230cabf4bd726605db57325cf64f5"
+  },
+  "book": {
+    "id": "osct",
+    "title": "Onion Skin & Crocodile Tears",
+    "author": "Kévin Bray"
   },
   "maxTargetsPerSpread": 5,
   "initialSpreadId": "spread1",
   "spreads": [
     {
       "id": "spread1",
-      "order": 0,
       "title": "The Beginning",
       "firstPage": 1,
       "lastPage": 2,
-      "mindSrc": "/assets/content/spreads/spread1/spread1.mind",
-      "targets": [
-        {
-          "id": "target-000",
-          "bookId": "000",
-          "imageTargetSrc": "/assets/content/targets/target-000/images-000.jpg",
-          "mindSrc": "/assets/content/targets/target-000/images-000.mind",
-          "relatedTargets": [
-            "target-001",
-            "target-102",
-            "target-003"
-          ],
-          "tags": [
-            "architecture",
-            "lighting"
-          ],
-          "entity": {
-            "type": "link",
-            "assets": [
-              {
-                "id": "shadows-link",
-                "assetType": "link",
-                "type": "asset",
-                "src": "https://experiment-woodkid-volcano-robot.vercel.app/"
-              }
-            ]
-          },
-          "mindarTargetIndex": 0,
-          "entryId": "shadows",
-          "title": "Shadows",
-          "description": "Light plays a role in architecture.",
-          "hideFromIndex": false
-        },
-        {
-          "id": "target-001",
-          "bookId": "001",
-          "imageTargetSrc": "/assets/content/targets/target-001/images-028.jpg",
-          "mindSrc": "/assets/content/targets/target-001/images-028.mind",
-          "relatedTargets": [
-            "target-002"
-          ],
-          "tags": [
-            "forest",
-            "animal"
-          ],
-          "entity": {
-            "type": "model",
-            "assets": [
-              {
-                "id": "racoon",
-                "assetType": "glb",
-                "type": "asset",
-                "src": "/assets/content/targets/target-001/racoon.glb"
-              }
-            ]
-          },
-          "mindarTargetIndex": 1,
-          "entryId": "racoon",
-          "title": "Racoon",
-          "description": "A beast, a friend, a dimension jumper.",
-          "hideFromIndex": false
-        },
-        {
-          "id": "target-102",
-          "bookId": "102",
-          "imageTargetSrc": "/assets/content/targets/target-002/images-102.jpg",
-          "mindSrc": "/assets/content/targets/target-002/images-102.mind",
-          "relatedTargets": [
-            "target-001"
-          ],
-          "tags": [
-            "forest",
-            "nature"
-          ],
-          "entity": {
-            "type": "model",
-            "assets": [
-              {
-                "id": "tree",
-                "assetType": "glb",
-                "type": "asset",
-                "src": "/assets/content/targets/target-002/tree.glb"
-              }
-            ]
-          },
-          "mindarTargetIndex": 2,
-          "entryId": "ancient-tree",
-          "title": "Ancient Tree",
-          "description": "A mystical tree stands tall.",
-          "hideFromIndex": false
-        },
-        {
-          "id": "target-005",
-          "bookId": "005",
-          "imageTargetSrc": "/assets/content/targets/target-005/images-001.jpg",
-          "mindSrc": "/assets/content/targets/target-005/images-001.mind",
-          "relatedTargets": [
-            "target-006"
-          ],
-          "tags": [
-            "fantasy",
-            "creature"
-          ],
-          "entity": {
-            "type": "model",
-            "assets": [
-              {
-                "id": "dragon",
-                "assetType": "glb",
-                "type": "asset",
-                "src": "/assets/content/targets/target-005/dragon.glb"
-              }
-            ]
-          },
-          "mindarTargetIndex": 3,
-          "entryId": "sleeping-dragon",
-          "title": "Sleeping Dragon",
-          "description": "A mighty dragon resting in its lair.",
-          "hideFromIndex": false
-        }
-      ]
+      "mindSrc": "/assets/content/spreads/spread1/spread1.mind"
     },
     {
       "id": "spread2",
-      "order": 1,
       "title": "The Castle Gates",
       "firstPage": 3,
       "lastPage": 4,
-      "mindSrc": "/assets/content/spreads/spread2/spread2.mind",
-      "targets": [
-        {
-          "id": "target-003",
-          "bookId": "003",
-          "imageTargetSrc": "/assets/content/targets/target-003/images-022.jpg",
-          "mindSrc": "/assets/content/targets/target-003/images-022.mind",
-          "relatedTargets": [
-            "target-004"
-          ],
-          "tags": [
-            "medieval",
-            "architecture"
-          ],
-          "entity": {
-            "type": "model",
-            "assets": [
-              {
-                "id": "castle",
-                "assetType": "glb",
-                "type": "asset",
-                "src": "/assets/content/targets/target-003/castle.glb"
-              }
-            ]
-          },
-          "mindarTargetIndex": 0,
-          "entryId": "old-castle",
-          "title": "Old Castle",
-          "description": "An ancient castle filled with secrets.",
-          "hideFromIndex": false
-        },
-        {
-          "id": "target-004",
-          "bookId": "004",
-          "imageTargetSrc": "/assets/content/targets/target-004/images-045.jpg",
-          "mindSrc": "/assets/content/targets/target-004/images-045.mind",
-          "relatedTargets": [
-            "target-003"
-          ],
-          "tags": [
-            "medieval",
-            "statue"
-          ],
-          "entity": {
-            "type": "model",
-            "assets": [
-              {
-                "id": "cardboard-boxes",
-                "assetType": "glb",
-                "type": "asset",
-                "src": "/assets/content/targets/target-004/cardboard-boxes.glb"
-              }
-            ]
-          },
-          "mindarTargetIndex": 1,
-          "entryId": "stone-guardian",
-          "title": "Stone Guardian",
-          "description": "A stone statue guarding the entrance.",
-          "hideFromIndex": false
-        },
-        {
-          "id": "target-006",
-          "bookId": "006",
-          "imageTargetSrc": "/assets/content/targets/target-006/images-003.jpg",
-          "mindSrc": "/assets/content/targets/target-006/images-003.mind",
-          "relatedTargets": [
-            "target-005"
-          ],
-          "tags": [
-            "fantasy",
-            "treasure"
-          ],
-          "entity": {
-            "type": "model",
-            "assets": [
-              {
-                "id": "treasure",
-                "assetType": "glb",
-                "type": "asset",
-                "src": "/assets/content/targets/target-006/treasure.glb"
-              }
-            ]
-          },
-          "mindarTargetIndex": 2,
-          "entryId": "treasure-hoard",
-          "title": "Treasure Hoard",
-          "description": "A pile of gold and relics hidden in the shadows.",
-          "hideFromIndex": false
-        },
-        {
-          "id": "target-007",
-          "bookId": "007",
-          "imageTargetSrc": "/assets/content/targets/target-007/images-007.jpg",
-          "mindSrc": "/assets/content/targets/target-007/images-007.mind",
-          "relatedTargets": [
-            "target-001",
-            "target-102"
-          ],
-          "tags": [
-            "demo",
-            "video"
-          ],
-          "entity": {
-            "type": "video",
-            "assets": [
-              {
-                "id": "bunny-video",
-                "assetType": "video",
-                "type": "asset",
-                "src": "/assets/content/targets/target-007/bunny.mp4"
-              }
-            ]
-          },
-          "mindarTargetIndex": 3,
-          "entryId": "video-example",
-          "title": "Video Example",
-          "description": "A demonstration of video content in AR.",
-          "hideFromIndex": false
-        }
-      ]
+      "mindSrc": "/assets/content/spreads/spread2/spread2.mind"
     },
     {
       "id": "spread3",
-      "order": 2,
       "title": "The Dragon's Lair",
       "firstPage": 5,
       "lastPage": 6,
-      "mindSrc": "/assets/content/spreads/spread3/spread3.mind",
-      "targets": [
-        {
-          "id": "target-008",
-          "bookId": "008",
-          "imageTargetSrc": "/assets/content/targets/target-008/images-060.jpg",
-          "mindSrc": "/assets/content/targets/target-008/images-060.mind",
-          "relatedTargets": [
-            "target-009"
-          ],
-          "tags": [
-            "demo",
-            "video"
-          ],
-          "entity": {
-            "type": "video",
-            "assets": [
-              {
-                "id": "edge",
-                "assetType": "video",
-                "type": "asset",
-                "src": "/assets/content/targets/target-008/edge.mp4"
-              }
-            ]
-          },
-          "mindarTargetIndex": 0,
-          "entryId": "edge",
-          "title": "Edge",
-          "description": "A demonstration of a video with an image billboard.",
-          "hideFromIndex": true
-        },
-        {
-          "id": "target-009",
-          "bookId": "009",
-          "imageTargetSrc": "/assets/content/targets/target-009/images-004.jpg",
-          "mindSrc": "/assets/content/targets/target-009/images-004.mind",
-          "relatedTargets": [
-            "target-008"
-          ],
-          "tags": [
-            "alpha"
-          ],
-          "entity": {
-            "type": "video",
-            "assets": [
-              {
-                "id": "sploosh",
-                "assetType": "video",
-                "type": "asset",
-                "src": "/assets/content/targets/target-009/sploosh.webm"
-              }
-            ]
-          },
-          "mindarTargetIndex": 1,
-          "entryId": "sploosh-the-sheep",
-          "title": "Sploosh the sheep",
-          "description": "A demonstration of a video with alpha channel.",
-          "hideFromIndex": false
-        }
-      ]
+      "mindSrc": "/assets/content/spreads/spread3/spread3.mind"
     }
   ],
   "entries": [
     {
-      "id": "ancient-tree",
-      "category": "glossary",
-      "title": "Ancient Tree",
-      "page": 2,
-      "body": "A mystical tree stands tall.",
-      "targetId": "target-102",
-      "spreadId": "spread1",
-      "hideFromIndex": false
-    },
-    {
-      "id": "metafiction",
-      "category": "glossary",
-      "title": "Metafiction",
-      "page": 2,
-      "body": "Placeholder – glossary entry without a target. Final text follows.",
-      "image": "/assets/content/entries/metafiction/metafiction.jpg",
-      "hideFromIndex": false
-    },
-    {
-      "id": "old-castle",
-      "category": "glossary",
-      "title": "Old Castle",
-      "page": 3,
-      "body": "An ancient castle filled with secrets.",
-      "targetId": "target-003",
-      "spreadId": "spread2",
-      "hideFromIndex": false
+      "id": "shadows",
+      "category": "links",
+      "title": "Shadows",
+      "page": 1,
+      "body": "Light plays a role in architecture.",
+      "tags": [],
+      "media": "https://experiment-woodkid-volcano-robot.vercel.app/",
+      "target": {
+        "id": "shadows",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/shadows/images-000.jpg",
+        "entity": {
+          "type": "link",
+          "assets": []
+        }
+      }
     },
     {
       "id": "racoon",
@@ -366,9 +59,45 @@
       "title": "Racoon",
       "page": 1,
       "body": "A beast, a friend, a dimension jumper.",
-      "targetId": "target-001",
-      "spreadId": "spread1",
-      "hideFromIndex": false
+      "tags": [],
+      "target": {
+        "id": "racoon",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/racoon/images-028.jpg",
+        "entity": {
+          "type": "model",
+          "assets": [
+            {
+              "id": "racoon-media",
+              "assetType": "glb",
+              "src": "/assets/content/entries/racoon/racoon.glb"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ancient-tree",
+      "category": "glossary",
+      "title": "Ancient Tree",
+      "page": 2,
+      "body": "A mystical tree stands tall.",
+      "tags": [],
+      "target": {
+        "id": "ancient-tree",
+        "index": 2,
+        "imageSrc": "/assets/content/entries/ancient-tree/images-102.jpg",
+        "entity": {
+          "type": "model",
+          "assets": [
+            {
+              "id": "ancient-tree-media",
+              "assetType": "glb",
+              "src": "/assets/content/entries/ancient-tree/tree.glb"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "sleeping-dragon",
@@ -376,9 +105,47 @@
       "title": "Sleeping Dragon",
       "page": 2,
       "body": "A mighty dragon resting in its lair.",
-      "targetId": "target-005",
-      "spreadId": "spread1",
-      "hideFromIndex": false
+      "tags": [],
+      "target": {
+        "id": "sleeping-dragon",
+        "index": 3,
+        "imageSrc": "/assets/content/entries/sleeping-dragon/images-001.jpg",
+        "entity": {
+          "type": "model",
+          "assets": [
+            {
+              "id": "sleeping-dragon-media",
+              "assetType": "glb",
+              "src": "/assets/content/entries/sleeping-dragon/dragon.glb"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "metafiction",
+      "category": "glossary",
+      "title": "Metafiction",
+      "page": 2,
+      "body": "Placeholder – glossary entry without a target. Final text follows.",
+      "tags": [],
+      "image": "/assets/content/entries/metafiction/metafiction.jpg"
+    },
+    {
+      "id": "old-castle",
+      "category": "glossary",
+      "title": "Old Castle",
+      "page": 3,
+      "body": "An ancient castle filled with secrets.",
+      "tags": [],
+      "target": {
+        "id": "old-castle",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/old-castle/images-022.jpg",
+        "entity": {
+          "ref": "castle"
+        }
+      }
     },
     {
       "id": "stone-guardian",
@@ -386,9 +153,22 @@
       "title": "Stone Guardian",
       "page": 3,
       "body": "A stone statue guarding the entrance.",
-      "targetId": "target-004",
-      "spreadId": "spread2",
-      "hideFromIndex": false
+      "tags": [],
+      "target": {
+        "id": "stone-guardian",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/stone-guardian/images-045.jpg",
+        "entity": {
+          "type": "model",
+          "assets": [
+            {
+              "id": "stone-guardian-media",
+              "assetType": "glb",
+              "src": "/assets/content/entries/stone-guardian/cardboard-boxes.glb"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "treasure-hoard",
@@ -396,49 +176,22 @@
       "title": "Treasure Hoard",
       "page": 4,
       "body": "A pile of gold and relics hidden in the shadows.",
-      "targetId": "target-006",
-      "spreadId": "spread2",
-      "hideFromIndex": false
-    },
-    {
-      "id": "shadows",
-      "category": "links",
-      "title": "Shadows",
-      "page": 1,
-      "body": "Light plays a role in architecture.",
-      "media": "https://experiment-woodkid-volcano-robot.vercel.app/",
-      "targetId": "target-000",
-      "spreadId": "spread1",
-      "hideFromIndex": false
-    },
-    {
-      "id": "building-fictions",
-      "category": "texts",
-      "title": "On Building Fictions",
-      "page": 4,
-      "author": "Placeholder Author",
-      "body": "Placeholder – text entry without a target. The final essay follows.",
-      "hideFromIndex": false
-    },
-    {
-      "id": "edge",
-      "category": "videos",
-      "title": "Edge",
-      "page": 5,
-      "body": "A demonstration of a video with an image billboard.",
-      "targetId": "target-008",
-      "spreadId": "spread3",
-      "hideFromIndex": true
-    },
-    {
-      "id": "sploosh-the-sheep",
-      "category": "videos",
-      "title": "Sploosh the sheep",
-      "page": 6,
-      "body": "A demonstration of a video with alpha channel.",
-      "targetId": "target-009",
-      "spreadId": "spread3",
-      "hideFromIndex": false
+      "tags": [],
+      "target": {
+        "id": "treasure-hoard",
+        "index": 2,
+        "imageSrc": "/assets/content/entries/treasure-hoard/images-003.jpg",
+        "entity": {
+          "type": "model",
+          "assets": [
+            {
+              "id": "treasure-hoard-media",
+              "assetType": "glb",
+              "src": "/assets/content/entries/treasure-hoard/treasure.glb"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "video-example",
@@ -446,52 +199,132 @@
       "title": "Video Example",
       "page": 4,
       "body": "A demonstration of video content in AR.",
-      "targetId": "target-007",
-      "spreadId": "spread2",
-      "hideFromIndex": false
+      "tags": [],
+      "target": {
+        "id": "video-example",
+        "index": 3,
+        "imageSrc": "/assets/content/entries/video-example/images-007.jpg",
+        "entity": {
+          "type": "video",
+          "assets": [
+            {
+              "id": "video-example-media",
+              "assetType": "video",
+              "src": "/assets/content/entries/video-example/bunny.mp4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "building-fictions",
+      "category": "texts",
+      "title": "On Building Fictions",
+      "page": 4,
+      "body": "Placeholder – text entry without a target. The final essay follows.",
+      "tags": [],
+      "author": "Placeholder Author"
+    },
+    {
+      "id": "edge",
+      "category": "videos",
+      "title": "Edge",
+      "page": 5,
+      "body": "A demonstration of a video with an image billboard.",
+      "tags": [],
+      "target": {
+        "id": "edge",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/edge/images-060.jpg",
+        "entity": {
+          "type": "video",
+          "assets": [
+            {
+              "id": "edge-media",
+              "assetType": "video",
+              "src": "/assets/content/entries/edge/edge.mp4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "sploosh-the-sheep",
+      "category": "videos",
+      "title": "Sploosh the sheep",
+      "page": 6,
+      "body": "A demonstration of a video with alpha channel.",
+      "tags": [],
+      "target": {
+        "id": "sploosh-the-sheep",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/sploosh-the-sheep/images-004.jpg",
+        "entity": {
+          "type": "video",
+          "assets": [
+            {
+              "id": "sploosh-the-sheep-media",
+              "assetType": "video",
+              "src": "/assets/content/entries/sploosh-the-sheep/sploosh.webm"
+            }
+          ]
+        }
+      }
     }
   ],
+  "entities": {
+    "castle": {
+      "type": "model",
+      "assets": [
+        {
+          "id": "castle-0",
+          "assetType": "glb",
+          "src": "/assets/content/entities/castle/castle.glb"
+        }
+      ]
+    }
+  },
   "tutorial": [
     {
+      "id": "step-1",
+      "index": 0,
       "title": "Let's get you started with the XR app",
       "description": "This app enhances the book with interactive videos, animations, and references. Follow these steps to unlock the content.",
-      "illustration": "/assets/illustrations/tutorial-step-1.svg",
-      "index": 0,
-      "id": "step-1"
+      "illustration": "/assets/illustrations/tutorial-step-1.svg"
     },
     {
+      "id": "step-2",
+      "index": 1,
       "title": "Give Camera Access",
       "description": "Give camera access to the app to unlock the content.",
-      "illustration": "/assets/illustrations/tutorial-step-2.svg",
-      "index": 1,
-      "id": "step-2"
+      "illustration": "/assets/illustrations/tutorial-step-2.svg"
     },
     {
+      "id": "step-3",
+      "index": 2,
       "title": "Ensure Proper Lighting",
       "description": "Place the book in a well-lit area. Avoid shadows or glare for accurate scanning and detection of target images.",
-      "illustration": "/assets/illustrations/tutorial-step-3.svg",
-      "index": 2,
-      "id": "step-3"
+      "illustration": "/assets/illustrations/tutorial-step-3.svg"
     },
     {
+      "id": "step-4",
+      "index": 3,
       "title": "Scan Content",
       "description": "Point your camera at the marked images in the book. The app will scan and display available videos or animations.",
-      "illustration": "/assets/illustrations/tutorial-step-4.svg",
-      "index": 3,
-      "id": "step-4"
+      "illustration": "/assets/illustrations/tutorial-step-4.svg"
     },
     {
+      "id": "step-5",
+      "index": 4,
       "title": "Access Interactive Index",
       "description": "Use the index button on the bottom to find additional references and details about Kevin's inspirations. It works just like a regular index. Just point the camera at the marked images that interest you.",
-      "illustration": "/assets/illustrations/tutorial-step-5.svg",
-      "index": 4,
-      "id": "step-5"
+      "illustration": "/assets/illustrations/tutorial-step-5.svg"
     },
     {
-      "title": "Congratulations!",
-      "description": "Now you got all you need to enjoy the book. Don't forget to check back. We will add additional content every year on CROCODILES DAY June 17th!",
+      "id": "step-6",
       "index": 5,
-      "id": "step-6"
+      "title": "Congratulations!",
+      "description": "Now you got all you need to enjoy the book. Don't forget to check back. We will add additional content every year on CROCODILES DAY June 17th!"
     }
   ]
 }

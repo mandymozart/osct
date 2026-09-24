@@ -7,8 +7,7 @@ import {
   IHistoryManager,
   TargetHistoryEntry
 } from '@/types';
-import { getSpread, getTargets } from '@/utils/game-config';
-import config from './../../game.config.json';
+import { getConfigVersion, getSpread, getTargets } from '@/utils/game-config';
 
 /**
  * Manages user history and progress tracking
@@ -34,7 +33,7 @@ export class HistoryManager implements IHistoryManager {
   private checkConfigurationVersion(): void {
     try {
       const storedVersion = localStorage.getItem(this.CONFIG_VERSION_KEY);
-      const currentVersion = config.version;
+      const currentVersion = getConfigVersion();
 
       if (!storedVersion) {
         this.saveConfigurationVersion();
@@ -62,8 +61,7 @@ export class HistoryManager implements IHistoryManager {
    */
   private saveConfigurationVersion(): void {
     try {
-      const versionData: ConfigurationVersion =
-        config.version as unknown as ConfigurationVersion;
+      const versionData: ConfigurationVersion = getConfigVersion();
       localStorage.setItem(
         this.CONFIG_VERSION_KEY,
         JSON.stringify(versionData),
@@ -91,9 +89,7 @@ export class HistoryManager implements IHistoryManager {
       )[0];
 
       // Find spread in config
-      const spreadConfig = config.spreads.find(
-        (ch) => ch.id === lastEntry.spreadId,
-      );
+      const spreadConfig = getSpread(lastEntry.spreadId);
       const spreadName = spreadConfig?.title || lastEntry.spreadId;
 
       // Create a notification with resume action
@@ -171,8 +167,7 @@ export class HistoryManager implements IHistoryManager {
    */
   public getSpreadCompletionPercentage(spreadId: string): number {
     const spread =
-      this.game.state.spreads[spreadId] ||
-      config.spreads.find((ch) => ch.id === spreadId);
+      this.game.state.spreads[spreadId] || getSpread(spreadId);
 
     if (!spread) return 0;
 

@@ -1,5 +1,7 @@
 import { LoadingState } from "./common";
-import { TargetData } from "./targets";
+import { Entry } from "./entries";
+import { SpreadData } from "./game-config";
+import { Target } from "./targets";
 
 export interface ISpreadManager {
   getCurrentSpread(): string | null;
@@ -11,9 +13,6 @@ export interface ISpreadManager {
   isLoaded(id: string): boolean;
   getLoadingStatus(): { loaded: number; total: number };
 }
-
-// Pseudo type for the configuration file
-export type SpreadConfiguration = SpreadData[];
 
 export interface SpreadState {
   id: string;
@@ -27,15 +26,9 @@ export interface SpreadManagerState {
 }
 
 /**
- * Base data structure for a spread 
- * Similar to SpreadContent
+ * App model of a spread (mapped from `SpreadData` by `utils/game-config.ts`).
  */
-export interface SpreadData {
-  id: string;
-  order: number;
-  firstPage: number;
-  lastPage: number;
-  title: string;
-  mindSrc: string;
-  targets: TargetData[];
+export interface Spread extends SpreadData {
+  entries: Entry[]; // every entry on the spread's pages, with or without target
+  targets: Target[]; // in MindAR index order (matches the spread's .mind)
 }

@@ -1,5 +1,7 @@
-import { AssetData, SpreadData, TargetData } from "@/types";
-import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/game-config";
+import { AssetData, Target } from "@/types";
+import { getAssets, getEntry, getMaxTargetsPerSpread, getSpread, getSpreads, getTargets } from "@/utils/game-config";
+
+const attr = (value: string): string => value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 
 /**
  * Creates an asset HTML element string for the A-Frame scene
@@ -14,10 +16,9 @@ export const createAssetElement = (asset: AssetData): string => {
     case 'image':
       return `<img id="${asset.id}" src="${asset.src}">`;
     case 'video':
-      return `<video id="${asset.id}" src="${asset.src}" preload="auto" loop="true" webkit-playsinline playsinlinecrossorigin="anonymous"></video>`;
-    case 'link':
-      // Links don't need to be defined in the assets section
-      return '';
+      return `<video id="${asset.id}" src="${asset.src}" preload="auto" loop="true" webkit-playsinline playsinline crossorigin="anonymous"></video>`;
+    case 'audio':
+      return `<audio id="${asset.id}" src="${asset.src}" preload="auto" crossorigin="anonymous"></audio>`;
     default:
       console.warn(`Unknown asset type: ${asset.assetType} for ${asset.id}`);
       return '';
@@ -25,69 +26,62 @@ export const createAssetElement = (asset: AssetData): string => {
 };
 
 /**
- * Creates an entity HTML element string for the A-Frame scene based on target type
- * @param target The target data
+ * Creates an entity HTML element string for the A-Frame scene based on the entity type
+ * @param target The target (entity refs already resolved)
  * @returns HTML string representation of the entity
  */
-export const createEntityElement = (target: TargetData): string => {
-  const entityId = target.id;
-  const targetIndex = target.mindarTargetIndex;
+export const createEntityElement = (target: Target): string => {
   const { entity } = target;
-  
+  const asset = entity?.assets[0];
+
   let entityContent = '';
-  
-  if (!entity || !entity.assets || entity.assets.length === 0) {
-    return `
-    <a-entity id="${entityId}" mindar-image-target="targetIndex: ${targetIndex}"></a-entity>`;
-  }
-  
-  switch (entity.type) {
+
+  switch (entity?.type) {
+    case undefined:
+      // Target without AR entity (found indicator is app UI, Phase 3)
+      break;
+
     case 'model':
-      if (entity.assets && entity.assets.length > 0) {
-        const asset = entity.assets[0];
+      if (asset) {
         entityContent = `
     <a-gltf-model rotation="0 0 0" position="0 -0.25 0" scale="0.5 0.5 0.5" src="#${asset.id}" animation-mixer></a-gltf-model>`;
       }
       break;
-    
-    case 'link':
-      if (entity.assets && entity.assets.length > 0) {
-        const asset = entity.assets[0];
-        entityContent = `
-    <a-text value="${target.title}: ${target.description}" 
+
+    case 'link': {
+      // Shows the entry; the URL itself is the entry's `media`
+      const entry = getEntry(target.entryId);
+      entityContent = `
+    <a-text value="${attr(`${entry?.title ?? ''}: ${entry?.body ?? ''}`)}" 
             color="#FFFFFF" 
             position="0 0 0" 
             rotation="0 0 0" 
             scale="0.5 0.5 0.5"
-            id="${target.id}-${asset.id}"></a-text>
+            id="${target.id}-link"></a-text>
     <a-plane color="#000066" opacity="0.5" position="0 0 -0.01" width="2" height="0.5"></a-plane>`;
-      }
       break;
-    
+    }
+
     case 'video':
-      if (entity.assets && entity.assets.length > 0) {
-        const asset = entity.assets[0];
+      if (asset) {
         entityContent = `
     <a-video src="#${asset.id}" width="1" height="0.552" position="0 0 0" rotation="0 0 0"></a-video>`;
       }
       break;
-    
-    case 'basic':
-      if (entity.assets && entity.assets.length > 0) {
-        const asset = entity.assets[0];
-        if (asset.assetType === 'image') {
-          entityContent = `
+
+    case 'image':
+      if (asset) {
+        entityContent = `
     <a-image src="#${asset.id}" width="1" height="1" position="0 0 0" rotation="0 0 0"></a-image>`;
-        }
       }
       break;
-      
+
     default:
-      console.warn(`Unknown entity type: ${entity.type} for ${entityId}`);
+      console.warn(`Unknown entity type: ${entity?.type} for ${target.id}`);
   }
-  
+
   return `
-    <a-entity id="${entityId}" mindar-image-target="targetIndex: ${targetIndex}">${entityContent}
+    <a-entity id="${target.id}" mindar-image-target="targetIndex: ${target.index}">${entityContent}
     </a-entity>`;
 };
 
@@ -179,10 +173,7 @@ export const clearTemplateCache = (): void => {
  * @returns Record of all spread templates indexed by spread ID
  */
 export const getAllTemplates = (forceRefresh = false): Record<string, string> => {
-  // Import directly to get all spreads
-  const allSpreads = require('@/game.config.json').spreads as SpreadData[];
-  
-  return allSpreads.reduce((acc, spread) => {
+  return getSpreads().reduce((acc, spread) => {
     acc[spread.id] = getOrCreateTemplate(spread.id, forceRefresh);
     return acc;
   }, {} as Record<string, string>);

@@ -1,5 +1,7 @@
 import { GameStoreService } from "../../services/GameStoreService";
-import { tutorial } from "@/game.config.json";
+import { getTutorial } from "@/utils/game-config";
+
+const tutorial = getTutorial();
 import { GameMode, IGame } from "@/types/game";
 import { ITutorialNavigation } from "@/types/tutorial";
 

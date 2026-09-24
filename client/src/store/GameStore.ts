@@ -1,4 +1,3 @@
-import { version as configVersion } from "@/game.config.json";
 import {
   CameraPermissionStatus,
   ConfigurationVersion,
@@ -15,6 +14,7 @@ import {
   LoadingState
 } from "@/types";
 import { uniqueId } from "@/utils";
+import { getConfigVersion } from "@/utils/game-config";
 import { BaseStore } from "./BaseStore";
 import { CameraManager } from "./managers/CameraManager";
 import { SpreadManager } from "./managers/SpreadManager";
@@ -31,7 +31,7 @@ const initialState: GameState = {
   currentSpread: null,
   spreads: {}, 
   history: [],
-  configVersion: configVersion as unknown as ConfigurationVersion,
+  configVersion: getConfigVersion(),
   loading: LoadingState.LOADING,
   cameraPermission: CameraPermissionStatus.UNKNOWN
 }

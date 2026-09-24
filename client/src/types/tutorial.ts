@@ -1,17 +1,9 @@
-/**
- * Base data structure for a step that can be loaded from JSON configuration
- */
-export interface TutorialStepData {
-  index: number;
-  title: string;
-  description: string;
-  illustration?: string;
-}
+import { StepData } from "./game-config";
 
 /**
- * Configuration type for tutorial steps
+ * App model of a tutorial step (same shape as `StepData`)
  */
-export type TutorialConfiguration = TutorialStepData[];
+export type Step = StepData;
 
 /**
  * Interface for the TutorialNavigation component

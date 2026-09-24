@@ -35,7 +35,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ---
 
-## Phase 1 – Cleanup + taxonomy  `[~]` (1e open)
+## Phase 1 – Cleanup + taxonomy  `[x]`
 
 ### 1a. Remove QR  `[x]` done 2026-09-24
 Confirmed removal. Everything QR-related:
@@ -122,8 +122,12 @@ Done:
 
 ---
 
-### 1e. Content model + types  `[~]` (decided 2026-09-24, before Phase 2)
-Progress: [x] step 1 shared contract + guards · [ ] step 2 build + content · [ ] step 3 app
+### 1e. Content model + types  `[x]` done 2026-09-24
+Progress: [x] step 1 shared contract + guards · [x] step 2 build + content · [x] step 3 app
+Result: 12 entries (10 with target, nested), 1 shared entity (`castle`, via `ref`), `book.yaml`;
+build rewritten around the model (validates every file, spread by page, MindAR order page → order →
+id reproduces the compiled `.mind` files, `assertGameConfiguration` before writing); app reads only
+through `utils/game-config.ts`; 45 tests. Browser: scenes, found/lost by target id, index, tutorial OK.
 Why: 1d left redundancy (entry text copied onto targets, references in three directions, two copies
 of every type, six files reading `game.config.json` directly, casts without runtime checks).
 

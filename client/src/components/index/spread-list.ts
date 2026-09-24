@@ -1,5 +1,5 @@
 import { GameStoreService } from '@/services/GameStoreService';
-import { SpreadData, IGame, TargetData } from '@/types';
+import { Spread, IGame, Target } from '@/types';
 import { assert } from '@/utils';
 import './spread-item';
 import './target-item';
@@ -17,7 +17,7 @@ export interface ISpreadList extends HTMLElement {
  */
 export class SpreadList extends HTMLElement implements ISpreadList {
   private game: Readonly<IGame>;
-  private spreads: SpreadData[] = [];
+  private spreads: Spread[] = [];
   private expandedTargetId: string | null = null;
   private unsubscribe: (() => void) | null = null;
 
@@ -112,16 +112,8 @@ export class SpreadList extends HTMLElement implements ISpreadList {
   public updateSpreads() {
     assert(this.game, 'Game store not initialized');
 
+    // Already in spread order (content build)
     this.spreads = getSpreads();
-
-    this.spreads.sort((a, b) => {
-      const aData = getSpread(a.id);
-      const bData = getSpread(b.id);
-      if (aData && bData) {
-        return aData.order - bData.order;
-      }
-      return a.id.localeCompare(b.id);
-    });
 
     this.renderSpreads();
   }
@@ -156,13 +148,12 @@ export class SpreadList extends HTMLElement implements ISpreadList {
 
       // Append targets if they exist
       if (spread.targets && spread.targets.length > 0) {
-        spread.targets.forEach((target: TargetData) => {
-          if(target.hideFromIndex) return;
+        spread.targets.forEach((target: Target) => {
           // Create and append target item
           const targetItem = document.createElement('target-item') as any;
           targetItem.target = target;
           targetItem.isCurrent = isCurrent; // TODO: Is current makes no sense to inject via attribute
-          targetItem.isExpanded = this.expandedTargetId === target.bookId;
+          targetItem.isExpanded = this.expandedTargetId === target.id;
           container.appendChild(targetItem);
         });
       } else {
@@ -199,7 +190,7 @@ export class SpreadList extends HTMLElement implements ISpreadList {
     // Find the spread that contains this target
     for (const spread of this.spreads) {
       const targetExists = spread.targets.some(
-        (target: TargetData) => target.bookId === targetId,
+        (target: Target) => target.id === targetId,
       );
       if (targetExists && spread.id !== this.game?.state.currentSpread) {
         this.activateSpread(spread.id);

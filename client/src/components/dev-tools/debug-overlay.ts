@@ -1,6 +1,6 @@
-import { IGame, LoadingState, TargetData } from "@/types";
+import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { getAssets, getSpread, getTarget, getTargets } from "@/utils/game-config";
+import { getAssets, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "../../services/GameStoreService";
 import { SceneService } from '../../services/SceneService';
 
@@ -208,9 +208,8 @@ export class DebugOverlay extends HTMLElement {
     return html;
   }
 
-  private renderTargetInfo(target: TargetData, index: number): string {
-    // Get target configuration
-    const targetConfig = getTarget(target.id || '');
+  private renderTargetInfo(target: Target, index: number): string {
+    const entry = getEntry(target.entryId);
     
     let html = `
       <div class="target">
@@ -218,10 +217,10 @@ export class DebugOverlay extends HTMLElement {
     `;
 
     // Add image preview if available
-    if (targetConfig && targetConfig.imageTargetSrc) {
+    if (target.imageSrc) {
       html += `
         <div class="target-image">
-          <img src="${targetConfig.imageTargetSrc}" alt="${targetConfig.title || target.id || ''}" />
+          <img src="${target.imageSrc}" alt="${entry?.title || target.id}" />
         </div>
       `;
     }
