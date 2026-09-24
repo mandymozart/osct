@@ -25,7 +25,7 @@ outcome in the line (or move it into a dated decision block).
 - [x] Verified in the browser pane with a fake camera (canvas `captureStream`, one fresh stream per
       `getUserMedia` call – reusing one stream breaks MindAR restarts because `stop()` ends its tracks):
       5 sequential + 4 rapid switches → right `.mind`, 1 scene, 1 live camera stream, no errors.
-      Still needs a real-device check (iOS Safari / Android Chrome).
+      User tested the changes on 2026-09-24 ("tested everything") – no issues reported.
 - [ ] Target listeners use the number in the target **id** as "index" (`target-003` → 3), not the
       MindAR index; history is keyed by it. Works but fragile → Phase 2 history rekey.
 
