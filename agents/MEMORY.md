@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-24 – Spread switch reload loop fixed
+
+- [x] Reported by user: switching spreads caused a reload loop. Cause: `StaticSceneBridge.activate()`
+      called MindAR `unpause()` before the `.mind` targets were loaded (`controller` exists early,
+      `markerDimensions` is set later) → throws → the catch re-ran `setupScene()` (rebuilds the scene and
+      duplicates store listeners) → same race again. Fix: activate only after the scene's `arReady`
+      event; no re-init in the catch. Pre-existing, not caused by the maxTrack change.
+- [x] Fast switching raced (older load finished last → wrong scene, leaked camera streams). Scene loads
+      are now queued; each step loads the spread wanted at that moment (stale ones are skipped).
+      This was the Phase 4 "guard against stale loads" item. Debounce for the scroll menu still Phase 4.
+- [x] Verified in the browser pane with a fake camera (canvas `captureStream`, one fresh stream per
+      `getUserMedia` call – reusing one stream breaks MindAR restarts because `stop()` ends its tracks):
+      5 sequential + 4 rapid switches → right `.mind`, 1 scene, 1 live camera stream, no errors.
+      Still needs a real-device check (iOS Safari / Android Chrome).
+- [ ] Target listeners use the number in the target **id** as "index" (`target-003` → 3), not the
+      MindAR index; history is keyed by it. Works but fragile → Phase 2 history rekey.
+
 ## 2026-09-24 – Phase 1d done (entries) + Phase 0 constant
 
 Agent decisions (reversible, flagged for review):

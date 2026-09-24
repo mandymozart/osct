@@ -20,6 +20,10 @@ export class StaticSceneBridge extends HTMLElement {
 
   private initialized = false;
   private sceneInitialized = false;
+  // MindAR emits `arReady` once the .mind targets are loaded. Before that, unpause() throws
+  // (controller.markerDimensions is still null).
+  private arReady = false;
+  private sceneQueue: Promise<void> = Promise.resolve();
   private modeUnsubscribe: (() => void) | null = null;
   private spreadUnsubscribe: (() => void) | null = null;
 
@@ -129,7 +133,17 @@ export class StaticSceneBridge extends HTMLElement {
       if (!this.sceneElement) {
         throw new Error("Could not find a-scene element in template");
       }
-      
+
+      this.arReady = false;
+      const scene = this.sceneElement;
+      scene.addEventListener("arReady", () => {
+        if (scene !== this.sceneElement) return; // a newer spread replaced this scene
+        this.arReady = true;
+        if (this.currentMode === GameMode.DEFAULT || this.currentMode === GameMode.VR) {
+          this.activate();
+        }
+      });
+
       await this.waitForSceneToLoad();
       this.sceneService.setScene(this.sceneElement);
       this.system = this.sceneElement.systems["mindar-image-system"] as unknown as AFRAME.MindARImageSystem;
@@ -257,18 +271,18 @@ export class StaticSceneBridge extends HTMLElement {
       }
     });
     
-    this.spreadUnsubscribe = this.game.subscribeToProperty("currentSpread", async (spread) => {
-      if (spread && spread !== this.currentSpread) {
-        if (this.sceneInitialized) {
-          try {
-            await this.createSceneForSpread(spread);
-          } catch (error) {
-            console.error("[StaticSceneBridge] Error creating scene for new spread:", error);
-          }
-        } else {
-          console.log("[StaticSceneBridge] Received spread change but scene not yet initialized, deferring update");
+    this.spreadUnsubscribe = this.game.subscribeToProperty("currentSpread", () => {
+      // Load scenes one at a time. Each queued step loads the spread wanted *now*, so fast
+      // switching skips stale spreads instead of racing (wrong scene, leaked camera streams).
+      this.sceneQueue = this.sceneQueue.then(async () => {
+        const spread = this.game.state.currentSpread;
+        if (!spread || spread === this.currentSpread) return;
+        try {
+          await this.createSceneForSpread(spread);
+        } catch (error) {
+          console.error("[StaticSceneBridge] Error creating scene for new spread:", error);
         }
-      }
+      });
     });
   }
 
@@ -294,14 +308,12 @@ export class StaticSceneBridge extends HTMLElement {
       if (!granted || !this.system) {
         return;
       }
-      
-      if (!this.system.controller) {
-        setTimeout(() => {
-          this.activate();
-        }, 300);
+
+      // Not ready yet: the scene's arReady handler calls activate() again
+      if (!this.arReady) {
         return;
       }
-      
+
       window.document.body.classList.add("scene-active");
       
       try {
@@ -311,10 +323,9 @@ export class StaticSceneBridge extends HTMLElement {
           this.sceneElement.classList.add("active");
         }
       } catch (error) {
+        // Don't re-run setupScene() here: it rebuilds the scene and duplicates the store
+        // listeners, which caused a reload loop when switching spreads.
         console.error("[StaticSceneBridge] Error during activation:", error);
-        this.initialized = false;
-        this.sceneInitialized = false;
-        this.setupScene();
       }
     });
   }

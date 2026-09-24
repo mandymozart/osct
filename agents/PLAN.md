@@ -233,7 +233,8 @@ Adopt the tutorial flow and pages to the design (p.1–5). The tutorial stays; i
 - **Page menu** ("Pages activated", p.6–7): horizontal looped scroll at the bottom, lists
   **only spreads with content**, glass highlight on the active one, haptic on snap
   (`navigator.vibrate` – Android only, iOS Safari has none). Selecting = activate group
-  (debounce while scrolling; guard against stale loads in `StaticSceneBridge`).
+  (debounce while scrolling; ~~guard against stale loads in `StaticSceneBridge`~~ done 2026-09-24:
+  scene loads are queued, stale spreads skipped).
 - **Found-target indicator** (p.9–14) – [x] decided:
   - The image with drop shadow indicates a **found target that has no AR entity** projected in A-Frame.
   - **Scan mode:** it appears; tap/click opens the entry in consultation mode.
