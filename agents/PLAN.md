@@ -223,7 +223,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   **Refined 2026-09-24 (definitions):**
   - **Mode** = UI context from the design (which chrome, what Mark the Page does): `IDLE` (home,
     onboarding), `SCAN`, `CONSULTATION`. `VR` removed (never set, VR UI disabled in every scene).
-  - **Scene state** = derived, never set directly: `SceneService.getSceneState(mode, route)` → `RUNNING` (scan) / `PAUSED` (consultation; idle for now) / `STOPPED`
+  - **Scene state** = derived, never set directly: `getSceneState(mode, route)` in
+    `components/aframe-bridges/utils/scene-state.ts` → `RUNNING` (scan) / `PAUSED` (consultation; idle for now) / `STOPPED`
     (idle, once `autoStart` is off – Phase 5/6). PAUSED = MindAR tracking + camera video paused, stream
     kept, last frame frozen behind the (dark, slightly transparent) UI, instant resume.
   - **Overlay** = route without a mode (error, not-found): keeps the mode, **pauses the scene** (saves
@@ -287,6 +288,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   - The content version comes from the **scripts package version**, not from the content itself →
     content changes don't bump it. Should be versioned **by the content builder** (e.g. explicit
     version in `content/`, or a hash of the bundle).
+  - `utils/game-config.ts` is a primitive service (module-level singleton) → move it to `services/`
+    when the data access is built (runtime/CDN loading, generated API) – RULES #17.
   - `game.config.json` is **imported at build time** → content is baked into the app build. A future
     **CDN upload** from the content builder needs the config (+ assets) to be fetched at runtime,
     with the content version in the path/manifest, and a check which app versions can read it.

@@ -6,10 +6,13 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-09-24 – Code placement (RULES #17)
 
-- [x] (user) `getSceneState` / `isOverlayRoute` / `SCENE_STATE_BY_MODE` moved from `utils/scene-state.ts`
-      into `SceneService` (scene logic, not store state, creates no DOM). Test:
-      `services/__tests__/SceneService.test.ts`.
-- [x] `utils/game-config.ts` stays in `utils/` – used across components, pages, managers and bridges.
+- [x] (user) Scene state policy (`getSceneState`, `isOverlayRoute`, `SCENE_STATE_BY_MODE`) lives in the
+      A-Frame context: `components/aframe-bridges/utils/scene-state.ts` (test next to it). MindAR is an
+      A-Frame plugin; the bridges are the A-Frame context inside the app. A short-lived move into
+      `SceneService` (commit cfd0674) was reverted: `SceneService` is itself A-Frame specific and is
+      replaced by `ArScene` inside the bridge context in Phase 6 – no new logic there.
+- [x] (user) `utils/game-config.ts` is a primitive service → moves to `services/` with the data access
+      work (PLAN Phase 2 versioning). Not moved yet.
 - [x] (user) Empty `components/slotted-page/` removed (untracked, empty). `components/three-bridges/` is
       empty too – [ ] ask whether to remove. Old `.mind` files in `client/src/targets/` → Tilman's cleanup.
 

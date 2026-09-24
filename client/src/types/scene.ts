@@ -1,6 +1,4 @@
 import { Scene } from "aframe";
-import { GameMode } from "./game";
-import { PageRoute } from "./router";
 
 /**
  * Interface for the SceneService which manages the A-Frame scene
@@ -32,20 +30,10 @@ export interface ISceneService {
    * @returns Cleanup function to unregister the callback
    */
   onSceneChanged(callback: (scene: Scene) => void): () => void;
-
-  /**
-   * Whether a route is an overlay (no mode of its own)
-   */
-  isOverlayRoute(route: PageRoute | null): boolean;
-
-  /**
-   * What the scene should be doing for a game mode and the current route
-   */
-  getSceneState(mode: GameMode, route: PageRoute | null): SceneState;
 }
 /**
  * What the A-Frame scene / MindAR should be doing. Derived from the game mode and the current
- * route (`SceneService.getSceneState`), applied by the scene bridge. Ordered from least to most active.
+ * route (`aframe-bridges/utils/scene-state.ts`), applied by the scene bridge. Ordered from least to most active.
  * STOPPED: camera released · PAUSED: tracking + video paused, camera stream kept (instant resume,
  * last frame frozen behind the UI) · RUNNING: camera, tracking and rendering.
  */
