@@ -1,4 +1,4 @@
-import { AssetData, AssetType, TargetData } from "@/types";
+import { AssetData, Target } from "@/types";
 import { Entity } from "aframe";
 
 /**
@@ -69,11 +69,11 @@ export const link = (parentEntity: Entity, asset: AssetData): void => {
  * @param target The target data containing entity information
  * @returns An A-Frame entity element configured for a tracking target
  */
-export const target = (parentEntity: Entity, target: TargetData): void => {
+export const target = (parentEntity: Entity, target: Target): void => {
     const entity = document.createElement('a-entity');
     entity.setAttribute('id', target.id);
-    entity.setAttribute('mindar-image-target', `targetIndex: ${target.mindarTargetIndex}`);
-    attachAssets(entity, target.entity.assets);
+    entity.setAttribute('mindar-image-target', `targetIndex: ${target.index}`);
+    attachAssets(entity, target.entity?.assets ?? []);
     parentEntity.appendChild(entity);
 }
 
@@ -90,8 +90,6 @@ export const attachAssets = (parentEntity: Entity, assets: AssetData[]): void =>
                 return model(parentEntity, asset);
             case 'video':
                 return video(parentEntity, asset);
-            case 'link':
-                return link(parentEntity, asset);
             case 'audio':
             case 'image':
                 return image(parentEntity, asset);
@@ -101,7 +99,7 @@ export const attachAssets = (parentEntity: Entity, assets: AssetData[]): void =>
     });
 }
 
-export const attachEntities = (parentEntity: Entity, entities: TargetData[]): void => {
+export const attachEntities = (parentEntity: Entity, entities: Target[]): void => {
     entities.forEach(entity => {
         target(parentEntity, entity);
     });

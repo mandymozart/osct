@@ -1,15 +1,14 @@
-import { spreads, initialSpreadId } from "@/game.config.json";
-import { SpreadData, GameState, LoadingState } from "../types";
+import { Spread, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
-import { getSpread } from "@/utils/game-config";
+import { getInitialSpreadId, getSpread } from "@/utils/game-config";
 
 export class SpreadPage extends PageMinimal {
   static get observedAttributes() {
     return ["spread-id"];
   }
 
-  private spread: SpreadData | undefined = undefined;
+  private spread: Spread | undefined = undefined;
   private spreadId: string | null = null;
   
 // TODO: pointer events propagation when overlayed. but this depends on how we want to handle the overlay.
@@ -130,7 +129,7 @@ disconnectedCallback() {
 
     console.log("[SpreadPage] spreadId:", this.spreadId)
     if (!this.spreadId) {
-      this.spreadId = initialSpreadId;
+      this.spreadId = getInitialSpreadId();
       return;
     }
 

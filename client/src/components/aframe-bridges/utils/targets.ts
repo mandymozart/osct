@@ -4,20 +4,6 @@ import { GameStoreService } from "@/services/GameStoreService";
 import { SceneService } from "@/services/SceneService";
 
 /**
- * Maps target IDs to their corresponding numeric indices for the game store
- * @param targetId The string ID of the target (e.g., "target-001")
- * @returns The numeric index extracted from the ID, or -1 if not valid
- */
-export const getTargetIndexFromId = (targetId: string): number => {
-  // Extract numeric portion from IDs like "target-001" or "target-42"
-  const matches = targetId.match(/target-(\d+)/);
-  if (matches && matches.length > 1) {
-    return parseInt(matches[1], 10);
-  }
-  return -1; // Invalid ID format
-};
-
-/**
  * Sets up event listeners for target entities in the current scene
  * 
  * @returns A cleanup function to remove the event listeners
@@ -66,12 +52,13 @@ export const setupTargetListeners = (): (() => void) => {
       return;
     }
     
-    // Convert string ID to numeric index
-    const targetIndex = getTargetIndexFromId(targetId);
-    if (targetIndex < 0) {
-      console.warn(`[TargetUtils] Could not extract numeric index from target ID: ${targetId}`);
+    // The element id is the target id; the MindAR index comes from the game configuration
+    const target = getTarget(targetId);
+    if (!target) {
+      console.warn(`[TargetUtils] Target ${targetId} not found in the game configuration, skipping`);
       return;
     }
+    const targetIndex = target.index;
     
     console.log(`[TargetUtils] Setting up listeners for target: ${targetId} (index: ${targetIndex})`);
     
@@ -89,12 +76,10 @@ export const setupTargetListeners = (): (() => void) => {
       // Add a small delay to prevent state update collisions
       targetFoundTimeout = window.setTimeout(() => {
         try {
-          // Get target data from config
           const targetData = getTarget(targetId);
           
           if (targetData) {
-            // Add target to game state using numeric index
-            game.targets.addTarget(targetIndex);
+            game.targets.addTarget(targetId);
             
             // Dispatch a custom event that other components can listen for
             const customEvent = new CustomEvent("osct-target-found", {
@@ -121,8 +106,7 @@ export const setupTargetListeners = (): (() => void) => {
       // Add a small delay to prevent state update collisions
       targetLostTimeout = window.setTimeout(() => {
         try {
-          // Remove target from game state using numeric index
-          game.targets.removeTarget(targetIndex);
+          game.targets.removeTarget(targetId);
           
           // Dispatch a custom event that other components can listen for
           const customEvent = new CustomEvent("osct-target-lost", {
@@ -157,20 +141,15 @@ export const setupTargetListeners = (): (() => void) => {
  * @param targetId The ID of the target to check
  * @returns True if the target is currently tracked, false otherwise
  */
-export const isTargetTracked = (game: Readonly<IGame>, targetId: string): boolean => {
-  const targetIndex = getTargetIndexFromId(targetId);
-  if (targetIndex < 0) return false;
-  
-  // Check if the target index is in the tracked targets array
-  return game.targets.getTrackedTargets().includes(targetIndex);
-};
+export const isTargetTracked = (game: Readonly<IGame>, targetId: string): boolean =>
+  game.targets.getTrackedTargets().includes(targetId);
 
 /**
  * Helper function to get all currently tracked targets
  * 
  * @param game The game store instance
- * @returns Array of tracked target indices
+ * @returns Ids of the tracked targets
  */
-export const getTrackedTargets = (game: Readonly<IGame>): number[] => {
+export const getTrackedTargets = (game: Readonly<IGame>): string[] => {
   return game.targets.getTrackedTargets();
 };

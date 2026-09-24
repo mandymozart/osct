@@ -1,7 +1,7 @@
 import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/game-config";
 import { Scene } from "aframe";
 import { attachAssets, attachEntities } from "./createEntities";
-import { AssetData, TargetData } from "@/types";
+import { AssetData, Target } from "@/types";
 
 /**
    * Create an A-Frame scene element for the spread
@@ -11,7 +11,7 @@ import { AssetData, TargetData } from "@/types";
 export const createScene = (id: string): Scene => {
     const spreadData = getSpread(id);
     const allAssetsData: AssetData[] = getAssets(id);
-    const entitiesData: TargetData[] = getTargets(id);
+    const entitiesData: Target[] = getTargets(id);
     if(!spreadData) {
       throw new Error(`Spread ${id} not found`);
     }

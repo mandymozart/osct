@@ -1,6 +1,6 @@
-import { tutorial } from "@/game.config.json";
 import { GameState, IGame } from "@/types/game";
-import { ITutorialNavigation, TutorialStepData } from "@/types/tutorial";
+import { ITutorialNavigation, Step } from "@/types/tutorial";
+import { getTutorial } from "@/utils/game-config";
 import { assert } from "../utils/assert";
 import { Page } from "./page";
 
@@ -51,7 +51,7 @@ export class TutorialPage extends Page {
     `;
   }
 
-  private steps: TutorialStepData[] = tutorial;
+  private steps: Step[] = getTutorial();
   private currentStep: string | null = null;
   private content: HTMLElement | null = null;
   private navigation: ITutorialNavigation | null = null;

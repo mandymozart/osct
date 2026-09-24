@@ -1,5 +1,7 @@
 /**
- * Content schema definitions for validation
+ * Authoring rules for the YAML files in `content/` (validated with `validateContent`).
+ * The output shape is the game configuration contract in `shared/types/game-config.ts`.
+ * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 
 // Define schema field interface
@@ -19,47 +21,30 @@ interface Schema {
 
 // Export schemas object
 export const schemas: Record<string, Schema> = {
-  // Spread schema
+  // content/book.yaml
+  book: {
+    fields: {
+      id: { type: "String", required: true },
+      title: { type: "String", required: true },
+      author: { type: "String", required: true },
+    },
+  },
+
+  // content/spreads/<id>/spread.yaml
   spread: {
     orderBy: "order",
     fields: {
-      type: { type: "String", required: true, default: "spread" },
-      id: { type: "String", required: true },
-      order: { type: "Number", required: false, default: 0 },
       title: { type: "String", required: true },
-      firstPage: { type: "Number", required: false, default: 1 },
-      lastPage: { type: "Number", required: false, default: 1 },
-      imageTargetSrc: { type: "String", required: false },
-    },
-  },
-
-  // Target schema
-  target: {
-    orderBy: "order",
-    fields: {
-      type: { type: "String", required: true, default: "target" },
-      id: { type: "String", required: true },
-      relatedSpread: { type: "String", required: true, rel: "spread" },
       order: { type: "Number", required: false, default: 0 },
-      imageTargetSrc: { type: "String", required: true },
-      bookId: { type: "String", required: false },
-      targetType: {
-        type: "String",
-        required: false,
-        default: "basic",
-        enum: ["basic", "model", "video", "link"],
-      },
-      assets: { type: "List", required: false, default: [], rel: "asset" },
-      relatedTargets: { type: "List", required: false, default: [] },
-      tags: { type: "List", required: false, default: [] },
+      firstPage: { type: "Number", required: true },
+      lastPage: { type: "Number", required: true },
+      mind: { type: "String", required: true },
     },
   },
 
-  // Entry schema – top-level content revealed by a target (or listed without one)
+  // content/entries/<id>/entry.yaml
   entry: {
     fields: {
-      type: { type: "String", required: true, default: "entry" },
-      id: { type: "String", required: true },
       category: {
         type: "String",
         required: true,
@@ -71,37 +56,38 @@ export const schemas: Record<string, Schema> = {
       body: { type: "String", required: false, default: "" },
       image: { type: "String", required: false },
       media: { type: "String", required: false },
-      target: { type: "String", required: false, rel: "target" },
-      hideFromIndex: { type: "Boolean", required: false, default: false },
+      tags: { type: "List", required: false, default: [] },
+      target: { type: "Object", required: false }, // { id?, image, order?, entity? }
     },
   },
 
-  // Asset schema
-  asset: {
+  // entry.target
+  target: {
     fields: {
-      type: { type: "String", required: true, default: "asset" },
-      id: { type: "String", required: true },
-      assetType: {
-        type: "String",
-        required: true,
-        enum: ["model", "image", "video", "audio", "glb", "gltf"],
-      },
-      src: { type: "String", required: true },
-      title: { type: "String", required: false },
-      alt: { type: "String", required: false },
-    },
-  },
-
-  // Step schema for tutorial content
-  step: {
-    orderBy: "order",
-    fields: {
-      type: { type: "String", required: true, default: "step" },
-      id: { type: "String", required: true },
+      id: { type: "String", required: false }, // defaults to the entry id
+      image: { type: "String", required: true },
       order: { type: "Number", required: false, default: 0 },
+      entity: { type: "Object", required: false }, // inline { type, src?, params? } or { ref }
+    },
+  },
+
+  // content/entities/<id>/entity.yaml
+  entity: {
+    fields: {
+      type: { type: "String", required: true, enum: ["model", "video", "image", "link"] },
+      assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
+      params: { type: "Object", required: false },
+    },
+  },
+
+  // content/steps/<id>/step.yaml (tutorial)
+  step: {
+    orderBy: "index",
+    fields: {
+      index: { type: "Number", required: true },
       title: { type: "String", required: true },
       description: { type: "String", required: true },
-      image: { type: "String", required: false },
+      illustration: { type: "String", required: false },
     },
   },
 };

@@ -11,79 +11,65 @@ import {
   SCRIPTS_SRC_DIR,
   MAX_TARGETS_PER_SPREAD
 } from './config';
+import { validateContent } from './utils/validation';
+import { assertGameConfiguration, GameConfigurationError } from '../../shared/guards/game-config';
+import type {
+  AssetData,
+  AssetType,
+  BookData,
+  EntityData,
+  EntityRefData,
+  EntryData,
+  GameConfiguration,
+  SpreadData,
+  StepData,
+  TargetData
+} from '../../shared/types/game-config';
+
+/**
+ * OSCT content build: `content/` (YAML + media) → `client/src/game.config.json`
+ * (+ copy of `content/` in `client/public/assets/content`, target images in `mind-ar/`).
+ *
+ * Source layout (folder name = id):
+ *   content/book.yaml
+ *   content/spreads/<id>/spread.yaml   title, order, firstPage, lastPage, mind
+ *   content/entries/<id>/entry.yaml    category, title, page, body, …, target? { image, order?, id?, entity? }
+ *   content/entities/<id>/entity.yaml  type, assets[{ id?, src }], params   (referenced as entity: { ref })
+ *   content/steps/<id>/step.yaml       tutorial
+ */
 
 // Text files get normalised line endings before hashing
 const TEXT_FILE = /\.(ya?ml|json|ts|js|md|txt|html|css)$/i;
-import { validateContent } from './utils/validation';
 
-// Global mapping between target ID and folder name
-const targetFolderMap: Record<string, string> = {};
+const ASSET_TYPE_BY_EXTENSION: Record<string, AssetType> = {
+  '.glb': 'glb',
+  '.gltf': 'gltf',
+  '.mp4': 'video',
+  '.webm': 'video',
+  '.mov': 'video',
+  '.jpg': 'image',
+  '.jpeg': 'image',
+  '.png': 'image',
+  '.webp': 'image',
+  '.mp3': 'audio',
+  '.wav': 'audio',
+  '.ogg': 'audio',
+};
 
 // Content errors collected during the build. Any error fails the build before files are written.
 const buildErrors: string[] = [];
 
-// Import types from main project
-import type {
-  AssetContent,
-  BaseContent,
-  EntryContent,
-  SpreadContent,
-  StepContent,
-  TargetContent
-} from './types/content';
-
-import type {
-  AssetData,
-  EntryData,
-  GameConfiguration,
-  TargetData
-} from './types/game';
+interface SourceItem {
+  id: string; // folder name
+  file: string;
+  data: Record<string, any>;
+}
 
 console.log('🚀 OSCT Content Build Tool 🚀');
 console.log('----------------------------');
 console.log('📁 Project root:', projectRoot);
 console.log('📁 Content directory:', CONTENT_DIR);
 console.log('📄 Output file:', OUTPUT_FILE);
-console.log('📁 MindAR directory:', MINDAR_DIR);
-console.log('📁 Client public assets directory:', CLIENT_PUBLIC_ASSETS_DIR);
-
-// Check if directories exist to help with debugging
-console.log('📂 Content directory exists:', fs.existsSync(CONTENT_DIR));
-console.log('📂 Content/spreads exists:', fs.existsSync(path.join(CONTENT_DIR, 'spreads')));
-console.log('📂 Content/targets exists:', fs.existsSync(path.join(CONTENT_DIR, 'targets')));
-
-// Extended interfaces to track file paths and metadata
-interface MetadataFields {
-  _filePath?: string;
-  _folderPath?: string;
-  _folderName?: string;
-  _originalId?: string;
-  _sourcePath?: string;
-  assetIds?: string[];
-}
-
-// Use type intersections to combine content and metadata
-type SpreadWithMetadata = SpreadContent & MetadataFields;
-type TargetWithMetadata = TargetContent & MetadataFields;
-type StepWithMetadata = StepContent & MetadataFields;
-type AssetWithMetadata = AssetContent & MetadataFields;
-type EntryWithMetadata = EntryContent & MetadataFields;
-type ContentWithMetadata = BaseContent & MetadataFields;
-
-// TODO: Add schema validation
-
-/**
- * Convert a string or array value to an array
- * This is used for tags, relatedTargets, assets, etc.
- */
-function ensureArray(value: string | string[] | undefined): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value;
-  if (typeof value === 'string') {
-    return value.split(',').map(item => item.trim()).filter(Boolean);
-  }
-  return [];
-}
 
 /**
  * Recursively delete a directory
@@ -93,10 +79,8 @@ function deleteFolderRecursive(folderPath: string): void {
     fs.readdirSync(folderPath).forEach((file) => {
       const curPath = path.join(folderPath, file);
       if (fs.lstatSync(curPath).isDirectory()) {
-        // Recursive call for directories
         deleteFolderRecursive(curPath);
       } else {
-        // Delete file
         fs.unlinkSync(curPath);
       }
     });
@@ -105,669 +89,26 @@ function deleteFolderRecursive(folderPath: string): void {
 }
 
 /**
- * Read all content files from the content directory
+ * Recursively copy a directory
+ * @returns Number of files copied
  */
-function readContentFiles(): ContentWithMetadata[] {
-  const result: ContentWithMetadata[] = [];
-  const targetIDs = new Set<string>(); // Track target IDs to detect duplicates
-  
-  // Read spreads from subdirectories
-  const spreadsDir = path.join(CONTENT_DIR, 'spreads');
-  if (fs.existsSync(spreadsDir)) {
-    // Get all subdirectories in spreads directory
-    const spreadDirs = fs.readdirSync(spreadsDir, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
-    
-    // Process each spread subdirectory
-    for (const spreadDir of spreadDirs) {
-      const spreadPath = path.join(spreadsDir, spreadDir);
-      const spreadFile = path.join(spreadPath, 'spread.yaml');
-      
-      if (fs.existsSync(spreadFile)) {
-        try {
-          const content = fs.readFileSync(spreadFile, 'utf8');
-          const data = yaml.load(content) as SpreadWithMetadata;
-          
-          // Store file path in the data for reference
-          data._filePath = spreadFile;
-          data._folderName = spreadDir; // Store folder name for path resolution
-          
-          if (data) {
-            // Ensure type is set to spread
-            data.type = 'spread';
-            
-            // If id is not set, use the directory name
-            if (!data.id) {
-              data.id = spreadDir;
-            }
-            
-            result.push(data);
-          }
-        } catch (error) {
-          console.error(`Error reading spread file ${spreadFile}:`, error);
-        }
-      }
-    }
-  }
-  
-  // Read targets and their assets
-  const targetsDir = path.join(CONTENT_DIR, 'targets');
-  if (fs.existsSync(targetsDir)) {
-    const targetFolders = fs.readdirSync(targetsDir, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
-    
-    for (const folder of targetFolders) {
-      const targetFolder = path.join(targetsDir, folder);
-      
-      // Look for target.yaml file
-      const targetFile = path.join(targetFolder, 'target.yaml');
-      if (fs.existsSync(targetFile)) {
-        try {
-          const content = fs.readFileSync(targetFile, 'utf8');
-          const targetData = yaml.load(content) as TargetWithMetadata;
-          
-          // Store file path and folder path in the data for reference
-          targetData._filePath = targetFile;
-          targetData._folderPath = targetFolder;
-          targetData._folderName = folder; // Store folder name for future reference
-          
-          if (targetData && targetData.type === 'target') {
-            // Check for duplicate target IDs
-            if (targetIDs.has(targetData.id)) {
-              console.warn(`WARNING: Duplicate target ID detected: ${targetData.id} in ${targetFolder}`);
-              console.warn(`To ensure correct processing, the folder name ${folder} will be appended to the ID.`);
-              
-              // Generate a unique ID by appending the folder name to the target ID
-              targetData._originalId = targetData.id; // Store the original ID for reference
-              targetData.id = `${targetData.id}-${folder}`;
-              console.log(`Target ID has been modified to: ${targetData.id}`);
-            }
-            
-            // Add to tracked IDs
-            targetIDs.add(targetData.id);
-            
-            // Store the mapping between target ID and folder name for later use
-            targetFolderMap[targetData.id] = folder;
-            
-            // Look for asset files in the same folder
-            const assetFiles = fs.readdirSync(targetFolder)
-              .filter(file => (file.endsWith('.asset.yaml') || file.endsWith('.asset.yml')));
-            
-            // Initialize arrays for assets
-            const assetObjects: AssetWithMetadata[] = [];
-            targetData.assetIds = [];
-            
-            if (assetFiles.length > 0) {
-              for (const assetFile of assetFiles) {
-                try {
-                  const assetPath = path.join(targetFolder, assetFile);
-                  const assetContent = fs.readFileSync(assetPath, 'utf8');
-                  const assetData = yaml.load(assetContent) as AssetWithMetadata;
-                  
-                  // Store file path in the asset data for reference
-                  assetData._filePath = assetPath;
-                  
-                  if (assetData && assetData.type === 'asset') {
-                    assetObjects.push(assetData);
-                    
-                    // Add ID to assetIds array
-                    if (assetData.id && !targetData.assetIds.includes(assetData.id)) {
-                      targetData.assetIds.push(assetData.id);
-                    }
-                  }
-                } catch (error) {
-                  console.error(`Error reading asset file ${assetFile}:`, error);
-                }
-              }
-            }
-            
-            // TODO: this can be handled by schema validation and type conversion
-            // If the target has a comma-separated assets field, convert it to an array
-            if (typeof targetData.assets === 'string') {
-              targetData.assetIds = ensureArray(targetData.assets);
-            } else if (Array.isArray(targetData.assets) && targetData.assets.length > 0 && typeof targetData.assets[0] === 'string') {
-              targetData.assetIds = targetData.assets as string[];
-            } else {
-              // Initialize empty array if nothing else
-              targetData.assetIds = targetData.assetIds || [];
-            }
-            
-            // Store asset metadata objects separately for transformation
-            (targetData as any)._assetObjects = assetObjects;
-            
-            result.push(targetData);
-          }
-        } catch (error) {
-          console.error(`Error reading target file in ${folder}:`, error);
-        }
-      }
-    }
-  }
-  
-  // Read entries from subdirectories
-  const entriesDir = path.join(CONTENT_DIR, 'entries');
-  if (fs.existsSync(entriesDir)) {
-    const entryDirs = fs.readdirSync(entriesDir, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
-
-    for (const entryDir of entryDirs) {
-      const entryFile = path.join(entriesDir, entryDir, 'entry.yaml');
-      if (!fs.existsSync(entryFile)) continue;
-
-      try {
-        const data = yaml.load(fs.readFileSync(entryFile, 'utf8')) as EntryWithMetadata;
-        if (data) {
-          data.type = 'entry';
-          data.id = data.id || entryDir;
-          data._filePath = entryFile;
-          data._folderName = entryDir;
-          result.push(data as unknown as ContentWithMetadata);
-        }
-      } catch (error) {
-        buildErrors.push(`Error reading entry file ${entryFile}: ${error}`);
-      }
-    }
+function copyFolderRecursive(source: string, target: string): number {
+  if (!fs.existsSync(target)) {
+    fs.mkdirSync(target, { recursive: true });
   }
 
-  // Read tutorial steps from subdirectories
-  const stepsDir = path.join(CONTENT_DIR, 'steps');
-  if (fs.existsSync(stepsDir)) {
-    // Get all subdirectories in steps directory
-    const stepDirs = fs.readdirSync(stepsDir, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
-    
-    // Process each step subdirectory
-    for (const stepDir of stepDirs) {
-      const stepPath = path.join(stepsDir, stepDir);
-      const stepFile = path.join(stepPath, 'step.yaml');
-      
-      if (fs.existsSync(stepFile)) {
-        try {
-          const content = fs.readFileSync(stepFile, 'utf8');
-          const data = yaml.load(content) as StepWithMetadata;
-          
-          // Store file path in the data for reference
-          data._filePath = stepFile;
-          
-          if (data) {
-            // Ensure type is set to step
-            data.type = 'step';
-            
-            // If id is not set, use the directory name
-            if (!data.id) {
-              data.id = stepDir;
-            }
-            
-            result.push(data);
-          }
-        } catch (error) {
-          console.error(`Error reading step file ${stepFile}:`, error);
-        }
-      }
-    }
-  }
-  
-  return result;
-}
-
-/**
- * Transform target data to match the expected format for game.config.json
- */
-function transformTargetData(target: TargetWithMetadata): TargetData {
-  // Deep clone to avoid modifying original
-  const result = { ...target } as any;
-
-  // Create entity structure expected by GameConfiguration
-  result.entity = {
-    type: result.entityType || 'basic',
-    assets: [] as AssetData[] // Initialize with empty array
-  };
-  
-  // Convert order to mindarTargetIndex - this is temporary and will be replaced with sequential indices later
-  result.mindarTargetIndex = result.order || 0;
-  
-  // Use assetIds for entity.assets if available, otherwise just include empty assets array
-  if (result.assetIds && Array.isArray(result.assetIds)) {
-    // Map asset IDs to their corresponding asset files
-    
-    // Find all relevant asset files
-    if (result._assetObjects && Array.isArray(result._assetObjects)) {
-      for (const assetId of result.assetIds) {
-        // Find the corresponding asset file
-        const assetFile = result._assetObjects.find((asset: AssetContent) => asset.id === assetId);
-        
-        // Add the asset to entity.assets
-        if (assetFile) {
-          const assetData: AssetData = {
-            id: assetFile.id,
-            assetType: assetFile.assetType,
-            type: assetFile.type,
-            src: assetFile.src
-          };
-          
-          result.entity.assets.push(assetData);
-        } else {
-          // If asset file not found, just add the ID
-          result.entity.assets.push({ id: assetId });
-        }
-      }
+  let fileCount = 0;
+  for (const file of fs.readdirSync(source)) {
+    const sourcePath = path.join(source, file);
+    const targetPath = path.join(target, file);
+    if (fs.statSync(sourcePath).isDirectory()) {
+      fileCount += copyFolderRecursive(sourcePath, targetPath);
     } else {
-      // If no asset files found, just add the IDs
-      result.entity.assets = result.assetIds.map((assetId: string) => ({ id: assetId }));
+      fs.copyFileSync(sourcePath, targetPath);
+      fileCount++;
     }
   }
-  
-  // Ensure tags and relatedTargets are arrays
-  if (result.tags) {
-    result.tags = ensureArray(result.tags);
-  } else {
-    result.tags = [];
-  }
-  
-  if (result.relatedTargets) {
-    result.relatedTargets = ensureArray(result.relatedTargets);
-  } else {
-    result.relatedTargets = [];
-  }
-  
-  // Clean up properties not needed in the final output
-  delete result.assetIds;
-  delete result.assets;
-  delete result.type;
-  delete result.relatedSpread;
-  delete result.entityType;
-  delete result.order; // Remove order since we've converted it to mindarTargetIndex
-  
-  // IMPORTANT: DO NOT remove metadata properties yet - they are needed for the prepareTargetImages function
-  // These properties will be removed after the images are processed
-  
-  return result as TargetData;
-}
-
-/**
- * Associate targets with their respective spreads
- */
-function associateTargets(spreads: SpreadWithMetadata[], targets: TargetWithMetadata[]): SpreadWithMetadata[] {
-  const targetsBySpread: Record<string, TargetData[]> = {};
-  
-  // Group targets by spread
-  for (const target of targets) {
-    const spreadId = target.relatedSpread;
-    if (!spreadId) {
-      buildErrors.push(`Target ${target.id} has no relatedSpread.`);
-      continue;
-    }
-    if (!spreads.some(spread => spread.id === spreadId)) {
-      buildErrors.push(`Target ${target.id}: relatedSpread "${spreadId}" does not exist.`);
-      continue;
-    }
-    
-    if (!targetsBySpread[spreadId]) {
-      targetsBySpread[spreadId] = [];
-    }
-    
-    targetsBySpread[spreadId].push(transformTargetData(target));
-  }
-  
-  // Associate targets with spreads and assign proper sequential mindarTargetIndex
-  for (const spread of spreads) {
-    // Get targets for this spread
-    const spreadTargets = targetsBySpread[spread.id] || [];
-    
-    if (spreadTargets.length > MAX_TARGETS_PER_SPREAD) {
-      buildErrors.push(
-        `Spread ${spread.id} has ${spreadTargets.length} targets, max is ${MAX_TARGETS_PER_SPREAD}.`
-      );
-    }
-
-    // Sort targets by their original order/mindarTargetIndex
-    spreadTargets.sort((a, b) => a.mindarTargetIndex - b.mindarTargetIndex);
-    
-    // Now, REPLACE the mindarTargetIndex with sequential indices (0, 1, 2...)
-    // This ensures we don't have gaps in the sequence
-    for (let i = 0; i < spreadTargets.length; i++) {
-      // Explicitly set the index to ensure proper sequencing
-      spreadTargets[i].mindarTargetIndex = i;
-    }
-    
-    // Assign the sorted and reindexed targets to the spread
-    (spread as any).targets = spreadTargets;
-  }
-  
-  return spreads;
-}
-
-/**
- * Validate entries and link them 1:1 to their targets.
- * Entry text (title, description, hideFromIndex) is copied onto the target output until the
- * index is rebuilt around entries (Phase 4).
- */
-function linkEntries(entries: EntryWithMetadata[], spreads: SpreadWithMetadata[]): EntryData[] {
-  const targets = new Map<string, { target: any; spread: SpreadWithMetadata }>();
-  for (const spread of spreads) {
-    for (const target of (spread as any).targets ?? []) {
-      targets.set(target.id, { target, spread });
-    }
-  }
-
-  const entryByTarget = new Map<string, string>();
-  const result: EntryData[] = [];
-
-  for (const raw of entries) {
-    let entry: EntryWithMetadata;
-    try {
-      entry = { ...validateContent(raw, 'entry'), _folderName: raw._folderName };
-    } catch (error) {
-      buildErrors.push(`Entry ${raw.id}: ${(error as Error).message}`);
-      continue;
-    }
-
-    let spreadId: string | undefined;
-    if (entry.target) {
-      const linked = targets.get(entry.target);
-      if (!linked) {
-        buildErrors.push(`Entry ${entry.id}: target "${entry.target}" does not exist.`);
-        continue;
-      }
-      if (entryByTarget.has(entry.target)) {
-        buildErrors.push(
-          `Entry ${entry.id}: target "${entry.target}" already belongs to entry ${entryByTarget.get(entry.target)}.`
-        );
-        continue;
-      }
-
-      const { target, spread } = linked;
-      const firstPage = (spread as any).firstPage;
-      const lastPage = (spread as any).lastPage;
-      if (entry.page < firstPage || entry.page > lastPage) {
-        buildErrors.push(
-          `Entry ${entry.id}: page ${entry.page} is outside spread ${spread.id} (pages ${firstPage}-${lastPage}).`
-        );
-      }
-
-      entryByTarget.set(entry.target, entry.id);
-      spreadId = spread.id;
-      target.entryId = entry.id;
-      target.title = entry.title;
-      target.description = entry.body;
-      target.hideFromIndex = entry.hideFromIndex;
-    }
-
-    if (entry.image && !fs.existsSync(path.join(CONTENT_DIR, 'entries', entry._folderName!, entry.image))) {
-      buildErrors.push(`Entry ${entry.id}: image "${entry.image}" not found next to entry.yaml.`);
-    }
-
-    result.push({
-      id: entry.id,
-      category: entry.category,
-      title: entry.title,
-      page: entry.page,
-      author: entry.author,
-      body: entry.body,
-      image: entry.image ? adjustPath(entry.image, 'entry', entry._folderName) : undefined,
-      media: entry.media,
-      targetId: entry.target,
-      spreadId,
-      hideFromIndex: entry.hideFromIndex,
-    });
-  }
-
-  for (const [targetId] of targets) {
-    if (!entryByTarget.has(targetId)) {
-      buildErrors.push(`Target ${targetId} has no entry (every target reveals exactly one entry).`);
-    }
-  }
-
-  return result.sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title));
-}
-
-/**
- * Prepare target images for mind-ar processing
- * Copies all imageTargetSrc files to a mind-ar directory with spread-specific subdirectories
- * Filters out targets with missing image files
- */
-function prepareTargetImages(spreads: SpreadWithMetadata[]): SpreadWithMetadata[] {
-  // Clean the mind-ar directory if it exists
-  if (fs.existsSync(MINDAR_DIR)) {
-    console.log(`🧹 Cleaning mind-ar directory at: ${MINDAR_DIR}`);
-    deleteFolderRecursive(MINDAR_DIR);
-  }
-  
-  // Create mind-ar directory
-  fs.mkdirSync(MINDAR_DIR, { recursive: true });
-  
-  // Process each spread
-  for (let i = 0; i < spreads.length; i++) {
-    const spread = spreads[i];
-    const spreadDir = path.join(MINDAR_DIR, spread.id);
-    
-    // Create spread directory if it doesn't exist
-    if (!fs.existsSync(spreadDir)) {
-      fs.mkdirSync(spreadDir, { recursive: true });
-    }
-    
-    // Process targets for this spread
-    if ((spread as any).targets && Array.isArray((spread as any).targets)) {
-      // Filter targets to only include those with imageTargetSrc specified
-      const targetsWithImages = (spread as any).targets.filter((target: any) => target.imageTargetSrc);
-      
-      console.log(`🔍 Processing ${targetsWithImages.length} targets for spread ${spread.id}`);
-      
-      // First pass: Check which targets have valid image files
-      const validTargets: any[] = [];
-      
-      for (const target of targetsWithImages) {
-        // Determine the correct source path for the image
-        let sourcePath: string | null = null;
-        
-        // PRIMARY METHOD: Look for the image file in the same directory as the target.yaml file
-        if (target._filePath) {
-          const targetDir = path.dirname(target._filePath);
-          const potentialPath = path.join(targetDir, target.imageTargetSrc);
-          if (fs.existsSync(potentialPath)) {
-            sourcePath = potentialPath;
-          }
-        }
-        
-        // FALLBACK 1: If target has _folderPath defined, use that
-        if (!sourcePath && target._folderPath) {
-          const potentialPath = path.join(target._folderPath, target.imageTargetSrc);
-          if (fs.existsSync(potentialPath)) {
-            sourcePath = potentialPath;
-          }
-        }
-        
-        // FALLBACK 2: Use folder name if available
-        if (!sourcePath && target._folderName) {
-          const targetDir = path.join(CONTENT_DIR, 'targets', target._folderName);
-          const potentialPath = path.join(targetDir, target.imageTargetSrc);
-          if (fs.existsSync(potentialPath)) {
-            sourcePath = potentialPath;
-          }
-        }
-        
-        // FALLBACK 3: Try using the target ID (least reliable)
-        if (!sourcePath) {
-          const originalId = target._originalId || target.id;
-          // If the ID has been modified due to duplication, extract the original folder name
-          const folderName = target.id.includes('-') 
-            ? target.id.split('-').pop() 
-            : originalId;
-          const targetDir = path.join(CONTENT_DIR, 'targets', folderName);
-          const potentialPath = path.join(targetDir, target.imageTargetSrc);
-          if (fs.existsSync(potentialPath)) {
-            sourcePath = potentialPath;
-          }
-        }
-        
-        // FALLBACK 4: Check directly in targets directory (might be a legacy format)
-        if (!sourcePath) {
-          const potentialPath = path.join(CONTENT_DIR, 'targets', target.imageTargetSrc);
-          if (fs.existsSync(potentialPath)) {
-            sourcePath = potentialPath;
-          }
-        }
-        
-        // FALLBACK 5: Try the content root directly
-        if (!sourcePath) {
-          const potentialPath = path.join(CONTENT_DIR, target.imageTargetSrc);
-          if (fs.existsSync(potentialPath)) {
-            sourcePath = potentialPath;
-          }
-        }
-        
-        if (sourcePath) {
-          // This target has a valid image file
-          validTargets.push({
-            ...target,
-            _sourcePath: sourcePath // Store the full source path for later use
-          });
-        } else {
-          // Skipping would shift the MindAR indices of all following targets in this spread
-          buildErrors.push(`Target ${target.id}: image file "${target.imageTargetSrc}" not found next to target.yaml.`);
-        }
-      }
-      
-      // Second pass: Process valid targets and assign sequential indices
-      console.log(`✅ Found ${validTargets.length} valid targets with images for spread ${spread.id}`);
-      
-      for (let j = 0; j < validTargets.length; j++) {
-        const target = validTargets[j];
-        try {
-          // Get the source file path (already verified to exist)
-          const sourcePath = target._sourcePath as string;
-          
-          // Get the filename parts
-          const fileExt = path.extname(target.imageTargetSrc!);
-          const fileBaseName = path.basename(target.imageTargetSrc!, fileExt);
-          
-          // Use sequential index for the filename prefix
-          const sequencePrefix = String(j);
-          
-          // Create the new filename with the prefix
-          const newFileName = `${sequencePrefix}-${fileBaseName}${fileExt}`;
-          const targetPath = path.join(spreadDir, newFileName);
-          
-          // Copy the file to the target directory with the new filename
-          fs.copyFileSync(sourcePath, targetPath);
-          console.log(`📷 ${target.id}: ${path.basename(sourcePath)} → ${newFileName} (index: ${j})`);
-          
-          // Update the target's mindarTargetIndex to match the file sequence
-          target.mindarTargetIndex = j;
-          
-          // Remove temporary properties before final output
-          delete target._sourcePath;
-          delete target._filePath;
-          delete target._folderPath;
-          delete target._originalId;
-          delete target._folderName;
-        } catch (error) {
-          console.error(`❌ Error copying target image for ${target.id}:`, error);
-        }
-      }
-      
-      // IMPORTANT: Replace the spread's targets array with only the valid targets
-      (spread as any).targets = validTargets;
-    }
-  }
-  
-  // Clean up internal properties before returning
-  for (let i = 0; i < spreads.length; i++) {
-    const spread = spreads[i];
-    delete spread._filePath;
-    if ((spread as any).targets) {
-      for (let j = 0; j < (spread as any).targets.length; j++) {
-        const target = (spread as any).targets[j];
-        delete target._filePath;
-        delete target._folderPath;
-        delete target._originalId;
-        delete target._folderName;
-      }
-    }
-  }
-  
-  console.log(`🎯 Target images prepared in: ${MINDAR_DIR}`);
-  return spreads;
-}
-
-/**
- * Clean up an object by removing all properties with underscore prefix
- * This ensures no private metadata ends up in the final config
- */
-function cleanupObject(obj: any): any {
-  if (!obj || typeof obj !== 'object') return obj;
-  
-  if (Array.isArray(obj)) {
-    return obj.map(item => cleanupObject(item));
-  }
-  
-  const result = { ...obj };
-  
-  // Remove all properties with underscore prefix
-  for (const key of Object.keys(result)) {
-    if (key.startsWith('_')) {
-      delete result[key];
-    } else if (typeof result[key] === 'object') {
-      // Recursively clean nested objects
-      result[key] = cleanupObject(result[key]);
-    }
-  }
-  
-  return result;
-}
-
-/**
- * Check if a URL is external (starts with http:// or https://)
- */
-function isExternalUrl(url: string): boolean {
-  return url.startsWith('http://') || url.startsWith('https://');
-}
-
-/**
- * Adjust a path to be relative to the assets/content directory
- * @param originalPath The original path to adjust
- * @param sourceType The type of source ('spread' or 'target')
- * @param folderName The folder name where the content is stored
- */
-function adjustPath(originalPath: string, sourceType?: string, folderName?: string): string {
-  if (!originalPath || isExternalUrl(originalPath)) {
-    return originalPath;
-  }
-  
-  // Remove any leading slashes
-  const cleanPath = originalPath.replace(/^\/+/, '');
-  
-  // If path already includes full structure, just ensure it has leading slash
-  if (cleanPath.startsWith('assets/content/')) {
-    return `/${cleanPath}`;
-  }
-  
-  // For target images or mind files, preserve folder structure based on type and folder name
-  if (sourceType === 'target' && folderName) {
-    return `/assets/content/targets/${folderName}/${cleanPath}`;
-  }
-  
-  // For spread files, use spread folder
-  if (sourceType === 'spread' && folderName) {
-    return `/assets/content/spreads/${folderName}/${cleanPath}`;
-  }
-  
-  // For entry files (images), use entry folder
-  if (sourceType === 'entry' && folderName) {
-    return `/assets/content/entries/${folderName}/${cleanPath}`;
-  }
-
-  // For asset files, associate with target folder
-  if (sourceType === 'asset' && folderName) {
-    return `/assets/content/targets/${folderName}/${cleanPath}`;
-  }
-  
-  // Default case - simple path in assets/content
-  return `/assets/content/${cleanPath}`;
+  return fileCount;
 }
 
 /**
@@ -775,185 +116,331 @@ function adjustPath(originalPath: string, sourceType?: string, folderName?: stri
  */
 function copyContentToPublic(): void {
   console.log(`\n📦 Copying content to client public assets directory...`);
-  
-  // Clear the existing directory if it exists
   if (fs.existsSync(CLIENT_PUBLIC_ASSETS_DIR)) {
     console.log(`🧹 Cleaning client public assets directory: ${CLIENT_PUBLIC_ASSETS_DIR}`);
     deleteFolderRecursive(CLIENT_PUBLIC_ASSETS_DIR);
   }
-  
-  // Create the directory
   fs.mkdirSync(CLIENT_PUBLIC_ASSETS_DIR, { recursive: true });
-  
-  // Copy the content directory
   const fileCount = copyFolderRecursive(CONTENT_DIR, CLIENT_PUBLIC_ASSETS_DIR);
-  
   console.log(`✅ ${fileCount} content files successfully copied to: ${CLIENT_PUBLIC_ASSETS_DIR}`);
 }
 
 /**
- * Recursively copy a directory
- * @returns Number of files copied
+ * Read a YAML file; records an error and returns null if it can't be read
  */
-function copyFolderRecursive(source: string, target: string): number {
-  // Create target directory if it doesn't exist
-  if (!fs.existsSync(target)) {
-    fs.mkdirSync(target, { recursive: true });
+function readYaml(file: string): Record<string, any> | null {
+  try {
+    const data = yaml.load(fs.readFileSync(file, 'utf8'));
+    if (data && typeof data === 'object' && !Array.isArray(data)) return data as Record<string, any>;
+    buildErrors.push(`${path.relative(CONTENT_DIR, file)}: expected a YAML mapping`);
+  } catch (error) {
+    buildErrors.push(`${path.relative(CONTENT_DIR, file)}: ${(error as Error).message}`);
   }
-  
-  // Get all files and subdirectories in the source directory
-  const files = fs.readdirSync(source);
-  let fileCount = 0;
-  
-  for (const file of files) {
-    const sourcePath = path.join(source, file);
-    const targetPath = path.join(target, file);
-    
-    // Check if it's a file or directory
-    if (fs.statSync(sourcePath).isDirectory()) {
-      // Recursive call for directories
-      fileCount += copyFolderRecursive(sourcePath, targetPath);
-    } else {
-      // Copy file
-      fs.copyFileSync(sourcePath, targetPath);
-      fileCount++;
-    }
-  }
-  
-  return fileCount;
+  return null;
 }
 
 /**
- * Process the config to adjust paths for client usage
+ * Read `content/<section>/<id>/<fileName>` for every folder in a section
  */
-function adjustConfigPaths(config: GameConfiguration): GameConfiguration {
-  // Deep clone to avoid modifying the original
-  const result = JSON.parse(JSON.stringify(config)) as GameConfiguration;
-  
-  // Adjust paths in spreads
-  if (result.spreads && Array.isArray(result.spreads)) {
-    for (const spread of result.spreads) {
-      // Type assertion to access properties
-      const spreadData = spread as any;
-      
-      if (spreadData.mindSrc) {
-        spreadData.mindSrc = adjustPath(spreadData.mindSrc, 'spread', spreadData._folderName);
+function readSection(section: string, fileName: string): SourceItem[] {
+  const dir = path.join(CONTENT_DIR, section);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => ({ id: dirent.name, file: path.join(dir, dirent.name, fileName) }))
+    .filter(({ id, file }) => {
+      if (fs.existsSync(file)) return true;
+      buildErrors.push(`${section}/${id}: missing ${fileName}`);
+      return false;
+    })
+    .map(({ id, file }) => ({ id, file, data: readYaml(file) }))
+    .filter((item): item is SourceItem => item.data !== null)
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Validate against the authoring schema; records an error and returns null if invalid
+ */
+function validate<T>(data: unknown, type: string, label: string): T | null {
+  try {
+    return validateContent(data, type) as T;
+  } catch (error) {
+    buildErrors.push(`${label}: ${(error as Error).message}`);
+    return null;
+  }
+}
+
+/**
+ * Public URL of a file next to a source file, after an existence check
+ */
+function contentFile(section: string, id: string, file: string, label: string): string {
+  if (!fs.existsSync(path.join(CONTENT_DIR, section, id, file))) {
+    buildErrors.push(`${label}: file "${file}" not found in content/${section}/${id}/`);
+  }
+  return `/assets/content/${section}/${id}/${file}`;
+}
+
+function assetType(file: string, label: string): AssetType {
+  const type = ASSET_TYPE_BY_EXTENSION[path.extname(file).toLowerCase()];
+  if (!type) buildErrors.push(`${label}: unsupported file type "${file}"`);
+  return type ?? 'image';
+}
+
+function buildBook(): BookData {
+  const file = path.join(CONTENT_DIR, 'book.yaml');
+  if (!fs.existsSync(file)) {
+    buildErrors.push('book.yaml is missing');
+    return { id: '', title: '', author: '' };
+  }
+  const book = validate<BookData>(readYaml(file), 'book', 'book.yaml');
+  return book ?? { id: '', title: '', author: '' };
+}
+
+function buildSpreads(): SpreadData[] {
+  const spreads = readSection('spreads', 'spread.yaml')
+    .map(({ id, data }) => {
+      const label = `spreads/${id}`;
+      const s = validate<any>(data, 'spread', label);
+      if (!s) return null;
+      if (s.firstPage > s.lastPage) buildErrors.push(`${label}: firstPage ${s.firstPage} > lastPage ${s.lastPage}`);
+      return {
+        order: s.order as number,
+        spread: {
+          id,
+          title: s.title,
+          firstPage: s.firstPage,
+          lastPage: s.lastPage,
+          mindSrc: contentFile('spreads', id, s.mind, label),
+        } satisfies SpreadData,
+      };
+    })
+    .filter((item): item is { order: number; spread: SpreadData } => item !== null)
+    .sort((a, b) => a.order - b.order || a.spread.id.localeCompare(b.spread.id))
+    .map(({ spread }) => spread);
+
+  // A page belongs to at most one spread
+  spreads.forEach((a, i) => spreads.slice(i + 1).forEach(b => {
+    if (a.firstPage <= b.lastPage && b.firstPage <= a.lastPage) {
+      buildErrors.push(`spreads/${a.id} and spreads/${b.id}: page ranges overlap`);
+    }
+  }));
+  return spreads;
+}
+
+function buildEntities(): Record<string, EntityData> {
+  const entities: Record<string, EntityData> = {};
+  for (const { id, data } of readSection('entities', 'entity.yaml')) {
+    const label = `entities/${id}`;
+    const e = validate<any>(data, 'entity', label);
+    if (!e) continue;
+    const assets: AssetData[] = (e.assets as any[]).map((asset, i) => {
+      if (!asset || typeof asset.src !== 'string') {
+        buildErrors.push(`${label}: assets[${i}] needs a src`);
+        return null;
       }
-      
-      // Process targets in the spread
-      if (spreadData.targets && Array.isArray(spreadData.targets)) {
-        for (const target of spreadData.targets) {
-          // Use the target ID to look up the folder name from our mapping
-          const targetId = target.id;
-          const targetFolder = targetFolderMap[targetId] || targetId;
-          
-          // Adjust image and mind paths
-          if (target.imageTargetSrc) {
-            target.imageTargetSrc = adjustPath(target.imageTargetSrc, 'target', targetFolder);
-          }
-          if (target.mindSrc) {
-            target.mindSrc = adjustPath(target.mindSrc, 'target', targetFolder);
-          }
-          
-          // Adjust asset paths
-          if (target.entity && target.entity.assets && Array.isArray(target.entity.assets)) {
-            for (const asset of target.entity.assets) {
-              if (asset.src && typeof asset.src === 'string') {
-                asset.src = adjustPath(asset.src, 'asset', targetFolder);
-              }
-            }
-          }
-        }
+      return {
+        id: `${id}-${asset.id ?? i}`,
+        assetType: assetType(asset.src, label),
+        src: contentFile('entities', id, asset.src, label),
+      };
+    }).filter((asset): asset is AssetData => asset !== null);
+    if (e.type !== 'link' && assets.length === 0) buildErrors.push(`${label}: type "${e.type}" needs assets`);
+    entities[id] = { type: e.type, assets, ...(e.params ? { params: e.params } : {}) };
+  }
+  return entities;
+}
+
+/**
+ * Inline entity `{ type, src?, params? }` or reference `{ ref }`
+ */
+function buildEntity(
+  raw: unknown,
+  entryId: string,
+  targetId: string,
+  entities: Record<string, EntityData>,
+  label: string
+): EntityData | EntityRefData | undefined {
+  if (raw === undefined) return undefined;
+  const e = raw as Record<string, any>;
+  if (typeof e?.ref === 'string') {
+    if (!(e.ref in entities)) buildErrors.push(`${label}: entity ref "${e.ref}" not found in content/entities/`);
+    return { ref: e.ref };
+  }
+  const type = e?.type;
+  if (!['model', 'video', 'image', 'link'].includes(type)) {
+    buildErrors.push(`${label}: entity type "${type}" must be one of model, video, image, link (or use ref)`);
+    return undefined;
+  }
+  if (e.params !== undefined && (typeof e.params !== 'object' || Array.isArray(e.params))) {
+    buildErrors.push(`${label}: entity params must be a mapping`);
+  }
+  if (type === 'link') {
+    return { type, assets: [], ...(e.params ? { params: e.params } : {}) };
+  }
+  if (typeof e.src !== 'string') {
+    buildErrors.push(`${label}: entity type "${type}" needs a src`);
+    return undefined;
+  }
+  return {
+    type,
+    assets: [{
+      id: `${targetId}-media`,
+      assetType: assetType(e.src, label),
+      src: contentFile('entries', entryId, e.src, label),
+    }],
+    ...(e.params ? { params: e.params } : {}),
+  };
+}
+
+interface EntryBuild {
+  entry: EntryData;
+  spreadId: string | null;
+  targetOrder: number;
+  imageFile?: string; // source path of the target image (for mind-ar/)
+}
+
+function buildEntries(spreads: SpreadData[], entities: Record<string, EntityData>): EntryBuild[] {
+  const builds: EntryBuild[] = [];
+  for (const { id, data } of readSection('entries', 'entry.yaml')) {
+    const label = `entries/${id}`;
+    const e = validate<any>(data, 'entry', label);
+    if (!e) continue;
+
+    // The access page decides the spread
+    const spread = spreads.find(s => e.page >= s.firstPage && e.page <= s.lastPage);
+    if (!spread) buildErrors.push(`${label}: page ${e.page} is not part of any spread`);
+
+    const entry: EntryData = {
+      id,
+      category: e.category,
+      title: e.title,
+      page: e.page,
+      body: e.body,
+      tags: e.tags,
+      ...(e.author ? { author: e.author } : {}),
+      ...(e.image ? { image: contentFile('entries', id, e.image, label) } : {}),
+      ...(e.media ? { media: e.media } : {}),
+    };
+
+    let targetOrder = 0;
+    let imageFile: string | undefined;
+    if (e.target !== undefined) {
+      const t = validate<any>(e.target, 'target', `${label} target`);
+      if (t) {
+        const targetId: string = t.id ?? id;
+        targetOrder = t.order;
+        imageFile = path.join(CONTENT_DIR, 'entries', id, t.image);
+        const target: TargetData = {
+          id: targetId,
+          index: -1, // assigned per spread below
+          imageSrc: contentFile('entries', id, t.image, `${label} target`),
+        };
+        const entity = buildEntity(t.entity, id, targetId, entities, `${label} target`);
+        if (entity) target.entity = entity;
+        entry.target = target;
       }
     }
+
+    builds.push({ entry, spreadId: spread?.id ?? null, targetOrder, imageFile });
   }
-  
-  // Adjust paths in tutorial steps if present
-  if (result.tutorial && Array.isArray(result.tutorial)) {
-    for (const step of result.tutorial) {
-      // Type assertion to access properties
-      const stepData = step as any;
-      // Adjust any image paths in tutorial steps
-      if (stepData.image) {
-        stepData.image = adjustPath(stepData.image);
-      }
+  return builds;
+}
+
+/**
+ * Assign MindAR indices per spread (page → target order → id; must match the compiled .mind)
+ * and copy the target images to `mind-ar/<spread>/<index>-<file>` for compiling.
+ */
+function assignTargetIndices(spreads: SpreadData[], builds: EntryBuild[]): void {
+  if (fs.existsSync(MINDAR_DIR)) deleteFolderRecursive(MINDAR_DIR);
+  fs.mkdirSync(MINDAR_DIR, { recursive: true });
+
+  for (const spread of spreads) {
+    const targets = builds
+      .filter(b => b.spreadId === spread.id && b.entry.target)
+      .sort((a, b) => a.entry.page - b.entry.page || a.targetOrder - b.targetOrder || a.entry.id.localeCompare(b.entry.id));
+
+    if (targets.length > MAX_TARGETS_PER_SPREAD) {
+      buildErrors.push(`spreads/${spread.id} has ${targets.length} targets, max is ${MAX_TARGETS_PER_SPREAD}.`);
     }
+
+    const spreadDir = path.join(MINDAR_DIR, spread.id);
+    fs.mkdirSync(spreadDir, { recursive: true });
+    targets.forEach((b, index) => {
+      b.entry.target!.index = index;
+      if (b.imageFile && fs.existsSync(b.imageFile)) {
+        fs.copyFileSync(b.imageFile, path.join(spreadDir, `${index}-${path.basename(b.imageFile)}`));
+      }
+      console.log(`🎯 ${spread.id}[${index}] ${b.entry.target!.id} (page ${b.entry.page})`);
+    });
   }
-  
-  return result;
+}
+
+function buildTutorial(): StepData[] {
+  return readSection('steps', 'step.yaml')
+    .map(({ id, data }) => {
+      const s = validate<any>(data, 'step', `steps/${id}`);
+      if (!s) return null;
+      return {
+        id,
+        index: s.index,
+        title: s.title,
+        description: s.description,
+        ...(s.illustration ? { illustration: s.illustration } : {}),
+      } satisfies StepData;
+    })
+    .filter((step): step is StepData => step !== null)
+    .sort((a, b) => a.index - b.index);
 }
 
 /**
  * Build the final config object
  */
 function buildConfig(versionStr: string, inputHash: string): GameConfiguration {
-  // Read content types
-  const content = readContentFiles();
-  const spreads = content.filter(item => item.type === 'spread') as SpreadWithMetadata[];
-  const targets = content.filter(item => item.type === 'target') as TargetWithMetadata[];
-  const steps = content.filter(item => item.type === 'step') as StepWithMetadata[];
-  const entries = content.filter(item => item.type === 'entry') as unknown as EntryWithMetadata[];
+  const book = buildBook();
+  const spreads = buildSpreads();
+  const entities = buildEntities();
+  const builds = buildEntries(spreads, entities);
+  assignTargetIndices(spreads, builds);
+  const tutorial = buildTutorial();
 
-  console.log(`✨ Found ${spreads.length} spreads, ${targets.length} targets, ${entries.length} entries and ${steps.length} steps`);
-  
-  if (spreads.length === 0) {
-    console.error('❌ ERROR: No spreads found! Check your content/spreads directory.');
-    console.log('Content items found:', content.map(item => `${item.type}: ${item.id}`).join(', '));
+  const entries = builds
+    .map(b => b.entry)
+    .sort((a, b) => a.page - b.page || (a.target?.index ?? 99) - (b.target?.index ?? 99) || a.title.localeCompare(b.title));
+
+  console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities, ${tutorial.length} steps`);
+
+  const timestamp = new Date().toISOString();
+  console.log(`📊 Building config version: ${versionStr} (${timestamp}, hash ${inputHash.slice(0, 12)})`);
+
+  const config: GameConfiguration = {
+    version: {
+      version: versionStr,
+      timestamp, // when the build inputs last changed
+      hash: inputHash
+    },
+    book,
+    maxTargetsPerSpread: MAX_TARGETS_PER_SPREAD,
+    initialSpreadId: spreads[0]?.id ?? '',
+    spreads,
+    entries,
+    entities,
+    tutorial,
+  };
+
+  // The same contract check the app runs on load
+  try {
+    assertGameConfiguration(config);
+  } catch (error) {
+    if (error instanceof GameConfigurationError) buildErrors.push(...error.problems.map(p => `output ${p}`));
+    else throw error;
   }
-  
-  // Associate targets with spreads
-  const spreadsWithTargets = associateTargets(spreads, targets);
-  
-  // Prepare mind-ar target images
-  const processedSpreads = prepareTargetImages(spreadsWithTargets);
-
-  // Link entries to targets (1:1) and validate them
-  const entryData = linkEntries(entries, processedSpreads);
 
   if (buildErrors.length > 0) {
     throw new Error(`${buildErrors.length} content error(s):\n  - ${buildErrors.join('\n  - ')}`);
   }
 
-  console.log(`✨ Final config will have ${processedSpreads.length} spreads, ${targets.length} targets and ${entryData.length} entries`);
-  
-  const timestamp = new Date().toISOString();
-
-  console.log(`📊 Building config version: ${versionStr} (${timestamp}, hash ${inputHash.slice(0, 12)})`);
-  
-  // Create configuration object with version information
-  // We need to use type assertion because the GameConfiguration interface 
-  // expects version to be a string, but the actual app expects it to be an object
-  const configData: any = {
-    version: {
-      version: versionStr,
-      timestamp: timestamp, // when the build inputs last changed
-      hash: inputHash
-    },
-    maxTargetsPerSpread: MAX_TARGETS_PER_SPREAD,
-    initialSpreadId: processedSpreads.length > 0 ? processedSpreads[0].id : "spread1",
-    spreads: processedSpreads.map(spread => {
-      // Remove type field from spread
-      const { type, ...spreadData } = spread;
-      return spreadData;
-    }),
-    entries: entryData,
-    tutorial: steps.map(step => {
-      // Remove type field from step
-      const { type, ...stepData } = step;
-      return stepData;
-    })
-  };
-  
-  // Adjust paths for client usage
-  const adjustedConfig = adjustConfigPaths(configData);
-  
-  // Final cleanup to remove any leftover private properties
-  const cleanConfig = cleanupObject(adjustedConfig) as GameConfiguration;
-  
-  // Copy content to public directory
   copyContentToPublic();
-  
-  return cleanConfig;
+  return config;
 }
 
 /**
@@ -970,14 +457,15 @@ function listFiles(dir: string, base = dir): string[] {
 }
 
 /**
- * Checksum of everything that determines the build output: content files, the build logic
- * and the package version. Line endings of text files are normalised so Windows and Unix
- * checkouts produce the same hash.
+ * Checksum of everything that determines the build output: content files, the build logic,
+ * the shared contract and the package version. Line endings of text files are normalised so
+ * Windows and Unix checkouts produce the same hash.
  */
 function hashBuildInputs(version: string): string {
   const hash = createHash('sha256');
   hash.update(`version:${version}\n`);
-  for (const [label, dir] of [['content', CONTENT_DIR], ['scripts', SCRIPTS_SRC_DIR]] as const) {
+  const sharedDir = path.join(projectRoot, 'shared');
+  for (const [label, dir] of [['content', CONTENT_DIR], ['scripts', SCRIPTS_SRC_DIR], ['shared', sharedDir]] as const) {
     for (const file of listFiles(dir)) {
       let data = fs.readFileSync(path.join(dir, file));
       if (TEXT_FILE.test(file)) {
@@ -1015,25 +503,19 @@ function generateConfigFile(): void {
       return;
     }
 
-    // Generate the config
     const config = buildConfig(versionStr, inputHash);
-    
-    // Ensure output directory exists
+
     const outputDir = path.dirname(OUTPUT_FILE);
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
-    
-    // Write to file
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify(config, null, 2));
-    console.log(`🎉 Successfully generated ${OUTPUT_FILE} (version: ${(config as any).version.version})`);
+    console.log(`🎉 Successfully generated ${OUTPUT_FILE} (version: ${config.version.version})`);
   } catch (error) {
     console.error('❌ Error generating config file:', error);
     process.exit(1);
   }
 }
 
-// Execute the script
 console.log('\n🔄 Starting content build process...');
 generateConfigFile();
-console.log('✨ Content build process completed successfully ✨');

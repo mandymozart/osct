@@ -79,6 +79,7 @@ describe("HistoryManager", () => {
 describe("TargetManager", () => {
   let game: IGame;
   const spreadId = getSpreads()[0].id;
+  const target = getTargets(spreadId)[1];
 
   beforeEach(() => {
     localStorage.clear();
@@ -86,19 +87,25 @@ describe("TargetManager", () => {
     game.spreads.switchSpread(spreadId);
   });
 
-  it("tracks a found target once and marks it seen in the current spread", () => {
-    game.targets.addTarget(1);
-    game.targets.addTarget(1);
+  it("tracks a found target by id once and marks it seen in its spread", () => {
+    game.targets.addTarget(target.id);
+    game.targets.addTarget(target.id);
 
-    expect(game.targets.getTrackedTargets()).toEqual([1]);
-    expect(game.history.hasTargetBeenSeen(spreadId, 1)).toBe(true);
+    expect(game.targets.getTrackedTargets()).toEqual([target.id]);
+    // History stays keyed by spread + MindAR index until the Phase 2 rekey
+    expect(game.history.hasTargetBeenSeen(spreadId, target.index)).toBe(true);
   });
 
   it("keeps history when a target is lost", () => {
-    game.targets.addTarget(1);
-    game.targets.removeTarget(1);
+    game.targets.addTarget(target.id);
+    game.targets.removeTarget(target.id);
 
     expect(game.targets.getTrackedTargets()).toEqual([]);
-    expect(game.history.hasTargetBeenSeen(spreadId, 1)).toBe(true);
+    expect(game.history.hasTargetBeenSeen(spreadId, target.index)).toBe(true);
+  });
+
+  it("ignores unknown targets in the history", () => {
+    game.targets.addTarget("not-a-target");
+    expect(game.state.history).toEqual([]);
   });
 });

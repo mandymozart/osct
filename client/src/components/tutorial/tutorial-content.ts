@@ -1,4 +1,6 @@
-import { tutorial } from "@/game.config.json";
+import { getTutorial } from "@/utils/game-config";
+
+const tutorial = getTutorial();
 import { ITutorialContent } from "@/types/tutorial";
 
 /**

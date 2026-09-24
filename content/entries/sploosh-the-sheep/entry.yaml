@@ -1,7 +1,10 @@
-type: entry
-id: sploosh-the-sheep
 category: videos
 title: Sploosh the sheep
 page: 6
-target: target-009
 body: A demonstration of a video with alpha channel.
+target:
+  image: images-004.jpg
+  order: 1
+  entity:
+    type: video
+    src: sploosh.webm

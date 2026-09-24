@@ -1,7 +1,5 @@
-type: spread
-id: spread1
-order: 0
 title: The Beginning
+order: 0
 firstPage: 1
 lastPage: 2
-mindSrc: spread1.mind
+mind: spread1.mind

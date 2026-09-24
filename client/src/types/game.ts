@@ -1,7 +1,6 @@
 import {
   CameraManagerState,
-  EntryData,
-  SpreadData,
+  ConfigurationVersion,
   SpreadManagerState,
   ErrorInfo,
   ErrorListener,
@@ -14,8 +13,7 @@ import {
   ITargetManager,
   LoadingState,
   RouterManagerState,
-  TargetManagerState,
-  TutorialStepData
+  TargetManagerState
 } from "@/types";
 
 
@@ -46,20 +44,6 @@ export interface GameState
   mode: GameMode;
 }
 
-export interface GameConfiguration {
-  version: ConfigurationVersion;
-  maxTargetsPerSpread: number;
-  initialSpreadId: string;
-  spreads: readonly SpreadData[];
-  entries: readonly EntryData[];
-  tutorial: readonly TutorialStepData[];
-}
-
-export interface ConfigurationVersion {
-  version: string;
-  timestamp: string; // when the content build inputs last changed
-  hash?: string; // checksum of the content build inputs
-}
 export interface GameVersion {
   version: string;
   timestamp: string;

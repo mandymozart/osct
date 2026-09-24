@@ -1,8 +1,10 @@
-type: entry
-id: shadows
 category: links
 title: Shadows
 page: 1
-target: target-000
 body: Light plays a role in architecture.
-media: "https://experiment-woodkid-volcano-robot.vercel.app/"
+media: https://experiment-woodkid-volcano-robot.vercel.app/
+target:
+  image: images-000.jpg
+  order: 0
+  entity:
+    type: link

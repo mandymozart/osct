@@ -1,7 +1,10 @@
-type: entry
-id: racoon
 category: glossary
 title: Racoon
 page: 1
-target: target-001
 body: A beast, a friend, a dimension jumper.
+target:
+  image: images-028.jpg
+  order: 1
+  entity:
+    type: model
+    src: racoon.glb

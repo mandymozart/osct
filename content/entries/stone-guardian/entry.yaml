@@ -1,7 +1,10 @@
-type: entry
-id: stone-guardian
 category: glossary
 title: Stone Guardian
 page: 3
-target: target-004
 body: A stone statue guarding the entrance.
+target:
+  image: images-045.jpg
+  order: 1
+  entity:
+    type: model
+    src: cardboard-boxes.glb

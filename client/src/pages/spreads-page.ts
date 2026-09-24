@@ -1,5 +1,5 @@
 import { getSpread, getSpreads } from "@/utils/game-config";
-import { SpreadData, GameState, LoadingState } from "../types";
+import { Spread, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
 
@@ -134,7 +134,7 @@ export class SpreadsPage extends PageMinimal {
     const currentSpread = this.game.state.currentSpread;
 
     list.innerHTML = getSpreads()
-      .map((spreadData: SpreadData) => {
+      .map((spreadData: Spread) => {
         const completionPercentage =
           this.game!.history.getSpreadCompletionPercentage(spreadData.id) ??
           0;

@@ -1,7 +1,9 @@
-type: entry
-id: old-castle
 category: glossary
 title: Old Castle
 page: 3
-target: target-003
 body: An ancient castle filled with secrets.
+target:
+  image: images-022.jpg
+  order: 0
+  entity:
+    ref: castle

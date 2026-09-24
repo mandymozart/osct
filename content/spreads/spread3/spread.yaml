@@ -1,7 +1,5 @@
-type: spread
-id: spread3
-order: 2
 title: The Dragon's Lair
+order: 2
 firstPage: 5
 lastPage: 6
-mindSrc: spread3.mind
+mind: spread3.mind

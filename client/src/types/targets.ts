@@ -1,4 +1,4 @@
-import { EntityData } from "./entities";
+import { EntityData, TargetData } from "./game-config";
 
 /**
  * Track the history of seen targets
@@ -10,44 +10,34 @@ export interface TargetHistoryEntry {
 }
 
 export interface TargetManagerState {
-  trackedTargets: number[];
+  trackedTargets: string[]; // target ids
 }
 
 /**
- * Base data structure for a target without loading state
+ * App model of a target (mapped from `TargetData` by `utils/game-config.ts`).
+ * `index` is the MindAR targetIndex within the spread; the entity ref is resolved.
  */
-export interface TargetData {
-  id: string;
-  mindarTargetIndex: number;
-  bookId: string;
+export interface Target extends Omit<TargetData, "entity"> {
   entryId: string;
-  // Copied from the entry by the content build until the index is rebuilt around entries (Phase 4)
-  title: string;
-  description: string;
-  hideFromIndex: boolean;
-  entity: EntityData;
-  imageTargetSrc: string;
-  mindSrc: string;
-  tags?: string[];
-  relatedTargets?: string[];
+  spreadId: string;
+  entity?: EntityData;
 }
 
 export interface ITargetManager {
   /**
-   * Add a target index to the list of tracked targets
-   * @param targetIndex The index of the target to track
+   * Add a target to the list of tracked targets (and mark it as seen)
+   * @param targetId The id of the found target
    */
-  addTarget(targetIndex: number): void;
+  addTarget(targetId: string): void;
 
   /**
    * Remove a target from the list of tracked targets
-   * @param targetIndex The index of the target to remove
+   * @param targetId The id of the lost target
    */
-  removeTarget(targetIndex: number): void;
+  removeTarget(targetId: string): void;
 
   /**
-   * Get the list of currently tracked target indices
-   * @returns Array of tracked target indices
+   * Get the ids of the currently tracked targets
    */
-  getTrackedTargets(): number[];
+  getTrackedTargets(): string[];
 }

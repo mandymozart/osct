@@ -1,8 +1,10 @@
-type: entry
-id: edge
 category: videos
 title: Edge
 page: 5
-target: target-008
 body: A demonstration of a video with an image billboard.
-hideFromIndex: true
+target:
+  image: images-060.jpg
+  order: 0
+  entity:
+    type: video
+    src: edge.mp4
