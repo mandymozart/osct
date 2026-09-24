@@ -4,7 +4,7 @@ import { EntityData } from "./entities";
  * Track the history of seen targets
  */
 export interface TargetHistoryEntry {
-  chapterId: string;
+  spreadId: string;
   targetIndex: number;
   timestamp: number;
 }

@@ -14,8 +14,8 @@ describe("RouteResolver", () => {
   });
 
   it("builds the URL including the param value", () => {
-    const route = RouteResolver.createRoute("/chapter", { key: "chapterId", value: "chapter1" });
-    expect(RouteResolver.getUrlForRoute(route)).toBe("/chapter/chapter1");
+    const route = RouteResolver.createRoute("/spread", { key: "spreadId", value: "spread1" });
+    expect(RouteResolver.getUrlForRoute(route)).toBe("/spread/spread1");
   });
 
   it("treats routes without params as the same route", () => {
@@ -68,7 +68,7 @@ describe("RouterManager", () => {
     game.router.showError({ code: "test", msg: "Boom" });
     game.router.close();
 
-    expect(game.state.currentRoute?.page).toBe(Pages.CHAPTER);
+    expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
     expect(game.state.mode).toBe(GameMode.DEFAULT);
     expect(game.state.currentError).toBeNull();
   });

@@ -8,7 +8,7 @@
 
 * `<default-page/>` - Home page 
 * `<scene-page/>`- A-Frame scene (core)
-* `<chapters-page/>` - List all chapters
+* `<spreads-page/>` - List all spreads
 * `<tutorial-page/>`- Guided tutorial cards show the functionality of the game
 * `<about-page/>` - About the game
 * `<error-page/>` - Display full screen error exceptions that crash the game

@@ -29,13 +29,13 @@ export enum ErrorCode {
   NETWORK_ERROR = "network-error",
   TIMEOUT = "timeout",
 
-  // Chapter errors
-  CHAPTER_NOT_FOUND = "chapter-not-found",
-  CHAPTERS_LOAD_FAILED = "chapters-load-failed",
-  CHAPTER_LOAD_FAILED = "chapter-load-failed",
+  // Spread errors
+  SPREAD_NOT_FOUND = "spread-not-found",
+  SPREADS_LOAD_FAILED = "spreads-load-failed",
+  SPREAD_LOAD_FAILED = "spread-load-failed",
   IMAGE_TARGET_NOT_FOUND = "missing-image-target",
 
-  CHAPTER_NOT_READY = "chapter-not-ready",
+  SPREAD_NOT_READY = "spread-not-ready",
   SOME_ASSETS_NOT_FOUND = "some-assets-not-found",
 
   // Entity errors

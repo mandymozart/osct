@@ -74,7 +74,7 @@ export class RouterManager implements IRouterManager {
   public close(): void {
     this.game.update(draft => {
       draft.mode = GameMode.DEFAULT;
-      draft.currentRoute = { page: Pages.CHAPTER, slug: "/chapter" };
+      draft.currentRoute = { page: Pages.SPREAD, slug: "/spread" };
       draft.currentError = null;
     });
   }

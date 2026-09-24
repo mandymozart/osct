@@ -1,16 +1,16 @@
-import { chapters, initialChapterId } from "@/game.config.json";
-import { ChapterData, GameState, LoadingState } from "../types";
+import { spreads, initialSpreadId } from "@/game.config.json";
+import { SpreadData, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
-import { getChapter } from "@/utils/config";
+import { getSpread } from "@/utils/config";
 
-export class ChapterPage extends PageMinimal {
+export class SpreadPage extends PageMinimal {
   static get observedAttributes() {
-    return ["chapter-id"];
+    return ["spread-id"];
   }
 
-  private chapter: ChapterData | undefined = undefined;
-  private chapterId: string | null = null;
+  private spread: SpreadData | undefined = undefined;
+  private spreadId: string | null = null;
   
 // TODO: pointer events propagation when overlayed. but this depends on how we want to handle the overlay.
 
@@ -25,7 +25,7 @@ export class ChapterPage extends PageMinimal {
         overflow-y: auto;
         height: calc(100vh - var(--offset-top, 4rem) - 2rem);
       }
-      .chapter-card {
+      .spread-card {
         border: 1px solid var(--color-primary);
         border-radius: 2rem;
         background: var(--color-background);
@@ -40,25 +40,25 @@ export class ChapterPage extends PageMinimal {
         pointer-events: auto;
         width: 15rem;
       }
-      .chapter-card .chapter-icon {
+      .spread-card .spread-icon {
         font-size: 2rem;
         width: 2rem;
         margin-right: 1rem;
         display: block;
         color: var(--color-primary);
       }
-      .chapter-card:hover {
+      .spread-card:hover {
         transform: translateX(-5rem);
         box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
       }
-      .chapter-card.active {
+      .spread-card.active {
         transform: translateX(-5rem);
       }
-      .chapter-meta {
+      .spread-meta {
         color: var(--primary-400);
         font-size: 0.75rem;
       }
-      .chapter-card h3 {
+      .spread-card h3 {
         margin: 0;
         font-size: 1.25rem;
         font-weight: 400;
@@ -82,23 +82,23 @@ export class ChapterPage extends PageMinimal {
    get template(): string {
     return /* html */ `
       <div class="content">
-        <div class="chapter-card"></div>
+        <div class="spread-card"></div>
       </div>
     `;
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this.chapterId = this.getAttribute("chapterId");
+    this.spreadId = this.getAttribute("spreadId");
     this.game?.subscribe(this.handleStateChange.bind(this));
     this.setupEventListeners();
     this.updateView();
 }
 
  setupEventListeners() {
-    this.shadowRoot?.querySelector('.chapter-card')?.addEventListener('click', () => {
+    this.shadowRoot?.querySelector('.spread-card')?.addEventListener('click', () => {
         if (this.game) {
-            this.game.router.navigate('/chapters');
+            this.game.router.navigate('/spreads');
         }
     });
 }
@@ -107,12 +107,12 @@ disconnectedCallback() {
     super.disconnectedCallback();
     this.game?.unsubscribe(this.handleStateChange);
     // Clean up event listeners
-    this.shadowRoot?.querySelector('.chapter-card')?.removeEventListener('click', () => {});
+    this.shadowRoot?.querySelector('.spread-card')?.removeEventListener('click', () => {});
 }
 
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-    if (name === "chapter-id" && newValue !== oldValue) {
-      this.chapterId = newValue;
+    if (name === "spread-id" && newValue !== oldValue) {
+      this.spreadId = newValue;
       this.updateView();
     }
   }
@@ -125,29 +125,29 @@ disconnectedCallback() {
     assert(this.game, "GameStore not available in updateView");
     assert(this.shadowRoot, "ShadowRoot not available in updateView");
 
-    const cardContainer = this.shadowRoot.querySelector(".chapter-card");
-    assert(cardContainer, "Chapter card element not found");
+    const cardContainer = this.shadowRoot.querySelector(".spread-card");
+    assert(cardContainer, "Spread card element not found");
 
-    console.log("[ChapterPage] chapterId:", this.chapterId)
-    if (!this.chapterId) {
-      this.chapterId = initialChapterId;
+    console.log("[SpreadPage] spreadId:", this.spreadId)
+    if (!this.spreadId) {
+      this.spreadId = initialSpreadId;
       return;
     }
 
-    this.chapter = getChapter(this.chapterId);
-    if (!this.chapter) {
-      console.warn(`Chapter not found: ${this.chapterId}`);
-      cardContainer.innerHTML = '<div class="error">Chapter not found</div>';
+    this.spread = getSpread(this.spreadId);
+    if (!this.spread) {
+      console.warn(`Spread not found: ${this.spreadId}`);
+      cardContainer.innerHTML = '<div class="error">Spread not found</div>';
       return;
     }
-    const completionPercentage = this.game.history.getChapterCompletionPercentage(this.chapterId) ?? 0;
+    const completionPercentage = this.game.history.getSpreadCompletionPercentage(this.spreadId) ?? 0;
 
     cardContainer.innerHTML = /* html */ `
-      <div class="chapter-icon">📑</div>
-      <div class="chapter-info">
-        <h3>${this.chapter.title}</h3>
-        <div class="chapter-meta">
-          <div class="page-range">Pages ${this.chapter.firstPage} - ${this.chapter.lastPage} <span>(${completionPercentage}%)</span></div>
+      <div class="spread-icon">📑</div>
+      <div class="spread-info">
+        <h3>${this.spread.title}</h3>
+        <div class="spread-meta">
+          <div class="page-range">Pages ${this.spread.firstPage} - ${this.spread.lastPage} <span>(${completionPercentage}%)</span></div>
           <div class="progress-bar">
             <div style="width: ${completionPercentage}%"></div>
           </div>
@@ -157,4 +157,4 @@ disconnectedCallback() {
   }
 }
 
-customElements.define("chapter-page", ChapterPage);
+customElements.define("spread-page", SpreadPage);

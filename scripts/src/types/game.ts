@@ -13,8 +13,8 @@ export interface GameState {
   id: string;
   loading: LoadingState;
   mode: GameMode;
-  currentChapter: string | null;
-  chapters: Record<string, any>;
+  currentSpread: string | null;
+  spreads: Record<string, any>;
   trackedTargets: string[];
   currentRoute: string | null;
   currentError: ErrorInfo | null;
@@ -31,12 +31,12 @@ export enum ErrorCode {
   NAVIGATION_FAILED = "navigation-failed",
   NETWORK_ERROR = "network-error",
   TIMEOUT = "timeout",
-  CHAPTER_NOT_FOUND = "chapter-not-found",
+  SPREAD_NOT_FOUND = "spread-not-found",
   ENTITY_LOAD_FAILED = "entity-load-failed",
-  CHAPTERS_LOAD_FAILED = "chapters-load-failed",
-  CHAPTER_LOAD_FAILED = "chapter-load-failed",
+  SPREADS_LOAD_FAILED = "spreads-load-failed",
+  SPREAD_LOAD_FAILED = "spread-load-failed",
   IMAGE_TARGET_NOT_FOUND = "missing-image-target",
-  CHAPTER_NOT_READY = "chapter-not-ready",
+  SPREAD_NOT_READY = "spread-not-ready",
   SOME_ASSETS_NOT_FOUND = "some-assets-not-found",
   ASSET_NOT_FOUND = "asset-not-found",
   ASSET_TYPE_INVALID = "asset-type-invalid",
@@ -80,8 +80,8 @@ export enum CameraPermissionStatus {
 
 export interface GameConfiguration {
   version: ConfigurationVersion;
-  initialChapterId: string;
-  chapters: ChapterData[];
+  initialSpreadId: string;
+  spreads: SpreadData[];
   tutorial: TutorialStepData[];
 }
 
@@ -95,7 +95,7 @@ export interface GameVersion {
   timestamp: string;
 }
 
-export interface ChapterData {
+export interface SpreadData {
   id: string;
   title: string;
   description: string;

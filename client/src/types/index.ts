@@ -1,6 +1,6 @@
 export * from "./assets"
 export * from "./camera"
-export * from "./chapters"
+export * from "./spreads"
 export * from "./common"
 export * from "./content"
 export * from "./entities"

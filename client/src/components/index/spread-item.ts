@@ -1,21 +1,21 @@
-import { ChapterData, IGame } from "@/types";
+import { SpreadData, IGame } from "@/types";
 import { GameStoreService } from "@/services/GameStoreService";
 
-export interface IChapterItem extends HTMLElement {
-  chapter: ChapterData | null;
+export interface ISpreadItem extends HTMLElement {
+  spread: SpreadData | null;
   isCurrent: boolean;
-  chapterData: ChapterData | null;
+  spreadData: SpreadData | null;
 }
 
 /**
- * ChapterItem Component
+ * SpreadItem Component
  * 
- * Displays a chapter header in the index page
+ * Displays a spread header in the index page
  */
-export class ChapterItem extends HTMLElement implements IChapterItem {
-  private _chapter: ChapterData | null = null;
+export class SpreadItem extends HTMLElement implements ISpreadItem {
+  private _spread: SpreadData | null = null;
   private _isCurrent = false;
-  private _chapterData: ChapterData | null = null;
+  private _spreadData: SpreadData | null = null;
   private game: Readonly<IGame>;
   
   static get observedAttributes() {
@@ -46,15 +46,15 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
   }
   
   private render() {
-    if (!this.shadowRoot || !this._chapter) return;
+    if (!this.shadowRoot || !this._spread) return;
     
     // Get completion percentage from history
-    const completionPercentage = this.game?.history.getChapterCompletionPercentage(this._chapter.id) ?? 0;
+    const completionPercentage = this.game?.history.getSpreadCompletionPercentage(this._spread.id) ?? 0;
     
     // Get info about seen targets
-    const seenTargets = this.game?.history.getSeenTargetsForChapter(this._chapter.id) ?? [];
+    const seenTargets = this.game?.history.getSeenTargetsForSpread(this._spread.id) ?? [];
     const seenCount = seenTargets.length;
-    const isComplete = this.game?.history.isChapterComplete(this._chapter.id) ?? false;
+    const isComplete = this.game?.history.isSpreadComplete(this._spread.id) ?? false;
     const statusText = isComplete ? 'Complete' : seenCount > 0 ? `${seenCount} targets seen` : 'Not started';
     
     this.shadowRoot.innerHTML = /* html */`
@@ -65,7 +65,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
           border-bottom: .1rem solid var(--color-primary);
         }
         
-        .chapter-header {
+        .spread-header {
           display: grid;
           grid-template-columns: auto 4rem;
           font-weight: 600;
@@ -74,7 +74,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
           cursor: pointer;
         }
         
-        .chapter-pages {
+        .spread-pages {
           text-align: right;
         }
         
@@ -87,7 +87,7 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
           border-color: var(--primary-400);
         }
         
-        .chapter-meta {
+        .spread-meta {
           color: var(--primary-400);
           font-size: 0.75rem;
           display: flex;
@@ -111,16 +111,16 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
         }
       </style>
       
-      <div class="chapter-header ${this._isCurrent ? 'current' : 'muted'}">
-        <span class="chapter-title">📑 ${this._chapterData?.title || 'Untitled'} 
+      <div class="spread-header ${this._isCurrent ? 'current' : 'muted'}">
+        <span class="spread-title">📑 ${this._spreadData?.title || 'Untitled'} 
         ${!this._isCurrent ? '<button is="text-button" size="xs" style="display: inline-block;">Select</button>' : ''}
         </span>
-        <span class="chapter-pages">${this._chapterData?.firstPage} &mdash; ${this._chapterData?.lastPage}</span>
+        <span class="spread-pages">${this._spreadData?.firstPage} &mdash; ${this._spreadData?.lastPage}</span>
       </div>
       <div class="progress-bar">
         <div style="width: ${completionPercentage}%"></div>
       </div>
-      <div class="chapter-meta">
+      <div class="spread-meta">
         <div class="completion">Completion: <span>${completionPercentage}%</span></div>
         <div class="status">${statusText}</div>
       </div>
@@ -128,25 +128,25 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
   }
   
   private handleClick(event: Event) {
-    if (!this._chapter) return;
+    if (!this._spread) return;
     
-    // If not the current chapter, dispatch event to switch
+    // If not the current spread, dispatch event to switch
     if (!this._isCurrent) {
-      this.dispatchEvent(new CustomEvent('chapter-select', {
+      this.dispatchEvent(new CustomEvent('spread-select', {
         bubbles: true,
         composed: true,
-        detail: { chapterId: this._chapter.id }
+        detail: { spreadId: this._spread.id }
       }));
     }
   }
   
   // Getters and setters
-  get chapter(): ChapterData | null {
-    return this._chapter;
+  get spread(): SpreadData | null {
+    return this._spread;
   }
   
-  set chapter(value: ChapterData | null) {
-    this._chapter = value;
+  set spread(value: SpreadData | null) {
+    this._spread = value;
     this.render();
   }
   
@@ -159,14 +159,14 @@ export class ChapterItem extends HTMLElement implements IChapterItem {
     this.setAttribute('is-current', String(value));
   }
   
-  get chapterData(): ChapterData | null {
-    return this._chapterData;
+  get spreadData(): SpreadData | null {
+    return this._spreadData;
   }
   
-  set chapterData(value: ChapterData | null) {
-    this._chapterData = value;
+  set spreadData(value: SpreadData | null) {
+    this._spreadData = value;
     this.render();
   }
 }
 
-customElements.define('chapter-item', ChapterItem);
+customElements.define('spread-item', SpreadItem);

@@ -19,11 +19,11 @@ interface Schema {
 
 // Export schemas object
 export const schemas: Record<string, Schema> = {
-  // Chapter schema
-  chapter: {
+  // Spread schema
+  spread: {
     orderBy: "order",
     fields: {
-      type: { type: "String", required: true, default: "chapter" },
+      type: { type: "String", required: true, default: "spread" },
       id: { type: "String", required: true },
       order: { type: "Number", required: false, default: 0 },
       title: { type: "String", required: true },
@@ -41,7 +41,7 @@ export const schemas: Record<string, Schema> = {
       id: { type: "String", required: true },
       title: { type: "String", required: true },
       description: { type: "String", required: false, default: "" },
-      relatedChapter: { type: "String", required: true, rel: "chapter" },
+      relatedSpread: { type: "String", required: true, rel: "spread" },
       order: { type: "Number", required: false, default: 0 },
       imageTargetSrc: { type: "String", required: true },
       bookId: { type: "String", required: false },

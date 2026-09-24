@@ -1,7 +1,7 @@
-export const chapter2 = /* html */`
+export const spread2 = /* html */`
 <a-scene 
     id="scene" 
-    mindar-image="imageTargetSrc: ./assets/content/chapters/chapter2/chapter2.mind; maxTrack: 4;" 
+    mindar-image="imageTargetSrc: ./assets/content/spreads/spread2/spread2.mind; maxTrack: 4;" 
     color-space="sRGB" 
     renderer="colorManagement: true, physicallyCorrectLights" 
     vr-mode-ui="enabled: false" 

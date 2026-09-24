@@ -48,8 +48,8 @@ export type RouteParam = {
 export enum Pages {
   HOME = "home",
   TUTORIAL = "tutorial",
-  CHAPTERS = "chapters",
-  CHAPTER = "chapter",
+  SPREADS = "spreads",
+  SPREAD = "spread",
   ABOUT = "about",
   ERROR = "error",
   NOTIFICATION = "notification",

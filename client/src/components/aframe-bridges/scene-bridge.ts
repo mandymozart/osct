@@ -14,13 +14,13 @@ export class SceneBridge extends HTMLElement {
   private game: Readonly<IGame>;
   private sceneService: ISceneService;
   private currentMode: GameMode | null = null;
-  private currentChapter: string | null = null;
+  private currentSpread: string | null = null;
   private system: AFRAME.MindARImageSystem | null = null as unknown as AFRAME.MindARImageSystem;
   private sceneContainer: HTMLElement | null = null;
 
   private initialized = false;
   private modeUnsubscribe: (() => void) | null = null;
-  private chapterUnsubscribe: (() => void) | null = null;
+  private spreadUnsubscribe: (() => void) | null = null;
 
   constructor() {
     super();
@@ -42,9 +42,9 @@ export class SceneBridge extends HTMLElement {
       this.modeUnsubscribe = null;
     }
     
-    if (this.chapterUnsubscribe) {
-      this.chapterUnsubscribe();
-      this.chapterUnsubscribe = null;
+    if (this.spreadUnsubscribe) {
+      this.spreadUnsubscribe();
+      this.spreadUnsubscribe = null;
     }
     
     // Reset scene in service
@@ -88,12 +88,12 @@ export class SceneBridge extends HTMLElement {
         this.sceneService.setScene(existingScene);
         console.log("[SceneBridge] Connected to existing scene");
       } else {
-        // No existing scene, get the current chapter and create one
-        const currentChapter = this.game.chapters.getCurrentChapter();
-        if (currentChapter) {
-          await this.createSceneForChapter(currentChapter);
+        // No existing scene, get the current spread and create one
+        const currentSpread = this.game.spreads.getCurrentSpread();
+        if (currentSpread) {
+          await this.createSceneForSpread(currentSpread);
         } else {
-          console.warn("[SceneBridge] No current chapter to create scene for");
+          console.warn("[SceneBridge] No current spread to create scene for");
         }
       }
       
@@ -124,12 +124,12 @@ export class SceneBridge extends HTMLElement {
   }
 
   /**
-   * Creates a new scene for the specified chapter
-   * @param chapterId The chapter ID to create a scene for
+   * Creates a new scene for the specified spread
+   * @param spreadId The spread ID to create a scene for
    */
-  private async createSceneForChapter(chapterId: string): Promise<void> {
+  private async createSceneForSpread(spreadId: string): Promise<void> {
     try {
-      console.log(`[SceneBridge] Creating new scene for chapter: ${chapterId}`);
+      console.log(`[SceneBridge] Creating new scene for spread: ${spreadId}`);
       
       // Remove any existing scene from the DOM
       const oldScene = this.sceneService.getScene();
@@ -140,7 +140,7 @@ export class SceneBridge extends HTMLElement {
       }
       
       // Create new scene
-      const newScene = createScene(chapterId);
+      const newScene = createScene(spreadId);
       
       // Add to DOM
       if (this.sceneContainer) {
@@ -164,20 +164,20 @@ export class SceneBridge extends HTMLElement {
       // Update mindar system reference
       this.system = newScene.systems["mindar-image-system"] as unknown as AFRAME.MindARImageSystem;
       
-      // Mark current chapter
-      this.currentChapter = chapterId;
+      // Mark current spread
+      this.currentSpread = spreadId;
       
-      console.log(`[SceneBridge] Scene created and loaded for chapter: ${chapterId}`);
+      console.log(`[SceneBridge] Scene created and loaded for spread: ${spreadId}`);
       
       // Reactivate if we were previously in scene mode
       if (this.currentMode === GameMode.DEFAULT || this.currentMode === GameMode.VR) {
         this.activate();
       }
     } catch (error) {
-      console.error(`[SceneBridge] Failed to create scene for chapter ${chapterId}:`, error);
+      console.error(`[SceneBridge] Failed to create scene for spread ${spreadId}:`, error);
       this.game.notifyError({
         code: ErrorCode.FAILED_TO_UPDATE_SCENE,
-        msg: `Failed to create scene for chapter ${chapterId}`
+        msg: `Failed to create scene for spread ${spreadId}`
       });
       throw error;
     }
@@ -191,13 +191,13 @@ export class SceneBridge extends HTMLElement {
       }
     });
     
-    // Subscribe to chapter changes
-    this.chapterUnsubscribe = this.game.subscribeToProperty("currentChapter", async (chapter) => {
-      if (chapter && chapter !== this.currentChapter) {
+    // Subscribe to spread changes
+    this.spreadUnsubscribe = this.game.subscribeToProperty("currentSpread", async (spread) => {
+      if (spread && spread !== this.currentSpread) {
         try {
-          await this.createSceneForChapter(chapter);
+          await this.createSceneForSpread(spread);
         } catch (error) {
-          console.error("[SceneBridge] Error creating scene for new chapter:", error);
+          console.error("[SceneBridge] Error creating scene for new spread:", error);
         }
       }
     });

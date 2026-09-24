@@ -1,6 +1,6 @@
 import { IGame, LoadingState, TargetData } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { getAssets, getChapter, getTarget, getTargets } from "@/utils/config";
+import { getAssets, getSpread, getTarget, getTargets } from "@/utils/config";
 import { GameStoreService } from "../../services/GameStoreService";
 import { SceneService } from '../../services/SceneService';
 
@@ -44,8 +44,8 @@ export class DebugOverlay extends HTMLElement {
   private setupListeners() {
     // Subscribe to properties we need for the debug overlay
     this.subscriptionCleanups.push(
-      this.game.subscribeToProperty('currentChapter', () => this.updateContent()),
-      this.game.subscribeToProperty('chapters', () => this.updateContent()),
+      this.game.subscribeToProperty('currentSpread', () => this.updateContent()),
+      this.game.subscribeToProperty('spreads', () => this.updateContent()),
       this.game.subscribeToProperty('cameraPermission', () => this.updateContent())
     );
   }
@@ -126,7 +126,7 @@ export class DebugOverlay extends HTMLElement {
   private updateContent() {
     const contentEl = this.shadow.getElementById("content");
     if (!contentEl) return;
-    const { currentChapter } = this.game.state;
+    const { currentSpread } = this.game.state;
     let html = "";
 
     // Scene status
@@ -138,25 +138,25 @@ export class DebugOverlay extends HTMLElement {
       }</div>
     </div>`;
 
-    // Current chapter
-    if (currentChapter) {
-      html += this.renderChapterInfo(currentChapter);
+    // Current spread
+    if (currentSpread) {
+      html += this.renderSpreadInfo(currentSpread);
     } else {
-      html += `<div class="section">No chapter loaded</div>`;
+      html += `<div class="section">No spread loaded</div>`;
     }
     
     if(!this.expanded){
-      // Add chapter summary
+      // Add spread summary
       html = `<div class="section section--summary">
-      ${currentChapter ? this.generateChapterSummary(currentChapter) : 'No chapter'}
+      ${currentSpread ? this.generateSpreadSummary(currentSpread) : 'No spread'}
       </div>`;
     }
     
     contentEl.innerHTML = html;
   }
 
-  private generateChapterSummary(id: string): string {
-    const chapter = getChapter(id);
+  private generateSpreadSummary(id: string): string {
+    const spread = getSpread(id);
     
     const getStatusDot = (isLoaded: boolean, isError?: boolean) => {
       if (isError) return '<span class="error">◉</span>';
@@ -171,34 +171,34 @@ export class DebugOverlay extends HTMLElement {
       false
     );
 
-    // Get chapter status
-    const chapterStatus = getStatusDot(this.game.state.chapters[id].status === LoadingState.LOADED, false);
+    // Get spread status
+    const spreadStatus = getStatusDot(this.game.state.spreads[id].status === LoadingState.LOADED, false);
 
     return `
-      <div>S${sceneStatus} C${chapterStatus}[${chapter?.id}] T${getTargets(chapter?.id || '').length} A${getAssets(chapter?.id || '').length}</div>
+      <div>S${sceneStatus} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length}</div>
     `;
   }
 
-  private renderChapterInfo(chapterId: string): string {
-    const chapter = getChapter(chapterId);
-    if (!chapter) {
-      return `<div class="section">Unknown chapter: ${chapterId}</div>`;
+  private renderSpreadInfo(spreadId: string): string {
+    const spread = getSpread(spreadId);
+    if (!spread) {
+      return `<div class="section">Unknown spread: ${spreadId}</div>`;
     }
 
     let html = `
       <div class="section">
-        <div>Chapter: ${chapter.id || "unknown"}</div>
-        <div>Status: ${this.getStatusLabel(this.game.state.chapters[chapterId])}</div>
+        <div>Spread: ${spread.id || "unknown"}</div>
+        <div>Status: ${this.getStatusLabel(this.game.state.spreads[spreadId])}</div>
         <qr-generator></qr-generator>
       </div>
     `;
 
     // Targets
-    if (chapter.targets && chapter.targets.length > 0) {
+    if (spread.targets && spread.targets.length > 0) {
       html += `<div class="section section--targets">`;
-      html += `<div>Targets (${chapter.targets.length}):</div><div class="target-list">`;
+      html += `<div>Targets (${spread.targets.length}):</div><div class="target-list">`;
 
-      chapter.targets.forEach((target, i) => {
+      spread.targets.forEach((target, i) => {
         html += this.renderTargetInfo(target, i);
       });
 

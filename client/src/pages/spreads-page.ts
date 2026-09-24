@@ -1,9 +1,9 @@
-import { getChapter, getChapters } from "@/utils/config";
-import { ChapterData, GameState, LoadingState } from "../types";
+import { getSpread, getSpreads } from "@/utils/config";
+import { SpreadData, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
 
-export class ChaptersPage extends PageMinimal {
+export class SpreadsPage extends PageMinimal {
    get styles(): string {
     return /* css */ `
     :host {
@@ -20,19 +20,19 @@ export class ChaptersPage extends PageMinimal {
         pointer-events: none;
         height: calc(100vh - var(--offset-top, 4rem) - 2rem);
       }
-      .chapters-header {
+      .spreads-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 2rem;
       }
-      .chapter-list {
+      .spread-list {
         display: flex;
         width: 20rem;
         gap: 1rem;
         flex-direction: column;
       }
-      .chapter-card {
+      .spread-card {
         border: 1px solid var(--color-primary);
         border-radius: 2rem;
         background: var(--color-background);
@@ -46,7 +46,7 @@ export class ChaptersPage extends PageMinimal {
         transition: all 0.3s ease;
         pointer-events: auto;
       }
-      .chapter-card .chapter-icon {
+      .spread-card .spread-icon {
         font-size: 2rem;
         width: 2rem;
         margin-right: 1rem;
@@ -54,18 +54,18 @@ export class ChaptersPage extends PageMinimal {
         color: var(--color-primary);
       
     }
-      .chapter-card:hover {
+      .spread-card:hover {
         transform: translateX(-5rem);
         box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
       }
-      .chapter-card.active {
+      .spread-card.active {
         transform: translateX(-5rem);
       }
-      .chapter-meta {
+      .spread-meta {
           color: var(--primary-400);
           font-size: 0.75rem;
         }
-        .chapter-card h3 {
+        .spread-card h3 {
             margin: 0;
             font-size: 1.25rem;
             font-weight: 400;
@@ -92,7 +92,7 @@ export class ChaptersPage extends PageMinimal {
    get template(): string {
     return /* html */ `
       <div class="content">
-        <div class="chapter-list"></div>
+        <div class="spread-list"></div>
       </div>
     `;
   }
@@ -128,28 +128,28 @@ export class ChaptersPage extends PageMinimal {
     assert(this.game, "GameStore not available in updateView");
     assert(this.shadowRoot, "ShadowRoot not available in updateView");
 
-    const list = this.shadowRoot!.querySelector(".chapter-list");
-    assert(list, "Chapter list element not found");
+    const list = this.shadowRoot!.querySelector(".spread-list");
+    assert(list, "Spread list element not found");
 
-    const currentChapter = this.game.state.currentChapter;
+    const currentSpread = this.game.state.currentSpread;
 
-    list.innerHTML = getChapters()
-      .map((chapterData: ChapterData) => {
+    list.innerHTML = getSpreads()
+      .map((spreadData: SpreadData) => {
         const completionPercentage =
-          this.game!.history.getChapterCompletionPercentage(chapterData.id) ??
+          this.game!.history.getSpreadCompletionPercentage(spreadData.id) ??
           0;
-        const isActive = currentChapter === chapterData.id;
+        const isActive = currentSpread === spreadData.id;
 
 
         return /* html */ `
-      <div class="chapter-card ${isActive ? "active" : ""}" 
-           data-chapter-id="${chapterData.id}">
-           <div class="chapter-icon">📑</div>
-           <div class="chapter-info">
-        <h3>${chapterData.title}</h3>
-        <div class="chapter-meta">
-          <div class="page-range">Pages ${chapterData.firstPage} - ${
-          chapterData.lastPage
+      <div class="spread-card ${isActive ? "active" : ""}" 
+           data-spread-id="${spreadData.id}">
+           <div class="spread-icon">📑</div>
+           <div class="spread-info">
+        <h3>${spreadData.title}</h3>
+        <div class="spread-meta">
+          <div class="page-range">Pages ${spreadData.firstPage} - ${
+          spreadData.lastPage
         } <span>(${completionPercentage}%)</span></div>
           <div class="progress-bar">
             <div style="width: ${completionPercentage}%"></div>
@@ -164,22 +164,22 @@ export class ChaptersPage extends PageMinimal {
 
   private setupListeners() {
     assert(this.shadowRoot, "ShadowRoot not available in setupListeners");
-    const list = this.shadowRoot!.querySelector(".chapter-list");
-    assert(list, "Chapter list element not found");
+    const list = this.shadowRoot!.querySelector(".spread-list");
+    assert(list, "Spread list element not found");
     list!.addEventListener("click", this.handleClick);
   }
 
   private handleClick(event: Event) {
     const target = event.target as HTMLElement;
-    const chapterCard = target.closest(".chapter-card") as HTMLElement;
+    const spreadCard = target.closest(".spread-card") as HTMLElement;
 
-    if (chapterCard) {
-      const chapterId = chapterCard.dataset.chapterId;
-      if (chapterId) {
-        this.game.chapters.switchChapter(chapterId);
-        this.game.router.navigate("/chapter", {
-          key: "chapterId",
-          value: chapterId,
+    if (spreadCard) {
+      const spreadId = spreadCard.dataset.spreadId;
+      if (spreadId) {
+        this.game.spreads.switchSpread(spreadId);
+        this.game.router.navigate("/spread", {
+          key: "spreadId",
+          value: spreadId,
         });
       }
     }
@@ -192,4 +192,4 @@ export class ChaptersPage extends PageMinimal {
   }
 }
 
-customElements.define("chapters-page", ChaptersPage);
+customElements.define("spreads-page", SpreadsPage);

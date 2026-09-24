@@ -1,12 +1,12 @@
-import { IChapterList } from './chapter-list';
-import { ChapterItem } from './chapter-item';
+import { ISpreadList } from './spread-list';
+import { SpreadItem } from './spread-item';
 import { TargetItem } from './target-item';
 
 // Declare the custom elements to TypeScript
 declare global {
   interface HTMLElementTagNameMap {
-    'chapter-list': IChapterList;
-    'chapter-item': ChapterItem;
+    'spread-list': ISpreadList;
+    'spread-item': SpreadItem;
     'target-item': TargetItem;
   }
 }

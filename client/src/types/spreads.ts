@@ -1,9 +1,9 @@
 import { LoadingState } from "./common";
 import { TargetData } from "./targets";
 
-export interface IChapterManager {
-  getCurrentChapter(): string | null;
-  switchChapter(id: string): void;
+export interface ISpreadManager {
+  getCurrentSpread(): string | null;
+  switchSpread(id: string): void;
   register(id: string): void;
   markLoading(id: string): void;
   markLoaded(id: string): void;
@@ -13,24 +13,24 @@ export interface IChapterManager {
 }
 
 // Pseudo type for the configuration file
-export type ChapterConfiguration = ChapterData[];
+export type SpreadConfiguration = SpreadData[];
 
-export interface ChapterState {
+export interface SpreadState {
   id: string;
   status: LoadingState;
   error?: Error;
 }
 
-export interface ChapterManagerState {
-  currentChapter: string | null;
-  chapters: Record<string, ChapterState>;
+export interface SpreadManagerState {
+  currentSpread: string | null;
+  spreads: Record<string, SpreadState>;
 }
 
 /**
- * Base data structure for a chapter 
- * Similar to ChapterContent
+ * Base data structure for a spread 
+ * Similar to SpreadContent
  */
-export interface ChapterData {
+export interface SpreadData {
   id: string;
   order: number;
   firstPage: number;

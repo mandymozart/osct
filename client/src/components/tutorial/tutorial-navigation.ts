@@ -179,7 +179,7 @@ export class TutorialNavigation
       this.game.update((draft) => {
         draft.mode = GameMode.DEFAULT;
       });
-      this.game.router.navigate("/chapters");
+      this.game.router.navigate("/spreads");
     } else {
       const nextStep = this.currentStep + 1;
       this.game.router.navigate("/tutorial", {

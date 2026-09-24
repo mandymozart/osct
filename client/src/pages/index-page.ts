@@ -7,10 +7,10 @@ import { Page } from './page';
 // TODO: this is not ideal. use event system rather than the instance
 // not sure why the import is needed
 import '@/components/index';
-import { ChapterList } from '@/components/index/chapter-list';
+import { SpreadList } from '@/components/index/spread-list';
 
 export interface IIndexPage extends HTMLElement {
-  scrollToCurrentChapter(): void;
+  scrollToCurrentSpread(): void;
 }
 
 export class IndexPage extends Page implements IIndexPage {
@@ -64,7 +64,7 @@ export class IndexPage extends Page implements IIndexPage {
         <close-button></close-button>
         </div>
       <div class="content">
-        <chapter-list id="chapter-list"></chapter-list>
+        <spread-list id="spread-list"></spread-list>
       </div>
     `;
   }
@@ -98,18 +98,18 @@ export class IndexPage extends Page implements IIndexPage {
 
   private handleStateChange() {
     // Use the static instance to access methods directly
-    if (ChapterList.instance) {
-      ChapterList.instance.updateChapters();
+    if (SpreadList.instance) {
+      SpreadList.instance.updateSpreads();
     }
   }
 
   /**
-   * Public method to scroll to the current chapter
+   * Public method to scroll to the current spread
    */
-  public scrollToCurrentChapter() {
+  public scrollToCurrentSpread() {
     // Use the static instance to access methods directly
-    if (ChapterList.instance) {
-      ChapterList.instance.scrollToCurrentChapter();
+    if (SpreadList.instance) {
+      SpreadList.instance.scrollToCurrentSpread();
     }
   }
 }

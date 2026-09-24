@@ -10,7 +10,7 @@ export interface ILoadingPage extends IPage {}
  *
  * Example usage:
  * // Show loading with auto-hide
- * showLoading('Loading chapter...', 5000);
+ * showLoading('Loading spread...', 5000);
  *
  * // Show persistent loading
  * showLoading('Please wait...');

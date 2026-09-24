@@ -16,9 +16,9 @@ export interface BaseContent {
   type: string;
 }
 
-// Chapter content schema
-export interface ChapterContent extends BaseContent {
-  type: 'chapter';
+// Spread content schema
+export interface SpreadContent extends BaseContent {
+  type: 'spread';
   order: number;
   title: string;
   firstPage: number;
@@ -41,7 +41,7 @@ export interface AssetContent extends BaseContent {
 export interface TargetContent extends BaseContent {
   title: string;
   description: string;
-  relatedChapter: string;
+  relatedSpread: string;
   order: number;
   bookId: string;
   imageTargetSrc?: string;
@@ -62,8 +62,8 @@ export interface StepContent extends BaseContent {
 }
 
 // Type guard functions
-export function isChapterContent(content: BaseContent): content is ChapterContent {
-  return content.type === 'chapter';
+export function isSpreadContent(content: BaseContent): content is SpreadContent {
+  return content.type === 'spread';
 }
 
 export function isTargetContent(content: BaseContent): content is TargetContent {
@@ -80,7 +80,7 @@ export function isStepContent(content: BaseContent): content is StepContent {
 
 // Helper types for processing content
 export type ContentCollection = {
-  chapters: ChapterContent[];
+  spreads: SpreadContent[];
   targets: TargetContent[];
   steps: StepContent[];
 };

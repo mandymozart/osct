@@ -7,7 +7,7 @@ import {
   GameState,
   GameVersion,
   ICameraManager,
-  IChapterManager,
+  ISpreadManager,
   IGame,
   IHistoryManager,
   IRouterManager,
@@ -17,7 +17,7 @@ import {
 import { uniqueId } from "@/utils";
 import { BaseStore } from "./BaseStore";
 import { CameraManager } from "./managers/CameraManager";
-import { ChapterManager } from "./managers/ChapterManager";
+import { SpreadManager } from "./managers/SpreadManager";
 import { HistoryManager } from "./managers/HistoryManager";
 import { RouterManager } from "./managers/router/RouterManager";
 import { TargetManager } from "./managers/TargetManager";
@@ -28,8 +28,8 @@ const initialState: GameState = {
   currentRoute: null,
   currentError: null,
   trackedTargets: [],
-  currentChapter: null,
-  chapters: {}, 
+  currentSpread: null,
+  spreads: {}, 
   history: [],
   configVersion: configVersion as unknown as ConfigurationVersion,
   loading: LoadingState.LOADING,
@@ -44,7 +44,7 @@ class Game extends BaseStore<GameState> implements IGame {
   public version: GameVersion = { version: __VITE_APP_VERSION__, timestamp: __VITE_BUILD_DATE__ } as GameVersion;
 
   // Managers
-  public chapters: IChapterManager;
+  public spreads: ISpreadManager;
   public targets: ITargetManager;
   public history: IHistoryManager;
   public router: IRouterManager;
@@ -71,7 +71,7 @@ class Game extends BaseStore<GameState> implements IGame {
     super(initialState);
 
     this.camera = new CameraManager(this);
-    this.chapters = new ChapterManager(this);
+    this.spreads = new SpreadManager(this);
     this.history = new HistoryManager(this);
     this.targets = new TargetManager(this);
     this.router = new RouterManager(this);

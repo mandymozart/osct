@@ -22,10 +22,10 @@ export class QRGenerator extends HTMLElement {
     this.render();
     this.setupListeners();
 
-    // Subscribe to current chapter changes only
-    this.subscriptionCleanup = this.game.subscribeToProperty('currentChapter', (newChapterId) => {
-      if (newChapterId) {
-        this.generateQR(newChapterId);
+    // Subscribe to current spread changes only
+    this.subscriptionCleanup = this.game.subscribeToProperty('currentSpread', (newSpreadId) => {
+      if (newSpreadId) {
+        this.generateQR(newSpreadId);
       }
     });
   }
@@ -92,7 +92,7 @@ export class QRGenerator extends HTMLElement {
       </style>
       
       <select id="qr-type-selector">
-        <option value="valid">Valid Chapter QR</option>
+        <option value="valid">Valid Spread QR</option>
         <option value="wrong-version">Wrong App Version</option>
       </select>
       
@@ -115,9 +115,9 @@ export class QRGenerator extends HTMLElement {
       });
     }
 
-    // Generate initial QR code if chapter exists
-    if (this.game.state.currentChapter) {
-      this.generateQR(this.game.state.currentChapter);
+    // Generate initial QR code if spread exists
+    if (this.game.state.currentSpread) {
+      this.generateQR(this.game.state.currentSpread);
     }
   }
 
@@ -135,28 +135,28 @@ export class QRGenerator extends HTMLElement {
       selector.addEventListener("mousedown", (e) => e.stopPropagation());
       selector.addEventListener("change", (e) => {
         e.stopPropagation();
-        const currentChapter = this.game.state.currentChapter;
-        if (!currentChapter) return;
-        this.generateQR(currentChapter, selector.value);
+        const currentSpread = this.game.state.currentSpread;
+        if (!currentSpread) return;
+        this.generateQR(currentSpread, selector.value);
       });
     }
   }
 
-  private generateQR(chapterId: string, testType: string = "valid") {
+  private generateQR(spreadId: string, testType: string = "valid") {
     if (!this.qrInstance) return;
 
     const baseUrl = __VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl;
     // osct = app version (client package.json), see GameStore.version
     const appVersion = testType === "wrong-version" ? "999.0.0" : this.game.version.version;
-    const url = `${baseUrl}/?code=c-${chapterId}&osct=${appVersion}`;
+    const url = `${baseUrl}/?code=c-${spreadId}&osct=${appVersion}`;
 
     this.qrInstance.clear();
     this.qrInstance.makeCode(url);
   }
 
   private downloadSVG() {
-    const currentChapter = this.game.state.currentChapter;
-    if (!currentChapter) return;
+    const currentSpread = this.game.state.currentSpread;
+    if (!currentSpread) return;
     
     const svg = this.shadow.querySelector("svg");
     if (!svg) return;
@@ -167,7 +167,7 @@ export class QRGenerator extends HTMLElement {
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = `osct-qr-c-${currentChapter}.svg`;
+    link.download = `osct-qr-c-${currentSpread}.svg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

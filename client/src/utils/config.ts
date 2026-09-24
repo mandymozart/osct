@@ -1,46 +1,46 @@
 import config from '@/game.config.json';
-import { AssetData, ChapterData, TargetData } from '@/types';
+import { AssetData, SpreadData, TargetData } from '@/types';
 
-const chaptersData: ChapterData[] = config.chapters as ChapterData[]
+const spreadsData: SpreadData[] = config.spreads as SpreadData[]
 
-export const getChapters = (): ChapterData[] => [...chaptersData];
+export const getSpreads = (): SpreadData[] => [...spreadsData];
 
-export const getChapter = (id: string): ChapterData | undefined =>
-  chaptersData.find((chapter) => chapter.id === id);
+export const getSpread = (id: string): SpreadData | undefined =>
+  spreadsData.find((spread) => spread.id === id);
 
-export const getInitialChapterId = (): string => config.initialChapterId;
+export const getInitialSpreadId = (): string => config.initialSpreadId;
 
 export const getTargets = (id: string): TargetData[] => {
-  const chapter = getChapter(id);
-  return chapter?.targets ?? [];
+  const spread = getSpread(id);
+  return spread?.targets ?? [];
 };
 
 export const getTarget = (id: string): TargetData | undefined =>
-  chaptersData
-    .flatMap(chapter => chapter.targets)
+  spreadsData
+    .flatMap(spread => spread.targets)
     .find((target) => target.id === id);
 
 export const getAsset = (id: string): AssetData | undefined =>
-  chaptersData
-    .flatMap((chapter) =>
-      chapter.targets.flatMap((target) => target.entity?.assets ?? []),
+  spreadsData
+    .flatMap((spread) =>
+      spread.targets.flatMap((target) => target.entity?.assets ?? []),
     )
     .find((asset) => asset.id === id);
 
 /**
- * Get all assets or assets for a specific chapter
- * @param chapterId Optional chapter ID to filter assets
- * @returns Array of assets, optionally filtered by chapter
+ * Get all assets or assets for a specific spread
+ * @param spreadId Optional spread ID to filter assets
+ * @returns Array of assets, optionally filtered by spread
  */
-export const getAssets = (chapterId?: string): AssetData[] => {
-  if (chapterId) {
-    const chapter = getChapter(chapterId);
-    if (!chapter) return [];
+export const getAssets = (spreadId?: string): AssetData[] => {
+  if (spreadId) {
+    const spread = getSpread(spreadId);
+    if (!spread) return [];
 
-    return chapter.targets.flatMap((target) => target.entity?.assets ?? []);
+    return spread.targets.flatMap((target) => target.entity?.assets ?? []);
   }
 
-  return chaptersData.flatMap((chapter) =>
-    chapter.targets.flatMap((target) => target.entity?.assets ?? []),
+  return spreadsData.flatMap((spread) =>
+    spread.targets.flatMap((target) => target.entity?.assets ?? []),
   );
 };
