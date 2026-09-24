@@ -64,7 +64,7 @@ describe("content config", () => {
       ...spreads.map(c => c.mindSrc),
       ...spreads.flatMap(c => c.targets.map(t => t.imageTargetSrc)),
       ...getAssets().map(a => a.src),
-    ].filter(Boolean) as string[];
+    ].filter(src => src && !/^https?:\/\//.test(src)) as string[]; // links point to external URLs
 
     const missing = files.filter(src => !existsSync(publicFile(src)));
     expect(missing).toEqual([]);

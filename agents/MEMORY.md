@@ -8,12 +8,14 @@ outcome in the line (or move it into a dated decision block).
 
 - [x] Demo spreads now cover pages **1–2, 3–4, 5–6** (like the final book). Only page ranges changed;
       target assignment and `.mind` files unchanged.
-- [x] `target-000` "Shadows" removed (user). It was silently dropped by the build (YAML pointed at a
-      missing `images-000.jpg`) **but was still image 0 in `spread1.mind`** → every spread1 target was
-      off by one in AR (Shadows image showed the racoon, dragon page showed nothing). Fixed by removing
-      its entry from `spread1.mind` (msgpack `dataList`, per-image entries are independent – same result
-      as recompiling the 3 images). New test: each spread `.mind` must contain exactly its targets'
-      images in `mindarTargetIndex` order (compares image sizes with each target's own `.mind`).
+- [x] `target-000` "Shadows" restored (user found the missing image `images-000.jpg`, 254×650 = the
+      size compiled into `spread1.mind`). It had been silently dropped by the build while still being
+      image 0 in `spread1.mind` → spread1 targets were off by one in AR. Now 10 targets, spread1 =
+      Shadows (link), Racoon, Ancient Tree, Sleeping Dragon, matching the original `.mind`. (A short-lived
+      removal in `6ad6d8e` was rolled back.) New test: each spread `.mind` must contain exactly its
+      targets' images in `mindarTargetIndex` order. The "files exist" test skips external link URLs.
+- [ ] `content/targets/target-000/images-010.jpg` (254×650, same size) is unreferenced – probably the
+      same picture under an old name. Ask before removing.
 - [ ] 1d: the build should **fail** (not skip) on a missing target image, and ideally run the same
       `.mind` ↔ targets check.
 - [ ] Dead code: `client/src/components/aframe-bridges/static/spread{1,2,3}.ts` (not imported anywhere)
