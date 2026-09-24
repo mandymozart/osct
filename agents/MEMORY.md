@@ -6,6 +6,13 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-09-24 – Phase 1c rename done (chapter → spread)
 
+- [x] Demo spreads now cover pages **1–2, 3–4, 5–6** (like the final book). Only page ranges changed;
+      target assignment and `.mind` files unchanged.
+- [ ] Demo content bug: `target-000` "Shadows" (entityType **link**) is silently dropped by the build –
+      its YAML says `imageTargetSrc: images-000.jpg` but the folder has `images-010.jpg`. Re-adding it
+      shifts MindAR indices in spread1 → recompile `spread1.mind`. Relevant for 1d (Links category demo);
+      the build should **fail** (not skip) on missing target images.
+
 - [x] Rename done in code, content, build script, routes, tests (see PLAN 1c). QR prefix `c-` kept.
 - [x] Saved history from before the rename (`chapterId` entries, or spreads that no longer exist) is
       dropped on load instead of offering a broken resume (`HistoryManager.loadTargetHistory`, tested).
