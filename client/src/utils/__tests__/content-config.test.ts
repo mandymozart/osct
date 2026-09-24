@@ -1,4 +1,5 @@
-import { existsSync } from "fs";
+import { decode } from "@msgpack/msgpack";
+import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import config from "@/game.config.json";
@@ -14,6 +15,8 @@ const MAX_TARGETS_PER_GROUP = 5;
 
 const publicDir = resolve(__dirname, "../../../public");
 const publicFile = (src: string) => resolve(publicDir, src.replace(/^\//, ""));
+
+type MindFile = { dataList: { targetImage: { width: number; height: number } }[] };
 
 describe("content config", () => {
   const spreads = getSpreads();
@@ -34,6 +37,25 @@ describe("content config", () => {
     (_id, spread) => {
       expect(spread.targets.length).toBeLessThanOrEqual(MAX_TARGETS_PER_GROUP);
       expect(spread.targets.map(t => t.mindarTargetIndex)).toEqual(spread.targets.map((_, i) => i));
+    },
+  );
+
+  // MindAR matches by position: entry i of the spread .mind must be the image of the target with
+  // mindarTargetIndex i. A stale .mind silently shows the wrong AR content on a page.
+  it.each(spreads.map(c => [c.id, c] as const))(
+    "%s .mind contains exactly its targets, in order",
+    (_id, spread) => {
+      const size = (src: string) => {
+        const { dataList } = decode(readFileSync(publicFile(src))) as MindFile;
+        return dataList.map(({ targetImage: { width, height } }) => `${width}x${height}`);
+      };
+
+      const spreadImages = size(spread.mindSrc);
+      const targetImages = [...spread.targets]
+        .sort((a, b) => a.mindarTargetIndex - b.mindarTargetIndex)
+        .map(t => size(t.mindSrc!)[0]);
+
+      expect(spreadImages).toEqual(targetImages);
     },
   );
 
