@@ -2,7 +2,7 @@ id: target-000
 type: target
 title: Shadows
 description: Light plays a role in architecture.
-relatedChapter: chapter1
+relatedSpread: spread1
 order: 0
 bookId: "000"
 entityType: link

@@ -1,47 +1,47 @@
 import { GameStoreService } from '@/services/GameStoreService';
-import { ChapterData, IGame, TargetData } from '@/types';
+import { SpreadData, IGame, TargetData } from '@/types';
 import { assert } from '@/utils';
-import './chapter-item';
+import './spread-item';
 import './target-item';
-import { getChapter, getChapters } from '@/utils/config';
+import { getSpread, getSpreads } from '@/utils/config';
 
-export interface IChapterList extends HTMLElement {
-  updateChapters(): void;
-  scrollToCurrentChapter(): void;
+export interface ISpreadList extends HTMLElement {
+  updateSpreads(): void;
+  scrollToCurrentSpread(): void;
 }
 
 /**
- * ChapterList Component
+ * SpreadList Component
  *
- * Container for all chapters and their targets in the index page
+ * Container for all spreads and their targets in the index page
  */
-export class ChapterList extends HTMLElement implements IChapterList {
+export class SpreadList extends HTMLElement implements ISpreadList {
   private game: Readonly<IGame>;
-  private chapters: ChapterData[] = [];
+  private spreads: SpreadData[] = [];
   private expandedTargetId: string | null = null;
   private unsubscribe: (() => void) | null = null;
 
   // Static property for direct access
-  static instance: ChapterList | null = null;
+  static instance: SpreadList | null = null;
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: 'open' });
     this.handleStateChange = this.handleStateChange.bind(this);
-    this.handleChapterSelect = this.handleChapterSelect.bind(this);
+    this.handleSpreadSelect = this.handleSpreadSelect.bind(this);
     this.handleTargetToggle = this.handleTargetToggle.bind(this);
     this.handleTargetSelect = this.handleTargetSelect.bind(this);
 
     // Store instance reference for direct access
-    ChapterList.instance = this;
+    SpreadList.instance = this;
   }
 
   connectedCallback() {
     assert(this.game, 'Game store not initialized');
     this.render();
     this.unsubscribe = this.game.subscribe(this.handleStateChange);
-    this.updateChapters();
+    this.updateSpreads();
     this.setupEventListeners();
   }
 
@@ -63,22 +63,22 @@ export class ChapterList extends HTMLElement implements IChapterList {
           margin-bottom: 2rem;
         }
         
-        .no-chapters {
+        .no-spreads {
           text-align: center;
           color: var(--color-primary-500);
         }
       </style>
       
       <div id="container">
-        <div class="no-chapters">Loading chapters...</div>
+        <div class="no-spreads">Loading spreads...</div>
       </div>
     `;
   }
 
   private setupEventListeners() {
     this.addEventListener(
-      'chapter-select',
-      this.handleChapterSelect as EventListener,
+      'spread-select',
+      this.handleSpreadSelect as EventListener,
     );
     this.addEventListener(
       'target-toggle',
@@ -92,8 +92,8 @@ export class ChapterList extends HTMLElement implements IChapterList {
 
   private removeEventListeners() {
     this.removeEventListener(
-      'chapter-select',
-      this.handleChapterSelect as EventListener,
+      'spread-select',
+      this.handleSpreadSelect as EventListener,
     );
     this.removeEventListener(
       'target-toggle',
@@ -106,57 +106,57 @@ export class ChapterList extends HTMLElement implements IChapterList {
   }
 
   private handleStateChange() {
-    this.updateChapters();
+    this.updateSpreads();
   }
 
-  public updateChapters() {
+  public updateSpreads() {
     assert(this.game, 'Game store not initialized');
 
-    this.chapters = getChapters();
+    this.spreads = getSpreads();
 
-    this.chapters.sort((a, b) => {
-      const aData = getChapter(a.id);
-      const bData = getChapter(b.id);
+    this.spreads.sort((a, b) => {
+      const aData = getSpread(a.id);
+      const bData = getSpread(b.id);
       if (aData && bData) {
         return aData.order - bData.order;
       }
       return a.id.localeCompare(b.id);
     });
 
-    this.renderChapters();
+    this.renderSpreads();
   }
 
-  private renderChapters() {
+  private renderSpreads() {
     if (!this.shadowRoot) return;
     const container = this.shadowRoot.querySelector('#container');
     assert(container, 'Container element not found');
 
-    if (this.chapters.length === 0) {
+    if (this.spreads.length === 0) {
       container.innerHTML =
-        '<div class="no-chapters">No chapters available</div>';
+        '<div class="no-spreads">No spreads available</div>';
       return;
     }
 
     // Clear the container
     container.innerHTML = '';
 
-    const currentChapterId = this.game.state.currentChapter || null;
+    const currentSpreadId = this.game.state.currentSpread || null;
 
-    // Create and append chapter and target elements
-    this.chapters.forEach((chapter) => {
-      const isCurrent = chapter.id === currentChapterId;
-      const chapterData = getChapter(chapter.id);
+    // Create and append spread and target elements
+    this.spreads.forEach((spread) => {
+      const isCurrent = spread.id === currentSpreadId;
+      const spreadData = getSpread(spread.id);
 
-      // Create and append chapter item
-      const chapterItem = document.createElement('chapter-item') as any;
-      chapterItem.chapter = chapter;
-      chapterItem.isCurrent = isCurrent;
-      chapterItem.chapterData = chapterData;
-      container.appendChild(chapterItem);
+      // Create and append spread item
+      const spreadItem = document.createElement('spread-item') as any;
+      spreadItem.spread = spread;
+      spreadItem.isCurrent = isCurrent;
+      spreadItem.spreadData = spreadData;
+      container.appendChild(spreadItem);
 
       // Append targets if they exist
-      if (chapter.targets && chapter.targets.length > 0) {
-        chapter.targets.forEach((target: TargetData) => {
+      if (spread.targets && spread.targets.length > 0) {
+        spread.targets.forEach((target: TargetData) => {
           if(target.hideFromIndex) return;
           // Create and append target item
           const targetItem = document.createElement('target-item') as any;
@@ -168,17 +168,17 @@ export class ChapterList extends HTMLElement implements IChapterList {
       } else {
         // No targets message
         const noTargets = document.createElement('div');
-        noTargets.classList.add('no-chapters');
-        noTargets.textContent = 'No targets in this chapter';
+        noTargets.classList.add('no-spreads');
+        noTargets.textContent = 'No targets in this spread';
         container.appendChild(noTargets);
       }
     });
   }
 
-  private handleChapterSelect(event: CustomEvent) {
-    const { chapterId } = event.detail;
-    if (chapterId && this.game) {
-      this.activateChapter(chapterId);
+  private handleSpreadSelect(event: CustomEvent) {
+    const { spreadId } = event.detail;
+    if (spreadId && this.game) {
+      this.activateSpread(spreadId);
     }
   }
 
@@ -188,7 +188,7 @@ export class ChapterList extends HTMLElement implements IChapterList {
       // Toggle expansion
       this.expandedTargetId =
         this.expandedTargetId === targetId ? null : targetId;
-      this.renderChapters();
+      this.renderSpreads();
     }
   }
 
@@ -196,39 +196,39 @@ export class ChapterList extends HTMLElement implements IChapterList {
     const { targetId } = event.detail;
     if (!targetId) return;
 
-    // Find the chapter that contains this target
-    for (const chapter of this.chapters) {
-      const targetExists = chapter.targets.some(
+    // Find the spread that contains this target
+    for (const spread of this.spreads) {
+      const targetExists = spread.targets.some(
         (target: TargetData) => target.bookId === targetId,
       );
-      if (targetExists && chapter.id !== this.game?.state.currentChapter) {
-        this.activateChapter(chapter.id);
+      if (targetExists && spread.id !== this.game?.state.currentSpread) {
+        this.activateSpread(spread.id);
         break;
       }
     }
   }
 
-  private activateChapter(chapterId: string) {
+  private activateSpread(spreadId: string) {
     if (!this.game) return;
-    this.game.chapters.switchChapter(chapterId);
+    this.game.spreads.switchSpread(spreadId);
   }
 
-  public scrollToCurrentChapter() {
-    if (!this.shadowRoot || !this.game?.state.currentChapter) return;
+  public scrollToCurrentSpread() {
+    if (!this.shadowRoot || !this.game?.state.currentSpread) return;
 
     // Give the DOM time to update
     setTimeout(() => {
-      const currentChapterId = this.game?.state.currentChapter;
-      if (currentChapterId) {
-        const currentChapter = this.shadowRoot?.querySelector(
-          `chapter-item[is-current="true"]`,
+      const currentSpreadId = this.game?.state.currentSpread;
+      if (currentSpreadId) {
+        const currentSpread = this.shadowRoot?.querySelector(
+          `spread-item[is-current="true"]`,
         );
-        if (currentChapter) {
-          currentChapter.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (currentSpread) {
+          currentSpread.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }
     }, 100);
   }
 }
 
-customElements.define('chapter-list', ChapterList);
+customElements.define('spread-list', SpreadList);

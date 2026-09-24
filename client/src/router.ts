@@ -19,13 +19,13 @@ export const router: PageRouterConfiguration = {
       slug: "/",
     },
     {
-      page: Pages.CHAPTERS,
-      slug: "/chapters",
+      page: Pages.SPREADS,
+      slug: "/spreads",
     },
     {
-      page: Pages.CHAPTER,
-      slug: "/chapter",
-      param: "chapterId"
+      page: Pages.SPREAD,
+      slug: "/spread",
+      param: "spreadId"
     },
     {
       page: Pages.ABOUT,

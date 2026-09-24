@@ -1,3 +1,3 @@
-export * from './chapter-item';
+export * from './spread-item';
 export * from './target-item';
-export * from './chapter-list';
+export * from './spread-list';

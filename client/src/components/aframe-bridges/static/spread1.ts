@@ -1,7 +1,7 @@
-export const chapter1 = /* html */`
+export const spread1 = /* html */`
 <a-scene 
     id="scene" 
-    mindar-image="imageTargetSrc: ./assets/content/chapters/chapter1/chapter1.mind; maxTrack: 4;" 
+    mindar-image="imageTargetSrc: ./assets/content/spreads/spread1/spread1.mind; maxTrack: 4;" 
     color-space="sRGB" 
     renderer="colorManagement: true, physicallyCorrectLights" 
     vr-mode-ui="enabled: false" 
@@ -20,7 +20,7 @@ export const chapter1 = /* html */`
             position="0 0 0" 
             rotation="0 0 0" 
             scale="0.5 0.5 0.5"
-            id="chapter1-target-000-shadows-link"></a-text>
+            id="spread1-target-000-shadows-link"></a-text>
     <a-plane color="#000066" opacity="0.5" position="0 0 -0.01" width="2" height="0.5"></a-plane>
     </a-entity>
     

@@ -5,7 +5,7 @@ export interface ITargetItem extends HTMLElement {
   target: TargetData | null;
   isCurrent: boolean;
   isExpanded: boolean;
-  chapterId?: string | null;
+  spreadId?: string | null;
   targetIndex?: number;
 }
 
@@ -20,11 +20,11 @@ export class TargetItem extends HTMLElement implements ITargetItem {
   private _isExpanded = false;
   private _hasBeenSeen = false;
   private game: Readonly<IGame>;
-  private _chapterId: string | null = null;
+  private _spreadId: string | null = null;
   private _targetIndex: number = -1;
 
   static get observedAttributes() {
-    return ["is-current", "is-expanded", "chapter-id", "target-index"];
+    return ["is-current", "is-expanded", "spread-id", "target-index"];
   }
 
   constructor() {
@@ -46,8 +46,8 @@ export class TargetItem extends HTMLElement implements ITargetItem {
   }
 
   private handleHistoryStateChanged() {
-    const hasBeenSeen = this.game?.history.hasTargetBeenSeen(this._chapterId || "", this._targetIndex) ?? false;
-    console.log("[TargetItem] hasBeenSeen:", hasBeenSeen, this._chapterId, this._targetIndex, this._target);
+    const hasBeenSeen = this.game?.history.hasTargetBeenSeen(this._spreadId || "", this._targetIndex) ?? false;
+    console.log("[TargetItem] hasBeenSeen:", hasBeenSeen, this._spreadId, this._targetIndex, this._target);
     if(this._hasBeenSeen !== hasBeenSeen) {
       this._hasBeenSeen = hasBeenSeen;
       this.render();
@@ -70,8 +70,8 @@ export class TargetItem extends HTMLElement implements ITargetItem {
     } else if (name === "is-expanded") {
       this._isExpanded = newValue === "true";
       this.render();
-    } else if (name === "chapter-id") {
-      this._chapterId = newValue;
+    } else if (name === "spread-id") {
+      this._spreadId = newValue;
       this.render();
     } else if (name === "target-index") {
       this._targetIndex = parseInt(newValue, 10);
@@ -200,7 +200,7 @@ export class TargetItem extends HTMLElement implements ITargetItem {
       })
     );
 
-    // If not current, dispatch event to activate parent chapter
+    // If not current, dispatch event to activate parent spread
     if (!this._isCurrent) {
       this.dispatchEvent(
         new CustomEvent("target-select", {
@@ -240,18 +240,18 @@ export class TargetItem extends HTMLElement implements ITargetItem {
     this.setAttribute("is-expanded", String(value));
   }
 
-  // Add chapter ID getter and setter
-  get chapterId(): string | null {
-    return this._chapterId;
+  // Add spread ID getter and setter
+  get spreadId(): string | null {
+    return this._spreadId;
   }
 
-  set chapterId(value: string | null) {
+  set spreadId(value: string | null) {
     if (value) {
-      this._chapterId = value;
-      this.setAttribute("chapter-id", value);
+      this._spreadId = value;
+      this.setAttribute("spread-id", value);
     } else {
-      this._chapterId = null;
-      this.removeAttribute("chapter-id");
+      this._spreadId = null;
+      this.removeAttribute("spread-id");
     }
   }
 

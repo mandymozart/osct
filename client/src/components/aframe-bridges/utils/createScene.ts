@@ -1,26 +1,26 @@
-import { getAssets, getChapter, getTargets } from "@/utils/config";
+import { getAssets, getSpread, getTargets } from "@/utils/config";
 import { Scene } from "aframe";
 import { attachAssets, attachEntities } from "./createEntities";
 import { AssetData, TargetData } from "@/types";
 
 /**
-   * Create an A-Frame scene element for the chapter
-   * @param {string} id - The chapter id
+   * Create an A-Frame scene element for the spread
+   * @param {string} id - The spread id
    * @returns {Scene} - The A-Frame scene element Scene extends ANode extends HTMLElement
    */
 export const createScene = (id: string): Scene => {
-    const chapterData = getChapter(id);
+    const spreadData = getSpread(id);
     const allAssetsData: AssetData[] = getAssets(id);
     const entitiesData: TargetData[] = getTargets(id);
-    if(!chapterData) {
-      throw new Error(`Chapter ${id} not found`);
+    if(!spreadData) {
+      throw new Error(`Spread ${id} not found`);
     }
     const scene = document.createElement('a-scene') as Scene;
     
     // Set scene attributes
     scene.setAttribute('id', 'scene');
     scene.setAttribute('mindar-image', 
-      `imageTargetSrc: ${chapterData.mindSrc}; maxTrack: ${chapterData.targets.length}`);
+      `imageTargetSrc: ${spreadData.mindSrc}; maxTrack: ${spreadData.targets.length}`);
     scene.setAttribute('color-space', 'sRGB');
     scene.setAttribute('renderer', 'colorManagement: true, physicallyCorrectLights');
     scene.setAttribute('vr-mode-ui', 'enabled: false');

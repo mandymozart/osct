@@ -2,7 +2,7 @@ id: target-007
 type: target
 title: Video Example
 description: A demonstration of video content in AR
-relatedChapter: chapter2
+relatedSpread: spread2
 order: 3
 bookId: "007"
 entityType: video

@@ -3,7 +3,7 @@ import "./about-page"
 import "./not-found-page";
 import "./home-page";
 import "./tutorial-page";
-import "./chapter-page"
-import "./chapters-page"
+import "./spread-page"
+import "./spreads-page"
 import "./loading-page";
 import "./index-page";

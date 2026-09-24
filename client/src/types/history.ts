@@ -19,41 +19,41 @@ export interface IHistoryManager {
 
   /**
    * Mark a target as seen by the user
-   * @param chapterId The chapter containing the target
+   * @param spreadId The spread containing the target
    * @param targetIndex The index of the target
    */
-  markTargetAsSeen(chapterId: string, targetIndex: number): void;
+  markTargetAsSeen(spreadId: string, targetIndex: number): void;
 
   /**
    * Check if a target has been seen before
-   * @param chapterId The chapter containing the target
+   * @param spreadId The spread containing the target
    * @param targetIndex The index of the target
    */
-  hasTargetBeenSeen(chapterId: string, targetIndex: number): boolean;
+  hasTargetBeenSeen(spreadId: string, targetIndex: number): boolean;
 
   /**
-   * Get all target indices that have been seen in a specific chapter
-   * @param chapterId The chapter ID to check
+   * Get all target indices that have been seen in a specific spread
+   * @param spreadId The spread ID to check
    */
-  getSeenTargetsForChapter(chapterId: string): number[];
+  getSeenTargetsForSpread(spreadId: string): number[];
 
   /**
-   * Calculate the percentage of targets seen in a chapter
-   * @param chapterId The chapter ID to calculate completion for
+   * Calculate the percentage of targets seen in a spread
+   * @param spreadId The spread ID to calculate completion for
    */
-  getChapterCompletionPercentage(chapterId: string): number;
+  getSpreadCompletionPercentage(spreadId: string): number;
 
   /**
-   * Check if all targets in a chapter have been seen
-   * @param chapterId The chapter ID to check
+   * Check if all targets in a spread have been seen
+   * @param spreadId The spread ID to check
    */
-  isChapterComplete(chapterId: string): boolean;
+  isSpreadComplete(spreadId: string): boolean;
 
   /**
-   * Reset seen history for a specific chapter
-   * @param chapterId The chapter ID to reset
+   * Reset seen history for a specific spread
+   * @param spreadId The spread ID to reset
    */
-  resetChapterHistory(chapterId: string): void;
+  resetSpreadHistory(spreadId: string): void;
 
   /**
    * Reset all target history

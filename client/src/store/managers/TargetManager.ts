@@ -22,10 +22,10 @@ export class TargetManager implements ITargetManager {
         draft.trackedTargets.push(targetIndex);
       });
 
-      // Mark this target as seen if we have a current chapter
-      if (this.game.state.currentChapter) {
+      // Mark this target as seen if we have a current spread
+      if (this.game.state.currentSpread) {
         this.game.history.markTargetAsSeen(
-          this.game.state.currentChapter,
+          this.game.state.currentSpread,
           targetIndex
         );
       }

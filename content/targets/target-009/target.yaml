@@ -2,7 +2,7 @@ id: target-009
 type: target
 title: Sploosh the sheep
 description: A demonstration of a video with alpha channel
-relatedChapter: chapter3
+relatedSpread: spread3
 order: 1
 bookId: "009"
 entityType: video

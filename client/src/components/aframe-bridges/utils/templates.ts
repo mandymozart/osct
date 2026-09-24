@@ -1,5 +1,5 @@
-import { AssetData, ChapterData, TargetData } from "@/types";
-import { getAssets, getChapter, getTargets } from "@/utils/config";
+import { AssetData, SpreadData, TargetData } from "@/types";
+import { getAssets, getSpread, getTargets } from "@/utils/config";
 
 /**
  * Creates an asset HTML element string for the A-Frame scene
@@ -92,21 +92,21 @@ export const createEntityElement = (target: TargetData): string => {
 };
 
 /**
- * Generates an A-Frame scene template string for a chapter
- * @param chapterId The ID of the chapter to generate a template for
+ * Generates an A-Frame scene template string for a spread
+ * @param spreadId The ID of the spread to generate a template for
  * @returns HTML string representation of the A-Frame scene
  */
-export const createTemplateFromConfig = (chapterId: string): string => {
-  const chapter = getChapter(chapterId);
+export const createTemplateFromConfig = (spreadId: string): string => {
+  const spread = getSpread(spreadId);
   
-  if (!chapter) {
-    console.error(`Chapter ${chapterId} not found`);
+  if (!spread) {
+    console.error(`Spread ${spreadId} not found`);
     return '';
   }
   
-  // Get all assets for this chapter to avoid duplicates
-  const assets = getAssets(chapterId);
-  const targets = getTargets(chapterId);
+  // Get all assets for this spread to avoid duplicates
+  const assets = getAssets(spreadId);
+  const targets = getTargets(spreadId);
   
   // Create a map to deduplicate assets
   const assetMap = new Map<string, AssetData>();
@@ -129,7 +129,7 @@ export const createTemplateFromConfig = (chapterId: string): string => {
   return /* html */`
 <a-scene 
     id="scene" 
-    mindar-image="imageTargetSrc: ${chapter.mindSrc}; maxTrack: ${targets.length};" 
+    mindar-image="imageTargetSrc: ${spread.mindSrc}; maxTrack: ${targets.length};" 
     color-space="sRGB" 
     renderer="colorManagement: true, physicallyCorrectLights" 
     vr-mode-ui="enabled: false" 
@@ -151,17 +151,17 @@ const templateCache = new Map<string, string>();
 
 /**
  * Gets a cached template or generates a new one
- * @param chapterId The ID of the chapter to get a template for
+ * @param spreadId The ID of the spread to get a template for
  * @param forceRefresh Whether to force a refresh of the cached template
  * @returns HTML string representation of the A-Frame scene 
  */
-export const getOrCreateTemplate = (chapterId: string, forceRefresh = false): string => {
-  if (!forceRefresh && templateCache.has(chapterId)) {
-    return templateCache.get(chapterId)!;
+export const getOrCreateTemplate = (spreadId: string, forceRefresh = false): string => {
+  if (!forceRefresh && templateCache.has(spreadId)) {
+    return templateCache.get(spreadId)!;
   }
   
-  const template = createTemplateFromConfig(chapterId);
-  templateCache.set(chapterId, template);
+  const template = createTemplateFromConfig(spreadId);
+  templateCache.set(spreadId, template);
   
   return template;
 };
@@ -174,16 +174,16 @@ export const clearTemplateCache = (): void => {
 };
 
 /**
- * Gets all chapter templates
+ * Gets all spread templates
  * @param forceRefresh Whether to force a refresh of the cached templates
- * @returns Record of all chapter templates indexed by chapter ID
+ * @returns Record of all spread templates indexed by spread ID
  */
 export const getAllTemplates = (forceRefresh = false): Record<string, string> => {
-  // Import directly to get all chapters
-  const allChapters = require('@/game.config.json').chapters as ChapterData[];
+  // Import directly to get all spreads
+  const allSpreads = require('@/game.config.json').spreads as SpreadData[];
   
-  return allChapters.reduce((acc, chapter) => {
-    acc[chapter.id] = getOrCreateTemplate(chapter.id, forceRefresh);
+  return allSpreads.reduce((acc, spread) => {
+    acc[spread.id] = getOrCreateTemplate(spread.id, forceRefresh);
     return acc;
   }, {} as Record<string, string>);
 };

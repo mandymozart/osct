@@ -13,7 +13,7 @@ export class StaticSceneBridge extends HTMLElement {
   private game: Readonly<IGame>;
   private sceneService: ISceneService;
   private currentMode: GameMode | null = null;
-  private currentChapter: string | null = null;
+  private currentSpread: string | null = null;
   private system: AFRAME.MindARImageSystem | null = null as unknown as AFRAME.MindARImageSystem;
   private sceneContainer: HTMLElement | null = null;
   private sceneElement: Scene | null = null;
@@ -21,7 +21,7 @@ export class StaticSceneBridge extends HTMLElement {
   private initialized = false;
   private sceneInitialized = false;
   private modeUnsubscribe: (() => void) | null = null;
-  private chapterUnsubscribe: (() => void) | null = null;
+  private spreadUnsubscribe: (() => void) | null = null;
 
   // Templates are now generated dynamically from the game config
   private templates: Record<string, string> = {};
@@ -44,9 +44,9 @@ export class StaticSceneBridge extends HTMLElement {
       this.modeUnsubscribe = null;
     }
     
-    if (this.chapterUnsubscribe) {
-      this.chapterUnsubscribe();
-      this.chapterUnsubscribe = null;
+    if (this.spreadUnsubscribe) {
+      this.spreadUnsubscribe();
+      this.spreadUnsubscribe = null;
     }
     
     this.sceneService.setScene(null);
@@ -73,17 +73,17 @@ export class StaticSceneBridge extends HTMLElement {
     try {
       await waitForDOMReady();
       
-      const currentChapter = this.game.chapters.getCurrentChapter() || 'chapter2';
+      const currentSpread = this.game.spreads.getCurrentSpread() || 'spread2';
       
-      if (currentChapter) {
-        await this.createSceneForChapter(currentChapter);
+      if (currentSpread) {
+        await this.createSceneForSpread(currentSpread);
         this.setupListeners();
       } else {
-        console.warn("[StaticSceneBridge] No current chapter to create scene for");
+        console.warn("[StaticSceneBridge] No current spread to create scene for");
         this.initialized = false;
         this.game.notifyError({
-          code: ErrorCode.CHAPTER_NOT_FOUND,
-          msg: "No chapter available to load scene for"
+          code: ErrorCode.SPREAD_NOT_FOUND,
+          msg: "No spread available to load scene for"
         });
         return;
       }
@@ -103,17 +103,17 @@ export class StaticSceneBridge extends HTMLElement {
   }
 
   /**
-   * Creates a new scene for the specified chapter using static HTML templates
-   * @param chapterId The chapter ID to create a scene for
+   * Creates a new scene for the specified spread using static HTML templates
+   * @param spreadId The spread ID to create a scene for
    */
-  private async createSceneForChapter(chapterId: string): Promise<void> {
+  private async createSceneForSpread(spreadId: string): Promise<void> {
     this.game.startLoading();
     try {
       // Generate template from game config at runtime
-      const template = getOrCreateTemplate(chapterId);
+      const template = getOrCreateTemplate(spreadId);
       
       if (!template) {
-        throw new Error(`No template found for chapter: ${chapterId}`);
+        throw new Error(`No template found for spread: ${spreadId}`);
       }
       
       await this.cleanupExistingScene();
@@ -143,16 +143,16 @@ export class StaticSceneBridge extends HTMLElement {
       }
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      this.currentChapter = chapterId;
+      this.currentSpread = spreadId;
       
       if (this.currentMode === GameMode.DEFAULT || this.currentMode === GameMode.VR) {
         this.activate();
       }
     } catch (error) {
-      console.error(`[StaticSceneBridge] Failed to create scene for chapter ${chapterId}:`, error);
+      console.error(`[StaticSceneBridge] Failed to create scene for spread ${spreadId}:`, error);
       this.game.notifyError({
         code: ErrorCode.FAILED_TO_UPDATE_SCENE,
-        msg: `Failed to create scene for chapter ${chapterId}`
+        msg: `Failed to create scene for spread ${spreadId}`
       });
       throw error;
     }
@@ -257,16 +257,16 @@ export class StaticSceneBridge extends HTMLElement {
       }
     });
     
-    this.chapterUnsubscribe = this.game.subscribeToProperty("currentChapter", async (chapter) => {
-      if (chapter && chapter !== this.currentChapter) {
+    this.spreadUnsubscribe = this.game.subscribeToProperty("currentSpread", async (spread) => {
+      if (spread && spread !== this.currentSpread) {
         if (this.sceneInitialized) {
           try {
-            await this.createSceneForChapter(chapter);
+            await this.createSceneForSpread(spread);
           } catch (error) {
-            console.error("[StaticSceneBridge] Error creating scene for new chapter:", error);
+            console.error("[StaticSceneBridge] Error creating scene for new spread:", error);
           }
         } else {
-          console.log("[StaticSceneBridge] Received chapter change but scene not yet initialized, deferring update");
+          console.log("[StaticSceneBridge] Received spread change but scene not yet initialized, deferring update");
         }
       }
     });

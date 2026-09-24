@@ -4,9 +4,10 @@ import {
   ErrorInfo,
   GameMode,
   IGame,
-  IHistoryManager
+  IHistoryManager,
+  TargetHistoryEntry
 } from '@/types';
-import { getTargets } from '@/utils/config';
+import { getSpread, getTargets } from '@/utils/config';
 import config from './../../game.config.json';
 
 /**
@@ -46,7 +47,7 @@ export class HistoryManager implements IHistoryManager {
         console.warn(
           `Game configuration has changed from version ${storageVersion.version} to ${currentVersion.version}. ` +
             `Last update was on ${new Date(storageVersion.timestamp).toLocaleDateString()}. ` +
-            `Some chapter or target data might have changed.`,
+            `Some spread or target data might have changed.`,
         );
       }
 
@@ -89,24 +90,24 @@ export class HistoryManager implements IHistoryManager {
         (a, b) => b.timestamp - a.timestamp,
       )[0];
 
-      // Find chapter in config
-      const chapterConfig = config.chapters.find(
-        (ch) => ch.id === lastEntry.chapterId,
+      // Find spread in config
+      const spreadConfig = config.spreads.find(
+        (ch) => ch.id === lastEntry.spreadId,
       );
-      const chapterName = chapterConfig?.title || lastEntry.chapterId;
+      const spreadName = spreadConfig?.title || lastEntry.spreadId;
 
       // Create a notification with resume action
       this.game.notifyError({
-        msg: `You have a previous session in chapter "${chapterName}".`,
+        msg: `You have a previous session in spread "${spreadName}".`,
         action: {
           text: 'Resume',
           callback: () => {
-            // Resume the last chapter using switchChapter
-            this.game.chapters.switchChapter(lastEntry.chapterId);
+            // Resume the last spread using switchSpread
+            this.game.spreads.switchSpread(lastEntry.spreadId);
             this.game.update((draft) => {
               draft.mode = GameMode.DEFAULT;
             });
-            this.game.router.navigate('/chapter');
+            this.game.router.navigate('/spread');
           },
         },
       } as ErrorInfo);
@@ -116,10 +117,10 @@ export class HistoryManager implements IHistoryManager {
   /**
    * Mark a target as seen by the user
    */
-  public markTargetAsSeen(chapterId: string, targetIndex: number): void {
+  public markTargetAsSeen(spreadId: string, targetIndex: number): void {
     const existingEntry = this.game.state.history.find(
       (entry) =>
-        entry.chapterId === chapterId && entry.targetIndex === targetIndex,
+        entry.spreadId === spreadId && entry.targetIndex === targetIndex,
     );
 
     if (!existingEntry) {
@@ -130,7 +131,7 @@ export class HistoryManager implements IHistoryManager {
         }
 
         draft.history.push({
-          chapterId,
+          spreadId,
           targetIndex,
           timestamp: Date.now(),
         });
@@ -149,50 +150,50 @@ export class HistoryManager implements IHistoryManager {
   /**
    * Check if a target has been seen before
    */
-  public hasTargetBeenSeen(chapterId: string, targetIndex: number): boolean {
+  public hasTargetBeenSeen(spreadId: string, targetIndex: number): boolean {
     return this.game.state.history.some(
       (entry) =>
-        entry.chapterId === chapterId && entry.targetIndex === targetIndex,
+        entry.spreadId === spreadId && entry.targetIndex === targetIndex,
     );
   }
 
   /**
-   * Get all target indices that have been seen in a specific chapter
+   * Get all target indices that have been seen in a specific spread
    */
-  public getSeenTargetsForChapter(chapterId: string): number[] {
+  public getSeenTargetsForSpread(spreadId: string): number[] {
     return this.game.state.history
-      .filter((entry) => entry.chapterId === chapterId)
+      .filter((entry) => entry.spreadId === spreadId)
       .map((entry) => entry.targetIndex);
   }
 
   /**
-   * Calculate the percentage of targets seen in a chapter
+   * Calculate the percentage of targets seen in a spread
    */
-  public getChapterCompletionPercentage(chapterId: string): number {
-    const chapter =
-      this.game.state.chapters[chapterId] ||
-      config.chapters.find((ch) => ch.id === chapterId);
+  public getSpreadCompletionPercentage(spreadId: string): number {
+    const spread =
+      this.game.state.spreads[spreadId] ||
+      config.spreads.find((ch) => ch.id === spreadId);
 
-    if (!chapter) return 0;
+    if (!spread) return 0;
 
-    const totalTargets = getTargets(chapterId).length || 0;
+    const totalTargets = getTargets(spreadId).length || 0;
     if (totalTargets === 0) return 100; // No targets = 100% complete
 
-    const seenTargets = this.getSeenTargetsForChapter(chapterId).length;
+    const seenTargets = this.getSeenTargetsForSpread(spreadId).length;
     return Math.round((seenTargets / totalTargets) * 100);
   }
 
   /**
-   * Check if all targets in a chapter have been seen
+   * Check if all targets in a spread have been seen
    */
-  public isChapterComplete(chapterId: string): boolean {
-    return this.getChapterCompletionPercentage(chapterId) === 100;
+  public isSpreadComplete(spreadId: string): boolean {
+    return this.getSpreadCompletionPercentage(spreadId) === 100;
   }
 
   /**
-   * Reset seen history for a specific chapter
+   * Reset seen history for a specific spread
    */
-  public resetChapterHistory(chapterId: string): void {
+  public resetSpreadHistory(spreadId: string): void {
     // Update history using game store update pattern
     this.game.update((draft) => {
       if (!draft.history) {
@@ -201,7 +202,7 @@ export class HistoryManager implements IHistoryManager {
       }
 
       draft.history = draft.history.filter(
-        (entry: { chapterId: string }) => entry.chapterId !== chapterId,
+        (entry: { spreadId: string }) => entry.spreadId !== spreadId,
       );
 
       // Update local reference to match store state
@@ -245,8 +246,12 @@ export class HistoryManager implements IHistoryManager {
     try {
       const storedHistory = localStorage.getItem(this.HISTORY_STORAGE_KEY);
       if (storedHistory) {
+        // Drop entries for spreads that no longer exist (e.g. pre-rename `chapterId` entries).
+        // TODO Phase 2: replace with stable IDs + content-version migration.
+        const entries = (JSON.parse(storedHistory) as TargetHistoryEntry[])
+          .filter((entry) => getSpread(entry?.spreadId) !== undefined);
         this.game.update((draft) => {
-          draft.history = JSON.parse(storedHistory);
+          draft.history = entries;
         });
       }
     } catch (error) {

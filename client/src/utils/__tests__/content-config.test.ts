@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import config from "@/game.config.json";
-import { getAssets, getChapter, getChapters } from "@/utils/config";
+import { getAssets, getSpread, getSpreads } from "@/utils/config";
 
 /**
  * Guards the built content (`game.config.json`) written by the content build.
@@ -16,31 +16,31 @@ const publicDir = resolve(__dirname, "../../../public");
 const publicFile = (src: string) => resolve(publicDir, src.replace(/^\//, ""));
 
 describe("content config", () => {
-  const chapters = getChapters();
+  const spreads = getSpreads();
 
-  it("has an existing initial chapter", () => {
-    expect(getChapter(config.initialChapterId)).toBeDefined();
+  it("has an existing initial spread", () => {
+    expect(getSpread(config.initialSpreadId)).toBeDefined();
   });
 
-  it("has unique chapter and target ids", () => {
-    const chapterIds = chapters.map(c => c.id);
-    const targetIds = chapters.flatMap(c => c.targets.map(t => t.id));
-    expect(new Set(chapterIds).size).toBe(chapterIds.length);
+  it("has unique spread and target ids", () => {
+    const spreadIds = spreads.map(c => c.id);
+    const targetIds = spreads.flatMap(c => c.targets.map(t => t.id));
+    expect(new Set(spreadIds).size).toBe(spreadIds.length);
     expect(new Set(targetIds).size).toBe(targetIds.length);
   });
 
-  it.each(chapters.map(c => [c.id, c] as const))(
+  it.each(spreads.map(c => [c.id, c] as const))(
     "%s stays within the target limit and indexes its targets 0..n-1",
-    (_id, chapter) => {
-      expect(chapter.targets.length).toBeLessThanOrEqual(MAX_TARGETS_PER_GROUP);
-      expect(chapter.targets.map(t => t.mindarTargetIndex)).toEqual(chapter.targets.map((_, i) => i));
+    (_id, spread) => {
+      expect(spread.targets.length).toBeLessThanOrEqual(MAX_TARGETS_PER_GROUP);
+      expect(spread.targets.map(t => t.mindarTargetIndex)).toEqual(spread.targets.map((_, i) => i));
     },
   );
 
   it("references files that exist in public/", () => {
     const files = [
-      ...chapters.map(c => c.mindSrc),
-      ...chapters.flatMap(c => c.targets.map(t => t.imageTargetSrc)),
+      ...spreads.map(c => c.mindSrc),
+      ...spreads.flatMap(c => c.targets.map(t => t.imageTargetSrc)),
       ...getAssets().map(a => a.src),
     ].filter(Boolean) as string[];
 

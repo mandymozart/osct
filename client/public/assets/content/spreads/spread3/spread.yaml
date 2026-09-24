@@ -1,7 +1,7 @@
-type: chapter
-id: chapter3
+type: spread
+id: spread3
 order: 2
 title: The Dragon's Lair
 firstPage: 10
 lastPage: 15
-mindSrc: chapter3.mind
+mindSrc: spread3.mind

@@ -2,7 +2,7 @@ id: target-008
 type: target
 title: Edge
 description: A demonstration of a video with an image billboard
-relatedChapter: chapter3
+relatedSpread: spread3
 order: 0
 bookId: "008"
 entityType: video

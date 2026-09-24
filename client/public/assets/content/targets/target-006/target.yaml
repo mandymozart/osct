@@ -2,7 +2,7 @@ id: target-006
 type: target
 title: Treasure Hoard
 description: A pile of gold and relics hidden in the shadows.
-relatedChapter: chapter2
+relatedSpread: spread2
 order: 2
 bookId: "006"
 entityType: model

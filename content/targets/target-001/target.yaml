@@ -2,7 +2,7 @@ id: target-001
 type: target
 title: Racoon
 description: A beast, a friend, a dimension jumper.
-relatedChapter: chapter1
+relatedSpread: spread1
 order: 1
 bookId: "001"
 entityType: model

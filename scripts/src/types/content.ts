@@ -3,19 +3,19 @@
 export interface BaseContent {
   id: string;
   type: string;
-  title: 'chapter' | 'target' | 'asset' | 'step';
+  title: 'spread' | 'target' | 'asset' | 'step';
   description: string;
 }
 
-export interface ChapterContent extends BaseContent {
-  type: 'chapter';
+export interface SpreadContent extends BaseContent {
+  type: 'spread';
   order: number;
   mindSrc: string;
 }
 
 export interface TargetContent extends BaseContent {
   type: 'target';
-  relatedChapter: string;
+  relatedSpread: string;
   order: number;
   bookId: string;
   entityType: EntityType; // This were we link targets to entities

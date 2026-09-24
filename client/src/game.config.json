@@ -1,17 +1,17 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2025-04-30T12:57:02.592Z"
+    "timestamp": "2026-09-24T08:07:14.096Z"
   },
-  "initialChapterId": "chapter1",
-  "chapters": [
+  "initialSpreadId": "spread1",
+  "spreads": [
     {
-      "id": "chapter1",
+      "id": "spread1",
       "order": 0,
       "title": "The Beginning",
       "firstPage": 1,
       "lastPage": 3,
-      "mindSrc": "/assets/content/chapters/chapter1/chapter1.mind",
+      "mindSrc": "/assets/content/spreads/spread1/spread1.mind",
       "targets": [
         {
           "id": "target-001",
@@ -97,12 +97,12 @@
       ]
     },
     {
-      "id": "chapter2",
+      "id": "spread2",
       "order": 1,
       "title": "The Castle Gates",
       "firstPage": 4,
       "lastPage": 9,
-      "mindSrc": "/assets/content/chapters/chapter2/chapter2.mind",
+      "mindSrc": "/assets/content/spreads/spread2/spread2.mind",
       "targets": [
         {
           "id": "target-003",
@@ -216,12 +216,12 @@
       ]
     },
     {
-      "id": "chapter3",
+      "id": "spread3",
       "order": 2,
       "title": "The Dragon's Lair",
       "firstPage": 10,
       "lastPage": 15,
-      "mindSrc": "/assets/content/chapters/chapter3/chapter3.mind",
+      "mindSrc": "/assets/content/spreads/spread3/spread3.mind",
       "targets": [
         {
           "id": "target-008",

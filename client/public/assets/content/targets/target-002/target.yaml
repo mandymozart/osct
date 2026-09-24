@@ -2,7 +2,7 @@ id: target-102
 type: target
 title: Ancient Tree
 description: A mystical tree stands tall.
-relatedChapter: chapter1
+relatedSpread: spread1
 order: 2
 bookId: "102"
 entityType: model

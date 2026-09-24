@@ -10,7 +10,7 @@ const targetFolderMap: Record<string, string> = {};
 import type {
   AssetContent,
   BaseContent,
-  ChapterContent,
+  SpreadContent,
   StepContent,
   TargetContent
 } from './types/content';
@@ -31,7 +31,7 @@ console.log('📁 Client public assets directory:', CLIENT_PUBLIC_ASSETS_DIR);
 
 // Check if directories exist to help with debugging
 console.log('📂 Content directory exists:', fs.existsSync(CONTENT_DIR));
-console.log('📂 Content/chapters exists:', fs.existsSync(path.join(CONTENT_DIR, 'chapters')));
+console.log('📂 Content/spreads exists:', fs.existsSync(path.join(CONTENT_DIR, 'spreads')));
 console.log('📂 Content/targets exists:', fs.existsSync(path.join(CONTENT_DIR, 'targets')));
 
 // Extended interfaces to track file paths and metadata
@@ -45,7 +45,7 @@ interface MetadataFields {
 }
 
 // Use type intersections to combine content and metadata
-type ChapterWithMetadata = ChapterContent & MetadataFields;
+type SpreadWithMetadata = SpreadContent & MetadataFields;
 type TargetWithMetadata = TargetContent & MetadataFields;
 type StepWithMetadata = StepContent & MetadataFields;
 type AssetWithMetadata = AssetContent & MetadataFields;
@@ -92,41 +92,41 @@ function readContentFiles(): ContentWithMetadata[] {
   const result: ContentWithMetadata[] = [];
   const targetIDs = new Set<string>(); // Track target IDs to detect duplicates
   
-  // Read chapters from subdirectories
-  const chaptersDir = path.join(CONTENT_DIR, 'chapters');
-  if (fs.existsSync(chaptersDir)) {
-    // Get all subdirectories in chapters directory
-    const chapterDirs = fs.readdirSync(chaptersDir, { withFileTypes: true })
+  // Read spreads from subdirectories
+  const spreadsDir = path.join(CONTENT_DIR, 'spreads');
+  if (fs.existsSync(spreadsDir)) {
+    // Get all subdirectories in spreads directory
+    const spreadDirs = fs.readdirSync(spreadsDir, { withFileTypes: true })
       .filter(dirent => dirent.isDirectory())
       .map(dirent => dirent.name);
     
-    // Process each chapter subdirectory
-    for (const chapterDir of chapterDirs) {
-      const chapterPath = path.join(chaptersDir, chapterDir);
-      const chapterFile = path.join(chapterPath, 'chapter.yaml');
+    // Process each spread subdirectory
+    for (const spreadDir of spreadDirs) {
+      const spreadPath = path.join(spreadsDir, spreadDir);
+      const spreadFile = path.join(spreadPath, 'spread.yaml');
       
-      if (fs.existsSync(chapterFile)) {
+      if (fs.existsSync(spreadFile)) {
         try {
-          const content = fs.readFileSync(chapterFile, 'utf8');
-          const data = yaml.load(content) as ChapterWithMetadata;
+          const content = fs.readFileSync(spreadFile, 'utf8');
+          const data = yaml.load(content) as SpreadWithMetadata;
           
           // Store file path in the data for reference
-          data._filePath = chapterFile;
-          data._folderName = chapterDir; // Store folder name for path resolution
+          data._filePath = spreadFile;
+          data._folderName = spreadDir; // Store folder name for path resolution
           
           if (data) {
-            // Ensure type is set to chapter
-            data.type = 'chapter';
+            // Ensure type is set to spread
+            data.type = 'spread';
             
             // If id is not set, use the directory name
             if (!data.id) {
-              data.id = chapterDir;
+              data.id = spreadDir;
             }
             
             result.push(data);
           }
         } catch (error) {
-          console.error(`Error reading chapter file ${chapterFile}:`, error);
+          console.error(`Error reading spread file ${spreadFile}:`, error);
         }
       }
     }
@@ -333,7 +333,7 @@ function transformTargetData(target: TargetWithMetadata): TargetData {
   delete result.assetIds;
   delete result.assets;
   delete result.type;
-  delete result.relatedChapter;
+  delete result.relatedSpread;
   delete result.entityType;
   delete result.order; // Remove order since we've converted it to mindarTargetIndex
   
@@ -344,54 +344,54 @@ function transformTargetData(target: TargetWithMetadata): TargetData {
 }
 
 /**
- * Associate targets with their respective chapters
+ * Associate targets with their respective spreads
  */
-function associateTargets(chapters: ChapterWithMetadata[], targets: TargetWithMetadata[]): ChapterWithMetadata[] {
-  const targetsByChapter: Record<string, TargetData[]> = {};
+function associateTargets(spreads: SpreadWithMetadata[], targets: TargetWithMetadata[]): SpreadWithMetadata[] {
+  const targetsBySpread: Record<string, TargetData[]> = {};
   
-  // Group targets by chapter
+  // Group targets by spread
   for (const target of targets) {
-    const chapterId = target.relatedChapter;
-    if (!chapterId) {
-      console.warn(`Target ${target.id} has no relatedChapter, skipping...`);
+    const spreadId = target.relatedSpread;
+    if (!spreadId) {
+      console.warn(`Target ${target.id} has no relatedSpread, skipping...`);
       continue;
     }
     
-    if (!targetsByChapter[chapterId]) {
-      targetsByChapter[chapterId] = [];
+    if (!targetsBySpread[spreadId]) {
+      targetsBySpread[spreadId] = [];
     }
     
-    targetsByChapter[chapterId].push(transformTargetData(target));
+    targetsBySpread[spreadId].push(transformTargetData(target));
   }
   
-  // Associate targets with chapters and assign proper sequential mindarTargetIndex
-  for (const chapter of chapters) {
-    // Get targets for this chapter
-    const chapterTargets = targetsByChapter[chapter.id] || [];
+  // Associate targets with spreads and assign proper sequential mindarTargetIndex
+  for (const spread of spreads) {
+    // Get targets for this spread
+    const spreadTargets = targetsBySpread[spread.id] || [];
     
     // Sort targets by their original order/mindarTargetIndex
-    chapterTargets.sort((a, b) => a.mindarTargetIndex - b.mindarTargetIndex);
+    spreadTargets.sort((a, b) => a.mindarTargetIndex - b.mindarTargetIndex);
     
     // Now, REPLACE the mindarTargetIndex with sequential indices (0, 1, 2...)
     // This ensures we don't have gaps in the sequence
-    for (let i = 0; i < chapterTargets.length; i++) {
+    for (let i = 0; i < spreadTargets.length; i++) {
       // Explicitly set the index to ensure proper sequencing
-      chapterTargets[i].mindarTargetIndex = i;
+      spreadTargets[i].mindarTargetIndex = i;
     }
     
-    // Assign the sorted and reindexed targets to the chapter
-    (chapter as any).targets = chapterTargets;
+    // Assign the sorted and reindexed targets to the spread
+    (spread as any).targets = spreadTargets;
   }
   
-  return chapters;
+  return spreads;
 }
 
 /**
  * Prepare target images for mind-ar processing
- * Copies all imageTargetSrc files to a mind-ar directory with chapter-specific subdirectories
+ * Copies all imageTargetSrc files to a mind-ar directory with spread-specific subdirectories
  * Filters out targets with missing image files
  */
-function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetadata[] {
+function prepareTargetImages(spreads: SpreadWithMetadata[]): SpreadWithMetadata[] {
   // Clean the mind-ar directory if it exists
   if (fs.existsSync(MINDAR_DIR)) {
     console.log(`🧹 Cleaning mind-ar directory at: ${MINDAR_DIR}`);
@@ -401,22 +401,22 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
   // Create mind-ar directory
   fs.mkdirSync(MINDAR_DIR, { recursive: true });
   
-  // Process each chapter
-  for (let i = 0; i < chapters.length; i++) {
-    const chapter = chapters[i];
-    const chapterDir = path.join(MINDAR_DIR, chapter.id);
+  // Process each spread
+  for (let i = 0; i < spreads.length; i++) {
+    const spread = spreads[i];
+    const spreadDir = path.join(MINDAR_DIR, spread.id);
     
-    // Create chapter directory if it doesn't exist
-    if (!fs.existsSync(chapterDir)) {
-      fs.mkdirSync(chapterDir, { recursive: true });
+    // Create spread directory if it doesn't exist
+    if (!fs.existsSync(spreadDir)) {
+      fs.mkdirSync(spreadDir, { recursive: true });
     }
     
-    // Process targets for this chapter
-    if ((chapter as any).targets && Array.isArray((chapter as any).targets)) {
+    // Process targets for this spread
+    if ((spread as any).targets && Array.isArray((spread as any).targets)) {
       // Filter targets to only include those with imageTargetSrc specified
-      const targetsWithImages = (chapter as any).targets.filter((target: any) => target.imageTargetSrc);
+      const targetsWithImages = (spread as any).targets.filter((target: any) => target.imageTargetSrc);
       
-      console.log(`🔍 Processing ${targetsWithImages.length} targets for chapter ${chapter.id}`);
+      console.log(`🔍 Processing ${targetsWithImages.length} targets for spread ${spread.id}`);
       
       // First pass: Check which targets have valid image files
       const validTargets: any[] = [];
@@ -493,7 +493,7 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
       }
       
       // Second pass: Process valid targets and assign sequential indices
-      console.log(`✅ Found ${validTargets.length} valid targets with images for chapter ${chapter.id}`);
+      console.log(`✅ Found ${validTargets.length} valid targets with images for spread ${spread.id}`);
       
       for (let j = 0; j < validTargets.length; j++) {
         const target = validTargets[j];
@@ -510,7 +510,7 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
           
           // Create the new filename with the prefix
           const newFileName = `${sequencePrefix}-${fileBaseName}${fileExt}`;
-          const targetPath = path.join(chapterDir, newFileName);
+          const targetPath = path.join(spreadDir, newFileName);
           
           // Copy the file to the target directory with the new filename
           fs.copyFileSync(sourcePath, targetPath);
@@ -530,18 +530,18 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
         }
       }
       
-      // IMPORTANT: Replace the chapter's targets array with only the valid targets
-      (chapter as any).targets = validTargets;
+      // IMPORTANT: Replace the spread's targets array with only the valid targets
+      (spread as any).targets = validTargets;
     }
   }
   
   // Clean up internal properties before returning
-  for (let i = 0; i < chapters.length; i++) {
-    const chapter = chapters[i];
-    delete chapter._filePath;
-    if ((chapter as any).targets) {
-      for (let j = 0; j < (chapter as any).targets.length; j++) {
-        const target = (chapter as any).targets[j];
+  for (let i = 0; i < spreads.length; i++) {
+    const spread = spreads[i];
+    delete spread._filePath;
+    if ((spread as any).targets) {
+      for (let j = 0; j < (spread as any).targets.length; j++) {
+        const target = (spread as any).targets[j];
         delete target._filePath;
         delete target._folderPath;
         delete target._originalId;
@@ -551,7 +551,7 @@ function prepareTargetImages(chapters: ChapterWithMetadata[]): ChapterWithMetada
   }
   
   console.log(`🎯 Target images prepared in: ${MINDAR_DIR}`);
-  return chapters;
+  return spreads;
 }
 
 /**
@@ -590,7 +590,7 @@ function isExternalUrl(url: string): boolean {
 /**
  * Adjust a path to be relative to the assets/content directory
  * @param originalPath The original path to adjust
- * @param sourceType The type of source ('chapter' or 'target')
+ * @param sourceType The type of source ('spread' or 'target')
  * @param folderName The folder name where the content is stored
  */
 function adjustPath(originalPath: string, sourceType?: string, folderName?: string): string {
@@ -611,9 +611,9 @@ function adjustPath(originalPath: string, sourceType?: string, folderName?: stri
     return `/assets/content/targets/${folderName}/${cleanPath}`;
   }
   
-  // For chapter files, use chapter folder
-  if (sourceType === 'chapter' && folderName) {
-    return `/assets/content/chapters/${folderName}/${cleanPath}`;
+  // For spread files, use spread folder
+  if (sourceType === 'spread' && folderName) {
+    return `/assets/content/spreads/${folderName}/${cleanPath}`;
   }
   
   // For asset files, associate with target folder
@@ -685,19 +685,19 @@ function adjustConfigPaths(config: GameConfiguration): GameConfiguration {
   // Deep clone to avoid modifying the original
   const result = JSON.parse(JSON.stringify(config)) as GameConfiguration;
   
-  // Adjust paths in chapters
-  if (result.chapters && Array.isArray(result.chapters)) {
-    for (const chapter of result.chapters) {
+  // Adjust paths in spreads
+  if (result.spreads && Array.isArray(result.spreads)) {
+    for (const spread of result.spreads) {
       // Type assertion to access properties
-      const chapterData = chapter as any;
+      const spreadData = spread as any;
       
-      if (chapterData.mindSrc) {
-        chapterData.mindSrc = adjustPath(chapterData.mindSrc, 'chapter', chapterData._folderName);
+      if (spreadData.mindSrc) {
+        spreadData.mindSrc = adjustPath(spreadData.mindSrc, 'spread', spreadData._folderName);
       }
       
-      // Process targets in the chapter
-      if (chapterData.targets && Array.isArray(chapterData.targets)) {
-        for (const target of chapterData.targets) {
+      // Process targets in the spread
+      if (spreadData.targets && Array.isArray(spreadData.targets)) {
+        for (const target of spreadData.targets) {
           // Use the target ID to look up the folder name from our mapping
           const targetId = target.id;
           const targetFolder = targetFolderMap[targetId] || targetId;
@@ -744,24 +744,24 @@ function adjustConfigPaths(config: GameConfiguration): GameConfiguration {
 function buildConfig(): GameConfiguration {
   // Read content types
   const content = readContentFiles();
-  const chapters = content.filter(item => item.type === 'chapter') as ChapterWithMetadata[];
+  const spreads = content.filter(item => item.type === 'spread') as SpreadWithMetadata[];
   const targets = content.filter(item => item.type === 'target') as TargetWithMetadata[];
   const steps = content.filter(item => item.type === 'step') as StepWithMetadata[];
   
-  console.log(`✨ Found ${chapters.length} chapters, ${targets.length} targets, and ${steps.length} steps`);
+  console.log(`✨ Found ${spreads.length} spreads, ${targets.length} targets, and ${steps.length} steps`);
   
-  if (chapters.length === 0) {
-    console.error('❌ ERROR: No chapters found! Check your content/chapters directory.');
+  if (spreads.length === 0) {
+    console.error('❌ ERROR: No spreads found! Check your content/spreads directory.');
     console.log('Content items found:', content.map(item => `${item.type}: ${item.id}`).join(', '));
   }
   
-  // Associate targets with chapters
-  const chaptersWithTargets = associateTargets(chapters, targets);
+  // Associate targets with spreads
+  const spreadsWithTargets = associateTargets(spreads, targets);
   
   // Prepare mind-ar target images
-  const processedChapters = prepareTargetImages(chaptersWithTargets);
+  const processedSpreads = prepareTargetImages(spreadsWithTargets);
   
-  console.log(`✨ Final config will have ${processedChapters.length} chapters and ${targets.length} targets`);
+  console.log(`✨ Final config will have ${processedSpreads.length} spreads and ${targets.length} targets`);
   
   const versionStr = process.env.npm_package_version || "1.0.0";
   const timestamp = new Date().toISOString();
@@ -776,11 +776,11 @@ function buildConfig(): GameConfiguration {
       version: versionStr,
       timestamp: timestamp
     },
-    initialChapterId: processedChapters.length > 0 ? processedChapters[0].id : "chapter1",
-    chapters: processedChapters.map(chapter => {
-      // Remove type field from chapter
-      const { type, ...chapterData } = chapter;
-      return chapterData;
+    initialSpreadId: processedSpreads.length > 0 ? processedSpreads[0].id : "spread1",
+    spreads: processedSpreads.map(spread => {
+      // Remove type field from spread
+      const { type, ...spreadData } = spread;
+      return spreadData;
     }),
     tutorial: steps.map(step => {
       // Remove type field from step

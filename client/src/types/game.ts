@@ -1,13 +1,13 @@
 import {
   CameraManagerState,
-  ChapterData,
-  ChapterManagerState,
+  SpreadData,
+  SpreadManagerState,
   ErrorInfo,
   ErrorListener,
   HistoryManagerState,
   IBaseStore,
   ICameraManager,
-  IChapterManager,
+  ISpreadManager,
   IHistoryManager,
   IRouterManager,
   ITargetManager,
@@ -21,7 +21,7 @@ import {
 export interface IGame extends IBaseStore<GameState> {
   version: ConfigurationVersion; // History and Game version have to match. 
   state: GameState;
-  chapters: IChapterManager;
+  spreads: ISpreadManager;
   router: IRouterManager;
   targets: ITargetManager;
   history: IHistoryManager;
@@ -35,7 +35,7 @@ export interface IGame extends IBaseStore<GameState> {
 }
 
 export interface GameState
-  extends ChapterManagerState,
+  extends SpreadManagerState,
   TargetManagerState,
   HistoryManagerState,
   RouterManagerState,
@@ -47,8 +47,8 @@ export interface GameState
 
 export interface GameConfiguration {
   version: ConfigurationVersion;
-  initialChapterId: string;
-  chapters: readonly ChapterData[];
+  initialSpreadId: string;
+  spreads: readonly SpreadData[];
   tutorial: readonly TutorialStepData[];
 }
 
