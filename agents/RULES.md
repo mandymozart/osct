@@ -42,7 +42,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
 11. Windows: stop the dev/preview server before any git command that rewrites the working tree
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
 12. Until Phase 6, scenes are built by `static-scene-bridge.ts` from HTML generated in
-    `utils/templates.ts` (DOM replacement, deliberate). Extend that path (e.g. Phase 4 video autoplay);
+    `utils/templates.ts` (DOM replacement, deliberate). Extend that path (e.g. Phase 3 video autoplay);
     don't switch to dynamic entity injection or revive `scene-bridge.ts` before Phase 6.
 
 ## Deployment (from old rules)

@@ -439,7 +439,7 @@ function associateTargets(spreads: SpreadWithMetadata[], targets: TargetWithMeta
 /**
  * Validate entries and link them 1:1 to their targets.
  * Entry text (title, description, hideFromIndex) is copied onto the target output until the
- * index is rebuilt around entries (Phase 5).
+ * index is rebuilt around entries (Phase 4).
  */
 function linkEntries(entries: EntryWithMetadata[], spreads: SpreadWithMetadata[]): EntryData[] {
   const targets = new Map<string, { target: any; spread: SpreadWithMetadata }>();

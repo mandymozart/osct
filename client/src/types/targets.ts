@@ -21,7 +21,7 @@ export interface TargetData {
   mindarTargetIndex: number;
   bookId: string;
   entryId: string;
-  // Copied from the entry by the content build until the index is rebuilt around entries (Phase 5)
+  // Copied from the entry by the content build until the index is rebuilt around entries (Phase 4)
   title: string;
   description: string;
   hideFromIndex: boolean;

@@ -134,7 +134,7 @@ export interface TargetData {
   mindSrc: string;
   bookId: string;
   entryId: string;
-  // Copied from the entry until the index is rebuilt around entries (Phase 5)
+  // Copied from the entry until the index is rebuilt around entries (Phase 4)
   title: string;
   description: string;
   hideFromIndex: boolean;
