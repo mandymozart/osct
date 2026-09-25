@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Preloader
+
+- [x] `services/Preloader.ts`: neighbouring spreads (±1) on `arReady` – `.mind`, then (user) their content
+      (entity assets, entry images; videos last). Uses the `LoadOptions` / `LoadResult` types kept for this.
+      Not all spreads: ~1 MB `.mind` each, the final book has many spreads.
+- [ ] Open: production cache headers for content; iOS range requests for preloaded videos (Phase 7).
+- [x] Lesson: PowerShell 5.1 `Get-Content -Raw | Set-Content -Encoding utf8` mangles non-ASCII (reads ANSI)
+      and adds a BOM – use the Edit tool (or Bash `sed`) for file edits.
+
 ## 2026-09-25 – Phase 2 step 3 done (debug overlay progress tab)
 
 - [x] Debug overlay: tabs *spread* (as before) / *progress* (record, missing ids in red, reset button;

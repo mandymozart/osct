@@ -6,8 +6,8 @@ import { AssetType } from "@/types";
 export interface LoadOptions {
   /** Source URL of the asset */
   src: string;
-  /** Type of asset to load */
-  type: AssetType;
+  /** Type of asset to load (`mind` = MindAR image target file of a spread) */
+  type: AssetType | "mind";
   /** Optional timeout in milliseconds (default: 30000) */
   timeout?: number;
 }
