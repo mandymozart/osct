@@ -4,11 +4,8 @@ import { getEntry } from '@/utils/game-config';
 import { assert } from '@/utils';
 import { Page } from './page';
 
-// Import to ensure the components are registered
-// TODO: this is not ideal. use event system rather than the instance
-// not sure why the import is needed
-import '@/components/index';
-import { SpreadList } from '@/components/index/spread-list';
+// The barrel also registers <spread-list>, <spread-item> and <target-item>
+import { SpreadList } from '@/components/dev-index';
 
 export interface IIndexPage extends HTMLElement {
   scrollToCurrentSpread(): void;

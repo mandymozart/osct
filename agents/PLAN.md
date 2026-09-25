@@ -54,7 +54,7 @@ Confirmed removal. Everything QR-related:
       QR trigger in code (only in `PAGES.md`, updated).
 
 ### 1b. Keep & restructure (NOT remove)
-Home, tutorial, about, index, chapters, chapter pages, `components/index/*`, resume session.
+Home, tutorial, about, index, chapters, chapter pages, `components/index/*` (now `components/dev-index/`), resume session.
 They get restyled / re-mapped in later phases.
 
 ### 1c. Taxonomy  `[x]` decided 2026-09-24
