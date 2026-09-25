@@ -38,6 +38,8 @@ export class DebugOverlay extends HTMLElement {
   }
 
   protected connectedCallback() {
+    // The collapsed line covers the top; app chrome (Mark) moves down by this much in dev
+    document.documentElement.style.setProperty("--debug-offset", "1.25rem");
     this.render();
     this.initialize();
   }
