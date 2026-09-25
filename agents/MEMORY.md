@@ -7,7 +7,10 @@ outcome in the line (or move it into a dated decision block).
 ## 2026-09-25 – Versioning + progress storage concept (Tilman)
 
 - [x] One semver version for app + content build; `client/package.json` = source, `scripts/package.json`
-      kept equal (tests + CI, not the build). RULES #10 rewritten (before: versions kept separate).
+      kept equal (tests + CI, not the build). RULES #10 rewritten – the old rule (each keeps its own
+      version history) was a misconception (Tilman).
+- [x] Session handover: this long session ended here; implementation steps 1–3 are in PLAN Phase 2
+      ("Implementation steps (next session starts here)"). No code changed for them yet.
 - [x] Game configuration: PATCH/MINOR just work, MAJOR = rebuild content; **no config migrations**
       (DB + API later, migrations would be overkill now).
 - [x] Progress storage: stable ids; two discovery stages *unlocked* (target found) and *consulted*

@@ -351,6 +351,26 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     shows the progress state and marks them as missing; what to do with them is decided in trial/beta.
   - Storage behind a small adapter (`load()` / `save()`), so a DB/API store can replace localStorage
     later with the same record shape.
+
+  **Implementation steps (next session starts here):**
+  1. [ ] **One version:** `client/vite.config.js` reads the version from `client/package.json`
+     (today `process.env.npm_package_version`, missing outside `npm run`); `scripts/src/index.ts` reads
+     `client/package.json` too (today `npm_package_version`, `node dist/index.js` stamped `1.0.0`).
+     Test: both `package.json` versions equal, `game.config.json` `version.version` equals the app
+     version (a version bump without content rebuild fails). Startup check in `utils/game-config.ts`:
+     other MAJOR → `ErrorCode.NOT_SUPPORTED`, critical screen ("content needs to be rebuilt"); other
+     MINOR/PATCH → console note. **No CI exists yet** (no `.github/workflows/`) – ask Tilman before
+     adding a workflow that runs `tsc` + `vitest` for client and scripts.
+  2. [ ] **Progress storage:** record per book (key with `book.id`): storage format (= app MAJOR),
+     app version history, `unlocked` (target id → time), `consulted` (entry id → time),
+     per entry `marked` + `note`, `lastSpreadId`, `lastCategory`. Adapter (localStorage now).
+     Reader for the pre-versioned keys (`ar-game-target-history` = `{ spreadId, targetIndex }` →
+     target id via `getTargets(spreadId)[targetIndex]`, `ar-game-config-version`) → convert, remove old
+     keys, notify the user (combine with the resume offer – only one `currentError` at a time).
+     `HistoryManager` loads at startup (not on scene ready), records `lastSpreadId` on spread change,
+     resume uses it. Update consumers (TargetManager, target-item, spread-item, spread/spreads pages).
+     Placement per RULES #17 (state in the manager, storage adapter as a service).
+  3. [ ] **Debug overlay tab:** progress state; ids missing from the content marked.
 - **Deep links from printed QR codes**  `[ ]` – owner: **Tilman**
   Printed QR codes (book) are scanned with the phone's native camera and open the app URL, e.g.
   `/?code=c-<chapter>&osct=<version>`. Today **nothing reads these params on load** (`getUrlParam` in
