@@ -2,7 +2,7 @@
  * Entry categories – singular, the category of one entry. Defined once for the content build
  * (`scripts/`, schema + guard) and the app (consultation mode). The values are what authors write
  * in `content/entries/<id>/entry.yaml`.
- * Labels are derived from the values in the app (`categoryLabel`: "Video", list "Videos").
+ * Labels are derived from the values in the app (`categoryLabel`: "Videos").
  */
 export enum EntryCategory {
   Glossary = "glossary",
