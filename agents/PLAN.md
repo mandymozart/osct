@@ -531,7 +531,7 @@ Open:
   from the start, unlock them with their access page's spread, or require a target for every entry.
 - [x] List text colours: the white/gold mix in frames 17/19/24 is **one gold gradient across the whole list**
   (measured from the PDF, DESIGN.md §1) – built so on 2026-09-25.
-- [ ] Removal candidates (need okay): `/index` dev view with `index-page`, `spread-list`, `spread-item`,
+- [x] (removed 2026-09-25, Tilman) Removal candidates (need okay): `/index` dev view with `index-page`, `spread-list`, `spread-item`,
   `target-item`, `index-button`; `close-button` if unused after the tutorial restyle.
 
 ---
@@ -563,10 +563,10 @@ Built:
 
 Open:
 - [ ] Final onboarding / home texts (placeholder) – with Kévin Bray and the designers.
-- [ ] MindAR `autoStart` still starts the camera when the scene loads, i.e. before "Grant access" on a
+- [x] (Phase 6: `autoStart: false`, camera only in scan mode) MindAR `autoStart` still starts the camera when the scene loads, i.e. before "Grant access" on a
   first visit (Phase 6 open question 3 / "camera only in scan mode"). The browser's permission prompt can
   therefore appear during the splash.
-- [ ] `public/assets/illustrations/tutorial-step-{1,3,4,5}.svg` no longer referenced (step 2 = the camera
+- [x] (3–5 removed 2026-09-25; step 1 is used again by the intro and thanks steps) `public/assets/illustrations/tutorial-step-{1,3,4,5}.svg` no longer referenced (step 2 = the camera
   icon source) – removal candidates.
 
 ---
