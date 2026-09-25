@@ -1,100 +1,135 @@
-# Structure
+# Content structure
 
-This repository organizes content for the AR-enabled book application using a modular YAML-based configuration system. The content is organized into chapters, targets, and tutorial steps.
-
-## Directory Structure
+All book content lives in `content/` as YAML files plus media. **The folder name is the id.** The
+[content build](/docs/content/configuration) validates everything and writes the app's
+`game.config.json`.
 
 ```
 content/
-├── chapters/                # Chapter definitions
-│   ├── chapter1/
-│   │   ├── chapter.yaml     # Chapter metadata
-│   │   └── chapter1.mind    # MindAR data file for chapter
-│   ├── chapter2/
-│   │   ├── chapter.yaml
-│   │   └── chapter2.mind
-│   └── chapter3/
-│       ├── chapter.yaml
-│       └── chapter3.mind
-│
-├── targets/                 # AR target definitions
-│   ├── target-001/
-│   │   ├── target.yaml      # Target metadata
-│   │   ├── images-028.jpg   # Image for target recognition
-│   │   ├── images-028.mind  # MindAR data for specific target
-│   │   ├── racoon.glb       # 3D model asset
-│   │   └── racoon.asset.yaml # Asset metadata
-│   ├── target-002/
-│   │   ├── target.yaml
-│   │   ├── images-102.jpg
-│   │   ├── images-102.mind
-│   │   ├── tree.glb
-│   │   └── tree.asset.yaml
-│   └── ...
-│
-└── steps/                  # Tutorial steps
-    ├── step-1/
-    │   └── step.yaml       # Step metadata
-    ├── step-2/
-    │   └── step.yaml
-    └── ...
+├── book.yaml                     # the book
+├── spreads/<id>/                 # one per spread (two pages) = one MindAR target group
+│   ├── spread.yaml
+│   └── <id>.mind                 # compiled MindAR targets of this spread
+├── entries/<id>/                 # one per entry (glossary, video, text, link)
+│   ├── entry.yaml
+│   └── images, videos, models    # referenced by relative path
+├── entities/<id>/                # AR content shared by several entries (optional)
+│   ├── entity.yaml
+│   └── assets
+└── steps/<id>/step.yaml          # onboarding / tutorial steps
 ```
 
-## Configuration File Formats
-
-### Chapter Configuration (chapter.yaml)
+## book.yaml
 
 ```yaml
-type: chapter
-id: chapter1                # Unique chapter identifier
-order: 0                    # Order in the book
-title: The Beginning        # Chapter title
-firstPage: 1                # First page number
-lastPage: 3                 # Last page number
-mindSrc: chapter1.mind      # MindAR data file
+id: osct
+title: Onion Skin & Crocodile Tears
+author: Kévin Bray
 ```
 
-### Target Configuration (target.yaml)
+## spreads/&lt;id&gt;/spread.yaml
 
 ```yaml
-id: target-001              # Unique target identifier
-type: target                # Type must be 'target'
-title: Racoon               # Display title
-description: A beast, a friend, a dimension jumper.
-relatedChapter: chapter1    # Which chapter this target belongs to
-order: 1                    # Order within the chapter
-bookId: "001"               # Book reference ID
-entityType: model           # Type of AR experience (model, video, image, link)
-imageTargetSrc: images-028.jpg  # Source image for recognition
-mindSrc: images-028.mind    # MindAR data for this target
-assets: racoon              # Referenced asset ID(s)
-relatedTargets: target-002  # Related targets (for navigation)
-tags: forest,animal         # Categorization tags
+title: The Beginning
+order: 0            # position in the spread menu
+firstPage: 1
+lastPage: 2
+mind: spread1.mind  # compiled targets, see "Compiling .mind files"
 ```
 
-### Asset Configuration (*.asset.yaml)
+Max **5 image targets per spread** – the build fails above that.
+
+## entries/&lt;id&gt;/entry.yaml
+
+Every entry belongs to the spread that contains its `page` (the access page).
+
+| Field | Required | |
+|---|---|---|
+| `category` | yes | `glossary`, `video`, `text` or `link` (singular – the list shows "Videos", …) |
+| `title` | yes | |
+| `page` | yes | access page in the book |
+| `body` | no | text; blank lines separate paragraphs |
+| `author` | no | shown for texts |
+| `image` | no | image file in the entry folder (glossary) |
+| `media` | no | URL for links (YouTube / Vimeo play embedded, other pages in a frame) |
+| `tags` | no | list |
+| `target` | no | the image in the book that unlocks the entry and shows AR content |
+
+Entries without a `target` have no image to scan (e.g. glossary terms that only exist in
+consultation).
 
 ```yaml
-type: asset                # Type must be 'asset'
-id: racoon                 # Unique asset identifier
-assetType: glb             # Asset type (REQUIRED - glb, image, video, audio)
-src: racoon.glb            # Asset source file
+category: video
+title: Video Example
+page: 4
+body: A demonstration of video content in AR.
+target:
+  image: images-007.jpg     # the tracked image (file in the entry folder)
+  order: 3                  # order among targets on the same page (default 0)
+  entity:                   # AR content shown on the image – inline …
+    type: video
+    src: bunny.mp4
 ```
 
-## Important Notes
+```yaml
+target:
+  image: images-022.jpg
+  entity:
+    ref: castle             # … or a shared entity from content/entities/castle
+```
 
-1. **assetType Field**: All assets **must** include the `assetType` field which determines how the asset will be processed:
-   - `glb` or `gltf`: 3D models
-   - `image`: Static images
-   - `video`: Video content
-   - `audio`: Audio content
-   - `link`: External URL links
+`target.id` defaults to the entry id.
 
-2. **Asset References**: Assets are referenced by their ID in the target.yaml file
+### Entity types
 
-3. **Mind Files**: Each target requires both an image file for visual recognition and a .mind file which contains the MindAR tracking data
+| `type` | Content |
+|---|---|
+| `model` | glTF / GLB (embedded textures; the first animation loops) |
+| `video` | MP4 / WebM; autoplays while the image is tracked |
+| `image` | JPG / PNG / WebP |
 
-4. **Related Targets**: Use the relatedTargets field to create connections between different AR experiences
+Transparent AR video: give a video entity a key color that becomes transparent (no alpha channel
+needed in the file). Neon green is the safest key.
 
-The build script will process these YAML files to generate the final game.config.json that powers the application.
+```yaml
+entity:
+  type: video
+  src: clip.mp4
+  params:
+    chromaKey: { color: "#00ff00", similarity: 0.3, smoothness: 0.08, spill: 0.1 }  # only color required
+```
 
+## entities/&lt;id&gt;/entity.yaml
+
+```yaml
+type: model
+assets:
+  - src: castle.glb
+params: {}                  # optional, passed to the entity
+```
+
+## steps/&lt;id&gt;/step.yaml
+
+Onboarding steps, ordered by `index`. All fields but `index` are optional.
+
+```yaml
+index: 3
+description: |-
+  To scan the book and display interactive content, this application requires access to your camera.
+button: Grant access
+action: camera              # next (default) | camera | scan
+illustration: /assets/illustrations/tutorial-step-2.svg
+# title, footer, fadeIn (ms), advance (ms – advance automatically)
+```
+
+## Compiling .mind files
+
+MindAR finds targets by their index in the compiled `.mind` file, so the order matters:
+
+1. Run the content build. It copies each spread's target images to
+   `mind-ar/<spread>/<index>-<file>` in the order the app expects (page → `target.order` → id).
+2. Compile the images of one spread **in that order** with the
+   [MindAR image target compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile).
+3. Save the result as `content/spreads/<id>/<mind>` and run the content build again.
+
+Adding, removing or reordering targets of a spread means recompiling its `.mind` file.

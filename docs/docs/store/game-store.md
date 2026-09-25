@@ -1,68 +1,43 @@
-# Game Store Configuration
+# Game Store
 
-The OSCT Game Store extends the BaseStore system to provide specialized state management for AR experiences. This document explains how to set up and use the game store with your application.
+The game store (`client/src/store/GameStore.ts`) extends the [BaseStore](/docs/store/base-store)
+with the app state and one manager per concern. Components get the single instance from
+`GameStoreService`.
 
-## Architecture
+```typescript
+import { GameStoreService } from "@/services/GameStoreService";
 
-The Game Store is built on top of the BaseStore, which provides:
+const game = GameStoreService.getInstance();
+game.router.navigate("/entries", { key: "category", value: "video" });
+game.state.mode; // "idle" | "scan" | "consultation"
+```
 
-- Immutable state updates with Immer
-- Global and property-level subscriptions
-- Fine-grained reactivity ideal for Web Components
+In the browser console the instance is available as `window.BOOKGAME` (for debugging).
 
-### Game Store Structure
+## Structure
 
 ```
 GameStore (extends BaseStore<GameState>)
-├── state               // Immutable state tree
-├── Managers            // Specialized domain controllers
-│   ├── ChapterManager  // Handles chapter loading/state
-│   ├── RouterManager   // Manages UI navigation 
-│   ├── CameraManager   // Camera permissions and access
-│   ├── AssetManager    // Asset loading and tracking
-│   └── EntityManager   // 3D entity management
-└── Services            // Utility functions and services
+├── state
+├── spreads    SpreadManager    active spread (= MindAR target group), switching
+├── targets    TargetManager    found / lost targets of the active spread
+├── history    HistoryManager   reading progress per book: unlocked, consulted, bookmarks, notes,
+│                               last spread / category, onboarding; stored on the device
+├── router     RouterManager    pages, routes and the game mode (idle / scan / consultation)
+├── camera     CameraManager    camera permission
+├── startLoading() / finishLoading() / setLoadingState()
+├── setArStatus()               reported by <ar-bridge>
+└── notifyError() / onError()   error and notice overlay
 ```
 
-## Basic Setup
+See [Managers](/docs/store/managers/).
 
-```typescript
-import { createGameStore } from './store/GameStore';
-import config from './game.config.json';
+## Game configuration
 
-const gameStore = createGameStore();
-gameStore.initialize();
-```
-
-## Configuration Structure
-
-The game configuration object follows this structure:
-
-```typescript
-interface GameConfiguration {
-  version: string,
-  chapters: Array<{
-    id: string;
-    order: number;
-    title: string;
-    imageTargetSrc: string;
-    targets: Array<{
-      mindarTargetIndex: number;
-      bookId: string;
-      title: string;
-      description: string;
-      entity: {
-        assets: Array<{
-          src: string;
-          type?: string;
-        }>;
-      };
-    }>;
-  }>;
-}
-```
-
-TODO: tutorial configuration is missing
+The store does not load `game.config.json` itself: content (book, spreads, targets, entries,
+tutorial) is read through `client/src/utils/game-config.ts` (`getBook()`, `getSpreads()`,
+`getTargets(spreadId)`, `getEntries()`, `getEntry(id)`, …), the only module that imports the file.
+Its shape is defined in `shared/types/game-config.ts` – see [Content build](/docs/content/configuration).
 
 ## Component Integration
 
@@ -122,15 +97,9 @@ The game provides a centralized error handling system that opens an `<error-page
 
 ```typescript
 this.game.notifyError({
-  code: ErrorCode.CAMERA_PERMISSION_DENIED,
-  msg: "Camera access was denied. Please enable camera permissions to use AR features.",
-  action: {
-    text: "Open Settings", 
-    callback: () => {
-      console.log("[Camera Manager] Showing settings instructions");
-      this.game.router.close();
-    }
-  }
+  msg: 'You have a previous session in spread "The Castle Gates".',
+  type: "info",
+  action: { text: "Resume", callback: () => this.game.spreads.switchSpread(spreadId) },
 });
 ```
 

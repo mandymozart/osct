@@ -4,79 +4,98 @@ sidebar_position: 1
 
 # Onion Skin Documentation
 
-Welcome to the documentation for the Onion Skin (OSCT) project! This documentation will help you understand the architecture, components, and usage of the OSCT application.
+OSCT is the web AR companion app for Kévin Bray's book *Onion Skin & Crocodile Tears*
+(buildingfictions). It runs in the browser, with no app install and no data tracking – progress is
+stored only on the reader's device.
 
-## Project Overview
+- Staging: [osct.netlify.app](https://osct.netlify.app) (built from `main`) [![Netlify Status](https://api.netlify.com/api/v1/badges/98de0d7b-4e71-4848-b987-6caa89675835/deploy-status)](https://app.netlify.com/sites/osct/deploys)
+- Source: [github.com/mandymozart/osct](https://github.com/mandymozart/osct)
 
-OSCT is an augmented reality (AR) web application built with modern web technologies. It provides a framework for creating interactive AR experiences accessible through web browsers, with a strong focus on privacy and no data tracking whatsoever.
+## How the app works
 
-### Live Deployments
+1. **Onboarding** – first visit: splash, intro, camera access (can be skipped; restart from Info).
+2. **Scan mode** – the reader picks a spread (two pages) in the bottom menu and points the camera at
+   the book. A found image target shows AR content (video, 3D model, image) or unlocks its entry.
+3. **Consultation mode** – unlocked entries by category: Glossary, Videos, Texts, Links, plus
+   Bookmarked. Entries can be bookmarked and get a personal note.
 
-- Staging: [https://osct.netlify.app](https://osct.netlify.app) [![Netlify Status](https://api.netlify.com/api/v1/badges/98de0d7b-4e71-4848-b987-6caa89675835/deploy-status)](https://app.netlify.com/sites/osct/deploys)
-- Alternative deployment: [https://osct.glitch.me/](https://osct.glitch.me/)
+## Repository
 
-## Technical Stack
+| Folder | What |
+|---|---|
+| `client/` | The app |
+| `content/` | Book content as YAML + media – see [Content structure](/docs/content/structure) |
+| `scripts/` | Content build: `content/` → `client/src/game.config.json` – see [Content build](/docs/content/configuration) |
+| `shared/` | Game configuration contract (types + runtime guards), used by app and build |
+| `mind-ar/` | Generated: target images per spread in MindAR order, for compiling `.mind` files |
+| `docs/` | This site |
+| `agents/` | Plan, rules, decisions and design reference for work on the code |
 
-- **Build System**: [Vite](https://vitejs.dev/)
-- **Testing**: Vite Test
-- **3D Rendering**: [A-Frame](https://aframe.io/)
-- **Image Target Tracking**: [MindAR](https://hiukim.github.io/mind-ar-js-doc/) using TensorFlow
-- **State Management**: [Immer](https://immerjs.github.io/immer/)
-- **Component Architecture**: Vanilla Custom Web Components
-- **Deployment**: Netlify for staging, FTP for production
+## Getting started
 
-## Installation
+Node 22 (as in CI).
 
 ```bash
-cd client
-npm install
+# once
+cd scripts && npm install && npm run build      # compile the content build tool
+cd ../client && npm install
+
+# after changing content/ (or shared/, scripts/src)
+cd scripts && npm run build:content
+
+# app
+cd client && npm run dev                        # http://localhost:5173
 ```
 
-**Known Issue**: If building on Windows with Node version >22, use `npm install --ignore-scripts` as there are canvas build scripts that have issues with GTK3. Alternatively, use Node 18 or add the following to your package.json:
+- Commit the regenerated `client/src/game.config.json` and `client/public/assets/content`; CI fails
+  when they don't match `content/`.
+- The camera needs HTTPS or `localhost`. On a phone, test the Netlify deploy or use an HTTPS tunnel.
+- `client/.env` enables the debug overlay (`VITE_DEBUG=true`).
 
-```json
-"canvas": {
-  "skip-install": true
-}
+### Checks
+
+```bash
+cd client && npx tsc --noEmit && npx vitest run
+cd scripts && npm run build
 ```
 
-## Key Concepts
+### Build and deploy
 
-OSCT uses a state-based pattern for managing components and handling errors:
-
-1. **WebAR**: Built with web standards for broad device compatibility
-2. **Web Components**: Native browser technologies with no heavy frameworks
-3. **Privacy First**: No data tracking whatsoever - all processing happens locally
-4. **State Management**: BaseStore using immutable updates via Immer
-5. **Managerial Architecture**: Specialized controllers for different app aspects
-
-## Getting Started
-
-To get started with OSCT, navigate through the sections in this documentation:
-
-- [Game Store](/docs/store/game-store): Learn about the state management system
-- [Base Store](/docs/store/base-store): Understand the underlying state management architecture
-- [Components](/docs/components/example-usage): Discover how to use and extend the components
-
-## Architecture Diagram
-
-```
-Onion Skin
-├── State Management
-│   ├── BaseStore (Immer-powered)
-│   └── GameStore (AR-specific extensions)
-├── Components
-│   ├── Core Components
-│   ├── UI Components
-│   └── AR Components
-└── Services
-    ├── Camera & Permissions
-    ├── Asset Management
-    └── Chapter Management
+```bash
+cd client && npm run build                      # → client/dist, static SPA
 ```
 
-## Image Tracking Setup
+`build:ar-rebuild` / `build:ar-persistent` bake in an AR scene strategy for device testing
+(default: rebuild – one scene per spread; persistent – one scene that swaps targets).
+Netlify builds `main`; an FTP production deploy follows later.
 
-MindAR is used for image tracking targets. Use the MindAR compiler to generate image tracking targets for your AR experiences.
+### Version
 
-Explore the documentation to learn more about each aspect of the application.
+One semver for app and content build (`client/package.json` = `scripts/package.json`, checked by
+tests and CI). Rebuild the content after a version bump.
+
+## Technical stack
+
+- **Build**: [Vite](https://vitejs.dev/), tests with [Vitest](https://vitest.dev/) (happy-dom)
+- **AR**: [A-Frame](https://aframe.io/) + [MindAR](https://hiukim.github.io/mind-ar-js-doc/) image
+  tracking, loaded from `client/public/assets/deps` (not bundled)
+- **State**: [Immer](https://immerjs.github.io/immer/) – `BaseStore` + `GameStore` with managers
+- **UI**: vanilla custom elements with shadow DOM; shared design styles in `client/src/styles`
+
+## Architecture
+
+```
+client/src
+├── store/          GameStore (BaseStore + Immer) and its managers:
+│                   Spread, Target, History, Router, Camera
+├── pages/          one page open at a time (home, tutorial, spreads, entries, entry, about, …)
+├── components/     header (Mark the Page, counter), scan (spread menu, found indicator),
+│                   aframe-bridges (AR scene), consultation, tutorial, dev-tools, …
+├── services/       GameStoreService (singleton), PreloaderService, ProgressStorage
+├── utils/          game-config (the only reader of game.config.json), progress-record, …
+└── types/          app types; the configuration contract is re-exported from shared/
+```
+
+Read on: [Game store](/docs/store/game-store), [Base store](/docs/store/base-store),
+[Managers](/docs/store/managers/), [Pages](/docs/pages/),
+[Components](/docs/components/example-usage).

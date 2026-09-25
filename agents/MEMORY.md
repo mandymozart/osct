@@ -4,6 +4,16 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Docs updated (Tilman)
+
+- New root `README.md` (quick start: install, content build, dev, checks, builds incl. AR strategies, version).
+  `docs/` rewritten for the current model: intro (getting started), content structure + build (spreads,
+  entries, entities, steps, `.mind` compile order, chroma key), game store, managers, pages, components.
+- Removed stale docs: `docs/docs/README.md` (Glitch, canvas workaround), Docusaurus boilerplate
+  `docs/src/pages/markdown-page.md`, outdated copies `client/src/pages/PAGES.md` / `ERROR-PAGE.md`.
+- [ ] Open: `<navigation-bar>` (+ index/spreads buttons) is always hidden (`display: none`) and `<app-router>`
+      in `main.ts` is not defined anywhere – removal candidates, ask Tilman.
+
 ## 2026-09-25 – Progress reading moved to utils (Tilman)
 
 - `store/managers/progress-readers.ts` → `utils/progress-record.ts`: pure helpers (create a record, read a stored

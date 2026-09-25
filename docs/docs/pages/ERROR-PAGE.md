@@ -1,8 +1,16 @@
-# Error Page
-Error page is a simple overlay page that can be used to display error messages to the user.
+# Error page
 
-Show error with auto-hide after 5 seconds
-`showError({ code: 'ERROR', msg: 'Something went wrong' });`
- 
-Show persistent error
-`showError({ code: 'FATAL', msg: 'Fatal error occurred' }, 0);`
+`<error-page>` is an overlay for errors and notices (e.g. "resume your previous session"). Open it
+through the store, not directly:
+
+```typescript
+game.notifyError({
+  code: ErrorCode.SPREAD_LOAD_FAILED,      // optional – see client/src/types/errors.ts
+  msg: "The spread could not be loaded.",
+  type: "warning",                         // "critical" | "warning" | "info"
+  action: { text: "Retry", callback: () => game.spreads.switchSpread(spreadId) },  // optional
+});
+```
+
+With an action the page shows it as the primary button and "Dismiss" as the secondary one.
+`game.onError(listener)` lets components react to errors as well.
