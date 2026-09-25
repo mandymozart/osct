@@ -4,6 +4,20 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Design review: colors measured from the PDF
+
+- [x] (user) "Nail the colors": values extracted from the PDF's vector data into `agents/DESIGN.md`
+      (frames are lossy). Key finding: gold is **one linear gradient** (`#f5e7c8 → #7f6032 → #d2ae5a →
+      #f3cc94`) clipped by the text, per element; consultation background = black 82 %; pills/"i" =
+      transparent body (Multiply) + blurred black shadow; onboarding buttons = black body + white glow;
+      Mark 99 × 96 px. The white/gold mix in list titles is the list-wide gradient.
+- [x] (user) Glass rule: body `rgba(255,255,255,0.001)` (non-zero alpha, else no backdrop blur) +
+      `backdrop-filter: blur`, depth only by a white or black drop shadow.
+- [ ] Consultation Mark: the PDF embeds a separate **cropped** 129 × 20 px Mark image – contradicts the
+      "glitch" reading (Tilman) → question Q2 for the designers.
+- [ ] Next (after Tilman's go): shared design stylesheet + `.gold` + glass buttons + `<gold-illustration>`
+      (reinstate the old tutorial illustrations, animated like the camera), then apply the spec.
+
 ## 2026-09-25 – Phase 5 onboarding built
 
 - [x] (user) First visit → onboarding; "Skip" and finishing mark the reader onboarded (progress field

@@ -8,6 +8,7 @@ Before working, read:
 - `agents/RULES.md` – project rules (stack, naming, what must not be removed)
 - `agents/MEMORY.md` – dated decisions and open items
 - `agents/reference/README.md` – design PDF, rendered frames and extracted placeholder images
+- `agents/DESIGN.md` – measured design spec (colors, gold gradient, sizes, buttons) – before any styling
 
 While working:
 - Tick items in `PLAN.md` as they land (`[~]` in progress, `[x]` done).

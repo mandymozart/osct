@@ -678,6 +678,10 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
 
 ## Design tokens
 
+**Measured spec: `agents/DESIGN.md`** (colors, gold gradient, sizes, buttons/glass, gold text options,
+style architecture, questions for the designers) – extracted from the PDF's vector data on 2026-09-25.
+The notes below are the earlier, rougher summary.
+
 - Font: Arial, extra tracking 20 → `letter-spacing: 0.02em`.
 - Accent: **gold** for now (the PDF note says to use a flashy placeholder such as R100%; final color TBD). Keep it one CSS variable.
 - Scan chrome on camera; consultation dark (black/dark grey), outlined pill buttons, glass highlight.
