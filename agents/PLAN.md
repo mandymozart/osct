@@ -213,8 +213,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   **Concept decided 2026-09-25 (Tilman):** one progress record per book, keyed by stable ids:
   - **Two stages of discovery:** *unlocked* (target found in scan mode, target id) and *consulted*
     (entry opened, entry id).
-  - Per entry also a **bookmark** ("marked") and a **note** (short user comment) – stored now, UI in
-    Phase 4.
+  - ~~Per entry also a **bookmark** ("marked") and a **note** (short user comment)~~ – **removed
+    2026-09-25 (Tilman)**: no bookmarks, no notes anywhere (types, storage, UI).
   - `lastSpreadId`, `lastCategory` (resume, "Entries" button), the app version history, the storage
     format version.
   - Ids that are no longer in the content are kept (debug overlay tab, see versioning).
@@ -383,7 +383,7 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
      Placement per RULES #17 (state in the manager, storage adapter as a service).
   3. [x] (2026-09-25) **Debug overlay tab:** progress state; ids missing from the content marked.
      Expanded overlay has tabs *spread* / *progress*: book, format, app versions, last spread/category,
-     unlocked / consulted / marked / notes with times, missing ids in red (`history.getMissingIds()`),
+     unlocked / consulted with times, missing ids in red (`history.getMissingIds()`),
      "Reset progress". Collapsed line shows `U<unlocked> K<consulted>`.
 - **Deep links from printed QR codes**  `[ ]` – owner: **Tilman**
   Printed QR codes (book) are scanned with the phone's native camera and open the app URL, e.g.
@@ -501,7 +501,7 @@ Built 2026-09-25 (pages extend `pages/consultation-page.ts`; pure logic in
   are linked from the dev-only bottom bar (`navigation-bar`: index + spreads buttons).
   Mark (scan) → `/entries`; found indicator → `/entry`; "Entries" → `/entries`.
 - [x] Entries list (p.17–29, `pages/entries-page.ts`): category dropdown (Glossary / Videos / Texts /
-  Links + **Bookmarked**), count per category "consulted / total", glossary grouped by letter (entries
+  Links), count per category "consulted / total", glossary grouped by letter (entries
   without a letter first, no header), texts labelled `'Title', Author`.
 - [x] Unconsulted entries: **hidden**; listed **locked** when `showLockedEntries()` – dev builds by
   default, `VITE_SHOW_LOCKED_ENTRIES=true|false` overrides.
@@ -518,9 +518,9 @@ Built 2026-09-25 (pages extend `pages/consultation-page.ts`; pure logic in
 - [x] Info (p.32–34) = the existing **About page**, restyled: "Info" + "Colophon" sections (placeholder
   text, the existing about content in the colophon), opened via "i". Close button dropped ("Entries"
   and Mark lead out). [ ] Final Info / colophon texts → content (`book.yaml`) when they arrive.
-- [x] **Bookmark + note** (Tilman, not in the design yet): bookmark toggle + note field on the entry view
-  (saved while typing, debounced); list: "Bookmarked" filter, per-row indicators for *bookmarked* and
-  *has a note*. **Icons: placeholders** in `icons.ts` until Tilman's arrive.
+- [x] ~~**Bookmark + note**~~ – built, then **removed completely on 2026-09-25 (Tilman)**: no bookmark,
+  no note, no "Bookmarked" filter, no row markers, no icons; `marked` / `notes` dropped from the progress
+  record (the reader ignores them in old records).
 - Removed with Tilman's okay (2026-09-25): the scan page's spread card (top left, spread info + link
   to `/spreads`) and the header name line "Kevin Bray — Onion Skin and Crocodile Tears" (previous
   design iteration). The tutorial's last step now goes to scan mode (`/spread`) instead of `/spreads`.

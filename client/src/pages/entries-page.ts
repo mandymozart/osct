@@ -1,19 +1,11 @@
-import { Entry, Pages } from "@/types";
+import { Entry, EntryCategory, Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
-import {
-  BOOKMARKED,
-  DEFAULT_CATEGORY,
-  EntriesFilter,
-  EntriesFilterElement,
-  EntriesList,
-  isEntriesFilter,
-  showLockedEntries,
-} from "@/components/consultation";
+import { DEFAULT_CATEGORY, EntriesFilterElement, EntriesList, isCategory, showLockedEntries } from "@/components/consultation";
 import { ConsultationPage } from "./consultation-page";
 
 /**
  * Entries list (design p.17–19, 24, 29): `<entries-filter>` (category dropdown), consulted / total of
- * the filter below it, and `<entries-list>`. Unconsulted entries are hidden; in development they are
+ * the category below it, and `<entries-list>`. Unconsulted entries are hidden; in development they are
  * listed locked (`showLockedEntries`).
  */
 export class EntriesPage extends ConsultationPage {
@@ -43,35 +35,34 @@ export class EntriesPage extends ConsultationPage {
     `;
   }
 
-  /** Route param → filter; without param the last category (the "Entries" button, p.21) */
-  private get filter(): EntriesFilter {
+  /** Route param → category; without param the last category (the "Entries" button, p.21) */
+  private get category(): EntryCategory {
     const param = this.routeParam(Pages.ENTRIES);
-    if (isEntriesFilter(param)) return param;
+    if (isCategory(param)) return param;
     return this.game.state.progress.lastCategory ?? DEFAULT_CATEGORY;
   }
 
   protected update(): void {
     if (this.game.state.currentRoute?.page !== Pages.ENTRIES) return;
     const root = this.shadowRoot;
-    const filterEl = root?.querySelector<EntriesFilterElement>("entries-filter");
+    const filter = root?.querySelector<EntriesFilterElement>("entries-filter");
     const list = root?.querySelector<EntriesList>("entries-list");
     const count = root?.querySelector<HTMLElement>(".count");
-    if (!filterEl || !list || !count) return;
+    if (!filter || !list || !count) return;
 
-    const filter = this.filter;
-    if (filter !== BOOKMARKED) this.game.history.setLastCategory(filter);
+    const category = this.category;
+    this.game.history.setLastCategory(category);
 
     const history = this.game.history;
-    const all = getEntries();
-    const inFilter = filter === BOOKMARKED ? all.filter(e => history.isMarked(e.id)) : all.filter(e => e.category === filter);
-    const consulted = inFilter.filter(e => history.isConsulted(e.id)).length;
+    const inCategory = getEntries().filter(e => e.category === category);
+    const consulted = inCategory.filter(e => history.isConsulted(e.id)).length;
     const showLocked = showLockedEntries();
     const visible = (e: Entry) => showLocked || history.isConsulted(e.id);
 
-    filterEl.value = filter;
-    count.textContent = `${consulted} / ${inFilter.length}`;
-    count.setAttribute("aria-label", `${consulted} of ${inFilter.length} consulted`);
-    list.setEntries(filter, inFilter.filter(visible));
+    filter.value = category;
+    count.textContent = `${consulted} / ${inCategory.length}`;
+    count.setAttribute("aria-label", `${consulted} of ${inCategory.length} consulted`);
+    list.setEntries(category, inCategory.filter(visible));
   }
 }
 

@@ -7,7 +7,7 @@ const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, 
 describe("entries model", () => {
   it("knows the four categories", () => {
     expect(["glossary", "video", "text", "link"].every(isCategory)).toBe(true);
-    expect(isCategory("bookmarked")).toBe(false);
+    expect(isCategory("poems")).toBe(false);
     expect(isCategory("videos")).toBe(false);
   });
 

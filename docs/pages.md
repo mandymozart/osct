@@ -13,8 +13,8 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | `/` | `<home-page>` | idle | start screen for returning readers |
 | `/tutorial` (`step`) | `<tutorial-page>` | idle | onboarding / tutorial steps from `content/steps` |
 | `/spread` (`spreadId`) | `<spread-page>` | scan | scan mode: found indicator, spread menu |
-| `/entries` (`category`) | `<entries-page>` | consultation | entries list by category or bookmarked |
-| `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: text, media, bookmark, note |
+| `/entries` (`category`) | `<entries-page>` | consultation | entries list by category |
+| `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: meta table, text, media |
 | `/about` | `<about-page>` | consultation | Info: about text, colophon, tutorial restart |
 | `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](error-page.md) |
 | `/not-found` | `<not-found-page>` | (keeps mode) | unknown route |

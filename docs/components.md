@@ -9,7 +9,7 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 | `header/` | `<game-header>` with `<mark-the-page>` (Mark, the app's main button) and `<entries-counter>` |
 | `scan/` | `<spread-menu>` (looped spread menu at the bottom), `<found-indicator>` (found target without AR content) |
 | `aframe-bridges/` | `<ar-bridge>` – the A-Frame / MindAR scene; entities, chroma key, AR scene strategies |
-| `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category), `<entry-actions>` (bookmark, note); helpers in `entries-model.ts` |
+| `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category); helpers in `entries-model.ts` |
 | `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` |
 | `common/` | `<gold-illustration>` (SVG in the gold gradient) |
 | `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary) |
@@ -33,7 +33,6 @@ Buttons are native `<button>`s built with `goldButton()` (the component adopts t
 import { goldButton } from "@/components/buttons";
 
 goldButton({ label: "Start", shape: "button", primary: true, attrs: { id: "start-btn" } });
-goldButton({ label: "Add note", icon: ICONS.noteAdd, attrs: { "data-action": "add-note" } });
 ```
 
 Values come from the measured design spec, `agents/DESIGN.md`.

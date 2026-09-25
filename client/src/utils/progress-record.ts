@@ -23,8 +23,6 @@ export const createProgressRecord = (bookId: string): ProgressRecord => ({
   appVersions: [],
   unlocked: {},
   consulted: {},
-  marked: {},
-  notes: {},
   lastSpreadId: null,
   lastCategory: null,
   onboarded: false,
@@ -41,14 +39,15 @@ const pick = <T>(value: unknown, isValue: (v: unknown) => v is T): Record<string
 const isNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isString = (v: unknown): v is string => typeof v === "string";
 
-/** Format 1 (app 1.x): the record as defined in `types/history.ts`; drops malformed fields */
+/**
+ * Format 1 (app 1.x): the record as defined in `types/history.ts`; drops malformed and unknown fields
+ * (e.g. `marked` / `notes` from before bookmarks and notes were removed, 2026-09-25).
+ */
 const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
   ...createProgressRecord(bookId),
   appVersions: Array.isArray(raw.appVersions) ? raw.appVersions.filter(isString) : [],
   unlocked: pick(raw.unlocked, isNumber),
   consulted: pick(raw.consulted, isNumber),
-  marked: pick(raw.marked, isNumber),
-  notes: pick(raw.notes, isString),
   lastSpreadId: isString(raw.lastSpreadId) ? raw.lastSpreadId : null,
   lastCategory: isEntryCategory(raw.lastCategory) ? raw.lastCategory : null,
   // Added 2026-09-25 (additive, same format): records without it count as not onboarded

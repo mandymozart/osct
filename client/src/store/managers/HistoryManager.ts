@@ -12,7 +12,7 @@ import { ProgressReadStatus, createProgressRecord, readProgress } from '@/utils'
 
 /**
  * Progress of the reader in this book (PLAN Phase 2): unlocked targets, consulted entries,
- * bookmarks, notes, last spread / category – one record per book, keyed by stable ids.
+ * last spread / category, onboarding – one record per book, keyed by stable ids.
  * Loaded at startup; every change is saved through the storage adapter.
  */
 export class HistoryManager implements IHistoryManager {
@@ -124,31 +124,6 @@ export class HistoryManager implements IHistoryManager {
     return Object.keys(this.progress.consulted).filter(id => getEntry(id)).length;
   }
 
-  public setMarked(entryId: string, marked: boolean): void {
-    if (this.isMarked(entryId) === marked) return;
-    this.change(draft => {
-      if (marked) draft.marked[entryId] = Date.now();
-      else delete draft.marked[entryId];
-    });
-  }
-
-  public isMarked(entryId: string): boolean {
-    return entryId in this.progress.marked;
-  }
-
-  public setNote(entryId: string, note: string): void {
-    const text = note.trim();
-    if (this.getNote(entryId) === text) return;
-    this.change(draft => {
-      if (text) draft.notes[entryId] = text;
-      else delete draft.notes[entryId];
-    });
-  }
-
-  public getNote(entryId: string): string {
-    return this.progress.notes[entryId] ?? '';
-  }
-
   public setLastCategory(category: EntryCategory): void {
     if (this.progress.lastCategory === category) return;
     this.change(draft => { draft.lastCategory = category; });
@@ -160,11 +135,10 @@ export class HistoryManager implements IHistoryManager {
   }
 
   public getMissingIds(): { targets: string[]; entries: string[] } {
-    const { unlocked, consulted, marked, notes } = this.progress;
-    const entryIds = new Set([...Object.keys(consulted), ...Object.keys(marked), ...Object.keys(notes)]);
+    const { unlocked, consulted } = this.progress;
     return {
       targets: Object.keys(unlocked).filter(id => !getTarget(id)),
-      entries: [...entryIds].filter(id => !getEntry(id)),
+      entries: Object.keys(consulted).filter(id => !getEntry(id)),
     };
   }
 

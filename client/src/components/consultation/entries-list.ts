@@ -1,18 +1,17 @@
 import { GameStoreService } from "@/services";
-import { Entry, IGame } from "@/types";
+import { Entry, EntryCategory, IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
-import { BOOKMARKED, DEFAULT_CATEGORY, EntriesFilter, entryLabel, groupEntries, sortEntries } from "./entries-model";
-import { ICONS } from "./icons";
+import { DEFAULT_CATEGORY, entryLabel, groupEntries } from "./entries-model";
 
 /**
- * Entries of one filter (design p.17, 19, 24, 29): sorted by title, the glossary grouped by letter, one
- * gold gradient across the whole list; bookmark and note markers per row. The page passes the visible
- * entries (`setEntries`); tap → the entry view.
+ * Entries of one category (design p.17, 19, 24, 29): sorted by title, the glossary grouped by letter, one
+ * gold gradient across the whole list. The page passes the visible entries (`setEntries`); tap → the entry
+ * view.
  */
 export class EntriesList extends HTMLElement {
   private game: Readonly<IGame>;
-  private filter: EntriesFilter = DEFAULT_CATEGORY;
+  private category: EntryCategory = DEFAULT_CATEGORY;
   private entries: Entry[] = [];
 
   constructor() {
@@ -22,9 +21,9 @@ export class EntriesList extends HTMLElement {
     adoptDesignStyles(this.shadowRoot);
   }
 
-  /** Show `entries` (already filtered) for `filter` – decides grouping and the empty text */
-  setEntries(filter: EntriesFilter, entries: Entry[]) {
-    this.filter = filter;
+  /** Show `entries` (already filtered) of `category` – the category decides the grouping */
+  setEntries(category: EntryCategory, entries: Entry[]) {
+    this.category = category;
     this.entries = entries;
     this.render();
   }
@@ -62,8 +61,6 @@ export class EntriesList extends HTMLElement {
           cursor: pointer;
         }
         .row .label { flex: 1; }
-        /* Icons use currentColor – flat gold, the list's gradient can't reach SVG strokes */
-        .row .marks { display: flex; gap: .3rem; color: var(--color-accent); -webkit-text-fill-color: var(--color-accent); }
         /* Locked (dev only): grey instead of the list's gold */
         .row.locked { color: var(--color-muted); -webkit-text-fill-color: var(--color-muted); }
         .row.locked .label::after { content: " – locked"; font-size: var(--text-size-small); }
@@ -81,11 +78,9 @@ export class EntriesList extends HTMLElement {
 
   private listHtml(): string {
     if (this.entries.length === 0) {
-      return `<p class="empty">${this.filter === BOOKMARKED ? "No bookmarked entries yet." : "No entries consulted yet."}</p>`;
+      return `<p class="empty">No entries consulted yet.</p>`;
     }
-    const groups = this.filter === BOOKMARKED
-      ? [{ letter: null, entries: sortEntries(this.entries) }]
-      : groupEntries(this.entries, this.filter);
+    const groups = groupEntries(this.entries, this.category);
     // One gold gradient across the whole list (frames 17/19/24: titles run from pale to gold)
     return `<ul class="gold">${groups
       .map(g => `${g.letter ? `<li class="letter" aria-hidden="true">${g.letter}</li>` : ""}${g.entries.map(e => this.rowHtml(e)).join("")}`)
@@ -95,11 +90,9 @@ export class EntriesList extends HTMLElement {
   private rowHtml(entry: Entry): string {
     const history = this.game.history;
     const locked = !history.isConsulted(entry.id);
-    const marks = [history.isMarked(entry.id) ? ICONS.bookmarked : "", history.getNote(entry.id) ? ICONS.note : ""].join("");
     return /* html */ `
       <li><button type="button" class="row${locked ? " locked" : ""}" data-entry="${escapeHtml(entry.id)}">
         <span class="label">${escapeHtml(entryLabel(entry))}</span>
-        ${marks ? `<span class="marks">${marks}</span>` : ""}
       </button></li>`;
   }
 

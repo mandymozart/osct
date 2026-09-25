@@ -15,10 +15,6 @@ export interface ProgressRecord {
   unlocked: Record<string, number>;
   /** Stage 2: entry opened (entry id → time) */
   consulted: Record<string, number>;
-  /** Bookmarked entries (entry id → time) – UI in Phase 4 */
-  marked: Record<string, number>;
-  /** Short user note per entry (entry id → text) – UI in Phase 4 */
-  notes: Record<string, string>;
   /** Last active spread (resume) */
   lastSpreadId: string | null;
   /** Last selected entries category ("Entries" button, Phase 4) */
@@ -46,7 +42,7 @@ export interface IProgressStorage {
 
 /**
  * History Manager Interface: progress of the reader (unlocked targets, consulted entries,
- * bookmarks, notes, last spread / category).
+ * last spread / category, onboarding).
  */
 export interface IHistoryManager {
   /**
@@ -70,12 +66,6 @@ export interface IHistoryManager {
   isConsulted(entryId: string): boolean;
   /** Consulted entries that are in the content (header counter: consulted / total) */
   getConsultedCount(): number;
-
-  setMarked(entryId: string, marked: boolean): void;
-  isMarked(entryId: string): boolean;
-  /** Empty text removes the note */
-  setNote(entryId: string, note: string): void;
-  getNote(entryId: string): string;
 
   setLastCategory(category: EntryCategory): void;
 

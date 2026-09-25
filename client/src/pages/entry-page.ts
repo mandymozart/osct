@@ -1,14 +1,15 @@
 import { Pages } from "@/types";
 import { getEntry } from "@/utils/game-config";
-import { EntryActions, EntryDetail } from "@/components/consultation";
+import "@/components/consultation"; // registers <entry-detail> (the named import is type-only)
+import { EntryDetail } from "@/components/consultation";
 import { ConsultationPage } from "./consultation-page";
 
 /**
- * Entry view (design p.15, 20, 25, 30–31): `<entry-detail>` (meta table + content per category) and
- * `<entry-actions>` (bookmark, note). Opening the entry marks it consulted.
+ * Entry view (design p.15, 20, 25, 30–31): `<entry-detail>` (meta table + content per category).
+ * Opening the entry marks it consulted.
  */
 export class EntryPage extends ConsultationPage {
-  /** Entry currently shown – progress changes (bookmark, note) must not re-render it */
+  /** Entry currently shown – progress changes must not re-render it (media would restart) */
   private renderedId: string | null = null;
 
   get styles(): string {
@@ -23,7 +24,6 @@ export class EntryPage extends ConsultationPage {
       <div class="content">
         <p class="missing" hidden>This entry is not part of the book (anymore).</p>
         <entry-detail></entry-detail>
-        <entry-actions></entry-actions>
       </div>
     `;
   }
@@ -31,19 +31,17 @@ export class EntryPage extends ConsultationPage {
   protected update(): void {
     const root = this.shadowRoot;
     const detail = root?.querySelector<EntryDetail>("entry-detail");
-    const actions = root?.querySelector<EntryActions>("entry-actions");
     const missing = root?.querySelector<HTMLElement>(".missing");
-    if (!detail || !actions || !missing) return;
+    if (!detail || !missing) return;
 
     const id = this.routeParam(Pages.ENTRY);
     if (id === this.renderedId) return;
     this.renderedId = id;
 
-    // Leaving the view (no id): stops media and saves the note
+    // Leaving the view (no id) empties the detail, which stops media
     const entry = id ? getEntry(id) : undefined;
     missing.hidden = !id || !!entry;
     detail.entry = entry ?? null;
-    actions.entryId = entry ? entry.id : null;
     if (!entry) return;
 
     this.game.history.consultEntry(entry.id);

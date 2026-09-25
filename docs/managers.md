@@ -8,7 +8,7 @@ injected in the constructor. Interfaces: `client/src/types/`.
 |---|---|---|
 | `SpreadManager` | `game.spreads` | `currentSpread` – switching the active spread (the MindAR target group of two pages) |
 | `TargetManager` | `game.targets` | `trackedTargets` – targets found / lost by the AR scene; unlocks via the history |
-| `HistoryManager` | `game.history` | `progress` – unlocked targets, consulted entries, bookmarks, notes, last spread / category, onboarding, resume offer |
+| `HistoryManager` | `game.history` | `progress` – unlocked targets, consulted entries, last spread / category, onboarding, resume offer |
 | `RouterManager` | `game.router` | `currentRoute`, `mode` – navigation, see [Pages](pages.md) |
 | `CameraManager` | `game.camera` | `cameraPermission` – asking for and tracking camera access |
 

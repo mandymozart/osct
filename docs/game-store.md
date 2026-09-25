@@ -21,7 +21,7 @@ GameStore (extends BaseStore<GameState>)
 ├── state
 ├── spreads    SpreadManager    active spread (= MindAR target group), switching
 ├── targets    TargetManager    found / lost targets of the active spread
-├── history    HistoryManager   reading progress per book: unlocked, consulted, bookmarks, notes,
+├── history    HistoryManager   reading progress per book: unlocked, consulted,
 │                               last spread / category, onboarding; stored on the device
 ├── router     RouterManager    pages, routes and the game mode (idle / scan / consultation)
 ├── camera     CameraManager    camera permission

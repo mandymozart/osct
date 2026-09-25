@@ -252,8 +252,6 @@ export class DebugOverlay extends HTMLElement {
       </div>
       ${table("Unlocked targets", timeRows(progress.unlocked), getEntries().filter(e => e.target).length)}
       ${table("Consulted entries", timeRows(progress.consulted), getEntries().length)}
-      ${table("Marked entries", timeRows(progress.marked))}
-      ${table("Notes", Object.entries(progress.notes).map(([id, note]) => [id, escapeHtml(note)]))}
       <div class="section section--summary">
         <button data-action="reset-progress">Reset progress</button>
       </div>

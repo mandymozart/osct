@@ -1,18 +1,18 @@
 import { GameStoreService } from "@/services";
-import { IGame } from "@/types";
+import { ENTRY_CATEGORIES, EntryCategory, IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
-import { DEFAULT_CATEGORY, ENTRIES_FILTERS, EntriesFilter, filterLabel } from "./entries-model";
+import { categoryLabel, DEFAULT_CATEGORY } from "./entries-model";
 
 /**
  * Category dropdown of the entries list (design p.17–18, "burger menu"): a glass pill with the current
- * filter; open, it grows downwards into the menu (same width and left edge, first item on the label).
+ * category; open, it grows downwards into the menu (same width and left edge, first item on the label).
  * Choosing an option navigates to `/entries` with that category. Closes on an outside tap and Escape.
  * The page sets `value`.
  */
 export class EntriesFilterElement extends HTMLElement {
   private game: Readonly<IGame>;
-  private _value: EntriesFilter = DEFAULT_CATEGORY;
+  private _value: EntryCategory = DEFAULT_CATEGORY;
   private open = false;
 
   constructor() {
@@ -22,11 +22,11 @@ export class EntriesFilterElement extends HTMLElement {
     adoptDesignStyles(this.shadowRoot);
   }
 
-  get value(): EntriesFilter {
+  get value(): EntryCategory {
     return this._value;
   }
 
-  set value(value: EntriesFilter) {
+  set value(value: EntryCategory) {
     if (value === this._value && this.shadowRoot?.childElementCount) return;
     this._value = value;
     this.open = false;
@@ -45,8 +45,8 @@ export class EntriesFilterElement extends HTMLElement {
 
   private render() {
     if (!this.shadowRoot) return;
-    const item = (filter: EntriesFilter) =>
-      `<li><button type="button" class="gold" role="menuitem" data-filter="${filter}" aria-current="${filter === this._value}">${filterLabel(filter)}</button></li>`;
+    const item = (category: EntryCategory) =>
+      `<li><button type="button" class="gold" role="menuitem" data-filter="${category}" aria-current="${category === this._value}">${categoryLabel(category)}</button></li>`;
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host { display: block; position: relative; width: var(--category-width); }
@@ -90,8 +90,8 @@ export class EntriesFilterElement extends HTMLElement {
           cursor: pointer;
         }
       </style>
-      ${goldButton({ label: filterLabel(this._value), attrs: { "data-action": "toggle", "aria-haspopup": "menu", "aria-expanded": String(this.open) } })}
-      ${this.open ? `<ul class="menu" role="menu">${ENTRIES_FILTERS.map(item).join("")}</ul>` : ""}
+      ${goldButton({ label: categoryLabel(this._value), attrs: { "data-action": "toggle", "aria-haspopup": "menu", "aria-expanded": String(this.open) } })}
+      ${this.open ? `<ul class="menu" role="menu">${ENTRY_CATEGORIES.map(item).join("")}</ul>` : ""}
     `;
   }
 
