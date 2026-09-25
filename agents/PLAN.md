@@ -367,7 +367,7 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
      adding a workflow that runs `tsc` + `vitest` for client and scripts.
   2. [x] (2026-09-25) Done: `ProgressRecord` (`types/history.ts`) in `state.progress`, key
      `osct-progress:<book.id>`, adapter `services/ProgressStorage.ts`, format readers
-     `store/managers/progress-readers.ts` (format 1 = app 1.x; one reader per format, unknown/newer/corrupt
+     `utils/progress-record.ts` (format 1 = app 1.x; one reader per format, unknown/newer/corrupt
      → fresh record + notice). `HistoryManager` loads in its constructor, `offerResume()` from `main.ts`.
      Last spread = spread change **or** spread of an unlocked target (the initial spread never "changes").
      Consulted = entry expanded in the index (until `/entry`, Phase 4). **No reader for the pre-versioned

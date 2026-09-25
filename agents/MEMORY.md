@@ -4,6 +4,12 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Progress reading moved to utils (Tilman)
+
+- `store/managers/progress-readers.ts` → `utils/progress-record.ts`: pure helpers (create a record, read a stored
+  one per format), not a manager; used by HistoryManager and GameStore. Pure tests in
+  `utils/__tests__/progress-record.test.ts`; storage/notice tests stay in `HistoryManager.test.ts`.
+
 ## 2026-09-25 – Entry categories as a shared enum (Tilman)
 
 - `EntryCategory` is a string enum in `shared/types/entry.ts` (values = the YAML strings); `ENTRY_CATEGORIES`
