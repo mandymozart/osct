@@ -14,7 +14,8 @@ outcome in the line (or move it into a dated decision block).
 - [x] (user) `utils/game-config.ts` is a primitive service → moves to `services/` with the data access
       work (PLAN Phase 2 versioning). Not moved yet.
 - [x] (user) Empty `components/slotted-page/` removed (untracked, empty). `components/three-bridges/` is
-      empty too – [ ] ask whether to remove. Old `.mind` files in `client/src/targets/` → Tilman's cleanup.
+      empty too – [ ] ask whether to remove. Old `.mind` files in `client/src/targets/` and the old test page `client/src/main.html`
+      (points at `/targets/single-image.mind`) → Tilman's cleanup.
 
 ## 2026-09-24 – Mode vs scene state, overlays pause the scene
 
