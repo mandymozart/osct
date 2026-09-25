@@ -18,7 +18,7 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | `/about` | `<about-page>` | consultation | Info: about text, colophon, tutorial restart |
 | `/spreads` | `<spreads-page>` | scan | dev view: spreads with progress |
 | `/index` | `<index-page>` | consultation | dev view: spreads and targets (former index) |
-| `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](/docs/pages/ERROR-PAGE) |
+| `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](error-page.md) |
 | `/not-found` | `<not-found-page>` | (keeps mode) | unknown route |
 
 `<loading-page>` is a separate overlay (`game.startLoading()` / `game.finishLoading()`), not a route.

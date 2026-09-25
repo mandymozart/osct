@@ -4,6 +4,14 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Docusaurus removed, plain markdown docs (Tilman)
+
+- `docs/` is plain markdown that GitHub renders: `docs/README.md` (index, development, build, deploy,
+  architecture) + one file per topic (content, content-build, game-store, base-store, managers, pages,
+  error-page, components). No site generator, no package. The Docusaurus blog and homepage are gone.
+- Root `README.md` = super short quick start with Mark (`docs/assets/mark.png`: Mark on black, because the
+  white Mark is invisible on GitHub's light theme).
+
 ## 2026-09-25 – Docs updated (Tilman)
 
 - New root `README.md` (quick start: install, content build, dev, checks, builds incl. AR strategies, version).
@@ -431,7 +439,8 @@ Agent decisions (reversible, flagged for review):
 - [x] Saved history from before the rename (`chapterId` entries, or spreads that no longer exist) is
       dropped on load instead of offering a broken resume (`HistoryManager.loadTargetHistory`, tested).
       Proper migration → Phase 2 (stable IDs + content version).
-- [ ] `docs/` (Docusaurus) still uses chapter terminology throughout – update or retire later.
+- [x] `docs/` (Docusaurus) still uses chapter terminology throughout – update or retire later.
+      → Rewritten and Docusaurus retired on 2026-09-25 (plain markdown).
 - [ ] `client/public/assets/targets/chapter{1,2,3}.mind` are unreferenced legacy files. Ask before removing.
 - [ ] Pre-existing bug (not from the rename, verified on the pre-rename commit): switching spreads
       while MindAR never started (camera denied) throws `Cannot read properties of undefined (reading
