@@ -571,7 +571,7 @@ Open:
 
 ---
 
-## Phase 6 – A-Frame bridges  `[~]` (started 2026-09-25; moved from interim 1.1, decided 2026-09-24)
+## Phase 6 – A-Frame bridges  `[x]` (built 2026-09-25, both strategies; open: default after device tests; moved from interim 1.1, decided 2026-09-24)
 
 Decision: keep the current DOM-replacement approach (scene HTML generated from content via
 `templates.ts`, injected with `innerHTML`) through Phases 2–5 – it was chosen deliberately because
@@ -669,6 +669,23 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
    target-bridge, templates, connectScene, `static/*.ref.ts`, the commented scene in index.html,
    SceneService; createScene/createEntities/createAssets folded into ArScene + the entity registry.
 6. `link` AR entity **dropped** (links are entries); registry: video (+ chroma key), model, image.
+
+### Built 2026-09-25
+`components/aframe-bridges/`: `ar-bridge.ts` (store ↔ scene), `ar/base-ar-scene.ts` (queue, status,
+start/pause/stop), `ar/ar-scene.ts` (**A**, rebuild), `ar/persistent-ar-scene.ts` (**B**, persistent),
+`ar/scene-builder.ts` + `ar/mindar.ts` (shared), `ar/entities.ts` (registry), `ar/index.ts` (strategy
+switch `AR_SCENE_STRATEGY`; dev override `localStorage["osct-ar-strategy"]`). Store `arStatus`.
+
+Measured in the browser (fake camera, which starts instantly – real cameras add to A only):
+| | A – rebuild | B – persistent |
+|---|---|---|
+| Spread switch until tracking runs | 0.6–0.9 s; 3.6 s with videos (`<a-assets>` waits up to 3 s) | 0.42–0.51 s (also with videos) |
+| Camera requests per switch | 1 (new stream each time) | 0 (stream kept) |
+| Switch while paused / stopped | rebuilds | swaps; stopped: content only (25 ms) |
+Both: one scene, one live stream, rapid switching ends on the last spread, found/lost drive video + store.
+- [ ] Decide the default after device tests (Phase 7): B is faster and avoids iOS camera re-prompts but uses
+  MindAR internals (`anchorEntities`, `imageTargetSrc`, `_startAR`) – re-check on a MindAR upgrade.
+- [ ] Memory on devices when switching (TF.js "High memory usage in GPU" seen with A earlier).
 
 ### Open questions (decide when Phase 6 starts)
 1. One bridge (`<ar-bridge>`) instead of scene + target bridge?
