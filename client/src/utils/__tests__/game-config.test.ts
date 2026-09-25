@@ -135,7 +135,7 @@ describe("game configuration", () => {
     });
 
     it("cover every category", () => {
-      expect(new Set(entries.map(e => e.category))).toEqual(new Set(["glossary", "videos", "texts", "links"]));
+      expect(new Set(entries.map(e => e.category))).toEqual(new Set(["glossary", "video", "text", "link"]));
     });
   });
 

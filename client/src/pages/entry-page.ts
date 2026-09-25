@@ -1,6 +1,6 @@
 import { Entry, EntryCategory, Pages } from "@/types";
 import { getEntry } from "@/utils/game-config";
-import { CATEGORY_LABELS, escapeHtml, linkEmbed, paragraphs } from "@/components/consultation/entries-model";
+import { categoryLabel, escapeHtml, linkEmbed, paragraphs } from "@/components/consultation/entries-model";
 import { ICONS } from "@/components/consultation/icons";
 import { ConsultationPage } from "./consultation-page";
 
@@ -8,8 +8,8 @@ const NOTE_SAVE_MS = 400;
 
 /**
  * Entry view (design p.15, 20, 25, 30–31): meta table (name, access page, category, author for
- * texts), then per category – glossary: text + image; texts: long text; videos: a note to scan the
- * access page + a preview player (to check rendering); links: embedded player/page + "open in a new
+ * texts), then per category – glossary: text + image; text: long text; video: a note to scan the
+ * access page + a preview player (to check rendering); link: embedded player/page + "open in a new
  * tab". Opening the entry marks it consulted. Bookmark + note (PLAN Phase 4, placeholder icons).
  */
 export class EntryPage extends ConsultationPage {
@@ -108,8 +108,8 @@ export class EntryPage extends ConsultationPage {
       <table class="rule-table">
         <tr><th scope="row">Entry name</th><td>${escapeHtml(entry.title)}</td></tr>
         <tr><th scope="row">Access page</th><td>${entry.page}</td></tr>
-        <tr><th scope="row">Category</th><td>${CATEGORY_LABELS[entry.category]}</td></tr>
-        ${entry.category === "texts" && entry.author ? `<tr><th scope="row">Author</th><td>${escapeHtml(entry.author)}</td></tr>` : ""}
+        <tr><th scope="row">Category</th><td>${categoryLabel(entry.category)}</td></tr>
+        ${entry.category === EntryCategory.Text && entry.author ? `<tr><th scope="row">Author</th><td>${escapeHtml(entry.author)}</td></tr>` : ""}
       </table>
       <div class="body">${this.categoryHtml(entry)}</div>
       <div class="actions">
@@ -133,9 +133,9 @@ export class EntryPage extends ConsultationPage {
     switch (entry.category) {
       case EntryCategory.Glossary:
         return text + image;
-      case EntryCategory.Texts:
+      case EntryCategory.Text:
         return text;
-      case EntryCategory.Videos: {
+      case EntryCategory.Video: {
         const video = entry.target?.entity?.assets.find(a => a.assetType === "video");
         return /* html */ `
           <p>Go to access page ${entry.page} in scan mode to see the video.</p>
@@ -144,7 +144,7 @@ export class EntryPage extends ConsultationPage {
             <video src="${escapeHtml(video.src)}" controls playsinline preload="metadata"></video>` : ""}
         `;
       }
-      case EntryCategory.Links: {
+      case EntryCategory.Link: {
         const embed = entry.media ? linkEmbed(entry.media) : undefined;
         const frame = !embed
           ? ""

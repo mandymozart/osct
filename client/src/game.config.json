@@ -1,8 +1,8 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2026-09-25T15:19:01.429Z",
-    "hash": "1ca4cf1340c9bd0b3fffe4a05580932443b9f45759764d121bd8b7c366344447"
+    "timestamp": "2026-09-25T15:26:02.494Z",
+    "hash": "f26fe02e636ddf9405c94d412c5cc69f964687d2ff20f372d39281221996a8d0"
   },
   "book": {
     "id": "osct",
@@ -37,7 +37,7 @@
   "entries": [
     {
       "id": "shadows",
-      "category": "links",
+      "category": "link",
       "title": "Shadows",
       "page": 1,
       "body": "Light plays a role in architecture.",
@@ -191,7 +191,7 @@
     },
     {
       "id": "video-example",
-      "category": "videos",
+      "category": "video",
       "title": "Video Example",
       "page": 4,
       "body": "A demonstration of video content in AR.",
@@ -214,7 +214,7 @@
     },
     {
       "id": "building-fictions",
-      "category": "texts",
+      "category": "text",
       "title": "On Building Fictions",
       "page": 4,
       "body": "Placeholder – text entry without a target. The final essay follows.",
@@ -223,7 +223,7 @@
     },
     {
       "id": "edge",
-      "category": "videos",
+      "category": "video",
       "title": "Edge",
       "page": 5,
       "body": "A demonstration of a video with an image billboard.",
@@ -246,7 +246,7 @@
     },
     {
       "id": "sploosh-the-sheep",
-      "category": "videos",
+      "category": "video",
       "title": "Sploosh the sheep",
       "page": 6,
       "body": "A demonstration of a video with alpha channel.",

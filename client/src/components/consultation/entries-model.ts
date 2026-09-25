@@ -5,12 +5,13 @@ import { isEntryCategory } from "@shared/guards/game-config";
  * Pure helpers of consultation mode (entries list + entry view, design p.15–31). No DOM, no store.
  */
 
-export const CATEGORY_LABELS: Record<EntryCategory, string> = {
-  [EntryCategory.Glossary]: "Glossary",
-  [EntryCategory.Videos]: "Videos",
-  [EntryCategory.Texts]: "Texts",
-  [EntryCategory.Links]: "Links",
-};
+/**
+ * Label from the enum value: singular for one entry ("Video"), plural for the list and menu ("Videos").
+ * The glossary has no plural.
+ */
+export const categoryLabel = (category: EntryCategory, plural = false): string =>
+  category.charAt(0).toLocaleUpperCase("en") + category.slice(1) +
+  (plural && category !== EntryCategory.Glossary ? "s" : "");
 
 export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 
@@ -28,7 +29,7 @@ export const showLockedEntries = (): boolean => {
 
 /** List label: texts show the author (frame 24), the others their title */
 export const entryLabel = (entry: Pick<Entry, "category" | "title" | "author">): string =>
-  entry.category === EntryCategory.Texts && entry.author ? `'${entry.title}', ${entry.author}` : entry.title;
+  entry.category === EntryCategory.Text && entry.author ? `'${entry.title}', ${entry.author}` : entry.title;
 
 const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 

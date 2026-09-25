@@ -22,13 +22,13 @@ const valid = () => ({
       target: { id: "racoon", index: 0, imageSrc: "/r.jpg", entity: { ref: "castle" } },
     },
     {
-      id: "video", category: "videos", title: "Video", page: 2, body: "", tags: ["demo"],
+      id: "video", category: "video", title: "Video", page: 2, body: "", tags: ["demo"],
       target: {
         id: "video", index: 1, imageSrc: "/v.jpg",
         entity: { type: "video", assets: [{ id: "video", assetType: "video", src: "/v.mp4" }] },
       },
     },
-    { id: "essay", category: "texts", title: "Essay", page: 2, body: "…", author: "A. Author", tags: [] },
+    { id: "essay", category: "text", title: "Essay", page: 2, body: "…", author: "A. Author", tags: [] },
   ],
   tutorial: [{ id: "step-1", index: 0, title: "Hi", description: "…" }],
 });
@@ -66,7 +66,7 @@ describe("game configuration guards", () => {
 
     expect(problemsOf(config)).toEqual([
       'spreads[0].mindSrc: expected a non-empty string',
-      'entries[0].category: "poems" is not one of glossary, videos, texts, links',
+      'entries[0].category: "poems" is not one of glossary, video, text, link',
       'entries[1].target.entity.type: "hologram" is not one of model, video, image',
       'entries[1].target.entity.assets[0].assetType: "pdf" is not one of glb, gltf, video, image, audio',
     ]);

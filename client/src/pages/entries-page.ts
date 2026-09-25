@@ -1,7 +1,7 @@
 import { ENTRY_CATEGORIES, Entry, EntryCategory, Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
 import {
-  CATEGORY_LABELS,
+  categoryLabel,
   DEFAULT_CATEGORY,
   entryLabel,
   escapeHtml,
@@ -142,7 +142,7 @@ export class EntriesPage extends ConsultationPage {
     const showLocked = showLockedEntries();
     const visible = (e: Entry) => showLocked || history.isConsulted(e.id);
 
-    const label = filter === BOOKMARKED ? "Bookmarked" : CATEGORY_LABELS[filter];
+    const label = filter === BOOKMARKED ? "Bookmarked" : categoryLabel(filter, true);
     content.innerHTML = /* html */ `
       <div class="toolbar">
         <div class="category">
@@ -160,7 +160,7 @@ export class EntriesPage extends ConsultationPage {
       `<li><button type="button" class="gold" data-filter="${value}" aria-current="${value === current}">${text}</button></li>`;
     return /* html */ `
       <ul class="menu" role="menu">
-        ${ENTRY_CATEGORIES.map(c => item(c, CATEGORY_LABELS[c])).join("")}
+        ${ENTRY_CATEGORIES.map(c => item(c, categoryLabel(c, true))).join("")}
         ${item(BOOKMARKED, "Bookmarked")}
       </ul>
     `;

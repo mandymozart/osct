@@ -65,8 +65,8 @@ describe("HistoryManager (progress)", () => {
   it("records the last spread and category", () => {
     const other = getSpreads()[1].id;
     game.spreads.switchSpread(other);
-    game.history.setLastCategory(EntryCategory.Texts);
-    expect(stored()).toMatchObject({ lastSpreadId: other, lastCategory: "texts" });
+    game.history.setLastCategory(EntryCategory.Text);
+    expect(stored()).toMatchObject({ lastSpreadId: other, lastCategory: "text" });
   });
 
   it("computes completion per spread from unlocked targets", () => {
