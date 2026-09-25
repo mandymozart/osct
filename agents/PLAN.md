@@ -200,7 +200,7 @@ file name stays) · **`*Data`** = the typed pieces inside it · **app model** = 
 **F. Tests**: guards (valid + invalid bundles), content rules (page within a spread, 1:1 entry ↔ target,
 index order, refs resolve), `.mind` order vs image dimensions, single-import rule.
 
-## Phase 2 – State  `[~]` (modes vs views done; preloader open; history rekey, storage and versioning wait for Tilman's concept)
+## Phase 2 – State  `[~]` (modes vs views done; versioning + progress storage concept decided 2026-09-25 → implementing; preloader open)
 
 - **HistoryManager rethink.** Today history is keyed by `chapterId + targetIndex` (fragile if
   groups are re-cut). Key by stable ID (entry/target, depending on 1c).
@@ -210,6 +210,15 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   breaking storage change and must be the first one that goes through it. It also needs a way to tell
   which entries/targets are *unchanged* between two content versions even when the total number
   changed (stable ids + per-item identity/hash, see versioning).
+  **Concept decided 2026-09-25 (Tilman):** one progress record per book, keyed by stable ids:
+  - **Two stages of discovery:** *unlocked* (target found in scan mode, target id) and *consulted*
+    (entry opened, entry id).
+  - Per entry also a **bookmark** ("marked") and a **note** (short user comment) – stored now, UI in
+    Phase 4.
+  - `lastSpreadId`, `lastCategory` (resume, "Entries" button), the app version history, the storage
+    format version.
+  - Ids that are no longer in the content are kept (debug overlay tab, see versioning).
+  - Loaded at startup (not on scene ready); behind a storage adapter.
 - [x] "Consulted" = "visited": the same thing (entry opened → marked in history).
   Use **consulted** everywhere.
 - Persist the last selected category (for "Entries" button → back to list with latest
@@ -270,8 +279,9 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
         | `/error`, `/not-found` | – (keep) | overlay |
   - [x] Fix `isSameRoute` param comparison (key + value).
   - [x] Unknown slugs → `/not-found` (was unreachable: `RouteResolver.createRoute` threw).
-- **Versioning: app version vs content version**  `[ ]` – owner: **Tilman** (agents: don't build, keep in sync)
-  Two independent versions. Keep them apart in code, storage and QR codes.
+- **Versioning: app version vs content version**  `[~]` – concept by **Tilman**, decided 2026-09-25
+  (see "Decided 2026-09-25" below – one version for app and content build); implementation in Phase 2.
+  ~~Two independent versions. Keep them apart in code, storage and QR codes.~~ (superseded)
 
   | | App version | Content version |
   |---|---|---|
@@ -321,6 +331,26 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     items apart even when counts change. A changed target image invalidates "found", a changed entry
     text probably doesn't invalidate "consulted" – rules to define.
   - The bundle `version.hash` (content build checksum) identifies a whole bundle, not single items.
+
+  **Decided 2026-09-25 (Tilman) – supersedes the open work above where it differs:**
+  - **One version** (semver) for app and content build: `client/package.json` and `scripts/package.json`
+    always have the same version. Single source: both read `client/package.json` directly (not
+    `npm_package_version`, which is missing outside `npm run`). Kept in sync by **tests + CI**.
+    Anything that breaks shows up as a version offset.
+  - **Two data models** carry the version: the **game configuration** (content build output) and the
+    **progress storage** (localStorage).
+  - **Game configuration:** PATCH and MINOR must just work. MAJOR = the content has to be **rebuilt**,
+    **no config migrations** (a DB + API come later; migrations would be overkill for the file-based
+    setup). The app refuses a configuration with another MAJOR at startup (critical screen, same path
+    as the invalid configuration, `ErrorCode.NOT_SUPPORTED`).
+  - **Progress storage:** keyed by stable ids (see HistoryManager rethink). It records the **app version
+    history** (which app versions wrote it). On a MAJOR change the app still **reads the old format**
+    (one reader per storage format), converts it to the new one and **tells the user** it is updating
+    their progress to the new format. No generic migration framework.
+  - **Ids no longer in the content** (entry deleted or renamed): kept in storage. A debug overlay tab
+    shows the progress state and marks them as missing; what to do with them is decided in trial/beta.
+  - Storage behind a small adapter (`load()` / `save()`), so a DB/API store can replace localStorage
+    later with the same record shape.
 - **Deep links from printed QR codes**  `[ ]` – owner: **Tilman**
   Printed QR codes (book) are scanned with the phone's native camera and open the app URL, e.g.
   `/?code=c-<chapter>&osct=<version>`. Today **nothing reads these params on load** (`getUrlParam` in
@@ -387,6 +417,11 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
 - "Entries" button → back to list with latest category (p.21).
 - Info (p.32–34) = the existing **About page**, restyled: info text + colophon, opened via the
   "i" button in consultation mode.
+- **Bookmark + note** (added 2026-09-25, Tilman – not in the design yet, design + UI to be worked out):
+  - Entry detail: action to **mark** (bookmark) an entry and to leave a short **note** (comment).
+  - Entries list: a **"bookmarked" filter**, and a tiny indicator per row for *bookmarked* and
+    *has a note*. **Icons come from Tilman.**
+  - Data is already stored by the Phase 2 progress record (per entry: marked, note).
 
 ---
 ## Phase 5 – Onboarding = Tutorial  `[ ]`

@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Versioning + progress storage concept (Tilman)
+
+- [x] One semver version for app + content build; `client/package.json` = source, `scripts/package.json`
+      kept equal (tests + CI, not the build). RULES #10 rewritten (before: versions kept separate).
+- [x] Game configuration: PATCH/MINOR just work, MAJOR = rebuild content; **no config migrations**
+      (DB + API later, migrations would be overkill now).
+- [x] Progress storage: stable ids; two discovery stages *unlocked* (target found) and *consulted*
+      (entry opened); per entry **bookmark** + **note** (UI in Phase 4: filter "bookmarked", list
+      indicators, icons from Tilman). Records the app version history; a new MAJOR still reads the old
+      format, converts it and informs the user.
+- [x] Ids missing from the content are kept; a debug overlay tab shows the progress state and marks
+      them – decide in trial/beta.
+- [x] Found while analysing: both version stamps come from `npm_package_version`, which is missing
+      outside `npm run` (`node dist/index.js` stamped `1.0.0`; `npx vite` would give `undefined`).
+
 ## 2026-09-24 – Code placement (RULES #17)
 
 - [x] (user) Scene state policy (`getSceneState`, `isOverlayRoute`, `SCENE_STATE_BY_MODE`) lives in the
