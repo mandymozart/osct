@@ -7,12 +7,11 @@ import { GameMode, PageRoute, SceneState } from "@/types";
  */
 
 /**
- * Scene state per game mode.
- * IDLE should be STOPPED (camera released) – that needs MindAR `autoStart: false`
- * (Phase 5 "Grant access" / Phase 6), until then the camera is already running, so PAUSED.
+ * Scene state per game mode (Phase 6: camera only in scan mode – MindAR `autoStart: false`).
+ * IDLE (home, onboarding): camera released. CONSULTATION: paused, stream kept for an instant return.
  */
 export const SCENE_STATE_BY_MODE: Record<GameMode, SceneState> = {
-  [GameMode.IDLE]: SceneState.PAUSED,
+  [GameMode.IDLE]: SceneState.STOPPED,
   [GameMode.SCAN]: SceneState.RUNNING,
   [GameMode.CONSULTATION]: SceneState.PAUSED,
 };

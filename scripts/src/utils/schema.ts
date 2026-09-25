@@ -74,7 +74,7 @@ export const schemas: Record<string, Schema> = {
   // content/entities/<id>/entity.yaml
   entity: {
     fields: {
-      type: { type: "String", required: true, enum: ["model", "video", "image", "link"] },
+      type: { type: "String", required: true, enum: ["model", "video", "image"] },
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
     },

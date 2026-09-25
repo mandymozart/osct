@@ -2,7 +2,6 @@ import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "../../services/GameStoreService";
-import { SceneService } from '../../services/SceneService';
 
 type DebugTab = "spread" | "progress";
 
@@ -17,12 +16,10 @@ export class DebugOverlay extends HTMLElement {
   private expanded: boolean = false;
   private tab: DebugTab = "spread";
   private game: Readonly<IGame>;
-  private sceneService: SceneService;
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
-    this.sceneService = SceneService.getInstance();
     this.shadow = this.attachShadow({ mode: "open" });
   }
 
@@ -57,7 +54,8 @@ export class DebugOverlay extends HTMLElement {
       this.game.subscribeToProperty('currentSpread', () => this.updateContent()),
       this.game.subscribeToProperty('spreads', () => this.updateContent()),
       this.game.subscribeToProperty('cameraPermission', () => this.updateContent()),
-      this.game.subscribeToProperty('progress', () => this.updateContent())
+      this.game.subscribeToProperty('progress', () => this.updateContent()),
+      this.game.subscribeToProperty('arStatus', () => this.updateContent())
     );
   }
 
@@ -175,11 +173,7 @@ export class DebugOverlay extends HTMLElement {
 
     // Scene status
     html += `<div class="section">
-      <div>Scene: ${
-        this.sceneService.getScene()
-          ? '<span class="loaded">Attached</span>'
-          : '<span class="error">Not Attached</span>'
-      }</div>
+      <div>AR: ${this.arStatusLabel()}</div>
     </div>`;
 
     // Current spread
@@ -209,11 +203,9 @@ export class DebugOverlay extends HTMLElement {
         : '<span class="loading">◉</span>';
     };
 
-    // Get scene status
-    const sceneStatus = getStatusDot(
-      !!this.sceneService.getScene(),
-      false
-    );
+    // AR status (Phase 6): green = running, orange = on its way / paused, red = error
+    const arStatus = this.game.state.arStatus;
+    const sceneStatus = getStatusDot(arStatus === "running", arStatus === "error");
 
     // Get spread status
     const spreadStatus = getStatusDot(this.game.state.spreads[id].status === LoadingState.LOADED, false);
@@ -318,6 +310,12 @@ export class DebugOverlay extends HTMLElement {
     html += '</div>';
     
     return html;
+  }
+
+  private arStatusLabel(): string {
+    const status = this.game.state.arStatus;
+    const css = status === "running" ? "loaded" : status === "error" ? "error" : "loading";
+    return `<span class="${css}">${status}</span>`;
   }
 
   private getStatusLabel(state: { status: LoadingState; error?: Error }): string {

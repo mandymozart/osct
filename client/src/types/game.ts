@@ -12,6 +12,7 @@ import {
   IRouterManager,
   ITargetManager,
   LoadingState,
+  ArStatus,
   RouterManagerState,
   TargetManagerState
 } from "@/types";
@@ -29,6 +30,8 @@ export interface IGame extends IBaseStore<GameState> {
   startLoading(): void;
   finishLoading(): void;
   setLoadingState(state: LoadingState): void;
+  /** Reported by the AR bridge (Phase 6) */
+  setArStatus(status: ArStatus): void;
   notifyError(error: ErrorInfo): void;
   onError(listener: ErrorListener): void;
 }
@@ -42,6 +45,8 @@ export interface GameState
   id: string;
   loading: LoadingState;
   mode: GameMode;
+  /** What the AR scene is doing (reported by `<ar-bridge>`) */
+  arStatus: ArStatus;
 }
 
 export interface GameVersion {

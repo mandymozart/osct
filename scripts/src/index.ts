@@ -245,7 +245,7 @@ function buildEntities(): Record<string, EntityData> {
         src: contentFile('entities', id, asset.src, label),
       };
     }).filter((asset): asset is AssetData => asset !== null);
-    if (e.type !== 'link' && assets.length === 0) buildErrors.push(`${label}: type "${e.type}" needs assets`);
+    if (assets.length === 0) buildErrors.push(`${label}: type "${e.type}" needs assets`);
     entities[id] = { type: e.type, assets, ...(e.params ? { params: e.params } : {}) };
   }
   return entities;
@@ -268,15 +268,13 @@ function buildEntity(
     return { ref: e.ref };
   }
   const type = e?.type;
-  if (!['model', 'video', 'image', 'link'].includes(type)) {
-    buildErrors.push(`${label}: entity type "${type}" must be one of model, video, image, link (or use ref)`);
+  // "link" was dropped on 2026-09-25: links are entries (consultation), not AR entities
+  if (!['model', 'video', 'image'].includes(type)) {
+    buildErrors.push(`${label}: entity type "${type}" must be one of model, video, image (or use ref)`);
     return undefined;
   }
   if (e.params !== undefined && (typeof e.params !== 'object' || Array.isArray(e.params))) {
     buildErrors.push(`${label}: entity params must be a mapping`);
-  }
-  if (type === 'link') {
-    return { type, assets: [], ...(e.params ? { params: e.params } : {}) };
   }
   if (typeof e.src !== 'string') {
     buildErrors.push(`${label}: entity type "${type}" needs a src`);

@@ -67,7 +67,7 @@ describe("game configuration guards", () => {
     expect(problemsOf(config)).toEqual([
       'spreads[0].mindSrc: expected a non-empty string',
       'entries[0].category: "poems" is not one of glossary, videos, texts, links',
-      'entries[1].target.entity.type: "hologram" is not one of model, video, image, link',
+      'entries[1].target.entity.type: "hologram" is not one of model, video, image',
       'entries[1].target.entity.assets[0].assetType: "pdf" is not one of glb, gltf, video, image, audio',
     ]);
   });

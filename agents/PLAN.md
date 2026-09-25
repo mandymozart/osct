@@ -571,7 +571,7 @@ Open:
 
 ---
 
-## Phase 6 – A-Frame bridges  `[ ]` (moved from interim 1.1, decided 2026-09-24)
+## Phase 6 – A-Frame bridges  `[~]` (started 2026-09-25; moved from interim 1.1, decided 2026-09-24)
 
 Decision: keep the current DOM-replacement approach (scene HTML generated from content via
 `templates.ts`, injected with `innerHTML`) through Phases 2–5 – it was chosen deliberately because
@@ -658,6 +658,17 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
 - Camera only in scan mode / at "Grant access" (Phase 5) needs `autoStart: false` – can be set in
   `templates.ts` if needed earlier.
 - `trackedTargets` id mismatch (`target-item`): fix when Phase 4 rebuilds the index.
+
+### Decided 2026-09-25 (Tilman)
+1. One bridge `<ar-bridge>` + `ArScene` API (replaces static-scene-bridge, scene-bridge, target-bridge).
+2. Spread switching: **option A** (new scene per spread) now; B stays a later spike.
+3. Camera **only in scan mode** (`autoStart: false`): starts on "Grant access" / entering scan, paused in
+   consultation (stream kept), stopped on home / onboarding.
+4. `trackedTargets` by target id (already done in 1e).
+5. Removals **after the new bridge works** (separate commit): static-scene-bridge, scene-bridge,
+   target-bridge, templates, connectScene, `static/*.ref.ts`, the commented scene in index.html,
+   SceneService; createScene/createEntities/createAssets folded into ArScene + the entity registry.
+6. `link` AR entity **dropped** (links are entries); registry: video (+ chroma key), model, image.
 
 ### Open questions (decide when Phase 6 starts)
 1. One bridge (`<ar-bridge>`) instead of scene + target bridge?

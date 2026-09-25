@@ -49,20 +49,6 @@ export const createEntityElement = (target: Target): string => {
       }
       break;
 
-    case 'link': {
-      // Shows the entry; the URL itself is the entry's `media`
-      const entry = getEntry(target.entryId);
-      entityContent = `
-    <a-text value="${attr(`${entry?.title ?? ''}: ${entry?.body ?? ''}`)}" 
-            color="#FFFFFF" 
-            position="0 0 0" 
-            rotation="0 0 0" 
-            scale="0.5 0.5 0.5"
-            id="${target.id}-link"></a-text>
-    <a-plane color="#000066" opacity="0.5" position="0 0 -0.01" width="2" height="0.5"></a-plane>`;
-      break;
-    }
-
     case 'video':
       if (asset) {
         // Key color → transparent (chroma-key.ts); without `params.chromaKey` a plain video
