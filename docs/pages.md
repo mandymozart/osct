@@ -19,7 +19,10 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](error-page.md) |
 | `/not-found` | `<not-found-page>` | (keeps mode) | unknown route |
 
-`<loading-page>` is a separate overlay (`game.startLoading()` / `game.finishLoading()`), not a route.
+Two overlays have no route – they sit outside `<pages-router>` and follow the store:
+
+- `<loading-page>` – startup and spread switch (`game.startLoading()` / `game.finishLoading()`)
+- `<camera-permission-page>` – shown while the camera is being asked for or was denied (`cameraPermission`)
 
 Base classes: `page.ts` (full page), `page-minimal.ts` (transparent, over the camera),
 `consultation-page.ts` (shared layout of the consultation pages).

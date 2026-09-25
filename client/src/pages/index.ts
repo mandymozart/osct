@@ -6,5 +6,6 @@ export * from "./home-page";
 export * from "./tutorial-page";
 export * from "./spread-page";
 export * from "./loading-page";
+export * from "./camera-permission-page";
 export * from "./entries-page";
 export * from "./entry-page";

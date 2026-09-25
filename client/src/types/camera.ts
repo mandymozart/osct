@@ -33,7 +33,7 @@ export interface ICameraManager {
   
   /**
    * Show instructions for enabling camera access in browser settings
-   * (Responsibility handled by camera-permission component)
+   * (Responsibility handled by the camera-permission overlay, pages/camera-permission-page.ts)
    */
   // showSettings(): void;
 }

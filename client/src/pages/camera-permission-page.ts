@@ -1,4 +1,4 @@
-import { Page } from "@/pages/page";
+import { Page } from "./page";
 import { GameStoreService } from "@/services";
 import { CameraPermissionStatus, IGame } from "@/types";
 import { detectBrowser } from "@/utils";
@@ -6,16 +6,13 @@ import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
 
 /**
- * Camera Permission component displays an overlay when camera access is required
- * or has been denied, providing appropriate feedback to the user.
- *
- * The component automatically subscribes to camera permission changes
- * in the game store and updates its UI accordingly.
+ * Camera permission overlay – no route: like `loading-page` it sits outside the pages router and is
+ * driven by the store (`cameraPermission`). Shown when camera access is required or was denied.
  *
  * Styled after the onboarding (design p.4 "Grant access" – no own frame): onboarding background, gold
  * text, the camera illustration in gold chrome with a sweeping highlight (`<gold-illustration>`).
  */
-export class CameraPermission extends Page {
+export class CameraPermissionPage extends Page {
   protected game: Readonly<IGame>;
   private currentPermissionStatus: CameraPermissionStatus;
   private cleanupListener: (() => void) | null = null;
@@ -186,4 +183,4 @@ export class CameraPermission extends Page {
   }
 }
 
-customElements.define("camera-permission", CameraPermission);
+customElements.define("camera-permission-page", CameraPermissionPage);

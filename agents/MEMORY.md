@@ -10,8 +10,8 @@ outcome in the line (or move it into a dated decision block).
   `components/camera-permission`, `components/header` (+ mark-the-page, entries-counter), `utils` (+ version,
   progress-record), `types` (+ qr), `components` (+ consultation, scan). ~60 imports rewritten; `types/*.ts`
   import siblings; no runtime cycles (checked with a graph script). Convention = RULES #19.
-- [ ] Open: `camera-permission` (a component) extends the page base class `@/pages/page` – layering; move
-      the base classes or make it a page? Ask Tilman.
+- [x] (user) `camera-permission` moved to `pages/camera-permission-page.ts` (`<camera-permission-page>`,
+      `CameraPermissionPage`): a state-driven overlay without route, like `loading-page`.
 
 ## 2026-09-25 – Old artefacts removed, goldButton() (Tilman)
 

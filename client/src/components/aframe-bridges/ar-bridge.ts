@@ -81,7 +81,7 @@ export class ArBridge extends HTMLElement {
 
     if (status === "error") {
       console.warn("[ArBridge] AR error:", error);
-      // Camera denied / unavailable: refresh the permission state → camera-permission screen
+      // Camera denied / unavailable: refresh the permission state → camera-permission-page
       void this.game.camera.checkPermission();
     }
   }
