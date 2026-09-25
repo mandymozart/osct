@@ -73,7 +73,8 @@
   --glass-background: rgba(255, 255, 255, 0.001);
   --glass-blur: blur(10px);
   --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);   /* pills, "i", menu highlight */
-  --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);  /* onboarding buttons on black */
+  --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);  /* onboarding buttons on black (primary) */
+  --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);  /* secondary onboarding buttons */
 
   /* Mark (same image in every mode) */
   --mark-width: 99px;

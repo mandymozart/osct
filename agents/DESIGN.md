@@ -115,6 +115,13 @@ page-wide sweep later; B only for desktop.
   black onboarding.
 - Text: gold gradient (A).
 
+### Primary / secondary (Tilman, 2026-09-25)
+- **Primary** (Continue, Grant access, Access scan, Start, Resume): `.primary` on `.button` / `.pill` – the
+  gold label **shines** (highlight band sweeping through the gradient, like the gold illustrations) and a
+  gold highlight **runs along the border** (skeleton-loader sweep), 1.8 s; off with reduced motion.
+- **Secondary** (Tutorial, Dismiss, Skip, Entries, category, bookmark): no animation; the black onboarding
+  button gets the softer glow (`--shadow-glow-soft`).
+
 ## 6b. Loading
 Startup loader (`index.html`) and loading page: `--loading-background` (the consultation darkness with a
 slight vignette) + `.gold-spinner` (gold gradient ring) in the centre – Tilman, 2026-09-25. MindAR's own

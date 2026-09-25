@@ -12,6 +12,7 @@
  *   .button      onboarding button: black body, white glow, gold label (<span class="gold">)
  *   .pill        glass pill: almost transparent + backdrop blur + dark drop shadow, gold label
  *   .icon-button round glass button ("i")
+ *   .primary     modifier for .button / .pill: shining label + border sweep (animated); without it = secondary
  *   .rule-table  consultation meta table (1 px rules, muted labels, white values, 24 px rows)
  *   .section-title  muted title between two rules ("Info", "Colophon")
  *   .gold-spinner   gold loader ring (styles/gold-spinner.css – also used by the startup loader)
@@ -63,6 +64,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     background: #000;
     box-shadow: var(--shadow-glow);
   }
+  .button:not(.primary) { box-shadow: var(--shadow-glow-soft); }
 
   .pill,
   .icon-button {
@@ -84,6 +86,46 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
   .button:active,
   .pill:active,
   .icon-button:active { transform: scale(.97); }
+
+  /*
+   * Primary action (Continue, Grant access, Access scan, Start, Resume): the label shines like the gold
+   * illustrations and a highlight runs along the border like the skeleton-loader sweep. Without
+   * .primary a button is secondary (Tutorial, Dismiss, Entries …). Combine with .button or .pill.
+   */
+  .primary { position: relative; isolation: isolate; }
+  .primary .gold {
+    background-image:
+      linear-gradient(110deg, transparent 40%, var(--gold-1) 50%, transparent 60%),
+      var(--gold-gradient);
+    background-size: 300% 100%, 100% 100%;
+    animation: gold-shine 1.8s linear infinite;
+  }
+  .primary::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    padding: 1px;                    /* border width */
+    border-radius: inherit;
+    background:
+      linear-gradient(110deg, transparent 35%, var(--gold-1) 48%, var(--gold-3) 52%, transparent 65%)
+      0 0 / 300% 100% no-repeat,
+      linear-gradient(90deg, rgba(210, 174, 90, .25), rgba(210, 174, 90, .25));
+    /* Only the ring between border box and content box stays visible */
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    animation: gold-shine 1.8s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes gold-shine {
+    from { background-position: 150% 0, 0 0; }
+    to { background-position: -50% 0, 0 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .primary .gold,
+    .primary::before { animation: none; }
+  }
   .button:disabled { opacity: .6; cursor: wait; }
 
   .rule-table {

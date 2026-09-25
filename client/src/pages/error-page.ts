@@ -126,7 +126,7 @@ class ErrorPage extends Page implements IErrorPage {
       <div class="actions">
           <button type="button" class="pill design" id="dismiss-error"><span class="gold">Dismiss</span></button>
           ${this.actionButton
-    ? `<button type="button" class="pill design" id="action-button"><span class="gold">${this.actionButton.text}</span></button>`
+    ? `<button type="button" class="pill primary design" id="action-button"><span class="gold">${this.actionButton.text}</span></button>`
     : ''}
       </div>
       `;
