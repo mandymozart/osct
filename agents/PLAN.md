@@ -429,6 +429,13 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   (`navigator.vibrate` – Android only, iOS Safari has none). Selecting = activate group
   (debounce while scrolling; ~~guard against stale loads in `StaticSceneBridge`~~ done 2026-09-24:
   scene loads are queued, stale spreads skipped).
+  - [ ] **Loading overlay concept review** (Tilman, 2026-09-25): today every spread switch shows the
+    full-screen `loading-page` (`game.startLoading()` in `static-scene-bridge.ts`), which covers the
+    scan chrome incl. the spread menu until the new `.mind` is ready – the reader can't keep scrolling.
+    Review: which loads block the app (startup, invalid content) vs. which only need an inline state
+    (spread switch: e.g. a quiet indicator on the menu / under Mark, scene fades in on `arReady`);
+    one loading concept for startup, spread switch, entity/asset loading (`ErrorCode.*_NOT_READY`)
+    and the Phase 6 `arStatus`. Preloaded neighbours (Preloader) make most switches fast already.
 - **Found-target indicator** (p.9–14) – [x] decided:
   - The image with drop shadow indicates a **found target that has no AR entity** projected in A-Frame.
   - **Scan mode:** it appears; tap/click opens the entry in consultation mode.

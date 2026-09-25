@@ -42,6 +42,8 @@ export const router: PageRouterConfiguration = {
       page: Pages.INDEX,
       slug: "/index",
       mode: GameMode.CONSULTATION,
+      // Optional: open this entry in the list (found indicator). Phase 4: the /entry view.
+      param: "entryId"
     },
     {
       page: Pages.ERROR,

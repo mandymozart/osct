@@ -2,6 +2,7 @@ import { Spread, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
 import { getInitialSpreadId, getSpread } from "@/utils/game-config";
+import "@/components/scan/found-indicator";
 import "@/components/scan/spread-menu";
 
 export class SpreadPage extends PageMinimal {
@@ -77,6 +78,13 @@ export class SpreadPage extends PageMinimal {
         border-radius: 4px;
         transition: width 0.3s ease;
       }
+      found-indicator {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+      }
       spread-menu {
         position: fixed;
         left: 0;
@@ -93,6 +101,7 @@ export class SpreadPage extends PageMinimal {
       <div class="content">
         ${import.meta.env.DEV ? '<div class="spread-card"></div>' : ""}
       </div>
+      <found-indicator></found-indicator>
       <spread-menu></spread-menu>
     `;
   }

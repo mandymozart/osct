@@ -4,6 +4,7 @@ import { SceneService } from "@/services/SceneService";
 import { ErrorCode, IGame, ISceneService, SceneState } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getOrCreateTemplate, getSceneState } from "./utils";
+import { pauseAllVideos, playTargetVideos } from "./utils/videos";
 import { Scene } from "aframe";
 
 /**
@@ -334,6 +335,9 @@ export class StaticSceneBridge extends HTMLElement {
         if (this.sceneElement) {
           this.sceneElement.play();
           this.sceneElement.classList.add("active");
+          // MindAR keeps its tracking state across a pause: resume videos of still tracked targets
+          const scene = this.sceneElement;
+          this.game.state.trackedTargets.forEach(id => playTargetVideos(scene, id));
         }
       } catch (error) {
         // Don't re-run setupScene() here: it rebuilds the scene and duplicates the store
@@ -361,6 +365,8 @@ export class StaticSceneBridge extends HTMLElement {
       }
     }
     this.sceneElement.pause();
+    // No AR video (with sound) playing behind consultation pages or overlays
+    pauseAllVideos(this.sceneElement);
     this.sceneElement.classList.remove("active");
     window.document.body.classList.remove("scene-active");
   }

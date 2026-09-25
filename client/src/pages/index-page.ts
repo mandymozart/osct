@@ -1,5 +1,6 @@
 import { GameStoreService } from '@/services/GameStoreService';
-import { IGame } from '@/types';
+import { IGame, Pages } from '@/types';
+import { getEntry } from '@/utils/game-config';
 import { assert } from '@/utils';
 import { Page } from './page';
 
@@ -96,11 +97,25 @@ export class IndexPage extends Page implements IIndexPage {
     }
   }
 
+  /** Entry opened through the route param, so a later state change doesn't reopen it */
+  private openedEntryId: string | null = null;
+
   private handleStateChange() {
     // Use the static instance to access methods directly
     if (SpreadList.instance) {
       SpreadList.instance.updateSpreads();
     }
+    this.openRouteEntry();
+  }
+
+  /** `/index` with `entryId`: open that entry in the list (Phase 4: the /entry view) */
+  private openRouteEntry() {
+    const route = this.game.state.currentRoute;
+    const entryId = route?.page === Pages.INDEX && route.param?.key === 'entryId' ? String(route.param.value) : null;
+    if (entryId === this.openedEntryId) return;
+    this.openedEntryId = entryId;
+    const targetId = entryId ? getEntry(entryId)?.target?.id : undefined;
+    if (targetId) SpreadList.instance?.openTarget(targetId);
   }
 
   /**

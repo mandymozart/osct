@@ -2,6 +2,7 @@ import { getTarget } from "@/utils/game-config";
 import { IGame } from "@/types";
 import { GameStoreService } from "@/services/GameStoreService";
 import { SceneService } from "@/services/SceneService";
+import { pauseTargetVideos, playTargetVideos } from "./videos";
 
 /**
  * Sets up event listeners for target entities in the current scene
@@ -80,6 +81,7 @@ export const setupTargetListeners = (): (() => void) => {
           
           if (targetData) {
             game.targets.addTarget(targetId);
+            playTargetVideos(sceneElement, targetId);
             
             // Dispatch a custom event that other components can listen for
             const customEvent = new CustomEvent("osct-target-found", {
@@ -107,6 +109,7 @@ export const setupTargetListeners = (): (() => void) => {
       targetLostTimeout = window.setTimeout(() => {
         try {
           game.targets.removeTarget(targetId);
+          pauseTargetVideos(sceneElement, targetId);
           
           // Dispatch a custom event that other components can listen for
           const customEvent = new CustomEvent("osct-target-lost", {

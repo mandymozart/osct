@@ -202,6 +202,19 @@ export class SpreadList extends HTMLElement implements ISpreadList {
     }
   }
 
+  /**
+   * Open a target's entry in the list and scroll to it (e.g. from the found indicator)
+   */
+  public openTarget(targetId: string) {
+    this.expandedTargetId = targetId;
+    this.renderSpreads();
+    requestAnimationFrame(() => {
+      const items = this.shadowRoot?.querySelectorAll<HTMLElement & { target: Target | null }>('target-item');
+      const item = Array.from(items ?? []).find(el => el.target?.id === targetId);
+      item?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
   private activateSpread(spreadId: string) {
     if (!this.game) return;
     this.game.spreads.switchSpread(spreadId);
