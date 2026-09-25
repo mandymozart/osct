@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Entry categories as a shared enum (Tilman)
+
+- `EntryCategory` is a string enum in `shared/types/entry.ts` (values = the YAML strings); `ENTRY_CATEGORIES`
+  is derived from it. The build schema, the shared guard and the app use it; the client re-exports it from
+  `types/entries.ts`. The duplicate list in `scripts/src/config.ts` is gone. `isCategory` in the app = `isEntryCategory`.
+- `EntriesFilter` (category | "bookmarked") stays local to the entries list (`pages/entries-page.ts`).
+- Consultation: category menu matched to the design, Bookmarked as 5th menu item, note field behind "Add note".
+- [ ] (user) Does "Glossary" mean all entries? Currently it lists glossary entries only.
+
 ## 2026-09-25 – Session paused before Phase 7
 
 - [x] (user) Phase 7 (Mark WebM, device tests, haptics) is on hold until Tilman's extensive device testing.

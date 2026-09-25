@@ -1,4 +1,4 @@
-import { Entry, Pages } from "@/types";
+import { Entry, EntryCategory, Pages } from "@/types";
 import { getEntry } from "@/utils/game-config";
 import { CATEGORY_LABELS, escapeHtml, linkEmbed, paragraphs } from "@/components/consultation/entries-model";
 import { ICONS } from "@/components/consultation/icons";
@@ -131,11 +131,11 @@ export class EntryPage extends ConsultationPage {
     const image = entry.image ? `<img class="entry-image" src="${escapeHtml(entry.image)}" alt="" loading="lazy">` : "";
 
     switch (entry.category) {
-      case "glossary":
+      case EntryCategory.Glossary:
         return text + image;
-      case "texts":
+      case EntryCategory.Texts:
         return text;
-      case "videos": {
+      case EntryCategory.Videos: {
         const video = entry.target?.entity?.assets.find(a => a.assetType === "video");
         return /* html */ `
           <p>Go to access page ${entry.page} in scan mode to see the video.</p>
@@ -144,7 +144,7 @@ export class EntryPage extends ConsultationPage {
             <video src="${escapeHtml(video.src)}" controls playsinline preload="metadata"></video>` : ""}
         `;
       }
-      case "links": {
+      case EntryCategory.Links: {
         const embed = entry.media ? linkEmbed(entry.media) : undefined;
         const frame = !embed
           ? ""

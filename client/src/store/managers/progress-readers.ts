@@ -1,4 +1,5 @@
-import { ENTRY_CATEGORIES, EntryCategory, ProgressRecord } from "@/types";
+import { ProgressRecord } from "@/types";
+import { isEntryCategory } from "@shared/guards/game-config";
 import { parseVersion } from "@/utils/version";
 
 /**
@@ -39,7 +40,6 @@ const pick = <T>(value: unknown, isValue: (v: unknown) => v is T): Record<string
 
 const isNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isString = (v: unknown): v is string => typeof v === "string";
-const isCategory = (v: unknown): v is EntryCategory => ENTRY_CATEGORIES.includes(v as EntryCategory);
 
 /** Format 1 (app 1.x): the record as defined in `types/history.ts`; drops malformed fields */
 const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
@@ -50,7 +50,7 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
   marked: pick(raw.marked, isNumber),
   notes: pick(raw.notes, isString),
   lastSpreadId: isString(raw.lastSpreadId) ? raw.lastSpreadId : null,
-  lastCategory: isCategory(raw.lastCategory) ? raw.lastCategory : null,
+  lastCategory: isEntryCategory(raw.lastCategory) ? raw.lastCategory : null,
   // Added 2026-09-25 (additive, same format): records without it count as not onboarded
   onboarded: raw.onboarded === true,
 });

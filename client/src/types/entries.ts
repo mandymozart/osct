@@ -1,4 +1,6 @@
 import { EntryData } from "./game-config";
+
+export { EntryCategory, ENTRY_CATEGORIES } from "@shared/types/entry";
 import { Target } from "./targets";
 
 /**

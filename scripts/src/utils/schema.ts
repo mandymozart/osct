@@ -3,6 +3,7 @@
  * The output shape is the game configuration contract in `shared/types/game-config.ts`.
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
+import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
 
 // Define schema field interface
 interface SchemaField {
@@ -48,7 +49,7 @@ export const schemas: Record<string, Schema> = {
       category: {
         type: "String",
         required: true,
-        enum: ["glossary", "videos", "texts", "links"],
+        enum: [...ENTRY_CATEGORIES],
       },
       title: { type: "String", required: true },
       page: { type: "Number", required: true },

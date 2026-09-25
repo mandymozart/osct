@@ -1,20 +1,20 @@
-import { ENTRY_CATEGORIES, Entry, EntryCategory } from "@/types";
+import { Entry, EntryCategory } from "@/types";
+import { isEntryCategory } from "@shared/guards/game-config";
 
 /**
  * Pure helpers of consultation mode (entries list + entry view, design p.15–31). No DOM, no store.
  */
 
 export const CATEGORY_LABELS: Record<EntryCategory, string> = {
-  glossary: "Glossary",
-  videos: "Videos",
-  texts: "Texts",
-  links: "Links",
+  [EntryCategory.Glossary]: "Glossary",
+  [EntryCategory.Videos]: "Videos",
+  [EntryCategory.Texts]: "Texts",
+  [EntryCategory.Links]: "Links",
 };
 
-export const DEFAULT_CATEGORY: EntryCategory = "glossary";
+export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 
-export const isCategory = (value: unknown): value is EntryCategory =>
-  ENTRY_CATEGORIES.includes(value as EntryCategory);
+export const isCategory = isEntryCategory;
 
 /**
  * Unconsulted entries are hidden in the final app (more game-like) and shown **locked** during
@@ -28,7 +28,7 @@ export const showLockedEntries = (): boolean => {
 
 /** List label: texts show the author (frame 24), the others their title */
 export const entryLabel = (entry: Pick<Entry, "category" | "title" | "author">): string =>
-  entry.category === "texts" && entry.author ? `'${entry.title}', ${entry.author}` : entry.title;
+  entry.category === EntryCategory.Texts && entry.author ? `'${entry.title}', ${entry.author}` : entry.title;
 
 const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 
@@ -50,7 +50,7 @@ export const groupEntries = <T extends Pick<Entry, "title" | "category">>(
   category: EntryCategory,
 ): EntryGroup<T>[] => {
   const sorted = sortEntries(entries.filter(e => e.category === category));
-  if (category !== "glossary") return sorted.length ? [{ letter: null, entries: sorted }] : [];
+  if (category !== EntryCategory.Glossary) return sorted.length ? [{ letter: null, entries: sorted }] : [];
 
   const groups: EntryGroup<T>[] = [];
   for (const entry of sorted) {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { entryLabel, groupEntries, isCategory, linkEmbed, paragraphs, sortEntries } from "../entries-model";
 import { EntryCategory } from "@/types";
 
-const entry = (title: string, category: EntryCategory = "glossary", author?: string) => ({ title, category, author });
+const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, author?: string) => ({ title, category, author });
 
 describe("entries model", () => {
   it("knows the four categories", () => {
@@ -11,8 +11,8 @@ describe("entries model", () => {
   });
 
   it("labels texts with their author, other entries with the title", () => {
-    expect(entryLabel(entry("Fake For Real", "texts", "Catherine Guiral"))).toBe("'Fake For Real', Catherine Guiral");
-    expect(entryLabel(entry("Fake For Real", "texts"))).toBe("Fake For Real");
+    expect(entryLabel(entry("Fake For Real", EntryCategory.Texts, "Catherine Guiral"))).toBe("'Fake For Real', Catherine Guiral");
+    expect(entryLabel(entry("Fake For Real", EntryCategory.Texts))).toBe("Fake For Real");
     expect(entryLabel(entry("Metafiction"))).toBe("Metafiction");
   });
 
@@ -22,8 +22,8 @@ describe("entries model", () => {
 
   it("groups the glossary by first letter, entries without a letter first without header (frame 17)", () => {
     const groups = groupEntries(
-      [entry("Blender"), entry("4th wall"), entry("Animals"), entry("Écriture"), entry("archimbolde"), entry("Clip", "videos")],
-      "glossary",
+      [entry("Blender"), entry("4th wall"), entry("Animals"), entry("Écriture"), entry("archimbolde"), entry("Clip", EntryCategory.Videos)],
+      EntryCategory.Glossary,
     );
     expect(groups.map(g => [g.letter, g.entries.map(e => e.title)])).toEqual([
       [null, ["4th wall"]],
@@ -34,10 +34,10 @@ describe("entries model", () => {
   });
 
   it("keeps other categories as one list, and returns nothing for an empty category", () => {
-    expect(groupEntries([entry("B", "texts"), entry("A", "texts")], "texts")).toEqual([
-      { letter: null, entries: [entry("A", "texts"), entry("B", "texts")] },
+    expect(groupEntries([entry("B", EntryCategory.Texts), entry("A", EntryCategory.Texts)], EntryCategory.Texts)).toEqual([
+      { letter: null, entries: [entry("A", EntryCategory.Texts), entry("B", EntryCategory.Texts)] },
     ]);
-    expect(groupEntries([entry("A")], "links")).toEqual([]);
+    expect(groupEntries([entry("A")], EntryCategory.Links)).toEqual([]);
   });
 
   it("splits a body into paragraphs at blank lines", () => {
