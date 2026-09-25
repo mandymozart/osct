@@ -416,7 +416,7 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
 ---
 
 
-## Phase 3 – Scan mode  `[~]` (built 2026-09-25; open: loading overlay review, indicator in consultation, demo content without AR entity)
+## Phase 3 – Scan mode  `[~]` (built 2026-09-25; open: reviews #15 loading overlay, #16 indicator in consultation; device checks)
 
 Top chrome per mode lives in `components/header/header.ts`: IDLE = name line (→ about), SCAN = Mark +
 counter, CONSULTATION = Mark (consultation state) + counter + "i" (→ about = Info). The navigation bar
@@ -450,9 +450,9 @@ counter, CONSULTATION = Mark (consultation state) + counter + "i" (→ about = I
 - [x] **Found-target indicator** (p.9–14) – decided; built in `components/scan/found-indicator.ts`
   (entry image, fallback target image; opens `/index` with `entryId` = entry opened in the list until
   the Phase 4 `/entry` view). Verified in the browser with a target whose entity was removed in memory.
-  - [ ] **The demo content has no target without an AR entity** (all are model / video / link), so
-    the indicator never shows with real tracking. Needs a content decision (e.g. drop the `link`
-    entity of "Shadows" – Phase 6 open question 6 – or a new demo target, which needs a `.mind` rebuild).
+  - [x] (Tilman, 2026-09-25) Demo content had no target without an AR entity → the `link` entity of
+    "Shadows" (spread1, pages 1–2) was dropped; its target stays (same `.mind`). Scanning Shadows now
+    shows the indicator (verified through `targets.addTarget`).
   - The image with drop shadow indicates a **found target that has no AR entity** projected in A-Frame.
   - **Scan mode:** it appears; tap/click opens the entry in consultation mode.
     "New entry unlocked" + small rotation only if the entry was not consulted yet,
@@ -617,7 +617,8 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
 3. Camera only when entering scan mode (not on app load)?
 4. `trackedTargets` by target id (string)?
 5. Confirm the removals above (`static/` + `index.html` scenes stay until then).
-6. Drop the AR rendering of `link` targets (links are entries, not AR entities)?
+6. Drop the AR rendering of `link` targets (links are entries, not AR entities)? – No demo target uses
+   `link` any more since 2026-09-25 (Shadows), the entity type itself is still supported.
 
 ## Phase 7 – Polish  `[ ]`
 
@@ -658,3 +659,5 @@ Phase 5 can run in parallel at any point; it mostly restyles existing tutorial p
 | 12 | Deep link code prefix (`c-` / `s-` / `e-`) and which version `osct` carries – Tilman | 2 |
 | 13 | A-Frame bridges: one bridge + `ArScene` API, spread switching A/B, camera start, removals | 6 |
 | 14 | ~~Content model + type naming~~ → nested target, inline/ref entities, `*Data` game-configuration contract in top-level `shared/`, app model plain names, single entry point | 1e ✓ |
+| 15 | **Review:** loading overlay concept – full-screen loader on every spread switch covers the menu (see Phase 3 page menu) – Tilman | 3 |
+| 16 | **Review:** found indicator in consultation mode – hidden today (scan page only), design says visible for now | 3 |
