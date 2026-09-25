@@ -38,6 +38,11 @@ export class ArScene implements IArScene {
   /** MindAR started on this scene (camera on, `.mind` loaded) */
   private started = false;
   private running = false;
+  /**
+   * The last start failed (camera denied / unavailable): no retry until the wish changes (leaving scan
+   * mode and coming back, another spread) – otherwise every queued RUNNING re-prompts for the camera.
+   */
+  private startFailed = false;
   private _status: ArStatus = "idle";
 
   constructor(private container: HTMLElement) {}
@@ -60,6 +65,7 @@ export class ArScene implements IArScene {
   }
 
   setState(state: SceneState): Promise<void> {
+    if (state !== this.wantedState) this.startFailed = false;
     this.wantedState = state;
     return this.reconcile();
   }
@@ -146,6 +152,7 @@ export class ArScene implements IArScene {
     this.loadedSpread = spreadId;
     this.started = false;
     this.running = false;
+    this.startFailed = false;
     this.setStatus("ready");
   }
 
@@ -169,6 +176,7 @@ export class ArScene implements IArScene {
     const scene = this.scene!;
     const system = this.system!;
     if (!this.started) {
+      if (this.startFailed) return;
       this.setStatus("starting");
       const ready = waitForEvent(scene, "arReady", { failEvent: "arError" });
       system.start();
@@ -176,6 +184,7 @@ export class ArScene implements IArScene {
         await ready;
       } catch (error) {
         stopMindAR(system);
+        this.startFailed = true;
         throw new Error(`AR could not start: ${(error as Error).message}`);
       }
       this.started = true;

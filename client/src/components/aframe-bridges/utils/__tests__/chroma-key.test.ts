@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CHROMA_KEY_DEFAULTS, chromaKeyMaterial, parseChromaKey } from "../chroma-key";
-import { createEntityElement } from "../templates";
+import { buildEntity } from "../../ar/entities";
 import { Target } from "@/types";
 
 describe("chroma key", () => {
@@ -24,7 +24,7 @@ describe("chroma key", () => {
     expect(parseChromaKey({ chromaKey: "#00ff00" })).toBeUndefined();
   });
 
-  it("renders a keyed video as a plane with the chroma-key material, a plain video otherwise", () => {
+  it("builds a keyed video as a plane with the chroma-key material, a plain video otherwise", () => {
     const target = (params?: Record<string, unknown>): Target => ({
       id: "clip",
       entryId: "clip",
@@ -33,12 +33,15 @@ describe("chroma key", () => {
       imageSrc: "/clip.jpg",
       entity: { type: "video", assets: [{ id: "clip-video", assetType: "video", src: "/clip.mp4" }], params },
     });
+    const noAssets = () => undefined;
 
-    const keyed = createEntityElement(target({ chromaKey: { color: "#ff00ff" } }));
-    expect(keyed).toContain(`material="${chromaKeyMaterial("clip-video", parseChromaKey({ chromaKey: { color: "#ff00ff" } })!)}"`);
-    expect(keyed).toContain("shader: chroma-key; src: #clip-video; color: #ff00ff");
-    expect(keyed).not.toContain("<a-video");
+    const keyed = buildEntity(target({ chromaKey: { color: "#ff00ff" } }), noAssets)!.element;
+    expect(keyed.tagName.toLowerCase()).toBe("a-entity");
+    expect(keyed.getAttribute("material")).toBe(chromaKeyMaterial("clip-video", parseChromaKey({ chromaKey: { color: "#ff00ff" } })!));
+    expect(keyed.getAttribute("material")).toContain("shader: chroma-key; src: #clip-video; color: #ff00ff");
 
-    expect(createEntityElement(target())).toContain('<a-video src="#clip-video"');
+    const plain = buildEntity(target(), noAssets)!.element;
+    expect(plain.tagName.toLowerCase()).toBe("a-video");
+    expect(plain.getAttribute("src")).toBe("#clip-video");
   });
 });
