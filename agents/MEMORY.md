@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Phase 6 strategy B: PersistentArScene (Tilman)
+
+- [x] (user) Second, swappable strategy that keeps one scene and swaps targets / content / entities.
+      Shared base class `BaseArScene` (queue, status, start/pause/stop); A and B only differ in
+      `changeSpread`. Switch: `ar/index.ts` (`AR_SCENE_STRATEGY`, default "rebuild"), dev override
+      `localStorage["osct-ar-strategy"] = "persistent"` + reload.
+- [x] B swap: stop + dispose the controller, remove old anchors/assets (shared asset ids stay), reset
+      `system.anchorEntities` (anchors register on init, never unregister), set `imageTargetSrc`, add new
+      content, `_startAR()` on the running video. Camera off → content only, next start loads the new .mind.
+- [x] Measured (fake camera): B 0.42–0.51 s per switch and no camera request; A 0.6–3.6 s and one request
+      per switch. Default stays A until device tests (PLAN Phase 6).
+
 ## 2026-09-25 – Phase 6 strategy A: ArScene + <ar-bridge>
 
 - [x] (user) Decisions: one `<ar-bridge>` + `IArScene`; strategy A (new scene per spread) first; camera only

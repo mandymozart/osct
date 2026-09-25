@@ -20,6 +20,8 @@ export class ArBridge extends HTMLElement {
   private game: Readonly<IGame>;
   private scene: IArScene | null = null;
   private cleanups: Array<() => void> = [];
+  /** Dev timing: when the last spread switch was requested */
+  private switchStarted: number | null = null;
 
   /** Test seam: use this scene instead of creating one */
   static sceneFactory: ((container: HTMLElement) => IArScene) | null = null;
@@ -41,7 +43,11 @@ export class ArBridge extends HTMLElement {
       scene.on("targetLost", id => game.targets.removeTarget(id)),
       // The active .mind is loaded: fetch the neighbours' .mind + content into the browser cache
       scene.on("ready", spreadId => void PreloaderService.getInstance().preloadNeighbours(spreadId)),
-      game.subscribeToProperty("currentSpread", id => id && void scene.load(id)),
+      game.subscribeToProperty("currentSpread", id => {
+        if (!id) return;
+        this.switchStarted = performance.now();
+        void scene.load(id);
+      }),
       game.subscribeToProperty("mode", () => this.applySceneState()),
       game.subscribeToProperty("currentRoute", () => this.applySceneState()),
     );
@@ -64,6 +70,11 @@ export class ArBridge extends HTMLElement {
 
   private handleStatus(status: ArStatus, error?: string) {
     this.game.setArStatus(status);
+    // Dev: how long a spread switch takes until tracking runs again (compare the strategies)
+    if (import.meta.env.DEV && this.switchStarted !== null && (status === "running" || status === "ready")) {
+      console.info(`[AR] Spread switch → ${status} in ${Math.round(performance.now() - this.switchStarted)} ms`);
+      if (status === "running") this.switchStarted = null;
+    }
     document.body.classList.toggle("scene-active", status === "running");
 
     // Loading page while a scene is built or the camera starts (review #15: loading concept)
