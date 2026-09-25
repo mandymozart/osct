@@ -1,5 +1,5 @@
 import { getBook } from "@/utils/game-config";
-import { escapeHtml } from "@/components/consultation/entries-model";
+import { escapeHtml } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header/mark-the-page";
 import { PageMinimal } from "./page-minimal";
 import { adoptDesignStyles } from "@/styles/design-styles";

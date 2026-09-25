@@ -4,6 +4,20 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Consultation pages split into components (Tilman)
+
+- `components/consultation/`: `<entries-filter>` (category pill + menu, navigates; closes on outside tap / Escape),
+  `<entries-list>` (`setEntries(filter, entries)`, rows navigate to `/entry`), `<entry-detail>` (`entry`),
+  `<entry-actions>` (`entryId`; bookmark + note, saves on change / blur / removal). The pages only read the
+  route, compute filter + count and pass data down. Barrel `@/components/consultation` registers them.
+- `EntriesFilter`, `BOOKMARKED`, `isEntriesFilter`, `filterLabel`, `ENTRIES_FILTERS` live in `entries-model.ts`
+  (used by page, filter and list). `escapeHtml` / `paragraphs` moved to `utils/strings.ts` (tutorial, home, info
+  used them too).
+- Lesson again: component styles that must beat the adopted design sheet need more specificity (`:host .pill`).
+- [ ] Open: reusable design button component (`components/buttons/`) – proposal to Tilman; removal of the old
+      artefacts (dev views, nav bar, old buttons/icons, legacy assets, old tokens) blocked by the permission
+      prompt – waiting for Tilman.
+
 ## 2026-09-25 – components/index → components/dev-index (Tilman)
 
 - The folder was a leftover of the old index view (only the `/index` dev view uses it). Renamed, which also

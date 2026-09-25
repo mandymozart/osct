@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categoryLabel, entryLabel, groupEntries, isCategory, linkEmbed, paragraphs, sortEntries } from "../entries-model";
+import { categoryLabel, entryLabel, groupEntries, isCategory, linkEmbed, sortEntries } from "../entries-model";
 import { EntryCategory } from "@/types";
 
 const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, author?: string) => ({ title, category, author });
@@ -44,10 +44,6 @@ describe("entries model", () => {
       { letter: null, entries: [entry("A", EntryCategory.Text), entry("B", EntryCategory.Text)] },
     ]);
     expect(groupEntries([entry("A")], EntryCategory.Link)).toEqual([]);
-  });
-
-  it("splits a body into paragraphs at blank lines", () => {
-    expect(paragraphs("One\nstill one\n\n  Two  \n\n\n")).toEqual(["One\nstill one", "Two"]);
   });
 
   it("embeds YouTube / Vimeo as a player and other pages as a page", () => {

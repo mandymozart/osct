@@ -1,6 +1,6 @@
 import { ConsultationPage } from "./consultation-page";
 import { getBook } from "@/utils/game-config";
-import { escapeHtml } from "@/components/consultation/entries-model";
+import { escapeHtml } from "@/utils";
 
 /**
  * About = Info (design p.32–34), opened with "i" in consultation mode; "Entries" (top chrome) goes
