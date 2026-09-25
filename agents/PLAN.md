@@ -103,7 +103,7 @@ entry (top level, category)
 
 Done:
 - [x] `content/entries/<id>/entry.yaml` (+ optional image next to it). Fields: `category`
-      (glossary / videos / texts / links), `title`, `page` (access page), `author`, `body`, `image`,
+      (glossary / video / text / link – singular; list labels plural), `title`, `page` (access page), `author`, `body`, `image`,
       `media` (link URL), `target` (optional, 1:1), `hideFromIndex`. Schema in `scripts/src/utils/schema.ts`
       (validated with the existing `validateContent`).
 - [x] Targets keep only tracking data (spread, image, `.mind`, entity, bookId, tags). Title / description /
