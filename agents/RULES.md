@@ -38,9 +38,13 @@ Extend as we go: add a rule when a decision should hold for all future work.
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
    Tests of removed features are not wanted – test behaviour that stays.
-10. Keep **app version** (`client/package.json`, `game.version`) and **content version**
-    (content builder → `game.config.json` `version`) separate. Never use one for the other.
-    Versioning and QR deep links are owned by Tilman – don't implement them unasked.
+10. **One version** (semver) for the app and the content build: `client/package.json` and
+    `scripts/package.json` always carry the same version (checked by tests + CI); the source is
+    `client/package.json`. Game configuration: PATCH/MINOR must just work, MAJOR = rebuild the content
+    (no config migrations). Progress storage: a new MAJOR reads the old format and tells the user.
+    The content *data* is identified by the build checksum (`version.hash`), not by the version.
+    QR deep links are owned by Tilman – don't implement them unasked. (Changed 2026-09-25; before:
+    app and content versions were kept separate.)
 11. Windows: stop the dev/preview server before any git command that rewrites the working tree
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
 12. Until Phase 6, scenes are built by `static-scene-bridge.ts` from HTML generated in
