@@ -1,4 +1,5 @@
 import {
+  ArStatus,
   CameraPermissionStatus,
   ErrorInfo,
   GameMode,
@@ -32,6 +33,7 @@ const initialState: GameState = {
   spreads: {}, 
   progress: createProgressRecord(getBook().id), // loaded by the HistoryManager
   loading: LoadingState.LOADING,
+  arStatus: "idle",
   cameraPermission: CameraPermissionStatus.UNKNOWN
 }
 
@@ -94,6 +96,10 @@ class Game extends BaseStore<GameState> implements IGame {
 
   public setLoadingState(state: LoadingState): void {
     this.set({ loading: state });
+  }
+
+  public setArStatus(status: ArStatus): void {
+    if (this.state.arStatus !== status) this.set({ arStatus: status });
   }
 
   /**

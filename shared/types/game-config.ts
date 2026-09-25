@@ -10,7 +10,7 @@ export const ENTRY_CATEGORIES = ["glossary", "videos", "texts", "links"] as cons
 export type EntryCategory = (typeof ENTRY_CATEGORIES)[number];
 
 /** Entity types the app can render in A-Frame (extensible, RULES #7). */
-export const ENTITY_TYPES = ["model", "video", "image", "link"] as const;
+export const ENTITY_TYPES = ["model", "video", "image"] as const; // "link" dropped 2026-09-25 (links are entries)
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
