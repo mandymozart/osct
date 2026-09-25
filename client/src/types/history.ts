@@ -76,6 +76,11 @@ export interface IHistoryManager {
   setLastCategory(category: EntryCategory): void;
 
   /**
+   * Stored ids that are no longer in the content (kept in storage, shown in the debug overlay)
+   */
+  getMissingIds(): { targets: string[]; entries: string[] };
+
+  /**
    * Percentage of unlocked targets in a spread
    */
   getSpreadCompletionPercentage(spreadId: string): number;

@@ -85,6 +85,14 @@ describe("HistoryManager (progress)", () => {
     expect(game.state.progress.unlocked).toEqual({ "removed-target": 1 });
     expect(game.state.progress.consulted).toEqual({ "removed-entry": 2 });
     expect(game.history.getUnlockedTargets(spreadId)).toEqual([]);
+    expect(game.history.getMissingIds()).toEqual({ targets: ["removed-target"], entries: ["removed-entry"] });
+  });
+
+  it("reports no missing ids for content ids (marked and notes count as entry ids)", () => {
+    game.history.unlockTarget(targets[0].id);
+    game.history.consultEntry(entryId);
+    game.history.setNote("gone", "note on a removed entry");
+    expect(game.history.getMissingIds()).toEqual({ targets: [], entries: ["gone"] });
   });
 
   it("resets the progress but keeps the app version history", () => {

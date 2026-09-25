@@ -200,7 +200,7 @@ file name stays) · **`*Data`** = the typed pieces inside it · **app model** = 
 **F. Tests**: guards (valid + invalid bundles), content rules (page within a spread, 1:1 entry ↔ target,
 index order, refs resolve), `.mind` order vs image dimensions, single-import rule.
 
-## Phase 2 – State  `[~]` (modes vs views done; versioning + progress storage concept decided 2026-09-25 → implementing; preloader open)
+## Phase 2 – State  `[~]` (modes vs views done; versioning + progress storage done 2026-09-25; open: deep links (Tilman), `.mind` preloader)
 
 - **HistoryManager rethink.** Today history is keyed by `chapterId + targetIndex` (fragile if
   groups are re-cut). Key by stable ID (entry/target, depending on 1c).
@@ -381,7 +381,10 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
      `HistoryManager` loads at startup (not on scene ready), records `lastSpreadId` on spread change,
      resume uses it. Update consumers (TargetManager, target-item, spread-item, spread/spreads pages).
      Placement per RULES #17 (state in the manager, storage adapter as a service).
-  3. [ ] **Debug overlay tab:** progress state; ids missing from the content marked.
+  3. [x] (2026-09-25) **Debug overlay tab:** progress state; ids missing from the content marked.
+     Expanded overlay has tabs *spread* / *progress*: book, format, app versions, last spread/category,
+     unlocked / consulted / marked / notes with times, missing ids in red (`history.getMissingIds()`),
+     "Reset progress". Collapsed line shows `U<unlocked> K<consulted>`.
 - **Deep links from printed QR codes**  `[ ]` – owner: **Tilman**
   Printed QR codes (book) are scanned with the phone's native camera and open the app URL, e.g.
   `/?code=c-<chapter>&osct=<version>`. Today **nothing reads these params on load** (`getUrlParam` in
