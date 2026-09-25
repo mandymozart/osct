@@ -26,6 +26,11 @@ outcome in the line (or move it into a dated decision block).
 - [x] (user) MindAR's scanning brackets replaced (not just turned off): `uiScanning` takes a CSS selector →
       our `#osct-scanning` circle (gold fading in from transparent, sweeping; `styles/gold-spinner.css`).
       Verified: MindAR toggles it and creates no brackets.
+- [x] (user) The page background was still the old light grey (`--color-background` on body) → black
+      `--app-background`, `color-scheme: dark`. Error page (also the resume notice) and not-found restyled in
+      the consultation look (black 82 %, white text, glass pills with gold labels).
+- [ ] Old light tokens (`--color-background`, `--primary-*`) remain only in the dev views (index, spreads)
+      and `text-button` – removal candidates with those views.
 - [ ] Device check: `background-clip: text` over descendants (the list-wide gradient) on iOS Safari.
 - [x] Lesson: happy-dom's XML parser drops an SVG that contains a `<style>` block (Penpot font imports) –
       test SVGs without it. Adopted stylesheets cascade **after** a component's own `<style>`.
