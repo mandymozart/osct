@@ -200,7 +200,7 @@ file name stays) · **`*Data`** = the typed pieces inside it · **app model** = 
 **F. Tests**: guards (valid + invalid bundles), content rules (page within a spread, 1:1 entry ↔ target,
 index order, refs resolve), `.mind` order vs image dimensions, single-import rule.
 
-## Phase 2 – State  `[~]` (modes vs views in progress)
+## Phase 2 – State  `[~]` (modes vs views done; preloader open; history rekey, storage and versioning wait for Tilman's concept)
 
 - **HistoryManager rethink.** Today history is keyed by `chapterId + targetIndex` (fragile if
   groups are re-cut). Key by stable ID (entry/target, depending on 1c).
