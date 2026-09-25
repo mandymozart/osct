@@ -1,154 +1,128 @@
-import { GameState, IGame } from "@/types/game";
-import { ITutorialNavigation, Step } from "@/types/tutorial";
+import { Step } from "@/types/tutorial";
 import { getTutorial } from "@/utils/game-config";
-import { assert } from "../utils/assert";
 import { Page } from "./page";
-
-import { GameStoreService } from "@/services/GameStoreService";
 import "../components/tutorial/tutorial-content";
-import "../components/tutorial/tutorial-navigation";
+import { goToScan, goToStep } from "../components/tutorial/tutorial-navigation";
 
+/**
+ * Onboarding = tutorial (design p.1–5, PLAN Phase 5): black screen, Mark, one step at a time (route
+ * param `step`). Steps without a button (splash, title) advance after `advance` ms or on a tap; the
+ * others advance with their button (`tutorial-navigation`). "Skip" goes straight to scan mode
+ * (returning readers open the tutorial from Info).
+ */
 export class TutorialPage extends Page {
   static get observedAttributes() {
     return ["active", "step"];
   }
 
-   get styles(): string {
+  private steps: Step[] = getTutorial();
+  private stepIndex = 0;
+  private advanceTimer: number | undefined;
+
+  get styles(): string {
     return /* css */ `
       :host {
-        display: flex;
-        flex-direction: column;
-        bottom: 0;
-        overflow: hidden;
-        background-color: var(--color-background, #fff);
-        color: var(--color-text, #333);
+        top: 0;
+        height: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        transition: opacity .3s ease, visibility .3s;
+        background: radial-gradient(ellipse at 50% 45%, #000 45%, #151515 100%);
         pointer-events: all;
+        cursor: default;
       }
-      
       .content {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        inset: 0;
         display: flex;
         flex-direction: column;
-        margin: 0 1rem;
-        gap: 2rem;
+        align-items: center;
+        padding: max(22vh, 6rem) 1.5rem 1rem;
         box-sizing: border-box;
-        overflow-y: auto;
-      }  
+      }
+      tutorial-content { flex: 1; width: 100%; }
+      tutorial-navigation {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 58%;
+      }
+      .skip {
+        position: absolute;
+        top: calc(max(1rem, env(safe-area-inset-top)) + var(--debug-offset, 0px));
+        right: 1rem;
+        border: none;
+        background: none;
+        color: var(--consultation-muted);
+        font-family: var(--font-design);
+        letter-spacing: var(--tracking-design);
+        font-size: .75rem;
+        cursor: pointer;
+      }
     `;
   }
 
-   get template(): string {
+  get template(): string {
     return /* html */ `
       <div class="content">
         <tutorial-content></tutorial-content>
-        <tutorial-navigation></tutorial-navigation>
       </div>
-      <close-button></close-button>
+      <tutorial-navigation></tutorial-navigation>
+      <button type="button" class="skip">Skip</button>
     `;
   }
 
-  private steps: Step[] = getTutorial();
-  private currentStep: string | null = null;
-  private content: HTMLElement | null = null;
-  private navigation: ITutorialNavigation | null = null;
-  protected readonly game: Readonly<IGame>;
-
-  constructor() {
-    super();
-    this.game = GameStoreService.getInstance();
-    this.handleStateChange = this.handleStateChange.bind(this);
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-    this.game?.subscribe(this.handleStateChange.bind(this));
-    this.setupComponents();
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.game?.unsubscribe(this.handleStateChange.bind(this));
-  }
-
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-    if (name === "active" && newValue !== oldValue) {
-      if (newValue === "true") {
-        this.updateView();
-      }
+    super.attributeChangedCallback(name, oldValue, newValue);
+    if (name === "step" && newValue !== oldValue && newValue !== null) {
+      this.stepIndex = Number(newValue) || 0;
+      this.showStep();
     }
-
-    if (name === "step" && newValue !== oldValue) {
-      this.currentStep = newValue;
-      this.updateView();
+    if (name === "active") {
+      if (newValue === "true") this.showStep();
+      else window.clearTimeout(this.advanceTimer);
     }
   }
 
-  protected handleStateChange(_: GameState) {
-    this.updateView();
+  setupEventListeners() {
+    this.shadowRoot?.addEventListener("click", this.handleClick);
   }
 
-   setupEventListeners() {
-    const closeButton = this.shadowRoot?.querySelector("close-button");
-    closeButton?.addEventListener("close", this.handleClose.bind(this));
+  cleanupEventListeners() {
+    this.shadowRoot?.removeEventListener("click", this.handleClick);
+    window.clearTimeout(this.advanceTimer);
   }
 
-   cleanupEventListeners() {
-    const closeButton = this.shadowRoot?.querySelector("close-button");
-    closeButton?.removeEventListener("close", this.handleClose.bind(this));
+  private get step(): Step | undefined {
+    return this.steps.find(s => s.index === this.stepIndex);
   }
 
-  private handleClose() {
-    this.game.router.close();
-  }
+  private showStep() {
+    window.clearTimeout(this.advanceTimer);
+    this.shadowRoot?.querySelector("tutorial-content")?.setAttribute("current-step", String(this.stepIndex));
+    this.shadowRoot?.querySelector("tutorial-navigation")?.setAttribute("current-step", String(this.stepIndex));
 
-  private setupComponents() {
-    assert(this.shadowRoot, "Shadow root not available in setupComponents");
-
-    this.content = this.shadowRoot.querySelector("tutorial-content");
-    this.navigation = this.shadowRoot.querySelector("tutorial-navigation");
-
-    if (this.content && this.navigation) {
-      // Pass initial step information
-      const step = Number(this.getAttribute("step") || this.currentStep || "0");
-      this.navigation.setAttribute("current-step", step.toString());
-      const stepData = this.steps.find((s) => s.index === step);
-      if (stepData) {
-        // Set up content
-        this.content.setAttribute("title", stepData.title);
-        this.content.setAttribute("description", stepData.description);
-        if (stepData.illustration) {
-          this.content.setAttribute("illustration", stepData.illustration);
-        }
-      }
+    const step = this.step;
+    if (this._active && step && !step.button && step.advance) {
+      this.advanceTimer = window.setTimeout(() => this.next(), step.advance);
     }
-    this.updateView();
   }
 
-  private updateView() {
-    assert(this.shadowRoot, "Shadow root not available in updateView");
-    if (!this.content || !this.navigation) return;
-    assert(this.content, "Content element not available in updateView");
-    assert(this.navigation, "Navigation element not available in updateView");
-    const step = Number(this.getAttribute("step") || this.currentStep || "0");
-    const stepData = this.steps[step];
+  private next() {
+    window.clearTimeout(this.advanceTimer);
+    goToStep(this.game, this.stepIndex + 1);
+  }
 
-    if (!stepData) {
-      console.warn(`Tutorial step not found: ${step}`);
+  private handleClick = (event: Event) => {
+    const target = event.target as HTMLElement;
+    if (target.closest(".skip")) {
+      window.clearTimeout(this.advanceTimer);
+      goToScan(this.game);
       return;
     }
-    this.content.setAttribute("current-step", step.toString());
-    this.content.setAttribute("title", stepData.title);
-    this.content.setAttribute("description", stepData.description);
-    if (stepData.illustration) {
-      this.content.setAttribute("illustration", stepData.illustration ?? null);
-    }
-    
-    this.navigation.setAttribute("current-step", step.toString());
-  }
+    // Steps without a button: a tap anywhere continues
+    if (!this.step?.button && !target.closest("tutorial-navigation")) this.next();
+  };
 }
 
 customElements.define("tutorial-page", TutorialPage);

@@ -96,6 +96,14 @@ describe("HistoryManager (progress)", () => {
     expect(game.history.getMissingIds()).toEqual({ targets: [], entries: ["gone"] });
   });
 
+  it("remembers that the onboarding was finished or skipped", () => {
+    expect(game.state.progress.onboarded).toBe(false);
+    game.history.setOnboarded();
+    expect(stored().onboarded).toBe(true);
+    // Records written before the field existed read as not onboarded
+    expect(readProgress({ format: PROGRESS_FORMAT }, bookId).record.onboarded).toBe(false);
+  });
+
   it("resets the progress but keeps the app version history", () => {
     game.history.unlockTarget(targets[0].id);
     game.history.reset();

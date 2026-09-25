@@ -142,8 +142,13 @@ export class BookGame extends HTMLElement {
     try {
       await waitForDOMReady();
       window.BOOKGAME = this.game;
-      // Progress is loaded with the store; offer to resume once the pages are there
-      this.game.history.offerResume();
+      // Progress is loaded with the store. First visit → onboarding (skip / finish marks it done);
+      // otherwise offer to resume once the pages are there
+      if (!this.game.state.progress.onboarded) {
+        this.game.router.navigate("/tutorial", { key: "step", value: "0" });
+      } else {
+        this.game.history.offerResume();
+      }
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
       );

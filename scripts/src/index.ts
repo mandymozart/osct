@@ -381,13 +381,13 @@ function buildTutorial(): StepData[] {
     .map(({ id, data }) => {
       const s = validate<any>(data, 'step', `steps/${id}`);
       if (!s) return null;
-      return {
-        id,
-        index: s.index,
-        title: s.title,
-        description: s.description,
-        ...(s.illustration ? { illustration: s.illustration } : {}),
-      } satisfies StepData;
+      // Optional fields only when set (the bundle stays free of empty keys)
+      const optional = Object.fromEntries(
+        (['title', 'description', 'footer', 'illustration', 'button', 'action', 'fadeIn', 'advance'] as const)
+          .filter(key => s[key] !== undefined && s[key] !== '')
+          .map(key => [key, s[key]])
+      );
+      return { id, index: s.index, ...optional } satisfies StepData;
     })
     .filter((step): step is StepData => step !== null)
     .sort((a, b) => a.index - b.index);

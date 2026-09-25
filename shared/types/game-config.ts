@@ -74,12 +74,29 @@ export interface EntryData {
   target?: TargetData;
 }
 
+/** What a tutorial step's button does (onboarding, design p.1–5) */
+export const STEP_ACTIONS = ["next", "camera", "scan"] as const;
+export type StepAction = (typeof STEP_ACTIONS)[number];
+
+/**
+ * Onboarding / tutorial step (design p.1–5). Without `button` the step advances by itself after
+ * `advance` ms (or on tap). `description` may use `*emphasis*` and blank lines for paragraphs.
+ */
 export interface StepData {
   id: string;
   index: number;
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
+  /** Small line near the bottom (e.g. the publisher) */
+  footer?: string;
   illustration?: string;
+  /** Button label; with `action` (default `next`) */
+  button?: string;
+  action?: StepAction;
+  /** Fade the step in (ms) – design: 1s on the title step */
+  fadeIn?: number;
+  /** Auto-advance after ms (steps without button) */
+  advance?: number;
 }
 
 export interface GameConfiguration {

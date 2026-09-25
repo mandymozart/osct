@@ -1,193 +1,111 @@
 import { GameStoreService } from "../../services/GameStoreService";
 import { getTutorial } from "@/utils/game-config";
+import { IGame } from "@/types/game";
+import { ITutorialNavigation, Step } from "@/types/tutorial";
+import { escapeHtml } from "@/components/consultation/entries-model";
 
 const tutorial = getTutorial();
-import { IGame } from "@/types/game";
-import { ITutorialNavigation } from "@/types/tutorial";
 
 /**
- * A navigation component for the tutorial with step indicators and navigation buttons
+ * Onboarding step button (design p.3–5): black pill with a white glow. The step's `action` decides
+ * what it does: `next` (default) → next step, `camera` → ask for camera access, then the next step,
+ * `scan` → scan mode. Steps without a button show nothing here (the page advances them).
  */
-export class TutorialNavigation
-  extends HTMLElement
-  implements ITutorialNavigation
-{
-  private currentStep: number = 1;
+export class TutorialNavigation extends HTMLElement implements ITutorialNavigation {
+  private currentStep = 0;
   private game: Readonly<IGame>;
-  private button: HTMLButtonElement | null = null;
-  private indicators: HTMLElement | null = null;
+  private busy = false;
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
+    this.handleClick = this.handleClick.bind(this);
   }
 
   static get observedAttributes() {
     return ["current-step"];
   }
 
-  /**
-   * Handle attribute changes
-   */
   attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-    if (oldValue === newValue) return;
-
-    if (name === "current-step") {
-      this.currentStep = parseInt(newValue) || 1;
-      this.updateView();
-    }
-  }
-
-  /**
-   * Connected callback - Initialize the component
-   */
-  connectedCallback() {
+    if (name !== "current-step" || oldValue === newValue) return;
+    this.currentStep = parseInt(newValue) || 0;
     this.render();
-    this.setupEventListeners();
-    this.updateView();
   }
 
-  /**
-   * Disconnected callback - Clean up event listeners
-   */
+  connectedCallback() {
+    this.shadowRoot?.addEventListener("click", this.handleClick);
+    this.render();
+  }
+
   disconnectedCallback() {
-    this.cleanupEventListeners();
+    this.shadowRoot?.removeEventListener("click", this.handleClick);
   }
 
-  /**
-   * Render the component structure and set up references
-   */
+  private get step(): Step | undefined {
+    return tutorial.find(s => s.index === this.currentStep);
+  }
+
   private render() {
     if (!this.shadowRoot) return;
-
-    this.shadowRoot.innerHTML = `
+    const label = this.step?.button;
+    this.shadowRoot.innerHTML = /* html */ `
       <style>
-        :host {
-          display: flex;
-          justify-content: space-between;
-          width: 100%;
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          padding: 1rem 0;
-          box-sizing: border-box;
-          flex-direction: column-reverse;
-          gap:1rem;
-        }
-        
-        .step-indicators {
-          display: flex;
-          gap: 0.5rem;
-          justify-content: center;
-        }
-        
-        .step-indicator {
-          width: 1rem;
-          height: 1rem;
-          border-radius: 50%;
-          background-color: var(--background-color, #fff);
-          border: 1px solid var(--color-primary, #333);
-          transition: all 0.2s ease;
-        }
-        
-        .step-indicator.active {
-          border-color: var(--color-secondary, #0066cc);
-        }
-        
-        .nav-buttons {
-          display: flex;
-          justify-content: flex-end;
-        }
-        
+        :host { display: flex; justify-content: center; }
         button {
-          width: 100%;
+          min-width: 8rem;
+          padding: .45rem 1.5rem;
+          border: none;
+          border-radius: 999px;
+          background: #000;
+          color: var(--color-accent);
+          font-family: var(--font-design);
+          letter-spacing: var(--tracking-design);
+          font-size: .85rem;
+          box-shadow: 0 0 .9rem rgba(255, 255, 255, .55);
+          cursor: pointer;
         }
+        button:disabled { opacity: .6; cursor: wait; }
       </style>
-      
-      <div class="step-indicators"></div>
-      
-      <div class="nav-buttons">
-        <button is="text-button" variant="secondary" class="next-button">Continue</button>
-      </div>
+      ${label ? `<button type="button" class="next-button">${escapeHtml(label)}</button>` : ""}
     `;
-
-    this.button = this.shadowRoot.querySelector(".next-button");
-    this.indicators = this.shadowRoot.querySelector(".step-indicators");
   }
 
-  /**
-   * Update all view elements based on current state
-   */
-  private updateView() {
-    if (!this.shadowRoot) return;
+  private async handleClick(event: Event) {
+    const button = (event.target as HTMLElement).closest("button");
+    if (!button || this.busy) return;
+    const action = this.step?.action ?? "next";
 
-    // Update step indicators
-    this.updateStepIndicators();
-
-    // Update button text
-    if (this.button) {
-      const isLastStep = this.currentStep >= tutorial.length - 1;
-      this.button.textContent = isLastStep ? "Finish" : "Continue";
+    if (action === "scan") {
+      goToScan(this.game);
+      return;
     }
-  }
-
-  /**
-   * Update the step indicators based on current step
-   */
-  private updateStepIndicators() {
-    if (!this.indicators) return;
-
-    // Clear existing indicators
-    this.indicators.innerHTML = "";
-
-    // Create new indicators based on tutorial steps length
-    const totalSteps = tutorial.length - 1;
-    for (let i = 0; i < totalSteps; i++) {
-      const indicator = document.createElement("div");
-      indicator.classList.add("step-indicator");
-      if (i + 1 === this.currentStep) {
-        indicator.classList.add("active");
-      }
-      this.indicators.appendChild(indicator);
+    if (action === "camera") {
+      this.busy = true;
+      button.disabled = true;
+      // Denied: the camera-permission overlay explains how to allow it; the step stays
+      const granted = await this.game.camera.requestAccess();
+      this.busy = false;
+      button.disabled = false;
+      if (!granted) return;
     }
-  }
-
-  /**
-   * Set up event listeners
-   */
-  private setupEventListeners() {
-    if (this.button) {
-      this.button.addEventListener("click", this.handleNext.bind(this));
-    }
-  }
-
-  /**
-   * Clean up event listeners
-   */
-  private cleanupEventListeners() {
-    if (this.button) {
-      this.button.removeEventListener("click", this.handleNext.bind(this));
-    }
-  }
-
-  /**
-   * Handle next button click
-   */
-  private handleNext() {
-    const isLastStep = this.currentStep >= tutorial.length - 1;
-    if (isLastStep) {
-      // Onboarding ends in scan mode ("Access scan", design p.5); the route sets the mode
-      this.game.router.navigate("/spread");
-    } else {
-      const nextStep = this.currentStep + 1;
-      this.game.router.navigate("/tutorial", {
-        key: "step",
-        value: nextStep.toString(),
-      });
-    }
+    goToStep(this.game, this.currentStep + 1);
   }
 }
+
+/** Next onboarding step, or scan mode after the last one */
+export const goToStep = (game: Readonly<IGame>, index: number) => {
+  if (index >= tutorial.length) goToScan(game);
+  else game.router.navigate("/tutorial", { key: "step", value: index.toString() });
+};
+
+/**
+ * Onboarding ends in scan mode ("Access scan", design p.5; also "Skip"); the route sets the mode.
+ * Either way the reader counts as onboarded – the next visit starts at home.
+ */
+export const goToScan = (game: Readonly<IGame>) => {
+  game.history.setOnboarded();
+  game.router.navigate("/spread");
+};
 
 customElements.define("tutorial-navigation", TutorialNavigation);

@@ -37,7 +37,17 @@
   /* Design 260804 tokens (PLAN "Design tokens"). Accent: gold placeholder, final color TBD */
   --font-design: Arial, Helvetica, sans-serif;
   --tracking-design: 0.02em;
-  --color-accent: #c9a24a;
+  /* Gold scale (placeholder until the final accent color) – 500 = the accent */
+  --gold-100: #fbf3dc;
+  --gold-200: #f2dfa6;
+  --gold-300: #e5c87a;
+  --gold-400: #d8b45c;
+  --gold-500: #c9a24a;
+  --gold-600: #a9853a;
+  --gold-700: #86682d;
+  --gold-800: #624b21;
+  --gold-900: #3e2f15;
+  --color-accent: var(--gold-500);
   --color-chrome-muted: rgba(120, 120, 120, 0.9);
   /* Glass highlight (spread menu, pill buttons) */
   --glass-background: rgba(255, 255, 255, 0.55);
