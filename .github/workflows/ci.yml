@@ -1,0 +1,52 @@
+# Checks for every push and pull request (agents/RULES.md #9, #10).
+# Deployment is separate: Netlify builds main; the FTP production deploy is added later.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  scripts:
+    name: Content build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - run: npm ci
+      - name: Type-check and build
+        run: npm run build
+      # The build skips when its input hash equals the committed game.config.json; any rebuild
+      # (content, build logic or version changed without rebuilding) shows up as a diff.
+      - name: Committed game configuration is up to date
+        run: |
+          npm run build:content
+          git diff --exit-code -- ../client/src/game.config.json ../client/public/assets/content
+
+  client:
+    name: Client
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      # Includes the one-version checks (client + scripts package.json, game.config.json)
+      - name: Tests
+        run: npx vitest run
