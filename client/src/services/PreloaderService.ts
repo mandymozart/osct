@@ -27,14 +27,14 @@ const getSpreadContent = (spreadId: string): LoadOptions[] => {
  * dropped, so the later request by MindAR/A-Frame for the same URL is served from the cache.
  * Never touches the A-Frame scene. One request per URL; failed ones may be retried later.
  */
-export class Preloader {
-  private static instance: Preloader | null = null;
+export class PreloaderService {
+  private static instance: PreloaderService | null = null;
   private loads = new Map<string, Promise<LoadResult>>();
   private done = new Set<string>();
 
-  static getInstance(): Preloader {
-    if (!Preloader.instance) Preloader.instance = new Preloader();
-    return Preloader.instance;
+  static getInstance(): PreloaderService {
+    if (!PreloaderService.instance) PreloaderService.instance = new PreloaderService();
+    return PreloaderService.instance;
   }
 
   preload({ src, timeout = DEFAULT_TIMEOUT }: LoadOptions): Promise<LoadResult> {
@@ -79,7 +79,7 @@ export class Preloader {
       await response.arrayBuffer(); // the body has to be read for the response to be cached
       return { success: true };
     } catch (error) {
-      console.warn(`[Preloader] Failed to preload ${src}:`, error);
+      console.warn(`[PreloaderService] Failed to preload ${src}:`, error);
       return { success: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
       clearTimeout(timer);

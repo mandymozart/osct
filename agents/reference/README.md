@@ -20,6 +20,9 @@ magenta annotations. Use them for side-by-side comparison with the draft.
 | 33–34 | Info / colophon |
 | 35–40 | Back to scan mode, AR video on painting (p.21) |
 
+**Rendering glitch:** the dark parallelogram next to Mark at the top of many frames comes from the
+PDF → PNG conversion – it is not part of the design (Tilman, 2026-09-25).
+
 ## `images/mark/` – Mark the Page (placeholders until Kévin's WebM)
 | File | Size | Use |
 |---|---|---|
