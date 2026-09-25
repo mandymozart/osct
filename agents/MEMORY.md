@@ -10,7 +10,7 @@ outcome in the line (or move it into a dated decision block).
   is derived from it. The build schema, the shared guard and the app use it; the client re-exports it from
   `types/entries.ts`. The duplicate list in `scripts/src/config.ts` is gone. `isCategory` in the app = `isEntryCategory`.
 - Values are **singular** (Tilman): `glossary`, `video`, `text`, `link` – the category of one entry.
-  Labels are derived from the values (`categoryLabel`): "Video" on the entry, "Videos" in the list/menu;
+  Labels are derived from the values (`categoryLabel`): plural everywhere as in the design ("Videos", Tilman);
   the glossary has no plural. Content YAML and tests switched; stored `lastCategory` values from before are dropped.
 - `EntriesFilter` (category | "bookmarked") stays local to the entries list (`pages/entries-page.ts`).
 - Consultation: category menu matched to the design, Bookmarked as 5th menu item, note field behind "Add note".

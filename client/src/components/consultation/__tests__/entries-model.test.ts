@@ -11,10 +11,9 @@ describe("entries model", () => {
     expect(isCategory("videos")).toBe(false);
   });
 
-  it("labels categories from the enum values: singular per entry, plural for the list", () => {
-    expect(categoryLabel(EntryCategory.Video)).toBe("Video");
-    expect(categoryLabel(EntryCategory.Video, true)).toBe("Videos");
-    expect(categoryLabel(EntryCategory.Glossary, true)).toBe("Glossary");
+  it("labels categories from the enum values in the plural, the glossary without", () => {
+    expect(categoryLabel(EntryCategory.Video)).toBe("Videos");
+    expect(categoryLabel(EntryCategory.Glossary)).toBe("Glossary");
   });
 
   it("labels texts with their author, other entries with the title", () => {

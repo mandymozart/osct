@@ -6,12 +6,12 @@ import { isEntryCategory } from "@shared/guards/game-config";
  */
 
 /**
- * Label from the enum value: singular for one entry ("Video"), plural for the list and menu ("Videos").
- * The glossary has no plural.
+ * Label from the enum value, plural everywhere as in the design ("Videos" in the list, the menu and the
+ * entry's category row, frames 18/20). The glossary has no plural.
  */
-export const categoryLabel = (category: EntryCategory, plural = false): string =>
+export const categoryLabel = (category: EntryCategory): string =>
   category.charAt(0).toLocaleUpperCase("en") + category.slice(1) +
-  (plural && category !== EntryCategory.Glossary ? "s" : "");
+  (category !== EntryCategory.Glossary ? "s" : "");
 
 export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 
