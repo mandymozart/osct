@@ -23,8 +23,9 @@ outcome in the line (or move it into a dated decision block).
 - [x] (user) Loading screens restyled: startup loader + loading page = consultation darkness
       (`--loading-background`) + gold spinner (`styles/gold-spinner.css`, one source for both via `?inline`);
       MindAR's loading UI off (`uiLoading: no`). Designer Q4 answered by Tilman: **frosted glass** – yes.
-- [ ] MindAR's scanning UI (white corner brackets) is still on – the design shows none; ask before turning it
-      off (`uiScanning: no`).
+- [x] (user) MindAR's scanning brackets replaced (not just turned off): `uiScanning` takes a CSS selector →
+      our `#osct-scanning` circle (gold fading in from transparent, sweeping; `styles/gold-spinner.css`).
+      Verified: MindAR toggles it and creates no brackets.
 - [ ] Device check: `background-clip: text` over descendants (the list-wide gradient) on iOS Safari.
 - [x] Lesson: happy-dom's XML parser drops an SVG that contains a `<style>` block (Penpot font imports) –
       test SVGs without it. Adopted stylesheets cascade **after** a component's own `<style>`.
