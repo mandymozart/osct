@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Phase 6 strategy A: ArScene + <ar-bridge>
+
+- [x] (user) Decisions: one `<ar-bridge>` + `IArScene`; strategy A (new scene per spread) first; camera only
+      in scan mode; old bridges removed after it worked; `link` entity dropped. B (persistent scene) next, as a
+      separate, swappable implementation (`ar/index.ts` `AR_SCENE_STRATEGY`).
+- [x] Built: `ar/ar-scene.ts` (queued reconcile: newest spread + state win), `ar/entities.ts` (registry:
+      video + chroma key, model, image), `ar/mindar.ts` (safe stop in every MindAR state, `autoStart: false`,
+      anchors), `ar-bridge.ts`, store `arStatus`. Removed (Tilman's okay): static-scene-bridge, scene-bridge,
+      target-bridge, templates, connectScene, createScene/Entities/Assets, target listener utils, videos
+      util, `static/*.ref.ts`, the commented scene in index.html, SceneService.
+- [x] Browser (fake camera): home = no camera; scan = 1 request, running; consultation = paused, stream kept;
+      back = running without a new request; spread switch = 1 scene, 1 live stream; home = camera released;
+      rapid switching ends on the last spread; found/lost drives video + store. Pane's denied camera → error →
+      camera-permission screen, **one** prompt (a failed start is not retried until the wish changes).
+- [x] Fixes the old MEMORY items "camera starts on home" and "stopProcessVideo when switching with a denied
+      camera"; trackedTargets are cleared (targetLost) when a scene is torn down.
+
 ## 2026-09-25 – Design review: colors measured from the PDF
 
 - [x] (user) "Nail the colors": values extracted from the PDF's vector data into `agents/DESIGN.md`
