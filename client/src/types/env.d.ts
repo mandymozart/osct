@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_DEBUG?: string;
   /** "true" / "false": list unconsulted entries locked (default: dev only) – PLAN Phase 4 */
   readonly VITE_SHOW_LOCKED_ENTRIES?: string;
+  /** AR scene strategy baked into the build: "rebuild" | "persistent" (Phase 6, ar/index.ts) */
+  readonly VITE_AR_STRATEGY?: string;
 }
 
 interface ImportMeta {

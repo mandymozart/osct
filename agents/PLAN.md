@@ -675,6 +675,10 @@ Game store ◀──(targets, arStatus)───  <ar-bridge>  ◀──events�
 start/pause/stop), `ar/ar-scene.ts` (**A**, rebuild), `ar/persistent-ar-scene.ts` (**B**, persistent),
 `ar/scene-builder.ts` + `ar/mindar.ts` (shared), `ar/entities.ts` (registry), `ar/index.ts` (strategy
 switch `AR_SCENE_STRATEGY`; dev override `localStorage["osct-ar-strategy"]`). Store `arStatus`.
+**Build flag** (Tilman, for device testing): `VITE_AR_STRATEGY=rebuild|persistent` – env var (e.g. Netlify)
+or `npm run build:ar-rebuild` / `build:ar-persistent` / `dev:ar-persistent` (mode files `client/.env.ar-*`).
+Precedence: dev localStorage override → build flag → `AR_SCENE_STRATEGY`. The debug overlay shows the
+active one (`S◉r` / `S◉p`, "strategy …" when expanded).
 
 Measured in the browser (fake camera, which starts instantly – real cameras add to A only):
 | | A – rebuild | B – persistent |

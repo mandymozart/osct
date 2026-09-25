@@ -51,7 +51,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
 12. AR (Phase 6): only `components/aframe-bridges/ar/` touches A-Frame / MindAR, behind `IArScene`
     (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. The strategy is chosen in
-    `ar/index.ts` (`AR_SCENE_STRATEGY`: "rebuild" = new scene per spread, "persistent" = one scene);
+    `ar/index.ts` (`AR_SCENE_STRATEGY`: "rebuild" = new scene per spread, "persistent" = one scene;
+    per build with `VITE_AR_STRATEGY` / `npm run build:ar-*`);
     both share the entity registry (`ar/entities.ts` – add entity types with `registerEntity`, no logic in
     content) and the MindAR helpers (`ar/mindar.ts`). Camera only in scan mode (`autoStart: false`).
 13. Type naming: game-configuration (JSON) types `*Data` (defined once in top-level `shared/types/`,
