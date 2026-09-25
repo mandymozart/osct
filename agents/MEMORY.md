@@ -4,6 +4,12 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Phase 2 step 3 done (debug overlay progress tab)
+
+- [x] Debug overlay: tabs *spread* (as before) / *progress* (record, missing ids in red, reset button;
+      reset asks via `confirm()`). What to do with missing ids is still open → trial/beta.
+- [x] (user) Deprecated demo `.mind` files in `client/src/targets/` removed by Tilman (commit ccb59e9).
+
 ## 2026-09-25 – Phase 2 step 2 done (progress storage)
 
 - [x] (user) **No conversion of storage from before 1.1.x** – the app was never deployed publicly. The
@@ -61,8 +67,8 @@ outcome in the line (or move it into a dated decision block).
 - [x] (user) `utils/game-config.ts` is a primitive service → moves to `services/` with the data access
       work (PLAN Phase 2 versioning). Not moved yet.
 - [x] (user) Empty `components/slotted-page/` removed (untracked, empty). `components/three-bridges/` is
-      empty too – [ ] ask whether to remove. Old `.mind` files in `client/src/targets/` and the old test page `client/src/main.html`
-      (points at `/targets/single-image.mind`) → Tilman's cleanup.
+      empty too – [ ] ask whether to remove. ~~Old `.mind` files in `client/src/targets/`~~ (removed by Tilman,
+      ccb59e9) and the old test page `client/src/main.html` (points at `/targets/single-image.mind`) → Tilman's cleanup.
 
 ## 2026-09-24 – Mode vs scene state, overlays pause the scene
 

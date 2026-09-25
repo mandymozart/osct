@@ -7,7 +7,7 @@ import {
   IProgressStorage,
   ProgressRecord,
 } from '@/types';
-import { getBook, getSpread, getTarget, getTargets } from '@/utils/game-config';
+import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
 import { ProgressReadStatus, createProgressRecord, readProgress } from './progress-readers';
 
 /**
@@ -148,6 +148,15 @@ export class HistoryManager implements IHistoryManager {
   public setLastCategory(category: EntryCategory): void {
     if (this.progress.lastCategory === category) return;
     this.change(draft => { draft.lastCategory = category; });
+  }
+
+  public getMissingIds(): { targets: string[]; entries: string[] } {
+    const { unlocked, consulted, marked, notes } = this.progress;
+    const entryIds = new Set([...Object.keys(consulted), ...Object.keys(marked), ...Object.keys(notes)]);
+    return {
+      targets: Object.keys(unlocked).filter(id => !getTarget(id)),
+      entries: [...entryIds].filter(id => !getEntry(id)),
+    };
   }
 
   /**
