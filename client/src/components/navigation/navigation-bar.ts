@@ -58,19 +58,22 @@ export class NavigationBar extends HTMLElement {
             pointer-events: none;
         }
         
-        index-button {
+        index-button,
+        spreads-button {
             pointer-events: all;
         }
       </style>
-      
+
       <index-button></index-button>
+      <spreads-button></spreads-button>
     `;
   }
 
-  // Consultation only: in scan mode the spread menu takes the bottom (design p.6), Mark opens the
-  // entries. Phase 4 turns the index button into "Entries" (back to the list, p.21).
+  // Dev builds only, in consultation: links to the dev views – the former index (spreads + targets)
+  // and /spreads (all spreads). The design has no bottom bar – scan: spread menu, consultation: "Entries" in
+  // the top chrome (header.ts).
   private updateVisibility(mode?: GameMode) {
-    this.style.display = mode === GameMode.CONSULTATION ? 'flex' : 'none';
+    this.style.display = import.meta.env.DEV && mode === GameMode.CONSULTATION ? 'flex' : 'none';
   }
 }
 

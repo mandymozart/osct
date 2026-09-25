@@ -178,8 +178,8 @@ export class TutorialNavigation
   private handleNext() {
     const isLastStep = this.currentStep >= tutorial.length - 1;
     if (isLastStep) {
-      // The route sets scan mode
-      this.game.router.navigate("/spreads");
+      // Onboarding ends in scan mode ("Access scan", design p.5); the route sets the mode
+      this.game.router.navigate("/spread");
     } else {
       const nextStep = this.currentStep + 1;
       this.game.router.navigate("/tutorial", {

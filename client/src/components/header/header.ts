@@ -1,14 +1,16 @@
 import { GameStoreService } from "@/services/GameStoreService";
-import { GameMode } from "@/types";
 import { IGame } from "@/types/game";
 import "./entries-counter";
 import "./mark-the-page";
 
 /**
  * Top chrome, per mode (design 260804):
- * - IDLE (home, tutorial): name line, tap → about.
+ * - IDLE (home, tutorial): nothing (the former name line "Kevin Bray — Onion Skin and Crocodile Tears"
+ *   was removed on 2026-09-25 – previous design iteration).
  * - SCAN: Mark the Page + counter (frame 6).
- * - CONSULTATION: Mark (consultation state) + counter + "i" → Info (= about, frames 15, 17, 32).
+ * - CONSULTATION: Mark + "i" → Info (= about, frames 15, 17, 32); the counter
+ *   with "Entries consulted" only on the entries list (frame 17); "Entries" → back to the list with
+ *   the last category on the entry view and Info (frames 15, 21, 33).
  */
 export class GameHeader extends HTMLElement {
   private game: Readonly<IGame>;
@@ -23,8 +25,12 @@ export class GameHeader extends HTMLElement {
   connectedCallback() {
     this.render();
     this.initialize();
-    this.unsubscribe = this.game.subscribeToProperty("mode", (mode) => this.updateMode(mode));
-    this.updateMode(this.game.state.mode);
+    const cleanups = [
+      this.game.subscribeToProperty("mode", () => this.updateState()),
+      this.game.subscribeToProperty("currentRoute", () => this.updateState()),
+    ];
+    this.unsubscribe = () => cleanups.forEach(c => c());
+    this.updateState();
   }
 
   disconnectedCallback() {
@@ -37,36 +43,6 @@ export class GameHeader extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
             <style>
-                :host {}
-
-                header {
-                    width: 100%;
-                    position: fixed;
-                    top: 0;
-                    right: 0;
-                    height: var(--offset-top,4rem);
-                    display: flex;
-                    align-items: center;
-                    gap: 1rem;
-                    cursor: pointer;
-                }
-
-                .header-left {
-                    padding-left: 1rem;
-                }
-
-                .header-right {
-                    padding-right: 1rem;
-                }
-
-                .header-dash {
-                    flex: 1;
-                    background-color: var(--color-primary);
-                height: 0.2rem;
-                    transform: translateY(.1rem);
-                    border-radius: 0.05rem;
-                }
-
                 .chrome {
                     position: fixed;
                     top: 0;
@@ -79,58 +55,78 @@ export class GameHeader extends HTMLElement {
                     align-items: center;
                     gap: .25rem;
                     pointer-events: none;
-                    z-index: 1;
+                    /* above the pages (consultation pages cover the whole screen) */
+                    z-index: 1100;
                 }
 
-                .info {
+                .counter { text-align: center; }
+                .counter-label {
+                    font-family: var(--font-design);
+                    letter-spacing: var(--tracking-design);
+                    font-size: .75rem;
+                    color: var(--color-chrome-muted);
+                }
+
+                .info,
+                .entries {
                     position: absolute;
+                    border: none;
+                    background: var(--consultation-pill);
+                    box-shadow: var(--glass-shadow);
+                    color: var(--color-accent);
+                    font-family: var(--font-design);
+                    letter-spacing: var(--tracking-design);
+                    cursor: pointer;
+                    pointer-events: all;
+                }
+                .info {
                     top: calc(max(.75rem, env(safe-area-inset-top)) + var(--debug-offset, 0px));
                     right: 1rem;
                     width: 1.75rem;
                     height: 1.75rem;
                     border-radius: 50%;
-                    border: 1px solid var(--glass-border);
-                    background: rgba(255, 255, 255, .08);
-                    color: var(--color-chrome-muted);
-                    font-family: var(--font-design);
                     font-size: .8rem;
-                    cursor: pointer;
-                    pointer-events: all;
+                }
+                .entries {
+                    top: calc(max(2.75rem, env(safe-area-inset-top) + 2rem) + var(--debug-offset, 0px));
+                    left: 1.25rem;
+                    padding: .35rem .8rem;
+                    border-radius: 999px;
+                    font-size: .8rem;
                 }
 
                 :host([mode="idle"]) .chrome,
-                :host(:not([mode="idle"])) header,
-                :host(:not([mode="consultation"])) .info {
+                :host(:not([mode="consultation"])) .info,
+                :host(:not([mode="consultation"])) .counter-label,
+                :host([mode="consultation"]:not([page="entries"])) .counter,
+                :host(:not([page="entry"]):not([page="about"])) .entries {
                     display: none;
                 }
             </style>
-            <slot></slot>
-            <header id="main-header">
-              <div class="header-left">Kevin Bray</div>
-              <div class="header-dash"></div>
-              <div class="header-right">Onion Skin and Crocodile Tears</div>
-            </header>
             <div class="chrome">
               <mark-the-page></mark-the-page>
-              <entries-counter></entries-counter>
+              <div class="counter">
+                <entries-counter></entries-counter>
+                <div class="counter-label">Entries consulted</div>
+              </div>
+              <button type="button" class="entries" id="entries">Entries</button>
               <button type="button" class="info" id="info" aria-label="Info">i</button>
             </div>
         `;
   }
 
-  private updateMode(mode: GameMode) {
-    this.setAttribute("mode", mode);
+  private updateState() {
+    this.setAttribute("mode", this.game.state.mode);
+    this.setAttribute("page", this.game.state.currentRoute?.page ?? "");
   }
 
   private initialize() {
-    const header = this.shadowRoot!.querySelector("#main-header");
-    if (header) {
-      header.addEventListener("click", () => {
-        this.game.router.navigate("/about");
-      });
-    }
     this.shadowRoot!.querySelector("#info")?.addEventListener("click", () => {
       this.game.router.navigate("/about");
+    });
+    // The entries page opens the last category when no category is given
+    this.shadowRoot!.querySelector("#entries")?.addEventListener("click", () => {
+      this.game.router.navigate("/entries");
     });
   }
 }

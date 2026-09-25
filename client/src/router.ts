@@ -39,10 +39,24 @@ export const router: PageRouterConfiguration = {
       param: "step"
     },
     {
+      // Entries list (design p.17–29), param = category (default: the last one)
+      page: Pages.ENTRIES,
+      slug: "/entries",
+      mode: GameMode.CONSULTATION,
+      param: "category"
+    },
+    {
+      // Entry detail (design p.15, 20, 25, 30–31)
+      page: Pages.ENTRY,
+      slug: "/entry",
+      mode: GameMode.CONSULTATION,
+      param: "entryId"
+    },
+    {
+      // Former index (spreads + targets): kept as a dev view, like /spreads
       page: Pages.INDEX,
       slug: "/index",
       mode: GameMode.CONSULTATION,
-      // Optional: open this entry in the list (found indicator). Phase 4: the /entry view.
       param: "entryId"
     },
     {

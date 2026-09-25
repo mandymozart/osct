@@ -419,7 +419,7 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
 ## Phase 3 – Scan mode  `[~]` (built 2026-09-25; open: reviews #15 loading overlay, #16 indicator in consultation; device checks)
 
 Top chrome per mode lives in `components/header/header.ts`: IDLE = name line (→ about), SCAN = Mark +
-counter, CONSULTATION = Mark (consultation state) + counter + "i" (→ about = Info). The navigation bar
+counter, CONSULTATION = Mark (same image as scan until the WebM states) + counter + "i" (→ about = Info). The navigation bar
 (index button) shows in CONSULTATION only (Phase 4: "Entries"). Design tokens in `main.css`
 (`--font-design`, `--tracking-design`, `--color-accent` gold, `--glass-*`).
 
@@ -483,10 +483,10 @@ counter, CONSULTATION = Mark (consultation state) + counter + "i" (→ about = I
 
 ---
 
-## Phase 4 – Consultation mode (formerly Index)  `[~]` (started 2026-09-25)
+## Phase 4 – Consultation mode (formerly Index)  `[~]` (built 2026-09-25; open: entries without target, list colours, final Info texts)
 
 Consultation chrome from the design (frames 15, 17, 21, 33 – checked 2026-09-25):
-- Mark (consultation strip) top center, **"i"** top right: gold "i" on a dark round glass button.
+- Mark top center (the **same Mark as in scan mode** – the thin strip in the frames is a PDF → PNG glitch), **"i"** top right: gold "i" on a dark round glass button.
 - **Counter** "12 / 150" + label "Entries consulted" **only on the entries list** (frame 17), not on the
   entry detail (15, 21) or Info (33).
 - **"Entries"** gold pill top left on entry detail and Info (back to the list with the last category).
@@ -494,29 +494,45 @@ Consultation chrome from the design (frames 15, 17, 21, 33 – checked 2026-09-2
 - Note: the dark parallelogram next to Mark in the rendered frames is a **PDF → PNG glitch** (Tilman),
   not UI and not the camera image. Only Mark is at the top.
 
-- From Phase 2: rename route `/index` → `/entries` (param `category`, mode CONSULTATION) and add `/entry`
-  (param `entryId`, mode CONSULTATION) together with their pages.
-
-- Entries list (p.17–29): category dropdown (Glossary / Videos / Texts / Links), count per
-  category "consulted / total", alphabetical headers for glossary.
-- Unconsulted entries: **hidden** eventually (more game-like). During dev: show them **locked**
-  like the current index, to check that everything is listed. → make it a flag (dev/config).
-- Entry detail (p.15, 20, 25, 30–31): meta table (name, access page, category, author for texts),
-  then per category:
+Built 2026-09-25 (pages extend `pages/consultation-page.ts`; pure logic in
+`components/consultation/entries-model.ts`, placeholder icons in `components/consultation/icons.ts`):
+- [x] Routes `/entries` (param `category`, default = last category) and `/entry` (param `entryId`), mode
+  CONSULTATION. `/index` (former index: spreads + targets) **kept as a dev view**, like `/spreads`; both
+  are linked from the dev-only bottom bar (`navigation-bar`: index + spreads buttons).
+  Mark (scan) → `/entries`; found indicator → `/entry`; "Entries" → `/entries`.
+- [x] Entries list (p.17–29, `pages/entries-page.ts`): category dropdown (Glossary / Videos / Texts /
+  Links + **Bookmarked**), count per category "consulted / total", glossary grouped by letter (entries
+  without a letter first, no header), texts labelled `'Title', Author`.
+- [x] Unconsulted entries: **hidden**; listed **locked** when `showLockedEntries()` – dev builds by
+  default, `VITE_SHOW_LOCKED_ENTRIES=true|false` overrides.
+- [x] Entry view (p.15, 20, 25, 30–31, `pages/entry-page.ts`): meta table (name, access page, category,
+  author for texts), then per category:
   - Glossary – text + image
   - Texts – long text
-  - Videos – preview player in consultation (to check rendering); later maybe just a note
-    "close consultation to view and find the video" + access page
-  - Links – embedded player (YouTube etc.). If a page blocks embedding → "open in new tab".
-    We have the rights to host linked pieces ourselves.
-- "Entries" button → back to list with latest category (p.21).
-- Info (p.32–34) = the existing **About page**, restyled: info text + colophon, opened via the
-  "i" button in consultation mode.
-- **Bookmark + note** (added 2026-09-25, Tilman – not in the design yet, design + UI to be worked out):
-  - Entry detail: action to **mark** (bookmark) an entry and to leave a short **note** (comment).
-  - Entries list: a **"bookmarked" filter**, and a tiny indicator per row for *bookmarked* and
-    *has a note*. **Icons come from Tilman.**
-  - Data is already stored by the Phase 2 progress record (per entry: marked, note).
+  - Videos – "Go to access page N in scan mode to see the video." + preview player (plain video, no
+    chroma key) to check rendering
+  - Links – YouTube / Vimeo as player (youtube-nocookie, Vimeo dnt), other URLs as embedded page
+    (sandboxed iframe) + always "Open in a new tab" (a page that refuses embedding can't be detected).
+  Opening the view marks the entry consulted.
+- [x] "Entries" button → back to list with latest category (p.21) – top chrome.
+- [x] Info (p.32–34) = the existing **About page**, restyled: "Info" + "Colophon" sections (placeholder
+  text, the existing about content in the colophon), opened via "i". Close button dropped ("Entries"
+  and Mark lead out). [ ] Final Info / colophon texts → content (`book.yaml`) when they arrive.
+- [x] **Bookmark + note** (Tilman, not in the design yet): bookmark toggle + note field on the entry view
+  (saved while typing, debounced); list: "Bookmarked" filter, per-row indicators for *bookmarked* and
+  *has a note*. **Icons: placeholders** in `icons.ts` until Tilman's arrive.
+- Removed with Tilman's okay (2026-09-25): the scan page's spread card (top left, spread info + link
+  to `/spreads`) and the header name line "Kevin Bray — Onion Skin and Crocodile Tears" (previous
+  design iteration). The tutorial's last step now goes to scan mode (`/spread`) instead of `/spreads`.
+
+Open:
+- [ ] Entries **without a target** (e.g. Metafiction, the placeholder text) can never be consulted by
+  scanning – with unconsulted entries hidden they would never appear. Decide: count them as consulted
+  from the start, unlock them with their access page's spread, or require a target for every entry.
+- [ ] List text colours: the frames mix white and gold within titles (frames 17, 19, 24) – intended
+  (e.g. gold = new / not yet consulted) or a rendering effect? Built: white titles.
+- [ ] Removal candidates (need okay): `/index` dev view with `index-page`, `spread-list`, `spread-item`,
+  `target-item`, `index-button`; `close-button` if unused after the tutorial restyle.
 
 ---
 ## Phase 5 – Onboarding = Tutorial  `[ ]`

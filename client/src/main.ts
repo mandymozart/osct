@@ -70,6 +70,8 @@ export class BookGame extends HTMLElement {
       <spreads-page></spreads-page>
       <home-page></home-page>
       <index-page></index-page>
+      <entries-page></entries-page>
+      <entry-page></entry-page>
       <tutorial-page></tutorial-page>
       <not-found-page></not-found-page>
       <error-page></error-page>

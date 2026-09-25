@@ -58,6 +58,8 @@ describe("RouterManager", () => {
     ["/spread", GameMode.SCAN],
     ["/spreads", GameMode.SCAN],
     ["/index", GameMode.CONSULTATION],
+    ["/entries", GameMode.CONSULTATION],
+    ["/entry", GameMode.CONSULTATION],
     ["/about", GameMode.CONSULTATION],
   ])("sets the mode of %s", (slug, mode) => {
     game.router.navigate(slug);

@@ -17,7 +17,7 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
 
 /**
  * Found-target indicator (design p.9–14, p.35): the entry's image with a drop shadow while its target
- * is found in scan mode. Tap → the entry opens in consultation mode; the first time (entry not
+ * is found in scan mode. Tap → the entry view (`/entry`) in consultation mode; the first time (entry not
  * consulted yet) "New entry unlocked" and a small rotation play first.
  * Lives in the scan page, so it is hidden in consultation (PLAN: review visibility there).
  */
@@ -160,10 +160,9 @@ export class FoundIndicator extends HTMLElement {
     }, UNLOCK_MS);
   }
 
-  /** Open the entry in consultation mode (the route sets the mode – RULES #2) */
+  /** Open the entry in consultation mode (the route sets the mode – RULES #2; the view consults it) */
   private open(entryId: string) {
-    this.game.history.consultEntry(entryId);
-    this.game.router.navigate("/index", { key: "entryId", value: entryId });
+    this.game.router.navigate("/entry", { key: "entryId", value: entryId });
   }
 }
 

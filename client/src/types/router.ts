@@ -54,6 +54,8 @@ export enum Pages {
   ERROR = "error",
   NOTIFICATION = "notification",
   INDEX = "index",
+  ENTRIES = "entries",
+  ENTRY = "entry",
   NOT_FOUND = "not-found",
 }
 

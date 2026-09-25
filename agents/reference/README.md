@@ -20,15 +20,16 @@ magenta annotations. Use them for side-by-side comparison with the draft.
 | 33–34 | Info / colophon |
 | 35–40 | Back to scan mode, AR video on painting (p.21) |
 
-**Rendering glitch:** the dark parallelogram next to Mark at the top of many frames comes from the
-PDF → PNG conversion – it is not part of the design (Tilman, 2026-09-25).
+**Rendering glitches** (PDF → PNG conversion, not part of the design – Tilman, 2026-09-25): the dark
+parallelogram next to Mark at the top of many frames, and the thin white strip at the top of the
+consultation frames, which is the regular Mark cut off. Mark looks the same in both modes.
 
 ## `images/mark/` – Mark the Page (placeholders until Kévin's WebM)
 | File | Size | Use |
 |---|---|---|
 | `mark-the-page-large.png` | 458×328, alpha | Best quality Mark (frame 38) |
 | `mark-the-page-scan.png` | 129×125, alpha | Header icon, scan mode |
-| `mark-the-page-consultation.png` | 129×20, alpha | Header icon, consultation mode (only the lower edge shows) |
+| `mark-the-page-consultation.png` | 129×20, alpha | **Glitch** – the same Mark, cut by the PDF → PNG conversion. Consultation uses the regular Mark (Tilman, 2026-09-25) |
 
 ## `images/book/` – book page images (placeholder target / entry images)
 Images from the printed spreads shown in the mockups (highest-resolution copy of each).

@@ -2,12 +2,14 @@ import { GameStoreService } from "@/services/GameStoreService";
 import { GameMode, IGame } from "@/types";
 
 /**
- * Placeholder images per mode (design frames 6 and 15) until Kévin's WebM animation (Phase 7).
- * Files live in `public/` so they can be swapped without code changes (RULES #5).
+ * Placeholder image per mode until Kévin's WebM animation (Phase 7), which has one state per mode.
+ * Until then both modes show the same Mark (the thin "consultation" strip in the rendered frames is a
+ * PDF → PNG glitch – Tilman, 2026-09-25). Files live in `public/` so they can be swapped without code
+ * changes (RULES #5).
  */
 const MARK_IMAGES: Partial<Record<GameMode, string>> = {
   [GameMode.SCAN]: "/assets/ui/mark-the-page/scan.png",
-  [GameMode.CONSULTATION]: "/assets/ui/mark-the-page/consultation.png",
+  [GameMode.CONSULTATION]: "/assets/ui/mark-the-page/scan.png",
 };
 
 /**
@@ -68,7 +70,6 @@ export class MarkThePage extends HTMLElement {
           width: auto;
           transition: transform .2s ease;
         }
-        :host([mode="consultation"]) img { height: .65rem; }
         button:active img { transform: scale(.94); }
       </style>
       <button type="button" aria-label="${mode === GameMode.SCAN ? "Open consultation mode" : "Back to scan mode"}">
@@ -79,8 +80,8 @@ export class MarkThePage extends HTMLElement {
 
   private handleClick() {
     const mode = this.game.state.mode;
-    // Phase 4: consultation opens /entries with the last category
-    if (mode === GameMode.SCAN) this.game.router.navigate("/index");
+    // Consultation opens the entries list with the last category (entries page default)
+    if (mode === GameMode.SCAN) this.game.router.navigate("/entries");
     else if (mode === GameMode.CONSULTATION) this.game.router.navigate("/spread");
   }
 }
