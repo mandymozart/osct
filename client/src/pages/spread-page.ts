@@ -2,6 +2,7 @@ import { Spread, GameState, LoadingState } from "../types";
 import { assert } from "../utils/assert";
 import { PageMinimal } from "./page-minimal";
 import { getInitialSpreadId, getSpread } from "@/utils/game-config";
+import "@/components/scan/spread-menu";
 
 export class SpreadPage extends PageMinimal {
   static get observedAttributes() {
@@ -18,7 +19,8 @@ export class SpreadPage extends PageMinimal {
       :host {
         background: none;
         border-radius: 0;
-        margin-top: var(--offset-top, 4rem);
+        /* below the scan chrome (Mark + counter) */
+        margin-top: calc(var(--offset-top, 4rem) + 3.5rem);
       }
       .content {
         overflow-y: auto;
@@ -75,14 +77,23 @@ export class SpreadPage extends PageMinimal {
         border-radius: 4px;
         transition: width 0.3s ease;
       }
+      spread-menu {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: max(1rem, env(safe-area-inset-bottom));
+      }
     `;
   }
 
    get template(): string {
+    // Scan mode (design p.6): spread menu at the bottom. The spread card links to the /spreads dev view
+    // and is shown in dev builds only.
     return /* html */ `
       <div class="content">
-        <div class="spread-card"></div>
+        ${import.meta.env.DEV ? '<div class="spread-card"></div>' : ""}
       </div>
+      <spread-menu></spread-menu>
     `;
   }
 
@@ -125,7 +136,7 @@ disconnectedCallback() {
     assert(this.shadowRoot, "ShadowRoot not available in updateView");
 
     const cardContainer = this.shadowRoot.querySelector(".spread-card");
-    assert(cardContainer, "Spread card element not found");
+    if (!cardContainer) return; // dev only
 
     console.log("[SpreadPage] spreadId:", this.spreadId)
     if (!this.spreadId) {

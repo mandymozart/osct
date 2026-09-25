@@ -120,6 +120,10 @@ export class HistoryManager implements IHistoryManager {
     return entryId in this.progress.consulted;
   }
 
+  public getConsultedCount(): number {
+    return Object.keys(this.progress.consulted).filter(id => getEntry(id)).length;
+  }
+
   public setMarked(entryId: string, marked: boolean): void {
     if (this.isMarked(entryId) === marked) return;
     this.change(draft => {

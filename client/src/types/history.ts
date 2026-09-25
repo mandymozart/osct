@@ -66,6 +66,8 @@ export interface IHistoryManager {
   /** Stage 2: an entry was opened */
   consultEntry(entryId: string): void;
   isConsulted(entryId: string): boolean;
+  /** Consulted entries that are in the content (header counter: consulted / total) */
+  getConsultedCount(): number;
 
   setMarked(entryId: string, marked: boolean): void;
   isMarked(entryId: string): boolean;

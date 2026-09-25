@@ -67,8 +67,10 @@ export class NavigationBar extends HTMLElement {
     `;
   }
 
+  // Consultation only: in scan mode the spread menu takes the bottom (design p.6), Mark opens the
+  // entries. Phase 4 turns the index button into "Entries" (back to the list, p.21).
   private updateVisibility(mode?: GameMode) {
-    this.style.display = mode === GameMode.IDLE ? 'none' : 'flex';
+    this.style.display = mode === GameMode.CONSULTATION ? 'flex' : 'none';
   }
 }
 

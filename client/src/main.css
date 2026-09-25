@@ -34,6 +34,17 @@
 
   --offset-top: 4rem;
 
+  /* Design 260804 tokens (PLAN "Design tokens"). Accent: gold placeholder, final color TBD */
+  --font-design: Arial, Helvetica, sans-serif;
+  --tracking-design: 0.02em;
+  --color-accent: #c9a24a;
+  --color-chrome-muted: rgba(120, 120, 120, 0.9);
+  /* Glass highlight (spread menu, pill buttons) */
+  --glass-background: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 0.1rem 0.6rem rgba(0, 0, 0, 0.25);
+  --glass-blur: blur(8px);
+
   color-scheme: light;
 
   font-synthesis: none;

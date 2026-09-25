@@ -86,6 +86,7 @@ describe("HistoryManager (progress)", () => {
     expect(game.state.progress.consulted).toEqual({ "removed-entry": 2 });
     expect(game.history.getUnlockedTargets(spreadId)).toEqual([]);
     expect(game.history.getMissingIds()).toEqual({ targets: ["removed-target"], entries: ["removed-entry"] });
+    expect(game.history.getConsultedCount()).toBe(0); // the counter only counts content entries
   });
 
   it("reports no missing ids for content ids (marked and notes count as entry ids)", () => {
