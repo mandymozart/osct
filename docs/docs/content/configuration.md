@@ -1,26 +1,42 @@
-# Configuration Generation
+# Content build
 
-Use the provided script to generate the game.config.json file:
+`scripts/` turns `content/` into what the app loads:
+
+- `client/src/game.config.json` – the game configuration (book, spreads, targets, entries, tutorial,
+  version)
+- `client/public/assets/content/` – a copy of the content media
+- `mind-ar/<spread>/` – target images in MindAR order, for [compiling `.mind` files](/docs/content/structure#compiling-mind-files)
 
 ```bash
-npm run build:config
+cd scripts
+npm install
+npm run build                 # type-check + bundle the build tool (after changing scripts/src)
+npm run build:content         # build the content
+npm run build:content:force   # rebuild even if nothing changed
 ```
 
-This will scan the chapters and targets directories and create a properly formatted game.config.json file for the application.
+(`cd client && npm run build:config` runs `build:content` as well.)
 
-## Tutorial Content
+## What the build checks
 
-The tutorial content is defined in the build script. If you need to modify the tutorial steps, edit the `buildConfig.js` file.
+The build stops without writing anything when a file is invalid:
 
-## Asset Guidelines
+- required fields, types and allowed values (`category`, entity `type`, step `action`)
+- spreads don't overlap, every entry page lies in a spread, max 5 targets per spread
+- referenced files and shared entities exist
+- the result matches the game configuration contract (`shared/`) – the app runs the same check on load
 
-- **3D Models**: Use glTF/GLB format with embedded textures. The first animation will be automatically played in a loop.
-- **Videos**: Use MP4 or WebM formats with appropriate compression.
-- **Images**: Use high-quality images for target recognition.
+## Version and hash
 
-## Development
+`version.version` is the app version (`client/package.json`, same as `scripts/package.json`).
+`version.hash` is a checksum of all inputs – `content/`, `shared/`, `scripts/src` and the version.
+When the hash is unchanged the build skips.
 
-1. Create your chapter folders and files in `content/chapters/`
-2. Create your target folders and files in `content/targets/`
-3. Run `npm run build:config` to generate the game.config.json file
-4. Test your application with the generated configuration
+Commit the regenerated `game.config.json` and `client/public/assets/content`: CI rebuilds the
+content and fails when the committed files differ.
+
+## Contract
+
+The shape of `game.config.json` is defined once in `shared/types/game-config.ts` (entry categories
+in `shared/types/entry.ts`), with runtime guards in `shared/guards/`. In the app only
+`client/src/utils/game-config.ts` reads the file.

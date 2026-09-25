@@ -24,6 +24,6 @@ Explore our documentation to learn about:
 - State management with the Immer-powered BaseStore
 - Working with our custom Web Components
 - Creating AR experiences without compromising privacy
-- QR code scanning capabilities
+- Authoring book content as YAML
 
 We'll be updating this blog with news, tips, and tutorials as the project evolves.
