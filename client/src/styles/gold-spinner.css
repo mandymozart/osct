@@ -1,0 +1,34 @@
+/*
+ * Gold loader (design system, agents/DESIGN.md): a ring in the gold gradient, turning.
+ * One source for the startup loader (index.html, via main.css) and the loading page (shadow DOM, via
+ * styles/design-styles.ts `?inline`). Tokens from main.css.
+ */
+.gold-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    var(--gold-1), var(--gold-2), var(--gold-3), var(--gold-4), rgba(243, 204, 148, 0) 85%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  animation: gold-spin 1.1s linear infinite;
+}
+
+@keyframes gold-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gold-spinner { animation: gold-pulse 2s ease-in-out infinite; }
+  @keyframes gold-pulse { 50% { opacity: .45; } }
+}
+
+/* Text for screen readers only (the spinner is decorative) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

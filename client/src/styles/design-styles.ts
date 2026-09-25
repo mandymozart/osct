@@ -14,8 +14,11 @@
  *   .icon-button round glass button ("i")
  *   .rule-table  consultation meta table (1 px rules, muted labels, white values, 24 px rows)
  *   .section-title  muted title between two rules ("Info", "Colophon")
+ *   .gold-spinner   gold loader ring (styles/gold-spinner.css – also used by the startup loader)
  */
-export const DESIGN_CSS = /* css */ `
+import goldSpinnerCss from "./gold-spinner.css?inline";
+
+export const DESIGN_CSS = goldSpinnerCss + /* css */ `
   .design {
     font-family: var(--font-design);
     letter-spacing: var(--tracking-design);
