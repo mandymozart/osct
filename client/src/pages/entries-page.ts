@@ -27,44 +27,55 @@ export class EntriesPage extends ConsultationPage {
 
   get styles(): string {
     return /* css */ `
+      /* Toolbar (frames 17, 18): category pill + count below it. "Bookmarked" is a 5th menu item for now
+         (not in the design – to be solved differently, Tilman) */
       .toolbar {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: .6rem;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        row-gap: .6rem;
         margin-bottom: 2.25rem;
       }
-      .category { position: relative; }
-      /* Dropdown (frame 18): the pill grows into a rounded glass panel with the four categories */
+      .category { grid-column: 1; position: relative; }
+      .count { grid-column: 1; width: var(--category-width); text-align: center; }
+      /* 52.5 pt ≈ 100 px: the label centred, and the open menu has the same width */
+      .category .pill { width: var(--category-width); box-shadow: var(--shadow-bronze); }
+      /* Open (frame 18): the pill grows downwards – same width and left edge, first item on the label */
       .menu {
         position: absolute;
         top: 0;
         left: 0;
         z-index: 1;
+        box-sizing: border-box;
+        width: 100%;
         margin: 0;
-        padding: .5rem 0;
+        padding: .3rem 0 .55rem;
         list-style: none;
-        border-radius: 1rem;
+        border-radius: 1.45rem;          /* 12 pt */
         background: var(--glass-background);
         -webkit-backdrop-filter: var(--glass-blur);
         backdrop-filter: var(--glass-blur);
-        box-shadow: var(--shadow-dark);
+        box-shadow: var(--shadow-grey);
+        animation: menu-open .18s ease-out;
       }
+      @keyframes menu-open {
+        from { clip-path: inset(0 0 calc(100% - 1.8rem) 0 round 1.45rem); }
+        to { clip-path: inset(0 0 0 0 round 1.45rem); }
+      }
+      @media (prefers-reduced-motion: reduce) { .menu { animation: none; } }
       .menu button {
         display: block;
         width: 100%;
-        padding: .1rem 1.1rem;
+        padding: 0;
         border: none;
         /* Only the color: background: none would also remove the .gold gradient (more specific) */
         background-color: transparent;
         font: inherit;
         letter-spacing: inherit;
+        line-height: 1.1875rem;          /* 10 pt between items */
         text-align: center;
         cursor: pointer;
       }
-      .menu button[aria-current="true"] { text-decoration: underline; text-underline-offset: .2em; }
-      .menu .divider { height: 1px; margin: .35rem .8rem; background: var(--color-muted); }
-      .count { min-width: 6rem; text-align: center; }
       ul.list { margin: 0; padding: 0; list-style: none; }
       .row {
         display: flex;
@@ -150,7 +161,6 @@ export class EntriesPage extends ConsultationPage {
     return /* html */ `
       <ul class="menu" role="menu">
         ${ENTRY_CATEGORIES.map(c => item(c, CATEGORY_LABELS[c])).join("")}
-        <li class="divider" role="separator"></li>
         ${item(BOOKMARKED, "Bookmarked")}
       </ul>
     `;
