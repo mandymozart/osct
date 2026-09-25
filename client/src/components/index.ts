@@ -1,6 +1,5 @@
 export * from "./aframe-bridges";
 export * from "./buttons";
-export * from "./camera-permission";
 export * from "./common";
 export * from "./consultation";
 export * from "./dev-tools";

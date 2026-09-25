@@ -70,7 +70,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
     if (action === "camera") {
       this.busy = true;
       button.disabled = true;
-      // Denied: the camera-permission overlay explains how to allow it; the step stays
+      // Denied: the camera-permission-page overlay explains how to allow it; the step stays
       const granted = await this.game.camera.requestAccess();
       this.busy = false;
       button.disabled = false;

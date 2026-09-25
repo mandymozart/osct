@@ -59,7 +59,7 @@ export class BookGame extends HTMLElement {
   `;
 
   template = /* html */ `
-    <camera-permission></camera-permission>
+    <camera-permission-page></camera-permission-page>
     <game-header></game-header>
 
     <pages-router>

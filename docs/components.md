@@ -11,7 +11,6 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 | `aframe-bridges/` | `<ar-bridge>` – the A-Frame / MindAR scene; entities, chroma key, AR scene strategies |
 | `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category), `<entry-actions>` (bookmark, note); helpers in `entries-model.ts` |
 | `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` |
-| `camera-permission/` | `<camera-permission>` – shown when the camera is denied |
 | `common/` | `<gold-illustration>` (SVG in the gold gradient) |
 | `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary) |
 | `pages-router/` | `<pages-router>` – shows the page of the current route |
