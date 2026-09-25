@@ -4,6 +4,13 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Session paused before Phase 7
+
+- [x] (user) Phase 7 (Mark WebM, device tests, haptics) is on hold until Tilman's extensive device testing.
+      Phases 2–6 built on `design`. Open for the next session: designer answers (DESIGN.md §8), review #15
+      (loading concept), entries without a target (PLAN Phase 4), default AR strategy (after device tests),
+      deep links (Tilman), removal candidates (dev views, old tokens, unused illustrations, text-button).
+
 ## 2026-09-25 – Phase 6 strategy B: PersistentArScene (Tilman)
 
 - [x] (user) Second, swappable strategy that keeps one scene and swaps targets / content / entities.
