@@ -129,7 +129,7 @@ export const createTemplateFromConfig = (spreadId: string): string => {
   return /* html */`
 <a-scene 
     id="scene" 
-    mindar-image="imageTargetSrc: ${spread.mindSrc}; maxTrack: ${getMaxTargetsPerSpread()}; uiLoading: no;" 
+    mindar-image="imageTargetSrc: ${spread.mindSrc}; maxTrack: ${getMaxTargetsPerSpread()}; uiLoading: no; uiScanning: #osct-scanning;" 
     color-space="sRGB" 
     renderer="colorManagement: true, physicallyCorrectLights" 
     vr-mode-ui="enabled: false" 
