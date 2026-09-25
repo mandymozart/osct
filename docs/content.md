@@ -1,7 +1,7 @@
 # Content structure
 
 All book content lives in `content/` as YAML files plus media. **The folder name is the id.** The
-[content build](/docs/content/configuration) validates everything and writes the app's
+[content build](content-build.md) validates everything and writes the app's
 `game.config.json`.
 
 ```

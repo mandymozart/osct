@@ -1,6 +1,6 @@
 # Game Store
 
-The game store (`client/src/store/GameStore.ts`) extends the [BaseStore](/docs/store/base-store)
+The game store (`client/src/store/GameStore.ts`) extends the [BaseStore](base-store.md)
 with the app state and one manager per concern. Components get the single instance from
 `GameStoreService`.
 
@@ -30,14 +30,14 @@ GameStore (extends BaseStore<GameState>)
 └── notifyError() / onError()   error and notice overlay
 ```
 
-See [Managers](/docs/store/managers/).
+See [Managers](managers.md).
 
 ## Game configuration
 
 The store does not load `game.config.json` itself: content (book, spreads, targets, entries,
 tutorial) is read through `client/src/utils/game-config.ts` (`getBook()`, `getSpreads()`,
 `getTargets(spreadId)`, `getEntries()`, `getEntry(id)`, …), the only module that imports the file.
-Its shape is defined in `shared/types/game-config.ts` – see [Content build](/docs/content/configuration).
+Its shape is defined in `shared/types/game-config.ts` – see [Content build](content-build.md).
 
 ## Component Integration
 

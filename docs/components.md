@@ -2,7 +2,7 @@
 
 Vanilla custom elements with shadow DOM in `client/src/components/`. They get the store from
 `GameStoreService.getInstance()`, subscribe in `connectedCallback` and unsubscribe in
-`disconnectedCallback` (see [Game store](/docs/store/game-store)).
+`disconnectedCallback` (see [Game store](game-store.md)).
 
 | Folder | Elements |
 |---|---|
