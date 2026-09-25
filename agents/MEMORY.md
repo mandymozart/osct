@@ -14,7 +14,9 @@ outcome in the line (or move it into a dated decision block).
   the glossary has no plural. Content YAML and tests switched; stored `lastCategory` values from before are dropped.
 - `EntriesFilter` (category | "bookmarked") stays local to the entries list (`pages/entries-page.ts`).
 - Consultation: category menu matched to the design, Bookmarked as 5th menu item, note field behind "Add note".
-- [ ] (user) Does "Glossary" mean all entries? Currently it lists glossary entries only.
+- [x] (user) Does "Glossary" mean all entries? No – the design has no unfiltered view: the dropdown "shows all
+      consulted entries, per category" (frame 17), "the four different types of entries" (frame 18); the count
+      is glossary entries / total glossary entries. Glossary = glossary entries only (as built).
 
 ## 2026-09-25 – Session paused before Phase 7
 
