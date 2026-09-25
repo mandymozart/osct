@@ -1,8 +1,8 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2026-09-25T08:41:58.800Z",
-    "hash": "701f3d3e277b7a0429dc795bc7e9fe22a6bd96240b3eeebb3fa1ac62c40e119b"
+    "timestamp": "2026-09-25T10:44:42.151Z",
+    "hash": "b942873e666e0aafb469992d3b4b51874bc72b3c51b43862507391bb154762d2"
   },
   "book": {
     "id": "osct",
@@ -46,11 +46,7 @@
       "target": {
         "id": "shadows",
         "index": 0,
-        "imageSrc": "/assets/content/entries/shadows/images-000.jpg",
-        "entity": {
-          "type": "link",
-          "assets": []
-        }
+        "imageSrc": "/assets/content/entries/shadows/images-000.jpg"
       }
     },
     {

@@ -6,5 +6,3 @@ media: https://experiment-woodkid-volcano-robot.vercel.app/
 target:
   image: images-000.jpg
   order: 0
-  entity:
-    type: link
