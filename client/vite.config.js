@@ -1,7 +1,12 @@
+import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { networkInterfaces } from 'os';
+
+// One version for app and content build (agents/RULES.md #10). Read directly:
+// npm_package_version is missing outside `npm run` (e.g. `npx vite`).
+const APP_VERSION = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')).version;
 
 // Get local IP address
 function getLocalIP() {
@@ -25,9 +30,7 @@ export default defineConfig(({command,mode})=>{
   plugins: [tsconfigPaths()],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
-    __VITE_APP_VERSION__: process.env.NODE_ENV === 'production' ? 
-    JSON.stringify(process.env.npm_package_version) : 
-    JSON.stringify(process.env.npm_package_version),
+    __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
     __VITE_SERVER_URL__: JSON.stringify(`http://${localIP}:${port}`),
   },
   resolve: {

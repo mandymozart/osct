@@ -2,6 +2,10 @@ import { environments } from "@/environments";
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
 import { IQRCode } from "@/types/qr/qrcode";
+import { getConfigVersion } from "@/utils/game-config";
+
+/** Short content hash in links (same length as the content build log) */
+const CONTENT_HASH_LENGTH = 12;
 
 export class QRGenerator extends HTMLElement {
   private shadow: ShadowRoot;
@@ -72,6 +76,13 @@ export class QRGenerator extends HTMLElement {
           margin: 1rem 0;
         }
         
+        #qr-url {
+          font-family: monospace;
+          font-size: .65rem;
+          word-break: break-all;
+          opacity: .7;
+        }
+
         .button-row {
           display: flex;
           justify-content: space-between;
@@ -94,9 +105,11 @@ export class QRGenerator extends HTMLElement {
       <select id="qr-type-selector">
         <option value="valid">Valid Spread QR</option>
         <option value="wrong-version">Wrong App Version</option>
+        <option value="other-content">Other Content Build</option>
       </select>
-      
+
       <div id="qr-output"></div>
+      <div id="qr-url"></div>
       
       <div class="button-row">
         <button is="text-button" id="download" class="button" variant="inverted" size="xs">Download SVG</button>
@@ -146,12 +159,18 @@ export class QRGenerator extends HTMLElement {
     if (!this.qrInstance) return;
 
     const baseUrl = __VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl;
-    // osct = app version (client package.json), see GameStore.version
+    // Version ingredients (RULES #10), handling of conflicts on incoming links: PLAN Phase 2 deep links
+    // osct = the one version of app + content build (client/package.json), see GameStore.version
+    // h    = content build checksum (game.config.json version.hash), short form as in the build log
     const appVersion = testType === "wrong-version" ? "999.0.0" : this.game.version.version;
-    const url = `${baseUrl}/?code=c-${spreadId}&osct=${appVersion}`;
+    const contentHash =
+      testType === "other-content" ? "000000000000" : (getConfigVersion().hash ?? "").slice(0, CONTENT_HASH_LENGTH);
+    const url = `${baseUrl}/?code=c-${spreadId}&osct=${appVersion}&h=${contentHash}`;
 
     this.qrInstance.clear();
     this.qrInstance.makeCode(url);
+    const urlOutput = this.shadow.getElementById("qr-url");
+    if (urlOutput) urlOutput.textContent = url;
   }
 
   private downloadSVG() {

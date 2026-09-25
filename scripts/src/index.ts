@@ -9,7 +9,8 @@ import {
   MINDAR_DIR,
   CLIENT_PUBLIC_ASSETS_DIR,
   SCRIPTS_SRC_DIR,
-  MAX_TARGETS_PER_SPREAD
+  MAX_TARGETS_PER_SPREAD,
+  APP_VERSION
 } from './config';
 import { validateContent } from './utils/validation';
 import { assertGameConfiguration, GameConfigurationError } from '../../shared/guards/game-config';
@@ -495,7 +496,7 @@ function readPreviousHash(): string | null {
 function generateConfigFile(): void {
   try {
     // Skip the build (and keep the timestamp) when nothing that affects the output changed
-    const versionStr = process.env.npm_package_version || "1.0.0";
+    const versionStr = APP_VERSION;
     const inputHash = hashBuildInputs(versionStr);
     const force = process.argv.includes('--force');
     if (!force && inputHash === readPreviousHash() && fs.existsSync(CLIENT_PUBLIC_ASSETS_DIR)) {
