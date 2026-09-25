@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createGameStore } from "@/store/GameStore";
 import { PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "@/store/managers/progress-readers";
 import { LocalProgressStorage } from "@/services/ProgressStorage";
-import { IGame, Pages, ProgressRecord } from "@/types";
+import { EntryCategory, IGame, Pages, ProgressRecord } from "@/types";
 import { getBook, getEntries, getSpreads, getTargets } from "@/utils/game-config";
 
 const bookId = getBook().id;
@@ -65,7 +65,7 @@ describe("HistoryManager (progress)", () => {
   it("records the last spread and category", () => {
     const other = getSpreads()[1].id;
     game.spreads.switchSpread(other);
-    game.history.setLastCategory("texts");
+    game.history.setLastCategory(EntryCategory.Texts);
     expect(stored()).toMatchObject({ lastSpreadId: other, lastCategory: "texts" });
   });
 

@@ -24,4 +24,3 @@ export const APP_VERSION: string = JSON.parse(
 
 // Content rules (RULES.md #3). Written into game.config.json so the client uses the same values.
 export const MAX_TARGETS_PER_SPREAD = 5;
-export const ENTRY_CATEGORIES = ['glossary', 'videos', 'texts', 'links'] as const;

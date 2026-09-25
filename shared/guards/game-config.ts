@@ -8,14 +8,13 @@ import {
   ASSET_TYPES,
   AssetType,
   ENTITY_TYPES,
-  ENTRY_CATEGORIES,
   EntityRefData,
   EntityType,
-  EntryCategory,
   GameConfiguration,
   STEP_ACTIONS,
   StepAction,
 } from "../types/game-config";
+import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
 
 const oneOf = <T extends string>(values: readonly T[]) =>
   (value: unknown): value is T => typeof value === "string" && (values as readonly string[]).includes(value);

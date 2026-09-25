@@ -14,8 +14,8 @@ import { ICONS } from "@/components/consultation/icons";
 import { ConsultationPage } from "./consultation-page";
 
 /** Filter of the list: a category, or all bookmarked entries (PLAN Phase 4, not in the design yet) */
-type EntriesFilter = EntryCategory | "bookmarked";
 const BOOKMARKED = "bookmarked";
+type EntriesFilter = EntryCategory | typeof BOOKMARKED;
 
 /**
  * Entries list (design p.17–19, 24, 29): category dropdown ("burger menu"), consulted / total of the
