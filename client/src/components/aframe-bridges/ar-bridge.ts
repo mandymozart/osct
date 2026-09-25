@@ -1,9 +1,7 @@
-import { GameStoreService } from "@/services/GameStoreService";
-import { PreloaderService } from "@/services/PreloaderService";
+import { GameStoreService, PreloaderService } from "@/services";
 import { ArStatus, IArScene, IGame } from "@/types";
 import { createArScene } from "./ar";
-import { registerChromaKeyShader } from "./utils/chroma-key";
-import { getSceneState } from "./utils/scene-state";
+import { getSceneState, registerChromaKeyShader } from "./utils";
 
 // A-Frame (index.html) is loaded before the app modules; scenes may use the shader from the first load
 registerChromaKeyShader();

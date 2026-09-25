@@ -1,6 +1,6 @@
-import { GameStoreService } from "@/services/GameStoreService";
+import { GameStoreService } from "@/services";
 import { IGame } from "@/types";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 import { goldButton, goldButtonContent } from "@/components/buttons";
 import { escapeHtml } from "@/utils";
 import { ICONS } from "./icons";

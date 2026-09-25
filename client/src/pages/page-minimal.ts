@@ -1,5 +1,5 @@
-import { GameStoreService } from "../services/GameStoreService";
-import { IGame } from "../types";
+import { GameStoreService } from "@/services";
+import { IGame } from "@/types";
 
 export interface IPageMinimal extends HTMLElement {
     active: boolean;

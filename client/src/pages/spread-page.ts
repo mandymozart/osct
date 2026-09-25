@@ -1,6 +1,5 @@
 import { PageMinimal } from "./page-minimal";
-import "@/components/scan/found-indicator";
-import "@/components/scan/spread-menu";
+import "@/components/scan";
 
 /**
  * Scan mode page (design p.6–14): transparent over the camera; found-target indicator in the center,

@@ -1,8 +1,7 @@
-import { GameStoreService } from "../../services/GameStoreService";
+import { GameStoreService } from "@/services";
 import { getTutorial } from "@/utils/game-config";
-import { IGame } from "@/types/game";
-import { ITutorialNavigation, Step } from "@/types/tutorial";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { IGame, ITutorialNavigation, Step } from "@/types";
+import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 
 const tutorial = getTutorial();

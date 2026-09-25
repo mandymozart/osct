@@ -1,9 +1,9 @@
 import { getTutorial } from "@/utils/game-config";
-import { ITutorialContent } from "@/types/tutorial";
+import { ITutorialContent } from "@/types";
 import { escapeHtml, paragraphs } from "@/utils";
-import { MARK_IMAGE_SRC } from "@/components/header/mark-the-page";
-import "@/components/common/gold-illustration";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { MARK_IMAGE_SRC } from "@/components/header";
+import "@/components/common";
+import { adoptDesignStyles } from "@/styles";
 
 const tutorial = getTutorial();
 

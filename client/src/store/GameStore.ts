@@ -13,9 +13,8 @@ import {
   ITargetManager,
   LoadingState
 } from "@/types";
-import { uniqueId } from "@/utils";
+import { uniqueId, createProgressRecord } from "@/utils";
 import { getBook } from "@/utils/game-config";
-import { createProgressRecord } from "@/utils/progress-record";
 import { BaseStore } from "./BaseStore";
 import { CameraManager } from "./managers/CameraManager";
 import { SpreadManager } from "./managers/SpreadManager";

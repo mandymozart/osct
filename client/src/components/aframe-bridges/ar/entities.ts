@@ -1,5 +1,5 @@
 import { AssetData, EntityData, EntityType, Target } from "@/types";
-import { chromaKeyMaterial, parseChromaKey } from "../utils/chroma-key";
+import { chromaKeyMaterial, parseChromaKey } from "../utils";
 
 /**
  * Entity registry (Phase 6, PLAN item 3): one builder per entity type creates the A-Frame element

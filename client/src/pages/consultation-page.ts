@@ -1,5 +1,5 @@
 import { PageMinimal } from "./page-minimal";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 
 /**
  * Base of the consultation mode pages (entries list, entry, info – design p.15–34): dark, slightly

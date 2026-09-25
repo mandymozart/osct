@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { GameStoreService } from "@/services/GameStoreService";
+import { GameStoreService } from "@/services";
 import { EntryCategory, Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
 import { BOOKMARKED, EntriesFilterElement, EntriesList, EntryActions, isEntriesFilter } from "..";

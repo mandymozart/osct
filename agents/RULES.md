@@ -98,6 +98,18 @@ Extend as we go: add a rule when a decision should hold for all future work.
       `<button>` + shape class + gold label, never hand-written markup. Component styles that must beat
       the adopted design sheet need more specificity (`:host .pill`) – the sheet comes after `<style>`.
 
+19. **Imports** (2026-09-25, Tilman): every folder has an `index.ts` barrel.
+    - Across folders import the barrel: `@/types`, `@/utils`, `@/services`, `@/styles`, `@/pages`,
+      `@/components/<group>` – never a file inside another folder, never `@/types/<file>`.
+    - Inside a folder (or a component group, e.g. `aframe-bridges/ar` → `../utils`) import relative files;
+      never the own barrel (`types/*.ts` import their siblings, not `@/types`).
+    - A component group's barrel registers its elements – pages import the group, not single files.
+    - Exceptions: `@/utils/game-config` (not in the `@/utils` barrel – it loads and checks the config on
+      import, RULES #14); `store/` imports `@/services/ProgressStorage` by file (the barrel would cycle
+      GameStoreService → GameStore → managers). Tests may import their subject as `../file`.
+    - An import used only for types is dropped when compiled: keep a separate side-effect import
+      (`import "@/pages"`) where registration matters.
+
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions
   (Tilman, 2026-09-25). This overrides any tool default.

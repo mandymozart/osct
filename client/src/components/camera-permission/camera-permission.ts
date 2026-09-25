@@ -1,9 +1,9 @@
 import { Page } from "@/pages/page";
-import { GameStoreService } from "@/services/GameStoreService";
+import { GameStoreService } from "@/services";
 import { CameraPermissionStatus, IGame } from "@/types";
-import { detectBrowser } from "@/utils/browser";
-import "@/components/common/gold-illustration";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { detectBrowser } from "@/utils";
+import "@/components/common";
+import { adoptDesignStyles } from "@/styles";
 
 /**
  * Camera Permission component displays an overlay when camera access is required

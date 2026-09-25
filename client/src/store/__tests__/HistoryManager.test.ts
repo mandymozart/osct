@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createGameStore } from "@/store/GameStore";
-import { PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "@/utils/progress-record";
+import { PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "@/utils";
 import { LocalProgressStorage } from "@/services/ProgressStorage";
 import { EntryCategory, IGame, Pages, ProgressRecord } from "@/types";
 import { getBook, getEntries, getSpreads, getTargets } from "@/utils/game-config";

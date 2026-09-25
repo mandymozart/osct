@@ -2,7 +2,7 @@ import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { resolveArSceneStrategy } from "@/components/aframe-bridges/ar";
 import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
-import { GameStoreService } from "../../services/GameStoreService";
+import { GameStoreService } from "@/services";
 
 type DebugTab = "spread" | "progress";
 

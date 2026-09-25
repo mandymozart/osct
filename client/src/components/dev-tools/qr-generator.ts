@@ -1,9 +1,8 @@
 import { environments } from "@/environments";
-import { GameStoreService } from "@/services/GameStoreService";
-import { IGame } from "@/types";
-import { IQRCode } from "@/types/qr/qrcode";
+import { GameStoreService } from "@/services";
+import { IGame, IQRCode } from "@/types";
 import { getConfigVersion } from "@/utils/game-config";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 
 /** Short content hash in links (same length as the content build log) */

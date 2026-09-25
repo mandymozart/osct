@@ -1,8 +1,8 @@
-import { GameStoreService } from "@/services/GameStoreService";
-import { IGame } from "@/types/game";
+import { GameStoreService } from "@/services";
+import { IGame } from "@/types";
 import "./entries-counter";
 import "./mark-the-page";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 
 /**
