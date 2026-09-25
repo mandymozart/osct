@@ -48,7 +48,7 @@ itself is `#000000`). One linear gradient is used on all 40 pages:
 - **Consultation** (entries, entry, Info): black `#000` at **82 % opacity** over the camera image.
 - **Onboarding**: black, faded by a **radial luminosity mask**: ellipse ≈ 222 × 404 pt (≈ 425 × 773 px,
   i.e. the whole screen), centre opaque → edge transparent, falloff exponent 2.14. What shows at the edges
-  is the layer underneath → **Q4**. CSS approximation:
+  is the layer underneath → **Q3**. CSS approximation:
   `radial-gradient(ellipse 50% 50% at 50% 50%, #000 0%, rgba(0,0,0,.93) 40%, rgba(0,0,0,.65) 70%, rgba(0,0,0,0) 100%)` over the base color.
 
 ### Buttons, pills, glass
@@ -71,13 +71,13 @@ The PDF cannot express a backdrop blur; the **glass** look is Tilman's rule (bel
 ## 3. Sizes and placement
 | Element | Measured |
 |---|---|
-| Mark | **99 × 96 px** on every screen. Onboarding: 88 px from the screen top. Scan: top at −11 px (partly above the edge). Consultation: a **separate, cropped 129 × 20 px image**, 99 × 15 px at the top edge → **Q2** |
+| Mark | **99 × 96 px** on every screen, the **same Mark** in scan and consultation (the cropped 129 × 20 px image in the consultation frames is a PDF export error – Tilman). Onboarding: 88 px from the screen top. Scan: top at −11 px (partly above the edge) → **Q2** |
 | Found indicator image | 171 × 212 px, ~234 px from the top |
 | Onboarding text block | gradient box 247 px, centred |
 
 ## 4. Differences to the current build (to fix once decided)
 - Gold is a flat `--color-accent` today → gradient text (§5).
-- Mark 64 px → 99 px; scan position; consultation variant → after Q2.
+- Mark 64 px → 99 px (same Mark in all modes); scan position → after Q2.
 - Consultation background `rgba(38,38,38,.94)` → `rgba(0,0,0,.82)`.
 - Pills/"i" have a dark fill today → transparent body + blurred black shadow (+ glass, §5).
 - Onboarding button: body black ✓, glow approximated with `box-shadow` → keep, tune to ~15 px spread.
@@ -130,16 +130,14 @@ page-wide sweep later; B only for desktop.
 1. **Gold:** the PDF uses a gold gradient (`#f5e7c8 → #7f6032 → #d2ae5a → #f3cc94`, left → right per
    element), p.1 asks for a flashy placeholder instead. Is this gradient the intended final look? Per
    element (as in the PDF) or one gradient across the whole screen?
-2. **Mark in consultation:** the frames embed a separate, cropped Mark image (only its lower 20 px) at the
-   top edge. Intended (Mark "hides" when consulting) or should Mark look the same in both modes?
-3. **Mark in scan mode** sits partly above the top edge (−11 px). Intended?
-4. **Onboarding background:** black with a radial fade – what color is behind it at the edges?
-5. **Glass:** should pills / "i" / the spread-menu highlight blur what is behind them (backdrop blur)? The
+2. **Mark in scan mode** sits partly above the top edge (−11 px). Intended?
+3. **Onboarding background:** black with a radial fade – what color is behind it at the edges?
+4. **Glass:** should pills / "i" / the spread-menu highlight blur what is behind them (backdrop blur)? The
    PDF shows transparent bodies with a soft black shadow only.
-6. **Spread menu:** inactive items are light grey `#d6d8d8` on the camera image – enough contrast on
+5. **Spread menu:** inactive items are light grey `#d6d8d8` on the camera image – enough contrast on
    white book pages? Active item: gold gradient text?
-7. **Found indicator:** exact shadow (the ellipse below the image) and the "New entry unlocked"
+6. **Found indicator:** exact shadow (the ellipse below the image) and the "New entry unlocked"
    animation (duration, scale, rotation)?
-8. **Type:** Arial 15 px / 0.02 em on all phones, or a smaller size for small screens?
-9. **Counter:** grey in scan mode, and in consultation "12 / 150 Entries consulted" – gold or grey?
-10. **Final accent color** for the flat uses (focus rings, selection) if any.
+7. **Type:** Arial 15 px / 0.02 em on all phones, or a smaller size for small screens?
+8. **Counter:** grey in scan mode, and in consultation "12 / 150 Entries consulted" – gold or grey?
+9. **Final accent color** for the flat uses (focus rings, selection) if any.

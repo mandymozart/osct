@@ -13,8 +13,8 @@ outcome in the line (or move it into a dated decision block).
       Mark 99 × 96 px. The white/gold mix in list titles is the list-wide gradient.
 - [x] (user) Glass rule: body `rgba(255,255,255,0.001)` (non-zero alpha, else no backdrop blur) +
       `backdrop-filter: blur`, depth only by a white or black drop shadow.
-- [ ] Consultation Mark: the PDF embeds a separate **cropped** 129 × 20 px Mark image – contradicts the
-      "glitch" reading (Tilman) → question Q2 for the designers.
+- [x] (user) The cropped 129 × 20 px Mark image in the consultation frames is a **PDF export error** – Mark is
+      exactly the same in the game-header in all modes. Not a question for the designers.
 - [ ] Next (after Tilman's go): shared design stylesheet + `.gold` + glass buttons + `<gold-illustration>`
       (reinstate the old tutorial illustrations, animated like the camera), then apply the spec.
 
