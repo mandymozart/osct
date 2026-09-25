@@ -6,4 +6,6 @@ description: |-
   Please, grant access to proceed.
 button: Grant access
 action: camera
+# Illustration as on main (tutorial-step-1 = get started, -2 = camera), gold via <gold-illustration>
+illustration: /assets/illustrations/tutorial-step-2.svg
 index: 3

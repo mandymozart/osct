@@ -35,6 +35,7 @@ export class EntriesPage extends ConsultationPage {
         margin-bottom: 2.25rem;
       }
       .category { position: relative; }
+      /* Dropdown (frame 18): the pill grows into a rounded glass panel with the four categories */
       .menu {
         position: absolute;
         top: 0;
@@ -44,55 +45,56 @@ export class EntriesPage extends ConsultationPage {
         padding: .5rem 0;
         list-style: none;
         border-radius: 1rem;
-        background: var(--consultation-pill);
-        box-shadow: var(--glass-shadow);
+        background: var(--glass-background);
+        -webkit-backdrop-filter: var(--glass-blur);
+        backdrop-filter: var(--glass-blur);
+        box-shadow: var(--shadow-dark);
       }
       .menu button {
         display: block;
         width: 100%;
-        padding: .15rem 1.1rem;
+        padding: .1rem 1.1rem;
         border: none;
         background: none;
-        color: var(--color-accent);
+        font: inherit;
+        letter-spacing: inherit;
         text-align: center;
         cursor: pointer;
       }
       .menu button[aria-current="true"] { text-decoration: underline; text-underline-offset: .2em; }
-      .menu .divider { height: 1px; margin: .35rem .8rem; background: var(--consultation-rule); }
-      .count {
-        min-width: 6rem;
-        text-align: center;
-        font-size: .8rem;
-        color: var(--consultation-text);
-      }
-      .count .consulted { color: var(--color-accent); }
+      .menu .divider { height: 1px; margin: .35rem .8rem; background: var(--color-muted); }
+      .count { min-width: 6rem; text-align: center; }
       ul.list { margin: 0; padding: 0; list-style: none; }
       .row {
         display: flex;
         align-items: center;
         gap: .5rem;
         width: 100%;
-        padding: .2rem 0;
+        min-height: var(--row-height);
+        padding: 0;
         border: none;
-        border-top: 1px solid var(--consultation-rule);
-        border-bottom: 1px solid var(--consultation-rule);
+        border-top: var(--rule);
+        border-bottom: var(--rule);
         margin-top: -1px;
         background: none;
-        color: var(--consultation-text);
+        font: inherit;
+        letter-spacing: inherit;
         text-align: left;
-        font-size: .85rem;
         cursor: pointer;
       }
       .row .label { flex: 1; }
-      .row .marks { display: flex; gap: .3rem; color: var(--color-accent); font-size: .8rem; }
-      .row.locked { color: var(--consultation-muted); }
-      .row.locked .label::after { content: " – locked"; font-size: .7rem; }
+      /* Icons use currentColor – flat gold, the list's gradient can't reach SVG strokes */
+      .row .marks { display: flex; gap: .3rem; color: var(--color-accent); -webkit-text-fill-color: var(--color-accent); }
+      /* Locked (dev only): grey instead of the list's gold */
+      .row.locked { color: var(--color-muted); -webkit-text-fill-color: var(--color-muted); }
+      .row.locked .label::after { content: " – locked"; font-size: var(--text-size-small); }
       .letter {
-        padding: 1.05rem 0 .2rem;
-        border-bottom: 1px solid var(--consultation-rule);
-        font-size: .85rem;
+        display: flex;
+        align-items: flex-end;
+        min-height: calc(var(--row-height) * 2);
+        border-bottom: var(--rule);
       }
-      .empty { color: var(--consultation-muted); font-size: .85rem; }
+      .empty { color: var(--color-muted); }
     `;
   }
 
@@ -132,10 +134,10 @@ export class EntriesPage extends ConsultationPage {
     content.innerHTML = /* html */ `
       <div class="toolbar">
         <div class="category">
-          <button type="button" class="pill" data-action="toggle-menu" aria-haspopup="true" aria-expanded="${this.menuOpen}">${label}</button>
+          <button type="button" class="pill design" data-action="toggle-menu" aria-haspopup="true" aria-expanded="${this.menuOpen}"><span class="gold">${label}</span></button>
           ${this.menuOpen ? this.menuHtml(filter) : ""}
         </div>
-        <div class="count" aria-label="${consulted} of ${inFilter.length} consulted"><span class="consulted">${consulted}</span> / ${inFilter.length}</div>
+        <div class="count gold" aria-label="${consulted} of ${inFilter.length} consulted">${consulted} / ${inFilter.length}</div>
       </div>
       ${this.listHtml(filter, inFilter.filter(visible))}
     `;
@@ -143,7 +145,7 @@ export class EntriesPage extends ConsultationPage {
 
   private menuHtml(current: EntriesFilter): string {
     const item = (value: EntriesFilter, text: string) =>
-      `<li><button type="button" data-filter="${value}" aria-current="${value === current}">${text}</button></li>`;
+      `<li><button type="button" class="gold" data-filter="${value}" aria-current="${value === current}">${text}</button></li>`;
     return /* html */ `
       <ul class="menu" role="menu">
         ${ENTRY_CATEGORIES.map(c => item(c, CATEGORY_LABELS[c])).join("")}
@@ -158,7 +160,8 @@ export class EntriesPage extends ConsultationPage {
       return `<p class="empty">${filter === BOOKMARKED ? "No bookmarked entries yet." : "No entries consulted yet."}</p>`;
     }
     const groups = filter === BOOKMARKED ? [{ letter: null, entries: sortEntries(entries) }] : groupEntries(entries, filter);
-    return `<ul class="list">${groups
+    // One gold gradient across the whole list (frames 17/19/24: titles run from pale to gold)
+    return `<ul class="list gold">${groups
       .map(g => `${g.letter ? `<li class="letter" aria-hidden="true">${g.letter}</li>` : ""}${g.entries.map(e => this.rowHtml(e)).join("")}`)
       .join("")}</ul>`;
   }

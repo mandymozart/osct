@@ -2,6 +2,7 @@ import { getBook } from "@/utils/game-config";
 import { escapeHtml } from "@/components/consultation/entries-model";
 import { MARK_IMAGE_SRC } from "@/components/header/mark-the-page";
 import { PageMinimal } from "./page-minimal";
+import { adoptDesignStyles } from "@/styles/design-styles";
 
 /**
  * Home (IDLE): styled like the onboarding splash (design p.1) – Mark, title, author, and two buttons
@@ -15,7 +16,7 @@ export class HomePage extends PageMinimal {
       position: fixed;
       inset: 0;
       transform: none;
-      background: radial-gradient(ellipse at 50% 45%, #000 45%, #151515 100%);
+      background: var(--onboarding-background);
       pointer-events: all;
     }
     .content {
@@ -23,16 +24,13 @@ export class HomePage extends PageMinimal {
       flex-direction: column;
       align-items: center;
       height: 100%;
-      padding-top: max(22vh, 6rem);
+      padding-top: max(11vh, 5.5rem);   /* Mark 88 px from the top, as the onboarding */
       box-sizing: border-box;
-      font-family: var(--font-design);
-      letter-spacing: var(--tracking-design);
-      color: var(--color-accent);
-      font-size: .85rem;
       text-align: center;
     }
-    img { height: 4.5rem; margin-bottom: 1.5rem; }
+    img { width: var(--mark-width); height: var(--mark-height); object-fit: contain; margin-bottom: 1.5rem; }
     h1 { font-size: inherit; font-weight: 400; margin: 0; }
+    .title { width: min(15.5rem, 100%); }
     .author { margin-top: 1.25rem; }
     .buttons {
       position: absolute;
@@ -44,19 +42,6 @@ export class HomePage extends PageMinimal {
       align-items: center;
       gap: 1.25rem;
     }
-    button {
-      min-width: 8rem;
-      padding: .45rem 1.5rem;
-      border: none;
-      border-radius: 999px;
-      background: #000;
-      color: var(--color-accent);
-      font: inherit;
-      letter-spacing: inherit;
-      box-shadow: 0 0 .9rem rgba(255, 255, 255, .55);
-      cursor: pointer;
-    }
-    button.secondary { box-shadow: 0 0 .5rem rgba(255, 255, 255, .25); }
     `;
   }
 
@@ -65,11 +50,11 @@ export class HomePage extends PageMinimal {
     return /* html */ `
     <div class="content">
       <img src="${MARK_IMAGE_SRC}" alt="Mark the Page">
-      <h1>${escapeHtml(book.title)}</h1>
-      <div class="author">${escapeHtml(book.author)}</div>
+      <h1 class="title design gold">${escapeHtml(book.title)}</h1>
+      <div class="author title design gold">${escapeHtml(book.author)}</div>
       <div class="buttons">
-        <button type="button" id="start-btn">Start</button>
-        <button type="button" class="secondary" id="tutorial-btn">Tutorial</button>
+        <button type="button" class="button design" id="start-btn"><span class="gold">Start</span></button>
+        <button type="button" class="button design" id="tutorial-btn"><span class="gold">Tutorial</span></button>
       </div>
     </div>
     `;
@@ -77,6 +62,7 @@ export class HomePage extends PageMinimal {
 
   constructor() {
     super();
+    adoptDesignStyles(this.shadowRoot);
     this.handleStart = this.handleStart.bind(this);
     this.handleTutorial = this.handleTutorial.bind(this);
   }

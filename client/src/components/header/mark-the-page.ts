@@ -68,8 +68,9 @@ export class MarkThePage extends HTMLElement {
         }
         img {
           display: block;
-          height: 4rem;
-          width: auto;
+          width: var(--mark-width);
+          height: var(--mark-height);
+          object-fit: contain;
           transition: transform .2s ease;
         }
         button:active img { transform: scale(.94); }

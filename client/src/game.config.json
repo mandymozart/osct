@@ -1,8 +1,8 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2026-09-25T11:03:58.428Z",
-    "hash": "fe2c74b3487461fe7f52fa5d129945fdc6c43b1dd68e74c0434db89f846a291d"
+    "timestamp": "2026-09-25T11:36:15.287Z",
+    "hash": "7b45b1e38386fac377ffca67b8868c4f92aeb1295e84cb9bfda382ed510bdc6c"
   },
   "book": {
     "id": "osct",
@@ -300,12 +300,14 @@
       "id": "step-3",
       "index": 2,
       "description": "This application allows you to reveal videos, texts and key references hidden in the printed publication *Onion Skin & Crocodile Tears*.",
+      "illustration": "/assets/illustrations/tutorial-step-1.svg",
       "button": "Continue"
     },
     {
       "id": "step-4",
       "index": 3,
       "description": "To scan the book and display interactive content, this application requires access to your camera.\n\nPlease, grant access to proceed.",
+      "illustration": "/assets/illustrations/tutorial-step-2.svg",
       "button": "Grant access",
       "action": "camera"
     },

@@ -3,6 +3,7 @@ import { getTutorial } from "@/utils/game-config";
 import { IGame } from "@/types/game";
 import { ITutorialNavigation, Step } from "@/types/tutorial";
 import { escapeHtml } from "@/components/consultation/entries-model";
+import { adoptDesignStyles } from "@/styles/design-styles";
 
 const tutorial = getTutorial();
 
@@ -20,6 +21,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
     super();
     this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
+    adoptDesignStyles(this.shadowRoot);
     this.handleClick = this.handleClick.bind(this);
   }
 
@@ -52,22 +54,8 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host { display: flex; justify-content: center; }
-        button {
-          min-width: 8rem;
-          padding: .45rem 1.5rem;
-          border: none;
-          border-radius: 999px;
-          background: #000;
-          color: var(--color-accent);
-          font-family: var(--font-design);
-          letter-spacing: var(--tracking-design);
-          font-size: .85rem;
-          box-shadow: 0 0 .9rem rgba(255, 255, 255, .55);
-          cursor: pointer;
-        }
-        button:disabled { opacity: .6; cursor: wait; }
       </style>
-      ${label ? `<button type="button" class="next-button">${escapeHtml(label)}</button>` : ""}
+      ${label ? `<button type="button" class="button design next-button"><span class="gold">${escapeHtml(label)}</span></button>` : ""}
     `;
   }
 

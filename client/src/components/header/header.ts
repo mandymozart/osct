@@ -2,6 +2,7 @@ import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types/game";
 import "./entries-counter";
 import "./mark-the-page";
+import { adoptDesignStyles } from "@/styles/design-styles";
 
 /**
  * Top chrome, per mode (design 260804):
@@ -20,6 +21,7 @@ export class GameHeader extends HTMLElement {
     super();
     this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
+    adoptDesignStyles(this.shadowRoot);
   }
 
   connectedCallback() {
@@ -60,39 +62,21 @@ export class GameHeader extends HTMLElement {
                 }
 
                 .counter { text-align: center; }
-                .counter-label {
-                    font-family: var(--font-design);
-                    letter-spacing: var(--tracking-design);
-                    font-size: .75rem;
-                    color: var(--color-chrome-muted);
-                }
+                .counter-label { color: var(--color-muted); }
 
                 .info,
                 .entries {
                     position: absolute;
-                    border: none;
-                    background: var(--consultation-pill);
-                    box-shadow: var(--glass-shadow);
-                    color: var(--color-accent);
-                    font-family: var(--font-design);
-                    letter-spacing: var(--tracking-design);
-                    cursor: pointer;
                     pointer-events: all;
                 }
+                /* Measured: "i" centre 90 px, "Entries" centre 117 px from the screen top (DESIGN.md §3) */
                 .info {
-                    top: calc(max(.75rem, env(safe-area-inset-top)) + var(--debug-offset, 0px));
+                    top: calc(max(4.55rem, env(safe-area-inset-top)) + var(--debug-offset, 0px));
                     right: 1rem;
-                    width: 1.75rem;
-                    height: 1.75rem;
-                    border-radius: 50%;
-                    font-size: .8rem;
                 }
                 .entries {
-                    top: calc(max(2.75rem, env(safe-area-inset-top) + 2rem) + var(--debug-offset, 0px));
+                    top: calc(max(6.4rem, env(safe-area-inset-top) + 2rem) + var(--debug-offset, 0px));
                     left: 1.25rem;
-                    padding: .35rem .8rem;
-                    border-radius: 999px;
-                    font-size: .8rem;
                 }
 
                 :host([mode="idle"]) .chrome,
@@ -107,10 +91,10 @@ export class GameHeader extends HTMLElement {
               <mark-the-page></mark-the-page>
               <div class="counter">
                 <entries-counter></entries-counter>
-                <div class="counter-label">Entries consulted</div>
+                <div class="counter-label design">Entries consulted</div>
               </div>
-              <button type="button" class="entries" id="entries">Entries</button>
-              <button type="button" class="info" id="info" aria-label="Info">i</button>
+              <button type="button" class="entries pill design" id="entries"><span class="gold">Entries</span></button>
+              <button type="button" class="info icon-button design" id="info" aria-label="Info"><span class="gold">i</span></button>
             </div>
         `;
   }
