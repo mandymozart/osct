@@ -17,9 +17,26 @@ cd ../client && npm install && npm run dev
 
 Open http://localhost:5173.
 
-Changed something in `content/`? Run `npm run build:content` in `scripts/` again and commit the result.
+## Content
+
+The book's content lives in `content/` (text files + media) – see the [content guide](docs/content.md).
+The app doesn't read `content/` directly: the content build turns it into the app's configuration.
+Run it after every change:
+
+```bash
+cd scripts
+npm run build:content          # checks all files, writes client/src/game.config.json + copies the media
+npm run build:content:force    # same, even when nothing changed
+```
+
+- It stops with a message naming the file and the problem when something is wrong.
+- It also puts each spread's target images into `mind-ar/`, numbered for the MindAR compiler –
+  see [Recognition data](docs/content.md#recognition-data-mind-files).
+- Commit the changed `content/`, `client/src/game.config.json` and `client/public/assets/content`
+  together – the checks on GitHub fail if they don't match.
+- The dev server picks up the new content on reload.
 
 ## More
 
-- [Documentation](docs/README.md) – content authoring, build, deploy, architecture
+- [Documentation](docs/README.md) – content, build, deploy, architecture
 - Working on the code: [CLAUDE.md](CLAUDE.md) → `agents/`
