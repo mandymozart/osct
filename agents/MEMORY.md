@@ -4,6 +4,25 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Phase 4 consultation mode built
+
+- [x] (user) Mark looks the same in both modes: the thin "consultation" strip in the frames is the regular
+      Mark cut off by the PDF → PNG conversion; the dark parallelogram next to it is a glitch too.
+      `public/assets/ui/mark-the-page/consultation.png` removed.
+- [x] (user) Removed artefacts of the previous design iteration: the scan page's spread card (top left)
+      and the header name line "Kevin Bray — Onion Skin and Crocodile Tears". `game-header` now only holds
+      the top chrome (Mark, counter, "Entries", "i"); IDLE shows nothing there.
+- [x] (user) `Preloader` → `PreloaderService` (class + file); services naming rule in RULES #17.
+- [x] Agent decisions (reversible): `/index` kept as a dev view (dev-only bottom bar with index + spreads
+      buttons); Info = about restyled, close button dropped; "Bookmarked" as a 5th option in the category
+      dropdown; locked entries in dev via `showLockedEntries()` / `VITE_SHOW_LOCKED_ENTRIES`.
+- [x] Fixed: a `PageMinimal` page with fixed children needs a full-viewport host – the page transition's
+      `transform` makes the host their containing block (the spread menu vanished after the card was removed).
+- [x] Fixed: the tutorial's last step went to `/spreads` (dev view) → now `/spread` (scan).
+- [ ] Open (PLAN Phase 4): entries without a target can't be consulted by scanning; list colours (white /
+      gold in the frames); final Info texts; `index-page` & co. as removal candidates.
+- [ ] `game-header` name is a leftover – rename to e.g. `top-chrome`? (asked 2026-09-25)
+
 ## 2026-09-25 – Phase 3 scan mode built
 
 - [x] Chrome per mode in `header.ts` (agent decision, **confirmed by Tilman**): the name line only in IDLE; Mark +

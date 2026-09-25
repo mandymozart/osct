@@ -1,94 +1,72 @@
-import { Page } from "./page";
-import "../components/common/close-button"; // Import close button component
-import { GameStoreService } from "@/services/GameStoreService";
-import { IGame } from "@/types";
+import { ConsultationPage } from "./consultation-page";
+import { getBook } from "@/utils/game-config";
+import { escapeHtml } from "@/components/consultation/entries-model";
 
-export class AboutPage extends Page {
-  protected game: Readonly<IGame>;
-
-  constructor() {
-    super();
-    this.game = GameStoreService.getInstance();
-    this.setupEventListeners();
-  }
-  
+/**
+ * About = Info (design p.32–34), opened with "i" in consultation mode; "Entries" (top chrome) goes
+ * back to the list. Info text + colophon. Placeholder texts – the final texts belong in the content
+ * (`book.yaml`) once they arrive (PLAN Phase 4).
+ */
+export class AboutPage extends ConsultationPage {
   get styles(): string {
     return /* css */ `
-      .content {
-          padding: 0 1rem;
-          overflow-y: auto;
-          height: calc(100vh - var(--offset-top)-2rem);
-          pointer-events: auto;
-        } 
-        .logo {
-          height: 6em;
-        }
-        .page-title {
-            font-size: 1.5rem;
-            font-weight: 400;
-            margin-bottom: 1rem;
-            line-height: 6rem;
-            color: var(--primary-500);
-          }
-          h2 {
-            font-size: 1.5rem;
-            font-weight: 400;
-            margin-bottom: 1rem;
-          }
+      .section-title:first-child { margin-top: 0; }
+      .logo-link {
+        display: inline-block;
+        margin: .5rem 0 1rem;
+        padding: .5rem .75rem;
+        border-radius: .5rem;
+        background: var(--consultation-text);
+      }
+      .logo { display: block; height: 3rem; }
+      .buttons { margin: 1.5rem 0; }
+      .platforms p { margin: 0; }
     `;
   }
 
   get template(): string {
-    return `
+    const book = getBook();
+    const title = escapeHtml(book.title);
+    const author = escapeHtml(book.author);
+    return /* html */ `
       <div class="content">
-        <div class="page-title">About</div>
-        <h2>Kevin Bray &mdash; Onion Skin and Crocodile Tears</h1>
-        <p>&copy; 2025</p>
-        <p>Published by buildingfictions</p>
-        <div>
-          <a href="https://buildingfictions.com" target="_blank">
-            <img src="/assets/bf.svg" class="logo" alt="buildingfictions logo" />
-          </a>
-        </div>
+        <h2 class="section-title">Info</h2>
+        <p>${title} is a publication by ${author}. Scan the pages of the book to unlock entries –
+        glossary terms, videos, texts and links – and read them here in consultation mode.</p>
+
+        <h2 class="section-title">Colophon</h2>
+        <p>Author: ${author}<br>Published by buildingfictions &copy; 2025</p>
+        <a class="logo-link" href="https://buildingfictions.com" target="_blank" rel="noopener noreferrer">
+          <img src="/assets/bf.svg" class="logo" alt="buildingfictions" />
+        </a>
         <p>App by Tilman Porschuetz</p>
         <div class="buttons">
-          <button is="text-button" id="tutorial-btn">Tutorial</button>
+          <button type="button" class="pill" id="tutorial-btn">Tutorial</button>
         </div>
-        <p>Requires a WebXR compatible browser and a copy of the book.</p>
-        <p>Android: Chrome</p>
-        <p>Desktop: Chrome, Firefox, Safari</p>
-        <p>iOS: Safari, Chrome</p>
-        <close-button></close-button>
+        <div class="platforms">
+          <p>Requires a WebXR compatible browser and a copy of the book.</p>
+          <p>Android: Chrome</p>
+          <p>Desktop: Chrome, Firefox, Safari</p>
+          <p>iOS: Safari, Chrome</p>
+        </div>
       </div>
     `;
   }
 
   setupEventListeners() {
-    const closeButton = this.shadowRoot?.querySelector("close-button");
-    closeButton?.addEventListener("close", this.handleClose.bind(this));
-    
-    const tutorialButton = this.shadowRoot?.querySelector("#tutorial-btn");
-    tutorialButton?.addEventListener("click", this.handleTutorial.bind(this));
-  }
-  
-  cleanupEventListeners() {
-    const closeButton = this.shadowRoot?.querySelector("close-button");
-    closeButton?.removeEventListener("close", this.handleClose.bind(this));
-    
-    const tutorialButton = this.shadowRoot?.querySelector("#tutorial-btn");
-    tutorialButton?.removeEventListener("click", this.handleTutorial.bind(this));
-  }
-  
-  private handleClose() {
-    this.game.router.close();
-  }
-  
-  private handleTutorial() {
-    this.game.router.navigate("/tutorial");
+    this.shadowRoot?.querySelector("#tutorial-btn")?.addEventListener("click", this.handleTutorial);
   }
 
-  disconnectedCallback() {
-    this.cleanupEventListeners();
+  cleanupEventListeners() {
+    this.shadowRoot?.querySelector("#tutorial-btn")?.removeEventListener("click", this.handleTutorial);
+  }
+
+  private handleTutorial = () => {
+    this.game.router.navigate("/tutorial");
+  };
+
+  protected update(): void {
+    // Static page
   }
 }
 

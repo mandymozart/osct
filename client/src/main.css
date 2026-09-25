@@ -44,6 +44,14 @@
   --glass-border: rgba(255, 255, 255, 0.9);
   --glass-shadow: 0 0.1rem 0.6rem rgba(0, 0, 0, 0.25);
   --glass-blur: blur(8px);
+  /* Consultation mode (design p.15–34): dark, slightly transparent */
+  --consultation-background: rgba(38, 38, 38, 0.94);
+  --consultation-text: #f2f2f2;
+  --consultation-muted: rgba(242, 242, 242, 0.5);
+  --consultation-rule: rgba(242, 242, 242, 0.3);
+  --consultation-pill: rgba(60, 60, 60, 0.9);
+  /* Content starts below the top chrome (Mark, counter, "Entries") */
+  --consultation-top: calc(8.25rem + var(--debug-offset, 0px));
 
   color-scheme: light;
 
