@@ -4,6 +4,14 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – components/index → components/dev-index (Tilman)
+
+- The folder was a leftover of the old index view (only the `/index` dev view uses it). Renamed, which also
+  fixed two import bugs: `components/index.ts` re-exported itself (`./index` resolved to the file, not the
+  folder) and `index-page` imported the whole components barrel via `@/components/index`.
+- [ ] Open: import cleanup proposed (barrels for services/styles/consultation/scan, complete utils/common/
+      header barrels, no `../`, no own-barrel imports in `types/`, convention in RULES) – waiting for Tilman.
+
 ## 2026-09-25 – Docusaurus removed, plain markdown docs (Tilman)
 
 - `docs/` is plain markdown that GitHub renders: `docs/README.md` (index, development, build, deploy,
