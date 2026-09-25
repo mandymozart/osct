@@ -1,5 +1,5 @@
+# Onboarding (design p.1): splash – Mark + title, advances by itself
 type: step
-title: Let's get you started with the XR app
-description: This app enhances the book with interactive videos, animations, and references. Follow these steps to unlock the content.
-illustration: /assets/illustrations/tutorial-step-1.svg
+title: Onion Skin & Crocodile Tears
+advance: 2000
 index: 0

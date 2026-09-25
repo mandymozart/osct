@@ -85,9 +85,14 @@ export const schemas: Record<string, Schema> = {
     orderBy: "index",
     fields: {
       index: { type: "Number", required: true },
-      title: { type: "String", required: true },
-      description: { type: "String", required: true },
+      title: { type: "String", required: false },
+      description: { type: "String", required: false },
+      footer: { type: "String", required: false },
       illustration: { type: "String", required: false },
+      button: { type: "String", required: false },
+      action: { type: "String", required: false, enum: ["next", "camera", "scan"] },
+      fadeIn: { type: "Number", required: false },
+      advance: { type: "Number", required: false },
     },
   },
 };

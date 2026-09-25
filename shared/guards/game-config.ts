@@ -13,6 +13,8 @@ import {
   EntityType,
   EntryCategory,
   GameConfiguration,
+  STEP_ACTIONS,
+  StepAction,
 } from "../types/game-config";
 
 const oneOf = <T extends string>(values: readonly T[]) =>
@@ -21,6 +23,7 @@ const oneOf = <T extends string>(values: readonly T[]) =>
 export const isEntryCategory: (value: unknown) => value is EntryCategory = oneOf(ENTRY_CATEGORIES);
 export const isEntityType: (value: unknown) => value is EntityType = oneOf(ENTITY_TYPES);
 export const isAssetType: (value: unknown) => value is AssetType = oneOf(ASSET_TYPES);
+export const isStepAction: (value: unknown) => value is StepAction = oneOf(STEP_ACTIONS);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -165,9 +168,11 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     const path = `tutorial[${i}]`;
     const step = obj(s, path);
     if (!step) return;
-    ["id", "title", "description"].forEach(key => str(step, key, path));
-    str(step, "illustration", path, true);
+    str(step, "id", path);
+    ["title", "description", "footer", "illustration", "button"].forEach(key => str(step, key, path, true));
     num(step, "index", path);
+    if (step.action !== undefined && !isStepAction(step.action)) fail(`${path}.action`, `expected one of ${STEP_ACTIONS.join(", ")}`);
+    ["fadeIn", "advance"].forEach(key => step[key] !== undefined && num(step, key, path));
   });
 
   if (problems.length > 0) throw new GameConfigurationError(problems);

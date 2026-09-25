@@ -7,9 +7,11 @@ import { GameMode, IGame } from "@/types";
  * PDF → PNG glitch – Tilman, 2026-09-25). Files live in `public/` so they can be swapped without code
  * changes (RULES #5).
  */
+export const MARK_IMAGE_SRC = "/assets/ui/mark-the-page/scan.png";
+
 const MARK_IMAGES: Partial<Record<GameMode, string>> = {
-  [GameMode.SCAN]: "/assets/ui/mark-the-page/scan.png",
-  [GameMode.CONSULTATION]: "/assets/ui/mark-the-page/scan.png",
+  [GameMode.SCAN]: MARK_IMAGE_SRC,
+  [GameMode.CONSULTATION]: MARK_IMAGE_SRC,
 };
 
 /**

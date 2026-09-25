@@ -23,8 +23,8 @@ export interface ITutorialNavigation extends HTMLElement {
 }
 
 /**
- * Interface for the TutorialContent component
- * Defines the public API for displaying tutorial content
+ * Interface for the TutorialContent component: shows the step with this index (it reads title,
+ * text, footer and fade from the step content itself)
  */
 export interface ITutorialContent extends HTMLElement {
   /**
@@ -32,42 +32,9 @@ export interface ITutorialContent extends HTMLElement {
    * @param value The step number as a string
    */
   setAttribute(name: 'current-step', value: string): void;
-  
+
   /**
    * Gets the current step
    */
   getAttribute(name: 'current-step'): string | null;
-  
-  /**
-   * Sets the title of the tutorial step
-   * @param value The title text
-   */
-  setAttribute(name: 'title', value: string): void;
-  
-  /**
-   * Gets the title
-   */
-  getAttribute(name: 'title'): string | null;
-  
-  /**
-   * Sets the description of the tutorial step
-   * @param value The description text
-   */
-  setAttribute(name: 'description', value: string): void;
-  
-  /**
-   * Gets the description
-   */
-  getAttribute(name: 'description'): string | null;
-  
-  /**
-   * Sets the illustration path for the tutorial step
-   * @param value The illustration path
-   */
-  setAttribute(name: 'illustration', value: string): void;
-  
-  /**
-   * Gets the illustration path
-   */
-  getAttribute(name: 'illustration'): string | null;
 }

@@ -154,6 +154,11 @@ export class HistoryManager implements IHistoryManager {
     this.change(draft => { draft.lastCategory = category; });
   }
 
+  public setOnboarded(): void {
+    if (this.progress.onboarded) return;
+    this.change(draft => { draft.onboarded = true; });
+  }
+
   public getMissingIds(): { targets: string[]; entries: string[] } {
     const { unlocked, consulted, marked, notes } = this.progress;
     const entryIds = new Set([...Object.keys(consulted), ...Object.keys(marked), ...Object.keys(notes)]);

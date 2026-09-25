@@ -1,5 +1,8 @@
+# Onboarding (design p.2): title + author + publisher, fade-in 1s
 type: step
-title: Give Camera Access
-description: Give camera access to the app to unlock the content.
-illustration: /assets/illustrations/tutorial-step-2.svg
+title: Onion Skin & Crocodile Tears
+description: Kévin Bray
+footer: Building Fictions
+fadeIn: 1000
+advance: 2500
 index: 1

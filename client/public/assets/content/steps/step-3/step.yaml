@@ -1,5 +1,7 @@
+# Onboarding (design p.3): intro – no fade, the next step appears directly
 type: step
-title: Ensure Proper Lighting
-description: Place the book in a well-lit area. Avoid shadows or glare for accurate scanning and detection of target images.
-illustration: /assets/illustrations/tutorial-step-3.svg
+description: >-
+  This application allows you to reveal videos, texts and key references hidden in the printed
+  publication *Onion Skin & Crocodile Tears*.
+button: Continue
 index: 2

@@ -23,6 +23,8 @@ export interface ProgressRecord {
   lastSpreadId: string | null;
   /** Last selected entries category ("Entries" button, Phase 4) */
   lastCategory: EntryCategory | null;
+  /** Onboarding finished or skipped – a first visit starts with the onboarding (Phase 5) */
+  onboarded: boolean;
 }
 
 /**
@@ -76,6 +78,9 @@ export interface IHistoryManager {
   getNote(entryId: string): string;
 
   setLastCategory(category: EntryCategory): void;
+
+  /** The reader finished or skipped the onboarding */
+  setOnboarded(): void;
 
   /**
    * Stored ids that are no longer in the content (kept in storage, shown in the debug overlay)

@@ -1,7 +1,6 @@
+# Onboarding (design p.5): done → scan mode
 type: step
-title: Access Interactive Index
-description: >-
-  Use the index button on the bottom to find additional references and details about Kevin's inspirations.
-  It works just like a regular index. Just point the camera at the marked images that interest you.
-illustration: /assets/illustrations/tutorial-step-5.svg
+title: Thank you!
+button: Access scan
+action: scan
 index: 4

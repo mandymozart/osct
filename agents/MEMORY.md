@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Phase 5 onboarding built
+
+- [x] (user) First visit → onboarding; "Skip" and finishing mark the reader onboarded (progress field
+      `onboarded`); Info keeps a "Tutorial" button. Home restyled like the splash – confirmed ("what i saw
+      was good"); a short-lived revert to the old home layout was undone.
+- [x] (user) Camera-permission (denied) screen restyled after the onboarding; gold chrome icon with a
+      skeleton-style sweep injected into the SVG; gold scale `--gold-100…900` added to the tokens.
+- [x] Onboarding steps are content (5 steps, old 6 replaced); step contract extended (button, action,
+      fadeIn, advance, footer; title/description optional).
+- [ ] Camera starts with the scene (MindAR autoStart) before "Grant access" – Phase 6.
+
 ## 2026-09-25 – Phase 4 consultation mode built
 
 - [x] (user) Mark looks the same in both modes: the thin "consultation" strip in the frames is the regular
@@ -21,7 +32,7 @@ outcome in the line (or move it into a dated decision block).
 - [x] Fixed: the tutorial's last step went to `/spreads` (dev view) → now `/spread` (scan).
 - [ ] Open (PLAN Phase 4): entries without a target can't be consulted by scanning; list colours (white /
       gold in the frames); final Info texts; `index-page` & co. as removal candidates.
-- [ ] `game-header` name is a leftover – rename to e.g. `top-chrome`? (asked 2026-09-25)
+- [x] (user) `game-header` keeps its name – it is the header holding Mark, counter, "Entries" and "i".
 
 ## 2026-09-25 – Phase 3 scan mode built
 

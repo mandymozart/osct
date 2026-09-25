@@ -26,6 +26,7 @@ export const createProgressRecord = (bookId: string): ProgressRecord => ({
   notes: {},
   lastSpreadId: null,
   lastCategory: null,
+  onboarded: false,
 });
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -50,6 +51,8 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
   notes: pick(raw.notes, isString),
   lastSpreadId: isString(raw.lastSpreadId) ? raw.lastSpreadId : null,
   lastCategory: isCategory(raw.lastCategory) ? raw.lastCategory : null,
+  // Added 2026-09-25 (additive, same format): records without it count as not onboarded
+  onboarded: raw.onboarded === true,
 });
 
 /** One reader per storage format, each returns the current shape */

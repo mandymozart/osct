@@ -535,17 +535,39 @@ Open:
   `target-item`, `index-button`; `close-button` if unused after the tutorial restyle.
 
 ---
-## Phase 5 – Onboarding = Tutorial  `[ ]`
+## Phase 5 – Onboarding = Tutorial  `[x]` (built 2026-09-25; open: final texts, camera start – see below)
 
 Adopt the tutorial flow and pages to the design (p.1–5). The tutorial stays; its steps become:
-1. Splash: Mark + "Onion Skin & Crocodile Tears"
-2. Title + "Kévin Bray" + "Building Fictions" – **fade-in 1s**
-3. Intro text + **Continue** – no fade, next frame appears directly
-4. Camera text + **Grant access** (hooks into existing `camera.requestPermission` / `camera-permission`)
-5. "Thank you!" + **Access scan** → scan mode
+1. [x] Splash: Mark + "Onion Skin & Crocodile Tears" (advances after 2s or on tap)
+2. [x] Title + "Kévin Bray" + "Building Fictions" – **fade-in 1s** (advances after 2.5s or on tap)
+3. [x] Intro text + **Continue** – no fade, next frame appears directly
+4. [x] Camera text + **Grant access** (`camera.requestAccess()`; denied → the camera-permission screen,
+   the step stays)
+5. [x] "Thank you!" + **Access scan** → scan mode
 
-- Content is placeholder; final texts follow.
-- Home / about stay and get restyled.
+Built:
+- Steps are content (`content/steps/step-1..5`, the old six steps replaced). Step contract extended
+  (`shared/types`, guard, build schema): `title` / `description` optional, `footer`, `button`,
+  `action` (`next` | `camera` | `scan`), `fadeIn`, `advance`; `*emphasis*` + blank-line paragraphs.
+- `tutorial-page` (black vignette, auto-advance, "Skip" → scan), `tutorial-content` (Mark, texts, fade),
+  `tutorial-navigation` (pill button with white glow, actions).
+- **First visit → onboarding** (Tilman): `main.ts` opens `/tutorial` when `progress.onboarded` is false;
+  finishing ("Access scan") or "Skip" sets it (`history.setOnboarded()`, additive field in format 1).
+  Returning readers land on home; Info has a "Tutorial" button to start it by hand.
+- Home restyled like the splash (Mark, title, author, "Start" + "Tutorial" pills) – Tilman: good.
+- Camera-permission screen restyled after the onboarding (no own frame, Tilman): black vignette, gold
+  text, camera icon in **gold chrome** (gradient from the new **gold scale** `--gold-100…900` in
+  `main.css`, `--color-accent` = `--gold-500`) with a skeleton-loader-style sweep in the SVG (none with
+  reduced motion). Separate "waiting for camera access" text while the browser asks; browser hints fixed
+  (the lock emoji was mis-encoded).
+
+Open:
+- [ ] Final onboarding / home texts (placeholder) – with Kévin Bray and the designers.
+- [ ] MindAR `autoStart` still starts the camera when the scene loads, i.e. before "Grant access" on a
+  first visit (Phase 6 open question 3 / "camera only in scan mode"). The browser's permission prompt can
+  therefore appear during the splash.
+- [ ] `public/assets/illustrations/tutorial-step-{1,3,4,5}.svg` no longer referenced (step 2 = the camera
+  icon source) – removal candidates.
 
 ---
 

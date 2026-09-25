@@ -1,8 +1,8 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2026-09-25T10:44:42.151Z",
-    "hash": "b942873e666e0aafb469992d3b4b51874bc72b3c51b43862507391bb154762d2"
+    "timestamp": "2026-09-25T11:03:58.428Z",
+    "hash": "fe2c74b3487461fe7f52fa5d129945fdc6c43b1dd68e74c0434db89f846a291d"
   },
   "book": {
     "id": "osct",
@@ -284,43 +284,37 @@
     {
       "id": "step-1",
       "index": 0,
-      "title": "Let's get you started with the XR app",
-      "description": "This app enhances the book with interactive videos, animations, and references. Follow these steps to unlock the content.",
-      "illustration": "/assets/illustrations/tutorial-step-1.svg"
+      "title": "Onion Skin & Crocodile Tears",
+      "advance": 2000
     },
     {
       "id": "step-2",
       "index": 1,
-      "title": "Give Camera Access",
-      "description": "Give camera access to the app to unlock the content.",
-      "illustration": "/assets/illustrations/tutorial-step-2.svg"
+      "title": "Onion Skin & Crocodile Tears",
+      "description": "Kévin Bray",
+      "footer": "Building Fictions",
+      "fadeIn": 1000,
+      "advance": 2500
     },
     {
       "id": "step-3",
       "index": 2,
-      "title": "Ensure Proper Lighting",
-      "description": "Place the book in a well-lit area. Avoid shadows or glare for accurate scanning and detection of target images.",
-      "illustration": "/assets/illustrations/tutorial-step-3.svg"
+      "description": "This application allows you to reveal videos, texts and key references hidden in the printed publication *Onion Skin & Crocodile Tears*.",
+      "button": "Continue"
     },
     {
       "id": "step-4",
       "index": 3,
-      "title": "Scan Content",
-      "description": "Point your camera at the marked images in the book. The app will scan and display available videos or animations.",
-      "illustration": "/assets/illustrations/tutorial-step-4.svg"
+      "description": "To scan the book and display interactive content, this application requires access to your camera.\n\nPlease, grant access to proceed.",
+      "button": "Grant access",
+      "action": "camera"
     },
     {
       "id": "step-5",
       "index": 4,
-      "title": "Access Interactive Index",
-      "description": "Use the index button on the bottom to find additional references and details about Kevin's inspirations. It works just like a regular index. Just point the camera at the marked images that interest you.",
-      "illustration": "/assets/illustrations/tutorial-step-5.svg"
-    },
-    {
-      "id": "step-6",
-      "index": 5,
-      "title": "Congratulations!",
-      "description": "Now you got all you need to enjoy the book. Don't forget to check back. We will add additional content every year on CROCODILES DAY June 17th!"
+      "title": "Thank you!",
+      "button": "Access scan",
+      "action": "scan"
     }
   ]
 }

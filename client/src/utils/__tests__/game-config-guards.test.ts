@@ -89,6 +89,20 @@ describe("game configuration guards", () => {
     ]);
   });
 
+  it("check onboarding steps: optional texts, known actions, numeric timings", () => {
+    const config = valid() as any;
+    config.tutorial = [
+      { id: "splash", index: 0, advance: 2000 },
+      { id: "camera", index: 1, description: "…", button: "Grant access", action: "camera" },
+      { id: "broken", index: 2, button: "Go", action: "teleport", fadeIn: "slow" },
+    ];
+
+    expect(problemsOf(config)).toEqual([
+      'tutorial[2].action: expected one of next, camera, scan',
+      'tutorial[2].fadeIn: expected a number',
+    ]);
+  });
+
   it("reject non-objects", () => {
     expect(problemsOf(null)).toEqual(["config: expected an object"]);
     expect(problemsOf("{}")).toEqual(["config: expected an object"]);
