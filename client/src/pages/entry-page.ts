@@ -33,9 +33,11 @@ export class EntryPage extends ConsultationPage {
       iframe.page { height: 70vh; background: #fff; }
       .hint { color: var(--color-muted); font-size: var(--text-size-small); }
       .actions { margin-top: 2rem; }
-      .bookmark { gap: .4rem; }
-      /* The icon draws with currentColor: flat gold next to the gradient label */
-      .bookmark svg { color: var(--color-accent); }
+      .action-row { display: flex; flex-wrap: wrap; gap: .75rem; }
+      .bookmark, .add-note { gap: .4rem; }
+      /* The icons draw with currentColor: flat gold next to the gradient label */
+      .bookmark svg, .add-note svg { color: var(--color-accent); }
+      [hidden] { display: none !important; }
       label { display: block; margin: 1.25rem 0 .4rem; color: var(--color-muted); }
       textarea {
         box-sizing: border-box;
@@ -111,9 +113,15 @@ export class EntryPage extends ConsultationPage {
       </table>
       <div class="body">${this.categoryHtml(entry)}</div>
       <div class="actions">
-        <button type="button" class="pill bookmark design" data-action="bookmark" aria-pressed="false"></button>
-        <label for="note">Note</label>
-        <textarea id="note" maxlength="2000" placeholder="A short note for yourself">${escapeHtml(note)}</textarea>
+        <div class="action-row">
+          <button type="button" class="pill bookmark design" data-action="bookmark" aria-pressed="false"></button>
+          <button type="button" class="pill add-note design" data-action="add-note" ${note ? "hidden" : ""}>${ICONS.noteAdd}<span class="gold">Add note</span></button>
+        </div>
+        <!-- Notes are attached to the entry (not a filter); the field only shows once there is a note -->
+        <div class="note" ${note ? "" : "hidden"}>
+          <label for="note">Note</label>
+          <textarea id="note" maxlength="2000" placeholder="A short note for yourself">${escapeHtml(note)}</textarea>
+        </div>
       </div>
     `;
   }
@@ -163,9 +171,17 @@ export class EntryPage extends ConsultationPage {
   }
 
   private handleClick = (event: Event) => {
-    const el = (event.target as HTMLElement).closest<HTMLElement>("[data-action=bookmark]");
+    const el = (event.target as HTMLElement).closest<HTMLElement>("[data-action]");
     if (!el || !this.renderedId) return;
-    this.game.history.setMarked(this.renderedId, !this.game.history.isMarked(this.renderedId));
+    if (el.dataset.action === "bookmark") {
+      this.game.history.setMarked(this.renderedId, !this.game.history.isMarked(this.renderedId));
+    } else if (el.dataset.action === "add-note") {
+      // Reveal the note field (hidden until the reader adds a note)
+      el.hidden = true;
+      const note = this.shadowRoot?.querySelector<HTMLElement>(".note");
+      if (note) note.hidden = false;
+      this.shadowRoot?.querySelector<HTMLTextAreaElement>("#note")?.focus();
+    }
   };
 
   private handleInput = (event: Event) => {

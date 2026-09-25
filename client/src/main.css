@@ -74,7 +74,11 @@
   --glass-blur: blur(10px);
   --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);   /* pills, "i", menu highlight */
   --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);  /* onboarding buttons on black (primary) */
+  --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);  /* category pill (frame 17: #957149) */
+  --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);   /* open category menu (frame 18: #8b8d8c) */
   --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);  /* secondary onboarding buttons */
+
+  --category-width: 6.25rem;       /* category pill + menu: 52.5 pt (frames 17, 18) */
 
   /* Mark (same image in every mode) */
   --mark-width: 99px;
