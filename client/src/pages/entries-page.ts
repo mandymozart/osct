@@ -55,7 +55,8 @@ export class EntriesPage extends ConsultationPage {
         width: 100%;
         padding: .1rem 1.1rem;
         border: none;
-        background: none;
+        /* Only the color: background: none would also remove the .gold gradient (more specific) */
+        background-color: transparent;
         font: inherit;
         letter-spacing: inherit;
         text-align: center;
