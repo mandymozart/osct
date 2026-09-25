@@ -3,7 +3,7 @@ import { Spread, IGame, Target } from '@/types';
 import { assert } from '@/utils';
 import './spread-item';
 import './target-item';
-import { getSpread, getSpreads } from '@/utils/game-config';
+import { getSpread, getSpreads, getTarget } from '@/utils/game-config';
 
 export interface ISpreadList extends HTMLElement {
   updateSpreads(): void;
@@ -179,6 +179,9 @@ export class SpreadList extends HTMLElement implements ISpreadList {
       // Toggle expansion
       this.expandedTargetId =
         this.expandedTargetId === targetId ? null : targetId;
+      // Opening an entry = consulted (until the /entry view in Phase 4)
+      const entryId = this.expandedTargetId && getTarget(this.expandedTargetId)?.entryId;
+      if (entryId) this.game.history.consultEntry(entryId);
       this.renderSpreads();
     }
   }

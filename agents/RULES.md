@@ -41,7 +41,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
 10. **One version** (semver) for the app and the content build: `client/package.json` and
     `scripts/package.json` always carry the same version (checked by tests + CI); the source is
     `client/package.json`. Game configuration: PATCH/MINOR must just work, MAJOR = rebuild the content
-    (no config migrations). Progress storage: a new MAJOR reads the old format and tells the user.
+    (no config migrations). Progress storage: a new MAJOR reads the old format and tells the user
+    (add a reader in `store/managers/progress-readers.ts`; a test fails without one). The first storage
+    format is 1 – nothing from before 1.1.x is converted.
     The content *data* is identified by the build checksum (`version.hash`), not by the version.
     QR deep links are owned by Tilman – don't implement them unasked. (Changed 2026-09-25; before:
     app and content versions were kept separate.)

@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Phase 2 step 2 done (progress storage)
+
+- [x] (user) **No conversion of storage from before 1.1.x** – the app was never deployed publicly. The
+      first progress format is 1; the old `ar-game-target-history` / `ar-game-config-version` keys are ignored.
+- [x] Progress record per book keyed by stable ids (unlocked targets, consulted entries, marked, notes,
+      last spread / category, app version history). `IHistoryManager` rewritten around it (old numeric API
+      and `resetSpreadHistory` removed – no callers). `state.history` / `state.configVersion` → `state.progress`.
+- [x] Fixed on the way: the index "seen" dot never updated (subscription commented out, `spread-id` /
+      `target-index` attributes never set) → `target-item` shows Not found yet / Unlocked / Consulted by id.
+- [x] Browser (camera blocked, targets unlocked via `window.BOOKGAME`): record saved, resume offer at
+      startup, Resume → spread + scan, expanding an entry → consulted, survives reload.
+- [ ] The index still lets you open entries that are not unlocked (→ consulted without unlocked). Phase 4
+      hides/locks unconsulted entries.
+- [ ] Pre-existing: the resume notice goes through `notifyError` (logged as console error, `currentError`
+      stays set after "Resume"). Candidate for `Pages.NOTIFICATION` (Phase 3).
+
 ## 2026-09-25 – Phase 2 step 1 done (one version), QR links carry the content hash
 
 - [x] App + content build read the version from `client/package.json` (no `npm_package_version`).

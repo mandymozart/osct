@@ -6,8 +6,6 @@ export interface ITargetItem extends HTMLElement {
   target: Target | null;
   isCurrent: boolean;
   isExpanded: boolean;
-  spreadId?: string | null;
-  targetIndex?: number;
 }
 
 /**
@@ -19,13 +17,10 @@ export class TargetItem extends HTMLElement implements ITargetItem {
   private _target: Target | null = null;
   private _isCurrent = false;
   private _isExpanded = false;
-  private _hasBeenSeen = false;
   private game: Readonly<IGame>;
-  private _spreadId: string | null = null;
-  private _targetIndex: number = -1;
 
   static get observedAttributes() {
-    return ["is-current", "is-expanded", "spread-id", "target-index"];
+    return ["is-current", "is-expanded"];
   }
 
   constructor() {
@@ -37,22 +32,13 @@ export class TargetItem extends HTMLElement implements ITargetItem {
   
   connectedCallback() {
     this.render();
-    // this.game.subscribeToProperty("history", this.handleHistoryStateChanged.bind(this));
+    // Progress changes re-render the whole list (spread-list subscribes to the store)
     // this.game.subscribeToProperty("trackedTargets", this.handleTrackedTargetsChanged.bind(this));
     this.addEventListener("click", this.handleClick);
   }
 
   disconnectedCallback() {
     this.removeEventListener("click", this.handleClick);
-  }
-
-  private handleHistoryStateChanged() {
-    const hasBeenSeen = this.game?.history.hasTargetBeenSeen(this._spreadId || "", this._targetIndex) ?? false;
-    console.log("[TargetItem] hasBeenSeen:", hasBeenSeen, this._spreadId, this._targetIndex, this._target);
-    if(this._hasBeenSeen !== hasBeenSeen) {
-      this._hasBeenSeen = hasBeenSeen;
-      this.render();
-    }
   }
 
   private handleTrackedTargetsChanged() {
@@ -71,21 +57,17 @@ export class TargetItem extends HTMLElement implements ITargetItem {
     } else if (name === "is-expanded") {
       this._isExpanded = newValue === "true";
       this.render();
-    } else if (name === "spread-id") {
-      this._spreadId = newValue;
-      this.render();
-    } else if (name === "target-index") {
-      this._targetIndex = parseInt(newValue, 10);
-      this.render();
     }
   }
 
   private render() {
     if (!this.shadowRoot || !this._target) return;
 
-    // Determine if this target has been seen
-    const hasBeenSeen = this._hasBeenSeen;
+    // Two stages of discovery: unlocked (target found) → consulted (entry opened)
     const entry = getEntry(this._target.entryId);
+    const isUnlocked = this.game.history.isUnlocked(this._target.id);
+    const isConsulted = this.game.history.isConsulted(this._target.entryId);
+    const status = isConsulted ? "Consulted" : isUnlocked ? "Unlocked" : "Not found yet";
 
     this.shadowRoot.innerHTML = /* html */ `
       <style>
@@ -145,7 +127,16 @@ export class TargetItem extends HTMLElement implements ITargetItem {
           height: 0.75rem;
           border-radius: 50%;
           margin-left: 0.5rem;
+          border: .1rem solid var(--primary-300);
+        }
+
+        .seen-indicator.unlocked {
           background-color: var(--primary-300);
+        }
+
+        .seen-indicator.consulted {
+          background-color: var(--color-primary);
+          border-color: var(--color-primary);
         }
         
         .meta-info {
@@ -161,17 +152,13 @@ export class TargetItem extends HTMLElement implements ITargetItem {
           <div class="target-text">
             <div class="target-title">
               ${entry?.title || "Untitled Target"}
-              <span class="seen-indicator" title="${
-                hasBeenSeen ? "Already seen" : "Not seen yet"
-              }"></span>
+              <span class="seen-indicator ${isConsulted ? "consulted" : isUnlocked ? "unlocked" : ""}" title="${status}"></span>
             </div>
             
             <div class="target-description"><p>${
               entry?.body || "No description available"
             }</p>
-            <div class="meta-info">${
-              hasBeenSeen ? "Seen" : "Not seen yet"
-            }</div>
+            <div class="meta-info">${status}</div>
             </div>
           </div>
           <div class="target-image">
@@ -238,31 +225,6 @@ export class TargetItem extends HTMLElement implements ITargetItem {
   set isExpanded(value: boolean) {
     this._isExpanded = value;
     this.setAttribute("is-expanded", String(value));
-  }
-
-  // Add spread ID getter and setter
-  get spreadId(): string | null {
-    return this._spreadId;
-  }
-
-  set spreadId(value: string | null) {
-    if (value) {
-      this._spreadId = value;
-      this.setAttribute("spread-id", value);
-    } else {
-      this._spreadId = null;
-      this.removeAttribute("spread-id");
-    }
-  }
-
-  // Add target index getter and setter
-  get targetIndex(): number {
-    return this._targetIndex;
-  }
-
-  set targetIndex(value: number) {
-    this._targetIndex = value;
-    this.setAttribute("target-index", String(value));
   }
 }
 

@@ -1,253 +1,183 @@
-import { SceneService } from '@/services/SceneService';
+import { LocalProgressStorage } from '@/services/ProgressStorage';
 import {
-  ConfigurationVersion,
+  EntryCategory,
   ErrorInfo,
   IGame,
   IHistoryManager,
-  TargetHistoryEntry
+  IProgressStorage,
+  ProgressRecord,
 } from '@/types';
-import { getConfigVersion, getSpread, getTargets } from '@/utils/game-config';
+import { getBook, getSpread, getTarget, getTargets } from '@/utils/game-config';
+import { ProgressReadStatus, createProgressRecord, readProgress } from './progress-readers';
 
 /**
- * Manages user history and progress tracking
+ * Progress of the reader in this book (PLAN Phase 2): unlocked targets, consulted entries,
+ * bookmarks, notes, last spread / category – one record per book, keyed by stable ids.
+ * Loaded at startup; every change is saved through the storage adapter.
  */
 export class HistoryManager implements IHistoryManager {
   private game: IGame;
-  private readonly HISTORY_STORAGE_KEY = 'ar-game-target-history';
-  private readonly CONFIG_VERSION_KEY = 'ar-game-config-version';
-  private sceneService: SceneService;
+  private storage: IProgressStorage;
+  /** How the last load went – told to the user once, together with the resume offer */
+  private loadStatus: ProgressReadStatus | null = null;
 
-  constructor(game: IGame) {
+  constructor(game: IGame, storage: IProgressStorage = new LocalProgressStorage()) {
     this.game = game;
-    this.sceneService = SceneService.getInstance();
-    this.sceneService.onSceneReady(() => {
-      console.log('[HistoryManager] Scene is ready, loading history');
-      this.load();
+    this.storage = storage;
+    this.load();
+    this.game.subscribeToProperty('currentSpread', (spreadId) => {
+      if (spreadId && spreadId !== this.progress.lastSpreadId) {
+        this.change(draft => { draft.lastSpreadId = spreadId; });
+      }
     });
   }
 
-  /**
-   * Check if configuration has changed
-   */
-  private checkConfigurationVersion(): void {
-    try {
-      const storedVersion = localStorage.getItem(this.CONFIG_VERSION_KEY);
-      const currentVersion = getConfigVersion();
-
-      if (!storedVersion) {
-        this.saveConfigurationVersion();
-        return;
-      }
-
-      const storageVersion = JSON.parse(storedVersion) as ConfigurationVersion;
-
-      if (storageVersion.version !== currentVersion.version) {
-        console.warn(
-          `Game configuration has changed from version ${storageVersion.version} to ${currentVersion.version}. ` +
-            `Last update was on ${new Date(storageVersion.timestamp).toLocaleDateString()}. ` +
-            `Some spread or target data might have changed.`,
-        );
-      }
-
-      this.saveConfigurationVersion();
-    } catch (error) {
-      console.warn('Failed to check configuration version:', error);
-    }
+  private get progress(): ProgressRecord {
+    return this.game.state.progress;
   }
 
   /**
-   * Save current configuration version
-   */
-  private saveConfigurationVersion(): void {
-    try {
-      const versionData: ConfigurationVersion = getConfigVersion();
-      localStorage.setItem(
-        this.CONFIG_VERSION_KEY,
-        JSON.stringify(versionData),
-      );
-    } catch (error) {
-      console.warn('Failed to save configuration version:', error);
-    }
-  }
-
-  /**
-   * Load target history from local storage
+   * Load the progress record: current format as is, an older format converted and saved in the
+   * current one.
    */
   public load(): void {
-    // Check if configuration has changed
-    this.checkConfigurationVersion();
-
-    // Load history from localStorage
-    this.loadTargetHistory();
-
-    // If there are previous entries, notify the user they can resume
-    if (this.game.state.history.length > 0) {
-      // Get the most recent entry
-      const lastEntry = [...this.game.state.history].sort(
-        (a, b) => b.timestamp - a.timestamp,
-      )[0];
-
-      // Find spread in config
-      const spreadConfig = getSpread(lastEntry.spreadId);
-      const spreadName = spreadConfig?.title || lastEntry.spreadId;
-
-      // Create a notification with resume action
-      this.game.notifyError({
-        msg: `You have a previous session in spread "${spreadName}".`,
-        action: {
-          text: 'Resume',
-          callback: () => {
-            // Resume the last spread using switchSpread
-            this.game.spreads.switchSpread(lastEntry.spreadId);
-            // The route sets scan mode
-            this.game.router.navigate('/spread');
-          },
-        },
-      } as ErrorInfo);
+    const bookId = getBook().id;
+    const { record, status } = readProgress(this.storage.load(bookId), bookId);
+    if (status === 'unreadable') {
+      console.warn('[HistoryManager] Stored progress could not be read, starting fresh.');
     }
+
+    const appVersion = __VITE_APP_VERSION__;
+    const versionChanged = record.appVersions[record.appVersions.length - 1] !== appVersion;
+    if (versionChanged) record.appVersions.push(appVersion);
+
+    this.game.update(draft => {
+      draft.progress = record;
+    });
+    if (status !== 'current' || versionChanged) this.storage.save(this.progress);
+
+    this.loadStatus = status;
   }
 
   /**
-   * Mark a target as seen by the user
+   * Offer to resume the last spread. One notice at a time (`currentError`), so a format
+   * conversion is told in the same notice.
    */
-  public markTargetAsSeen(spreadId: string, targetIndex: number): void {
-    const existingEntry = this.game.state.history.find(
-      (entry) =>
-        entry.spreadId === spreadId && entry.targetIndex === targetIndex,
-    );
+  public offerResume(): void {
+    const status = this.loadStatus;
+    this.loadStatus = null;
 
-    if (!existingEntry) {
-      // Update history using game store update pattern
-      this.game.update((draft) => {
-        if (!draft.history) {
-          draft.history = [];
-        }
+    const notes: string[] = [];
+    if (status === 'converted') notes.push('Your progress was updated to the new app format.');
+    if (status === 'unreadable') notes.push('Your saved progress could not be read and starts fresh.');
 
-        draft.history.push({
-          spreadId,
-          targetIndex,
-          timestamp: Date.now(),
-        });
+    const lastSpread = this.progress.lastSpreadId ? getSpread(this.progress.lastSpreadId) : undefined;
+    if (lastSpread) notes.push(`You have a previous session in spread "${lastSpread.title || lastSpread.id}".`);
+    if (notes.length === 0) return;
 
-        // Update local reference to match store state
-        this.game.update((draft) => {
-          draft.history = draft.history;
-        });
-      });
+    this.game.notifyError({
+      msg: notes.join(' '),
+      type: 'info',
+      ...(lastSpread
+        ? {
+            action: {
+              text: 'Resume',
+              callback: () => {
+                this.game.spreads.switchSpread(lastSpread.id);
+                // The route sets scan mode
+                this.game.router.navigate('/spread');
+              },
+            },
+          }
+        : {}),
+    } as ErrorInfo);
+  }
 
-      // Save updated history
-      this.saveTargetHistory();
-    }
+  /** Also records the target's spread as the last spread (the initial spread never "changes") */
+  public unlockTarget(targetId: string): void {
+    if (this.isUnlocked(targetId)) return;
+    const spreadId = getTarget(targetId)?.spreadId;
+    this.change(draft => {
+      draft.unlocked[targetId] = Date.now();
+      if (spreadId) draft.lastSpreadId = spreadId;
+    });
+  }
+
+  public isUnlocked(targetId: string): boolean {
+    return targetId in this.progress.unlocked;
+  }
+
+  public getUnlockedTargets(spreadId: string): string[] {
+    return getTargets(spreadId).filter(t => this.isUnlocked(t.id)).map(t => t.id);
+  }
+
+  public consultEntry(entryId: string): void {
+    if (this.isConsulted(entryId)) return;
+    this.change(draft => { draft.consulted[entryId] = Date.now(); });
+  }
+
+  public isConsulted(entryId: string): boolean {
+    return entryId in this.progress.consulted;
+  }
+
+  public setMarked(entryId: string, marked: boolean): void {
+    if (this.isMarked(entryId) === marked) return;
+    this.change(draft => {
+      if (marked) draft.marked[entryId] = Date.now();
+      else delete draft.marked[entryId];
+    });
+  }
+
+  public isMarked(entryId: string): boolean {
+    return entryId in this.progress.marked;
+  }
+
+  public setNote(entryId: string, note: string): void {
+    const text = note.trim();
+    if (this.getNote(entryId) === text) return;
+    this.change(draft => {
+      if (text) draft.notes[entryId] = text;
+      else delete draft.notes[entryId];
+    });
+  }
+
+  public getNote(entryId: string): string {
+    return this.progress.notes[entryId] ?? '';
+  }
+
+  public setLastCategory(category: EntryCategory): void {
+    if (this.progress.lastCategory === category) return;
+    this.change(draft => { draft.lastCategory = category; });
   }
 
   /**
-   * Check if a target has been seen before
-   */
-  public hasTargetBeenSeen(spreadId: string, targetIndex: number): boolean {
-    return this.game.state.history.some(
-      (entry) =>
-        entry.spreadId === spreadId && entry.targetIndex === targetIndex,
-    );
-  }
-
-  /**
-   * Get all target indices that have been seen in a specific spread
-   */
-  public getSeenTargetsForSpread(spreadId: string): number[] {
-    return this.game.state.history
-      .filter((entry) => entry.spreadId === spreadId)
-      .map((entry) => entry.targetIndex);
-  }
-
-  /**
-   * Calculate the percentage of targets seen in a spread
+   * Percentage of unlocked targets in a spread
    */
   public getSpreadCompletionPercentage(spreadId: string): number {
-    const spread =
-      this.game.state.spreads[spreadId] || getSpread(spreadId);
-
-    if (!spread) return 0;
-
-    const totalTargets = getTargets(spreadId).length || 0;
+    if (!getSpread(spreadId)) return 0;
+    const totalTargets = getTargets(spreadId).length;
     if (totalTargets === 0) return 100; // No targets = 100% complete
-
-    const seenTargets = this.getSeenTargetsForSpread(spreadId).length;
-    return Math.round((seenTargets / totalTargets) * 100);
+    return Math.round((this.getUnlockedTargets(spreadId).length / totalTargets) * 100);
   }
 
-  /**
-   * Check if all targets in a spread have been seen
-   */
   public isSpreadComplete(spreadId: string): boolean {
     return this.getSpreadCompletionPercentage(spreadId) === 100;
   }
 
   /**
-   * Reset seen history for a specific spread
-   */
-  public resetSpreadHistory(spreadId: string): void {
-    // Update history using game store update pattern
-    this.game.update((draft) => {
-      if (!draft.history) {
-        draft.history = [];
-        return;
-      }
-
-      draft.history = draft.history.filter(
-        (entry: { spreadId: string }) => entry.spreadId !== spreadId,
-      );
-
-      // Update local reference to match store state
-      this.game.update((draft) => {
-        draft.history = draft.history;
-      });
-    });
-
-    this.saveTargetHistory();
-  }
-
-  /**
-   * Reset all target history
+   * Reset the whole progress of this book (keeps the app version history)
    */
   public reset(): void {
-    this.game.update((draft) => {
-      draft.history = [];
+    const { bookId, appVersions } = this.progress;
+    this.game.update(draft => {
+      draft.progress = { ...createProgressRecord(bookId), appVersions: [...appVersions] };
     });
-
-    this.saveTargetHistory();
+    this.storage.save(this.progress);
   }
 
-  /**
-   * Save target history to local storage
-   */
-  private saveTargetHistory(): void {
-    try {
-      localStorage.setItem(
-        this.HISTORY_STORAGE_KEY,
-        JSON.stringify(this.game.state.history),
-      );
-    } catch (error) {
-      console.warn('Failed to save target history to localStorage:', error);
-    }
-  }
-
-  /**
-   * Load target history from local storage
-   */
-  private loadTargetHistory(): void {
-    try {
-      const storedHistory = localStorage.getItem(this.HISTORY_STORAGE_KEY);
-      if (storedHistory) {
-        // Drop entries for spreads that no longer exist (e.g. pre-rename `chapterId` entries).
-        // TODO Phase 2: replace with stable IDs + content-version migration.
-        const entries = (JSON.parse(storedHistory) as TargetHistoryEntry[])
-          .filter((entry) => getSpread(entry?.spreadId) !== undefined);
-        this.game.update((draft) => {
-          draft.history = entries;
-        });
-      }
-    } catch (error) {
-      console.warn('Failed to load target history from localStorage:', error);
-    }
+  /** Change the record in the store and save it */
+  private change(recipe: (draft: ProgressRecord) => void): void {
+    this.game.update(draft => recipe(draft.progress));
+    this.storage.save(this.progress);
   }
 }
