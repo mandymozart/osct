@@ -13,6 +13,9 @@ outcome in the line (or move it into a dated decision block).
 - [x] B swap: stop + dispose the controller, remove old anchors/assets (shared asset ids stay), reset
       `system.anchorEntities` (anchors register on init, never unregister), set `imageTargetSrc`, add new
       content, `_startAR()` on the running video. Camera off → content only, next start loads the new .mind.
+- [x] (user) Build flag `VITE_AR_STRATEGY` (+ `build:ar-rebuild` / `build:ar-persistent` / `dev:ar-persistent`,
+      mode files `client/.env.ar-*`) to compare the strategies per device; verified in real builds; debug
+      overlay shows the active strategy.
 - [x] Measured (fake camera): B 0.42–0.51 s per switch and no camera request; A 0.6–3.6 s and one request
       per switch. Default stays A until device tests (PLAN Phase 6).
 

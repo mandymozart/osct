@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build && tsc",
+    "build:ar-rebuild": "vite build --mode ar-rebuild && tsc",
+    "build:ar-persistent": "vite build --mode ar-persistent && tsc",
+    "dev:ar-persistent": "vite --host --mode ar-persistent",
     "build:config": "cd scripts && npm run build:content",
     "preview": "vite preview",
     "prepublishOnly": "npm run build",
