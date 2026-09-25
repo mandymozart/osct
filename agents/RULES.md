@@ -75,6 +75,11 @@ Extend as we go: add a rule when a decision should hold for all future work.
       next to its owner. `utils/game-config.ts` is a primitive service (module singleton) → moves to
       `services/` with the data access work (see PLAN Phase 2 versioning).
 
+## CI
+- `.github/workflows/ci.yml` runs on every push/PR: scripts type-check + build, committed
+  `game.config.json` must match the content (rebuild + commit after content/version changes),
+  client `tsc` + `vitest`.
+
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server
 - Build: `npm run build`, publish `dist`, SPA
