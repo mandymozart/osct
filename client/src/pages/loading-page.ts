@@ -1,6 +1,7 @@
 import { GameMode, IGame, LoadingState } from "@/types";
 import { IPage, Page } from "./page";
 import { GameStoreService } from "@/services/GameStoreService";
+import { adoptDesignStyles } from "@/styles/design-styles";
 
 export interface ILoadingPage extends IPage {}
 
@@ -26,6 +27,7 @@ class LoadingPage extends Page {
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
+    adoptDesignStyles(this.shadowRoot);
     // Initialize with current state
     this.currentLoadingState = this.game.state.loading;
     
@@ -66,43 +68,28 @@ class LoadingPage extends Page {
     }
   }
 
-   get styles(): string {
+  /** Same darkness as consultation mode, gold loader in the centre (design system, DESIGN.md) */
+  get styles(): string {
     return /* css */ `
-            :host {
-                top: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100%;
-                border-radius: 0;
-                z-index: 1000;
-            }
-            
-            .loading {
-                font-size: 1em;
-                color: var(--color-primary);
-                padding: 4rem;
-                text-align: center;
-            }
-
-            .loading::after {
-                content: '...';
-                animation: dots 1.5s steps(4, end) infinite;
-            }
-
-            @keyframes dots {
-                0%, 20% { content: ''; }
-                40% { content: '.'; }
-                60% { content: '..'; }
-                80%, 100% { content: '...'; }
-            }
-        `;
+      :host {
+        top: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        background: var(--loading-background);
+        z-index: 1000;
+      }
+    `;
   }
 
-   get template(): string {
+  get template(): string {
     return /* html */ `
-            <div class="loading">${this.message}</div>
-        `;
+      <div class="gold-spinner" role="status"></div>
+      <span class="visually-hidden">${this.message}</span>
+    `;
   }
 
   private showLoading(msg: string = "Loading"): void {

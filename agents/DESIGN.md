@@ -59,7 +59,7 @@ itself is `#000000`). One linear gradient is used on all 40 pages:
 | "i" button | circle, same Multiply construction → transparent | black shadow, blurred (~15 px) | Ø 17.9 pt → 34 px |
 | Spread menu active item (scan) | same Multiply construction | black shadow 50 %, blurred | ~60 × 29 px |
 
-The PDF cannot express a backdrop blur; the **glass** look is Tilman's rule (below, §5).
+The PDF cannot express a backdrop blur; the **frosted glass** look is confirmed by Tilman (§6, Q4).
 
 ---
 
@@ -114,6 +114,11 @@ page-wide sweep later; B only for desktop.
   black onboarding.
 - Text: gold gradient (A).
 
+## 6b. Loading
+Startup loader (`index.html`) and loading page: `--loading-background` (the consultation darkness with a
+slight vignette) + `.gold-spinner` (gold gradient ring) in the centre – Tilman, 2026-09-25. MindAR's own
+loading UI is off (`uiLoading: no`).
+
 ## 7. Style architecture (no CSS mess)
 - **Tokens** only in `main.css` (`:root`): gold stops + `--gold-gradient`, greys, backgrounds, shadows,
   blur, type scale, spacing. No literal colors in components.
@@ -132,8 +137,8 @@ page-wide sweep later; B only for desktop.
    element (as in the PDF) or one gradient across the whole screen?
 2. **Mark in scan mode** sits partly above the top edge (−11 px). Intended?
 3. **Onboarding background:** black with a radial fade – what color is behind it at the edges?
-4. **Glass:** should pills / "i" / the spread-menu highlight blur what is behind them (backdrop blur)? The
-   PDF shows transparent bodies with a soft black shadow only.
+4. ~~**Glass:**~~ **answered (Tilman, 2026-09-25): yes, frosted look** – pills, "i" and the spread-menu
+   highlight blur what is behind them (`--glass-blur`).
 5. **Spread menu:** inactive items are light grey `#d6d8d8` on the camera image – enough contrast on
    white book pages? Active item: gold gradient text?
 6. **Found indicator:** exact shadow (the ellipse below the image) and the "New entry unlocked"
