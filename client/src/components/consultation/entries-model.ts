@@ -1,4 +1,4 @@
-import { Entry, EntryCategory } from "@/types";
+import { ENTRY_CATEGORIES, Entry, EntryCategory } from "@/types";
 import { isEntryCategory } from "@shared/guards/game-config";
 
 /**
@@ -16,6 +16,18 @@ export const categoryLabel = (category: EntryCategory): string =>
 export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 
 export const isCategory = isEntryCategory;
+
+/** Filter of the entries list: a category, or all bookmarked entries (PLAN Phase 4, not in the design yet) */
+export const BOOKMARKED = "bookmarked";
+export type EntriesFilter = EntryCategory | typeof BOOKMARKED;
+
+export const isEntriesFilter = (value: unknown): value is EntriesFilter => value === BOOKMARKED || isCategory(value);
+
+export const filterLabel = (filter: EntriesFilter): string =>
+  filter === BOOKMARKED ? "Bookmarked" : categoryLabel(filter);
+
+/** The filter options in menu order: the four categories, then "Bookmarked" (5th item for now – Tilman) */
+export const ENTRIES_FILTERS: readonly EntriesFilter[] = [...ENTRY_CATEGORIES, BOOKMARKED];
 
 /**
  * Unconsulted entries are hidden in the final app (more game-like) and shown **locked** during
@@ -64,13 +76,6 @@ export const groupEntries = <T extends Pick<Entry, "title" | "category">>(
   return groups;
 };
 
-/** Paragraphs of a body text (blank line = new paragraph) */
-export const paragraphs = (text: string): string[] =>
-  text
-    .split(/\n\s*\n/)
-    .map(p => p.trim())
-    .filter(Boolean);
-
 export type LinkEmbed =
   | { kind: "video"; src: string }
   | { kind: "page"; src: string };
@@ -103,6 +108,3 @@ export const linkEmbed = (url: string): LinkEmbed | undefined => {
 
   return { kind: "page", src: parsed.href };
 };
-
-export const escapeHtml = (text: string): string =>
-  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

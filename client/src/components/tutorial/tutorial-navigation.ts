@@ -2,7 +2,7 @@ import { GameStoreService } from "../../services/GameStoreService";
 import { getTutorial } from "@/utils/game-config";
 import { IGame } from "@/types/game";
 import { ITutorialNavigation, Step } from "@/types/tutorial";
-import { escapeHtml } from "@/components/consultation/entries-model";
+import { escapeHtml } from "@/utils";
 import { adoptDesignStyles } from "@/styles/design-styles";
 
 const tutorial = getTutorial();

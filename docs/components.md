@@ -9,7 +9,7 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 | `header/` | `<game-header>` with `<mark-the-page>` (Mark, the app's main button) and `<entries-counter>` |
 | `scan/` | `<spread-menu>` (looped spread menu at the bottom), `<found-indicator>` (found target without AR content) |
 | `aframe-bridges/` | `<ar-bridge>` – the A-Frame / MindAR scene; entities, chroma key, AR scene strategies |
-| `consultation/` | helpers of the entries list and entry view (labels, grouping, link embeds, icons) |
+| `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category), `<entry-actions>` (bookmark, note); helpers in `entries-model.ts` |
 | `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` |
 | `camera-permission/` | `<camera-permission>` – shown when the camera is denied |
 | `common/` | `<close-button>`, `<gold-illustration>` (SVG in the gold gradient), `text-button` |

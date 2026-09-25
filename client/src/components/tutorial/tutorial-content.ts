@@ -1,6 +1,6 @@
 import { getTutorial } from "@/utils/game-config";
 import { ITutorialContent } from "@/types/tutorial";
-import { escapeHtml, paragraphs } from "@/components/consultation/entries-model";
+import { escapeHtml, paragraphs } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header/mark-the-page";
 import "@/components/common/gold-illustration";
 import { adoptDesignStyles } from "@/styles/design-styles";
