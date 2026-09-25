@@ -483,7 +483,7 @@ counter, CONSULTATION = Mark (same image as scan until the WebM states) + counte
 
 ---
 
-## Phase 4 – Consultation mode (formerly Index)  `[~]` (built 2026-09-25; open: entries without target, list colours, final Info texts)
+## Phase 4 – Consultation mode (formerly Index)  `[~]` (built 2026-09-25; open: entries without target, final Info texts)
 
 Consultation chrome from the design (frames 15, 17, 21, 33 – checked 2026-09-25):
 - Mark top center (the **same Mark as in scan mode** – the thin strip in the frames is a PDF → PNG glitch), **"i"** top right: gold "i" on a dark round glass button.
@@ -529,8 +529,8 @@ Open:
 - [ ] Entries **without a target** (e.g. Metafiction, the placeholder text) can never be consulted by
   scanning – with unconsulted entries hidden they would never appear. Decide: count them as consulted
   from the start, unlock them with their access page's spread, or require a target for every entry.
-- [ ] List text colours: the frames mix white and gold within titles (frames 17, 19, 24) – intended
-  (e.g. gold = new / not yet consulted) or a rendering effect? Built: white titles.
+- [x] List text colours: the white/gold mix in frames 17/19/24 is **one gold gradient across the whole list**
+  (measured from the PDF, DESIGN.md §1) – built so on 2026-09-25.
 - [ ] Removal candidates (need okay): `/index` dev view with `index-page`, `spread-list`, `spread-item`,
   `target-item`, `index-button`; `close-button` if unused after the tutorial restyle.
 
