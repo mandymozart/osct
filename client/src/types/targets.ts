@@ -1,14 +1,5 @@
 import { EntityData, TargetData } from "./game-config";
 
-/**
- * Track the history of seen targets
- */
-export interface TargetHistoryEntry {
-  spreadId: string;
-  targetIndex: number;
-  timestamp: number;
-}
-
 export interface TargetManagerState {
   trackedTargets: string[]; // target ids
 }
@@ -25,7 +16,7 @@ export interface Target extends Omit<TargetData, "entity"> {
 
 export interface ITargetManager {
   /**
-   * Add a target to the list of tracked targets (and mark it as seen)
+   * Add a target to the list of tracked targets (and unlock it in the progress)
    * @param targetId The id of the found target
    */
   addTarget(targetId: string): void;

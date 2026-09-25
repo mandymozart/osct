@@ -1,6 +1,5 @@
 import {
   CameraPermissionStatus,
-  ConfigurationVersion,
   ErrorInfo,
   GameMode,
   GameState,
@@ -14,7 +13,8 @@ import {
   LoadingState
 } from "@/types";
 import { uniqueId } from "@/utils";
-import { getConfigVersion } from "@/utils/game-config";
+import { getBook } from "@/utils/game-config";
+import { createProgressRecord } from "./managers/progress-readers";
 import { BaseStore } from "./BaseStore";
 import { CameraManager } from "./managers/CameraManager";
 import { SpreadManager } from "./managers/SpreadManager";
@@ -30,8 +30,7 @@ const initialState: GameState = {
   trackedTargets: [],
   currentSpread: null,
   spreads: {}, 
-  history: [],
-  configVersion: getConfigVersion(),
+  progress: createProgressRecord(getBook().id), // loaded by the HistoryManager
   loading: LoadingState.LOADING,
   cameraPermission: CameraPermissionStatus.UNKNOWN
 }

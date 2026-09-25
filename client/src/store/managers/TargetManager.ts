@@ -12,7 +12,7 @@ export class TargetManager implements ITargetManager {
   }
 
   /**
-   * Add a target to the list of tracked targets and mark it as seen
+   * Add a target to the list of tracked targets and unlock it
    */
   public addTarget(targetId: string): void {
     const isTargetTracked = this.game.state.trackedTargets.includes(targetId);
@@ -23,10 +23,9 @@ export class TargetManager implements ITargetManager {
         draft.trackedTargets.push(targetId);
       });
 
-      // History is still keyed by spread + MindAR index until the Phase 2 rekey (decision b)
-      const target = getTarget(targetId);
-      if (target) {
-        this.game.history.markTargetAsSeen(target.spreadId, target.index);
+      // Stage 1 of discovery: found in scan mode = unlocked (only targets of the content)
+      if (getTarget(targetId)) {
+        this.game.history.unlockTarget(targetId);
       }
     }
   }

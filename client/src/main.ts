@@ -140,6 +140,8 @@ export class BookGame extends HTMLElement {
     try {
       await waitForDOMReady();
       window.BOOKGAME = this.game;
+      // Progress is loaded with the store; offer to resume once the pages are there
+      this.game.history.offerResume();
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
       );

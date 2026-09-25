@@ -51,11 +51,10 @@ export class SpreadItem extends HTMLElement implements ISpreadItem {
     // Get completion percentage from history
     const completionPercentage = this.game?.history.getSpreadCompletionPercentage(this._spread.id) ?? 0;
     
-    // Get info about seen targets
-    const seenTargets = this.game?.history.getSeenTargetsForSpread(this._spread.id) ?? [];
-    const seenCount = seenTargets.length;
+    // Get info about unlocked targets
+    const unlockedCount = this.game?.history.getUnlockedTargets(this._spread.id).length ?? 0;
     const isComplete = this.game?.history.isSpreadComplete(this._spread.id) ?? false;
-    const statusText = isComplete ? 'Complete' : seenCount > 0 ? `${seenCount} targets seen` : 'Not started';
+    const statusText = isComplete ? 'Complete' : unlockedCount > 0 ? `${unlockedCount} targets unlocked` : 'Not started';
     
     this.shadowRoot.innerHTML = /* html */`
       <style>
