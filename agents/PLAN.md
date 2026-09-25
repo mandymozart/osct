@@ -700,7 +700,7 @@ Both: one scene, one live stream, rapid switching ends on the last spread, found
 6. Drop the AR rendering of `link` targets (links are entries, not AR entities)? – No demo target uses
    `link` any more since 2026-09-25 (Shadows), the entity type itself is still supported.
 
-## Phase 7 – Polish  `[ ]`
+## Phase 7 – Polish  `[ ]` (paused 2026-09-25 – Tilman does extensive device testing first; don't start unasked)
 
 - Mark the Page WebM integration (alpha: WebM for Android, HEVC for iOS if needed), size variants.
 - Device tests: iOS Safari + Android Chrome – memory when switching groups, video autoplay.
