@@ -3,6 +3,7 @@ import { IGame } from "@/types/game";
 import "./entries-counter";
 import "./mark-the-page";
 import { adoptDesignStyles } from "@/styles/design-styles";
+import { goldButton } from "@/components/buttons";
 
 /**
  * Top chrome, per mode (design 260804):
@@ -93,8 +94,8 @@ export class GameHeader extends HTMLElement {
                 <entries-counter></entries-counter>
                 <div class="counter-label design">Entries consulted</div>
               </div>
-              <button type="button" class="entries pill design" id="entries"><span class="gold">Entries</span></button>
-              <button type="button" class="info icon-button design" id="info" aria-label="Info"><span class="gold">i</span></button>
+              ${goldButton({ label: "Entries", className: "entries", attrs: { id: "entries" } })}
+              ${goldButton({ label: "i", shape: "icon", className: "info", attrs: { id: "info", "aria-label": "Info" } })}
             </div>
         `;
   }

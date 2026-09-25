@@ -2,6 +2,7 @@ import { MEDIA_QUERY } from "@/constants";
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles/design-styles";
+import { goldButton } from "@/components/buttons";
 import { Page } from "./page";
 
 export interface IErrorPage extends HTMLElement {
@@ -124,9 +125,9 @@ class ErrorPage extends Page implements IErrorPage {
     return /* html */ `
       <div class="message design">${this.message}</div>
       <div class="actions">
-          <button type="button" class="pill design" id="dismiss-error"><span class="gold">Dismiss</span></button>
+          ${goldButton({ label: "Dismiss", attrs: { id: "dismiss-error" } })}
           ${this.actionButton
-    ? `<button type="button" class="pill primary design" id="action-button"><span class="gold">${this.actionButton.text}</span></button>`
+    ? goldButton({ label: this.actionButton.text, primary: true, attrs: { id: "action-button" } })
     : ''}
       </div>
       `;

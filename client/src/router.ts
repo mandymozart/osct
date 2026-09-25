@@ -17,11 +17,6 @@ export const router: PageRouterConfiguration = {
       mode: GameMode.IDLE,
     },
     {
-      page: Pages.SPREADS,
-      slug: "/spreads",
-      mode: GameMode.SCAN,
-    },
-    {
       page: Pages.SPREAD,
       slug: "/spread",
       mode: GameMode.SCAN,
@@ -49,13 +44,6 @@ export const router: PageRouterConfiguration = {
       // Entry detail (design p.15, 20, 25, 30–31)
       page: Pages.ENTRY,
       slug: "/entry",
-      mode: GameMode.CONSULTATION,
-      param: "entryId"
-    },
-    {
-      // Former index (spreads + targets): kept as a dev view, like /spreads
-      page: Pages.INDEX,
-      slug: "/index",
       mode: GameMode.CONSULTATION,
       param: "entryId"
     },

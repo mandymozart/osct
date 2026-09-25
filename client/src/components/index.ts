@@ -4,8 +4,5 @@ export * from "./camera-permission/camera-permission";
 export * from "./common";
 export * from "./dev-tools";
 export * from "./header";
-export * from "./icons";
-export * from "./dev-index";
-export * from "./navigation";
 export * from "./pages-router";
 export * from "./tutorial";

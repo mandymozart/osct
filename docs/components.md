@@ -12,11 +12,10 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 | `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category), `<entry-actions>` (bookmark, note); helpers in `entries-model.ts` |
 | `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` |
 | `camera-permission/` | `<camera-permission>` – shown when the camera is denied |
-| `common/` | `<close-button>`, `<gold-illustration>` (SVG in the gold gradient), `text-button` |
+| `common/` | `<gold-illustration>` (SVG in the gold gradient) |
+| `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary) |
 | `pages-router/` | `<pages-router>` – shows the page of the current route |
-| `icons/` | small SVG icons (`<cross-icon>`, `<index-icon>`, …) |
 | `dev-tools/` | `<debug-overlay>` (with `VITE_DEBUG=true`) and `<qr-generator>` |
-| `index/`, `navigation/`, `buttons/` | views of the former design: dev index, hidden navigation bar |
 
 ## Design styles
 
@@ -27,6 +26,15 @@ primitives (`.button`, `.pill`, `.primary`, `.gold`, `.muted`, …) are one cons
 import { adoptDesignStyles } from "@/styles/design-styles";
 
 adoptDesignStyles(this.shadowRoot!);
+```
+
+Buttons are native `<button>`s built with `goldButton()` (the component adopts the design styles):
+
+```typescript
+import { goldButton } from "@/components/buttons";
+
+goldButton({ label: "Start", shape: "button", primary: true, attrs: { id: "start-btn" } });
+goldButton({ label: "Add note", icon: ICONS.noteAdd, attrs: { "data-action": "add-note" } });
 ```
 
 Values come from the measured design spec, `agents/DESIGN.md`.

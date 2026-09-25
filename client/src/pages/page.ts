@@ -61,7 +61,7 @@ export abstract class Page extends HTMLElement implements IPage {
           height: calc(100% - var(--offset-top, 3rem));
           display: flex;
           flex-direction: column;
-          background: var(--color-background);
+          background: var(--app-background);
           border-radius: 1.5rem 1.5rem 0 0;
           z-index: var(--page-z-index, 1000);
           transition: all 1s ease;
@@ -89,7 +89,7 @@ export abstract class Page extends HTMLElement implements IPage {
           margin:0;
           font-weight: 400;
           font-size: 1.5rem;
-          color: var(--primary-500);
+          color: var(--color-muted);
           line-height: 6rem;
           padding: 2rem 5rem 1rem 1rem;
         }

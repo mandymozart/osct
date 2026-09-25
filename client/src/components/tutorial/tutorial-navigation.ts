@@ -2,8 +2,8 @@ import { GameStoreService } from "../../services/GameStoreService";
 import { getTutorial } from "@/utils/game-config";
 import { IGame } from "@/types/game";
 import { ITutorialNavigation, Step } from "@/types/tutorial";
-import { escapeHtml } from "@/utils";
 import { adoptDesignStyles } from "@/styles/design-styles";
+import { goldButton } from "@/components/buttons";
 
 const tutorial = getTutorial();
 
@@ -55,7 +55,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
       <style>
         :host { display: flex; justify-content: center; }
       </style>
-      ${label ? `<button type="button" class="button primary design next-button"><span class="gold">${escapeHtml(label)}</span></button>` : ""}
+      ${label ? goldButton({ label, shape: "button", primary: true, className: "next-button" }) : ""}
     `;
   }
 

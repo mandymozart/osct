@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Old artefacts removed, goldButton() (Tilman)
+
+- (user) Removed, as listed in the open items here: dev views `/index` (`index-page`, `components/dev-index`) and
+  `/spreads` (`spreads-page`), `<navigation-bar>` with the old `components/buttons` (index / spreads buttons),
+  `close-button`, `text-button`, `components/icons`, the undefined `<app-router>`, `src/main.html`, the
+  deprecated `public/assets/targets|images|videos`, `tutorial-step-3/4/5.svg`, empty `three-bridges/`,
+  `IPageRouter`, `ILoadingPage`, 6 unused error codes, the old light tokens (`--primary-*`, `--secondary-*`,
+  `--color-primary|secondary|background|border`). Body text, `Page` base and startup error screen use the
+  design tokens now; the QR generator (debug overlay) is a light panel with a design button.
+- (user) Option A for buttons: `goldButton()` / `goldButtonContent()` in `components/buttons/gold-button.ts`
+  (markup helper, native `<button>`). All 13 design buttons use it (home, tutorial, header, Info, error page,
+  entries filter, bookmark, add note, QR download). Rule in RULES #18.
+
 ## 2026-09-25 – Consultation pages split into components (Tilman)
 
 - `components/consultation/`: `<entries-filter>` (category pill + menu, navigates; closes on outside tap / Escape),
@@ -14,9 +27,7 @@ outcome in the line (or move it into a dated decision block).
   (used by page, filter and list). `escapeHtml` / `paragraphs` moved to `utils/strings.ts` (tutorial, home, info
   used them too).
 - Lesson again: component styles that must beat the adopted design sheet need more specificity (`:host .pill`).
-- [ ] Open: reusable design button component (`components/buttons/`) – proposal to Tilman; removal of the old
-      artefacts (dev views, nav bar, old buttons/icons, legacy assets, old tokens) blocked by the permission
-      prompt – waiting for Tilman.
+- [x] Buttons + removal: see the next entry (2026-09-25, done).
 
 ## 2026-09-25 – components/index → components/dev-index (Tilman)
 
@@ -41,7 +52,7 @@ outcome in the line (or move it into a dated decision block).
   entries, entities, steps, `.mind` compile order, chroma key), game store, managers, pages, components.
 - Removed stale docs: `docs/docs/README.md` (Glitch, canvas workaround), Docusaurus boilerplate
   `docs/src/pages/markdown-page.md`, outdated copies `client/src/pages/PAGES.md` / `ERROR-PAGE.md`.
-- [ ] Open: `<navigation-bar>` (+ index/spreads buttons) is always hidden (`display: none`) and `<app-router>`
+- [x] (removed 2026-09-25) `<navigation-bar>` (+ index/spreads buttons) is always hidden (`display: none`) and `<app-router>`
       in `main.ts` is not defined anywhere – removal candidates, ask Tilman.
 
 ## 2026-09-25 – Progress reading moved to utils (Tilman)
@@ -128,7 +139,7 @@ outcome in the line (or move it into a dated decision block).
 - [x] (user) The page background was still the old light grey (`--color-background` on body) → black
       `--app-background`, `color-scheme: dark`. Error page (also the resume notice) and not-found restyled in
       the consultation look (black 82 %, white text, glass pills with gold labels).
-- [ ] Old light tokens (`--color-background`, `--primary-*`) remain only in the dev views (index, spreads)
+- [x] (removed 2026-09-25) Old light tokens (`--color-background`, `--primary-*`) remain only in the dev views (index, spreads)
       and `text-button` – removal candidates with those views.
 - [ ] Device check: `background-clip: text` over descendants (the list-wide gradient) on iOS Safari.
 - [x] Lesson: happy-dom's XML parser drops an SVG that contains a `<style>` block (Penpot font imports) –
@@ -255,7 +266,7 @@ outcome in the line (or move it into a dated decision block).
 - [x] (user) `utils/game-config.ts` is a primitive service → moves to `services/` with the data access
       work (PLAN Phase 2 versioning). Not moved yet.
 - [x] (user) Empty `components/slotted-page/` removed (untracked, empty). `components/three-bridges/` is
-      empty too – [ ] ask whether to remove. ~~Old `.mind` files in `client/src/targets/`~~ (removed by Tilman,
+      empty too – [x] removed 2026-09-25. ~~Old `.mind` files in `client/src/targets/`~~ (removed by Tilman,
       ccb59e9) and the old test page `client/src/main.html` (points at `/targets/single-image.mind`) → Tilman's cleanup.
 
 ## 2026-09-24 – Mode vs scene state, overlays pause the scene
@@ -321,9 +332,9 @@ custom element classes (used by tag name), `.d.ts` declaration merging (`HTMLEle
 - VR (left untouched by the plan): `ErrorCode.FAILED_TO_ENTER_VR`, `FAILED_TO_EXIT_VR`.
 
 **Removal candidates (no plan item) – check for duplicates/redundancy first (RULES #15):**
-- [ ] `IPageRouter` (`types/router.ts`, `navigate()`/`close()`) – looks superseded by `IRouterManager`.
-- [ ] `ILoadingPage` (`pages/loading-page.ts`) – declared, not implemented by `LoadingPage`.
-- [ ] `ErrorCode.UNKNOWN_ERROR`, `INITIALIZATION_FAILED`, `NOT_READY`, `SPREADS_LOAD_FAILED`,
+- [x] (removed 2026-09-25) `IPageRouter` (`types/router.ts`, `navigate()`/`close()`) – looks superseded by `IRouterManager`.
+- [x] (removed 2026-09-25) `ILoadingPage` (`pages/loading-page.ts`) – declared, not implemented by `LoadingPage`.
+- [x] (removed 2026-09-25) `ErrorCode.UNKNOWN_ERROR`, `INITIALIZATION_FAILED`, `NOT_READY`, `SPREADS_LOAD_FAILED`,
       `SOME_ASSETS_NOT_FOUND`, `ENTITY_NOT_FOUND` – generic or overlapping with the codes above.
 
 **`page` on entries is not legacy** (checked 2026-09-24): the design shows "Access page 186" in every
@@ -463,7 +474,7 @@ Agent decisions (reversible, flagged for review):
       Proper migration → Phase 2 (stable IDs + content version).
 - [x] `docs/` (Docusaurus) still uses chapter terminology throughout – update or retire later.
       → Rewritten and Docusaurus retired on 2026-09-25 (plain markdown).
-- [ ] `client/public/assets/targets/chapter{1,2,3}.mind` are unreferenced legacy files. Ask before removing.
+- [x] `client/public/assets/targets/chapter{1,2,3}.mind` are unreferenced legacy files. → Removed 2026-09-25 (Tilman).
 - [ ] Pre-existing bug (not from the rename, verified on the pre-rename commit): switching spreads
       while MindAR never started (camera denied) throws `Cannot read properties of undefined (reading
       'stopProcessVideo')` from MindAR during scene teardown (`static-scene-bridge.ts`). Guard in

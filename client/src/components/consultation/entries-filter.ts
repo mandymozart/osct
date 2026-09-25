@@ -1,6 +1,7 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles/design-styles";
+import { goldButton } from "@/components/buttons";
 import { DEFAULT_CATEGORY, ENTRIES_FILTERS, EntriesFilter, filterLabel } from "./entries-model";
 
 /**
@@ -89,7 +90,7 @@ export class EntriesFilterElement extends HTMLElement {
           cursor: pointer;
         }
       </style>
-      <button type="button" class="pill design" data-action="toggle" aria-haspopup="menu" aria-expanded="${this.open}"><span class="gold">${filterLabel(this._value)}</span></button>
+      ${goldButton({ label: filterLabel(this._value), attrs: { "data-action": "toggle", "aria-haspopup": "menu", "aria-expanded": String(this.open) } })}
       ${this.open ? `<ul class="menu" role="menu">${ENTRIES_FILTERS.map(item).join("")}</ul>` : ""}
     `;
   }

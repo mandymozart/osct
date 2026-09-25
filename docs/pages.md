@@ -16,8 +16,6 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | `/entries` (`category`) | `<entries-page>` | consultation | entries list by category or bookmarked |
 | `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: text, media, bookmark, note |
 | `/about` | `<about-page>` | consultation | Info: about text, colophon, tutorial restart |
-| `/spreads` | `<spreads-page>` | scan | dev view: spreads with progress |
-| `/index` | `<index-page>` | consultation | dev view: spreads and targets (former index) |
 | `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](error-page.md) |
 | `/not-found` | `<not-found-page>` | (keeps mode) | unknown route |
 

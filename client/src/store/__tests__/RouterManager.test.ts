@@ -56,8 +56,6 @@ describe("RouterManager", () => {
     ["/", GameMode.IDLE],
     ["/tutorial", GameMode.IDLE],
     ["/spread", GameMode.SCAN],
-    ["/spreads", GameMode.SCAN],
-    ["/index", GameMode.CONSULTATION],
     ["/entries", GameMode.CONSULTATION],
     ["/entry", GameMode.CONSULTATION],
     ["/about", GameMode.CONSULTATION],
