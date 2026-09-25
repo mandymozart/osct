@@ -71,7 +71,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
       state; everything A-Frame/MindAR specific (MindAR is an A-Frame plugin) lives here, incl. its
       helpers (`utils/`: templates, target listeners, scene state policy).
     - **Services** (`services/`): singletons giving app-wide access (`GameStoreService`: the store;
-      later the game configuration and the generated API). `SceneService` is A-Frame specific and
+      later the game configuration and the generated API). Naming: class and file `*Service`
+      (`GameStoreService`, `SceneService`, `PreloaderService`) – Tilman, 2026-09-25. `SceneService` is A-Frame specific and
       only an interim exception until Phase 6 replaces it inside the bridge context.
     - **`utils/`**: only helpers used across several of these layers. Logic used in one place goes
       next to its owner. `utils/game-config.ts` is a primitive service (module singleton) → moves to

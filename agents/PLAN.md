@@ -405,7 +405,7 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
 - [x] (2026-09-25) `.mind` preloading via a **Preloader utility**: fetch into the browser cache only.
   Do **not** touch the A-Frame scene before the group is actually activated.
   Keeping two scene contexts alive is a later topic – not now.
-  Done: `services/Preloader.ts` (dedupes per URL, retries failed, timeout, `priority: low`). On MindAR
+  Done: `services/PreloaderService.ts` (dedupes per URL, retries failed, timeout, `priority: low`). On MindAR
   `arReady` of the active spread (`static-scene-bridge.ts`) it preloads the **neighbouring** spreads
   (±1 in book order): their `.mind` first, then (Tilman) their content – entity assets and entry images,
   videos last; external URLs skipped. Browser: MindAR's later `.mind` request came from the cache (4 ms).
@@ -458,8 +458,9 @@ counter, CONSULTATION = Mark (consultation state) + counter + "i" (→ about = I
     "New entry unlocked" + small rotation only if the entry was not consulted yet,
     otherwise jump straight to the entry.
   - **Consultation mode:** should eventually be hidden (it blocks the view). For now leave it
-    visible for simplicity and check how it looks. → [ ] review visibility in consultation.
-    Built into the scan page, so it is **hidden** in consultation today (the scene is paused there).
+    visible for simplicity and check how it looks. → [x] reviewed against the design (2026-09-25):
+    **hidden** in consultation – no indicator in frames 15/17/21/33.
+    Built into the scan page, so it is hidden there already.
 - [x] **AR videos** (p.37–40): **autoplay** when the target is found. No "zoom out" hint needed:
   MindAR only plays once the target is fully in view.
   Built (`aframe-bridges/utils/videos.ts`): play on found, pause on lost, all paused when the scene
@@ -482,7 +483,16 @@ counter, CONSULTATION = Mark (consultation state) + counter + "i" (→ about = I
 
 ---
 
-## Phase 4 – Consultation mode (formerly Index)  `[ ]`
+## Phase 4 – Consultation mode (formerly Index)  `[~]` (started 2026-09-25)
+
+Consultation chrome from the design (frames 15, 17, 21, 33 – checked 2026-09-25):
+- Mark (consultation strip) top center, **"i"** top right: gold "i" on a dark round glass button.
+- **Counter** "12 / 150" + label "Entries consulted" **only on the entries list** (frame 17), not on the
+  entry detail (15, 21) or Info (33).
+- **"Entries"** gold pill top left on entry detail and Info (back to the list with the last category).
+- Dark, slightly transparent background.
+- Note: the dark parallelogram next to Mark in the rendered frames is a **PDF → PNG glitch** (Tilman),
+  not UI and not the camera image. Only Mark is at the top.
 
 - From Phase 2: rename route `/index` → `/entries` (param `category`, mode CONSULTATION) and add `/entry`
   (param `entryId`, mode CONSULTATION) together with their pages.
@@ -660,4 +670,4 @@ Phase 5 can run in parallel at any point; it mostly restyles existing tutorial p
 | 13 | A-Frame bridges: one bridge + `ArScene` API, spread switching A/B, camera start, removals | 6 |
 | 14 | ~~Content model + type naming~~ → nested target, inline/ref entities, `*Data` game-configuration contract in top-level `shared/`, app model plain names, single entry point | 1e ✓ |
 | 15 | **Review:** loading overlay concept – full-screen loader on every spread switch covers the menu (see Phase 3 page menu) – Tilman | 3 |
-| 16 | **Review:** found indicator in consultation mode – hidden today (scan page only), design says visible for now | 3 |
+| 16 | ~~**Review:** found indicator in consultation mode~~ → **hidden** (checked against frames 15, 17, 21, 33: no indicator in any consultation frame) – matches the build | 3 ✓ |

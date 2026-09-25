@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Preloader } from "@/services/Preloader";
+import { PreloaderService } from "@/services/PreloaderService";
 import { getAssets, getSpread, getSpreads } from "@/utils/game-config";
 
-describe("Preloader", () => {
+describe("PreloaderService", () => {
   const spreads = getSpreads();
-  let preloader: Preloader;
+  let preloader: PreloaderService;
   let fetchMock: ReturnType<typeof vi.fn<[string, RequestInit?], Promise<Response>>>;
 
   beforeEach(() => {
-    preloader = new Preloader();
+    preloader = new PreloaderService();
     fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(new ArrayBuffer(8), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
   });
