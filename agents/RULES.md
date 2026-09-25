@@ -78,6 +78,17 @@ Extend as we go: add a rule when a decision should hold for all future work.
       next to its owner. `utils/game-config.ts` is a primitive service (module singleton) → moves to
       `services/` with the data access work (see PLAN Phase 2 versioning).
 
+18. **Design styles** (2026-09-25, Tilman: "no CSS mess"): values come from `agents/DESIGN.md` (measured
+    from the PDF). Colors, gradients, shadows, sizes only as tokens in `client/src/main.css`; controls and
+    text effects only through the shared primitives in `client/src/styles/design-styles.ts`
+    (`adoptDesignStyles(shadowRoot)`: `.design`, `.gold`, `.muted`, `.button`, `.pill`, `.icon-button`,
+    `.rule-table`, `.section-title`). Components keep layout only – no literal colors.
+    - `.gold` replaces the element's background (it is `background-clip: text`): put it on the label
+      (`<button class="pill"><span class="gold">…`), never on an element that needs its own background.
+    - Glass: `--glass-background` (alpha 0.001, never 0 – else no backdrop blur) + `--glass-blur` +
+      a drop shadow (`--shadow-dark` on camera / consultation, `--shadow-glow` on black).
+    - Animated gold art: `<gold-illustration src="…svg">` (files stay in `public/`).
+
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions
   (Tilman, 2026-09-25). This overrides any tool default.

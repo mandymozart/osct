@@ -75,9 +75,9 @@ The PDF cannot express a backdrop blur; the **glass** look is Tilman's rule (bel
 | Found indicator image | 171 × 212 px, ~234 px from the top |
 | Onboarding text block | gradient box 247 px, centred |
 
-## 4. Differences to the current build (to fix once decided)
+## 4. Differences to the build before 2026-09-25 (applied on 2026-09-25 unless noted)
 - Gold is a flat `--color-accent` today → gradient text (§5).
-- Mark 64 px → 99 px (same Mark in all modes); scan position → after Q2.
+- Mark 64 px → 99 px (same Mark in all modes) ✓; scan position (−11 px) → after Q2 (kept at the top edge).
 - Consultation background `rgba(38,38,38,.94)` → `rgba(0,0,0,.82)`.
 - Pills/"i" have a dark fill today → transparent body + blurred black shadow (+ glass, §5).
 - Onboarding button: body black ✓, glow approximated with `box-shadow` → keep, tune to ~15 px spread.

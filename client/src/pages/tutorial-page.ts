@@ -27,7 +27,7 @@ export class TutorialPage extends Page {
         border-radius: 0;
         box-shadow: none;
         transition: opacity .3s ease, visibility .3s;
-        background: radial-gradient(ellipse at 50% 45%, #000 45%, #151515 100%);
+        background: var(--onboarding-background);
         pointer-events: all;
         cursor: default;
       }
@@ -37,7 +37,7 @@ export class TutorialPage extends Page {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: max(22vh, 6rem) 1.5rem 1rem;
+        padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark 88 px from the top (DESIGN.md §3) */
         box-sizing: border-box;
       }
       tutorial-content { flex: 1; width: 100%; }
@@ -53,10 +53,10 @@ export class TutorialPage extends Page {
         right: 1rem;
         border: none;
         background: none;
-        color: var(--consultation-muted);
+        color: var(--color-muted);
         font-family: var(--font-design);
         letter-spacing: var(--tracking-design);
-        font-size: .75rem;
+        font-size: var(--text-size-small);
         cursor: pointer;
       }
     `;

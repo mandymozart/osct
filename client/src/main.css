@@ -34,34 +34,47 @@
 
   --offset-top: 4rem;
 
-  /* Design 260804 tokens (PLAN "Design tokens"). Accent: gold placeholder, final color TBD */
+  /* ── Design 260804 – measured from the PDF (agents/DESIGN.md). Components use only these. ── */
   --font-design: Arial, Helvetica, sans-serif;
   --tracking-design: 0.02em;
-  /* Gold scale (placeholder until the final accent color) – 500 = the accent */
-  --gold-100: #fbf3dc;
-  --gold-200: #f2dfa6;
-  --gold-300: #e5c87a;
-  --gold-400: #d8b45c;
-  --gold-500: #c9a24a;
-  --gold-600: #a9853a;
-  --gold-700: #86682d;
-  --gold-800: #624b21;
-  --gold-900: #3e2f15;
-  --color-accent: var(--gold-500);
-  --color-chrome-muted: rgba(120, 120, 120, 0.9);
-  /* Glass highlight (spread menu, pill buttons) */
-  --glass-background: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.9);
-  --glass-shadow: 0 0.1rem 0.6rem rgba(0, 0, 0, 0.25);
-  --glass-blur: blur(8px);
-  /* Consultation mode (design p.15–34): dark, slightly transparent */
-  --consultation-background: rgba(38, 38, 38, 0.94);
-  --consultation-text: #f2f2f2;
-  --consultation-muted: rgba(242, 242, 242, 0.5);
-  --consultation-rule: rgba(242, 242, 242, 0.3);
-  --consultation-pill: rgba(60, 60, 60, 0.9);
-  /* Content starts below the top chrome (Mark, counter, "Entries") */
-  --consultation-top: calc(8.25rem + var(--debug-offset, 0px));
+  --text-size: 0.9375rem;          /* 8 pt ≈ 15 px */
+  --text-size-small: 0.8125rem;    /* hints, instructions */
+  --text-line: 1.25;
+  --row-height: 1.5rem;            /* table + list rows: 12.5 pt ≈ 24 px */
+
+  /* Gold = one gradient, clipped by the text, left → right per element (DESIGN.md §1) */
+  --gold-1: #f5e7c8;               /* pale champagne */
+  --gold-2: #7f6032;               /* dark bronze */
+  --gold-3: #d2ae5a;               /* gold */
+  --gold-4: #f3cc94;               /* light gold */
+  --gold-gradient: linear-gradient(90deg,
+    var(--gold-1) 0%, var(--gold-1) 3.8%, var(--gold-2) 31.5%,
+    var(--gold-3) 57%, var(--gold-4) 73.6%, var(--gold-4) 100%);
+  --color-accent: var(--gold-3);   /* flat gold where a gradient is not possible (borders, focus) */
+
+  --color-muted: #8b8d8c;          /* scan counter, "Pages activated", labels, rules */
+  --color-inactive: #d6d8d8;       /* inactive spread menu items */
+  --color-on-dark: #ffffff;        /* consultation values, body text */
+  --rule: 1px solid var(--color-muted);
+
+  /* Backgrounds */
+  --consultation-background: rgba(0, 0, 0, 0.82);
+  --onboarding-background:
+    radial-gradient(ellipse 50% 50% at 50% 50%, #000 0%, rgba(0, 0, 0, 0.93) 40%, rgba(0, 0, 0, 0.65) 70%, rgba(0, 0, 0, 0) 100%),
+    #1c1c1e;
+
+  /* Buttons: almost transparent body (non-zero alpha, else no backdrop blur) + blur + drop shadow */
+  --glass-background: rgba(255, 255, 255, 0.001);
+  --glass-blur: blur(10px);
+  --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);   /* pills, "i", menu highlight */
+  --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);  /* onboarding buttons on black */
+
+  /* Mark (same image in every mode) */
+  --mark-width: 99px;
+  --mark-height: 96px;
+
+  /* Content of consultation pages starts below the header (Mark, counter, "Entries") */
+  --consultation-top: calc(11.5rem + var(--debug-offset, 0px));
 
   color-scheme: light;
 

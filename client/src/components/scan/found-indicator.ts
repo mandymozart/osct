@@ -1,6 +1,7 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import { GameMode, IGame, Target } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
+import { adoptDesignStyles } from "@/styles/design-styles";
 
 /** How long "New entry unlocked" + the rotation play before the entry opens */
 const UNLOCK_MS = 1200;
@@ -31,6 +32,7 @@ export class FoundIndicator extends HTMLElement {
     super();
     this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
+    adoptDesignStyles(this.shadowRoot);
     this.handleClick = this.handleClick.bind(this);
   }
 
@@ -85,8 +87,6 @@ export class FoundIndicator extends HTMLElement {
           transform: none;
         }
         .label {
-          font-size: .8rem;
-          color: var(--color-accent);
           opacity: 0;
           transform: scale(.6);
           transition: opacity .3s ease, transform .4s ease;
@@ -105,10 +105,11 @@ export class FoundIndicator extends HTMLElement {
           -webkit-tap-highlight-color: transparent;
         }
         :host(:not([visible])) button { pointer-events: none; }
+        /* Measured: 171 × 212 px (DESIGN.md §3) */
         img {
           display: block;
-          max-width: 55vw;
-          max-height: 32vh;
+          max-width: min(171px, 55vw);
+          max-height: min(212px, 32vh);
           object-fit: contain;
           box-shadow: 0 .6rem 1.2rem rgba(0, 0, 0, .35);
         }
@@ -136,7 +137,7 @@ export class FoundIndicator extends HTMLElement {
           :host([unlocking]) img { animation: none; }
         }
       </style>
-      <div class="label" aria-hidden="true">New entry unlocked</div>
+      <div class="label design gold" aria-hidden="true">New entry unlocked</div>
       ${target && src ? `<button type="button" aria-label="Open entry ${entry?.title ?? ""}"><img src="${src}" alt=""></button>` : ""}
     `;
   }

@@ -16,7 +16,7 @@ export class AboutPage extends ConsultationPage {
         margin: .5rem 0 1rem;
         padding: .5rem .75rem;
         border-radius: .5rem;
-        background: var(--consultation-text);
+        background: var(--color-on-dark);
       }
       .logo { display: block; height: 3rem; }
       .buttons { margin: 1.5rem 0; }
@@ -41,7 +41,7 @@ export class AboutPage extends ConsultationPage {
         </a>
         <p>App by Tilman Porschuetz</p>
         <div class="buttons">
-          <button type="button" class="pill" id="tutorial-btn">Tutorial</button>
+          <button type="button" class="pill design" id="tutorial-btn"><span class="gold">Tutorial</span></button>
         </div>
         <div class="platforms">
           <p>Requires a WebXR compatible browser and a copy of the book.</p>

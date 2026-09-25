@@ -1,6 +1,7 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame, Spread } from "@/types";
 import { formatPages, getMenuSpreads, loopCopies, normalizeLoopScroll } from "./spread-menu-loop";
+import { adoptDesignStyles } from "@/styles/design-styles";
 
 /** Scroll has to rest this long before the loop is re-centered and the spread activated */
 const SETTLE_MS = 140;
@@ -30,6 +31,7 @@ export class SpreadMenu extends HTMLElement {
     super();
     this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
+    adoptDesignStyles(this.shadowRoot);
     this.handleScroll = this.handleScroll.bind(this);
     this.handleClick = this.handleClick.bind(this);
   }
@@ -75,8 +77,7 @@ export class SpreadMenu extends HTMLElement {
         :host([hidden]) { display: none; }
         .label {
           text-align: center;
-          font-size: .75rem;
-          color: var(--color-chrome-muted);
+          color: var(--color-muted);
           margin-bottom: .35rem;
         }
         .track {
@@ -86,39 +87,31 @@ export class SpreadMenu extends HTMLElement {
           overscroll-behavior-x: contain;
           scroll-snap-type: x mandatory;
           scrollbar-width: none;
-          padding: .4rem 0;
+          padding: .5rem 0 .75rem;
           pointer-events: all;
           -webkit-mask-image: linear-gradient(to right, transparent, #000 25%, #000 75%, transparent);
           mask-image: linear-gradient(to right, transparent, #000 25%, #000 75%, transparent);
         }
         .track::-webkit-scrollbar { display: none; }
+        /* Inactive items: plain text; the centred one gets .pill + a .gold label (design p.6–7) */
         .item {
           flex: none;
           scroll-snap-align: center;
-          font: inherit;
-          font-size: .8rem;
-          letter-spacing: inherit;
-          color: var(--color-chrome-muted);
-          background: none;
-          border: 1px solid transparent;
+          min-height: 1.8rem;
+          padding: 0 1rem;          /* = .pill, no layout shift when an item becomes the pill */
+          border: none;
           border-radius: 999px;
-          padding: .3rem .75rem;
-          cursor: pointer;
+          background: none;
+          color: var(--color-inactive);
+          font: inherit;
+          letter-spacing: inherit;
           white-space: nowrap;
-          transition: color .15s ease, background-color .15s ease, box-shadow .15s ease;
+          cursor: pointer;
           -webkit-tap-highlight-color: transparent;
         }
-        .item.centered {
-          color: var(--color-accent);
-          background: var(--glass-background);
-          border-color: var(--glass-border);
-          box-shadow: var(--glass-shadow);
-          -webkit-backdrop-filter: var(--glass-blur);
-          backdrop-filter: var(--glass-blur);
-        }
       </style>
-      <div class="label" id="label">Pages activated:</div>
-      <div class="track" role="listbox" aria-labelledby="label"></div>
+      <div class="label design" id="label">Pages activated:</div>
+      <div class="track design" role="listbox" aria-labelledby="label"></div>
     `;
     this.toggleAttribute("hidden", this.spreads.length === 0);
   }
@@ -144,7 +137,7 @@ export class SpreadMenu extends HTMLElement {
     const middle = copy === Math.floor(this.copies / 2);
     return this.spreads
       .map(s => `<button type="button" class="item" role="option" data-spread="${s.id}" data-copy="${copy}"
-        ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="Pages ${formatPages(s)}">${formatPages(s)}</button>`)
+        ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="Pages ${formatPages(s)}"><span>${formatPages(s)}</span></button>`)
       .join("");
   }
 
@@ -186,8 +179,14 @@ export class SpreadMenu extends HTMLElement {
     if (!nearest) return;
     const centered: HTMLElement = nearest;
 
-    track.querySelectorAll(".item.centered").forEach(item => item !== centered && item.classList.remove("centered"));
-    centered.classList.add("centered");
+    track.querySelectorAll(".item.centered").forEach(item => {
+      if (item === centered) return;
+      item.classList.remove("centered", "pill");
+      item.firstElementChild?.classList.remove("gold");
+      item.removeAttribute("aria-selected");
+    });
+    centered.classList.add("centered", "pill");
+    centered.firstElementChild?.classList.add("gold");
     centered.setAttribute("aria-selected", "true");
 
     const id = centered.dataset.spread ?? null;

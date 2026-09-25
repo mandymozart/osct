@@ -15,8 +15,14 @@ outcome in the line (or move it into a dated decision block).
       `backdrop-filter: blur`, depth only by a white or black drop shadow.
 - [x] (user) The cropped 129 × 20 px Mark image in the consultation frames is a **PDF export error** – Mark is
       exactly the same in the game-header in all modes. Not a question for the designers.
-- [ ] Next (after Tilman's go): shared design stylesheet + `.gold` + glass buttons + `<gold-illustration>`
-      (reinstate the old tutorial illustrations, animated like the camera), then apply the spec.
+- [x] (user: "i like your proposals") Applied: measured tokens in `main.css` (gold gradient, greys,
+      backgrounds, shadows, glass, type, Mark size), shared primitives `styles/design-styles.ts` (constructable
+      stylesheet adopted per shadow root), `<gold-illustration>` (any line-art SVG → gold chrome + sweep;
+      resolves inherited paint – Penpot exports set `fill="none"` on the root). Onboarding illustrations as on
+      main: intro = tutorial-step-1, camera = tutorial-step-2 (Tilman). RULES #18.
+- [ ] Device check: `background-clip: text` over descendants (the list-wide gradient) on iOS Safari.
+- [x] Lesson: happy-dom's XML parser drops an SVG that contains a `<style>` block (Penpot font imports) –
+      test SVGs without it. Adopted stylesheets cascade **after** a component's own `<style>`.
 
 ## 2026-09-25 – Phase 5 onboarding built
 

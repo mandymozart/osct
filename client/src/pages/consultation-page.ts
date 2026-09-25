@@ -1,4 +1,5 @@
 import { PageMinimal } from "./page-minimal";
+import { adoptDesignStyles } from "@/styles/design-styles";
 
 /**
  * Base of the consultation mode pages (entries list, entry, info – design p.15–34): dark, slightly
@@ -8,6 +9,12 @@ import { PageMinimal } from "./page-minimal";
 export abstract class ConsultationPage extends PageMinimal {
   private unsubscribe: (() => void) | null = null;
 
+  constructor() {
+    super();
+    adoptDesignStyles(this.shadowRoot);
+  }
+
+  /** Page frame only – colors, type and controls come from the tokens + shared primitives */
   public get baseStyles(): string {
     return /* css */ `
       :host {
@@ -18,16 +25,14 @@ export abstract class ConsultationPage extends PageMinimal {
         overscroll-behavior: contain;
         pointer-events: all;
         background: var(--consultation-background);
-        color: var(--consultation-text);
+        color: var(--color-on-dark);
         font-family: var(--font-design);
         letter-spacing: var(--tracking-design);
-        font-size: .9rem;
-        line-height: 1.35;
+        font-size: var(--text-size);
+        line-height: var(--text-line);
         opacity: 0;
         visibility: hidden;
         transition: opacity .25s ease, visibility .25s;
-        -webkit-backdrop-filter: blur(2px);
-        backdrop-filter: blur(2px);
       }
       :host([active=true]) {
         opacity: 1;
@@ -38,40 +43,6 @@ export abstract class ConsultationPage extends PageMinimal {
         max-width: 36rem;
         margin: 0 auto;
         padding: var(--consultation-top) 1.25rem calc(3rem + env(safe-area-inset-bottom));
-      }
-      button { font: inherit; letter-spacing: inherit; }
-      .pill {
-        border: none;
-        border-radius: 999px;
-        padding: .45rem 1rem;
-        color: var(--color-accent);
-        background: var(--consultation-pill);
-        box-shadow: var(--glass-shadow);
-        cursor: pointer;
-      }
-      .rule-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: .8rem;
-      }
-      .rule-table th,
-      .rule-table td {
-        text-align: left;
-        font-weight: 400;
-        padding: .2rem 0;
-        border-top: 1px solid var(--consultation-rule);
-        border-bottom: 1px solid var(--consultation-rule);
-        vertical-align: top;
-      }
-      .rule-table th { color: var(--consultation-muted); width: 40%; }
-      .section-title {
-        margin: 1.5rem 0 1rem;
-        padding: .15rem 0;
-        font-size: .8rem;
-        font-weight: 400;
-        color: var(--consultation-muted);
-        border-top: 1px solid var(--consultation-rule);
-        border-bottom: 1px solid var(--consultation-rule);
       }
       p { margin: 0 0 1em; white-space: pre-line; }
       a { color: var(--color-accent); }

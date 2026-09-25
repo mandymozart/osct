@@ -2,6 +2,8 @@ import { getTutorial } from "@/utils/game-config";
 import { ITutorialContent } from "@/types/tutorial";
 import { escapeHtml, paragraphs } from "@/components/consultation/entries-model";
 import { MARK_IMAGE_SRC } from "@/components/header/mark-the-page";
+import "@/components/common/gold-illustration";
+import { adoptDesignStyles } from "@/styles/design-styles";
 
 const tutorial = getTutorial();
 
@@ -18,6 +20,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    adoptDesignStyles(this.shadowRoot);
   }
 
   static get observedAttributes() {
@@ -56,30 +59,24 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
           align-items: center;
           text-align: center;
           height: 100%;
-          font-family: var(--font-design);
-          letter-spacing: var(--tracking-design);
-          color: var(--color-accent);
-          font-size: .85rem;
-          line-height: 1.35;
         }
-        .step { display: contents; }
         .fade { ${fade} }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .fade { animation: none; } }
-        img.mark { height: 4.5rem; margin-bottom: 1.5rem; }
+        img.mark { width: var(--mark-width); height: var(--mark-height); object-fit: contain; margin-bottom: 1.5rem; }
+        /* Same layout as the camera screen: illustration above the text */
+        gold-illustration { width: 5.5rem; margin: .5rem 0 1.5rem; }
         h1 { font-size: inherit; font-weight: 400; margin: 0 0 1.25rem; }
-        .text { max-width: 16rem; }
+        /* Text block ≈ 247 px wide = the gradient box of the PDF (DESIGN.md §1) */
+        .text { width: min(15.5rem, 100%); }
         p { margin: 0 0 1.25em; }
         .footer { margin-top: auto; padding-bottom: 1rem; }
-        .illustration { max-height: 6rem; margin: 1rem 0; }
       </style>
       <img class="mark" src="${MARK_IMAGE_SRC}" alt="Mark the Page">
-      ${step.title ? `<h1>${inline(step.title)}</h1>` : ""}
-      <div class="text fade">
-        ${step.description ? paragraphs(step.description).map(p => `<p>${inline(p)}</p>`).join("") : ""}
-        ${step.illustration ? `<img class="illustration" src="${escapeHtml(step.illustration)}" alt="">` : ""}
-      </div>
-      ${step.footer ? `<div class="footer fade">${inline(step.footer)}</div>` : ""}
+      ${step.illustration ? `<gold-illustration class="fade" src="${escapeHtml(step.illustration)}"></gold-illustration>` : ""}
+      ${step.title ? `<h1 class="design gold text">${inline(step.title)}</h1>` : ""}
+      ${step.description ? `<div class="text design gold fade">${paragraphs(step.description).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
+      ${step.footer ? `<div class="footer design gold fade">${inline(step.footer)}</div>` : ""}
     `;
   }
 }
