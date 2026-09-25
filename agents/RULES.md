@@ -94,6 +94,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
       a drop shadow (`--shadow-dark` on camera / consultation, `--shadow-glow` on black).
     - Animated gold art: `<gold-illustration src="…svg">` (files stay in `public/`).
     - Primary actions get `.primary` (shining label + border sweep); everything else stays secondary.
+    - Design buttons are written with `goldButton()` (`@/components/buttons`, 2026-09-25): native
+      `<button>` + shape class + gold label, never hand-written markup. Component styles that must beat
+      the adopted design sheet need more specificity (`:host .pill`) – the sheet comes after `<style>`.
 
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions

@@ -4,8 +4,6 @@ import "./not-found-page";
 import "./home-page";
 import "./tutorial-page";
 import "./spread-page"
-import "./spreads-page"
 import "./loading-page";
-import "./index-page";
 import "./entries-page";
 import "./entry-page";

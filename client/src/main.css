@@ -6,34 +6,6 @@
   font-size: 16px;
   font-weight: 400;
 
-  /* Gray Scale System */
-  --primary-100: #f4f4f5;
-  --primary-200: #e4e4e7;
-  --primary-300: #d4d4d8;
-  --primary-400: #a1a1aa;
-  --primary-500: #71717a;
-  --primary-600: #52525b;
-  --primary-700: #3f3f46;
-  --primary-800: #27272a;
-  --primary-900: #18181b;
-
-  /* Secondary Color Scale (Lavender) */
-  --secondary-100: #eeefff;
-  --secondary-200: #e0e1ff;
-  --secondary-300: #c4c6ff;
-  --secondary-400: #a4a7ff;
-  --secondary-500: #8588ff;
-  --secondary-600: #747bff;  /* Your original secondary color */
-  --secondary-700: #5d63cc;
-  --secondary-800: #464b99;
-  --secondary-900: #2f3266;
-
-  /* Update existing colors to use scales */
-  --color-primary: var(--primary-900);
-  --color-secondary: var(--secondary-600);
-  --color-background: var(--primary-100);
-  --color-border: var(--primary-300);
-
   --offset-top: 4rem;
 
   /* ── Design 260804 – measured from the PDF (agents/DESIGN.md). Components use only these. ── */
@@ -121,7 +93,7 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  color: var(--color-primary);
+  color: var(--color-on-dark);
   background-color: var(--app-background);
 }
 

@@ -20,28 +20,22 @@ export type ErrorListener = (error: ErrorInfo) => void;
  */
 export enum ErrorCode {
   // Generic errors
-  UNKNOWN_ERROR = "unknown-error",
-  INITIALIZATION_FAILED = "initialization-failed",
   NOT_SUPPORTED = "not-supported",
   // game.config.json does not match the contract (shared/guards) – details in ErrorInfo.details
   GAME_CONFIGURATION_INVALID = "game-configuration-invalid",
   NOT_FOUND = "not-found",
-  NOT_READY = "not-ready",
   NAVIGATION_FAILED = "navigation-failed",
   NETWORK_ERROR = "network-error",
   TIMEOUT = "timeout",
 
   // Spread errors
   SPREAD_NOT_FOUND = "spread-not-found",
-  SPREADS_LOAD_FAILED = "spreads-load-failed",
   SPREAD_LOAD_FAILED = "spread-load-failed",
   IMAGE_TARGET_NOT_FOUND = "missing-image-target",
 
   SPREAD_NOT_READY = "spread-not-ready",
-  SOME_ASSETS_NOT_FOUND = "some-assets-not-found",
 
   // Entity errors
-  ENTITY_NOT_FOUND = "entity-not-founds",
   ENTITY_LOAD_FAILED = "entity-load-failed",
 
   // Asset errors

@@ -3,6 +3,7 @@ import { escapeHtml } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header/mark-the-page";
 import { PageMinimal } from "./page-minimal";
 import { adoptDesignStyles } from "@/styles/design-styles";
+import { goldButton } from "@/components/buttons";
 
 /**
  * Home (IDLE): styled like the onboarding splash (design p.1) – Mark, title, author, and two buttons
@@ -53,8 +54,8 @@ export class HomePage extends PageMinimal {
       <h1 class="title design gold">${escapeHtml(book.title)}</h1>
       <div class="author title design gold">${escapeHtml(book.author)}</div>
       <div class="buttons">
-        <button type="button" class="button primary design" id="start-btn"><span class="gold">Start</span></button>
-        <button type="button" class="button design" id="tutorial-btn"><span class="gold">Tutorial</span></button>
+        ${goldButton({ label: "Start", shape: "button", primary: true, attrs: { id: "start-btn" } })}
+        ${goldButton({ label: "Tutorial", shape: "button", attrs: { id: "tutorial-btn" } })}
       </div>
     </div>
     `;

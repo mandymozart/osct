@@ -1,6 +1,7 @@
 import { ConsultationPage } from "./consultation-page";
 import { getBook } from "@/utils/game-config";
 import { escapeHtml } from "@/utils";
+import { goldButton } from "@/components/buttons";
 
 /**
  * About = Info (design p.32–34), opened with "i" in consultation mode; "Entries" (top chrome) goes
@@ -41,7 +42,7 @@ export class AboutPage extends ConsultationPage {
         </a>
         <p>App by Tilman Porschuetz</p>
         <div class="buttons">
-          <button type="button" class="pill design" id="tutorial-btn"><span class="gold">Tutorial</span></button>
+          ${goldButton({ label: "Tutorial", attrs: { id: "tutorial-btn" } })}
         </div>
         <div class="platforms">
           <p>Requires a WebXR compatible browser and a copy of the book.</p>

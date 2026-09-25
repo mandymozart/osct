@@ -3,6 +3,8 @@ import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
 import { IQRCode } from "@/types/qr/qrcode";
 import { getConfigVersion } from "@/utils/game-config";
+import { adoptDesignStyles } from "@/styles/design-styles";
+import { goldButton } from "@/components/buttons";
 
 /** Short content hash in links (same length as the content build log) */
 const CONTENT_HASH_LENGTH = 12;
@@ -18,6 +20,7 @@ export class QRGenerator extends HTMLElement {
   constructor() {
     super();
     this.shadow = this.attachShadow({ mode: "open" });
+    adoptDesignStyles(this.shadow);
     this.game = GameStoreService.getInstance();
   }
 
@@ -58,8 +61,9 @@ export class QRGenerator extends HTMLElement {
       <style>
         :host {
           display: block;
-          background: var(--color-background);
-          color: var(--color-primary);
+          /* Light panel: the QR code needs a light background */
+          background: var(--color-on-dark);
+          color: var(--app-background);
           padding: 1rem;
           border-radius: 0;
           max-width: 20rem;
@@ -95,9 +99,9 @@ export class QRGenerator extends HTMLElement {
           padding: 0.5rem;
           margin-bottom: 1rem;
           border-radius: 0;
-          background: var(--color-background);
-          color: var(--color-primary);
-          border: 1px solid var(--color-border);
+          background: var(--color-on-dark);
+          color: var(--app-background);
+          border: var(--rule);
           pointer-events: all;
         }
       </style>
@@ -112,7 +116,7 @@ export class QRGenerator extends HTMLElement {
       <div id="qr-url"></div>
       
       <div class="button-row">
-        <button is="text-button" id="download" class="button" variant="inverted" size="xs">Download SVG</button>
+        ${goldButton({ label: "Download SVG", shape: "button", attrs: { id: "download" } })}
       </div>
     `;
 

@@ -29,11 +29,6 @@ export interface IRouterManager {
   close(): void;
 }
 
-export interface IPageRouter {
-  navigate(): void;
-  close(): void;
-}
-
 export type PageRoute = {
   page: Pages;
   slug: string;
@@ -48,12 +43,10 @@ export type RouteParam = {
 export enum Pages {
   HOME = "home",
   TUTORIAL = "tutorial",
-  SPREADS = "spreads",
   SPREAD = "spread",
   ABOUT = "about",
   ERROR = "error",
   NOTIFICATION = "notification",
-  INDEX = "index",
   ENTRIES = "entries",
   ENTRY = "entry",
   NOT_FOUND = "not-found",

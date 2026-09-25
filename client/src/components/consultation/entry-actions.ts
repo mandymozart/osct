@@ -1,6 +1,7 @@
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles/design-styles";
+import { goldButton, goldButtonContent } from "@/components/buttons";
 import { escapeHtml } from "@/utils";
 import { ICONS } from "./icons";
 
@@ -86,8 +87,8 @@ export class EntryActions extends HTMLElement {
         }
       </style>
       <div class="action-row">
-        <button type="button" class="pill bookmark design" data-action="bookmark" aria-pressed="false"></button>
-        <button type="button" class="pill add-note design" data-action="add-note" ${note ? "hidden" : ""}>${ICONS.noteAdd}<span class="gold">Add note</span></button>
+        ${goldButton({ label: "Bookmark", icon: ICONS.bookmark, className: "bookmark", attrs: { "data-action": "bookmark", "aria-pressed": "false" } })}
+        ${goldButton({ label: "Add note", icon: ICONS.noteAdd, className: "add-note", attrs: { "data-action": "add-note", hidden: !!note } })}
       </div>
       <div class="note" ${note ? "" : "hidden"}>
         <label for="note">Note</label>
@@ -101,9 +102,9 @@ export class EntryActions extends HTMLElement {
     const button = this.shadowRoot?.querySelector<HTMLButtonElement>("[data-action=bookmark]");
     if (!button || !this._entryId) return;
     const marked = this.game.history.isMarked(this._entryId);
-    if (button.getAttribute("aria-pressed") === String(marked) && button.childElementCount) return;
+    if (button.getAttribute("aria-pressed") === String(marked)) return;
     button.setAttribute("aria-pressed", String(marked));
-    button.innerHTML = `${marked ? ICONS.bookmarked : ICONS.bookmark}<span class="gold">${marked ? "Bookmarked" : "Bookmark"}</span>`;
+    button.innerHTML = goldButtonContent(marked ? { label: "Bookmarked", icon: ICONS.bookmarked } : { label: "Bookmark", icon: ICONS.bookmark });
   }
 
   private handleClick = (event: Event) => {

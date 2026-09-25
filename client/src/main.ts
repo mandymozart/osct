@@ -62,14 +62,10 @@ export class BookGame extends HTMLElement {
     <camera-permission></camera-permission>
     <game-header></game-header>
 
-    <navigation-bar></navigation-bar>
-    
     <pages-router>
       <about-page></about-page>
       <spread-page></spread-page>
-      <spreads-page></spreads-page>
       <home-page></home-page>
-      <index-page></index-page>
       <entries-page></entries-page>
       <entry-page></entry-page>
       <tutorial-page></tutorial-page>
@@ -80,7 +76,6 @@ export class BookGame extends HTMLElement {
     <loading-page active></loading-page>
 
     <ar-bridge></ar-bridge>
-    <app-router></app-router>
     
     <debug-overlay></debug-overlay>
   `;
@@ -111,8 +106,8 @@ export class BookGame extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--color-background, #fff);
-          color: var(--color-primary, #000);
+          background: var(--app-background, #000);
+          color: var(--color-on-dark, #fff);
           font-family: inherit;
         }
         .critical-error { max-width: 36rem; padding: 2rem; }
