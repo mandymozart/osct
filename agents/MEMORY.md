@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Phase 3 scan mode built
+
+- [x] Chrome per mode in `header.ts` (agent decision, reversible): the name line only in IDLE; Mark +
+      counter in SCAN/CONSULTATION; "i" in CONSULTATION keeps About reachable (the header was its only
+      link). Navigation bar (index button) only in CONSULTATION; in SCAN the spread menu replaces it.
+      The `/spread` spread card (only link to the `/spreads` dev view) is shown in dev builds only.
+- [x] `/index` got an optional `entryId` param (found indicator opens the entry) – Phase 4 replaces it
+      with `/entry`.
+- [x] (user) Chroma key for AR videos – see PLAN Phase 3. artificialmuseum.com: the public map page is
+      SvelteKit + MapLibre; its AR viewer wasn't found in the web bundle (likely the native app), so
+      the standard OBS / three.js-forum shader was used. Default similarity 0.3 (not 0.4) after measuring.
+- [x] (user) Loading overlay concept review added to PLAN Phase 3 (full-screen loader on every spread switch).
+- [ ] Demo content has no target without AR entity → the found indicator can't be seen with real tracking.
+- [x] Lesson (browser tests): Vite serves a module under `?t=` after HMR – patch the instance the app
+      loaded (check `performance.getEntriesByType('resource')`), not a fresh import. The pane's
+      Permissions API resets the camera state to "denied"; hide `camera-permission` for UI checks.
+
 ## 2026-09-25 – Preloader
 
 - [x] `services/Preloader.ts`: neighbouring spreads (±1) on `arReady` – `.mind`, then (user) their content
