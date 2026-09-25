@@ -353,7 +353,11 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     later with the same record shape.
 
   **Implementation steps (next session starts here):**
-  1. [ ] **One version:** `client/vite.config.js` reads the version from `client/package.json`
+  1. [x] (2026-09-25, CI: `.github/workflows/ci.yml`) Done: `APP_VERSION` in `scripts/src/config.ts` and
+     `vite.config.js` read `client/package.json`; `checkConfigurationVersion` in `utils/game-config.ts`
+     (helpers `utils/version.ts`); tests `utils/__tests__/version.test.ts`. Browser: 1.1.0 starts,
+     temporary 2.0.0 shows the critical `not-supported` screen.
+     **One version:** `client/vite.config.js` reads the version from `client/package.json`
      (today `process.env.npm_package_version`, missing outside `npm run`); `scripts/src/index.ts` reads
      `client/package.json` too (today `npm_package_version`, `node dist/index.js` stamped `1.0.0`).
      Test: both `package.json` versions equal, `game.config.json` `version.version` equals the app
@@ -380,9 +384,14 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     `RouterManager.navigate` (sets SCAN mode – RULES #2), handle unknown code / version mismatch.
   - Decide the prefix after the rename: `c-` (chapter) → `s-` (spread), `e-` (entry)? Keep `c-`
     working if codes are already printed.
-  - Decide which version `osct` carries (app or content) – see versioning above.
+  - ~~Decide which version `osct` carries (app or content)~~ → resolved by "one version": `osct` = the
+    one semver. Since 2026-09-25 links also carry `h` = short content build hash (first 12 hex chars of
+    `version.hash`): `/?code=c-<spread>&osct=<semver>&h=<hash12>`.
+  - [ ] **Handle version conflicts on incoming links** (later phase, with the deep link reader): other
+    MAJOR in `osct`, other `h` (content changed since the code was generated – e.g. the spread/entry no
+    longer exists), missing `h` (links printed before 2026-09-25).
   - Dev QR generator (`dev-tools/qr-generator.ts`) produces these URLs for testing
-    ("Valid" / "Wrong App Version").
+    ("Valid" / "Wrong App Version" / "Other Content Build") and shows the URL under the code.
 - `.mind` preloading via a **Preloader utility**: fetch into the browser cache only.
   Do **not** touch the A-Frame scene before the group is actually activated.
   Keeping two scene contexts alive is a later topic – not now.

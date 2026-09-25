@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Phase 2 step 1 done (one version), QR links carry the content hash
+
+- [x] App + content build read the version from `client/package.json` (no `npm_package_version`).
+      Startup: other MAJOR → critical `NOT_SUPPORTED` screen; MINOR/PATCH → console note. Tests check
+      both `package.json` versions, the app define and `game.config.json` against each other.
+- [x] (user) Dev QR generator links carry the version ingredients: `osct=<semver>&h=<content hash, 12>`.
+      What to do with conflicting incoming links is decided later (PLAN Phase 2 deep links).
+- [x] (user) CI added: `.github/workflows/ci.yml` on every push/PR – scripts `tsc` + build + "committed
+      `game.config.json` is up to date" (content build must skip = no diff), client `tsc` + `vitest`.
+      Deployment stays separate: Netlify builds `main`; FTP production deploy is optional, Tilman adds it later.
+- [x] Lesson: `preview_start` may reuse a vite process that read `package.json` before an edit – check
+      the `> osct-book-game@x.y.z dev` line in the preview logs after changing the version.
+
 ## 2026-09-25 – Versioning + progress storage concept (Tilman)
 
 - [x] One semver version for app + content build; `client/package.json` = source, `scripts/package.json`

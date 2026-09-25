@@ -22,6 +22,7 @@ import {
   Step,
   Target,
 } from '@/types';
+import { compareVersions } from '@/utils/version';
 
 /** Used when the JSON is invalid, so modules can load and the app can show the error */
 const EMPTY_CONFIGURATION: GameConfiguration = {
@@ -42,9 +43,32 @@ const EMPTY_CONFIGURATION: GameConfiguration = {
  */
 let configurationError: ErrorInfo | null = null;
 
+/**
+ * One version for app and content build (RULES #10): another MAJOR means the content has to be
+ * rebuilt (no configuration migrations); MINOR/PATCH differences must just work.
+ */
+export const checkConfigurationVersion = (appVersion: string, configVersion: string): ErrorInfo | null => {
+  const compatibility = compareVersions(appVersion, configVersion);
+  if (compatibility === 'compatible') {
+    console.info(`[game-config] Content built with ${configVersion}, app is ${appVersion}.`);
+  }
+  if (compatibility !== 'incompatible') return null;
+  return {
+    code: ErrorCode.NOT_SUPPORTED,
+    msg: 'The book content was built for another app version.',
+    type: 'critical',
+    details: [`App ${appVersion}, content ${configVersion}: the content needs to be rebuilt.`],
+  };
+};
+
 const loadConfiguration = (): GameConfiguration => {
   try {
     assertGameConfiguration(raw);
+    configurationError = checkConfigurationVersion(__VITE_APP_VERSION__, raw.version.version);
+    if (configurationError) {
+      console.error(`[game-config] ${configurationError.details?.[0]}`);
+      return EMPTY_CONFIGURATION;
+    }
     return raw;
   } catch (error) {
     const problems = error instanceof GameConfigurationError ? error.problems : [String(error)];
