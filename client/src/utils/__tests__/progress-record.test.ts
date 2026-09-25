@@ -19,10 +19,11 @@ describe("progress record", () => {
 
   it("drops malformed fields of a stored record", () => {
     const { record } = readProgress(
-      { format: PROGRESS_FORMAT, unlocked: { a: 1, b: "x" }, lastCategory: "nope", notes: { c: 3 } },
+      { format: PROGRESS_FORMAT, unlocked: { a: 1, b: "x" }, lastCategory: "nope", marked: { c: 3 } },
       bookId,
     );
-    expect(record).toMatchObject({ unlocked: { a: 1 }, lastCategory: null, notes: {} });
+    expect(record).toMatchObject({ unlocked: { a: 1 }, lastCategory: null });
+    expect(record).not.toHaveProperty("marked"); // bookmarks were removed (2026-09-25)
   });
 
   it("reads records written before the onboarding flag existed as not onboarded", () => {

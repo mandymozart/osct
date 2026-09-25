@@ -20,8 +20,7 @@ Quick start: the repository [README](../README.md).
 1. **Onboarding** – first visit: splash, intro, camera access (can be skipped; restart from Info).
 2. **Scan mode** – the reader picks a spread (two pages) in the bottom menu and points the camera at
    the book. A found image target shows AR content (video, 3D model, image) or unlocks its entry.
-3. **Consultation mode** – unlocked entries by category: Glossary, Videos, Texts, Links, plus
-   Bookmarked. Entries can be bookmarked and get a personal note.
+3. **Consultation mode** – the unlocked entries by category: Glossary, Videos, Texts, Links.
 
 ## Repository
 

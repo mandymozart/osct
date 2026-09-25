@@ -119,7 +119,7 @@ page-wide sweep later; B only for desktop.
 - **Primary** (Continue, Grant access, Access scan, Start, Resume): `.primary` on `.button` / `.pill` – the
   gold label **shines** (highlight band sweeping through the gradient, like the gold illustrations) and a
   gold highlight **runs along the border** (skeleton-loader sweep), 1.8 s; off with reduced motion.
-- **Secondary** (Tutorial, Dismiss, Skip, Entries, category, bookmark): no animation; the black onboarding
+- **Secondary** (Tutorial, Dismiss, Skip, Entries, category): no animation; the black onboarding
   button gets the softer glow (`--shadow-glow-soft`).
 
 ## 6b. Loading

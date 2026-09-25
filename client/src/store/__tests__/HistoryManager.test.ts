@@ -49,19 +49,6 @@ describe("HistoryManager (progress)", () => {
     expect(stored().consulted).toHaveProperty(entryId);
   });
 
-  it("stores bookmarks and notes per entry", () => {
-    game.history.setMarked(entryId, true);
-    game.history.setNote(entryId, "  look again  ");
-    expect(game.history.isMarked(entryId)).toBe(true);
-    expect(game.history.getNote(entryId)).toBe("look again");
-    expect(stored()).toMatchObject({ notes: { [entryId]: "look again" } });
-
-    game.history.setMarked(entryId, false);
-    game.history.setNote(entryId, "");
-    expect(stored().marked).toEqual({});
-    expect(stored().notes).toEqual({});
-  });
-
   it("records the last spread and category", () => {
     const other = getSpreads()[1].id;
     game.spreads.switchSpread(other);
@@ -89,10 +76,10 @@ describe("HistoryManager (progress)", () => {
     expect(game.history.getConsultedCount()).toBe(0); // the counter only counts content entries
   });
 
-  it("reports no missing ids for content ids (marked and notes count as entry ids)", () => {
+  it("reports no missing ids for content ids", () => {
     game.history.unlockTarget(targets[0].id);
     game.history.consultEntry(entryId);
-    game.history.setNote("gone", "note on a removed entry");
+    game.history.consultEntry("gone");
     expect(game.history.getMissingIds()).toEqual({ targets: [], entries: ["gone"] });
   });
 

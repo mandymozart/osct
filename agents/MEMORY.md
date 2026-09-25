@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-25 – Bookmarks and notes removed (Tilman)
+
+- (user) The bookmark + note feature is removed completely: `<entry-actions>`, `icons.ts`, the "Bookmarked"
+  filter (`BOOKMARKED`, `EntriesFilter`, `ENTRIES_FILTERS` – the filter is the `EntryCategory` again), row
+  markers, `HistoryManager.setMarked/isMarked/setNote/getNote`, `ProgressRecord.marked/notes` (the format-1
+  reader drops them from stored records – same format, no conversion needed), the debug-overlay tables,
+  `goldButton`'s `icon` option and `goldButtonContent()` (only used there), tests and docs.
+- Lesson: an import used only for types is dropped when compiled – `entry-page` and the component test lost
+  element registration that way; both got a side-effect import (RULES #19).
+- The designer email question 2 (bookmarks and notes) is obsolete.
+
 ## 2026-09-25 – Import cleanup (Tilman: "continue clean up")
 
 - Barrels added/completed: `services`, `styles`, `pages` (now `export *`), `components/scan`,

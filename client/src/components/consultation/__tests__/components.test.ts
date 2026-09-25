@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GameStoreService } from "@/services";
 import { EntryCategory, Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
-import { BOOKMARKED, EntriesFilterElement, EntriesList, EntryActions, isEntriesFilter } from "..";
+import ".."; // registers the elements (the named import below is type-only)
+import { EntriesFilterElement, EntriesList } from "..";
 
 const game = GameStoreService.getInstance();
 const mount = <T extends HTMLElement>(tag: string): T => document.body.appendChild(document.createElement(tag)) as T;
@@ -14,12 +15,6 @@ beforeEach(() => {
 });
 
 describe("entries filter", () => {
-  it("knows the categories and Bookmarked", () => {
-    expect(isEntriesFilter(EntryCategory.Video)).toBe(true);
-    expect(isEntriesFilter(BOOKMARKED)).toBe(true);
-    expect(isEntriesFilter("videos")).toBe(false);
-  });
-
   it("shows the value, opens the menu and navigates to the chosen filter", () => {
     const filter = mount<EntriesFilterElement>("entries-filter");
     filter.value = EntryCategory.Video;
@@ -28,7 +23,7 @@ describe("entries filter", () => {
 
     root.querySelector<HTMLElement>("[data-action=toggle]")!.click();
     expect(Array.from(root.querySelectorAll<HTMLElement>("[data-filter]"), b => b.dataset.filter))
-      .toEqual(["glossary", "video", "text", "link", "bookmarked"]);
+      .toEqual(["glossary", "video", "text", "link"]);
 
     root.querySelector<HTMLElement>("[data-filter=text]")!.click();
     expect(game.state.currentRoute).toMatchObject({ page: Pages.ENTRIES, param: { value: "text" } });
@@ -66,29 +61,9 @@ describe("entries list", () => {
     expect(game.state.currentRoute?.page).toBe(Pages.ENTRY);
   });
 
-  it("says when a filter is empty", () => {
+  it("says when a category has no consulted entries", () => {
     const list = mount<EntriesList>("entries-list");
-    list.setEntries(BOOKMARKED, []);
-    expect(list.shadowRoot!.textContent).toContain("No bookmarked entries yet.");
-  });
-});
-
-describe("entry actions", () => {
-  it("toggles the bookmark and saves the note when the entry changes", () => {
-    const [first, second] = getEntries();
-    const actions = mount<EntryActions>("entry-actions");
-    actions.entryId = first.id;
-    const root = actions.shadowRoot!;
-
-    root.querySelector<HTMLElement>("[data-action=bookmark]")!.click();
-    expect(game.history.isMarked(first.id)).toBe(true);
-    expect(root.querySelector("[data-action=bookmark]")?.getAttribute("aria-pressed")).toBe("true");
-
-    root.querySelector<HTMLElement>("[data-action=add-note]")!.click();
-    expect(root.querySelector<HTMLElement>(".note")!.hidden).toBe(false);
-    root.querySelector<HTMLTextAreaElement>("#note")!.value = "See p. 21";
-    actions.entryId = second.id;
-    expect(game.history.getNote(first.id)).toBe("See p. 21");
-    expect(root.querySelector<HTMLElement>(".note")!.hidden).toBe(true);
+    list.setEntries(EntryCategory.Link, []);
+    expect(list.shadowRoot!.textContent).toContain("No entries consulted yet.");
   });
 });
