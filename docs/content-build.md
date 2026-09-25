@@ -5,7 +5,7 @@
 - `client/src/game.config.json` – the game configuration (book, spreads, targets, entries, tutorial,
   version)
 - `client/public/assets/content/` – a copy of the content media
-- `mind-ar/<spread>/` – target images in MindAR order, for [compiling `.mind` files](content.md#compiling-mind-files)
+- `mind-ar/<spread>/` – target images in MindAR order, for [compiling `.mind` files](content.md#recognition-data-mind-files)
 
 ```bash
 cd scripts

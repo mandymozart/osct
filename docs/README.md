@@ -10,7 +10,7 @@ Staging: [osct.netlify.app](https://osct.netlify.app) (built from `main`) [![Net
 
 | | |
 |---|---|
-| **Content** | [Content structure](content.md) – authoring `content/` · [Content build](content-build.md) – `scripts/` |
+| **Content** | [Content guide](content.md) – how `content/` is organised (for artists, designers, editors) · [Content build](content-build.md) – `scripts/` |
 | **App** | [Game store](game-store.md) · [Base store](base-store.md) · [Managers](managers.md) · [Pages](pages.md) · [Error page](error-page.md) · [Components](components.md) |
 
 Quick start: the repository [README](../README.md).
@@ -28,7 +28,7 @@ Quick start: the repository [README](../README.md).
 | Folder | What |
 |---|---|
 | `client/` | The app |
-| `content/` | Book content as YAML + media – see [Content structure](content.md) |
+| `content/` | Book content as YAML + media – see [Content guide](content.md) |
 | `scripts/` | Content build: `content/` → `client/src/game.config.json` – see [Content build](content-build.md) |
 | `shared/` | Game configuration contract (types + runtime guards), used by app and build |
 | `mind-ar/` | Generated: target images per spread in MindAR order, for compiling `.mind` files |
