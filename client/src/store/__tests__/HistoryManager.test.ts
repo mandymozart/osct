@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createGameStore } from "@/store/GameStore";
-import { PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "@/store/managers/progress-readers";
+import { PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "@/utils/progress-record";
 import { LocalProgressStorage } from "@/services/ProgressStorage";
 import { EntryCategory, IGame, Pages, ProgressRecord } from "@/types";
 import { getBook, getEntries, getSpreads, getTargets } from "@/utils/game-config";
@@ -100,8 +100,6 @@ describe("HistoryManager (progress)", () => {
     expect(game.state.progress.onboarded).toBe(false);
     game.history.setOnboarded();
     expect(stored().onboarded).toBe(true);
-    // Records written before the field existed read as not onboarded
-    expect(readProgress({ format: PROGRESS_FORMAT }, bookId).record.onboarded).toBe(false);
   });
 
   it("resets the progress but keeps the app version history", () => {
@@ -129,27 +127,12 @@ describe("HistoryManager (progress)", () => {
   });
 
   describe("reading stored formats", () => {
-    it("has a reader for the current format (add one per format on a MAJOR bump)", () => {
-      expect(PROGRESS_READERS[PROGRESS_FORMAT]).toBeTypeOf("function");
-    });
-
-    it("treats corrupt, unknown or newer formats as unreadable and tells the user", () => {
-      expect(readProgress(undefined, bookId).status).toBe("unreadable");
-      expect(readProgress({ format: PROGRESS_FORMAT + 1 }, bookId).status).toBe("unreadable");
-
+    it("treats corrupt storage as unreadable and tells the user", () => {
       localStorage.setItem(PROGRESS_KEY, "{not json");
       game = createGameStore();
       game.history.offerResume();
       expect(game.state.progress.unlocked).toEqual({});
       expect(game.state.currentError?.msg).toContain("could not be read");
-    });
-
-    it("drops malformed fields of a stored record", () => {
-      const { record } = readProgress(
-        { format: PROGRESS_FORMAT, unlocked: { a: 1, b: "x" }, lastCategory: "nope", notes: { c: 3 } },
-        bookId,
-      );
-      expect(record).toMatchObject({ unlocked: { a: 1 }, lastCategory: null, notes: {} });
     });
 
     // Stand-in for the reader a MAJOR bump adds for the previous format

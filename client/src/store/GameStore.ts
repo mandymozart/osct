@@ -15,7 +15,7 @@ import {
 } from "@/types";
 import { uniqueId } from "@/utils";
 import { getBook } from "@/utils/game-config";
-import { createProgressRecord } from "./managers/progress-readers";
+import { createProgressRecord } from "@/utils/progress-record";
 import { BaseStore } from "./BaseStore";
 import { CameraManager } from "./managers/CameraManager";
 import { SpreadManager } from "./managers/SpreadManager";
