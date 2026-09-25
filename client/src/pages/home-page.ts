@@ -53,7 +53,7 @@ export class HomePage extends PageMinimal {
       <h1 class="title design gold">${escapeHtml(book.title)}</h1>
       <div class="author title design gold">${escapeHtml(book.author)}</div>
       <div class="buttons">
-        <button type="button" class="button design" id="start-btn"><span class="gold">Start</span></button>
+        <button type="button" class="button primary design" id="start-btn"><span class="gold">Start</span></button>
         <button type="button" class="button design" id="tutorial-btn"><span class="gold">Tutorial</span></button>
       </div>
     </div>

@@ -55,7 +55,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
       <style>
         :host { display: flex; justify-content: center; }
       </style>
-      ${label ? `<button type="button" class="button design next-button"><span class="gold">${escapeHtml(label)}</span></button>` : ""}
+      ${label ? `<button type="button" class="button primary design next-button"><span class="gold">${escapeHtml(label)}</span></button>` : ""}
     `;
   }
 

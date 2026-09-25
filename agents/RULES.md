@@ -88,6 +88,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
     - Glass: `--glass-background` (alpha 0.001, never 0 – else no backdrop blur) + `--glass-blur` +
       a drop shadow (`--shadow-dark` on camera / consultation, `--shadow-glow` on black).
     - Animated gold art: `<gold-illustration src="…svg">` (files stay in `public/`).
+    - Primary actions get `.primary` (shining label + border sweep); everything else stays secondary.
 
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions
