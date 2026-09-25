@@ -3,7 +3,7 @@ import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import { ErrorCode } from "@/types";
 import { checkConfigurationVersion, getConfigVersion } from "@/utils/game-config";
-import { compareVersions, parseVersion } from "@/utils/version";
+import { compareVersions, parseVersion } from "../version";
 
 const readVersion = (file: string): string =>
   JSON.parse(readFileSync(resolve(__dirname, file), "utf8")).version;

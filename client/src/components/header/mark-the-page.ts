@@ -1,4 +1,4 @@
-import { GameStoreService } from "@/services/GameStoreService";
+import { GameStoreService } from "@/services";
 import { GameMode, IGame } from "@/types";
 
 /**

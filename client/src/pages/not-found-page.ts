@@ -1,5 +1,5 @@
 import { Page } from "./page";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 
 /** Overlay for unknown routes – consultation look (design system, DESIGN.md) */
 export class NotFoundPage extends Page {

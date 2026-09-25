@@ -1,8 +1,8 @@
 import { getBook } from "@/utils/game-config";
 import { escapeHtml } from "@/utils";
-import { MARK_IMAGE_SRC } from "@/components/header/mark-the-page";
+import { MARK_IMAGE_SRC } from "@/components/header";
 import { PageMinimal } from "./page-minimal";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 
 /**

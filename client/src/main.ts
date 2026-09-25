@@ -2,14 +2,14 @@ import '@ungap/custom-elements';
 
 import "@/components";
 import "@/pages";
-import { IErrorPage } from "@/pages/error-page";
-import { GameStoreService } from "@/services/GameStoreService";
+import { IErrorPage } from "@/pages";
+import { GameStoreService } from "@/services";
 import {
   ErrorInfo,
   IGame,
-} from "@/types/";
-import { waitForDOMReady } from "./utils/dom";
-import { getConfigurationError } from "./utils/game-config";
+} from "@/types";
+import { waitForDOMReady } from "@/utils";
+import { getConfigurationError } from "@/utils/game-config";
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 

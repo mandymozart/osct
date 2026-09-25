@@ -1,7 +1,7 @@
-import { GameStoreService } from "@/services/GameStoreService";
+import { GameStoreService } from "@/services";
 import { GameMode, IGame, Target } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 
 /** How long "New entry unlocked" + the rotation play before the entry opens */
 const UNLOCK_MS = 1200;

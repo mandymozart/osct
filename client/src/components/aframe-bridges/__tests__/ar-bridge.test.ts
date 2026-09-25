@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ArSceneEvents, ArStatus, IArScene, LoadingState, SceneState } from "@/types";
-import { GameStoreService } from "@/services/GameStoreService";
-import { PreloaderService } from "@/services/PreloaderService";
+import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 
 // A-Frame is not available in happy-dom – the bridge only registers the shader if it is

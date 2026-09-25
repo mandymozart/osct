@@ -1,6 +1,6 @@
 import { ProgressRecord } from "@/types";
 import { isEntryCategory } from "@shared/guards/game-config";
-import { parseVersion } from "@/utils/version";
+import { parseVersion } from "./version";
 
 /**
  * Reading stored progress (PLAN Phase 2, RULES #10): the storage format is the app MAJOR that

@@ -1,4 +1,4 @@
-import { PageRoute, PageRouteDefinition, RouteParam } from "@/types/router";
+import { PageRoute, PageRouteDefinition, RouteParam } from "@/types";
 import { router as routerConfig } from "@/router";
 
 /**

@@ -1,4 +1,4 @@
-import { EntryCategory } from "@/types";
+import { EntryCategory } from "./entries";
 
 /**
  * Progress record: what one reader discovered in one book, keyed by stable ids (PLAN Phase 2).

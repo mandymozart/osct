@@ -1,7 +1,7 @@
 import { GameMode, IGame, LoadingState } from "@/types";
 import { Page } from "./page";
-import { GameStoreService } from "@/services/GameStoreService";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { GameStoreService } from "@/services";
+import { adoptDesignStyles } from "@/styles";
 
 /**
  * Loading Page is a simple overlay page that displays

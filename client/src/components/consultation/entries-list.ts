@@ -1,6 +1,6 @@
-import { GameStoreService } from "@/services/GameStoreService";
+import { GameStoreService } from "@/services";
 import { Entry, IGame } from "@/types";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
 import { BOOKMARKED, DEFAULT_CATEGORY, EntriesFilter, entryLabel, groupEntries, sortEntries } from "./entries-model";
 import { ICONS } from "./icons";

@@ -1,8 +1,7 @@
-import { Step } from "@/types/tutorial";
+import { Step } from "@/types";
 import { getTutorial } from "@/utils/game-config";
 import { Page } from "./page";
-import "../components/tutorial/tutorial-content";
-import { goToScan, goToStep } from "../components/tutorial/tutorial-navigation";
+import { goToScan, goToStep } from "@/components/tutorial";
 
 /**
  * Onboarding = tutorial (design p.1–5, PLAN Phase 5): black screen, Mark, one step at a time (route

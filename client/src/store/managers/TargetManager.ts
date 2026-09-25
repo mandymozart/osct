@@ -1,4 +1,4 @@
-import { IGame, ITargetManager } from "../../types";
+import { IGame, ITargetManager } from "@/types";
 import { getTarget } from "@/utils/game-config";
 
 /**

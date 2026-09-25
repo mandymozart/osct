@@ -13,3 +13,4 @@ export * from "./store"
 export * from "./targets"
 export * from "./tutorial"
 
+export * from "./qr/qrcode"

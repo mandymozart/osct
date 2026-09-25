@@ -22,7 +22,7 @@ import {
   Step,
   Target,
 } from '@/types';
-import { compareVersions } from '@/utils/version';
+import { compareVersions } from './version';
 
 /** Used when the JSON is invalid, so modules can load and the app can show the error */
 const EMPTY_CONFIGURATION: GameConfiguration = {

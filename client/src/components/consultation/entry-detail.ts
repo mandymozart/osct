@@ -1,5 +1,5 @@
 import { Entry, EntryCategory } from "@/types";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 import { escapeHtml, paragraphs } from "@/utils";
 import { categoryLabel, linkEmbed } from "./entries-model";
 

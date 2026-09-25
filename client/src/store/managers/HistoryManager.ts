@@ -8,7 +8,7 @@ import {
   ProgressRecord,
 } from '@/types';
 import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
-import { ProgressReadStatus, createProgressRecord, readProgress } from '@/utils/progress-record';
+import { ProgressReadStatus, createProgressRecord, readProgress } from '@/utils';
 
 /**
  * Progress of the reader in this book (PLAN Phase 2): unlocked targets, consulted entries,

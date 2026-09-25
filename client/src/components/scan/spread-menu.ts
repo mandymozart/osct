@@ -1,7 +1,7 @@
-import { GameStoreService } from "@/services/GameStoreService";
+import { GameStoreService } from "@/services";
 import { IGame, Spread } from "@/types";
 import { formatPages, getMenuSpreads, loopCopies, normalizeLoopScroll } from "./spread-menu-loop";
-import { adoptDesignStyles } from "@/styles/design-styles";
+import { adoptDesignStyles } from "@/styles";
 
 /** Scroll has to rest this long before the loop is re-centered and the spread activated */
 const SETTLE_MS = 140;
