@@ -45,6 +45,7 @@ itself is `#000000`). One linear gradient is used on all 40 pages:
 | black | `#000000` | onboarding button body, shadows |
 
 ### Backgrounds
+- **App** (behind the camera and every page): black `#000` (`--app-background`, `html`/`body`, `color-scheme: dark`).
 - **Consultation** (entries, entry, Info): black `#000` at **82 % opacity** over the camera image.
 - **Onboarding**: black, faded by a **radial luminosity mask**: ellipse ≈ 222 × 404 pt (≈ 425 × 773 px,
   i.e. the whole screen), centre opaque → edge transparent, falloff exponent 2.14. What shows at the edges

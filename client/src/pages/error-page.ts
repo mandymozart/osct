@@ -1,6 +1,7 @@
 import { MEDIA_QUERY } from "@/constants";
 import { GameStoreService } from "@/services/GameStoreService";
 import { IGame } from "@/types";
+import { adoptDesignStyles } from "@/styles/design-styles";
 import { Page } from "./page";
 
 export interface IErrorPage extends HTMLElement {
@@ -29,6 +30,7 @@ class ErrorPage extends Page implements IErrorPage {
 
   constructor() {
     super();
+    adoptDesignStyles(this.shadowRoot);
     this.game = GameStoreService.getInstance();
   }
 
@@ -82,7 +84,7 @@ class ErrorPage extends Page implements IErrorPage {
               height: 100%;
               display: flex !important;
               border-radius: 0;
-              background-color: var(--primary-800);
+              background: var(--consultation-background);
               z-index: 1000;
 
               justify-content: center;
@@ -96,12 +98,12 @@ class ErrorPage extends Page implements IErrorPage {
               pointer-events: auto;
           }
           
+          :host { flex-direction: column; }
           .message {
-              font-size: 1.5rem;
+              max-width: 20rem;
               padding: 2rem;
-              color: var(--color-background);
+              color: var(--color-on-dark);
               text-align: center;
-              margin-bottom: 1rem;
           }
                   
           .actions {
@@ -120,11 +122,11 @@ class ErrorPage extends Page implements IErrorPage {
 
    get template(): string {
     return /* html */ `
-      <div class="message">${this.message}</div>
+      <div class="message design">${this.message}</div>
       <div class="actions">
-          <button is="text-button" variant="${this.actionButton ? 'primary' : 'secondary'}" inverted id="dismiss-error">Dismiss</button>
+          <button type="button" class="pill design" id="dismiss-error"><span class="gold">Dismiss</span></button>
           ${this.actionButton
-    ? `<button is="text-button" variant="secondary" inverted id="action-button">${this.actionButton.text}</button>`
+    ? `<button type="button" class="pill design" id="action-button"><span class="gold">${this.actionButton.text}</span></button>`
     : ''}
       </div>
       `;

@@ -60,6 +60,7 @@
   --rule: 1px solid var(--color-muted);
 
   /* Backgrounds */
+  --app-background: #000;          /* behind the camera and every page (design: black) */
   --consultation-background: rgba(0, 0, 0, 0.82);
   /* Loading (startup + spread switch): the consultation darkness with a slight vignette */
   --loading-background:
@@ -81,7 +82,7 @@
   /* Content of consultation pages starts below the header (Mark, counter, "Entries") */
   --consultation-top: calc(11.5rem + var(--debug-offset, 0px));
 
-  color-scheme: light;
+  color-scheme: dark;              /* native controls (scrollbars, fields) on the dark UI */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -91,6 +92,7 @@
 
 /* iOS Safari specific fixes without @supports */
 html, body {
+  background: var(--app-background);
   height: 100vh;
   height: -webkit-fill-available; /* Fix for 100vh issue in iOS Safari */
 }
@@ -115,7 +117,7 @@ body {
   height: 100vh;
   overflow: hidden;
   color: var(--color-primary);
-  background-color: var(--color-background);
+  background-color: var(--app-background);
 }
 
 book-game {
