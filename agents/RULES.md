@@ -88,6 +88,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
     `.rule-table`, `.section-title`). Components keep layout only – no literal colors.
     - `.gold` replaces the element's background (it is `background-clip: text`): put it on the label
       (`<button class="pill"><span class="gold">…`), never on an element that needs its own background.
+      On a `.gold` element don't set `background` in the component (a more specific selector wipes the
+      gradient – the text turns invisible); use `background-color` if needed.
     - Glass: `--glass-background` (alpha 0.001, never 0 – else no backdrop blur) + `--glass-blur` +
       a drop shadow (`--shadow-dark` on camera / consultation, `--shadow-glow` on black).
     - Animated gold art: `<gold-illustration src="…svg">` (files stay in `public/`).
