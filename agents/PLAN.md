@@ -200,7 +200,7 @@ file name stays) · **`*Data`** = the typed pieces inside it · **app model** = 
 **F. Tests**: guards (valid + invalid bundles), content rules (page within a spread, 1:1 entry ↔ target,
 index order, refs resolve), `.mind` order vs image dimensions, single-import rule.
 
-## Phase 2 – State  `[~]` (modes vs views done; versioning + progress storage done 2026-09-25; open: deep links (Tilman), `.mind` preloader)
+## Phase 2 – State  `[~]` (modes vs views, versioning, progress storage, preloader done 2026-09-25; open: deep links (Tilman))
 
 - **HistoryManager rethink.** Today history is keyed by `chapterId + targetIndex` (fragile if
   groups are re-cut). Key by stable ID (entry/target, depending on 1c).
@@ -402,9 +402,16 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     longer exists), missing `h` (links printed before 2026-09-25).
   - Dev QR generator (`dev-tools/qr-generator.ts`) produces these URLs for testing
     ("Valid" / "Wrong App Version" / "Other Content Build") and shows the URL under the code.
-- `.mind` preloading via a **Preloader utility**: fetch into the browser cache only.
+- [x] (2026-09-25) `.mind` preloading via a **Preloader utility**: fetch into the browser cache only.
   Do **not** touch the A-Frame scene before the group is actually activated.
   Keeping two scene contexts alive is a later topic – not now.
+  Done: `services/Preloader.ts` (dedupes per URL, retries failed, timeout, `priority: low`). On MindAR
+  `arReady` of the active spread (`static-scene-bridge.ts`) it preloads the **neighbouring** spreads
+  (±1 in book order): their `.mind` first, then (Tilman) their content – entity assets and entry images,
+  videos last; external URLs skipped. Browser: MindAR's later `.mind` request came from the cache (4 ms).
+  - [ ] Production cache headers (Netlify / FTP server) for `/assets/content/**` – today the dev server and
+    Netlify's default revalidate (304), which works but costs a round trip per file.
+  - [ ] Device check (Phase 7): preloaded videos vs. the `<video>` element's range requests (iOS Safari).
 
 ---
 

@@ -1,4 +1,5 @@
 import { GameStoreService } from "@/services/GameStoreService";
+import { Preloader } from "@/services/Preloader";
 import { SceneService } from "@/services/SceneService";
 import { ErrorCode, IGame, ISceneService, SceneState } from "@/types";
 import { waitForDOMReady } from "@/utils";
@@ -146,6 +147,9 @@ export class StaticSceneBridge extends HTMLElement {
       scene.addEventListener("arReady", () => {
         if (scene !== this.sceneElement) return; // a newer spread replaced this scene
         this.arReady = true;
+        // The active .mind is loaded: fetch the neighbouring spreads' .mind into the browser cache
+        // (network only, the scene is not touched – RULES #4)
+        Preloader.getInstance().preloadNeighbours(spreadId);
         // MindAR emits arReady and then starts tracking by itself (processVideo), so apply the
         // desired state on the next tick – otherwise a pause would be overridden right away
         setTimeout(() => {
