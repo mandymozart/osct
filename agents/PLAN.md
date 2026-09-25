@@ -416,19 +416,30 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
 ---
 
 
-## Phase 3 – Scan mode  `[ ]`
+## Phase 3 – Scan mode  `[~]` (built 2026-09-25; open: loading overlay review, indicator in consultation, demo content without AR entity)
 
-- **Mark the Page** – own component (e.g. `<mark-the-page mode="scan|consultation">`).
-  - Placeholder for now: `reference/images/mark/` (scan + consultation state, large version)
-    wrapped/traced as SVG.
+Top chrome per mode lives in `components/header/header.ts`: IDLE = name line (→ about), SCAN = Mark +
+counter, CONSULTATION = Mark (consultation state) + counter + "i" (→ about = Info). The navigation bar
+(index button) shows in CONSULTATION only (Phase 4: "Entries"). Design tokens in `main.css`
+(`--font-design`, `--tracking-design`, `--color-accent` gold, `--glass-*`).
+
+- [x] **Mark the Page** – own component `components/header/mark-the-page.ts` (mode from the store).
+  - Placeholder for now: PNGs from `reference/images/mark/` in `public/assets/ui/mark-the-page/`
+    (swappable without code changes; not traced as SVG).
   - Later: WebM animation, portrait, 480p/720p; 320p/240p variants if memory is tight.
-    One state per mode. Tap toggles scan ↔ consultation (p.6, p.15, p.35).
-- **Counter "12 / 150"** – [x] decided: header shows **consulted entries / total entries**.
-- **Page menu** ("Pages activated", p.6–7): horizontal looped scroll at the bottom, lists
+    One state per mode. Tap toggles scan ↔ consultation (p.6, p.15, p.35): scan → `/index`
+    (Phase 4: `/entries` with the last category), consultation → `/spread`.
+- [x] **Counter "12 / 150"** – decided: header shows **consulted entries / total entries**
+  (`components/header/entries-counter.ts`, `history.getConsultedCount()` – content entries only).
+- [x] **Page menu** (`components/scan/spread-menu.ts`, loop maths in `spread-menu-loop.ts`)
+  ("Pages activated", p.6–7): horizontal looped scroll at the bottom, lists
   **only spreads with content**, glass highlight on the active one, haptic on snap
   (`navigator.vibrate` – Android only, iOS Safari has none). Selecting = activate group
   (debounce while scrolling; ~~guard against stale loads in `StaticSceneBridge`~~ done 2026-09-24:
   scene loads are queued, stale spreads skipped).
+  Built: odd number of copies, re-centered to the middle copy when the scroll settles (140 ms),
+  activation 250 ms later; tap on an item scrolls it to the center; store changes (resume, index)
+  scroll the menu without activating. Verified in the browser (switch, loop jump, haptic calls).
   - [ ] **Loading overlay concept review** (Tilman, 2026-09-25): today every spread switch shows the
     full-screen `loading-page` (`game.startLoading()` in `static-scene-bridge.ts`), which covers the
     scan chrome incl. the spread menu until the new `.mind` is ready – the reader can't keep scrolling.
@@ -436,15 +447,36 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     (spread switch: e.g. a quiet indicator on the menu / under Mark, scene fades in on `arReady`);
     one loading concept for startup, spread switch, entity/asset loading (`ErrorCode.*_NOT_READY`)
     and the Phase 6 `arStatus`. Preloaded neighbours (Preloader) make most switches fast already.
-- **Found-target indicator** (p.9–14) – [x] decided:
+- [x] **Found-target indicator** (p.9–14) – decided; built in `components/scan/found-indicator.ts`
+  (entry image, fallback target image; opens `/index` with `entryId` = entry opened in the list until
+  the Phase 4 `/entry` view). Verified in the browser with a target whose entity was removed in memory.
+  - [ ] **The demo content has no target without an AR entity** (all are model / video / link), so
+    the indicator never shows with real tracking. Needs a content decision (e.g. drop the `link`
+    entity of "Shadows" – Phase 6 open question 6 – or a new demo target, which needs a `.mind` rebuild).
   - The image with drop shadow indicates a **found target that has no AR entity** projected in A-Frame.
   - **Scan mode:** it appears; tap/click opens the entry in consultation mode.
     "New entry unlocked" + small rotation only if the entry was not consulted yet,
     otherwise jump straight to the entry.
   - **Consultation mode:** should eventually be hidden (it blocks the view). For now leave it
     visible for simplicity and check how it looks. → [ ] review visibility in consultation.
-- **AR videos** (p.37–40): **autoplay** when the target is found. No "zoom out" hint needed:
+    Built into the scan page, so it is **hidden** in consultation today (the scene is paused there).
+- [x] **AR videos** (p.37–40): **autoplay** when the target is found. No "zoom out" hint needed:
   MindAR only plays once the target is fully in view.
+  Built (`aframe-bridges/utils/videos.ts`): play on found, pause on lost, all paused when the scene
+  pauses (consultation, overlays), tracked targets resume on activate. Blocked unmuted autoplay →
+  plays muted. [ ] Device check (Phase 7): sound on iOS / Android after the first tap.
+- [x] **Chroma key for AR videos** (Tilman, 2026-09-25): one key color becomes transparent – no
+  alpha channel in the video file. A-Frame shader `chroma-key` (`aframe-bridges/utils/chroma-key.ts`,
+  OBS / three.js-forum algorithm, chroma distance in YUV). Content, per video entity:
+  ```yaml
+  entity:
+    type: video
+    src: clip.mp4
+    params:
+      chromaKey: { color: "#00ff00", similarity: 0.3, smoothness: 0.08, spill: 0.1 }  # only color required
+  ```
+  Measured in the browser: neon green removes greens only; purple also removes blues (close in
+  chroma) → **neon green is the safer key** unless the artwork has no blues. No demo video uses it yet.
 - Deliverable for designers: the proper video must render correctly → also a consultation
   version (see Phase 4).
 

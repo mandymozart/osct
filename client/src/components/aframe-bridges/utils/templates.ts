@@ -1,5 +1,6 @@
 import { AssetData, Target } from "@/types";
 import { getAssets, getEntry, getMaxTargetsPerSpread, getSpread, getSpreads, getTargets } from "@/utils/game-config";
+import { chromaKeyMaterial, parseChromaKey } from "./chroma-key";
 
 const attr = (value: string): string => value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 
@@ -64,7 +65,12 @@ export const createEntityElement = (target: Target): string => {
 
     case 'video':
       if (asset) {
-        entityContent = `
+        // Key color → transparent (chroma-key.ts); without `params.chromaKey` a plain video
+        const chromaKey = parseChromaKey(entity?.params);
+        entityContent = chromaKey
+          ? `
+    <a-entity geometry="primitive: plane; width: 1; height: 0.552" material="${chromaKeyMaterial(asset.id, chromaKey)}" position="0 0 0" rotation="0 0 0"></a-entity>`
+          : `
     <a-video src="#${asset.id}" width="1" height="0.552" position="0 0 0" rotation="0 0 0"></a-video>`;
       }
       break;

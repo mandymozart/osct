@@ -5,6 +5,10 @@ import { ErrorCode, IGame, ISceneService, SceneState } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getOrCreateTemplate, getSceneState } from "./utils";
 import { pauseAllVideos, playTargetVideos } from "./utils/videos";
+import { registerChromaKeyShader } from "./utils/chroma-key";
+
+// A-Frame (index.html) is loaded before the app modules; scenes may use the shader from the first load
+registerChromaKeyShader();
 import { Scene } from "aframe";
 
 /**
