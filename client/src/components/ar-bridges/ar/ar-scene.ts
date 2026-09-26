@@ -143,6 +143,7 @@ export class ArScene implements IArScene {
         onUpdate: (index, matrix) => this.onTrackingUpdate(index, matrix),
       });
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
+      this.view.needsRender = () => this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible);
       this.view.onFrame(delta => {
         this.content?.anchors.forEach(a => a.entity?.update?.(delta));
         this.animations.forEach(animation => animation(delta) || this.animations.delete(animation));

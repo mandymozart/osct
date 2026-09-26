@@ -13,7 +13,7 @@ import {
   APP_VERSION
 } from './config';
 import { validateContent } from './utils/validation';
-import { optimizeModels } from './utils/optimize-models';
+import { optimizeMedia } from './utils/optimize-media';
 import { assertGameConfiguration, GameConfigurationError } from '../../shared/guards/game-config';
 import { FilterData, filterProblems } from '../../shared/types/filters';
 import { placementProblems } from '../../shared/types/placement';
@@ -32,7 +32,7 @@ import type {
 
 /**
  * OSCT content build: `content/` (YAML + media) → `client/src/game.config.json`
- * (+ copy of `content/` in `client/public/assets/content` with optimised models – utils/optimize-models.ts –,
+ * (+ copy of `content/` in `client/public/assets/content` with optimised media – utils/optimize-media.ts –,
  * target images in `mind-ar/`).
  *
  * Source layout (folder name = id):
@@ -539,12 +539,13 @@ async function generateConfigFile(): Promise<void> {
 
     const config = buildConfig(versionStr, inputHash);
 
-    // Models in the client copy: smaller textures, compressed geometry (content/ stays as authored)
-    console.log('\n🗜️  Optimising models...');
-    for (const { file, before, after } of await optimizeModels(CLIENT_PUBLIC_ASSETS_DIR)) {
+    // Media in the client copy: models, images, .mind gzip, large videos reported (content/ stays as authored)
+    console.log('\n🗜️  Optimising media...');
+    for (const { file, before, after, note } of await optimizeMedia(CLIENT_PUBLIC_ASSETS_DIR)) {
       const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
       const name = path.relative(CLIENT_PUBLIC_ASSETS_DIR, file).split(path.sep).join('/');
-      console.log(after < before ? `   ${name}: ${kb(before)} → ${kb(after)}` : `   ${name}: ${kb(before)} (kept)`);
+      if (note) console.warn(`   ⚠️  ${name}: ${kb(before)} – ${note}`);
+      else if (after < before) console.log(`   ${name}: ${kb(before)} → ${kb(after)}`);
     }
 
     const outputDir = path.dirname(OUTPUT_FILE);
