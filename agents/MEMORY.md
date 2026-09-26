@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Onboarding / home buttons in the flow (Tilman)
+
+- (user) Long texts ran under the tutorial button: it was `position: absolute; top: 58%`. Now the button is
+  slotted below the text (`<tutorial-navigation slot="actions">` in `tutorial-content`); the text block has
+  `min-height: 58vh − top padding`, so short texts keep the button at 58 % (design) and longer ones push it
+  down; the page scrolls if needed. Home had the same problem (seen at 200 % text size) – same fix.
+- Lesson: an explicit `min-height` on a flex item in a fixed-height column lets it shrink below its content
+  – add `flex-shrink: 0`.
+
 ## 2026-09-26 – Publisher on the home page (Tilman)
 
 - (user) "Building Fictions" above "Start" on the home page, same size and style as the title – missing in the

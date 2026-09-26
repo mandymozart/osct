@@ -59,8 +59,20 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
           flex-direction: column;
           align-items: center;
           text-align: center;
-          height: 100%;
+          min-height: 100%;
         }
+        /* Mark, illustration and text – at least as tall as --actions-top (set by the page), so the
+           actions below start there for short texts and follow longer ones */
+        .head {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 100%;
+          min-height: var(--actions-top, 0);
+          padding-bottom: 1.5rem;
+          box-sizing: border-box;
+        }
+        ::slotted([slot="actions"]) { width: 100%; }
         .fade { ${fade} }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .fade { animation: none; } }
@@ -73,10 +85,13 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
         p { margin: 0 0 1.25em; }
         .footer { margin-top: auto; padding-bottom: 1rem; }
       </style>
-      <img class="mark" src="${MARK_IMAGE_SRC}" alt="${i18next.t("common:markAlt")}">
-      ${step.illustration ? `<gold-illustration class="fade" src="${escapeHtml(step.illustration)}"></gold-illustration>` : ""}
-      ${step.title ? `<h1 class="design gold text">${inline(step.title)}</h1>` : ""}
-      ${step.description ? `<div class="text design gold fade">${paragraphs(step.description).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
+      <div class="head">
+        <img class="mark" src="${MARK_IMAGE_SRC}" alt="${i18next.t("common:markAlt")}">
+        ${step.illustration ? `<gold-illustration class="fade" src="${escapeHtml(step.illustration)}"></gold-illustration>` : ""}
+        ${step.title ? `<h1 class="design gold text">${inline(step.title)}</h1>` : ""}
+        ${step.description ? `<div class="text design gold fade">${paragraphs(step.description).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
+      </div>
+      <slot name="actions"></slot>
       ${step.footer ? `<div class="footer design gold fade">${inline(step.footer)}</div>` : ""}
     `;
   }
