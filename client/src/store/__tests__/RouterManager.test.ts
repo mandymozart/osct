@@ -13,11 +13,6 @@ describe("RouteResolver", () => {
     }
   });
 
-  it("builds the URL including the param value", () => {
-    const route = RouteResolver.createRoute("/spread", { key: "spreadId", value: "spread1" });
-    expect(RouteResolver.getUrlForRoute(route)).toBe("/spread/spread1");
-  });
-
   it("treats routes without params as the same route", () => {
     expect(RouteResolver.isSameRoute(
       RouteResolver.createRoute("/about"),

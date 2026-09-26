@@ -4,6 +4,25 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Links: app state as plain URLs (Tilman)
+
+- (user) Spec: `https://osct.buildingfictions.com/entry/<id>?osct=1.1.0`, `/spread/<id>`, `/entries/category/video`;
+  the content hash is not needed in links; incoming links only route; missing id → not-found with a button to
+  the start; version off → the corresponding action only if needed.
+- Built: `services/LinkService.ts` (pure `parseLink` / `pathForRoute` / `linkForState` / `resolveLink` /
+  `isNewerVersion` + the `LinkService` singleton: `openIncomingLink`, `startSync`). Written form
+  `/entries/<category>` (the long form `/entries/category/<category>` is read too). Views push a history entry,
+  spread switches and tutorial steps replace it; overlays keep the URL; back/forward re-resolve without the
+  version check. Only a newer link version acts (notice "Reload to update", URL kept so the reload opens the
+  link); older links route normally. A link skips onboarding and the resume offer without marking
+  onboarded (agent decision – reversible). Legacy `?code=c-|s-|e-` still read.
+- `index.html` uses absolute paths (relative ones break under `/entry/…`). `client/public/.htaccess` (Apache)
+  and `_redirects` (Netlify) answer every path with `index.html`; Vite dev/preview do it already.
+- Removed: `utils/url-params.ts` (`getUrlParam`, unused), `RouteResolver.getUrlForRoute`, the `message` param
+  of `/error`, `h` and the content-hash option in the QR generator.
+- [ ] Open: should an entry link to an entry the reader hasn't found yet open it (today: yes, and it counts as
+      consulted)? Tilman.
+
 ## 2026-09-25 – Bookmarks and notes removed (Tilman)
 
 - (user) The bookmark + note feature is removed completely: `<entry-actions>`, `icons.ts`, the "Bookmarked"

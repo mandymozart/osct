@@ -57,12 +57,4 @@ export class RouteResolver {
     return routerConfig.routes.some(r => r.page === route.page);
   }
 
-  /**
-   * Get the URL for a route
-   * @param route Route to get URL for
-   * @returns URL string
-   */
-  public static getUrlForRoute(route: PageRoute): string {
-    return `${route.slug}${route.param ? `/${route.param.value}` : ""}`
-  }
 }

@@ -1,12 +1,8 @@
 import { environments } from "@/environments";
-import { GameStoreService } from "@/services";
+import { GameStoreService, VERSION_PARAM } from "@/services";
 import { IGame, IQRCode } from "@/types";
-import { getConfigVersion } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
-
-/** Short content hash in links (same length as the content build log) */
-const CONTENT_HASH_LENGTH = 12;
 
 export class QRGenerator extends HTMLElement {
   private shadow: ShadowRoot;
@@ -106,9 +102,9 @@ export class QRGenerator extends HTMLElement {
       </style>
       
       <select id="qr-type-selector">
-        <option value="valid">Valid Spread QR</option>
-        <option value="wrong-version">Wrong App Version</option>
-        <option value="other-content">Other Content Build</option>
+        <option value="valid">Spread link</option>
+        <option value="newer-version">Link from a newer app version</option>
+        <option value="unknown-spread">Link to an unknown spread</option>
       </select>
 
       <div id="qr-output"></div>
@@ -161,14 +157,11 @@ export class QRGenerator extends HTMLElement {
   private generateQR(spreadId: string, testType: string = "valid") {
     if (!this.qrInstance) return;
 
-    const baseUrl = __VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl;
-    // Version ingredients (RULES #10), handling of conflicts on incoming links: PLAN Phase 2 deep links
-    // osct = the one version of app + content build (client/package.json), see GameStore.version
-    // h    = content build checksum (game.config.json version.hash), short form as in the build log
-    const appVersion = testType === "wrong-version" ? "999.0.0" : this.game.version.version;
-    const contentHash =
-      testType === "other-content" ? "000000000000" : (getConfigVersion().hash ?? "").slice(0, CONTENT_HASH_LENGTH);
-    const url = `${baseUrl}/?code=c-${spreadId}&osct=${appVersion}&h=${contentHash}`;
+    const baseUrl = (__VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl).replace(/\/$/, "");
+    // Link format: services/LinkService.ts – /spread/<id>?osct=<the one app version> (RULES #10)
+    const appVersion = testType === "newer-version" ? "999.0.0" : this.game.version.version;
+    const id = testType === "unknown-spread" ? "no-such-spread" : spreadId;
+    const url = `${baseUrl}/spread/${encodeURIComponent(id)}?${VERSION_PARAM}=${appVersion}`;
 
     this.qrInstance.clear();
     this.qrInstance.makeCode(url);

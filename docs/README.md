@@ -65,7 +65,9 @@ npm run build:ar-persistent                     # AR strategy "persistent": one 
 
 `npm run build` uses the default strategy or `VITE_AR_STRATEGY`. In dev builds
 `localStorage["osct-ar-strategy"]` overrides it (reload after changing).
-Netlify builds `main`; an FTP production deploy follows later.
+Netlify builds `main`; an FTP production deploy follows later. Both need every path answered with
+`index.html` for the links (`/entry/<id>` …): `client/public/_redirects` (Netlify) and
+`client/public/.htaccess` (Apache) are copied into the build – see [Pages → Links](pages.md#links).
 
 ### Version
 
