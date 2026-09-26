@@ -25,6 +25,12 @@ export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "
  */
 export const TARGET_UNLOCKED_EVENT = "osct:target-unlocked";
 
+/**
+ * Length of an AR entity's unlock animation (ar/celebration.ts) – the found indicator's "New entry
+ * unlocked" stays as long (defined here: the indicator must not import the AR chunk)
+ */
+export const ENTITY_UNLOCK_MS = 4200;
+
 /** Part of the AR error message when the camera sends no picture in time (see CameraPermissionStatus.NOT_RESPONDING) */
 export const CAMERA_NOT_RESPONDING = "camera not responding";
 
