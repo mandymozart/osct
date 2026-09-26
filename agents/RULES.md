@@ -43,9 +43,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
    Tests of removed features are not wanted – test behaviour that stays.
-10. **One version** (semver) for the app and the content build: `client/package.json` and
-    `scripts/package.json` always carry the same version (checked by tests + CI); the source is
-    `client/package.json`. Game configuration: PATCH/MINOR must just work, MAJOR = rebuild the content
+10. **One version** (semver) for the app, the content build and the server: `client/package.json`,
+    `scripts/package.json` and `server/api/src/Version.php` always carry the same version (checked by tests
+    + CI); the source is `client/package.json`. Game configuration: PATCH/MINOR must just work, MAJOR = rebuild the content
     (no config migrations). Progress storage: a new MAJOR reads the old format and tells the user
     (add a reader in `utils/progress-record.ts`; a test fails without one). The first storage
     format is 1 – nothing from before 1.1.x is converted.

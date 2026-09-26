@@ -42,6 +42,11 @@ describe("one version", () => {
     expect(readVersion("../../../../scripts/package.json")).toBe(appVersion);
   });
 
+  it("the server (server/api/src/Version.php) carries the same version", () => {
+    const php = readFileSync(resolve(__dirname, "../../../../server/api/src/Version.php"), "utf8");
+    expect(/const APP = '([^']+)'/.exec(php)?.[1]).toBe(appVersion);
+  });
+
   it("the app is built with the client package version", () => {
     expect(__VITE_APP_VERSION__).toBe(appVersion);
   });

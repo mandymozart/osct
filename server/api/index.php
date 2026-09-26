@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * OSCT users API (server/README.md) – every request under /api/ comes here (.htaccess).
  *
- *   GET    /health                   { status, db }
+ *   GET    /health                   { status, version, db }
  *   POST   /auth/request             send the confirmation email (link + code)
  *   POST   /auth/verify              link token or request id + code → session token
  *   POST   /auth/logout              end this device's session
@@ -18,7 +18,7 @@ declare(strict_types=1);
  * Signed-in requests send `Authorization: Bearer <session token>`.
  */
 
-foreach (['Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Users', 'Progress'] as $class) {
+foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Users', 'Progress'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -49,7 +49,7 @@ try {
     Http::cors();
     $route = "$method $path";
     match (true) {
-        $route === 'GET /health' => Http::json(200, ['status' => 'ok', 'db' => Db::value('SELECT 1') == 1 ? 'ok' : 'error']),
+        $route === 'GET /health' => Http::json(200, ['status' => 'ok', 'version' => Version::APP, 'db' => Db::value('SELECT 1') == 1 ? 'ok' : 'error']),
         $route === 'POST /admin/migrate' => migrate(),
         $route === 'POST /auth/request' => Auth::request(Http::body()),
         $route === 'POST /auth/verify' => Auth::verify(Http::body()),
