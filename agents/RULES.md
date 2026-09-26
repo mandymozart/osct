@@ -147,6 +147,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
     `server/.env` / `server/api/config.local.php` (ignored), in CI GitHub environment secrets. Queries must run
     on MySQL and SQLite (tests); schema changes go into `api/db/schema.*.sql` (idempotent). The app talks to it
     only through `ApiService` (`VITE_API_URL`); `php server/tests/api-test.php` must pass.
+    Naming: the signed-in person is the **user** in code, API and database; "Account" is only the UI label.
+    Update options are **opt-in** – never on by default (Tilman, 2026-09-27).
 
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions

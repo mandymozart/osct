@@ -7,8 +7,6 @@
   "languageChange": "Change language",
   "soundLabel": "Sounds",
   "hapticsLabel": "Vibration",
-  "on": "on",
-  "off": "off",
   "feedbackDescription": "Short sounds and vibrations when you scroll through the pages, tap a button or find a page.",
   "installLabel": "Home screen",
   "installButton": "Add to home screen",

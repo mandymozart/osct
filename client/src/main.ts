@@ -5,7 +5,7 @@ import "@/i18n";
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages";
-import { AccountService, FeedbackService, GameStoreService, InstallService, LinkService, ServiceWorkerService } from "@/services";
+import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, ServiceWorkerService } from "@/services";
 import {
   ErrorInfo,
   IGame,
@@ -155,7 +155,7 @@ export class BookGame extends HTMLElement {
       // after it, the splash page skips it – the app starts underneath.
       // Account: the link from the confirmation email (/about?login=…) signs in; a stored session syncs
       // the progress – runs in the background, the app doesn't wait for the server
-      void AccountService.getInstance().start(this.game as IGame);
+      void UserService.getInstance().start(this.game as IGame);
       const links = LinkService.getInstance();
       const linked = links.openIncomingLink(this.game);
       if (!linked && !this.game.state.progress.onboarded) {

@@ -8,7 +8,8 @@ import { adoptDesignStyles } from "@/styles";
  *   <gold-switch label="Updates" checked data-option="bookUpdates"></gold-switch>
  *
  * Attributes: `label`, `checked`, `disabled`. A change by the reader sets `checked` and fires `change`
- * (bubbles) on the element – read `element.checked`.
+ * (bubbles) on the element – read `element.checked`. A tap plays the tap feedback like a button
+ * (`data-feedback="none"` on the element silences it).
  */
 export class GoldSwitch extends HTMLElement {
   static observedAttributes = ["label", "checked", "disabled"];
@@ -25,7 +26,7 @@ export class GoldSwitch extends HTMLElement {
         :host { display: block; }
         label { width: 100%; }
       </style>
-      <label class="switch-row design"><span></span><input type="checkbox" role="switch" class="switch"></label>
+      <label class="switch-row design"><span></span><input type="checkbox" role="switch" class="switch" data-feedback="tap"></label>
     `;
     this.text = root.querySelector("span")!;
     this.input = root.querySelector("input")!;

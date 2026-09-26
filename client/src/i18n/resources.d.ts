@@ -15,7 +15,8 @@ export default interface Resources {
     "settings": "Settings"
   },
   "account": {
-    "bookUpdates": "Updates on {{title}}",
+    "artistUpdates": "Receive updates from {{author}}",
+    "bookUpdates": "Receive updates on {{title}}",
     "codeLabel": "Code from the email",
     "confirm": "Confirm",
     "confirmed": "Your email address is confirmed – you're signed in.",
@@ -36,16 +37,16 @@ export default interface Resources {
       "too-many-requests": "Too many emails in a short time. Try again in an hour.",
       "unauthorized": "You're signed out. Sign in again."
     },
-    "optionsLabel": "Send me updates",
+    "optionsLabel": "Updates",
     "otherEmail": "Use another email",
     "pendingDescription": "We sent an email to {{email}}. Open the link in it, or enter the code here:",
-    "publisherUpdates": "Updates from Building Fictions",
-    "send": "Send email",
+    "publisherUpdates": "Receive updates from Building Fictions",
+    "send": "Send confirmation",
     "sendAgain": "Send again",
     "signOut": "Sign out",
     "signedInAs": "Signed in as",
     "signedOut": "You're signed out. Your progress stays on this device.",
-    "signedOutDescription": "Sign in with your email – no password. Your progress is saved in your account, so you can pick it up on another device. We send you an email with a link and a code to confirm your address.",
+    "signedOutDescription": "Register your copy and receive updates in your inbox.",
     "syncPending": "Your progress will be saved in your account when you're online again.",
     "syncSynced": "Your progress is saved in your account.",
     "syncSyncing": "Saving your progress in your account …"
@@ -154,8 +155,6 @@ export default interface Resources {
     "installManual": "Open your browser's menu and choose \"Add to Home Screen\" or \"Install app\", if your browser offers it.",
     "languageChange": "Change language",
     "languageLabel": "Language:",
-    "off": "off",
-    "on": "on",
     "soundLabel": "Sounds"
   },
   "startup": {

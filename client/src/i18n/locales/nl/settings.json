@@ -7,8 +7,6 @@
   "languageChange": "Taal wijzigen",
   "soundLabel": "Geluid",
   "hapticsLabel": "Trillen",
-  "on": "aan",
-  "off": "uit",
   "feedbackDescription": "Korte geluiden en trillingen als je door de pagina's scrolt, op een knop tikt of een pagina vindt.",
   "installLabel": "Beginscherm",
   "installButton": "Zet op beginscherm",

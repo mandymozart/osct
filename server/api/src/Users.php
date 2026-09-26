@@ -1,23 +1,23 @@
 <?php
 declare(strict_types=1);
 
-/** The signed-in reader's account: read, change the options, delete */
-final class Accounts
+/** The signed-in user (the reader's account): read, change the options, delete */
+final class Users
 {
-    /** GET /account → { account } */
+    /** GET /user → { user } */
     public static function get(): never
     {
-        Http::json(200, ['account' => self::toJson(Auth::account())]);
+        Http::json(200, ['user' => self::toJson(Auth::user())]);
     }
 
-    /** PATCH /account { options?, language? } → { account } */
+    /** PATCH /user { options?, language? } → { user } */
     public static function update(array $body): never
     {
-        $account = Auth::account();
+        $user = Auth::user();
         $options = Auth::options($body['options'] ?? [], false);
         $language = $body['language'] ?? null;
         $set = [];
-        $params = ['id' => $account['id'], 'now' => Db::now()];
+        $params = ['id' => $user['id'], 'now' => Db::now()];
         foreach ($options as $key => $on) {
             $column = Auth::OPTIONS[$key];
             $set[] = "$column = :$column";
@@ -27,20 +27,20 @@ final class Accounts
             $set[] = 'language = :language';
             $params['language'] = $language;
         }
-        if ($set) Db::run('UPDATE accounts SET ' . implode(', ', $set) . ', updated_at = :now WHERE id = :id', $params);
-        Http::json(200, ['account' => self::toJson(Db::one('SELECT * FROM accounts WHERE id = :id', ['id' => $account['id']]))]);
+        if ($set) Db::run('UPDATE users SET ' . implode(', ', $set) . ', updated_at = :now WHERE id = :id', $params);
+        Http::json(200, ['user' => self::toJson(Db::one('SELECT * FROM users WHERE id = :id', ['id' => $user['id']]))]);
     }
 
-    /** DELETE /account → 204: the account, its sessions, progress and open requests */
+    /** DELETE /user → 204: the user, its sessions, progress and open requests */
     public static function delete(): never
     {
-        $account = Auth::account();
-        Db::transaction(function () use ($account) {
+        $user = Auth::user();
+        Db::transaction(function () use ($user) {
             // Explicit (also where foreign keys are off)
-            Db::run('DELETE FROM progress WHERE account_id = :id', ['id' => $account['id']]);
-            Db::run('DELETE FROM sessions WHERE account_id = :id', ['id' => $account['id']]);
-            Db::run('DELETE FROM login_requests WHERE email = :email', ['email' => $account['email']]);
-            Db::run('DELETE FROM accounts WHERE id = :id', ['id' => $account['id']]);
+            Db::run('DELETE FROM progress WHERE user_id = :id', ['id' => $user['id']]);
+            Db::run('DELETE FROM sessions WHERE user_id = :id', ['id' => $user['id']]);
+            Db::run('DELETE FROM login_requests WHERE email = :email', ['email' => $user['email']]);
+            Db::run('DELETE FROM users WHERE id = :id', ['id' => $user['id']]);
         });
         Http::json(204, null);
     }

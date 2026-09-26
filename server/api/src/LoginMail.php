@@ -17,6 +17,7 @@ final class LoginMail
             'code' => 'Or enter this code in the app:',
             'chosen' => 'You signed up for:',
             'bookUpdates' => 'Updates on {book}',
+            'artistUpdates' => 'Updates from {author}',
             'publisherUpdates' => 'Updates from Building Fictions',
             'changeLater' => 'You can change this at any time in the app (Info → Account).',
             'validity' => 'The link and the code work for {minutes} minutes.',
@@ -29,6 +30,7 @@ final class LoginMail
             'code' => 'Ou saisis ce code dans l\'application :',
             'chosen' => 'Tu t\'es inscrit·e pour :',
             'bookUpdates' => 'Des nouvelles de {book}',
+            'artistUpdates' => 'Des nouvelles de {author}',
             'publisherUpdates' => 'Des nouvelles de Building Fictions',
             'changeLater' => 'Tu peux modifier ces choix à tout moment dans l\'application (Info → Compte).',
             'validity' => 'Le lien et le code sont valables {minutes} minutes.',
@@ -41,6 +43,7 @@ final class LoginMail
             'code' => 'Of vul deze code in de app in:',
             'chosen' => 'Je hebt je aangemeld voor:',
             'bookUpdates' => 'Nieuws over {book}',
+            'artistUpdates' => 'Nieuws van {author}',
             'publisherUpdates' => 'Nieuws van Building Fictions',
             'changeLater' => 'Je kunt dit altijd aanpassen in de app (Info → Account).',
             'validity' => 'De link en de code zijn {minutes} minuten geldig.',
@@ -53,6 +56,7 @@ final class LoginMail
             'code' => 'Oder gib diesen Code in der App ein:',
             'chosen' => 'Du hast dich angemeldet für:',
             'bookUpdates' => 'Neuigkeiten zu {book}',
+            'artistUpdates' => 'Neuigkeiten von {author}',
             'publisherUpdates' => 'Neuigkeiten von Building Fictions',
             'changeLater' => 'Du kannst das jederzeit in der App ändern (Info → Konto).',
             'validity' => 'Link und Code gelten {minutes} Minuten.',
@@ -61,6 +65,7 @@ final class LoginMail
     ];
 
     public const BOOK = 'Onion Skin & Crocodile Tears';
+    public const AUTHOR = 'Kévin Bray';
 
     public static function isLanguage(string $language): bool
     {
@@ -74,12 +79,12 @@ final class LoginMail
     public static function compose(string $language, string $link, string $code, ?array $options): array
     {
         $texts = self::TEXTS[$language] ?? self::TEXTS['en'];
-        $vars = ['{book}' => self::BOOK, '{code}' => $code, '{minutes}' => (string) Config::int('LOGIN_TTL_MINUTES')];
+        $vars = ['{book}' => self::BOOK, '{author}' => self::AUTHOR, '{code}' => $code, '{minutes}' => (string) Config::int('LOGIN_TTL_MINUTES')];
         $t = fn(string $key) => strtr($texts[$key], $vars);
         $e = fn(string $value) => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
         $chosen = [];
-        foreach (['bookUpdates', 'publisherUpdates'] as $option) {
+        foreach (array_keys(Auth::OPTIONS) as $option) {
             if ($options[$option] ?? false) $chosen[] = $t($option);
         }
 

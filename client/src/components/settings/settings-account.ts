@@ -1,32 +1,34 @@
 import { goldButton, GoldSwitch } from "@/components/buttons";
 import i18next from "i18next";
-import { AccountService } from "@/services";
-import { AccountNotice, AccountOption, AccountOptions, AccountSnapshot } from "@/types";
+import { UserService } from "@/services";
+import { UserData, UserNotice, UserOption, UserOptions, UserSnapshot } from "@/types";
 import { escapeHtml } from "@/utils";
 import { getBook } from "@/utils/game-config";
 import { SettingsSection } from "./settings-section";
 
-const OPTIONS: AccountOption[] = ["bookUpdates", "publisherUpdates"];
+const OPTIONS: UserOption[] = ["bookUpdates", "artistUpdates", "publisherUpdates"];
 
 /**
- * Account section (branch `database`): sign in with an email – no password. Signed out: the update
- * options (both on by default, `<gold-switch>`) and the email → "Send email". Then: the code from the email
- * (the link in it signs in as well). Signed in: the address, the options, the progress sync, sign out,
- * delete the account. The progress is always kept in the account; "Reset book" (next section) resets it.
- * Hidden when the build has no accounts API (`VITE_API_URL`).
+ * Account section (branch `database`; in code the signed-in person is the *user*), no password. Signed out
+ * (Tilman 2026-09-27): "Register your copy and receive updates in your inbox" – the email, "Send
+ * confirmation", and underneath the two update options as `<gold-switch>`, **off** until the reader turns
+ * them on (opt-in). Then: the code from the email (the link in it signs in as well). Signed in: the address,
+ * the update options, the progress sync, sign out, delete. The progress is always kept; "Reset book" (next
+ * section) resets it. Hidden without an API (`VITE_API_URL`).
  */
 export class SettingsAccount extends SettingsSection {
-  private account = AccountService.getInstance();
+  private user = UserService.getInstance();
   private unsubscribe?: () => void;
   /** The form's values survive re-renders */
   private email = "";
   private code = "";
-  private choices: AccountOptions = { bookUpdates: true, publisherUpdates: true };
+  /** The update options of the sign-up form – off until the reader turns them on */
+  private choices: UserOptions = { bookUpdates: false, artistUpdates: false, publisherUpdates: false };
 
   connectedCallback() {
-    if (!this.account.isEnabled()) this.style.display = "none";
+    if (!this.user.isEnabled()) this.style.display = "none";
     super.connectedCallback();
-    this.unsubscribe = this.account.subscribe(() => this.render());
+    this.unsubscribe = this.user.subscribe(() => this.render());
     this.shadowRoot?.addEventListener("submit", this.handleSubmit);
     this.shadowRoot?.addEventListener("input", this.handleInput);
     this.shadowRoot?.addEventListener("change", this.handleSwitch);
@@ -38,13 +40,13 @@ export class SettingsAccount extends SettingsSection {
     this.shadowRoot?.removeEventListener("submit", this.handleSubmit);
     this.shadowRoot?.removeEventListener("input", this.handleInput);
     this.shadowRoot?.removeEventListener("change", this.handleSwitch);
-    this.account.clearNotice();
+    this.user.clearNotice();
   }
 
   protected content(): string {
-    if (!this.account.isEnabled()) return "";
-    const snapshot = this.account.getSnapshot();
-    const body = snapshot.status === "signed-in" ? this.signedIn(snapshot)
+    if (!this.user.isEnabled()) return "";
+    const snapshot = this.user.getSnapshot();
+    const body = snapshot.status === "signed-in" && snapshot.user ? this.signedIn(snapshot.user, snapshot)
       : snapshot.status === "pending" ? this.pending(snapshot)
       : this.signedOut(snapshot);
     return /* html */ `
@@ -62,22 +64,22 @@ export class SettingsAccount extends SettingsSection {
     `;
   }
 
-  private signedOut({ busy }: AccountSnapshot): string {
+  private signedOut({ busy }: UserSnapshot): string {
     return /* html */ `
-      <p class="description first">${i18next.t("account:signedOutDescription")}</p>
-      <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
-        ${OPTIONS.map(option => this.toggle(option, this.choices[option], "choose", busy)).join("")}
-      </div>
+      <p class="first">${i18next.t("account:signedOutDescription")}</p>
       <form class="options" data-form="email">
         <input class="field design" type="email" name="email" required autocomplete="email" inputmode="email"
           value="${escapeHtml(this.email)}" placeholder="${escapeHtml(i18next.t("account:emailPlaceholder"))}"
           aria-label="${escapeHtml(i18next.t("account:emailPlaceholder"))}" ${busy ? "disabled" : ""}>
         ${goldButton({ label: i18next.t("account:send"), primary: true, type: "submit", attrs: { disabled: busy } })}
       </form>
+      <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
+        ${OPTIONS.map(option => this.toggle(option, this.choices[option], "choose", busy)).join("")}
+      </div>
     `;
   }
 
-  private pending({ pending, busy }: AccountSnapshot): string {
+  private pending({ pending, busy }: UserSnapshot): string {
     return /* html */ `
       <p class="description first" role="status">${i18next.t("account:pendingDescription", { email: pending?.email ?? "" })}</p>
       <form class="options" data-form="code">
@@ -93,18 +95,17 @@ export class SettingsAccount extends SettingsSection {
     `;
   }
 
-  private signedIn({ account, sync, busy }: AccountSnapshot): string {
-    if (!account) return "";
+  private signedIn(user: UserData, { sync, busy }: UserSnapshot): string {
     const syncText = sync === "synced" ? "account:syncSynced"
       : sync === "syncing" ? "account:syncSyncing"
       : "account:syncPending";
     return /* html */ `
       <div class="row">
         <span class="muted">${i18next.t("account:signedInAs")}</span>
-        <span>${escapeHtml(account.email)}</span>
+        <span>${escapeHtml(user.email)}</span>
       </div>
       <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
-        ${OPTIONS.map(option => this.toggle(option, account.options[option], "toggle", busy)).join("")}
+        ${OPTIONS.map(option => this.toggle(option, user.options[option], "change", busy)).join("")}
       </div>
       <p class="description" role="status">${i18next.t(syncText)}</p>
       <div class="row options">
@@ -115,15 +116,16 @@ export class SettingsAccount extends SettingsSection {
   }
 
   /** One `<gold-switch>` per option (Tilman: phone-style sliders, the switch on the far right) */
-  private toggle(option: AccountOption, on: boolean, mode: "choose" | "toggle", busy: boolean): string {
-    const labels: Record<AccountOption, string> = {
+  private toggle(option: UserOption, on: boolean, mode: "choose" | "change", busy: boolean): string {
+    const labels: Record<UserOption, string> = {
       bookUpdates: i18next.t("account:bookUpdates", { title: getBook().title, interpolation: { escapeValue: false } }),
+      artistUpdates: i18next.t("account:artistUpdates", { author: getBook().author, interpolation: { escapeValue: false } }),
       publisherUpdates: i18next.t("account:publisherUpdates"),
     };
-    return `<gold-switch label="${escapeHtml(labels[option])}" data-option="${option}" data-switch="${mode}"${on ? " checked" : ""}${busy ? " disabled" : ""}></gold-switch>`;
+    return `<gold-switch label="${escapeHtml(labels[option])}" data-option="${option}" data-mode="${mode}"${on ? " checked" : ""}${busy ? " disabled" : ""}></gold-switch>`;
   }
 
-  private notice(notice: AccountNotice | null): string {
+  private notice(notice: UserNotice | null): string {
     if (!notice) return "";
     const text = typeof notice === "string"
       ? i18next.t(notice === "confirmed" ? "account:confirmed" : notice === "deleted" ? "account:deleted" : "account:signedOut")
@@ -131,27 +133,27 @@ export class SettingsAccount extends SettingsSection {
     return `<p class="description notice" role="${typeof notice === "string" ? "status" : "alert"}">${text}</p>`;
   }
 
-  protected onAction(action: string, element: HTMLElement): void {
+  protected onAction(action: string): void {
     if (action === "send-again") {
-      const pending = this.account.getSnapshot().pending;
-      if (pending) void this.account.requestLogin(pending.email, this.choices);
+      const pending = this.user.getSnapshot().pending;
+      if (pending) void this.user.requestLogin(pending.email, this.choices);
     } else if (action === "other-email") {
       this.code = "";
-      this.account.cancelPending();
+      this.user.cancelPending();
     } else if (action === "sign-out") {
-      void this.account.signOut();
+      void this.user.signOut();
     } else if (action === "delete") {
-      if (window.confirm(i18next.t("account:deleteConfirm"))) void this.account.deleteAccount();
+      if (window.confirm(i18next.t("account:deleteConfirm"))) void this.user.deleteUser();
     }
   }
 
-  /** A `<gold-switch>` changed: before sign-in it's the form's choice, after it the account's option */
+  /** A `<gold-switch>` changed: in the sign-up form it's the choice sent along, signed in the user's option */
   private handleSwitch = (event: Event) => {
     const element = event.target;
     if (!(element instanceof GoldSwitch)) return;
-    const option = element.dataset.option as AccountOption;
-    if (element.dataset.switch === "choose") this.choices = { ...this.choices, [option]: element.checked };
-    else void this.account.setOption(option, element.checked);
+    const option = element.dataset.option as UserOption;
+    if (element.dataset.mode === "choose") this.choices = { ...this.choices, [option]: element.checked };
+    else void this.user.setOption(option, element.checked);
   };
 
   private handleInput = (event: Event) => {
@@ -164,11 +166,11 @@ export class SettingsAccount extends SettingsSection {
     event.preventDefault();
     const form = event.target as HTMLFormElement;
     if (form.dataset.form === "email") {
-      void this.account.requestLogin(this.email, this.choices).then(sent => {
+      void this.user.requestLogin(this.email, this.choices).then(sent => {
         if (sent) this.code = "";
       });
     } else if (form.dataset.form === "code") {
-      void this.account.confirmCode(this.code).then(done => {
+      void this.user.confirmCode(this.code).then(done => {
         if (done) this.code = "";
       });
     }
