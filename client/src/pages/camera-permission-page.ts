@@ -28,7 +28,8 @@ export class CameraPermissionPage extends Page {
     this.currentPermissionStatus = this.game.state.cameraPermission;
 
     this.setOnboarding(this.game.state.mode === GameMode.IDLE);
-    if (this.currentPermissionStatus === CameraPermissionStatus.DENIED || this.currentPermissionStatus === CameraPermissionStatus.UNAVAILABLE) {
+    if (this.currentPermissionStatus === CameraPermissionStatus.DENIED || this.currentPermissionStatus === CameraPermissionStatus.UNAVAILABLE
+      || this.currentPermissionStatus === CameraPermissionStatus.NOT_RESPONDING) {
       this.showDeniedOverlay();
     } else if (this.currentPermissionStatus === CameraPermissionStatus.PROMPT) {
       this.showPromptOverlay();
@@ -85,6 +86,7 @@ export class CameraPermissionPage extends Page {
         break;
       case CameraPermissionStatus.DENIED:
       case CameraPermissionStatus.UNAVAILABLE:
+      case CameraPermissionStatus.NOT_RESPONDING:
         this.showDeniedOverlay();
         break;
       case CameraPermissionStatus.PROMPT:
@@ -168,6 +170,18 @@ export class CameraPermissionPage extends Page {
     const continueButton = onboarding
       ? goldButton({ label: i18next.t("camera:continueWithout"), shape: "button", className: "continue", attrs: { "data-action": "continue" } })
       : "";
+    // Access granted, but no picture: reload the page, else restart the browser
+    if (this.currentPermissionStatus === CameraPermissionStatus.NOT_RESPONDING) {
+      return /* html */ `
+        ${this.getIcon()}
+        <div class="message design gold">
+          <p>${i18next.t("camera:notResponding")}</p>
+          <p>${i18next.t("camera:notRespondingHelp")}</p>
+        </div>
+        ${goldButton({ label: i18next.t("camera:reload"), shape: "button", className: "continue", attrs: { "data-action": "reload" } })}
+        ${continueButton}
+      `;
+    }
     // No camera API (http on a network address): allowing it in the settings would not help
     if (this.currentPermissionStatus === CameraPermissionStatus.UNAVAILABLE) {
       return /* html */ `
@@ -219,7 +233,12 @@ export class CameraPermissionPage extends Page {
 
   /** Onboarding: go on without the camera – scan mode shows this screen again (behind its chrome) */
   private handleClick = (event: Event) => {
-    if (!(event.target as HTMLElement).closest("[data-action=continue]")) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-action=reload]")) {
+      window.location.reload();
+      return;
+    }
+    if (!target.closest("[data-action=continue]")) return;
     goToScan(this.game);
   };
 }

@@ -25,6 +25,9 @@ export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "
  */
 export const TARGET_UNLOCKED_EVENT = "osct:target-unlocked";
 
+/** Part of the AR error message when the camera sends no picture in time (see CameraPermissionStatus.NOT_RESPONDING) */
+export const CAMERA_NOT_RESPONDING = "camera not responding";
+
 export type ArSceneEvents = {
   targetFound: (targetId: string) => void;
   targetLost: (targetId: string) => void;

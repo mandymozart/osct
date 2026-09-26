@@ -31,5 +31,8 @@
     "2": "Lade die Seite neu"
   },
   "unavailable": "Die Kamera funktioniert nur über eine sichere Verbindung. Öffne die App mit https:// und versuche es erneut.",
-  "continueWithout": "Ohne Kamera weiter"
+  "continueWithout": "Ohne Kamera weiter",
+  "notResponding": "Die Kamera reagiert nicht.",
+  "notRespondingHelp": "Lade die Seite neu. Wenn das nicht hilft, schließe deinen Browser ganz und öffne ihn wieder – vielleicht benutzt noch eine andere App die Kamera.",
+  "reload": "Seite neu laden"
 }

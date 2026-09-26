@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArSceneEvents, ArStatus, IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { ArSceneEvents, ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 
@@ -131,6 +131,16 @@ describe("<ar-bridge>", () => {
     const check = vi.spyOn(game.camera, "checkPermission").mockResolvedValue(false);
     scene.emit("status", "error", "VIDEO_FAIL");
     expect(game.state.arStatus).toBe("error");
+    expect(check).toHaveBeenCalled();
+  });
+
+  it("a camera without picture: the overlay's 'not responding' state, cleared once AR runs again", () => {
+    const check = vi.spyOn(game.camera, "checkPermission").mockResolvedValue(true);
+    scene.emit("status", "error", `AR could not start: ${CAMERA_NOT_RESPONDING} (no picture after 10 s)`);
+    expect(game.state.cameraPermission).toBe(CameraPermissionStatus.NOT_RESPONDING);
+    expect(check).not.toHaveBeenCalled();
+
+    scene.emit("status", "running");
     expect(check).toHaveBeenCalled();
   });
 

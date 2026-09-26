@@ -31,5 +31,8 @@
     "2": "Recharge la page"
   },
   "unavailable": "La caméra ne fonctionne qu’avec une connexion sécurisée. Ouvre l’application avec https:// et réessaie.",
-  "continueWithout": "Continuer sans caméra"
+  "continueWithout": "Continuer sans caméra",
+  "notResponding": "La caméra ne répond pas.",
+  "notRespondingHelp": "Recharge la page. Si ça ne suffit pas, ferme complètement ton navigateur et rouvre-le – une autre application utilise peut-être encore la caméra.",
+  "reload": "Recharger la page"
 }

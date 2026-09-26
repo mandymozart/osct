@@ -65,6 +65,10 @@ export class CameraManager implements ICameraManager {
     }
   }
   
+  public reportNotResponding(): void {
+    this.setPermissionStatus(CameraPermissionStatus.NOT_RESPONDING);
+  }
+
   /**
    * Request camera access explicitly
    */
