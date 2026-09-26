@@ -222,6 +222,10 @@ illustration: /assets/illustrations/tutorial-step-2.svg
 # optional: title, footer, fadeIn (ms), advance (ms – go on by itself)
 ```
 
+Step texts (`title`, `description`, `footer`) can use the book's fields: `{{title}}`, `{{author}}`,
+`{{publisher}}` – e.g. `footer: "{{publisher}}"` shows the publisher from `book.yaml`. The build reports
+unknown names and fields the book doesn't have.
+
 ## Media
 
 Recommendations – final numbers follow the device tests.

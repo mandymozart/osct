@@ -374,11 +374,23 @@ function assignTargetIndices(spreads: SpreadData[], builds: EntryBuild[]): void 
   }
 }
 
-function buildTutorial(): StepData[] {
+/** Book fields usable in step texts as {{name}} (filled in by the app from book.yaml) */
+const BOOK_PLACEHOLDERS = ['title', 'author', 'publisher'] as const;
+
+function buildTutorial(book: BookData): StepData[] {
   return readSection('steps', 'step.yaml')
     .map(({ id, data }) => {
       const s = validate<any>(data, 'step', `steps/${id}`);
       if (!s) return null;
+      for (const field of ['title', 'description', 'footer'] as const) {
+        for (const [, name] of String(s[field] ?? '').matchAll(/\{\{(\w+)\}\}/g)) {
+          if (!(BOOK_PLACEHOLDERS as readonly string[]).includes(name)) {
+            buildErrors.push(`steps/${id}: ${field} uses {{${name}}} – allowed: ${BOOK_PLACEHOLDERS.map(p => `{{${p}}}`).join(', ')}`);
+          } else if (!book[name as keyof BookData]) {
+            buildErrors.push(`steps/${id}: ${field} uses {{${name}}}, but book.yaml has no ${name}`);
+          }
+        }
+      }
       // Optional fields only when set (the bundle stays free of empty keys)
       const optional = Object.fromEntries(
         (['title', 'description', 'footer', 'illustration', 'button', 'action', 'fadeIn', 'advance'] as const)
@@ -400,7 +412,7 @@ function buildConfig(versionStr: string, inputHash: string): GameConfiguration {
   const entities = buildEntities();
   const builds = buildEntries(spreads, entities);
   assignTargetIndices(spreads, builds);
-  const tutorial = buildTutorial();
+  const tutorial = buildTutorial(book);
 
   const entries = builds
     .map(b => b.entry)

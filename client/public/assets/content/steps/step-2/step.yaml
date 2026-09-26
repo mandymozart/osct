@@ -2,7 +2,7 @@
 type: step
 title: Onion Skin & Crocodile Tears
 description: Kévin Bray
-footer: Building Fictions
+footer: "{{publisher}}"   # from book.yaml
 fadeIn: 1000
 advance: 2500
 index: 1

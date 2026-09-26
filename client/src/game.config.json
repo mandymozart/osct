@@ -1,8 +1,8 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2026-09-26T13:16:26.576Z",
-    "hash": "0f7b430ba72f8aa9293f8a43a67f71340d164a71d3b7948ba7a43f3c85fe470f"
+    "timestamp": "2026-09-26T14:48:50.416Z",
+    "hash": "6b716fca2a1ecf18e24c1b9ffbbdeeccc0cfa51413a8468afbaba3397ac8cbe6"
   },
   "book": {
     "id": "osct",
@@ -293,7 +293,7 @@
       "index": 1,
       "title": "Onion Skin & Crocodile Tears",
       "description": "Kévin Bray",
-      "footer": "Building Fictions",
+      "footer": "{{publisher}}",
       "fadeIn": 1000,
       "advance": 2500
     },

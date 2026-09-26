@@ -17,6 +17,8 @@ outcome in the line (or move it into a dated decision block).
   publisher as the footer of its second step (content).
 - (user) `book.yaml` → `publisher` stays: important book information, even while no view shows it – not a
   removal candidate (RULES #15 does not apply to book data).
+- (user) The splash footer comes from the field: step texts may use `{{title}}`, `{{author}}`, `{{publisher}}`
+  (filled in by `tutorial-content`, checked by the content build); `steps/step-2` footer = `{{publisher}}`.
 
 ## 2026-09-26 – Onboarding / home buttons in the flow (Tilman)
 
