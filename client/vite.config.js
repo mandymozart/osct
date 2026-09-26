@@ -66,6 +66,8 @@ export default defineConfig(({command,mode})=>{
     alias: {
       '@': resolve(__dirname, 'src'),
       '@shared': resolve(__dirname, '../shared'),
+      // TF.js (inside MindAR) imports it for Node.js only (src/vendor/mind-ar/node-fetch-stub.js)
+      'node-fetch': resolve(__dirname, 'src/vendor/mind-ar/node-fetch-stub.js'),
     }
   },
   server: {

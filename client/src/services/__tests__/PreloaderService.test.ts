@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PreloaderService } from "@/services/PreloaderService";
 import { getAssets, getSpread, getSpreads } from "@/utils/game-config";
+import { mindUrl } from "@/utils/mind";
 
 describe("PreloaderService", () => {
   const spreads = getSpreads();
@@ -36,9 +37,9 @@ describe("PreloaderService", () => {
     await preloader.preloadNeighbours(spreads[1].id);
     const urls = fetchedUrls();
 
-    expect(urls.slice(0, 2)).toEqual([spreads[0].mindSrc, spreads[2].mindSrc]);
+    expect(urls.slice(0, 2)).toEqual([mindUrl(spreads[0].mindSrc), mindUrl(spreads[2].mindSrc)]);
     expect(new Set(urls.slice(2))).toEqual(new Set([...contentOf(spreads[0].id), ...contentOf(spreads[2].id)]));
-    expect(urls).not.toContain(spreads[1].mindSrc);
+    expect(urls).not.toContain(mindUrl(spreads[1].mindSrc));
     expect(urls.filter(url => /^https?:\/\//.test(url))).toEqual([]);
   });
 
@@ -56,8 +57,8 @@ describe("PreloaderService", () => {
 
   it("handles the first spread and unknown spreads", async () => {
     await preloader.preloadNeighbours(spreads[0].id);
-    expect(fetchedUrls()[0]).toBe(spreads[1].mindSrc);
-    expect(fetchedUrls()).not.toContain(spreads[2].mindSrc);
+    expect(fetchedUrls()[0]).toBe(mindUrl(spreads[1].mindSrc));
+    expect(fetchedUrls()).not.toContain(mindUrl(spreads[2].mindSrc));
     expect(await preloader.preloadNeighbours("unknown")).toEqual([]);
   });
 

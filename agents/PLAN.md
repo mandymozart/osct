@@ -769,7 +769,17 @@ the app is ready. PWA later.
   displayed and played (Tilman), splash → scan flow.
 - [ ] Device check iPhone Safari: tracking, video textures, camera start, memory on spread switches.
 - [ ] Device check of the optimised models on the phone (loaded + rendered in the desktop browser only).
-- [ ] Lighthouse again on the deploy preview (before: performance 56, FCP 6.0 s, LCP 17.2 s).
+- [x] Lighthouse on staging (2026-09-26, mobile, same settings): **99** (was 56) – FCP 1.3 s (6.0), LCP 1.5 s
+  (17.2), TTI 1.5 s (6.3), TBT 70 ms, no render-blocking resources.
+- [x] Round 2 (2026-09-26): the content build (`scripts/src/utils/optimize-media.ts`, was optimize-models.ts)
+  also scales images to ≤ 1200 px (JPEG when opaque; re-encoded only when scaled or ≥ 25 % smaller – edge
+  777 → 266 KB), writes a gzip copy `<spread>.mind.gz` (fflate, deterministic; −45 %, spread1 1282 → 706 KB;
+  hosts serve `.mind` uncompressed) – the client unpacks it (`utils/mind.ts`, DecompressionStream; the
+  `.mind` as fallback), preloader and tracker use the same URL – and reports videos > 4 MB with export
+  advice (not re-encoded: ffmpeg is native). Render loop: frames only while an entity is visible or
+  animating (+ one clearing frame). `node-fetch` (TF.js, Node only) aliased to a stub – no dev-server error.
+- [ ] Videos of the final content: 720p H.264 ~2 Mbit/s (demo: bunny 10.9 MB, edge 5.8 MB) – with the artist.
+- [ ] Device check of round 2 (`.mind.gz` loading, render on demand) – phone was disconnected.
 
 **After the first staging test (Tilman, 2026-09-26):**
 - [x] **Placement in the content**: `entity.params` `position` / `rotation` / `scale` (shared/types/placement.ts,

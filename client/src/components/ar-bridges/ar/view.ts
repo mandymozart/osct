@@ -12,6 +12,13 @@ export class ArView {
   private clock = new Clock();
   private frameListeners = new Set<(delta: number) => void>();
   private looping = false;
+  /** The canvas shows nothing (last frame was rendered empty) */
+  private cleared = true;
+  /**
+   * Whether a frame needs drawing (something visible or animating). Scanning with nothing found then
+   * costs no GPU time for rendering – MindAR's tracking has the GPU to itself (battery, heat).
+   */
+  needsRender: () => boolean = () => true;
 
   constructor(private container: HTMLElement, private onResize: (camera: PerspectiveCamera) => void) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
@@ -48,7 +55,10 @@ export class ArView {
     this.renderer.setAnimationLoop(() => {
       const delta = this.clock.getDelta();
       this.frameListeners.forEach(listener => listener(delta));
-      this.renderer.render(this.scene, this.camera);
+      const needed = this.needsRender();
+      if (!needed && this.cleared) return;
+      this.renderer.render(this.scene, this.camera); // the last one while nothing is visible clears the canvas
+      this.cleared = !needed;
     });
   }
 
@@ -67,6 +77,7 @@ export class ArView {
     this.onResize(this.camera); // the tracker fits video + field of view
     this.camera.updateProjectionMatrix();
     if (!this.running) this.renderer.render(this.scene, this.camera);
+    this.cleared = false; // size changed: draw again
   };
 
   dispose(): void {

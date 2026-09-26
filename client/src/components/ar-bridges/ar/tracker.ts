@@ -1,5 +1,6 @@
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import { Controller } from "@/vendor/mind-ar/mindar-image.prod.js";
+import { loadMind } from "@/utils/mind";
 
 /**
  * Camera + MindAR image tracking, without a renderer. A port of MindAR 1.2.5's `MindARThree`
@@ -84,8 +85,9 @@ export class ImageTracker {
     this.controller = controller;
 
     try {
-      const { dimensions } = await controller.addImageTargets(mindSrc);
+      const buffer = await loadMind(mindSrc); // the .gz where the browser can unpack it
       if (this.controller !== controller) return; // replaced or stopped meanwhile
+      const { dimensions } = controller.addImageTargetsFromBuffer(buffer);
       this.postMatrices = dimensions.map(([width, height]) =>
         new Matrix4().compose(
           new Vector3(width / 2, width / 2 + (height - width) / 2, 0),

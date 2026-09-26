@@ -24,6 +24,8 @@ import {
 const srcDir = resolve(__dirname, "../..");
 const publicDir = resolve(__dirname, "../../../public");
 const publicFile = (src: string) => resolve(publicDir, src.replace(/^\//, ""));
+/** The authored original of a content file (the client copy of images may be scaled – optimize-media.ts) */
+const contentFile = (src: string) => resolve(publicDir, "../../content", src.replace(/^\/assets\/content\//, ""));
 const isLocal = (src?: string): src is string => !!src && !/^https?:\/\//.test(src);
 
 type MindFile = { dataList: { targetImage: { width: number; height: number } }[] };
@@ -81,13 +83,15 @@ describe("game configuration", () => {
     (_id, spread) => {
       const { dataList } = decode(readFileSync(publicFile(spread.mindSrc))) as MindFile;
       const mindImages = dataList.map(({ targetImage: { width, height } }) => `${width}x${height}`);
-      expect(mindImages).toEqual(spread.targets.map(t => jpegSize(publicFile(t.imageSrc))));
+      // The .mind is compiled from the original target images in content/
+      expect(mindImages).toEqual(spread.targets.map(t => jpegSize(contentFile(t.imageSrc))));
     },
   );
 
   it("references files that exist in public/", () => {
     const files = [
       ...spreads.map(s => s.mindSrc),
+      ...spreads.map(s => `${s.mindSrc}.gz`), // gzip copy (utils/mind.ts)
       ...entries.map(e => e.image),
       ...entries.map(e => e.target?.imageSrc),
       ...getAssets().map(a => a.src),

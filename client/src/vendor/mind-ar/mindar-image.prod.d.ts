@@ -28,6 +28,8 @@ export class Controller {
   readonly inputHeight: number;
   /** Loads a `.mind` file; one [width, height] per target */
   addImageTargets(url: string): Promise<{ dimensions: Array<[number, number]> }>;
+  /** The same from the file's bytes */
+  addImageTargetsFromBuffer(buffer: ArrayBuffer): { dimensions: Array<[number, number]> };
   /** Warms up the GPU kernels (slow on the first run) */
   dummyRun(input: HTMLVideoElement): Promise<void> | void;
   processVideo(input: HTMLVideoElement): void;
