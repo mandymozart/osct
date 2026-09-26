@@ -11,5 +11,11 @@
   "hapticsLabel": "Vibration",
   "on": "on",
   "off": "off",
-  "feedbackDescription": "Short sounds and vibrations when you scroll through the pages, tap a button or find a page."
+  "feedbackDescription": "Short sounds and vibrations when you scroll through the pages, tap a button or find a page.",
+  "installLabel": "Home screen",
+  "installButton": "Add to home screen",
+  "installDone": "You're using the app from your home screen.",
+  "installDescription": "Install the app on your phone: it opens full screen from its own icon and starts faster.",
+  "installIos": "In Safari, tap Share (the square with the arrow), then \"Add to Home Screen\". The app then opens full screen from its own icon.",
+  "installManual": "Open your browser's menu and choose \"Add to Home Screen\" or \"Install app\", if your browser offers it."
 }

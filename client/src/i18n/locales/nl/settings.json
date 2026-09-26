@@ -11,5 +11,11 @@
   "hapticsLabel": "Trillen",
   "on": "aan",
   "off": "uit",
-  "feedbackDescription": "Korte geluiden en trillingen als je door de pagina's scrolt, op een knop tikt of een pagina vindt."
+  "feedbackDescription": "Korte geluiden en trillingen als je door de pagina's scrolt, op een knop tikt of een pagina vindt.",
+  "installLabel": "Beginscherm",
+  "installButton": "Zet op beginscherm",
+  "installDone": "Je gebruikt de app vanaf je beginscherm.",
+  "installDescription": "Installeer de app op je telefoon: hij opent schermvullend vanaf zijn eigen icoon en start sneller.",
+  "installIos": "Tik in Safari op Deel (het vierkant met de pijl) en dan op 'Zet op beginscherm'. De app opent dan schermvullend vanaf zijn eigen icoon.",
+  "installManual": "Open het menu van je browser en kies 'Toevoegen aan startscherm' of 'App installeren', als je browser dat aanbiedt."
 }

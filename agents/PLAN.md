@@ -826,10 +826,20 @@ Installable app (home screen, standalone, splash) + offline start. Details: MEMO
 - [ ] Phone checks: install on Android (Chrome prompt) and iOS (Share → Add to Home Screen); camera in
   standalone mode (iOS may ask for camera permission more often); progress in Safari vs. installed app.
 - [ ] Final app icon (designers / Kévin) – replace the placeholders, same file names.
-- [ ] Decide: home-screen name ("Onion Skin"), full offline download of all content (today: only what
-  was seen / preloaded), an iOS "Add to Home Screen" hint in the onboarding.
-- [ ] Production host (FTP, not Netlify): `_headers` does not apply – check `.webmanifest` MIME type and
-  that `service-worker.js` is not cached long.
+- [x] Home-screen name = the book title "Onion Skin & Crocodile Tears" (Tilman 2026-09-27; manifest
+  `name` + `short_name` and the iOS title from `book.title` – phones may cut it short).
+- [x] "Add to Home Screen" on the Info page (Tilman 2026-09-27: Info, not the onboarding – for now):
+  section `settings-install` + `InstallService` – the browser's install dialog where there is one
+  (Chrome, Edge, Samsung), Safari's Share → "Add to Home Screen" explained on iOS, "installed" when the
+  app runs from the home screen. en/fr/nl/de.
+- [ ] **Full content download for the final app** (Tilman 2026-09-27: the whole book's content should be
+  on the phone). When is open – e.g. after install / first start of the installed app, on Wi-Fi only,
+  or as an Info action with progress. Today: only what was seen or preloaded is cached.
+- [ ] **Production host (FTP, not Netlify) – when production is set up** (Tilman 2026-09-27: note it,
+  handle it then): `public/_headers` does not apply there. Needed: `.webmanifest` served as
+  `application/manifest+json`; `service-worker.js` + `manifest.webmanifest` with `Cache-Control: no-cache`;
+  `assets/app/*` cached immutable; SPA fallback to `index.html` (`_redirects`); https. E.g. an `.htaccess`
+  on Apache.
 
 ## Phase 10 – Spatial experience  `[ ]` (added 2026-09-26 – later; concept first, Tilman)
 

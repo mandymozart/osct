@@ -15,11 +15,17 @@ const GAME_CONFIG = JSON.parse(readFileSync(resolve(__dirname, 'src/game.config.
 
 /**
  * PWA (2026-09-26): web app manifest + service worker (sw/service-worker.ts, precache list injected here).
- * Home-screen name and colours: `book.title` from the game configuration, black like the app.
+ * Home-screen name: `book.title` from the game configuration (also the iOS title in index.html); black like
+ * the app.
  * Icons: placeholders made from Mark the Page (public/assets/icons/) until the final app icon arrives.
  */
 function pwa() {
-  return VitePWA({
+  const title = GAME_CONFIG.book?.title ?? 'Onion Skin & Crocodile Tears';
+  const appTitle = {
+    name: 'osct-app-title',
+    transformIndexHtml: (html) => html.replace('%OSCT_APP_TITLE%', title.replace(/&/g, '&amp;')),
+  };
+  return [appTitle, VitePWA({
     strategies: 'injectManifest',
     srcDir: 'sw',
     filename: 'service-worker.ts',
@@ -27,8 +33,8 @@ function pwa() {
     injectRegister: false, // services/ServiceWorkerService.ts registers it (after the app is ready)
     manifest: {
       id: '/',
-      name: GAME_CONFIG.book?.title ?? 'Onion Skin & Crocodile Tears',
-      short_name: 'Onion Skin',
+      name: title,
+      short_name: title, // Tilman 2026-09-27 – phones may cut it short on the home screen
       description: "Augmented reality companion to Kévin Bray's book Onion Skin & Crocodile Tears (Building Fictions).",
       lang: 'en',
       start_url: '/',
@@ -56,7 +62,7 @@ function pwa() {
       maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // the MindAR chunk (TF.js) is ~1.8 MB
     },
     devOptions: { enabled: false },
-  });
+  })];
 }
 
 // Get local IP address
@@ -105,7 +111,7 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [tsconfigPaths(), staticSplash(), pwa(), ...(https ? [basicSsl()] : [])],
+  plugins: [tsconfigPaths(), staticSplash(), ...pwa(), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),

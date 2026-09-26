@@ -5,7 +5,7 @@ import "@/i18n";
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages";
-import { FeedbackService, GameStoreService, LinkService, ServiceWorkerService } from "@/services";
+import { FeedbackService, GameStoreService, InstallService, LinkService, ServiceWorkerService } from "@/services";
 import {
   ErrorInfo,
   IGame,
@@ -20,6 +20,9 @@ document.documentElement.lang = i18next.resolvedLanguage ?? DEFAULT_LANGUAGE;
 const staticSplash = document.getElementById("static-splash");
 staticSplash?.setAttribute("aria-label", i18next.t("common:loadingBook"));
 staticSplash?.querySelector("img")?.setAttribute("alt", i18next.t("common:markAlt"));
+
+// "Add to Home Screen" on the Info page: the browser announces it once, early – keep it from the start
+InstallService.getInstance().start();
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
