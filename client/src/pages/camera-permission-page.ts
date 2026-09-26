@@ -133,7 +133,10 @@ export class CameraPermissionPage extends Page {
   private getSettingsInstructions(): string {
     const browser = detectBrowser();
     const which = browser === "chrome" || browser === "firefox" || browser === "safari" ? browser : "other";
-    const steps = i18next.t(`camera:${which}Steps`, { returnObjects: true }).map(step => `<li>${escapeHtml(step)}</li>`).join("");
+    // Steps are numbered keys ("0", "1", …) – i18next-cli keeps lists as objects
+    const steps = Object.values(i18next.t(`camera:${which}Steps`, { returnObjects: true }) as Record<string, string>)
+      .map(step => `<li>${escapeHtml(step)}</li>`)
+      .join("");
     return `${i18next.t(`camera:${which}Title`)}<ol>${steps}</ol>`;
   }
 

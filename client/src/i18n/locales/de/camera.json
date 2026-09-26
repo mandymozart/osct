@@ -1,0 +1,33 @@
+{
+  "illustration": "Kamera",
+  "waiting": "Warte auf Kamerazugriff…",
+  "allow": "Bitte erlaube die Kamera, um das Buch zu scannen.",
+  "denied": "Der Kamerazugriff wurde verweigert.",
+  "enable": "Um das Buch zu scannen und interaktive Inhalte anzuzeigen, erlaube bitte die Kamera in den Einstellungen deines Browsers.",
+  "chromeTitle": "Kamerazugriff in Chrome erlauben:",
+  "chromeSteps": {
+    "0": "Tippe auf das Schloss- bzw. Einstellungssymbol in der Adressleiste",
+    "1": "Wähle „Website-Einstellungen“",
+    "2": "Erlaube die Kamera",
+    "3": "Lade die Seite neu"
+  },
+  "firefoxTitle": "Kamerazugriff in Firefox erlauben:",
+  "firefoxSteps": {
+    "0": "Tippe auf das Schlosssymbol in der Adressleiste",
+    "1": "Lösche die aktuelle Einstellung",
+    "2": "Lade die Seite neu und erlaube den Zugriff, wenn du gefragt wirst"
+  },
+  "safariTitle": "Kamerazugriff in Safari erlauben:",
+  "safariSteps": {
+    "0": "Öffne die Seiteneinstellungen („aA“ in der Adressleiste) oder die Safari-Einstellungen",
+    "1": "Gehe zu Websites > Kamera",
+    "2": "Suche diese Website und wähle „Erlauben“",
+    "3": "Lade die Seite neu"
+  },
+  "otherTitle": "Kamerazugriff erlauben:",
+  "otherSteps": {
+    "0": "Prüfe die Kameraberechtigungen in den Einstellungen deines Browsers",
+    "1": "Erlaube dieser Website, deine Kamera zu verwenden",
+    "2": "Lade die Seite neu"
+  }
+}

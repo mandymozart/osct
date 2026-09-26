@@ -118,8 +118,10 @@ Extend as we go: add a rule when a decision should hold for all future work.
       (`import "@/pages"`) where registration matters.
 
 20. **UI texts** (Tilman, 2026-09-26): never hard-coded – every text shown to readers (incl. aria labels
-    and notices) comes from `src/i18n` via **i18next directly** (`i18next.t("domain:key")`; en default, fr,
-    nl, de; one namespace per page/area; **informal** in every language). New texts go into every language.
+    and notices) comes from i18next directly (`i18next.t("namespace:key")`; en default, fr, nl, de; one
+    namespace per page/area; **informal** in every language). Translations are **JSON** (i18next JSON v4) in
+    `src/i18n/locales/<lang>/<ns>.json`, maintained with **i18next-cli** (`npm run i18n`; the build runs it
+    and warns – never fails – about missing translations, which fall back to English).
     Book content (titles, entries, steps) is not UI text. The language is stored by the i18next language
     detector (`osct-language`), not in the progress. Dev tools may stay English.
 

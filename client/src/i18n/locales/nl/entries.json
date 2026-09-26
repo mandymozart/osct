@@ -1,0 +1,11 @@
+{
+  "countAria": "{{consulted}} van {{total}} geraadpleegd",
+  "empty": "Nog geen items geraadpleegd.",
+  "locked": "vergrendeld",
+  "categories": {
+    "glossary": "Woordenlijst",
+    "video": "Video's",
+    "text": "Teksten",
+    "link": "Links"
+  }
+}
