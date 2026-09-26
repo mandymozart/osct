@@ -1,6 +1,6 @@
 import { ConsultationPage } from "./consultation-page";
 import { getBook } from "@/utils/game-config";
-import { tHtml } from "@/i18n";
+import i18next from "i18next";
 import "@/components/settings";
 
 /**
@@ -31,27 +31,27 @@ export class AboutPage extends ConsultationPage {
     const params = { title: book.title, author: book.author };
     return /* html */ `
       <div class="content">
-        <h2 class="section-title">${tHtml("about.info")}</h2>
-        <p>${tHtml("about.infoText", params)}</p>
+        <h2 class="section-title">${i18next.t("about:info")}</h2>
+        <p>${i18next.t("about:infoText", params)}</p>
 
-        <h2 class="section-title">${tHtml("about.settings")}</h2>
+        <h2 class="section-title">${i18next.t("about:settings")}</h2>
         <div class="settings">
           <settings-tutorial></settings-tutorial>
           <settings-history></settings-history>
           <settings-language></settings-language>
         </div>
 
-        <h2 class="section-title">${tHtml("about.colophon")}</h2>
-        <p>${tHtml("about.author", params)}<br>${tHtml("about.publishedBy")}</p>
+        <h2 class="section-title">${i18next.t("about:colophon")}</h2>
+        <p>${i18next.t("about:author", params)}<br>${i18next.t("about:publishedBy")}</p>
         <a class="logo-link" href="https://buildingfictions.com" target="_blank" rel="noopener noreferrer">
           <img src="/assets/bf.svg" class="logo" alt="buildingfictions" />
         </a>
-        <p>${tHtml("about.appBy")}</p>
+        <p>${i18next.t("about:appBy")}</p>
         <div class="platforms">
-          <p>${tHtml("about.requirements")}</p>
-          <p>${tHtml("about.android")}</p>
-          <p>${tHtml("about.desktop")}</p>
-          <p>${tHtml("about.ios")}</p>
+          <p>${i18next.t("about:requirements")}</p>
+          <p>${i18next.t("about:android")}</p>
+          <p>${i18next.t("about:desktop")}</p>
+          <p>${i18next.t("about:ios")}</p>
         </div>
       </div>
     `;

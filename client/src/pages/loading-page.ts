@@ -2,7 +2,7 @@ import { GameMode, IGame, LoadingState } from "@/types";
 import { Page } from "./page";
 import { GameStoreService } from "@/services";
 import { adoptDesignStyles } from "@/styles";
-import { t } from "@/i18n";
+import i18next from "i18next";
 import { escapeHtml } from "@/utils";
 
 /**
@@ -20,7 +20,7 @@ import { escapeHtml } from "@/utils";
  * hideLoading();
  */
 class LoadingPage extends Page {
-  private message: string = t("common.loading");
+  private message: string = i18next.t("common:loading");
   protected game: Readonly<IGame>;
   private currentLoadingState: LoadingState;
 
@@ -92,7 +92,7 @@ class LoadingPage extends Page {
     `;
   }
 
-  private showLoading(msg: string = t("common.loading")): void {
+  private showLoading(msg: string = i18next.t("common:loading")): void {
     this.message = msg;
     this.active = true;
     this.render();

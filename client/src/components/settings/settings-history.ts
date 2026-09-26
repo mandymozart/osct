@@ -1,5 +1,5 @@
 import { goldButton } from "@/components/buttons";
-import { t, tHtml } from "@/i18n";
+import i18next from "i18next";
 import { SettingsSection } from "./settings-section";
 
 /**
@@ -11,13 +11,13 @@ export class SettingsHistory extends SettingsSection {
 
   protected content(): string {
     return /* html */ `
-      <div class="row">${goldButton({ label: t("settings.historyButton"), attrs: { "data-action": "reset" } })}</div>
-      <p class="description" role="status">${tHtml(this.done ? "settings.historyDone" : "settings.historyDescription")}</p>
+      <div class="row">${goldButton({ label: i18next.t("settings:historyButton"), attrs: { "data-action": "reset" } })}</div>
+      <p class="description" role="status">${i18next.t(this.done ? "settings:historyDone" : "settings:historyDescription")}</p>
     `;
   }
 
   protected onAction(action: string): void {
-    if (action !== "reset" || !window.confirm(t("settings.historyConfirm"))) return;
+    if (action !== "reset" || !window.confirm(i18next.t("settings:historyConfirm"))) return;
     this.game.history.reset();
     this.done = true;
     this.render();

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ".."; // registers the elements
-import { GameStoreService, SETTINGS_KEY, SettingsService } from "@/services";
+import i18next from "i18next";
+import { GameStoreService } from "@/services";
+import { LANGUAGE_STORAGE_KEY } from "@/i18n";
 import { Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
 
@@ -10,10 +12,13 @@ const click = (host: HTMLElement, selector: string) => host.shadowRoot!.querySel
 
 beforeEach(() => {
   document.body.innerHTML = "";
-  localStorage.removeItem(SETTINGS_KEY);
+  localStorage.removeItem(LANGUAGE_STORAGE_KEY);
   game.history.reset();
 });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(async () => {
+  vi.restoreAllMocks();
+  await i18next.changeLanguage("en");
+});
 
 describe("settings sections", () => {
   it("tutorial: starts the onboarding", () => {
@@ -25,7 +30,7 @@ describe("settings sections", () => {
   it("history: resets the book after a confirmation and keeps the language", () => {
     const entry = getEntries()[0].id;
     game.history.consultEntry(entry);
-    SettingsService.getInstance().setLanguage("nl");
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, "nl");
     const section = mount("settings-history");
 
     vi.spyOn(window, "confirm").mockReturnValueOnce(false);
@@ -36,10 +41,10 @@ describe("settings sections", () => {
     click(section, "[data-action=reset]");
     expect(game.history.isConsulted(entry)).toBe(false);
     expect(section.shadowRoot!.textContent).toContain("All saved progress on this device was deleted.");
-    expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)!)).toEqual({ language: "nl" });
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("nl");
   });
 
-  it("language: lists the languages and stores the choice (the app reloads)", () => {
+  it("language: lists the languages and stores the choice (the app reloads)", async () => {
     const reload = vi.fn();
     vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, reload } as Location);
     const section = mount("settings-language");
@@ -50,17 +55,7 @@ describe("settings sections", () => {
     expect(options).toEqual(["English", "Français", "Nederlands", "Deutsch"]);
 
     click(section, "[data-language=de]");
-    expect(JSON.parse(localStorage.getItem(SETTINGS_KEY)!)).toEqual({ language: "de" });
-    expect(reload).toHaveBeenCalled();
-  });
-});
-
-describe("settings storage", () => {
-  it("follows the device without a choice and ignores invalid values", () => {
-    expect(SettingsService.getInstance().language).toBe("en");
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ language: "xx" }));
-    expect(SettingsService.getInstance().language).toBe("en");
-    localStorage.setItem(SETTINGS_KEY, "{broken");
-    expect(SettingsService.getInstance().language).toBe("en");
+    await vi.waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("de");
   });
 });

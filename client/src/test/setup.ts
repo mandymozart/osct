@@ -34,3 +34,6 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
+
+// UI texts: i18next is set up once for all tests (as main.ts does first in the app)
+import "@/i18n";

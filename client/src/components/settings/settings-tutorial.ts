@@ -1,13 +1,13 @@
 import { goldButton } from "@/components/buttons";
-import { t, tHtml } from "@/i18n";
+import i18next from "i18next";
 import { SettingsSection } from "./settings-section";
 
 /** Tutorial section: starts the onboarding again */
 export class SettingsTutorial extends SettingsSection {
   protected content(): string {
     return /* html */ `
-      <div class="row">${goldButton({ label: t("settings.tutorialButton"), attrs: { "data-action": "tutorial" } })}</div>
-      <p class="description">${tHtml("settings.tutorialDescription")}</p>
+      <div class="row">${goldButton({ label: i18next.t("settings:tutorialButton"), attrs: { "data-action": "tutorial" } })}</div>
+      <p class="description">${i18next.t("settings:tutorialDescription")}</p>
     `;
   }
 

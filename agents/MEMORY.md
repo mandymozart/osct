@@ -14,14 +14,16 @@ outcome in the line (or move it into a dated decision block).
 - Notices are dismissed with `router.dismissError()` – back to the view underneath (before: always scan mode).
 - [x] rem everywhere: root font size `100%` (was 16px – blocked the phone's text size), all px → rem,
   breakpoints in em (RULES #18).
-- [x] i18n with **i18next** (Tilman: "use i18next"): `src/i18n/<lang>/<domain>.ts`, one namespace per domain,
-  71 texts in en / fr / nl / de; wrapper `t` / `tHtml` / `tList` with typed "domain.key" paths; test checks
-  keys, non-empty, placeholders. Translations by the agent – to be proofread by native speakers.
+- [x] i18n with **i18next, used directly** (Tilman: "you can directly depend on the library"): `src/i18n/<lang>/
+  <domain>.ts`, one namespace per domain, 71 texts in en / fr / nl / de, `{{placeholders}}`, typed keys via
+  `CustomTypeOptions`; **informal in all languages** (Tilman). Test checks keys, non-empty, placeholders.
+  Translations by the agent – to be proofread by native speakers.
 - [x] Info settings, one component per section (`components/settings/`): Tutorial, History (= save game:
   "Reset book", with a confirm), Language ("Language: English" + "Change language" → the four languages).
-- [x] Language preference in its own record (`SettingsService`, `osct-settings`), not in the progress: progress
-  is per book and deleted by "Reset book"; the language belongs to the reader across books; later account
-  settings (API). Default = device language. Changing it reloads the app (the URL keeps the view).
+- [x] Language persistence by **i18next-browser-languagedetector** (`osct-language`; Tilman: the library handles
+  it) – the short-lived `SettingsService` was removed. Not in the progress ("Reset book" keeps it); later
+  account settings (API). First visit: device language (the detector then caches it). Changing it reloads the
+  app (the URL keeps the view).
 - [ ] Open: translate book content (entries, onboarding steps, book info)? Needs per-language fields in the
       content YAML and the build – Tilman / Kévin.
 

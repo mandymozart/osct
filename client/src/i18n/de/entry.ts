@@ -6,7 +6,7 @@ export const entry: Messages["entry"] = {
   accessPage: "Zugangsseite",
   category: "Kategorie",
   author: "Autor",
-  goToPage: "Geh im Scanmodus zur Zugangsseite {page}, um das Video zu sehen.",
+  goToPage: "Geh im Scanmodus zur Zugangsseite {{page}}, um das Video zu sehen.",
   preview: "Vorschau (die AR-Version erscheint auf der Seite):",
   openInNewTab: "In neuem Tab öffnen",
   missing: "Dieser Eintrag ist (nicht mehr) Teil des Buches.",

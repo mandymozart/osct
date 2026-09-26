@@ -5,7 +5,7 @@ export const header: Messages["header"] = {
   entries: "Entrées",
   info: "Infos",
   entriesConsulted: "Entrées consultées",
-  counterAria: "{consulted} entrées consultées sur {total}",
+  counterAria: "{{consulted}} entrées consultées sur {{total}}",
   openConsultation: "Ouvrir le mode consultation",
   backToScan: "Retour au mode scan",
 };

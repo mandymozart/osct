@@ -2,7 +2,7 @@ import { Page } from "./page";
 import { GameStoreService } from "@/services";
 import { CameraPermissionStatus, IGame } from "@/types";
 import { detectBrowser, escapeHtml } from "@/utils";
-import { tHtml, tList } from "@/i18n";
+import i18next from "i18next";
 import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
 
@@ -124,7 +124,7 @@ export class CameraPermissionPage extends Page {
   }
 
   private getIcon(): string {
-    return `<gold-illustration src="/assets/illustrations/tutorial-step-2.svg" label="${tHtml("camera.illustration")}"></gold-illustration>`;
+    return `<gold-illustration src="/assets/illustrations/tutorial-step-2.svg" label="${i18next.t("camera:illustration")}"></gold-illustration>`;
   }
 
   /**
@@ -133,8 +133,8 @@ export class CameraPermissionPage extends Page {
   private getSettingsInstructions(): string {
     const browser = detectBrowser();
     const which = browser === "chrome" || browser === "firefox" || browser === "safari" ? browser : "other";
-    const steps = tList(`camera.${which}Steps`).map(step => `<li>${escapeHtml(step)}</li>`).join("");
-    return `${tHtml(`camera.${which}Title`)}<ol>${steps}</ol>`;
+    const steps = i18next.t(`camera:${which}Steps`, { returnObjects: true }).map(step => `<li>${escapeHtml(step)}</li>`).join("");
+    return `${i18next.t(`camera:${which}Title`)}<ol>${steps}</ol>`;
   }
 
   private getContent() {
@@ -142,14 +142,14 @@ export class CameraPermissionPage extends Page {
     if (this.currentPermissionStatus === CameraPermissionStatus.PROMPT) {
       return /* html */ `
         ${this.getIcon()}
-        <div class="message design gold"><p>${tHtml("camera.waiting")}</p><p>${tHtml("camera.allow")}</p></div>
+        <div class="message design gold"><p>${i18next.t("camera:waiting")}</p><p>${i18next.t("camera:allow")}</p></div>
       `;
     }
     return /* html */ `
       ${this.getIcon()}
       <div class="message design gold">
-        <p>${tHtml("camera.denied")}</p>
-        <p>${tHtml("camera.enable")}</p>
+        <p>${i18next.t("camera:denied")}</p>
+        <p>${i18next.t("camera:enable")}</p>
       </div>
       <div class="settings-instructions design muted">
         ${this.getSettingsInstructions()}
