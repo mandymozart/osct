@@ -1,8 +1,0 @@
-import type { Messages } from "../en";
-
-/** Startup errors – Dutch */
-export const startup: Messages["startup"] = {
-  contentOtherVersion: "De inhoud van het boek is gemaakt voor een andere versie van de app.",
-  contentNotLoaded: "De inhoud van het boek kon niet worden geladen.",
-  unknownError: "Er is een onbekende fout opgetreden.",
-};

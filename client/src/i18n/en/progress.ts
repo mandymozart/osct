@@ -1,5 +1,0 @@
-/** Notices about stored progress – English */
-export const progress = {
-  converted: "Your saved progress was converted for this app version. Parts of it may be missing.",
-  reset: "Your saved progress could not be read by this app version and was reset.",
-};

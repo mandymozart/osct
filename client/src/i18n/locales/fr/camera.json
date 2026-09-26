@@ -1,0 +1,33 @@
+{
+  "illustration": "Caméra",
+  "waiting": "En attente de l'accès à la caméra…",
+  "allow": "Autorise la caméra pour scanner le livre.",
+  "denied": "L'accès à la caméra a été refusé.",
+  "enable": "Pour scanner le livre et afficher le contenu interactif, autorise la caméra dans les réglages de ton navigateur.",
+  "chromeTitle": "Pour autoriser la caméra dans Chrome :",
+  "chromeSteps": {
+    "0": "Touche l'icône de cadenas / réglages dans la barre d'adresse",
+    "1": "Choisis « Paramètres des sites »",
+    "2": "Autorise la caméra",
+    "3": "Recharge la page"
+  },
+  "firefoxTitle": "Pour autoriser la caméra dans Firefox :",
+  "firefoxSteps": {
+    "0": "Touche l'icône de cadenas dans la barre d'adresse",
+    "1": "Efface le réglage actuel",
+    "2": "Recharge la page et autorise l'accès lorsque c'est demandé"
+  },
+  "safariTitle": "Pour autoriser la caméra dans Safari :",
+  "safariSteps": {
+    "0": "Ouvre les réglages de la page (« aA » dans la barre d'adresse) ou les réglages de Safari",
+    "1": "Va dans Sites web > Caméra",
+    "2": "Trouve ce site et choisis « Autoriser »",
+    "3": "Recharge la page"
+  },
+  "otherTitle": "Pour autoriser la caméra :",
+  "otherSteps": {
+    "0": "Vérifie les autorisations de caméra dans les réglages de ton navigateur",
+    "1": "Autorise ce site à utiliser ta caméra",
+    "2": "Recharge la page"
+  }
+}

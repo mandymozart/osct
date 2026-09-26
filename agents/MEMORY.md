@@ -20,6 +20,12 @@ outcome in the line (or move it into a dated decision block).
   Translations by the agent – to be proofread by native speakers.
 - [x] Info settings, one component per section (`components/settings/`): Tutorial, History (= save game:
   "Reset book", with a confirm), Language ("Language: English" + "Change language" → the four languages).
+- [x] (user) Translations as **JSON** (i18next JSON v4, `src/i18n/locales/<lang>/<ns>.json`) and **i18next-cli**
+  (`client/i18next.config.ts`): `npm run i18n` = extract + types (`resources.d.ts` generated, `i18next.d.ts`
+  created once), `i18n:status` warns about missing translations without failing; `prebuild` and the
+  `build:ar-*` scripts run both, CI shows the status. Empty translations fall back to English
+  (`returnEmptyString: false`). i18next-cli stores lists as objects with numbered keys (camera steps →
+  `Object.values`). The `.ts` dictionaries are gone.
 - [x] Language persistence by **i18next-browser-languagedetector** (`osct-language`; Tilman: the library handles
   it) – the short-lived `SettingsService` was removed. Not in the progress ("Reset book" keeps it); later
   account settings (API). First visit: device language (the detector then caches it). Changing it reloads the

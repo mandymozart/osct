@@ -32,22 +32,28 @@ describe("i18n (i18next)", () => {
   it("switches language, returns lists and keeps the choice in localStorage", async () => {
     await i18next.changeLanguage("de");
     expect(i18next.t("home:start")).toBe("Starten");
-    expect(i18next.t("camera:otherSteps", { returnObjects: true })).toHaveLength(3);
+    expect(Object.values(i18next.t("camera:otherSteps", { returnObjects: true }))).toHaveLength(3);
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("de");
     await i18next.changeLanguage("fr-BE");
     expect(i18next.resolvedLanguage).toBe("fr");
     expect(i18next.t("entries:categories.video")).toBe("Vidéos");
   });
 
-  it("has every text in every language, non-empty, with the same placeholders", () => {
+  it("shows English for a missing (empty) translation", async () => {
+    const french = i18next.getResource("fr", "home", "start");
+    i18next.addResource("fr", "home", "start", "");
+    await i18next.changeLanguage("fr");
+    expect(i18next.t("home:start")).toBe("Start");
+    i18next.addResource("fr", "home", "start", french);
+  });
+
+  it("keeps the placeholders of English in every translation (missing ones are only warned by i18next-cli)", () => {
     const reference = flatten(resources.en);
+    expect(Object.keys(reference).length).toBeGreaterThan(50);
     for (const language of LANGUAGES) {
-      const messages = flatten(resources[language]);
-      expect(Object.keys(messages).sort(), language).toEqual(Object.keys(reference).sort());
-      for (const [key, value] of Object.entries(messages)) {
-        expect(value.length, `${language} ${key}`).toBeGreaterThan(0);
+      for (const [key, value] of Object.entries(flatten(resources[language] ?? {}))) {
+        if (!value.length || !(key in reference)) continue;
         expect(placeholders(value), `${language} ${key}`).toEqual(placeholders(reference[key]));
-        if (Array.isArray(value)) expect(value.length, `${language} ${key}`).toBe((reference[key] as string[]).length);
       }
     }
   });

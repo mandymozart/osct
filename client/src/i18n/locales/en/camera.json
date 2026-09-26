@@ -1,0 +1,33 @@
+{
+  "illustration": "Camera",
+  "waiting": "Waiting for camera access…",
+  "allow": "Please allow the camera to scan the book.",
+  "denied": "Camera access was denied.",
+  "enable": "To scan the book and display interactive content, please enable camera permissions in your browser settings.",
+  "chromeTitle": "To enable camera access in Chrome:",
+  "chromeSteps": {
+    "0": "Tap the lock / settings icon in the address bar",
+    "1": "Select \"Site settings\"",
+    "2": "Allow camera permissions",
+    "3": "Refresh the page"
+  },
+  "firefoxTitle": "To enable camera access in Firefox:",
+  "firefoxSteps": {
+    "0": "Tap the lock icon in the address bar",
+    "1": "Clear the current setting",
+    "2": "Refresh the page and allow access when prompted"
+  },
+  "safariTitle": "To enable camera access in Safari:",
+  "safariSteps": {
+    "0": "Open the page settings (\"aA\" in the address bar) or Safari settings",
+    "1": "Go to Websites > Camera",
+    "2": "Find this website and select \"Allow\"",
+    "3": "Refresh the page"
+  },
+  "otherTitle": "To enable camera access:",
+  "otherSteps": {
+    "0": "Check your browser settings for camera permissions",
+    "1": "Allow this site to use your camera",
+    "2": "Refresh the page"
+  }
+}

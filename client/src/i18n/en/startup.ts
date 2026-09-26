@@ -1,6 +1,0 @@
-/** Startup errors – English */
-export const startup = {
-  contentOtherVersion: "The book content was built for another app version.",
-  contentNotLoaded: "The book content could not be loaded.",
-  unknownError: "An unknown error occurred.",
-};

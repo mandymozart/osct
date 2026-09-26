@@ -47,6 +47,9 @@ jobs:
       - run: npm ci
       - name: Type-check
         run: npx tsc --noEmit
+      # Missing translations are reported, never fail the run (English is shown instead)
+      - name: Translations status
+        run: npm run i18n:status
       # Includes the one-version checks (client + scripts package.json, game.config.json)
       - name: Tests
         run: npx vitest run
