@@ -2,12 +2,12 @@ import { router } from "@/router";
 import { GameMode, PageRoute, SceneState } from "@/types";
 
 /**
- * Scene state policy of the A-Frame bridge: what the scene / MindAR (an A-Frame plugin) should be
- * doing for the app state. Applied by the scene bridge (PLAN Phase 2 "Modes vs views").
+ * Scene state policy: what the AR scene (A-Frame + MindAR) should be doing for the app state.
+ * Applied by `<ar-bridge>`.
  */
 
 /**
- * Scene state per game mode (Phase 6: camera only in scan mode – MindAR `autoStart: false`).
+ * Scene state per game mode – the camera only runs in scan mode (MindAR `autoStart: false`).
  * IDLE (home, onboarding): camera released. CONSULTATION: paused, stream kept for an instant return.
  */
 export const SCENE_STATE_BY_MODE: Record<GameMode, SceneState> = {

@@ -1,6 +1,5 @@
 import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { resolveArSceneStrategy } from "@/components/aframe-bridges/ar";
 import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
 
@@ -175,7 +174,7 @@ export class DebugOverlay extends HTMLElement {
 
     // Scene status
     html += `<div class="section">
-      <div>AR: ${this.arStatusLabel()} · strategy ${resolveArSceneStrategy()}</div>
+      <div>AR: ${this.arStatusLabel()}</div>
     </div>`;
 
     // Current spread
@@ -230,7 +229,7 @@ export class DebugOverlay extends HTMLElement {
     const { unlocked, consulted } = this.game.state.progress;
 
     return `
-      <div>S${sceneStatus}${resolveArSceneStrategy() === "persistent" ? "p" : "r"} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
+      <div>S${sceneStatus} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
     `;
   }
 

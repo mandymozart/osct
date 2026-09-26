@@ -577,7 +577,7 @@ Open:
 
 ---
 
-## Phase 6 – A-Frame bridges  `[x]` (built 2026-09-25, both strategies; open: default after device tests; moved from interim 1.1, decided 2026-09-24)
+## Phase 6 – A-Frame bridges  `[x]` (built 2026-09-25; persistent scene kept, rebuild removed 2026-09-26)
 
 Decision: keep the current DOM-replacement approach (scene HTML generated from content via
 `templates.ts`, injected with `innerHTML`) through Phases 2–5 – it was chosen deliberately because
@@ -693,8 +693,9 @@ Measured in the browser (fake camera, which starts instantly – real cameras ad
 | Camera requests per switch | 1 (new stream each time) | 0 (stream kept) |
 | Switch while paused / stopped | rebuilds | swaps; stopped: content only (25 ms) |
 Both: one scene, one live stream, rapid switching ends on the last spread, found/lost drive video + store.
-- [ ] Decide the default after device tests (Phase 7): B is faster and avoids iOS camera re-prompts but uses
-  MindAR internals (`anchorEntities`, `imageTargetSrc`, `_startAR`) – re-check on a MindAR upgrade.
+- [x] Default after device tests (Tilman, 2026-09-26): **B – persistent** is the only one kept. A, the
+  strategy switch, `VITE_AR_STRATEGY` and the `build:ar-*` scripts are removed; base class + B merged
+  into `ar/ar-scene.ts` (`ArScene`). Uses MindAR internals – re-check on a MindAR upgrade.
 - [ ] Memory on devices when switching (TF.js "High memory usage in GPU" seen with A earlier).
 
 ### Open questions (decide when Phase 6 starts)

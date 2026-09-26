@@ -7,10 +7,8 @@ declare const __VITE_SERVER_URL__: string;
 interface ImportMetaEnv {
   /** "true" shows the debug overlay in production builds (dev builds always show it) */
   readonly VITE_DEBUG?: string;
-  /** "true" / "false": list unconsulted entries locked (default: dev only) – PLAN Phase 4 */
+  /** "true" / "false": list unconsulted entries locked (default: dev only) */
   readonly VITE_SHOW_LOCKED_ENTRIES?: string;
-  /** AR scene strategy baked into the build: "rebuild" | "persistent" (Phase 6, ar/index.ts) */
-  readonly VITE_AR_STRATEGY?: string;
 }
 
 interface ImportMeta {

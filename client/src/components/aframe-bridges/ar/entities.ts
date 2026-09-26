@@ -2,10 +2,9 @@ import { AssetData, EntityData, EntityType, Target } from "@/types";
 import { chromaKeyMaterial, parseChromaKey } from "../utils";
 
 /**
- * Entity registry (Phase 6, PLAN item 3): one builder per entity type creates the A-Frame element
- * for a target and may return hooks for found / lost / pause. Shared by both scene strategies
- * (`ArScene` – new scene per spread, `PersistentArScene` – one scene). Extensible (RULES #7):
- * `registerEntity("model", builder)` – no logic in content.
+ * Entity registry: one builder per entity type creates the A-Frame element for a target and may
+ * return hooks for found / lost / pause. New types: `registerEntity("type", builder)` – no logic in
+ * the content.
  */
 
 export interface EntityInstance {
@@ -77,7 +76,7 @@ const element = (tag: string, attrs: Record<string, string>): HTMLElement => {
 
 /**
  * Play with sound; if the browser blocks unmuted autoplay (no user gesture yet, e.g. iOS), play
- * muted instead of not at all. Device check: PLAN Phase 7.
+ * muted instead of not at all.
  */
 export const playVideo = async (video: HTMLVideoElement): Promise<void> => {
   try {
@@ -94,7 +93,7 @@ export const playVideo = async (video: HTMLVideoElement): Promise<void> => {
 
 // ── Built-in types ────────────────────────────────────────────────────────────────────────────
 
-/** Video: plays when the target is found, pauses when lost / paused (design p.37–40); chroma key optional */
+/** Video: plays when the target is found, pauses when lost / paused; optional chroma key filter */
 registerEntity("video", ({ entity, asset }) => {
   const data = entity.assets.find(a => a.assetType === "video");
   if (!data) return null;
@@ -117,13 +116,16 @@ registerEntity("video", ({ entity, asset }) => {
     if (video.readyState >= 1) fit();
     else video.addEventListener("loadedmetadata", fit, { once: true });
   }
-  // The shader resolves `src: #id` once on init – on the phone it sometimes found nothing and stayed
-  // empty (transparent plane, sound only). Hand it the video element whenever its texture is missing.
+  // The shader resolves `src: #id` only once, on init, and sometimes finds nothing (a transparent
+  // plane with sound). Hand it the video element whenever its texture is missing.
+  const aframeEl = el as HTMLElement & {
+    getObject3D?: (type: string) => { material?: { uniforms?: Record<string, { value: unknown }> } } | undefined;
+    setAttribute(name: string, property: string, value: unknown): void;
+  };
   const ensureTexture = () => {
     if (!chromaKey || !video) return;
-    const mesh = (el as HTMLElement & { getObject3D?: (type: string) => any }).getObject3D?.("mesh");
-    const src = mesh?.material?.uniforms?.src;
-    if (src && !src.value) (el.setAttribute as unknown as (name: string, prop: string, value: unknown) => void).call(el, "material", "src", video);
+    const src = aframeEl.getObject3D?.("mesh")?.material?.uniforms?.src;
+    if (src && !src.value) aframeEl.setAttribute("material", "src", video);
   };
   el.addEventListener("loaded", ensureTexture);
   return {

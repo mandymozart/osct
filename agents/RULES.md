@@ -53,12 +53,12 @@ Extend as we go: add a rule when a decision should hold for all future work.
     app and content versions were kept separate.)
 11. Windows: stop the dev/preview server before any git command that rewrites the working tree
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
-12. AR (Phase 6): only `components/aframe-bridges/ar/` touches A-Frame / MindAR, behind `IArScene`
-    (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. The strategy is chosen in
-    `ar/index.ts` (`AR_SCENE_STRATEGY`: "rebuild" = new scene per spread, "persistent" = one scene;
-    per build with `VITE_AR_STRATEGY` / `npm run build:ar-*`);
-    both share the entity registry (`ar/entities.ts` – add entity types with `registerEntity`, no logic in
-    content) and the MindAR helpers (`ar/mindar.ts`). Camera only in scan mode (`autoStart: false`).
+12. AR: only `components/aframe-bridges/ar/` touches A-Frame / MindAR, behind `IArScene`
+    (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. `ArScene` keeps **one** A-Frame scene
+    and swaps a spread's targets, assets and entities in place (camera stream kept; uses MindAR internals
+    `anchorEntities`, `imageTargetSrc`, `_startAR` – re-check on a MindAR upgrade). Entity registry
+    `ar/entities.ts` (add entity types with `registerEntity`, no logic in content), MindAR helpers
+    `ar/mindar.ts`. Camera only in scan mode (`autoStart: false`).
 13. Type naming: game-configuration (JSON) types `*Data` (defined once in top-level `shared/types/`,
     used by the client and `scripts/`), app-internal objects plain names (`Spread`, `Target`, `Entry`, `Step`), services and
     controllers `I*` interfaces, runtime state `*State`. No second copy of a type in another package.
@@ -76,7 +76,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
     - **Store managers** (`store/managers`): app state.
     - **A-Frame context** (`components/aframe-bridges`): bridges create DOM and connect it to the game
       state; everything A-Frame/MindAR specific (MindAR is an A-Frame plugin) lives here, incl. its
-      helpers (`ar/`: scene strategies, entity registry, MindAR helpers; `utils/`: scene state policy,
+      helpers (`ar/`: the scene, entity registry, MindAR helpers; `utils/`: scene state policy,
       chroma key).
     - **Services** (`services/`): singletons giving app-wide access (`GameStoreService`: the store;
       later the game configuration and the generated API). Naming: class and file `*Service`

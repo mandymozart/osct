@@ -45,7 +45,7 @@ Node 22 (as in CI). Setup and dev server: see the [README](../README.md).
 - After changing `scripts/src`, run `npm run build` in `scripts/` first (type-check + bundle the tool).
 - The camera needs HTTPS (or `localhost`): `npm run dev` serves https with a self-signed certificate –
   on the phone open `https://<your-ip>:5173` and accept the certificate once. `npm run dev:http` = plain http.
-- `client/.env` enables the debug overlay (`VITE_DEBUG=true`): version, AR status and strategy,
+- `client/.env` enables the debug overlay (`VITE_DEBUG=true`): version, AR status, tracked targets,
   QR generator.
 
 ### Checks
@@ -61,12 +61,8 @@ CI (`.github/workflows/ci.yml`) runs these on every push and checks the committe
 
 ```bash
 cd client && npm run build                      # → client/dist, static SPA
-npm run build:ar-rebuild                        # AR strategy "rebuild": one scene per spread (default)
-npm run build:ar-persistent                     # AR strategy "persistent": one scene, swaps targets
 ```
 
-`npm run build` uses the default strategy or `VITE_AR_STRATEGY`. In dev builds
-`localStorage["osct-ar-strategy"]` overrides it (reload after changing).
 Netlify builds `main`; an FTP production deploy follows later. Both need every path answered with
 `index.html` for the links (`/entry/<id>` …): `client/public/_redirects` (Netlify) and
 `client/public/.htaccess` (Apache) are copied into the build – see [Pages → Links](pages.md#links).
