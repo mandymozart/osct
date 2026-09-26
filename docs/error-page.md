@@ -1,6 +1,6 @@
 # Error page
 
-`<error-page>` is an overlay for errors and notices (e.g. "resume your previous session"). Open it
+`<error-page>` is an overlay for errors and notices (e.g. "your saved progress was converted"). Open it
 through the store, not directly:
 
 ```typescript
@@ -12,5 +12,6 @@ game.notifyError({
 });
 ```
 
-With an action the page shows it as the primary button and "Dismiss" as the secondary one.
+With an action the page shows it as the primary button and "Dismiss" as the secondary one. "Dismiss"
+(`router.dismissError()`) returns to the view under the notice.
 `game.onError(listener)` lets components react to errors as well.

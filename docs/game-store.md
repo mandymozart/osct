@@ -99,7 +99,7 @@ The game provides a centralized error handling system that opens an `<error-page
 this.game.notifyError({
   msg: 'You have a previous session in spread "The Castle Gates".',
   type: "info",
-  action: { text: "Resume", callback: () => this.game.spreads.switchSpread(spreadId) },
+  action: { text: "Retry", callback: () => this.game.spreads.switchSpread(spreadId) },
 });
 ```
 

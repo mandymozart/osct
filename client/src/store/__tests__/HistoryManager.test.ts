@@ -96,34 +96,35 @@ describe("HistoryManager (progress)", () => {
     expect(stored().appVersions).toEqual([__VITE_APP_VERSION__]);
   });
 
-  describe("resume offer", () => {
-    it("offers to resume the spread of the last unlocked target", () => {
-      game.history.unlockTarget(targets[0].id);
-      game = createGameStore();
-      game.history.offerResume();
+  it("starts on the last spread (keep going, no resume prompt)", () => {
+    const other = getSpreads()[1].id;
+    game.spreads.switchSpread(other);
+    game = createGameStore();
+    expect(game.state.currentSpread).toBe(other);
+  });
 
-      expect(game.state.currentRoute?.page).toBe(Pages.ERROR);
-      expect(game.state.currentError?.msg).toContain("previous session");
-      expect(game.state.currentError?.action?.text).toBe("Resume");
-    });
-
-    it("says nothing without a previous session", () => {
-      game.history.offerResume();
-      expect(game.state.currentError).toBeNull();
-    });
+  it("says nothing at startup when the progress was read as it is (no resume prompt)", () => {
+    game.history.unlockTarget(targets[0].id);
+    game = createGameStore();
+    game.history.reportLoadStatus();
+    expect(game.state.currentError).toBeNull();
   });
 
   describe("reading stored formats", () => {
-    it("treats corrupt storage as unreadable and tells the user", () => {
+    it("resets progress without a reader for its format (or corrupt) and tells the user", () => {
       localStorage.setItem(PROGRESS_KEY, "{not json");
       game = createGameStore();
-      game.history.offerResume();
+      game.history.reportLoadStatus();
       expect(game.state.progress.unlocked).toEqual({});
-      expect(game.state.currentError?.msg).toContain("could not be read");
+      expect(game.state.currentError?.msg).toContain("was reset");
+
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify({ format: PROGRESS_FORMAT + 1, unlocked: { a: 1 } }));
+      game = createGameStore();
+      expect(game.state.progress.unlocked).toEqual({});
     });
 
     // Stand-in for the reader a MAJOR bump adds for the previous format
-    it("converts an older format, saves it in the current one and tells the user with the resume offer", () => {
+    it("converts an older format, saves it in the current one and says parts may be missing", () => {
       const oldFormat = PROGRESS_FORMAT - 1;
       PROGRESS_READERS[oldFormat] = (raw, id) => ({
         ...readProgress({ format: PROGRESS_FORMAT }, id).record,
@@ -140,9 +141,9 @@ describe("HistoryManager (progress)", () => {
           appVersions: ["0.9.0", __VITE_APP_VERSION__],
         });
 
-        game.history.offerResume();
-        expect(game.state.currentError?.msg).toContain("updated to the new app format");
-        expect(game.state.currentError?.msg).toContain("previous session");
+        game.history.reportLoadStatus();
+        expect(game.state.currentError?.msg).toContain("Parts of it may be missing");
+        expect(game.state.currentError?.action).toBeUndefined();
       } finally {
         delete PROGRESS_READERS[oldFormat];
       }

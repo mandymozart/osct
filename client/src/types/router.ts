@@ -25,6 +25,11 @@ export interface IRouterManager {
   showError(error: ErrorInfo): void;
 
   /**
+   * Dismiss the error / notice overlay and return to the view underneath
+   */
+  dismissError(): void;
+
+  /**
    * Close overlay pages and clear current route
    */
   close(): void;

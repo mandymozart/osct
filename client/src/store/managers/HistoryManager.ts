@@ -1,7 +1,6 @@
 import { LocalProgressStorage } from '@/services/ProgressStorage';
 import {
   EntryCategory,
-  ErrorInfo,
   IGame,
   IHistoryManager,
   IProgressStorage,
@@ -18,13 +17,16 @@ import { ProgressReadStatus, createProgressRecord, readProgress } from '@/utils'
 export class HistoryManager implements IHistoryManager {
   private game: IGame;
   private storage: IProgressStorage;
-  /** How the last load went – told to the user once, together with the resume offer */
+  /** How the last load went – told to the user once at startup (`reportLoadStatus`) */
   private loadStatus: ProgressReadStatus | null = null;
 
   constructor(game: IGame, storage: IProgressStorage = new LocalProgressStorage()) {
     this.game = game;
     this.storage = storage;
     this.load();
+    // Keep going where the reader left off: the last spread becomes the active one (a link overrides it)
+    const last = this.progress.lastSpreadId;
+    if (last && getSpread(last) && last !== this.game.state.currentSpread) this.game.spreads.switchSpread(last);
     this.game.subscribeToProperty('currentSpread', (spreadId) => {
       if (spreadId && spreadId !== this.progress.lastSpreadId) {
         this.change(draft => { draft.lastSpreadId = spreadId; });
@@ -60,37 +62,22 @@ export class HistoryManager implements IHistoryManager {
   }
 
   /**
-   * Offer to resume the last spread. One notice at a time (`currentError`), so a format
-   * conversion is told in the same notice.
+   * Tell the reader when stored progress could not be taken over as it was (called once at startup,
+   * no resume prompt – the app simply opens the requested view):
+   * - converted by a reader for an older format → parts of it may be missing;
+   * - no reader for its format (or corrupt) → it was reset.
    */
-  public offerResume(): void {
+  public reportLoadStatus(): void {
     const status = this.loadStatus;
     this.loadStatus = null;
-
-    const notes: string[] = [];
-    if (status === 'converted') notes.push('Your progress was updated to the new app format.');
-    if (status === 'unreadable') notes.push('Your saved progress could not be read and starts fresh.');
-
-    const lastSpread = this.progress.lastSpreadId ? getSpread(this.progress.lastSpreadId) : undefined;
-    if (lastSpread) notes.push(`You have a previous session in spread "${lastSpread.title || lastSpread.id}".`);
-    if (notes.length === 0) return;
-
+    if (status !== 'converted' && status !== 'unreadable') return;
     this.game.notifyError({
-      msg: notes.join(' '),
+      code: status === 'converted' ? 'progress-converted' : 'progress-reset',
+      msg: status === 'converted'
+        ? 'Your saved progress was converted for this app version. Parts of it may be missing.'
+        : 'Your saved progress could not be read by this app version and was reset.',
       type: 'info',
-      ...(lastSpread
-        ? {
-            action: {
-              text: 'Resume',
-              callback: () => {
-                this.game.spreads.switchSpread(lastSpread.id);
-                // The route sets scan mode
-                this.game.router.navigate('/spread');
-              },
-            },
-          }
-        : {}),
-    } as ErrorInfo);
+    });
   }
 
   /** Also records the target's spread as the last spread (the initial spread never "changes") */

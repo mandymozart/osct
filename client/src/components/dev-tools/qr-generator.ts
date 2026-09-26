@@ -103,7 +103,6 @@ export class QRGenerator extends HTMLElement {
       
       <select id="qr-type-selector">
         <option value="valid">Spread link</option>
-        <option value="newer-version">Link from a newer app version</option>
         <option value="unknown-spread">Link to an unknown spread</option>
       </select>
 
@@ -159,7 +158,7 @@ export class QRGenerator extends HTMLElement {
 
     const baseUrl = (__VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl).replace(/\/$/, "");
     // Link format: services/LinkService.ts – /spread/<id>?osct=<the one app version> (RULES #10)
-    const appVersion = testType === "newer-version" ? "999.0.0" : this.game.version.version;
+    const appVersion = this.game.version.version;
     const id = testType === "unknown-spread" ? "no-such-spread" : spreadId;
     const url = `${baseUrl}/spread/${encodeURIComponent(id)}?${VERSION_PARAM}=${appVersion}`;
 

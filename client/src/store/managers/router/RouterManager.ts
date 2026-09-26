@@ -21,6 +21,8 @@ import { RouteResolver } from "./helpers";
  */
 export class RouterManager implements IRouterManager {
   private game: IGame;
+  /** The view under the error overlay – `dismissError` returns there */
+  private underlay: PageRoute | null = null;
 
   constructor(game: IGame) {
     this.game = game;
@@ -43,6 +45,8 @@ export class RouterManager implements IRouterManager {
    */
   public showError(error: ErrorInfo, force: boolean = false): void {
     console.error('[RouterManager] Showing error:', error);
+    const current = this.game.state.currentRoute;
+    if (current && current.page !== Pages.ERROR && current.page !== Pages.NOT_FOUND) this.underlay = current;
 
     // Error is an overlay route: the mode stays as it is
     this.game.update(draft => {
@@ -51,6 +55,17 @@ export class RouterManager implements IRouterManager {
         slug: "/error"
       };
       draft.currentError = error;
+    });
+  }
+
+  /**
+   * Dismiss the error / notice overlay: back to the view underneath (the start page if there is none)
+   */
+  public dismissError(): void {
+    const back = this.underlay;
+    this.underlay = null;
+    this.go(back?.slug ?? "/", back?.param, true, draft => {
+      draft.currentError = null;
     });
   }
 
