@@ -780,9 +780,22 @@ the app is ready. PWA later.
   sparkles, ring – `ar/celebration.ts`) when the entry is not consulted yet, then the found indicator's
   unlock ("New entry unlocked" label) → entry. New feedback event `reveal` ("pew pew pew" + sparkle run,
   placeholder `sounds/reveal.wav`), also on the image indicator's unlock.
-- [ ] Device check of placement + tap to unlock (staging).
-- [?] **Pinning objects in space** (keep a model when the page is lost, e.g. long press) – researched,
-  decision open, see MEMORY 2026-09-26 "Pinning". Recommendation: 3DoF with the gyroscope.
+- [x] Device check of placement + tap to unlock on the S22 (Tilman, 2026-09-26): works, animations "a good
+  starting point".
+- [?] **Pinning objects in space** → moved to Phase 10 (concept first).
+
+## Phase 10 – Spatial experience  `[ ]` (added 2026-09-26 – later; concept first, Tilman)
+
+Objects that leave the page and live in the room: pinning a found object in space, floor / surface
+tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
+
+- [ ] **Concept: tap vs. pin** (Tilman is working it out first – see the concept notes of 2026-09-26 in
+  MEMORY): what a tap does (unlock only / open the entry), what keeps an object in space, how it ends.
+- [ ] Pinning with the gyroscope (3DoF, works with MindAR, Android + iOS) – if the concept keeps it.
+- [ ] Floor / surface tracking (6DoF): WebXR `immersive-ar` (hit test, anchors) – Android Chrome only,
+  the WebXR session takes over the camera (MindAR stops while it runs); iOS Safari has no WebXR AR.
+  Alternatives: a commercial web SDK with world tracking (licence), or a native app later.
+- [ ] Decide per content which objects may leave the page (a flag in `entity.params`?).
 
 ---
 
@@ -800,7 +813,7 @@ The notes below are the earlier, rougher summary.
 
 ## Suggested order
 
-0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 (phases are numbered in execution order since 2026-09-24).
+0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 (phases are numbered in execution order since 2026-09-24).
 Phase 5 can run in parallel at any point; it mostly restyles existing tutorial pages.
 
 ## Open decisions (summary)
