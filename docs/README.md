@@ -11,7 +11,7 @@ Staging: [osct.netlify.app](https://osct.netlify.app) (built from `main`) [![Net
 | | |
 |---|---|
 | **Content** | [Content guide](content.md) – how `content/` is organised (for artists, designers, editors) · [Content build](content-build.md) – `scripts/` |
-| **App** | [Game store](game-store.md) · [Base store](base-store.md) · [Managers](managers.md) · [Pages](pages.md) · [Error page](error-page.md) · [Components](components.md) |
+| **App** | [Languages (i18n)](i18n.md) · [Game store](game-store.md) · [Base store](base-store.md) · [Managers](managers.md) · [Pages](pages.md) · [Error page](error-page.md) · [Components](components.md) |
 
 Quick start: the repository [README](../README.md).
 

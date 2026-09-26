@@ -1,5 +1,6 @@
 import { GameStoreService } from "@/services";
 import { GameMode, IGame } from "@/types";
+import { tHtml } from "@/i18n";
 
 /**
  * Placeholder image per mode until Kévin's WebM animation (Phase 7), which has one state per mode.
@@ -75,8 +76,8 @@ export class MarkThePage extends HTMLElement {
         }
         button:active img { transform: scale(.94); }
       </style>
-      <button type="button" aria-label="${mode === GameMode.SCAN ? "Open consultation mode" : "Back to scan mode"}">
-        ${src ? `<img src="${src}" alt="Mark the Page">` : ""}
+      <button type="button" aria-label="${tHtml(mode === GameMode.SCAN ? "header.openConsultation" : "header.backToScan")}">
+        ${src ? `<img src="${src}" alt="${tHtml("common.markAlt")}">` : ""}
       </button>
     `;
   }

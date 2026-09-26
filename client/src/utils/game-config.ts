@@ -23,6 +23,7 @@ import {
   Target,
 } from '@/types';
 import { compareVersions } from './version';
+import { t } from '@/i18n';
 
 /** Used when the JSON is invalid, so modules can load and the app can show the error */
 const EMPTY_CONFIGURATION: GameConfiguration = {
@@ -55,7 +56,7 @@ export const checkConfigurationVersion = (appVersion: string, configVersion: str
   if (compatibility !== 'incompatible') return null;
   return {
     code: ErrorCode.NOT_SUPPORTED,
-    msg: 'The book content was built for another app version.',
+    msg: t('startup.contentOtherVersion'),
     type: 'critical',
     details: [`App ${appVersion}, content ${configVersion}: the content needs to be rebuilt.`],
   };
@@ -75,7 +76,7 @@ const loadConfiguration = (): GameConfiguration => {
     console.error(`[game-config] Invalid game configuration:\n  - ${problems.join('\n  - ')}`);
     configurationError = {
       code: ErrorCode.GAME_CONFIGURATION_INVALID,
-      msg: 'The book content could not be loaded.',
+      msg: t('startup.contentNotLoaded'),
       type: 'critical',
       details: problems,
     };

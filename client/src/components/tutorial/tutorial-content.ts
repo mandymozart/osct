@@ -4,6 +4,7 @@ import { escapeHtml, paragraphs } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header";
 import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
+import { tHtml } from "@/i18n";
 
 const tutorial = getTutorial();
 
@@ -72,7 +73,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
         p { margin: 0 0 1.25em; }
         .footer { margin-top: auto; padding-bottom: 1rem; }
       </style>
-      <img class="mark" src="${MARK_IMAGE_SRC}" alt="Mark the Page">
+      <img class="mark" src="${MARK_IMAGE_SRC}" alt="${tHtml("common.markAlt")}">
       ${step.illustration ? `<gold-illustration class="fade" src="${escapeHtml(step.illustration)}"></gold-illustration>` : ""}
       ${step.title ? `<h1 class="design gold text">${inline(step.title)}</h1>` : ""}
       ${step.description ? `<div class="text design gold fade">${paragraphs(step.description).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}

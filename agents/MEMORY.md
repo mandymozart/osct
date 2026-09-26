@@ -12,8 +12,18 @@ outcome in the line (or move it into a dated decision block).
 - (user) Stored progress of another format: reader exists → converted + notice "parts of it may be missing";
   no reader (or corrupt) → reset + notice. `HistoryManager.reportLoadStatus()` replaces `offerResume()`.
 - Notices are dismissed with `router.dismissError()` – back to the view underneath (before: always scan mode).
-- Next (Tilman): reset moves to Info as a "History" section (save game), Info settings sections as individual
-  components (Tutorial, History, Language), rem everywhere, i18n (en, fr, nl, de).
+- [x] rem everywhere: root font size `100%` (was 16px – blocked the phone's text size), all px → rem,
+  breakpoints in em (RULES #18).
+- [x] i18n with **i18next** (Tilman: "use i18next"): `src/i18n/<lang>/<domain>.ts`, one namespace per domain,
+  71 texts in en / fr / nl / de; wrapper `t` / `tHtml` / `tList` with typed "domain.key" paths; test checks
+  keys, non-empty, placeholders. Translations by the agent – to be proofread by native speakers.
+- [x] Info settings, one component per section (`components/settings/`): Tutorial, History (= save game:
+  "Reset book", with a confirm), Language ("Language: English" + "Change language" → the four languages).
+- [x] Language preference in its own record (`SettingsService`, `osct-settings`), not in the progress: progress
+  is per book and deleted by "Reset book"; the language belongs to the reader across books; later account
+  settings (API). Default = device language. Changing it reloads the app (the URL keeps the view).
+- [ ] Open: translate book content (entries, onboarding steps, book info)? Needs per-language fields in the
+      content YAML and the build – Tilman / Kévin.
 
 ## 2026-09-26 – Links: app state as plain URLs (Tilman)
 

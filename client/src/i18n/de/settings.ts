@@ -1,0 +1,13 @@
+import type { Messages } from "../en";
+
+/** Settings sections on the Info page – German */
+export const settings: Messages["settings"] = {
+  tutorialButton: "Anleitung",
+  tutorialDescription: "Eine Schritt-für-Schritt-Anleitung, wie du die App mit deinem Buch verwendest.",
+  historyButton: "Buch zurücksetzen",
+  historyDescription: "Löscht den gesamten gespeicherten Fortschritt auf diesem Gerät.",
+  historyConfirm: "Den gesamten gespeicherten Fortschritt für dieses Buch auf diesem Gerät löschen?",
+  historyDone: "Der gesamte gespeicherte Fortschritt auf diesem Gerät wurde gelöscht.",
+  languageLabel: "Sprache:",
+  languageChange: "Sprache ändern",
+};

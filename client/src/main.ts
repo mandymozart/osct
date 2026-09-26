@@ -10,6 +10,12 @@ import {
 } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getConfigurationError } from "@/utils/game-config";
+import { getLanguage, t } from "@/i18n";
+
+// Language of the page (screen readers, hyphenation) and the initial loader's text (index.html)
+document.documentElement.lang = getLanguage();
+const loaderText = document.querySelector("#initial-loader .visually-hidden");
+if (loaderText) loaderText.textContent = t("common.loadingBook");
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -156,7 +162,7 @@ export class BookGame extends HTMLElement {
 
   private handleError(error: unknown) {
     const message =
-      error instanceof Error ? error.message : "Unknown error occurred";
+      error instanceof Error ? error.message : t("startup.unknownError");
     if (this.errorPage) {
       const errorEvent = new CustomEvent("show-error", {
         detail: { message },

@@ -4,6 +4,7 @@ import { IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 import { Page } from "./page";
+import { t } from "@/i18n";
 
 export interface IErrorPage extends HTMLElement {
   showError(msg: string, options?: ErrorOptions): void;
@@ -125,7 +126,7 @@ class ErrorPage extends Page implements IErrorPage {
     return /* html */ `
       <div class="message design">${this.message}</div>
       <div class="actions">
-          ${goldButton({ label: "Dismiss", attrs: { id: "dismiss-error" } })}
+          ${goldButton({ label: t("common.dismiss"), attrs: { id: "dismiss-error" } })}
           ${this.actionButton
     ? goldButton({ label: this.actionButton.text, primary: true, attrs: { id: "action-button" } })
     : ''}

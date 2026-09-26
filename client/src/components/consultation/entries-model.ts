@@ -1,17 +1,16 @@
 import { Entry, EntryCategory } from "@/types";
 import { isEntryCategory } from "@shared/guards/game-config";
+import { t } from "@/i18n";
 
 /**
  * Pure helpers of consultation mode (entries list + entry view, design p.15–31). No DOM, no store.
  */
 
 /**
- * Label from the enum value, plural everywhere as in the design ("Videos" in the list, the menu and the
- * entry's category row, frames 18/20). The glossary has no plural.
+ * Label of a category in the current language – plural everywhere as in the design ("Videos" in the list,
+ * the menu and the entry's category row, frames 18/20).
  */
-export const categoryLabel = (category: EntryCategory): string =>
-  category.charAt(0).toLocaleUpperCase("en") + category.slice(1) +
-  (category !== EntryCategory.Glossary ? "s" : "");
+export const categoryLabel = (category: EntryCategory): string => t(`entries.categories.${category}`);
 
 export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 

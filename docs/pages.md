@@ -15,7 +15,7 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | `/spread` (`spreadId`) | `<spread-page>` | scan | scan mode: found indicator, spread menu |
 | `/entries` (`category`) | `<entries-page>` | consultation | entries list by category |
 | `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: meta table, text, media |
-| `/about` | `<about-page>` | consultation | Info: about text, colophon, tutorial restart |
+| `/about` | `<about-page>` | consultation | Info: about text, settings (Tutorial, History = reset book, Language), colophon |
 | `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](error-page.md) |
 | `/not-found` | `<not-found-page>` | (keeps mode) | unknown route or link target, with "Go to start" |
 

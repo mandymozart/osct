@@ -1,6 +1,7 @@
 import { GameStoreService } from "@/services";
 import { IGame } from "@/types";
 import { getEntries } from "@/utils/game-config";
+import { tHtml } from "@/i18n";
 
 /**
  * Header counter "12 / 150" = consulted entries / total entries (PLAN Phase 3, decided).
@@ -41,7 +42,7 @@ export class EntriesCounter extends HTMLElement {
           text-align: center;
         }
       </style>
-      <span aria-label="${consulted} of ${total} entries consulted">${consulted}<span aria-hidden="true"> / </span>${total}</span>
+      <span aria-label="${tHtml("header.counterAria", { consulted, total })}">${consulted}<span aria-hidden="true"> / </span>${total}</span>
     `;
   }
 }

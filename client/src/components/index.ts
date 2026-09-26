@@ -6,4 +6,5 @@ export * from "./dev-tools";
 export * from "./header";
 export * from "./pages-router";
 export * from "./scan";
+export * from "./settings";
 export * from "./tutorial";

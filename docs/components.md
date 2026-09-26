@@ -12,6 +12,7 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 | `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category); helpers in `entries-model.ts` |
 | `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` |
 | `common/` | `<gold-illustration>` (SVG in the gold gradient) |
+| `settings/` | Info page settings, one component per section: `<settings-tutorial>`, `<settings-history>` (reset book), `<settings-language>` |
 | `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary) |
 | `pages-router/` | `<pages-router>` – shows the page of the current route |
 | `dev-tools/` | `<debug-overlay>` (with `VITE_DEBUG=true`) and `<qr-generator>` |
