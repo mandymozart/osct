@@ -75,12 +75,6 @@ const sounds = {
     tone({ freq: note("E6"), ms: 55, duty: 0.25, volume: 0.22, decay: 5 }),
   ),
 
-  // Target found (again): short rising "ping" with a pitch slide
-  found: sequence(
-    tone({ freq: note("C6"), ms: 45, duty: 0.25, volume: 0.22, decay: 2 }),
-    tone({ freq: note("G6"), ms: 120, duty: 0.25, volume: 0.22, decay: 5, slideTo: note("G6") * 1.01, vibrato: 0.006 }),
-  ),
-
   // New entry unlocked: fast rising arpeggio, then a held note with vibrato and an octave sparkle
   unlock: mix(
     sequence(
@@ -94,10 +88,9 @@ const sounds = {
     ),
   ),
 
-  // Alternative unlock sound (Tilman 2026-09-26, "pew pew pew"): three quick falling laser zaps, then a
-  // rising sparkle run with a bright held note. Not played by the app – to try instead of unlock.wav,
-  // rename it (PLAN Phase 8: designers decide)
-  reveal: mix(
+  // Target found again (every find after the unlock – Tilman 2026-09-26, "pew pew pew"): three quick
+  // falling laser zaps, then a rising sparkle run with a bright held note
+  found: mix(
     sequence(
       ...[0, 1, 2].flatMap(i => [
         tone({ freq: note("E7") * (1 - i * 0.08), ms: 70, duty: 0.25, volume: 0.18, decay: 3, slideTo: note("E5") }),
