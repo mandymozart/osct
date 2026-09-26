@@ -56,6 +56,10 @@ Extend as we go: add a rule when a decision should hold for all future work.
     app and content versions were kept separate.)
 11. Windows: stop the dev/preview server before any git command that rewrites the working tree
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
+    **Branches (Tilman, 2026-09-26):** all work goes to `develop` first (or a feature branch merged into
+    `develop`) – `develop` deploys to staging (osct-staging.netlify.app, Netlify env `VITE_DEBUG=true`:
+    debug bar on). `main` = production (osct.netlify.app, no debug bar); merge `develop` into `main` only
+    when Tilman says so. Build flags (`VITE_*`) are set per Netlify site, never committed in `client/.env`.
 12. AR: only `components/ar-bridges/ar/` touches three.js / MindAR, behind `IArScene`
     (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. `ArScene` keeps **one** renderer
     (`ar/view.ts`) and one camera stream and swaps a spread's targets, assets and entities in place.
