@@ -1,0 +1,99 @@
+# Development server osct.porschuetz.de (all-inkl, Apache + PHP + MySQL): the app at the root, the
+# user API in /api (server/README.md). Runs on every push to the `database` branch, or by hand.
+#
+# GitHub → Settings → Environments → "staging" (Tilman's names; each may be a secret or a variable):
+#   secrets:   FTP_USER, FTP_PASS, DB_USER, DB_PASS, SECRET (SMTP_HOST, SMTP_USER, SMTP_PASS once smtp)
+#   variables: FTP_HOST, FTP_ROOT, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM
+#              (optional: SMTP_PORT, SMTP_SECURE)
+# Like qr.scutoons.com (config written in the build), but uploaded over FTPS with lftp.
+name: Deploy staging
+
+on:
+  push:
+    branches: [database]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and upload
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite, pdo_mysql
+      - name: API tests
+        run: php server/tests/api-test.php
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Build the app
+        working-directory: client
+        env:
+          VITE_API_URL: /api
+          VITE_DEBUG: "true"
+        run: |
+          npm ci
+          npm run build
+
+      - name: Write the server configuration
+        env:
+          OSCT_DB_HOST: ${{ vars.DB_HOST || secrets.DB_HOST || 'localhost' }}
+          OSCT_DB_NAME: ${{ vars.DB_NAME || secrets.DB_NAME }}
+          OSCT_DB_USER: ${{ secrets.DB_USER || vars.DB_USER }}
+          OSCT_DB_PASS: ${{ secrets.DB_PASS || vars.DB_PASS }}
+          OSCT_SECRET: ${{ secrets.SECRET || vars.SECRET }}
+          OSCT_APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
+          OSCT_ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS || secrets.ALLOWED_ORIGINS }}
+          OSCT_MAIL_TRANSPORT: ${{ vars.MAIL_TRANSPORT || secrets.MAIL_TRANSPORT || 'mail' }}
+          OSCT_MAIL_FROM: ${{ vars.MAIL_FROM || secrets.MAIL_FROM }}
+          OSCT_SMTP_HOST: ${{ secrets.SMTP_HOST || vars.SMTP_HOST }}
+          OSCT_SMTP_PORT: ${{ vars.SMTP_PORT || secrets.SMTP_PORT }}
+          OSCT_SMTP_SECURE: ${{ vars.SMTP_SECURE || secrets.SMTP_SECURE }}
+          OSCT_SMTP_USER: ${{ secrets.SMTP_USER || vars.SMTP_USER }}
+          OSCT_SMTP_PASS: ${{ secrets.SMTP_PASS || vars.SMTP_PASS }}
+        run: php server/deploy/write-config.php server/api/config.local.php
+
+      - name: Assemble the site
+        run: |
+          mkdir -p site/api
+          cp -r client/dist/. site/
+          cp -r server/api/. site/api/
+          rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/mail.log
+          find site -name '*.map' -delete
+
+      # lftp instead of FTP-Deploy-Action: its Node FTP client lost the TLS data connection on all-inkl
+      # (ECONNRESET, 2026-09-27). Files are uploaded, nothing on the server is deleted.
+      - name: Upload (FTPS)
+        env:
+          FTP_HOST: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER || vars.FTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASS || vars.FTP_PASS }}
+          FTP_ROOT: ${{ vars.FTP_ROOT || secrets.FTP_ROOT || '/' }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          lftp -c "
+            set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate true;
+            set net:timeout 30; set net:max-retries 3; set net:reconnect-interval-base 5;
+            open --env-password -u \"$FTP_USER\" \"$FTP_HOST\";
+            mirror --reverse --parallel=4 --no-perms --verbose=1 site/ \"$FTP_ROOT\"
+          "
+
+      - name: Create missing tables, check the API
+        env:
+          SECRET: ${{ secrets.SECRET || vars.SECRET }}
+          APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
+        run: |
+          curl -fsS -X POST -H "X-Admin-Secret: $SECRET" "$APP_URL/api/admin/migrate"
+          echo
+          curl -fsS "$APP_URL/api/health"

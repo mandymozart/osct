@@ -4,10 +4,11 @@
   "settings": "Réglages",
   "colophon": "Colophon",
   "author": "Auteur : {{author}}",
-  "publishedBy": "Publié par buildingfictions © 2025",
+  "publishedBy": "Publié par buildingfictions © 2027",
   "appBy": "Application : Tilman Porschuetz",
   "requirements": "Nécessite un navigateur compatible WebXR et un exemplaire du livre.",
   "android": "Android : Chrome",
   "desktop": "Ordinateur : Chrome, Firefox, Safari",
-  "ios": "iOS : Safari, Chrome"
+  "ios": "iOS : Safari, Chrome",
+  "account": "Compte"
 }

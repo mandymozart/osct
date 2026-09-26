@@ -864,6 +864,25 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
 
 ---
 
+## Phase 11 – Accounts (branch `database`)  `[~]` (built 2026-09-27; open: naming, deploy test, SMTP, final texts)
+
+Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/` (server/README.md).
+- [x] API: request / verify (link or code) / logout, account (options, delete), progress per book with a
+      version check (409 → merge). Hashes only, attempt and hourly limits, CORS by origin list. Tests: `server/tests/api-test.php`.
+- [x] Mail: log / mail() / SMTP (own client), texts en/fr/nl/de, lists the chosen options for a new account.
+- [x] App: `ApiService`, `AccountService` (sign-in state, progress sync: merge on sign-in, replace at startup
+      when this device has no unsent changes, offline queue), `<settings-account>` on the Info page, `.field` primitive.
+- [x] Options = three update switches (`<gold-switch>`: book, Kévin Bray, Building Fictions), **opt-in (off)**, under
+      the email in the sign-up form; progress always saved, "Reset progress" resets it (also in the account).
+- [x] Sounds / vibration as `<gold-switch>` too.
+- [x] Info page groups: Info · Account (+ Reset progress) · Settings · colophon; Tutorial section removed (Tilman).
+- [x] Deploy to osct.porschuetz.de: `.github/workflows/deploy-staging.yml` (GitHub environment `staging`).
+- [x] Naming: **user** in code / API / database, "Account" in the UI (Tilman).
+- [ ] GitHub environment `staging` secrets/variables set; first deploy + test on a phone (link on iOS home-screen app → code).
+- [ ] SMTP account for production; final mail + UI texts; privacy note for the update options.
+- [ ] Sending the updates (newsletter) – not built; the options are only stored.
+- [ ] Netlify staging: `VITE_API_URL` to the dev API (needs its origin in ALLOWED_ORIGINS – already there).
+
 ## Design tokens
 
 **Measured spec: `agents/DESIGN.md`** (colors, gold gradient, sizes, buttons/glass, gold text options,

@@ -1,16 +1,12 @@
 {
-  "tutorialButton": "Tutoriel",
-  "tutorialDescription": "Un guide pas à pas pour utiliser l'application avec ton livre.",
-  "historyButton": "Réinitialiser le livre",
-  "historyDescription": "Supprime toute la progression enregistrée sur cet appareil.",
+  "historyButton": "Réinitialiser la progression",
+  "historyDescription": "L'application garde la trace de toutes les entrées que tu as trouvées et explorées dans le livre. Si tu veux, tu peux effacer ta progression et recommencer – ou la sauvegarder dans ton compte ci-dessous.",
   "historyConfirm": "Supprimer toute la progression enregistrée pour ce livre sur cet appareil ?",
   "historyDone": "Toute la progression enregistrée sur cet appareil a été supprimée.",
   "languageLabel": "Langue :",
   "languageChange": "Changer de langue",
   "soundLabel": "Sons",
   "hapticsLabel": "Vibration",
-  "on": "activés",
-  "off": "désactivés",
   "feedbackDescription": "De petits sons et vibrations quand tu fais défiler les pages, touches un bouton ou trouves une page.",
   "installLabel": "Écran d'accueil",
   "installButton": "Ajouter à l'écran d'accueil",
@@ -22,5 +18,7 @@
   "downloadDescription": "Enregistre tout le livre sur cet appareil ({{size}}), pour qu'il fonctionne aussi sans internet. De préférence en Wi-Fi.",
   "downloadProgress": "{{loaded}} sur {{total}} téléchargés",
   "downloadDone": "Tout le livre est sur cet appareil ({{size}}).",
-  "downloadFailed": "Certains fichiers n'ont pas pu être téléchargés ({{size}} au total). Vérifie ta connexion et réessaie."
+  "downloadFailed": "Certains fichiers n'ont pas pu être téléchargés ({{size}} au total). Vérifie ta connexion et réessaie.",
+  "historyDescriptionAccount": "L'application garde la trace de toutes les entrées que tu as trouvées et explorées dans le livre – sur cet appareil et dans ton compte. La réinitialisation efface ta progression aux deux endroits, pour que tu puisses recommencer.",
+  "historyConfirmAccount": "Supprimer toute la progression de ce livre – sur cet appareil et dans ton compte ?"
 }

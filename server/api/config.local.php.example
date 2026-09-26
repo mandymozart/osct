@@ -1,0 +1,33 @@
+<?php
+// Copy to config.local.php (next to index.php – not committed) and fill in.
+// Every key can also come from an environment variable with the prefix OSCT_ (OSCT_DB_PASS …),
+// which wins over this file. All keys and defaults: src/Config.php.
+return [
+    // MySQL on the server
+    'DB_HOST' => 'localhost',
+    'DB_NAME' => 'osct',
+    'DB_USER' => 'osct',
+    'DB_PASS' => '',
+    // Local development instead of MySQL: an SQLite file, created with the schema on first use
+    // 'DB_SQLITE_PATH' => __DIR__ . '/db/local.sqlite',
+
+    // At least 32 random characters: openssl rand -hex 32
+    'SECRET' => '',
+
+    // The app (links in the emails) and other origins allowed to call the API
+    'APP_URL' => 'https://osct.example.com',
+    'ALLOWED_ORIGINS' => 'https://osct-staging.netlify.app, https://*--osct-staging.netlify.app, https://localhost:5173',
+
+    // log (development: MAIL_LOG_PATH), mail (PHP mail(), testing), smtp (production)
+    'MAIL_TRANSPORT' => 'mail',
+    'MAIL_FROM' => 'no-reply@osct.example.com',
+    'MAIL_FROM_NAME' => 'Onion Skin & Crocodile Tears',
+    // 'MAIL_LOG_PATH' => __DIR__ . '/db/mail.log',
+
+    // SMTP (MAIL_TRANSPORT = smtp)
+    'SMTP_HOST' => '',
+    'SMTP_PORT' => '587',
+    'SMTP_SECURE' => 'tls', // tls = STARTTLS (587), ssl = 465
+    'SMTP_USER' => '',
+    'SMTP_PASS' => '',
+];

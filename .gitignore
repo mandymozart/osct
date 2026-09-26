@@ -34,3 +34,11 @@ dist-ssr
 /mind-ar
 /mind-ar
 .claude
+# Server secrets and local data (server/README.md) – never committed
+.env
+server/.env
+server/api/config.local.php
+server/api/db/*.sqlite
+server/api/db/mail.log
+
+server/api/db/error.log

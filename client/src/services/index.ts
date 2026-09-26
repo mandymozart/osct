@@ -6,3 +6,5 @@ export * from "./LinkService";
 export * from "./FeedbackService";
 export * from "./ServiceWorkerService";
 export * from "./InstallService";
+export * from "./ApiService";
+export * from "./UserService";

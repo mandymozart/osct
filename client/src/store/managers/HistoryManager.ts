@@ -7,7 +7,7 @@ import {
   ProgressRecord,
 } from '@/types';
 import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
-import { ProgressReadStatus, createProgressRecord, readProgress } from '@/utils';
+import { ProgressReadStatus, createProgressRecord, mergeProgress, readProgress } from '@/utils';
 import i18next from "i18next";
 
 /**
@@ -77,6 +77,15 @@ export class HistoryManager implements IHistoryManager {
       msg: i18next.t(status === 'converted' ? 'progress:converted' : 'progress:reset'),
       type: 'info',
     });
+  }
+
+  public applyStoredRecord(raw: unknown, mode: 'merge' | 'replace'): boolean {
+    const { record, status } = readProgress(raw, this.progress.bookId);
+    if (status === 'new' || status === 'unreadable' || record.bookId !== this.progress.bookId) return false;
+    const next = mode === 'merge' ? mergeProgress(this.progress, record) : record;
+    this.game.update(draft => { draft.progress = next; });
+    this.storage.save(this.progress);
+    return true;
   }
 
   /** Also records the target's spread as the last spread (the initial spread never "changes") */
