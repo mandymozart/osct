@@ -7,7 +7,8 @@ import { getEntries, getSpreads } from "@/utils/game-config";
 const game = GameStoreService.getInstance();
 const version = game.version.version;
 const spread = getSpreads()[1].id;
-const entry = getEntries()[0].id;
+const entries = getEntries();
+const entry = entries[0].id;
 
 describe("links: parsing", () => {
   it("reads route, value and version from path and query", () => {
@@ -21,10 +22,9 @@ describe("links: parsing", () => {
     expect(parseLink("/entries/video", "")).toMatchObject({ slug: "/entries", value: "video" });
   });
 
-  it("treats the start page as no link, but keeps legacy printed codes working", () => {
+  it("treats the start page as no link (old ?code= links are not supported)", () => {
     expect(parseLink("/", "?osct=1.1.0")).toBeNull();
-    expect(parseLink("/", "?code=c-spread1&osct=1.1.0")).toEqual({ slug: "/spread", value: "spread1", version: "1.1.0" });
-    expect(parseLink("/", "?code=e-metafiction")).toMatchObject({ slug: "/entry", value: "metafiction" });
+    expect(parseLink("/", "?code=c-spread1&osct=1.1.0")).toBeNull();
   });
 
   it("decodes path segments", () => {
@@ -60,7 +60,11 @@ describe("links: building", () => {
 });
 
 describe("links: resolving", () => {
-  beforeEach(() => game.router.navigate("/"));
+  beforeEach(() => {
+    game.history.reset();
+    game.history.consultEntry(entry);
+    game.router.navigate("/");
+  });
 
   it("opens a spread in scan mode", () => {
     expect(resolveLink(game, { slug: "/spread", value: spread, version })).toBe(true);
@@ -76,6 +80,14 @@ describe("links: resolving", () => {
     expect(game.state.currentRoute).toMatchObject({ page: Pages.ENTRIES, param: { value: "video" } });
     resolveLink(game, { slug: "/tutorial", value: "2" });
     expect(game.state.currentRoute).toMatchObject({ page: Pages.TUTORIAL, param: { value: "2" } });
+  });
+
+  it("opens scan mode on the entry's spread when the reader hasn't found the entry yet", () => {
+    const unfound = entries.find(e => e.id !== entry && e.spreadId !== game.state.currentSpread) ?? entries[1];
+    expect(resolveLink(game, { slug: "/entry", value: unfound.id })).toBe(true);
+    expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
+    expect(game.state.currentSpread).toBe(unfound.spreadId);
+    expect(game.history.isConsulted(unfound.id)).toBe(false);
   });
 
   it.each([
@@ -116,6 +128,7 @@ describe("links: address bar", () => {
     vi.spyOn(window.history, "pushState").mockImplementation((_s, _t, url) => { pushed.push(String(url)); setUrl(String(url)); });
     vi.spyOn(window.history, "replaceState").mockImplementation((_s, _t, url) => { replaced.push(String(url)); setUrl(String(url)); });
     setUrl("/");
+    game.history.consultEntry(entry);
     game.router.navigate("/");
   });
   afterEach(() => {

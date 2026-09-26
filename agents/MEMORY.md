@@ -15,13 +15,15 @@ outcome in the line (or move it into a dated decision block).
   spread switches and tutorial steps replace it; overlays keep the URL; back/forward re-resolve without the
   version check. Only a newer link version acts (notice "Reload to update", URL kept so the reload opens the
   link); older links route normally. A link skips onboarding and the resume offer without marking
-  onboarded (agent decision – reversible). Legacy `?code=c-|s-|e-` still read.
+  onboarded (agent decision – reversible).
 - `index.html` uses absolute paths (relative ones break under `/entry/…`). `client/public/.htaccess` (Apache)
   and `_redirects` (Netlify) answer every path with `index.html`; Vite dev/preview do it already.
 - Removed: `utils/url-params.ts` (`getUrlParam`, unused), `RouteResolver.getUrlForRoute`, the `message` param
   of `/error`, `h` and the content-hash option in the QR generator.
-- [ ] Open: should an entry link to an entry the reader hasn't found yet open it (today: yes, and it counts as
-      consulted)? Tilman.
+- [x] (user) A link to an entry the reader hasn't consulted yet opens scan mode on the entry's spread instead
+      (no shortcut past the game); consulted entries open directly.
+- [x] (user) No backwards compatibility below 1.1.0 **for any feature** (RULES #10): old `?code=` links are not
+      read. Checked the code: no other pre-1.1 shims left (camera / iOS / MindAR fallbacks are device-related).
 
 ## 2026-09-25 – Bookmarks and notes removed (Tilman)
 

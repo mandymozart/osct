@@ -37,8 +37,10 @@ Every link carries `?osct=<version>` (the app version it was made with). Opening
 
 - unknown route, spread, entry, category or step → not-found page with "Go to start";
 - link made with a **newer** app version → notice "Reload to update" (older links just open);
+- a link to an entry the reader hasn't found yet opens scan mode on that entry's spread (no shortcut past
+  the game); entries already consulted open directly;
 - a link skips the onboarding and the resume offer (the onboarding still comes on the next plain visit);
-- legacy printed codes `/?code=c-<spread>` (and `s-`, `e-`) still work.
+- nothing from before 1.1.0 is supported (no old `?code=` links).
 
 Printed QR codes: `https://osct.buildingfictions.com/spread/<spreadId>?osct=<version>` – the dev QR
 generator in the debug overlay makes them for the current spread. The server has to answer every path

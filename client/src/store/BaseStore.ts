@@ -59,7 +59,7 @@ export class BaseStore<T extends Record<string, any>> implements IBaseStore<T> {
     }
   }
 
-  // For backward compatibility with your existing code
+  /** Shortcut for a partial update (`update` with `Object.assign`) */
   set(newState: Partial<T>): void {
     this.update(draft => {
       Object.assign(draft, newState);

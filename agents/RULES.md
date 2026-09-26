@@ -46,7 +46,10 @@ Extend as we go: add a rule when a decision should hold for all future work.
     format is 1 – nothing from before 1.1.x is converted.
     The content *data* is identified by the build checksum (`version.hash`), not by the version.
     Links (2026-09-26, Tilman): plain URLs `/<route>/<value>?osct=<version>` (`services/LinkService.ts`);
-    no content hash in links; only a newer link version needs an action (reload). (Changed 2026-09-25; before:
+    no content hash in links; only a newer link version needs an action (reload).
+    **No backwards compatibility below 1.1.0 – for any feature** (Tilman, 2026-09-26): no old link
+    formats (`?code=`), no storage, content or config formats from before 1.1.x, no shims for old
+    behaviour – nothing was deployed publicly before. (Browser/device fallbacks are not affected.) (Changed 2026-09-25; before:
     app and content versions were kept separate.)
 11. Windows: stop the dev/preview server before any git command that rewrites the working tree
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
