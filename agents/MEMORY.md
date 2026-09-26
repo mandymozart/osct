@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – No resume prompt, storage notices, links just route (Tilman)
+
+- (user) No resume prompt: the app opens the requested view (link / reload) and keeps going. A plain start
+  opens scan mode on the last spread (`lastSpreadId` is applied at startup – agent decision). The link's
+  `osct` version is informative only – no "reload to update" (the 2.0.0 test was odd, Tilman).
+- (user) Stored progress of another format: reader exists → converted + notice "parts of it may be missing";
+  no reader (or corrupt) → reset + notice. `HistoryManager.reportLoadStatus()` replaces `offerResume()`.
+- Notices are dismissed with `router.dismissError()` – back to the view underneath (before: always scan mode).
+- Next (Tilman): reset moves to Info as a "History" section (save game), Info settings sections as individual
+  components (Tutorial, History, Language), rem everywhere, i18n (en, fr, nl, de).
+
 ## 2026-09-26 – Links: app state as plain URLs (Tilman)
 
 - (user) Spec: `https://osct.buildingfictions.com/entry/<id>?osct=1.1.0`, `/spread/<id>`, `/entries/category/video`;

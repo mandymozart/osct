@@ -15,7 +15,7 @@ export interface ProgressRecord {
   unlocked: Record<string, number>;
   /** Stage 2: entry opened (entry id → time) */
   consulted: Record<string, number>;
-  /** Last active spread (resume) */
+  /** Last active spread – the active spread at the next start (keep going) */
   lastSpreadId: string | null;
   /** Last selected entries category ("Entries" button, Phase 4) */
   lastCategory: EntryCategory | null;
@@ -51,9 +51,9 @@ export interface IHistoryManager {
   load(): void;
 
   /**
-   * Offer to resume the last spread; also tells the user when the progress was converted.
+   * Tell the reader when stored progress was converted (parts may be missing) or reset. Once, at startup.
    */
-  offerResume(): void;
+  reportLoadStatus(): void;
 
   /** Stage 1: a target was found in scan mode */
   unlockTarget(targetId: string): void;

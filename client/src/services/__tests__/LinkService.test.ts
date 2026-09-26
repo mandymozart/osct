@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GameStoreService } from "@/services/GameStoreService";
-import { isNewerVersion, LinkService, linkForState, parseLink, pathForRoute, resolveLink } from "../LinkService";
+import { LinkService, linkForState, parseLink, pathForRoute, resolveLink } from "../LinkService";
 import { GameMode, Pages } from "@/types";
 import { getEntries, getSpreads } from "@/utils/game-config";
 
@@ -49,14 +49,6 @@ describe("links: building", () => {
     expect(linkForState({ currentRoute: route(Pages.ABOUT, "/about"), currentSpread: null }, "1.1.0")).toBe("/about?osct=1.1.0");
   });
 
-  it("compares versions: only a newer link version needs an update", () => {
-    expect(isNewerVersion("1.2.0", "1.1.9")).toBe(true);
-    expect(isNewerVersion("2.0.0", "1.9.9")).toBe(true);
-    expect(isNewerVersion("1.1.0", "1.1.0")).toBe(false);
-    expect(isNewerVersion("0.9.0", "1.1.0")).toBe(false);
-    expect(isNewerVersion(undefined, "1.1.0")).toBe(false);
-    expect(isNewerVersion("garbage", "1.1.0")).toBe(false);
-  });
 });
 
 describe("links: resolving", () => {
@@ -103,15 +95,11 @@ describe("links: resolving", () => {
     expect(game.state.currentRoute?.page).toBe(Pages.NOT_FOUND);
   });
 
-  it("asks for a reload when the link comes from a newer app", () => {
-    expect(resolveLink(game, { slug: "/spread", value: spread, version: "999.0.0" })).toBe(false);
-    expect(game.state.currentRoute?.page).toBe(Pages.ERROR);
-    expect(game.state.currentError?.action?.text).toBe("Reload");
-  });
-
-  it("routes older links like current ones", () => {
+  it("routes links of any version (the version is informative only)", () => {
     expect(resolveLink(game, { slug: "/entry", value: entry, version: "0.9.0" })).toBe(true);
     expect(game.state.currentRoute?.page).toBe(Pages.ENTRY);
+    expect(resolveLink(game, { slug: "/spread", value: spread, version: "999.0.0" })).toBe(true);
+    expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
   });
 });
 

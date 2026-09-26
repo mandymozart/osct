@@ -114,4 +114,13 @@ describe("RouterManager", () => {
     expect(game.state.currentError).toBeNull();
     expect(listener).toHaveBeenCalledTimes(1);
   });
+
+  it("dismissError() returns to the view under the notice", () => {
+    game.router.navigate("/entries", { key: "category", value: "text" });
+    game.router.showError({ code: "test", msg: "Note", type: "info" });
+    game.router.dismissError();
+    expect(game.state.currentRoute).toMatchObject({ page: Pages.ENTRIES, param: { value: "text" } });
+    expect(game.state.mode).toBe(GameMode.CONSULTATION);
+    expect(game.state.currentError).toBeNull();
+  });
 });

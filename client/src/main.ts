@@ -136,16 +136,14 @@ export class BookGame extends HTMLElement {
     try {
       await waitForDOMReady();
       window.BOOKGAME = this.game;
-      // A link (e.g. a printed QR code) opens its view directly – no onboarding or resume offer then.
-      // Otherwise: first visit → onboarding (skip / finish marks it done), else offer to resume.
+      // The requested view opens directly (a link, or the page reloaded) – no resume prompt.
+      // Plain start: first visit → onboarding (skip / finish marks it done), else home.
       const links = LinkService.getInstance();
-      if (!links.openIncomingLink(this.game)) {
-        if (!this.game.state.progress.onboarded) {
-          this.game.router.navigate("/tutorial", { key: "step", value: "0" });
-        } else {
-          this.game.history.offerResume();
-        }
+      if (!links.openIncomingLink(this.game) && !this.game.state.progress.onboarded) {
+        this.game.router.navigate("/tutorial", { key: "step", value: "0" });
       }
+      // Converted or reset progress is told once, over the opened view
+      this.game.history.reportLoadStatus();
       // From now on the address bar follows the state
       links.startSync(this.game);
       console.log(

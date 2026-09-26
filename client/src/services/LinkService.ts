@@ -1,6 +1,5 @@
 import { router } from "@/router";
 import { GameState, IGame, PageRoute, Pages } from "@/types";
-import { parseVersion } from "@/utils";
 import { getEntry, getSpread, getTutorial } from "@/utils/game-config";
 import { isEntryCategory } from "@shared/guards/game-config";
 
@@ -17,9 +16,9 @@ import { isEntryCategory } from "@shared/guards/game-config";
  *
  * Incoming links only route. A link to an entry the reader hasn't consulted yet opens scan mode on the
  * spread of its access page (no shortcut past the game). An unknown route, spread, entry, category or step
- * shows the not-found page (with "Go to start"). Version: only a link made with a *newer* app needs an
- * action (reload to update); older links just route. Nothing from before 1.1.0 is supported (no old
- * `?code=` links – RULES #10).
+ * shows the not-found page (with "Go to start"). The version in a link is informative only: links just
+ * route (a stored progress record of another format is handled by the progress reader). Nothing from
+ * before 1.1.0 is supported (no old `?code=` links – RULES #10).
  *
  * While the app runs, the URL follows the state (`LinkService.startSync`): a new view pushes a history entry, a
  * spread switch or tutorial step replaces it, and the browser's back button goes back through the views.
@@ -75,32 +74,11 @@ export const linkForState = (state: Pick<GameState, "currentRoute" | "currentSpr
   return path === null ? null : `${path}?${VERSION_PARAM}=${encodeURIComponent(version)}`;
 };
 
-/** True when `linkVersion` is newer than the running app (the link needs an updated app) */
-export const isNewerVersion = (linkVersion: string | undefined, appVersion: string): boolean => {
-  const link = linkVersion ? parseVersion(linkVersion) : null;
-  const app = parseVersion(appVersion);
-  if (!link || !app) return false;
-  if (link.major !== app.major) return link.major > app.major;
-  if (link.minor !== app.minor) return link.minor > app.minor;
-  return link.patch > app.patch;
-};
-
 /**
  * Route to a link's state. Returns false (and shows the not-found page) when the route or its target
- * doesn't exist. `checkVersion` (incoming links, not back/forward) asks for a reload when the link was
- * made with a newer app.
+ * doesn't exist.
  */
-export const resolveLink = (game: IGame, link: Link, checkVersion = true): boolean => {
-  if (checkVersion && isNewerVersion(link.version, game.version.version)) {
-    game.notifyError({
-      code: "link-newer-version",
-      msg: `This link was made with a newer version of the app (${link.version}). Reload to update.`,
-      type: "info",
-      action: { text: "Reload", callback: () => window.location.reload() },
-    });
-    return false;
-  }
-
+export const resolveLink = (game: IGame, link: Link): boolean => {
   const { slug, value } = link;
   const notFound = () => {
     game.router.navigate("/not-found");
@@ -198,7 +176,7 @@ export class LinkService {
 
     const onPopState = () => {
       const link = this.currentLink();
-      if (link) resolveLink(game, link, false);
+      if (link) resolveLink(game, link);
       else game.router.navigate("/");
     };
 

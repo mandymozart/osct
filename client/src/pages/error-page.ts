@@ -171,8 +171,8 @@ class ErrorPage extends Page implements IErrorPage {
   }
 
   private handleDismiss(): void {
-    // Close the error and clear it from state
-    this.game.router.close();
+    // Clear the error and return to the view underneath
+    this.game.router.dismissError();
   }
 
   private handleAction(): void {
