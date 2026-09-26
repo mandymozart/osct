@@ -22,14 +22,28 @@ export class HomePage extends PageMinimal {
       background: var(--onboarding-background);
       pointer-events: all;
     }
+    /* Scrolls when the text doesn't fit (large text size) */
     .content {
       display: flex;
       flex-direction: column;
       align-items: center;
       height: 100%;
-      padding-top: max(11vh, 5.5rem);   /* Mark 88 px from the top, as the onboarding */
+      overflow-y: auto;
+      padding: max(11vh, 5.5rem) 1.5rem 1.5rem;   /* Mark 88 px from the top, as the onboarding */
       box-sizing: border-box;
       text-align: center;
+    }
+    /* Mark, title, author – at least down to 58 % of the screen, where the buttons start (design); the
+       buttons follow in the flow, so a larger text pushes them down instead of overlapping (as the tutorial) */
+    .head {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      min-height: calc(58vh - max(11vh, 5.5rem));
+      flex-shrink: 0;   /* never squeezed below its text (the column scrolls instead) */
+      padding-bottom: 1.5rem;
+      box-sizing: border-box;
     }
     img { width: var(--mark-width); height: var(--mark-height); object-fit: contain; margin-bottom: 1.5rem; }
     h1 { font-size: inherit; font-weight: 400; margin: 0; }
@@ -37,10 +51,7 @@ export class HomePage extends PageMinimal {
     .author { margin-top: 1.25rem; }
     .publisher { margin-bottom: .5rem; }
     .buttons {
-      position: absolute;
-      top: 58%;
-      left: 0;
-      right: 0;
+      flex-shrink: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -53,9 +64,11 @@ export class HomePage extends PageMinimal {
     const book = getBook();
     return /* html */ `
     <div class="content">
-      <img src="${MARK_IMAGE_SRC}" alt="${i18next.t("common:markAlt")}">
-      <h1 class="title design gold">${escapeHtml(book.title)}</h1>
-      <div class="author title design gold">${escapeHtml(book.author)}</div>
+      <div class="head">
+        <img src="${MARK_IMAGE_SRC}" alt="${i18next.t("common:markAlt")}">
+        <h1 class="title design gold">${escapeHtml(book.title)}</h1>
+        <div class="author title design gold">${escapeHtml(book.author)}</div>
+      </div>
       <div class="buttons">
         ${book.publisher ? `<div class="publisher title design gold">${escapeHtml(book.publisher)}</div>` : ""}
         ${goldButton({ label: i18next.t("home:start"), shape: "button", primary: true, attrs: { id: "start-btn" } })}

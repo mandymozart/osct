@@ -31,21 +31,23 @@ export class TutorialPage extends Page {
         pointer-events: all;
         cursor: default;
       }
+      /* Scrolls when a long text (or a large text size) doesn't fit */
       .content {
         position: absolute;
         inset: 0;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
         align-items: center;
         padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark 88 px from the top (DESIGN.md §3) */
         box-sizing: border-box;
       }
-      tutorial-content { flex: 1; width: 100%; }
-      tutorial-navigation {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 58%;
+      /* The button follows the text (in the flow, never on top of it): short texts keep it at 58 % of the
+         screen as in the design – the text block is at least that tall – longer texts push it down */
+      tutorial-content {
+        flex: 1 0 auto;
+        width: 100%;
+        --actions-top: calc(58vh - max(11vh, 5.5rem));
       }
       .skip {
         position: absolute;
@@ -65,9 +67,8 @@ export class TutorialPage extends Page {
   get template(): string {
     return /* html */ `
       <div class="content">
-        <tutorial-content></tutorial-content>
+        <tutorial-content><tutorial-navigation slot="actions"></tutorial-navigation></tutorial-content>
       </div>
-      <tutorial-navigation></tutorial-navigation>
       <button type="button" class="skip">${i18next.t("tutorial:skip")}</button>
     `;
   }
