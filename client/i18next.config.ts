@@ -24,8 +24,8 @@ export default defineConfig({
     keySeparator: ".",
     // Missing translations stay empty – i18next then shows English (returnEmptyString: false)
     defaultValue: "",
-    // Keys built at runtime (browser name, category) – keep them even if extraction can't resolve them
-    preservePatterns: ["camera:*", "entries:categories.*"],
+    // Keys built at runtime (browser name, category, API error code) – keep them even if extraction can't resolve them
+    preservePatterns: ["camera:*", "entries:categories.*", "account:errors.*"],
     removeUnusedKeys: true,
     sort: false,
     indentation: 2,

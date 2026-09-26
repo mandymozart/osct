@@ -140,6 +140,12 @@ Extend as we go: add a rule when a decision should hold for all future work.
     belong to the app shell must match its precache globs (`vite.config.js` → `pwa()`); content stays under
     `assets/content/`. Never make the worker serve pages cache-first (deploys would not show).
 
+21. **Server** (Tilman, 2026-09-27): the accounts API is plain **PHP 8.1+ with PDO/MySQL** in `server/api/`
+    (no framework, no Composer), deployed as `/api` next to the app. Secrets never in the repository: locally
+    `server/.env` / `server/api/config.local.php` (ignored), in CI GitHub environment secrets. Queries must run
+    on MySQL and SQLite (tests); schema changes go into `api/db/schema.*.sql` (idempotent). The app talks to it
+    only through `ApiService` (`VITE_API_URL`); `php server/tests/api-test.php` must pass.
+
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions
   (Tilman, 2026-09-25). This overrides any tool default.

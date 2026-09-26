@@ -131,6 +131,8 @@ export default defineConfig(({command,mode})=>{
   server: {
     host: true, // Same as --host flag
     port: port,
+    // Accounts API (server/): `npm run dev:api` serves it with PHP on port 8080
+    proxy: { '/api': 'http://127.0.0.1:8080' },
     fs: {
       // shared/ (game configuration contract) lives next to client/
       allow: [resolve(__dirname), resolve(__dirname, '../shared')],

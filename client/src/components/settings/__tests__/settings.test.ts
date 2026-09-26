@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ".."; // registers the elements
 import i18next from "i18next";
-import { FeedbackService, GameStoreService, InstallService } from "@/services";
+import { AccountService, FeedbackService, GameStoreService, InstallService } from "@/services";
+import { AccountSnapshot } from "@/types";
 import { LANGUAGE_STORAGE_KEY } from "@/i18n";
 import { Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
@@ -21,6 +22,61 @@ afterEach(async () => {
 });
 
 describe("settings sections", () => {
+  describe("account", () => {
+    const account = AccountService.getInstance();
+    const snapshot = (changes: Partial<AccountSnapshot>): AccountSnapshot => ({
+      status: "signed-out", account: null, pending: null, sync: "off", busy: false, notice: null, ...changes,
+    });
+
+    it("signed out: all three options on by default, the choice goes with the email", () => {
+      const request = vi.spyOn(account, "requestLogin").mockResolvedValue(true);
+      const section = mount("settings-account");
+      const pressed = () => Array.from(section.shadowRoot!.querySelectorAll("[data-option]")).map(b => b.getAttribute("aria-pressed"));
+      expect(pressed()).toEqual(["true", "true", "true"]);
+      click(section, "[data-option=publisherUpdates]");
+      expect(pressed()).toEqual(["true", "true", "false"]);
+
+      const input = section.shadowRoot!.querySelector<HTMLInputElement>("input[name=email]")!;
+      input.value = "reader@example.com";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      section.shadowRoot!.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(request).toHaveBeenCalledWith("reader@example.com", { saveProgress: true, bookUpdates: true, publisherUpdates: false });
+    });
+
+    it("pending: asks for the code from the email", () => {
+      vi.spyOn(account, "getSnapshot").mockReturnValue(snapshot({ status: "pending", pending: { requestId: "r", email: "reader@example.com", expiresAt: "" } }));
+      const confirm = vi.spyOn(account, "confirmCode").mockResolvedValue(true);
+      const section = mount("settings-account");
+      expect(section.shadowRoot!.textContent).toContain("reader@example.com");
+      const input = section.shadowRoot!.querySelector<HTMLInputElement>("input[name=code]")!;
+      input.value = "123456";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      section.shadowRoot!.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(confirm).toHaveBeenCalledWith("123456");
+    });
+
+    it("signed in: the address, the options as toggles, sign out, delete after a confirmation", () => {
+      vi.spyOn(account, "getSnapshot").mockReturnValue(snapshot({
+        status: "signed-in", sync: "synced",
+        account: { email: "reader@example.com", language: "en", createdAt: "", options: { saveProgress: true, bookUpdates: false, publisherUpdates: true } },
+      }));
+      const setOption = vi.spyOn(account, "setOption").mockResolvedValue();
+      const remove = vi.spyOn(account, "deleteAccount").mockResolvedValue(true);
+      const section = mount("settings-account");
+      expect(section.shadowRoot!.textContent).toContain("Your progress is saved in your account.");
+      click(section, "[data-option=bookUpdates]");
+      expect(setOption).toHaveBeenCalledWith("bookUpdates", true);
+      vi.spyOn(window, "confirm").mockReturnValueOnce(false);
+      click(section, "[data-action=delete]");
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it("shows the API's error in the reader's words", () => {
+      vi.spyOn(account, "getSnapshot").mockReturnValue(snapshot({ notice: { error: "too-many-requests" } }));
+      expect(mount("settings-account").shadowRoot!.textContent).toContain("Try again in an hour.");
+    });
+  });
+
   it("tutorial: starts the onboarding", () => {
     const section = mount("settings-tutorial");
     click(section, "[data-action=tutorial]");
