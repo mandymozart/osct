@@ -17,5 +17,10 @@
   "installDone": "Tu utilises l'application depuis ton écran d'accueil.",
   "installDescription": "Installe l'application sur ton téléphone : elle s'ouvre en plein écran depuis sa propre icône et démarre plus vite.",
   "installIos": "Dans Safari, touche Partager (le carré avec la flèche), puis « Sur l'écran d'accueil ». L'application s'ouvre alors en plein écran depuis sa propre icône.",
-  "installManual": "Ouvre le menu de ton navigateur et choisis « Ajouter à l'écran d'accueil » ou « Installer l'application », si ton navigateur le propose."
+  "installManual": "Ouvre le menu de ton navigateur et choisis « Ajouter à l'écran d'accueil » ou « Installer l'application », si ton navigateur le propose.",
+  "downloadButton": "Télécharger tout le livre",
+  "downloadDescription": "Enregistre tout le livre sur cet appareil ({{size}}), pour qu'il fonctionne aussi sans internet. De préférence en Wi-Fi.",
+  "downloadProgress": "{{loaded}} sur {{total}} téléchargés",
+  "downloadDone": "Tout le livre est sur cet appareil ({{size}}).",
+  "downloadFailed": "Certains fichiers n'ont pas pu être téléchargés ({{size}} au total). Vérifie ta connexion et réessaie."
 }

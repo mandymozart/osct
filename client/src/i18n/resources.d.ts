@@ -101,6 +101,11 @@ export default interface Resources {
     "pagesAria": "Pages {{pages}}"
   },
   "settings": {
+    "downloadButton": "Download whole book",
+    "downloadDescription": "Saves the whole book on this device ({{size}}), so it also works without internet. Best on Wi-Fi.",
+    "downloadDone": "The whole book is on this device ({{size}}).",
+    "downloadFailed": "Some files could not be downloaded ({{size}} in total). Check your connection and try again.",
+    "downloadProgress": "{{loaded}} of {{total}} downloaded",
     "feedbackDescription": "Short sounds and vibrations when you scroll through the pages, tap a button or find a page.",
     "hapticsLabel": "Vibration",
     "historyButton": "Reset book",

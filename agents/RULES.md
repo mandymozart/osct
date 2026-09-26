@@ -26,7 +26,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
 3. Max **5 image targets per spread** (`.mind` group); `maxTrack` uses the same value.
    Keep it one shared constant; the content build must enforce it.
 4. Preloading `.mind` files and content = browser cache only (`PreloaderService`; in production the
-   service worker stores what it fetches in its content cache – `client/sw/service-worker.ts`). Never modify the AR
+   service worker stores what it fetches in its content cache – `client/sw/service-worker.ts`). The
+   whole-book download (Info) goes through the same `preload()` – no second download path. Never modify the AR
    scene before a spread is actually activated. No second scene / WebGL context. The AR code (three.js,
    MindAR) is only imported lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may
    import `ar-bridges/ar/` statically; the scene is built on the first scan (RUNNING).

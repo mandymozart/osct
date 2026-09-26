@@ -38,6 +38,7 @@ export class AboutPage extends ConsultationPage {
         <div class="settings">
           <settings-tutorial></settings-tutorial>
           <settings-install></settings-install>
+          <settings-download></settings-download>
           <settings-feedback></settings-feedback>
           <settings-history></settings-history>
           <settings-language></settings-language>

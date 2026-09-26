@@ -17,5 +17,10 @@
   "installDone": "Du verwendest die App von deinem Home-Bildschirm aus.",
   "installDescription": "Installiere die App auf deinem Handy: Sie öffnet sich im Vollbild über ihr eigenes Symbol und startet schneller.",
   "installIos": "Tippe in Safari auf Teilen (das Quadrat mit dem Pfeil), dann auf „Zum Home-Bildschirm“. Die App öffnet sich dann im Vollbild über ihr eigenes Symbol.",
-  "installManual": "Öffne das Menü deines Browsers und wähle „Zum Startbildschirm hinzufügen“ oder „App installieren“, falls dein Browser das anbietet."
+  "installManual": "Öffne das Menü deines Browsers und wähle „Zum Startbildschirm hinzufügen“ oder „App installieren“, falls dein Browser das anbietet.",
+  "downloadButton": "Ganzes Buch laden",
+  "downloadDescription": "Speichert das ganze Buch auf diesem Gerät ({{size}}), damit es auch ohne Internet funktioniert. Am besten im WLAN.",
+  "downloadProgress": "{{loaded}} von {{total}} geladen",
+  "downloadDone": "Das ganze Buch ist auf diesem Gerät ({{size}}).",
+  "downloadFailed": "Einige Dateien konnten nicht geladen werden ({{size}} insgesamt). Prüfe deine Verbindung und versuch es noch einmal."
 }
