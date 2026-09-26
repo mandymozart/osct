@@ -1,9 +1,10 @@
-# OSCT user API (PHP + MySQL)
+# Server – user API (PHP + MySQL)
 
-Naming (Tilman 2026-09-27): *user* in code, API and database; *account* only as the UI label (Info → Account).
+The code lives in [`server/`](../server). Naming: *user* in code, API and database; *account* only as the UI
+label (Info → Account).
 
-Sign-in by email for the app – no password (built on the branch `database`, merged into develop 2026-09-27). The reader enters an email and
-can opt in to updates (both off until the reader turns them on):
+Sign-in by email for the app – no password. The reader enters an email and can opt in to updates (all off
+until the reader turns them on):
 
 - **updates on Onion Skin & Crocodile Tears**
 - **updates from Kévin Bray**
@@ -16,18 +17,18 @@ confirms the address and signs in the device. The first confirmation creates the
 The code is needed where the link opens a different browser than the app, e.g. the home-screen app on iOS.
 
 Plain PHP 8.1+ with PDO and no Composer; it follows the same style as qr.scutoons.com. Everything lives in
-`api/`, which is deployed as the `/api` folder next to the app.
+`server/api/`, which is deployed as the `/api` folder next to the app.
 
 ```
-api/
+server/api/
   index.php               front controller – the list of endpoints
   .htaccess               everything → index.php, nothing else is served
   config.local.php        settings (not committed) – from config.local.php.example / the deploy
-  src/                    Config, Db, Http, Auth, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de)
+  src/                    Version, Config, Db, Http, Auth, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de)
   db/schema.mysql.sql     tables (CREATE TABLE IF NOT EXISTS – POST /admin/migrate runs it)
   db/schema.sqlite.sql    the same for local development / tests
-deploy/write-config.php   deploy: config.local.php from OSCT_* environment variables
-tests/api-test.php        the whole flow against php -S + SQLite, SMTP against tests/fake-smtp.php
+server/deploy/write-config.php   deploy: config.local.php from OSCT_* environment variables
+server/tests/api-test.php        the whole flow against php -S + SQLite, SMTP against tests/fake-smtp.php
 ```
 
 ## Endpoints
@@ -58,14 +59,14 @@ Security notes:
 ## Configuration
 
 `src/Config.php` lists every key and its default. An environment variable `OSCT_<KEY>` wins, then
-`api/config.local.php`. Mail sending is set with `MAIL_TRANSPORT`:
+`server/api/config.local.php`. Mail sending is set with `MAIL_TRANSPORT`:
 - `log` writes mails to a file (development).
 - `mail` uses PHP `mail()` (testing).
 - `smtp` sends through the `SMTP_*` account (production). It uses its own small client, so no library is needed.
 
 ## Logs
 
-The API writes its errors (with the reason, e.g. a failed mail or a database error) to `api/db/error.log`
+The API writes its errors (with the reason, e.g. a failed mail or a database error) to `server/api/db/error.log` (on the server: `api/db/error.log`)
 (`LOG_PATH`). `db/` is never served over HTTP; read the file over FTP. Readers only see "Something went wrong".
 
 ## Local development
@@ -85,7 +86,7 @@ The mails (with link and code) land in `MAIL_LOG_PATH`.
 1. Run the API tests.
 2. Build the app with `VITE_API_URL=/api`.
 3. Write `config.local.php` from the GitHub environment **staging** (secrets and variables are listed in the workflow).
-4. Upload the app and `api/` over FTPS to osct.porschuetz.de.
+4. Upload the app and `server/api/` (as `api/`) over FTPS to osct.porschuetz.de.
 5. Call `/api/admin/migrate`, then `/api/health`.
 
 Local credentials for that server live in `server/.env`, which is not committed.

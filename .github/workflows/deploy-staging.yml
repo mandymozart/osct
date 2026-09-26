@@ -1,5 +1,5 @@
 # Development server osct.porschuetz.de (all-inkl, Apache + PHP + MySQL): the app at the root, the
-# user API in /api (server/README.md). Runs on every push to `develop` (= staging, RULES #11), or by hand.
+# user API in /api (docs/server.md). Runs on every push to `develop` (= staging, RULES #11), or by hand.
 #
 # GitHub → Settings → Environments → "staging" (Tilman's names; each may be a secret or a variable):
 #   secrets:   FTP_USER, FTP_PASS, DB_USER, DB_PASS, SECRET (SMTP_HOST, SMTP_USER, SMTP_PASS once smtp)
