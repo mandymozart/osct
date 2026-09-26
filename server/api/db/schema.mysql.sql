@@ -6,8 +6,7 @@ CREATE TABLE IF NOT EXISTS `accounts` (
   `id` CHAR(36) NOT NULL,
   `email` VARCHAR(254) NOT NULL,
   `language` VARCHAR(8) NOT NULL DEFAULT 'en',
-  -- The sign-up options (all on by default in the app)
-  `save_progress` TINYINT(1) NOT NULL DEFAULT 1,
+  -- The sign-up options (all on by default in the app); the progress is always kept (can be reset)
   `book_updates` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'news about Onion Skin & Crocodile Tears',
   `publisher_updates` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'news from Building Fictions',
   `created_at` DATETIME NOT NULL,
@@ -25,7 +24,6 @@ CREATE TABLE IF NOT EXISTS `login_requests` (
   `token_hash` CHAR(64) NOT NULL,
   `code_hash` CHAR(64) NOT NULL,
   `language` VARCHAR(8) NOT NULL DEFAULT 'en',
-  `save_progress` TINYINT(1) NOT NULL DEFAULT 1,
   `book_updates` TINYINT(1) NOT NULL DEFAULT 1,
   `publisher_updates` TINYINT(1) NOT NULL DEFAULT 1,
   `ip_hash` CHAR(64) NOT NULL,

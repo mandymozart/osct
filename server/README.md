@@ -1,11 +1,12 @@
 # OSCT accounts API (PHP + MySQL)
 
 Sign-in by email for the app – no password (branch `database`, 2026-09-27). The reader enters an email and
-chooses what the account is for (all on by default):
+chooses which updates to get (both on by default):
 
-- **save my progress** – the progress record is kept in the account and restored on other devices
 - **updates on Onion Skin & Crocodile Tears**
 - **updates from Building Fictions**
+
+The progress is always kept in the account (restored on other devices); the reader can reset it.
 
 The server sends an email with a **link** and a **6-digit code**. Opening the link or typing the code
 confirms the address and signs in the device. The first confirmation creates the account (double opt-in).
@@ -34,7 +35,7 @@ tests/api-test.php        the whole flow against php -S + SQLite, SMTP against t
 | `POST /auth/verify` | `{ token }` or `{ requestId, code }` | `{ session, account, created }` |
 | `POST /auth/logout` | | 204 – this device only |
 | `GET /account` | | `{ account }` |
-| `PATCH /account` | `{ options?, language? }` | `{ account }` – turning off `saveProgress` deletes the stored progress |
+| `PATCH /account` | `{ options?, language? }` | `{ account }` |
 | `DELETE /account` | | 204 – account, sessions, progress, open requests |
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |

@@ -9,5 +9,6 @@
   "requirements": "Requires a WebXR compatible browser and a copy of the book.",
   "android": "Android: Chrome",
   "desktop": "Desktop: Chrome, Firefox, Safari",
-  "ios": "iOS: Safari, Chrome"
+  "ios": "iOS: Safari, Chrome",
+  "account": "Account"
 }

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * The reader's progress record per book, stored as the app sends it (client `ProgressRecord`, JSON) –
- * only when the account has "save my progress" on. `updatedAt` (ms) guards against two devices
+ * always kept for an account (a reset in the app is sent like any other change). `updatedAt` (ms) guards against two devices
  * overwriting each other: a PUT names the version it builds on, a newer one on the server → 409 with
  * the stored record, the app merges and sends again.
  */
@@ -21,7 +21,6 @@ final class Progress
     public static function put(string $bookId, array $body): never
     {
         $account = Auth::account();
-        if (!(int) $account['save_progress']) throw new ApiError(409, 'progress-off', 'Saving progress is turned off for this account.');
         // Decoded as objects: an empty `{}` in the record stays an object
         $record = Http::bodyObject()->record ?? null;
         if (!$record instanceof stdClass || ($record->bookId ?? null) !== $bookId) {

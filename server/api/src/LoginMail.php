@@ -16,7 +16,6 @@ final class LoginMail
             'button' => 'Confirm and sign in',
             'code' => 'Or enter this code in the app:',
             'chosen' => 'You signed up for:',
-            'saveProgress' => 'Saving your progress',
             'bookUpdates' => 'Updates on {book}',
             'publisherUpdates' => 'Updates from Building Fictions',
             'changeLater' => 'You can change this at any time in the app (Info → Account).',
@@ -29,7 +28,6 @@ final class LoginMail
             'button' => 'Confirmer et se connecter',
             'code' => 'Ou saisis ce code dans l\'application :',
             'chosen' => 'Tu t\'es inscrit·e pour :',
-            'saveProgress' => 'Sauvegarder ta progression',
             'bookUpdates' => 'Des nouvelles de {book}',
             'publisherUpdates' => 'Des nouvelles de Building Fictions',
             'changeLater' => 'Tu peux modifier ces choix à tout moment dans l\'application (Info → Compte).',
@@ -42,7 +40,6 @@ final class LoginMail
             'button' => 'Bevestigen en inloggen',
             'code' => 'Of vul deze code in de app in:',
             'chosen' => 'Je hebt je aangemeld voor:',
-            'saveProgress' => 'Je voortgang opslaan',
             'bookUpdates' => 'Nieuws over {book}',
             'publisherUpdates' => 'Nieuws van Building Fictions',
             'changeLater' => 'Je kunt dit altijd aanpassen in de app (Info → Account).',
@@ -55,7 +52,6 @@ final class LoginMail
             'button' => 'Bestätigen und anmelden',
             'code' => 'Oder gib diesen Code in der App ein:',
             'chosen' => 'Du hast dich angemeldet für:',
-            'saveProgress' => 'Deinen Fortschritt speichern',
             'bookUpdates' => 'Neuigkeiten zu {book}',
             'publisherUpdates' => 'Neuigkeiten von Building Fictions',
             'changeLater' => 'Du kannst das jederzeit in der App ändern (Info → Konto).',
@@ -83,7 +79,7 @@ final class LoginMail
         $e = fn(string $value) => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
         $chosen = [];
-        foreach (['saveProgress', 'bookUpdates', 'publisherUpdates'] as $option) {
+        foreach (['bookUpdates', 'publisherUpdates'] as $option) {
             if ($options[$option] ?? false) $chosen[] = $t($option);
         }
 

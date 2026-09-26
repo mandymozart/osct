@@ -5,8 +5,8 @@ import "@/components/settings";
 
 /**
  * About = Info (design p.32–34), opened with "i" in consultation mode; "Entries" (top chrome) goes
- * back to the list. Info text, the settings (one component per section – Account, Tutorial, History,
- * Language …), colophon. Placeholder texts – the final texts belong in the
+ * back to the list. Groups (Tilman 2026-09-27): Info text · Account (sign-in, update options, reset the
+ * progress) · Settings (sound & vibration, language, home screen) · colophon – one component per section. Placeholder texts – the final texts belong in the
  * content (`book.yaml`) once they arrive (PLAN Phase 4).
  */
 export class AboutPage extends ConsultationPage {
@@ -34,14 +34,17 @@ export class AboutPage extends ConsultationPage {
         <h2 class="section-title">${i18next.t("about:info")}</h2>
         <p>${i18next.t("about:infoText", params)}</p>
 
-        <h2 class="section-title">${i18next.t("about:settings")}</h2>
+        <h2 class="section-title">${i18next.t("about:account")}</h2>
         <div class="settings">
           <settings-account></settings-account>
-          <settings-tutorial></settings-tutorial>
-          <settings-install></settings-install>
-          <settings-feedback></settings-feedback>
           <settings-history></settings-history>
+        </div>
+
+        <h2 class="section-title">${i18next.t("about:settings")}</h2>
+        <div class="settings">
+          <settings-feedback></settings-feedback>
           <settings-language></settings-language>
+          <settings-install></settings-install>
         </div>
 
         <h2 class="section-title">${i18next.t("about:colophon")}</h2>

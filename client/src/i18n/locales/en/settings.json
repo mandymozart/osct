@@ -1,6 +1,4 @@
 {
-  "tutorialButton": "Tutorial",
-  "tutorialDescription": "A step by step guide on how to use the app with your book.",
   "historyButton": "Reset book",
   "historyDescription": "This will delete all saved progress on this device.",
   "historyConfirm": "Delete all saved progress for this book on this device?",
@@ -17,5 +15,7 @@
   "installDone": "You're using the app from your home screen.",
   "installDescription": "Install the app on your phone: it opens full screen from its own icon and starts faster.",
   "installIos": "In Safari, tap Share (the square with the arrow), then \"Add to Home Screen\". The app then opens full screen from its own icon.",
-  "installManual": "Open your browser's menu and choose \"Add to Home Screen\" or \"Install app\", if your browser offers it."
+  "installManual": "Open your browser's menu and choose \"Add to Home Screen\" or \"Install app\", if your browser offers it.",
+  "historyDescriptionAccount": "This deletes all saved progress – on this device and in your account.",
+  "historyConfirmAccount": "Delete all saved progress for this book – on this device and in your account?"
 }

@@ -12,7 +12,7 @@ const [entryA, entryB, entryC] = getEntries().map(e => e.id);
 class FakeApi extends ApiService {
   account: AccountData = {
     email: "reader@example.com", language: "en", createdAt: "2026-09-27T00:00:00+00:00",
-    options: { saveProgress: true, bookUpdates: true, publisherUpdates: true },
+    options: { bookUpdates: true, publisherUpdates: true },
   };
   progress: { record: ProgressRecord | null; updatedAt: number | null } = { record: null, updatedAt: null };
   offline = false;
@@ -38,7 +38,6 @@ class FakeApi extends ApiService {
     if (route === "GET /account") return { account: this.account } as T;
     if (route === "PATCH /account") {
       this.account = { ...this.account, options: { ...this.account.options, ...body.options } };
-      if (!this.account.options.saveProgress) this.progress = { record: null, updatedAt: null };
       return { account: this.account } as T;
     }
     if (route === "POST /auth/logout" || route === "DELETE /account") return null as T;
@@ -86,7 +85,7 @@ describe("AccountService", () => {
     const account = service();
     await account.start(game);
 
-    expect(await account.requestLogin(" reader@example.com ", { saveProgress: true, bookUpdates: false, publisherUpdates: true })).toBe(true);
+    expect(await account.requestLogin(" reader@example.com ", { bookUpdates: false, publisherUpdates: true })).toBe(true);
     expect(api.calls[0].body).toMatchObject({ email: "reader@example.com", options: { bookUpdates: false } });
     expect(account.getSnapshot()).toMatchObject({ status: "pending", pending: { requestId: "r1", email: "reader@example.com" } });
 
@@ -173,19 +172,25 @@ describe("AccountService", () => {
     expect(localStorage.getItem("osct-account")).toBeNull();
   });
 
-  it("turning 'save my progress' off stops sending; on again joins the records", async () => {
+  it("changes an update option in the account", async () => {
     signedInStorage();
     const account = service();
     await account.start(game);
-    await account.setOption("saveProgress", false);
-    expect(account.getSnapshot()).toMatchObject({ sync: "off", account: { options: { saveProgress: false } } });
-    const puts = api.puts().length;
+    await account.setOption("bookUpdates", false);
+    expect(account.getSnapshot().account!.options).toEqual({ bookUpdates: false, publisherUpdates: true });
+    expect(JSON.parse(localStorage.getItem("osct-account")!).account.options.bookUpdates).toBe(false);
+  });
+
+  it("a reset of the book reaches the account", async () => {
+    signedInStorage();
+    const account = service();
+    await account.start(game);
     game.history.consultEntry(entryA);
     await account.pushNow();
-    expect(api.puts().length).toBe(puts);
-
-    await account.setOption("saveProgress", true);
     expect(api.progress.record!.consulted).toHaveProperty(entryA);
+    game.history.reset();
+    await account.pushNow();
+    expect(api.progress.record!.consulted).toEqual({});
   });
 
   it("signs out and deletes the account – the progress stays on this device", async () => {

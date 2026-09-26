@@ -1,13 +1,14 @@
 /**
  * Reader accounts (branch `database`, Tilman 2026-09-27): sign-in by email – a link and a 6-digit code,
- * no password – against the PHP API in `server/` (MySQL). Very basic: the account holds the email and
- * the sign-up options; with "save my progress" the progress record is kept on the server too.
+ * no password – against the PHP API in `server/` (MySQL). Very basic: the account holds the email, the
+ * update options and the progress record.
  */
 
-/** The sign-up options – all on by default */
+/**
+ * The sign-up options – both on by default. The progress is always kept in the account (restored on other
+ * devices) and can be reset ("Reset book").
+ */
 export interface AccountOptions {
-  /** Keep the progress record in the account (restored on other devices) */
-  saveProgress: boolean;
   /** Updates on the publication (Onion Skin & Crocodile Tears) */
   bookUpdates: boolean;
   /** Updates from the publisher (Building Fictions) */
@@ -36,7 +37,7 @@ export type AccountStatus = "signed-out" | "pending" | "signed-in";
 
 /**
  * Progress on the server: `synced` = the server has this device's progress, `pending` = changes wait
- * for the network, `off` = "save my progress" is off (or signed out).
+ * for the network, `off` = signed out.
  */
 export type ProgressSyncStatus = "off" | "syncing" | "synced" | "pending";
 

@@ -1,8 +1,6 @@
 {
-  "label": "Compte",
-  "signedOutDescription": "Connecte-toi avec ton e-mail – sans mot de passe. On t'envoie un e-mail avec un lien et un code pour confirmer ton adresse. Choisis à quoi sert ton compte :",
-  "optionsLabel": "Ton compte sert à",
-  "saveProgress": "Sauvegarder ma progression",
+  "signedOutDescription": "Connecte-toi avec ton e-mail – sans mot de passe. Ta progression est sauvegardée dans ton compte, tu peux donc la reprendre sur un autre appareil. On t'envoie un e-mail avec un lien et un code pour confirmer ton adresse.",
+  "optionsLabel": "M'envoyer des nouvelles",
   "bookUpdates": "Nouvelles de {{title}}",
   "publisherUpdates": "Nouvelles de Building Fictions",
   "emailPlaceholder": "Ton adresse e-mail",
@@ -15,7 +13,6 @@
   "syncSynced": "Ta progression est sauvegardée dans ton compte.",
   "syncSyncing": "Sauvegarde de ta progression dans ton compte …",
   "syncPending": "Ta progression sera sauvegardée dans ton compte dès que tu seras de nouveau en ligne.",
-  "syncOff": "Ta progression est sauvegardée uniquement sur cet appareil.",
   "signOut": "Se déconnecter",
   "delete": "Supprimer le compte",
   "deleteConfirm": "Supprimer ton compte et tout ce qu'il contient ? Ta progression reste sur cet appareil.",
@@ -34,5 +31,6 @@
     "offline": "Pas de connexion au serveur. Vérifie ta connexion internet.",
     "unauthorized": "Tu es déconnecté·e. Connecte-toi à nouveau.",
     "server-error": "Un problème est survenu. Réessaie plus tard."
-  }
+  },
+  "signedInAs": "Connecté·e en tant que"
 }
