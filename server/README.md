@@ -63,6 +63,11 @@ Security notes:
 - `mail` uses PHP `mail()` (testing).
 - `smtp` sends through the `SMTP_*` account (production). It uses its own small client, so no library is needed.
 
+## Logs
+
+The API writes its errors (with the reason, e.g. a failed mail or a database error) to `api/db/error.log`
+(`LOG_PATH`). `db/` is never served over HTTP; read the file over FTP. Readers only see "Something went wrong".
+
 ## Local development
 
 ```bash

@@ -40,6 +40,8 @@ final class Config
         'LOGIN_MAX_PER_IP_HOUR' => '30',
         'SESSION_TTL_DAYS' => '365',
         'PROGRESS_MAX_BYTES' => '262144',
+        // Error log of the API (db/ is never served over HTTP – read it over FTP); empty = the host's log
+        'LOG_PATH' => __DIR__ . '/../db/error.log',
     ];
 
     /** @var array<string, string> */

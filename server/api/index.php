@@ -22,6 +22,13 @@ foreach (['Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Users'
     require __DIR__ . "/src/$class.php";
 }
 
+// Errors go to our own log file (db/ is never served; read it over FTP) – LOG_PATH, empty = the host's log
+$logPath = Config::get('LOG_PATH');
+if ($logPath !== '') {
+    ini_set('log_errors', '1');
+    ini_set('error_log', $logPath);
+}
+
 // The path below the API folder: /api/auth/request → /auth/request (also with `php -S` and a router script)
 $path = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
