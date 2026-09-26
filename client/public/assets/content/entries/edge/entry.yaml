@@ -8,3 +8,12 @@ target:
   entity:
     type: video
     src: edge.mp4
+    # Filters, applied in order. All parameters are optional except type – missing ones use the defaults.
+    filters:
+      - type: chromaKey
+        color: "#000000"   # key color that becomes transparent (here: the black background)
+        mode: auto         # auto | chroma (color tone) | luma (brightness) – auto: luma for black/grey/white
+        threshold: 0.06    # 0–1, how close to the key color disappears (default 0.3, luma 0.06)
+        softness: 0.1      # 0.001–1, width of the soft edge (default 0.08, luma 0.1)
+        spill: 0.1         # 0.001–1, removes the key color's tint on edges – chroma only (default 0.1)
+        opacity: 1         # 0–1, opacity of the whole video after keying (default 1)

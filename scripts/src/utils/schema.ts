@@ -69,7 +69,7 @@ export const schemas: Record<string, Schema> = {
       id: { type: "String", required: false }, // defaults to the entry id
       image: { type: "String", required: true },
       order: { type: "Number", required: false, default: 0 },
-      entity: { type: "Object", required: false }, // inline { type, src?, params? } or { ref }
+      entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
     },
   },
 
@@ -79,6 +79,7 @@ export const schemas: Record<string, Schema> = {
       type: { type: "String", required: true, enum: ["model", "video", "image"] },
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
+      filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts
     },
   },
 

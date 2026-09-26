@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Video filters (Tilman, tested on the phone)
+
+- Data model: `entity.filters: [{ type, ...parameters }]` on video entities, applied in order (replaces
+  `params.chromaKey`, no compatibility). Each filter type is defined once in `shared/types/filters.ts`
+  (kind, default, range, description per parameter): the client builds the shader uniforms from it, the
+  content build and the config guard check the YAML against it (errors name file, filter, parameter).
+- `chromaKey`: color, mode (auto | chroma | luma), threshold, softness, spill, opacity. Chroma can't key
+  black (black/grey/white have the same chroma) – `auto` compares brightness for neutral key colors
+  (luma defaults threshold 0.06 / softness 0.1). Edge (spread3) uses a black key, all parameters written
+  out as an example; docs/content.md has the table for the artists.
+- Fixed: the keyed video's texture sometimes stayed empty (`src: #id` resolved to nothing on init –
+  sound, but a transparent plane); the entity now hands the video element to the material when missing.
+- Fixed: video planes were always 16:9; the height now follows the video's proportions.
+- [ ] Open: only one filter type exists; several filters of different types would need a shader chain.
+
 ## 2026-09-26 – No 3D content visible on the phone (fixed, found by remote debugging the phone)
 
 - Cause: `#scene { opacity: 0 }` in main.css was only lifted by `#scene.active`; the old SceneService set that

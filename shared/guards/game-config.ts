@@ -15,6 +15,7 @@ import {
   StepAction,
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
+import { filterProblems } from "../types/filters";
 
 const oneOf = <T extends string>(values: readonly T[]) =>
   (value: unknown): value is T => typeof value === "string" && (values as readonly string[]).includes(value);
@@ -79,6 +80,10 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
       }
     });
     if (e.params !== undefined && !isObject(e.params)) fail(`${path}.params`, "expected an object");
+    if (e.filters !== undefined) {
+      if (e.type !== "video") fail(`${path}.filters`, "filters only work on video entities");
+      filterProblems(e.filters, `${path}.filters`).forEach(problem => problems.push(problem));
+    }
   };
 
   const root = obj(raw, "config");
