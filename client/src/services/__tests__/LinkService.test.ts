@@ -36,7 +36,7 @@ describe("links: building", () => {
   const route = (page: Pages, slug: string, param?: { key: string; value: string }) => ({ page, slug, param });
 
   it("writes one path per view, the active spread for scan mode", () => {
-    expect(pathForRoute(route(Pages.HOME, "/"), null)).toBe("/");
+    expect(pathForRoute(route(Pages.SPLASH, "/"), null)).toBe("/");
     expect(pathForRoute(route(Pages.SPREAD, "/spread"), "spread2")).toBe("/spread/spread2");
     expect(pathForRoute(route(Pages.ENTRIES, "/entries", { key: "category", value: "video" }), null)).toBe("/entries/video");
     expect(pathForRoute(route(Pages.ENTRY, "/entry", { key: "entryId", value: "a b" }), null)).toBe("/entry/a%20b");
@@ -136,6 +136,11 @@ describe("links: address bar", () => {
   it("follows the state: views push, spread switches replace, overlays keep the URL", () => {
     links.startSync(game);
     expect(path()).toBe(`/?osct=${version}`);
+
+    // Leaving the splash replaces its entry (back must not replay it)
+    game.router.navigate("/about");
+    expect(pushed).toEqual([]);
+    expect(replaced.at(-1)).toBe(`/about?osct=${version}`);
 
     game.router.navigate("/entries", { key: "category", value: "text" });
     expect(path()).toBe(`/entries/text?osct=${version}`);

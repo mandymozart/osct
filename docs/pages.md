@@ -10,7 +10,7 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 
 | Route | Page | Mode | |
 |---|---|---|---|
-| `/` | `<home-page>` | idle | start screen for returning readers |
+| `/` | `<splash-page>` | idle | start for returning readers: the splash (the onboarding steps before the first button), then scan mode |
 | `/tutorial` (`step`) | `<tutorial-page>` | idle | onboarding / tutorial steps from `content/steps` |
 | `/spread` (`spreadId`) | `<spread-page>` | scan | scan mode: found indicator, spread menu |
 | `/entries` (`category`) | `<entries-page>` | consultation | entries list by category |
@@ -26,7 +26,7 @@ browser's back button goes back through the views:
 
 | URL | Opens |
 |---|---|
-| `/` | the start (onboarding on a first visit, else home) |
+| `/` | the start (onboarding on a first visit, else the splash → scan mode) |
 | `/spread/<spreadId>` | scan mode on that spread |
 | `/entries/<category>` (or `/entries/category/<category>`) | the entries list |
 | `/entry/<entryId>` | one entry |

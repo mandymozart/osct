@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Start: splash instead of the home page (Tilman, option A)
+
+- (user) The home page (Start / Tutorial) is removed – its buttons were redundant (tutorial in Info, the app
+  starts on the last spread). `/` is now `<splash-page>` (`Pages.SPLASH`): it plays the onboarding steps before
+  the first step with a button (content: Mark + title, then title/author/publisher fading in), a tap skips
+  ahead, then scan mode on the last spread. A first visit still gets the whole onboarding. Leaving the splash
+  replaces its history entry (back doesn't replay it). The i18n namespace `home` is gone.
+- Splash and onboarding step timers start only after the app has loaded – before, step 0 ran behind the
+  startup loading screen.
+- The publisher line from 2026-09-26 (home, above Start) went with the home page; the splash shows the
+  publisher as the footer of its second step (content).
+
 ## 2026-09-26 – Onboarding / home buttons in the flow (Tilman)
 
 - (user) Long texts ran under the tutorial button: it was `position: absolute; top: 58%`. Now the button is

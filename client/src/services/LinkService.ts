@@ -6,7 +6,7 @@ import { isEntryCategory } from "@shared/guards/game-config";
 /**
  * Links = app state as a plain URL (PLAN Phase 2 "deep links", Tilman 2026-09-26):
  *
- *   /                          start (onboarding on a first visit, else home)
+ *   /                          start (onboarding on a first visit, else the splash → scan mode)
  *   /spread/<spreadId>         scan mode on that spread
  *   /entries/<category>        entries list (also /entries/category/<category>)
  *   /entry/<entryId>           one entry
@@ -56,7 +56,7 @@ export const pathForRoute = (route: PageRoute | null, currentSpread: string | nu
   if (!route) return null;
   const segment = (value: string | number | undefined) => (value === undefined ? "" : `/${encodeURIComponent(String(value))}`);
   switch (route.page) {
-    case Pages.HOME:
+    case Pages.SPLASH:
       return "/";
     case Pages.SPREAD:
       return `/spread${segment(currentSpread ?? undefined)}`;
@@ -165,8 +165,10 @@ export class LinkService {
       const link = linkForState(game.state, game.version.version);
       if (!link || !currentRoute) return;
       const param = currentRoute.param === undefined ? undefined : String(currentRoute.param.value);
-      // A new view (or another entry) gets its own history entry; spread / step changes replace it
-      const push = lastPage !== null && (currentRoute.page !== lastPage || (currentRoute.page === Pages.ENTRY && param !== lastParam));
+      // A new view (or another entry) gets its own history entry; spread / step changes replace it, and so
+      // does leaving the splash (it only plays on the way in – back must not replay it)
+      const push = lastPage !== null && lastPage !== Pages.SPLASH &&
+        (currentRoute.page !== lastPage || (currentRoute.page === Pages.ENTRY && param !== lastParam));
       lastPage = currentRoute.page;
       lastParam = param;
       if (link === `${window.location.pathname}${window.location.search}`) return;

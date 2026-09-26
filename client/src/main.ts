@@ -74,7 +74,7 @@ export class BookGame extends HTMLElement {
     <pages-router>
       <about-page></about-page>
       <spread-page></spread-page>
-      <home-page></home-page>
+      <splash-page></splash-page>
       <entries-page></entries-page>
       <entry-page></entry-page>
       <tutorial-page></tutorial-page>

@@ -47,7 +47,7 @@ export type RouteParam = {
 }
 
 export enum Pages {
-  HOME = "home",
+  SPLASH = "splash",
   TUTORIAL = "tutorial",
   SPREAD = "spread",
   ABOUT = "about",
