@@ -19,14 +19,17 @@ $config = [];
 foreach (getenv() as $name => $value) {
     if (str_starts_with($name, 'OSCT_') && $value !== '') $config[substr($name, 5)] = $value;
 }
+// Every problem at once; in GitHub Actions also as an annotation (visible on the run page)
+$problems = [];
 foreach (['DB_NAME', 'DB_USER', 'DB_PASS', 'SECRET', 'APP_URL'] as $required) {
-    if (!isset($config[$required])) {
-        fwrite(STDERR, "Missing OSCT_$required\n");
-        exit(1);
-    }
+    if (!isset($config[$required])) $problems[] = "Missing OSCT_$required";
 }
-if (strlen($config['SECRET']) < 32) {
-    fwrite(STDERR, "OSCT_SECRET must have at least 32 characters\n");
+if (isset($config['SECRET']) && strlen($config['SECRET']) < 32) $problems[] = 'OSCT_SECRET must have at least 32 characters';
+if ($problems) {
+    foreach ($problems as $problem) {
+        fwrite(STDERR, "$problem\n");
+        if (getenv('GITHUB_ACTIONS')) echo "::error title=Server configuration::$problem\n";
+    }
     exit(1);
 }
 ksort($config);
