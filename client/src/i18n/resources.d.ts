@@ -10,7 +10,7 @@ export default interface Resources {
     "info": "Info",
     "infoText": "{{title}} is a publication by {{author}}. Scan the pages of the book to unlock entries – glossary terms, videos, texts and links – and read them here in consultation mode.",
     "ios": "iOS: Safari, Chrome",
-    "publishedBy": "Published by buildingfictions © 2025",
+    "publishedBy": "Published by buildingfictions © 2027",
     "requirements": "Requires a WebXR compatible browser and a copy of the book.",
     "settings": "Settings"
   },
