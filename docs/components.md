@@ -8,7 +8,7 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 |---|---|
 | `header/` | `<game-header>` with `<mark-the-page>` (Mark, the app's main button) and `<entries-counter>` |
 | `scan/` | `<spread-menu>` (looped spread menu at the bottom), `<found-indicator>` (found target without AR content) |
-| `aframe-bridges/` | `<ar-bridge>` – the A-Frame / MindAR scene (`ArScene`: one scene, spreads swapped in place); entities, video filters |
+| `ar-bridges/` | `<ar-bridge>` – the three.js / MindAR scene (`ArScene`: one renderer + camera stream, spreads swapped in place, loaded lazily on the first scan); entities, video filters |
 | `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category); helpers in `entries-model.ts` |
 | `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` |
 | `common/` | `<gold-illustration>` (SVG in the gold gradient) |

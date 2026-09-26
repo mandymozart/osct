@@ -82,11 +82,6 @@ class Game extends BaseStore<GameState> implements IGame {
    */
   public finishLoading(): void {
     this.set({ loading: LoadingState.LOADED });
-
-    // Hide the initial loader added to index.html
-    if (typeof window !== 'undefined' && window.hideInitialLoader) {
-      window.hideInitialLoader();
-    }
   }
 
   public startLoading(): void {

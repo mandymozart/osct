@@ -1,4 +1,5 @@
 @import "./styles/gold-spinner.css";
+@import "./styles/static-splash.css";
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -104,11 +105,6 @@ book-game {
   z-index: 1000;
 }
 
-.a-enter-vr-button {
-  /* style if you like */
-  display: none !important;
-}
-
 img {
   display: inline-block;
 }
@@ -118,25 +114,12 @@ img {
   width: 100vw;
   height: 100vh;
 }
+/* Camera video (ar/tracker.ts sizes and places it: cover) */
 #scene-container video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  position: absolute;
 }
 
-/* Startup loader (index.html, before any JS): same look as the loading page */
-#initial-loader {
-  position: fixed;
-  inset: 0;
-  background: var(--loading-background), #000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10000; /* Ensure it's above everything */
-  transition: opacity 0.5s ease;
-}
-
-/* The 3D layer shows while AR runs (ar-bridge sets body.scene-active on status "running") */
+/* The 3D layer (three.js canvas #scene) shows while AR runs (ar-bridge sets body.scene-active on status "running") */
 #scene {
   opacity: 0;
   transition: opacity .2s linear;

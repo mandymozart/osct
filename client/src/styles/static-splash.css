@@ -1,0 +1,60 @@
+/*
+ * Static splash (index.html, written at build time – utils/static-splash-html.ts): the first onboarding step
+ * before any script runs. Same look as splash-page + tutorial-content (design p.1–2); faded out by
+ * utils/static-splash.ts once the app is ready. Everything scoped to #static-splash.
+ */
+#static-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000; /* over the app, which starts underneath */
+  background: var(--onboarding-background), #000;
+  transition: opacity .6s ease;
+  cursor: default;
+}
+#static-splash.hiding { opacity: 0; pointer-events: none; }
+/* No splash step: the gold spinner in the middle */
+#static-splash > .gold-spinner { position: absolute; top: 50%; left: 50%; margin: -1.25rem 0 0 -1.25rem; }
+
+#static-splash .content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: max(11vh, 5.5rem) 1.5rem 1rem; /* Mark 88 px from the top, as the onboarding */
+  box-sizing: border-box;
+  font-family: var(--font-design);
+  letter-spacing: var(--tracking-design);
+  font-size: var(--text-size);
+  line-height: var(--text-line);
+}
+/* The text block reaches down to 58 % – the footer (publisher) sits there, design p.2 */
+#static-splash .head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: calc(58vh - max(11vh, 5.5rem));
+  padding-bottom: 1.5rem;
+  box-sizing: border-box;
+}
+#static-splash img { width: var(--mark-width); height: var(--mark-height); object-fit: contain; margin-bottom: 1.5rem; }
+#static-splash h1 { font-size: inherit; font-weight: 400; margin: 0 0 1.25rem; }
+#static-splash .head > div { width: min(15.5rem, 100%); }
+#static-splash p { margin: 0 0 1.25em; }
+#static-splash .footer { padding-bottom: 1rem; }
+#static-splash .gold {
+  background-image: var(--gold-gradient);
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+#static-splash .fade { animation: static-splash-fade var(--fade-duration, 600ms) ease both; }
+@keyframes static-splash-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  #static-splash .fade { animation: none; }
+  #static-splash { transition: none; }
+}

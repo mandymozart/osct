@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { networkInterfaces } from 'os';
+import { renderStaticSplash } from './src/utils/static-splash-html';
 
 // One version for app and content build (agents/RULES.md #10). Read directly:
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
@@ -23,6 +24,29 @@ function getLocalIP() {
   return 'localhost';
 }
 
+/**
+ * Static splash (Phase 9): the first onboarding step as plain HTML in index.html, from the game configuration
+ * (book fields, step timing), so it paints before any script. English Mark alt / loading label (the app
+ * translates them once it runs).
+ */
+function staticSplash() {
+  const read = (file) => JSON.parse(readFileSync(resolve(__dirname, file), 'utf8'));
+  return {
+    name: 'osct-static-splash',
+    transformIndexHtml(html) {
+      const config = read('src/game.config.json');
+      const common = read('src/i18n/locales/en/common.json');
+      return html.replace('<!--osct:static-splash-->', renderStaticSplash({
+        book: config.book ?? {},
+        steps: config.tutorial ?? [],
+        markSrc: '/assets/ui/mark-the-page/scan.png',
+        markAlt: common.markAlt,
+        loadingLabel: common.loadingBook,
+      }));
+    },
+  };
+}
+
 export default defineConfig(({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
   const port = 5173; // Default Vite port, change if you're using a custom port
@@ -32,7 +56,7 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [tsconfigPaths(), ...(https ? [basicSsl()] : [])],
+  plugins: [tsconfigPaths(), staticSplash(), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
@@ -57,18 +81,24 @@ export default defineConfig(({command,mode})=>{
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
+    // The AR chunks (three.js ~600 kB, MindAR with TF.js ~1.8 MB) are large by nature and load lazily
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html')
       },
       output: {
-        assetFileNames: (assetInfo) => {
-          // Keep original directory structure for deps folder
-          if (assetInfo.fileName?.includes('deps/')) {
-            return assetInfo.fileName;
-          }
-          return 'assets/[name]-[hash][extname]';
+        // The AR code (only reached through import("./ar"), loaded on the first scan): three.js and MindAR
+        // (TF.js) in two chunks that download in parallel
+        manualChunks: (id) => {
+          if (id.includes('/node_modules/three/')) return 'three';
+          if (id.includes('/src/vendor/mind-ar/')) return 'mindar';
         },
+        // Built (hashed) files in assets/app/ – served with a long, immutable cache (public/_headers);
+        // assets/ itself also holds the unhashed content (public/assets/content)
+        entryFileNames: 'assets/app/[name]-[hash].js',
+        chunkFileNames: 'assets/app/[name]-[hash].js',
+        assetFileNames: 'assets/app/[name]-[hash][extname]',
       }
     }
   },

@@ -10,15 +10,16 @@ import {
   ErrorInfo,
   IGame,
 } from "@/types";
-import { waitForDOMReady } from "@/utils";
-import { getConfigurationError } from "@/utils/game-config";
+import { hideStaticSplash, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
+import { getConfigurationError, getTutorial } from "@/utils/game-config";
 import i18next from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
 
-// Language of the page (screen readers, hyphenation) and the initial loader's text (index.html)
+// Language of the page (screen readers, hyphenation) and the static splash's texts (index.html, English)
 document.documentElement.lang = i18next.resolvedLanguage ?? DEFAULT_LANGUAGE;
-const loaderText = document.querySelector("#initial-loader .visually-hidden");
-if (loaderText) loaderText.textContent = i18next.t("common:loadingBook");
+const staticSplash = document.getElementById("static-splash");
+staticSplash?.setAttribute("aria-label", i18next.t("common:loadingBook"));
+staticSplash?.querySelector("img")?.setAttribute("alt", i18next.t("common:markAlt"));
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -131,8 +132,7 @@ export class BookGame extends HTMLElement {
         ${details.length ? `<ul>${details.map(d => `<li>${escape(d)}</li>`).join("")}</ul>` : ""}
       </div>
     `;
-    // hideInitialLoader is defined on DOMContentLoaded (index.html)
-    waitForDOMReady().then(() => window.hideInitialLoader?.());
+    void hideStaticSplash();
     console.error(`[BookGame] Not started: ${error.code}`);
   }
 
@@ -148,14 +148,21 @@ export class BookGame extends HTMLElement {
       window.BOOKGAME = this.game;
       // The requested view opens directly (a link, or the page reloaded) – no resume prompt.
       // Plain start: first visit → onboarding (skip / finish marks it done), else home.
+      // The static splash (index.html) already shows the first onboarding step: the onboarding goes on
+      // after it, the splash page skips it – the app starts underneath.
       const links = LinkService.getInstance();
-      if (!links.openIncomingLink(this.game) && !this.game.state.progress.onboarded) {
-        this.game.router.navigate("/tutorial", { key: "step", value: "0" });
+      const linked = links.openIncomingLink(this.game);
+      if (!linked && !this.game.state.progress.onboarded) {
+        this.game.router.navigate("/tutorial", { key: "step", value: String(this.firstOnboardingStep()) });
       }
       // Converted or reset progress is told once, over the opened view
       this.game.history.reportLoadStatus();
       // From now on the address bar follows the state
       links.startSync(this.game);
+      // The app is ready (the AR scene loads with the first scan): end the startup loading, fade the
+      // splash out – a link at once, else when the splash step's time is up
+      this.game.finishLoading();
+      void releaseStaticSplash({ wait: !linked });
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
       );
@@ -164,7 +171,17 @@ export class BookGame extends HTMLElement {
     }
   }
 
+  /** Onboarding step to start with: the one after the static splash's step, else the first */
+  private firstOnboardingStep(): number {
+    const steps = [...getTutorial()].sort((a, b) => a.index - b.index);
+    const shown = staticSplashStep();
+    if (shown === undefined) return steps[0]?.index ?? 0;
+    return steps.find(step => step.index > shown)?.index ?? shown;
+  }
+
   private handleError(error: unknown) {
+    this.game.finishLoading();
+    void hideStaticSplash();
     const message =
       error instanceof Error ? error.message : i18next.t("startup:unknownError");
     if (this.errorPage) {

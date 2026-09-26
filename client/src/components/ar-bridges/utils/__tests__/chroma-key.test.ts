@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { Color, Mesh, MeshBasicMaterial, ShaderMaterial, VideoTexture } from "three";
 import { chromaKeyMaterial, keyMode, parseChromaKey } from "../chroma-key";
-import { buildEntity } from "../../ar/entities";
+import { buildEntity, DEFAULT_VIDEO_HEIGHT } from "../../ar/entities";
+import { LoadedAsset } from "../../ar/assets";
 import { FilterData, filterProblems, Target } from "@/types";
 
 const chromaKey = (params: Record<string, string | number> = {}): FilterData[] => [{ type: "chromaKey", ...params }];
@@ -34,8 +36,8 @@ describe("chroma key filter", () => {
     expect(["#00ff00", "#a0f", "#ff00ff", "#202040"].map(keyMode)).toEqual(Array(4).fill("chroma"));
     expect(parseChromaKey(chromaKey({ color: "#000000" }))).toMatchObject({ mode: "luma", threshold: 0.06, softness: 0.1 });
     expect(parseChromaKey(chromaKey({ color: "#000000", mode: "chroma" }))).toMatchObject({ mode: "chroma", threshold: 0.3 });
-    expect(chromaKeyMaterial("v", parseChromaKey(chromaKey({ color: "#000" }))!)).toContain("luma: 1");
-    expect(chromaKeyMaterial("v", parseChromaKey(chromaKey({ color: "#0f0" }))!)).toContain("luma: 0");
+    expect(chromaKeyMaterial(null, parseChromaKey(chromaKey({ color: "#000" }))!).uniforms.luma.value).toBe(1);
+    expect(chromaKeyMaterial(null, parseChromaKey(chromaKey({ color: "#0f0" }))!).uniforms.luma.value).toBe(0);
   });
 
   it("is checked against its definition (content build + config guard)", () => {
@@ -50,16 +52,24 @@ describe("chroma key filter", () => {
     expect(filterProblems({ type: "chromaKey" }, "f")).toEqual(["f: expected a list of filters"]);
   });
 
-  it("builds a keyed video as a plane with the chroma-key material, a plain video otherwise", () => {
-    const noAssets = () => undefined;
-    const keyed = buildEntity(target(chromaKey({ color: "#ff00ff" })), noAssets)!.element;
-    expect(keyed.tagName.toLowerCase()).toBe("a-entity");
-    expect(keyed.getAttribute("material")).toBe(chromaKeyMaterial("clip-video", parseChromaKey(chromaKey({ color: "#ff00ff" }))!));
-    expect(keyed.getAttribute("material")).toContain("shader: chroma-key; src: #clip-video; color: #ff00ff");
+  const videoAsset = (video = document.createElement("video")): LoadedAsset =>
+    ({ assetType: "video", element: video, texture: new VideoTexture(video) });
 
-    const plain = buildEntity(target(), noAssets)!.element;
-    expect(plain.tagName.toLowerCase()).toBe("a-video");
-    expect(plain.getAttribute("src")).toBe("#clip-video");
+  it("builds a keyed video as a plane with the chroma-key material, a plain video otherwise", () => {
+    const asset = videoAsset();
+    const texture = asset.assetType === "video" ? asset.texture : null;
+    const keyed = buildEntity(target(chromaKey({ color: "#ff00ff", threshold: 0.4 })), () => asset)!.object as Mesh;
+    const material = keyed.material as ShaderMaterial;
+    expect(material).toBeInstanceOf(ShaderMaterial);
+    expect(material.transparent).toBe(true);
+    expect(material.uniforms.src.value).toBe(texture);
+    expect((material.uniforms.color.value as Color).equals(new Color("#ff00ff"))).toBe(true);
+    expect(material.uniforms.threshold.value).toBe(0.4);
+    expect(material.uniforms.keyOpacity.value).toBe(1);
+
+    const plain = buildEntity(target(), () => asset)!.object as Mesh;
+    expect(plain.material).toBeInstanceOf(MeshBasicMaterial);
+    expect((plain.material as MeshBasicMaterial).map).toBe(texture);
   });
 
   it("sizes the video plane to the video's proportions once its metadata is known", () => {
@@ -73,13 +83,13 @@ describe("chroma key filter", () => {
       return v;
     };
 
-    const loaded = video(1358, 930, 1);
-    expect(buildEntity(target(), () => loaded)!.element.getAttribute("height")).toBe("0.6848");
+    const loaded = videoAsset(video(1358, 930, 1));
+    expect(buildEntity(target(), () => loaded)!.object.scale.y).toBe(0.6848);
 
     const later = video(1000, 1000, 0);
-    const keyed = buildEntity(target(chromaKey({ color: "#000" })), () => later)!.element;
-    expect(keyed.getAttribute("geometry")).toContain("height: 0.552");
+    const keyed = buildEntity(target(chromaKey({ color: "#000" })), () => videoAsset(later))!.object;
+    expect(keyed.scale.y).toBe(DEFAULT_VIDEO_HEIGHT);
     later.dispatchEvent(new Event("loadedmetadata"));
-    expect(keyed.getAttribute("geometry")).toBe("primitive: plane; width: 1; height: 1");
+    expect(keyed.scale.y).toBe(1);
   });
 });

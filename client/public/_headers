@@ -1,0 +1,4 @@
+# Netlify headers (Phase 9)
+# Built app files carry a content hash in their name (vite.config.js → assets/app/): cache for a year
+/assets/app/*
+  Cache-Control: public, max-age=31536000, immutable

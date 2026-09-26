@@ -1,3 +1,4 @@
+import { Color, DoubleSide, ShaderMaterial, Texture } from "three";
 import { FilterData, FILTERS, FilterParamSpec } from "@/types";
 
 /**
@@ -13,8 +14,6 @@ import { FilterData, FILTERS, FilterParamSpec } from "@/types";
  * The parameters (kinds, defaults, ranges, descriptions) are defined once in shared/types/filters.ts –
  * the shader's uniforms are built from there.
  */
-
-export const CHROMA_KEY_SHADER = "chroma-key";
 
 const SPEC = FILTERS.chromaKey.params;
 
@@ -61,12 +60,6 @@ export const parseChromaKey = (filters?: readonly FilterData[]): ChromaKey | und
     opacity: numberParam(SPEC.opacity, filter.opacity, mode),
   };
 };
-
-/** A-Frame `material` attribute for a keyed video */
-export const chromaKeyMaterial = (videoAssetId: string, key: ChromaKey): string =>
-  `shader: ${CHROMA_KEY_SHADER}; src: #${videoAssetId}; color: ${key.color}; luma: ${key.mode === "luma" ? 1 : 0}; ` +
-  `threshold: ${key.threshold}; softness: ${key.softness}; spill: ${key.spill}; keyOpacity: ${key.opacity}; ` +
-  `transparent: true; side: double`;
 
 const vertexShader = /* glsl */ `
 varying vec2 vUv;
@@ -118,32 +111,23 @@ void main() {
 `;
 
 /**
- * Register the A-Frame shader once (before any scene uses it). Its uniforms come from the filter's
- * parameter definition (`opacity` is `keyOpacity` – A-Frame's material has an own `opacity`); A-Frame
- * turns `src` (type map) into a texture – a VideoTexture for a <video> – and `color` into a THREE.Color
- * (linear with color management, like the texture samples).
+ * Material of a keyed video plane. Uniforms: the video texture (`src`, sRGB – samples are linear), the
+ * key color (a THREE.Color, linear with color management like the samples) and one uniform per number
+ * parameter of the filter definition (`opacity` is `keyOpacity`); `mode` is resolved in JS → `luma`.
  */
-export const registerChromaKeyShader = (): void => {
-  const aframe = (window as unknown as { AFRAME?: typeof AFRAME }).AFRAME;
-  if (!aframe || aframe.shaders[CHROMA_KEY_SHADER]) return;
-
-  const uniformName = (name: string) => (name === "opacity" ? "keyOpacity" : name);
-  const uniforms = Object.fromEntries(
-    Object.entries(SPEC as Record<string, FilterParamSpec>)
-      .filter(([, spec]) => spec.kind !== "choice") // mode is resolved in JS → `luma`
-      .map(([name, spec]) => [
-        uniformName(name),
-        { type: spec.kind === "color" ? "color" : "number", is: "uniform", default: spec.default },
-      ]),
-  );
-
-  aframe.registerShader(CHROMA_KEY_SHADER, {
-    schema: {
-      src: { type: "map", is: "uniform" },
-      luma: { type: "number", is: "uniform", default: 0 },
-      ...uniforms,
+export const chromaKeyMaterial = (texture: Texture | null, key: ChromaKey): ShaderMaterial =>
+  new ShaderMaterial({
+    uniforms: {
+      src: { value: texture },
+      color: { value: new Color(key.color) },
+      luma: { value: key.mode === "luma" ? 1 : 0 },
+      threshold: { value: key.threshold },
+      softness: { value: key.softness },
+      spill: { value: key.spill },
+      keyOpacity: { value: key.opacity },
     },
     vertexShader,
     fragmentShader,
+    transparent: true,
+    side: DoubleSide,
   });
-};

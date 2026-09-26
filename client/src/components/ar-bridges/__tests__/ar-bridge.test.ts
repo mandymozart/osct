@@ -3,8 +3,6 @@ import { ArSceneEvents, ArStatus, IArScene, LoadingState, SceneState } from "@/t
 import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 
-// A-Frame is not available in happy-dom – the bridge only registers the shader if it is
-vi.mock("../utils/chroma-key", () => ({ registerChromaKeyShader: () => {} }));
 const { ArBridge } = await import("../ar-bridge");
 
 /** Records calls, lets the test emit scene events */

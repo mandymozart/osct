@@ -1,44 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="utf-8" />
     <title>Onion Skin and Crocodile Tears - Kevin Bray (buildingfictions)</title>
+    <meta name="description" content="Augmented reality companion to Kévin Bray's book Onion Skin &amp; Crocodile Tears (Building Fictions): point your phone at the pages to reveal videos, texts and references." />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <script src="/assets/deps/aframe.min.js"></script>
-    <script src="/assets/deps/aframe-extras.min.js"></script>
-    <script src="/assets/deps/mindar-image-aframe.prod.js"></script>
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="icon" type="image/png" href="/assets/favicon.ico" />
+    <!-- Only the app shell loads up front; three.js + MindAR come with the first scan (Phase 9) -->
     <script type="module" src="/src/main.ts"></script>
     <link rel="stylesheet" href="/src/main.css" />
-    <link rel="icon" type="image/png" href="/assets/favicon.ico" />
   </head>
   <body>
-    <!-- Initial loader that will be present before any JS loads -->
-    <div id="initial-loader" role="status">
-      <div class="gold-spinner"></div>
-      <span class="visually-hidden">Loading book</span>
-    </div>
     <div id="scene-container"></div>
-    <!-- Scanning indicator, used by MindAR (uiScanning: #osct-scanning) – styles/gold-spinner.css -->
+    <!-- Scanning indicator, toggled by the AR scene while no target is found – styles/gold-spinner.css -->
     <div id="osct-scanning" class="gold-scanning hidden" aria-hidden="true"></div>
     <book-game id="book-game"></book-game>
-
-    <script>
-      // Script to handle initial loader
-      document.addEventListener('DOMContentLoaded', function() {
-        // Hide the initial loader when the application signals it's ready
-        window.hideInitialLoader = function() {
-          const loader = document.getElementById('initial-loader');
-          if (loader) {
-            loader.style.opacity = '0';
-            setTimeout(() => {
-              loader.style.display = 'none';
-              // Make scene visible when loader is hidden
-              const scene = document.getElementById('scene');
-              if (scene) scene.style.visibility = 'visible';
-            }, 500);
-          }
-        };
-      });
-    </script>
+    <!-- Static splash: the first onboarding step, written at build time (vite.config.js → src/utils/static-splash-html.ts) -->
+    <!--osct:static-splash-->
   </body>
 </html>

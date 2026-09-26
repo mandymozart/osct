@@ -1,16 +1,17 @@
 import { GameStoreService, PreloaderService } from "@/services";
-import { ArStatus, IArScene, IGame } from "@/types";
-import { ArScene } from "./ar";
-import { getSceneState, registerChromaKeyShader } from "./utils";
+import { ArStatus, IArScene, IGame, LoadingState } from "@/types";
+import { LazyArScene } from "./lazy-ar-scene";
+import { getSceneState } from "./utils/scene-state";
 
-// A-Frame (index.html) is loaded before the app modules; scenes may use the shader from the first load
-registerChromaKeyShader();
+/** After startup: wait this long, then load the AR chunk and the current spread in idle time */
+const WARM_UP_DELAY_MS = 1500;
 
 /**
  * <ar-bridge> – the only glue between the game store and the AR scene
  *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (scene-state policy)
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → preload
- * The scene is an `IArScene` (`ArScene`); tests inject a fake one.
+ * The scene is an `IArScene`: `LazyArScene` (three.js + MindAR load on the first scan, warmed up in idle
+ * time after startup); tests inject a fake one.
  */
 export class ArBridge extends HTMLElement {
   private game: Readonly<IGame>;
@@ -27,7 +28,8 @@ export class ArBridge extends HTMLElement {
 
   connectedCallback() {
     const container = document.getElementById("scene-container") ?? this.createContainer();
-    this.scene = ArBridge.sceneFactory ? ArBridge.sceneFactory(container) : new ArScene(container);
+    const lazy = ArBridge.sceneFactory ? null : new LazyArScene(container);
+    this.scene = ArBridge.sceneFactory ? ArBridge.sceneFactory(container) : lazy!;
     const scene = this.scene;
     const game = this.game;
 
@@ -47,6 +49,33 @@ export class ArBridge extends HTMLElement {
     const spread = game.state.currentSpread;
     if (spread) void scene.load(spread);
     this.applySceneState();
+    if (lazy) this.scheduleWarmUp(lazy);
+  }
+
+  /**
+   * Once the app has started (loading screen gone), in idle time: load the AR chunk and fetch the current
+   * spread's `.mind` and content into the browser cache – the first scan then only starts the camera.
+   */
+  private scheduleWarmUp(lazy: LazyArScene) {
+    const idle = (run: () => void) =>
+      typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(run, { timeout: 4000 }) : window.setTimeout(run, 200);
+    const warmUp = () => {
+      const timer = window.setTimeout(() => idle(() => {
+        if (!this.isConnected) return;
+        void lazy.warmUp();
+        const spread = this.game.state.currentSpread;
+        if (spread) void PreloaderService.getInstance().preloadSpread(spread);
+      }), WARM_UP_DELAY_MS);
+      this.cleanups.push(() => window.clearTimeout(timer));
+    };
+    const started = (state: LoadingState) => state !== LoadingState.LOADING && state !== LoadingState.INITIAL;
+    if (started(this.game.state.loading)) return warmUp();
+    const unsubscribe = this.game.subscribeToProperty("loading", state => {
+      if (!started(state)) return;
+      unsubscribe();
+      warmUp();
+    });
+    this.cleanups.push(unsubscribe);
   }
 
   disconnectedCallback() {

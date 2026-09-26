@@ -75,8 +75,8 @@ tests and CI). Rebuild the content after a version bump.
 ## Technical stack
 
 - **Build**: [Vite](https://vitejs.dev/), tests with [Vitest](https://vitest.dev/) (happy-dom)
-- **AR**: [A-Frame](https://aframe.io/) + [MindAR](https://hiukim.github.io/mind-ar-js-doc/) image
-  tracking, loaded from `client/public/assets/deps` (not bundled)
+- **AR**: [three.js](https://threejs.org/) + [MindAR](https://hiukim.github.io/mind-ar-js-doc/) image
+  tracking (vendored in `client/src/vendor/mind-ar`), bundled into lazy chunks loaded with the first scan
 - **State**: [Immer](https://immerjs.github.io/immer/) – `BaseStore` + `GameStore` with managers
 - **UI**: vanilla custom elements with shadow DOM; shared design styles in `client/src/styles`
 
@@ -88,7 +88,7 @@ client/src
 │                   Spread, Target, History, Router, Camera
 ├── pages/          one page open at a time (home, tutorial, spreads, entries, entry, about, …)
 ├── components/     header (Mark the Page, counter), scan (spread menu, found indicator),
-│                   aframe-bridges (AR scene), consultation, tutorial, dev-tools, …
+│                   ar-bridges (AR scene), consultation, tutorial, dev-tools, …
 ├── services/       GameStoreService (singleton), PreloaderService, ProgressStorage
 ├── utils/          game-config (the only reader of game.config.json), progress-record, …
 └── types/          app types; the configuration contract is re-exported from shared/
