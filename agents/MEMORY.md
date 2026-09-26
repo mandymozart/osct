@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Mobile test: camera over https, pill glow, menu line height (Tilman)
+
+- (user) "Grant access" did nothing on the phone: the dev server was plain http on the network address →
+  no camera API; and the camera screen sat behind the onboarding page (z-index −1), so its "denied" state
+  was invisible. Now: `npm run dev` serves **https** (`@vitejs/plugin-basic-ssl`, self-signed; `dev:http` for
+  plain http); new camera state `UNAVAILABLE` ("only works over a secure connection"); during onboarding the
+  camera screen is above the page (inline z-index – a toggled `:host([attr])` rule was not re-evaluated) with
+  "Continue without camera"; in scan mode it stays behind the chrome.
+- (user) Every pill and "i" gets the light bronze glow of the category pill (`--shadow-bronze`).
+- (user) Category menu line height 1.5 × the text.
+
 ## 2026-09-26 – Start: splash instead of the home page (Tilman, option A)
 
 - (user) The home page (Start / Tutorial) is removed – its buttons were redundant (tutorial in Info, the app

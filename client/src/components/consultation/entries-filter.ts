@@ -53,7 +53,7 @@ export class EntriesFilterElement extends HTMLElement {
         :host { display: block; position: relative; width: var(--category-width); }
         /* 52.5 pt ≈ 100 px: the label centred, and the open menu has the same width */
         /* :host raises specificity – the adopted design sheet comes after this <style> */
-        :host .pill { width: 100%; box-shadow: var(--shadow-bronze); }
+        :host .pill { width: 100%; }
         /* Open (frame 18): the pill grows downwards */
         .menu {
           position: absolute;
@@ -86,7 +86,7 @@ export class EntriesFilterElement extends HTMLElement {
           background-color: transparent;
           font: inherit;
           letter-spacing: inherit;
-          line-height: 1.1875rem;          /* 10 pt between items */
+          line-height: 1.5;                /* 1.5 × the text (Tilman – was 10 pt in the design) */
           text-align: center;
           cursor: pointer;
         }

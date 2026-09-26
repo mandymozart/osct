@@ -29,5 +29,7 @@
     "0": "Controleer de camerarechten in de instellingen van je browser",
     "1": "Sta deze site toe je camera te gebruiken",
     "2": "Vernieuw de pagina"
-  }
+  },
+  "unavailable": "De camera werkt alleen via een beveiligde verbinding. Open de app met https:// en probeer het opnieuw.",
+  "continueWithout": "Doorgaan zonder camera"
 }

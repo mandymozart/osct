@@ -22,6 +22,7 @@ export default interface Resources {
       "3": "Refresh the page"
     },
     "chromeTitle": "To enable camera access in Chrome:",
+    "continueWithout": "Continue without camera",
     "denied": "Camera access was denied.",
     "enable": "To scan the book and display interactive content, please enable camera permissions in your browser settings.",
     "firefoxSteps": {
@@ -44,6 +45,7 @@ export default interface Resources {
       "3": "Refresh the page"
     },
     "safariTitle": "To enable camera access in Safari:",
+    "unavailable": "The camera only works over a secure connection. Open the app with https:// and try again.",
     "waiting": "Waiting for camera access…"
   },
   "common": {

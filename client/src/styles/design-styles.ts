@@ -71,7 +71,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     background: var(--glass-background);
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
-    box-shadow: var(--shadow-dark);
+    box-shadow: var(--shadow-bronze);   /* the light glow of the category pill – on every pill (Tilman) */
   }
   .pill {
     min-height: 1.8rem;             /* 15 pt ≈ 29 px */

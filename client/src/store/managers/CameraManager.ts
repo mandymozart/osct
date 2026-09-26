@@ -22,7 +22,16 @@ export class CameraManager implements ICameraManager {
   /**
    * Check and handle camera permission
    */
+  /** The browser offers no camera at all – only over https (or localhost), and not in every browser */
+  private get cameraAvailable(): boolean {
+    return window.isSecureContext !== false && typeof navigator.mediaDevices?.getUserMedia === "function";
+  }
+
   public async checkPermission(): Promise<boolean> {
+    if (!this.cameraAvailable) {
+      this.setPermissionStatus(CameraPermissionStatus.UNAVAILABLE);
+      return false;
+    }
     try {
       // First check if the permissions API is available
       if (navigator.permissions && navigator.permissions.query) {
@@ -60,6 +69,11 @@ export class CameraManager implements ICameraManager {
    * Request camera access explicitly
    */
   public async requestAccess(): Promise<boolean> {
+    if (!this.cameraAvailable) {
+      console.warn('[Camera Manager] No camera API – the app needs https (or localhost) for the camera');
+      this.setPermissionStatus(CameraPermissionStatus.UNAVAILABLE);
+      return false;
+    }
     try {
       this.setPermissionStatus(CameraPermissionStatus.PROMPT);
       

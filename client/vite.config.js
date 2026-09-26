@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import { networkInterfaces } from 'os';
 
 // One version for app and content build (agents/RULES.md #10). Read directly:
@@ -25,13 +26,17 @@ function getLocalIP() {
 export default defineConfig(({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
   const port = 5173; // Default Vite port, change if you're using a custom port
-  
+  // Dev server over https (Tilman): the camera needs https on a phone – http only works on localhost.
+  // Self-signed certificate, the phone asks once to accept it. `npm run dev:http` (mode "http") for plain
+  // http on localhost (e.g. automated browser checks). Builds are unaffected (the host serves https).
+  const https = command === 'serve' && mode !== 'http';
+
   return {
-  plugins: [tsconfigPaths()],
+  plugins: [tsconfigPaths(), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
-    __VITE_SERVER_URL__: JSON.stringify(`http://${localIP}:${port}`),
+    __VITE_SERVER_URL__: JSON.stringify(`${https ? 'https' : 'http'}://${localIP}:${port}`),
   },
   resolve: {
     alias: {

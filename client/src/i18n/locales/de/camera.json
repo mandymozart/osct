@@ -29,5 +29,7 @@
     "0": "Prüfe die Kameraberechtigungen in den Einstellungen deines Browsers",
     "1": "Erlaube dieser Website, deine Kamera zu verwenden",
     "2": "Lade die Seite neu"
-  }
+  },
+  "unavailable": "Die Kamera funktioniert nur über eine sichere Verbindung. Öffne die App mit https:// und versuche es erneut.",
+  "continueWithout": "Ohne Kamera weiter"
 }

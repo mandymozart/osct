@@ -95,7 +95,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
       On a `.gold` element don't set `background` in the component (a more specific selector wipes the
       gradient – the text turns invisible); use `background-color` if needed.
     - Glass: `--glass-background` (alpha 0.001, never 0 – else no backdrop blur) + `--glass-blur` +
-      a drop shadow (`--shadow-dark` on camera / consultation, `--shadow-glow` on black).
+      a drop shadow: pills and "i" get the light bronze glow of the category pill (`--shadow-bronze`,
+      Tilman 2026-09-26 – the dark shadow disappeared on black); onboarding buttons `--shadow-glow`.
     - Animated gold art: `<gold-illustration src="…svg">` (files stay in `public/`).
     - Primary actions get `.primary` (shining label + border sweep); everything else stays secondary.
     - **Sizes in rem, never px** (Tilman, 2026-09-26 – accessibility): the root font size is `100%`, so the
