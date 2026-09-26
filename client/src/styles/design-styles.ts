@@ -60,7 +60,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     min-width: 9.5rem;              /* 79 pt ≈ 151 px */
     min-height: 1.95rem;            /* 16 pt ≈ 31 px */
     padding: 0 1.5rem;
-    border-radius: 999px;
+    border-radius: 999rem;
     background: #000;
     box-shadow: var(--shadow-glow);
   }
@@ -76,7 +76,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
   .pill {
     min-height: 1.8rem;             /* 15 pt ≈ 29 px */
     padding: 0 1rem;
-    border-radius: 999px;
+    border-radius: 999rem;
   }
   .icon-button {
     width: 2.15rem;                 /* Ø 17.9 pt ≈ 34 px */
@@ -105,7 +105,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     position: absolute;
     inset: 0;
     z-index: -1;
-    padding: 1px;                    /* border width */
+    padding: 0.0625rem;              /* border width */
     border-radius: inherit;
     background:
       linear-gradient(110deg, transparent 35%, var(--gold-1) 48%, var(--gold-3) 52%, transparent 65%)

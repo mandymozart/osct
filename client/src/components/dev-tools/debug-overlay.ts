@@ -115,7 +115,7 @@ export class DebugOverlay extends HTMLElement {
           color: #ffffff;
         }
         .section {
-          border-bottom: 1px solid #0F0;
+          border-bottom: 0.0625rem solid #0F0;
         }
         .section--summary, .section-summary {
           border: none;
@@ -146,7 +146,7 @@ export class DebugOverlay extends HTMLElement {
           font: inherit;
           color: inherit;
           background: none;
-          border: 1px solid #0F0;
+          border: 0.0625rem solid #0F0;
           padding: 0 .5rem;
           cursor: pointer;
         }

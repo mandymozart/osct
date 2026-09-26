@@ -52,7 +52,7 @@ export class GameHeader extends HTMLElement {
                     left: 0;
                     right: 0;
                     /* --debug-offset: space for the dev debug overlay line */
-                    padding-top: calc(max(.5rem, env(safe-area-inset-top)) + var(--debug-offset, 0px));
+                    padding-top: calc(max(.5rem, env(safe-area-inset-top)) + var(--debug-offset, 0rem));
                     display: flex;
                     flex-direction: column;
                     align-items: center;
@@ -72,11 +72,11 @@ export class GameHeader extends HTMLElement {
                 }
                 /* Measured: "i" centre 90 px, "Entries" centre 117 px from the screen top (DESIGN.md §3) */
                 .info {
-                    top: calc(max(4.55rem, env(safe-area-inset-top)) + var(--debug-offset, 0px));
+                    top: calc(max(4.55rem, env(safe-area-inset-top)) + var(--debug-offset, 0rem));
                     right: 1rem;
                 }
                 .entries {
-                    top: calc(max(6.4rem, env(safe-area-inset-top) + 2rem) + var(--debug-offset, 0px));
+                    top: calc(max(6.4rem, env(safe-area-inset-top) + 2rem) + var(--debug-offset, 0rem));
                     left: 1.25rem;
                 }
 

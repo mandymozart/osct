@@ -98,6 +98,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
       a drop shadow (`--shadow-dark` on camera / consultation, `--shadow-glow` on black).
     - Animated gold art: `<gold-illustration src="…svg">` (files stay in `public/`).
     - Primary actions get `.primary` (shining label + border sweep); everything else stays secondary.
+    - **Sizes in rem, never px** (Tilman, 2026-09-26 – accessibility): the root font size is `100%`, so the
+      reader's text size setting scales the whole app; media queries in `em`. 1rem = 16 px at the default
+      size (DESIGN.md values: px ÷ 16).
     - Design buttons are written with `goldButton()` (`@/components/buttons`, 2026-09-25): native
       `<button>` + shape class + gold label, never hand-written markup. Component styles that must beat
       the adopted design sheet need more specificity (`:host .pill`) – the sheet comes after `<style>`.

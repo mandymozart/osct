@@ -108,8 +108,8 @@ export class FoundIndicator extends HTMLElement {
         /* Measured: 171 × 212 px (DESIGN.md §3) */
         img {
           display: block;
-          max-width: min(171px, 55vw);
-          max-height: min(212px, 32vh);
+          max-width: min(10.6875rem, 55vw);
+          max-height: min(13.25rem, 32vh);
           object-fit: contain;
           box-shadow: 0 .6rem 1.2rem rgba(0, 0, 0, .35);
         }
