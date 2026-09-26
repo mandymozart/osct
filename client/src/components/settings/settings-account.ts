@@ -10,8 +10,8 @@ const OPTIONS: UserOption[] = ["bookUpdates", "artistUpdates", "publisherUpdates
 
 /**
  * Account section (branch `database`; in code the signed-in person is the *user*), no password. Signed out
- * (Tilman 2026-09-27): "Register your copy and receive updates in your inbox" – the email, "Send
- * confirmation", and underneath the two update options as `<gold-switch>`, **off** until the reader turns
+ * (Tilman 2026-09-27): "Register your copy and receive updates in your inbox" – the email, "Register
+ * account", and underneath the two update options as `<gold-switch>`, **off** until the reader turns
  * them on (opt-in). Then: the code from the email (the link in it signs in as well). Signed in: the address,
  * the update options, the progress sync, sign out, delete. The progress is always kept; "Reset book" (next
  * section) resets it. Hidden without an API (`VITE_API_URL`).

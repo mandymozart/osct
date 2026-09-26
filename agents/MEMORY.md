@@ -7,7 +7,7 @@ outcome in the line (or move it into a dated decision block).
 ## 2026-09-27 – Accounts by email (Tilman, branch `database`; PLAN Phase 11)
 
 - Goal: let readers hear about updates – very basic first. Signed out (Tilman): "Register your copy and
-  receive updates in your inbox" – email, **Send confirmation**, and underneath three update switches, **off
+  receive updates in your inbox" – email, **Register account**, and underneath three update switches, **off
   until the reader turns them on** (opt-in – "very important"): updates on Onion Skin & Crocodile Tears ·
   from Kévin Bray (the book's author) · from Building Fictions. The progress is **always saved** in the
   account and can be reset ("save my progress" is no longer an option). An existing user keeps their options

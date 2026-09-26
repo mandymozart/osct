@@ -5,7 +5,7 @@
   "artistUpdates": "Recevoir des nouvelles de {{author}}",
   "publisherUpdates": "Recevoir des nouvelles de Building Fictions",
   "emailPlaceholder": "Ton adresse e-mail",
-  "send": "Envoyer la confirmation",
+  "send": "Créer un compte",
   "pendingDescription": "On a envoyé un e-mail à {{email}}. Ouvre le lien qu'il contient ou saisis le code ici :",
   "codeLabel": "Code de l'e-mail",
   "confirm": "Confirmer",
