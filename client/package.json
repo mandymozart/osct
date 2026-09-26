@@ -15,7 +15,7 @@
     "i18n:watch": "i18next-cli extract --watch --with-types",
     "i18n:build": "npm run i18n && npm run i18n:status",
     "prebuild": "npm run i18n:build",
-    "build": "vite build && tsc && tsc -p sw",
+    "build": "vite build && tsc --noEmit && tsc -p sw",
     "build:config": "cd scripts && npm run build:content",
     "preview": "vite preview",
     "prepublishOnly": "npm run build",
