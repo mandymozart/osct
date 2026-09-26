@@ -1,7 +1,7 @@
 <?php
 /**
  * API test: runs the real API with PHP's built-in server on a fresh SQLite database and goes through the
- * whole flow (request → email → verify by code and by link → account → progress → delete), plus one mail
+ * whole flow (request → email → verify by code and by link → user → progress → delete), plus one mail
  * over SMTP to a fake SMTP server. Exits 1 on the first failure.
  *
  *   php server/tests/api-test.php
@@ -103,7 +103,7 @@ try {
     check($status === 400 && $data['error']['code'] === 'invalid-email', 'invalid email → 400');
     [$status, $data] = call($api, 'POST', '/auth/request', ['email' => 'a@b.example', 'options' => ['bookUpdates' => 'yes']]);
     check($status === 400 && $data['error']['code'] === 'invalid-options', 'non-boolean option → 400');
-    [$status, $data] = call($api, 'POST', '/auth/request', ['email' => ' Reader@Example.com ', 'language' => 'de', 'options' => ['publisherUpdates' => false]]);
+    [$status, $data] = call($api, 'POST', '/auth/request', ['email' => ' Reader@Example.com ', 'language' => 'de', 'options' => ['bookUpdates' => true]]);
     check($status === 202 && is_string($data['requestId']), 'request → 202 with a request id');
     $requestId = $data['requestId'];
     $mail = lastMail($mailLog);
@@ -115,19 +115,19 @@ try {
     [$status, $data] = call($api, 'POST', '/auth/verify', ['requestId' => $requestId, 'code' => '000000' === $mail['code'] ? '111111' : '000000']);
     check($status === 400 && $data['error']['code'] === 'invalid-code', 'wrong code → 400');
     [$status, $data] = call($api, 'POST', '/auth/verify', ['requestId' => $requestId, 'code' => substr($mail['code'], 0, 3) . ' ' . substr($mail['code'], 3)]);
-    check($status === 200 && $data['created'] === true, 'right code (with a space) → session, new account');
-    check($data['account']['email'] === 'reader@example.com', 'email stored lowercase and trimmed');
-    check($data['account']['options'] === ['bookUpdates' => true, 'publisherUpdates' => false], 'options from the form, missing ones on');
+    check($status === 200 && $data['created'] === true, 'right code (with a space) → session, new user');
+    check($data['user']['email'] === 'reader@example.com', 'email stored lowercase and trimmed');
+    check($data['user']['options'] === ['bookUpdates' => true, 'artistUpdates' => false, 'publisherUpdates' => false], 'options from the form, missing ones off (opt-in)');
     $session = $data['session'];
     [$status, $data] = call($api, 'POST', '/auth/verify', ['token' => $mail['token']]);
     check($status === 410 && $data['error']['code'] === 'already-used', 'link of a used request → 410');
 
-    echo "verify by link (existing account keeps its options)\n";
+    echo "verify by link (existing user keeps its options)\n";
     call($api, 'POST', '/auth/request', ['email' => 'reader@example.com', 'options' => ['publisherUpdates' => true]]);
     $mail = lastMail($mailLog);
-    check(!str_contains($mail['text'], 'signed up for'), 'mail for an existing account lists no options');
+    check(!str_contains($mail['text'], 'signed up for'), 'mail for an existing user lists no options');
     [$status, $data] = call($api, 'POST', '/auth/verify', ['token' => $mail['token']]);
-    check($status === 200 && $data['created'] === false && $data['account']['options']['publisherUpdates'] === false, 'link → session, options unchanged');
+    check($status === 200 && $data['created'] === false && $data['user']['options']['publisherUpdates'] === false, 'link → session, options unchanged');
     $secondSession = $data['session'];
 
     echo "code attempts\n";
@@ -145,15 +145,15 @@ try {
     [$status, $data] = call($api, 'POST', '/auth/request', ['email' => 'many@example.com']);
     check($status === 429 && $data['error']['code'] === 'too-many-requests', 'the fifth → 429');
 
-    echo "account\n";
-    [$status] = call($api, 'GET', '/account');
+    echo "user\n";
+    [$status] = call($api, 'GET', '/user');
     check($status === 401, 'no token → 401');
-    [$status] = call($api, 'GET', '/account', null, str_repeat('x', 43));
+    [$status] = call($api, 'GET', '/user', null, str_repeat('x', 43));
     check($status === 401, 'unknown token → 401');
-    [$status, $data] = call($api, 'GET', '/account', null, $session);
-    check($status === 200 && $data['account']['language'] === 'de', 'account with language');
-    [$status, $data] = call($api, 'PATCH', '/account', ['options' => ['bookUpdates' => false], 'language' => 'fr'], $session);
-    check($status === 200 && $data['account']['options']['bookUpdates'] === false && $data['account']['language'] === 'fr', 'options and language changed');
+    [$status, $data] = call($api, 'GET', '/user', null, $session);
+    check($status === 200 && $data['user']['language'] === 'de', 'user with language');
+    [$status, $data] = call($api, 'PATCH', '/user', ['options' => ['bookUpdates' => false], 'language' => 'fr'], $session);
+    check($status === 200 && $data['user']['options']['bookUpdates'] === false && $data['user']['language'] === 'fr', 'options and language changed');
 
     echo "progress\n";
     $record = ['format' => 1, 'bookId' => 'osct', 'appVersions' => ['1.1.0'], 'unlocked' => new stdClass(), 'consulted' => ['e1' => 5], 'lastSpreadId' => null, 'lastCategory' => null, 'onboarded' => true];
@@ -174,17 +174,17 @@ try {
     echo "logout, delete\n";
     [$status] = call($api, 'POST', '/auth/logout', null, $secondSession);
     check($status === 204, 'logout → 204');
-    [$status] = call($api, 'GET', '/account', null, $secondSession);
+    [$status] = call($api, 'GET', '/user', null, $secondSession);
     check($status === 401, 'logged-out session no longer works');
-    [$status] = call($api, 'GET', '/account', null, $session);
+    [$status] = call($api, 'GET', '/user', null, $session);
     check($status === 200, 'the other device stays signed in');
-    [$status] = call($api, 'DELETE', '/account', null, $session);
+    [$status] = call($api, 'DELETE', '/user', null, $session);
     check($status === 204, 'delete → 204');
-    [$status] = call($api, 'GET', '/account', null, $session);
-    check($status === 401, 'deleted account: session gone');
+    [$status] = call($api, 'GET', '/user', null, $session);
+    check($status === 401, 'deleted user: session gone');
     $pdo = new PDO("sqlite:$tmp/test.sqlite");
-    check((int) $pdo->query("SELECT COUNT(*) FROM accounts WHERE email = 'reader@example.com'")->fetchColumn() === 0
-        && (int) $pdo->query("SELECT COUNT(*) FROM login_requests WHERE email = 'reader@example.com'")->fetchColumn() === 0, 'account and its requests are gone');
+    check((int) $pdo->query("SELECT COUNT(*) FROM users WHERE email = 'reader@example.com'")->fetchColumn() === 0
+        && (int) $pdo->query("SELECT COUNT(*) FROM login_requests WHERE email = 'reader@example.com'")->fetchColumn() === 0, 'user and its requests are gone');
     $pdo = null;
 
     echo "smtp\n";

@@ -1,21 +1,21 @@
 import { goldButton } from "@/components/buttons";
 import i18next from "i18next";
-import { AccountService } from "@/services";
+import { UserService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
 /**
  * Reset section (Info page, group "Account" – Tilman 2026-09-27) – the reader's save game for this book:
  * "Reset book" deletes the progress (after a confirmation). Signed in, the reset reaches the account too
- * (AccountService sends it like any other change). Settings such as the language are kept.
+ * (UserService sends it like any other change). Settings such as the language are kept.
  */
 export class SettingsHistory extends SettingsSection {
-  private account = AccountService.getInstance();
+  private user = UserService.getInstance();
   private unsubscribe?: () => void;
   private done = false;
 
   connectedCallback() {
     super.connectedCallback();
-    this.unsubscribe = this.account.subscribe(() => this.render());
+    this.unsubscribe = this.user.subscribe(() => this.render());
   }
 
   disconnectedCallback() {
@@ -24,7 +24,7 @@ export class SettingsHistory extends SettingsSection {
   }
 
   private get signedIn(): boolean {
-    return this.account.getSnapshot().status === "signed-in";
+    return this.user.getSnapshot().status === "signed-in";
   }
 
   protected content(): string {

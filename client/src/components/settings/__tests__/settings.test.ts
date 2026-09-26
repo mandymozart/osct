@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ".."; // registers the elements
 import i18next from "i18next";
-import { AccountService, FeedbackService, GameStoreService, InstallService } from "@/services";
-import { AccountSnapshot } from "@/types";
+import { FeedbackService, GameStoreService, InstallService, UserService } from "@/services";
+import { UserSnapshot } from "@/types";
 import { LANGUAGE_STORAGE_KEY } from "@/i18n";
 import { Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
@@ -26,28 +26,28 @@ afterEach(async () => {
 
 describe("settings sections", () => {
   describe("account", () => {
-    const account = AccountService.getInstance();
-    const snapshot = (changes: Partial<AccountSnapshot>): AccountSnapshot => ({
-      status: "signed-out", account: null, pending: null, sync: "off", busy: false, notice: null, ...changes,
+    const users = UserService.getInstance();
+    const snapshot = (changes: Partial<UserSnapshot>): UserSnapshot => ({
+      status: "signed-out", user: null, pending: null, sync: "off", busy: false, notice: null, ...changes,
     });
 
-    it("signed out: both update options on by default, the choice goes with the email", () => {
-      const request = vi.spyOn(account, "requestLogin").mockResolvedValue(true);
+    it("signed out: email, then the update options underneath – off until turned on (opt-in)", () => {
+      const request = vi.spyOn(users, "requestLogin").mockResolvedValue(true);
       const section = mount("settings-account");
-      expect(switchInput(section, "bookUpdates").checked && switchInput(section, "publisherUpdates").checked).toBe(true);
-      switchInput(section, "publisherUpdates").click();
-      expect(switchInput(section, "publisherUpdates").checked).toBe(false);
-
+      expect(section.shadowRoot!.textContent).toContain("Register your copy");
+      expect(section.shadowRoot!.querySelector("form + .switches")).not.toBeNull();
+      expect(switchInput(section, "bookUpdates").checked || switchInput(section, "publisherUpdates").checked).toBe(false);
+      switchInput(section, "bookUpdates").click();
       const input = section.shadowRoot!.querySelector<HTMLInputElement>("input[name=email]")!;
       input.value = "reader@example.com";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       section.shadowRoot!.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-      expect(request).toHaveBeenCalledWith("reader@example.com", { bookUpdates: true, publisherUpdates: false });
+      expect(request).toHaveBeenCalledWith("reader@example.com", { bookUpdates: true, artistUpdates: false, publisherUpdates: false });
     });
 
     it("pending: asks for the code from the email", () => {
-      vi.spyOn(account, "getSnapshot").mockReturnValue(snapshot({ status: "pending", pending: { requestId: "r", email: "reader@example.com", expiresAt: "" } }));
-      const confirm = vi.spyOn(account, "confirmCode").mockResolvedValue(true);
+      vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({ status: "pending", pending: { requestId: "r", email: "reader@example.com", expiresAt: "" } }));
+      const confirm = vi.spyOn(users, "confirmCode").mockResolvedValue(true);
       const section = mount("settings-account");
       expect(section.shadowRoot!.textContent).toContain("reader@example.com");
       const input = section.shadowRoot!.querySelector<HTMLInputElement>("input[name=code]")!;
@@ -58,12 +58,12 @@ describe("settings sections", () => {
     });
 
     it("signed in: the address, the options as switches, sign out, delete after a confirmation", () => {
-      vi.spyOn(account, "getSnapshot").mockReturnValue(snapshot({
+      vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({
         status: "signed-in", sync: "synced",
-        account: { email: "reader@example.com", language: "en", createdAt: "", options: { bookUpdates: false, publisherUpdates: true } },
+        user: { email: "reader@example.com", language: "en", createdAt: "", options: { bookUpdates: false, artistUpdates: false, publisherUpdates: true } },
       }));
-      const setOption = vi.spyOn(account, "setOption").mockResolvedValue();
-      const remove = vi.spyOn(account, "deleteAccount").mockResolvedValue(true);
+      const setOption = vi.spyOn(users, "setOption").mockResolvedValue();
+      const remove = vi.spyOn(users, "deleteUser").mockResolvedValue(true);
       const section = mount("settings-account");
       expect(section.shadowRoot!.textContent).toContain("Your progress is saved in your account.");
       switchInput(section, "bookUpdates").click();
@@ -74,7 +74,7 @@ describe("settings sections", () => {
     });
 
     it("shows the API's error in the reader's words", () => {
-      vi.spyOn(account, "getSnapshot").mockReturnValue(snapshot({ notice: { error: "too-many-requests" } }));
+      vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({ notice: { error: "too-many-requests" } }));
       expect(mount("settings-account").shadowRoot!.textContent).toContain("Try again in an hour.");
     });
   });
@@ -93,24 +93,23 @@ describe("settings sections", () => {
     expect(prompt).toHaveBeenCalledTimes(1);
   });
 
-  it("sound & vibration: toggles each setting and keeps it on this device", () => {
+  it("sound & vibration: a switch each, kept on this device", () => {
     const feedback = FeedbackService.getInstance();
     feedback.setSettings({ sound: true, haptics: true });
     const section = mount("settings-feedback");
-    expect(section.shadowRoot!.textContent).toContain("Sounds: on");
+    const haptics = section.shadowRoot!.querySelector("gold-switch[data-setting=haptics]")!;
+    expect(haptics.shadowRoot!.querySelector("input")!.checked).toBe(true);
 
-    click(section, "[data-setting=haptics]");
+    haptics.shadowRoot!.querySelector("input")!.click();
     expect(feedback.getSettings()).toEqual({ sound: true, haptics: false });
-    expect(section.shadowRoot!.querySelector("[data-setting=haptics]")!.getAttribute("aria-pressed")).toBe("false");
-    expect(section.shadowRoot!.textContent).toContain("Vibration: off");
-    click(section, "[data-setting=haptics]");
+    haptics.shadowRoot!.querySelector("input")!.click();
     expect(feedback.getSettings().haptics).toBe(true);
   });
 
   it("history (reset): says it reaches the account when signed in", () => {
-    vi.spyOn(AccountService.getInstance(), "getSnapshot").mockReturnValue({
+    vi.spyOn(UserService.getInstance(), "getSnapshot").mockReturnValue({
       status: "signed-in", pending: null, sync: "synced", busy: false, notice: null,
-      account: { email: "a@b.c", language: "en", createdAt: "", options: { bookUpdates: true, publisherUpdates: true } },
+      user: { email: "a@b.c", language: "en", createdAt: "", options: { bookUpdates: true, artistUpdates: false, publisherUpdates: true } },
     });
     expect(mount("settings-history").shadowRoot!.textContent).toContain("on this device and in your account");
   });

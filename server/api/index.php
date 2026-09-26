@@ -2,15 +2,15 @@
 declare(strict_types=1);
 
 /**
- * OSCT accounts API (server/README.md) – every request under /api/ comes here (.htaccess).
+ * OSCT users API (server/README.md) – every request under /api/ comes here (.htaccess).
  *
  *   GET    /health                   { status, db }
  *   POST   /auth/request             send the confirmation email (link + code)
  *   POST   /auth/verify              link token or request id + code → session token
  *   POST   /auth/logout              end this device's session
- *   GET    /account                  the signed-in account
- *   PATCH  /account                  change the options / language
- *   DELETE /account                  delete the account and everything stored with it
+ *   GET    /user                     the signed-in user
+ *   PATCH  /user                     change the options / language
+ *   DELETE /user                     delete the user and everything stored with it
  *   GET    /progress/{bookId}        stored progress record
  *   PUT    /progress/{bookId}        store the progress record
  *   POST   /admin/migrate            create missing tables (header X-Admin-Secret: SECRET) – after a deploy
@@ -18,7 +18,7 @@ declare(strict_types=1);
  * Signed-in requests send `Authorization: Bearer <session token>`.
  */
 
-foreach (['Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Accounts', 'Progress'] as $class) {
+foreach (['Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Users', 'Progress'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -47,9 +47,9 @@ try {
         $route === 'POST /auth/request' => Auth::request(Http::body()),
         $route === 'POST /auth/verify' => Auth::verify(Http::body()),
         $route === 'POST /auth/logout' => Auth::logout(),
-        $route === 'GET /account' => Accounts::get(),
-        $route === 'PATCH /account' => Accounts::update(Http::body()),
-        $route === 'DELETE /account' => Accounts::delete(),
+        $route === 'GET /user' => Users::get(),
+        $route === 'PATCH /user' => Users::update(Http::body()),
+        $route === 'DELETE /user' => Users::delete(),
         (bool) preg_match('#^(GET|PUT) /progress/([A-Za-z0-9_-]{1,64})$#', $route, $match) =>
             $match[1] === 'GET' ? Progress::get($match[2]) : Progress::put($match[2], Http::body()),
         default => throw new ApiError(404, 'not-found', 'Unknown endpoint.'),

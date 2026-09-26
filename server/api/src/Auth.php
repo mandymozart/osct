@@ -4,12 +4,12 @@ declare(strict_types=1);
 /**
  * Sign-in by email, no password (Tilman 2026-09-27): the reader enters the address, gets an email with a
  * link and a 6-digit code, and confirming either one signs in the device. The first confirmation creates
- * the account with the options chosen in the form (double opt-in). Tokens and codes are stored as hashes.
+ * the user with the options chosen in the form (double opt-in). Tokens and codes are stored as hashes.
  */
 final class Auth
 {
     /** The sign-up options (the progress is always kept – it can be reset in the app) */
-    public const OPTIONS = ['bookUpdates' => 'book_updates', 'publisherUpdates' => 'publisher_updates'];
+    public const OPTIONS = ['bookUpdates' => 'book_updates', 'artistUpdates' => 'artist_updates', 'publisherUpdates' => 'publisher_updates'];
 
     /** POST /auth/request { email, language?, options? } → 202 { requestId, expiresAt } */
     public static function request(array $body): never
@@ -33,14 +33,14 @@ final class Auth
         $code = sprintf('%06d', random_int(0, 999999));
         $ttl = Config::int('LOGIN_TTL_MINUTES') * 60;
         Db::run(
-            'INSERT INTO login_requests (id, email, token_hash, code_hash, language, book_updates, publisher_updates, ip_hash, created_at, expires_at)
-             VALUES (:id, :email, :token, :code, :language, :bu, :pu, :ip, :created, :expires)',
+            'INSERT INTO login_requests (id, email, token_hash, code_hash, language, book_updates, artist_updates, publisher_updates, ip_hash, created_at, expires_at)
+             VALUES (:id, :email, :token, :code, :language, :bu, :au, :pu, :ip, :created, :expires)',
             ['id' => $id, 'email' => $email, 'token' => hash('sha256', $token), 'code' => self::codeHash($id, $code),
              'language' => $language, 'bu' => (int) $options['bookUpdates'],
-             'pu' => (int) $options['publisherUpdates'], 'ip' => $ipHash, 'created' => Db::now(), 'expires' => Db::now($ttl)]
+             'au' => (int) $options['artistUpdates'], 'pu' => (int) $options['publisherUpdates'], 'ip' => $ipHash, 'created' => Db::now(), 'expires' => Db::now($ttl)]
         );
 
-        $isNew = Db::value('SELECT id FROM accounts WHERE email = :email', ['email' => $email]) === null;
+        $isNew = Db::value('SELECT id FROM users WHERE email = :email', ['email' => $email]) === null;
         $link = Http::appUrl() . '/about?login=' . $token;
         $mail = LoginMail::compose($language, $link, $code, $isNew ? $options : null);
         try {
@@ -56,7 +56,7 @@ final class Auth
     }
 
     /**
-     * POST /auth/verify { token } (the link) or { requestId, code } → 200 { session, account, created }
+     * POST /auth/verify { token } (the link) or { requestId, code } → 200 { session, user, created }
      */
     public static function verify(array $body): never
     {
@@ -84,35 +84,35 @@ final class Auth
             }
         }
 
-        [$account, $created, $session] = Db::transaction(function () use ($request) {
+        [$user, $created, $session] = Db::transaction(function () use ($request) {
             // Only one confirmation per request, also when link and code race
             $used = Db::run('UPDATE login_requests SET used_at = :now WHERE id = :id AND used_at IS NULL', ['now' => Db::now(), 'id' => $request['id']]);
             if ($used->rowCount() !== 1) throw new ApiError(410, 'already-used', 'This link or code was used already.');
 
-            $account = Db::one('SELECT * FROM accounts WHERE email = :email', ['email' => $request['email']]);
+            $user = Db::one('SELECT * FROM users WHERE email = :email', ['email' => $request['email']]);
             $created = false;
-            if (!$account) {
-                // A new account takes the options of the form; an existing one keeps its own
+            if (!$user) {
+                // A new user takes the options of the form; an existing one keeps its own
                 $id = Db::uuid();
                 $now = Db::now();
                 Db::run(
-                    'INSERT INTO accounts (id, email, language, book_updates, publisher_updates, created_at, confirmed_at, updated_at)
-                     VALUES (:id, :email, :language, :bu, :pu, :now, :now2, :now3)',
+                    'INSERT INTO users (id, email, language, book_updates, artist_updates, publisher_updates, created_at, confirmed_at, updated_at)
+                     VALUES (:id, :email, :language, :bu, :au, :pu, :now, :now2, :now3)',
                     ['id' => $id, 'email' => $request['email'], 'language' => $request['language'],
-                     'bu' => $request['book_updates'], 'pu' => $request['publisher_updates'], 'now' => $now, 'now2' => $now, 'now3' => $now]
+                     'bu' => $request['book_updates'], 'au' => $request['artist_updates'], 'pu' => $request['publisher_updates'], 'now' => $now, 'now2' => $now, 'now3' => $now]
                 );
-                $account = Db::one('SELECT * FROM accounts WHERE id = :id', ['id' => $id]);
+                $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $id]);
                 $created = true;
             }
             $session = self::randomToken();
             Db::run(
-                'INSERT INTO sessions (id, account_id, token_hash, created_at, last_used_at) VALUES (:id, :account, :hash, :now, :now2)',
-                ['id' => Db::uuid(), 'account' => $account['id'], 'hash' => hash('sha256', $session), 'now' => Db::now(), 'now2' => Db::now()]
+                'INSERT INTO sessions (id, user_id, token_hash, created_at, last_used_at) VALUES (:id, :user, :hash, :now, :now2)',
+                ['id' => Db::uuid(), 'user' => $user['id'], 'hash' => hash('sha256', $session), 'now' => Db::now(), 'now2' => Db::now()]
             );
-            return [$account, $created, $session];
+            return [$user, $created, $session];
         });
 
-        Http::json(200, ['session' => $session, 'account' => Accounts::toJson($account), 'created' => $created]);
+        Http::json(200, ['session' => $session, 'user' => Users::toJson($user), 'created' => $created]);
     }
 
     /** POST /auth/logout → 204 (this device only) */
@@ -124,10 +124,10 @@ final class Auth
     }
 
     /**
-     * The signed-in account (Bearer token), else 401. Sessions end after SESSION_TTL_DAYS without use.
+     * The signed-in user (Bearer token), else 401. Sessions end after SESSION_TTL_DAYS without use.
      * @return array<string, mixed>
      */
-    public static function account(): array
+    public static function user(): array
     {
         $token = Http::bearerToken();
         if ($token === null) throw new ApiError(401, 'unauthorized', 'Not signed in.');
@@ -140,9 +140,9 @@ final class Auth
         if ($session['last_used_at'] < Db::now(-3600)) {
             Db::run('UPDATE sessions SET last_used_at = :now WHERE id = :id', ['now' => Db::now(), 'id' => $session['id']]);
         }
-        $account = Db::one('SELECT * FROM accounts WHERE id = :id', ['id' => $session['account_id']]);
-        if (!$account) throw new ApiError(401, 'unauthorized', 'Not signed in.');
-        return $account;
+        $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $session['user_id']]);
+        if (!$user) throw new ApiError(401, 'unauthorized', 'Not signed in.');
+        return $user;
     }
 
     /**
@@ -157,7 +157,7 @@ final class Auth
                 if (!is_bool($value[$key])) throw new ApiError(400, 'invalid-options', "Option $key must be true or false.");
                 $options[$key] = $value[$key];
             } elseif ($withDefaults) {
-                $options[$key] = true; // all on by default (Tilman)
+                $options[$key] = false; // opt-in: off unless the reader turned it on (Tilman)
             }
         }
         return $options;

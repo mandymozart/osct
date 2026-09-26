@@ -1,9 +1,12 @@
-# OSCT accounts API (PHP + MySQL)
+# OSCT user API (PHP + MySQL)
+
+Naming (Tilman 2026-09-27): *user* in code, API and database; *account* only as the UI label (Info → Account).
 
 Sign-in by email for the app – no password (branch `database`, 2026-09-27). The reader enters an email and
-chooses which updates to get (both on by default):
+can opt in to updates (both off until the reader turns them on):
 
 - **updates on Onion Skin & Crocodile Tears**
+- **updates from Kévin Bray**
 - **updates from Building Fictions**
 
 The progress is always kept in the account (restored on other devices); the reader can reset it.
@@ -20,7 +23,7 @@ api/
   index.php               front controller – the list of endpoints
   .htaccess               everything → index.php, nothing else is served
   config.local.php        settings (not committed) – from config.local.php.example / the deploy
-  src/                    Config, Db, Http, Auth, Accounts, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de)
+  src/                    Config, Db, Http, Auth, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de)
   db/schema.mysql.sql     tables (CREATE TABLE IF NOT EXISTS – POST /admin/migrate runs it)
   db/schema.sqlite.sql    the same for local development / tests
 deploy/write-config.php   deploy: config.local.php from OSCT_* environment variables
@@ -32,11 +35,11 @@ tests/api-test.php        the whole flow against php -S + SQLite, SMTP against t
 | | | |
 |---|---|---|
 | `POST /auth/request` | `{ email, language?, options? }` | 202 `{ requestId, expiresAt }` – sends the email |
-| `POST /auth/verify` | `{ token }` or `{ requestId, code }` | `{ session, account, created }` |
+| `POST /auth/verify` | `{ token }` or `{ requestId, code }` | `{ session, user, created }` |
 | `POST /auth/logout` | | 204 – this device only |
-| `GET /account` | | `{ account }` |
-| `PATCH /account` | `{ options?, language? }` | `{ account }` |
-| `DELETE /account` | | 204 – account, sessions, progress, open requests |
+| `GET /user` | | `{ user }` |
+| `PATCH /user` | `{ options?, language? }` | `{ user }` |
+| `DELETE /user` | | 204 – user, sessions, progress, open requests |
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
 | `GET /health` | | `{ status, db }` |

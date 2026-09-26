@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * The reader's progress record per book, stored as the app sends it (client `ProgressRecord`, JSON) –
- * always kept for an account (a reset in the app is sent like any other change). `updatedAt` (ms) guards against two devices
+ * always kept for a user (a reset in the app is sent like any other change). `updatedAt` (ms) guards against two devices
  * overwriting each other: a PUT names the version it builds on, a newer one on the server → 409 with
  * the stored record, the app merges and sends again.
  */
@@ -12,15 +12,15 @@ final class Progress
     /** GET /progress/{bookId} → { record, updatedAt } (both null when nothing is stored) */
     public static function get(string $bookId): never
     {
-        $account = Auth::account();
-        $row = Db::one('SELECT record, updated_at FROM progress WHERE account_id = :id AND book_id = :book', ['id' => $account['id'], 'book' => $bookId]);
+        $user = Auth::user();
+        $row = Db::one('SELECT record, updated_at FROM progress WHERE user_id = :id AND book_id = :book', ['id' => $user['id'], 'book' => $bookId]);
         Http::json(200, self::toJson($row));
     }
 
     /** PUT /progress/{bookId} { record, baseUpdatedAt } → { updatedAt } | 409 { error, record, updatedAt } */
     public static function put(string $bookId, array $body): never
     {
-        $account = Auth::account();
+        $user = Auth::user();
         // Decoded as objects: an empty `{}` in the record stays an object
         $record = Http::bodyObject()->record ?? null;
         if (!$record instanceof stdClass || ($record->bookId ?? null) !== $bookId) {
@@ -33,9 +33,9 @@ final class Progress
         $base = $body['baseUpdatedAt'] ?? null;
         if ($base !== null && !is_int($base)) throw new ApiError(400, 'invalid-record', 'baseUpdatedAt must be a number or null.');
 
-        $result = Db::transaction(function () use ($account, $bookId, $json, $base) {
-            $params = ['id' => $account['id'], 'book' => $bookId];
-            $current = Db::one('SELECT record, updated_at FROM progress WHERE account_id = :id AND book_id = :book'
+        $result = Db::transaction(function () use ($user, $bookId, $json, $base) {
+            $params = ['id' => $user['id'], 'book' => $bookId];
+            $current = Db::one('SELECT record, updated_at FROM progress WHERE user_id = :id AND book_id = :book'
                 . (Db::isSqlite() ? '' : ' FOR UPDATE'), $params);
             $currentAt = $current ? (int) $current['updated_at'] : null;
             if ($currentAt !== $base) return ['conflict' => self::toJson($current)];
@@ -43,9 +43,9 @@ final class Progress
             // Strictly newer than the last version, even within the same millisecond
             $now = max((int) floor(microtime(true) * 1000), ($currentAt ?? 0) + 1);
             if ($current) {
-                Db::run('UPDATE progress SET record = :record, updated_at = :at WHERE account_id = :id AND book_id = :book', $params + ['record' => $json, 'at' => $now]);
+                Db::run('UPDATE progress SET record = :record, updated_at = :at WHERE user_id = :id AND book_id = :book', $params + ['record' => $json, 'at' => $now]);
             } else {
-                Db::run('INSERT INTO progress (account_id, book_id, record, updated_at) VALUES (:id, :book, :record, :at)', $params + ['record' => $json, 'at' => $now]);
+                Db::run('INSERT INTO progress (user_id, book_id, record, updated_at) VALUES (:id, :book, :record, :at)', $params + ['record' => $json, 'at' => $now]);
             }
             return ['updatedAt' => $now];
         });

@@ -5,23 +5,25 @@
  */
 
 /**
- * The sign-up options – both on by default. The progress is always kept in the account (restored on other
+ * The update options – opt-in: off until the reader turns them on (Tilman 2026-09-27: "very important"). The progress is always kept in the account (restored on other
  * devices) and can be reset ("Reset book").
  */
-export interface AccountOptions {
+export interface UserOptions {
   /** Updates on the publication (Onion Skin & Crocodile Tears) */
   bookUpdates: boolean;
   /** Updates from the publisher (Building Fictions) */
+  /** Updates from the artist (Kévin Bray – the book's author in the content) */
+  artistUpdates: boolean;
   publisherUpdates: boolean;
 }
 
-export type AccountOption = keyof AccountOptions;
+export type UserOption = keyof UserOptions;
 
-/** The account as the API returns it */
-export interface AccountData {
+/** The user as the API returns it (UI: "Account") */
+export interface UserData {
   email: string;
   language: string;
-  options: AccountOptions;
+  options: UserOptions;
   createdAt: string;
 }
 
@@ -33,7 +35,7 @@ export interface PendingLogin {
   expiresAt: string;
 }
 
-export type AccountStatus = "signed-out" | "pending" | "signed-in";
+export type UserStatus = "signed-out" | "pending" | "signed-in";
 
 /**
  * Progress on the server: `synced` = the server has this device's progress, `pending` = changes wait
@@ -42,33 +44,33 @@ export type AccountStatus = "signed-out" | "pending" | "signed-in";
 export type ProgressSyncStatus = "off" | "syncing" | "synced" | "pending";
 
 /** Something the account section tells the reader once (after a link, sign-out, deletion) */
-export type AccountNotice = "confirmed" | "signed-out" | "deleted" | { error: string };
+export type UserNotice = "confirmed" | "signed-out" | "deleted" | { error: string };
 
-export interface AccountSnapshot {
-  status: AccountStatus;
-  account: AccountData | null;
+export interface UserSnapshot {
+  status: UserStatus;
+  user: UserData | null;
   pending: PendingLogin | null;
   sync: ProgressSyncStatus;
   /** A request is running (buttons disabled) */
   busy: boolean;
-  notice: AccountNotice | null;
+  notice: UserNotice | null;
 }
 
-/** Account service (services/AccountService.ts) */
-export interface IAccountService {
+/** User service (services/UserService.ts) */
+export interface IUserService {
   /** false when the build has no API (VITE_API_URL) – the account section is hidden */
   isEnabled(): boolean;
-  getSnapshot(): AccountSnapshot;
+  getSnapshot(): UserSnapshot;
   /** Called when the snapshot changed; returns the unsubscribe function */
-  subscribe(listener: (snapshot: AccountSnapshot) => void): () => void;
-  /** Send the confirmation email (a new account gets these options) */
-  requestLogin(email: string, options: AccountOptions): Promise<boolean>;
+  subscribe(listener: (snapshot: UserSnapshot) => void): () => void;
+  /** Send the confirmation email; a new user gets these update options (existing users keep theirs) */
+  requestLogin(email: string, options: UserOptions): Promise<boolean>;
   /** Confirm with the code from the email */
   confirmCode(code: string): Promise<boolean>;
   /** Back to the email form */
   cancelPending(): void;
-  setOption(option: AccountOption, on: boolean): Promise<void>;
+  setOption(option: UserOption, on: boolean): Promise<void>;
   signOut(): Promise<void>;
-  deleteAccount(): Promise<boolean>;
+  deleteUser(): Promise<boolean>;
   clearNotice(): void;
 }
