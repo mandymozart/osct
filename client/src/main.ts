@@ -5,7 +5,7 @@ import "@/i18n";
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages";
-import { GameStoreService, LinkService } from "@/services";
+import { FeedbackService, GameStoreService, LinkService } from "@/services";
 import {
   ErrorInfo,
   IGame,
@@ -39,6 +39,7 @@ export class BookGame extends HTMLElement {
     super();
     this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
+    FeedbackService.getInstance().start(); // sounds + vibration (tap on buttons, audio unlock)
   }
 
   connectedCallback() {

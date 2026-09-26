@@ -6,5 +6,10 @@
   "historyConfirm": "Den gesamten gespeicherten Fortschritt für dieses Buch auf diesem Gerät löschen?",
   "historyDone": "Der gesamte gespeicherte Fortschritt auf diesem Gerät wurde gelöscht.",
   "languageLabel": "Sprache:",
-  "languageChange": "Sprache ändern"
+  "languageChange": "Sprache ändern",
+  "soundLabel": "Töne",
+  "hapticsLabel": "Vibration",
+  "on": "an",
+  "off": "aus",
+  "feedbackDescription": "Kurze Töne und Vibrationen, wenn du durch die Seiten scrollst, einen Button antippst oder eine Seite findest."
 }

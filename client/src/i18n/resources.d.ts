@@ -98,12 +98,17 @@ export default interface Resources {
     "pagesAria": "Pages {{pages}}"
   },
   "settings": {
+    "feedbackDescription": "Short sounds and vibrations when you scroll through the pages, tap a button or find a page.",
+    "hapticsLabel": "Vibration",
     "historyButton": "Reset book",
     "historyConfirm": "Delete all saved progress for this book on this device?",
     "historyDescription": "This will delete all saved progress on this device.",
     "historyDone": "All saved progress on this device was deleted.",
     "languageChange": "Change language",
     "languageLabel": "Language:",
+    "off": "off",
+    "on": "on",
+    "soundLabel": "Sounds",
     "tutorialButton": "Tutorial",
     "tutorialDescription": "A step by step guide on how to use the app with your book."
   },

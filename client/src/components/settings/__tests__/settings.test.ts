@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ".."; // registers the elements
 import i18next from "i18next";
-import { GameStoreService } from "@/services";
+import { FeedbackService, GameStoreService } from "@/services";
 import { LANGUAGE_STORAGE_KEY } from "@/i18n";
 import { Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
@@ -25,6 +25,20 @@ describe("settings sections", () => {
     const section = mount("settings-tutorial");
     click(section, "[data-action=tutorial]");
     expect(game.state.currentRoute).toMatchObject({ page: Pages.TUTORIAL, param: { value: "0" } });
+  });
+
+  it("sound & vibration: toggles each setting and keeps it on this device", () => {
+    const feedback = FeedbackService.getInstance();
+    feedback.setSettings({ sound: true, haptics: true });
+    const section = mount("settings-feedback");
+    expect(section.shadowRoot!.textContent).toContain("Sounds: on");
+
+    click(section, "[data-setting=haptics]");
+    expect(feedback.getSettings()).toEqual({ sound: true, haptics: false });
+    expect(section.shadowRoot!.querySelector("[data-setting=haptics]")!.getAttribute("aria-pressed")).toBe("false");
+    expect(section.shadowRoot!.textContent).toContain("Vibration: off");
+    click(section, "[data-setting=haptics]");
+    expect(feedback.getSettings().haptics).toBe(true);
   });
 
   it("history: resets the book after a confirmation and keeps the language", () => {

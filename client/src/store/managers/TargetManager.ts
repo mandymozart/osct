@@ -1,5 +1,6 @@
 import { IGame, ITargetManager } from "@/types";
 import { getTarget } from "@/utils/game-config";
+import { feedback } from "@/services/FeedbackService";
 
 /**
  * Manages target tracking during gameplay
@@ -23,9 +24,12 @@ export class TargetManager implements ITargetManager {
         draft.trackedTargets.push(targetId);
       });
 
-      // Stage 1 of discovery: found in scan mode = unlocked (only targets of the content)
+      // Stage 1 of discovery: found in scan mode = unlocked (only targets of the content).
+      // First find: the unlock jingle; later finds: a short "found" (once per target every few seconds)
       if (getTarget(targetId)) {
+        const isNew = !this.game.history.isUnlocked(targetId);
         this.game.history.unlockTarget(targetId);
+        feedback(isNew ? "unlock" : "found", targetId);
       }
     }
   }

@@ -3,3 +3,4 @@ export * from "./GameStoreService";
 export * from "./PreloaderService";
 export * from "./ProgressStorage";
 export * from "./LinkService";
+export * from "./FeedbackService";

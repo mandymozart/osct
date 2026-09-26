@@ -6,5 +6,10 @@
   "historyConfirm": "Alle opgeslagen voortgang voor dit boek op dit apparaat verwijderen?",
   "historyDone": "Alle opgeslagen voortgang op dit apparaat is verwijderd.",
   "languageLabel": "Taal:",
-  "languageChange": "Taal wijzigen"
+  "languageChange": "Taal wijzigen",
+  "soundLabel": "Geluid",
+  "hapticsLabel": "Trillen",
+  "on": "aan",
+  "off": "uit",
+  "feedbackDescription": "Korte geluiden en trillingen als je door de pagina's scrolt, op een knop tikt of een pagina vindt."
 }
