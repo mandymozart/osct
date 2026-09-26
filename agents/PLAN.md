@@ -796,6 +796,9 @@ the app is ready. PWA later.
 - [x] Sounds per moment (Tilman 2026-09-26): **found** (every find after the unlock, "pew pew pew",
   `sounds/found.wav`, once per target every 4 s) · **unlock** (first find, jingle) · consult = tap (tap blip).
 - [ ] Review the reveal / unlock / consult moments with the designers and the artist (animation, sounds).
+- [~] Unlock animation "more spectacular" (Tilman 2026-09-26, branch `unlock-experience`): reverse emissive
+  dissolve (Codrops) + gold bloom for every entity type – built, tune on the phone. Sounds second take
+  (calm / mindful) – listen; runtime Web Audio synthesis proposed (no sound files).
 - [x] Device check of placement + tap to unlock on the S22 (Tilman, 2026-09-26): works, animations "a good
   starting point".
 - [?] **Pinning objects in space** → moved to Phase 10 (concept first).

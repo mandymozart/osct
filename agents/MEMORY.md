@@ -4,6 +4,16 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Unlock animation: reverse emissive dissolve (Tilman, branch `unlock-experience`)
+
+- Chosen from the options (Three.js Journey fireworks / hologram / particles, Codrops dissolve, gommage):
+  the **Codrops emissive dissolve played in reverse** (github.com/JatinChopra/emissive-dissolve-effect, MIT)
+  – for models, video and image planes alike. `ar/celebration.ts`: noise × amplitude vs. progress
+  (positive → negative), edge wide → narrow, HDR gold edge + gold glow band, sparks from the surface;
+  `DISSOLVE` holds all parameters. Bloom (`UnrealBloomPass`, only during the animation, half resolution)
+  is added over the camera image as light (`ar/view.ts`). Colours from the gold palette (Tilman).
+- [ ] Tune on the phone (edge width, glow, bloom strength, duration 3 s) – Tilman.
+
 ## 2026-09-26 – Stuck spinner on the S22 = Chrome's camera, not the app
 
 - Staging hung at "starting": Chrome had the back camera open (`adb shell dumpsys media.camera`), the

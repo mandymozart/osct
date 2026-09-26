@@ -3,7 +3,7 @@ import { ArSceneEvents, ArStatus, IArScene, SceneState, Target } from "@/types";
 import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/game-config";
 import { Emitter } from "../utils/emitter";
 import { AssetStore } from "./assets";
-import { celebrate } from "./celebration";
+import { celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance } from "./entities";
 import { ImageTracker } from "./tracker";
 import { ArView } from "./view";
@@ -59,8 +59,8 @@ export class ArScene implements IArScene {
    */
   private startFailed = false;
   private _status: ArStatus = "idle";
-  /** Running animations (celebrations): frame functions, removed when they return false */
-  private animations = new Set<(delta: number) => boolean>();
+  /** Running animations (celebrations), removed when they are done */
+  private animations = new Set<Celebration>();
 
   constructor(private container: HTMLElement) {}
 
@@ -146,7 +146,12 @@ export class ArScene implements IArScene {
       this.view.needsRender = () => this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible);
       this.view.onFrame(delta => {
         this.content?.anchors.forEach(a => a.entity?.update?.(delta));
-        this.animations.forEach(animation => animation(delta) || this.animations.delete(animation));
+        let bloom = 0;
+        this.animations.forEach(animation => {
+          if (!animation.update(delta)) this.animations.delete(animation);
+          else bloom = Math.max(bloom, animation.bloom);
+        });
+        this.view!.bloomStrength = bloom;
       });
       document.addEventListener("click", this.onTap);
     }
@@ -204,8 +209,9 @@ export class ArScene implements IArScene {
 
   /** Jump running animations to their end (they clean up after themselves) */
   private finishAnimations(): void {
-    this.animations.forEach(animation => animation(Infinity));
+    this.animations.forEach(animation => animation.update(Infinity));
     this.animations.clear();
+    if (this.view) this.view.bloomStrength = 0;
   }
 
   /** MindAR update of one target: move its anchor, report found / lost */
