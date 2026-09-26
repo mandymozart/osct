@@ -3,7 +3,7 @@ import { ArSceneEvents, ArStatus, IArScene, SceneState, Target } from "@/types";
 import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/game-config";
 import { Emitter } from "../utils/emitter";
 import { AssetStore } from "./assets";
-import { celebrate } from "./celebration";
+import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance } from "./entities";
 import { ImageTracker } from "./tracker";
 import { ArView } from "./view";
@@ -59,8 +59,8 @@ export class ArScene implements IArScene {
    */
   private startFailed = false;
   private _status: ArStatus = "idle";
-  /** Running animations (celebrations): frame functions, removed when they return false */
-  private animations = new Set<(delta: number) => boolean>();
+  /** Running appear / disappear animation per target id (unlock, reveal, outro), removed when done */
+  private animations = new Map<string, Celebration>();
 
   constructor(private container: HTMLElement) {}
 
@@ -87,10 +87,18 @@ export class ArScene implements IArScene {
     return this.reconcile();
   }
 
+  /** The unlock animation (first find – called by the bridge right after `targetFound`; replaces the reveal) */
   celebrate(targetId: string): void {
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
-    if (!anchor?.entity || !this.view) return;
-    this.animations.add(celebrate(anchor.group, anchor.entity.object));
+    if (anchor) this.animate(anchor, "unlock");
+  }
+
+  /** Start an animation of an anchor's entity (a running one of the same anchor ends first) */
+  private animate(anchor: Anchor, kind: AnimationKind): void {
+    const id = anchor.target.id;
+    this.animations.get(id)?.finish();
+    this.animations.delete(id);
+    if (anchor.entity && this.view) this.animations.set(id, celebrate(anchor.group, anchor.entity.object, kind));
   }
 
   dispose(): Promise<void> {
@@ -146,7 +154,18 @@ export class ArScene implements IArScene {
       this.view.needsRender = () => this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible);
       this.view.onFrame(delta => {
         this.content?.anchors.forEach(a => a.entity?.update?.(delta));
-        this.animations.forEach(animation => animation(delta) || this.animations.delete(animation));
+        let bloom = 0;
+        this.animations.forEach((animation, id) => {
+          if (animation.update(delta)) {
+            bloom = Math.max(bloom, animation.bloom);
+            return;
+          }
+          this.animations.delete(id);
+          // Outro done: the entity has dissolved – hide the anchor (unless found again meanwhile)
+          const anchor = animation.kind === "outro" && !this.found.has(id) && this.content?.anchors.find(a => a.target.id === id);
+          if (anchor) anchor.group.visible = false;
+        });
+        this.view!.bloomStrength = bloom;
       });
       document.addEventListener("click", this.onTap);
     }
@@ -202,10 +221,11 @@ export class ArScene implements IArScene {
     this.content = null;
   }
 
-  /** Jump running animations to their end (they clean up after themselves) */
+  /** End running animations now (they clean up after themselves) */
   private finishAnimations(): void {
-    this.animations.forEach(animation => animation(Infinity));
+    this.animations.forEach(animation => animation.finish());
     this.animations.clear();
+    if (this.view) this.view.bloomStrength = 0;
   }
 
   /** MindAR update of one target: move its anchor, report found / lost */
@@ -216,14 +236,19 @@ export class ArScene implements IArScene {
     if (matrix) {
       anchor.group.matrix.copy(matrix);
       anchor.group.matrixWorldNeedsUpdate = true;
+      anchor.group.visible = true;
     }
-    anchor.group.visible = !!matrix;
     if (matrix && !this.found.has(id)) {
+      // Found: the entity appears (reveal); the first find becomes the unlock (the bridge calls celebrate)
       this.found.add(id);
+      this.animate(anchor, "reveal");
       anchor.entity?.onFound?.();
       this.emitter.emit("targetFound", id);
     } else if (!matrix && this.found.has(id)) {
+      // Lost: the entity dissolves away at its last position (outro), then the anchor hides
       this.found.delete(id);
+      if (anchor.entity) this.animate(anchor, "outro");
+      else anchor.group.visible = false;
       anchor.entity?.onLost?.();
       this.emitter.emit("targetLost", id);
     }
@@ -353,6 +378,7 @@ export class ArScene implements IArScene {
 
   /** Report every found target as lost (tracking stops or the targets go away) */
   private loseAll(): void {
+    this.finishAnimations();
     this.content?.anchors.forEach(a => (a.group.visible = false));
     this.found.forEach(id => this.emitter.emit("targetLost", id));
     this.found.clear();

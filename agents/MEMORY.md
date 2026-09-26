@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Unlock animation: reverse emissive dissolve (Tilman, branch `unlock-experience`)
+
+- Chosen from the options (Three.js Journey fireworks / hologram / particles, Codrops dissolve, gommage):
+  the **Codrops emissive dissolve played in reverse** (github.com/JatinChopra/emissive-dissolve-effect, MIT)
+  – for models, video and image planes alike. `ar/celebration.ts`: noise × amplitude vs. progress
+  (positive → negative), edge wide → narrow, HDR gold edge + gold glow band, sparks from the surface;
+  `DISSOLVE` holds all parameters. Bloom (`UnrealBloomPass`, only during the animation, half resolution)
+  is added over the camera image as light (`ar/view.ts`). Colours from the gold palette (Tilman).
+- Phone test (Tilman): bloom a bit too bright, a bit too fast → bloom 1.0, edge ×1.3, unlock 4.2 s.
+  Three kinds (`ANIMATIONS` in celebration.ts): **unlock** (first find) with gold, sparks and bloom;
+  **reveal** (every later find) the plain dissolve (1 s, no colour, no bloom); **outro** (target lost) the
+  reveal rewound (0.7 s) at the last position, then the anchor hides.
+- Sounds: the calm second take was reverted – Tilman prefers the chiptune placeholders (for now).
+- [ ] Tune further on the phone – Tilman.
+
 ## 2026-09-26 – Stuck spinner on the S22 = Chrome's camera, not the app
 
 - Staging hung at "starting": Chrome had the back camera open (`adb shell dumpsys media.camera`), the
@@ -91,7 +106,8 @@ outcome in the line (or move it into a dated decision block).
   `data-feedback="none"` silences), found (target found again, 4 s cooldown per target – tracking
   flickers), unlock (first find). Web Audio after the first tap; `navigator.vibrate` on Android; iOS 18+
   via the native switch-toggle trick (only right after a tap, not while scrolling), else nothing.
-- Sounds: generated chiptune placeholders (`scripts/tools/generate-sounds.mjs`, "think Nintendo") in
+- Sounds: generated chiptune placeholders (a calm "mindfulness" second take was tried on 2026-09-26 and
+  reverted – Tilman liked the chiptune better) (`scripts/tools/generate-sounds.mjs`, "think Nintendo") in
   `client/public/assets/sounds/<event>.wav` – Tilman replaces them with designed sounds of the same names.
 - Info → Settings → "Sound & vibration" (settings-feedback), on/off each, kept in localStorage
   `osct-feedback` (device setting, not progress – survives "Reset book").
