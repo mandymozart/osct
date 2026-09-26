@@ -16,50 +16,69 @@ import {
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
 
 /**
- * Unlock animation of an AR entity (first find – Tilman 2026-09-26): the entity **materialises** – the
- * Codrops emissive dissolve (Jatin Chopra, "Implementing a Dissolve Effect with Shaders and Particles in
- * Three.js", 2025 – github.com/JatinChopra/emissive-dissolve-effect, MIT) played in reverse:
+ * Appear / disappear animations of an AR entity – the Codrops emissive dissolve (Jatin Chopra,
+ * "Implementing a Dissolve Effect with Shaders and Particles in Three.js", 2025 –
+ * github.com/JatinChopra/emissive-dissolve-effect, MIT):
  *
  *   noise = snoise(position × frequency) × amplitude;  noise < progress → discarded;
  *   progress ≤ noise < progress + edge → the glowing edge (HDR gold, picked up by the bloom).
  *
- * `progress` runs from positive (nothing visible) to negative (everything), the edge is wide at the start
- * and narrow at the end, the bloom (ArView) rises with it and fades out after. Sparks sampled on the surface
- * light up when the edge passes them and fly off. Works for every entity type (model, video / image plane,
- * chroma key): the entity's materials are cloned for the animation (model materials are shared with the
- * cached asset) with the dissolve injected (onBeforeCompile); the originals come back afterwards.
+ * Three kinds (Tilman 2026-09-26):
+ *   - `unlock` (first find): the entity materialises – progress from positive (nothing) to negative
+ *     (everything), a wide gold edge narrowing, gold glow behind it, sparks from the surface, gold bloom.
+ *   - `reveal` (every later find): the same dissolve, plain – no colour, no sparks, no bloom, quick.
+ *   - `outro` (target lost): the reveal rewound – the entity dissolves away, then the anchor hides.
+ * Works for every entity type (model, video / image plane, chroma key): the entity's materials are cloned
+ * for the animation (model materials are shared with the cached asset) with the dissolve injected
+ * (onBeforeCompile); the originals come back afterwards.
  */
 
-export const CELEBRATION_MS = 3000;
+export type AnimationKind = "unlock" | "reveal" | "outro";
 
 /** The parameters to play with (units: noise × amplitude; the object's size is ~3 noise waves) */
 export const DISSOLVE = {
   /** Noise waves across the object (frequency = WAVES / object size) */
   waves: 3,
   amplitude: 1,
-  /** Progress: from START (nothing visible) to END (everything visible), then on to TAIL (last sparks) */
+  /** Progress: from START (nothing visible) to END (everything visible); unlock runs on to TAIL (sparks) */
   progressStart: 0.85,
   progressEnd: -1.05,
   progressTail: -1.9,
-  /** Share of the time for materialising (eased); the rest lets sparks and glow fade */
-  materialise: 0.72,
-  /** Edge width: wide at the start, narrow at the end */
-  edgeStart: 0.15,
-  edgeEnd: 0.03,
   /**
    * Colours from the gold palette (main.css --gold-1 … --gold-4). Edge colour × intensity (> 1 = brighter
    * than white: only the edge and the sparks bloom – the bloom is gold, too)
    */
   edgeColor: new Color(0xf3cc94), // --gold-4: on screen a pale gold-white core, the bloom around it gold
-  edgeIntensity: 1.5,
-  /** Freshly materialised areas behind the edge glow gold and cool down over this range */
-  glowWidth: 0.4,
-  glowColor: new Color(0xf3cc94), // --gold-4 (main.css)
-  /** Bloom strength (ArView adds it over the camera image) – rises fast, holds, fades with the glow */
-  bloomStrength: 1.8,
+  edgeIntensity: 1.3,
+  glowColor: new Color(0xf3cc94), // --gold-4
   sparks: 700,
   sparkColors: [0xf5e7c8, 0x7f6032, 0xd2ae5a, 0xf3cc94], // --gold-1 … --gold-4
 };
+
+interface AnimationPreset {
+  ms: number;
+  /** Share of the time for (de)materialising (eased); unlock: the rest lets sparks and glow fade */
+  materialise: number;
+  /** Edge width (wide at the start, narrow at the end); 0 = no coloured edge */
+  edgeStart: number;
+  edgeEnd: number;
+  /** Freshly materialised areas behind the edge glow gold over this range; 0 = no glow */
+  glowWidth: number;
+  sparks: boolean;
+  /** Bloom strength (ArView adds it over the camera image) – rises fast, holds, fades with the glow */
+  bloomStrength: number;
+  /** outro: from visible to nothing */
+  reverse: boolean;
+}
+
+export const ANIMATIONS: Record<AnimationKind, AnimationPreset> = {
+  unlock: { ms: 4200, materialise: 0.72, edgeStart: 0.15, edgeEnd: 0.03, glowWidth: 0.4, sparks: true, bloomStrength: 1.0, reverse: false },
+  reveal: { ms: 1000, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: false },
+  outro: { ms: 700, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: true },
+};
+
+/** The unlock's length (the found indicator's label runs alongside) */
+export const CELEBRATION_MS = ANIMATIONS.unlock.ms;
 
 const smoothstep = (x: number) => {
   const t = Math.min(1, Math.max(0, x));
@@ -189,9 +208,11 @@ const sparkFragmentShader = /* glsl */ `
 varying float vLife;
 varying vec3 vColor;
 void main() {
-  float d = length(gl_PointCoord - 0.5);
-  if (d > 0.5) discard;
-  float glow = pow(1.0 - d * 2.0, 2.0);
+  // Round, soft dot (no pow() of a negative number – undefined on some mobile GPUs)
+  float d = length(gl_PointCoord - vec2(0.5));
+  float edge = clamp(1.0 - d * 2.0, 0.0, 1.0);
+  if (edge <= 0.0) discard;
+  float glow = edge * edge;
   // Brighter than white while young: the sparks bloom too
   gl_FragColor = vec4(vColor * (2.5 - 2.0 * vLife), glow * (1.0 - vLife));
 }
@@ -253,14 +274,21 @@ const sampleSparks = (meshes: Array<{ mesh: Mesh; toEntity: Matrix4 }>): BufferG
 };
 
 export interface Celebration {
+  readonly kind: AnimationKind;
   /** Advance by `delta` seconds – false once it is done and cleaned up */
   update(delta: number): boolean;
   /** Bloom strength wanted right now (the view adds the bloom while any animation wants it) */
   readonly bloom: number;
+  /** End now: originals back, sparks removed (e.g. the spread changes, the target is found again) */
+  finish(): void;
 }
 
-/** Start the animation of `entity` (the placement group; its first child is the entity's own object) */
-export const celebrate = (_anchor: Object3D, entity: Object3D): Celebration => {
+/**
+ * Start an animation of `entity` (the placement group; its first child is the entity's own object).
+ * `outro` ends with the entity fully dissolved – hide it before its materials come back.
+ */
+export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKind = "unlock"): Celebration => {
+  const preset = ANIMATIONS[kind];
   const root = entity.children[0] ?? entity;
   root.updateWorldMatrix(true, true);
   const rootInverse = new Matrix4().copy(root.matrixWorld).invert();
@@ -270,16 +298,17 @@ export const celebrate = (_anchor: Object3D, entity: Object3D): Celebration => {
   box.applyMatrix4(rootInverse);
   const size = Math.max(1e-3, box.getSize(new Vector3()).length());
 
-  const edgeColor = DISSOLVE.edgeColor.clone().multiplyScalar(DISSOLVE.edgeIntensity);
+  const from = preset.reverse ? DISSOLVE.progressEnd : DISSOLVE.progressStart;
+  const to = preset.reverse ? DISSOLVE.progressStart : DISSOLVE.progressEnd;
   const uniforms: DissolveUniforms = {
     uFreq: { value: DISSOLVE.waves / size },
     uAmp: { value: DISSOLVE.amplitude },
-    uProgress: { value: DISSOLVE.progressStart },
-    uEdge: { value: DISSOLVE.edgeStart },
-    uEdgeColor: { value: edgeColor },
-    uGlowWidth: { value: DISSOLVE.glowWidth },
+    uProgress: { value: from },
+    uEdge: { value: preset.edgeStart },
+    uEdgeColor: { value: DISSOLVE.edgeColor.clone().multiplyScalar(DISSOLVE.edgeIntensity) },
+    uGlowWidth: { value: Math.max(preset.glowWidth, 1e-3) },
     uGlowColor: { value: DISSOLVE.glowColor },
-    uGlow: { value: 1 },
+    uGlow: { value: preset.glowWidth > 0 ? 1 : 0 },
   };
 
   // Materials: a clone per mesh with the dissolve; the originals come back at the end
@@ -304,9 +333,9 @@ export const celebrate = (_anchor: Object3D, entity: Object3D): Celebration => {
     swapped.push({ mesh, original, clones });
   });
 
-  // Sparks in the entity's space (children of its own object, so they follow tracking and placement)
-  const sparkGeometry = sampleSparks(meshes);
-  const sparkMaterial = new ShaderMaterial({
+  // Sparks (unlock only) in the entity's space – children of its own object: they follow tracking and placement
+  const sparkGeometry = preset.sparks ? sampleSparks(meshes) : null;
+  const sparkMaterial = sparkGeometry && new ShaderMaterial({
     uniforms: {
       uFreq: uniforms.uFreq,
       uAmp: uniforms.uAmp,
@@ -321,7 +350,7 @@ export const celebrate = (_anchor: Object3D, entity: Object3D): Celebration => {
     depthWrite: false,
     blending: AdditiveBlending,
   });
-  const sparks = sparkGeometry ? new Points(sparkGeometry, sparkMaterial) : null;
+  const sparks = sparkGeometry && sparkMaterial ? new Points(sparkGeometry, sparkMaterial) : null;
   if (sparks) {
     sparks.frustumCulled = false;
     root.add(sparks);
@@ -329,37 +358,43 @@ export const celebrate = (_anchor: Object3D, entity: Object3D): Celebration => {
 
   let elapsed = 0;
   let bloom = 0;
+  let done = false;
   const finish = () => {
+    if (done) return;
+    done = true;
     swapped.forEach(({ mesh, original, clones }) => {
       mesh.material = original;
       clones.forEach(clone => clone.dispose());
     });
     sparks?.removeFromParent();
     sparkGeometry?.dispose();
-    sparkMaterial.dispose();
+    sparkMaterial?.dispose();
     bloom = 0;
   };
 
   return {
+    kind,
     get bloom() {
       return bloom;
     },
+    finish,
     update(delta: number): boolean {
-      elapsed += delta * 1000;
-      const t = Math.min(1, elapsed / CELEBRATION_MS);
-      const d = DISSOLVE;
-      if (t < d.materialise) {
-        const m = smoothstep(t / d.materialise);
-        uniforms.uProgress.value = d.progressStart + (d.progressEnd - d.progressStart) * m;
-        uniforms.uEdge.value = d.edgeStart + (d.edgeEnd - d.edgeStart) * m;
-        uniforms.uGlow.value = 1;
-        bloom = d.bloomStrength * smoothstep(t / (d.materialise * 0.15)); // rises fast, then holds
+      // At most one 30 fps frame per step: the first unlock compiles the dissolve shaders (a stall of a few
+      // hundred ms on phones) – the animation waits instead of jumping past the materialisation
+      elapsed += Math.min(delta, 1 / 30) * 1000;
+      const t = Math.min(1, elapsed / preset.ms);
+      if (t < preset.materialise || preset.materialise >= 1) {
+        const m = smoothstep(t / preset.materialise);
+        uniforms.uProgress.value = from + (to - from) * m;
+        uniforms.uEdge.value = preset.edgeStart + (preset.edgeEnd - preset.edgeStart) * m;
+        bloom = preset.bloomStrength * smoothstep(t / (preset.materialise * 0.15)); // rises fast, then holds
       } else {
-        const f = (t - d.materialise) / (1 - d.materialise);
-        uniforms.uProgress.value = d.progressEnd + (d.progressTail - d.progressEnd) * f;
-        uniforms.uEdge.value = d.edgeEnd;
+        // Unlock only: past the materialisation the last sparks fly out, glow and bloom fade
+        const f = (t - preset.materialise) / (1 - preset.materialise);
+        uniforms.uProgress.value = to + (DISSOLVE.progressTail - to) * f;
+        uniforms.uEdge.value = preset.edgeEnd;
         uniforms.uGlow.value = 1 - smoothstep(f);
-        bloom = d.bloomStrength * (1 - smoothstep(f));
+        bloom = preset.bloomStrength * (1 - smoothstep(f));
       }
       if (t < 1) return true;
       finish();

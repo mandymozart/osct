@@ -12,7 +12,12 @@ outcome in the line (or move it into a dated decision block).
   (positive → negative), edge wide → narrow, HDR gold edge + gold glow band, sparks from the surface;
   `DISSOLVE` holds all parameters. Bloom (`UnrealBloomPass`, only during the animation, half resolution)
   is added over the camera image as light (`ar/view.ts`). Colours from the gold palette (Tilman).
-- [ ] Tune on the phone (edge width, glow, bloom strength, duration 3 s) – Tilman.
+- Phone test (Tilman): bloom a bit too bright, a bit too fast → bloom 1.0, edge ×1.3, unlock 4.2 s.
+  Three kinds (`ANIMATIONS` in celebration.ts): **unlock** (first find) with gold, sparks and bloom;
+  **reveal** (every later find) the plain dissolve (1 s, no colour, no bloom); **outro** (target lost) the
+  reveal rewound (0.7 s) at the last position, then the anchor hides.
+- Sounds: the calm second take was reverted – Tilman prefers the chiptune placeholders (for now).
+- [ ] Tune further on the phone – Tilman.
 
 ## 2026-09-26 – Stuck spinner on the S22 = Chrome's camera, not the app
 
@@ -101,9 +106,8 @@ outcome in the line (or move it into a dated decision block).
   `data-feedback="none"` silences), found (target found again, 4 s cooldown per target – tracking
   flickers), unlock (first find). Web Audio after the first tap; `navigator.vibrate` on Android; iOS 18+
   via the native switch-toggle trick (only right after a tap, not while scrolling), else nothing.
-- Sounds (changed 2026-09-26, second take: "less 8-bit, contemporary, smooth, delay + reverb, like a
-  yoga / mindfulness app" – sine tones and singing-bowl partials in D major pentatonic; before: chiptune)
-  – generated placeholders (`scripts/tools/generate-sounds.mjs`, "think Nintendo") in
+- Sounds: generated chiptune placeholders (a calm "mindfulness" second take was tried on 2026-09-26 and
+  reverted – Tilman liked the chiptune better) (`scripts/tools/generate-sounds.mjs`, "think Nintendo") in
   `client/public/assets/sounds/<event>.wav` – Tilman replaces them with designed sounds of the same names.
 - Info → Settings → "Sound & vibration" (settings-feedback), on/off each, kept in localStorage
   `osct-feedback` (device setting, not progress – survives "Reset book").
