@@ -1,6 +1,6 @@
 import { LoadOptions, LoadResult } from "@/types";
 import { getAssets, getSpread, getSpreads } from "@/utils/game-config";
-import { mindUrl } from "@/utils/mind";
+import { compressedUrl } from "@/utils/compressed";
 
 const DEFAULT_TIMEOUT = 30000;
 
@@ -14,7 +14,7 @@ const isLocal = (src?: string): src is string => !!src && !/^[a-z]+:\/\//i.test(
 const getSpreadContent = (spreadId: string): LoadOptions[] => {
   const assets: LoadOptions[] = getAssets(spreadId)
     .filter(a => isLocal(a.src))
-    .map(a => ({ src: a.src, type: a.assetType }));
+    .map(a => ({ src: compressedUrl(a.src), type: a.assetType })); // the same URL the AR scene loads
   const images: LoadOptions[] = (getSpread(spreadId)?.entries ?? [])
     .map(e => e.image)
     .filter(isLocal)
@@ -59,7 +59,7 @@ export class PreloaderService {
   async preloadSpread(spreadId: string): Promise<LoadResult[]> {
     const spread = getSpread(spreadId);
     if (!spread) return [];
-    const mind = await this.preload({ src: mindUrl(spread.mindSrc), type: "mind" });
+    const mind = await this.preload({ src: compressedUrl(spread.mindSrc), type: "mind" });
     const content = await Promise.all(getSpreadContent(spreadId).map(options => this.preload(options)));
     return [mind, ...content];
   }
@@ -75,7 +75,7 @@ export class PreloaderService {
     if (index === -1) return [];
     const neighbours = spreads.filter((_, i) => i !== index && Math.abs(i - index) <= range);
 
-    const minds = await Promise.all(neighbours.map(s => this.preload({ src: mindUrl(s.mindSrc), type: "mind" })));
+    const minds = await Promise.all(neighbours.map(s => this.preload({ src: compressedUrl(s.mindSrc), type: "mind" })));
     const content = await Promise.all(neighbours.flatMap(s => getSpreadContent(s.id)).map(options => this.preload(options)));
     return [...minds, ...content];
   }

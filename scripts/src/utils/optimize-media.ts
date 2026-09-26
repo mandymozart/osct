@@ -15,8 +15,9 @@ import { PNG } from 'pngjs';
  *     (EXT_meshopt_compression; the client's GLTFLoader has the decoder), duplicate / unused data removed;
  *   - images (`.jpg` / `.png`): ≤ MAX_IMAGE_SIZE px, opaque ones as JPEG (same file name – browsers go by
  *     the content, not the extension);
- *   - recognition data (`.mind`): a gzip copy `<name>.mind.gz` next to it (hosts serve `.mind`
- *     uncompressed; the client decompresses it, browsers without DecompressionStream load the `.mind`);
+ *   - recognition data (`.mind`) and models (`.glb`): a gzip copy `<name>.gz` next to it (hosts serve these
+ *     uncompressed; the client unpacks it – utils/compressed.ts –, browsers without DecompressionStream
+ *     load the original);
  *   - videos: not re-encoded (needs ffmpeg, a native binary) – large ones are reported with the
  *     recommended export settings.
  * A file is kept as it is when the result would not be smaller. Pure JavaScript / WebAssembly (no sharp):
@@ -162,8 +163,8 @@ export function optimizeImage(file: string): MediaOptimization {
   return { file, before: image.byteLength, after: result?.data.byteLength ?? image.byteLength };
 }
 
-/** `<file>.gz` next to a `.mind` file (header time fixed: the same bytes on every build) */
-export function gzipMind(file: string): MediaOptimization {
+/** `<file>.gz` next to a `.mind` / `.glb` file (header time fixed: the same bytes on every build) */
+export function gzipCopy(file: string): MediaOptimization {
   const data = new Uint8Array(fs.readFileSync(file));
   const gz = gzipSync(data, { level: 9, mtime: 0 });
   fs.writeFileSync(`${file}.gz`, gz);
@@ -188,7 +189,8 @@ export async function optimizeMedia(dir: string): Promise<MediaOptimization[]> {
   const results: MediaOptimization[] = [];
   for (const file of listFiles(dir, /\.glb$/i)) results.push(await optimizeModel(file));
   for (const file of listFiles(dir, /\.(jpe?g|png)$/i)) results.push(optimizeImage(file));
-  for (const file of listFiles(dir, /\.mind$/i)) results.push(gzipMind(file));
+  // After the model optimisation: the .glb.gz holds the optimised model (client: utils/compressed.ts)
+  for (const file of listFiles(dir, /\.(mind|glb)$/i)) results.push(gzipCopy(file));
   for (const file of listFiles(dir, /\.(mp4|webm|mov)$/i)) {
     const size = fs.statSync(file).size;
     if (size > VIDEO_WARN_BYTES) results.push({ file, before: size, after: size, note: VIDEO_ADVICE });

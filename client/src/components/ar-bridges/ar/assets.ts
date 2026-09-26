@@ -2,6 +2,7 @@ import { AnimationClip, Group, Material, Mesh, Object3D, SRGBColorSpace, Texture
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { AssetData } from "@/types";
+import { loadCompressed } from "@/utils/compressed";
 
 /**
  * The AR scene's assets by id – what `<a-assets>` did under A-Frame. Loaded once per id, kept while a
@@ -63,7 +64,10 @@ const load = async (data: AssetData): Promise<LoadedAsset | null> => {
   switch (data.assetType) {
     case "glb":
     case "gltf": {
-      const gltf = await getGltfLoader().loadAsync(data.src);
+      // .glb: the content build's gzip copy, unpacked (hosts serve .glb uncompressed); .gltf: its own files
+      const gltf = data.assetType === "glb"
+        ? await getGltfLoader().parseAsync(await loadCompressed(data.src), data.src.replace(/[^/]*$/, ""))
+        : await getGltfLoader().loadAsync(data.src);
       return { assetType: data.assetType, scene: gltf.scene, animations: gltf.animations };
     }
     case "image": {

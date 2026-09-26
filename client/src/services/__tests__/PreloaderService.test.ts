@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PreloaderService } from "@/services/PreloaderService";
 import { getAssets, getSpread, getSpreads } from "@/utils/game-config";
-import { mindUrl } from "@/utils/mind";
+import { compressedUrl as mindUrl } from "@/utils/compressed"; // .mind and .glb
 
 describe("PreloaderService", () => {
   const spreads = getSpreads();
@@ -30,7 +30,8 @@ describe("PreloaderService", () => {
   });
 
   const contentOf = (spreadId: string) =>
-    [...getAssets(spreadId).map(a => a.src), ...getSpread(spreadId)!.entries.map(e => e.image)]
+    // models: their gzip copy – the same URL the AR scene loads (utils/compressed.ts)
+    [...getAssets(spreadId).map(a => mindUrl(a.src)), ...getSpread(spreadId)!.entries.map(e => e.image)]
       .filter((src): src is string => !!src && !/^https?:\/\//.test(src));
 
   it("preloads the neighbouring spreads (.mind first, then their content), never the active one", async () => {
