@@ -871,9 +871,9 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
       the email in the sign-up form; progress always saved, "Reset book" resets it (also in the account).
 - [x] Sounds / vibration as `<gold-switch>` too.
 - [x] Info page groups: Info · Account (+ Reset book) · Settings · colophon; Tutorial section removed (Tilman).
-- [x] Deploy to osct.porschuetz.de: `.github/workflows/deploy-dev.yml` (GitHub environment `dev`).
+- [x] Deploy to osct.porschuetz.de: `.github/workflows/deploy-staging.yml` (GitHub environment `staging`).
 - [x] Naming: **user** in code / API / database, "Account" in the UI (Tilman).
-- [ ] GitHub environment `dev` secrets/variables set; first deploy + test on a phone (link on iOS home-screen app → code).
+- [ ] GitHub environment `staging` secrets/variables set; first deploy + test on a phone (link on iOS home-screen app → code).
 - [ ] SMTP account for production; final mail + UI texts; privacy note for the update options.
 - [ ] Sending the updates (newsletter) – not built; the options are only stored.
 - [ ] Netlify staging: `VITE_API_URL` to the dev API (needs its origin in ALLOWED_ORIGINS – already there).

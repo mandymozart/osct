@@ -1,14 +1,12 @@
 # Development server osct.porschuetz.de (all-inkl, Apache + PHP + MySQL): the app at the root, the
-# accounts API in /api (server/README.md). Runs on every push to the `database` branch, or by hand.
+# user API in /api (server/README.md). Runs on every push to the `database` branch, or by hand.
 #
-# GitHub → Settings → Environments → "dev":
-#   secrets:   FTP_USERNAME, FTP_PASSWORD, DB_USER, DB_PASS, API_SECRET
-#              (SMTP_HOST, SMTP_USER, SMTP_PASS once MAIL_TRANSPORT is smtp)
-#   variables: FTP_SERVER, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM
+# GitHub → Settings → Environments → "staging" (Tilman's names; each may be a secret or a variable):
+#   secrets:   FTP_USER, FTP_PASS, DB_USER, DB_PASS, SECRET (SMTP_HOST, SMTP_USER, SMTP_PASS once smtp)
+#   variables: FTP_HOST, FTP_ROOT, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM
 #              (optional: SMTP_PORT, SMTP_SECURE)
-# Each value may be a secret or a variable (either works).
 # Same pattern as qr.scutoons.com (FTP-Deploy-Action, config written in the build), but over FTPS.
-name: Deploy dev
+name: Deploy staging
 
 on:
   push:
@@ -16,14 +14,14 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-dev
+  group: deploy-staging
   cancel-in-progress: false
 
 jobs:
   deploy:
     name: Build and upload
     runs-on: ubuntu-latest
-    environment: dev
+    environment: staging
     steps:
       - uses: actions/checkout@v4
 
@@ -54,7 +52,7 @@ jobs:
           OSCT_DB_NAME: ${{ vars.DB_NAME || secrets.DB_NAME }}
           OSCT_DB_USER: ${{ secrets.DB_USER || vars.DB_USER }}
           OSCT_DB_PASS: ${{ secrets.DB_PASS || vars.DB_PASS }}
-          OSCT_SECRET: ${{ secrets.API_SECRET || vars.API_SECRET }}
+          OSCT_SECRET: ${{ secrets.SECRET || vars.SECRET }}
           OSCT_APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
           OSCT_ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS || secrets.ALLOWED_ORIGINS }}
           OSCT_MAIL_TRANSPORT: ${{ vars.MAIL_TRANSPORT || secrets.MAIL_TRANSPORT || 'mail' }}
@@ -76,20 +74,20 @@ jobs:
       - name: Upload (FTPS)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
-          server: ${{ vars.FTP_SERVER || secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME || vars.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD || vars.FTP_PASSWORD }}
+          server: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER || vars.FTP_USER }}
+          password: ${{ secrets.FTP_PASS || vars.FTP_PASS }}
           protocol: ftps
           local-dir: ./site/
-          server-dir: ./
+          server-dir: ${{ vars.FTP_ROOT || secrets.FTP_ROOT || './' }}
           exclude: |
             **/*.map
 
       - name: Create missing tables, check the API
         env:
-          API_SECRET: ${{ secrets.API_SECRET || vars.API_SECRET }}
+          SECRET: ${{ secrets.SECRET || vars.SECRET }}
           APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
         run: |
-          curl -fsS -X POST -H "X-Admin-Secret: $API_SECRET" "$APP_URL/api/admin/migrate"
+          curl -fsS -X POST -H "X-Admin-Secret: $SECRET" "$APP_URL/api/admin/migrate"
           echo
           curl -fsS "$APP_URL/api/health"
