@@ -15,9 +15,11 @@ import { isEntryCategory } from "@shared/guards/game-config";
  *   /about                     info
  *   …?osct=<version>           the app version the link was made with
  *
- * Incoming links only route: an unknown route, spread, entry, category or step shows the not-found
- * page (with "Go to start"). Version: only a link made with a *newer* app needs an action (reload to
- * update); older links just route. Legacy printed codes `/?code=c-<spread>` (and `s-` / `e-`) still work.
+ * Incoming links only route. A link to an entry the reader hasn't consulted yet opens scan mode on the
+ * spread of its access page (no shortcut past the game). An unknown route, spread, entry, category or step
+ * shows the not-found page (with "Go to start"). Version: only a link made with a *newer* app needs an
+ * action (reload to update); older links just route. Nothing from before 1.1.0 is supported (no old
+ * `?code=` links – RULES #10).
  *
  * While the app runs, the URL follows the state (`LinkService.startSync`): a new view pushes a history entry, a
  * spread switch or tutorial step replaces it, and the browser's back button goes back through the views.
@@ -34,19 +36,13 @@ export interface Link {
   version?: string;
 }
 
-const LEGACY_CODE = /^([cse])-(.+)$/;
-
-/** URL path + query → link; null for the start page ("/" without a legacy code) */
+/** URL path + query → link; null for the start page */
 export const parseLink = (pathname: string, search: string): Link | null => {
   const params = new URLSearchParams(search);
   const version = params.get(VERSION_PARAM) ?? undefined;
   const segments = pathname.split("/").filter(Boolean).map(s => decodeURIComponent(s));
 
-  if (segments.length === 0) {
-    const legacy = LEGACY_CODE.exec(params.get("code") ?? "");
-    if (!legacy) return null;
-    return { slug: legacy[1] === "e" ? "/entry" : "/spread", value: legacy[2], version };
-  }
+  if (segments.length === 0) return null;
 
   const slug = `/${segments[0]}`;
   const definition = router.routes.find(r => r.slug === slug);
@@ -128,10 +124,18 @@ export const resolveLink = (game: IGame, link: Link, checkVersion = true): boole
       if (value !== undefined && !isEntryCategory(value)) return notFound();
       game.router.navigate("/entries", value === undefined ? undefined : { key: "category", value });
       return true;
-    case "/entry":
-      if (value === undefined || !getEntry(value)) return notFound();
-      game.router.navigate("/entry", { key: "entryId", value });
+    case "/entry": {
+      const entry = value === undefined ? undefined : getEntry(value);
+      if (!entry) return notFound();
+      if (!game.history.isConsulted(entry.id)) {
+        // Not found by the reader yet: no shortcut past the game – scan mode on the entry's page instead
+        game.spreads.switchSpread(entry.spreadId);
+        game.router.navigate("/spread");
+        return true;
+      }
+      game.router.navigate("/entry", { key: "entryId", value: entry.id });
       return true;
+    }
     case "/tutorial": {
       const step = value === undefined ? 0 : Number(value);
       if (!Number.isInteger(step) || step < 0 || step >= getTutorial().length) return notFound();

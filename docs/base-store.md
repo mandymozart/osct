@@ -73,7 +73,7 @@ todoStore.update(draft => {
 });
 ```
 
-#### Using the `set` method for partial updates (legacy)
+#### Using the `set` method for partial updates (shortcut)
 
 ```typescript
 // Set loading state
