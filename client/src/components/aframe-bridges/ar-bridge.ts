@@ -1,25 +1,21 @@
 import { GameStoreService, PreloaderService } from "@/services";
 import { ArStatus, IArScene, IGame } from "@/types";
-import { createArScene } from "./ar";
+import { ArScene } from "./ar";
 import { getSceneState, registerChromaKeyShader } from "./utils";
 
 // A-Frame (index.html) is loaded before the app modules; scenes may use the shader from the first load
 registerChromaKeyShader();
 
 /**
- * <ar-bridge> – the only glue between the game store and the AR scene (Phase 6, replaces the static
- * scene bridge and the target bridge).
+ * <ar-bridge> – the only glue between the game store and the AR scene
  *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (scene-state policy)
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → preload
- * The scene itself is an `IArScene` (strategy chosen in `./ar/index.ts`); `scene` can be injected
- * for tests.
+ * The scene is an `IArScene` (`ArScene`); tests inject a fake one.
  */
 export class ArBridge extends HTMLElement {
   private game: Readonly<IGame>;
   private scene: IArScene | null = null;
   private cleanups: Array<() => void> = [];
-  /** Dev timing: when the last spread switch was requested */
-  private switchStarted: number | null = null;
 
   /** Test seam: use this scene instead of creating one */
   static sceneFactory: ((container: HTMLElement) => IArScene) | null = null;
@@ -31,7 +27,7 @@ export class ArBridge extends HTMLElement {
 
   connectedCallback() {
     const container = document.getElementById("scene-container") ?? this.createContainer();
-    this.scene = ArBridge.sceneFactory ? ArBridge.sceneFactory(container) : createArScene(container);
+    this.scene = ArBridge.sceneFactory ? ArBridge.sceneFactory(container) : new ArScene(container);
     const scene = this.scene;
     const game = this.game;
 
@@ -42,9 +38,7 @@ export class ArBridge extends HTMLElement {
       // The active .mind is loaded: fetch the neighbours' .mind + content into the browser cache
       scene.on("ready", spreadId => void PreloaderService.getInstance().preloadNeighbours(spreadId)),
       game.subscribeToProperty("currentSpread", id => {
-        if (!id) return;
-        this.switchStarted = performance.now();
-        void scene.load(id);
+        if (id) void scene.load(id);
       }),
       game.subscribeToProperty("mode", () => this.applySceneState()),
       game.subscribeToProperty("currentRoute", () => this.applySceneState()),
@@ -68,14 +62,10 @@ export class ArBridge extends HTMLElement {
 
   private handleStatus(status: ArStatus, error?: string) {
     this.game.setArStatus(status);
-    // Dev: how long a spread switch takes until tracking runs again (compare the strategies)
-    if (import.meta.env.DEV && this.switchStarted !== null && (status === "running" || status === "ready")) {
-      console.info(`[AR] Spread switch → ${status} in ${Math.round(performance.now() - this.switchStarted)} ms`);
-      if (status === "running") this.switchStarted = null;
-    }
+    // The 3D layer shows while AR runs (main.css: body.scene-active #scene)
     document.body.classList.toggle("scene-active", status === "running");
 
-    // Loading page while a scene is built or the camera starts (review #15: loading concept)
+    // Loading page while the scene is built or the camera starts
     if (status === "loading" || status === "starting") this.game.startLoading();
     else this.game.finishLoading();
 

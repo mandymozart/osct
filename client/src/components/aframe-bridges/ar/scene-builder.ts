@@ -4,9 +4,8 @@ import { createAsset } from "./entities";
 import { Anchor, ArEmitter, buildAnchor, mindarAttribute, SCENE_ATTRIBUTES, waitForEvent } from "./mindar";
 
 /**
- * Building blocks for A-Frame scenes, shared by both strategies: an empty scene (assets, camera,
- * MindAR attribute) and a spread's content (assets + anchors with their entities) that can be added
- * to and removed from a scene.
+ * Building blocks of the AR scene: an empty scene (assets, camera, MindAR attribute) and a spread's
+ * content (assets + anchors with their entities) that is added to and removed from it.
  */
 
 export interface SpreadContent {

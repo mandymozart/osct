@@ -11,7 +11,7 @@ export enum SceneState {
 }
 
 /**
- * What the AR scene is doing (Phase 6, `ArScene`). Reported to the store as `arStatus`.
+ * What the AR scene is doing. Reported to the store as `arStatus`.
  * idle: no scene · loading: building the spread's scene · ready: scene loaded, camera off ·
  * starting: camera requested, targets loading · running: tracking · paused: tracking + camera video
  * paused (stream kept) · error: camera or AR failed (see `arError`).
@@ -27,7 +27,7 @@ export type ArSceneEvents = {
 };
 
 /**
- * The only code that touches A-Frame / MindAR (Phase 6). Plain object, no store access – the
+ * The only code that touches A-Frame / MindAR (`ArScene`). Plain object, no store access – the
  * `<ar-bridge>` element connects it to the game state. Calls are queued; the latest wish wins
  * (a spread switch while loading builds only the newest spread).
  */

@@ -3,7 +3,7 @@ import { getMaxTargetsPerSpread } from "@/utils/game-config";
 import { buildEntity, EntityInstance } from "./entities";
 
 /**
- * MindAR / A-Frame helpers shared by both scene strategies (`ArScene`, `PersistentArScene`).
+ * MindAR / A-Frame helpers of the AR scene.
  * Facts from the vendored MindAR build (public/assets/deps/mindar-image-aframe.prod.js):
  * - `start()` requests the camera (getUserMedia), loads the `.mind`, emits `arReady` on the scene.
  * - `stop()` stops the camera tracks and disposes the controller – it throws before `start()`.

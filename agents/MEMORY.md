@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – One AR scene (Tilman, after the device tests)
+
+- Only the persistent scene stays (spread switches "pretty flawless" on the S22). Removed: the rebuild
+  strategy (`ArScene` per spread), the switch in `ar/index.ts` (`AR_SCENE_STRATEGY`, localStorage
+  `osct-ar-strategy`, `VITE_AR_STRATEGY`), `client/.env.ar-*`, scripts `build:ar-*` / `dev:ar-persistent`,
+  the strategy test, the strategy mark in the debug bar and the switch timing log. `BaseArScene` +
+  `PersistentArScene` merged into one `ArScene` (`ar/ar-scene.ts`); comments without phase references.
+- Deploy 2026-09-26: `design` fast-forwarded to `main` (6228f67). CI was red since Phase 6 (unused
+  `mind-ar` package → `canvas` has no Node 22 build; Windows-only Rollup in the lockfile) – both fixed.
+  osct.netlify.app still served a very old build afterwards – Netlify isn't building `main` (check the
+  site's build settings); osct.buildingfictions.com doesn't resolve yet.
+
 ## 2026-09-26 – Sounds and haptics (Tilman)
 
 - `FeedbackService`: named events tick (slider notch), tap (buttons/links, one global click listener,
@@ -247,7 +259,7 @@ outcome in the line (or move it into a dated decision block).
 
 - [x] (user) Phase 7 (Mark WebM, device tests, haptics) is on hold until Tilman's extensive device testing.
       Phases 2–6 built on `design`. Open for the next session: designer answers (DESIGN.md §8), review #15
-      (loading concept), entries without a target (PLAN Phase 4), default AR strategy (after device tests),
+      (loading concept), entries without a target (PLAN Phase 4), ~~default AR strategy~~ (persistent, 2026-09-26),
       deep links (Tilman), removal candidates (dev views, old tokens, unused illustrations, text-button).
 
 ## 2026-09-25 – Phase 6 strategy B: PersistentArScene (Tilman)
