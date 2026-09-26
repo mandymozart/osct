@@ -113,8 +113,9 @@ target:
     src: death-jam.mp4
 ```
 
-**A video with transparent areas** – film or render on a single key color (neon green is safest);
-the app makes that color transparent:
+**A video with transparent areas** – film or render on a single key color (neon green is safest, pure
+black works too); the `chromaKey` filter makes that color transparent. The video fills the width of the
+target image, its height follows the video's proportions.
 
 ```yaml
 target:
@@ -122,10 +123,27 @@ target:
   entity:
     type: video
     src: clip.mp4
-    params:
-      chromaKey: { color: "#00ff00" }
-      # fine-tuning, optional: similarity: 0.3, smoothness: 0.08, spill: 0.1
+    filters:
+      - type: chromaKey
+        color: "#00ff00"
 ```
+
+Video filters are a list, applied in order; each has a `type` and optional parameters (missing ones use
+the defaults). Today there is one filter type:
+
+| `chromaKey` parameter | Values | Default | What it does |
+|---|---|---|---|
+| `color` | `"#rrggbb"` | `"#00ff00"` | Key color that becomes transparent |
+| `mode` | `auto`, `chroma`, `luma` | `auto` | `chroma` compares the color tone (green, purple, …), `luma` the brightness (black, white); `auto` picks `luma` for black/grey/white |
+| `threshold` | 0–1 | 0.3 (luma 0.06) | How close to the key color disappears – higher removes more |
+| `softness` | 0.001–1 | 0.08 (luma 0.1) | Width of the soft edge – higher is softer |
+| `spill` | 0.001–1 | 0.1 | Removes the key color's tint on edges (chroma only) |
+| `opacity` | 0–1 | 1 | Opacity of the whole video after keying |
+
+Tips: raise `threshold` in small steps (0.02) until the background is gone; if edges look hard, raise
+`softness`. A black key also makes very dark parts of the picture see-through – keep the subject lighter
+than the background. The content build checks every value and names the file and parameter if one is off.
+Example with all parameters: `content/entries/edge/entry.yaml`.
 
 **A 3D model on a printed image:**
 

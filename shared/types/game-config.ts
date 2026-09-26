@@ -7,6 +7,9 @@
  */
 
 import { EntryCategory } from "./entry";
+import { FilterData } from "./filters";
+
+export * from "./filters";
 
 /** Entity types the app can render in A-Frame (extensible, RULES #7). */
 export const ENTITY_TYPES = ["model", "video", "image"] as const; // "link" dropped 2026-09-25 (links are entries)
@@ -48,6 +51,7 @@ export interface EntityData {
   type: EntityType;
   assets: AssetData[]; // empty for `link` (renders the entry title)
   params?: Record<string, unknown>;
+  filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
 }
 
 /** Reference to a shared entity in `GameConfiguration.entities`. */

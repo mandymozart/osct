@@ -14,6 +14,7 @@ import {
 } from './config';
 import { validateContent } from './utils/validation';
 import { assertGameConfiguration, GameConfigurationError } from '../../shared/guards/game-config';
+import { FilterData, filterProblems } from '../../shared/types/filters';
 import type {
   AssetData,
   AssetType,
@@ -246,13 +247,28 @@ function buildEntities(): Record<string, EntityData> {
       };
     }).filter((asset): asset is AssetData => asset !== null);
     if (assets.length === 0) buildErrors.push(`${label}: type "${e.type}" needs assets`);
-    entities[id] = { type: e.type, assets, ...(e.params ? { params: e.params } : {}) };
+    const filters = buildFilters(e.filters, e.type, label);
+    entities[id] = { type: e.type, assets, ...(e.params ? { params: e.params } : {}), ...(filters ? { filters } : {}) };
   }
   return entities;
 }
 
 /**
- * Inline entity `{ type, src?, params? }` or reference `{ ref }`
+ * Video filters `[{ type, ...parameters }]` – checked against their definitions in shared/types/filters.ts
+ */
+function buildFilters(raw: unknown, type: string, label: string): FilterData[] | undefined {
+  if (raw === undefined) return undefined;
+  if (type !== 'video') {
+    buildErrors.push(`${label}: filters only work on video entities (type is "${type}")`);
+    return undefined;
+  }
+  const problems = filterProblems(raw, 'filters');
+  problems.forEach(problem => buildErrors.push(`${label}: ${problem}`));
+  return problems.length ? undefined : (raw as FilterData[]);
+}
+
+/**
+ * Inline entity `{ type, src?, params?, filters? }` or reference `{ ref }`
  */
 function buildEntity(
   raw: unknown,
@@ -280,6 +296,7 @@ function buildEntity(
     buildErrors.push(`${label}: entity type "${type}" needs a src`);
     return undefined;
   }
+  const filters = buildFilters(e.filters, type, label);
   return {
     type,
     assets: [{
@@ -288,6 +305,7 @@ function buildEntity(
       src: contentFile('entries', entryId, e.src, label),
     }],
     ...(e.params ? { params: e.params } : {}),
+    ...(filters ? { filters } : {}),
   };
 }
 

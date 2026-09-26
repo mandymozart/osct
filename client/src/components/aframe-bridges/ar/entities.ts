@@ -99,16 +99,39 @@ registerEntity("video", ({ entity, asset }) => {
   const data = entity.assets.find(a => a.assetType === "video");
   if (!data) return null;
   const video = asset(data.id) as HTMLVideoElement | undefined;
-  const chromaKey = parseChromaKey(entity.params);
+  const chromaKey = parseChromaKey(entity.filters);
   const el = chromaKey
     ? element("a-entity", {
         geometry: "primitive: plane; width: 1; height: 0.552",
         material: chromaKeyMaterial(data.id, chromaKey),
       })
     : element("a-video", { src: `#${data.id}`, width: "1", height: "0.552" });
+  // Height from the video's own proportions (width stays 1 = target width); 16:9 until the metadata is known
+  if (video) {
+    const fit = () => {
+      if (!video.videoWidth) return;
+      const height = String(+(video.videoHeight / video.videoWidth).toFixed(4));
+      if (chromaKey) el.setAttribute("geometry", `primitive: plane; width: 1; height: ${height}`);
+      else el.setAttribute("height", height);
+    };
+    if (video.readyState >= 1) fit();
+    else video.addEventListener("loadedmetadata", fit, { once: true });
+  }
+  // The shader resolves `src: #id` once on init – on the phone it sometimes found nothing and stayed
+  // empty (transparent plane, sound only). Hand it the video element whenever its texture is missing.
+  const ensureTexture = () => {
+    if (!chromaKey || !video) return;
+    const mesh = (el as HTMLElement & { getObject3D?: (type: string) => any }).getObject3D?.("mesh");
+    const src = mesh?.material?.uniforms?.src;
+    if (src && !src.value) (el.setAttribute as unknown as (name: string, prop: string, value: unknown) => void).call(el, "material", "src", video);
+  };
+  el.addEventListener("loaded", ensureTexture);
   return {
     element: el,
-    onFound: () => video && void playVideo(video),
+    onFound: () => {
+      ensureTexture();
+      if (video) void playVideo(video);
+    },
     onLost: () => video?.pause(),
     onPause: () => video?.pause(),
   };
