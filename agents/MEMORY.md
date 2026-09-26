@@ -6,6 +6,9 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-09-27 – Accounts by email (Tilman, branch `database`; PLAN Phase 11)
 
+- Merged into `develop` and `main` (1.1.1); the branch `database` is deleted (Tilman). The API deploy to
+  osct.porschuetz.de (`deploy-staging.yml`, GitHub environment `staging`) runs on every push to `develop`.
+
 - Goal: let readers hear about updates – very basic first. Signed out (Tilman): "Register your copy and
   receive updates in your inbox" – email, **Register account**, and underneath three update switches, **off
   until the reader turns them on** (opt-in – "very important"): updates on Onion Skin & Crocodile Tears ·
