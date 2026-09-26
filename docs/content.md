@@ -260,6 +260,22 @@ Recommendations – final numbers follow the device tests.
 Allowed file types: `.jpg .jpeg .png .webp` (images), `.mp4 .webm .mov` (video), `.glb .gltf`
 (models), `.mp3 .wav .ogg` (audio).
 
+## App sounds
+
+The app plays short sounds (and vibrates on Android) – they are app files, not book content, in
+`client/public/assets/sounds/`:
+
+| File | When |
+|---|---|
+| `tick.wav` | Each notch of the "Pages activated" slider – plays often, keep it tiny (~20 ms) |
+| `tap.wav` | A button is tapped |
+| `found.wav` | A page is recognised again (at most every 4 s per page) |
+| `unlock.wav` | A page is recognised for the first time – a new entry is unlocked |
+
+To change a sound, replace the file with one of the same name (WAV, mono is enough, short and without
+silence at the start). The current ones are generated placeholders (`scripts/tools/generate-sounds.mjs`).
+Readers can turn sounds and vibration off in Info → Settings.
+
 ## Checking your work
 
 Run the content build (or ask a developer to). It checks every file and stops with a clear

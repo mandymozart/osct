@@ -1,4 +1,4 @@
-import { GameStoreService } from "@/services";
+import { feedback, GameStoreService } from "@/services";
 import { IGame, Spread } from "@/types";
 import { formatPages, getMenuSpreads, loopCopies, normalizeLoopScroll } from "./spread-menu-loop";
 import { adoptDesignStyles } from "@/styles";
@@ -8,12 +8,11 @@ import i18next from "i18next";
 const SETTLE_MS = 140;
 /** Extra wait before activating: loading a spread restarts AR (debounce, PLAN Phase 3) */
 const ACTIVATE_MS = 250;
-const HAPTIC_MS = 8;
 
 /**
  * "Pages activated" – looped horizontal spread menu at the bottom of scan mode (design p.6–7).
- * Lists only spreads with content; the item under the center gets the glass highlight; a short
- * vibration marks each new item (Android – iOS Safari has no `navigator.vibrate`). When the scroll
+ * Lists only spreads with content; the item under the center gets the glass highlight; a tick (sound +
+ * vibration, FeedbackService) marks each new item. When the scroll
  * settles, the centered spread is activated (debounced).
  */
 export class SpreadMenu extends HTMLElement {
@@ -137,14 +136,14 @@ export class SpreadMenu extends HTMLElement {
   private itemsHtml(copy: number): string {
     const middle = copy === Math.floor(this.copies / 2);
     return this.spreads
-      .map(s => `<button type="button" class="item" role="option" data-spread="${s.id}" data-copy="${copy}"
+      .map(s => `<button type="button" class="item" data-feedback="none" role="option" data-spread="${s.id}" data-copy="${copy}"
         ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="${i18next.t("scan:pagesAria", { pages: formatPages(s) })}"><span>${formatPages(s)}</span></button>`)
       .join("");
   }
 
   /**
    * Center the spread's item in the middle copy, without animation. The centered id is updated right
-   * away, so the resulting scroll events neither vibrate nor switch (the spread is already current).
+   * away, so the resulting scroll events neither tick nor switch (the spread is already current).
    */
   private scrollToSpread(spreadId: string) {
     const track = this.track;
@@ -192,7 +191,7 @@ export class SpreadMenu extends HTMLElement {
 
     const id = centered.dataset.spread ?? null;
     if (id !== this.centeredId) {
-      if (this.centeredId !== null) navigator.vibrate?.(HAPTIC_MS);
+      if (this.centeredId !== null) feedback("tick");
       this.centeredId = id;
     }
   }

@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Sounds and haptics (Tilman)
+
+- `FeedbackService`: named events tick (slider notch), tap (buttons/links, one global click listener,
+  `data-feedback="none"` silences), found (target found again, 4 s cooldown per target – tracking
+  flickers), unlock (first find). Web Audio after the first tap; `navigator.vibrate` on Android; iOS 18+
+  via the native switch-toggle trick (only right after a tap, not while scrolling), else nothing.
+- Sounds: generated chiptune placeholders (`scripts/tools/generate-sounds.mjs`, "think Nintendo") in
+  `client/public/assets/sounds/<event>.wav` – Tilman replaces them with designed sounds of the same names.
+- Info → Settings → "Sound & vibration" (settings-feedback), on/off each, kept in localStorage
+  `osct-feedback` (device setting, not progress – survives "Reset book").
+- [ ] Open: test on an iPhone (iOS 18 haptic trick, silent switch mutes web audio).
+
 ## 2026-09-26 – Video filters (Tilman, tested on the phone)
 
 - Data model: `entity.filters: [{ type, ...parameters }]` on video entities, applied in order (replaces
