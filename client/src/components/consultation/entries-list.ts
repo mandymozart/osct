@@ -53,7 +53,7 @@ export class EntriesList extends HTMLElement {
           border: none;
           border-top: var(--rule);
           border-bottom: var(--rule);
-          margin-top: -1px;
+          margin-top: -0.0625rem;
           background: none;
           font: inherit;
           letter-spacing: inherit;

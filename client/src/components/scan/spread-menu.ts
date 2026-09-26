@@ -100,7 +100,7 @@ export class SpreadMenu extends HTMLElement {
           min-height: 1.8rem;
           padding: 0 1rem;          /* = .pill, no layout shift when an item becomes the pill */
           border: none;
-          border-radius: 999px;
+          border-radius: 999rem;
           background: none;
           color: var(--color-inactive);
           font: inherit;

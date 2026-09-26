@@ -3,7 +3,8 @@
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
-  font-size: 16px;
+  /* 100 % (not px): keeps the reader's text size setting – every size below is in rem */
+  font-size: 100%;
   font-weight: 400;
 
   --offset-top: 4rem;
@@ -29,7 +30,7 @@
   --color-muted: #8b8d8c;          /* scan counter, "Pages activated", labels, rules */
   --color-inactive: #d6d8d8;       /* inactive spread menu items */
   --color-on-dark: #ffffff;        /* consultation values, body text */
-  --rule: 1px solid var(--color-muted);
+  --rule: 0.0625rem solid var(--color-muted);
 
   /* Backgrounds */
   --app-background: #000;          /* behind the camera and every page (design: black) */
@@ -43,7 +44,7 @@
 
   /* Buttons: almost transparent body (non-zero alpha, else no backdrop blur) + blur + drop shadow */
   --glass-background: rgba(255, 255, 255, 0.001);
-  --glass-blur: blur(10px);
+  --glass-blur: blur(0.625rem);
   --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);   /* pills, "i", menu highlight */
   --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);  /* onboarding buttons on black (primary) */
   --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);  /* category pill (frame 17: #957149) */
@@ -53,11 +54,11 @@
   --category-width: 6.25rem;       /* category pill + menu: 52.5 pt (frames 17, 18) */
 
   /* Mark (same image in every mode) */
-  --mark-width: 99px;
-  --mark-height: 96px;
+  --mark-width: 6.1875rem;
+  --mark-height: 6rem;
 
   /* Content of consultation pages starts below the header (Mark, counter, "Entries") */
-  --consultation-top: calc(11.5rem + var(--debug-offset, 0px));
+  --consultation-top: calc(11.5rem + var(--debug-offset, 0rem));
 
   color-scheme: dark;              /* native controls (scrollbars, fields) on the dark UI */
 

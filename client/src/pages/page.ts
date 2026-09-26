@@ -68,9 +68,7 @@ export abstract class Page extends HTMLElement implements IPage {
           opacity: 0;
           visibility: hidden;
           overflow-y: auto;
-          box-shadow: 0px 1px 14px 0px rgba(0,0,0,0.34);
-          -webkit-box-shadow: 0px 1px 14px 0px rgba(0,0,0,0.34);
-          -moz-box-shadow: 0px 1px 14px 0px rgba(0,0,0,0.34);
+          box-shadow: 0 0.0625rem 0.875rem 0 rgba(0,0,0,0.34);
         }
         :host([active=true]) {
           visibility: visible;
