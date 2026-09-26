@@ -63,9 +63,7 @@ final class Config
     /** @return string[] */
     public static function list(string $key): array
     {
-        // Surrounding quotes (a value copied from a .env file) are not part of the list
-        $value = trim(self::get($key), " \t\"'");
-        return array_values(array_filter(array_map(fn($item) => trim($item, " \t\"'"), explode(',', $value))));
+        return array_values(array_filter(array_map('trim', explode(',', self::get($key)))));
     }
 
     private static function load(): void
