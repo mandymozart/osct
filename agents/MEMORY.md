@@ -9,8 +9,8 @@ outcome in the line (or move it into a dated decision block).
 - Staging hung at "starting": Chrome had the back camera open (`adb shell dumpsys media.camera`), the
   stream was "live" 640×480 but delivered no frames – also to a bare getUserMedia test without the app.
   Firefox had used the camera shortly before. Fixed by restarting Chrome (`am force-stop com.android.chrome`).
-- [ ] Open: the app waits for the camera's `loadedmetadata` without a timeout – a stuck camera means an
-  endless spinner. Add a timeout → camera error page ("camera not responding – restart the browser")?
+- [x] Camera start timeout (10 s, `ar/tracker.ts`) → camera overlay state `NOT_RESPONDING`: "reload the
+  page, else restart the browser" + Reload button (en/fr/nl/de); cleared when AR runs again.
 
 ## 2026-09-26 – Unlock vs. consult (Tilman – simple version; designers / artist decide the direction)
 

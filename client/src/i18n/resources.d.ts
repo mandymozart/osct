@@ -32,12 +32,15 @@ export default interface Resources {
     },
     "firefoxTitle": "To enable camera access in Firefox:",
     "illustration": "Camera",
+    "notResponding": "The camera is not responding.",
+    "notRespondingHelp": "Reload the page. If that doesn't help, close your browser completely and open it again – another app may still be using the camera.",
     "otherSteps": {
       "0": "Check your browser settings for camera permissions",
       "1": "Allow this site to use your camera",
       "2": "Refresh the page"
     },
     "otherTitle": "To enable camera access:",
+    "reload": "Reload page",
     "safariSteps": {
       "0": "Open the page settings (\"aA\" in the address bar) or Safari settings",
       "1": "Go to Websites > Camera",

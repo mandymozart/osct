@@ -1,5 +1,5 @@
 import { GameStoreService, PreloaderService } from "@/services";
-import { ArStatus, GameMode, IArScene, IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, GameMode, IArScene, IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
 import { getSceneState } from "./utils/scene-state";
@@ -120,7 +120,13 @@ export class ArBridge extends HTMLElement {
 
     if (status === "error") {
       console.warn("[ArBridge] AR error:", error);
-      // Camera denied / unavailable: refresh the permission state → camera-permission-page
+      // No picture from the camera: the overlay asks to reload / restart the browser;
+      // else (denied / unavailable) refresh the permission state → camera-permission-page
+      if (error?.includes(CAMERA_NOT_RESPONDING)) this.game.camera.reportNotResponding();
+      else void this.game.camera.checkPermission();
+    }
+    // Running again (e.g. after the camera recovered): clear a "not responding" overlay
+    if (status === "running" && this.game.state.cameraPermission === CameraPermissionStatus.NOT_RESPONDING) {
       void this.game.camera.checkPermission();
     }
   }

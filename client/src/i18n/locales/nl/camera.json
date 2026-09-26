@@ -31,5 +31,8 @@
     "2": "Vernieuw de pagina"
   },
   "unavailable": "De camera werkt alleen via een beveiligde verbinding. Open de app met https:// en probeer het opnieuw.",
-  "continueWithout": "Doorgaan zonder camera"
+  "continueWithout": "Doorgaan zonder camera",
+  "notResponding": "De camera reageert niet.",
+  "notRespondingHelp": "Laad de pagina opnieuw. Helpt dat niet, sluit je browser dan helemaal af en open hem opnieuw – misschien gebruikt een andere app de camera nog.",
+  "reload": "Pagina opnieuw laden"
 }

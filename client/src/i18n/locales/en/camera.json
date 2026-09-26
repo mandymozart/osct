@@ -31,5 +31,8 @@
     "2": "Refresh the page"
   },
   "unavailable": "The camera only works over a secure connection. Open the app with https:// and try again.",
-  "continueWithout": "Continue without camera"
+  "continueWithout": "Continue without camera",
+  "notResponding": "The camera is not responding.",
+  "notRespondingHelp": "Reload the page. If that doesn't help, close your browser completely and open it again – another app may still be using the camera.",
+  "reload": "Reload page"
 }

@@ -1,6 +1,10 @@
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import { Controller } from "@/vendor/mind-ar/mindar-image.prod.js";
 import { loadMind } from "@/utils/mind";
+import { CAMERA_NOT_RESPONDING } from "@/types";
+
+/** A camera that sends no picture within this time is reported as not responding */
+export const CAMERA_START_TIMEOUT_MS = 10000;
 
 /**
  * Camera + MindAR image tracking, without a renderer. A port of MindAR 1.2.5's `MindARThree`
@@ -32,7 +36,10 @@ export class ImageTracker {
     return !!this.controller;
   }
 
-  /** Request the back camera; resolves once the stream's size is known. Throws when it is unavailable. */
+  /**
+   * Request the back camera; resolves once the stream's size is known. Throws when it is unavailable, or
+   * when no picture arrives within CAMERA_START_TIMEOUT_MS (the stream is released then).
+   */
   async startCamera(): Promise<void> {
     if (this.video) return;
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera not supported (no getUserMedia)");
@@ -52,10 +59,18 @@ export class ImageTracker {
     }
     this.container.appendChild(video);
     this.video = video;
-    await new Promise<void>(resolve => {
-      video.addEventListener("loadedmetadata", () => resolve(), { once: true });
+    const pictured = await new Promise<boolean>(resolve => {
+      const timer = window.setTimeout(() => resolve(false), CAMERA_START_TIMEOUT_MS);
+      video.addEventListener("loadedmetadata", () => {
+        window.clearTimeout(timer);
+        resolve(true);
+      }, { once: true });
       video.srcObject = stream;
     });
+    if (!pictured) {
+      this.stop();
+      throw new Error(`${CAMERA_NOT_RESPONDING} (no picture after ${CAMERA_START_TIMEOUT_MS / 1000} s)`);
+    }
     video.setAttribute("width", String(video.videoWidth));
     video.setAttribute("height", String(video.videoHeight));
     await video.play().catch(() => {}); // autoplay (muted, inline) normally runs by itself
