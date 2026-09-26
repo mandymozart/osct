@@ -14,7 +14,7 @@
     "i18n:watch": "i18next-cli extract --watch --with-types",
     "i18n:build": "npm run i18n && npm run i18n:status",
     "prebuild": "npm run i18n:build",
-    "build": "vite build && tsc",
+    "build": "vite build && tsc && tsc -p sw",
     "build:config": "cd scripts && npm run build:content",
     "preview": "vite preview",
     "prepublishOnly": "npm run build",
@@ -39,9 +39,17 @@
     "i18next-cli": "^1.74.1",
     "js-yaml": "^4.1.0",
     "path": "^0.12.7",
+    "terser": "^5.51.2",
     "typescript": "^5.8.2",
     "vite": "^5.4.14",
+    "vite-plugin-pwa": "^1.3.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^1.3.1"
+    "vitest": "^1.3.1",
+    "workbox-cacheable-response": "^7.4.1",
+    "workbox-core": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-range-requests": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1"
   }
 }

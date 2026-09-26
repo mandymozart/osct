@@ -4,3 +4,5 @@ export * from "./settings-tutorial";
 export * from "./settings-feedback";
 export * from "./settings-history";
 export * from "./settings-language";
+export * from "./settings-install";
+export * from "./settings-download";

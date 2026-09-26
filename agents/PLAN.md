@@ -736,7 +736,7 @@ uncompressed `.glb` responses, no cache headers.
 
 Decided (Tilman, 2026-09-26): drop A-Frame, render with plain three.js and MindAR's three.js build
 (`mindar-image-three.prod.js`, MindAR 1.2.5, `three` external); splash in the static HTML, faded out when
-the app is ready. PWA later.
+the app is ready. PWA later (→ Phase 9b, built 2026-09-26).
 
 - [x] **three.js AR layer**: MindAR's `mindar-image-three.prod.js` was not usable as is (imports
   `sRGBEncoding`, removed in three r162; adds a CSS3D renderer) → vendored MindAR 1.2.5 `Controller` build
@@ -778,6 +778,11 @@ the app is ready. PWA later.
   `.mind` as fallback), preloader and tracker use the same URL – and reports videos > 4 MB with export
   advice (not re-encoded: ffmpeg is native). Render loop: frames only while an entity is visible or
   animating (+ one clearing frame). `node-fetch` (TF.js, Node only) aliased to a stub – no dev-server error.
+- [x] Round 3 (2026-09-26, Lighthouse on staging): build minified with terser instead of esbuild (main.js
+  67 → 62 KB gz, MindAR 302 → 290 KB gz; the "111 KB" Lighthouse estimate for the MindAR chunk is its
+  heuristic – ~1,300 TF.js shader strings and the inlined worker, a stronger minifier gains ~4 %). `.glb`
+  also get a gzip copy (models 312 → 224 KB; Netlify serves .glb uncompressed) – `utils/compressed.ts` loads
+  `.mind` and `.glb` from the `.gz` (unpacks it, or takes it as is when the server already decoded it).
 - [ ] Videos of the final content: 720p H.264 ~2 Mbit/s (demo: bunny 10.9 MB, edge 5.8 MB) – with the artist.
 - [x] Device check of round 2 on the S22 (staging, 2026-09-26): `.mind.gz` loaded + unpacked (cache hit for
   the tracker after the preload, neighbour preloaded), model renders while tracked, gone at once when lost.
@@ -803,6 +808,46 @@ the app is ready. PWA later.
 - [x] Device check of placement + tap to unlock on the S22 (Tilman, 2026-09-26): works, animations "a good
   starting point".
 - [?] **Pinning objects in space** → moved to Phase 10 (concept first).
+
+## Phase 9b – PWA  `[~]` (built 2026-09-26 on `develop` – Tilman: "do the PWA now"; open: phone checks, final icon)
+
+Installable app (home screen, standalone, splash) + offline start. Details: MEMORY 2026-09-26 "PWA".
+
+- [x] Manifest (vite-plugin-pwa, `vite.config.js` → `dist/manifest.webmanifest`): name from `book.title`,
+  short name "Onion Skin", black, portrait, standalone; iOS meta tags + `apple-touch-icon` in `index.html`.
+- [x] Placeholder icons from Mark the Page (`public/assets/icons/`: 180, 192, 512, maskable 512).
+- [x] Service worker `client/sw/service-worker.ts` (injectManifest, own tsconfig `sw/`, checked in CI):
+  app shell precached (21 files, 2.7 MB incl. three + MindAR), pages network-first (offline: cached
+  shell), content cached on first use per content build, video range requests from the cache.
+- [x] Registered in production builds only, after the app is ready (`services/ServiceWorkerService.ts`).
+- [x] Checked headless (Edge, production preview): worker controls the page, preloaded spread in the
+  content cache, range request 206 from the cache, offline start of `/` and `/entries`, no
+  installability errors.
+- [ ] Phone checks: install on Android (Chrome prompt) and iOS (Share → Add to Home Screen); camera in
+  standalone mode (iOS may ask for camera permission more often); progress in Safari vs. installed app.
+- [x] Icons transparent where the platform allows (Tilman 2026-09-27): `icon-192/512` Mark only; maskable
+  (Android home screen) and apple-touch-icon stay on black – both platforms fill transparency anyway.
+  Favicon = Mark the Page with a dark outline (was the crocodile): `favicon.ico` 16/32/48 + `icons/favicon-32.png`.
+- [ ] Final app icon (designers / Kévin) – replace the placeholders, same file names.
+- [x] Home-screen name = the book title "Onion Skin & Crocodile Tears" (Tilman 2026-09-27; manifest
+  `name` + `short_name` and the iOS title from `book.title` – phones may cut it short).
+- [x] "Add to Home Screen" on the Info page (Tilman 2026-09-27: Info, not the onboarding – for now):
+  section `settings-install` + `InstallService` – the browser's install dialog where there is one
+  (Chrome, Edge, Samsung), Safari's Share → "Add to Home Screen" explained on iOS, "installed" when the
+  app runs from the home screen. en/fr/nl/de.
+- [x] **Whole-book download on the Info page** (Tilman 2026-09-27: keep "download as you read", add a
+  full download in Info with a progress bar and the total size; no "clear" – removing the app is enough):
+  section `settings-download` + `PreloaderService.downloadBook()` (all spreads' `.mind`, entity assets,
+  entry images; 3 at a time, progress in bytes, runs on when Info closes, asks for persistent storage).
+  Sizes from the build (`virtual:osct-content-sizes`, vite.config.js). Demo: 20.2 MB, ~40 s at 4 Mbit/s
+  (headless). The service worker stores it (content cache); Info shows "on this device" afterwards.
+- [ ] Test on the phones how long the whole download takes with real content; then decide whether it
+  should also start by itself (e.g. after install, on Wi-Fi) – Tilman.
+- [ ] **Production host (FTP, not Netlify) – when production is set up** (Tilman 2026-09-27: note it,
+  handle it then): `public/_headers` does not apply there. Needed: `.webmanifest` served as
+  `application/manifest+json`; `service-worker.js` + `manifest.webmanifest` with `Cache-Control: no-cache`;
+  `assets/app/*` cached immutable; SPA fallback to `index.html` (`_redirects`); https. E.g. an `.htaccess`
+  on Apache.
 
 ## Phase 10 – Spatial experience  `[ ]` (added 2026-09-26 – later; concept first, Tilman)
 

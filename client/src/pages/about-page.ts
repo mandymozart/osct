@@ -37,6 +37,8 @@ export class AboutPage extends ConsultationPage {
         <h2 class="section-title">${i18next.t("about:settings")}</h2>
         <div class="settings">
           <settings-tutorial></settings-tutorial>
+          <settings-install></settings-install>
+          <settings-download></settings-download>
           <settings-feedback></settings-feedback>
           <settings-history></settings-history>
           <settings-language></settings-language>
