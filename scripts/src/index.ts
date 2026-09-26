@@ -13,6 +13,7 @@ import {
   APP_VERSION
 } from './config';
 import { validateContent } from './utils/validation';
+import { optimizeModels } from './utils/optimize-models';
 import { assertGameConfiguration, GameConfigurationError } from '../../shared/guards/game-config';
 import { FilterData, filterProblems } from '../../shared/types/filters';
 import type {
@@ -30,7 +31,8 @@ import type {
 
 /**
  * OSCT content build: `content/` (YAML + media) → `client/src/game.config.json`
- * (+ copy of `content/` in `client/public/assets/content`, target images in `mind-ar/`).
+ * (+ copy of `content/` in `client/public/assets/content` with optimised models – utils/optimize-models.ts –,
+ * target images in `mind-ar/`).
  *
  * Source layout (folder name = id):
  *   content/book.yaml
@@ -521,7 +523,7 @@ function readPreviousHash(): string | null {
 /**
  * Main function to generate the config file
  */
-function generateConfigFile(): void {
+async function generateConfigFile(): Promise<void> {
   try {
     // Skip the build (and keep the timestamp) when nothing that affects the output changed
     const versionStr = APP_VERSION;
@@ -533,6 +535,14 @@ function generateConfigFile(): void {
     }
 
     const config = buildConfig(versionStr, inputHash);
+
+    // Models in the client copy: smaller textures, compressed geometry (content/ stays as authored)
+    console.log('\n🗜️  Optimising models...');
+    for (const { file, before, after } of await optimizeModels(CLIENT_PUBLIC_ASSETS_DIR)) {
+      const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
+      const name = path.relative(CLIENT_PUBLIC_ASSETS_DIR, file).split(path.sep).join('/');
+      console.log(after < before ? `   ${name}: ${kb(before)} → ${kb(after)}` : `   ${name}: ${kb(before)} (kept)`);
+    }
 
     const outputDir = path.dirname(OUTPUT_FILE);
     if (!fs.existsSync(outputDir)) {
@@ -547,4 +557,4 @@ function generateConfigFile(): void {
 }
 
 console.log('\n🔄 Starting content build process...');
-generateConfigFile();
+void generateConfigFile();
