@@ -1,11 +1,10 @@
 import { GameStoreService } from "@/services";
-import { feedback } from "@/services/FeedbackService";
-import { GameMode, IGame, Target, TARGET_TAP_EVENT } from "@/types";
+import { GameMode, IGame, Target, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import i18next from "i18next";
 
-/** How long "New entry unlocked" + the rotation play before the entry opens */
+/** How long "New entry unlocked" + the rotation play (the first find of a target) */
 const UNLOCK_MS = 1200;
 
 /**
@@ -20,10 +19,10 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
 
 /**
  * Found-target indicator (design p.9–14, p.35): the entry's image with a drop shadow while its target
- * is found in scan mode. Tap → the entry view (`/entry`) in consultation mode; the first time (entry not
- * consulted yet) "New entry unlocked", the reveal sound and a small rotation play first.
- * Targets with an AR entity: a tap on the entity (TARGET_TAP_EVENT from `<ar-bridge>`) runs the same
- * unlock with the label only – the entity's discovery animation plays in the AR scene.
+ * is found in scan mode. Tap → the entry view (`/entry`) in consultation mode (= consulted).
+ * Unlock = the first find of a target (Tilman 2026-09-26; TARGET_UNLOCKED_EVENT from `<ar-bridge>`):
+ * "New entry unlocked" and a small rotation of the image; for targets with an AR entity the label only –
+ * the entity's discovery animation plays in the AR scene.
  * Lives in the scan page, so it is hidden in consultation (PLAN: review visibility there).
  */
 export class FoundIndicator extends HTMLElement {
@@ -40,9 +39,9 @@ export class FoundIndicator extends HTMLElement {
     this.handleClick = this.handleClick.bind(this);
   }
 
-  private handleTargetTap = (event: Event) => {
+  private handleUnlocked = (event: Event) => {
     const target = getTarget((event as CustomEvent<{ targetId: string }>).detail?.targetId);
-    if (target && this.game.state.mode === GameMode.SCAN) this.unlock(target);
+    if (target && this.game.state.mode === GameMode.SCAN) this.showUnlock(target);
   };
 
   connectedCallback() {
@@ -51,7 +50,7 @@ export class FoundIndicator extends HTMLElement {
       this.game.subscribeToProperty("mode", () => this.update()),
     );
     this.shadowRoot?.addEventListener("click", this.handleClick);
-    document.addEventListener(TARGET_TAP_EVENT, this.handleTargetTap);
+    document.addEventListener(TARGET_UNLOCKED_EVENT, this.handleUnlocked);
     this.update();
   }
 
@@ -59,7 +58,7 @@ export class FoundIndicator extends HTMLElement {
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
     this.shadowRoot?.removeEventListener("click", this.handleClick);
-    document.removeEventListener(TARGET_TAP_EVENT, this.handleTargetTap);
+    document.removeEventListener(TARGET_UNLOCKED_EVENT, this.handleUnlocked);
     window.clearTimeout(this.unlockTimer);
   }
 
@@ -77,7 +76,7 @@ export class FoundIndicator extends HTMLElement {
     const target = this.target;
     const entry = target ? getEntry(target.entryId) : undefined;
     this.toggleAttribute("visible", !!target);
-    // Entity targets (tapped in the AR scene): the label only, the entity is the picture
+    // Entity targets (unlocked in the AR scene): the label only, the entity is the picture
     const src = target?.entity ? undefined : entry?.image ?? target?.imageSrc;
 
     this.shadowRoot.innerHTML = /* html */ `
@@ -157,29 +156,25 @@ export class FoundIndicator extends HTMLElement {
   private handleClick(event: Event) {
     const target = this.target;
     if (!target || !(event.target as HTMLElement).closest("button")) return;
-    this.unlock(target);
+    this.open(target.entryId);
   }
 
-  /** Consulted: open the entry; else "New entry unlocked" + reveal sound, then open it */
-  private unlock(target: Target) {
-    if (this.hasAttribute("unlocking")) return;
-    const entryId = target.entryId;
-    if (this.game.history.isConsulted(entryId)) {
-      this.open(entryId);
-      return;
-    }
+  /** "New entry unlocked" + the image's rotation for a moment (the indicator stays tappable) */
+  private showUnlock(target: Target) {
+    window.clearTimeout(this.unlockTimer);
     if (target.id !== this.target?.id) {
       this.target = target;
       this.render();
       void this.offsetWidth; // style the new content first, so the unlock transitions run
     }
-    feedback("reveal", target.id);
     // Attribute only (no re-render), so the label and image transitions run
+    this.removeAttribute("unlocking");
+    void this.offsetWidth;
     this.setAttribute("unlocking", "");
     this.shadowRoot?.querySelector(".label")?.removeAttribute("aria-hidden");
     this.unlockTimer = window.setTimeout(() => {
       this.removeAttribute("unlocking");
-      this.open(entryId);
+      this.shadowRoot?.querySelector(".label")?.setAttribute("aria-hidden", "true");
       this.update();
     }, UNLOCK_MS);
   }

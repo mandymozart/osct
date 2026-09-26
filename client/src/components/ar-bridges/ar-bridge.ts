@@ -1,5 +1,5 @@
 import { GameStoreService, PreloaderService } from "@/services";
-import { ArStatus, GameMode, IArScene, IGame, LoadingState, TARGET_TAP_EVENT } from "@/types";
+import { ArStatus, GameMode, IArScene, IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
 import { getSceneState } from "./utils/scene-state";
@@ -10,8 +10,9 @@ const WARM_UP_DELAY_MS = 1500;
 /**
  * <ar-bridge> – the only glue between the game store and the AR scene
  *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (scene-state policy)
- *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → preload,
- *   entity tapped → discovery animation (entry not consulted yet) + TARGET_TAP_EVENT (found indicator)
+ *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → preload
+ *   First find (= unlock): discovery animation of the entity + TARGET_UNLOCKED_EVENT (found indicator).
+ *   Entity tapped: the entry opens (= consulted), like a tap on the found indicator's image.
  * The scene is an `IArScene`: `LazyArScene` (three.js + MindAR load on the first scan, warmed up in idle
  * time after startup); tests inject a fake one.
  */
@@ -37,7 +38,7 @@ export class ArBridge extends HTMLElement {
 
     this.cleanups.push(
       scene.on("status", (status, error) => this.handleStatus(status, error)),
-      scene.on("targetFound", id => game.targets.addTarget(id)),
+      scene.on("targetFound", id => this.handleFound(id)),
       scene.on("targetLost", id => game.targets.removeTarget(id)),
       scene.on("targetTapped", id => this.handleTap(id)),
       // The active .mind is loaded: fetch the neighbours' .mind + content into the browser cache
@@ -88,13 +89,20 @@ export class ArBridge extends HTMLElement {
     this.scene = null;
   }
 
-  /** Tap on an AR entity: the same unlock → entry as a tap on the found indicator's image */
+  /** Found: tracked + unlocked (store); the first find also celebrates (entity) and tells the indicator */
+  private handleFound(targetId: string) {
+    const wasUnlocked = this.game.history.isUnlocked(targetId);
+    this.game.targets.addTarget(targetId);
+    if (wasUnlocked || !this.game.history.isUnlocked(targetId)) return;
+    if (getTarget(targetId)?.entity) this.scene?.celebrate(targetId);
+    document.dispatchEvent(new CustomEvent(TARGET_UNLOCKED_EVENT, { detail: { targetId } }));
+  }
+
+  /** Tap on an AR entity in scan mode: open its entry (the route sets consultation mode; the view consults it) */
   private handleTap(targetId: string) {
     if (this.game.state.mode !== GameMode.SCAN) return;
     const target = getTarget(targetId);
-    if (!target) return;
-    if (!this.game.history.isConsulted(target.entryId)) this.scene?.celebrate(targetId);
-    document.dispatchEvent(new CustomEvent(TARGET_TAP_EVENT, { detail: { targetId } }));
+    if (target) this.game.router.navigate("/entry", { key: "entryId", value: target.entryId });
   }
 
   private applySceneState() {

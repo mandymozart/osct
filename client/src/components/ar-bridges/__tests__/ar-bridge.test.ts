@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArSceneEvents, ArStatus, IArScene, LoadingState, SceneState, TARGET_TAP_EVENT } from "@/types";
+import { ArSceneEvents, ArStatus, IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 
@@ -83,26 +83,34 @@ describe("<ar-bridge>", () => {
     expect(game.state.trackedTargets).toEqual([]);
   });
 
-  it("a tapped entity: discovery animation until its entry is consulted, then the unlock event – scan mode only", () => {
+  it("the first find unlocks: discovery animation (entity) and the unlock event – only once", () => {
+    const [withEntity] = getTargets(spread1.id).filter(t => t.entity);
+    const unlocked: string[] = [];
+    const listener = (e: Event) => unlocked.push((e as CustomEvent<{ targetId: string }>).detail.targetId);
+    document.addEventListener(TARGET_UNLOCKED_EVENT, listener);
+
+    scene.emit("targetFound", withEntity.id);
+    expect(scene.celebrated).toEqual([withEntity.id]);
+    expect(unlocked).toEqual([withEntity.id]);
+    expect(game.history.isUnlocked(withEntity.id)).toBe(true);
+
+    scene.emit("targetLost", withEntity.id);
+    scene.emit("targetFound", withEntity.id);
+    expect(scene.celebrated).toEqual([withEntity.id]);
+    expect(unlocked).toEqual([withEntity.id]);
+    document.removeEventListener(TARGET_UNLOCKED_EVENT, listener);
+  });
+
+  it("a tapped entity opens its entry in scan mode (= consulted), not elsewhere", () => {
     const target = getTargets(spread1.id).find(t => t.entity)!;
-    const taps: string[] = [];
-    const listener = (e: Event) => taps.push((e as CustomEvent<{ targetId: string }>).detail.targetId);
-    document.addEventListener(TARGET_TAP_EVENT, listener);
+    game.router.navigate("/about");
+    scene.emit("targetTapped", target.id);
+    expect(game.state.currentRoute?.page).toBe("about");
 
     game.router.navigate("/spread");
     scene.emit("targetTapped", target.id);
-    expect(scene.celebrated).toEqual([target.id]);
-    expect(taps).toEqual([target.id]);
-
-    game.history.consultEntry(target.entryId);
-    scene.emit("targetTapped", target.id);
-    expect(scene.celebrated).toEqual([target.id]);
-    expect(taps).toEqual([target.id, target.id]);
-
-    game.router.navigate("/about");
-    scene.emit("targetTapped", target.id);
-    expect(taps).toHaveLength(2);
-    document.removeEventListener(TARGET_TAP_EVENT, listener);
+    expect(game.state.currentRoute?.page).toBe("entry");
+    expect(game.state.currentRoute?.param?.value).toBe(target.entryId);
   });
 
   it("reports the AR status, shows loading while building / starting, marks the running scene", () => {

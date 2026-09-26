@@ -775,11 +775,15 @@ the app is ready. PWA later.
 - [x] **Placement in the content**: `entity.params` `position` / `rotation` / `scale` (shared/types/placement.ts,
   checked by the content build + config guard, docs/content.md). Models stand on the page by default
   (`rotation: [90, 0, 0]`, scale 0.5) – they stood upright facing the top of the page before.
-- [x] **Tap to unlock AR entities**: a tap on a found model / video / image (on-screen bounds + 24 px,
-  taps on app UI ignored) → discovery animation in WebGL (pop, one turn around the page normal, gold
-  sparkles, ring – `ar/celebration.ts`) when the entry is not consulted yet, then the found indicator's
-  unlock ("New entry unlocked" label) → entry. New feedback event `reveal` ("pew pew pew" + sparkle run,
-  placeholder `sounds/reveal.wav`), also on the image indicator's unlock.
+- [x] **Unlock = first find, tap = open the entry (= consulted)** (Tilman 2026-09-26, simple version until
+  the designers / artist give the direction): the first find plays the unlock – "New entry unlocked" + the
+  image's rotation (found indicator), for AR entities the discovery animation in WebGL (pop, one turn
+  around the page normal, gold sparkles, ring – `ar/celebration.ts`) + the `unlock` jingle. A tap on the
+  found image or on the AR entity (on-screen bounds + 24 px, taps on app UI ignored) opens the entry.
+- [x] Nothing stays in space: a pause (entry opened) reports all targets lost and hides them – MindAR
+  restarts its tracking state on resume and never reported them lost ("stuck in space"). Pinning: Phase 10.
+- [ ] Review the unlock / consult moments with the designers and the artist (animation, sounds;
+  `sounds/reveal.wav` – "pew pew pew" – is an unused alternative to `unlock.wav`).
 - [x] Device check of placement + tap to unlock on the S22 (Tilman, 2026-09-26): works, animations "a good
   starting point".
 - [?] **Pinning objects in space** → moved to Phase 10 (concept first).

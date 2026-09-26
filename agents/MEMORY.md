@@ -4,6 +4,14 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Unlock vs. consult (Tilman – simple version; designers / artist decide the direction)
+
+- **Unlock = finding a target the first time** ("oh, there you got it"): label + animation (image: rotation
+  in the found indicator; AR entity: discovery animation in WebGL) + unlock jingle.
+- **Consulted = the entry was opened**: a tap on the found image or on the AR entity opens the entry.
+- Nothing sticks in space – that belongs to Phase 10 (spatialisation). The "stuck" objects were anchors
+  that stayed visible after a pause (MindAR restarts its tracking state on resume); a pause now loses all.
+
 ## 2026-09-26 – Tap / pin concept (open – Tilman works it out first; PLAN Phase 10)
 
 - Tested on the S22: placement and tap to unlock work, animations are a good starting point. After a tap the
