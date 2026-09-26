@@ -1,16 +1,12 @@
 {
-  "tutorialButton": "Handleiding",
-  "tutorialDescription": "Een stap-voor-stapgids voor het gebruik van de app met je boek.",
-  "historyButton": "Boek resetten",
-  "historyDescription": "Hiermee wordt alle opgeslagen voortgang op dit apparaat verwijderd.",
+  "historyButton": "Voortgang resetten",
+  "historyDescription": "De app houdt alle items bij die je in het boek hebt gevonden en verkend. Als je wilt, kun je je voortgang wissen en opnieuw beginnen – of hem hieronder in je account opslaan.",
   "historyConfirm": "Alle opgeslagen voortgang voor dit boek op dit apparaat verwijderen?",
   "historyDone": "Alle opgeslagen voortgang op dit apparaat is verwijderd.",
   "languageLabel": "Taal:",
   "languageChange": "Taal wijzigen",
   "soundLabel": "Geluid",
   "hapticsLabel": "Trillen",
-  "on": "aan",
-  "off": "uit",
   "feedbackDescription": "Korte geluiden en trillingen als je door de pagina's scrolt, op een knop tikt of een pagina vindt.",
   "installLabel": "Beginscherm",
   "installButton": "Zet op beginscherm",
@@ -22,5 +18,7 @@
   "downloadDescription": "Slaat het hele boek op dit apparaat op ({{size}}), zodat het ook zonder internet werkt. Liefst via wifi.",
   "downloadProgress": "{{loaded}} van {{total}} gedownload",
   "downloadDone": "Het hele boek staat op dit apparaat ({{size}}).",
-  "downloadFailed": "Sommige bestanden konden niet worden gedownload ({{size}} in totaal). Controleer je verbinding en probeer het opnieuw."
+  "downloadFailed": "Sommige bestanden konden niet worden gedownload ({{size}} in totaal). Controleer je verbinding en probeer het opnieuw.",
+  "historyDescriptionAccount": "De app houdt alle items bij die je in het boek hebt gevonden en verkend – op dit apparaat en in je account. Resetten wist je voortgang op beide plekken, zodat je opnieuw kunt beginnen.",
+  "historyConfirmAccount": "Alle opgeslagen voortgang voor dit boek verwijderen – op dit apparaat en in je account?"
 }

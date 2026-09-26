@@ -112,6 +112,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
     - **Sizes in rem, never px** (Tilman, 2026-09-26 – accessibility): the root font size is `100%`, so the
       reader's text size setting scales the whole app; media queries in `em`. 1rem = 16 px at the default
       size (DESIGN.md values: px ÷ 16).
+    - On / off options are `<gold-switch>` elements (`@/components/buttons`, 2026-09-27): text left, switch
+      far right, native checkbox `role="switch"` inside; listen for `change`, read `.checked`.
     - Design buttons are written with `goldButton()` (`@/components/buttons`, 2026-09-25): native
       `<button>` + shape class + gold label, never hand-written markup. Component styles that must beat
       the adopted design sheet need more specificity (`:host .pill`) – the sheet comes after `<style>`.
@@ -140,6 +142,17 @@ Extend as we go: add a rule when a decision should hold for all future work.
     network-first and content from a cache named after the content build hash. New public files that
     belong to the app shell must match its precache globs (`vite.config.js` → `pwa()`); content stays under
     `assets/content/`. Never make the worker serve pages cache-first (deploys would not show).
+
+21. **Server** (Tilman, 2026-09-27): the accounts API is plain **PHP 8.1+ with PDO/MySQL** in `server/api/`
+    (no framework, no Composer), deployed as `/api` next to the app. Secrets never in the repository: locally
+    `server/.env` / `server/api/config.local.php` (ignored), in CI GitHub environment secrets. Queries must run
+    on MySQL and SQLite (tests); schema changes go into `api/db/schema.*.sql` (idempotent). The app talks to it
+    only through `ApiService` (`VITE_API_URL`); `php server/tests/api-test.php` must pass.
+    Naming: the signed-in person is the **user** in code, API and database; "Account" is only the UI label.
+    Update options are **opt-in** – never on by default (Tilman, 2026-09-27).
+    **A deploy never resets data** (Tilman, 2026-09-27): the schema files only add (`CREATE TABLE IF NOT EXISTS`;
+    later changes as additive `ALTER TABLE … ADD`), no `DROP` / `TRUNCATE` / `DELETE` – the API test enforces it
+    and checks that users, sessions and progress survive a second migration. The upload deletes nothing.
 
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions

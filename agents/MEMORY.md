@@ -4,6 +4,32 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-27 – Accounts by email (Tilman, branch `database`; PLAN Phase 11)
+
+- Goal: let readers hear about updates – very basic first. Signed out (Tilman): "Register your copy and
+  receive updates in your inbox" – email, **Register account**, and underneath three update switches, **off
+  until the reader turns them on** (opt-in – "very important"): updates on Onion Skin & Crocodile Tears ·
+  from Kévin Bray (the book's author) · from Building Fictions. The progress is **always saved** in the
+  account and can be reset ("save my progress" is no longer an option). An existing user keeps their options
+  when signing in again; signed in, the switches change them at once.
+- **PHP + MySQL** (Tilman), plain PHP like qr.scutoons.com (no framework/Composer). There was no identity
+  server in scutoons / qr.scutoons.com to reuse – only the style (PDO, config.local.php, FTP deploy).
+- Confirmation = **link + 6-digit code** (Tilman): on iOS a mail link opens Safari, not the home-screen app.
+- Mail: `mail()` for testing, SMTP for production (settings in config/env, Tilman).
+- Progress = **sync to the server** (Tilman). The device record stays the working copy; the
+  server version (`updatedAt`) guards against two devices overwriting each other. An existing account
+  keeps its options when signing in again (the form's choice applies to a new account only).
+- API on the **OSCT production host** under `/api` (Tilman); first on the development server
+  osct.porschuetz.de (all-inkl, PHP 8.5, MySQL). FTP host `dd38836.kasserver.com` (the certificate is for it).
+  Credentials only in `server/.env` (not committed) and GitHub environment `staging`.
+- Naming (Tilman): **user** in code, API (`/user`) and database (`users`, `user_id`); "Account" only as the UI
+  label (Info → Account, i18n namespace `account`, `<settings-account>`).
+- Info page regrouped (Tilman): Info · **Account** (sign-in, update switches, sign out / delete, **Reset progress** (above the sign-in)
+  – signed in it resets the account's copy too) · **Settings** (sound & vibration, language, home screen) ·
+  colophon. The **Tutorial section was removed** from the Info page at Tilman's request (the onboarding stays).
+- Options are phone-style switches: `<gold-switch>` (components/buttons, own element – Tilman), text left,
+  switch on the far right; design primitive `.switch` / `.switch-row`. Sounds / vibration use them too.
+
 ## 2026-09-26 – PWA (Tilman: "do the PWA now"; PLAN Phase 9b)
 
 - Why: repeat starts from the phone's storage (app shell + seen content), offline use, install to the home
@@ -144,7 +170,7 @@ outcome in the line (or move it into a dated decision block).
   reverted – Tilman liked the chiptune better) (`scripts/tools/generate-sounds.mjs`, "think Nintendo") in
   `client/public/assets/sounds/<event>.wav` – Tilman replaces them with designed sounds of the same names.
 - Info → Settings → "Sound & vibration" (settings-feedback), on/off each, kept in localStorage
-  `osct-feedback` (device setting, not progress – survives "Reset book").
+  `osct-feedback` (device setting, not progress – survives "Reset progress").
 - [ ] Open: test on an iPhone (iOS 18 haptic trick, silent switch mutes web audio).
 
 ## 2026-09-26 – Video filters (Tilman, tested on the phone)
@@ -249,7 +275,7 @@ outcome in the line (or move it into a dated decision block).
   `CustomTypeOptions`; **informal in all languages** (Tilman). Test checks keys, non-empty, placeholders.
   Translations by the agent – to be proofread by native speakers.
 - [x] Info settings, one component per section (`components/settings/`): Tutorial, History (= save game:
-  "Reset book", with a confirm), Language ("Language: English" + "Change language" → the four languages).
+  "Reset progress", with a confirm), Language ("Language: English" + "Change language" → the four languages).
 - [x] (user) Translations as **JSON** (i18next JSON v4, `src/i18n/locales/<lang>/<ns>.json`) and **i18next-cli**
   (`client/i18next.config.ts`): `npm run i18n` = extract + types (`resources.d.ts` generated, `i18next.d.ts`
   created once), `i18n:status` warns about missing translations without failing; `prebuild` and the
@@ -257,7 +283,7 @@ outcome in the line (or move it into a dated decision block).
   (`returnEmptyString: false`). i18next-cli stores lists as objects with numbered keys (camera steps →
   `Object.values`). The `.ts` dictionaries are gone.
 - [x] Language persistence by **i18next-browser-languagedetector** (`osct-language`; Tilman: the library handles
-  it) – the short-lived `SettingsService` was removed. Not in the progress ("Reset book" keeps it); later
+  it) – the short-lived `SettingsService` was removed. Not in the progress ("Reset progress" keeps it); later
   account settings (API). First visit: device language (the detector then caches it). Changing it reloads the
   app (the URL keeps the view).
 - [ ] Open: translate book content (entries, onboarding steps, book info)? Needs per-language fields in the

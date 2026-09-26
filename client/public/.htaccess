@@ -6,5 +6,7 @@
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
+  # The accounts API (server/) has its own .htaccess – never answer it with the app
+  RewriteCond %{REQUEST_URI} !^/api(/|$)
   RewriteRule ^ index.html [L]
 </IfModule>

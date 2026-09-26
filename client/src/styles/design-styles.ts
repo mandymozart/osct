@@ -12,6 +12,9 @@
  *   .button      onboarding button: black body, white glow, gold label (<span class="gold">)
  *   .pill        glass pill: almost transparent + backdrop blur + dark drop shadow, gold label
  *   .icon-button round glass button ("i")
+ *   .switch      on / off switch (checkbox role="switch"): glass pill track, knob gold when on;
+ *                .switch-row = the label row around it (text left, switch right)
+ *   .field       text input: glass pill with a muted rule, white text, gold focus ring (email, code)
  *   .primary     modifier for .button / .pill: shining label + border sweep (animated); without it = secondary
  *   .rule-table  consultation meta table (1 px rules, muted labels, white values, 24 px rows)
  *   .section-title  muted title between two rules ("Info", "Colophon")
@@ -83,6 +86,74 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     height: 2.15rem;
     border-radius: 50%;
   }
+  .field {
+    min-height: 1.8rem;
+    min-width: 0;
+    padding: 0 1rem;
+    border: var(--rule);
+    border-radius: 999rem;
+    font: inherit;
+    letter-spacing: inherit;
+    color: var(--color-on-dark);
+    background: var(--glass-background);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+  .field::placeholder { color: var(--color-muted); }
+  .field:focus-visible { outline: none; border-color: var(--color-accent); }
+  .field:disabled { opacity: .6; }
+
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    min-height: 2rem;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .switch {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: none;
+    position: relative;
+    width: 2.75rem;
+    height: 1.5rem;
+    margin: 0;
+    border: var(--rule);
+    border-radius: 999rem;
+    background: var(--glass-background);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow: var(--shadow-bronze);
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .switch::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: .1875rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background: var(--color-muted);
+    transform: translateY(-50%);
+    transition: transform .2s, background .2s;
+  }
+  .switch:checked { border-color: var(--color-accent); }
+  .switch:checked::before {
+    background: var(--gold-gradient);
+    box-shadow: var(--shadow-glow-soft);
+    transform: translate(1.25rem, -50%);
+  }
+  .switch:focus-visible { outline: .125rem solid var(--color-accent); outline-offset: .125rem; }
+  .switch:disabled { opacity: .6; cursor: wait; }
+  @media (prefers-reduced-motion: reduce) {
+    .switch,
+    .switch::before { transition: none; }
+  }
+
   .button:active,
   .pill:active,
   .icon-button:active { transform: scale(.97); }
@@ -126,7 +197,8 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     .primary .gold,
     .primary::before { animation: none; }
   }
-  .button:disabled { opacity: .6; cursor: wait; }
+  .button:disabled,
+  .pill:disabled { opacity: .6; cursor: wait; }
 
   .rule-table {
     width: 100%;

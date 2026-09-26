@@ -5,7 +5,7 @@ import "@/i18n";
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages";
-import { FeedbackService, GameStoreService, InstallService, LinkService, ServiceWorkerService } from "@/services";
+import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, ServiceWorkerService } from "@/services";
 import {
   ErrorInfo,
   IGame,
@@ -153,6 +153,9 @@ export class BookGame extends HTMLElement {
       // Plain start: first visit → onboarding (skip / finish marks it done), else home.
       // The static splash (index.html) already shows the first onboarding step: the onboarding goes on
       // after it, the splash page skips it – the app starts underneath.
+      // Account: the link from the confirmation email (/about?login=…) signs in; a stored session syncs
+      // the progress – runs in the background, the app doesn't wait for the server
+      void UserService.getInstance().start(this.game as IGame);
       const links = LinkService.getInstance();
       const linked = links.openIncomingLink(this.game);
       if (!linked && !this.game.state.progress.onboarded) {
