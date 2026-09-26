@@ -28,6 +28,8 @@ outcome in the line (or move it into a dated decision block).
 - 2026-09-27 (Tilman): home-screen name = book title; "Add to Home Screen" as an Info page section
   (not the onboarding, for now); the **final app downloads the whole content** (when: open – PLAN 9b);
   production FTP host: note only, handle when production is set up (PLAN 9b lists what it needs).
+  Chrome's own install banner stays on too (no `preventDefault` on `beforeinstallprompt`) – Tilman did not
+  see an install offer while it was suppressed.
 - Beware: `npm run i18n` (i18next-cli extract) drops keys that are not used in code yet and blanks new
   translations it adds – write the code first, then fill the JSON files, then run it again.
 - [ ] Final app icon; when to download the whole content – Tilman.

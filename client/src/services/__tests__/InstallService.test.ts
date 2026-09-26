@@ -19,7 +19,7 @@ describe("InstallService", () => {
     const listener = vi.fn();
     const unsubscribe = service.subscribe(listener);
     window.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(true); // no mini-infobar
+    expect(event.defaultPrevented).toBe(false); // Chrome's own install banner stays on
     expect(service.getMethod()).toBe("prompt");
     expect(listener).toHaveBeenCalled();
 
