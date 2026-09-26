@@ -76,10 +76,10 @@ The mails (with link and code) land in `MAIL_LOG_PATH`.
 
 ## Deploy (development server)
 
-`.github/workflows/deploy-dev.yml` runs on every push to `database`:
+`.github/workflows/deploy-staging.yml` runs on every push to `database`:
 1. Run the API tests.
 2. Build the app with `VITE_API_URL=/api`.
-3. Write `config.local.php` from the GitHub environment **dev** (secrets and variables are listed in the workflow).
+3. Write `config.local.php` from the GitHub environment **staging** (secrets and variables are listed in the workflow).
 4. Upload the app and `api/` over FTPS to osct.porschuetz.de.
 5. Call `/api/admin/migrate`, then `/api/health`.
 

@@ -21,7 +21,7 @@ outcome in the line (or move it into a dated decision block).
   keeps its options when signing in again (the form's choice applies to a new account only).
 - API on the **OSCT production host** under `/api` (Tilman); first on the development server
   osct.porschuetz.de (all-inkl, PHP 8.5, MySQL). FTP host `dd38836.kasserver.com` (the certificate is for it).
-  Credentials only in `server/.env` (not committed) and GitHub environment `dev`.
+  Credentials only in `server/.env` (not committed) and GitHub environment `staging`.
 - Naming (Tilman): **user** in code, API (`/user`) and database (`users`, `user_id`); "Account" only as the UI
   label (Info → Account, i18n namespace `account`, `<settings-account>`).
 - Info page regrouped (Tilman): Info · **Account** (sign-in, update switches, sign out / delete, **Reset book**
