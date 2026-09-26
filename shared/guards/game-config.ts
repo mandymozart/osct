@@ -174,7 +174,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     ["title", "description", "footer", "illustration", "button"].forEach(key => str(step, key, path, true));
     num(step, "index", path);
     if (step.action !== undefined && !isStepAction(step.action)) fail(`${path}.action`, `expected one of ${STEP_ACTIONS.join(", ")}`);
-    ["fadeIn", "advance"].forEach(key => step[key] !== undefined && num(step, key, path));
+    ["fadeIn", "stagger", "advance"].forEach(key => step[key] !== undefined && num(step, key, path));
   });
 
   if (problems.length > 0) throw new GameConfigurationError(problems);

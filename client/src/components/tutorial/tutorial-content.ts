@@ -8,6 +8,10 @@ import i18next from "i18next";
 
 const tutorial = getTutorial();
 
+/** Every step fades in (Tilman 2026-09-26): its parts one after the other – smooth, "flowy" */
+const DEFAULT_FADE_MS = 600;
+const DEFAULT_STAGGER_MS = 250;
+
 /**
  * Book fields in step texts: `{{title}}`, `{{author}}`, `{{publisher}}` → the values from `book.yaml`, so they
  * are written once (e.g. the splash footer = the publisher). Unknown placeholders stay as they are.
@@ -58,7 +62,20 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
     const step = tutorial.find(s => s.index === this._currentStep);
     if (!step) return;
 
-    const fade = step.fadeIn ? `animation: fade-in ${step.fadeIn}ms ease both;` : "";
+    // Parts fade in one after the other: Mark (splash only – on later steps it stays still), illustration,
+    // title, text, footer; the button (tutorial-navigation) follows after the last part
+    const duration = step.fadeIn ?? DEFAULT_FADE_MS;
+    const stagger = step.stagger ?? DEFAULT_STAGGER_MS;
+    let slot = 0;
+    /** The next part in the sequence: its delay (a style attribute) */
+    const next = () => `style="animation-delay: ${slot++ * stagger}ms"`;
+    const mark = step.stagger !== undefined ? next() : null;
+    const illustration = step.illustration ? next() : null;
+    const title = step.title ? next() : null;
+    const text = step.description ? next() : null;
+    const footer = step.footer && fillBookFields(step.footer) ? next() : null;
+    this.style.setProperty("--fade-duration", `${duration}ms`);
+    this.style.setProperty("--actions-delay", `${slot * stagger}ms`);
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host {
@@ -80,26 +97,27 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
           box-sizing: border-box;
         }
         ::slotted([slot="actions"]) { width: 100%; }
-        .fade { ${fade} }
+        .fade { animation: fade-in ${duration}ms ease both; }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .fade { animation: none; } }
-        img.mark { width: var(--mark-width); height: var(--mark-height); object-fit: contain; margin-bottom: 1.5rem; }
+        img[data-mark] { width: var(--mark-width); height: var(--mark-height); object-fit: contain; margin-bottom: 1.5rem; }
         /* Same layout as the camera screen: illustration above the text */
         gold-illustration { width: 5.5rem; margin: .5rem 0 1.5rem; }
         h1 { font-size: inherit; font-weight: 400; margin: 0 0 1.25rem; }
         /* Text block ≈ 247 px wide = the gradient box of the PDF (DESIGN.md §1) */
         .text { width: min(15.5rem, 100%); }
         p { margin: 0 0 1.25em; }
-        .footer { margin-top: auto; padding-bottom: 1rem; }
+        /* Where the button would be (≈ 58 %, design p.2) – the splash has no button */
+        .footer { padding-bottom: 1rem; }
       </style>
       <div class="head">
-        <img class="mark" src="${MARK_IMAGE_SRC}" alt="${i18next.t("common:markAlt")}">
-        ${step.illustration ? `<gold-illustration class="fade" src="${escapeHtml(step.illustration)}"></gold-illustration>` : ""}
-        ${step.title ? `<h1 class="design gold text">${inline(step.title)}</h1>` : ""}
-        ${step.description ? `<div class="text design gold fade">${paragraphs(step.description).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
+        <img class="${mark ? "fade" : ""}" ${mark ?? ""} src="${MARK_IMAGE_SRC}" alt="${i18next.t("common:markAlt")}" data-mark>
+        ${illustration ? `<gold-illustration class="fade" ${illustration} src="${escapeHtml(step.illustration!)}"></gold-illustration>` : ""}
+        ${title ? `<h1 class="design gold text fade" ${title}>${inline(step.title!)}</h1>` : ""}
+        ${text ? `<div class="text design gold fade" ${text}>${paragraphs(step.description!).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
       </div>
       <slot name="actions"></slot>
-      ${step.footer && fillBookFields(step.footer) ? `<div class="footer design gold fade">${inline(step.footer)}</div>` : ""}
+      ${footer ? `<div class="footer design gold fade" ${footer}>${inline(step.footer!)}</div>` : ""}
     `;
   }
 }

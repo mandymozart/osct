@@ -203,9 +203,9 @@ export class CameraPermissionPage extends Page {
     this.render();
   }
 
+  /** Fades out with the content it had – re-rendering here drew the "denied" text during the fade (flash) */
   private hideOverlay(): void {
     this.removeAttribute('active');
-    this.render();
   }
 
   /**

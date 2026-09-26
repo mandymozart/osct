@@ -94,8 +94,11 @@ export interface StepData {
   /** Button label; with `action` (default `next`) */
   button?: string;
   action?: StepAction;
-  /** Fade the step in (ms) – design: 1s on the title step */
+  /** Fade-in duration of the step's parts (ms; default in the app) – design: 1s on the title step */
   fadeIn?: number;
+  /** Delay between its parts fading in one after the other (ms). Set on the splash: Mark, then title,
+   *  author and publisher. Without it the parts follow with a short default delay and Mark stays still. */
+  stagger?: number;
   /** Auto-advance after ms (steps without button) */
   advance?: number;
 }

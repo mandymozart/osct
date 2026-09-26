@@ -219,7 +219,9 @@ description: |-
 button: Grant access
 action: camera              # next (default) | camera = ask for the camera | scan = start scanning
 illustration: /assets/illustrations/tutorial-step-2.svg
-# optional: title, footer, fadeIn (ms), advance (ms – go on by itself)
+# optional: title, footer, advance (ms – go on by itself),
+#   fadeIn (ms – how long each part fades in, default 600), stagger (ms – delay between the parts:
+#   Mark, illustration, title, text, footer, button; default 250 – with stagger set, Mark fades in first)
 ```
 
 Step texts (`title`, `description`, `footer`) can use the book's fields: `{{title}}`, `{{author}}`,

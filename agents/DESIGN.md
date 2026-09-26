@@ -149,7 +149,10 @@ is in view); it only shows while the scene runs (`body.scene-active`).
    element), p.1 asks for a flashy placeholder instead. Is this gradient the intended final look? Per
    element (as in the PDF) or one gradient across the whole screen?
 2. **Mark in scan mode** sits partly above the top edge (−11 px). Intended?
-3. **Onboarding background:** black with a radial fade – what color is behind it at the edges?
+3. ~~**Onboarding background:** black with a radial fade – what color is behind it at the edges?~~
+   **Measured from the frames (2026-09-26):** #000 centre, #070707 half way, #0c0c0c at the side edges,
+   #1a1a1a in the corners → `--onboarding-background` (radial, farthest-corner). The former guess (#1c1c1e
+   behind a screen-sized ellipse) showed grey at the sides (Tilman).
 4. ~~**Glass:**~~ **answered (Tilman, 2026-09-25): yes, frosted look** – pills, "i" and the spread-menu
    highlight blur what is behind them (`--glass-blur`).
 5. **Spread menu:** inactive items are light grey `#d6d8d8` on the camera image – enough contrast on

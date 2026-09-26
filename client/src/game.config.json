@@ -1,8 +1,8 @@
 {
   "version": {
     "version": "1.1.0",
-    "timestamp": "2026-09-26T15:34:07.597Z",
-    "hash": "26e6a6eee002da461398aa47bfdd4bb329573fc418e714d040cae74e14368f81"
+    "timestamp": "2026-09-26T16:01:09.619Z",
+    "hash": "366c9f74b92444dbc4f71a8abbfc0df9277bc73352a6920d24afe9342f715299"
   },
   "book": {
     "id": "osct",
@@ -286,35 +286,30 @@
       "id": "step-1",
       "index": 0,
       "title": "{{title}}",
-      "advance": 2000
+      "description": "{{author}}",
+      "footer": "{{publisher}}",
+      "fadeIn": 800,
+      "stagger": 500,
+      "advance": 3800
     },
     {
       "id": "step-2",
       "index": 1,
-      "title": "{{title}}",
-      "description": "{{author}}",
-      "footer": "{{publisher}}",
-      "fadeIn": 1000,
-      "advance": 2500
-    },
-    {
-      "id": "step-3",
-      "index": 2,
       "description": "This application allows you to reveal videos, texts and key references hidden in the printed publication *{{title}}*.",
       "illustration": "/assets/illustrations/tutorial-step-1.svg",
       "button": "Continue"
     },
     {
-      "id": "step-4",
-      "index": 3,
+      "id": "step-3",
+      "index": 2,
       "description": "To scan the book and display interactive content, this application requires access to your camera.\n\nPlease, grant access to proceed.",
       "illustration": "/assets/illustrations/tutorial-step-2.svg",
       "button": "Grant access",
       "action": "camera"
     },
     {
-      "id": "step-5",
-      "index": 4,
+      "id": "step-4",
+      "index": 3,
       "title": "Thank you!",
       "button": "Access scan",
       "action": "scan"

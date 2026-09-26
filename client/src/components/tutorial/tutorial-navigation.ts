@@ -53,6 +53,10 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host { display: flex; justify-content: center; }
+        /* Fades in after the step's text (times from tutorial-content, which the button sits in) */
+        .next-button { animation: fade-in var(--fade-duration, 600ms) ease var(--actions-delay, 0ms) both; }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) { .next-button { animation: none; } }
       </style>
       ${label ? goldButton({ label, shape: "button", primary: true, className: "next-button" }) : ""}
     `;

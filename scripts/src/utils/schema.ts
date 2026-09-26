@@ -94,6 +94,7 @@ export const schemas: Record<string, Schema> = {
       button: { type: "String", required: false },
       action: { type: "String", required: false, enum: ["next", "camera", "scan"] },
       fadeIn: { type: "Number", required: false },
+      stagger: { type: "Number", required: false },
       advance: { type: "Number", required: false },
     },
   },
