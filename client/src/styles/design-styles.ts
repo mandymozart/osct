@@ -12,6 +12,7 @@
  *   .button      onboarding button: black body, white glow, gold label (<span class="gold">)
  *   .pill        glass pill: almost transparent + backdrop blur + dark drop shadow, gold label
  *   .icon-button round glass button ("i")
+ *   .field       text input: glass pill with a muted rule, white text, gold focus ring (email, code)
  *   .primary     modifier for .button / .pill: shining label + border sweep (animated); without it = secondary
  *   .rule-table  consultation meta table (1 px rules, muted labels, white values, 24 px rows)
  *   .section-title  muted title between two rules ("Info", "Colophon")
@@ -83,6 +84,23 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     height: 2.15rem;
     border-radius: 50%;
   }
+  .field {
+    min-height: 1.8rem;
+    min-width: 0;
+    padding: 0 1rem;
+    border: var(--rule);
+    border-radius: 999rem;
+    font: inherit;
+    letter-spacing: inherit;
+    color: var(--color-on-dark);
+    background: var(--glass-background);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+  .field::placeholder { color: var(--color-muted); }
+  .field:focus-visible { outline: none; border-color: var(--color-accent); }
+  .field:disabled { opacity: .6; }
+
   .button:active,
   .pill:active,
   .icon-button:active { transform: scale(.97); }
@@ -126,7 +144,8 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     .primary .gold,
     .primary::before { animation: none; }
   }
-  .button:disabled { opacity: .6; cursor: wait; }
+  .button:disabled,
+  .pill:disabled { opacity: .6; cursor: wait; }
 
   .rule-table {
     width: 100%;

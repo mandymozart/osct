@@ -5,8 +5,8 @@ import "@/components/settings";
 
 /**
  * About = Info (design p.32–34), opened with "i" in consultation mode; "Entries" (top chrome) goes
- * back to the list. Info text, the settings (one component per section – Tutorial, History, Language;
- * later tools and account settings), colophon. Placeholder texts – the final texts belong in the
+ * back to the list. Info text, the settings (one component per section – Account, Tutorial, History,
+ * Language …), colophon. Placeholder texts – the final texts belong in the
  * content (`book.yaml`) once they arrive (PLAN Phase 4).
  */
 export class AboutPage extends ConsultationPage {
@@ -36,6 +36,7 @@ export class AboutPage extends ConsultationPage {
 
         <h2 class="section-title">${i18next.t("about:settings")}</h2>
         <div class="settings">
+          <settings-account></settings-account>
           <settings-tutorial></settings-tutorial>
           <settings-install></settings-install>
           <settings-feedback></settings-feedback>

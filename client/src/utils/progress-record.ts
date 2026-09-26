@@ -72,3 +72,26 @@ export const readProgress = (raw: unknown, bookId: string): ProgressReadResult =
     status: raw.format === PROGRESS_FORMAT ? "current" : "converted",
   };
 };
+
+/** Earliest time per id from both sides */
+const union = (a: Record<string, number>, b: Record<string, number>): Record<string, number> => {
+  const result = { ...b };
+  for (const [id, time] of Object.entries(a)) result[id] = id in result ? Math.min(result[id], time) : time;
+  return result;
+};
+
+/**
+ * Two records of the same book → one (account sync: this device + the account): everything unlocked or
+ * consulted on either side (first time wins), onboarded if either was; this device's last spread /
+ * category win, the other's fill in.
+ */
+export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): ProgressRecord => ({
+  ...local,
+  format: PROGRESS_FORMAT,
+  appVersions: [...other.appVersions, ...local.appVersions.filter(v => !other.appVersions.includes(v))],
+  unlocked: union(local.unlocked, other.unlocked),
+  consulted: union(local.consulted, other.consulted),
+  lastSpreadId: local.lastSpreadId ?? other.lastSpreadId,
+  lastCategory: local.lastCategory ?? other.lastCategory,
+  onboarded: local.onboarded || other.onboarded,
+});

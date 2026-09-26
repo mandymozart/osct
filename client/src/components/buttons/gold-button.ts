@@ -18,6 +18,8 @@ export interface GoldButtonOptions {
   label: string;
   shape?: GoldButtonShape;
   primary?: boolean;
+  /** `submit` inside a form (default `button`) */
+  type?: "button" | "submit";
   /** Extra classes for the component's own styles */
   className?: string;
   /** Attributes: `true` = present without value, `false` / `undefined` = left out */
@@ -32,7 +34,7 @@ const attributes = (attrs: GoldButtonOptions["attrs"] = {}): string =>
     .map(([name, value]) => (value === true ? ` ${name}` : ` ${name}="${escapeHtml(String(value))}"`))
     .join("");
 
-export const goldButton = ({ label, shape = "pill", primary = false, className, attrs }: GoldButtonOptions): string => {
+export const goldButton = ({ label, shape = "pill", primary = false, type = "button", className, attrs }: GoldButtonOptions): string => {
   const classes = [SHAPE_CLASS[shape], primary ? "primary" : "", "design", className ?? ""].filter(Boolean).join(" ");
-  return `<button type="button" class="${classes}"${attributes(attrs)}><span class="gold">${escapeHtml(label)}</span></button>`;
+  return `<button type="${type}" class="${classes}"${attributes(attrs)}><span class="gold">${escapeHtml(label)}</span></button>`;
 };

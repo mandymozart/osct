@@ -55,6 +55,13 @@ export interface IHistoryManager {
    */
   reportLoadStatus(): void;
 
+  /**
+   * Take over a record from the reader's account (AccountService): `merge` joins it with this device's
+   * progress, `replace` uses it instead. Saved on this device. Returns false (nothing changed) when the
+   * record cannot be read.
+   */
+  applyStoredRecord(raw: unknown, mode: "merge" | "replace"): boolean;
+
   /** Stage 1: a target was found in scan mode */
   unlockTarget(targetId: string): void;
   isUnlocked(targetId: string): boolean;

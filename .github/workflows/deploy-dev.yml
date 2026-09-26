@@ -1,0 +1,94 @@
+# Development server osct.porschuetz.de (all-inkl, Apache + PHP + MySQL): the app at the root, the
+# accounts API in /api (server/README.md). Runs on every push to the `database` branch, or by hand.
+#
+# GitHub → Settings → Environments → "dev":
+#   secrets:   FTP_USERNAME, FTP_PASSWORD, DB_USER, DB_PASS, API_SECRET
+#              (SMTP_HOST, SMTP_USER, SMTP_PASS once MAIL_TRANSPORT is smtp)
+#   variables: FTP_SERVER, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM
+#              (optional: SMTP_PORT, SMTP_SECURE)
+# Same pattern as qr.scutoons.com (FTP-Deploy-Action, config written in the build), but over FTPS.
+name: Deploy dev
+
+on:
+  push:
+    branches: [database]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and upload
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite, pdo_mysql
+      - name: API tests
+        run: php server/tests/api-test.php
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Build the app
+        working-directory: client
+        env:
+          VITE_API_URL: /api
+          VITE_DEBUG: "true"
+        run: |
+          npm ci
+          npm run build
+
+      - name: Write the server configuration
+        env:
+          OSCT_DB_HOST: ${{ vars.DB_HOST || 'localhost' }}
+          OSCT_DB_NAME: ${{ vars.DB_NAME }}
+          OSCT_DB_USER: ${{ secrets.DB_USER }}
+          OSCT_DB_PASS: ${{ secrets.DB_PASS }}
+          OSCT_SECRET: ${{ secrets.API_SECRET }}
+          OSCT_APP_URL: ${{ vars.APP_URL }}
+          OSCT_ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
+          OSCT_MAIL_TRANSPORT: ${{ vars.MAIL_TRANSPORT || 'mail' }}
+          OSCT_MAIL_FROM: ${{ vars.MAIL_FROM }}
+          OSCT_SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          OSCT_SMTP_PORT: ${{ vars.SMTP_PORT }}
+          OSCT_SMTP_SECURE: ${{ vars.SMTP_SECURE }}
+          OSCT_SMTP_USER: ${{ secrets.SMTP_USER }}
+          OSCT_SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: php server/deploy/write-config.php server/api/config.local.php
+
+      - name: Assemble the site
+        run: |
+          mkdir -p site/api
+          cp -r client/dist/. site/
+          cp -r server/api/. site/api/
+          rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/mail.log
+
+      - name: Upload (FTPS)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ vars.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./site/
+          server-dir: ./
+          exclude: |
+            **/*.map
+
+      - name: Create missing tables, check the API
+        env:
+          API_SECRET: ${{ secrets.API_SECRET }}
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          curl -fsS -X POST -H "X-Admin-Secret: $API_SECRET" "$APP_URL/api/admin/migrate"
+          echo
+          curl -fsS "$APP_URL/api/health"
