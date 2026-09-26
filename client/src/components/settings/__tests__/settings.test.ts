@@ -10,6 +10,9 @@ import { getEntries } from "@/utils/game-config";
 const game = GameStoreService.getInstance();
 const mount = (tag: string) => document.body.appendChild(document.createElement(tag));
 const click = (host: HTMLElement, selector: string) => host.shadowRoot!.querySelector<HTMLElement>(selector)!.click();
+/** The checkbox inside a `<gold-switch>` */
+const switchInput = (host: HTMLElement, option: string) =>
+  host.shadowRoot!.querySelector(`gold-switch[data-option=${option}]`)!.shadowRoot!.querySelector("input")!;
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -28,19 +31,18 @@ describe("settings sections", () => {
       status: "signed-out", account: null, pending: null, sync: "off", busy: false, notice: null, ...changes,
     });
 
-    it("signed out: all three options on by default, the choice goes with the email", () => {
+    it("signed out: both update options on by default, the choice goes with the email", () => {
       const request = vi.spyOn(account, "requestLogin").mockResolvedValue(true);
       const section = mount("settings-account");
-      const checked = () => Array.from(section.shadowRoot!.querySelectorAll<HTMLInputElement>("input[role=switch]")).map(s => s.checked);
-      expect(checked()).toEqual([true, true, true]);
-      click(section, "[data-option=publisherUpdates]");
-      expect(checked()).toEqual([true, true, false]);
+      expect(switchInput(section, "bookUpdates").checked && switchInput(section, "publisherUpdates").checked).toBe(true);
+      switchInput(section, "publisherUpdates").click();
+      expect(switchInput(section, "publisherUpdates").checked).toBe(false);
 
       const input = section.shadowRoot!.querySelector<HTMLInputElement>("input[name=email]")!;
       input.value = "reader@example.com";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       section.shadowRoot!.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-      expect(request).toHaveBeenCalledWith("reader@example.com", { saveProgress: true, bookUpdates: true, publisherUpdates: false });
+      expect(request).toHaveBeenCalledWith("reader@example.com", { bookUpdates: true, publisherUpdates: false });
     });
 
     it("pending: asks for the code from the email", () => {
@@ -55,16 +57,16 @@ describe("settings sections", () => {
       expect(confirm).toHaveBeenCalledWith("123456");
     });
 
-    it("signed in: the address, the options as toggles, sign out, delete after a confirmation", () => {
+    it("signed in: the address, the options as switches, sign out, delete after a confirmation", () => {
       vi.spyOn(account, "getSnapshot").mockReturnValue(snapshot({
         status: "signed-in", sync: "synced",
-        account: { email: "reader@example.com", language: "en", createdAt: "", options: { saveProgress: true, bookUpdates: false, publisherUpdates: true } },
+        account: { email: "reader@example.com", language: "en", createdAt: "", options: { bookUpdates: false, publisherUpdates: true } },
       }));
       const setOption = vi.spyOn(account, "setOption").mockResolvedValue();
       const remove = vi.spyOn(account, "deleteAccount").mockResolvedValue(true);
       const section = mount("settings-account");
       expect(section.shadowRoot!.textContent).toContain("Your progress is saved in your account.");
-      click(section, "[data-option=bookUpdates]");
+      switchInput(section, "bookUpdates").click();
       expect(setOption).toHaveBeenCalledWith("bookUpdates", true);
       vi.spyOn(window, "confirm").mockReturnValueOnce(false);
       click(section, "[data-action=delete]");
@@ -75,12 +77,6 @@ describe("settings sections", () => {
       vi.spyOn(account, "getSnapshot").mockReturnValue(snapshot({ notice: { error: "too-many-requests" } }));
       expect(mount("settings-account").shadowRoot!.textContent).toContain("Try again in an hour.");
     });
-  });
-
-  it("tutorial: starts the onboarding", () => {
-    const section = mount("settings-tutorial");
-    click(section, "[data-action=tutorial]");
-    expect(game.state.currentRoute).toMatchObject({ page: Pages.TUTORIAL, param: { value: "0" } });
   });
 
   it("home screen: offers the browser's install dialog when there is one, else explains how", async () => {
@@ -109,6 +105,14 @@ describe("settings sections", () => {
     expect(section.shadowRoot!.textContent).toContain("Vibration: off");
     click(section, "[data-setting=haptics]");
     expect(feedback.getSettings().haptics).toBe(true);
+  });
+
+  it("history (reset): says it reaches the account when signed in", () => {
+    vi.spyOn(AccountService.getInstance(), "getSnapshot").mockReturnValue({
+      status: "signed-in", pending: null, sync: "synced", busy: false, notice: null,
+      account: { email: "a@b.c", language: "en", createdAt: "", options: { bookUpdates: true, publisherUpdates: true } },
+    });
+    expect(mount("settings-history").shadowRoot!.textContent).toContain("on this device and in your account");
   });
 
   it("history: resets the book after a confirmation and keeps the language", () => {

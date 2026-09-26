@@ -867,6 +867,8 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] Mail: log / mail() / SMTP (own client), texts en/fr/nl/de, lists the chosen options for a new account.
 - [x] App: `ApiService`, `AccountService` (sign-in state, progress sync: merge on sign-in, replace at startup
       when this device has no unsent changes, offline queue), `<settings-account>` on the Info page, `.field` primitive.
+- [x] Options = two update switches (`<gold-switch>`); progress always saved, "Reset book" resets it (also in the account).
+- [x] Info page groups: Info · Account (+ Reset book) · Settings · colophon; Tutorial section removed (Tilman).
 - [x] Deploy to osct.porschuetz.de: `.github/workflows/deploy-dev.yml` (GitHub environment `dev`).
 - [ ] Naming: account vs. user (Tilman) – decide before the first deploy creates the tables.
 - [ ] GitHub environment `dev` secrets/variables set; first deploy + test on a phone (link on iOS home-screen app → code).

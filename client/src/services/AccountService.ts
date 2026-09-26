@@ -58,15 +58,15 @@ const write = (key: string, value: unknown): void => {
 };
 
 /**
- * Reader account (types/account.ts): signing in by email (link or code), the sign-up options, and the
- * progress kept in the account when "save my progress" is on.
+ * Reader account (types/account.ts): signing in by email (link or code), the update options, and the
+ * progress kept in the account.
  *
  * Progress sync – this device's record stays the one the app works with (localStorage), the account
  * holds a copy:
  * - every change is sent after a short pause (`PUT`, naming the version it builds on);
  * - the server has a newer version (another device) → at startup it replaces this device's record,
  *   unless this device has unsent changes – then both are merged (`mergeProgress`) and sent;
- * - signing in (or turning the option on) merges this device's progress with the account's;
+ * - signing in merges this device's progress with the account's; a reset is sent like any other change;
  * - offline: the changes wait and go out when the device is back online.
  */
 export class AccountService implements IAccountService {
@@ -161,12 +161,6 @@ export class AccountService implements IAccountService {
         token: this.stored?.session,
       });
       this.setSession(this.stored && { ...this.stored, account });
-      if (option === "saveProgress") {
-        // On: this device's progress joins the account's. Off: the server deleted its copy.
-        this.setSyncState(on ? this.freshSyncState() : null);
-        this.update({ sync: on ? "syncing" : "off" });
-        if (on) await this.syncProgress(true);
-      }
     }, undefined);
   }
 
@@ -191,7 +185,7 @@ export class AccountService implements IAccountService {
 
   /**
    * Bring this device and the account together (see class comment). `link`: this device joins the
-   * account now (sign-in, option turned on) – merge whatever the account has.
+   * account now (sign-in) – merge whatever the account has.
    */
   async syncProgress(link: boolean): Promise<void> {
     const game = this.game;
@@ -292,8 +286,6 @@ export class AccountService implements IAccountService {
   private handleSyncError(error: unknown): void {
     if (error instanceof ApiError && error.status === 401) {
       this.signedOutLocally("signed-out");
-    } else if (error instanceof ApiError && error.code === "progress-off") {
-      void this.refresh();
     } else {
       // Offline or the server had a problem: the changes wait (sent when back online or at the next change)
       if (!(error instanceof ApiError && error.code === "offline")) console.warn("[AccountService] Progress sync failed:", error);
@@ -306,7 +298,6 @@ export class AccountService implements IAccountService {
     try {
       const { account } = await this.api.request<{ account: AccountData }>("GET", "/account", { token: this.stored?.session });
       this.setSession(this.stored && { ...this.stored, account });
-      this.update({ sync: account.options.saveProgress ? "syncing" : "off" });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         this.signedOutLocally("signed-out");
@@ -333,8 +324,8 @@ export class AccountService implements IAccountService {
   private async signedIn(result: { session: string; account: AccountData }, notice: AccountNotice | null): Promise<void> {
     this.setSession({ session: result.session, account: result.account });
     this.setPending(null);
-    this.setSyncState(result.account.options.saveProgress ? this.freshSyncState() : null);
-    this.update({ notice: notice ?? "confirmed", sync: result.account.options.saveProgress ? "syncing" : "off" });
+    this.setSyncState(this.freshSyncState());
+    this.update({ notice: notice ?? "confirmed", sync: "syncing" });
     await this.syncProgress(true);
   }
 
@@ -362,7 +353,7 @@ export class AccountService implements IAccountService {
   }
 
   private canSync(): boolean {
-    return this.stored !== null && this.stored.account.options.saveProgress;
+    return this.stored !== null;
   }
 
   private freshSyncState(): SyncState {

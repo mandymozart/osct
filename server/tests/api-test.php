@@ -117,7 +117,7 @@ try {
     [$status, $data] = call($api, 'POST', '/auth/verify', ['requestId' => $requestId, 'code' => substr($mail['code'], 0, 3) . ' ' . substr($mail['code'], 3)]);
     check($status === 200 && $data['created'] === true, 'right code (with a space) → session, new account');
     check($data['account']['email'] === 'reader@example.com', 'email stored lowercase and trimmed');
-    check($data['account']['options'] === ['saveProgress' => true, 'bookUpdates' => true, 'publisherUpdates' => false], 'options from the form, missing ones on');
+    check($data['account']['options'] === ['bookUpdates' => true, 'publisherUpdates' => false], 'options from the form, missing ones on');
     $session = $data['session'];
     [$status, $data] = call($api, 'POST', '/auth/verify', ['token' => $mail['token']]);
     check($status === 410 && $data['error']['code'] === 'already-used', 'link of a used request → 410');
@@ -170,11 +170,6 @@ try {
     check($status === 200 && $data['updatedAt'] > $version, 'current base → stored, newer version');
     [$status, $data] = call($api, 'PUT', '/progress/other', null, $session, 'http://localhost:5173', json_encode(['record' => $record, 'baseUpdatedAt' => null]));
     check($status === 400 && $data['error']['code'] === 'invalid-record', 'record of another book → 400');
-    [$status, $data] = call($api, 'PATCH', '/account', ['options' => ['saveProgress' => false]], $session);
-    [, $data] = call($api, 'GET', '/progress/osct', null, $session);
-    check($data['record'] === null, 'turning saveProgress off deletes the stored progress');
-    [$status, $data] = call($api, 'PUT', '/progress/osct', null, $session, 'http://localhost:5173', json_encode(['record' => $record, 'baseUpdatedAt' => null]));
-    check($status === 409 && $data['error']['code'] === 'progress-off', 'saving while it is off → 409');
 
     echo "logout, delete\n";
     [$status] = call($api, 'POST', '/auth/logout', null, $secondSession);

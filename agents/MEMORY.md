@@ -6,19 +6,25 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-09-27 – Accounts by email (Tilman, branch `database`; PLAN Phase 11)
 
-- Goal: let readers hear about updates – very basic first. Sign-up options, **all on by default**: save my
-  progress · updates on Onion Skin & Crocodile Tears · updates from Building Fictions.
+- Goal: let readers hear about updates – very basic first. Sign-up options, **both on by default**: updates
+  on Onion Skin & Crocodile Tears · updates from Building Fictions. The progress is **always saved** in the
+  account and can be reset (Tilman, later the same day – "save my progress" is no longer an option).
 - **PHP + MySQL** (Tilman), plain PHP like qr.scutoons.com (no framework/Composer). There was no identity
   server in scutoons / qr.scutoons.com to reuse – only the style (PDO, config.local.php, FTP deploy).
 - Confirmation = **link + 6-digit code** (Tilman): on iOS a mail link opens Safari, not the home-screen app.
 - Mail: `mail()` for testing, SMTP for production (settings in config/env, Tilman).
-- "Save my progress" = **sync to the server** (Tilman). The device record stays the working copy; the
+- Progress = **sync to the server** (Tilman). The device record stays the working copy; the
   server version (`updatedAt`) guards against two devices overwriting each other. An existing account
   keeps its options when signing in again (the form's choice applies to a new account only).
 - API on the **OSCT production host** under `/api` (Tilman); first on the development server
   osct.porschuetz.de (all-inkl, PHP 8.5, MySQL). FTP host `dd38836.kasserver.com` (the certificate is for it).
   Credentials only in `server/.env` (not committed) and GitHub environment `dev`.
 - [ ] Naming "account" vs "user" – Tilman unsure; decide before the first deploy.
+- Info page regrouped (Tilman): Info · **Account** (sign-in, update switches, sign out / delete, **Reset book**
+  – signed in it resets the account's copy too) · **Settings** (sound & vibration, language, home screen) ·
+  colophon. The **Tutorial section was removed** from the Info page at Tilman's request (the onboarding stays).
+- Options are phone-style switches: `<gold-switch>` (components/buttons, own element – Tilman), text left,
+  switch on the far right; design primitive `.switch` / `.switch-row`.
 
 ## 2026-09-26 – PWA (Tilman: "do the PWA now"; PLAN Phase 9b)
 

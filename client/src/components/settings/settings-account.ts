@@ -1,4 +1,4 @@
-import { goldButton, goldSwitch } from "@/components/buttons";
+import { goldButton, GoldSwitch } from "@/components/buttons";
 import i18next from "i18next";
 import { AccountService } from "@/services";
 import { AccountNotice, AccountOption, AccountOptions, AccountSnapshot } from "@/types";
@@ -6,12 +6,13 @@ import { escapeHtml } from "@/utils";
 import { getBook } from "@/utils/game-config";
 import { SettingsSection } from "./settings-section";
 
-const OPTIONS: AccountOption[] = ["saveProgress", "bookUpdates", "publisherUpdates"];
+const OPTIONS: AccountOption[] = ["bookUpdates", "publisherUpdates"];
 
 /**
- * Account section (branch `database`): sign in with an email – no password. Signed out: the email and the
- * three options (all on by default) → "Send email". Then: the code from the email (the link in it signs
- * in as well). Signed in: the address, the options as toggles, sign out, delete the account.
+ * Account section (branch `database`): sign in with an email – no password. Signed out: the update
+ * options (both on by default, `<gold-switch>`) and the email → "Send email". Then: the code from the email
+ * (the link in it signs in as well). Signed in: the address, the options, the progress sync, sign out,
+ * delete the account. The progress is always kept in the account; "Reset book" (next section) resets it.
  * Hidden when the build has no accounts API (`VITE_API_URL`).
  */
 export class SettingsAccount extends SettingsSection {
@@ -20,7 +21,7 @@ export class SettingsAccount extends SettingsSection {
   /** The form's values survive re-renders */
   private email = "";
   private code = "";
-  private choices: AccountOptions = { saveProgress: true, bookUpdates: true, publisherUpdates: true };
+  private choices: AccountOptions = { bookUpdates: true, publisherUpdates: true };
 
   connectedCallback() {
     if (!this.account.isEnabled()) this.style.display = "none";
@@ -28,6 +29,7 @@ export class SettingsAccount extends SettingsSection {
     this.unsubscribe = this.account.subscribe(() => this.render());
     this.shadowRoot?.addEventListener("submit", this.handleSubmit);
     this.shadowRoot?.addEventListener("input", this.handleInput);
+    this.shadowRoot?.addEventListener("change", this.handleSwitch);
   }
 
   disconnectedCallback() {
@@ -35,6 +37,7 @@ export class SettingsAccount extends SettingsSection {
     this.unsubscribe?.();
     this.shadowRoot?.removeEventListener("submit", this.handleSubmit);
     this.shadowRoot?.removeEventListener("input", this.handleInput);
+    this.shadowRoot?.removeEventListener("change", this.handleSwitch);
     this.account.clearNotice();
   }
 
@@ -50,7 +53,8 @@ export class SettingsAccount extends SettingsSection {
         form .field { flex: 1 1 12rem; }
         form .code { flex: 0 1 8rem; letter-spacing: .3em; }
         .options { margin-top: .6rem; }
-        .switches { display: flex; flex-direction: column; gap: .25rem; margin-top: .6rem; max-width: 26rem; }
+        .switches { display: flex; flex-direction: column; gap: .25rem; margin-top: .6rem; }
+        .first { margin-top: 0; }
         .notice { margin: .6rem 0 0; }
       </style>
       ${body}
@@ -60,8 +64,7 @@ export class SettingsAccount extends SettingsSection {
 
   private signedOut({ busy }: AccountSnapshot): string {
     return /* html */ `
-      <div class="row"><span class="muted">${i18next.t("account:label")}</span></div>
-      <p class="description">${i18next.t("account:signedOutDescription")}</p>
+      <p class="description first">${i18next.t("account:signedOutDescription")}</p>
       <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
         ${OPTIONS.map(option => this.toggle(option, this.choices[option], "choose", busy)).join("")}
       </div>
@@ -76,8 +79,7 @@ export class SettingsAccount extends SettingsSection {
 
   private pending({ pending, busy }: AccountSnapshot): string {
     return /* html */ `
-      <div class="row"><span class="muted">${i18next.t("account:label")}</span></div>
-      <p class="description" role="status">${i18next.t("account:pendingDescription", { email: pending?.email ?? "" })}</p>
+      <p class="description first" role="status">${i18next.t("account:pendingDescription", { email: pending?.email ?? "" })}</p>
       <form class="options" data-form="code">
         <input class="field design code" type="text" name="code" required autocomplete="one-time-code" inputmode="numeric"
           pattern="[0-9 ]{6,7}" maxlength="7" value="${escapeHtml(this.code)}"
@@ -95,11 +97,10 @@ export class SettingsAccount extends SettingsSection {
     if (!account) return "";
     const syncText = sync === "synced" ? "account:syncSynced"
       : sync === "syncing" ? "account:syncSyncing"
-      : sync === "pending" ? "account:syncPending"
-      : "account:syncOff";
+      : "account:syncPending";
     return /* html */ `
       <div class="row">
-        <span class="muted">${i18next.t("account:label")}</span>
+        <span class="muted">${i18next.t("account:signedInAs")}</span>
         <span>${escapeHtml(account.email)}</span>
       </div>
       <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
@@ -113,15 +114,13 @@ export class SettingsAccount extends SettingsSection {
     `;
   }
 
-  /** One switch per option (Tilman: phone-style sliders in the style of the buttons) */
-  private toggle(option: AccountOption, on: boolean, action: string, busy: boolean): string {
+  /** One `<gold-switch>` per option (Tilman: phone-style sliders, the switch on the far right) */
+  private toggle(option: AccountOption, on: boolean, mode: "choose" | "toggle", busy: boolean): string {
     const labels: Record<AccountOption, string> = {
-      saveProgress: i18next.t("account:saveProgress"),
-      // goldButton escapes the label – no second escape by i18next
       bookUpdates: i18next.t("account:bookUpdates", { title: getBook().title, interpolation: { escapeValue: false } }),
       publisherUpdates: i18next.t("account:publisherUpdates"),
     };
-    return goldSwitch({ label: labels[option], checked: on, disabled: busy, attrs: { "data-action": action, "data-option": option } });
+    return `<gold-switch label="${escapeHtml(labels[option])}" data-option="${option}" data-switch="${mode}"${on ? " checked" : ""}${busy ? " disabled" : ""}></gold-switch>`;
   }
 
   private notice(notice: AccountNotice | null): string {
@@ -133,14 +132,7 @@ export class SettingsAccount extends SettingsSection {
   }
 
   protected onAction(action: string, element: HTMLElement): void {
-    const option = element.dataset.option as AccountOption | undefined;
-    if (action === "choose" && option) {
-      this.choices = { ...this.choices, [option]: !this.choices[option] };
-      this.render();
-    } else if (action === "toggle" && option) {
-      const account = this.account.getSnapshot().account;
-      if (account) void this.account.setOption(option, !account.options[option]);
-    } else if (action === "send-again") {
+    if (action === "send-again") {
       const pending = this.account.getSnapshot().pending;
       if (pending) void this.account.requestLogin(pending.email, this.choices);
     } else if (action === "other-email") {
@@ -152,6 +144,15 @@ export class SettingsAccount extends SettingsSection {
       if (window.confirm(i18next.t("account:deleteConfirm"))) void this.account.deleteAccount();
     }
   }
+
+  /** A `<gold-switch>` changed: before sign-in it's the form's choice, after it the account's option */
+  private handleSwitch = (event: Event) => {
+    const element = event.target;
+    if (!(element instanceof GoldSwitch)) return;
+    const option = element.dataset.option as AccountOption;
+    if (element.dataset.switch === "choose") this.choices = { ...this.choices, [option]: element.checked };
+    else void this.account.setOption(option, element.checked);
+  };
 
   private handleInput = (event: Event) => {
     const input = event.target as HTMLInputElement;

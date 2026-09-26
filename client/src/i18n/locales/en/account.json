@@ -1,8 +1,6 @@
 {
-  "label": "Account",
-  "signedOutDescription": "Sign in with your email – no password. We send you an email with a link and a code to confirm your address. Choose what your account is for:",
-  "optionsLabel": "Your account is for",
-  "saveProgress": "Save my progress",
+  "signedOutDescription": "Sign in with your email – no password. Your progress is saved in your account, so you can pick it up on another device. We send you an email with a link and a code to confirm your address.",
+  "optionsLabel": "Send me updates",
   "bookUpdates": "Updates on {{title}}",
   "publisherUpdates": "Updates from Building Fictions",
   "emailPlaceholder": "Your email address",
@@ -15,7 +13,6 @@
   "syncSynced": "Your progress is saved in your account.",
   "syncSyncing": "Saving your progress in your account …",
   "syncPending": "Your progress will be saved in your account when you're online again.",
-  "syncOff": "Your progress is only saved on this device.",
   "signOut": "Sign out",
   "delete": "Delete account",
   "deleteConfirm": "Delete your account and everything stored in it? Your progress stays on this device.",
@@ -34,5 +31,6 @@
     "offline": "No connection to the server. Check your internet connection.",
     "unauthorized": "You're signed out. Sign in again.",
     "server-error": "Something went wrong. Try again later."
-  }
+  },
+  "signedInAs": "Signed in as"
 }

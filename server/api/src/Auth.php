@@ -8,7 +8,8 @@ declare(strict_types=1);
  */
 final class Auth
 {
-    public const OPTIONS = ['saveProgress' => 'save_progress', 'bookUpdates' => 'book_updates', 'publisherUpdates' => 'publisher_updates'];
+    /** The sign-up options (the progress is always kept – it can be reset in the app) */
+    public const OPTIONS = ['bookUpdates' => 'book_updates', 'publisherUpdates' => 'publisher_updates'];
 
     /** POST /auth/request { email, language?, options? } → 202 { requestId, expiresAt } */
     public static function request(array $body): never
@@ -32,10 +33,10 @@ final class Auth
         $code = sprintf('%06d', random_int(0, 999999));
         $ttl = Config::int('LOGIN_TTL_MINUTES') * 60;
         Db::run(
-            'INSERT INTO login_requests (id, email, token_hash, code_hash, language, save_progress, book_updates, publisher_updates, ip_hash, created_at, expires_at)
-             VALUES (:id, :email, :token, :code, :language, :sp, :bu, :pu, :ip, :created, :expires)',
+            'INSERT INTO login_requests (id, email, token_hash, code_hash, language, book_updates, publisher_updates, ip_hash, created_at, expires_at)
+             VALUES (:id, :email, :token, :code, :language, :bu, :pu, :ip, :created, :expires)',
             ['id' => $id, 'email' => $email, 'token' => hash('sha256', $token), 'code' => self::codeHash($id, $code),
-             'language' => $language, 'sp' => (int) $options['saveProgress'], 'bu' => (int) $options['bookUpdates'],
+             'language' => $language, 'bu' => (int) $options['bookUpdates'],
              'pu' => (int) $options['publisherUpdates'], 'ip' => $ipHash, 'created' => Db::now(), 'expires' => Db::now($ttl)]
         );
 
@@ -95,9 +96,9 @@ final class Auth
                 $id = Db::uuid();
                 $now = Db::now();
                 Db::run(
-                    'INSERT INTO accounts (id, email, language, save_progress, book_updates, publisher_updates, created_at, confirmed_at, updated_at)
-                     VALUES (:id, :email, :language, :sp, :bu, :pu, :now, :now2, :now3)',
-                    ['id' => $id, 'email' => $request['email'], 'language' => $request['language'], 'sp' => $request['save_progress'],
+                    'INSERT INTO accounts (id, email, language, book_updates, publisher_updates, created_at, confirmed_at, updated_at)
+                     VALUES (:id, :email, :language, :bu, :pu, :now, :now2, :now3)',
+                    ['id' => $id, 'email' => $request['email'], 'language' => $request['language'],
                      'bu' => $request['book_updates'], 'pu' => $request['publisher_updates'], 'now' => $now, 'now2' => $now, 'now3' => $now]
                 );
                 $account = Db::one('SELECT * FROM accounts WHERE id = :id', ['id' => $id]);

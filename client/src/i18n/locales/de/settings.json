@@ -1,6 +1,4 @@
 {
-  "tutorialButton": "Anleitung",
-  "tutorialDescription": "Eine Schritt-für-Schritt-Anleitung, wie du die App mit deinem Buch verwendest.",
   "historyButton": "Buch zurücksetzen",
   "historyDescription": "Löscht den gesamten gespeicherten Fortschritt auf diesem Gerät.",
   "historyConfirm": "Den gesamten gespeicherten Fortschritt für dieses Buch auf diesem Gerät löschen?",
@@ -17,5 +15,7 @@
   "installDone": "Du verwendest die App von deinem Home-Bildschirm aus.",
   "installDescription": "Installiere die App auf deinem Handy: Sie öffnet sich im Vollbild über ihr eigenes Symbol und startet schneller.",
   "installIos": "Tippe in Safari auf Teilen (das Quadrat mit dem Pfeil), dann auf „Zum Home-Bildschirm“. Die App öffnet sich dann im Vollbild über ihr eigenes Symbol.",
-  "installManual": "Öffne das Menü deines Browsers und wähle „Zum Startbildschirm hinzufügen“ oder „App installieren“, falls dein Browser das anbietet."
+  "installManual": "Öffne das Menü deines Browsers und wähle „Zum Startbildschirm hinzufügen“ oder „App installieren“, falls dein Browser das anbietet.",
+  "historyDescriptionAccount": "Das löscht deinen gesamten gespeicherten Fortschritt – auf diesem Gerät und in deinem Konto.",
+  "historyConfirmAccount": "Deinen gesamten Fortschritt für dieses Buch löschen – auf diesem Gerät und in deinem Konto?"
 }

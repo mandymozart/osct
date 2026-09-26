@@ -10,7 +10,7 @@ final class Accounts
         Http::json(200, ['account' => self::toJson(Auth::account())]);
     }
 
-    /** PATCH /account { options?, language? } → { account }. Turning off saveProgress deletes the stored progress. */
+    /** PATCH /account { options?, language? } → { account } */
     public static function update(array $body): never
     {
         $account = Auth::account();
@@ -27,14 +27,7 @@ final class Accounts
             $set[] = 'language = :language';
             $params['language'] = $language;
         }
-        if ($set) {
-            Db::transaction(function () use ($set, $params, $options, $account) {
-                Db::run('UPDATE accounts SET ' . implode(', ', $set) . ', updated_at = :now WHERE id = :id', $params);
-                if (($options['saveProgress'] ?? true) === false) {
-                    Db::run('DELETE FROM progress WHERE account_id = :id', ['id' => $account['id']]);
-                }
-            });
-        }
+        if ($set) Db::run('UPDATE accounts SET ' . implode(', ', $set) . ', updated_at = :now WHERE id = :id', $params);
         Http::json(200, ['account' => self::toJson(Db::one('SELECT * FROM accounts WHERE id = :id', ['id' => $account['id']]))]);
     }
 

@@ -1,8 +1,6 @@
 {
-  "label": "Konto",
-  "signedOutDescription": "Melde dich mit deiner E-Mail an – ohne Passwort. Wir schicken dir eine E-Mail mit einem Link und einem Code, um deine Adresse zu bestätigen. Wähle, wofür dein Konto da ist:",
-  "optionsLabel": "Dein Konto ist für",
-  "saveProgress": "Meinen Fortschritt speichern",
+  "signedOutDescription": "Melde dich mit deiner E-Mail an – ohne Passwort. Dein Fortschritt wird in deinem Konto gespeichert, so kannst du auf einem anderen Gerät weitermachen. Wir schicken dir eine E-Mail mit einem Link und einem Code, um deine Adresse zu bestätigen.",
+  "optionsLabel": "Schick mir Neuigkeiten",
   "bookUpdates": "Neuigkeiten zu {{title}}",
   "publisherUpdates": "Neuigkeiten von Building Fictions",
   "emailPlaceholder": "Deine E-Mail-Adresse",
@@ -15,7 +13,6 @@
   "syncSynced": "Dein Fortschritt ist in deinem Konto gespeichert.",
   "syncSyncing": "Dein Fortschritt wird in deinem Konto gespeichert …",
   "syncPending": "Dein Fortschritt wird in deinem Konto gespeichert, sobald du wieder online bist.",
-  "syncOff": "Dein Fortschritt wird nur auf diesem Gerät gespeichert.",
   "signOut": "Abmelden",
   "delete": "Konto löschen",
   "deleteConfirm": "Dein Konto und alles darin löschen? Dein Fortschritt bleibt auf diesem Gerät.",
@@ -34,5 +31,6 @@
     "offline": "Keine Verbindung zum Server. Prüf deine Internetverbindung.",
     "unauthorized": "Du bist abgemeldet. Melde dich wieder an.",
     "server-error": "Etwas ist schiefgelaufen. Versuch es später noch einmal."
-  }
+  },
+  "signedInAs": "Angemeldet als"
 }

@@ -1,6 +1,4 @@
 {
-  "tutorialButton": "Tutoriel",
-  "tutorialDescription": "Un guide pas à pas pour utiliser l'application avec ton livre.",
   "historyButton": "Réinitialiser le livre",
   "historyDescription": "Supprime toute la progression enregistrée sur cet appareil.",
   "historyConfirm": "Supprimer toute la progression enregistrée pour ce livre sur cet appareil ?",
@@ -17,5 +15,7 @@
   "installDone": "Tu utilises l'application depuis ton écran d'accueil.",
   "installDescription": "Installe l'application sur ton téléphone : elle s'ouvre en plein écran depuis sa propre icône et démarre plus vite.",
   "installIos": "Dans Safari, touche Partager (le carré avec la flèche), puis « Sur l'écran d'accueil ». L'application s'ouvre alors en plein écran depuis sa propre icône.",
-  "installManual": "Ouvre le menu de ton navigateur et choisis « Ajouter à l'écran d'accueil » ou « Installer l'application », si ton navigateur le propose."
+  "installManual": "Ouvre le menu de ton navigateur et choisis « Ajouter à l'écran d'accueil » ou « Installer l'application », si ton navigateur le propose.",
+  "historyDescriptionAccount": "Cela supprime toute la progression sauvegardée – sur cet appareil et dans ton compte.",
+  "historyConfirmAccount": "Supprimer toute la progression de ce livre – sur cet appareil et dans ton compte ?"
 }
