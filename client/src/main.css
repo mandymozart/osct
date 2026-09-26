@@ -78,7 +78,7 @@ html, body {
 }
 
 /* Force hardware acceleration for active elements */
-.active, [active], a-scene.active {
+.active, [active] {
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
 }
@@ -124,11 +124,6 @@ img {
   object-fit: cover;
 }
 
-a-scene.active {
-  pointer-events: all;
-  opacity: 1;
-}
-
 /* Startup loader (index.html, before any JS): same look as the loading page */
 #initial-loader {
   position: fixed;
@@ -141,14 +136,13 @@ a-scene.active {
   transition: opacity 0.5s ease;
 }
 
-/* Hide A-Frame scene initially */
-#scene.active {
-  opacity: 1;
-}
-
+/* The 3D layer shows while AR runs (ar-bridge sets body.scene-active on status "running") */
 #scene {
   opacity: 0;
   transition: opacity .2s linear;
+}
+body.scene-active #scene {
+  opacity: 1;
 }
 video {
   opacity: 1;
