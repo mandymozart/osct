@@ -18,7 +18,6 @@ export class AboutPage extends ConsultationPage {
         display: inline-block;
         margin: .5rem 0 1rem;
         padding: .5rem .75rem;
-        border-radius: .5rem;
         background: var(--color-on-dark);
       }
       .logo { display: block; height: 3rem; }
