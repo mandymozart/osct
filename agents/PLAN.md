@@ -779,7 +779,8 @@ the app is ready. PWA later.
   advice (not re-encoded: ffmpeg is native). Render loop: frames only while an entity is visible or
   animating (+ one clearing frame). `node-fetch` (TF.js, Node only) aliased to a stub – no dev-server error.
 - [ ] Videos of the final content: 720p H.264 ~2 Mbit/s (demo: bunny 10.9 MB, edge 5.8 MB) – with the artist.
-- [ ] Device check of round 2 (`.mind.gz` loading, render on demand) – phone was disconnected.
+- [x] Device check of round 2 on the S22 (staging, 2026-09-26): `.mind.gz` loaded + unpacked (cache hit for
+  the tracker after the preload, neighbour preloaded), model renders while tracked, gone at once when lost.
 
 **After the first staging test (Tilman, 2026-09-26):**
 - [x] **Placement in the content**: `entity.params` `position` / `rotation` / `scale` (shared/types/placement.ts,
