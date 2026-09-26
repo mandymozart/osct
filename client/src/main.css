@@ -38,9 +38,11 @@
   /* Loading (startup + spread switch): the consultation darkness with a slight vignette */
   --loading-background:
     radial-gradient(ellipse 60% 55% at 50% 50%, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.82) 100%);
+  /* Measured from the design frames (p.1–5): black in the middle, #070707 half way, #0c0c0c at the side
+     edges, #1a1a1a in the corners. The gradient reaches the corners (farthest-corner) – the former ellipse
+     ended at the side edges and let a grey base show there (Tilman, 2026-09-26) */
   --onboarding-background:
-    radial-gradient(ellipse 50% 50% at 50% 50%, #000 0%, rgba(0, 0, 0, 0.93) 40%, rgba(0, 0, 0, 0.65) 70%, rgba(0, 0, 0, 0) 100%),
-    #1c1c1e;
+    radial-gradient(ellipse farthest-corner at 50% 50%, #000 0%, #000 35%, #070707 52%, #0c0c0c 71%, #1a1a1a 100%);
 
   /* Buttons: almost transparent body (non-zero alpha, else no backdrop blur) + blur + drop shadow */
   --glass-background: rgba(255, 255, 255, 0.001);

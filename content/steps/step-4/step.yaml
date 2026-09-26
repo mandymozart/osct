@@ -1,11 +1,6 @@
-# Onboarding (design p.4): camera permission
+# Onboarding (design p.5): done → scan mode
 type: step
-description: |-
-  To scan the book and display interactive content, this application requires access to your camera.
-
-  Please, grant access to proceed.
-button: Grant access
-action: camera
-# Illustration as on main (tutorial-step-1 = get started, -2 = camera), gold via <gold-illustration>
-illustration: /assets/illustrations/tutorial-step-2.svg
+title: Thank you!
+button: Access scan
+action: scan
 index: 3

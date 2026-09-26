@@ -1,9 +1,11 @@
-# Onboarding (design p.3): intro – no fade, the next step appears directly
+# Onboarding (design p.4): camera permission
 type: step
-description: >-
-  This application allows you to reveal videos, texts and key references hidden in the printed
-  publication *{{title}}*.
-button: Continue
+description: |-
+  To scan the book and display interactive content, this application requires access to your camera.
+
+  Please, grant access to proceed.
+button: Grant access
+action: camera
 # Illustration as on main (tutorial-step-1 = get started, -2 = camera), gold via <gold-illustration>
-illustration: /assets/illustrations/tutorial-step-1.svg
+illustration: /assets/illustrations/tutorial-step-2.svg
 index: 2

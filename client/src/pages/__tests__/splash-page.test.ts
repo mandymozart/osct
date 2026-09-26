@@ -33,12 +33,11 @@ describe("splash", () => {
     it("plays the splash steps, then opens scan mode", () => {
       const steps = getSplashSteps();
       const page = mount();
-      expect(shownStep(page)).toBe(String(steps[0].index));
-
-      vi.advanceTimersByTime(steps[0].advance ?? 2000);
-      expect(shownStep(page)).toBe(String(steps[1].index));
-
-      vi.advanceTimersByTime(steps[1].advance ?? 2000);
+      steps.forEach(step => {
+        expect(shownStep(page)).toBe(String(step.index));
+        expect(game.state.currentRoute?.page).toBe(Pages.SPLASH);
+        vi.advanceTimersByTime(step.advance ?? 2000);
+      });
       expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
     });
 
@@ -51,8 +50,10 @@ describe("splash", () => {
       expect(shownStep(page)).toBe(String(steps[0].index));
 
       game.finishLoading();
-      vi.advanceTimersByTime(steps[0].advance ?? 2000);
-      expect(shownStep(page)).toBe(String(steps[1].index));
+      vi.advanceTimersByTime((steps[0].advance ?? 2000) - 1);
+      expect(shownStep(page)).toBe(String(steps[0].index));
+      steps.forEach(step => vi.advanceTimersByTime(step.advance ?? 2000));
+      expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
     });
 
     it("skips ahead on a tap", () => {

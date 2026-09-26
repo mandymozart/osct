@@ -50,7 +50,12 @@ export class SplashPage extends Page {
         padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark 88 px from the top, as the onboarding */
         box-sizing: border-box;
       }
-      tutorial-content { flex: 1 0 auto; width: 100%; }
+      /* As the onboarding: the text block reaches down to 58 % – the footer (publisher) sits there, design p.2 */
+      tutorial-content {
+        flex: 1 0 auto;
+        width: 100%;
+        --actions-top: calc(58vh - max(11vh, 5.5rem));
+      }
     `;
   }
 

@@ -4,6 +4,16 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Onboarding flow and look (Tilman, mobile test)
+
+- (user) Flash of the "camera denied" screen after granting access: hiding the camera screen re-rendered it,
+  and "granted" drew the denied content during the fade-out. Now it fades out with its last content.
+- (user) Splash as one flowing sequence: Mark, then title, author, publisher fading in 0.5 s apart (0.8 s each,
+  advance 3.8 s). The two splash steps are merged (content: steps renumbered, 4 steps). New step option
+  `stagger` (contract, guard, schema). Every step fades in, its parts one after the other (default 250 ms),
+  the button last; Mark stays still on later steps. The splash footer sits at 58 % (design p.2).
+- (user) The onboarding background looked grey at the sides: measured from the frames and replaced (DESIGN §8.3).
+
 ## 2026-09-26 – Mobile test: camera over https, pill glow, menu line height (Tilman)
 
 - (user) "Grant access" did nothing on the phone: the dev server was plain http on the network address →

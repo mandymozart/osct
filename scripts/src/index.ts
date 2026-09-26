@@ -393,7 +393,7 @@ function buildTutorial(book: BookData): StepData[] {
       }
       // Optional fields only when set (the bundle stays free of empty keys)
       const optional = Object.fromEntries(
-        (['title', 'description', 'footer', 'illustration', 'button', 'action', 'fadeIn', 'advance'] as const)
+        (['title', 'description', 'footer', 'illustration', 'button', 'action', 'fadeIn', 'stagger', 'advance'] as const)
           .filter(key => s[key] !== undefined && s[key] !== '')
           .map(key => [key, s[key]])
       );

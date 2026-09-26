@@ -1,8 +1,9 @@
-# Onboarding (design p.2): title + author + publisher, fade-in 1s
+# Onboarding (design p.3): intro – fades in like every step
 type: step
-title: "{{title}}"   # from book.yaml
-description: "{{author}}"   # from book.yaml
-footer: "{{publisher}}"   # from book.yaml
-fadeIn: 1000
-advance: 2500
+description: >-
+  This application allows you to reveal videos, texts and key references hidden in the printed
+  publication *{{title}}*.
+button: Continue
+# Illustration as on main (tutorial-step-1 = get started, -2 = camera), gold via <gold-illustration>
+illustration: /assets/illustrations/tutorial-step-1.svg
 index: 1

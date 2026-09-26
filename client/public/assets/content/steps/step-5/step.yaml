@@ -1,6 +1,0 @@
-# Onboarding (design p.5): done → scan mode
-type: step
-title: Thank you!
-button: Access scan
-action: scan
-index: 4

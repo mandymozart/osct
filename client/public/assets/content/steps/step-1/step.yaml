@@ -1,5 +1,10 @@
-# Onboarding (design p.1): splash – Mark + title, advances by itself
+# Splash (design p.1–2, as one flowing sequence – Tilman 2026-09-26): Mark, then title, author and
+# publisher fade in one after the other, 0.5 s apart; the step advances by itself (or on a tap)
 type: step
-title: "{{title}}"   # from book.yaml
-advance: 2000
+title: "{{title}}"             # from book.yaml
+description: "{{author}}"      # from book.yaml
+footer: "{{publisher}}"        # from book.yaml
+fadeIn: 800
+stagger: 500
+advance: 3800
 index: 0
