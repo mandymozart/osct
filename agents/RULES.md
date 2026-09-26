@@ -149,6 +149,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
     only through `ApiService` (`VITE_API_URL`); `php server/tests/api-test.php` must pass.
     Naming: the signed-in person is the **user** in code, API and database; "Account" is only the UI label.
     Update options are **opt-in** – never on by default (Tilman, 2026-09-27).
+    **A deploy never resets data** (Tilman, 2026-09-27): the schema files only add (`CREATE TABLE IF NOT EXISTS`;
+    later changes as additive `ALTER TABLE … ADD`), no `DROP` / `TRUNCATE` / `DELETE` – the API test enforces it
+    and checks that users, sessions and progress survive a second migration. The upload deletes nothing.
 
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions
