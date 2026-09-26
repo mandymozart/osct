@@ -74,4 +74,44 @@ describe("PreloaderService", () => {
     expect((await preloader.preload({ src, type: "mind" })).success).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  describe("whole-book download", () => {
+    it("reports the book's size before, then downloads every content file once with progress", async () => {
+      const before = await preloader.getBookDownload();
+      expect(before.state).toBe("idle");
+      expect(before.total).toBeGreaterThan(0); // sizes from the build
+      expect(before.loaded).toBe(0);
+
+      const states: string[] = [];
+      let lastLoaded = 0;
+      preloader.onBookDownload(d => {
+        states.push(d.state);
+        expect(d.loaded).toBeGreaterThanOrEqual(lastLoaded); // never goes back
+        lastLoaded = d.loaded;
+      });
+      const [first, second] = await Promise.all([preloader.downloadBook(), preloader.downloadBook()]); // one run
+      expect(first).toEqual(second);
+      expect(first).toMatchObject({ state: "done", loaded: before.total, total: before.total, failed: 0 });
+      expect(states[0]).toBe("running");
+      expect(states.at(-1)).toBe("done");
+
+      const urls = fetchedUrls();
+      expect(new Set(urls).size).toBe(urls.length);
+      for (const spread of spreads) expect(urls).toContain(mindUrl(spread.mindSrc));
+      expect((await preloader.getBookDownload()).state).toBe("done");
+    });
+
+    it("skips what is on the device already and reports failed files", async () => {
+      await preloader.preloadSpread(spreads[0].id);
+      const already = fetchedUrls().length;
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
+
+      const result = await preloader.downloadBook();
+      expect(result).toMatchObject({ state: "failed", failed: 1 });
+      expect(result.loaded).toBeLessThan(result.total);
+      expect(fetchedUrls().slice(already)).not.toContain(mindUrl(spreads[0].mindSrc));
+
+      expect((await preloader.downloadBook()).state).toBe("done"); // try again: the rest
+    });
+  });
 });

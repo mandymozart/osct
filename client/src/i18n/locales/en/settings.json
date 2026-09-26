@@ -17,5 +17,10 @@
   "installDone": "You're using the app from your home screen.",
   "installDescription": "Install the app on your phone: it opens full screen from its own icon and starts faster.",
   "installIos": "In Safari, tap Share (the square with the arrow), then \"Add to Home Screen\". The app then opens full screen from its own icon.",
-  "installManual": "Open your browser's menu and choose \"Add to Home Screen\" or \"Install app\", if your browser offers it."
+  "installManual": "Open your browser's menu and choose \"Add to Home Screen\" or \"Install app\", if your browser offers it.",
+  "downloadButton": "Download whole book",
+  "downloadDescription": "Saves the whole book on this device ({{size}}), so it also works without internet. Best on Wi-Fi.",
+  "downloadProgress": "{{loaded}} of {{total}} downloaded",
+  "downloadDone": "The whole book is on this device ({{size}}).",
+  "downloadFailed": "Some files could not be downloaded ({{size}} in total). Check your connection and try again."
 }

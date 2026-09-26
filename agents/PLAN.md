@@ -835,9 +835,14 @@ Installable app (home screen, standalone, splash) + offline start. Details: MEMO
   section `settings-install` + `InstallService` – the browser's install dialog where there is one
   (Chrome, Edge, Samsung), Safari's Share → "Add to Home Screen" explained on iOS, "installed" when the
   app runs from the home screen. en/fr/nl/de.
-- [ ] **Full content download for the final app** (Tilman 2026-09-27: the whole book's content should be
-  on the phone). When is open – e.g. after install / first start of the installed app, on Wi-Fi only,
-  or as an Info action with progress. Today: only what was seen or preloaded is cached.
+- [x] **Whole-book download on the Info page** (Tilman 2026-09-27: keep "download as you read", add a
+  full download in Info with a progress bar and the total size; no "clear" – removing the app is enough):
+  section `settings-download` + `PreloaderService.downloadBook()` (all spreads' `.mind`, entity assets,
+  entry images; 3 at a time, progress in bytes, runs on when Info closes, asks for persistent storage).
+  Sizes from the build (`virtual:osct-content-sizes`, vite.config.js). Demo: 20.2 MB, ~40 s at 4 Mbit/s
+  (headless). The service worker stores it (content cache); Info shows "on this device" afterwards.
+- [ ] Test on the phones how long the whole download takes with real content; then decide whether it
+  should also start by itself (e.g. after install, on Wi-Fi) – Tilman.
 - [ ] **Production host (FTP, not Netlify) – when production is set up** (Tilman 2026-09-27: note it,
   handle it then): `public/_headers` does not apply there. Needed: `.webmanifest` served as
   `application/manifest+json`; `service-worker.js` + `manifest.webmanifest` with `Cache-Control: no-cache`;

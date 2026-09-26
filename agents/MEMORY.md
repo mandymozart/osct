@@ -32,7 +32,11 @@ outcome in the line (or move it into a dated decision block).
   see an install offer while it was suppressed.
 - Beware: `npm run i18n` (i18next-cli extract) drops keys that are not used in code yet and blanks new
   translations it adds – write the code first, then fill the JSON files, then run it again.
-- [ ] Final app icon; when to download the whole content – Tilman.
+- Whole-book download (2026-09-27, Tilman): "download as you read" stays the default; Info has "Download
+  whole book" with the total size, a progress bar ("x of y MB") and the size when done – for testing how
+  long it takes. No "clear" button (uninstalling removes it). File sizes come from the build (a Vite
+  virtual module over `public/assets/content`), not from the game configuration – no content-build change.
+- [ ] Final app icon; whether the whole download should start by itself later – Tilman.
 
 ## 2026-09-26 – Unlock animation: reverse emissive dissolve (Tilman, branch `unlock-experience`)
 

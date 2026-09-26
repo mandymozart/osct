@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -104,6 +104,26 @@ function staticSplash() {
   };
 }
 
+/**
+ * Sizes of the content files (`virtual:osct-content-sizes`): the whole-book download on the Info page shows
+ * the total before it starts and its progress in bytes (PreloaderService). Every file under
+ * public/assets/content, by URL.
+ */
+function contentSizes() {
+  const id = 'virtual:osct-content-sizes';
+  const root = resolve(__dirname, 'public/assets/content');
+  const walk = (dir, prefix) => readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory()
+    ? walk(resolve(dir, entry.name), `${prefix}${entry.name}/`)
+    : [[`${prefix}${entry.name}`, statSync(resolve(dir, entry.name)).size]]);
+  return {
+    name: 'osct-content-sizes',
+    resolveId: (source) => (source === id ? `\0${id}` : undefined),
+    load: (loaded) => (loaded === `\0${id}`
+      ? `export default ${JSON.stringify(Object.fromEntries(walk(root, '/assets/content/')))};`
+      : undefined),
+  };
+}
+
 export default defineConfig(({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
   const port = 5173; // Default Vite port, change if you're using a custom port
@@ -113,7 +133,7 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [tsconfigPaths(), staticSplash(), ...pwa(), ...(https ? [basicSsl()] : [])],
+  plugins: [tsconfigPaths(), staticSplash(), contentSizes(), ...pwa(), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),

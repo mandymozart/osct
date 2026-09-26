@@ -14,3 +14,9 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Sizes of the content files in bytes by URL (`/assets/content/…`), from the build (vite.config.js) */
+declare module "virtual:osct-content-sizes" {
+  const sizes: Record<string, number>;
+  export default sizes;
+}
