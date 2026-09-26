@@ -4,15 +4,16 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
-## 2026-09-26 – Stone Guardian shows nothing on the phone (open)
+## 2026-09-26 – No 3D content visible on the phone (fixed, found by remote debugging the phone)
 
-- Checked on desktop (headless Edge, fake camera with the page, persistent strategy, after a spread switch):
-  `.mind` order matches the content (spread2 index 1 = images-045, 250×358), the GLB loads and renders
-  (brown boxes, ~0.7 × 0.9 target widths), the anchor stays tracked, the renderer draws it. No fault found.
-- On the phone screenshot the scanning ring is visible = no target tracked at that moment, although the
-  entry was unlocked: probably found, then lost right away. The debug bar now shows the tracked targets
-  and how often each was found (`F[stone-guardian×3]`) to tell flickering tracking from a rendering problem.
-- [ ] Open: retest on the phone with the debug bar; also check the other spread2 targets.
+- Cause: `#scene { opacity: 0 }` in main.css was only lifted by `#scene.active`; the old SceneService set that
+  class, the Phase 6 AR bridge doesn't. Since Phase 6 every model/video was rendered but invisible (found
+  via the phone: tracking stable, WebGL pixels brown, `a-scene` opacity 0). Now `body.scene-active #scene`
+  (set by ar-bridge while AR runs) shows the layer.
+- Phone testing from the PC: USB debugging + adb (`winget install Google.PlatformTools`),
+  `adb forward tcp:9444 localabstract:chrome_devtools_remote`, then CDP on the Chrome tab (evaluate,
+  console, screenshots incl. WebGL). Headless Edge screenshots don't capture the WebGL canvas.
+- The debug bar shows tracked targets and how often each was found (`F[stone-guardian×3]`).
 - [ ] Open: `SpreadManager.markLoading/markLoaded` are never called – the spread dot in the debug bar is
   always orange. Remove the spread status or wire it to the AR scene?
 
