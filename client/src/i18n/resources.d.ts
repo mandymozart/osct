@@ -41,7 +41,7 @@ export default interface Resources {
     "otherEmail": "Use another email",
     "pendingDescription": "We sent an email to {{email}}. Open the link in it, or enter the code here:",
     "publisherUpdates": "Receive updates from Building Fictions",
-    "send": "Send confirmation",
+    "send": "Register account",
     "sendAgain": "Send again",
     "signOut": "Sign out",
     "signedInAs": "Signed in as",
