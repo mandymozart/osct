@@ -17,7 +17,9 @@ const GAME_CONFIG = JSON.parse(readFileSync(resolve(__dirname, 'src/game.config.
  * PWA (2026-09-26): web app manifest + service worker (sw/service-worker.ts, precache list injected here).
  * Home-screen name: `book.title` from the game configuration (also the iOS title in index.html); black like
  * the app.
- * Icons: placeholders made from Mark the Page (public/assets/icons/) until the final app icon arrives.
+ * Icons: placeholders made from Mark the Page (public/assets/icons/) until the final app icon arrives –
+ * "any" icons transparent (Chrome's app list / install dialog), the maskable one on black (Android always
+ * cuts it into the launcher's shape and fills the rest), apple-touch-icon opaque (iOS requires it).
  */
 function pwa() {
   const title = GAME_CONFIG.book?.title ?? 'Onion Skin & Crocodile Tears';
