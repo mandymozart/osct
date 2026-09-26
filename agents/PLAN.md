@@ -866,7 +866,7 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
 
 ## Phase 11 – Accounts  `[~]` (built 2026-09-27 on `database`, merged into develop + main in 1.1.1; open: SMTP, final texts, phone test)
 
-Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/` (server/README.md).
+Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/` (docs/server.md).
 - [x] API: request / verify (link or code) / logout, account (options, delete), progress per book with a
       version check (409 → merge). Hashes only, attempt and hourly limits, CORS by origin list. Tests: `server/tests/api-test.php`.
 - [x] Mail: log / mail() / SMTP (own client), texts en/fr/nl/de, lists the chosen options for a new account.

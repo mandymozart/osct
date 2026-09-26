@@ -2,7 +2,7 @@
 
 OSCT is the web AR companion app for Kévin Bray's book *Onion Skin & Crocodile Tears*
 (buildingfictions). It runs in the browser, with no app install and no data tracking – progress is
-stored only on the reader's device.
+stored on the reader's device, and in their account if they register one (email only, no password).
 
 Staging: [osct.netlify.app](https://osct.netlify.app) (built from `main`) [![Netlify Status](https://api.netlify.com/api/v1/badges/98de0d7b-4e71-4848-b987-6caa89675835/deploy-status)](https://app.netlify.com/sites/osct/deploys)
 
@@ -11,6 +11,7 @@ Staging: [osct.netlify.app](https://osct.netlify.app) (built from `main`) [![Net
 | | |
 |---|---|
 | **Content** | [Content guide](content.md) – how `content/` is organised (for artists, designers, editors) · [Content build](content-build.md) – `scripts/` |
+| **Server** | [User API](server.md) – accounts by email, progress in the account, opt-in updates; PHP + MySQL, deploy to osct.porschuetz.de |
 | **App** | [Languages (i18n)](i18n.md) · [Game store](game-store.md) · [Base store](base-store.md) · [Managers](managers.md) · [Pages](pages.md) · [Error page](error-page.md) · [Components](components.md) |
 
 Quick start: the repository [README](../README.md).
@@ -30,6 +31,7 @@ Quick start: the repository [README](../README.md).
 | `client/` | The app |
 | `content/` | Book content as YAML + media – see [Content guide](content.md) |
 | `scripts/` | Content build: `content/` → `client/src/game.config.json` – see [Content build](content-build.md) |
+| `server/` | User API (PHP + MySQL) – see [Server](server.md) |
 | `shared/` | Game configuration contract (types + runtime guards), used by app and build |
 | `mind-ar/` | Generated: target images per spread in MindAR order, for compiling `.mind` files |
 | `docs/` | This documentation |

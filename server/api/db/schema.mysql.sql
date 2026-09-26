@@ -1,4 +1,4 @@
--- OSCT users (server/README.md). MySQL 5.7+ / MariaDB 10.3+, utf8mb4.
+-- OSCT users (docs/server.md). MySQL 5.7+ / MariaDB 10.3+, utf8mb4.
 -- Times are UTC, written by PHP (no NOW()) so the same queries run on SQLite for local development.
 -- Changes after the first deploy: add a dated file to server/db/migrations/ and update this file.
 

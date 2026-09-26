@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * OSCT users API (server/README.md) – every request under /api/ comes here (.htaccess).
+ * OSCT users API (docs/server.md) – every request under /api/ comes here (.htaccess).
  *
  *   GET    /health                   { status, version, db }
  *   POST   /auth/request             send the confirmation email (link + code)
