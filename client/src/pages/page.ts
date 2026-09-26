@@ -64,7 +64,8 @@ export abstract class Page extends HTMLElement implements IPage {
           background: var(--app-background);
           border-radius: 1.5rem 1.5rem 0 0;
           z-index: var(--page-z-index, 1000);
-          transition: all 1s ease;
+          /* Only opacity/visibility – "all" also animated z-index (overlays changed layers over a second) */
+          transition: opacity 1s ease, visibility 1s;
           opacity: 0;
           visibility: hidden;
           overflow-y: auto;
@@ -74,6 +75,8 @@ export abstract class Page extends HTMLElement implements IPage {
           visibility: visible;
           opacity: 1;
         }
+        /* A page fading out must not catch taps meant for the page below */
+        :host(:not([active=true])) { pointer-events: none !important; }
         .header {
           height: 6rem;
           display: flex;
