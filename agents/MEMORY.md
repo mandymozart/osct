@@ -15,6 +15,8 @@ outcome in the line (or move it into a dated decision block).
   startup loading screen.
 - The publisher line from 2026-09-26 (home, above Start) went with the home page; the splash shows the
   publisher as the footer of its second step (content).
+- (user) `book.yaml` → `publisher` stays: important book information, even while no view shows it – not a
+  removal candidate (RULES #15 does not apply to book data).
 
 ## 2026-09-26 – Onboarding / home buttons in the flow (Tilman)
 
