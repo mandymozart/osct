@@ -171,6 +171,17 @@ try {
     [$status, $data] = call($api, 'PUT', '/progress/other', null, $session, 'http://localhost:5173', json_encode(['record' => $record, 'baseUpdatedAt' => null]));
     check($status === 400 && $data['error']['code'] === 'invalid-record', 'record of another book → 400');
 
+    echo "deploy keeps the data\n";
+    foreach (glob(dirname(__DIR__) . '/api/db/schema.*.sql') as $schema) {
+        check(!preg_match('/\b(DROP|TRUNCATE)\b|^\s*DELETE\b/im', (string) file_get_contents($schema)), basename($schema) . ' only adds (no DROP / TRUNCATE / DELETE)');
+    }
+    $context = stream_context_create(['http' => ['method' => 'POST', 'header' => 'X-Admin-Secret: ' . str_repeat('s', 40), 'ignore_errors' => true]]);
+    file_get_contents("$api/admin/migrate", false, $context);
+    [$status, $data] = call($api, 'GET', '/user', null, $session);
+    check($status === 200 && $data['user']['email'] === 'reader@example.com', 'migrate again (as every deploy does): users and sessions still there');
+    [, $data] = call($api, 'GET', '/progress/osct', null, $session);
+    check(($data['record']['consulted']['e1'] ?? null) === 5, 'migrate again: progress still there');
+
     echo "logout, delete\n";
     [$status] = call($api, 'POST', '/auth/logout', null, $secondSession);
     check($status === 204, 'logout → 204');
