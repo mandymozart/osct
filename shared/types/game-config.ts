@@ -11,7 +11,7 @@ import { FilterData } from "./filters";
 
 export * from "./filters";
 
-/** Entity types the app can render in A-Frame (extensible, RULES #7). */
+/** Entity types the app can render in AR (extensible, RULES #7). */
 export const ENTITY_TYPES = ["model", "video", "image"] as const; // "link" dropped 2026-09-25 (links are entries)
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
@@ -46,7 +46,7 @@ export interface AssetData {
   src: string;
 }
 
-/** Description of an A-Frame entity projected on a found target. */
+/** Description of an AR entity projected on a found target. */
 export interface EntityData {
   type: EntityType;
   assets: AssetData[]; // empty for `link` (renders the entry title)

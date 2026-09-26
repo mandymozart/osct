@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Performance: three.js instead of A-Frame, static splash (Tilman, branch `performance`)
+
+- Lighthouse (mobile) before: performance 56, FCP 6.0 s, LCP 17.2 s – three render-blocking scripts
+  (A-Frame, aframe-extras, MindAR), A-Frame boot, and the AR scene built at startup (the loading screen
+  waited for spread 1's models). PWA later.
+- A-Frame removed: plain three.js + MindAR's `Controller` (vendored 1.2.5 in `client/src/vendor/mind-ar/`;
+  the `mindar-image-three` build imports `sRGBEncoding`, gone since three r162). `ar/tracker.ts` is a port
+  of MindAR's `MindARThree` – no MindAR internals any more. Folder `aframe-bridges/` → `ar-bridges/`.
+- AR is lazy: its chunks load on the first scan (warm-up in idle time after startup); first paint needs
+  only `main.js` (66 KB gz) + CSS. The static splash (first onboarding step) is in `index.html`, written at
+  build time; the app fades it out and continues with the next step.
+- Tested on the S22 (dev server via `adb reverse tcp:5174 tcp:5174` – localhost counts as secure, the
+  camera works over http): all demo targets displayed and played, spread switches keep the camera.
+- Model compression: not now (demo data); later an automated content-build step (PLAN Phase 9).
+- [ ] Open: iPhone test (Safari video textures, camera), Lighthouse on the deploy preview.
+
 ## 2026-09-26 – One AR scene (Tilman, after the device tests)
 
 - Only the persistent scene stays (spread switches "pretty flawless" on the S22). Removed: the rebuild

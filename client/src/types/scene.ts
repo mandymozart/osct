@@ -1,6 +1,6 @@
 /**
- * What the A-Frame scene / MindAR should be doing. Derived from the game mode and the current
- * route (`aframe-bridges/utils/scene-state.ts`), applied by `<ar-bridge>`. Ordered from least to most active.
+ * What the AR scene (three.js / MindAR) should be doing. Derived from the game mode and the current
+ * route (`ar-bridges/utils/scene-state.ts`), applied by `<ar-bridge>`. Ordered from least to most active.
  * STOPPED: camera released · PAUSED: tracking + video paused, camera stream kept (instant resume,
  * last frame frozen behind the UI) · RUNNING: camera, tracking and rendering.
  */
@@ -22,12 +22,12 @@ export type ArSceneEvents = {
   targetFound: (targetId: string) => void;
   targetLost: (targetId: string) => void;
   status: (status: ArStatus, error?: string) => void;
-  /** The spread's `.mind` is loaded and tracking began (MindAR `arReady`) */
+  /** The spread's `.mind` is loaded and tracking began */
   ready: (spreadId: string) => void;
 };
 
 /**
- * The only code that touches A-Frame / MindAR (`ArScene`). Plain object, no store access – the
+ * The only code that touches three.js / MindAR (`ArScene`, loaded lazily via `LazyArScene`). Plain object, no store access – the
  * `<ar-bridge>` element connects it to the game state. Calls are queued; the latest wish wins
  * (a spread switch while loading builds only the newest spread).
  */

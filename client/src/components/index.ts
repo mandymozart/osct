@@ -1,4 +1,4 @@
-export * from "./aframe-bridges";
+export * from "./ar-bridges";
 export * from "./buttons";
 export * from "./common";
 export * from "./consultation";

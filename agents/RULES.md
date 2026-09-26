@@ -5,7 +5,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
 
 ## Stack (do not swap)
 - Build: vite · Tests: vitest (happy-dom)
-- 3D: A-Frame · Image tracking: MindAR
+- 3D: three.js (A-Frame removed 2026-09-26, Phase 9) · Image tracking: MindAR (`Controller`, vendored in
+  `client/src/vendor/mind-ar/`)
 - State: custom monolithic game store (`IGame`, `BaseStore`) with immer drafts, split into managers
 - UI: vanilla custom web components (shadow DOM), no framework
 - Page/view management is self-made (`pages-router`, `RouterManager`). No routing or animation
@@ -20,12 +21,14 @@ Extend as we go: add a rule when a decision should hold for all future work.
    Use these terms in code, content and UI.
    Modes: `IDLE`, `SCAN`, `CONSULTATION` (UI context). "About" and "Info" are the same page (`about`).
    Set the mode only through routes (`RouterManager.navigate`), never with `draft.mode = …` in components.
-   The scene state is derived from mode + route (`components/aframe-bridges/utils/scene-state.ts`), never set directly;
+   The scene state is derived from mode + route (`components/ar-bridges/utils/scene-state.ts`), never set directly;
    overlay routes (no mode) pause the scene.
 3. Max **5 image targets per spread** (`.mind` group); `maxTrack` uses the same value.
    Keep it one shared constant; the content build must enforce it.
-4. Preloading `.mind` files = browser cache only. Never modify the A-Frame scene
-   before a group is actually activated. No second scene context for now.
+4. Preloading `.mind` files and content = browser cache only (`PreloaderService`). Never modify the AR
+   scene before a spread is actually activated. No second scene / WebGL context. The AR code (three.js,
+   MindAR) is only imported lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may
+   import `ar-bridges/ar/` statically; the scene is built on the first scan (RUNNING).
 5. Content is placeholder until final content arrives. Keep texts/colors/media swappable
    (config / CSS variables), never hardcoded in components.
 6. Match existing code style: custom element per file, `styles`/`template` getters,
@@ -53,12 +56,14 @@ Extend as we go: add a rule when a decision should hold for all future work.
     app and content versions were kept separate.)
 11. Windows: stop the dev/preview server before any git command that rewrites the working tree
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
-12. AR: only `components/aframe-bridges/ar/` touches A-Frame / MindAR, behind `IArScene`
-    (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. `ArScene` keeps **one** A-Frame scene
-    and swaps a spread's targets, assets and entities in place (camera stream kept; uses MindAR internals
-    `anchorEntities`, `imageTargetSrc`, `_startAR` – re-check on a MindAR upgrade). Entity registry
-    `ar/entities.ts` (add entity types with `registerEntity`, no logic in content), MindAR helpers
-    `ar/mindar.ts`. Camera only in scan mode (`autoStart: false`).
+12. AR: only `components/ar-bridges/ar/` touches three.js / MindAR, behind `IArScene`
+    (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. `ArScene` keeps **one** renderer
+    (`ar/view.ts`) and one camera stream and swaps a spread's targets, assets and entities in place.
+    Tracking: `ar/tracker.ts` (port of MindAR's `MindARThree` on its public `Controller` API – a spread
+    switch replaces only the controller; re-check against MindAR's `three.js` on an upgrade). Assets:
+    `ar/assets.ts` (loaded per id, disposed when released – free GPU memory). Entity registry
+    `ar/entities.ts` (add entity types with `registerEntity`, no logic in content; entities dispose what
+    they create). Camera only in scan mode.
 13. Type naming: game-configuration (JSON) types `*Data` (defined once in top-level `shared/types/`,
     used by the client and `scripts/`), app-internal objects plain names (`Spread`, `Target`, `Entry`, `Step`), services and
     controllers `I*` interfaces, runtime state `*State`. No second copy of a type in another package.
@@ -74,10 +79,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
     boundary maps them to an `ErrorCode`. The app never hangs silently on a startup error.
 17. Where code lives:
     - **Store managers** (`store/managers`): app state.
-    - **A-Frame context** (`components/aframe-bridges`): bridges create DOM and connect it to the game
-      state; everything A-Frame/MindAR specific (MindAR is an A-Frame plugin) lives here, incl. its
-      helpers (`ar/`: the scene, entity registry, MindAR helpers; `utils/`: scene state policy,
-      chroma key).
+    - **AR context** (`components/ar-bridges`): the bridge connects the AR scene to the game state;
+      everything three.js/MindAR specific lives in `ar/` (scene, view, tracker, assets, entity registry)
+      and `utils/chroma-key.ts`; `utils/` also holds the three-free helpers (scene state policy, emitter).
     - **Services** (`services/`): singletons giving app-wide access (`GameStoreService`: the store;
       later the game configuration and the generated API). Naming: class and file `*Service`
       (`GameStoreService`, `PreloaderService`) – Tilman, 2026-09-25. (`SceneService` was removed in Phase 6.)
@@ -109,7 +113,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
 19. **Imports** (2026-09-25, Tilman): every folder has an `index.ts` barrel.
     - Across folders import the barrel: `@/types`, `@/utils`, `@/services`, `@/styles`, `@/pages`,
       `@/components/<group>` – never a file inside another folder, never `@/types/<file>`.
-    - Inside a folder (or a component group, e.g. `aframe-bridges/ar` → `../utils`) import relative files;
+    - Inside a folder (or a component group, e.g. `ar-bridges/ar` → `../utils`) import relative files;
       never the own barrel (`types/*.ts` import their siblings, not `@/types`).
     - A component group's barrel registers its elements – pages import the group, not single files.
     - Exceptions: `@/utils/game-config` (not in the `@/utils` barrel – it loads and checks the config on

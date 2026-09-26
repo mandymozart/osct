@@ -2,12 +2,12 @@ import { router } from "@/router";
 import { GameMode, PageRoute, SceneState } from "@/types";
 
 /**
- * Scene state policy: what the AR scene (A-Frame + MindAR) should be doing for the app state.
+ * Scene state policy: what the AR scene (three.js + MindAR) should be doing for the app state.
  * Applied by `<ar-bridge>`.
  */
 
 /**
- * Scene state per game mode – the camera only runs in scan mode (MindAR `autoStart: false`).
+ * Scene state per game mode – the camera only runs in scan mode.
  * IDLE (home, onboarding): camera released. CONSULTATION: paused, stream kept for an instant return.
  */
 export const SCENE_STATE_BY_MODE: Record<GameMode, SceneState> = {

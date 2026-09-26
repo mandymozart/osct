@@ -24,8 +24,8 @@ const getSpreadContent = (spreadId: string): LoadOptions[] => {
 
 /**
  * Preloads files into the browser (HTTP) cache only (RULES #4): a plain fetch whose body is read and
- * dropped, so the later request by MindAR/A-Frame for the same URL is served from the cache.
- * Never touches the A-Frame scene. One request per URL; failed ones may be retried later.
+ * dropped, so the later request by MindAR / three.js for the same URL is served from the cache.
+ * Never touches the AR scene. One request per URL; failed ones may be retried later.
  */
 export class PreloaderService {
   private static instance: PreloaderService | null = null;
@@ -52,6 +52,15 @@ export class PreloaderService {
 
   isPreloaded(src: string): boolean {
     return this.done.has(src);
+  }
+
+  /** One spread: its `.mind` first (needed to start AR), then entity assets and entry images */
+  async preloadSpread(spreadId: string): Promise<LoadResult[]> {
+    const spread = getSpread(spreadId);
+    if (!spread) return [];
+    const mind = await this.preload({ src: spread.mindSrc, type: "mind" });
+    const content = await Promise.all(getSpreadContent(spreadId).map(options => this.preload(options)));
+    return [mind, ...content];
   }
 
   /**

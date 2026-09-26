@@ -9,7 +9,7 @@ const UNLOCK_MS = 1200;
 
 /**
  * The target the indicator shows: the most recently found target **without** an AR entity
- * (targets with an entity show it in A-Frame instead – PLAN Phase 3, taxonomy 1c).
+ * (targets with an entity show it in the AR scene instead – PLAN Phase 3, taxonomy 1c).
  */
 export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target | undefined =>
   [...trackedTargetIds]

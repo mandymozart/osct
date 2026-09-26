@@ -14,7 +14,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## Constraints (fixed)
 
-- Libraries stay: A-Frame + MindAR + immer + vanilla custom elements + vite/vitest.
+- Libraries stay: three.js (A-Frame until Phase 9) + MindAR + immer + vanilla custom elements + vite/vitest.
 - **Max 5 image targets per `.mind` group.** Designers keep spreads below that by design.
 - One `.mind` group = currently one **spread** (2 pages). The user picks the active spread
   manually (bottom scroll menu); the app does not auto-detect across all targets.
@@ -726,6 +726,49 @@ Built as a first step (2026-09-26, `FeedbackService`, see MEMORY): events tick (
 - [ ] Sounds vs. silent mode: web pages can't detect it (sounds play as media) – decide if that is fine.
 - [ ] Review with the designers: which moments get feedback, volume, defaults (on/off).
 
+## Phase 9 – Performance  `[~]` (built 2026-09-26 on branch `performance`, tested on the S22; open: iPhone, model textures)
+
+Lighthouse (mobile, 2026-09-26): performance 56, FCP 6.0 s, LCP 17.2 s, TTI 6.3 s. Causes: three
+render-blocking scripts in `<head>` (A-Frame, aframe-extras, MindAR – 3.9 MB raw / 817 KB gz), A-Frame boot
+(1.9 s of 2.8 s main thread), the AR scene built at startup (spread 1 models – racoon.glb 1.9 MB – load
+while the splash waits behind `loading-page`), `aframe-extras` (750 KB) only for `animation-mixer`,
+uncompressed `.glb` responses, no cache headers.
+
+Decided (Tilman, 2026-09-26): drop A-Frame, render with plain three.js and MindAR's three.js build
+(`mindar-image-three.prod.js`, MindAR 1.2.5, `three` external); splash in the static HTML, faded out when
+the app is ready. PWA later.
+
+- [x] **three.js AR layer**: MindAR's `mindar-image-three.prod.js` was not usable as is (imports
+  `sRGBEncoding`, removed in three r162; adds a CSS3D renderer) → vendored MindAR 1.2.5 `Controller` build
+  (`client/src/vendor/mind-ar/`, not the npm package – its `canvas` dependency broke CI) + own port of
+  `MindARThree` (`ar/tracker.ts`): no internals any more, a spread switch replaces only the controller
+  (camera kept). `ar/view.ts` renderer + loop, `ar/assets.ts` load/dispose per asset id,
+  folder `aframe-bridges/` → `ar-bridges/`.
+- [x] Entities on three: video plane (`VideoTexture`), chroma key as `ShaderMaterial` (same GLSL), glTF
+  model with `AnimationMixer` (replaces aframe-extras), image plane; A-Frame's default lights; entities and
+  assets dispose their GPU resources on every swap.
+- [x] **Lazy AR** (`LazyArScene`): three (154 KB gz) + MindAR/TF.js (302 KB gz) are their own chunks,
+  imported on the first RUNNING wish or warmed up in idle time 1.5 s after startup (plus the current
+  spread's `.mind` + content into the HTTP cache). The scene / WebGL context is built on the first scan.
+  Startup no longer waits for the AR scene: `main.ts` ends the loading state when the app is ready.
+- [x] Removed A-Frame, aframe-extras, the A-Frame MindAR build, unused `deps/three.module.js`,
+  `@types/aframe`, A-Frame type files; RULES stack / #4 / #12 / #17 rewritten.
+- [x] **Static splash** in `index.html` (Vite plugin writes the first onboarding step from the game
+  configuration, `utils/static-splash-html.ts`), fades out (`utils/static-splash.ts`) when the app is
+  ready: a link at once, else after the step's `advance` time counted from first paint (tap skips). The
+  app starts underneath with the next step (onboarding step 1 / scan mode). `#initial-loader` removed.
+- [x] Netlify `_headers`: built files in `assets/app/` (hashed) cached immutable for a year; `robots.txt`;
+  meta description, theme color, charset.
+- [ ] **Models / textures (with the final content)**: the demo racoon is a 2048² PNG texture (1.8 MB,
+  ~22 MB GPU) – geometry compression would not help. When the real content arrives: an automated step in
+  the content build (gltf-transform: textures → max 1024 px WebP, meshopt geometry; needs `sharp`, a
+  native module – check CI). Tilman 2026-09-26: not now, demo data only. The loader already has the
+  Meshopt decoder.
+- [x] Device check S22 Chrome (2026-09-26): tracking, spread switch with the camera kept, all demo targets
+  displayed and played (Tilman), splash → scan flow.
+- [ ] Device check iPhone Safari: tracking, video textures, camera start, memory on spread switches.
+- [ ] Lighthouse again on the deploy preview (before: performance 56, FCP 6.0 s, LCP 17.2 s).
+
 ---
 
 ## Design tokens
@@ -742,7 +785,7 @@ The notes below are the earlier, rougher summary.
 
 ## Suggested order
 
-0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 7 → 8 (phases are numbered in execution order since 2026-09-24).
+0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 (phases are numbered in execution order since 2026-09-24).
 Phase 5 can run in parallel at any point; it mostly restyles existing tutorial pages.
 
 ## Open decisions (summary)

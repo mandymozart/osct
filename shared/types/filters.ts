@@ -5,7 +5,7 @@
  * config guard check the YAML against it, missing values get the defaults.
  *
  * Adding a filter: define it in FILTERS, implement its shader in the client
- * (`client/src/components/aframe-bridges/utils/`), document it in docs/content.md.
+ * (`client/src/components/ar-bridges/utils/`), document it in docs/content.md.
  */
 
 export type FilterParamSpec =

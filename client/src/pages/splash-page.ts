@@ -1,5 +1,6 @@
 import { LoadingState, Step } from "@/types";
 import { getTutorial } from "@/utils/game-config";
+import { staticSplashStep, whenStaticSplashHidden } from "@/utils";
 import { Page } from "./page";
 import "@/components/tutorial";
 
@@ -27,6 +28,8 @@ export class SplashPage extends Page {
   private position = 0;
   private timer: number | undefined;
   private waitForLoad: (() => void) | null = null;
+  /** Invalidates a pending start (static splash still fading) when the page stops */
+  private playToken = 0;
 
   get styles(): string {
     return /* css */ `
@@ -79,27 +82,41 @@ export class SplashPage extends Page {
     this.stop();
   }
 
-  /** Starts once the app has loaded – at startup the loading screen would hide the first step */
+  /**
+   * Starts once the app has loaded – at startup the loading screen would hide the first step. The static
+   * splash (index.html) already shows the first step: then it continues with the next one, after the
+   * static splash is gone (no further step: scan mode opens underneath right away).
+   */
   private play() {
     this.stop();
-    this.position = 0;
+    const shown = staticSplashStep();
+    this.position = shown !== undefined && this.steps[0]?.index === shown ? 1 : 0;
+    const token = this.playToken;
+    const start = () => {
+      if (this.position > 0 && this.steps[this.position]) {
+        void whenStaticSplashHidden().then(() => token === this.playToken && this.show());
+      } else {
+        this.show();
+      }
+    };
     const loading = (state: LoadingState) => state === LoadingState.LOADING || state === LoadingState.INITIAL;
     if (!loading(this.game.state.loading)) {
-      this.show();
+      start();
       return;
     }
     // Show the first step right away (behind the loading screen), its time starts after loading
-    const first = this.steps[0];
+    const first = this.steps[this.position];
     if (first) this.shadowRoot?.querySelector("tutorial-content")?.setAttribute("current-step", String(first.index));
     this.waitForLoad = this.game.subscribeToProperty("loading", state => {
       if (loading(state)) return;
       this.waitForLoad?.();
       this.waitForLoad = null;
-      this.show();
+      start();
     });
   }
 
   private stop() {
+    this.playToken += 1;
     window.clearTimeout(this.timer);
     this.waitForLoad?.();
     this.waitForLoad = null;

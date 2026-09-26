@@ -6,7 +6,6 @@ declare global {
   interface Window {
     BOOKGAME: IGame;
     QRCode: IQRCodeStatic;
-    hideInitialLoader: () => void;
   }
 }
 
