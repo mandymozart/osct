@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Tap / pin concept (open – Tilman works it out first; PLAN Phase 10)
+
+- Tested on the S22: placement and tap to unlock work, animations are a good starting point. After a tap the
+  object seems to "stay in space": the entry opens → the scene pauses → the last frame (camera + model)
+  stays frozen behind the consultation page until scan mode resumes.
+- Questions for the concept: should a tap open the entry at once (today, after 1.2 s) or only unlock it
+  (animation, "New entry unlocked" becomes an "Open entry" button, the object stays live in AR)? Which
+  gesture pins (long press?), how does a pin end (tap, page found again, leaving scan), several pins?
+  Should the frozen frame behind an entry show the object or only the page?
+- Floor tracking / spatial experience: Phase 10, later.
+
 ## 2026-09-26 – Placement, tap to unlock, pinning research (Tilman, staging test)
 
 - Models stood upright facing the top of the page. Now `entity.params` `position` / `rotation` / `scale`
