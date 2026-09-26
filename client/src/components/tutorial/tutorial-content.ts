@@ -1,4 +1,4 @@
-import { getTutorial } from "@/utils/game-config";
+import { getBook, getTutorial } from "@/utils/game-config";
 import { ITutorialContent } from "@/types";
 import { escapeHtml, paragraphs } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header";
@@ -8,8 +8,15 @@ import i18next from "i18next";
 
 const tutorial = getTutorial();
 
-/** `*emphasis*` → <em> (the book title in step 3), after escaping */
-const inline = (text: string): string => escapeHtml(text).replace(/\*([^*]+)\*/g, "<em>$1</em>");
+/**
+ * Book fields in step texts: `{{title}}`, `{{author}}`, `{{publisher}}` → the values from `book.yaml`, so they
+ * are written once (e.g. the splash footer = the publisher). Unknown placeholders stay as they are.
+ */
+export const fillBookFields = (text: string, book: Record<string, string | undefined> = getBook() as unknown as Record<string, string | undefined>): string =>
+  text.replace(/\{\{(title|author|publisher)\}\}/g, (_, field: string) => book[field] ?? "").trim();
+
+/** Book fields filled in, then `*emphasis*` → <em> (the book title in step 3), after escaping */
+const inline = (text: string): string => escapeHtml(fillBookFields(text)).replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
 /**
  * Onboarding step content (design p.1–5): Mark, title, text, footer – from the step content
@@ -92,7 +99,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
         ${step.description ? `<div class="text design gold fade">${paragraphs(step.description).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
       </div>
       <slot name="actions"></slot>
-      ${step.footer ? `<div class="footer design gold fade">${inline(step.footer)}</div>` : ""}
+      ${step.footer && fillBookFields(step.footer) ? `<div class="footer design gold fade">${inline(step.footer)}</div>` : ""}
     `;
   }
 }
