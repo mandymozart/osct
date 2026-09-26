@@ -3,7 +3,7 @@ import { Entry, EntryCategory, IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
 import { DEFAULT_CATEGORY, entryLabel, groupEntries } from "./entries-model";
-import { tHtml } from "@/i18n";
+import i18next from "i18next";
 
 /**
  * Entries of one category (design p.17, 19, 24, 29): sorted by title, the glossary grouped by letter, one
@@ -79,7 +79,7 @@ export class EntriesList extends HTMLElement {
 
   private listHtml(): string {
     if (this.entries.length === 0) {
-      return `<p class="empty">${tHtml("entries.empty")}</p>`;
+      return `<p class="empty">${i18next.t("entries:empty")}</p>`;
     }
     const groups = groupEntries(this.entries, this.category);
     // One gold gradient across the whole list (frames 17/19/24: titles run from pale to gold)
@@ -93,7 +93,7 @@ export class EntriesList extends HTMLElement {
     const locked = !history.isConsulted(entry.id);
     return /* html */ `
       <li><button type="button" class="row${locked ? " locked" : ""}" data-entry="${escapeHtml(entry.id)}">
-        <span class="label">${escapeHtml(entryLabel(entry))}${locked ? `<span class="locked-note"> – ${tHtml("entries.locked")}</span>` : ""}</span>
+        <span class="label">${escapeHtml(entryLabel(entry))}${locked ? `<span class="locked-note"> – ${i18next.t("entries:locked")}</span>` : ""}</span>
       </button></li>`;
   }
 

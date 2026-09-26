@@ -1,10 +1,10 @@
 /** Info page – English */
 export const about = {
   info: "Info",
-  infoText: "{title} is a publication by {author}. Scan the pages of the book to unlock entries – glossary terms, videos, texts and links – and read them here in consultation mode.",
+  infoText: "{{title}} is a publication by {{author}}. Scan the pages of the book to unlock entries – glossary terms, videos, texts and links – and read them here in consultation mode.",
   settings: "Settings",
   colophon: "Colophon",
-  author: "Author: {author}",
+  author: "Author: {{author}}",
   publishedBy: "Published by buildingfictions © 2025",
   appBy: "App by Tilman Porschuetz",
   requirements: "Requires a WebXR compatible browser and a copy of the book.",

@@ -8,7 +8,7 @@ import {
 } from '@/types';
 import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
 import { ProgressReadStatus, createProgressRecord, readProgress } from '@/utils';
-import { t } from '@/i18n';
+import i18next from "i18next";
 
 /**
  * Progress of the reader in this book (PLAN Phase 2): unlocked targets, consulted entries,
@@ -74,7 +74,7 @@ export class HistoryManager implements IHistoryManager {
     if (status !== 'converted' && status !== 'unreadable') return;
     this.game.notifyError({
       code: status === 'converted' ? 'progress-converted' : 'progress-reset',
-      msg: t(status === 'converted' ? 'progress.converted' : 'progress.reset'),
+      msg: i18next.t(status === 'converted' ? 'progress:converted' : 'progress:reset'),
       type: 'info',
     });
   }

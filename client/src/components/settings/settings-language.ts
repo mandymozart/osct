@@ -1,17 +1,22 @@
 import { goldButton } from "@/components/buttons";
-import { getLanguage, isLanguage, LANGUAGE_NAMES, LANGUAGES, t, tHtml } from "@/i18n";
-import { SettingsService } from "@/services";
+import i18next from "i18next";
+import { DEFAULT_LANGUAGE, isLanguage, Language, LANGUAGE_NAMES, LANGUAGES } from "@/i18n";
 import { SettingsSection } from "./settings-section";
 
 /**
  * Language section: "Language: English" + "Change language" → the languages, each named in itself.
- * The choice is stored in the settings (`SettingsService`) and the app reloads – the URL keeps the view.
+ * `i18next.changeLanguage` stores the choice (language detector → localStorage) and the app reloads – the
+ * URL keeps the view.
  */
 export class SettingsLanguage extends SettingsSection {
   private open = false;
 
+  private get current(): Language {
+    return isLanguage(i18next.resolvedLanguage) ? i18next.resolvedLanguage : DEFAULT_LANGUAGE;
+  }
+
   protected content(): string {
-    const current = getLanguage();
+    const current = this.current;
     const options = LANGUAGES.map(language =>
       goldButton({
         label: LANGUAGE_NAMES[language],
@@ -20,9 +25,9 @@ export class SettingsLanguage extends SettingsSection {
     ).join("");
     return /* html */ `
       <div class="row">
-        <span class="muted">${tHtml("settings.languageLabel")}</span>
+        <span class="muted">${i18next.t("settings:languageLabel")}</span>
         <span>${LANGUAGE_NAMES[current]}</span>
-        ${goldButton({ label: t("settings.languageChange"), attrs: { "data-action": "toggle", "aria-expanded": String(this.open) } })}
+        ${goldButton({ label: i18next.t("settings:languageChange"), attrs: { "data-action": "toggle", "aria-expanded": String(this.open) } })}
       </div>
       ${this.open ? `<div class="options" role="group">${options}</div>` : ""}
     `;
@@ -35,13 +40,12 @@ export class SettingsLanguage extends SettingsSection {
     } else if (action === "choose") {
       const language = element.dataset.language;
       if (!isLanguage(language)) return;
-      if (language === getLanguage()) {
+      if (language === this.current) {
         this.open = false;
         this.render();
         return;
       }
-      SettingsService.getInstance().setLanguage(language);
-      window.location.reload();
+      void i18next.changeLanguage(language).then(() => window.location.reload());
     }
   }
 }

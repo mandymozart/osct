@@ -2,7 +2,7 @@ import { Entry, EntryCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml, paragraphs } from "@/utils";
 import { categoryLabel, linkEmbed } from "./entries-model";
-import { tHtml } from "@/i18n";
+import i18next from "i18next";
 
 /**
  * One entry (design p.15, 20, 25, 30–31): meta table (name, access page, category, author for texts),
@@ -56,10 +56,10 @@ export class EntryDetail extends HTMLElement {
           .hint { color: var(--color-muted); font-size: var(--text-size-small); }
         </style>
         <table class="rule-table">
-          <tr><th scope="row">${tHtml("entry.entryName")}</th><td>${escapeHtml(entry.title)}</td></tr>
-          <tr><th scope="row">${tHtml("entry.accessPage")}</th><td>${entry.page}</td></tr>
-          <tr><th scope="row">${tHtml("entry.category")}</th><td>${escapeHtml(categoryLabel(entry.category))}</td></tr>
-          ${entry.category === EntryCategory.Text && entry.author ? `<tr><th scope="row">${tHtml("entry.author")}</th><td>${escapeHtml(entry.author)}</td></tr>` : ""}
+          <tr><th scope="row">${i18next.t("entry:entryName")}</th><td>${escapeHtml(entry.title)}</td></tr>
+          <tr><th scope="row">${i18next.t("entry:accessPage")}</th><td>${entry.page}</td></tr>
+          <tr><th scope="row">${i18next.t("entry:category")}</th><td>${escapeHtml(categoryLabel(entry.category))}</td></tr>
+          ${entry.category === EntryCategory.Text && entry.author ? `<tr><th scope="row">${i18next.t("entry:author")}</th><td>${escapeHtml(entry.author)}</td></tr>` : ""}
         </table>
         <div class="body">${this.bodyHtml(entry)}</div>
       `
@@ -78,9 +78,9 @@ export class EntryDetail extends HTMLElement {
       case EntryCategory.Video: {
         const video = entry.target?.entity?.assets.find(a => a.assetType === "video");
         return /* html */ `
-          <p>${tHtml("entry.goToPage", { page: entry.page })}</p>
+          <p>${i18next.t("entry:goToPage", { page: entry.page })}</p>
           ${text}
-          ${video ? `<p class="hint">${tHtml("entry.preview")}</p>
+          ${video ? `<p class="hint">${i18next.t("entry:preview")}</p>
             <video src="${escapeHtml(video.src)}" controls playsinline preload="metadata"></video>` : ""}
         `;
       }
@@ -96,7 +96,7 @@ export class EntryDetail extends HTMLElement {
         return /* html */ `
           ${text}
           ${frame}
-          ${entry.media ? `<p><a href="${escapeHtml(entry.media)}" target="_blank" rel="noopener noreferrer">${tHtml("entry.openInNewTab")}</a></p>` : ""}
+          ${entry.media ? `<p><a href="${escapeHtml(entry.media)}" target="_blank" rel="noopener noreferrer">${i18next.t("entry:openInNewTab")}</a></p>` : ""}
         `;
       }
     }

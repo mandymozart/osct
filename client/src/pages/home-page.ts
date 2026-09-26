@@ -4,7 +4,7 @@ import { MARK_IMAGE_SRC } from "@/components/header";
 import { PageMinimal } from "./page-minimal";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
-import { t, tHtml } from "@/i18n";
+import i18next from "i18next";
 
 /**
  * Home (IDLE): styled like the onboarding splash (design p.1) – Mark, title, author, and two buttons
@@ -51,12 +51,12 @@ export class HomePage extends PageMinimal {
     const book = getBook();
     return /* html */ `
     <div class="content">
-      <img src="${MARK_IMAGE_SRC}" alt="${tHtml("common.markAlt")}">
+      <img src="${MARK_IMAGE_SRC}" alt="${i18next.t("common:markAlt")}">
       <h1 class="title design gold">${escapeHtml(book.title)}</h1>
       <div class="author title design gold">${escapeHtml(book.author)}</div>
       <div class="buttons">
-        ${goldButton({ label: t("home.start"), shape: "button", primary: true, attrs: { id: "start-btn" } })}
-        ${goldButton({ label: t("home.tutorial"), shape: "button", attrs: { id: "tutorial-btn" } })}
+        ${goldButton({ label: i18next.t("home:start"), shape: "button", primary: true, attrs: { id: "start-btn" } })}
+        ${goldButton({ label: i18next.t("home:tutorial"), shape: "button", attrs: { id: "tutorial-btn" } })}
       </div>
     </div>
     `;

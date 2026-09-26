@@ -3,7 +3,7 @@ import { getEntry } from "@/utils/game-config";
 import "@/components/consultation"; // registers <entry-detail> (the named import is type-only)
 import { EntryDetail } from "@/components/consultation";
 import { ConsultationPage } from "./consultation-page";
-import { tHtml } from "@/i18n";
+import i18next from "i18next";
 
 /**
  * Entry view (design p.15, 20, 25, 30–31): `<entry-detail>` (meta table + content per category).
@@ -23,7 +23,7 @@ export class EntryPage extends ConsultationPage {
   get template(): string {
     return /* html */ `
       <div class="content">
-        <p class="missing" hidden>${tHtml("entry.missing")}</p>
+        <p class="missing" hidden>${i18next.t("entry:missing")}</p>
         <entry-detail></entry-detail>
       </div>
     `;

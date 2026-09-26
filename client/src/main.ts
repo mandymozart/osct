@@ -1,4 +1,6 @@
 import '@ungap/custom-elements';
+// First: i18next is set up before any module translates (also at import time)
+import "@/i18n";
 
 import "@/components";
 import "@/pages";
@@ -10,12 +12,13 @@ import {
 } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getConfigurationError } from "@/utils/game-config";
-import { getLanguage, t } from "@/i18n";
+import i18next from "i18next";
+import { DEFAULT_LANGUAGE } from "@/i18n";
 
 // Language of the page (screen readers, hyphenation) and the initial loader's text (index.html)
-document.documentElement.lang = getLanguage();
+document.documentElement.lang = i18next.resolvedLanguage ?? DEFAULT_LANGUAGE;
 const loaderText = document.querySelector("#initial-loader .visually-hidden");
-if (loaderText) loaderText.textContent = t("common.loadingBook");
+if (loaderText) loaderText.textContent = i18next.t("common:loadingBook");
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -162,7 +165,7 @@ export class BookGame extends HTMLElement {
 
   private handleError(error: unknown) {
     const message =
-      error instanceof Error ? error.message : t("startup.unknownError");
+      error instanceof Error ? error.message : i18next.t("startup:unknownError");
     if (this.errorPage) {
       const errorEvent = new CustomEvent("show-error", {
         detail: { message },
