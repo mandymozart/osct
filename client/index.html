@@ -6,8 +6,13 @@
     <meta name="description" content="Augmented reality companion to Kévin Bray's book Onion Skin &amp; Crocodile Tears (Building Fictions): point your phone at the pages to reveal videos, texts and references." />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
+    <!-- PWA (manifest link added by vite-plugin-pwa): home screen on iOS – name, icon, black status bar -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <link rel="icon" type="image/png" href="/assets/favicon.ico" />
+    <meta name="apple-mobile-web-app-title" content="Onion Skin" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
+    <link rel="icon" href="/assets/favicon.ico" sizes="48x48" />
     <!-- Only the app shell loads up front; three.js + MindAR come with the first scan (Phase 9) -->
     <script type="module" src="/src/main.ts"></script>
     <link rel="stylesheet" href="/src/main.css" />

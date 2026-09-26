@@ -736,7 +736,7 @@ uncompressed `.glb` responses, no cache headers.
 
 Decided (Tilman, 2026-09-26): drop A-Frame, render with plain three.js and MindAR's three.js build
 (`mindar-image-three.prod.js`, MindAR 1.2.5, `three` external); splash in the static HTML, faded out when
-the app is ready. PWA later.
+the app is ready. PWA later (→ Phase 9b, built 2026-09-26).
 
 - [x] **three.js AR layer**: MindAR's `mindar-image-three.prod.js` was not usable as is (imports
   `sRGBEncoding`, removed in three r162; adds a CSS3D renderer) → vendored MindAR 1.2.5 `Controller` build
@@ -808,6 +808,28 @@ the app is ready. PWA later.
 - [x] Device check of placement + tap to unlock on the S22 (Tilman, 2026-09-26): works, animations "a good
   starting point".
 - [?] **Pinning objects in space** → moved to Phase 10 (concept first).
+
+## Phase 9b – PWA  `[~]` (built 2026-09-26 on `develop` – Tilman: "do the PWA now"; open: phone checks, final icon)
+
+Installable app (home screen, standalone, splash) + offline start. Details: MEMORY 2026-09-26 "PWA".
+
+- [x] Manifest (vite-plugin-pwa, `vite.config.js` → `dist/manifest.webmanifest`): name from `book.title`,
+  short name "Onion Skin", black, portrait, standalone; iOS meta tags + `apple-touch-icon` in `index.html`.
+- [x] Placeholder icons from Mark the Page (`public/assets/icons/`: 180, 192, 512, maskable 512).
+- [x] Service worker `client/sw/service-worker.ts` (injectManifest, own tsconfig `sw/`, checked in CI):
+  app shell precached (21 files, 2.7 MB incl. three + MindAR), pages network-first (offline: cached
+  shell), content cached on first use per content build, video range requests from the cache.
+- [x] Registered in production builds only, after the app is ready (`services/ServiceWorkerService.ts`).
+- [x] Checked headless (Edge, production preview): worker controls the page, preloaded spread in the
+  content cache, range request 206 from the cache, offline start of `/` and `/entries`, no
+  installability errors.
+- [ ] Phone checks: install on Android (Chrome prompt) and iOS (Share → Add to Home Screen); camera in
+  standalone mode (iOS may ask for camera permission more often); progress in Safari vs. installed app.
+- [ ] Final app icon (designers / Kévin) – replace the placeholders, same file names.
+- [ ] Decide: home-screen name ("Onion Skin"), full offline download of all content (today: only what
+  was seen / preloaded), an iOS "Add to Home Screen" hint in the onboarding.
+- [ ] Production host (FTP, not Netlify): `_headers` does not apply – check `.webmanifest` MIME type and
+  that `service-worker.js` is not cached long.
 
 ## Phase 10 – Spatial experience  `[ ]` (added 2026-09-26 – later; concept first, Tilman)
 

@@ -3,12 +3,61 @@ import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
 import { renderStaticSplash } from './src/utils/static-splash-html';
 
 // One version for app and content build (agents/RULES.md #10). Read directly:
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
 const APP_VERSION = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')).version;
+// The content build's checksum: the service worker keeps one content cache per content build
+const GAME_CONFIG = JSON.parse(readFileSync(resolve(__dirname, 'src/game.config.json'), 'utf8'));
+
+/**
+ * PWA (2026-09-26): web app manifest + service worker (sw/service-worker.ts, precache list injected here).
+ * Home-screen name and colours: `book.title` from the game configuration, black like the app.
+ * Icons: placeholders made from Mark the Page (public/assets/icons/) until the final app icon arrives.
+ */
+function pwa() {
+  return VitePWA({
+    strategies: 'injectManifest',
+    srcDir: 'sw',
+    filename: 'service-worker.ts',
+    includeManifestIcons: false, // already in the glob below
+    injectRegister: false, // services/ServiceWorkerService.ts registers it (after the app is ready)
+    manifest: {
+      id: '/',
+      name: GAME_CONFIG.book?.title ?? 'Onion Skin & Crocodile Tears',
+      short_name: 'Onion Skin',
+      description: "Augmented reality companion to Kévin Bray's book Onion Skin & Crocodile Tears (Building Fictions).",
+      lang: 'en',
+      start_url: '/',
+      scope: '/',
+      display: 'standalone',
+      orientation: 'portrait',
+      background_color: '#000000',
+      theme_color: '#000000',
+      icons: [
+        { src: '/assets/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: '/assets/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: '/assets/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+    },
+    injectManifest: {
+      // App shell only – content (assets/content/) is cached when used; dev tools (assets/deps/) never
+      globPatterns: [
+        'index.html',
+        'assets/app/**/*.{js,css}',
+        'assets/{ui,illustrations,sounds,icons}/**/*',
+        'assets/{bf.svg,favicon.ico}',
+      ],
+      // Hashed file names: no cache-busting query, the immutable HTTP cache can answer
+      dontCacheBustURLsMatching: /^assets\/app\//,
+      maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // the MindAR chunk (TF.js) is ~1.8 MB
+    },
+    devOptions: { enabled: false },
+  });
+}
 
 // Get local IP address
 function getLocalIP() {
@@ -56,10 +105,11 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [tsconfigPaths(), staticSplash(), ...(https ? [basicSsl()] : [])],
+  plugins: [tsconfigPaths(), staticSplash(), pwa(), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
+    __VITE_CONTENT_HASH__: JSON.stringify(GAME_CONFIG.version?.hash ?? APP_VERSION),
     __VITE_SERVER_URL__: JSON.stringify(`${https ? 'https' : 'http'}://${localIP}:${port}`),
   },
   resolve: {

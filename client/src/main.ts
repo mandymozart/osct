@@ -5,7 +5,7 @@ import "@/i18n";
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages";
-import { FeedbackService, GameStoreService, LinkService } from "@/services";
+import { FeedbackService, GameStoreService, LinkService, ServiceWorkerService } from "@/services";
 import {
   ErrorInfo,
   IGame,
@@ -163,6 +163,8 @@ export class BookGame extends HTMLElement {
       // splash out – a link at once, else when the splash step's time is up
       this.game.finishLoading();
       void releaseStaticSplash({ wait: !linked });
+      // PWA: installable, offline app shell + seen content (production builds only)
+      ServiceWorkerService.register();
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
       );
