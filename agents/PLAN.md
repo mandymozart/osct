@@ -715,7 +715,7 @@ Both: one scene, one live stream, rapid switching ends on the last spread, found
 ## Phase 8 – Sound design and haptic feedback  `[ ]` (added 2026-09-26 – after the designers' feedback, during or after the content phase)
 
 Built as a first step (2026-09-26, `FeedbackService`, see MEMORY): events tick (spread slider), tap
-(buttons), found, unlock; generated placeholder sounds (calm / mindful since 2026-09-26, chiptune before); Info → Settings "Sound & vibration".
+(buttons), found, unlock; generated chiptune placeholder sounds (a calm second take was reverted 2026-09-26); Info → Settings "Sound & vibration".
 
 - [ ] Sound design: final sounds for `client/public/assets/sounds/` (tick, tap, found, unlock) – Tilman /
   designers; more events if the design asks for them (e.g. entry opened, spread switched).
@@ -797,8 +797,9 @@ the app is ready. PWA later.
   `sounds/found.wav`, once per target every 4 s) · **unlock** (first find, jingle) · consult = tap (tap blip).
 - [ ] Review the reveal / unlock / consult moments with the designers and the artist (animation, sounds).
 - [~] Unlock animation "more spectacular" (Tilman 2026-09-26, branch `unlock-experience`): reverse emissive
-  dissolve (Codrops) + gold bloom for every entity type – built, tune on the phone. Sounds second take
-  (calm / mindful) – listen; runtime Web Audio synthesis proposed (no sound files).
+  dissolve (Codrops) + gold bloom for every entity type; plain dissolve as reveal on later finds, rewound
+  as outro when a target is lost – built, tune on the phone. Sounds: calm second take reverted (chiptune
+  kept); runtime Web Audio synthesis proposed (no sound files).
 - [x] Device check of placement + tap to unlock on the S22 (Tilman, 2026-09-26): works, animations "a good
   starting point".
 - [?] **Pinning objects in space** → moved to Phase 10 (concept first).
