@@ -5,7 +5,7 @@
 #   secrets:   FTP_USER, FTP_PASS, DB_USER, DB_PASS, SECRET (SMTP_HOST, SMTP_USER, SMTP_PASS once smtp)
 #   variables: FTP_HOST, FTP_ROOT, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM
 #              (optional: SMTP_PORT, SMTP_SECURE)
-# Same pattern as qr.scutoons.com (FTP-Deploy-Action, config written in the build), but over FTPS.
+# Like qr.scutoons.com (config written in the build), but uploaded over FTPS with lftp.
 name: Deploy staging
 
 on:
@@ -70,18 +70,24 @@ jobs:
           cp -r client/dist/. site/
           cp -r server/api/. site/api/
           rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/mail.log
+          find site -name '*.map' -delete
 
+      # lftp instead of FTP-Deploy-Action: its Node FTP client lost the TLS data connection on all-inkl
+      # (ECONNRESET, 2026-09-27). Files are uploaded, nothing on the server is deleted.
       - name: Upload (FTPS)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
-        with:
-          server: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER || vars.FTP_USER }}
-          password: ${{ secrets.FTP_PASS || vars.FTP_PASS }}
-          protocol: ftps
-          local-dir: ./site/
-          server-dir: ${{ vars.FTP_ROOT || secrets.FTP_ROOT || './' }}
-          exclude: |
-            **/*.map
+        env:
+          FTP_HOST: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER || vars.FTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASS || vars.FTP_PASS }}
+          FTP_ROOT: ${{ vars.FTP_ROOT || secrets.FTP_ROOT || '/' }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          lftp -c "
+            set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate true;
+            set net:timeout 30; set net:max-retries 3; set net:reconnect-interval-base 5;
+            open --env-password -u \"$FTP_USER\" \"$FTP_HOST\";
+            mirror --reverse --parallel=4 --no-perms --verbose=1 site/ \"$FTP_ROOT\"
+          "
 
       - name: Create missing tables, check the API
         env:
