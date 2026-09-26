@@ -1,5 +1,5 @@
-# OSCT accounts API: every request goes to index.php – no other file here is served
-# (src/, config.local.php). Deployed as the /api/ folder next to the app.
+# OSCT user API: every request goes to index.php (it answers 404 for unknown paths, also for files
+# like src/*.php). Deployed as the /api/ folder next to the app.
 Options -Indexes
 
 <IfModule mod_rewrite.c>
@@ -15,7 +15,8 @@ Options -Indexes
   Require all denied
 </IfModule>
 
-# Second line of defence if the rewrite is off: nothing but index.php
-<FilesMatch "^(?!index\.php$)">
+# Second line of defence if the rewrite is off (src/ and db/ have their own "deny all").
+# Not a <FilesMatch> on everything but index.php: it runs before the rewrite and would block the API paths.
+<Files "config.local.php">
   Require all denied
-</FilesMatch>
+</Files>
