@@ -5,3 +5,4 @@ export * from "./ProgressStorage";
 export * from "./LinkService";
 export * from "./FeedbackService";
 export * from "./ServiceWorkerService";
+export * from "./InstallService";

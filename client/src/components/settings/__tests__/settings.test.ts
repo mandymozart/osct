@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ".."; // registers the elements
 import i18next from "i18next";
-import { FeedbackService, GameStoreService } from "@/services";
+import { FeedbackService, GameStoreService, InstallService } from "@/services";
 import { LANGUAGE_STORAGE_KEY } from "@/i18n";
 import { Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
@@ -25,6 +25,20 @@ describe("settings sections", () => {
     const section = mount("settings-tutorial");
     click(section, "[data-action=tutorial]");
     expect(game.state.currentRoute).toMatchObject({ page: Pages.TUTORIAL, param: { value: "0" } });
+  });
+
+  it("home screen: offers the browser's install dialog when there is one, else explains how", async () => {
+    const install = InstallService.getInstance();
+    const section = mount("settings-install");
+    expect(section.shadowRoot!.querySelector("[data-action=install]")).toBeNull();
+    expect(section.shadowRoot!.textContent).toContain("Add to Home Screen");
+
+    vi.spyOn(install, "getMethod").mockReturnValue("prompt");
+    const prompt = vi.spyOn(install, "prompt").mockResolvedValue(true);
+    section.remove();
+    const withPrompt = mount("settings-install");
+    click(withPrompt, "[data-action=install]");
+    expect(prompt).toHaveBeenCalledTimes(1);
   });
 
   it("sound & vibration: toggles each setting and keeps it on this device", () => {

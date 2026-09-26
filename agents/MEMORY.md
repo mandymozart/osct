@@ -25,7 +25,12 @@ outcome in the line (or move it into a dated decision block).
   browser pane has no service workers (not a secure context) – test with a real Chrome/Edge.
 - iOS: no install prompt (Share → Add to Home Screen); the installed app has **its own storage** – progress
   from Safari does not carry over; installed apps are exempt from Safari's 7-day storage deletion.
-- [ ] Final app icon; home-screen name; offline download of all content?; iOS install hint – Tilman.
+- 2026-09-27 (Tilman): home-screen name = book title; "Add to Home Screen" as an Info page section
+  (not the onboarding, for now); the **final app downloads the whole content** (when: open – PLAN 9b);
+  production FTP host: note only, handle when production is set up (PLAN 9b lists what it needs).
+- Beware: `npm run i18n` (i18next-cli extract) drops keys that are not used in code yet and blanks new
+  translations it adds – write the code first, then fill the JSON files, then run it again.
+- [ ] Final app icon; when to download the whole content – Tilman.
 
 ## 2026-09-26 – Unlock animation: reverse emissive dissolve (Tilman, branch `unlock-experience`)
 
