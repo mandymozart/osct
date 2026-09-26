@@ -1,4 +1,4 @@
-import { goldButton } from "@/components/buttons";
+import { goldButton, goldSwitch } from "@/components/buttons";
 import i18next from "i18next";
 import { AccountService } from "@/services";
 import { AccountNotice, AccountOption, AccountOptions, AccountSnapshot } from "@/types";
@@ -50,6 +50,7 @@ export class SettingsAccount extends SettingsSection {
         form .field { flex: 1 1 12rem; }
         form .code { flex: 0 1 8rem; letter-spacing: .3em; }
         .options { margin-top: .6rem; }
+        .switches { display: flex; flex-direction: column; gap: .25rem; margin-top: .6rem; max-width: 26rem; }
         .notice { margin: .6rem 0 0; }
       </style>
       ${body}
@@ -61,7 +62,7 @@ export class SettingsAccount extends SettingsSection {
     return /* html */ `
       <div class="row"><span class="muted">${i18next.t("account:label")}</span></div>
       <p class="description">${i18next.t("account:signedOutDescription")}</p>
-      <div class="options" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
+      <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
         ${OPTIONS.map(option => this.toggle(option, this.choices[option], "choose", busy)).join("")}
       </div>
       <form class="options" data-form="email">
@@ -101,7 +102,7 @@ export class SettingsAccount extends SettingsSection {
         <span class="muted">${i18next.t("account:label")}</span>
         <span>${escapeHtml(account.email)}</span>
       </div>
-      <div class="options" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
+      <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
         ${OPTIONS.map(option => this.toggle(option, account.options[option], "toggle", busy)).join("")}
       </div>
       <p class="description" role="status">${i18next.t(syncText)}</p>
@@ -112,6 +113,7 @@ export class SettingsAccount extends SettingsSection {
     `;
   }
 
+  /** One switch per option (Tilman: phone-style sliders in the style of the buttons) */
   private toggle(option: AccountOption, on: boolean, action: string, busy: boolean): string {
     const labels: Record<AccountOption, string> = {
       saveProgress: i18next.t("account:saveProgress"),
@@ -119,10 +121,7 @@ export class SettingsAccount extends SettingsSection {
       bookUpdates: i18next.t("account:bookUpdates", { title: getBook().title, interpolation: { escapeValue: false } }),
       publisherUpdates: i18next.t("account:publisherUpdates"),
     };
-    return goldButton({
-      label: `${labels[option]}: ${i18next.t(on ? "settings:on" : "settings:off")}`,
-      attrs: { "data-action": action, "data-option": option, "aria-pressed": String(on), disabled: busy },
-    });
+    return goldSwitch({ label: labels[option], checked: on, disabled: busy, attrs: { "data-action": action, "data-option": option } });
   }
 
   private notice(notice: AccountNotice | null): string {

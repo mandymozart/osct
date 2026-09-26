@@ -31,10 +31,10 @@ describe("settings sections", () => {
     it("signed out: all three options on by default, the choice goes with the email", () => {
       const request = vi.spyOn(account, "requestLogin").mockResolvedValue(true);
       const section = mount("settings-account");
-      const pressed = () => Array.from(section.shadowRoot!.querySelectorAll("[data-option]")).map(b => b.getAttribute("aria-pressed"));
-      expect(pressed()).toEqual(["true", "true", "true"]);
+      const checked = () => Array.from(section.shadowRoot!.querySelectorAll<HTMLInputElement>("input[role=switch]")).map(s => s.checked);
+      expect(checked()).toEqual([true, true, true]);
       click(section, "[data-option=publisherUpdates]");
-      expect(pressed()).toEqual(["true", "true", "false"]);
+      expect(checked()).toEqual([true, true, false]);
 
       const input = section.shadowRoot!.querySelector<HTMLInputElement>("input[name=email]")!;
       input.value = "reader@example.com";
