@@ -15,7 +15,8 @@ cd scripts && npm install && npm run build && npm run build:content
 cd ../client && npm install && npm run dev
 ```
 
-Open http://localhost:5173.
+Open https://localhost:5173 (on a phone: `https://<your-ip>:5173`, accept the self-signed certificate once –
+the camera only works over https).
 
 ## Content
 

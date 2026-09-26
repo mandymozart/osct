@@ -1,9 +1,11 @@
 import { Page } from "./page";
 import { GameStoreService } from "@/services";
-import { CameraPermissionStatus, IGame } from "@/types";
+import { CameraPermissionStatus, GameMode, IGame } from "@/types";
 import { detectBrowser, escapeHtml } from "@/utils";
 import i18next from "i18next";
 import "@/components/common";
+import { goldButton } from "@/components/buttons";
+import { goToScan } from "@/components/tutorial";
 import { adoptDesignStyles } from "@/styles";
 
 /**
@@ -17,6 +19,7 @@ export class CameraPermissionPage extends Page {
   protected game: Readonly<IGame>;
   private currentPermissionStatus: CameraPermissionStatus;
   private cleanupListener: (() => void) | null = null;
+  private cleanupModeListener: (() => void) | null = null;
 
   constructor() {
     super();
@@ -24,7 +27,8 @@ export class CameraPermissionPage extends Page {
     adoptDesignStyles(this.shadowRoot);
     this.currentPermissionStatus = this.game.state.cameraPermission;
 
-    if (this.currentPermissionStatus === CameraPermissionStatus.DENIED) {
+    this.setOnboarding(this.game.state.mode === GameMode.IDLE);
+    if (this.currentPermissionStatus === CameraPermissionStatus.DENIED || this.currentPermissionStatus === CameraPermissionStatus.UNAVAILABLE) {
       this.showDeniedOverlay();
     } else if (this.currentPermissionStatus === CameraPermissionStatus.PROMPT) {
       this.showPromptOverlay();
@@ -46,9 +50,19 @@ export class CameraPermissionPage extends Page {
       this.cleanupListener();
       this.cleanupListener = null;
     }
+    this.cleanupModeListener?.();
+    this.cleanupModeListener = null;
+    this.shadowRoot?.removeEventListener("click", this.handleClick);
   }
 
   setupListeners(): void {
+    // Onboarding (idle mode): the overlay covers the page and offers to continue without the camera;
+    // in scan mode it stays behind the header and the spread menu
+    this.cleanupModeListener = this.game.subscribeToProperty("mode", mode => {
+      this.setOnboarding(mode === GameMode.IDLE);
+      if (this.hasAttribute("active")) this.render();
+    });
+    this.shadowRoot?.addEventListener("click", this.handleClick);
     this.cleanupListener = this.game.subscribeToProperty(
       'cameraPermission',
       (newStatus, prevStatus) => {
@@ -70,6 +84,7 @@ export class CameraPermissionPage extends Page {
         this.hideOverlay();
         break;
       case CameraPermissionStatus.DENIED:
+      case CameraPermissionStatus.UNAVAILABLE:
         this.showDeniedOverlay();
         break;
       case CameraPermissionStatus.PROMPT:
@@ -104,6 +119,7 @@ export class CameraPermissionPage extends Page {
       :host([active]) {
         pointer-events: auto; /* Capture clicks when active */
       }
+      .continue { margin-top: 1.5rem; pointer-events: auto; }
 
       gold-illustration { width: 5.5rem; margin-bottom: 2rem; }
 
@@ -148,6 +164,18 @@ export class CameraPermissionPage extends Page {
         <div class="message design gold"><p>${i18next.t("camera:waiting")}</p><p>${i18next.t("camera:allow")}</p></div>
       `;
     }
+    const onboarding = this.game.state.mode === GameMode.IDLE;
+    const continueButton = onboarding
+      ? goldButton({ label: i18next.t("camera:continueWithout"), shape: "button", className: "continue", attrs: { "data-action": "continue" } })
+      : "";
+    // No camera API (http on a network address): allowing it in the settings would not help
+    if (this.currentPermissionStatus === CameraPermissionStatus.UNAVAILABLE) {
+      return /* html */ `
+        ${this.getIcon()}
+        <div class="message design gold"><p>${i18next.t("camera:unavailable")}</p></div>
+        ${continueButton}
+      `;
+    }
     return /* html */ `
       ${this.getIcon()}
       <div class="message design gold">
@@ -157,6 +185,7 @@ export class CameraPermissionPage extends Page {
       <div class="settings-instructions design muted">
         ${this.getSettingsInstructions()}
       </div>
+      ${continueButton}
     `;
   }
 
@@ -178,6 +207,21 @@ export class CameraPermissionPage extends Page {
     this.removeAttribute('active');
     this.render();
   }
+
+  /**
+   * Onboarding: above the page (else "Grant access" would seem to do nothing); scan mode: behind the header
+   * and the spread menu. Set inline – a toggled :host([attribute]) rule was not re-evaluated reliably.
+   */
+  private setOnboarding(onboarding: boolean) {
+    this.toggleAttribute("onboarding", onboarding);
+    this.style.zIndex = onboarding ? "2000" : "-1";
+  }
+
+  /** Onboarding: go on without the camera – scan mode shows this screen again (behind its chrome) */
+  private handleClick = (event: Event) => {
+    if (!(event.target as HTMLElement).closest("[data-action=continue]")) return;
+    goToScan(this.game);
+  };
 }
 
 customElements.define("camera-permission-page", CameraPermissionPage);

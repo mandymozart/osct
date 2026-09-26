@@ -29,5 +29,7 @@
     "0": "Check your browser settings for camera permissions",
     "1": "Allow this site to use your camera",
     "2": "Refresh the page"
-  }
+  },
+  "unavailable": "The camera only works over a secure connection. Open the app with https:// and try again.",
+  "continueWithout": "Continue without camera"
 }

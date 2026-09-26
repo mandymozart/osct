@@ -29,5 +29,7 @@
     "0": "Vérifie les autorisations de caméra dans les réglages de ton navigateur",
     "1": "Autorise ce site à utiliser ta caméra",
     "2": "Recharge la page"
-  }
+  },
+  "unavailable": "La caméra ne fonctionne qu’avec une connexion sécurisée. Ouvre l’application avec https:// et réessaie.",
+  "continueWithout": "Continuer sans caméra"
 }

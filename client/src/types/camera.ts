@@ -6,6 +6,8 @@ export enum CameraPermissionStatus {
   GRANTED = 'granted',
   DENIED = 'denied',
   PROMPT = 'prompt',
+  /** No camera API: insecure connection (http on a network address) or no camera support */
+  UNAVAILABLE = 'unavailable',
 }
 
 /**

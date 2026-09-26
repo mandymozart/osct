@@ -44,7 +44,8 @@ export abstract class SettingsSection extends HTMLElement {
         .row { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem .75rem; }
         .description { margin: .6rem 0 0; color: var(--color-muted); font-size: var(--text-size-small); }
         .options { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
-        .options [aria-current="true"] { box-shadow: var(--shadow-bronze); }
+        /* The current choice: a thin gold ring (every pill already has the bronze glow) */
+        :host .options [aria-current="true"] { box-shadow: var(--shadow-bronze), inset 0 0 0 0.0625rem var(--color-accent); }
       </style>
       ${this.content()}
     `;
