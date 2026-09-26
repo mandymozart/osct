@@ -1,5 +1,6 @@
 import { GameStoreService, PreloaderService } from "@/services";
-import { ArStatus, IArScene, IGame, LoadingState } from "@/types";
+import { ArStatus, GameMode, IArScene, IGame, LoadingState, TARGET_TAP_EVENT } from "@/types";
+import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
 import { getSceneState } from "./utils/scene-state";
 
@@ -9,7 +10,8 @@ const WARM_UP_DELAY_MS = 1500;
 /**
  * <ar-bridge> – the only glue between the game store and the AR scene
  *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (scene-state policy)
- *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → preload
+ *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → preload,
+ *   entity tapped → discovery animation (entry not consulted yet) + TARGET_TAP_EVENT (found indicator)
  * The scene is an `IArScene`: `LazyArScene` (three.js + MindAR load on the first scan, warmed up in idle
  * time after startup); tests inject a fake one.
  */
@@ -37,6 +39,7 @@ export class ArBridge extends HTMLElement {
       scene.on("status", (status, error) => this.handleStatus(status, error)),
       scene.on("targetFound", id => game.targets.addTarget(id)),
       scene.on("targetLost", id => game.targets.removeTarget(id)),
+      scene.on("targetTapped", id => this.handleTap(id)),
       // The active .mind is loaded: fetch the neighbours' .mind + content into the browser cache
       scene.on("ready", spreadId => void PreloaderService.getInstance().preloadNeighbours(spreadId)),
       game.subscribeToProperty("currentSpread", id => {
@@ -83,6 +86,15 @@ export class ArBridge extends HTMLElement {
     this.cleanups = [];
     void this.scene?.dispose();
     this.scene = null;
+  }
+
+  /** Tap on an AR entity: the same unlock → entry as a tap on the found indicator's image */
+  private handleTap(targetId: string) {
+    if (this.game.state.mode !== GameMode.SCAN) return;
+    const target = getTarget(targetId);
+    if (!target) return;
+    if (!this.game.history.isConsulted(target.entryId)) this.scene?.celebrate(targetId);
+    document.dispatchEvent(new CustomEvent(TARGET_TAP_EVENT, { detail: { targetId } }));
   }
 
   private applySceneState() {

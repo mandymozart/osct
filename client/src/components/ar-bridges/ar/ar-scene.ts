@@ -1,8 +1,9 @@
-import { Group, Matrix4 } from "three";
+import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, IArScene, SceneState, Target } from "@/types";
 import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/utils/game-config";
 import { Emitter } from "../utils/emitter";
 import { AssetStore } from "./assets";
+import { celebrate } from "./celebration";
 import { buildEntity, EntityInstance } from "./entities";
 import { ImageTracker } from "./tracker";
 import { ArView } from "./view";
@@ -18,6 +19,12 @@ interface SpreadContent {
   mindSrc: string;
   anchors: Anchor[];
 }
+
+/** Taps on these (and inside them) are app UI, not taps on the AR scene */
+const UI_SELECTOR = 'button, a, input, select, textarea, label, [role="button"], [role="listbox"], [role="option"]';
+
+/** A tap this close to an entity's on-screen bounds still hits it (small models) */
+const TAP_MARGIN_PX = 24;
 
 /** Scanning indicator (index.html, styles/gold-spinner.css): shown while no target is found */
 const scanningIndicator = () => document.getElementById("osct-scanning");
@@ -52,6 +59,8 @@ export class ArScene implements IArScene {
    */
   private startFailed = false;
   private _status: ArStatus = "idle";
+  /** Running animations (celebrations): frame functions, removed when they return false */
+  private animations = new Set<(delta: number) => boolean>();
 
   constructor(private container: HTMLElement) {}
 
@@ -76,6 +85,12 @@ export class ArScene implements IArScene {
     if (state !== this.wantedState) this.startFailed = false;
     this.wantedState = state;
     return this.reconcile();
+  }
+
+  celebrate(targetId: string): void {
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (!anchor?.entity || !this.view) return;
+    this.animations.add(celebrate(anchor.group, anchor.entity.object));
   }
 
   dispose(): Promise<void> {
@@ -128,7 +143,11 @@ export class ArScene implements IArScene {
         onUpdate: (index, matrix) => this.onTrackingUpdate(index, matrix),
       });
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
-      this.view.onFrame(delta => this.content?.anchors.forEach(a => a.entity?.update?.(delta)));
+      this.view.onFrame(delta => {
+        this.content?.anchors.forEach(a => a.entity?.update?.(delta));
+        this.animations.forEach(animation => animation(delta) || this.animations.delete(animation));
+      });
+      document.addEventListener("click", this.onTap);
     }
     return this.view;
   }
@@ -173,12 +192,19 @@ export class ArScene implements IArScene {
   }
 
   private removeContent(): void {
+    this.finishAnimations();
     this.content?.anchors.forEach(anchor => {
       anchor.entity?.onPause?.();
       anchor.entity?.dispose?.();
       anchor.group.removeFromParent();
     });
     this.content = null;
+  }
+
+  /** Jump running animations to their end (they clean up after themselves) */
+  private finishAnimations(): void {
+    this.animations.forEach(animation => animation(Infinity));
+    this.animations.clear();
   }
 
   /** MindAR update of one target: move its anchor, report found / lost */
@@ -203,7 +229,45 @@ export class ArScene implements IArScene {
     scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
   }
 
+  /**
+   * A tap on the screen: the canvas lies under the app's pages, so taps are read from the document. Taps on
+   * app UI are ignored; otherwise the nearest found entity whose on-screen bounds (+ margin) contain the
+   * tap is reported (`targetTapped`).
+   */
+  private onTap = (event: MouseEvent): void => {
+    if (!this.running || !this.view || !this.content) return;
+    const onUi = event.composedPath().some(el => el instanceof Element && el.matches(UI_SELECTOR));
+    if (onUi) return;
+    const rect = this.container.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const camera = this.view.camera;
+    const box = new Box3();
+    const corner = new Vector3();
+    let hit: { id: string; distance: number } | null = null;
+    for (const anchor of this.content.anchors) {
+      if (!anchor.group.visible || !anchor.entity || !this.found.has(anchor.target.id)) continue;
+      box.setFromObject(anchor.entity.object);
+      if (box.isEmpty()) continue;
+      let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+      for (let i = 0; i < 8; i++) {
+        corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
+        corner.project(camera);
+        const sx = ((corner.x + 1) / 2) * rect.width;
+        const sy = ((1 - corner.y) / 2) * rect.height;
+        left = Math.min(left, sx); right = Math.max(right, sx);
+        top = Math.min(top, sy); bottom = Math.max(bottom, sy);
+      }
+      const inside = x >= left - TAP_MARGIN_PX && x <= right + TAP_MARGIN_PX && y >= top - TAP_MARGIN_PX && y <= bottom + TAP_MARGIN_PX;
+      if (!inside) continue;
+      const distance = box.getCenter(corner).distanceTo(camera.position);
+      if (!hit || distance < hit.distance) hit = { id: anchor.target.id, distance };
+    }
+    if (hit) this.emitter.emit("targetTapped", hit.id);
+  };
+
   private teardown(): void {
+    document.removeEventListener("click", this.onTap);
     this.pauseEntities();
     this.loseAll();
     this.removeContent();

@@ -10,6 +10,7 @@ import { EntryCategory } from "./entry";
 import { FilterData } from "./filters";
 
 export * from "./filters";
+export * from "./placement";
 
 /** Entity types the app can render in AR (extensible, RULES #7). */
 export const ENTITY_TYPES = ["model", "video", "image"] as const; // "link" dropped 2026-09-25 (links are entries)
@@ -50,7 +51,7 @@ export interface AssetData {
 export interface EntityData {
   type: EntityType;
   assets: AssetData[]; // empty for `link` (renders the entry title)
-  params?: Record<string, unknown>;
+  params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
 }
 

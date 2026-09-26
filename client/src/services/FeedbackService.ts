@@ -12,7 +12,7 @@
  * Standalone – no store dependency, so the store's managers can import it by file.
  */
 
-export const FEEDBACK_EVENTS = ["tick", "tap", "found", "unlock"] as const;
+export const FEEDBACK_EVENTS = ["tick", "tap", "found", "unlock", "reveal"] as const;
 export type FeedbackEvent = (typeof FEEDBACK_EVENTS)[number];
 
 /** Vibration pattern per event (ms on / off / on …) */
@@ -21,6 +21,7 @@ const VIBRATION: Record<FeedbackEvent, number | number[]> = {
   tap: 10,
   found: 18,
   unlock: [22, 70, 22, 70, 45],
+  reveal: [12, 40, 12, 40, 12, 40, 60],
 };
 
 /** Minimum time between two plays of the same event + key (tracking flickers: found, found, found …) */
@@ -34,6 +35,7 @@ const VOLUME: Record<FeedbackEvent, number> = {
   tap: 0.7,
   found: 0.8,
   unlock: 0.9,
+  reveal: 0.9,
 };
 
 export const FEEDBACK_STORAGE_KEY = "osct-feedback";

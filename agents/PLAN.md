@@ -771,6 +771,19 @@ the app is ready. PWA later.
 - [ ] Device check of the optimised models on the phone (loaded + rendered in the desktop browser only).
 - [ ] Lighthouse again on the deploy preview (before: performance 56, FCP 6.0 s, LCP 17.2 s).
 
+**After the first staging test (Tilman, 2026-09-26):**
+- [x] **Placement in the content**: `entity.params` `position` / `rotation` / `scale` (shared/types/placement.ts,
+  checked by the content build + config guard, docs/content.md). Models stand on the page by default
+  (`rotation: [90, 0, 0]`, scale 0.5) – they stood upright facing the top of the page before.
+- [x] **Tap to unlock AR entities**: a tap on a found model / video / image (on-screen bounds + 24 px,
+  taps on app UI ignored) → discovery animation in WebGL (pop, one turn around the page normal, gold
+  sparkles, ring – `ar/celebration.ts`) when the entry is not consulted yet, then the found indicator's
+  unlock ("New entry unlocked" label) → entry. New feedback event `reveal` ("pew pew pew" + sparkle run,
+  placeholder `sounds/reveal.wav`), also on the image indicator's unlock.
+- [ ] Device check of placement + tap to unlock (staging).
+- [?] **Pinning objects in space** (keep a model when the page is lost, e.g. long press) – researched,
+  decision open, see MEMORY 2026-09-26 "Pinning". Recommendation: 3DoF with the gyroscope.
+
 ---
 
 ## Design tokens
