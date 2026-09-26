@@ -16,6 +16,7 @@ import {
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
 import { filterProblems } from "../types/filters";
+import { placementProblems } from "../types/placement";
 
 const oneOf = <T extends string>(values: readonly T[]) =>
   (value: unknown): value is T => typeof value === "string" && (values as readonly string[]).includes(value);
@@ -80,6 +81,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
       }
     });
     if (e.params !== undefined && !isObject(e.params)) fail(`${path}.params`, "expected an object");
+    placementProblems(e.params, `${path}.params`).forEach(problem => problems.push(problem));
     if (e.filters !== undefined) {
       if (e.type !== "video") fail(`${path}.filters`, "filters only work on video entities");
       filterProblems(e.filters, `${path}.filters`).forEach(problem => problems.push(problem));

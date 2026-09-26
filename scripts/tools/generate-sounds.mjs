@@ -93,6 +93,23 @@ const sounds = {
       ...["G6", "D7", "G7"].map(n => tone({ freq: note(n), ms: 60, duty: 0.125, volume: 0.07, decay: 3 })),
     ),
   ),
+
+  // Entry revealed (tap on a found target the first time): "pew pew pew" – three quick falling laser
+  // zaps, then a rising sparkle run with a bright held note
+  reveal: mix(
+    sequence(
+      ...[0, 1, 2].flatMap(i => [
+        tone({ freq: note("E7") * (1 - i * 0.08), ms: 70, duty: 0.25, volume: 0.18, decay: 3, slideTo: note("E5") }),
+        silence(18),
+      ]),
+      ...["C6", "E6", "G6", "C7"].map(n => tone({ freq: note(n), ms: 45, duty: 0.5, volume: 0.17, decay: 1.5 })),
+      tone({ freq: note("E7"), ms: 320, duty: 0.25, volume: 0.15, decay: 4, vibrato: 0.012 }),
+    ),
+    sequence(
+      silence(460),
+      ...["G7", "C8", "E7", "G7"].map(n => tone({ freq: note(n), ms: 40, duty: 0.125, volume: 0.06, decay: 3 })),
+    ),
+  ),
 };
 
 fs.mkdirSync(OUT, { recursive: true });

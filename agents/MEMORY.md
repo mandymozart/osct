@@ -4,6 +4,27 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Placement, tap to unlock, pinning research (Tilman, staging test)
+
+- Models stood upright facing the top of the page. Now `entity.params` `position` / `rotation` / `scale`
+  (degrees; x tips up, y turns around the model's own vertical axis, z tilts); models default to standing
+  on the page (`[90, 0, 0]`), videos / images lie flat. Axes: x right, y top of the page, z out of the page.
+- Entities could not be unlocked (the found indicator only served targets without an entity). A tap on
+  the entity now unlocks it: WebGL discovery animation + the indicator's label + `reveal` sound, then
+  the entry. The canvas lies under the pages, so `ArScene` reads taps from the document (UI ignored).
+- **Pinning** (keep an object in space after tracking is lost) – research:
+  - MindAR only knows the target's pose relative to the camera (camera fixed at the origin). Once the
+    page is lost, nothing tells how the phone moves – image tracking alone cannot keep an object in space.
+  - 3DoF with the gyroscope (DeviceOrientation / AbsoluteOrientationSensor): at the pin, remember the
+    object's pose and the phone's orientation; afterwards counter-rotate the object by the phone's rotation.
+    The object stays put while the phone turns, not while it moves sideways; drifts slowly. iOS asks for
+    motion permission (needs a tap – the long press is one). Works with MindAR as it is. **Recommended.**
+  - 6DoF with WebXR `immersive-ar` (hit test, anchors): real world placement, but Android Chrome only (no
+    iOS Safari), and the WebXR session takes over the camera – MindAR's tracking stops while pinned.
+  - Commercial web SDKs with world tracking (e.g. Zappar) – licensed, a different tracking engine.
+  - Open for Tilman: gesture (long press ~0.6 s with a progress ring?), how to unpin (tap, next find,
+    leaving scan), several pins at once?
+
 ## 2026-09-26 – Performance: three.js instead of A-Frame, static splash (Tilman, branch `performance`)
 
 - Lighthouse (mobile) before: performance 56, FCP 6.0 s, LCP 17.2 s – three render-blocking scripts

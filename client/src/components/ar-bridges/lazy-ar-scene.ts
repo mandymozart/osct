@@ -76,6 +76,10 @@ export class LazyArScene implements IArScene {
     }
   }
 
+  celebrate(targetId: string): void {
+    this.scene?.celebrate(targetId);
+  }
+
   async dispose(): Promise<void> {
     this.disposed = true;
     await this.scene?.dispose();
@@ -87,7 +91,7 @@ export class LazyArScene implements IArScene {
       this.creating = loadArModule().then(({ ArScene }) => {
         const scene = new ArScene(this.container);
         // Forward the real scene's events
-        (["status", "targetFound", "targetLost", "ready"] as const).forEach(event =>
+        (["status", "targetFound", "targetLost", "targetTapped", "ready"] as const).forEach(event =>
           scene.on(event, ((...args: unknown[]) =>
             (this.emitter.emit as (e: string, ...a: unknown[]) => void)(event, ...args)) as never),
         );

@@ -155,6 +155,31 @@ target:
     src: tree.glb
 ```
 
+**Placing AR content on the page** (`params`, optional – every entity type): a model stands on the page
+by default (its up points out of the page, its front towards the bottom edge, where the reader is), at
+half the image's width; videos and images lie flat on the image, as wide as it.
+
+```yaml
+  entity:
+    type: model
+    src: racoon.glb
+    params:
+      rotation: [90, 180, 0]   # degrees – here: standing, turned around to face the top edge
+      position: [0, 0.1, 0]    # moved a little towards the top of the page
+      scale: 0.8               # one number, or [x, y, z]
+```
+
+| Value | Default (model / video, image) | Meaning |
+|---|---|---|
+| `rotation` | `[90, 0, 0]` / `[0, 0, 0]` | Degrees `[x, y, z]`. First number: tips the model up (`90` = standing on the page, `0` = lying on its back, top towards the top edge). Second: turns it around **its own vertical axis** (`90` = facing right, `180` = facing the top edge, `270` = facing left). Third: tilts it around its own front axis (leaning sideways). |
+| `position` | `[0, 0, 0]` | Offset in image widths – x → right, y → top of the page, z → out of the page. |
+| `scale` | `0.5` / `1` | Size relative to the image's width. |
+
+Each value you leave out keeps its default, so `rotation` alone is enough to turn a model.
+
+**Tap to unlock:** a found target with AR content is unlocked by tapping the content (model, video,
+image) – it pops, turns once and sparkles, then the entry opens (like a tap on a found image).
+
 **A text without a target:**
 
 ```yaml

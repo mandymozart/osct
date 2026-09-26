@@ -58,7 +58,7 @@ describe("chroma key filter", () => {
   it("builds a keyed video as a plane with the chroma-key material, a plain video otherwise", () => {
     const asset = videoAsset();
     const texture = asset.assetType === "video" ? asset.texture : null;
-    const keyed = buildEntity(target(chromaKey({ color: "#ff00ff", threshold: 0.4 })), () => asset)!.object as Mesh;
+    const keyed = buildEntity(target(chromaKey({ color: "#ff00ff", threshold: 0.4 })), () => asset)!.object.children[0] as Mesh;
     const material = keyed.material as ShaderMaterial;
     expect(material).toBeInstanceOf(ShaderMaterial);
     expect(material.transparent).toBe(true);
@@ -67,7 +67,7 @@ describe("chroma key filter", () => {
     expect(material.uniforms.threshold.value).toBe(0.4);
     expect(material.uniforms.keyOpacity.value).toBe(1);
 
-    const plain = buildEntity(target(), () => asset)!.object as Mesh;
+    const plain = buildEntity(target(), () => asset)!.object.children[0] as Mesh;
     expect(plain.material).toBeInstanceOf(MeshBasicMaterial);
     expect((plain.material as MeshBasicMaterial).map).toBe(texture);
   });
@@ -84,10 +84,10 @@ describe("chroma key filter", () => {
     };
 
     const loaded = videoAsset(video(1358, 930, 1));
-    expect(buildEntity(target(), () => loaded)!.object.scale.y).toBe(0.6848);
+    expect(buildEntity(target(), () => loaded)!.object.children[0].scale.y).toBe(0.6848);
 
     const later = video(1000, 1000, 0);
-    const keyed = buildEntity(target(chromaKey({ color: "#000" })), () => videoAsset(later))!.object;
+    const keyed = buildEntity(target(chromaKey({ color: "#000" })), () => videoAsset(later))!.object.children[0];
     expect(keyed.scale.y).toBe(DEFAULT_VIDEO_HEIGHT);
     later.dispatchEvent(new Event("loadedmetadata"));
     expect(keyed.scale.y).toBe(1);

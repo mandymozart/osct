@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArSceneEvents, ArStatus, IArScene, LoadingState, SceneState } from "@/types";
+import { ArSceneEvents, ArStatus, IArScene, LoadingState, SceneState, TARGET_TAP_EVENT } from "@/types";
 import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 
@@ -16,7 +16,9 @@ class FakeArScene implements IArScene {
 
   async load(spreadId: string) { this.loads.push(spreadId); this.spreadId = spreadId; }
   async setState(state: SceneState) { this.states.push(state); }
+  celebrated: string[] = [];
   async dispose() { this.disposed = true; }
+  celebrate(targetId: string) { this.celebrated.push(targetId); }
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]) {
     const list = this.listeners.get(event) ?? [];
     list.push(listener);
@@ -79,6 +81,28 @@ describe("<ar-bridge>", () => {
     expect(game.history.isUnlocked(target.id)).toBe(true);
     scene.emit("targetLost", target.id);
     expect(game.state.trackedTargets).toEqual([]);
+  });
+
+  it("a tapped entity: discovery animation until its entry is consulted, then the unlock event – scan mode only", () => {
+    const target = getTargets(spread1.id).find(t => t.entity)!;
+    const taps: string[] = [];
+    const listener = (e: Event) => taps.push((e as CustomEvent<{ targetId: string }>).detail.targetId);
+    document.addEventListener(TARGET_TAP_EVENT, listener);
+
+    game.router.navigate("/spread");
+    scene.emit("targetTapped", target.id);
+    expect(scene.celebrated).toEqual([target.id]);
+    expect(taps).toEqual([target.id]);
+
+    game.history.consultEntry(target.entryId);
+    scene.emit("targetTapped", target.id);
+    expect(scene.celebrated).toEqual([target.id]);
+    expect(taps).toEqual([target.id, target.id]);
+
+    game.router.navigate("/about");
+    scene.emit("targetTapped", target.id);
+    expect(taps).toHaveLength(2);
+    document.removeEventListener(TARGET_TAP_EVENT, listener);
   });
 
   it("reports the AR status, shows loading while building / starting, marks the running scene", () => {

@@ -1,5 +1,6 @@
 import { GameStoreService } from "@/services";
-import { GameMode, IGame, Target } from "@/types";
+import { feedback } from "@/services/FeedbackService";
+import { GameMode, IGame, Target, TARGET_TAP_EVENT } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import i18next from "i18next";
@@ -20,7 +21,9 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
 /**
  * Found-target indicator (design p.9–14, p.35): the entry's image with a drop shadow while its target
  * is found in scan mode. Tap → the entry view (`/entry`) in consultation mode; the first time (entry not
- * consulted yet) "New entry unlocked" and a small rotation play first.
+ * consulted yet) "New entry unlocked", the reveal sound and a small rotation play first.
+ * Targets with an AR entity: a tap on the entity (TARGET_TAP_EVENT from `<ar-bridge>`) runs the same
+ * unlock with the label only – the entity's discovery animation plays in the AR scene.
  * Lives in the scan page, so it is hidden in consultation (PLAN: review visibility there).
  */
 export class FoundIndicator extends HTMLElement {
@@ -37,12 +40,18 @@ export class FoundIndicator extends HTMLElement {
     this.handleClick = this.handleClick.bind(this);
   }
 
+  private handleTargetTap = (event: Event) => {
+    const target = getTarget((event as CustomEvent<{ targetId: string }>).detail?.targetId);
+    if (target && this.game.state.mode === GameMode.SCAN) this.unlock(target);
+  };
+
   connectedCallback() {
     this.cleanups.push(
       this.game.subscribeToProperty("trackedTargets", () => this.update()),
       this.game.subscribeToProperty("mode", () => this.update()),
     );
     this.shadowRoot?.addEventListener("click", this.handleClick);
+    document.addEventListener(TARGET_TAP_EVENT, this.handleTargetTap);
     this.update();
   }
 
@@ -50,6 +59,7 @@ export class FoundIndicator extends HTMLElement {
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
     this.shadowRoot?.removeEventListener("click", this.handleClick);
+    document.removeEventListener(TARGET_TAP_EVENT, this.handleTargetTap);
     window.clearTimeout(this.unlockTimer);
   }
 
@@ -67,7 +77,8 @@ export class FoundIndicator extends HTMLElement {
     const target = this.target;
     const entry = target ? getEntry(target.entryId) : undefined;
     this.toggleAttribute("visible", !!target);
-    const src = entry?.image ?? target?.imageSrc;
+    // Entity targets (tapped in the AR scene): the label only, the entity is the picture
+    const src = target?.entity ? undefined : entry?.image ?? target?.imageSrc;
 
     this.shadowRoot.innerHTML = /* html */ `
       <style>
@@ -145,13 +156,24 @@ export class FoundIndicator extends HTMLElement {
 
   private handleClick(event: Event) {
     const target = this.target;
-    if (!target || !(event.target as HTMLElement).closest("button") || this.hasAttribute("unlocking")) return;
-    const entryId = target.entryId;
+    if (!target || !(event.target as HTMLElement).closest("button")) return;
+    this.unlock(target);
+  }
 
+  /** Consulted: open the entry; else "New entry unlocked" + reveal sound, then open it */
+  private unlock(target: Target) {
+    if (this.hasAttribute("unlocking")) return;
+    const entryId = target.entryId;
     if (this.game.history.isConsulted(entryId)) {
       this.open(entryId);
       return;
     }
+    if (target.id !== this.target?.id) {
+      this.target = target;
+      this.render();
+      void this.offsetWidth; // style the new content first, so the unlock transitions run
+    }
+    feedback("reveal", target.id);
     // Attribute only (no re-render), so the label and image transitions run
     this.setAttribute("unlocking", "");
     this.shadowRoot?.querySelector(".label")?.removeAttribute("aria-hidden");

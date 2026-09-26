@@ -18,10 +18,18 @@ export enum SceneState {
  */
 export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "paused" | "error";
 
+/**
+ * DOM event (on `document`, detail `{ targetId }`): a found target's AR entity was tapped in scan mode.
+ * Sent by `<ar-bridge>`, handled by `<found-indicator>` (unlock → entry), like a tap on its image.
+ */
+export const TARGET_TAP_EVENT = "osct:target-tap";
+
 export type ArSceneEvents = {
   targetFound: (targetId: string) => void;
   targetLost: (targetId: string) => void;
   status: (status: ArStatus, error?: string) => void;
+  /** A found target's AR entity was tapped (scan mode) */
+  targetTapped: (targetId: string) => void;
   /** The spread's `.mind` is loaded and tracking began */
   ready: (spreadId: string) => void;
 };
@@ -38,6 +46,8 @@ export interface IArScene {
   load(spreadId: string): Promise<void>;
   /** RUNNING = camera + tracking, PAUSED = frozen frame, stream kept, STOPPED = camera released */
   setState(state: SceneState): Promise<void>;
+  /** Play the discovery animation on a found target's entity (tap on an entry not consulted yet) */
+  celebrate(targetId: string): void;
   /** Tear everything down (camera released, scene removed) */
   dispose(): Promise<void>;
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]): () => void;

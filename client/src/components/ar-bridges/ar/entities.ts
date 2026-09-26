@@ -1,18 +1,19 @@
-import { AnimationMixer, DoubleSide, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry } from "three";
+import { AnimationMixer, DoubleSide, Group, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry } from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { EntityData, EntityType, Target } from "@/types";
+import { EntityData, EntityType, resolvePlacement, Target } from "@/types";
 import { chromaKeyMaterial, parseChromaKey } from "../utils/chroma-key";
 import { LoadedAsset } from "./assets";
 
 /**
- * Entity registry: one builder per entity type creates the three.js object for a target (a child of
- * the target's anchor: 1 unit = target width, origin in its centre) and may return hooks for
+ * Entity registry: one builder per entity type creates the three.js object for a target and may return hooks for
  * found / lost / pause and a per-frame update. New types: `registerEntity("type", builder)` – no logic
- * in the content.
+ * in the content. `buildEntity` puts the object into a group placed on the target by the entity's
+ * `params` (position / rotation / scale – shared/types/placement.ts; axes: x right, y up the page, z out of
+ * the page, 1 unit = target width, origin in its centre).
  */
 
 export interface EntityInstance {
-  /** Child of the target's anchor group */
+  /** Child of the target's anchor group (from `buildEntity`: the placement group around the builder's object) */
   object: Object3D;
   onFound?(): void;
   onLost?(): void;
@@ -48,7 +49,16 @@ export const buildEntity = (target: Target, asset: EntityContext["asset"]): Enti
     console.warn(`[entities] No builder for entity type "${entity.type}" (target ${target.id})`);
     return null;
   }
-  return builder({ target, entity, asset });
+  const instance = builder({ target, entity, asset });
+  if (!instance) return null;
+  const { position, rotation, scale } = resolvePlacement(entity.type, entity.params);
+  const placed = new Group();
+  placed.name = `${target.id}-placement`;
+  placed.position.set(...position);
+  placed.rotation.set(...(rotation.map(MathUtils.degToRad) as [number, number, number]));
+  placed.scale.set(...scale);
+  placed.add(instance.object);
+  return { ...instance, object: placed };
 };
 
 /**
@@ -123,9 +133,7 @@ registerEntity("model", ({ entity, asset }) => {
   const loaded = data && asset(data.id);
   if (!loaded || (loaded.assetType !== "glb" && loaded.assetType !== "gltf")) return null;
   // A copy per entity (skinned meshes need SkeletonUtils) – geometries and materials stay shared
-  const model = cloneSkinned(loaded.scene);
-  model.position.set(0, -0.25, 0);
-  model.scale.setScalar(0.5);
+  const model = cloneSkinned(loaded.scene); // placed by `params` (default: standing on the page, half size)
   const mixer = loaded.animations.length ? new AnimationMixer(model) : null;
   loaded.animations.forEach(clip => mixer!.clipAction(clip).play());
   return {

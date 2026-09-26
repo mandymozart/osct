@@ -16,6 +16,7 @@ import { validateContent } from './utils/validation';
 import { optimizeModels } from './utils/optimize-models';
 import { assertGameConfiguration, GameConfigurationError } from '../../shared/guards/game-config';
 import { FilterData, filterProblems } from '../../shared/types/filters';
+import { placementProblems } from '../../shared/types/placement';
 import type {
   AssetData,
   AssetType,
@@ -249,6 +250,7 @@ function buildEntities(): Record<string, EntityData> {
       };
     }).filter((asset): asset is AssetData => asset !== null);
     if (assets.length === 0) buildErrors.push(`${label}: type "${e.type}" needs assets`);
+    buildErrors.push(...placementProblems(e.params, `${label}: params`));
     const filters = buildFilters(e.filters, e.type, label);
     entities[id] = { type: e.type, assets, ...(e.params ? { params: e.params } : {}), ...(filters ? { filters } : {}) };
   }
@@ -294,6 +296,7 @@ function buildEntity(
   if (e.params !== undefined && (typeof e.params !== 'object' || Array.isArray(e.params))) {
     buildErrors.push(`${label}: entity params must be a mapping`);
   }
+  buildErrors.push(...placementProblems(e.params, `${label}: params`));
   if (typeof e.src !== 'string') {
     buildErrors.push(`${label}: entity type "${type}" needs a src`);
     return undefined;
