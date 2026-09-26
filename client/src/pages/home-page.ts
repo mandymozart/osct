@@ -8,7 +8,8 @@ import i18next from "i18next";
 
 /**
  * Home (IDLE): styled like the onboarding splash (design p.1) – Mark, title, author, and two buttons
- * in the onboarding style: "Start" (scan mode) and "Tutorial" (onboarding). A first visit goes to the
+ * in the onboarding style: "Start" (scan mode) and "Tutorial" (onboarding). The publisher (book content)
+ * sits above "Start" in the title's style (Tilman 2026-09-26 – not in the design draft). A first visit goes to the
  * onboarding directly (`main.ts`); returning readers land here.
  */
 export class HomePage extends PageMinimal {
@@ -34,6 +35,7 @@ export class HomePage extends PageMinimal {
     h1 { font-size: inherit; font-weight: 400; margin: 0; }
     .title { width: min(15.5rem, 100%); }
     .author { margin-top: 1.25rem; }
+    .publisher { margin-bottom: .5rem; }
     .buttons {
       position: absolute;
       top: 58%;
@@ -55,6 +57,7 @@ export class HomePage extends PageMinimal {
       <h1 class="title design gold">${escapeHtml(book.title)}</h1>
       <div class="author title design gold">${escapeHtml(book.author)}</div>
       <div class="buttons">
+        ${book.publisher ? `<div class="publisher title design gold">${escapeHtml(book.publisher)}</div>` : ""}
         ${goldButton({ label: i18next.t("home:start"), shape: "button", primary: true, attrs: { id: "start-btn" } })}
         ${goldButton({ label: i18next.t("home:tutorial"), shape: "button", attrs: { id: "tutorial-btn" } })}
       </div>

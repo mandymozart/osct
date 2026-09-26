@@ -28,6 +28,7 @@ export const schemas: Record<string, Schema> = {
       id: { type: "String", required: true },
       title: { type: "String", required: true },
       author: { type: "String", required: true },
+      publisher: { type: "String", required: false },
     },
   },
 

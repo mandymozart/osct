@@ -92,7 +92,10 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
   }
 
   const book = obj(root.book, "book");
-  if (book) ["id", "title", "author"].forEach(key => str(book, key, "book"));
+  if (book) {
+    ["id", "title", "author"].forEach(key => str(book, key, "book"));
+    str(book, "publisher", "book", true);
+  }
 
   num(root, "maxTargetsPerSpread", "config");
   str(root, "initialSpreadId", "config");

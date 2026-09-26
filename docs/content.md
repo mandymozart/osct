@@ -25,7 +25,7 @@ folders after release: reading progress is stored by id.
 
 ```
 content/
-├── book.yaml                     the book (title, author)
+├── book.yaml                     the book (title, author, publisher)
 ├── spreads/
 │   └── spread1/
 │       ├── spread.yaml           title and pages of the spread

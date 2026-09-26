@@ -4,6 +4,12 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Publisher on the home page (Tilman)
+
+- (user) "Building Fictions" above "Start" on the home page, same size and style as the title – missing in the
+  design draft. Book content: `book.yaml` → `publisher` (optional in the contract, guard and build schema), so
+  other books can set their own. [ ] Designers: confirm the position (the buttons moved down by one line).
+
 ## 2026-09-26 – No resume prompt, storage notices, links just route (Tilman)
 
 - (user) No resume prompt: the app opens the requested view (link / reload) and keeps going. A plain start

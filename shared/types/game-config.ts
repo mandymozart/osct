@@ -25,6 +25,8 @@ export interface BookData {
   id: string; // e.g. "osct" – identifies the book (storage keys, QR codes)
   title: string;
   author: string;
+  /** Shown on the home page above "Start" (optional) */
+  publisher?: string;
 }
 
 export interface SpreadData {
