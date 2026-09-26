@@ -45,8 +45,9 @@ Node 22 (as in CI). Setup and dev server: see the [README](../README.md).
 - After changing `scripts/src`, run `npm run build` in `scripts/` first (type-check + bundle the tool).
 - The camera needs HTTPS (or `localhost`): `npm run dev` serves https with a self-signed certificate –
   on the phone open `https://<your-ip>:5173` and accept the certificate once. `npm run dev:http` = plain http.
-- `client/.env` enables the debug overlay (`VITE_DEBUG=true`): version, AR status, tracked targets,
-  QR generator.
+- Debug overlay (version, AR status, tracked targets, QR generator): always on with `npm run dev`; in a
+  build only with `VITE_DEBUG=true` – set it in the Netlify site's environment variables (staging: on,
+  production: off), locally in `client/.env.local`. `client/.env` lists the flags but sets none.
 
 ### Checks
 
