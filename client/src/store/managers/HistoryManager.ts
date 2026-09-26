@@ -8,6 +8,7 @@ import {
 } from '@/types';
 import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
 import { ProgressReadStatus, createProgressRecord, readProgress } from '@/utils';
+import { t } from '@/i18n';
 
 /**
  * Progress of the reader in this book (PLAN Phase 2): unlocked targets, consulted entries,
@@ -73,9 +74,7 @@ export class HistoryManager implements IHistoryManager {
     if (status !== 'converted' && status !== 'unreadable') return;
     this.game.notifyError({
       code: status === 'converted' ? 'progress-converted' : 'progress-reset',
-      msg: status === 'converted'
-        ? 'Your saved progress was converted for this app version. Parts of it may be missing.'
-        : 'Your saved progress could not be read by this app version and was reset.',
+      msg: t(status === 'converted' ? 'progress.converted' : 'progress.reset'),
       type: 'info',
     });
   }

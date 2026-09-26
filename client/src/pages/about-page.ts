@@ -1,17 +1,19 @@
 import { ConsultationPage } from "./consultation-page";
 import { getBook } from "@/utils/game-config";
-import { escapeHtml } from "@/utils";
-import { goldButton } from "@/components/buttons";
+import { tHtml } from "@/i18n";
+import "@/components/settings";
 
 /**
  * About = Info (design p.32–34), opened with "i" in consultation mode; "Entries" (top chrome) goes
- * back to the list. Info text + colophon. Placeholder texts – the final texts belong in the content
- * (`book.yaml`) once they arrive (PLAN Phase 4).
+ * back to the list. Info text, the settings (one component per section – Tutorial, History, Language;
+ * later tools and account settings), colophon. Placeholder texts – the final texts belong in the
+ * content (`book.yaml`) once they arrive (PLAN Phase 4).
  */
 export class AboutPage extends ConsultationPage {
   get styles(): string {
     return /* css */ `
       .section-title:first-child { margin-top: 0; }
+      .settings { margin-bottom: 1.5rem; }
       .logo-link {
         display: inline-block;
         margin: .5rem 0 1rem;
@@ -20,54 +22,43 @@ export class AboutPage extends ConsultationPage {
         background: var(--color-on-dark);
       }
       .logo { display: block; height: 3rem; }
-      .buttons { margin: 1.5rem 0; }
       .platforms p { margin: 0; }
     `;
   }
 
   get template(): string {
     const book = getBook();
-    const title = escapeHtml(book.title);
-    const author = escapeHtml(book.author);
+    const params = { title: book.title, author: book.author };
     return /* html */ `
       <div class="content">
-        <h2 class="section-title">Info</h2>
-        <p>${title} is a publication by ${author}. Scan the pages of the book to unlock entries –
-        glossary terms, videos, texts and links – and read them here in consultation mode.</p>
+        <h2 class="section-title">${tHtml("about.info")}</h2>
+        <p>${tHtml("about.infoText", params)}</p>
 
-        <h2 class="section-title">Colophon</h2>
-        <p>Author: ${author}<br>Published by buildingfictions &copy; 2025</p>
+        <h2 class="section-title">${tHtml("about.settings")}</h2>
+        <div class="settings">
+          <settings-tutorial></settings-tutorial>
+          <settings-history></settings-history>
+          <settings-language></settings-language>
+        </div>
+
+        <h2 class="section-title">${tHtml("about.colophon")}</h2>
+        <p>${tHtml("about.author", params)}<br>${tHtml("about.publishedBy")}</p>
         <a class="logo-link" href="https://buildingfictions.com" target="_blank" rel="noopener noreferrer">
           <img src="/assets/bf.svg" class="logo" alt="buildingfictions" />
         </a>
-        <p>App by Tilman Porschuetz</p>
-        <div class="buttons">
-          ${goldButton({ label: "Tutorial", attrs: { id: "tutorial-btn" } })}
-        </div>
+        <p>${tHtml("about.appBy")}</p>
         <div class="platforms">
-          <p>Requires a WebXR compatible browser and a copy of the book.</p>
-          <p>Android: Chrome</p>
-          <p>Desktop: Chrome, Firefox, Safari</p>
-          <p>iOS: Safari, Chrome</p>
+          <p>${tHtml("about.requirements")}</p>
+          <p>${tHtml("about.android")}</p>
+          <p>${tHtml("about.desktop")}</p>
+          <p>${tHtml("about.ios")}</p>
         </div>
       </div>
     `;
   }
 
-  setupEventListeners() {
-    this.shadowRoot?.querySelector("#tutorial-btn")?.addEventListener("click", this.handleTutorial);
-  }
-
-  cleanupEventListeners() {
-    this.shadowRoot?.querySelector("#tutorial-btn")?.removeEventListener("click", this.handleTutorial);
-  }
-
-  private handleTutorial = () => {
-    this.game.router.navigate("/tutorial");
-  };
-
   protected update(): void {
-    // Static page
+    // Static page – the settings sections render themselves
   }
 }
 

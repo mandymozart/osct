@@ -117,6 +117,11 @@ Extend as we go: add a rule when a decision should hold for all future work.
     - An import used only for types is dropped when compiled: keep a separate side-effect import
       (`import "@/pages"`) where registration matters.
 
+20. **UI texts** (Tilman, 2026-09-26): never hard-coded – every text shown to readers (incl. aria labels
+    and notices) comes from `src/i18n` via `t()` / `tHtml()` (i18next; en default, fr, nl, de; one domain per
+    page/area). New texts go into every language. Book content (titles, entries, steps) is not UI text.
+    The reader's language is a setting (`SettingsService`), not progress. Dev tools may stay English.
+
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions
   (Tilman, 2026-09-25). This overrides any tool default.

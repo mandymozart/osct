@@ -1,0 +1,8 @@
+import type { Messages } from "../en";
+
+/** Startup errors – French */
+export const startup: Messages["startup"] = {
+  contentOtherVersion: "Le contenu du livre a été créé pour une autre version de l'application.",
+  contentNotLoaded: "Le contenu du livre n'a pas pu être chargé.",
+  unknownError: "Une erreur inconnue s'est produite.",
+};

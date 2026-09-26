@@ -4,6 +4,7 @@ import "./entries-counter";
 import "./mark-the-page";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
+import { t, tHtml } from "@/i18n";
 
 /**
  * Top chrome, per mode (design 260804):
@@ -92,10 +93,10 @@ export class GameHeader extends HTMLElement {
               <mark-the-page></mark-the-page>
               <div class="counter">
                 <entries-counter></entries-counter>
-                <div class="counter-label design">Entries consulted</div>
+                <div class="counter-label design">${tHtml("header.entriesConsulted")}</div>
               </div>
-              ${goldButton({ label: "Entries", className: "entries", attrs: { id: "entries" } })}
-              ${goldButton({ label: "i", shape: "icon", className: "info", attrs: { id: "info", "aria-label": "Info" } })}
+              ${goldButton({ label: t("header.entries"), className: "entries", attrs: { id: "entries" } })}
+              ${goldButton({ label: "i", shape: "icon", className: "info", attrs: { id: "info", "aria-label": t("header.info") } })}
             </div>
         `;
   }

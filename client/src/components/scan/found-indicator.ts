@@ -2,6 +2,7 @@ import { GameStoreService } from "@/services";
 import { GameMode, IGame, Target } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
+import { tHtml } from "@/i18n";
 
 /** How long "New entry unlocked" + the rotation play before the entry opens */
 const UNLOCK_MS = 1200;
@@ -137,8 +138,8 @@ export class FoundIndicator extends HTMLElement {
           :host([unlocking]) img { animation: none; }
         }
       </style>
-      <div class="label design gold" aria-hidden="true">New entry unlocked</div>
-      ${target && src ? `<button type="button" aria-label="Open entry ${entry?.title ?? ""}"><img src="${src}" alt=""></button>` : ""}
+      <div class="label design gold" aria-hidden="true">${tHtml("scan.newEntryUnlocked")}</div>
+      ${target && src ? `<button type="button" aria-label="${tHtml("scan.openEntry", { title: entry?.title ?? "" })}"><img src="${src}" alt=""></button>` : ""}
     `;
   }
 

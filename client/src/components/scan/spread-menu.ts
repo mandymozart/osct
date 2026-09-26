@@ -2,6 +2,7 @@ import { GameStoreService } from "@/services";
 import { IGame, Spread } from "@/types";
 import { formatPages, getMenuSpreads, loopCopies, normalizeLoopScroll } from "./spread-menu-loop";
 import { adoptDesignStyles } from "@/styles";
+import { tHtml } from "@/i18n";
 
 /** Scroll has to rest this long before the loop is re-centered and the spread activated */
 const SETTLE_MS = 140;
@@ -110,7 +111,7 @@ export class SpreadMenu extends HTMLElement {
           -webkit-tap-highlight-color: transparent;
         }
       </style>
-      <div class="label design" id="label">Pages activated:</div>
+      <div class="label design" id="label">${tHtml("scan.pagesActivated")}</div>
       <div class="track design" role="listbox" aria-labelledby="label"></div>
     `;
     this.toggleAttribute("hidden", this.spreads.length === 0);
@@ -137,7 +138,7 @@ export class SpreadMenu extends HTMLElement {
     const middle = copy === Math.floor(this.copies / 2);
     return this.spreads
       .map(s => `<button type="button" class="item" role="option" data-spread="${s.id}" data-copy="${copy}"
-        ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="Pages ${formatPages(s)}"><span>${formatPages(s)}</span></button>`)
+        ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="${tHtml("scan.pagesAria", { pages: formatPages(s) })}"><span>${formatPages(s)}</span></button>`)
       .join("");
   }
 

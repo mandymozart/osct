@@ -2,6 +2,8 @@ import { GameMode, IGame, LoadingState } from "@/types";
 import { Page } from "./page";
 import { GameStoreService } from "@/services";
 import { adoptDesignStyles } from "@/styles";
+import { t } from "@/i18n";
+import { escapeHtml } from "@/utils";
 
 /**
  * Loading Page is a simple overlay page that displays
@@ -18,7 +20,7 @@ import { adoptDesignStyles } from "@/styles";
  * hideLoading();
  */
 class LoadingPage extends Page {
-  private message: string = "Loading...";
+  private message: string = t("common.loading");
   protected game: Readonly<IGame>;
   private currentLoadingState: LoadingState;
 
@@ -86,11 +88,11 @@ class LoadingPage extends Page {
   get template(): string {
     return /* html */ `
       <div class="gold-spinner" role="status"></div>
-      <span class="visually-hidden">${this.message}</span>
+      <span class="visually-hidden">${escapeHtml(this.message)}</span>
     `;
   }
 
-  private showLoading(msg: string = "Loading"): void {
+  private showLoading(msg: string = t("common.loading")): void {
     this.message = msg;
     this.active = true;
     this.render();

@@ -2,6 +2,7 @@ import { Entry, EntryCategory, Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
 import { DEFAULT_CATEGORY, EntriesFilterElement, EntriesList, isCategory, showLockedEntries } from "@/components/consultation";
 import { ConsultationPage } from "./consultation-page";
+import { t } from "@/i18n";
 
 /**
  * Entries list (design p.17–19, 24, 29): `<entries-filter>` (category dropdown), consulted / total of
@@ -61,7 +62,7 @@ export class EntriesPage extends ConsultationPage {
 
     filter.value = category;
     count.textContent = `${consulted} / ${inCategory.length}`;
-    count.setAttribute("aria-label", `${consulted} of ${inCategory.length} consulted`);
+    count.setAttribute("aria-label", t("entries.countAria", { consulted, total: inCategory.length }));
     list.setEntries(category, inCategory.filter(visible));
   }
 }

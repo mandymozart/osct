@@ -1,7 +1,8 @@
 import { Page } from "./page";
 import { GameStoreService } from "@/services";
 import { CameraPermissionStatus, IGame } from "@/types";
-import { detectBrowser } from "@/utils";
+import { detectBrowser, escapeHtml } from "@/utils";
+import { tHtml, tList } from "@/i18n";
 import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
 
@@ -123,24 +124,17 @@ export class CameraPermissionPage extends Page {
   }
 
   private getIcon(): string {
-    return `<gold-illustration src="/assets/illustrations/tutorial-step-2.svg" label="Camera"></gold-illustration>`;
+    return `<gold-illustration src="/assets/illustrations/tutorial-step-2.svg" label="${tHtml("camera.illustration")}"></gold-illustration>`;
   }
 
   /**
-   * Get browser-specific camera permission instructions
+   * Browser-specific steps to allow the camera again
    */
   private getSettingsInstructions(): string {
     const browser = detectBrowser();
-    switch (browser) {
-      case 'chrome':
-        return `To enable camera access in Chrome:<ol><li>Tap the lock / settings icon in the address bar</li><li>Select "Site settings"</li><li>Allow camera permissions</li><li>Refresh the page</li></ol>`;
-      case 'firefox':
-        return `To enable camera access in Firefox:<ol><li>Tap the lock icon in the address bar</li><li>Clear the current setting</li><li>Refresh the page and allow access when prompted</li></ol>`;
-      case 'safari':
-        return `To enable camera access in Safari:<ol><li>Open the page settings ("aA" in the address bar) or Safari settings</li><li>Go to Websites &gt; Camera</li><li>Find this website and select "Allow"</li><li>Refresh the page</li></ol>`;
-      default:
-        return `To enable camera access:<ol><li>Check your browser settings for camera permissions</li><li>Allow this site to use your camera</li><li>Refresh the page</li></ol>`;
-    }
+    const which = browser === "chrome" || browser === "firefox" || browser === "safari" ? browser : "other";
+    const steps = tList(`camera.${which}Steps`).map(step => `<li>${escapeHtml(step)}</li>`).join("");
+    return `${tHtml(`camera.${which}Title`)}<ol>${steps}</ol>`;
   }
 
   private getContent() {
@@ -148,14 +142,14 @@ export class CameraPermissionPage extends Page {
     if (this.currentPermissionStatus === CameraPermissionStatus.PROMPT) {
       return /* html */ `
         ${this.getIcon()}
-        <div class="message design gold"><p>Waiting for camera access…</p><p>Please allow the camera to scan the book.</p></div>
+        <div class="message design gold"><p>${tHtml("camera.waiting")}</p><p>${tHtml("camera.allow")}</p></div>
       `;
     }
     return /* html */ `
       ${this.getIcon()}
       <div class="message design gold">
-        <p>Camera access was denied.</p>
-        <p>To scan the book and display interactive content, please enable camera permissions in your browser settings.</p>
+        <p>${tHtml("camera.denied")}</p>
+        <p>${tHtml("camera.enable")}</p>
       </div>
       <div class="settings-instructions design muted">
         ${this.getSettingsInstructions()}

@@ -3,6 +3,7 @@ import { ENTRY_CATEGORIES, EntryCategory, IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 import { categoryLabel, DEFAULT_CATEGORY } from "./entries-model";
+import { escapeHtml } from "@/utils";
 
 /**
  * Category dropdown of the entries list (design p.17–18, "burger menu"): a glass pill with the current
@@ -46,7 +47,7 @@ export class EntriesFilterElement extends HTMLElement {
   private render() {
     if (!this.shadowRoot) return;
     const item = (category: EntryCategory) =>
-      `<li><button type="button" class="gold" role="menuitem" data-filter="${category}" aria-current="${category === this._value}">${categoryLabel(category)}</button></li>`;
+      `<li><button type="button" class="gold" role="menuitem" data-filter="${category}" aria-current="${category === this._value}">${escapeHtml(categoryLabel(category))}</button></li>`;
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host { display: block; position: relative; width: var(--category-width); }
