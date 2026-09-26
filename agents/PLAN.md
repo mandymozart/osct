@@ -782,8 +782,9 @@ the app is ready. PWA later.
   found image or on the AR entity (on-screen bounds + 24 px, taps on app UI ignored) opens the entry.
 - [x] Nothing stays in space: a pause (entry opened) reports all targets lost and hides them – MindAR
   restarts its tracking state on resume and never reported them lost ("stuck in space"). Pinning: Phase 10.
-- [ ] Review the unlock / consult moments with the designers and the artist (animation, sounds;
-  `sounds/reveal.wav` – "pew pew pew" – is an unused alternative to `unlock.wav`).
+- [x] Sounds per moment (Tilman 2026-09-26): **found** (every find after the unlock, "pew pew pew",
+  `sounds/found.wav`, once per target every 4 s) · **unlock** (first find, jingle) · consult = tap (tap blip).
+- [ ] Review the reveal / unlock / consult moments with the designers and the artist (animation, sounds).
 - [x] Device check of placement + tap to unlock on the S22 (Tilman, 2026-09-26): works, animations "a good
   starting point".
 - [?] **Pinning objects in space** → moved to Phase 10 (concept first).

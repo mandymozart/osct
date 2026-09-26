@@ -9,6 +9,8 @@ outcome in the line (or move it into a dated decision block).
 - **Unlock = finding a target the first time** ("oh, there you got it"): label + animation (image: rotation
   in the found indicator; AR entity: discovery animation in WebGL) + unlock jingle.
 - **Consulted = the entry was opened**: a tap on the found image or on the AR entity opens the entry.
+- **Reveal = every later find**: the `found` signal (sound "pew pew pew" + short vibration, once per target
+  every 4 s). One sound per moment, no separate reveal event.
 - Nothing sticks in space – that belongs to Phase 10 (spatialisation). The "stuck" objects were anchors
   that stayed visible after a pause (MindAR restarts its tracking state on resume); a pause now loses all.
 
