@@ -715,7 +715,7 @@ Both: one scene, one live stream, rapid switching ends on the last spread, found
 ## Phase 8 – Sound design and haptic feedback  `[ ]` (added 2026-09-26 – after the designers' feedback, during or after the content phase)
 
 Built as a first step (2026-09-26, `FeedbackService`, see MEMORY): events tick (spread slider), tap
-(buttons), found, unlock; generated chiptune placeholder sounds; Info → Settings "Sound & vibration".
+(buttons), found, unlock; generated placeholder sounds (calm / mindful since 2026-09-26, chiptune before); Info → Settings "Sound & vibration".
 
 - [ ] Sound design: final sounds for `client/public/assets/sounds/` (tick, tap, found, unlock) – Tilman /
   designers; more events if the design asks for them (e.g. entry opened, spread switched).

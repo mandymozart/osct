@@ -91,7 +91,9 @@ outcome in the line (or move it into a dated decision block).
   `data-feedback="none"` silences), found (target found again, 4 s cooldown per target – tracking
   flickers), unlock (first find). Web Audio after the first tap; `navigator.vibrate` on Android; iOS 18+
   via the native switch-toggle trick (only right after a tap, not while scrolling), else nothing.
-- Sounds: generated chiptune placeholders (`scripts/tools/generate-sounds.mjs`, "think Nintendo") in
+- Sounds (changed 2026-09-26, second take: "less 8-bit, contemporary, smooth, delay + reverb, like a
+  yoga / mindfulness app" – sine tones and singing-bowl partials in D major pentatonic; before: chiptune)
+  – generated placeholders (`scripts/tools/generate-sounds.mjs`, "think Nintendo") in
   `client/public/assets/sounds/<event>.wav` – Tilman replaces them with designed sounds of the same names.
 - Info → Settings → "Sound & vibration" (settings-feedback), on/off each, kept in localStorage
   `osct-feedback` (device setting, not progress – survives "Reset book").
