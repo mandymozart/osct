@@ -94,8 +94,9 @@ const sounds = {
     ),
   ),
 
-  // Entry revealed (tap on a found target the first time): "pew pew pew" – three quick falling laser
-  // zaps, then a rising sparkle run with a bright held note
+  // Alternative unlock sound (Tilman 2026-09-26, "pew pew pew"): three quick falling laser zaps, then a
+  // rising sparkle run with a bright held note. Not played by the app – to try instead of unlock.wav,
+  // rename it (PLAN Phase 8: designers decide)
   reveal: mix(
     sequence(
       ...[0, 1, 2].flatMap(i => [

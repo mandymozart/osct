@@ -311,9 +311,8 @@ export class ArScene implements IArScene {
       // A newer wish arrived while starting: the next queued step applies it
       if (this.wantedState !== SceneState.RUNNING || this.wantedSpread !== this.spreadId) return;
     } else if (!this.running) {
+      // MindAR starts its tracking state afresh: targets are found again (all were lost at the pause)
       this.tracker!.resume();
-      // Tracking state survives a pause: resume the entities of targets still found
-      this.content!.anchors.filter(a => this.found.has(a.target.id)).forEach(a => a.entity?.onFound?.());
     }
     this.running = true;
     this.view!.start();
@@ -328,6 +327,10 @@ export class ArScene implements IArScene {
       this.running = false;
     }
     this.pauseEntities();
+    // Nothing stays where it was: MindAR restarts its tracking state on resume and would never report
+    // these targets lost – their anchors would stay visible at the old position ("stuck in space")
+    this.finishAnimations();
+    this.loseAll();
     scanningIndicator()?.classList.add("hidden");
     this.setStatus(this.started ? "paused" : "ready");
   }

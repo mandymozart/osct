@@ -177,8 +177,9 @@ half the image's width; videos and images lie flat on the image, as wide as it.
 
 Each value you leave out keeps its default, so `rotation` alone is enough to turn a model.
 
-**Tap to unlock:** a found target with AR content is unlocked by tapping the content (model, video,
-image) – it pops, turns once and sparkles, then the entry opens (like a tap on a found image).
+**Unlock and consult:** finding a target for the first time unlocks its entry – "New entry unlocked"
+appears, AR content (model, video, image) pops, turns once and sparkles on the page. Tapping the found
+image or the AR content opens the entry – from then on it counts as consulted.
 
 **A text without a target:**
 
