@@ -4,6 +4,40 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – PWA (Tilman: "do the PWA now"; PLAN Phase 9b)
+
+- Why: repeat starts from the phone's storage (app shell + seen content), offline use, install to the home
+  screen. First visit is not faster; AR speed (tracking, frame rate) is unchanged. A native wrapper
+  (Capacitor) would only add store presence – same WebKit on iOS, same performance; not planned.
+- vite-plugin-pwa with **injectManifest** (own worker `client/sw/service-worker.ts`, not generateSW) for:
+  - **Pages network-first** (4 s timeout, offline → precached `index.html`): online a deploy shows at once,
+    no stale shell, no "update available" UI needed. The worker takes over at once (`skipWaiting` +
+    `clientsClaim`) without reloading the page – a running session keeps its code.
+  - **Content cache per content build** (`osct-content-<version.hash>`, hash baked in via
+    `__VITE_CONTENT_HASH__`): content URLs are not hashed, so a new content build must drop the old cache
+    (done on activate). Right after a deploy the old worker may serve old content for the first launch
+    until the new one activates (seconds) – accepted.
+  - Only 200 responses are cached (the preloader's full fetches); a `<video>`'s first range request (206)
+    goes to the network, later ones are cut from the cached file (`RangeRequestsPlugin`).
+- Default chosen (Tilman did not pick yet): **cache what is used**, no full download of all content (24 MB+).
+- Registered in production builds only (dev server stays uncached). Testing locally: launch config
+  `client-preview` (production preview, plain http on localhost:4174 after `npx vite build`). The in-app
+  browser pane has no service workers (not a secure context) – test with a real Chrome/Edge.
+- iOS: no install prompt (Share → Add to Home Screen); the installed app has **its own storage** – progress
+  from Safari does not carry over; installed apps are exempt from Safari's 7-day storage deletion.
+- 2026-09-27 (Tilman): home-screen name = book title; "Add to Home Screen" as an Info page section
+  (not the onboarding, for now); the **final app downloads the whole content** (when: open – PLAN 9b);
+  production FTP host: note only, handle when production is set up (PLAN 9b lists what it needs).
+  Chrome's own install banner stays on too (no `preventDefault` on `beforeinstallprompt`) – Tilman did not
+  see an install offer while it was suppressed.
+- Beware: `npm run i18n` (i18next-cli extract) drops keys that are not used in code yet and blanks new
+  translations it adds – write the code first, then fill the JSON files, then run it again.
+- Whole-book download (2026-09-27, Tilman): "download as you read" stays the default; Info has "Download
+  whole book" with the total size, a progress bar ("x of y MB") and the size when done – for testing how
+  long it takes. No "clear" button (uninstalling removes it). File sizes come from the build (a Vite
+  virtual module over `public/assets/content`), not from the game configuration – no content-build change.
+- [ ] Final app icon; whether the whole download should start by itself later – Tilman.
+
 ## 2026-09-26 – Unlock animation: reverse emissive dissolve (Tilman, branch `unlock-experience`)
 
 - Chosen from the options (Three.js Journey fireworks / hologram / particles, Codrops dissolve, gommage):

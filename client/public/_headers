@@ -2,3 +2,10 @@
 # Built app files carry a content hash in their name (vite.config.js → assets/app/): cache for a year
 /assets/app/*
   Cache-Control: public, max-age=31536000, immutable
+
+# PWA: the service worker and the manifest are always checked for a new version
+/service-worker.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+  Content-Type: application/manifest+json
