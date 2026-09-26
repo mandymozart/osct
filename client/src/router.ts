@@ -14,7 +14,7 @@ export const router: PageRouterConfiguration = {
   baseUrl: "",
   routes: [
     {
-      page: Pages.HOME,
+      page: Pages.SPLASH,
       slug: "/",
       mode: GameMode.IDLE,
     },

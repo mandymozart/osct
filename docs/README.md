@@ -18,6 +18,7 @@ Quick start: the repository [README](../README.md).
 ## How the app works
 
 1. **Onboarding** – first visit: splash, intro, camera access (can be skipped; restart from Info).
+   Returning readers see the splash only, then scan mode opens on their last spread.
 2. **Scan mode** – the reader picks a spread (two pages) in the bottom menu and points the camera at
    the book. A found image target shows AR content (video, 3D model, image) or unlocks its entry.
 3. **Consultation mode** – the unlocked entries by category: Glossary, Videos, Texts, Links.

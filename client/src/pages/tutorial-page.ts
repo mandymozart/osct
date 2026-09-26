@@ -1,4 +1,4 @@
-import { Step } from "@/types";
+import { LoadingState, Step } from "@/types";
 import { getTutorial } from "@/utils/game-config";
 import { Page } from "./page";
 import { goToScan, goToStep } from "@/components/tutorial";
@@ -18,6 +18,7 @@ export class TutorialPage extends Page {
   private steps: Step[] = getTutorial();
   private stepIndex = 0;
   private advanceTimer: number | undefined;
+  private waitForLoad: (() => void) | null = null;
 
   get styles(): string {
     return /* css */ `
@@ -81,7 +82,7 @@ export class TutorialPage extends Page {
     }
     if (name === "active") {
       if (newValue === "true") this.showStep();
-      else window.clearTimeout(this.advanceTimer);
+      else this.stopTimer();
     }
   }
 
@@ -91,7 +92,13 @@ export class TutorialPage extends Page {
 
   cleanupEventListeners() {
     this.shadowRoot?.removeEventListener("click", this.handleClick);
+    this.stopTimer();
+  }
+
+  private stopTimer() {
     window.clearTimeout(this.advanceTimer);
+    this.waitForLoad?.();
+    this.waitForLoad = null;
   }
 
   private get step(): Step | undefined {
@@ -99,14 +106,25 @@ export class TutorialPage extends Page {
   }
 
   private showStep() {
-    window.clearTimeout(this.advanceTimer);
+    this.stopTimer();
     this.shadowRoot?.querySelector("tutorial-content")?.setAttribute("current-step", String(this.stepIndex));
     this.shadowRoot?.querySelector("tutorial-navigation")?.setAttribute("current-step", String(this.stepIndex));
 
     const step = this.step;
-    if (this._active && step && !step.button && step.advance) {
-      this.advanceTimer = window.setTimeout(() => this.next(), step.advance);
+    if (!this._active || !step || step.button || !step.advance) return;
+    // A step's time starts once the app has loaded – at startup the loading screen would hide it
+    const advance = step.advance;
+    const loading = (state: LoadingState) => state === LoadingState.LOADING || state === LoadingState.INITIAL;
+    if (!loading(this.game.state.loading)) {
+      this.advanceTimer = window.setTimeout(() => this.next(), advance);
+      return;
     }
+    this.waitForLoad = this.game.subscribeToProperty("loading", state => {
+      if (loading(state)) return;
+      this.waitForLoad?.();
+      this.waitForLoad = null;
+      this.advanceTimer = window.setTimeout(() => this.next(), advance);
+    });
   }
 
   private next() {

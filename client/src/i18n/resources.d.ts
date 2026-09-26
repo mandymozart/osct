@@ -82,10 +82,6 @@ export default interface Resources {
     "info": "Info",
     "openConsultation": "Open consultation mode"
   },
-  "home": {
-    "start": "Start",
-    "tutorial": "Tutorial"
-  },
   "notFound": {
     "text": "This page doesn't exist (anymore)."
   },

@@ -31,7 +31,7 @@ describe("i18n (i18next)", () => {
 
   it("switches language, returns lists and keeps the choice in localStorage", async () => {
     await i18next.changeLanguage("de");
-    expect(i18next.t("home:start")).toBe("Starten");
+    expect(i18next.t("common:dismiss")).toBe("Schließen");
     expect(Object.values(i18next.t("camera:otherSteps", { returnObjects: true }))).toHaveLength(3);
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("de");
     await i18next.changeLanguage("fr-BE");
@@ -40,11 +40,11 @@ describe("i18n (i18next)", () => {
   });
 
   it("shows English for a missing (empty) translation", async () => {
-    const french = i18next.getResource("fr", "home", "start");
-    i18next.addResource("fr", "home", "start", "");
+    const french = i18next.getResource("fr", "common", "dismiss");
+    i18next.addResource("fr", "common", "dismiss", "");
     await i18next.changeLanguage("fr");
-    expect(i18next.t("home:start")).toBe("Start");
-    i18next.addResource("fr", "home", "start", french);
+    expect(i18next.t("common:dismiss")).toBe("Dismiss");
+    i18next.addResource("fr", "common", "dismiss", french);
   });
 
   it("keeps the placeholders of English in every translation (missing ones are only warned by i18next-cli)", () => {
