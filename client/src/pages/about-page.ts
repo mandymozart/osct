@@ -14,11 +14,10 @@ export class AboutPage extends ConsultationPage {
     return /* css */ `
       .section-title:first-child { margin-top: 0; }
       .settings { margin-bottom: 1.5rem; }
+      /* White letters on the page's black (bf.svg is white, transparent around) */
       .logo-link {
         display: inline-block;
         margin: .5rem 0 1rem;
-        padding: .5rem .75rem;
-        background: var(--color-on-dark);
       }
       .logo { display: block; height: 3rem; }
       .platforms p { margin: 0; }
