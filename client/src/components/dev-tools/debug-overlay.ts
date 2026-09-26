@@ -56,7 +56,8 @@ export class DebugOverlay extends HTMLElement {
       this.game.subscribeToProperty('spreads', () => this.updateContent()),
       this.game.subscribeToProperty('cameraPermission', () => this.updateContent()),
       this.game.subscribeToProperty('progress', () => this.updateContent()),
-      this.game.subscribeToProperty('arStatus', () => this.updateContent())
+      this.game.subscribeToProperty('arStatus', () => this.updateContent()),
+      this.game.subscribeToProperty('trackedTargets', tracked => this.countFound(tracked))
     );
   }
 
@@ -194,6 +195,17 @@ export class DebugOverlay extends HTMLElement {
     contentEl.innerHTML = html;
   }
 
+  /** Found events per target (debug: does tracking hold or flicker?) */
+  private foundCount = new Map<string, number>();
+  private previouslyTracked: readonly string[] = [];
+
+  private countFound(tracked: readonly string[]) {
+    tracked.filter(target => !this.previouslyTracked.includes(target))
+      .forEach(target => this.foundCount.set(target, (this.foundCount.get(target) ?? 0) + 1));
+    this.previouslyTracked = tracked;
+    this.updateContent();
+  }
+
   private generateSpreadSummary(id: string): string {
     const spread = getSpread(id);
     
@@ -211,11 +223,14 @@ export class DebugOverlay extends HTMLElement {
     // Get spread status
     const spreadStatus = getStatusDot(this.game.state.spreads[id].status === LoadingState.LOADED, false);
 
+    // Tracked targets with how often each was found – many finds = tracking keeps breaking off
+    const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
+
     // Progress: unlocked targets / consulted entries (whole book)
     const { unlocked, consulted } = this.game.state.progress;
 
     return `
-      <div>S${sceneStatus}${resolveArSceneStrategy() === "persistent" ? "p" : "r"} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length}</div>
+      <div>S${sceneStatus}${resolveArSceneStrategy() === "persistent" ? "p" : "r"} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
     `;
   }
 
