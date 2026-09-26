@@ -1,5 +1,5 @@
 # Onboarding (design p.1): splash – Mark + title, advances by itself
 type: step
-title: Onion Skin & Crocodile Tears
+title: "{{title}}"   # from book.yaml
 advance: 2000
 index: 0

@@ -1,7 +1,7 @@
 # Onboarding (design p.2): title + author + publisher, fade-in 1s
 type: step
-title: Onion Skin & Crocodile Tears
-description: Kévin Bray
+title: "{{title}}"   # from book.yaml
+description: "{{author}}"   # from book.yaml
 footer: "{{publisher}}"   # from book.yaml
 fadeIn: 1000
 advance: 2500
