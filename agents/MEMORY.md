@@ -4,6 +4,29 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – PWA (Tilman: "do the PWA now"; PLAN Phase 9b)
+
+- Why: repeat starts from the phone's storage (app shell + seen content), offline use, install to the home
+  screen. First visit is not faster; AR speed (tracking, frame rate) is unchanged. A native wrapper
+  (Capacitor) would only add store presence – same WebKit on iOS, same performance; not planned.
+- vite-plugin-pwa with **injectManifest** (own worker `client/sw/service-worker.ts`, not generateSW) for:
+  - **Pages network-first** (4 s timeout, offline → precached `index.html`): online a deploy shows at once,
+    no stale shell, no "update available" UI needed. The worker takes over at once (`skipWaiting` +
+    `clientsClaim`) without reloading the page – a running session keeps its code.
+  - **Content cache per content build** (`osct-content-<version.hash>`, hash baked in via
+    `__VITE_CONTENT_HASH__`): content URLs are not hashed, so a new content build must drop the old cache
+    (done on activate). Right after a deploy the old worker may serve old content for the first launch
+    until the new one activates (seconds) – accepted.
+  - Only 200 responses are cached (the preloader's full fetches); a `<video>`'s first range request (206)
+    goes to the network, later ones are cut from the cached file (`RangeRequestsPlugin`).
+- Default chosen (Tilman did not pick yet): **cache what is used**, no full download of all content (24 MB+).
+- Registered in production builds only (dev server stays uncached). Testing locally: launch config
+  `client-preview` (production preview, plain http on localhost:4174 after `npx vite build`). The in-app
+  browser pane has no service workers (not a secure context) – test with a real Chrome/Edge.
+- iOS: no install prompt (Share → Add to Home Screen); the installed app has **its own storage** – progress
+  from Safari does not carry over; installed apps are exempt from Safari's 7-day storage deletion.
+- [ ] Final app icon; home-screen name; offline download of all content?; iOS install hint – Tilman.
+
 ## 2026-09-26 – Unlock animation: reverse emissive dissolve (Tilman, branch `unlock-experience`)
 
 - Chosen from the options (Three.js Journey fireworks / hologram / particles, Codrops dissolve, gommage):

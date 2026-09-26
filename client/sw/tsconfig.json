@@ -1,0 +1,15 @@
+{
+  "//": "The service worker runs in its own scope (lib webworker instead of dom) – checked on its own: npx tsc -p sw",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "lib": ["es2020", "webworker"],
+    "strict": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["./**/*.ts"]
+}

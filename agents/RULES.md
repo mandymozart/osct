@@ -25,7 +25,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
    overlay routes (no mode) pause the scene.
 3. Max **5 image targets per spread** (`.mind` group); `maxTrack` uses the same value.
    Keep it one shared constant; the content build must enforce it.
-4. Preloading `.mind` files and content = browser cache only (`PreloaderService`). Never modify the AR
+4. Preloading `.mind` files and content = browser cache only (`PreloaderService`; in production the
+   service worker stores what it fetches in its content cache – `client/sw/service-worker.ts`). Never modify the AR
    scene before a spread is actually activated. No second scene / WebGL context. The AR code (three.js,
    MindAR) is only imported lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may
    import `ar-bridges/ar/` statically; the scene is built on the first scan (RUNNING).
@@ -133,6 +134,11 @@ Extend as we go: add a rule when a decision should hold for all future work.
     and warns – never fails – about missing translations, which fall back to English).
     Book content (titles, entries, steps) is not UI text. The language is stored by the i18next language
     detector (`osct-language`), not in the progress. Dev tools may stay English.
+
+21. **PWA** (2026-09-26): the service worker (`client/sw/`, own tsconfig: `npx tsc -p sw`) serves pages
+    network-first and content from a cache named after the content build hash. New public files that
+    belong to the app shell must match its precache globs (`vite.config.js` → `pwa()`); content stays under
+    `assets/content/`. Never make the worker serve pages cache-first (deploys would not show).
 
 ## Git
 - No `Co-Authored-By` or other agent/tool attribution lines in commit messages or PR descriptions
