@@ -17,7 +17,33 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: meta table, text, media |
 | `/about` | `<about-page>` | consultation | Info: about text, colophon, tutorial restart |
 | `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](error-page.md) |
-| `/not-found` | `<not-found-page>` | (keeps mode) | unknown route |
+| `/not-found` | `<not-found-page>` | (keeps mode) | unknown route or link target, with "Go to start" |
+
+## Links
+
+Every view has a plain URL (`services/LinkService.ts`); the address bar follows the app, and the
+browser's back button goes back through the views:
+
+| URL | Opens |
+|---|---|
+| `/` | the start (onboarding on a first visit, else home) |
+| `/spread/<spreadId>` | scan mode on that spread |
+| `/entries/<category>` (or `/entries/category/<category>`) | the entries list |
+| `/entry/<entryId>` | one entry |
+| `/tutorial/<step>` | an onboarding step |
+| `/about` | Info |
+
+Every link carries `?osct=<version>` (the app version it was made with). Opening a link only routes:
+
+- unknown route, spread, entry, category or step → not-found page with "Go to start";
+- link made with a **newer** app version → notice "Reload to update" (older links just open);
+- a link skips the onboarding and the resume offer (the onboarding still comes on the next plain visit);
+- legacy printed codes `/?code=c-<spread>` (and `s-`, `e-`) still work.
+
+Printed QR codes: `https://osct.buildingfictions.com/spread/<spreadId>?osct=<version>` – the dev QR
+generator in the debug overlay makes them for the current spread. The server has to answer every path
+with `index.html`: `client/public/.htaccess` (Apache / FTP production) and `client/public/_redirects`
+(Netlify) do that; Vite does it in dev and preview.
 
 Two overlays have no route – they sit outside `<pages-router>` and follow the store:
 

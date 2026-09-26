@@ -3,7 +3,7 @@ import '@ungap/custom-elements';
 import "@/components";
 import "@/pages";
 import { IErrorPage } from "@/pages";
-import { GameStoreService } from "@/services";
+import { GameStoreService, LinkService } from "@/services";
 import {
   ErrorInfo,
   IGame,
@@ -136,13 +136,18 @@ export class BookGame extends HTMLElement {
     try {
       await waitForDOMReady();
       window.BOOKGAME = this.game;
-      // Progress is loaded with the store. First visit → onboarding (skip / finish marks it done);
-      // otherwise offer to resume once the pages are there
-      if (!this.game.state.progress.onboarded) {
-        this.game.router.navigate("/tutorial", { key: "step", value: "0" });
-      } else {
-        this.game.history.offerResume();
+      // A link (e.g. a printed QR code) opens its view directly – no onboarding or resume offer then.
+      // Otherwise: first visit → onboarding (skip / finish marks it done), else offer to resume.
+      const links = LinkService.getInstance();
+      if (!links.openIncomingLink(this.game)) {
+        if (!this.game.state.progress.onboarded) {
+          this.game.router.navigate("/tutorial", { key: "step", value: "0" });
+        } else {
+          this.game.history.offerResume();
+        }
       }
+      // From now on the address bar follows the state
+      links.startSync(this.game);
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
       );

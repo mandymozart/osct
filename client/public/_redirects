@@ -1,0 +1,2 @@
+# Netlify: links like /entry/<id> (services/LinkService.ts) – existing files win, all other paths get the app
+/*  /index.html  200

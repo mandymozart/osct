@@ -1,0 +1,10 @@
+# Links like /entry/<id> or /spread/<id> (services/LinkService.ts): every path that is not a file or
+# folder is answered with index.html, the app then routes by the URL.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  RewriteRule ^ index.html [L]
+</IfModule>

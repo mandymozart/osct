@@ -1,7 +1,11 @@
 import { Page } from "./page";
 import { adoptDesignStyles } from "@/styles";
+import { goldButton } from "@/components/buttons";
 
-/** Overlay for unknown routes – consultation look (design system, DESIGN.md) */
+/**
+ * Overlay for unknown routes and links whose target doesn't exist (anymore) – consultation look
+ * (DESIGN.md). "Go to start" leads to the start page.
+ */
 export class NotFoundPage extends Page {
   get styles(): string {
     return /* css */ `
@@ -16,16 +20,23 @@ export class NotFoundPage extends Page {
         height: 100%;
         padding: 0 2rem;
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
+        gap: 1.5rem;
+        text-align: center;
         color: var(--color-on-dark);
       }
+      p { margin: 0; }
     `;
   }
 
   get template(): string {
-    return `
-      <div class="content design">Page not found</div>
+    return /* html */ `
+      <div class="content design">
+        <p>This page doesn't exist (anymore).</p>
+        ${goldButton({ label: "Go to start", attrs: { "data-action": "start" } })}
+      </div>
     `;
   }
 
@@ -33,6 +44,18 @@ export class NotFoundPage extends Page {
     super();
     adoptDesignStyles(this.shadowRoot);
   }
+
+  setupEventListeners(): void {
+    this.shadowRoot?.addEventListener("click", this.handleClick);
+  }
+
+  cleanupEventListeners(): void {
+    this.shadowRoot?.removeEventListener("click", this.handleClick);
+  }
+
+  private handleClick = (event: Event) => {
+    if ((event.target as HTMLElement).closest("[data-action=start]")) this.game.router.navigate("/");
+  };
 }
 
 customElements.define("not-found-page", NotFoundPage);

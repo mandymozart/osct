@@ -45,7 +45,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
     (add a reader in `utils/progress-record.ts`; a test fails without one). The first storage
     format is 1 – nothing from before 1.1.x is converted.
     The content *data* is identified by the build checksum (`version.hash`), not by the version.
-    QR deep links are owned by Tilman – don't implement them unasked. (Changed 2026-09-25; before:
+    Links (2026-09-26, Tilman): plain URLs `/<route>/<value>?osct=<version>` (`services/LinkService.ts`);
+    no content hash in links; only a newer link version needs an action (reload). (Changed 2026-09-25; before:
     app and content versions were kept separate.)
 11. Windows: stop the dev/preview server before any git command that rewrites the working tree
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.

@@ -385,7 +385,12 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
      Expanded overlay has tabs *spread* / *progress*: book, format, app versions, last spread/category,
      unlocked / consulted with times, missing ids in red (`history.getMissingIds()`),
      "Reset progress". Collapsed line shows `U<unlocked> K<consulted>`.
-- **Deep links from printed QR codes**  `[ ]` – owner: **Tilman**
+- **Deep links from printed QR codes**  `[x]` built 2026-09-26 (Tilman's spec) – see "Links" in
+  `docs/pages.md`: plain URLs `/spread/<id>`, `/entry/<id>`, `/entries/<category>`, `/tutorial/<step>`,
+  `/about` + `?osct=<version>`; the address bar follows the state (back button works); unknown target →
+  not-found with "Go to start"; newer link version → "Reload to update"; the content hash `h` was dropped;
+  legacy `?code=c-…` still works; `.htaccess` + `_redirects` answer every path with `index.html`.
+  History of the item (before it was built):
   Printed QR codes (book) are scanned with the phone's native camera and open the app URL, e.g.
   `/?code=c-<chapter>&osct=<version>`. Today **nothing reads these params on load** (`getUrlParam` in
   `utils/url-params.ts` is unused; the old parser `parseQRCodeURL` was deleted with the in-app scanner
@@ -740,7 +745,7 @@ Phase 5 can run in parallel at any point; it mostly restyles existing tutorial p
 | 9 | ~~Design PDF in repo?~~ → yes, plus extracted images in `reference/` | ✓ |
 | 10 | ~~Role of `/spreads`~~ → dev view for now | 2 ✓ |
 | 11 | Content versioning via content builder (+ CDN) vs app version – Tilman | 2 |
-| 12 | Deep link code prefix (`c-` / `s-` / `e-`) and which version `osct` carries – Tilman | 2 |
+| 12 | ~~Deep link code prefix~~ → plain URLs `/spread/<id>?osct=<version>`, legacy `c-` still read | 2 ✓ |
 | 13 | A-Frame bridges: one bridge + `ArScene` API, spread switching A/B, camera start, removals | 6 |
 | 14 | ~~Content model + type naming~~ → nested target, inline/ref entities, `*Data` game-configuration contract in top-level `shared/`, app model plain names, single entry point | 1e ✓ |
 | 15 | **Review:** loading overlay concept – full-screen loader on every spread switch covers the menu (see Phase 3 page menu) – Tilman | 3 |
