@@ -868,9 +868,9 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] App: `ApiService`, `AccountService` (sign-in state, progress sync: merge on sign-in, replace at startup
       when this device has no unsent changes, offline queue), `<settings-account>` on the Info page, `.field` primitive.
 - [x] Options = three update switches (`<gold-switch>`: book, Kévin Bray, Building Fictions), **opt-in (off)**, under
-      the email in the sign-up form; progress always saved, "Reset book" resets it (also in the account).
+      the email in the sign-up form; progress always saved, "Reset progress" resets it (also in the account).
 - [x] Sounds / vibration as `<gold-switch>` too.
-- [x] Info page groups: Info · Account (+ Reset book) · Settings · colophon; Tutorial section removed (Tilman).
+- [x] Info page groups: Info · Account (+ Reset progress) · Settings · colophon; Tutorial section removed (Tilman).
 - [x] Deploy to osct.porschuetz.de: `.github/workflows/deploy-staging.yml` (GitHub environment `staging`).
 - [x] Naming: **user** in code / API / database, "Account" in the UI (Tilman).
 - [ ] GitHub environment `staging` secrets/variables set; first deploy + test on a phone (link on iOS home-screen app → code).

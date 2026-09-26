@@ -4,8 +4,8 @@ import { UserService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
 /**
- * Reset section (Info page, group "Account" – Tilman 2026-09-27) – the reader's save game for this book:
- * "Reset book" deletes the progress (after a confirmation). Signed in, the reset reaches the account too
+ * Progress section (Info page, first in the group "Account" – Tilman 2026-09-27): explains the progress (the
+ * entries found and explored) and "Reset progress" deletes it (after a confirmation). Signed in, the reset reaches the account too
  * (UserService sends it like any other change). Settings such as the language are kept.
  */
 export class SettingsHistory extends SettingsSection {
@@ -32,8 +32,9 @@ export class SettingsHistory extends SettingsSection {
       : this.signedIn ? "settings:historyDescriptionAccount"
       : "settings:historyDescription";
     return /* html */ `
+      <style>.explain { margin: 0 0 .6rem; }</style>
+      <p class="explain" role="status">${i18next.t(description)}</p>
       <div class="row">${goldButton({ label: i18next.t("settings:historyButton"), attrs: { "data-action": "reset" } })}</div>
-      <p class="description" role="status">${i18next.t(description)}</p>
     `;
   }
 
