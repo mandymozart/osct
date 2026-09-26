@@ -825,6 +825,9 @@ Installable app (home screen, standalone, splash) + offline start. Details: MEMO
   installability errors.
 - [ ] Phone checks: install on Android (Chrome prompt) and iOS (Share → Add to Home Screen); camera in
   standalone mode (iOS may ask for camera permission more often); progress in Safari vs. installed app.
+- [x] Icons transparent where the platform allows (Tilman 2026-09-27): `icon-192/512` Mark only; maskable
+  (Android home screen) and apple-touch-icon stay on black – both platforms fill transparency anyway.
+  Favicon = Mark the Page with a dark outline (was the crocodile): `favicon.ico` 16/32/48 + `icons/favicon-32.png`.
 - [ ] Final app icon (designers / Kévin) – replace the placeholders, same file names.
 - [x] Home-screen name = the book title "Onion Skin & Crocodile Tears" (Tilman 2026-09-27; manifest
   `name` + `short_name` and the iOS title from `book.title` – phones may cut it short).
