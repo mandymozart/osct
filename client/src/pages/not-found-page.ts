@@ -16,6 +16,7 @@ export class NotFoundPage extends Page {
         border-radius: 0;
         box-shadow: none;
         background: var(--consultation-background);
+        pointer-events: all;   /* pointer-events is inherited as none from the page container */
       }
       .content {
         height: 100%;

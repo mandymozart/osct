@@ -13,6 +13,12 @@ outcome in the line (or move it into a dated decision block).
   `stagger` (contract, guard, schema). Every step fades in, its parts one after the other (default 250 ms),
   the button last; Mark stays still on later steps. The splash footer sits at 58 % (design p.2).
 - (user) The onboarding background looked grey at the sides: measured from the frames and replaced (DESIGN §8.3).
+- (user) "Go to start" on the not-found page did nothing: `pointer-events` is inherited as none from the page
+  container (every tappable page sets `all`; not-found didn't), and the page bases used `transition: all` – it also
+  animated z-index (my "stale z-index" readings were mid-transition) and fading-out pages still caught taps. Now:
+  transitions only on opacity/visibility (+ transform), inactive pages `pointer-events: none`, not-found `all`.
+- Lesson (browser checks): the pane doesn't render in the background – ResizeObserver / transitions only run after a
+  screenshot; take one before measuring layout-dependent things (the spread menu builds on resize).
 
 ## 2026-09-26 – Mobile test: camera over https, pill glow, menu line height (Tilman)
 

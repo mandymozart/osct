@@ -57,7 +57,7 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
       return /* css */ `
         :host {
           z-index: var(--page-z-index, 1000);
-          transition: all 0.3s ease;
+          transition: opacity .3s ease, visibility .3s, transform .3s ease;
           transform: translateY(20vh);
           opacity: 0;
           visibility: hidden;
@@ -67,6 +67,8 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
           transform: translateY(0);
           opacity: 1;
         }
+        /* A page fading out must not catch taps meant for the page below */
+        :host(:not([active=true])) { pointer-events: none !important; }
         .content {
         }
       `;
