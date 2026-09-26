@@ -42,7 +42,7 @@ tests/api-test.php        the whole flow against php -S + SQLite, SMTP against t
 | `DELETE /user` | | 204 – user, sessions, progress, open requests |
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
-| `GET /health` | | `{ status, db }` |
+| `GET /health` | | `{ status, version, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10) |
 | `POST /admin/migrate` | header `X-Admin-Secret: SECRET` | creates missing tables |
 
 Signed-in calls send `Authorization: Bearer <session>`. Errors: `{ "error": { "code", "message" } }`. The
