@@ -1,6 +1,6 @@
 {
-  "historyButton": "Buch zurücksetzen",
-  "historyDescription": "Löscht den gesamten gespeicherten Fortschritt auf diesem Gerät.",
+  "historyButton": "Fortschritt zurücksetzen",
+  "historyDescription": "Die App merkt sich alle Einträge, die du im Buch gefunden und erkundet hast. Wenn du willst, kannst du deinen Fortschritt löschen und neu anfangen – oder ihn unten in deinem Konto speichern.",
   "historyConfirm": "Den gesamten gespeicherten Fortschritt für dieses Buch auf diesem Gerät löschen?",
   "historyDone": "Der gesamte gespeicherte Fortschritt auf diesem Gerät wurde gelöscht.",
   "languageLabel": "Sprache:",
@@ -14,6 +14,6 @@
   "installDescription": "Installiere die App auf deinem Handy: Sie öffnet sich im Vollbild über ihr eigenes Symbol und startet schneller.",
   "installIos": "Tippe in Safari auf Teilen (das Quadrat mit dem Pfeil), dann auf „Zum Home-Bildschirm“. Die App öffnet sich dann im Vollbild über ihr eigenes Symbol.",
   "installManual": "Öffne das Menü deines Browsers und wähle „Zum Startbildschirm hinzufügen“ oder „App installieren“, falls dein Browser das anbietet.",
-  "historyDescriptionAccount": "Das löscht deinen gesamten gespeicherten Fortschritt – auf diesem Gerät und in deinem Konto.",
+  "historyDescriptionAccount": "Die App merkt sich alle Einträge, die du im Buch gefunden und erkundet hast – auf diesem Gerät und in deinem Konto. Zurücksetzen löscht deinen Fortschritt an beiden Orten, damit du neu anfangen kannst.",
   "historyConfirmAccount": "Deinen gesamten Fortschritt für dieses Buch löschen – auf diesem Gerät und in deinem Konto?"
 }

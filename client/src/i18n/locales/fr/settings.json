@@ -1,6 +1,6 @@
 {
-  "historyButton": "Réinitialiser le livre",
-  "historyDescription": "Supprime toute la progression enregistrée sur cet appareil.",
+  "historyButton": "Réinitialiser la progression",
+  "historyDescription": "L'application garde la trace de toutes les entrées que tu as trouvées et explorées dans le livre. Si tu veux, tu peux effacer ta progression et recommencer – ou la sauvegarder dans ton compte ci-dessous.",
   "historyConfirm": "Supprimer toute la progression enregistrée pour ce livre sur cet appareil ?",
   "historyDone": "Toute la progression enregistrée sur cet appareil a été supprimée.",
   "languageLabel": "Langue :",
@@ -14,6 +14,6 @@
   "installDescription": "Installe l'application sur ton téléphone : elle s'ouvre en plein écran depuis sa propre icône et démarre plus vite.",
   "installIos": "Dans Safari, touche Partager (le carré avec la flèche), puis « Sur l'écran d'accueil ». L'application s'ouvre alors en plein écran depuis sa propre icône.",
   "installManual": "Ouvre le menu de ton navigateur et choisis « Ajouter à l'écran d'accueil » ou « Installer l'application », si ton navigateur le propose.",
-  "historyDescriptionAccount": "Cela supprime toute la progression sauvegardée – sur cet appareil et dans ton compte.",
+  "historyDescriptionAccount": "L'application garde la trace de toutes les entrées que tu as trouvées et explorées dans le livre – sur cet appareil et dans ton compte. La réinitialisation efface ta progression aux deux endroits, pour que tu puisses recommencer.",
   "historyConfirmAccount": "Supprimer toute la progression de ce livre – sur cet appareil et dans ton compte ?"
 }

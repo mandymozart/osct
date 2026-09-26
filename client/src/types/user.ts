@@ -6,7 +6,7 @@
 
 /**
  * The update options – opt-in: off until the reader turns them on (Tilman 2026-09-27: "very important"). The progress is always kept in the account (restored on other
- * devices) and can be reset ("Reset book").
+ * devices) and can be reset ("Reset progress").
  */
 export interface UserOptions {
   /** Updates on the publication (Onion Skin & Crocodile Tears) */
