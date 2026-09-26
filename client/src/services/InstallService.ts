@@ -2,7 +2,7 @@
  * "Add to Home Screen" (PWA, Tilman 2026-09-27: an action on the Info page, not in the onboarding).
  * Chrome / Edge / Samsung Internet announce installability with `beforeinstallprompt` once, early after
  * the page loaded – `start()` (main.ts) keeps it so the Info page can show the browser's install dialog
- * later. iOS has no such dialog: readers use Share → "Add to Home Screen" (the Info page explains it).
+ * later. Chrome's own install banner stays on as well (Tilman 2026-09-27). iOS has no such dialog: readers use Share → "Add to Home Screen" (the Info page explains it).
  */
 
 /** Chromium's install prompt event (not in the DOM typings) */
@@ -37,7 +37,6 @@ export class InstallService {
   /** Keep the browser's install prompt for later (call once at startup, before the event fires) */
   start(): void {
     window.addEventListener("beforeinstallprompt", event => {
-      event.preventDefault(); // no mini-infobar – the Info page offers it
       this.deferredPrompt = event as BeforeInstallPromptEvent;
       this.notify();
     });
