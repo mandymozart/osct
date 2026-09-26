@@ -1,11 +1,19 @@
 import { GameStoreService } from "@/services";
-import { GameMode, IGame, Target, TARGET_UNLOCKED_EVENT } from "@/types";
+import { ENTITY_UNLOCK_MS, GameMode, IGame, Target, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import i18next from "i18next";
 
-/** How long "New entry unlocked" + the rotation play (the first find of a target) */
+/** The image's small rotation on the unlock (the first find of a target) */
 const UNLOCK_MS = 1200;
+/** How long "New entry unlocked" stays for an image target (entity targets: as long as their animation) */
+const LABEL_MS = 2600;
+/** The label's fade-out before the indicator renders its next state */
+const LABEL_FADE_MS = 400;
+/** Gold sparkles around the label: position (% of the label box), size (rem), delay (s) */
+const SPARKLES: Array<[number, number, number, number]> = [
+  [-6, -40, 1.35, 0], [104, -30, 1.05, 0.5], [12, 120, 0.9, 0.9], [92, 115, 1.2, 0.3], [50, -80, 0.8, 1.2],
+];
 
 /**
  * The target the indicator shows: the most recently found target **without** an AR entity
@@ -21,8 +29,9 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
  * Found-target indicator (design p.9–14, p.35): the entry's image with a drop shadow while its target
  * is found in scan mode. Tap → the entry view (`/entry`) in consultation mode (= consulted).
  * Unlock = the first find of a target (Tilman 2026-09-26; TARGET_UNLOCKED_EVENT from `<ar-bridge>`):
- * "New entry unlocked" and a small rotation of the image; for targets with an AR entity the label only –
- * the entity's discovery animation plays in the AR scene.
+ * "New entry unlocked" – centred, gold with a running shine, a soft glow and twinkling sparkles – and a
+ * small rotation of the image; for targets with an AR entity the label only, for as long as the entity's
+ * unlock animation plays in the AR scene (ENTITY_UNLOCK_MS).
  * Lives in the scan page, so it is hidden in consultation (PLAN: review visibility there).
  */
 export class FoundIndicator extends HTMLElement {
@@ -97,14 +106,58 @@ export class FoundIndicator extends HTMLElement {
           opacity: 1;
           transform: none;
         }
-        .label {
+        /* "New entry unlocked": gold, a shine running through it (as the primary buttons), a soft glow */
+        .label.design {           /* .design (shared sheet, later in the cascade) sets the text size */
+          position: relative;
+          isolation: isolate;
+          font-size: 1.5rem;
+          line-height: 1.3;
+          text-align: center;
+          padding: .4rem 1.5rem;
           opacity: 0;
           transform: scale(.6);
-          transition: opacity .3s ease, transform .4s ease;
+          transition: opacity ${LABEL_FADE_MS}ms ease, transform .5s cubic-bezier(.2, 1.4, .4, 1);
+        }
+        .label .gold {
+          background-image:
+            linear-gradient(110deg, transparent 40%, var(--gold-1) 50%, transparent 60%),
+            var(--gold-gradient);
+          background-size: 300% 100%, 100% 100%;
+          animation: gold-shine 1.8s linear infinite;
+          filter: drop-shadow(0 0 .45rem rgba(243, 204, 148, .45));
+        }
+        /* A soft dark halo behind the text: gold stays readable over a bright camera image */
+        .label::before {
+          content: "";
+          position: absolute;
+          inset: -.8rem -1.2rem;
+          z-index: -1;
+          background: radial-gradient(closest-side, rgba(0, 0, 0, .65), rgba(0, 0, 0, .4) 55%, transparent);
+          filter: blur(.4rem);
         }
         :host([unlocking]) .label {
           opacity: 1;
           transform: none;
+        }
+        :host([unlocking]) .label .gold { animation: gold-shine 1.8s linear infinite, label-glow 2.4s ease-in-out infinite; }
+        @keyframes label-glow {
+          50% { filter: drop-shadow(0 0 .9rem rgba(243, 204, 148, .8)); }
+        }
+        /* Twinkling sparkles around the label */
+        .sparkle {
+          position: absolute;
+          width: var(--size);
+          height: var(--size);
+          margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+          background: var(--gold-gradient);
+          clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+          opacity: 0;
+          filter: drop-shadow(0 0 .3rem rgba(245, 231, 200, .9));
+        }
+        :host([unlocking]) .sparkle { animation: twinkle 1.6s ease-in-out infinite; }
+        @keyframes twinkle {
+          0%, 100% { opacity: 0; transform: scale(.3) rotate(0deg); }
+          50% { opacity: 1; transform: scale(1) rotate(45deg); }
         }
         button {
           position: relative;
@@ -145,10 +198,17 @@ export class FoundIndicator extends HTMLElement {
           100% { transform: rotate(0); }
         }
         @media (prefers-reduced-motion: reduce) {
-          :host([unlocking]) img { animation: none; }
+          :host([unlocking]) img,
+          :host([unlocking]) .label .gold,
+          :host([unlocking]) .sparkle { animation: none; }
+          :host([unlocking]) .sparkle { opacity: .8; }
         }
       </style>
-      <div class="label design gold" aria-hidden="true">${i18next.t("scan:newEntryUnlocked")}</div>
+      <div class="label design" aria-hidden="true">
+        <span class="gold">${i18next.t("scan:newEntryUnlocked")}</span>
+        ${SPARKLES.map(([x, y, size, delay]) =>
+          `<i class="sparkle" style="left: ${x}%; top: ${y}%; --size: ${size}rem; animation-delay: ${delay}s"></i>`).join("")}
+      </div>
       ${target && src ? `<button type="button" aria-label="${i18next.t("scan:openEntry", { title: entry?.title ?? "" })}"><img src="${src}" alt=""></button>` : ""}
     `;
   }
@@ -172,11 +232,12 @@ export class FoundIndicator extends HTMLElement {
     void this.offsetWidth;
     this.setAttribute("unlocking", "");
     this.shadowRoot?.querySelector(".label")?.removeAttribute("aria-hidden");
+    // Entity targets: as long as the unlock animation in the AR scene; then fade out, then the next state
     this.unlockTimer = window.setTimeout(() => {
       this.removeAttribute("unlocking");
       this.shadowRoot?.querySelector(".label")?.setAttribute("aria-hidden", "true");
-      this.update();
-    }, UNLOCK_MS);
+      this.unlockTimer = window.setTimeout(() => this.update(), LABEL_FADE_MS);
+    }, (target.entity ? ENTITY_UNLOCK_MS : LABEL_MS) - LABEL_FADE_MS);
   }
 
   /** Open the entry in consultation mode (the route sets the mode – RULES #2; the view consults it) */
