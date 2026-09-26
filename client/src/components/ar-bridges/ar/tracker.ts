@@ -1,6 +1,6 @@
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import { Controller } from "@/vendor/mind-ar/mindar-image.prod.js";
-import { loadMind } from "@/utils/mind";
+import { loadCompressed } from "@/utils/compressed";
 import { CAMERA_NOT_RESPONDING } from "@/types";
 
 /** A camera that sends no picture within this time is reported as not responding */
@@ -100,7 +100,7 @@ export class ImageTracker {
     this.controller = controller;
 
     try {
-      const buffer = await loadMind(mindSrc); // the .gz where the browser can unpack it
+      const buffer = await loadCompressed(mindSrc); // the .gz where the browser can unpack it
       if (this.controller !== controller) return; // replaced or stopped meanwhile
       const { dimensions } = controller.addImageTargetsFromBuffer(buffer);
       this.postMatrices = dimensions.map(([width, height]) =>

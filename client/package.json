@@ -39,6 +39,7 @@
     "i18next-cli": "^1.74.1",
     "js-yaml": "^4.1.0",
     "path": "^0.12.7",
+    "terser": "^5.51.2",
     "typescript": "^5.8.2",
     "vite": "^5.4.14",
     "vite-tsconfig-paths": "^5.1.4",

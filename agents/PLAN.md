@@ -778,6 +778,11 @@ the app is ready. PWA later.
   `.mind` as fallback), preloader and tracker use the same URL – and reports videos > 4 MB with export
   advice (not re-encoded: ffmpeg is native). Render loop: frames only while an entity is visible or
   animating (+ one clearing frame). `node-fetch` (TF.js, Node only) aliased to a stub – no dev-server error.
+- [x] Round 3 (2026-09-26, Lighthouse on staging): build minified with terser instead of esbuild (main.js
+  67 → 62 KB gz, MindAR 302 → 290 KB gz; the "111 KB" Lighthouse estimate for the MindAR chunk is its
+  heuristic – ~1,300 TF.js shader strings and the inlined worker, a stronger minifier gains ~4 %). `.glb`
+  also get a gzip copy (models 312 → 224 KB; Netlify serves .glb uncompressed) – `utils/compressed.ts` loads
+  `.mind` and `.glb` from the `.gz` (unpacks it, or takes it as is when the server already decoded it).
 - [ ] Videos of the final content: 720p H.264 ~2 Mbit/s (demo: bunny 10.9 MB, edge 5.8 MB) – with the artist.
 - [x] Device check of round 2 on the S22 (staging, 2026-09-26): `.mind.gz` loaded + unpacked (cache hit for
   the tracker after the preload, neighbour preloaded), model renders while tracked, gone at once when lost.

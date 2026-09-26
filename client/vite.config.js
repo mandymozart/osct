@@ -83,6 +83,10 @@ export default defineConfig(({command,mode})=>{
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
+    // terser minifies a few percent smaller than esbuild (Lighthouse "Minify JavaScript", 2026-09-26);
+    // two passes, the inlined MindAR worker and TF.js shader strings stay as they are
+    minify: 'terser',
+    terserOptions: { compress: { passes: 2 } },
     // The AR chunks (three.js ~600 kB, MindAR with TF.js ~1.8 MB) are large by nature and load lazily
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
