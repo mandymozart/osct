@@ -759,14 +759,16 @@ the app is ready. PWA later.
   app starts underneath with the next step (onboarding step 1 / scan mode). `#initial-loader` removed.
 - [x] Netlify `_headers`: built files in `assets/app/` (hashed) cached immutable for a year; `robots.txt`;
   meta description, theme color, charset.
-- [ ] **Models / textures (with the final content)**: the demo racoon is a 2048² PNG texture (1.8 MB,
-  ~22 MB GPU) – geometry compression would not help. When the real content arrives: an automated step in
-  the content build (gltf-transform: textures → max 1024 px WebP, meshopt geometry; needs `sharp`, a
-  native module – check CI). Tilman 2026-09-26: not now, demo data only. The loader already has the
-  Meshopt decoder.
+- [x] **Models, automated in the content build** (`scripts/src/utils/optimize-models.ts`, Tilman
+  2026-09-26: automate it so it works for the final content): every `.glb` in the client copy gets
+  textures ≤ 1024 px (opaque → JPEG 85), meshopt geometry, dedup/prune; kept when not smaller; `content/`
+  stays as authored. Pure JS/WASM (pngjs, jpeg-js, meshoptimizer – no sharp calls): deterministic, CI
+  compares the output. Demo models 2.3 MB → 312 KB (racoon 1854 → 114 KB: a 2048² PNG texture). Checked:
+  all models load with the client's Meshopt decoder, render, animations kept.
 - [x] Device check S22 Chrome (2026-09-26): tracking, spread switch with the camera kept, all demo targets
   displayed and played (Tilman), splash → scan flow.
 - [ ] Device check iPhone Safari: tracking, video textures, camera start, memory on spread switches.
+- [ ] Device check of the optimised models on the phone (loaded + rendered in the desktop browser only).
 - [ ] Lighthouse again on the deploy preview (before: performance 56, FCP 6.0 s, LCP 17.2 s).
 
 ---

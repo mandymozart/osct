@@ -17,7 +17,10 @@ outcome in the line (or move it into a dated decision block).
   build time; the app fades it out and continues with the next step.
 - Tested on the S22 (dev server via `adb reverse tcp:5174 tcp:5174` – localhost counts as secure, the
   camera works over http): all demo targets displayed and played, spread switches keep the camera.
-- Model compression: not now (demo data); later an automated content-build step (PLAN Phase 9).
+- Models are optimised automatically by the content build (`scripts/src/utils/optimize-models.ts`):
+  textures ≤ 1024 px (JPEG when opaque), meshopt geometry; `content/` stays as authored. Pure JS/WASM on
+  purpose (CI compares the output; no native sharp). `@gltf-transform/functions` still installs sharp
+  indirectly (prebuilt, in the lockfile for Linux + Windows) – never call it.
 - [ ] Open: iPhone test (Safari video textures, camera), Lighthouse on the deploy preview.
 
 ## 2026-09-26 – One AR scene (Tilman, after the device tests)
