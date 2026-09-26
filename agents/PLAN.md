@@ -710,7 +710,20 @@ Both: one scene, one live stream, rapid switching ends on the last spread, found
 
 - Mark the Page WebM integration (alpha: WebM for Android, HEVC for iOS if needed), size variants.
 - Device tests: iOS Safari + Android Chrome – memory when switching groups, video autoplay.
-- Haptics fallback check.
+
+## Phase 8 – Sound design and haptic feedback  `[ ]` (added 2026-09-26 – after the designers' feedback, during or after the content phase)
+
+Built as a first step (2026-09-26, `FeedbackService`, see MEMORY): events tick (spread slider), tap
+(buttons), found, unlock; generated chiptune placeholder sounds; Info → Settings "Sound & vibration".
+
+- [ ] Sound design: final sounds for `client/public/assets/sounds/` (tick, tap, found, unlock) – Tilman /
+  designers; more events if the design asks for them (e.g. entry opened, spread switched).
+- [ ] Haptics on Android: test with the phone **not** on silent (Chrome ignores `navigator.vibrate` in
+  silent mode – that was the "no vibration" on the S22, 2026-09-26); tune the pulse lengths (8–10 ms may
+  be too weak for some motors – try 10 / 20 / 35 / 60 ms over USB debugging).
+- [ ] Haptics on iOS: check the iOS 18 switch trick (taps; slider while scrolling probably not).
+- [ ] Sounds vs. silent mode: web pages can't detect it (sounds play as media) – decide if that is fine.
+- [ ] Review with the designers: which moments get feedback, volume, defaults (on/off).
 
 ---
 
@@ -728,7 +741,7 @@ The notes below are the earlier, rougher summary.
 
 ## Suggested order
 
-0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 7 (phases are numbered in execution order since 2026-09-24).
+0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 7 → 8 (phases are numbered in execution order since 2026-09-24).
 Phase 5 can run in parallel at any point; it mostly restyles existing tutorial pages.
 
 ## Open decisions (summary)
