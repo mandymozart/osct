@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-26 – Stone Guardian shows nothing on the phone (open)
+
+- Checked on desktop (headless Edge, fake camera with the page, persistent strategy, after a spread switch):
+  `.mind` order matches the content (spread2 index 1 = images-045, 250×358), the GLB loads and renders
+  (brown boxes, ~0.7 × 0.9 target widths), the anchor stays tracked, the renderer draws it. No fault found.
+- On the phone screenshot the scanning ring is visible = no target tracked at that moment, although the
+  entry was unlocked: probably found, then lost right away. The debug bar now shows the tracked targets
+  and how often each was found (`F[stone-guardian×3]`) to tell flickering tracking from a rendering problem.
+- [ ] Open: retest on the phone with the debug bar; also check the other spread2 targets.
+- [ ] Open: `SpreadManager.markLoading/markLoaded` are never called – the spread dot in the debug bar is
+  always orange. Remove the spread status or wire it to the AR scene?
+
 ## 2026-09-26 – Onboarding flow and look (Tilman, mobile test)
 
 - (user) Flash of the "camera denied" screen after granting access: hiding the camera screen re-rendered it,
