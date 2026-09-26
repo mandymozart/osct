@@ -2,7 +2,7 @@
 
 Naming (Tilman 2026-09-27): *user* in code, API and database; *account* only as the UI label (Info → Account).
 
-Sign-in by email for the app – no password (branch `database`, 2026-09-27). The reader enters an email and
+Sign-in by email for the app – no password (built on the branch `database`, merged into develop 2026-09-27). The reader enters an email and
 can opt in to updates (both off until the reader turns them on):
 
 - **updates on Onion Skin & Crocodile Tears**
@@ -81,7 +81,7 @@ The mails (with link and code) land in `MAIL_LOG_PATH`.
 
 ## Deploy (development server)
 
-`.github/workflows/deploy-staging.yml` runs on every push to `database`:
+`.github/workflows/deploy-staging.yml` runs on every push to `develop` (staging):
 1. Run the API tests.
 2. Build the app with `VITE_API_URL=/api`.
 3. Write `config.local.php` from the GitHub environment **staging** (secrets and variables are listed in the workflow).

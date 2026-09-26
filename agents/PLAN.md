@@ -864,7 +864,7 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
 
 ---
 
-## Phase 11 – Accounts (branch `database`)  `[~]` (built 2026-09-27; open: naming, deploy test, SMTP, final texts)
+## Phase 11 – Accounts  `[~]` (built 2026-09-27 on `database`, merged into develop + main in 1.1.1; open: SMTP, final texts, phone test)
 
 Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/` (server/README.md).
 - [x] API: request / verify (link or code) / logout, account (options, delete), progress per book with a
@@ -878,7 +878,8 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] Info page groups: Info · Account (+ Reset progress) · Settings · colophon; Tutorial section removed (Tilman).
 - [x] Deploy to osct.porschuetz.de: `.github/workflows/deploy-staging.yml` (GitHub environment `staging`).
 - [x] Naming: **user** in code / API / database, "Account" in the UI (Tilman).
-- [ ] GitHub environment `staging` secrets/variables set; first deploy + test on a phone (link on iOS home-screen app → code).
+- [x] GitHub environment `staging` set, API deployed to osct.porschuetz.de from `develop`.
+- [ ] Test on a phone (link on the iOS home-screen app → code); Netlify staging needs `VITE_API_URL`.
 - [ ] SMTP account for production; final mail + UI texts; privacy note for the update options.
 - [ ] Sending the updates (newsletter) – not built; the options are only stored.
 - [ ] Netlify staging: `VITE_API_URL` to the dev API (needs its origin in ALLOWED_ORIGINS – already there).
