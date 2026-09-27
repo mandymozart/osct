@@ -1,12 +1,13 @@
-# Development server osct.porschuetz.de (all-inkl, Apache + PHP + MySQL): the app at the root, the
-# user API in /api (docs/server.md). Runs on every push to `develop` (= staging, RULES #11), or by hand.
+# The API server osct.porschuetz.de (all-inkl, Apache + PHP + MySQL) – shared by staging and production
+# (both Netlify sites call it): the user API in /api, the app at the root (docs/server.md). Runs on every
+# push to `develop`, or by hand. The Netlify sites are not deployed here – Netlify builds them itself.
 #
 # GitHub → Settings → Environments → "staging" (Tilman's names; each may be a secret or a variable):
 #   secrets:   FTP_USER, FTP_PASS, DB_USER, DB_PASS, SECRET (SMTP_HOST, SMTP_USER, SMTP_PASS once smtp)
 #   variables: FTP_HOST, FTP_ROOT, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM
 #              (optional: SMTP_PORT, SMTP_SECURE)
 # Like qr.scutoons.com (config written in the build), but uploaded over FTPS with lftp.
-name: Deploy staging
+name: Deploy API (osct.porschuetz.de)
 
 on:
   push:
@@ -14,7 +15,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-staging
+  group: deploy-api
   cancel-in-progress: false
 
 jobs:

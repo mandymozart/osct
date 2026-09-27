@@ -876,7 +876,7 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
       the email in the sign-up form; progress always saved, "Reset progress" resets it (also in the account).
 - [x] Sounds / vibration as `<gold-switch>` too.
 - [x] Info page groups: Info · Account (+ Reset progress) · Settings · colophon; Tutorial section removed (Tilman).
-- [x] Deploy to osct.porschuetz.de: `.github/workflows/deploy-staging.yml` (GitHub environment `staging`).
+- [x] Deploy to osct.porschuetz.de: `.github/workflows/deploy-api.yml` "Deploy API" (GitHub environment `staging`).
 - [x] Naming: **user** in code / API / database, "Account" in the UI (Tilman).
 - [x] GitHub environment `staging` set, API deployed to osct.porschuetz.de from `develop`.
 - [ ] Test on a phone (link on the iOS home-screen app → code); Netlify staging needs `VITE_API_URL`.

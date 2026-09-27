@@ -58,7 +58,7 @@ cd client && npx tsc --noEmit && npx vitest run
 cd scripts && npm run build
 ```
 
-CI (`.github/workflows/ci.yml`) runs these on every push and checks the committed game configuration.
+"Checks" (`.github/workflows/checks.yml`) runs these on every push and checks the committed game configuration.
 
 ### Build and deploy
 

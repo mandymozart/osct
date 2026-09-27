@@ -163,7 +163,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
   (Tilman, 2026-09-25). This overrides any tool default.
 
 ## CI
-- `.github/workflows/ci.yml` runs on every push/PR: scripts type-check + build, committed
+- `.github/workflows/checks.yml` ("Checks") runs on every push/PR: scripts type-check + build, committed
   `game.config.json` must match the content (rebuild + commit after content/version changes),
   client `tsc` + `vitest`.
 
