@@ -108,7 +108,10 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     align-items: center;
     justify-content: space-between;
     gap: .75rem;
-    min-height: 2rem;
+    /* Each option clearly by itself (Tilman 2026-09-27): two lines of text fit, .5rem above and below */
+    box-sizing: border-box;
+    min-height: 4rem;
+    padding: .5rem 0;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }

@@ -79,21 +79,29 @@ describe("settings sections", () => {
     });
   });
 
-  it("home screen: offers the browser's install dialog when there is one, else explains how", async () => {
+  it("install: the button stays until the app is installed – the dialog where there is one, else the steps", async () => {
     const install = InstallService.getInstance();
+    vi.spyOn(install, "getMethod").mockReturnValue("manual");
     const section = mount("settings-install");
-    expect(section.shadowRoot!.querySelector("[data-action=install]")).toBeNull();
+    expect(section.shadowRoot!.textContent).toContain("Install as app on this device");
+    click(section, "[data-action=install]");
     expect(section.shadowRoot!.textContent).toContain("Add to Home Screen");
 
-    vi.spyOn(install, "getMethod").mockReturnValue("prompt");
-    const prompt = vi.spyOn(install, "prompt").mockResolvedValue(true);
+    vi.mocked(install.getMethod).mockReturnValue("installed");
     section.remove();
+    const installed = mount("settings-install");
+    expect(installed.shadowRoot!.querySelector("[data-action=install]")).toBeNull();
+    expect(installed.shadowRoot!.textContent).toContain("from your home screen");
+
+    vi.mocked(install.getMethod).mockReturnValue("prompt");
+    const prompt = vi.spyOn(install, "prompt").mockResolvedValue(true);
+    installed.remove();
     const withPrompt = mount("settings-install");
     click(withPrompt, "[data-action=install]");
     expect(prompt).toHaveBeenCalledTimes(1);
   });
 
-  it("whole book: shows the size, downloads with a progress bar, then says it is on the device", async () => {
+  it("all content: shows the size, downloads with a progress bar, then says it is on the device", async () => {
     const preloader = PreloaderService.getInstance();
     let finish!: () => void;
     const running = { state: "running" as const, loaded: 5_000_000, total: 20_000_000, failed: 0 };
@@ -114,7 +122,7 @@ describe("settings sections", () => {
     emit({ ...running, state: "done", loaded: 20_000_000 });
     finish();
     expect(section.shadowRoot!.querySelector("[role=progressbar]")).toBeNull();
-    expect(section.shadowRoot!.textContent).toContain("The whole book is on this device (20 MB).");
+    expect(section.shadowRoot!.textContent).toContain("All content is on this device (20 MB)");
   });
 
   it("sound & vibration: a switch each, kept on this device", () => {

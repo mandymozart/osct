@@ -59,13 +59,18 @@
   /* Mark (same image in every mode) */
   --mark-width: 6.1875rem;
   --mark-height: 6rem;
+  /* Transparent margin above the drawing in scan.png (14 of 125 px at --mark-height) – the header pulls
+     the Mark up by it, so the visible Mark sits 1rem from the top (Tilman 2026-09-27) */
+  --mark-inset-top: calc(var(--mark-height) * 14 / 125);
 
   /* Content of consultation pages starts below the header, from the top of the page area (below the
      status bar in the home-screen app) – the same on every consultation screen (Tilman 2026-09-27):
      entry and Info: first rule at 8.5rem (frames 15, 20, 21, 33); entries list: 1rem below the
-     "Entries consulted" counter (frame 17), which ends at 9.75rem under the Mark */
-  --consultation-top: calc(env(safe-area-inset-top) + 8.5rem + var(--debug-offset, 0rem));
-  --consultation-top-counter: calc(env(safe-area-inset-top) + 10.75rem + var(--debug-offset, 0rem));
+     "Entries consulted" counter (frame 17), which ends at 9.75rem under the Mark. Info uses the entries
+     list's positions: the "Entries" pill where the category pill is, the text where the list starts.
+     The dev debug line lies over the page and moves nothing (Tilman 2026-09-27: as in the final app). */
+  --consultation-top: calc(env(safe-area-inset-top) + 8.5rem);
+  --consultation-top-counter: calc(env(safe-area-inset-top) + 10.75rem);
 
   color-scheme: dark;              /* native controls (scrollbars, fields) on the dark UI */
 

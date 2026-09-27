@@ -14,11 +14,12 @@ interface BeforeInstallPromptEvent extends Event {
 /**
  * How this device installs the app:
  * - `installed`: running from the home screen already
+ * - `added`: just installed from this browser tab (`appinstalled`) – open it from the home screen
  * - `prompt`: the browser's own install dialog is available
  * - `ios`: Safari's Share → "Add to Home Screen"
  * - `manual`: other browsers – their menu, if they support it at all
  */
-export type InstallMethod = "installed" | "prompt" | "ios" | "manual";
+export type InstallMethod = "installed" | "added" | "prompt" | "ios" | "manual";
 
 const isIOS = (): boolean =>
   /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -48,7 +49,8 @@ export class InstallService {
   }
 
   getMethod(): InstallMethod {
-    if (this.installed || this.isStandalone()) return "installed";
+    if (this.isStandalone()) return "installed";
+    if (this.installed) return "added";
     if (this.deferredPrompt) return "prompt";
     return isIOS() ? "ios" : "manual";
   }

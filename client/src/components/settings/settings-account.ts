@@ -55,7 +55,7 @@ export class SettingsAccount extends SettingsSection {
         form .field { flex: 1 1 12rem; }
         form .code { flex: 0 1 8rem; letter-spacing: .3em; }
         .options { margin-top: .6rem; }
-        .switches { display: flex; flex-direction: column; gap: .25rem; margin-top: .6rem; }
+        .switches { display: flex; flex-direction: column; margin-top: .6rem; }
         .first { margin-top: 0; }
         .notice { margin: .6rem 0 0; }
       </style>

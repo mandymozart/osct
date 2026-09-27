@@ -30,7 +30,9 @@ export class SettingsHistory extends SettingsSection {
   protected content(): string {
     const description = this.done ? "settings:historyDone"
       : this.signedIn ? "settings:historyDescriptionAccount"
-      : "settings:historyDescription";
+      // Without an accounts API (VITE_API_URL) the account section is hidden – don't point to it
+      : this.user.isEnabled() ? "settings:historyDescription"
+      : "settings:historyDescriptionLocal";
     return /* html */ `
       <style>.explain { margin: 0 0 .6rem; }</style>
       <p class="explain" role="status">${i18next.t(description)}</p>

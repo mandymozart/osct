@@ -1,6 +1,7 @@
 {
   "historyButton": "Réinitialiser la progression",
   "historyDescription": "L'application garde la trace de toutes les entrées que tu as trouvées et explorées dans le livre. Si tu veux, tu peux effacer ta progression et recommencer – ou la sauvegarder dans ton compte ci-dessous.",
+  "historyDescriptionLocal": "L'application garde la trace de toutes les entrées que tu as trouvées et explorées dans le livre. Si tu veux, tu peux effacer ta progression et recommencer.",
   "historyConfirm": "Supprimer toute la progression enregistrée pour ce livre sur cet appareil ?",
   "historyDone": "Toute la progression enregistrée sur cet appareil a été supprimée.",
   "languageLabel": "Langue :",
@@ -8,17 +9,17 @@
   "soundLabel": "Sons",
   "hapticsLabel": "Vibration",
   "feedbackDescription": "De petits sons et vibrations quand tu fais défiler les pages, touches un bouton ou trouves une page.",
-  "installLabel": "Écran d'accueil",
-  "installButton": "Ajouter à l'écran d'accueil",
+  "installButton": "Installer l'application sur cet appareil",
   "installDone": "Tu utilises l'application depuis ton écran d'accueil.",
-  "installDescription": "Installe l'application sur ton téléphone : elle s'ouvre en plein écran depuis sa propre icône et démarre plus vite.",
+  "installDescription": "L'application s'ouvre alors en plein écran depuis sa propre icône et démarre plus vite.",
   "installIos": "Dans Safari, touche Partager (le carré avec la flèche), puis « Sur l'écran d'accueil ». L'application s'ouvre alors en plein écran depuis sa propre icône.",
   "installManual": "Ouvre le menu de ton navigateur et choisis « Ajouter à l'écran d'accueil » ou « Installer l'application », si ton navigateur le propose.",
-  "downloadButton": "Télécharger tout le livre",
-  "downloadDescription": "Enregistre tout le livre sur cet appareil ({{size}}), pour qu'il fonctionne aussi sans internet. De préférence en Wi-Fi.",
+  "downloadButton": "Télécharger tout le contenu",
+  "downloadDescription": "Charge à l'avance tout le contenu du livre ({{size}}) sur cet appareil, pour que rien ne doive se charger pendant que tu utilises l'application – plus rapide, et ça marche aussi sans internet. Idéalement en Wi-Fi.",
   "downloadProgress": "{{loaded}} sur {{total}} téléchargés",
-  "downloadDone": "Tout le livre est sur cet appareil ({{size}}).",
+  "downloadDone": "Tout le contenu est sur cet appareil ({{size}}) – rien ne doit se charger pendant que tu utilises l'application.",
   "downloadFailed": "Certains fichiers n'ont pas pu être téléchargés ({{size}} au total). Vérifie ta connexion et réessaie.",
   "historyDescriptionAccount": "L'application garde la trace de toutes les entrées que tu as trouvées et explorées dans le livre – sur cet appareil et dans ton compte. La réinitialisation efface ta progression aux deux endroits, pour que tu puisses recommencer.",
-  "historyConfirmAccount": "Supprimer toute la progression de ce livre – sur cet appareil et dans ton compte ?"
+  "historyConfirmAccount": "Supprimer toute la progression de ce livre – sur cet appareil et dans ton compte ?",
+  "installAdded": "L'application est installée – ouvre-la depuis ton écran d'accueil ou ta liste d'applications."
 }

@@ -1,6 +1,7 @@
 {
   "historyButton": "Voortgang resetten",
   "historyDescription": "De app houdt alle items bij die je in het boek hebt gevonden en verkend. Als je wilt, kun je je voortgang wissen en opnieuw beginnen – of hem hieronder in je account opslaan.",
+  "historyDescriptionLocal": "De app houdt alle items bij die je in het boek hebt gevonden en verkend. Als je wilt, kun je je voortgang wissen en opnieuw beginnen.",
   "historyConfirm": "Alle opgeslagen voortgang voor dit boek op dit apparaat verwijderen?",
   "historyDone": "Alle opgeslagen voortgang op dit apparaat is verwijderd.",
   "languageLabel": "Taal:",
@@ -8,17 +9,17 @@
   "soundLabel": "Geluid",
   "hapticsLabel": "Trillen",
   "feedbackDescription": "Korte geluiden en trillingen als je door de pagina's scrolt, op een knop tikt of een pagina vindt.",
-  "installLabel": "Beginscherm",
-  "installButton": "Zet op beginscherm",
+  "installButton": "Installeer als app op dit apparaat",
   "installDone": "Je gebruikt de app vanaf je beginscherm.",
-  "installDescription": "Installeer de app op je telefoon: hij opent schermvullend vanaf zijn eigen icoon en start sneller.",
+  "installDescription": "De app opent dan schermvullend vanaf een eigen icoon en start sneller.",
   "installIos": "Tik in Safari op Deel (het vierkant met de pijl) en dan op 'Zet op beginscherm'. De app opent dan schermvullend vanaf zijn eigen icoon.",
   "installManual": "Open het menu van je browser en kies 'Toevoegen aan startscherm' of 'App installeren', als je browser dat aanbiedt.",
-  "downloadButton": "Hele boek downloaden",
-  "downloadDescription": "Slaat het hele boek op dit apparaat op ({{size}}), zodat het ook zonder internet werkt. Liefst via wifi.",
+  "downloadButton": "Alle inhoud downloaden",
+  "downloadDescription": "Laadt alle inhoud van het boek ({{size}}) vooraf op dit apparaat, zodat er niets hoeft te laden terwijl je de app gebruikt – sneller, en het werkt ook zonder internet. Het liefst via wifi.",
   "downloadProgress": "{{loaded}} van {{total}} gedownload",
-  "downloadDone": "Het hele boek staat op dit apparaat ({{size}}).",
+  "downloadDone": "Alle inhoud staat op dit apparaat ({{size}}) – er hoeft niets te laden terwijl je de app gebruikt.",
   "downloadFailed": "Sommige bestanden konden niet worden gedownload ({{size}} in totaal). Controleer je verbinding en probeer het opnieuw.",
   "historyDescriptionAccount": "De app houdt alle items bij die je in het boek hebt gevonden en verkend – op dit apparaat en in je account. Resetten wist je voortgang op beide plekken, zodat je opnieuw kunt beginnen.",
-  "historyConfirmAccount": "Alle opgeslagen voortgang voor dit boek verwijderen – op dit apparaat en in je account?"
+  "historyConfirmAccount": "Alle opgeslagen voortgang voor dit boek verwijderen – op dit apparaat en in je account?",
+  "installAdded": "De app is geïnstalleerd – open hem vanaf je beginscherm of je lijst met apps."
 }
