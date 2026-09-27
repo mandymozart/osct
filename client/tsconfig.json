@@ -14,7 +14,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
-    "types": ["vite/client", "three"],
+    "types": ["vite/client", "three", "node"],
     "baseUrl": ".",
     "typeRoots": [
       "./node_modules/@types",

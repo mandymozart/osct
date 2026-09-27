@@ -1,17 +1,16 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
-import tsconfigPaths from 'vite-tsconfig-paths';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
-import { renderStaticSplash } from './src/utils/static-splash-html';
+import { renderStaticSplash } from './src/utils/static-splash-html.ts';
 
 // One version for app and content build (agents/RULES.md #10). Read directly:
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
-const APP_VERSION = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')).version;
+const APP_VERSION = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
 // The content build's checksum: the service worker keeps one content cache per content build
-const GAME_CONFIG = JSON.parse(readFileSync(resolve(__dirname, 'src/game.config.json'), 'utf8'));
+const GAME_CONFIG = JSON.parse(readFileSync(resolve(import.meta.dirname, 'src/game.config.json'), 'utf8'));
 
 /**
  * PWA (2026-09-26): web app manifest + service worker (sw/service-worker.ts, precache list injected here).
@@ -87,7 +86,7 @@ function getLocalIP() {
  * translates them once it runs).
  */
 function staticSplash() {
-  const read = (file) => JSON.parse(readFileSync(resolve(__dirname, file), 'utf8'));
+  const read = (file) => JSON.parse(readFileSync(resolve(import.meta.dirname, file), 'utf8'));
   return {
     name: 'osct-static-splash',
     transformIndexHtml(html) {
@@ -111,7 +110,7 @@ function staticSplash() {
  */
 function contentSizes() {
   const id = 'virtual:osct-content-sizes';
-  const root = resolve(__dirname, 'public/assets/content');
+  const root = resolve(import.meta.dirname, 'public/assets/content');
   const walk = (dir, prefix) => readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory()
     ? walk(resolve(dir, entry.name), `${prefix}${entry.name}/`)
     : [[`${prefix}${entry.name}`, statSync(resolve(dir, entry.name)).size]]);
@@ -133,7 +132,7 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [tsconfigPaths(), staticSplash(), contentSizes(), ...pwa(), ...(https ? [basicSsl()] : [])],
+  plugins: [staticSplash(), contentSizes(), ...pwa(), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
@@ -141,11 +140,12 @@ export default defineConfig(({command,mode})=>{
     __VITE_SERVER_URL__: JSON.stringify(`${https ? 'https' : 'http'}://${localIP}:${port}`),
   },
   resolve: {
+    tsconfigPaths: true, // tsconfig.json "paths" (built into Vite 8)
     alias: {
-      '@': resolve(__dirname, 'src'),
-      '@shared': resolve(__dirname, '../shared'),
+      '@': resolve(import.meta.dirname, 'src'),
+      '@shared': resolve(import.meta.dirname, '../shared'),
       // TF.js (inside MindAR) imports it for Node.js only (src/vendor/mind-ar/node-fetch-stub.js)
-      'node-fetch': resolve(__dirname, 'src/vendor/mind-ar/node-fetch-stub.js'),
+      'node-fetch': resolve(import.meta.dirname, 'src/vendor/mind-ar/node-fetch-stub.js'),
     }
   },
   server: {
@@ -155,7 +155,7 @@ export default defineConfig(({command,mode})=>{
     proxy: { '/api': 'http://127.0.0.1:8080' },
     fs: {
       // shared/ (game configuration contract) lives next to client/
-      allow: [resolve(__dirname), resolve(__dirname, '../shared')],
+      allow: [resolve(import.meta.dirname), resolve(import.meta.dirname, '../shared')],
     },
   },
   build: {
@@ -171,9 +171,11 @@ export default defineConfig(({command,mode})=>{
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html')
+        main: resolve(import.meta.dirname, 'index.html')
       },
       output: {
+        // TF.js's @license headers stay in the chunks, as before Vite 8 (Rolldown drops them by default)
+        comments: { legal: true },
         // The AR code (only reached through import("./ar"), loaded on the first scan): three.js and MindAR
         // (TF.js) in two chunks that download in parallel
         manualChunks: (id) => {

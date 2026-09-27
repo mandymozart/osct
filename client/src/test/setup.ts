@@ -16,7 +16,7 @@ beforeAll(() => {
   };
   global.fetch = vi.fn();
   global.URL.createObjectURL = vi.fn();
-  global.requestAnimationFrame = vi.fn((callback) => setTimeout(callback, 0));
+  global.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => window.setTimeout(callback, 0));
 });
 
 afterEach(() => {
@@ -34,6 +34,9 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
+
+// happy-dom 20 has no browser dialogs: confirm() declines by default, tests spy on it for the answer
+window.confirm = () => false;
 
 // UI texts: i18next is set up once for all tests (as main.ts does first in the app)
 import "@/i18n";
