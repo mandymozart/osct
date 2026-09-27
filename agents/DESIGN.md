@@ -73,6 +73,7 @@ The PDF cannot express a backdrop blur; the **frosted glass** look is confirmed 
 | Element | Measured |
 |---|---|
 | Mark | **99 × 96 px** on every screen, the **same Mark** in scan and consultation (the cropped 129 × 20 px image in the consultation frames is a PDF export error – Tilman). Onboarding: 88 px from the screen top. Scan: top at −11 px (partly above the edge) → **Q2** |
+| Info button "i" | Ø 34 px, top right corner, **the same gap above and to the right** (≈ 16 px, frame 20); the gap counts from the top of the page area, below the status bar (Tilman, 2026-09-27 – the earlier 4.55 rem was measured from the device top, status bar included) |
 | Found indicator image | 171 × 212 px, ~234 px from the top |
 | Onboarding text block | gradient box 247 px, centred |
 
