@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-27 – Branch cleanup and dependency audit (Tilman)
+
+- Only `main` and `develop` remain; all experiment branches deleted locally and on GitHub (Tilman).
+  Unmerged tips, restorable while git keeps them: `clickable-target` 5049355, `content-iteration` e556d9f,
+  `svelte-and-threejs-rewrite` 3d51451 (local only).
+- Dependabot showed 48 alerts, all npm dev tooling in `client/` and `scripts/` (nothing in the shipped
+  runtime deps or `server/`). `npm audit fix` (no majors) in both: `scripts/` is at 0.
+- [ ] Open: `client/` keeps 6 (3 critical) – vitest 1 → 5, @vitest/coverage-v8, happy-dom 13 → 20, and
+  vite 5 → 6+ (vite 5 has no patched release; vitest 1 pins it). One upgrade, separately; test-only risk.
+- [ ] Open: `npm run build:content:force` deletes tracked files in `client/src/assets/` (`.deprecated`,
+  `cross.svg`, `ghost-icon.svg`, `index-icon.svg`) – check whether they are still used or should go.
+
 ## 2026-09-27 – Accounts by email (Tilman, branch `database`; PLAN Phase 11)
 
 - Merged into `develop` and `main` (1.1.1); the branch `database` is deleted (Tilman). The API deploy to
