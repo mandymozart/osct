@@ -52,8 +52,9 @@ export class GameHeader extends HTMLElement {
                     top: 0;
                     left: 0;
                     right: 0;
-                    /* --debug-offset: space for the dev debug overlay line */
-                    padding-top: calc(max(.5rem, env(safe-area-inset-top)) + var(--debug-offset, 0rem));
+                    /* Mark 1rem from the top of the page area, level with the "i" (Tilman 2026-09-27);
+                       --debug-offset: space for the dev debug overlay line */
+                    padding-top: calc(env(safe-area-inset-top) + 1rem + var(--debug-offset, 0rem));
                     display: flex;
                     flex-direction: column;
                     align-items: center;
@@ -71,15 +72,15 @@ export class GameHeader extends HTMLElement {
                     position: absolute;
                     pointer-events: all;
                 }
-                /* "i" in the top right corner, the same gap above and to the right (frame 20, Tilman
-                   2026-09-27); below the status bar in the home-screen app. "Entries" centre 117 px from the
-                   screen top (DESIGN.md §3) */
+                /* Frame 20 (Tilman 2026-09-27), measured from the top of the page area – below the status bar
+                   in the home-screen app (DESIGN.md §3): "i" in the top right corner, the same gap above and
+                   to the right; "Entries" centre ≈ 4.7rem down, left edge on the text column */
                 .info {
                     top: calc(env(safe-area-inset-top) + 1rem + var(--debug-offset, 0rem));
                     right: 1rem;
                 }
                 .entries {
-                    top: calc(max(6.4rem, env(safe-area-inset-top) + 2rem) + var(--debug-offset, 0rem));
+                    top: calc(env(safe-area-inset-top) + 3.75rem + var(--debug-offset, 0rem));
                     left: 1.25rem;
                 }
 

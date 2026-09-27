@@ -90,7 +90,11 @@ export class DebugOverlay extends HTMLElement {
       <style>
         :host {
           position: fixed;
-          top: 0;
+          /* Collapsed: one line of exactly var(--debug-offset) = 1.25rem (1rem line + 2 × .125rem padding),
+             so the app chrome below starts right under it; below the status bar in the home-screen app */
+          top: env(safe-area-inset-top);
+          box-sizing: border-box;
+          line-height: 1rem;
           right: .25rem;
           left: 0.25rem;
           max-height: calc(100vh - 6rem);
@@ -98,7 +102,7 @@ export class DebugOverlay extends HTMLElement {
           color: #00ff00;
           font-family: monospace;
           font-size: .75rem;
-          padding: .1rem .5rem;
+          padding: .125rem .5rem;
           border-radius: 0 0 .5rem 0.5rem;
           z-index: 9999;
           overflow-y: auto;

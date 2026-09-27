@@ -111,7 +111,11 @@ Extend as we go: add a rule when a decision should hold for all future work.
     - Primary actions get `.primary` (shining label + border sweep); everything else stays secondary.
     - **Sizes in rem, never px** (Tilman, 2026-09-26 – accessibility): the root font size is `100%`, so the
       reader's text size setting scales the whole app; media queries in `em`. 1rem = 16 px at the default
-      size (DESIGN.md values: px ÷ 16).
+      size (DESIGN.md values: px ÷ 16). Every size and distance (widths, heights, gaps, paddings, offsets,
+      radii) is rem – Tilman repeated it on 2026-09-27: "really stick to rem" (scalability for accessibility).
+      Only where the value is relative to the screen or the parent by nature: viewport units (`vh`/`dvh`/`vw`)
+      and percentages (e.g. `100%`, `50%` for a circle). Measurements from the design frames are converted
+      to rem, never written as px.
     - On / off options are `<gold-switch>` elements (`@/components/buttons`, 2026-09-27): text left, switch
       far right, native checkbox `role="switch"` inside; listen for `change`, read `.checked`.
     - Design buttons are written with `goldButton()` (`@/components/buttons`, 2026-09-25): native
