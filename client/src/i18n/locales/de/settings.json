@@ -17,6 +17,7 @@
   "downloadButton": "Alle Inhalte herunterladen",
   "downloadDescription": "Lädt alle Inhalte des Buchs ({{size}}) vorab auf dieses Gerät, damit während der Nutzung nichts nachgeladen werden muss – schneller, und es funktioniert auch ohne Internet. Am besten im WLAN.",
   "downloadProgress": "{{loaded}} von {{total}} geladen",
+  "downloadStored": "{{loaded}} von {{total}} auf diesem Gerät",
   "downloadDone": "Alle Inhalte sind auf diesem Gerät ({{size}}) – während der Nutzung muss nichts nachgeladen werden.",
   "downloadFailed": "Einige Dateien konnten nicht geladen werden ({{size}} insgesamt). Prüfe deine Verbindung und versuch es noch einmal.",
   "historyDescriptionAccount": "Die App merkt sich alle Einträge, die du im Buch gefunden und erkundet hast – auf diesem Gerät und in deinem Konto. Zurücksetzen löscht deinen Fortschritt an beiden Orten, damit du neu anfangen kannst.",

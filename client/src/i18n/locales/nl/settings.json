@@ -17,6 +17,7 @@
   "downloadButton": "Alle inhoud downloaden",
   "downloadDescription": "Laadt alle inhoud van het boek ({{size}}) vooraf op dit apparaat, zodat er niets hoeft te laden terwijl je de app gebruikt – sneller, en het werkt ook zonder internet. Het liefst via wifi.",
   "downloadProgress": "{{loaded}} van {{total}} gedownload",
+  "downloadStored": "{{loaded}} van {{total}} op dit apparaat",
   "downloadDone": "Alle inhoud staat op dit apparaat ({{size}}) – er hoeft niets te laden terwijl je de app gebruikt.",
   "downloadFailed": "Sommige bestanden konden niet worden gedownload ({{size}} in totaal). Controleer je verbinding en probeer het opnieuw.",
   "historyDescriptionAccount": "De app houdt alle items bij die je in het boek hebt gevonden en verkend – op dit apparaat en in je account. Resetten wist je voortgang op beide plekken, zodat je opnieuw kunt beginnen.",
