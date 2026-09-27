@@ -71,9 +71,11 @@ export class GameHeader extends HTMLElement {
                     position: absolute;
                     pointer-events: all;
                 }
-                /* Measured: "i" centre 90 px, "Entries" centre 117 px from the screen top (DESIGN.md §3) */
+                /* "i" in the top right corner, the same gap above and to the right (frame 20, Tilman
+                   2026-09-27); below the status bar in the home-screen app. "Entries" centre 117 px from the
+                   screen top (DESIGN.md §3) */
                 .info {
-                    top: calc(max(4.55rem, env(safe-area-inset-top)) + var(--debug-offset, 0rem));
+                    top: calc(env(safe-area-inset-top) + 1rem + var(--debug-offset, 0rem));
                     right: 1rem;
                 }
                 .entries {
