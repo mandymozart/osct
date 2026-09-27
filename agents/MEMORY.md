@@ -13,8 +13,8 @@ outcome in the line (or move it into a dated decision block).
   runtime deps or `server/`). `npm audit fix` (no majors) in both: `scripts/` is at 0.
 - [ ] Open: `client/` keeps 6 (3 critical) – vitest 1 → 5, @vitest/coverage-v8, happy-dom 13 → 20, and
   vite 5 → 6+ (vite 5 has no patched release; vitest 1 pins it). One upgrade, separately; test-only risk.
-- [ ] Open: `npm run build:content:force` deletes tracked files in `client/src/assets/` (`.deprecated`,
-  `cross.svg`, `ghost-icon.svg`, `index-icon.svg`) – check whether they are still used or should go.
+- [x] `client/src/assets/` (`.deprecated`, `cross.svg`, `ghost-icon.svg`, `index-icon.svg`) removed as
+  legacy (Tilman); nothing referenced it – all app assets live in `client/public/assets/`.
 
 ## 2026-09-27 – Accounts by email (Tilman, branch `database`; PLAN Phase 11)
 
