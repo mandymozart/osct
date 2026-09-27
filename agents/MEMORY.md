@@ -23,10 +23,11 @@ outcome in the line (or move it into a dated decision block).
 ## 2026-09-27 – Accounts by email (Tilman, branch `database`; PLAN Phase 11)
 
 - Merged into `develop` and `main` (1.1.1); the branch `database` is deleted (Tilman). The API deploy to
-  osct.porschuetz.de (`deploy-api.yml` "Deploy API", GitHub environment `staging`) runs on every push to `develop`.
-- Workflows renamed (Tilman 2026-09-27): "CI" → **Checks** (`checks.yml`), "Deploy staging" → **Deploy API
-  (osct.porschuetz.de)** (`deploy-api.yml`) – the server is shared by staging and production. The GitHub environment
-  may later be renamed `staging` → `api` (secrets recreated there first, then one line in deploy-api.yml).
+  osct.porschuetz.de (`deploy-staging.yml`, GitHub environment `staging`) runs on every push to `develop`.
+- Workflows (Tilman 2026-09-27): **Checks** (`checks.yml`, was "CI": tests, deploys nothing) and **Deploy staging server
+  (osct.porschuetz.de)** (`deploy-staging.yml`): the whole site, app + API. osct.porschuetz.de is the staging server;
+  the Netlify sites are temporary (they call its API) and are dropped once the client provides the final server –
+  production then gets its own workflow and GitHub environment `production`.
 
 - Goal: let readers hear about updates – very basic first. Signed out (Tilman): "Register your copy and
   receive updates in your inbox" – email, **Register account**, and underneath three update switches, **off
