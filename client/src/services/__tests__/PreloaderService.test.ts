@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { PreloaderService } from "@/services/PreloaderService";
 import { getAssets, getSpread, getSpreads } from "@/utils/game-config";
 import { compressedUrl as mindUrl } from "@/utils/compressed"; // .mind and .glb
@@ -6,7 +6,7 @@ import { compressedUrl as mindUrl } from "@/utils/compressed"; // .mind and .glb
 describe("PreloaderService", () => {
   const spreads = getSpreads();
   let preloader: PreloaderService;
-  let fetchMock: ReturnType<typeof vi.fn<[string, RequestInit?], Promise<Response>>>;
+  let fetchMock: Mock<(url: string, init?: RequestInit) => Promise<Response>>;
 
   beforeEach(() => {
     preloader = new PreloaderService();

@@ -11,8 +11,12 @@ outcome in the line (or move it into a dated decision block).
   `svelte-and-threejs-rewrite` 3d51451 (local only).
 - Dependabot showed 48 alerts, all npm dev tooling in `client/` and `scripts/` (nothing in the shipped
   runtime deps or `server/`). `npm audit fix` (no majors) in both: `scripts/` is at 0.
-- [ ] Open: `client/` keeps 6 (3 critical) – vitest 1 → 5, @vitest/coverage-v8, happy-dom 13 → 20, and
-  vite 5 → 6+ (vite 5 has no patched release; vitest 1 pins it). One upgrade, separately; test-only risk.
+- [x] `client/` upgraded (npm audit: 0): vite 5 → 8 (Rolldown), vitest 1 → 5, @vitest/coverage-v8 5,
+  happy-dom 13 → 20, @vitejs/plugin-basic-ssl 2; `vite-tsconfig-paths` replaced by Vite's
+  `resolve.tsconfigPaths`. Node ≥ 22.12. Rolldown drops `@license` comments by default –
+  `output.comments.legal` keeps TF.js's notices as before. happy-dom 20 has no `window.confirm` (test setup
+  stubs it); tsconfig lists `node` types (Vite 5 pulled them in implicitly). Verified: tests, tsc, build,
+  and MindAR on the WebGL backend in the built app (4 targets loaded, detection, tracking, worker match).
 - [x] `client/src/assets/` (`.deprecated`, `cross.svg`, `ghost-icon.svg`, `index-icon.svg`) removed as
   legacy (Tilman); nothing referenced it – all app assets live in `client/public/assets/`.
 
