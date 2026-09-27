@@ -82,8 +82,9 @@ The mails (with link and code) land in `MAIL_LOG_PATH`.
 
 ## Deploy (development server)
 
-`.github/workflows/deploy-api.yml` ("Deploy API (osct.porschuetz.de)") runs on every push to `develop` – the server is
-shared by staging and production:
+`.github/workflows/deploy-staging.yml` ("Deploy staging server (osct.porschuetz.de)") runs on every push to `develop` –
+the whole site, app + API. osct.porschuetz.de is the staging server; the Netlify sites are temporary and call its API.
+Production will be the client's server with its own workflow.
 1. Run the API tests.
 2. Build the app with `VITE_API_URL=/api`.
 3. Write `config.local.php` from the GitHub environment **staging** (secrets and variables are listed in the workflow).
