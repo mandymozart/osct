@@ -1,7 +1,6 @@
 import { ConsultationPage } from "./consultation-page";
 import { getBook } from "@/utils/game-config";
 import i18next from "i18next";
-import { goldButton } from "@/components/buttons";
 import "@/components/settings";
 
 /**
@@ -13,17 +12,6 @@ import "@/components/settings";
 export class AboutPage extends ConsultationPage {
   get styles(): string {
     return /* css */ `
-      /* The entries list's positions (Tilman 2026-09-27): "Entries" where its category pill is, the text
-         where its list starts – the same toolbar height (pill, gap, one line) and gap below */
-      .content { padding-top: var(--consultation-top-counter); }
-      .toolbar {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: .6rem;
-        margin-bottom: 2.25rem;
-      }
-      .toolbar::after { content: ""; height: calc(var(--text-size) * var(--text-line)); }
       .section-title:first-of-type { margin-top: 0; }
       .settings { margin-bottom: 1.5rem; }
       /* White letters on the page's black (bf.svg is white, transparent around) */
@@ -40,10 +28,8 @@ export class AboutPage extends ConsultationPage {
     const book = getBook();
     const params = { title: book.title, author: book.author };
     return /* html */ `
-      <div class="content">
-        <div class="toolbar">
-          ${goldButton({ label: i18next.t("header:entries"), attrs: { "data-action": "entries" } })}
-        </div>
+      <div class="content below-toolbar">
+        ${this.entriesToolbar()}
         <h2 class="section-title">${i18next.t("about:info")}</h2>
         <p>${i18next.t("about:infoText", params)}</p>
 
@@ -77,25 +63,9 @@ export class AboutPage extends ConsultationPage {
     `;
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-    this.shadowRoot?.addEventListener("click", this.handleClick);
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.shadowRoot?.removeEventListener("click", this.handleClick);
-  }
-
   protected update(): void {
     // Static page – the settings sections render themselves
   }
-
-  /** "Entries" → back to the list with the last category (like the header's pill on the entry view) */
-  private handleClick = (event: Event) => {
-    const button = (event.target as HTMLElement).closest("[data-action=entries]");
-    if (button) this.game.router.navigate("/entries");
-  };
 }
 
 customElements.define("about-page", AboutPage);

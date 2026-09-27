@@ -901,7 +901,8 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [~] Production (osct.netlify.app, `main`) uses the dev API for now (Tilman): `VITE_API_URL=https://osct.porschuetz.de/api`
       on the production Netlify site + https://osct.netlify.app in ALLOWED_ORIGINS (GitHub environment `staging`).
 - [x] Update switches before sign-up stay **off** (opt-in) – confirmed by Tilman.
-- [ ] Entry view: its "Entries" pill stays in the header at 3.75rem – same position as Info? (ask)
+- [x] Entry view like Info (Tilman): "Entries" in the page at the category pill's height, content where the list starts –
+      one shared toolbar in `ConsultationPage` (`entriesToolbar()`); the header has no "Entries" any more.
 
 ## Design tokens
 

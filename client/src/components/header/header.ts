@@ -12,8 +12,8 @@ import i18next from "i18next";
  *   was removed on 2026-09-25 – previous design iteration).
  * - SCAN: Mark the Page + counter (frame 6).
  * - CONSULTATION: Mark + "i" → Info (= about, frames 15, 17, 32); the counter
- *   with "Entries consulted" only on the entries list (frame 17); "Entries" → back to the list with
- *   the last category on the entry view (frames 15, 21); Info has it in the page (about-page.ts).
+ *   with "Entries consulted" only on the entries list (frame 17). "Entries" (back to the list) is in the
+ *   entry view and Info pages, where the entries list has its category pill (ConsultationPage).
  */
 export class GameHeader extends HTMLElement {
   private game: Readonly<IGame>;
@@ -73,29 +73,22 @@ export class GameHeader extends HTMLElement {
                 .counter { text-align: center; }
                 .counter-label { color: var(--color-muted); }
 
-                .info,
-                .entries {
+                .info {
                     position: absolute;
                     pointer-events: all;
                 }
                 /* Frame 20 (Tilman 2026-09-27), measured from the top of the page area – below the status bar
                    in the home-screen app (DESIGN.md §3): "i" in the top right corner, the same gap above and
-                   to the right; "Entries" centre ≈ 4.7rem down, left edge on the text column */
+                   to the right */
                 .info {
                     top: calc(env(safe-area-inset-top) + 1rem);
                     right: 1rem;
-                }
-                .entries {
-                    top: calc(env(safe-area-inset-top) + 3.75rem);
-                    left: 1.25rem;
                 }
 
                 :host([mode="idle"]) .chrome,
                 :host(:not([mode="consultation"])) .info,
                 :host(:not([mode="consultation"])) .counter-label,
-                :host([mode="consultation"]:not([page="entries"])) .counter,
-                /* Info has its own "Entries" pill in the page, where the entries list has its category pill */
-                :host(:not([page="entry"])) .entries {
+                :host([mode="consultation"]:not([page="entries"])) .counter {
                     display: none;
                 }
             </style>
@@ -105,7 +98,6 @@ export class GameHeader extends HTMLElement {
                 <entries-counter></entries-counter>
                 <div class="counter-label design">${i18next.t("header:entriesConsulted")}</div>
               </div>
-              ${goldButton({ label: i18next.t("header:entries"), className: "entries", attrs: { id: "entries" } })}
               ${goldButton({ label: "i", shape: "icon", className: "info", attrs: { id: "info", "aria-label": i18next.t("header:info") } })}
             </div>
         `;
@@ -119,10 +111,6 @@ export class GameHeader extends HTMLElement {
   private initialize() {
     this.shadowRoot!.querySelector("#info")?.addEventListener("click", () => {
       this.game.router.navigate("/about");
-    });
-    // The entries page opens the last category when no category is given
-    this.shadowRoot!.querySelector("#entries")?.addEventListener("click", () => {
-      this.game.router.navigate("/entries");
     });
   }
 }
