@@ -898,9 +898,9 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
       once); without a dialog a tap shows the steps; installed from the tab → "open it from your home screen".
 - [x] Download: "Download all content" – explained as loading everything in advance (performance, offline).
 - [x] Progress text without an accounts API doesn't point to the (hidden) account section.
-- [ ] Production (osct.netlify.app, `main`) shows no account: no `VITE_API_URL` on that Netlify site – decide which
-      API production uses (the dev server osct.porschuetz.de needs https://osct.netlify.app in ALLOWED_ORIGINS).
-- [?] Update switches before sign-up: off (opt-in, 2026-09-27) or on? – Tilman to confirm.
+- [~] Production (osct.netlify.app, `main`) uses the dev API for now (Tilman): `VITE_API_URL=https://osct.porschuetz.de/api`
+      on the production Netlify site + https://osct.netlify.app in ALLOWED_ORIGINS (GitHub environment `staging`).
+- [x] Update switches before sign-up stay **off** (opt-in) – confirmed by Tilman.
 - [ ] Entry view: its "Entries" pill stays in the header at 3.75rem – same position as Info? (ask)
 
 ## Design tokens
