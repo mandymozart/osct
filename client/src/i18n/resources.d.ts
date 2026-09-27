@@ -144,6 +144,7 @@ export default interface Resources {
     "downloadDone": "All content is on this device ({{size}}) – nothing has to load while you use the app.",
     "downloadFailed": "Some files could not be downloaded ({{size}} in total). Check your connection and try again.",
     "downloadProgress": "{{loaded}} of {{total}} downloaded",
+    "downloadStored": "{{loaded}} of {{total}} on this device",
     "feedbackDescription": "Short sounds and vibrations when you scroll through the pages, tap a button or find a page.",
     "hapticsLabel": "Vibration",
     "historyButton": "Reset progress",

@@ -26,7 +26,11 @@ export class SettingsAccount extends SettingsSection {
   private choices: UserOptions = { bookUpdates: false, artistUpdates: false, publisherUpdates: false };
 
   connectedCallback() {
-    if (!this.user.isEnabled()) this.style.display = "none";
+    // No accounts API in this build: not there at all – a hidden section would leave its neighbour's rule
+    if (!this.user.isEnabled()) {
+      this.remove();
+      return;
+    }
     super.connectedCallback();
     this.unsubscribe = this.user.subscribe(() => this.render());
     this.shadowRoot?.addEventListener("submit", this.handleSubmit);

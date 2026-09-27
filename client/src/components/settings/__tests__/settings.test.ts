@@ -121,7 +121,7 @@ describe("settings sections", () => {
     expect(section.shadowRoot!.textContent).toContain("5 MB of 20 MB downloaded");
     emit({ ...running, state: "done", loaded: 20_000_000 });
     finish();
-    expect(section.shadowRoot!.querySelector("[role=progressbar]")).toBeNull();
+    expect(section.shadowRoot!.querySelector("[role=progressbar]")!.getAttribute("aria-valuenow")).toBe("100");
     expect(section.shadowRoot!.textContent).toContain("All content is on this device (20 MB)");
   });
 

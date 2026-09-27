@@ -17,6 +17,7 @@
   "downloadButton": "Download all content",
   "downloadDescription": "Loads all content of the book ({{size}}) onto this device in advance, so nothing has to load while you use the app – faster, and it also works without internet. Best on Wi-Fi.",
   "downloadProgress": "{{loaded}} of {{total}} downloaded",
+  "downloadStored": "{{loaded}} of {{total}} on this device",
   "downloadDone": "All content is on this device ({{size}}) – nothing has to load while you use the app.",
   "downloadFailed": "Some files could not be downloaded ({{size}} in total). Check your connection and try again.",
   "historyDescriptionAccount": "The app keeps track of all the entries you have found and explored in the book – on this device and in your account. Resetting deletes your progress in both places, so you can start over.",

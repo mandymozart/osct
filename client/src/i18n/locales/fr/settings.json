@@ -17,6 +17,7 @@
   "downloadButton": "Télécharger tout le contenu",
   "downloadDescription": "Charge à l'avance tout le contenu du livre ({{size}}) sur cet appareil, pour que rien ne doive se charger pendant que tu utilises l'application – plus rapide, et ça marche aussi sans internet. Idéalement en Wi-Fi.",
   "downloadProgress": "{{loaded}} sur {{total}} téléchargés",
+  "downloadStored": "{{loaded}} sur {{total}} sur cet appareil",
   "downloadDone": "Tout le contenu est sur cet appareil ({{size}}) – rien ne doit se charger pendant que tu utilises l'application.",
   "downloadFailed": "Certains fichiers n'ont pas pu être téléchargés ({{size}} au total). Vérifie ta connexion et réessaie.",
   "historyDescriptionAccount": "L'application garde la trace de toutes les entrées que tu as trouvées et explorées dans le livre – sur cet appareil et dans ton compte. La réinitialisation efface ta progression aux deux endroits, pour que tu puisses recommencer.",

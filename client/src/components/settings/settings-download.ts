@@ -1,13 +1,14 @@
 import { goldButton } from "@/components/buttons";
 import i18next from "i18next";
-import { BookDownload, PreloaderService } from "@/services";
+import { BookDownload, InstallService, PreloaderService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
 /**
- * Whole-book download section (Tilman 2026-09-27, for testing how long it takes): puts every content file
- * on this device so the book works without internet. Shows the total size before, a progress bar with
- * "x of y MB" while it runs (it goes on when the page closes) and the size when done. No "clear" – removing
- * the app removes it.
+ * "Download all content" (Tilman 2026-09-27): loads every content file in advance, so nothing has to load
+ * while the reader uses the app (and it works offline). A progress bar always shows how much of the total
+ * size is on this device – before (partly, from browsing), while it runs (it goes on when the page closes)
+ * and when done. Only where the download lasts (`InstallService.keepsDownloads`: not in iOS Safari tabs);
+ * elsewhere the section is not there. No "clear" – removing the app removes it.
  */
 export class SettingsDownload extends SettingsSection {
   private preloader = PreloaderService.getInstance();
@@ -15,6 +16,10 @@ export class SettingsDownload extends SettingsSection {
   private unsubscribe?: () => void;
 
   connectedCallback() {
+    if (!InstallService.getInstance().keepsDownloads()) {
+      this.remove();
+      return;
+    }
     super.connectedCallback();
     this.unsubscribe = this.preloader.onBookDownload(download => this.update(download));
     void this.preloader.getBookDownload().then(download => {
@@ -35,24 +40,23 @@ export class SettingsDownload extends SettingsSection {
     const button = (download.state === "idle" || download.state === "failed")
       ? `<div class="row">${goldButton({ label: i18next.t("settings:downloadButton"), attrs: { "data-action": "download" } })}</div>`
       : "";
-    const progress = download.state === "running" ? /* html */ `
+    const description = download.state === "done" ? i18next.t("settings:downloadDone", { size: total })
+      : download.state === "failed" ? i18next.t("settings:downloadFailed", { size: total })
+      : download.state === "idle" ? i18next.t("settings:downloadDescription", { size: total })
+      : "";
+    return /* html */ `
+      <style>
+        .bar { height: .5rem; margin-top: .75rem; border-radius: .25rem; overflow: hidden; border: var(--rule); }
+        .bar span { display: block; height: 100%; background: var(--gold-gradient); transition: width .2s linear; }
+        .amount { margin: .35rem 0 0; color: var(--color-muted); font-size: var(--text-size-small); }
+      </style>
+      ${button}
       <div class="bar" role="progressbar" aria-label="${i18next.t("settings:downloadButton")}"
         aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent(download)}">
         <span style="width: ${percent(download)}%"></span>
-      </div>` : "";
-    const description = download.state === "running"
-      ? i18next.t("settings:downloadProgress", { loaded: megabytes(download.loaded), total })
-      : download.state === "done" ? i18next.t("settings:downloadDone", { size: total })
-      : download.state === "failed" ? i18next.t("settings:downloadFailed", { size: total })
-      : i18next.t("settings:downloadDescription", { size: total });
-    return /* html */ `
-      <style>
-        .bar { height: .25rem; margin-top: .25rem; border-radius: .125rem; overflow: hidden; border: var(--rule); }
-        .bar span { display: block; height: 100%; background: var(--gold-gradient); transition: width .2s linear; }
-      </style>
-      ${button}
-      ${progress}
-      <p class="description" role="status">${description}</p>
+      </div>
+      <p class="amount">${amount(download)}</p>
+      ${description ? `<p class="description" role="status">${description}</p>` : ""}
     `;
   }
 
@@ -71,12 +75,16 @@ export class SettingsDownload extends SettingsSection {
     }
     bar.setAttribute("aria-valuenow", String(percent(download)));
     bar.querySelector("span")!.style.width = `${percent(download)}%`;
-    this.shadowRoot!.querySelector(".description")!.textContent =
-      i18next.t("settings:downloadProgress", { loaded: megabytes(download.loaded), total: megabytes(download.total) });
+    this.shadowRoot!.querySelector(".amount")!.textContent = amount(download);
   }
 }
 
 const percent = ({ loaded, total }: BookDownload): number => (total ? Math.round((loaded / total) * 100) : 100);
+
+/** "5 MB of 20.2 MB downloaded" (while running) / "… on this device" */
+const amount = (download: BookDownload): string =>
+  i18next.t(download.state === "running" ? "settings:downloadProgress" : "settings:downloadStored",
+    { loaded: megabytes(download.loaded), total: megabytes(download.total) });
 
 /** "24.1 MB" in the reader's language */
 const megabytes = (bytes: number): string =>

@@ -72,6 +72,22 @@ export class InstallService {
     return () => this.listeners.delete(listener);
   }
 
+  /** iPhone / iPad (Safari and the home-screen app keep separate storage there) */
+  isIOS(): boolean {
+    return isIOS();
+  }
+
+  /**
+   * Whether files kept by the service worker last here (whole-book download, Tilman 2026-09-27): with a
+   * service worker (production builds; `npm run dev` always, for testing) – on iOS only in the home-screen
+   * app: Safari tabs have their own storage (the app doesn't see it) and clear it after 7 days unused.
+   */
+  keepsDownloads(): boolean {
+    if (import.meta.env.DEV) return true;
+    if (!("serviceWorker" in navigator)) return false;
+    return !isIOS() || this.isStandalone();
+  }
+
   private isStandalone(): boolean {
     return window.matchMedia?.("(display-mode: standalone)").matches
       || (navigator as Navigator & { standalone?: boolean }).standalone === true;
