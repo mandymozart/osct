@@ -52,7 +52,7 @@ export class TutorialPage extends Page {
       }
       .skip {
         position: absolute;
-        top: calc(max(1rem, env(safe-area-inset-top)) + var(--debug-offset, 0rem));
+        top: max(1rem, env(safe-area-inset-top));
         right: 1rem;
         border: none;
         background: none;

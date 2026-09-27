@@ -41,8 +41,11 @@ export abstract class SettingsSection extends HTMLElement {
           padding: 1rem 0;
           border-bottom: var(--rule);
         }
+        /* The last section of a group: no rule – the next group's title brings its own (Tilman 2026-09-27) */
+        :host(:last-child) { border-bottom: none; }
         .row { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem .75rem; }
         .description { margin: .6rem 0 0; color: var(--color-muted); font-size: var(--text-size-small); }
+        .description.first { margin-top: 0; }
         .options { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
         /* The current choice: a thin gold ring (every pill already has the bronze glow) */
         :host .options [aria-current="true"] { box-shadow: var(--shadow-bronze), inset 0 0 0 0.0625rem var(--color-accent); }

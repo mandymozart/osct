@@ -13,7 +13,7 @@ import i18next from "i18next";
  * - SCAN: Mark the Page + counter (frame 6).
  * - CONSULTATION: Mark + "i" → Info (= about, frames 15, 17, 32); the counter
  *   with "Entries consulted" only on the entries list (frame 17); "Entries" → back to the list with
- *   the last category on the entry view and Info (frames 15, 21, 33).
+ *   the last category on the entry view (frames 15, 21); Info has it in the page (about-page.ts).
  */
 export class GameHeader extends HTMLElement {
   private game: Readonly<IGame>;
@@ -52,9 +52,9 @@ export class GameHeader extends HTMLElement {
                     top: 0;
                     left: 0;
                     right: 0;
-                    /* Mark 1rem from the top of the page area, level with the "i" (Tilman 2026-09-27);
-                       --debug-offset: space for the dev debug overlay line */
-                    padding-top: calc(env(safe-area-inset-top) + 1rem + var(--debug-offset, 0rem));
+                    /* Mark 1rem from the top of the page area, level with the "i" (Tilman 2026-09-27).
+                       The dev debug line lies over it and moves nothing – as in the final app. */
+                    padding-top: calc(env(safe-area-inset-top) + 1rem);
                     display: flex;
                     flex-direction: column;
                     align-items: center;
@@ -64,6 +64,12 @@ export class GameHeader extends HTMLElement {
                     z-index: 1100;
                 }
 
+                /* The visible Mark 1rem from the top: up by the image's transparent margin; the counter
+                   below keeps its place */
+                mark-the-page {
+                    margin-top: calc(-1 * var(--mark-inset-top));
+                    margin-bottom: var(--mark-inset-top);
+                }
                 .counter { text-align: center; }
                 .counter-label { color: var(--color-muted); }
 
@@ -76,11 +82,11 @@ export class GameHeader extends HTMLElement {
                    in the home-screen app (DESIGN.md §3): "i" in the top right corner, the same gap above and
                    to the right; "Entries" centre ≈ 4.7rem down, left edge on the text column */
                 .info {
-                    top: calc(env(safe-area-inset-top) + 1rem + var(--debug-offset, 0rem));
+                    top: calc(env(safe-area-inset-top) + 1rem);
                     right: 1rem;
                 }
                 .entries {
-                    top: calc(env(safe-area-inset-top) + 3.75rem + var(--debug-offset, 0rem));
+                    top: calc(env(safe-area-inset-top) + 3.75rem);
                     left: 1.25rem;
                 }
 
@@ -88,7 +94,8 @@ export class GameHeader extends HTMLElement {
                 :host(:not([mode="consultation"])) .info,
                 :host(:not([mode="consultation"])) .counter-label,
                 :host([mode="consultation"]:not([page="entries"])) .counter,
-                :host(:not([page="entry"]):not([page="about"])) .entries {
+                /* Info has its own "Entries" pill in the page, where the entries list has its category pill */
+                :host(:not([page="entry"])) .entries {
                     display: none;
                 }
             </style>

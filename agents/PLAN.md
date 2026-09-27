@@ -884,6 +884,25 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [ ] Sending the updates (newsletter) – not built; the options are only stored.
 - [ ] Netlify staging: `VITE_API_URL` to the dev API (needs its origin in ALLOWED_ORIGINS – already there).
 
+### Review 2026-09-27 (Tilman, phone test of staging + production)
+- [x] Mark: the visible Mark exactly 1rem from the top on every page – the header pulls it up by the image's
+      transparent margin (`--mark-inset-top` = 14 of 125 px of scan.png ≈ .67rem).
+- [x] The dev debug line lies over the page and moves nothing (header, "i", consultation pages, tutorial "Skip").
+- [x] Info: "Entries" pill in the page where the entries list has its category pill (10.75rem), the text where
+      the list starts (≈16.56rem); the header's "Entries" only on the entry view.
+- [x] Account text: "Register your copy now to save your progress and receive updates in your inbox." (en/fr/nl/de)
+- [x] No double rule: the last section of a group has no bottom rule (the next title brings its own).
+- [x] Options (`<gold-switch>`, one component for updates and sound/vibration): at least 4rem per row, .5rem above
+      and below, labels wrap (no ellipsis).
+- [x] Install: "Install as app on this device" stays until the app is installed (browsers offer their dialog only
+      once); without a dialog a tap shows the steps; installed from the tab → "open it from your home screen".
+- [x] Download: "Download all content" – explained as loading everything in advance (performance, offline).
+- [x] Progress text without an accounts API doesn't point to the (hidden) account section.
+- [ ] Production (osct.netlify.app, `main`) shows no account: no `VITE_API_URL` on that Netlify site – decide which
+      API production uses (the dev server osct.porschuetz.de needs https://osct.netlify.app in ALLOWED_ORIGINS).
+- [?] Update switches before sign-up: off (opt-in, 2026-09-27) or on? – Tilman to confirm.
+- [ ] Entry view: its "Entries" pill stays in the header at 3.75rem – same position as Info? (ask)
+
 ## Design tokens
 
 **Measured spec: `agents/DESIGN.md`** (colors, gold gradient, sizes, buttons/glass, gold text options,

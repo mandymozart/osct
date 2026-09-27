@@ -37,6 +37,6 @@ describe("InstallService", () => {
 
   it("knows when the app already runs from the home screen", () => {
     window.dispatchEvent(new Event("appinstalled"));
-    expect(service.getMethod()).toBe("installed");
+    expect(service.getMethod()).toBe("added"); // installed from this tab – the tab itself is not the app
   });
 });
