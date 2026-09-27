@@ -886,7 +886,7 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [ ] Sending the updates (newsletter) – not built; the options are only stored.
 - [ ] Netlify staging: `VITE_API_URL` to the dev API (needs its origin in ALLOWED_ORIGINS – already there).
 
-### Review 2026-09-27 (Tilman, phone test of staging + production)
+### Review 2026-09-27 (Tilman, phone test of staging + production)  `[x]`
 - [x] Mark: the visible Mark exactly 1rem from the top on every page – the header pulls it up by the image's
       transparent margin (`--mark-inset-top` = 14 of 125 px of scan.png ≈ .67rem).
 - [x] The dev debug line lies over the page and moves nothing (header, "i", consultation pages, tutorial "Skip").
@@ -903,6 +903,9 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
       (Android / desktop share the storage with the installed app); on iOS only in the home-screen app (Safari tabs
       keep their own storage and clear it after 7 days unused). Progress bar always shown: "x of y MB on this device".
 - [x] Sections not available here (account without API, download in iOS Safari) remove themselves – no double rule.
+- [x] The first line of every group 1rem below its title (Info, Account, Settings, Colophon): the first section has
+      no top padding; in Sound & vibration the first switch row's text (not its 4rem box) starts there.
+- Review done 2026-09-27 – develop merged into main.
 - [x] Progress text without an accounts API doesn't point to the (hidden) account section.
 - [~] Production (osct.netlify.app, `main`) uses the dev API for now (Tilman): `VITE_API_URL=https://osct.porschuetz.de/api`
       on the production Netlify site + https://osct.netlify.app in ALLOWED_ORIGINS (GitHub environment `staging`).

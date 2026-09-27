@@ -41,6 +41,8 @@ export abstract class SettingsSection extends HTMLElement {
           padding: 1rem 0;
           border-bottom: var(--rule);
         }
+        /* The first section of a group starts right below the group title, like the Info text (Tilman 2026-09-27) */
+        :host(:first-child) { padding-top: 0; }
         /* The last section of a group: no rule – the next group's title brings its own (Tilman 2026-09-27) */
         :host(:last-child) { border-bottom: none; }
         .row { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem .75rem; }
