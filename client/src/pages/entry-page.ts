@@ -6,7 +6,8 @@ import { ConsultationPage } from "./consultation-page";
 import i18next from "i18next";
 
 /**
- * Entry view (design p.15, 20, 25, 30–31): `<entry-detail>` (meta table + content per category).
+ * Entry view (design p.15, 20, 25, 30–31): "Entries" (back to the list) and `<entry-detail>` (meta table +
+ * content per category) on the entries list's positions, like Info (Tilman 2026-09-27).
  * Opening the entry marks it consulted.
  */
 export class EntryPage extends ConsultationPage {
@@ -22,7 +23,8 @@ export class EntryPage extends ConsultationPage {
 
   get template(): string {
     return /* html */ `
-      <div class="content">
+      <div class="content below-toolbar">
+        ${this.entriesToolbar()}
         <p class="missing" hidden>${i18next.t("entry:missing")}</p>
         <entry-detail></entry-detail>
       </div>

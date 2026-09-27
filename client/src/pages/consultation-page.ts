@@ -1,9 +1,12 @@
 import { PageMinimal } from "./page-minimal";
 import { adoptDesignStyles } from "@/styles";
+import { goldButton } from "@/components/buttons";
+import i18next from "i18next";
 
 /**
  * Base of the consultation mode pages (entries list, entry, info – design p.15–34): dark, slightly
- * transparent full-screen page below the top chrome (Mark, counter, "Entries", "i" in `header.ts`).
+ * transparent full-screen page below the top chrome (Mark, counter, "i" in `header.ts`); the entry view and
+ * Info put "Entries" in the page (`entriesToolbar()`), where the entries list has its category pill.
  * Subclasses provide `styles` and `template` and re-render through `update()`.
  */
 export abstract class ConsultationPage extends PageMinimal {
@@ -46,11 +49,29 @@ export abstract class ConsultationPage extends PageMinimal {
       }
       p { margin: 0 0 1em; white-space: pre-line; }
       a { color: var(--color-accent); }
+
+      /* Entry view and Info (Tilman 2026-09-27): the entries list's positions – "Entries" where its category
+         pill is, the content where its list starts (the same toolbar: pill, gap, one line, gap below) */
+      .content.below-toolbar { padding-top: var(--consultation-top-counter); }
+      .entries-toolbar {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .6rem;
+        margin-bottom: 2.25rem;
+      }
+      .entries-toolbar::after { content: ""; height: calc(var(--text-size) * var(--text-line)); }
     `;
+  }
+
+  /** "Entries" → back to the list with the last category; put it first in `<div class="content below-toolbar">` */
+  protected entriesToolbar(): string {
+    return `<div class="entries-toolbar">${goldButton({ label: i18next.t("header:entries"), attrs: { "data-action": "entries" } })}</div>`;
   }
 
   connectedCallback() {
     super.connectedCallback();
+    this.shadowRoot?.addEventListener("click", this.handleEntries);
     // Re-render on route (param) and progress changes
     const game = this.game;
     const onChange = () => this.update();
@@ -61,9 +82,14 @@ export abstract class ConsultationPage extends PageMinimal {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this.shadowRoot?.removeEventListener("click", this.handleEntries);
     this.unsubscribe?.();
     this.unsubscribe = null;
   }
+
+  private handleEntries = (event: Event) => {
+    if ((event.target as HTMLElement).closest("[data-action=entries]")) this.game.router.navigate("/entries");
+  };
 
   /** Route param of this page, if the current route is this page */
   protected routeParam(page: string): string | null {
