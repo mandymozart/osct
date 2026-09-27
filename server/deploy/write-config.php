@@ -1,6 +1,6 @@
 <?php
 /**
- * Deploy step (.github/workflows/deploy-dev.yml): writes api/config.local.php from environment variables,
+ * Deploy step (.github/workflows/deploy-api.yml): writes api/config.local.php from environment variables,
  * so the secrets live in GitHub (environment secrets / variables) and never in the repository.
  *
  *   OSCT_DB_PASS=… OSCT_SECRET=… php server/deploy/write-config.php server/api/config.local.php

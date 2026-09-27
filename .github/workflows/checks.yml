@@ -1,6 +1,7 @@
-# Checks for every push and pull request (agents/RULES.md #9, #10).
-# Deployment is separate: Netlify builds main; the FTP production deploy is added later.
-name: CI
+# Checks for every push and pull request (agents/RULES.md #9, #10): type checks, tests, content build,
+# API tests. Deploys nothing – Netlify builds the app itself (osct-staging from develop, osct from main),
+# the API server is deployed by deploy-api.yml.
+name: Checks
 
 on:
   push:
