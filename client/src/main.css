@@ -60,8 +60,12 @@
   --mark-width: 6.1875rem;
   --mark-height: 6rem;
 
-  /* Content of consultation pages starts below the header (Mark, counter, "Entries") */
-  --consultation-top: calc(11.5rem + var(--debug-offset, 0rem));
+  /* Content of consultation pages starts below the header, from the top of the page area (below the
+     status bar in the home-screen app) – the same on every consultation screen (Tilman 2026-09-27):
+     entry and Info: first rule at 8.5rem (frames 15, 20, 21, 33); entries list: 1rem below the
+     "Entries consulted" counter (frame 17), which ends at 9.75rem under the Mark */
+  --consultation-top: calc(env(safe-area-inset-top) + 8.5rem + var(--debug-offset, 0rem));
+  --consultation-top-counter: calc(env(safe-area-inset-top) + 10.75rem + var(--debug-offset, 0rem));
 
   color-scheme: dark;              /* native controls (scrollbars, fields) on the dark UI */
 

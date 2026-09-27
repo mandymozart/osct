@@ -75,6 +75,7 @@ The PDF cannot express a backdrop blur; the **frosted glass** look is confirmed 
 | Mark | **99 × 96 px** on every screen, the **same Mark** in scan and consultation (the cropped 129 × 20 px image in the consultation frames is a PDF export error – Tilman). Onboarding: 88 px from the screen top. Scan: top at −11 px (partly above the edge) → **Q2**. Scan and consultation: top **1 rem** below the top of the page area, level with the "i" (Tilman, 2026-09-27) |
 | Info button "i" | Ø 34 px, top right corner, **the same gap above and to the right** (≈ 16 px, frame 20); the gap counts from the top of the page area, below the status bar (Tilman, 2026-09-27 – the earlier 4.55 rem was measured from the device top, status bar included) |
 | "Entries" pill | top edge **3.75 rem** below the top of the page area (centre ≈ 4.7 rem), left 1.25 rem = the text column (frame 20, Tilman 2026-09-27 – the earlier 6.4 rem was measured from the device top) |
+| Consultation content top | the same on every consultation screen, from the top of the page area: entry and Info **8.5 rem** (first rule; frames 15, 20, 21, 33); entries list **10.75 rem**, 1 rem below the "Entries consulted" counter (frame 17) – `--consultation-top`, `--consultation-top-counter` (Tilman, 2026-09-27; was 11.5 rem) |
 | Found indicator image | 171 × 212 px, ~234 px from the top |
 | Onboarding text block | gradient box 247 px, centred |
 
