@@ -12,6 +12,8 @@ import i18next from "i18next";
 export class EntriesPage extends ConsultationPage {
   get styles(): string {
     return /* css */ `
+      /* Below the "Entries consulted" counter the header shows on this page only */
+      .content { padding-top: var(--consultation-top-counter); }
       /* Toolbar (frames 17, 18): category pill + count below it */
       .toolbar {
         display: flex;
