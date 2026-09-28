@@ -30,5 +30,5 @@ export interface SpreadManagerState {
  */
 export interface Spread extends SpreadData {
   entries: Entry[]; // every entry on the spread's pages, with or without target
-  targets: Target[]; // in index order (page → target order → id)
+  targets: Target[]; // in entry order (page → title)
 }

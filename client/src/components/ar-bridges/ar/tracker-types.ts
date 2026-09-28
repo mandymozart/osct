@@ -15,7 +15,7 @@ export interface ImageTrackerOptions {
    * The anchor matrix of a target (1 unit = target width, origin in the target's centre, the image in the
    * x/y plane), null when the target is lost
    */
-  onUpdate: (targetIndex: number, matrix: Matrix4 | null) => void;
+  onUpdate: (targetId: string, matrix: Matrix4 | null) => void;
   /**
    * A target of a prepared spread (`prepareTargets()`) is seen steadily while none of the current spread's is –
    * the reader has turned the page

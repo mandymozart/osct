@@ -55,7 +55,7 @@ export const schemas: Record<string, Schema> = {
       image: { type: "String", required: false },
       media: { type: "String", required: false },
       tags: { type: "List", required: false, default: [] },
-      target: { type: "Object", required: false }, // { id?, image, order?, entity? }
+      target: { type: "Object", required: false }, // { id?, image, entity? }
     },
   },
 
@@ -64,7 +64,6 @@ export const schemas: Record<string, Schema> = {
     fields: {
       id: { type: "String", required: false }, // defaults to the entry id
       image: { type: "String", required: true },
-      order: { type: "Number", required: false, default: 0 },
       entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
     },
   },

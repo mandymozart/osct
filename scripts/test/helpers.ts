@@ -34,12 +34,12 @@ export async function loadBuild(dirs: { content: string }) {
     import('../src/build/tutorial'),
     import('../src/lib/hash'),
   ]);
-  /** book → spreads → entities → entries → target indices, like the content build */
+  /** book → spreads → entities → entries → target limit, like the content build */
   const buildAll = () => {
     const b = book.buildBook();
     const s = spreads.buildSpreads();
     const builds = entries.buildEntries(s, entities.buildEntities());
-    targets.assignTargetIndices(s, builds);
+    targets.checkTargetsPerSpread(s, builds);
     return { book: b, spreads: s, entries: builds.map(x => x.entry), tutorial: tutorial.buildTutorial(b) };
   };
   return { errors: errors.buildErrors, buildAll, book, spreads, entities, entries, targets, tutorial, hash };

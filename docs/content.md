@@ -201,8 +201,8 @@ body: Light plays a role in architecture.
 media: https://www.youtube.com/watch?v=…
 ```
 
-**Several targets on the same page:** `order` (0, 1, 2 …) on the targets fixes their order in the
-spread (otherwise by id). The app does not depend on it – there is nothing to recompile.
+**Several targets on the same page:** one entry each – there is no order to keep and nothing to
+compile (max 10 targets per spread). An older `order:` under `target` is ignored.
 
 **AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` and refer to
 it with `ref`:

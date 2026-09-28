@@ -4,7 +4,6 @@ page: 4
 body: A pile of gold and relics hidden in the shadows.
 target:
   image: images-003.jpg
-  order: 2
   entity:
     type: model
     src: treasure.glb

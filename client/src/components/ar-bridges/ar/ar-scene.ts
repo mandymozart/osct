@@ -151,7 +151,7 @@ export class ArScene implements IArScene {
   private async ensureView(): Promise<ArView> {
     if (!this.view) {
       this.tracker = new ImageTracker(this.container, {
-        onUpdate: (index, matrix) => this.onTrackingUpdate(index, matrix),
+        onUpdate: (id, matrix) => this.onTrackingUpdate(id, matrix),
         onSpreadSeen: spreadId => {
           if (spreadId !== this.content?.spreadId) this.emitter.emit("spreadSeen", spreadId);
         },
@@ -235,8 +235,8 @@ export class ArScene implements IArScene {
   }
 
   /** Tracker update of one target: move its anchor, report found / lost */
-  private onTrackingUpdate(targetIndex: number, matrix: Matrix4 | null): void {
-    const anchor = this.content?.anchors.find(a => a.target.index === targetIndex);
+  private onTrackingUpdate(targetId: string, matrix: Matrix4 | null): void {
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (!anchor || !this.running) return;
     const id = anchor.target.id;
     if (matrix) {

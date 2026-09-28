@@ -6,7 +6,7 @@ export interface TargetManagerState {
 
 /**
  * App model of a target (mapped from `TargetData` by `utils/game-config.ts`).
- * `index` is the target's position in its spread (the key of its anchor); the entity ref is resolved.
+ * The entity ref is resolved.
  */
 export interface Target extends Omit<TargetData, "entity"> {
   entryId: string;

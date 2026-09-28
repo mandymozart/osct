@@ -61,7 +61,6 @@ export interface EntityRefData {
 
 export interface TargetData {
   id: string; // defaults to the entry id
-  index: number; // position in its spread (page → target order → id), the key of its anchor
   imageSrc: string;
   entity?: EntityData | EntityRefData;
 }

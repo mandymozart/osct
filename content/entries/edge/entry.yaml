@@ -4,7 +4,6 @@ page: 5
 body: A demonstration of a video with an image billboard.
 target:
   image: images-060.jpg
-  order: 0
   entity:
     type: video
     src: edge.mp4

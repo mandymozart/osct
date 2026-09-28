@@ -4,7 +4,6 @@ page: 6
 body: A demonstration of a video with alpha channel.
 target:
   image: images-004.jpg
-  order: 1
   entity:
     type: video
     src: sploosh.webm

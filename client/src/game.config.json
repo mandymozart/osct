@@ -1,8 +1,8 @@
 {
   "version": {
-    "version": "1.3.1",
-    "timestamp": "2026-09-28T10:18:40.718Z",
-    "hash": "301d87669dfebd814b35d0eab86fe43115dd12da2f3247d82ec193e65bb9ace9"
+    "version": "1.3.2",
+    "timestamp": "2026-09-28T10:49:38.799Z",
+    "hash": "d6d826695894112c5157feb1b20f78ebb6b791e4d875bdbbfd98c73b5a55914d"
   },
   "book": {
     "id": "osct",
@@ -99,20 +99,6 @@
   ],
   "entries": [
     {
-      "id": "shadows",
-      "category": "link",
-      "title": "Shadows",
-      "page": 1,
-      "body": "Light plays a role in architecture.",
-      "tags": [],
-      "media": "https://experiment-woodkid-volcano-robot.vercel.app/",
-      "target": {
-        "id": "shadows",
-        "index": 0,
-        "imageSrc": "/assets/content/entries/shadows/images-000.jpg"
-      }
-    },
-    {
       "id": "racoon",
       "category": "glossary",
       "title": "Racoon",
@@ -121,7 +107,6 @@
       "tags": [],
       "target": {
         "id": "racoon",
-        "index": 1,
         "imageSrc": "/assets/content/entries/racoon/images-028.jpg",
         "entity": {
           "type": "model",
@@ -136,6 +121,19 @@
       }
     },
     {
+      "id": "shadows",
+      "category": "link",
+      "title": "Shadows",
+      "page": 1,
+      "body": "Light plays a role in architecture.",
+      "tags": [],
+      "media": "https://experiment-woodkid-volcano-robot.vercel.app/",
+      "target": {
+        "id": "shadows",
+        "imageSrc": "/assets/content/entries/shadows/images-000.jpg"
+      }
+    },
+    {
       "id": "ancient-tree",
       "category": "glossary",
       "title": "Ancient Tree",
@@ -144,7 +142,6 @@
       "tags": [],
       "target": {
         "id": "ancient-tree",
-        "index": 2,
         "imageSrc": "/assets/content/entries/ancient-tree/images-102.jpg",
         "entity": {
           "type": "model",
@@ -153,29 +150,6 @@
               "id": "ancient-tree-media",
               "assetType": "glb",
               "src": "/assets/content/entries/ancient-tree/tree.glb"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": "sleeping-dragon",
-      "category": "glossary",
-      "title": "Sleeping Dragon",
-      "page": 2,
-      "body": "A mighty dragon resting in its lair.",
-      "tags": [],
-      "target": {
-        "id": "sleeping-dragon",
-        "index": 3,
-        "imageSrc": "/assets/content/entries/sleeping-dragon/images-001.jpg",
-        "entity": {
-          "type": "model",
-          "assets": [
-            {
-              "id": "sleeping-dragon-media",
-              "assetType": "glb",
-              "src": "/assets/content/entries/sleeping-dragon/dragon.glb"
             }
           ]
         }
@@ -191,6 +165,28 @@
       "image": "/assets/content/entries/metafiction/metafiction.jpg"
     },
     {
+      "id": "sleeping-dragon",
+      "category": "glossary",
+      "title": "Sleeping Dragon",
+      "page": 2,
+      "body": "A mighty dragon resting in its lair.",
+      "tags": [],
+      "target": {
+        "id": "sleeping-dragon",
+        "imageSrc": "/assets/content/entries/sleeping-dragon/images-001.jpg",
+        "entity": {
+          "type": "model",
+          "assets": [
+            {
+              "id": "sleeping-dragon-media",
+              "assetType": "glb",
+              "src": "/assets/content/entries/sleeping-dragon/dragon.glb"
+            }
+          ]
+        }
+      }
+    },
+    {
       "id": "old-castle",
       "category": "glossary",
       "title": "Old Castle",
@@ -199,7 +195,6 @@
       "tags": [],
       "target": {
         "id": "old-castle",
-        "index": 0,
         "imageSrc": "/assets/content/entries/old-castle/images-022.jpg",
         "entity": {
           "ref": "castle"
@@ -215,7 +210,6 @@
       "tags": [],
       "target": {
         "id": "stone-guardian",
-        "index": 1,
         "imageSrc": "/assets/content/entries/stone-guardian/images-045.jpg",
         "entity": {
           "type": "model",
@@ -230,6 +224,15 @@
       }
     },
     {
+      "id": "building-fictions",
+      "category": "text",
+      "title": "On Building Fictions",
+      "page": 4,
+      "body": "Placeholder – text entry without a target. The final essay follows.",
+      "tags": [],
+      "author": "Placeholder Author"
+    },
+    {
       "id": "treasure-hoard",
       "category": "glossary",
       "title": "Treasure Hoard",
@@ -238,7 +241,6 @@
       "tags": [],
       "target": {
         "id": "treasure-hoard",
-        "index": 2,
         "imageSrc": "/assets/content/entries/treasure-hoard/images-003.jpg",
         "entity": {
           "type": "model",
@@ -261,7 +263,6 @@
       "tags": [],
       "target": {
         "id": "video-example",
-        "index": 3,
         "imageSrc": "/assets/content/entries/video-example/images-007.jpg",
         "entity": {
           "type": "video",
@@ -276,15 +277,6 @@
       }
     },
     {
-      "id": "building-fictions",
-      "category": "text",
-      "title": "On Building Fictions",
-      "page": 4,
-      "body": "Placeholder – text entry without a target. The final essay follows.",
-      "tags": [],
-      "author": "Placeholder Author"
-    },
-    {
       "id": "edge",
       "category": "video",
       "title": "Edge",
@@ -293,7 +285,6 @@
       "tags": [],
       "target": {
         "id": "edge",
-        "index": 0,
         "imageSrc": "/assets/content/entries/edge/images-060.jpg",
         "entity": {
           "type": "video",
@@ -327,7 +318,6 @@
       "tags": [],
       "target": {
         "id": "sploosh-the-sheep",
-        "index": 1,
         "imageSrc": "/assets/content/entries/sploosh-the-sheep/images-004.jpg",
         "entity": {
           "type": "video",
@@ -350,7 +340,6 @@
       "tags": [],
       "target": {
         "id": "demo-p07-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p07-1/target.jpg"
       }
     },
@@ -363,7 +352,6 @@
       "tags": [],
       "target": {
         "id": "demo-p07-2",
-        "index": 1,
         "imageSrc": "/assets/content/entries/demo-p07-2/target.jpg"
       }
     },
@@ -376,7 +364,6 @@
       "tags": [],
       "target": {
         "id": "demo-p08-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p08-1/target.jpg"
       }
     },
@@ -389,7 +376,6 @@
       "tags": [],
       "target": {
         "id": "demo-p08-2",
-        "index": 1,
         "imageSrc": "/assets/content/entries/demo-p08-2/target.jpg"
       }
     },
@@ -402,7 +388,6 @@
       "tags": [],
       "target": {
         "id": "demo-p11-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p11-1/target.jpg"
       }
     },
@@ -415,7 +400,6 @@
       "tags": [],
       "target": {
         "id": "demo-p12-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p12-1/target.jpg"
       }
     },
@@ -428,7 +412,6 @@
       "tags": [],
       "target": {
         "id": "demo-p12-2",
-        "index": 1,
         "imageSrc": "/assets/content/entries/demo-p12-2/target.jpg"
       }
     },
@@ -441,7 +424,6 @@
       "tags": [],
       "target": {
         "id": "demo-p12-3",
-        "index": 2,
         "imageSrc": "/assets/content/entries/demo-p12-3/target.jpg"
       }
     },
@@ -454,7 +436,6 @@
       "tags": [],
       "target": {
         "id": "demo-p13-1",
-        "index": 3,
         "imageSrc": "/assets/content/entries/demo-p13-1/target.jpg"
       }
     },
@@ -467,7 +448,6 @@
       "tags": [],
       "target": {
         "id": "demo-p13-2",
-        "index": 4,
         "imageSrc": "/assets/content/entries/demo-p13-2/target.jpg"
       }
     },
@@ -480,7 +460,6 @@
       "tags": [],
       "target": {
         "id": "demo-p15-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p15-1/target.jpg"
       }
     },
@@ -493,7 +472,6 @@
       "tags": [],
       "target": {
         "id": "demo-p15-2",
-        "index": 1,
         "imageSrc": "/assets/content/entries/demo-p15-2/target.jpg"
       }
     },
@@ -506,7 +484,6 @@
       "tags": [],
       "target": {
         "id": "demo-p16-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p16-1/target.jpg"
       }
     },
@@ -519,7 +496,6 @@
       "tags": [],
       "target": {
         "id": "demo-p16-2",
-        "index": 1,
         "imageSrc": "/assets/content/entries/demo-p16-2/target.jpg"
       }
     },
@@ -532,7 +508,6 @@
       "tags": [],
       "target": {
         "id": "demo-p16-3",
-        "index": 2,
         "imageSrc": "/assets/content/entries/demo-p16-3/target.jpg"
       }
     },
@@ -545,7 +520,6 @@
       "tags": [],
       "target": {
         "id": "demo-p17-1",
-        "index": 3,
         "imageSrc": "/assets/content/entries/demo-p17-1/target.jpg"
       }
     },
@@ -558,7 +532,6 @@
       "tags": [],
       "target": {
         "id": "demo-p17-2",
-        "index": 4,
         "imageSrc": "/assets/content/entries/demo-p17-2/target.jpg"
       }
     },
@@ -571,7 +544,6 @@
       "tags": [],
       "target": {
         "id": "demo-p18-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p18-1/target.jpg"
       }
     },
@@ -584,7 +556,6 @@
       "tags": [],
       "target": {
         "id": "demo-p18-2",
-        "index": 1,
         "imageSrc": "/assets/content/entries/demo-p18-2/target.jpg"
       }
     },
@@ -597,7 +568,6 @@
       "tags": [],
       "target": {
         "id": "demo-p18-3",
-        "index": 2,
         "imageSrc": "/assets/content/entries/demo-p18-3/target.jpg"
       }
     },
@@ -610,7 +580,6 @@
       "tags": [],
       "target": {
         "id": "demo-p19-2",
-        "index": 3,
         "imageSrc": "/assets/content/entries/demo-p19-2/target.jpg"
       }
     },
@@ -623,7 +592,6 @@
       "tags": [],
       "target": {
         "id": "demo-p21-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p21-1/target.jpg"
       }
     },
@@ -636,7 +604,6 @@
       "tags": [],
       "target": {
         "id": "demo-p23-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p23-1/target.jpg"
       }
     },
@@ -649,7 +616,6 @@
       "tags": [],
       "target": {
         "id": "demo-p25-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p25-1/target.jpg"
       }
     },
@@ -662,7 +628,6 @@
       "tags": [],
       "target": {
         "id": "demo-p27-1",
-        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p27-1/target.jpg"
       }
     }

@@ -4,6 +4,5 @@ page: 3
 body: An ancient castle filled with secrets.
 target:
   image: images-022.jpg
-  order: 0
   entity:
     ref: castle

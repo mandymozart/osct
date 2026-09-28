@@ -4,7 +4,6 @@ page: 2
 body: A mighty dragon resting in its lair.
 target:
   image: images-001.jpg
-  order: 3
   entity:
     type: model
     src: dragon.glb

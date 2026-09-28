@@ -113,9 +113,7 @@ const spreads: Spread[] = config.spreads.map(data => {
   return {
     ...data,
     entries: spreadEntries,
-    targets: spreadEntries
-      .flatMap(e => (e.target ? [e.target] : []))
-      .sort((a, b) => a.index - b.index),
+    targets: spreadEntries.flatMap(e => (e.target ? [e.target] : [])),
   };
 });
 
@@ -149,7 +147,7 @@ export const getEntries = (): Entry[] => [...entries];
 
 export const getEntry = (id: string): Entry | undefined => entryById.get(id);
 
-/** Targets of a spread in index order */
+/** Targets of a spread in entry order (page → title) */
 export const getTargets = (spreadId: string): Target[] => spreadById.get(spreadId)?.targets ?? [];
 
 export const getTarget = (id: string): Target | undefined => targetById.get(id);

@@ -5,4 +5,3 @@ page: 7
 body: A demo target from the layout PDF, page 1.
 target:
   image: target.jpg
-  order: 1
