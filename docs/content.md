@@ -382,13 +382,11 @@ performance.
 
 ```
 scripts/
-├── src/            the content build (TypeScript)
-│   ├── index.ts    start
+├── src/
+│   ├── index.ts    the content build: start
 │   ├── build/      one file per part: book, spreads, entities, entries, targets, tutorial
-│   └── lib/        helpers: reading files, checks, hash, media optimisation
-├── tools/
-│   ├── mind/       compile .mind files, versions
-│   └── sounds/     placeholder app sounds
+│   ├── lib/        helpers: reading files, checks, hash, media optimisation
+│   └── tools/      commands: mind/ (compile .mind files, versions), sounds/ (placeholder app sounds)
 └── test/           tests (npm test)
 ```
 

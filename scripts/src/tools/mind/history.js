@@ -19,7 +19,7 @@ import yaml from "js-yaml";
 import { parseOptions } from "../lib/cli.js";
 import { currentVersion, KEEP, listVersions, restoreVersion } from "./versions.js";
 
-const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const ROOT = path.resolve(SCRIPTS, "..");
 const HISTORY_DIR = path.join(ROOT, "mind-history");
 const MINDAR_DIR = path.join(ROOT, "mind-ar");

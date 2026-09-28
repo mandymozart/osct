@@ -15,6 +15,6 @@ port of MindAR's `src/image-target/three.js` on top of `Controller`.
 The app imports it lazily (only the AR scene chunk), so Vite bundles and minifies it into that chunk.
 Upgrading: replace the three files (chunk names change), keep the types in sync, re-check `tracker.ts`.
 
-Also used to compile the `.mind` files: `scripts/tools/mind/compile.js` loads `mindar-image.prod.js` from
+Also used to compile the `.mind` files: `scripts/src/tools/mind/compile.js` loads `mindar-image.prod.js` from
 this folder in a browser and runs MindAR's own `Compiler` (`compileImageTargets`, `exportData`,
 `importData`) – no compiler code of our own, so compile and runtime always use the same MindAR version.
