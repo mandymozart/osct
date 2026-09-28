@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.3.1 – 2026-09-28
+
+### Fixed
+- Automatic tagging on `main` no longer aborts when a changelog version never had a commit of its own on
+  `main` (1.2.3 reached `main` inside 1.3.0): commits without a readable version are skipped, and such a
+  version is noted instead of searched for through the whole history. This had kept `v1.3.0` from being tagged.
+
 ## 1.3.0 – 2026-09-28
 
 Existing content keeps building (a leftover `mind:` in `spread.yaml` is ignored – delete it when convenient);

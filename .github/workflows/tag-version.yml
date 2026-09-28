@@ -42,19 +42,21 @@ jobs:
           done
           [ -z "$missing" ] && { echo "All changelog versions are tagged."; exit 0; }
 
-          # Newest first: the first commit seen with a version is the last one that carries it
+          # Newest first: the first commit seen with a version is the last one that carries it. Commits without
+          # a readable version (early history) are skipped. A version that was never main's own – merged into
+          # main together with a later one (1.2.3 came to main inside 1.3.0) – is not found and gets no tag.
+          is_missing() { case " $missing " in *" $1 "*) return 0 ;; esac; return 1; }
           for c in $(git rev-list --first-parent HEAD); do
-            v=$(git show "$c:client/package.json" 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).version)}catch{}})")
-            case " $missing " in
-              *" $v "*)
-                git tag -a "v$v" "$c" -m "$v – see docs/CHANGELOG.md"
-                echo "Tagged v$v at $(git log -1 --format='%h %s' "$c")"
-                missing=$(echo " $missing " | sed "s/ $v / /")
-                [ -z "$(echo $missing)" ] && break
-                ;;
-            esac
+            [ -n "$missing" ] || break
+            v=$(git show "$c:client/package.json" 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).version||'')}catch{}})")
+            [ -n "$v" ] && is_missing "$v" || continue
+            git tag -a "v$v" "$c" -m "$v – see docs/CHANGELOG.md"
+            echo "Tagged v$v at $(git log -1 --format='%h %s' "$c")"
+            missing=$(for m in $missing; do if [ "$m" != "$v" ]; then printf '%s ' "$m"; fi; done)
           done
-          [ -n "$(echo $missing)" ] && echo "::warning::Not on main yet:$missing"
+          for v in $missing; do
+            echo "::notice::$v has no commit of its own on main (merged together with a later version, or not on main yet) – not tagged."
+          done
 
           # The repository token may not create a tag on a commit whose workflow files differ from main's
           # (GitHub: no `workflows` permission). Normal tags are on main's head; only late tags hit this.
