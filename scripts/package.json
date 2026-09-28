@@ -15,7 +15,8 @@
     "mind:history": "node src/tools/mind/history.js",
     "mind:restore": "npm run build && node src/tools/mind/history.js restore",
     "sounds": "node src/tools/sounds/generate.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mind:benchmark": "npm run build && node src/tools/mind/benchmark.js"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.5.0",

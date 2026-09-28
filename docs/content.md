@@ -342,6 +342,7 @@ Run in `scripts/`:
 | `npm run build:content` | Check the content and write the app files (skips when nothing changed) |
 | `npm run build:content:force` | The same, even when nothing changed |
 | `npm run compile:mind` | Compile the `.mind` files that are out of date |
+| `npm run mind:benchmark` | Measure how fast this computer compiles, remember the fastest setting |
 | `npm run mind:history` | List the compiled versions of each spread (● = current) |
 | `npm run mind:restore spread1 previous` | Go back to an earlier version (or a number from the list) |
 | `npm test` | Run the tests |
@@ -355,16 +356,23 @@ Add them after `npm run compile:mind`:
 | Option | What it does |
 |---|---|
 | `spread1 spread3` | Only these spreads |
-| `--force` | All spreads, compile everything again |
-| `--fresh` | Compile the images again instead of taking them from the cache |
-| `--jobs=6` | Compile this many images at the same time |
+| `--force` | All spreads, even when up to date |
+| `--fresh` | All spreads (or the named ones), every image from scratch – no cache |
+| `--jobs=6` | Compile this many images at the same time (default: the benchmark's fastest) |
 | `--note="brighter scan"` | A note, shown in `mind:history` |
 | `--gpu=default` | Let the browser pick the graphics card (default: the fast one) |
 | `--angle=d3d11` | Graphics backend: `d3d11`, `vulkan`, `gl`, `metal` |
 | `--headed` | Show the browser window |
 | `--browser="C:/path/to/chrome.exe"` | Use this browser |
 
-Write options with `=` (PowerShell needs it). The tool prints the graphics card it uses. Shows an
+Write options with `=` (PowerShell needs it). The output goes step by step: which spreads need
+compiling and why, the browser and graphics card, each image as it compiles (finding features on the
+GPU, then preparing tracking on the CPU), the files written, and a summary with times.
+
+`npm run mind:benchmark` compiles the target images with 1, 2, 4 … images at a time and shows which is
+fastest – `compile:mind` then uses that. `--images=6` benchmarks only the 6 largest images (quicker).
+
+The tool prints the graphics card it uses. Shows an
 integrated one (e.g. "Intel UHD")? Windows Settings → System → Display → Graphics → Chrome → High
 performance.
 
