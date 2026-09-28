@@ -6,9 +6,9 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-09-28 – Workspace tidy-up, version 1.2.0 (Tilman, branch `compilation`)
 
-- **Version 1.2.0** everywhere (RULES #10: `client/package.json`, `scripts/package.json`,
-  `server/api/src/Version.php`, lockfiles; `game.config.json` rebuilt): MINOR – new features
-  (`.mind` compiling, Info page credit), nothing incompatible.
+- **Version 1.2.0** (RULES #10, #23): one bump for the whole branch, 1.1.4 → 1.2.0 after merging
+  develop; MINOR – new features (`.mind` compiling, Info page credit), nothing incompatible; CHANGELOG
+  section added. (An earlier 1.1.1 → 1.2.0 bump in `6c49057` was superseded by the merge.)
 - **`.mindar/`** in the root holds everything local about `.mind` files (not in git): `targets/` (was
   `mind-ar/`), `history/` (was `mind-history/`), `cache/`, `browser/`, `benchmark.json` (were in
   `scripts/.cache/`). `lib/local-folders.ts` moves the old folders on the first content build.
