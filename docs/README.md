@@ -73,7 +73,8 @@ Netlify builds `main`; an FTP production deploy follows later. Both need every p
 ### Version
 
 One semver for app and content build (`client/package.json` = `scripts/package.json`, checked by
-tests and CI). Rebuild the content after a version bump.
+tests and CI). Rebuild the content after a version bump. Every bump has an entry in the
+[Changelog](CHANGELOG.md).
 
 ## Technical stack
 
