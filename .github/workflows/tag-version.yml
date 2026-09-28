@@ -56,4 +56,10 @@ jobs:
           done
           [ -n "$(echo $missing)" ] && echo "::warning::Not on main yet:$missing"
 
-          git push origin --tags
+          # The repository token may not create a tag on a commit whose workflow files differ from main's
+          # (GitHub: no `workflows` permission). Normal tags are on main's head; only late tags hit this.
+          for tag in $(git tag -l 'v*'); do
+            git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null && continue
+            git push -q origin "refs/tags/$tag" \
+              || echo "::warning::$tag could not be pushed (its commit has other workflow files). Tag it by hand: git tag -a $tag $(git rev-list -n1 "$tag") -m '${tag#v}' && git push origin $tag"
+          done
