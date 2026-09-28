@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – S22 test of the 8th Wall tracker: whole images instead of the 3:4 crop
+
+- Phone test over USB (`adb reverse tcp:5174`, http dev server; the phone was on mobile data, so the LAN URL
+  timed out). A leftover tab holding the camera caused "camera is not responding" – closing it fixed it.
+- 8th Wall on the S22: camera picture under the three.js canvas ok (upright, full screen), `edge`, `racoon`,
+  `ancient-tree` found and placed like MindAR, ~34 fps (page rAF). The engine floods the console with WebGL
+  "READ-usage buffer" performance warnings (its own GPU readback).
+- `shadows` (254×650) was never found: the centred 3:4 crop kept only the dark, repeating middle sections.
+  Now the **whole image** is fitted into the 3:4 frame and the rest filled with its edge colour
+  (`targetFrame()` in `ar/xr8.ts`); anchors scaled by image width ÷ frame width. After the change `shadows` is
+  found often (Tilman). The padding is only in the target data – nothing changes in print.
+- Branch has no `docs/CHANGELOG.md` / version bump rule yet (added on `main` in 1.1.2) – no bump here.
+
 ## 2026-09-28 – 8th Wall tracker built side by side with MindAR (Tilman: "build a working version")
 
 - `ar/tracker-8thwall.ts` (+ `ar/xr8.ts`) implements `IImageTracker` (`ar/tracker-types.ts`) like the MindAR
@@ -17,8 +30,7 @@ outcome in the line (or move it into a dated decision block).
   engines on the same clip: same apparent size and orientation), spread switch keeps the camera, prod build ok.
 - [ ] Phone comparison S22 + iPhone (staging with the debug bar): time to first find, jitter, lag, angles, frame
   rate, heat, first-scan load time. Also check: iOS motion permission prompt, pause/resume, camera orientation.
-- Known limits of the 8th Wall path: only the centred 3:4 part of a target is tracked (e.g. `shadows` 254×650 →
-  52 %); the engine tracks max. 4 targets at once (`maxTrack` is MindAR's); its camera canvas is a second WebGL
+- Known limits of the 8th Wall path: the engine tracks max. 4 targets at once (`maxTrack` is MindAR's); its camera canvas is a second WebGL
   context (as MindAR's TF.js).
 
 ## 2026-09-28 – Exploration "webworker tracking" (Tilman; branch `claude/laughing-wright-hrt8zy`)

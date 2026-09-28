@@ -3,12 +3,11 @@ import { CAMERA_NOT_RESPONDING } from "@/types";
 import { CAMERA_START_TIMEOUT_MS, IImageTracker, ImageTrackerOptions, TrackedSpread } from "./tracker-types";
 import {
   anchorMatrix,
-  fullWidthFactor,
   loadXr8,
   makeImageTarget,
+  PreparedImageTarget,
   XR8Api,
   XrImageDetail,
-  XrImageTargetData,
   XrPipelineModule,
   XrReality,
 } from "./xr8";
@@ -46,7 +45,7 @@ export class EighthWallTracker implements IImageTracker {
   /** Found targets' latest engine poses, by target index */
   private poses = new Map<number, { detail: XrImageDetail; target: LoadedTarget }>();
   private loadRun = 0;
-  private imageTargets = new Map<string, Promise<XrImageTargetData>>();
+  private imageTargets = new Map<string, Promise<PreparedImageTarget>>();
   private startWaiter: { resolve: () => void; reject: (error: Error) => void } | null = null;
   private scanningWaiter: (() => void) | null = null;
 
@@ -107,8 +106,8 @@ export class EighthWallTracker implements IImageTracker {
     const data = await Promise.all(withImage.map(target => this.imageTarget(target.imageSrc)));
     if (run !== this.loadRun) return; // replaced or stopped meanwhile
     this.targets = new Map(data.map((target, i) => [
-      target.name,
-      { index: withImage[i].index, widthFactor: fullWidthFactor(target.properties) },
+      target.data.name,
+      { index: withImage[i].index, widthFactor: target.widthFactor },
     ]));
     if (!data.length) return;
 
@@ -121,7 +120,7 @@ export class EighthWallTracker implements IImageTracker {
       waiter = () => { window.clearTimeout(timer); resolve(); };
     });
     this.scanningWaiter = waiter;
-    XR8.XrController!.configure({ imageTargetData: data });
+    XR8.XrController!.configure({ imageTargetData: data.map(target => target.data) });
     await scanning;
     if (this.scanningWaiter === waiter) this.scanningWaiter = null;
   }
@@ -173,7 +172,7 @@ export class EighthWallTracker implements IImageTracker {
   }
 
   /** Target data per image, made once per session (the object URLs stay valid) */
-  private imageTarget(imageSrc: string): Promise<XrImageTargetData> {
+  private imageTarget(imageSrc: string): Promise<PreparedImageTarget> {
     let data = this.imageTargets.get(imageSrc);
     if (!data) {
       data = makeImageTarget(imageSrc);
