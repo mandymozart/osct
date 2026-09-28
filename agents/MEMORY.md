@@ -4,6 +4,32 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – `.mind` compilation in the content builder (Tilman, branch `compilation`; PLAN Phase 12)
+
+- Goal (Tilman): compile the `.mind` files from the content build instead of MindAR's online tool. Must
+  use WebGL (fast, same code path as the online tool) → a **manual, local step**, not in CI/deploys
+  (Tilman: "otherwise my deploy script will take forever").
+- Research, MindAR 1.2.5 source (`src/image-target/`): `Compiler` (browser: canvas + TF.js WebGL, tracking
+  features in an inlined worker) and `OfflineCompiler` (Node: `canvas` package + TF.js pure-JS CPU kernels).
+  Both share `CompilerBase`; format v2 = msgpack `{ v, dataList[{ targetImage{w,h}, trackingData, matchingData }] }`.
+  - Node path works without `canvas` (subclass `CompilerBase`, decode with jpeg-js/pngjs, fake 2D context),
+    deterministic, but **57 s** for spread3 (one 2059×1796 image) vs 17.5 s in software WebGL, and ~4 %
+    of feature points differ from the online tool. npm `mind-ar` also drags in canvas, mediapipe, three,
+    a vite-5 plugin, 270 MB of TF.js. → rejected.
+  - Browser path (chosen): `playwright-core` drives an installed Chrome/Edge, page loads the vendored
+    `mindar-image.prod.js` (self-contained, exports `Compiler`) from disk via `page.route`. Recompiling
+    spread2 + spread3 reproduced the committed files' feature points and tracking data exactly (bytes
+    differ only in float noise); spread1 target 0 (`images-000.jpg`, Shadows) differs by a few points –
+    probably compiled from an earlier export of that image. Compile time grows with image resolution.
+  - `playwright-core` is a scripts devDependency: no browser download in `npm ci`; the tool falls back to
+    Playwright's Chromium only if installed.
+- The content build fails on a stale fingerprint → CI catches a forgotten recompile; the committed `.mind`
+  files stay the source of truth for Netlify and the staging deploy (they only run `vite build`).
+- `.mind.sha256` files are not copied to `client/public/assets/content`.
+- [ ] Open: target images much larger than the printed size (e.g. `edge/images-060.jpg`, 2059×1796)
+      make the `.mind` and the compile bigger/slower – downscale in the build (e.g. max 1000 px)? Needs a
+      tracking test on the book first.
+
 ## 2026-09-27 – Branch cleanup and dependency audit (Tilman)
 
 - Only `main` and `develop` remain; all experiment branches deleted locally and on GitHub (Tilman).

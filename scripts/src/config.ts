@@ -13,6 +13,10 @@ export const projectRoot = resolve(__dirname, '../../');
 export const CONTENT_DIR = resolve(projectRoot, 'content');
 export const OUTPUT_FILE = resolve(projectRoot, 'client/src/game.config.json');
 export const MINDAR_DIR = resolve(projectRoot, 'mind-ar');
+// mind-ar/<spread>/source.sha256: hash of the spread's target images in MindAR order;
+// content/spreads/<spread>/<name>.mind.sha256: the hash the .mind was compiled from (tools/compile-mind.mjs)
+export const MIND_SOURCE_FILE = 'source.sha256';
+export const MIND_HASH_SUFFIX = '.sha256';
 export const SCRIPTS_SRC_DIR = resolve(projectRoot, 'scripts/src');
 export const CLIENT_PUBLIC_ASSETS_DIR = resolve(projectRoot, 'client/public/assets/content');
 

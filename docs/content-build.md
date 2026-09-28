@@ -13,6 +13,7 @@ npm install
 npm run build                 # type-check + bundle the build tool (after changing scripts/src)
 npm run build:content         # build the content
 npm run build:content:force   # rebuild even if nothing changed
+npm run compile:mind          # compile stale .mind files in a local browser (WebGL), then build
 ```
 
 (`cd client && npm run build:config` runs `build:content` as well.)
@@ -23,6 +24,8 @@ The build stops without writing anything when a file is invalid:
 
 - required fields, types and allowed values (`category`, entity `type`, step `action`)
 - spreads don't overlap, every entry page lies in a spread, max 5 targets per spread
+- each spread's `.mind` was compiled from its current target images (`<name>.mind.sha256`, see
+  [Recognition data](content.md#recognition-data-mind-files)); a missing fingerprint is only a warning
 - referenced files and shared entities exist
 - the result matches the game configuration contract (`shared/`) – the app runs the same check on load
 

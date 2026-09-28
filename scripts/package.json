@@ -10,7 +10,8 @@
     "build": "tsc && vite build",
     "build:content": "node dist/index.js",
     "build:content:force": "node dist/index.js --force",
-    "start": "npm run build && npm run build:content"
+    "start": "npm run build && npm run build:content",
+    "compile:mind": "npm run build && node tools/compile-mind.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.5.0",
@@ -26,6 +27,7 @@
     "@types/js-yaml": "^4.0.5",
     "@types/node": "^22.14.1",
     "@types/pngjs": "^6.0.5",
+    "playwright-core": "^1.63.0",
     "typescript": "~5.7.2",
     "vite": "^6.3.2"
   }

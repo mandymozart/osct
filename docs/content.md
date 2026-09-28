@@ -239,18 +239,34 @@ Spreads may not overlap. Every entry's `page` must fall inside a spread.
 
 ## Recognition data (.mind files)
 
-The camera recognises targets with a `.mind` file per spread, made from the spread's target images
-with the free [MindAR compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile). **The order
-of the images matters.**
+The camera recognises targets with a `.mind` file per spread, compiled from the spread's target
+images. **The order of the images matters.** Compile on your own computer – it needs a browser with
+WebGL (Chrome or Edge, installed as usual):
 
-1. Run the content build (see [Content build](content-build.md)). It puts each spread's target
-   images into `mind-ar/<spread>/`, numbered in the right order (`0-…`, `1-…`, …).
-2. Open the MindAR compiler, add the images of one spread **in that numbered order**, compile and
-   download.
-3. Save the file as `content/spreads/<spread>/<name>.mind` (the name in `mind:`) and run the build
-   again.
+```bash
+cd scripts
+npm run compile:mind                        # every spread whose target images changed
+npm run compile:mind -- spread1             # this spread
+npm run compile:mind -- --force             # all spreads
+npm run compile:mind -- --headed            # visible browser window, if the headless one has no GPU
+npm run compile:mind -- --browser <path>    # a specific Chrome / Chromium / Edge (or env MIND_BROWSER)
+```
 
-Whenever a target is added, removed, replaced or reordered on a spread, recompile that spread.
+It writes `content/spreads/<spread>/<name>.mind` (the name in `mind:`) plus `<name>.mind.sha256`, the
+fingerprint of the images it was compiled from, then runs the content build. The script uses the
+same MindAR compiler (and version) as the app and the
+[online compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile), in the browser with WebGL.
+It prints the WebGL renderer: "SwiftShader" or "llvmpipe" means software WebGL – it works, just
+slower.
+
+Whenever a target is added, removed, replaced or reordered on a spread, the content build stops
+with "… is stale" until that spread is recompiled. GitHub checks and deploys never compile – commit
+the `.mind` and `.mind.sha256` files.
+
+By hand, without the script: run the content build, which puts each spread's target images into
+`mind-ar/<spread>/` numbered in the right order (`0-…`, `1-…`, …); add them to the online compiler in
+that order, save the download as `content/spreads/<spread>/<name>.mind` and copy
+`mind-ar/<spread>/source.sha256` to `content/spreads/<spread>/<name>.mind.sha256`.
 
 ## Onboarding screens
 
