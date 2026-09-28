@@ -316,8 +316,8 @@ npm install     # once
 npm start       # build the tool, then the content
 ```
 
-Commit what changed in `content/`, `client/src/game.config.json` and `client/public/assets/content/`
-– the checks on GitHub fail when they don't match.
+Commit only what changed in `content/`. The output (below) is not in git: every build and deploy runs the
+content build (`npm run build` in `client/` does it first), so the app always gets the content of its commit.
 
 ### Commands
 
@@ -335,8 +335,8 @@ Run in `scripts/`:
 
 | Where | What |
 |---|---|
-| `client/src/game.config.json` | Everything the app needs to know about the book |
-| `client/public/assets/content/` | The content media, optimised |
+| `client/src/game.config.json` | Everything the app needs to know about the book (not in git) |
+| `client/public/assets/content/` | The content media, optimised (not in git) |
 
 ### Folders
 

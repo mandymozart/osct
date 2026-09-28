@@ -40,9 +40,9 @@ Quick start: the repository [README](../README.md).
 
 Node 22 (as in CI). Setup and dev server: see the [README](../README.md).
 
-- After changing `content/`, `shared/` or `scripts/src`, run `npm run build:content` in `scripts/`
-  (`build:content:force` rebuilds even when nothing changed). Commit the regenerated
-  `client/src/game.config.json` and `client/public/assets/content`; CI fails when they don't match.
+- After changing `content/`, `shared/` or `scripts/src`, run `npm run content` in `client/` (or
+  `npm run build:content` in `scripts/`; `build:content:force` rebuilds even when nothing changed). The output
+  (`client/src/game.config.json`, `client/public/assets/content`) is not in git – builds and deploys make it.
 - After changing `scripts/src`, run `npm run build` in `scripts/` first (type-check + bundle the tool).
 - The camera needs HTTPS (or `localhost`): `npm run dev` serves https with a self-signed certificate –
   on the phone open `https://<your-ip>:5173` and accept the certificate once. `npm run dev:http` = plain http.

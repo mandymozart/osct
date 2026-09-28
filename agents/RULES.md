@@ -44,7 +44,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
 7. Taxonomy: **entries are top level**; target optional per entry; AR entity optional per
    target. Never assume an entity is video-only – keep entity types extensible.
 8. Content lives in `content/` (YAML) → built by `scripts/` into `client/src/game.config.json`
-   and `client/public/assets/content`.
+   and `client/public/assets/content`. **The output is not in git** (Tilman, 2026-09-28): `npm run build` in
+   `client/` builds the content first (prebuild → `npm run content`), so CI, the deploys and Netlify (base
+   `client/`, `npm run build`) always build the content of their commit. Commit `content/` only.
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
    Tests of removed features are not wanted – test behaviour that stays.
@@ -169,9 +171,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
   (Tilman, 2026-09-25). This overrides any tool default.
 
 ## CI
-- `.github/workflows/checks.yml` ("Checks") runs on every push/PR: scripts type-check + build, committed
-  `game.config.json` must match the content (rebuild + commit after content/version changes),
-  client `tsc` + `vitest`.
+- `.github/workflows/checks.yml` ("Checks") runs on every push/PR: scripts type-check + build + tests, the
+  content build (fails on any content problem), client content build + `tsc` + `vitest`.
 
 22. **Code comments** (Tilman, 2026-09-28): describe what a unit is responsible for, its business rules and
     contract (events, state, attributes), and non-obvious *why* – in neutral, present-tense English. No
@@ -187,14 +188,14 @@ Extend as we go: add a rule when a decision should hold for all future work.
       in `agents/`, `docs/` or `*.md` need no bump.
     - **How:** `client/package.json` + lock, `scripts/package.json` + lock, `server/api/src/Version.php`
       (`npm version X.Y.Z --no-git-tag-version` in client/ and scripts/), then
-      `cd scripts && npm run build && npm run build:content` and commit the regenerated `game.config.json`.
+      `npm run content` in client/ (the regenerated `game.config.json` is not committed).
       Add `## X.Y.Z – <date>` at the top of `docs/CHANGELOG.md` (Added / Changed / Fixed / Removed), written
       for people, not agents.
     - **One bump per piece of work**, made when it lands on `develop` – not per commit. On a branch, bump
       last: first merge `origin/develop` into the branch, then pick the next version **above `develop`'s**
       (and above the newest `v*` tag), never the version the branch started from.
     - **Merge conflicts in version files:** never pick either side – take the next version above both.
-      `game.config.json`: regenerate, never hand-merge. `CHANGELOG.md`: keep every section; merged work
+      `game.config.json` is not in git (nothing to merge). `CHANGELOG.md`: keep every section; merged work
       without its own shipped version goes into the new section. A version must never go down.
     - **Releases** deploy production, not merges: merge to `main` → `tag-version.yml` tags `vX.Y.Z` (never
       push tags yourself – agent sessions cannot) → publish a GitHub release on that tag → `release.yml`

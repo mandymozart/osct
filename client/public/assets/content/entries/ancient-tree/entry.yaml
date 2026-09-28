@@ -1,9 +1,0 @@
-category: glossary
-title: Ancient Tree
-page: 2
-body: A mystical tree stands tall.
-target:
-  image: images-102.jpg
-  entity:
-    type: model
-    src: tree.glb

@@ -120,8 +120,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: client/package-lock.json
-      - name: Build the app
+          cache-dependency-path: |
+            client/package-lock.json
+            scripts/package-lock.json
+      - name: Build the content and the app (prebuild runs the content build)
         if: steps.configured.outputs.ok == 'true'
         working-directory: client
         env:
@@ -213,8 +215,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: client/package-lock.json
-      - name: Build the app
+          cache-dependency-path: |
+            client/package-lock.json
+            scripts/package-lock.json
+      - name: Build the content and the app (prebuild runs the content build)
         if: steps.configured.outputs.ok == 'true'
         working-directory: client
         env:

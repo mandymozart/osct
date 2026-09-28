@@ -1,9 +1,0 @@
-category: glossary
-title: Racoon
-page: 1
-body: A beast, a friend, a dimension jumper.
-target:
-  image: images-028.jpg
-  entity:
-    type: model
-    src: racoon.glb

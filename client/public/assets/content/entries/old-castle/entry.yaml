@@ -1,8 +1,0 @@
-category: glossary
-title: Old Castle
-page: 3
-body: An ancient castle filled with secrets.
-target:
-  image: images-022.jpg
-  entity:
-    ref: castle

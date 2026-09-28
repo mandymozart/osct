@@ -43,12 +43,9 @@ jobs:
         run: npm run build
       - name: Tests
         run: npm test
-      # The build skips when its input hash equals the committed game.config.json; any rebuild
-      # (content, build logic or version changed without rebuilding) shows up as a diff.
-      - name: Committed game configuration is up to date
-        run: |
-          npm run build:content
-          git diff --exit-code -- ../client/src/game.config.json ../client/public/assets/content
+      # The content itself: every problem in content/ fails here with the file and the reason
+      - name: Build the content
+        run: npm run build:content
 
   server:
     name: Accounts API
@@ -73,8 +70,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: |
+            client/package-lock.json
+            scripts/package-lock.json
       - run: npm ci
+      # The game configuration and the content media are not in git – the app's types and tests need them
+      - name: Build the content
+        run: npm run content
       - name: Type-check
         run: npx tsc --noEmit
       # The service worker has its own scope (lib webworker) – vite-plugin-pwa builds it with `vite build`

@@ -1,9 +1,0 @@
-category: glossary
-title: Treasure Hoard
-page: 4
-body: A pile of gold and relics hidden in the shadows.
-target:
-  image: images-003.jpg
-  entity:
-    type: model
-    src: treasure.glb
