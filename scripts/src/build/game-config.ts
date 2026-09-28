@@ -6,7 +6,7 @@ import { buildBook } from './book';
 import { buildEntities } from './entities';
 import { buildEntries } from './entries';
 import { buildSpreads } from './spreads';
-import { assignTargetIndices } from './targets';
+import { checkTargetsPerSpread } from './targets';
 import { buildTutorial } from './tutorial';
 
 /**
@@ -17,12 +17,12 @@ export function buildConfig(versionStr: string, inputHash: string): GameConfigur
   const spreads = buildSpreads();
   const entities = buildEntities();
   const builds = buildEntries(spreads, entities);
-  assignTargetIndices(spreads, builds);
+  checkTargetsPerSpread(spreads, builds);
   const tutorial = buildTutorial(book);
 
   const entries = builds
     .map(b => b.entry)
-    .sort((a, b) => a.page - b.page || (a.target?.index ?? 99) - (b.target?.index ?? 99) || a.title.localeCompare(b.title));
+    .sort((a, b) => a.page - b.page || a.title.localeCompare(b.title));
 
   console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities, ${tutorial.length} steps`);
 

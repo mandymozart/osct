@@ -8,7 +8,6 @@ const model = (params?: Record<string, unknown>): Target => ({
   id: "racoon",
   entryId: "racoon",
   spreadId: "s",
-  index: 0,
   imageSrc: "/racoon.jpg",
   entity: { type: "model", assets: [{ id: "racoon-media", assetType: "glb", src: "/racoon.glb" }], params },
 });

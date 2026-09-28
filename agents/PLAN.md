@@ -967,6 +967,8 @@ Research and phone results: `research/webworker-tracking.md`, `MEMORY.md` 2026-0
       project README, not on the Info page (Tilman).
 - [x] S22 check of the 8th Wall-only build (2026-09-28): 11 automatic switches across the book (pages 1–27), next spread ready in
       0–3 ms, photo spreads 20–23 found, models and videos load.
+- [x] Cleanup (1.3.2): targets keyed by id – `index` (MindAR's target number) and the target `order` removed
+      from content, schema, shared types, build and client; the `.mindar/` files committed by mistake removed.
 - [ ] iPhone Safari → Phase 14 (Tilman: tested with the content, in Amsterdam).
 - [ ] Measure all targets loaded vs ±1 (time to first find, frame rate) – the default stays ±1.
 - [ ] Build-time image targets (grey 480×640 per target in the content build) instead of making them on the

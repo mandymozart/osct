@@ -25,7 +25,7 @@ interface SpreadTargets {
 }
 
 interface LoadedTarget {
-  index: number;
+  id: string;
   /** Anchor scale per engine scale: scaled width × full image width ÷ tracked width */
   widthFactor: number;
 }
@@ -55,8 +55,8 @@ export class ImageTracker implements IImageTracker {
   private paused = false;
   /** Engine target name → app target, for the spread being tracked (empty while none is) */
   private targets = new Map<string, LoadedTarget>();
-  /** Found targets' latest engine poses, by target index */
-  private poses = new Map<number, { detail: XrImageDetail; target: LoadedTarget }>();
+  /** Found targets' latest engine poses, by target id */
+  private poses = new Map<string, { detail: XrImageDetail; target: LoadedTarget }>();
   private loadRun = 0;
   private imageTargets = new Map<string, Promise<PreparedImageTarget>>();
   /** The current spread's targets and the neighbours' (`prepareTargets()`) – what the engine keeps loaded */
@@ -133,7 +133,7 @@ export class ImageTracker implements IImageTracker {
     if (run !== this.loadRun) return; // replaced or stopped meanwhile
     this.targets = new Map(data.map((target, i) => [
       target.data.name,
-      { index: withImage[i].index, widthFactor: target.widthFactor },
+      { id: withImage[i].id, widthFactor: target.widthFactor },
     ]));
     // The previous spread stays loaded until prepareTargets() names the new neighbours (it is one of them)
     this.upcoming = this.current ? [...this.upcoming, this.current] : this.upcoming;
@@ -297,8 +297,8 @@ export class ImageTracker implements IImageTracker {
       this.intrinsics = [...m];
       this.applyProjection();
     }
-    this.poses.forEach(({ detail, target }, index) =>
-      this.options.onUpdate(index, anchorMatrix(reality, detail, target.widthFactor)));
+    this.poses.forEach(({ detail, target }, id) =>
+      this.options.onUpdate(id, anchorMatrix(reality, detail, target.widthFactor)));
   }
 
   private onImage(detail: XrImageDetail, found: boolean): void {
@@ -307,15 +307,15 @@ export class ImageTracker implements IImageTracker {
     if (!target) return this.onUpcomingImage(detail.name, found);
     const spreadId = this.current?.spreadId;
     if (found) {
-      if (!this.poses.has(target.index)) {
-        console.info(`[8th Wall] Found ${spreadId}#${target.index} ${Math.round(performance.now() - this.currentSince)} ms after the spread was ready (${this.poses.size + 1} found)`);
+      if (!this.poses.has(target.id)) {
+        console.info(`[8th Wall] Found ${spreadId}/${target.id} ${Math.round(performance.now() - this.currentSince)} ms after the spread was ready (${this.poses.size + 1} found)`);
       }
-      this.poses.set(target.index, { detail, target });
+      this.poses.set(target.id, { detail, target });
       return;
     }
-    if (this.poses.delete(target.index)) {
-      console.info(`[8th Wall] Lost ${spreadId}#${target.index}`);
-      this.options.onUpdate(target.index, null);
+    if (this.poses.delete(target.id)) {
+      console.info(`[8th Wall] Lost ${spreadId}/${target.id}`);
+      this.options.onUpdate(target.id, null);
     }
   }
 

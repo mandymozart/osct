@@ -11,6 +11,8 @@ coverage
 !client/.env
 .claude
 .netlify
+# Local folder of the removed .mind tooling (1.2.x) – delete it where it still exists
+.mindar/
 
 # Server secrets and local data (docs/server.md)
 server/api/config.local.php

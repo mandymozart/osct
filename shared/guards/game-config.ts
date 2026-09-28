@@ -159,7 +159,6 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     if (!target) return;
     str(target, "id", tPath);
     str(target, "imageSrc", tPath);
-    num(target, "index", tPath);
     if (typeof target.id === "string") {
       if (targetIds.has(target.id)) fail(`${tPath}.id`, `duplicate target id "${target.id}"`);
       targetIds.add(target.id);

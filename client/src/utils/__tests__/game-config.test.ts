@@ -44,12 +44,16 @@ describe("game configuration", () => {
   });
 
   it.each(spreads.map(s => [s.id, s] as const))(
-    "%s stays within the target limit (RULES.md #3: 10) and indexes its targets 0..n-1",
+    "%s stays within the target limit (RULES.md #3: 10)",
     (_id, spread) => {
       expect(spread.targets.length).toBeLessThanOrEqual(10);
-      expect(spread.targets.map(t => t.index)).toEqual(spread.targets.map((_, i) => i));
     },
   );
+
+  it("gives every target its own id (the tracker and the scene key targets by it)", () => {
+    const ids = spreads.flatMap(s => s.targets.map(t => t.id));
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 
   it("references files that exist in public/", () => {
     const files = [

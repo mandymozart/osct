@@ -12,6 +12,17 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.3.2 – 2026-09-28
+
+### Changed
+- Targets are known by their id only: the tracker and the AR scene no longer number them. `index` is gone from
+  the game configuration and the target `order` from the content (`order:` under `target` is ignored if
+  left in). Entries on the same page are listed by title.
+
+### Removed
+- Leftovers of MindAR: the `.mindar/` folder that was committed by mistake with 1.3.0 (it is ignored again,
+  so old local copies stay out of git).
+
 ## 1.3.1 – 2026-09-28
 
 ### Fixed

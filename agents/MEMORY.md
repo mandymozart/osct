@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – 1.3.2: MindAR leftovers cleaned up (Tilman)
+
+- Targets are keyed by **id** everywhere (tracker `onUpdate(targetId)`, scene anchors, poses): MindAR's
+  `index` (position in the `.mind`) is gone from `TargetData`, guards, client types; target `order` gone from
+  the schema and all 35 `entry.yaml` (the validator ignores it if left in). Entries sort page → title. The
+  build only checks the 10-per-spread limit (`checkTargetsPerSpread`). A test asserts unique target ids.
+- `.mindar/targets/` (49 files) had been committed with 1.3.0 by mistake (its ignore rule was removed while the
+  folder still existed) – removed from git, `.mindar/` ignored again (other machines may still have it).
+- [ ] Tilman asked why the generated content is committed (`client/src/game.config.json`,
+  `client/public/assets/content/`): the deploys (staging workflow, release, Netlify) build only `client/`.
+  Option: build the content in CI/deploys and stop committing the output – awaiting Tilman's decision.
+
 ## 2026-09-28 – 1.3.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
 
 - Why (Tilman, after the S22 tests): MindAR "doesn't do well at all" next to 8th Wall (jitter), and it cannot
