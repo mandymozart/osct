@@ -20,8 +20,11 @@ outcome in the line (or move it into a dated decision block).
   precached with the app shell (offline AR; precache 24 entries / 6.0 MB raw) and ship with their LICENSE;
   the Info page credits 8th Wall (Niantic Spatial, MIT).
 - RULES #4 now names the one allowed extra WebGL context: the engine's camera canvas.
-- MAJOR → progress format 2 = same shape as 1 (reader added; 1.x records read as "converted").
-- [ ] iPhone Safari test (motion permission, pause/resume, orientation, tracking).
+- MAJOR → progress format 2 = same shape as 1 (reader added). Tilman: no notice when nothing changed → an older
+  record is "converted" only if the reader dropped or corrected a stored field (`keptAsItWas` in
+  `utils/progress-record.ts`); defaults for missing fields don't count.
+- S22 check of 2.0.0: 11 automatic switches across pages 1–27 in 90 s, ready in 0–3 ms, photo spreads found.
+- iPhone test belongs to Phase 14 "Content and refinement" (Amsterdam, with Kévin Bray – Tilman).
 - [ ] Staging: the Netlify site may still set `VITE_AR_TRACKER` – harmless now, can be deleted there.
 
 ## 2026-09-28 – Demo spreads from the layout PDF for the tracker load test (Tilman)
