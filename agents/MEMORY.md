@@ -4,6 +4,125 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – 1.3.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
+
+- Why (Tilman, after the S22 tests): MindAR "doesn't do well at all" next to 8th Wall (jitter), and it cannot
+  switch spreads by itself. The full-spread photo targets (pages 20–27) work with 8th Wall too (Tilman).
+- `develop` (1.2.2, incl. the fresh `compile:mind` tooling) was merged into the exploration branch first, then
+  everything MindAR went: vendored build + TF.js, `ar/tracker.ts` (MindAR port), `create-tracker.ts`, the engine
+  choice (`VITE_AR_TRACKER`, debug toggle, `MA`/`8W` prefix), `scripts/src/mind/` + `compile:mind` /
+  `mind:*` commands, `lib/local-folders.ts`, `lib/cli.ts`, `lib/console.ts` (only the mind tools used them),
+  `playwright-core`, `@msgpack/msgpack` (client, only the `.mind` test), all `.mind` / `.mind.sha256` files,
+  `mind:` in `spread.yaml`, `mindSrc` + `maxTargetsPerSpread` in the game configuration, `.mindar/`.
+- Decisions (Tilman): **max 10 targets per spread** (RULES #3); **±1 spreads kept loaded by default** (the
+  debug overlay setting stays). `ImageTracker` (ar/tracker.ts) is the 8th Wall tracker behind `IImageTracker`.
+- Preloader + whole-book download fetch target images instead of `.mind`. Engine files (`assets/xr8/`) are
+  precached with the app shell (offline AR; precache 24 entries / 6.0 MB raw) and ship with their LICENSE;
+  credited in the project README (Tilman: not on the Info page) – "open source image tracking engine of
+  8th Wall by Niantic Spatial, the discontinued 8th Wall platform, MIT".
+- RULES #4 now names the one allowed extra WebGL context: the engine's camera canvas.
+- **Version 1.3.0, not 2.0.0** (Tilman asked why MAJOR): first bumped to 2.0.0 because the game configuration
+  lost `mindSrc` / `maxTargetsPerSpread` – but by RULES #23 nothing broke: old `spread.yaml` (with `mind:`)
+  still builds (unknown fields are ignored), the configuration is regenerated with every version and ships with
+  the app, and the progress shape is unchanged. So MINOR. 2.0.0 was never tagged or merged; the format-2
+  progress reader it needed is gone again. Kept from it: an older progress format is reported as "converted"
+  only when reading it dropped or corrected a stored field (`keptAsItWas`, utils/progress-record.ts) – for the
+  next real format change (Tilman: no notice when nothing changed).
+- S22 check of the 8th Wall-only build: 11 automatic switches across pages 1–27 in 90 s, ready in 0–3 ms, photo spreads found.
+- iPhone test belongs to Phase 14 "Content and refinement" (Amsterdam, with Kévin Bray – Tilman).
+- [ ] Staging: the Netlify site may still set `VITE_AR_TRACKER` – harmless now, can be deleted there.
+
+## 2026-09-28 – Demo spreads from the layout PDF for the tracker load test (Tilman)
+
+- `OSCT_KevinBray_06.pdf` (11 pages: page 1 single, 2–11 A3 = two book pages each; printed page numbers
+  1, 2|3 … 20|21) → **spread4–spread14**, app pages continue at 7 (Tilman): PDF page 1 = page 7 (single),
+  PDF page n = pages 2n+4 / 2n+5 … PDF 11 = 26–27. Titles "Demo 8–9" etc.
+- Per PDF page the up to **5 largest printed images** (RULES #3) → 29 glossary entries `demo-p<page>-<n>`
+  ("Demo p. 8 · 1"), target only, no AR content. Rendered from the page at their printed position (overlaps and
+  gold frames as the camera sees them), ≥ native resolution, ≤ 2048 px. Pages 8–11 (PDF): one full-spread
+  photo each. Book total now 14 spreads / 39 targets. Some targets are tiny (e.g. `demo-p07-2`, 154×93).
+- `.mind` files compiled with the vendored MindAR `Compiler` in a GPU Edge window over CDP (one-off script,
+  1–24 s per spread; headless = software GL was far too slow). `develop` has `npm run compile:mind` for this
+  (1.2.0) – this branch is older (1.1.1); on a merge the `.mind` location differs (`.mindar/` there).
+- Debug overlay (8th Wall): **"Spreads loaded ahead"** ±0 / ±1 (default) / ±2 / all (`osct-ar-prepared-spreads`,
+  applies at the next spread switch) – the knob for the load test.
+- Tilman (2026-09-28): 8th Wall tracks with visibly less jitter than MindAR, and more loaded targets have not
+  added jitter so far. MindAR stays supported (default) for now.
+- Removed 4 demo targets that were the same images as original targets (Tilman): `demo-p14-1` = `shadows`,
+  `demo-p14-2` = `sleeping-dragon`, `demo-p14-3` = `sploosh-the-sheep`, `demo-p19-1` = `edge` (image
+  correlation ≥ 0.997; everything else ≤ 0.73). Book now 35 targets; spread8/spread10 `.mind` recompiled.
+- S22 session 1 (±1): page-by-page auto switch 4→10 worked, next spread ready in 0–2 ms; jumping back to 1–2
+  could not switch (only neighbours loaded). The four full-spread photo targets (pages 20–27) were never found.
+- S22 session 2 ("all", 39 targets): all extracted ~3 s after start; far jumps switch by themselves
+  (5–6 → 18–19 → 1–2 → 3–4 → 7 → 11 → 14–15), next spread ready in 1–5 ms, the target that caused the switch
+  found 34–71 ms later. No visible slowdown or extra jitter with all targets loaded (Tilman) – not yet measured
+  side by side. Small targets are found late or flicker (e.g. 6.4 s for a second target on 1–2).
+- "No 3D / video" during the tests = the USB tunnel had dropped (adb forgets `reverse` when the phone
+  reconnects): assets of a newly opened spread could not load. A loop re-applies the tunnels every 2 s;
+  models and video confirmed working afterwards (Tilman).
+- [x] Full-spread photo targets (spread11–14): found in Tilman's later test (2026-09-28) – the first sessions
+  had them on the wrong side of a dropped tunnel / not in view long enough.
+- [ ] Load test numbers with "all" vs ±1: time to first find, frame rate.
+
+## 2026-09-28 – 8th Wall spread switches: neighbours kept loaded (Tilman: "save switch times")
+
+- Measured on the S22: the engine's own feature extraction is fast (~0.6–0.75 s for 4 targets); the slow part
+  was ours – `canvas.toBlob()` waits for idle time, which the engine's frame loop hardly leaves (~4.2 s per image
+  while tracking). Now `toDataURL()` (synchronous, ~12 ms) → blob URL: 150–260 ms per image.
+- The engine keeps targets it already has when configured again and extracts only new ones (one per frame; a new
+  configure restarts that queue). So `IImageTracker.prepareTargets(spreads)` (called by `ArScene` when a spread
+  is ready, with `getNeighbourSpreads()` – the same ±1 as `PreloaderService.preloadNeighbours`) keeps the
+  neighbours' targets loaded next to the current ones; the app reacts only to the current spread's. The empty
+  configure on every switch is gone. MindAR: no-op (its `.mind` files are preloaded into the browser cache).
+- Result (S22): first spread ~1.15 s (was ~5 s); switch to a neighbour 0–1 ms; to a non-neighbour ~0.6 s.
+- [ ] Measure the cost of more loaded targets (≤ 15 with ±1 and 5 per spread): time to first find and frame
+  rate on the current spread, compared with only its own targets loaded.
+- [x] Automatic spread switch (Tilman: "try the automatic switcher"; the spread menu stays): a neighbour's target
+  held in view 400 ms while none of the current spread's is found → tracker `onSpreadSeen` → scene event
+  `spreadSeen` → bridge `switchSpread()` in scan mode (same path as the menu). Reported again every 400 ms while
+  held. S22: switched 1→2→1→2→3→2→1 by turning pages, each ~0.4 s after the page came into view, targets
+  ready in 1–4 ms. `LazyArScene` now forwards every `ArSceneEvents` key (a fixed list had dropped the new event).
+- [ ] How many targets the engine can keep loaded is unknown (Tilman) – find out in this phase; the neighbour
+  range (±1) is the knob (debug bar setting, then a load test).
+
+## 2026-09-28 – S22 test of the 8th Wall tracker: whole images instead of the 3:4 crop
+
+- Phone test over USB (`adb reverse tcp:5174`, http dev server; the phone was on mobile data, so the LAN URL
+  timed out). A leftover tab holding the camera caused "camera is not responding" – closing it fixed it.
+- 8th Wall on the S22: camera picture under the three.js canvas ok (upright, full screen), `edge`, `racoon`,
+  `ancient-tree` found and placed like MindAR, ~34 fps (page rAF). The engine floods the console with WebGL
+  "READ-usage buffer" performance warnings (its own GPU readback).
+- `shadows` (254×650) was never found: the centred 3:4 crop kept only the dark, repeating middle sections.
+  Now the **whole image** is fitted into the 3:4 frame and the rest filled with its edge colour
+  (`targetFrame()` in `ar/xr8.ts`); anchors scaled by image width ÷ frame width. After the change `shadows` is
+  found often (Tilman). The padding is only in the target data – nothing changes in print.
+- Branch has no `docs/CHANGELOG.md` / version bump rule yet (added on `main` in 1.1.2) – no bump here.
+
+## 2026-09-28 – 8th Wall tracker built side by side with MindAR (Tilman: "build a working version")
+
+- `ar/tracker-8thwall.ts` (+ `ar/xr8.ts`) implements `IImageTracker` (`ar/tracker-types.ts`) like the MindAR
+  `ImageTracker`; `ar/create-tracker.ts` picks one (each engine its own chunk). Choice: build flag
+  `VITE_AR_TRACKER=mindar|8thwall` (default MindAR), overridden per device in the debug bar ("Use 8th Wall
+  (reload)", localStorage `osct-ar-tracker`); the collapsed debug line starts with `MA` / `8W`.
+- Engine files (`@8thwall/engine` 0.1.0, MIT, 1.57 MB gz) served as-is from `assets/xr8/` (vite plugin
+  `xr8Engine`), not precached. Targets are made at runtime from each target's `imageSrc` (the image-target
+  CLI's default crop: centred 3:4, landscape turned, grey 480×640) – no content build change for the test.
+- Anchors keep the MindAR convention (1 unit = image width, origin centre); verified headless (fake camera, both
+  engines on the same clip: same apparent size and orientation), spread switch keeps the camera, prod build ok.
+- [ ] Phone comparison S22 + iPhone (staging with the debug bar): time to first find, jitter, lag, angles, frame
+  rate, heat, first-scan load time. Also check: iOS motion permission prompt, pause/resume, camera orientation.
+- Known limits of the 8th Wall path: the engine tracks max. 4 targets at once (`maxTrack` is MindAR's); its camera canvas is a second WebGL
+  context (as MindAR's TF.js).
+
+## 2026-09-28 – Exploration "webworker tracking" (Tilman; branch `claude/laughing-wright-hrt8zy`)
+
+- Research only: `agents/research/webworker-tracking.md`. A worker makes the app smoother, not the tracking
+  more precise; MindAR tracks on a 128-px template with 10–41 points, and our target images are 146–462 px.
+  8th Wall's engine (Image Targets, C++/WASM) is MIT open source now → spike it instead of rebuilding.
+- [ ] Final target images ≥ 1000 px, textured (with the artist) – helps any tracker.
+- [x] Spike 8th Wall side by side with MindAR – Tilman: yes, built (entry above). Switching for good would change
+  the RULES stack line "Image tracking: MindAR" and the `.mind` content build – after the phone comparison.
+
 ## 2026-09-28 – Workspace tidy-up, version 1.2.0 (Tilman, branch `compilation`)
 
 - **Version 1.2.0** (RULES #10, #23): one bump for the whole branch, 1.1.4 → 1.2.0 after merging
@@ -116,6 +235,14 @@ outcome in the line (or move it into a dated decision block).
 - [ ] Open: target images much larger than the printed size (e.g. `edge/images-060.jpg`, 2059×1796)
       make the `.mind` and the compile bigger/slower – downscale in the build (e.g. max 1000 px)? Needs a
       tracking test on the book first.
+
+## 2026-09-28 – Camera denied screen and settings spacing (Tilman, 1.2.3)
+
+- Camera denied screen: no browser-specific steps any more ("too much information"; the user-agent guess
+  showed Firefox steps in Chrome). One generic hint + "Reload page"; `detectBrowser` removed. In scan mode the
+  overlay keeps clear of the header counter (`--consultation-top`) and the spread menu (bottom padding).
+- Info page: the first switch's text sits 2rem below the "Settings" title (was 1rem) – like the gap
+  between switch rows.
 
 ## 2026-09-28 – Releases deploy production (Tilman)
 

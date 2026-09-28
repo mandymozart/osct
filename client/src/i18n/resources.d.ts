@@ -7,7 +7,6 @@ export default interface Resources {
     "author": "Author: {{author}}",
     "colophon": "Colophon",
     "desktop": "Desktop: Chrome, Firefox, Safari",
-    "imageTracking": "Image tracking by",
     "info": "Info",
     "infoText": "{{title}} is a publication by {{author}}. Scan the pages of the book to unlock entries – glossary terms, videos, texts and links – and read them here in consultation mode.",
     "ios": "iOS: Safari, Chrome",
@@ -54,39 +53,13 @@ export default interface Resources {
   },
   "camera": {
     "allow": "Please allow the camera to scan the book.",
-    "chromeSteps": {
-      "0": "Tap the lock / settings icon in the address bar",
-      "1": "Select \"Site settings\"",
-      "2": "Allow camera permissions",
-      "3": "Refresh the page"
-    },
-    "chromeTitle": "To enable camera access in Chrome:",
     "continueWithout": "Continue without camera",
     "denied": "Camera access was denied.",
-    "enable": "To scan the book and display interactive content, please enable camera permissions in your browser settings.",
-    "firefoxSteps": {
-      "0": "Tap the lock icon in the address bar",
-      "1": "Clear the current setting",
-      "2": "Refresh the page and allow access when prompted"
-    },
-    "firefoxTitle": "To enable camera access in Firefox:",
+    "enable": "Allow the camera for this site in your browser settings, then reload the page.",
     "illustration": "Camera",
     "notResponding": "The camera is not responding.",
     "notRespondingHelp": "Reload the page. If that doesn't help, close your browser completely and open it again – another app may still be using the camera.",
-    "otherSteps": {
-      "0": "Check your browser settings for camera permissions",
-      "1": "Allow this site to use your camera",
-      "2": "Refresh the page"
-    },
-    "otherTitle": "To enable camera access:",
     "reload": "Reload page",
-    "safariSteps": {
-      "0": "Open the page settings (\"aA\" in the address bar) or Safari settings",
-      "1": "Go to Websites > Camera",
-      "2": "Find this website and select \"Allow\"",
-      "3": "Refresh the page"
-    },
-    "safariTitle": "To enable camera access in Safari:",
     "unavailable": "The camera only works over a secure connection. Open the app with https:// and try again.",
     "waiting": "Waiting for camera access…"
   },

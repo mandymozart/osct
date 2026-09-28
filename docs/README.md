@@ -33,7 +33,6 @@ Quick start: the repository [README](../README.md).
 | `scripts/` | Content build: `content/` → `client/src/game.config.json` – see [Content build](content.md#content-build) |
 | `server/` | User API (PHP + MySQL) – see [Server](server.md) |
 | `shared/` | Game configuration contract (types + runtime guards), used by app and build |
-| `.mindar/` | Local, not in git: everything for compiling `.mind` files – target images, earlier versions, cache |
 | `docs/` | This documentation |
 | `agents/` | Plan, rules, decisions and design reference for work on the code |
 
@@ -79,8 +78,8 @@ tests and CI). Rebuild the content after a version bump. Every bump has an entry
 ## Technical stack
 
 - **Build**: [Vite](https://vitejs.dev/), tests with [Vitest](https://vitest.dev/) (happy-dom)
-- **AR**: [three.js](https://threejs.org/) + [MindAR](https://hiukim.github.io/mind-ar-js-doc/) image
-  tracking (vendored in `client/src/vendor/mind-ar`), bundled into lazy chunks loaded with the first scan
+- **AR**: [three.js](https://threejs.org/) + the [8th Wall engine](https://github.com/8thwall/8thwall) (MIT,
+  image targets, npm `@8thwall/engine`, served from `assets/xr8/`), loaded lazily with the first scan
 - **State**: [Immer](https://immerjs.github.io/immer/) – `BaseStore` + `GameStore` with managers
 - **UI**: vanilla custom elements with shadow DOM; shared design styles in `client/src/styles`
 

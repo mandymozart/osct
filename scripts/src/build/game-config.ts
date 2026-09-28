@@ -1,4 +1,3 @@
-import { MAX_TARGETS_PER_SPREAD } from '../config';
 import { assertGameConfiguration, GameConfigurationError } from '../../../shared/guards/game-config';
 import type { GameConfiguration } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
@@ -37,7 +36,6 @@ export function buildConfig(versionStr: string, inputHash: string): GameConfigur
       hash: inputHash
     },
     book,
-    maxTargetsPerSpread: MAX_TARGETS_PER_SPREAD,
     initialSpreadId: spreads[0]?.id ?? '',
     spreads,
     entries,
