@@ -1,8 +1,8 @@
 {
   "version": {
     "version": "1.1.1",
-    "timestamp": "2026-09-28T07:16:00.062Z",
-    "hash": "bec6b7ed402b65174e92f1599458feb3b5e46d1443e20db2cc95435412d1a6cc"
+    "timestamp": "2026-09-28T07:54:56.058Z",
+    "hash": "7544f1870399403794732f0a63e70ecefd9843c5c8aec8dcd5860eb03ef8bd9d"
   },
   "book": {
     "id": "osct",
@@ -487,45 +487,6 @@
       }
     },
     {
-      "id": "demo-p14-1",
-      "category": "glossary",
-      "title": "Demo p. 14 · 1",
-      "page": 14,
-      "body": "A demo target from the layout PDF, page 5.",
-      "tags": [],
-      "target": {
-        "id": "demo-p14-1",
-        "index": 0,
-        "imageSrc": "/assets/content/entries/demo-p14-1/target.jpg"
-      }
-    },
-    {
-      "id": "demo-p14-2",
-      "category": "glossary",
-      "title": "Demo p. 14 · 2",
-      "page": 14,
-      "body": "A demo target from the layout PDF, page 5.",
-      "tags": [],
-      "target": {
-        "id": "demo-p14-2",
-        "index": 1,
-        "imageSrc": "/assets/content/entries/demo-p14-2/target.jpg"
-      }
-    },
-    {
-      "id": "demo-p14-3",
-      "category": "glossary",
-      "title": "Demo p. 14 · 3",
-      "page": 14,
-      "body": "A demo target from the layout PDF, page 5.",
-      "tags": [],
-      "target": {
-        "id": "demo-p14-3",
-        "index": 2,
-        "imageSrc": "/assets/content/entries/demo-p14-3/target.jpg"
-      }
-    },
-    {
       "id": "demo-p15-1",
       "category": "glossary",
       "title": "Demo p. 15 · 1",
@@ -534,7 +495,7 @@
       "tags": [],
       "target": {
         "id": "demo-p15-1",
-        "index": 3,
+        "index": 0,
         "imageSrc": "/assets/content/entries/demo-p15-1/target.jpg"
       }
     },
@@ -547,7 +508,7 @@
       "tags": [],
       "target": {
         "id": "demo-p15-2",
-        "index": 4,
+        "index": 1,
         "imageSrc": "/assets/content/entries/demo-p15-2/target.jpg"
       }
     },
@@ -656,19 +617,6 @@
       }
     },
     {
-      "id": "demo-p19-1",
-      "category": "glossary",
-      "title": "Demo p. 19 · 1",
-      "page": 19,
-      "body": "A demo target from the layout PDF, page 7.",
-      "tags": [],
-      "target": {
-        "id": "demo-p19-1",
-        "index": 3,
-        "imageSrc": "/assets/content/entries/demo-p19-1/target.jpg"
-      }
-    },
-    {
       "id": "demo-p19-2",
       "category": "glossary",
       "title": "Demo p. 19 · 2",
@@ -677,7 +625,7 @@
       "tags": [],
       "target": {
         "id": "demo-p19-2",
-        "index": 4,
+        "index": 3,
         "imageSrc": "/assets/content/entries/demo-p19-2/target.jpg"
       }
     },
