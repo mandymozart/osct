@@ -1,7 +1,6 @@
 import { Page } from "./page";
 import { GameStoreService } from "@/services";
 import { CameraPermissionStatus, GameMode, IGame } from "@/types";
-import { detectBrowser, escapeHtml } from "@/utils";
 import { t } from "i18next";
 import "@/components/common";
 import { goldButton } from "@/components/buttons";
@@ -116,39 +115,21 @@ export class CameraPermissionPage extends Page {
       :host([active]) {
         pointer-events: auto;
       }
+      :host(:not([onboarding])) {
+        box-sizing: border-box;
+        padding: var(--consultation-top) 0 calc(max(1rem, env(safe-area-inset-bottom)) + 5.5rem);
+      }
       .continue { margin-top: 1.5rem; pointer-events: auto; }
 
       gold-illustration { width: 5.5rem; margin-bottom: 2rem; }
 
       .message { max-width: 17rem; padding: 0 1.5rem; }
       .message p { margin: 0 0 1em; }
-
-      .settings-instructions {
-        max-width: 17rem;
-        margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: var(--rule);
-        font-size: var(--text-size-small);
-        text-align: left;
-      }
-      ol { margin: .5rem 0 0; padding-left: 1.2rem; }
-      li { margin: .2rem 0; }
     `;
   }
 
   private getIcon(): string {
     return `<gold-illustration src="/assets/illustrations/tutorial-step-2.svg" label="${t("camera:illustration")}"></gold-illustration>`;
-  }
-
-  /** Browser-specific steps to allow the camera again */
-  private getSettingsInstructions(): string {
-    const browser = detectBrowser();
-    const which = browser === "chrome" || browser === "firefox" || browser === "safari" ? browser : "other";
-    // Steps are numbered keys ("0", "1", …) – i18next-cli keeps lists as objects
-    const steps = Object.values(t(`camera:${which}Steps`, { returnObjects: true }) as Record<string, string>)
-      .map(step => `<li>${escapeHtml(step)}</li>`)
-      .join("");
-    return `${t(`camera:${which}Title`)}<ol>${steps}</ol>`;
   }
 
   private getContent() {
@@ -189,9 +170,7 @@ export class CameraPermissionPage extends Page {
         <p>${t("camera:denied")}</p>
         <p>${t("camera:enable")}</p>
       </div>
-      <div class="settings-instructions design muted">
-        ${this.getSettingsInstructions()}
-      </div>
+      ${goldButton({ label: t("camera:reload"), shape: "button", className: "continue", attrs: { "data-action": "reload" } })}
       ${continueButton}
     `;
   }

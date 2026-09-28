@@ -12,6 +12,20 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.2.3 – 2026-09-28
+
+### Changed
+- Info page: more space between the "Settings" title and the first switch, like the gap between the rows.
+- Camera denied screen: one short hint (allow the camera in the browser settings, then reload) and a
+  "Reload page" button instead of step lists per browser.
+
+### Fixed
+- Camera denied screen in scan mode no longer overlaps the counter or the "Pages activated" menu.
+- The screen no longer shows Firefox instructions in Chrome (the browser guess was wrong).
+
+### Removed
+- Browser detection (`utils/browser.ts`) and the per-browser camera steps in all languages.
+
 ## 1.2.2 – 2026-09-28
 
 ### Fixed
