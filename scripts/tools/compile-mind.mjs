@@ -1,5 +1,6 @@
-// Compile the spreads' recognition data (`.mind`) locally, in a real browser with WebGL – the same
-// MindAR compiler as https://hiukim.github.io/mind-ar-js-doc/tools/compile and the same MindAR version
+// Compile the spreads' recognition data (`.mind`) locally, in a real browser with WebGL – MindAR's own
+// `Compiler` (HiuKim, https://github.com/hiukim/mind-ar-js, MIT; vendored unchanged in
+// client/src/vendor/mind-ar/ – no compiler code of our own here), the same compiler as https://hiukim.github.io/mind-ar-js-doc/tools/compile and the same MindAR version
 // the app runs (client/src/vendor/mind-ar/). Run by hand after changing target images; CI and deploys
 // never compile, the content build only checks that each .mind is up to date (docs/content.md).
 //

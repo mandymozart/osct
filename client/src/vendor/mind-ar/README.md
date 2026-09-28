@@ -1,5 +1,8 @@
 # MindAR (vendored)
 
+MindAR by HiuKim Yuen – https://github.com/hiukim/mind-ar-js – MIT licensed (`LICENSE`, copied from the
+npm package). Credited in the app's Info page (colophon).
+
 `mind-ar@1.2.5`, files copied unchanged from `https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/`:
 `mindar-image.prod.js` (entry: `Controller`, `Compiler`, `UI`) and its chunks `controller-mGt1s8dJ.js`
 (tracking + TF.js, the tracking worker is inlined) and `ui-fBadYuor.js`. Types: `mindar-image.prod.d.ts`.
@@ -11,3 +14,7 @@ port of MindAR's `src/image-target/three.js` on top of `Controller`.
 
 The app imports it lazily (only the AR scene chunk), so Vite bundles and minifies it into that chunk.
 Upgrading: replace the three files (chunk names change), keep the types in sync, re-check `tracker.ts`.
+
+Also used to compile the `.mind` files: `scripts/tools/compile-mind.mjs` loads `mindar-image.prod.js` from
+this folder in a browser and runs MindAR's own `Compiler` (`compileImageTargets`, `exportData`,
+`importData`) – no compiler code of our own, so compile and runtime always use the same MindAR version.
