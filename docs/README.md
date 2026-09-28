@@ -12,7 +12,7 @@ Staging: [osct.netlify.app](https://osct.netlify.app) (built from `main`) [![Net
 |---|---|
 | **Content** | [Content guide](content.md) – how `content/` is organised (for artists, designers, editors) and how `scripts/` builds it |
 | **Server** | [User API](server.md) – accounts by email, progress in the account, opt-in updates; PHP + MySQL, deploy to osct.porschuetz.de |
-| **App** | [Languages (i18n)](i18n.md) · [Game store](game-store.md) · [Base store](base-store.md) · [Managers](managers.md) · [Pages](pages.md) · [Error page](error-page.md) · [Components](components.md) |
+| **App** | [Languages (i18n)](i18n.md) · [Game store](game-store.md) · [Base store](base-store.md) · [Managers](managers.md) · [Pages](pages.md) · [Error page](error-page.md) · [Components](components.md) · [Look-around (scene around the book, onion sky)](look-around.md) |
 
 Quick start: the repository [README](../README.md).
 

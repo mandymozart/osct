@@ -160,9 +160,8 @@ export class ArScene implements IArScene {
         },
       });
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
-      const lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null);
-      this.lookAround = lookAround;
-      this.view.underlay = () => lookAround.render();
+      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null);
+      this.view.underlay = this.lookAround;
       this.view.needsRender = () =>
         this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
       this.view.onFrame(delta => {

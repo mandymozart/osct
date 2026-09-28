@@ -870,18 +870,25 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
   8th Wall's engine binary has SLAM + image targets + Sky Effects together, but its licence (no paid products
   whose value comes substantially from it, no changes, credit, 5-day termination) rules it out; the MIT engine
   has neither SLAM nor sky segmentation (MEMORY 2026-09-28).
-- [~] **Look-around world ("alien coffee shop")** (Tilman 2026-09-28, 3DoF, branch `spatialisation`) – prototype
-  built in 1.5.0 (`ar/look-around/`): level 1 = world anchored to the book + gyroscope (book in a soft window,
-  clear below 40° down, re-anchored on every find, open above, gone 45 s after the last page); level 3 = "onion
-  sky", a sky key on the camera video (colour + smoothness, only above the horizon). One full-screen pass, the world
-  a basic placeholder colour per view direction (a 3D café was tried and dropped – too heavy, Tilman). Info page →
-  Settings → Graphics: "Onion sky" / "Scene around the book" on / off (`GraphicsService`).
-  - [x] S22 check (2026-09-28): gyroscope axes right, world anchored to the book, book + table clear after widening
-        the window and clearing the floor.
-  - [ ] Sky key outdoors, frame rate on the S22 with the page scenes.
-  - [ ] iPhone: motion permission on the first tap, the engine's hidden camera video as a texture.
-  - [ ] Phase 14 (with Kévin): the real world as content (e.g. an equirectangular image per book or spread,
-        sampled by view direction in the same pass – RULES #5), sound, when it ends.
+- [~] **Look-around: scene around the book + onion sky** (Tilman 2026-09-28, branch `spatialisation`, 1.5.0) –
+  prototype built, **parked until the content discussion with Kévin**. Both are reader options in Info → Settings →
+  Graphics, **off by default**. How it works, code, tuning and limits: `docs/look-around.md`; history: MEMORY 2026-09-28.
+  - Built: world anchored to the book + gyroscope (3DoF), book and table stay clear, open roof, fades 45 s after the
+    last page; onion sky = sky test on a small camera copy; one full-screen pass, placeholder café in the shader.
+  - [x] S22 check (2026-09-28): orientation right, world stays with the book, book + table clear, ~27 fps (dev server).
+  - [ ] Merge `spatialisation` into `develop` when Tilman says so (1.5.0 is only on the branch).
+  - **To decide with Kévin (content):**
+    - [ ] What the world is: one for the book or one per spread? A still panorama (equirectangular image), a video,
+          or 3D (heavier – then the pass needs a render target again)?
+    - [ ] What the onion sky shows – the world's sky or its own image/animation; only outdoors or also through windows?
+    - [ ] When it appears and ends: right after the first find (now), only after an unlock, only on some spreads?
+    - [ ] Sound for the world? Interaction (tap objects in the world → entries)?
+    - [ ] Default on or off for readers once the real content is in.
+  - **Then build:** the content format (e.g. `world:` in `book.yaml` / `spread.yaml` with an image, schema + build +
+    guard, RULES #5/#8), a `worldColour(dir)` that samples it (replaces `PLACEHOLDER_WORLD` in `shader.ts`), loading
+    and caching with the spread (PreloaderService, service worker).
+  - [ ] Checks: sky test outdoors (blue, overcast, dusk), iPhone (motion permission on the first tap, the engine's
+        hidden camera video readable as a picture), frame rate with the page scenes on older phones.
   - Level 2 (own world tracking from the MIT engine's feature code) not planned – months, specialist.
 - [ ] Decide per content which objects may leave the page (a flag in `entity.params`?).
 

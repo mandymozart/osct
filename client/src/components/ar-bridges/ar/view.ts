@@ -55,6 +55,12 @@ const bloomOverlayMaterial = () => new ShaderMaterial({
   blendDstAlpha: OneFactor,
 });
 
+/** Something drawn under the scene each frame (the look-around pass) – into the cleared screen, while active */
+export interface Underlay {
+  readonly active: boolean;
+  render(): void;
+}
+
 /**
  * The three.js side of the AR scene: one WebGL renderer (one context for the session), scene, camera,
  * lights and the render loop. The transparent canvas (`#scene`, faded in by main.css while AR runs) lies
@@ -76,8 +82,7 @@ export class ArView {
   needsRender: () => boolean = () => true;
   /** Bloom strength (0 = off – no post-processing cost); set every frame by the scene's animations */
   bloomStrength = 0;
-  /** Drawn first each frame, under the scene (the look-around world) – it draws into the cleared screen */
-  underlay: (() => void) | null = null;
+  underlay: Underlay | null = null;
   private bloom: { composer: EffectComposer; pass: UnrealBloomPass; quad: FullScreenQuad; material: ShaderMaterial } | null = null;
 
   constructor(private container: HTMLElement, private onResize: (camera: PerspectiveCamera) => void) {
@@ -134,9 +139,9 @@ export class ArView {
     bloom?.composer.render(); // scene → half-size target → bloom (only the part brighter than white)
     const autoClear = this.renderer.autoClear;
     this.renderer.setRenderTarget(null);
-    if (this.underlay) {
+    if (this.underlay?.active) {
       this.renderer.clear();
-      this.underlay();
+      this.underlay.render();
       this.renderer.setRenderTarget(null);
       this.renderer.clearDepth();
       this.renderer.autoClear = false;

@@ -14,7 +14,8 @@ export interface GraphicsSettings {
   surroundings: boolean;
 }
 
-const DEFAULT_SETTINGS: GraphicsSettings = { onionSky: true, surroundings: true };
+/** Off until the reader turns them on (prototypes until the content's world arrives) */
+const DEFAULT_SETTINGS: GraphicsSettings = { onionSky: false, surroundings: false };
 
 export class GraphicsService {
   private static instance: GraphicsService | null = null;
