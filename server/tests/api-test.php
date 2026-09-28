@@ -192,12 +192,10 @@ try {
     $pdo->exec("UPDATE sessions SET created_at = '2000-01-01 00:00:00'");
     [$status, $data] = call($api, 'PUT', '/user/password', ['password' => 'third password'], $session);
     check($status === 403 && $data['error']['code'] === 'current-password-required', 'an old email session needs the current password too');
-    [$status, $data] = call($api, 'DELETE', '/user/password', null, $session);
-    check($status === 200 && $data['user']['hasPassword'] === false, 'remove → email sign-in only');
-    [$status] = call($api, 'POST', '/auth/password', ['email' => 'reader@example.com', 'password' => 'second password']);
-    check($status === 401, 'removed password no longer signs in');
-    [$status] = call($api, 'PUT', '/user/password', ['password' => 'final password'], $session);
-    check($status === 200, 'without a password, any session may set one');
+    [$status] = call($api, 'DELETE', '/user/password', null, $session);
+    check($status === 404, 'a password cannot be removed (no endpoint)');
+    [$status] = call($api, 'PUT', '/user/password', ['password' => 'final password', 'currentPassword' => 'second password'], $session);
+    check($status === 200, 'changed with the current password from the old session');
     for ($i = 0; $i < 10; $i++) call($api, 'POST', '/auth/password', ['email' => 'nobody@example.com', 'password' => "guess $i"]);
     [$status, $data] = call($api, 'POST', '/auth/password', ['email' => 'nobody@example.com', 'password' => 'guess again']);
     check($status === 429 && $data['error']['code'] === 'too-many-password-attempts', 'after 10 failures per hour → 429');

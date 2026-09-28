@@ -58,11 +58,6 @@ class FakeApi extends ApiService {
       this.user = { ...this.user, hasPassword: true };
       return { user: this.user } as T;
     }
-    if (route === "DELETE /user/password") {
-      this.password = null;
-      this.user = { ...this.user, hasPassword: false };
-      return { user: this.user } as T;
-    }
     if (route === "POST /auth/logout" || route === "DELETE /user") return null as T;
     if (route === `GET /progress/${bookId}`) return structuredClone(this.progress) as T;
     if (route === `PUT /progress/${bookId}`) {
@@ -253,7 +248,7 @@ describe("UserService", () => {
     vi.unstubAllGlobals();
   });
 
-  it("sets a password after an email sign-in without the current one, removes it again", async () => {
+  it("sets a password after an email sign-in without the current one", async () => {
     const users = service();
     await users.start(game);
     await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
@@ -265,9 +260,6 @@ describe("UserService", () => {
     expect(users.getSnapshot()).toMatchObject({ notice: "password-saved", user: { hasPassword: true } });
     // Right after the email sign-in the current password is still not needed ("forgot password")
     expect(users.passwordNeedsCurrent()).toBe(false);
-
-    expect(await users.removePassword()).toBe(true);
-    expect(users.getSnapshot()).toMatchObject({ notice: "password-removed", user: { hasPassword: false } });
   });
 
   it("an older session (or the server's say) asks for the current password", async () => {

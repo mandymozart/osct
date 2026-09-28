@@ -12,6 +12,14 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.4.1 – 2026-09-28
+
+### Removed
+- Removing the account password: once set, it can be changed but not removed ("Remove password" button and
+  `DELETE /user/password` are gone). The sign-in link keeps working either way.
+- Debug overlay: the spread status ("Initial") and the spread dot next to the scene dot – no code ever changed
+  it. The unused per-spread loading state is gone from the store; the current spread stays.
+
 ## 1.4.0 – 2026-09-28
 
 ### Added

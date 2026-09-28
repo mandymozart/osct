@@ -199,15 +199,6 @@ export class UserService implements IUserService {
     }, false);
   }
 
-  async removePassword(): Promise<boolean> {
-    return this.run(async () => {
-      const { user } = await this.api.request<{ user: UserData }>("DELETE", "/user/password", { token: this.stored?.session });
-      this.setSession(this.stored && { ...this.stored, user });
-      this.update({ notice: "password-removed" });
-      return true;
-    }, false);
-  }
-
   passwordNeedsCurrent(): boolean {
     const stored = this.stored;
     if (!stored?.user.hasPassword) return false;

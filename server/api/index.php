@@ -13,7 +13,6 @@ declare(strict_types=1);
  *   PATCH  /user                     change the options / language
  *   DELETE /user                     delete the user and everything stored with it
  *   PUT    /user/password            set or change the password
- *   DELETE /user/password            remove the password (email sign-in only)
  *   GET    /progress/{bookId}        stored progress record
  *   PUT    /progress/{bookId}        store the progress record
  *   POST   /admin/migrate            create missing tables (header X-Admin-Secret: SECRET) – after a deploy
@@ -62,7 +61,6 @@ try {
         $route === 'PATCH /user' => Users::update(Http::body()),
         $route === 'DELETE /user' => Users::delete(),
         $route === 'PUT /user/password' => Passwords::set(Http::body()),
-        $route === 'DELETE /user/password' => Passwords::remove(),
         (bool) preg_match('#^(GET|PUT) /progress/([A-Za-z0-9_-]{1,64})$#', $route, $match) =>
             $match[1] === 'GET' ? Progress::get($match[2]) : Progress::put($match[2], Http::body()),
         default => throw new ApiError(404, 'not-found', 'Unknown endpoint.'),

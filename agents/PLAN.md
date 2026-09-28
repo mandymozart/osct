@@ -890,7 +890,7 @@ Sign-in by email: link + 6-digit code; PHP API + MySQL in `server/` (docs/server
 - [x] GitHub environment `staging` set, API deployed to osct.porschuetz.de from `develop`.
 - [ ] Test on a phone (link on the iOS home-screen app → code); Netlify staging needs `VITE_API_URL`.
 - [ ] SMTP account for production; final mail + UI texts; privacy note for the update options.
-- [x] Optional password (1.4.0, Tilman 2026-09-28): first sign-in by email, then set / change / remove a password;
+- [x] Optional password (1.4.0, Tilman 2026-09-28): first sign-in by email, then set / change a password (no removal – 1.4.1);
       sign-in with email + password; bcrypt hashes; fields for password managers. Wording: one form for new and
       returning readers ("Send sign-in link").
 - [ ] Phone test of the password flow (Chrome on the S22: save prompt; iOS: keychain in the home-screen app).
