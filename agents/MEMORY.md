@@ -17,7 +17,13 @@ outcome in the line (or move it into a dated decision block).
 - Result (S22): first spread ~1.15 s (was ~5 s); switch to a neighbour 0–1 ms; to a non-neighbour ~0.6 s.
 - [ ] Measure the cost of more loaded targets (≤ 15 with ±1 and 5 per spread): time to first find and frame
   rate on the current spread, compared with only its own targets loaded.
-- Idea (not built): with the neighbours loaded, a found neighbour target could switch the spread by itself.
+- [x] Automatic spread switch (Tilman: "try the automatic switcher"; the spread menu stays): a neighbour's target
+  held in view 400 ms while none of the current spread's is found → tracker `onSpreadSeen` → scene event
+  `spreadSeen` → bridge `switchSpread()` in scan mode (same path as the menu). Reported again every 400 ms while
+  held. S22: switched 1→2→1→2→3→2→1 by turning pages, each ~0.4 s after the page came into view, targets
+  ready in 1–4 ms. `LazyArScene` now forwards every `ArSceneEvents` key (a fixed list had dropped the new event).
+- [ ] How many targets the engine can keep loaded is unknown (Tilman) – find out in this phase; the neighbour
+  range (±1) is the knob (debug bar setting, then a load test).
 
 ## 2026-09-28 – S22 test of the 8th Wall tracker: whole images instead of the 3:4 crop
 

@@ -14,8 +14,15 @@ import {
 
 /** Loading the targets into the engine may take this long before tracking starts anyway */
 const TARGETS_LOAD_TIMEOUT_MS = 15000;
+/** A neighbouring spread's target seen this long (and none of the current spread's) switches the spread */
+const SPREAD_SEEN_MS = 400;
 const NEAR = 0.01;
 const FAR = 1000;
+
+interface SpreadTargets {
+  spreadId: string;
+  targets: PreparedImageTarget[];
+}
 
 interface LoadedTarget {
   index: number;
@@ -32,7 +39,8 @@ interface LoadedTarget {
  * precompiled file like MindAR's `.mind`). So the neighbouring spreads' targets stay loaded next to the current
  * ones (`prepareTargets()`, the counterpart of the `.mind` preloading) – the engine only reports the current
  * spread's to the app, and a switch to a neighbour starts at once. The engine keeps what it already has when it
- * is configured again and extracts only new targets.
+ * is configured again and extracts only new targets. A neighbour's target seen steadily while none of the
+ * current spread's is means the reader turned the page: `onSpreadSeen` (the app switches the spread).
  *
  * The engine owns the camera: it draws the picture into its own canvas under the three.js canvas (a second
  * WebGL context – MindAR's TF.js has one too) and reports poses in its scene. World tracking is off, so the
@@ -53,8 +61,12 @@ export class EighthWallTracker implements IImageTracker {
   private loadRun = 0;
   private imageTargets = new Map<string, Promise<PreparedImageTarget>>();
   /** The current spread's targets and the neighbours' (`prepareTargets()`) – what the engine keeps loaded */
-  private current: PreparedImageTarget[] = [];
-  private upcoming: PreparedImageTarget[] = [];
+  private current: SpreadTargets | null = null;
+  private upcoming: SpreadTargets[] = [];
+  /** Engine target name → its spread, for the upcoming spreads' targets */
+  private spreadOf = new Map<string, string>();
+  /** Upcoming spreads' targets in view, since when (performance.now()) */
+  private seenSince = new Map<string, number>();
   /** Engine target names whose features are extracted (reported by its `imagescanning` event) */
   private ready = new Set<string>();
   private prepareRun = 0;
@@ -108,7 +120,7 @@ export class EighthWallTracker implements IImageTracker {
     this.started = true;
   }
 
-  async loadTargets({ targets }: TrackedSpread): Promise<void> {
+  async loadTargets({ spreadId, targets }: TrackedSpread): Promise<void> {
     const XR8 = this.XR8;
     if (!XR8 || !this.started) throw new Error("loadTargets() needs the camera");
     this.stopTracking();
@@ -123,8 +135,8 @@ export class EighthWallTracker implements IImageTracker {
       { index: withImage[i].index, widthFactor: target.widthFactor },
     ]));
     // The previous spread stays loaded until prepareTargets() names the new neighbours (it is one of them)
-    this.upcoming = [...this.upcoming, ...this.current];
-    this.current = data;
+    this.upcoming = this.current ? [...this.upcoming, this.current] : this.upcoming;
+    this.current = { spreadId, targets: data };
     this.configureEngine();
     if (!data.length) return;
     if (data.every(target => this.ready.has(target.data.name))) {
@@ -149,12 +161,15 @@ export class EighthWallTracker implements IImageTracker {
 
   prepareTargets(spreads: readonly TrackedSpread[]): void {
     const run = ++this.prepareRun;
-    const sources = spreads.flatMap(spread => spread.targets.map(target => target.imageSrc).filter(Boolean));
-    void Promise.all(sources.map(src => this.imageTarget(src))).then(
-      data => {
+    const prepare = (spread: TrackedSpread): Promise<SpreadTargets> =>
+      Promise.all(spread.targets.filter(target => target.imageSrc).map(target => this.imageTarget(target.imageSrc)))
+        .then(targets => ({ spreadId: spread.spreadId, targets }));
+    void Promise.all(spreads.map(prepare)).then(
+      upcoming => {
         if (run !== this.prepareRun || !this.started) return; // newer neighbours or the camera is off
-        this.upcoming = data;
+        this.upcoming = upcoming;
         this.configureEngine();
+        console.info(`[8th Wall] Next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
       },
       error => console.warn("[8th Wall] Could not prepare the next spreads' targets:", error),
     );
@@ -167,7 +182,9 @@ export class EighthWallTracker implements IImageTracker {
   private configureEngine(): void {
     const XR8 = this.XR8;
     if (!XR8 || !this.started) return;
-    const byName = new Map([...this.current, ...this.upcoming].map(target => [target.data.name, target.data]));
+    const spreads = this.current ? [this.current, ...this.upcoming] : this.upcoming;
+    const byName = new Map(spreads.flatMap(spread => spread.targets).map(target => [target.data.name, target.data]));
+    this.spreadOf = new Map(this.upcoming.flatMap(spread => spread.targets.map(target => [target.data.name, spread.spreadId])));
     this.ready.forEach(name => { if (!byName.has(name)) this.ready.delete(name); });
     XR8.XrController!.configure({ imageTargetData: [...byName.values()] });
   }
@@ -191,6 +208,7 @@ export class EighthWallTracker implements IImageTracker {
     this.poses.clear();
     this.scanningWaiter?.();
     this.scanningWaiter = null;
+    this.seenSince.clear();
     // The engine keeps its targets (a switch back or to a neighbour needs no new extraction)
   }
 
@@ -207,8 +225,9 @@ export class EighthWallTracker implements IImageTracker {
     }
     this.canvas?.remove();
     this.canvas = null;
-    this.current = [];
+    this.current = null;
     this.upcoming = [];
+    this.spreadOf.clear();
     this.ready.clear();
     this.prepareRun++;
     this.started = false;
@@ -280,13 +299,38 @@ export class EighthWallTracker implements IImageTracker {
   }
 
   private onImage(detail: XrImageDetail, found: boolean): void {
+    if (this.paused) return;
     const target = this.targets.get(detail.name);
-    if (!target || this.paused) return;
+    if (!target) return this.onUpcomingImage(detail.name, found);
     if (found) {
       this.poses.set(target.index, { detail, target });
       return;
     }
     if (this.poses.delete(target.index)) this.options.onUpdate(target.index, null);
+  }
+
+  /**
+   * An upcoming spread's target: held in view (and nothing of the current spread) → report its spread; held on
+   * (the app did not switch, e.g. not in scan mode), it is reported again after the same time
+   */
+  private onUpcomingImage(name: string, found: boolean): void {
+    const spreadId = this.spreadOf.get(name);
+    if (!spreadId) return;
+    if (!found) {
+      this.seenSince.delete(name);
+      return;
+    }
+    const now = performance.now();
+    const since = this.seenSince.get(name);
+    if (since === undefined) {
+      this.seenSince.set(name, now);
+      console.info(`[8th Wall] Target of ${spreadId} in view (current spread: ${this.poses.size} found)`);
+      return;
+    }
+    if (now - since < SPREAD_SEEN_MS || this.poses.size > 0) return;
+    this.seenSince.set(name, now);
+    console.info(`[8th Wall] ${spreadId} held in view – switching`);
+    this.options.onSpreadSeen?.(spreadId);
   }
 
   private module(): XrPipelineModule {
