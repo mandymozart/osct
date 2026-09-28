@@ -2,6 +2,7 @@ import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
+import { getTrackerEngine, setTrackerEngine } from "@/components/ar-bridges";
 
 type DebugTab = "spread" | "progress";
 
@@ -79,6 +80,12 @@ export class DebugOverlay extends HTMLElement {
     }
     if (control?.dataset.action === "reset-progress") {
       if (confirm("Reset the progress of this book?")) this.game.history.reset();
+      return;
+    }
+    if (control?.dataset.action === "switch-tracker") {
+      // Comparison MindAR / 8th Wall: stored on this device, the scene is built with it after a reload
+      setTrackerEngine(getTrackerEngine() === "8thwall" ? "mindar" : "8thwall");
+      location.reload();
       return;
     }
     this.expanded = !this.expanded;
@@ -177,8 +184,11 @@ export class DebugOverlay extends HTMLElement {
     }
 
     // Scene status
+    const engine = getTrackerEngine();
     html += `<div class="section">
       <div>AR: ${this.arStatusLabel()}</div>
+      <div>Tracking: ${engine === "8thwall" ? "8th Wall" : "MindAR"}
+        <button data-action="switch-tracker">Use ${engine === "8thwall" ? "MindAR" : "8th Wall"} (reload)</button></div>
     </div>`;
 
     // Current spread
@@ -229,11 +239,11 @@ export class DebugOverlay extends HTMLElement {
     // Tracked targets with how often each was found – many finds = tracking keeps breaking off
     const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
 
-    // Progress: unlocked targets / consulted entries (whole book)
+    // Progress: unlocked targets / consulted entries (whole book); first: tracking engine (MA MindAR / 8W 8th Wall)
     const { unlocked, consulted } = this.game.state.progress;
 
     return `
-      <div>S${sceneStatus} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
+      <div>${getTrackerEngine() === "8thwall" ? "8W" : "MA"} S${sceneStatus} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
     `;
   }
 
