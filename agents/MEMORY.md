@@ -20,7 +20,16 @@ outcome in the line (or move it into a dated decision block).
   applies at the next spread switch) – the knob for the load test.
 - Tilman (2026-09-28): 8th Wall tracks with visibly less jitter than MindAR, and more loaded targets have not
   added jitter so far. MindAR stays supported (default) for now.
-- [ ] Load test on the S22 with "all" (39 targets) vs ±1: time to first find, frame rate, auto switch.
+- Removed 4 demo targets that were the same images as original targets (Tilman): `demo-p14-1` = `shadows`,
+  `demo-p14-2` = `sleeping-dragon`, `demo-p14-3` = `sploosh-the-sheep`, `demo-p19-1` = `edge` (image
+  correlation ≥ 0.997; everything else ≤ 0.73). Book now 35 targets; spread8/spread10 `.mind` recompiled.
+- S22 session 1 (±1): page-by-page auto switch 4→10 worked, next spread ready in 0–2 ms; jumping back to 1–2
+  could not switch (only neighbours loaded). The four full-spread photo targets (pages 20–27) were never found.
+- S22 session 2 ("all", 39 targets): all extracted ~3 s after start; far jumps switch (e.g. 8 → 4).
+- "No 3D / video" during the tests = the USB tunnel had dropped (adb forgets `reverse` when the phone
+  reconnects): assets of a newly opened spread could not load. A loop re-applies the tunnels every 2 s.
+- [ ] Why the full-spread photo targets (spread11–14) are not found (dark, low contrast, landscape 2048×1425).
+- [ ] Load test numbers with "all" vs ±1: time to first find, frame rate.
 
 ## 2026-09-28 – 8th Wall spread switches: neighbours kept loaded (Tilman: "save switch times")
 

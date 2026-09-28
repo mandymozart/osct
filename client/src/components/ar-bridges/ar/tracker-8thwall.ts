@@ -67,6 +67,8 @@ export class EighthWallTracker implements IImageTracker {
   private spreadOf = new Map<string, string>();
   /** Upcoming spreads' targets in view, since when (performance.now()) */
   private seenSince = new Map<string, number>();
+  /** When the current spread's targets were ready (for the found log of the load test) */
+  private currentSince = 0;
   /** Engine target names whose features are extracted (reported by its `imagescanning` event) */
   private ready = new Set<string>();
   private prepareRun = 0;
@@ -138,6 +140,7 @@ export class EighthWallTracker implements IImageTracker {
     this.upcoming = this.current ? [...this.upcoming, this.current] : this.upcoming;
     this.current = { spreadId, targets: data };
     this.configureEngine();
+    this.currentSince = performance.now();
     if (!data.length) return;
     if (data.every(target => this.ready.has(target.data.name))) {
       console.info(`[8th Wall] ${data.length} targets already loaded – ready after ${Math.round(performance.now() - begun)} ms`);
@@ -155,6 +158,7 @@ export class EighthWallTracker implements IImageTracker {
     this.scanningWaiter = waiter;
     const configured = performance.now();
     await scanning;
+    this.currentSince = performance.now();
     console.info(`[8th Wall] ${data.length} targets: prepared in ${Math.round(configured - begun)} ms, engine ready after ${Math.round(performance.now() - configured)} ms`);
     if (this.scanningWaiter === waiter) this.scanningWaiter = null;
   }
@@ -169,7 +173,7 @@ export class EighthWallTracker implements IImageTracker {
         if (run !== this.prepareRun || !this.started) return; // newer neighbours or the camera is off
         this.upcoming = upcoming;
         this.configureEngine();
-        console.info(`[8th Wall] Next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
+        console.info(`[8th Wall] ${this.ready.size} of ${this.current!.targets.length + upcoming.reduce((n, spread) => n + spread.targets.length, 0)} targets extracted so far – next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
       },
       error => console.warn("[8th Wall] Could not prepare the next spreads' targets:", error),
     );
@@ -302,11 +306,18 @@ export class EighthWallTracker implements IImageTracker {
     if (this.paused) return;
     const target = this.targets.get(detail.name);
     if (!target) return this.onUpcomingImage(detail.name, found);
+    const spreadId = this.current?.spreadId;
     if (found) {
+      if (!this.poses.has(target.index)) {
+        console.info(`[8th Wall] Found ${spreadId}#${target.index} ${Math.round(performance.now() - this.currentSince)} ms after the spread was ready (${this.poses.size + 1} found)`);
+      }
       this.poses.set(target.index, { detail, target });
       return;
     }
-    if (this.poses.delete(target.index)) this.options.onUpdate(target.index, null);
+    if (this.poses.delete(target.index)) {
+      console.info(`[8th Wall] Lost ${spreadId}#${target.index}`);
+      this.options.onUpdate(target.index, null);
+    }
   }
 
   /**
