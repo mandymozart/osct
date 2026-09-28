@@ -24,7 +24,7 @@ import { ENTITY_UNLOCK_MS } from "@/types";
  *   noise = snoise(position × frequency) × amplitude;  noise < progress → discarded;
  *   progress ≤ noise < progress + edge → the glowing edge (HDR gold, picked up by the bloom).
  *
- * Three kinds (Tilman 2026-09-26):
+ * Three kinds:
  *   - `unlock` (first find): the entity materialises – progress from positive (nothing) to negative
  *     (everything), a wide gold edge narrowing, gold glow behind it, sparks from the surface, gold bloom.
  *   - `reveal` (every later find): the same dissolve, plain – no colour, no sparks, no bloom, quick.
@@ -36,7 +36,7 @@ import { ENTITY_UNLOCK_MS } from "@/types";
 
 export type AnimationKind = "unlock" | "reveal" | "outro";
 
-/** The parameters to play with (units: noise × amplitude; the object's size is ~3 noise waves) */
+/** Dissolve tuning (units: noise × amplitude; the object's size spans ~3 noise waves) */
 export const DISSOLVE = {
   /** Noise waves across the object (frequency = WAVES / object size) */
   waves: 3,

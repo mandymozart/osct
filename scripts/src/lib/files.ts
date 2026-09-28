@@ -2,9 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, MIND_HASH_SUFFIX } from '../config';
 
-/**
- * Recursively delete a directory
- */
 export function deleteFolderRecursive(folderPath: string): void {
   if (fs.existsSync(folderPath)) {
     fs.readdirSync(folderPath).forEach((file) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-// The demo content has no target without an AR entity yet – use a small stand-in
+// Stand-in content with targets with and without an AR entity
 vi.mock("@/utils/game-config", async importOriginal => {
   const actual = await importOriginal<typeof import("@/utils/game-config")>();
   const targets: Record<string, object> = {

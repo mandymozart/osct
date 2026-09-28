@@ -3,8 +3,8 @@ import path from 'path';
 import { MIND_BENCHMARK_FILE, MIND_BROWSER_DIR, MIND_CACHE_DIR, MIND_HISTORY_DIR, projectRoot, SCRIPTS_DIR } from '../config';
 
 /**
- * One-time move of the local .mind folders into .mindar/ (2026-09-28; before: mind-ar/, mind-history/,
- * scripts/.cache/). Remove once every working copy has run the build once.
+ * Moves local .mind folders from the older layout (mind-ar/, mind-history/, scripts/.cache/) into
+ * .mindar/. Temporary: can go once every working copy has run the build.
  */
 export function moveOldLocalFolders(): void {
   const moves: [string, string][] = [

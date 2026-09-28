@@ -5,9 +5,9 @@ import { AssetData } from "@/types";
 import { loadCompressed } from "@/utils/compressed";
 
 /**
- * The AR scene's assets by id – what `<a-assets>` did under A-Frame. Loaded once per id, kept while a
- * spread uses them (a spread switch keeps the assets both spreads use), disposed (GPU memory) when
- * released. Requests hit the browser cache the PreloaderService filled.
+ * The AR scene's assets by id. Loaded once per id, kept while a spread uses them (a spread switch keeps
+ * the assets both spreads use), disposed (GPU memory) when released. Requests hit the browser cache the
+ * PreloaderService filled.
  */
 
 export type LoadedAsset =

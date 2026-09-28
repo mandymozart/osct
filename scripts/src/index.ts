@@ -32,9 +32,6 @@ console.log('📁 Project root:', projectRoot);
 console.log('📁 Content directory:', CONTENT_DIR);
 console.log('📄 Output file:', OUTPUT_FILE);
 
-/**
- * Main function to generate the config file
- */
 async function generateConfigFile(): Promise<void> {
   try {
     moveOldLocalFolders();

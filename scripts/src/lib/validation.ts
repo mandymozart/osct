@@ -1,10 +1,9 @@
 /**
- * Validates a content object against its schema
- * TODO: Needs to be update but also implemented in the build script.
+ * Field-level validation of authored YAML against `schemas`: required fields, defaults, type coercion.
+ * Cross-file checks (references, targets, page ranges) live in the build script.
  */
 import { schemas } from './schema.js';
 
-// Define field definition interface
 interface FieldDefinition {
   type: string;
   required: boolean;
@@ -27,19 +26,15 @@ export function validateContent(content: any, type: string): any {
   const schema = schemas[type];
   const result = { ...content };
 
-  // Validate and apply defaults for each field
   for (const [fieldName, fieldDef] of Object.entries(schema.fields)) {
-    // Check required fields
     if (fieldDef.required && result[fieldName] === undefined) {
       throw new Error(`Required field '${fieldName}' missing for ${type}`);
     }
 
-    // Apply defaults for missing fields
     if (result[fieldName] === undefined && fieldDef.default !== undefined) {
       result[fieldName] = fieldDef.default;
     }
 
-    // Validate field if present
     if (result[fieldName] !== undefined) {
       result[fieldName] = validateField(result[fieldName], fieldDef, fieldName, type);
     }
@@ -90,7 +85,6 @@ export function validateField(value: any, fieldDef: FieldDefinition, fieldName: 
     case "List":
       // Lists can be arrays or comma-separated strings
       if (typeof value === "string") {
-        // Convert comma-separated string to array
         return value.split(",").map((item) => item.trim()).filter(Boolean);
       } else if (!Array.isArray(value)) {
         throw new Error(

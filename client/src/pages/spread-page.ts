@@ -2,10 +2,8 @@ import { PageMinimal } from "./page-minimal";
 import "@/components/scan";
 
 /**
- * Scan mode page (design p.6–14): transparent over the camera; found-target indicator in the center,
- * spread menu at the bottom. Mark and the counter are the top chrome (`header.ts`).
- * (The former spread card top left – spread info + link to the /spreads dev view – was removed on
- * 2026-09-25: the spread menu replaces it.)
+ * Scan mode page: transparent over the camera, found-target indicator in the center, spread menu at the
+ * bottom. The top chrome comes from `header.ts`.
  */
 export class SpreadPage extends PageMinimal {
   get styles(): string {

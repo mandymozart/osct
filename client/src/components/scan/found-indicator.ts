@@ -2,7 +2,7 @@ import { GameStoreService } from "@/services";
 import { ENTITY_UNLOCK_MS, GameMode, IGame, Target, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /** The image's small rotation on the unlock (the first find of a target) */
 const UNLOCK_MS = 1200;
@@ -17,7 +17,7 @@ const SPARKLES: Array<[number, number, number, number]> = [
 
 /**
  * The target the indicator shows: the most recently found target **without** an AR entity
- * (targets with an entity show it in the AR scene instead – PLAN Phase 3, taxonomy 1c).
+ * (targets with an entity show it in the AR scene instead).
  */
 export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target | undefined =>
   [...trackedTargetIds]
@@ -26,13 +26,12 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
     .find((target): target is Target => !!target && !target.entity);
 
 /**
- * Found-target indicator (design p.9–14, p.35): the entry's image with a drop shadow while its target
- * is found in scan mode. Tap → the entry view (`/entry`) in consultation mode (= consulted).
- * Unlock = the first find of a target (Tilman 2026-09-26; TARGET_UNLOCKED_EVENT from `<ar-bridge>`):
- * "New entry unlocked" – centred, gold with a running shine, a soft glow and twinkling sparkles – and a
- * small rotation of the image; for targets with an AR entity the label only, for as long as the entity's
- * unlock animation plays in the AR scene (ENTITY_UNLOCK_MS).
- * Lives in the scan page, so it is hidden in consultation (PLAN: review visibility there).
+ * Found-target indicator: the entry's image with a drop shadow while its target is found in scan mode.
+ * A tap opens the entry view (`/entry`) in consultation mode, which marks the entry consulted.
+ * On unlock (the first find of a target, TARGET_UNLOCKED_EVENT from `<ar-bridge>`) it shows a gold
+ * "New entry unlocked" label with shine, glow and sparkles, plus a small rotation of the image; for
+ * targets with an AR entity only the label, for as long as the entity's unlock animation (ENTITY_UNLOCK_MS).
+ * Lives in the scan page, so it is hidden in consultation mode.
  */
 export class FoundIndicator extends HTMLElement {
   private game: Readonly<IGame>;
@@ -106,8 +105,7 @@ export class FoundIndicator extends HTMLElement {
           opacity: 1;
           transform: none;
         }
-        /* "New entry unlocked": gold, a shine running through it (as the primary buttons), a soft glow */
-        .label.design {           /* .design (shared sheet, later in the cascade) sets the text size */
+        .label.design {           /* outranks the shared .design text size, which comes later in the cascade */
           position: relative;
           isolation: isolate;
           font-size: 1.5rem;
@@ -126,7 +124,6 @@ export class FoundIndicator extends HTMLElement {
           animation: gold-shine 1.8s linear infinite;
           filter: drop-shadow(0 0 .45rem rgba(243, 204, 148, .45));
         }
-        /* A soft dark halo behind the text: gold stays readable over a bright camera image */
         .label::before {
           content: "";
           position: absolute;
@@ -143,7 +140,6 @@ export class FoundIndicator extends HTMLElement {
         @keyframes label-glow {
           50% { filter: drop-shadow(0 0 .9rem rgba(243, 204, 148, .8)); }
         }
-        /* Twinkling sparkles around the label */
         .sparkle {
           position: absolute;
           width: var(--size);
@@ -169,7 +165,7 @@ export class FoundIndicator extends HTMLElement {
           -webkit-tap-highlight-color: transparent;
         }
         :host(:not([visible])) button { pointer-events: none; }
-        /* Measured: 171 × 212 px (DESIGN.md §3) */
+        /* 171 × 212 px, DESIGN.md §3 */
         img {
           display: block;
           max-width: min(10.6875rem, 55vw);
@@ -177,7 +173,6 @@ export class FoundIndicator extends HTMLElement {
           object-fit: contain;
           box-shadow: 0 .6rem 1.2rem rgba(0, 0, 0, .35);
         }
-        /* Elliptic ground shadow (design frame 9) */
         button::after {
           content: "";
           position: absolute;
@@ -205,11 +200,11 @@ export class FoundIndicator extends HTMLElement {
         }
       </style>
       <div class="label design" aria-hidden="true">
-        <span class="gold">${i18next.t("scan:newEntryUnlocked")}</span>
+        <span class="gold">${t("scan:newEntryUnlocked")}</span>
         ${SPARKLES.map(([x, y, size, delay]) =>
           `<i class="sparkle" style="left: ${x}%; top: ${y}%; --size: ${size}rem; animation-delay: ${delay}s"></i>`).join("")}
       </div>
-      ${target && src ? `<button type="button" aria-label="${i18next.t("scan:openEntry", { title: entry?.title ?? "" })}"><img src="${src}" alt=""></button>` : ""}
+      ${target && src ? `<button type="button" aria-label="${t("scan:openEntry", { title: entry?.title ?? "" })}"><img src="${src}" alt=""></button>` : ""}
     `;
   }
 
@@ -219,7 +214,7 @@ export class FoundIndicator extends HTMLElement {
     this.open(target.entryId);
   }
 
-  /** "New entry unlocked" + the image's rotation for a moment (the indicator stays tappable) */
+  /** Shows "New entry unlocked" and rotates the image briefly; the indicator stays tappable */
   private showUnlock(target: Target) {
     window.clearTimeout(this.unlockTimer);
     if (target.id !== this.target?.id) {
@@ -232,7 +227,7 @@ export class FoundIndicator extends HTMLElement {
     void this.offsetWidth;
     this.setAttribute("unlocking", "");
     this.shadowRoot?.querySelector(".label")?.removeAttribute("aria-hidden");
-    // Entity targets: as long as the unlock animation in the AR scene; then fade out, then the next state
+    // Entity targets: label stays for the AR unlock animation; then fade out and render the next state
     this.unlockTimer = window.setTimeout(() => {
       this.removeAttribute("unlocking");
       this.shadowRoot?.querySelector(".label")?.setAttribute("aria-hidden", "true");
@@ -240,7 +235,7 @@ export class FoundIndicator extends HTMLElement {
     }, (target.entity ? ENTITY_UNLOCK_MS : LABEL_MS) - LABEL_FADE_MS);
   }
 
-  /** Open the entry in consultation mode (the route sets the mode – RULES #2; the view consults it) */
+  /** Open the entry in consultation mode (the route sets the mode; the entry view marks it consulted) */
   private open(entryId: string) {
     this.game.router.navigate("/entry", { key: "entryId", value: entryId });
   }

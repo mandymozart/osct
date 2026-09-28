@@ -1,7 +1,6 @@
 # Staging server osct.porschuetz.de (all-inkl, Apache + PHP + MySQL): the whole site – the app at the root and
-# the user API in /api (docs/server.md). Runs on every push to `develop`, or by hand. The Netlify sites are
-# temporary (Netlify builds them itself and they call this API); production will be the client's server,
-# with its own workflow and GitHub environment `production`.
+# the user API in /api (docs/server.md). Runs on every push to `develop`, or by hand. The temporary Netlify
+# sites call this API. Production deploys from published releases (release.yml, environment `production`).
 #
 # GitHub → Settings → Environments → "staging" (Tilman's names; each may be a secret or a variable):
 #   secrets:   FTP_USER, FTP_PASS, DB_USER, DB_PASS, SECRET (SMTP_HOST, SMTP_USER, SMTP_PASS once smtp)

@@ -2,13 +2,13 @@ import { Entry, EntryCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml, paragraphs } from "@/utils";
 import { categoryLabel, linkEmbed } from "./entries-model";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /**
- * One entry (design p.15, 20, 25, 30–31): meta table (name, access page, category, author for texts),
- * then per category – glossary: text + image; text: long text; video: a note to scan the access page +
- * a preview player (to check rendering); link: embedded player/page + "open in a new tab".
- * The page sets `entry`; `null` empties it (stops media).
+ * One entry: meta table (name, access page, category, author for texts), then per category –
+ * glossary: text + image; text: long text; video: a note to scan the access page + a preview player;
+ * link: embedded player/page + "open in a new tab".
+ * The page sets `entry`; `null` empties it and stops media.
  */
 export class EntryDetail extends HTMLElement {
   private _entry: Entry | null = null;
@@ -56,10 +56,10 @@ export class EntryDetail extends HTMLElement {
           .hint { color: var(--color-muted); font-size: var(--text-size-small); }
         </style>
         <table class="rule-table">
-          <tr><th scope="row">${i18next.t("entry:entryName")}</th><td>${escapeHtml(entry.title)}</td></tr>
-          <tr><th scope="row">${i18next.t("entry:accessPage")}</th><td>${entry.page}</td></tr>
-          <tr><th scope="row">${i18next.t("entry:category")}</th><td>${escapeHtml(categoryLabel(entry.category))}</td></tr>
-          ${entry.category === EntryCategory.Text && entry.author ? `<tr><th scope="row">${i18next.t("entry:author")}</th><td>${escapeHtml(entry.author)}</td></tr>` : ""}
+          <tr><th scope="row">${t("entry:entryName")}</th><td>${escapeHtml(entry.title)}</td></tr>
+          <tr><th scope="row">${t("entry:accessPage")}</th><td>${entry.page}</td></tr>
+          <tr><th scope="row">${t("entry:category")}</th><td>${escapeHtml(categoryLabel(entry.category))}</td></tr>
+          ${entry.category === EntryCategory.Text && entry.author ? `<tr><th scope="row">${t("entry:author")}</th><td>${escapeHtml(entry.author)}</td></tr>` : ""}
         </table>
         <div class="body">${this.bodyHtml(entry)}</div>
       `
@@ -78,9 +78,9 @@ export class EntryDetail extends HTMLElement {
       case EntryCategory.Video: {
         const video = entry.target?.entity?.assets.find(a => a.assetType === "video");
         return /* html */ `
-          <p>${i18next.t("entry:goToPage", { page: entry.page })}</p>
+          <p>${t("entry:goToPage", { page: entry.page })}</p>
           ${text}
-          ${video ? `<p class="hint">${i18next.t("entry:preview")}</p>
+          ${video ? `<p class="hint">${t("entry:preview")}</p>
             <video src="${escapeHtml(video.src)}" controls playsinline preload="metadata"></video>` : ""}
         `;
       }
@@ -96,7 +96,7 @@ export class EntryDetail extends HTMLElement {
         return /* html */ `
           ${text}
           ${frame}
-          ${entry.media ? `<p><a href="${escapeHtml(entry.media)}" target="_blank" rel="noopener noreferrer">${i18next.t("entry:openInNewTab")}</a></p>` : ""}
+          ${entry.media ? `<p><a href="${escapeHtml(entry.media)}" target="_blank" rel="noopener noreferrer">${t("entry:openInNewTab")}</a></p>` : ""}
         `;
       }
     }

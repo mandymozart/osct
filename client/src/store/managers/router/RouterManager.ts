@@ -11,10 +11,7 @@ import { Draft } from "immer";
 import { RouteResolver } from "./helpers";
 
 /**
- * Manages routing and navigation.
- * Currently only handles in-game navigation.
- *
- * Views = routes, modes = global app state. Every route declares its mode (`router.ts`);
+ * Navigation between views. Views are routes, modes are global app state. Every route declares its mode (`router.ts`);
  * navigating sets route and mode in one store update, so subscribers (scene bridge,
  * navigation bar) never see an inconsistent in-between state. Components never set the
  * mode themselves (RULES #2).
@@ -39,7 +36,7 @@ export class RouterManager implements IRouterManager {
   }
 
   /**
-   * Show error page with error details
+   * Show the error / notice overlay; remembers the current view so `dismissError` can return to it
    * @param error Error information to display
    * @param force Force navigation even if already on the error page
    */

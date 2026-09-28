@@ -1,12 +1,10 @@
 import { GameStoreService } from "@/services";
 import { GameMode, IGame } from "@/types";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /**
- * Placeholder image per mode until Kévin's WebM animation (Phase 7), which has one state per mode.
- * Until then both modes show the same Mark (the thin "consultation" strip in the rendered frames is a
- * PDF → PNG glitch – Tilman, 2026-09-25). Files live in `public/` so they can be swapped without code
- * changes (RULES #5).
+ * Mark image per mode. Both modes currently show the same placeholder image until a per-mode animation
+ * replaces it. Files live in `public/` so they can be swapped without code changes.
  */
 export const MARK_IMAGE_SRC = "/assets/ui/mark-the-page/scan.png";
 
@@ -16,9 +14,8 @@ const MARK_IMAGES: Partial<Record<GameMode, string>> = {
 };
 
 /**
- * Mark the Page – the avatar / home button (design p.6, p.15, p.35).
- * One state per mode; a tap toggles scan ↔ consultation by navigating to the other mode's route
- * (the route sets the mode – RULES #2). Hidden in IDLE.
+ * Mark the Page: the avatar / home button. One state per mode; a tap toggles scan ↔ consultation by
+ * navigating to the other mode's route (the route sets the mode). Hidden in IDLE.
  */
 export class MarkThePage extends HTMLElement {
   private game: Readonly<IGame>;
@@ -76,8 +73,8 @@ export class MarkThePage extends HTMLElement {
         }
         button:active img { transform: scale(.94); }
       </style>
-      <button type="button" aria-label="${i18next.t(mode === GameMode.SCAN ? "header:openConsultation" : "header:backToScan")}">
-        ${src ? `<img src="${src}" alt="${i18next.t("common:markAlt")}">` : ""}
+      <button type="button" aria-label="${t(mode === GameMode.SCAN ? "header:openConsultation" : "header:backToScan")}">
+        ${src ? `<img src="${src}" alt="${t("common:markAlt")}">` : ""}
       </button>
     `;
   }

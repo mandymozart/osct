@@ -4,7 +4,7 @@ import { IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 import { Page } from "./page";
-import i18next from "i18next";
+import { t } from "i18next";
 
 export interface IErrorPage extends HTMLElement {
   showError(msg: string, options?: ErrorOptions): void;
@@ -19,9 +19,8 @@ export interface ErrorOptions {
 }
 
 /**
- * Error page displays errors to the user with optional action buttons.
- * It automatically subscribes to the game state to display any errors
- * that are set in the currentError property.
+ * Error overlay: shows the store's `currentError` (message, optional code and action button) and hides
+ * when it is cleared. "Dismiss" clears the error and returns to the view underneath.
  */
 class ErrorPage extends Page implements IErrorPage {
   private message: string = '';
@@ -38,32 +37,23 @@ class ErrorPage extends Page implements IErrorPage {
 
   connectedCallback() {
     super.connectedCallback();
-    // Subscribe to game state changes
     this.game.subscribe(this.handleStateChange.bind(this));
   }
 
   disconnectedCallback() {
-    // Clean up subscriptions
     this.game.unsubscribe(this.handleStateChange.bind(this));
     super.disconnectedCallback();
   }
 
-  /**
-   * Handle game state changes
-   */
   protected handleStateChange(state: any): void {
-    // Only process if currentError state has actually changed
     if (state.currentError !== undefined &&
       JSON.stringify(state.currentError) !== JSON.stringify(this.currentError)) {
 
-      // Update our stored reference
       this.currentError = state.currentError;
 
       if (state.currentError === null) {
-        // Hide the error page if currentError is null
         this.active = false;
       } else {
-        // Display the error using data from state
         const error = state.currentError;
         this.showError(error.msg, {
           code: error.code,
@@ -126,7 +116,7 @@ class ErrorPage extends Page implements IErrorPage {
     return /* html */ `
       <div class="message design">${this.message}</div>
       <div class="actions">
-          ${goldButton({ label: i18next.t("common:dismiss"), attrs: { id: "dismiss-error" } })}
+          ${goldButton({ label: t("common:dismiss"), attrs: { id: "dismiss-error" } })}
           ${this.actionButton
     ? goldButton({ label: this.actionButton.text, primary: true, attrs: { id: "action-button" } })
     : ''}
@@ -134,17 +124,13 @@ class ErrorPage extends Page implements IErrorPage {
       `;
   }
 
-  /**
-   * Show an error message with optional code and action button
-   * This can be called directly or triggered by state changes
-   */
+  /** Shows an error; called on store changes or directly */
   public showError(msg: string, options: ErrorOptions = {}): void {
     console.log(`[ErrorPage] Showing error: ${msg}`, options);
     this.message = msg;
     this.errorCode = options.code || '';
     this.actionButton = options.action || null;
 
-    // Log if we have an action button
     if (this.actionButton) {
       console.log('[ErrorPage] Action button will be shown:', this.actionButton.text);
     } else {
@@ -152,10 +138,10 @@ class ErrorPage extends Page implements IErrorPage {
     }
 
     this.render();
-    this.active = true; // Use the setter from Page class
+    this.active = true;
     this.game.finishLoading();
 
-    // Add event listeners to buttons
+    // Deferred until the rendered buttons exist
     setTimeout(() => {
       const dismissButton = this.shadowRoot?.querySelector('#dismiss-error');
       const actionButton = this.shadowRoot?.querySelector('#action-button');
@@ -172,7 +158,6 @@ class ErrorPage extends Page implements IErrorPage {
   }
 
   private handleDismiss(): void {
-    // Clear the error and return to the view underneath
     this.game.router.dismissError();
   }
 

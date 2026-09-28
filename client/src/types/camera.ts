@@ -1,6 +1,3 @@
-/**
- * Camera permission status enumeration
- */
 export enum CameraPermissionStatus {
   UNKNOWN = 'unknown',
   GRANTED = 'granted',
@@ -9,41 +6,24 @@ export enum CameraPermissionStatus {
   /** No camera API: insecure connection (http on a network address) or no camera support */
   UNAVAILABLE = 'unavailable',
   /**
-   * Access granted, but the camera sends no picture (seen on Android Chrome after another app used the
-   * camera – only a browser restart helped). Set by `<ar-bridge>` when the camera start times out.
+   * Access granted, but the camera delivers no frames (happens on Android Chrome after another app used
+   * the camera; only a browser restart recovers). Set by `<ar-bridge>` when the camera start times out.
    */
   NOT_RESPONDING = 'not-responding',
 }
 
-/**
- * Camera manager state interface
- */
 export interface CameraManagerState {
   cameraPermission: CameraPermissionStatus;
 }
 
-/**
- * Camera manager interface
- */
+/** Tracks camera permission; the camera-permission overlay (pages/camera-permission-page.ts) explains recovery. */
 export interface ICameraManager {
-  /**
-   * Check and handle camera permission
-   * @returns Promise resolving to true if permission granted, false otherwise
-   */
+  /** Query the current permission; resolves true when granted */
   checkPermission(): Promise<boolean>;
   
-  /**
-   * Request camera access explicitly
-   * @returns Promise resolving to true if permission granted, false otherwise
-   */
+  /** Prompt for camera access; resolves true when granted */
   requestAccess(): Promise<boolean>;
 
-  /** The camera started but sends no picture (camera start timed out) – the overlay tells how to recover */
+  /** Sets NOT_RESPONDING after the camera start timed out */
   reportNotResponding(): void;
-  
-  /**
-   * Show instructions for enabling camera access in browser settings
-   * (Responsibility handled by the camera-permission overlay, pages/camera-permission-page.ts)
-   */
-  // showSettings(): void;
 }

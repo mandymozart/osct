@@ -1,7 +1,4 @@
-/**
- * Simple browser detection for tailoring instructions
- * @returns Browser identifier: 'chrome', 'firefox', 'safari', or 'unknown'
- */
+/** User-agent browser family ('chrome', 'firefox', 'safari', 'unknown') for browser-specific instructions */
 export function detectBrowser(): string {
   const userAgent = navigator.userAgent.toLowerCase();
   
