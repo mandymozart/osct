@@ -35,6 +35,13 @@ npm run build:content:force    # same, even when nothing changed
   together – the checks on GitHub fail if they don't match.
 - The dev server picks up the new content on reload.
 
+## Image tracking
+
+The app recognises the book's pages with the open source image tracking engine of
+[8th Wall](https://github.com/8thwall/8thwall) by Niantic Spatial – the former commercial 8th Wall platform,
+discontinued and released under the MIT licence (npm `@8thwall/engine`). Its licence ships with the app
+next to the engine files (`assets/xr8/LICENSE`).
+
 ## More
 
 - [Documentation](docs/README.md) – content, build, deploy, architecture

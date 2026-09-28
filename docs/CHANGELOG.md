@@ -20,7 +20,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ### Changed
 - Image tracking with the **8th Wall engine** (`@8thwall/engine`, MIT) instead of MindAR: steadier content
   (less jitter). The engine's files are served from `assets/xr8/` with its licence and precached by the service
-  worker, so AR works offline. The Info page credits 8th Wall.
+  worker, so AR works offline. It is credited in the project README (not on the Info page).
 - The app makes the recognition data from the target images itself – nothing to compile. The whole target
   image is used (fitted into the engine's portrait frame).
 - Up to **10 targets per spread** (was 5); the camera follows 4 of them at the same moment.
