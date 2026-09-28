@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Exploration "webworker tracking" (Tilman; branch `claude/laughing-wright-hrt8zy`)
+
+- Research only: `agents/research/webworker-tracking.md`. A worker makes the app smoother, not the tracking
+  more precise; MindAR tracks on a 128-px template with 10–41 points, and our target images are 146–462 px.
+  8th Wall's engine (Image Targets, C++/WASM) is MIT open source now → spike it instead of rebuilding.
+- [ ] Final target images ≥ 1000 px, textured (with the artist) – helps any tracker.
+- [ ] Decide (Tilman): spike 8th Wall side by side with MindAR behind a build flag (S22 + iPhone)? Switching
+  would change the RULES stack line "Image tracking: MindAR" and the `.mind` content build.
+
 ## 2026-09-27 – Branch cleanup and dependency audit (Tilman)
 
 - Only `main` and `develop` remain; all experiment branches deleted locally and on GitHub (Tilman).
