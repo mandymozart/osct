@@ -925,6 +925,9 @@ beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
 - [x] Speed + statistics (Tilman: "100s of image targets", RTX 2070): per-image compile + cache
       (`scripts/.cache/mind/`), parallel jobs (`--jobs`), high-performance GPU (`--gpu`, `--angle`),
       progress bar with MP/s + ETA, per-image GPU/CPU times, summary.
+- [x] Local version history (Tilman: test before commit/deploy, rewind; content leaves git later):
+      `mind-history/<spread>/<version>/` (+ meta: date, note, GPU, images, times), `npm run mind:history`,
+      `npm run mind:restore -- <spread> previous|<n>|<id>`; the replaced file is kept too.
 - [ ] Tilman: benchmark `--jobs` values on the RTX 2070 (`--no-cache`), set the default from it.
 - [ ] Tilman: first run on his machine (GPU renderer printed; headless vs `--headed`), and
       `npm run compile:mind -- spread1` (target 0 differs slightly from a fresh compile, see MEMORY).

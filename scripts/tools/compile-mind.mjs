@@ -13,6 +13,10 @@
 //   npm run compile:mind -- --angle d3d11       # WebGL backend: d3d11 | vulkan | gl | metal …
 //   npm run compile:mind -- --headed            # visible browser window (if headless has no GPU)
 //   npm run compile:mind -- --browser <path>    # this Chrome/Chromium/Edge (or env MIND_BROWSER)
+//   npm run compile:mind -- --note "sharper scan"  # note stored with the version (mind:history)
+//
+// Every compiled .mind is kept as a version in mind-history/ (the one it replaces too): test it on the
+// phone, `npm run mind:restore -- <spread> previous` goes back (tools/mind-history.mjs).
 //
 // Browser: your installed Chrome, else Edge, else Playwright's Chromium (`npx playwright install
 // chromium`). The WebGL renderer is printed – "SwiftShader" / "llvmpipe" means software WebGL (slow).
@@ -31,6 +35,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import { chromium } from "playwright-core";
+import { saveVersion } from "./lib/mind-history.mjs";
 
 const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ROOT = path.resolve(SCRIPTS, "..");
@@ -38,6 +43,7 @@ const MINDAR_DIR = path.join(ROOT, "mind-ar");
 const SPREADS_DIR = path.join(ROOT, "content/spreads");
 const VENDOR_DIR = path.join(ROOT, "client/src/vendor/mind-ar");
 const CACHE_DIR = path.join(SCRIPTS, ".cache/mind");
+const HISTORY_DIR = path.join(ROOT, "mind-history");
 const IMAGE = /\.(jpe?g|png|webp)$/i;
 const ORIGIN = "http://mind.local";
 
@@ -59,6 +65,7 @@ const jobsOption = option("--jobs");
 const force = flag("--force");
 const noCache = flag("--no-cache") || force;
 const headed = flag("--headed");
+const note = option("--note");
 const requested = args;
 const cpus = os.availableParallelism?.() ?? os.cpus().length;
 const jobCount = Math.max(1, Number(jobsOption) || Math.min(4, Math.floor(cpus / 2)));
@@ -277,6 +284,7 @@ const totalPixels = queue.reduce((n, image) => n + image.width * image.height, 0
 const results = [];
 const started = Date.now();
 let browser;
+let gl;
 try {
   browser = await launch();
   const jobs = await Promise.all(
@@ -288,7 +296,7 @@ try {
     }),
   );
 
-  const gl = await jobs[0].page.evaluate(() => window.webgl());
+  gl = await jobs[0].page.evaluate(() => window.webgl());
   heading("GPU");
   log(`  ${bold(browser.browserType().name())} ${browser.version()} ${dim(`· ${headed ? "headed" : "headless"} · gpu ${gpu}${angle ? ` · angle ${angle}` : ""}`)}`);
   if (!gl) throw new Error("The browser has no WebGL.");
@@ -346,13 +354,30 @@ try {
   for (const spread of todo) {
     const files = spread.images.map(image => fs.readFileSync(image.cache).toString("base64"));
     const merged = Buffer.from(await jobs[0].page.evaluate(list => window.mergeMinds(list), files), "base64");
+    // The file being replaced stays restorable (dated by its last change)
+    if (fs.existsSync(spread.out)) {
+      saveVersion(HISTORY_DIR, spread.id, spread.out, { date: fs.statSync(spread.out).mtime, note: "before compile" });
+    }
     fs.writeFileSync(spread.out, merged);
     fs.writeFileSync(`${spread.out}.sha256`, `${spread.hash}\n`);
     const compiled = spread.images.filter(image => results.some(r => r.cache === image.cache)).length;
     spread.bytes = merged.length;
+    const version = saveVersion(HISTORY_DIR, spread.id, spread.out, {
+      note,
+      browser: `${browser.browserType().name()} ${browser.version()}`,
+      renderer: gl?.renderer,
+      sourceHash: spread.hash,
+      images: spread.images.map(image => {
+        const result = results.find(r => r.cache === image.cache);
+        const { width, height } = image;
+        return result
+          ? { index: image.index, name: image.name, width, height, keyframes: result.keyframes, points: result.points, ms: result.ms }
+          : { index: image.index, name: image.name, width, height, cached: true };
+      }),
+    });
     log(
       `  ${green("✔")} ${bold(path.relative(ROOT, spread.out))}  ${spread.images.length} target(s) · ${kb(merged.length)}` +
-        `  ${dim(`${compiled} compiled, ${spread.images.length - compiled} cached`)}`,
+        `  ${dim(`${compiled} compiled, ${spread.images.length - compiled} cached · version ${version.id}`)}`,
     );
   }
   await Promise.all(jobs.map(job => job.context.close()));

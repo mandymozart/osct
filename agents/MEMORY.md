@@ -36,6 +36,13 @@ outcome in the line (or move it into a dated decision block).
   - SwiftShader (container, 4 cores, 2 jobs): 10 images / 4.6 MP in 34 s, detection (GPU) 92 % of the time,
     tracking (CPU worker) 7 %; ~3–5 s fixed cost per image (TF.js shader compiles per keyframe size –
     MindAR's own TODO "reuse the same detector"). Real GPU numbers: Tilman's benchmark.
+- Versions (2026-09-28, Tilman: "test locally before deploy or commit … rewind"; git won't be an option
+  once the content leaves the repo): `scripts/tools/lib/mind-history.mjs` – every compile stores the new
+  `.mind` and the one it replaces in `mind-history/` (gitignored, next to `mind-ar/`), same bytes once,
+  newest 20 per spread + the current one. Restore refuses versions made from other target images
+  (would be "stale"). Test on the dev server (service worker off there).
+  - [ ] Open: when the content moves out of the repository, move `mind-history/` (and `mind-ar/`) next
+        to it – both tools resolve the paths from the repo root today.
 - `.mind.sha256` files are not copied to `client/public/assets/content`.
 - [ ] Open: target images much larger than the printed size (e.g. `edge/images-060.jpg`, 2059×1796)
       make the `.mind` and the compile bigger/slower – downscale in the build (e.g. max 1000 px)? Needs a

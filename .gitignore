@@ -45,3 +45,4 @@ server/api/db/error.log
 
 # compile-mind per-image cache
 /scripts/.cache
+/mind-history

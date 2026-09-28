@@ -272,6 +272,27 @@ same MindAR compiler (and version) as the app and the
 It prints the WebGL renderer: "SwiftShader" or "llvmpipe" means software WebGL – it works, just
 slower.
 
+### Test a compile, go back
+
+Every compile keeps the new `.mind` – and the one it replaced – as a version in `mind-history/`
+(local, not in git; the newest 20 per spread). Test on the phone, rewind when a version tracks worse:
+
+```bash
+cd scripts
+npm run compile:mind -- spread1 --note "brighter scan"   # the note shows up in the list
+cd ../client && npm run dev                              # open on the phone, scan the spread
+cd ../scripts
+npm run mind:history                                     # versions of all spreads, ● = current
+npm run mind:history -- spread1                          # one spread, with images and times per version
+npm run mind:restore -- spread1 previous                 # back to the version before
+npm run mind:restore -- spread1 3                        # or any version by number (or id)
+```
+
+Restoring copies the version back to `content/spreads/<spread>/` and runs the content build – reload
+the app. Test with the dev server: the built app's service worker keeps a `.mind` it has cached. A
+version compiled from other target images than the spread has now is refused (the content build
+would stop with "stale"); `--force` restores it anyway.
+
 Whenever a target is added, removed, replaced or reordered on a spread, the content build stops
 with "… is stale" until that spread is recompiled. GitHub checks and deploys never compile – commit
 the `.mind` and `.mind.sha256` files.
