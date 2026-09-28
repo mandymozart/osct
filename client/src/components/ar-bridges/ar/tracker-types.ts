@@ -31,6 +31,11 @@ export interface IImageTracker {
   startCamera(): Promise<void>;
   /** Track the targets of a spread on the running camera (replaces the previous targets) */
   loadTargets(spread: TrackedSpread): Promise<void>;
+  /**
+   * Spreads the reader may switch to next (the neighbours): the tracker may get their targets ready ahead, so
+   * `loadTargets()` for one of them starts at once. Called after the current spread is tracked.
+   */
+  prepareTargets(spreads: readonly TrackedSpread[]): void;
   /** Tracking and the camera picture pause, the stream stays */
   pause(): void;
   resume(): void;

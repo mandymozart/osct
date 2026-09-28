@@ -171,6 +171,10 @@ The app can now run on either engine – same scene, entities, unlock flow:
 - **S22 (Chrome, 2026-09-28), first look on 8th Wall:** camera picture under the three.js canvas ok, targets
   found and placed like MindAR, ~34 fps page frame rate while tracking; many WebGL readback performance
   warnings from the engine. `shadows` needed the whole-image targets (above).
+- **Spread switches (S22):** targets are extracted on the device, so the neighbouring spreads' targets are kept
+  loaded in the engine (`prepareTargets()`, the counterpart of the `.mind` preloading): first spread ~1.15 s,
+  switch to a neighbour 0–1 ms, to another spread ~0.6 s. The encode uses `toDataURL` – `toBlob` waited ~4 s
+  per image for idle time while the engine ran.
 - **Still open – on the phones:** the comparison itself (section 5.2), iOS motion permission prompt, pause/resume.
 
 ## Sources

@@ -28,6 +28,12 @@ interface LoadedTarget {
  * `utils/tracker-choice.ts`). Same contract as the MindAR `ImageTracker`: the camera survives a spread switch,
  * `loadTargets()` swaps the engine's image targets (made from the target images, `xr8.ts`).
  *
+ * Spread switches: the engine extracts each target's features on the device (one target per frame, no
+ * precompiled file like MindAR's `.mind`). So the neighbouring spreads' targets stay loaded next to the current
+ * ones (`prepareTargets()`, the counterpart of the `.mind` preloading) – the engine only reports the current
+ * spread's to the app, and a switch to a neighbour starts at once. The engine keeps what it already has when it
+ * is configured again and extracts only new targets.
+ *
  * The engine owns the camera: it draws the picture into its own canvas under the three.js canvas (a second
  * WebGL context – MindAR's TF.js has one too) and reports poses in its scene. World tracking is off, so the
  * camera stays put; each target's anchor is its pose relative to the camera – the three.js camera stays at
@@ -46,6 +52,12 @@ export class EighthWallTracker implements IImageTracker {
   private poses = new Map<number, { detail: XrImageDetail; target: LoadedTarget }>();
   private loadRun = 0;
   private imageTargets = new Map<string, Promise<PreparedImageTarget>>();
+  /** The current spread's targets and the neighbours' (`prepareTargets()`) – what the engine keeps loaded */
+  private current: PreparedImageTarget[] = [];
+  private upcoming: PreparedImageTarget[] = [];
+  /** Engine target names whose features are extracted (reported by its `imagescanning` event) */
+  private ready = new Set<string>();
+  private prepareRun = 0;
   private startWaiter: { resolve: () => void; reject: (error: Error) => void } | null = null;
   private scanningWaiter: (() => void) | null = null;
 
@@ -102,6 +114,7 @@ export class EighthWallTracker implements IImageTracker {
     this.stopTracking();
     const run = this.loadRun;
 
+    const begun = performance.now();
     const withImage = targets.filter(target => target.imageSrc);
     const data = await Promise.all(withImage.map(target => this.imageTarget(target.imageSrc)));
     if (run !== this.loadRun) return; // replaced or stopped meanwhile
@@ -109,7 +122,15 @@ export class EighthWallTracker implements IImageTracker {
       target.data.name,
       { index: withImage[i].index, widthFactor: target.widthFactor },
     ]));
+    // The previous spread stays loaded until prepareTargets() names the new neighbours (it is one of them)
+    this.upcoming = [...this.upcoming, ...this.current];
+    this.current = data;
+    this.configureEngine();
     if (!data.length) return;
+    if (data.every(target => this.ready.has(target.data.name))) {
+      console.info(`[8th Wall] ${data.length} targets already loaded – ready after ${Math.round(performance.now() - begun)} ms`);
+      return;
+    }
 
     let waiter: () => void = () => {};
     const scanning = new Promise<void>(resolve => {
@@ -120,9 +141,35 @@ export class EighthWallTracker implements IImageTracker {
       waiter = () => { window.clearTimeout(timer); resolve(); };
     });
     this.scanningWaiter = waiter;
-    XR8.XrController!.configure({ imageTargetData: data.map(target => target.data) });
+    const configured = performance.now();
     await scanning;
+    console.info(`[8th Wall] ${data.length} targets: prepared in ${Math.round(configured - begun)} ms, engine ready after ${Math.round(performance.now() - configured)} ms`);
     if (this.scanningWaiter === waiter) this.scanningWaiter = null;
+  }
+
+  prepareTargets(spreads: readonly TrackedSpread[]): void {
+    const run = ++this.prepareRun;
+    const sources = spreads.flatMap(spread => spread.targets.map(target => target.imageSrc).filter(Boolean));
+    void Promise.all(sources.map(src => this.imageTarget(src))).then(
+      data => {
+        if (run !== this.prepareRun || !this.started) return; // newer neighbours or the camera is off
+        this.upcoming = data;
+        this.configureEngine();
+      },
+      error => console.warn("[8th Wall] Could not prepare the next spreads' targets:", error),
+    );
+  }
+
+  /**
+   * The engine's targets = current + upcoming. It unloads what is no longer listed, keeps the rest and
+   * extracts the new ones (each new configure restarts that queue).
+   */
+  private configureEngine(): void {
+    const XR8 = this.XR8;
+    if (!XR8 || !this.started) return;
+    const byName = new Map([...this.current, ...this.upcoming].map(target => [target.data.name, target.data]));
+    this.ready.forEach(name => { if (!byName.has(name)) this.ready.delete(name); });
+    XR8.XrController!.configure({ imageTargetData: [...byName.values()] });
   }
 
   pause(): void {
@@ -144,7 +191,7 @@ export class EighthWallTracker implements IImageTracker {
     this.poses.clear();
     this.scanningWaiter?.();
     this.scanningWaiter = null;
-    if (this.XR8 && this.started) this.XR8.XrController!.configure({ imageTargetData: [] });
+    // The engine keeps its targets (a switch back or to a neighbour needs no new extraction)
   }
 
   stop(): void {
@@ -160,6 +207,10 @@ export class EighthWallTracker implements IImageTracker {
     }
     this.canvas?.remove();
     this.canvas = null;
+    this.current = [];
+    this.upcoming = [];
+    this.ready.clear();
+    this.prepareRun++;
     this.started = false;
     this.paused = false;
     this.intrinsics = null;
@@ -257,7 +308,13 @@ export class EighthWallTracker implements IImageTracker {
         if (processCpuResult.reality) this.onFrame(processCpuResult.reality);
       },
       listeners: [
-        { event: "reality.imagescanning", process: () => this.scanningWaiter?.() },
+        {
+          event: "reality.imagescanning",
+          process: ({ detail }) => {
+            (detail?.imageTargets ?? []).forEach((target: { name: string }) => this.ready.add(target.name));
+            this.scanningWaiter?.();
+          },
+        },
         { event: "reality.imagefound", process: ({ detail }) => this.onImage(detail, true) },
         { event: "reality.imageupdated", process: ({ detail }) => this.onImage(detail, true) },
         { event: "reality.imagelost", process: ({ detail }) => this.onImage(detail, false) },

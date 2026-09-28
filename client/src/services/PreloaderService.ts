@@ -1,5 +1,5 @@
 import { LoadOptions, LoadResult } from "@/types";
-import { getAssets, getSpread, getSpreads } from "@/utils/game-config";
+import { getAssets, getNeighbourSpreads, getSpread, getSpreads } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed";
 
 const DEFAULT_TIMEOUT = 30000;
@@ -99,11 +99,7 @@ export class PreloaderService {
    * Per spread: `.mind` first (needed to start AR), then entity assets and entry images.
    */
   async preloadNeighbours(spreadId: string, range = 1): Promise<LoadResult[]> {
-    const spreads = getSpreads();
-    const index = spreads.findIndex(s => s.id === spreadId);
-    if (index === -1) return [];
-    const neighbours = spreads.filter((_, i) => i !== index && Math.abs(i - index) <= range);
-
+    const neighbours = getNeighbourSpreads(spreadId, range);
     const minds = await Promise.all(neighbours.map(s => this.preload({ src: compressedUrl(s.mindSrc), type: "mind" })));
     const content = await Promise.all(neighbours.flatMap(s => getSpreadContent(s.id)).map(options => this.preload(options)));
     return [...minds, ...content];
