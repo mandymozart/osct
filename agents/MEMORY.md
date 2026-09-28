@@ -47,6 +47,8 @@ outcome in the line (or move it into a dated decision block).
   compiler code of ours; the Node CPU port from the research was never committed). MindAR's MIT `LICENSE`
   added to `client/src/vendor/mind-ar/`; Info page colophon ends with "Image tracking by HiuKim (MindAR)
   github.com/hiukim/mind-ar-js" (lead-in translated, names not).
+- Docs (Tilman): one file – `docs/content-build.md` merged into `docs/content.md` (section "Content build",
+  with "Compiling .mind files"); links updated.
 - `.mind.sha256` files are not copied to `client/public/assets/content`.
 - [ ] Open: target images much larger than the printed size (e.g. `edge/images-060.jpg`, 2059×1796)
       make the `.mind` and the compile bigger/slower – downscale in the build (e.g. max 1000 px)? Needs a
