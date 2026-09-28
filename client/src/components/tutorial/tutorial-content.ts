@@ -4,7 +4,7 @@ import { escapeHtml, paragraphs } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header";
 import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
-import i18next from "i18next";
+import { t } from "i18next";
 
 const tutorial = getTutorial();
 
@@ -111,7 +111,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
         .footer { padding-bottom: 1rem; }
       </style>
       <div class="head">
-        <img class="${mark ? "fade" : ""}" ${mark ?? ""} src="${MARK_IMAGE_SRC}" alt="${i18next.t("common:markAlt")}" data-mark>
+        <img class="${mark ? "fade" : ""}" ${mark ?? ""} src="${MARK_IMAGE_SRC}" alt="${t("common:markAlt")}" data-mark>
         ${illustration ? `<gold-illustration class="fade" ${illustration} src="${escapeHtml(step.illustration!)}"></gold-illustration>` : ""}
         ${title ? `<h1 class="design gold text fade" ${title}>${inline(step.title!)}</h1>` : ""}
         ${text ? `<div class="text design gold fade" ${text}>${paragraphs(step.description!).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}

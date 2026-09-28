@@ -2,7 +2,7 @@ import { Page } from "./page";
 import { GameStoreService } from "@/services";
 import { CameraPermissionStatus, GameMode, IGame } from "@/types";
 import { detectBrowser, escapeHtml } from "@/utils";
-import i18next from "i18next";
+import { t } from "i18next";
 import "@/components/common";
 import { goldButton } from "@/components/buttons";
 import { goToScan } from "@/components/tutorial";
@@ -142,7 +142,7 @@ export class CameraPermissionPage extends Page {
   }
 
   private getIcon(): string {
-    return `<gold-illustration src="/assets/illustrations/tutorial-step-2.svg" label="${i18next.t("camera:illustration")}"></gold-illustration>`;
+    return `<gold-illustration src="/assets/illustrations/tutorial-step-2.svg" label="${t("camera:illustration")}"></gold-illustration>`;
   }
 
   /**
@@ -152,10 +152,10 @@ export class CameraPermissionPage extends Page {
     const browser = detectBrowser();
     const which = browser === "chrome" || browser === "firefox" || browser === "safari" ? browser : "other";
     // Steps are numbered keys ("0", "1", …) – i18next-cli keeps lists as objects
-    const steps = Object.values(i18next.t(`camera:${which}Steps`, { returnObjects: true }) as Record<string, string>)
+    const steps = Object.values(t(`camera:${which}Steps`, { returnObjects: true }) as Record<string, string>)
       .map(step => `<li>${escapeHtml(step)}</li>`)
       .join("");
-    return `${i18next.t(`camera:${which}Title`)}<ol>${steps}</ol>`;
+    return `${t(`camera:${which}Title`)}<ol>${steps}</ol>`;
   }
 
   private getContent() {
@@ -163,22 +163,22 @@ export class CameraPermissionPage extends Page {
     if (this.currentPermissionStatus === CameraPermissionStatus.PROMPT) {
       return /* html */ `
         ${this.getIcon()}
-        <div class="message design gold"><p>${i18next.t("camera:waiting")}</p><p>${i18next.t("camera:allow")}</p></div>
+        <div class="message design gold"><p>${t("camera:waiting")}</p><p>${t("camera:allow")}</p></div>
       `;
     }
     const onboarding = this.game.state.mode === GameMode.IDLE;
     const continueButton = onboarding
-      ? goldButton({ label: i18next.t("camera:continueWithout"), shape: "button", className: "continue", attrs: { "data-action": "continue" } })
+      ? goldButton({ label: t("camera:continueWithout"), shape: "button", className: "continue", attrs: { "data-action": "continue" } })
       : "";
     // Access granted, but no picture: reload the page, else restart the browser
     if (this.currentPermissionStatus === CameraPermissionStatus.NOT_RESPONDING) {
       return /* html */ `
         ${this.getIcon()}
         <div class="message design gold">
-          <p>${i18next.t("camera:notResponding")}</p>
-          <p>${i18next.t("camera:notRespondingHelp")}</p>
+          <p>${t("camera:notResponding")}</p>
+          <p>${t("camera:notRespondingHelp")}</p>
         </div>
-        ${goldButton({ label: i18next.t("camera:reload"), shape: "button", className: "continue", attrs: { "data-action": "reload" } })}
+        ${goldButton({ label: t("camera:reload"), shape: "button", className: "continue", attrs: { "data-action": "reload" } })}
         ${continueButton}
       `;
     }
@@ -186,15 +186,15 @@ export class CameraPermissionPage extends Page {
     if (this.currentPermissionStatus === CameraPermissionStatus.UNAVAILABLE) {
       return /* html */ `
         ${this.getIcon()}
-        <div class="message design gold"><p>${i18next.t("camera:unavailable")}</p></div>
+        <div class="message design gold"><p>${t("camera:unavailable")}</p></div>
         ${continueButton}
       `;
     }
     return /* html */ `
       ${this.getIcon()}
       <div class="message design gold">
-        <p>${i18next.t("camera:denied")}</p>
-        <p>${i18next.t("camera:enable")}</p>
+        <p>${t("camera:denied")}</p>
+        <p>${t("camera:enable")}</p>
       </div>
       <div class="settings-instructions design muted">
         ${this.getSettingsInstructions()}

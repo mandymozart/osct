@@ -4,6 +4,13 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Shorter translation calls (Tilman)
+
+- UI texts use i18next's named `t` export: `import { t } from "i18next"` and `t("about:info")` instead of
+  `i18next.t(...)`. It is bound to the default instance (initialised by `src/i18n`), and i18next-cli still
+  extracts bare `t(...)` calls (locale JSON unchanged). Files that also need `resolvedLanguage` /
+  `changeLanguage` import both: `import i18next, { t } from "i18next"`. RULES #20 updated.
+
 ## 2026-09-27 – Branch cleanup and dependency audit (Tilman)
 
 - Only `main` and `develop` remain; all experiment branches deleted locally and on GitHub (Tilman).

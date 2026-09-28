@@ -2,7 +2,7 @@ import { GameStoreService } from "@/services";
 import { ENTITY_UNLOCK_MS, GameMode, IGame, Target, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /** The image's small rotation on the unlock (the first find of a target) */
 const UNLOCK_MS = 1200;
@@ -205,11 +205,11 @@ export class FoundIndicator extends HTMLElement {
         }
       </style>
       <div class="label design" aria-hidden="true">
-        <span class="gold">${i18next.t("scan:newEntryUnlocked")}</span>
+        <span class="gold">${t("scan:newEntryUnlocked")}</span>
         ${SPARKLES.map(([x, y, size, delay]) =>
           `<i class="sparkle" style="left: ${x}%; top: ${y}%; --size: ${size}rem; animation-delay: ${delay}s"></i>`).join("")}
       </div>
-      ${target && src ? `<button type="button" aria-label="${i18next.t("scan:openEntry", { title: entry?.title ?? "" })}"><img src="${src}" alt=""></button>` : ""}
+      ${target && src ? `<button type="button" aria-label="${t("scan:openEntry", { title: entry?.title ?? "" })}"><img src="${src}" alt=""></button>` : ""}
     `;
   }
 

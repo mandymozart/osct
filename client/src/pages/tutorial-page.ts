@@ -2,7 +2,7 @@ import { LoadingState, Step } from "@/types";
 import { getTutorial } from "@/utils/game-config";
 import { Page } from "./page";
 import { goToScan, goToStep } from "@/components/tutorial";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /**
  * Onboarding = tutorial (design p.1–5, PLAN Phase 5): black screen, Mark, one step at a time (route
@@ -70,7 +70,7 @@ export class TutorialPage extends Page {
       <div class="content">
         <tutorial-content><tutorial-navigation slot="actions"></tutorial-navigation></tutorial-content>
       </div>
-      <button type="button" class="skip">${i18next.t("tutorial:skip")}</button>
+      <button type="button" class="skip">${t("tutorial:skip")}</button>
     `;
   }
 

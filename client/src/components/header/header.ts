@@ -4,7 +4,7 @@ import "./entries-counter";
 import "./mark-the-page";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /**
  * Top chrome, per mode (design 260804):
@@ -96,9 +96,9 @@ export class GameHeader extends HTMLElement {
               <mark-the-page></mark-the-page>
               <div class="counter">
                 <entries-counter></entries-counter>
-                <div class="counter-label design">${i18next.t("header:entriesConsulted")}</div>
+                <div class="counter-label design">${t("header:entriesConsulted")}</div>
               </div>
-              ${goldButton({ label: "i", shape: "icon", className: "info", attrs: { id: "info", "aria-label": i18next.t("header:info") } })}
+              ${goldButton({ label: "i", shape: "icon", className: "info", attrs: { id: "info", "aria-label": t("header:info") } })}
             </div>
         `;
   }

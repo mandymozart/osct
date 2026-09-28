@@ -1,6 +1,6 @@
 import { ConsultationPage } from "./consultation-page";
 import { getBook } from "@/utils/game-config";
-import i18next from "i18next";
+import { t } from "i18next";
 import "@/components/settings";
 
 /**
@@ -30,16 +30,16 @@ export class AboutPage extends ConsultationPage {
     return /* html */ `
       <div class="content below-toolbar">
         ${this.entriesToolbar()}
-        <h2 class="section-title">${i18next.t("about:info")}</h2>
-        <p>${i18next.t("about:infoText", params)}</p>
+        <h2 class="section-title">${t("about:info")}</h2>
+        <p>${t("about:infoText", params)}</p>
 
-        <h2 class="section-title">${i18next.t("about:account")}</h2>
+        <h2 class="section-title">${t("about:account")}</h2>
         <div class="settings">
           <settings-history></settings-history>
           <settings-account></settings-account>
         </div>
 
-        <h2 class="section-title">${i18next.t("about:settings")}</h2>
+        <h2 class="section-title">${t("about:settings")}</h2>
         <div class="settings">
           <settings-feedback></settings-feedback>
           <settings-language></settings-language>
@@ -47,17 +47,17 @@ export class AboutPage extends ConsultationPage {
           <settings-download></settings-download>
         </div>
 
-        <h2 class="section-title">${i18next.t("about:colophon")}</h2>
-        <p>${i18next.t("about:author", params)}<br>${i18next.t("about:publishedBy")}</p>
+        <h2 class="section-title">${t("about:colophon")}</h2>
+        <p>${t("about:author", params)}<br>${t("about:publishedBy")}</p>
         <a class="logo-link" href="https://buildingfictions.com" target="_blank" rel="noopener noreferrer">
           <img src="/assets/bf.svg" class="logo" alt="buildingfictions" />
         </a>
-        <p>${i18next.t("about:appBy")}</p>
+        <p>${t("about:appBy")}</p>
         <div class="platforms">
-          <p>${i18next.t("about:requirements")}</p>
-          <p>${i18next.t("about:android")}</p>
-          <p>${i18next.t("about:desktop")}</p>
-          <p>${i18next.t("about:ios")}</p>
+          <p>${t("about:requirements")}</p>
+          <p>${t("about:android")}</p>
+          <p>${t("about:desktop")}</p>
+          <p>${t("about:ios")}</p>
         </div>
       </div>
     `;
