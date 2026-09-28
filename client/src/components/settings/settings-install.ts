@@ -1,18 +1,18 @@
 import { goldButton } from "@/components/buttons";
-import i18next from "i18next";
+import { t } from "i18next";
 import { InstallService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
 /**
- * Install section (PWA, Tilman 2026-09-27): "Install as app on this device" stays until the app is installed
- * – browsers offer their own install dialog only once, and can't always tell whether the app is installed.
- * A tap opens the browser's dialog where there is one, else it explains the steps (iOS: Share → "Add to
- * Home Screen"; other browsers: their menu). Running from the home screen, it says so instead.
+ * PWA install section. The button stays until the app runs installed, because browsers offer their install
+ * dialog only once and can't always detect an installed app. A tap opens the native dialog when available,
+ * otherwise shows manual steps (iOS: Share → "Add to Home Screen"; others: the browser menu). When running
+ * installed, it shows a status line instead.
  */
 export class SettingsInstall extends SettingsSection {
   private install = InstallService.getInstance();
   private unsubscribe?: () => void;
-  /** The reader tapped the button and no dialog was available – show the steps */
+  /** Set when the button was tapped without a native dialog available: show the manual steps */
   private explain = false;
 
   connectedCallback() {
@@ -28,12 +28,12 @@ export class SettingsInstall extends SettingsSection {
   protected content(): string {
     const method = this.install.getMethod();
     if (method === "installed" || method === "added") {
-      return /* html */ `<p class="description first" role="status">${i18next.t(method === "installed" ? "settings:installDone" : "settings:installAdded")}</p>`;
+      return /* html */ `<p class="description first" role="status">${t(method === "installed" ? "settings:installDone" : "settings:installAdded")}</p>`;
     }
-    const steps = method === "ios" ? i18next.t("settings:installIos") : i18next.t("settings:installManual");
+    const steps = method === "ios" ? t("settings:installIos") : t("settings:installManual");
     return /* html */ `
-      <div class="row">${goldButton({ label: i18next.t("settings:installButton"), attrs: { "data-action": "install" } })}</div>
-      <p class="description" role="status">${this.explain ? steps : i18next.t("settings:installDescription")}</p>
+      <div class="row">${goldButton({ label: t("settings:installButton"), attrs: { "data-action": "install" } })}</div>
+      <p class="description" role="status">${this.explain ? steps : t("settings:installDescription")}</p>
     `;
   }
 

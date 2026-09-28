@@ -3,9 +3,9 @@ import { IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 
 /**
- * Base of the settings sections on the Info page (Tilman 2026-09-26: "styled a little bit like a mobile
- * app"): a button or label, a short description below, a rule between the sections. Tools, settings and
- * later account settings each get their own section component.
+ * Base class for the Info page's settings sections: shadow root with design styles, shared section frame
+ * (padding, separator rule, `.row` / `.description` / `.options` styles) and click delegation to
+ * `onAction` for elements with `data-action`. Subclasses provide `content()`.
  */
 export abstract class SettingsSection extends HTMLElement {
   protected game: Readonly<IGame>;
@@ -26,10 +26,10 @@ export abstract class SettingsSection extends HTMLElement {
     this.shadowRoot?.removeEventListener("click", this.handleClick);
   }
 
-  /** Markup of the section (inside the shared frame) */
+  /** Section markup, rendered inside the shared frame */
   protected abstract content(): string;
 
-  /** Click on an element with `data-action` inside the section */
+  /** Handles a click on an element with `data-action` inside the section */
   protected abstract onAction(action: string, element: HTMLElement): void;
 
   protected render(): void {
@@ -41,15 +41,14 @@ export abstract class SettingsSection extends HTMLElement {
           padding: 1rem 0;
           border-bottom: var(--rule);
         }
-        /* The first section of a group starts right below the group title, like the Info text (Tilman 2026-09-27) */
+        /* First section of a group sits directly below the group title */
         :host(:first-child) { padding-top: 0; }
-        /* The last section of a group: no rule – the next group's title brings its own (Tilman 2026-09-27) */
+        /* Last section of a group has no rule: the next group's title draws its own */
         :host(:last-child) { border-bottom: none; }
         .row { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem .75rem; }
         .description { margin: .6rem 0 0; color: var(--color-muted); font-size: var(--text-size-small); }
         .description.first { margin-top: 0; }
         .options { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
-        /* The current choice: a thin gold ring (every pill already has the bronze glow) */
         :host .options [aria-current="true"] { box-shadow: var(--shadow-bronze), inset 0 0 0 0.0625rem var(--color-accent); }
       </style>
       ${this.content()}

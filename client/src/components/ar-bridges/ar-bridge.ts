@@ -4,17 +4,16 @@ import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
 import { getSceneState } from "./utils/scene-state";
 
-/** After startup: wait this long, then load the AR chunk and the current spread in idle time */
+/** Delay after startup before the AR chunk and the current spread are preloaded in idle time */
 const WARM_UP_DELAY_MS = 1500;
 
 /**
- * <ar-bridge> – the only glue between the game store and the AR scene
- *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (scene-state policy)
- *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → preload
- *   First find (= unlock): discovery animation of the entity + TARGET_UNLOCKED_EVENT (found indicator).
- *   Entity tapped: the entry opens (= consulted), like a tap on the found indicator's image.
- * The scene is an `IArScene`: `LazyArScene` (three.js + MindAR load on the first scan, warmed up in idle
- * time after startup); tests inject a fake one.
+ * <ar-bridge>: the only link between the game store and the AR scene.
+ *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (policy in scene-state.ts).
+ *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → neighbour preload.
+ * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
+ * tapping an entity opens its entry. The scene is a `LazyArScene` (three.js + MindAR load on the first scan,
+ * warmed up in idle time after startup); tests inject one via `sceneFactory`.
  */
 export class ArBridge extends HTMLElement {
   private game: Readonly<IGame>;
@@ -57,8 +56,8 @@ export class ArBridge extends HTMLElement {
   }
 
   /**
-   * Once the app has started (loading screen gone), in idle time: load the AR chunk and fetch the current
-   * spread's `.mind` and content into the browser cache – the first scan then only starts the camera.
+   * Once the loading screen is gone, in idle time: load the AR chunk and fetch the current spread's `.mind`
+   * and content into the browser cache, so the first scan only has to start the camera.
    */
   private scheduleWarmUp(lazy: LazyArScene) {
     const idle = (run: () => void) =>
@@ -89,7 +88,7 @@ export class ArBridge extends HTMLElement {
     this.scene = null;
   }
 
-  /** Found: tracked + unlocked (store); the first find also celebrates (entity) and tells the indicator */
+  /** Records the find in the store; the first find (unlock) also animates the entity and notifies the found indicator */
   private handleFound(targetId: string) {
     const wasUnlocked = this.game.history.isUnlocked(targetId);
     this.game.targets.addTarget(targetId);
@@ -98,7 +97,7 @@ export class ArBridge extends HTMLElement {
     document.dispatchEvent(new CustomEvent(TARGET_UNLOCKED_EVENT, { detail: { targetId } }));
   }
 
-  /** Tap on an AR entity in scan mode: open its entry (the route sets consultation mode; the view consults it) */
+  /** Tap on an AR entity in scan mode opens its entry (the route sets consultation mode; the entry view marks it consulted) */
   private handleTap(targetId: string) {
     if (this.game.state.mode !== GameMode.SCAN) return;
     const target = getTarget(targetId);
@@ -120,8 +119,8 @@ export class ArBridge extends HTMLElement {
 
     if (status === "error") {
       console.warn("[ArBridge] AR error:", error);
-      // No picture from the camera: the overlay asks to reload / restart the browser;
-      // else (denied / unavailable) refresh the permission state → camera-permission-page
+      // No picture from the camera: the overlay asks to reload / restart the browser.
+      // Otherwise (denied / unavailable) refresh the permission state, which shows camera-permission-page.
       if (error?.includes(CAMERA_NOT_RESPONDING)) this.game.camera.reportNotResponding();
       else void this.game.camera.checkPermission();
     }

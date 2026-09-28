@@ -1,5 +1,5 @@
 import '@ungap/custom-elements';
-// First: i18next is set up before any module translates (also at import time)
+// Must stay first: i18next is initialised before any module translates (also at import time)
 import "@/i18n";
 
 import "@/components";
@@ -12,16 +12,16 @@ import {
 } from "@/types";
 import { hideStaticSplash, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
 import { getConfigurationError, getTutorial } from "@/utils/game-config";
-import i18next from "i18next";
+import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
 
-// Language of the page (screen readers, hyphenation) and the static splash's texts (index.html, English)
+// Page language (screen readers, hyphenation); translate the static splash's texts (index.html ships English)
 document.documentElement.lang = i18next.resolvedLanguage ?? DEFAULT_LANGUAGE;
 const staticSplash = document.getElementById("static-splash");
-staticSplash?.setAttribute("aria-label", i18next.t("common:loadingBook"));
-staticSplash?.querySelector("img")?.setAttribute("alt", i18next.t("common:markAlt"));
+staticSplash?.setAttribute("aria-label", t("common:loadingBook"));
+staticSplash?.querySelector("img")?.setAttribute("alt", t("common:markAlt"));
 
-// "Add to Home Screen" on the Info page: the browser announces it once, early – keep it from the start
+// Must run early: the browser fires its install prompt once, shortly after load (see InstallService)
 InstallService.getInstance().start();
 
 // Detect iOS Safari for compatibility fixes
@@ -29,7 +29,6 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-// Add class to document root for CSS targeting
 if (isIOS || isSafari) {
   document.documentElement.classList.add('ios-device');
   console.log('[BookGame] iOS/Safari detected, applying compatibility fixes');
@@ -43,7 +42,7 @@ export class BookGame extends HTMLElement {
     super();
     this.game = GameStoreService.getInstance();
     this.attachShadow({ mode: "open" });
-    FeedbackService.getInstance().start(); // sounds + vibration (tap on buttons, audio unlock)
+    FeedbackService.getInstance().start(); // tap feedback on buttons, audio unlock on first gesture
   }
 
   connectedCallback() {
@@ -149,27 +148,27 @@ export class BookGame extends HTMLElement {
     try {
       await waitForDOMReady();
       window.BOOKGAME = this.game;
-      // The requested view opens directly (a link, or the page reloaded) – no resume prompt.
+      // A requested view (link or reload) opens directly, without a resume prompt.
       // Plain start: first visit → onboarding (skip / finish marks it done), else home.
-      // The static splash (index.html) already shows the first onboarding step: the onboarding goes on
-      // after it, the splash page skips it – the app starts underneath.
-      // Account: the link from the confirmation email (/about?login=…) signs in; a stored session syncs
-      // the progress – runs in the background, the app doesn't wait for the server
+      // The static splash (index.html) already shows the first onboarding step, so onboarding continues
+      // after it and the app starts underneath.
+      // Account: the confirmation-email link (/about?login=…) signs in; a stored session syncs progress.
+      // Runs in the background – startup does not wait for the server.
       void UserService.getInstance().start(this.game as IGame);
       const links = LinkService.getInstance();
       const linked = links.openIncomingLink(this.game);
       if (!linked && !this.game.state.progress.onboarded) {
         this.game.router.navigate("/tutorial", { key: "step", value: String(this.firstOnboardingStep()) });
       }
-      // Converted or reset progress is told once, over the opened view
+      // Report converted or reset progress once, on top of the opened view
       this.game.history.reportLoadStatus();
-      // From now on the address bar follows the state
+      // From here on the address bar follows the state
       links.startSync(this.game);
-      // The app is ready (the AR scene loads with the first scan): end the startup loading, fade the
-      // splash out – a link at once, else when the splash step's time is up
+      // App ready (the AR scene loads with the first scan): end startup loading and fade the splash out –
+      // immediately for a link, else when the splash step's duration has elapsed
       this.game.finishLoading();
       void releaseStaticSplash({ wait: !linked });
-      // PWA: installable, offline app shell + seen content (production builds only)
+      // PWA: installable, offline app shell and seen content (production builds only)
       ServiceWorkerService.register();
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
@@ -191,7 +190,7 @@ export class BookGame extends HTMLElement {
     this.game.finishLoading();
     void hideStaticSplash();
     const message =
-      error instanceof Error ? error.message : i18next.t("startup:unknownError");
+      error instanceof Error ? error.message : t("startup:unknownError");
     if (this.errorPage) {
       const errorEvent = new CustomEvent("show-error", {
         detail: { message },

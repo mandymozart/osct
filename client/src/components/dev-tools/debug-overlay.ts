@@ -10,6 +10,11 @@ const escapeHtml = (text: string) =>
 
 const formatTime = (time: number) => new Date(time).toLocaleString();
 
+/**
+ * Development overlay: a one-line status summary (AR, spread, targets, assets, progress, found counts)
+ * that expands on tap into spread, target and progress details. Sets `--debug-offset` so app chrome
+ * moves below the collapsed line.
+ */
 export class DebugOverlay extends HTMLElement {
   private shadow: ShadowRoot;
   private subscriptionCleanups: Array<() => void> = [];
@@ -35,7 +40,7 @@ export class DebugOverlay extends HTMLElement {
   }
 
   protected connectedCallback() {
-    // The collapsed line covers the top; app chrome (Mark) moves down by this much in dev
+    // The collapsed line covers the top of the screen; app chrome moves down by this offset
     document.documentElement.style.setProperty("--debug-offset", "1.25rem");
     this.render();
     this.initialize();
@@ -43,13 +48,11 @@ export class DebugOverlay extends HTMLElement {
 
   protected disconnectedCallback() {
     this.removeEventListeners();
-    // Clean up all subscriptions
     this.subscriptionCleanups.forEach(cleanup => cleanup());
     this.subscriptionCleanups = [];
   }
 
   private setupListeners() {
-    // Subscribe to properties we need for the debug overlay
     this.subscriptionCleanups.push(
       this.game.subscribeToProperty('currentSpread', () => this.updateContent()),
       this.game.subscribeToProperty('spreads', () => this.updateContent()),
@@ -90,8 +93,7 @@ export class DebugOverlay extends HTMLElement {
       <style>
         :host {
           position: fixed;
-          /* Collapsed: one line of exactly var(--debug-offset) = 1.25rem (1rem line + 2 × .125rem padding),
-             so the app chrome below starts right under it; below the status bar in the home-screen app */
+          /* Collapsed height must equal --debug-offset (1rem line + 2 × .125rem padding = 1.25rem) */
           top: env(safe-area-inset-top);
           box-sizing: border-box;
           line-height: 1rem;
@@ -176,12 +178,10 @@ export class DebugOverlay extends HTMLElement {
       return;
     }
 
-    // Scene status
     html += `<div class="section">
       <div>AR: ${this.arStatusLabel()}</div>
     </div>`;
 
-    // Current spread
     if (currentSpread) {
       html += this.renderSpreadInfo(currentSpread);
     } else {
@@ -189,7 +189,6 @@ export class DebugOverlay extends HTMLElement {
     }
     
     if(!this.expanded){
-      // Add spread summary
       html = `<div class="section section--summary">
       ${currentSpread ? this.generateSpreadSummary(currentSpread) : 'No spread'}
       </div>`;
@@ -198,7 +197,7 @@ export class DebugOverlay extends HTMLElement {
     contentEl.innerHTML = html;
   }
 
-  /** Found events per target (debug: does tracking hold or flicker?) */
+  /** Found events per target – a high count means tracking keeps breaking off */
   private foundCount = new Map<string, number>();
   private previouslyTracked: readonly string[] = [];
 
@@ -219,17 +218,16 @@ export class DebugOverlay extends HTMLElement {
         : '<span class="loading">◉</span>';
     };
 
-    // AR status (Phase 6): green = running, orange = on its way / paused, red = error
+    // AR status: green = running, orange = starting / paused, red = error
     const arStatus = this.game.state.arStatus;
     const sceneStatus = getStatusDot(arStatus === "running", arStatus === "error");
 
-    // Get spread status
     const spreadStatus = getStatusDot(this.game.state.spreads[id].status === LoadingState.LOADED, false);
 
-    // Tracked targets with how often each was found – many finds = tracking keeps breaking off
+    // Tracked targets with how often each was found
     const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
 
-    // Progress: unlocked targets / consulted entries (whole book)
+    // Progress across the whole book: unlocked targets / consulted entries
     const { unlocked, consulted } = this.game.state.progress;
 
     return `
@@ -238,7 +236,7 @@ export class DebugOverlay extends HTMLElement {
   }
 
   /**
-   * Progress record (PLAN Phase 2): ids no longer in the content are kept in storage and marked here
+   * Progress record. Ids no longer present in the content stay in storage and are marked as missing here.
    */
   private renderProgress(): string {
     const progress = this.game.state.progress;
@@ -290,7 +288,6 @@ export class DebugOverlay extends HTMLElement {
       </div>
     `;
 
-    // Targets
     if (spread.targets && spread.targets.length > 0) {
       html += `<div class="section section--targets">`;
       html += `<div>Targets (${spread.targets.length}):</div><div class="target-list">`;
@@ -313,7 +310,6 @@ export class DebugOverlay extends HTMLElement {
         <div>Target #${index}: ${target.id ? target.id : 'unnamed'}</div>
     `;
 
-    // Add image preview if available
     if (target.imageSrc) {
       html += `
         <div class="target-image">

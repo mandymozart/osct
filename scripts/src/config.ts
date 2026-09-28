@@ -2,11 +2,9 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-// Get the directory path of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, '..');
 
-// Define project root relative to scripts directory
 export const projectRoot = resolve(__dirname, '../../');
 
 // OSCT_CONTENT_DIR / OSCT_MINDAR_DIR point the build at another folder (tests; content outside this repo)

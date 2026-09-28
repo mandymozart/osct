@@ -79,6 +79,19 @@ The PDF cannot express a backdrop blur; the **frosted glass** look is confirmed 
 | Found indicator image | 171 × 212 px, ~234 px from the top |
 | Onboarding text block | gradient box 247 px, centred |
 
+### Details (moved from code comments, 2026-09-28)
+| Element | Value |
+|---|---|
+| Category pill and its open menu | width **52.5 pt ≈ 100 px** (`--category-width`, frames 17, 18); menu corner radius **12 pt** (1.45 rem) |
+| Pill / "i" glow | bronze `#957149` (frame 17) → `--shadow-bronze`; open category menu: grey `#8b8d8c` (frame 18) → `--shadow-grey` |
+| Mark image margin | the drawing starts 14 of 125 px below the top of `scan.png` → `--mark-inset-top`; the header pulls the Mark up by it |
+| Entries list top | 1 rem below the "Entries consulted" counter, which ends at 9.75 rem under the Mark. Info uses the list's positions: the "Entries" pill where the category pill is, the text where the list starts |
+| Info page groups | the first section of a group has no top padding (sits right below the group title); the last has no bottom rule (the next group title brings its own) |
+| Switch rows | `.switch-row` min-height 4 rem, .5 rem padding top/bottom – each option stands alone, two text lines fit |
+| Language options | the current choice: thin gold inset ring on top of the bronze pill glow (`aria-current="true"`) |
+| Info logo | `bf.svg` is white on transparent – only works on the black page |
+| Debug line (dev) | lies over the page and moves nothing, as in the final app |
+
 ## 4. Differences to the build before 2026-09-25 (applied on 2026-09-25 unless noted)
 - Gold is a flat `--color-accent` today → gradient text (§5).
 - Mark 64 px → 99 px (same Mark in all modes) ✓; scan position (−11 px) → after Q2 (kept at the top edge).

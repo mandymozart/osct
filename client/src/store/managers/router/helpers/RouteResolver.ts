@@ -1,9 +1,7 @@
 import { PageRoute, PageRouteDefinition, RouteParam } from "@/types";
 import { router as routerConfig } from "@/router";
 
-/**
- * Helper class for resolving routes from different inputs
- */
+/** Static lookups against the route table in `router.ts` */
 export class RouteResolver {
   /**
    * Find the route definition for a slug

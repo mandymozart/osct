@@ -1,4 +1,4 @@
-// Placeholder UI sounds for the app (Tilman 2026-09-26: "think towards Nintendo games") – original
+// Placeholder UI sounds for the app in a retro console style – original
 // chiptune blips: square / pulse waves with short envelopes. Replace the files in
 // client/public/assets/sounds/ with designed sounds of the same names whenever they exist.
 //
@@ -99,7 +99,7 @@ const sounds = {
     ),
   ),
 
-  // Target found again (every find after the unlock – Tilman 2026-09-26, "pew pew pew"): three quick
+  // Target found again (every find after the unlock): three quick
   // falling laser zaps, then a rising sparkle run with a bright held note
   found: mix(
     sequence(

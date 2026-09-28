@@ -10,7 +10,7 @@ import { ITargetManager, TargetManagerState } from "./targets";
 import { LoadingState } from "./common";
 
 export interface IGame extends IBaseStore<GameState> {
-  version: ConfigurationVersion; // History and Game version have to match. 
+  version: ConfigurationVersion;
   state: GameState;
   spreads: ISpreadManager;
   router: IRouterManager;
@@ -21,7 +21,7 @@ export interface IGame extends IBaseStore<GameState> {
   startLoading(): void;
   finishLoading(): void;
   setLoadingState(state: LoadingState): void;
-  /** Reported by the AR bridge (Phase 6) */
+  /** Called by `<ar-bridge>` whenever the AR scene status changes */
   setArStatus(status: ArStatus): void;
   notifyError(error: ErrorInfo): void;
   onError(listener: ErrorListener): void;
@@ -46,12 +46,12 @@ export interface GameVersion {
 }
 
 /**
- * Game mode = UI context (from the design): which chrome is shown and what Mark the Page does.
- * Set only through routes – each route declares its mode, `RouterManager.navigate` applies it
- * together with the route (RULES #2). The scene state follows from it (`ar-bridges/utils/scene-state.ts`).
- * IDLE: home, onboarding/tutorial – no AR chrome.
- * SCAN: scan mode – Mark (scan), counter, spread menu; scene running.
- * CONSULTATION: consultation mode – Mark (consultation), entries, info; scene paused underneath.
+ * UI context: which chrome is shown and what Mark the Page does. Set only through routes – each route
+ * declares its mode and `RouterManager.navigate` applies both together (RULES #2). The scene state is
+ * derived from it (`ar-bridges/utils/scene-state.ts`).
+ * IDLE: home, onboarding, tutorial – no AR chrome.
+ * SCAN: Mark (scan), counter, spread menu; scene running.
+ * CONSULTATION: Mark (consultation), entries, info; scene paused underneath.
  */
 export enum GameMode {
   SCAN = "scan",

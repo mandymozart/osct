@@ -117,6 +117,42 @@ outcome in the line (or move it into a dated decision block).
       make the `.mind` and the compile bigger/slower – downscale in the build (e.g. max 1000 px)? Needs a
       tracking test on the book first.
 
+## 2026-09-28 – Releases deploy production (Tilman)
+
+- Production is deployed by publishing a GitHub release (`release.yml`), not by merging to `main`. The
+  workflow verifies tag = version (client, scripts, Version.php), a CHANGELOG section and that the commit
+  is on `main`; empty release notes get the CHANGELOG section.
+- Tags come from `tag-version.yml` on every push to `main` (repository token): cloud agent sessions get
+  HTTP 403 on tag pushes. It tags every CHANGELOG version that has no tag yet, on the last `main` commit
+  carrying it (so v1.1.2 and v1.1.3 were tagged retroactively). Bot-made tags start no workflows.
+- Netlify cannot trigger on tags/releases itself → its automatic builds are stopped (Netlify UI) and the
+  release workflow uploads the tagged build with the Netlify CLI.
+- [ ] Tilman: GitHub environment `production` with `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `VITE_API_URL`;
+  Netlify site `osct` → Stop builds. Production server settings (`FTP_*`, `DB_*`, …) once the client's
+  server exists – until then that job is skipped with a warning.
+
+## 2026-09-28 – Code comments rewritten (Tilman)
+
+- Comments across client, server and scripts now describe responsibility and business rules only: no
+  names, dates, design page/frame numbers, PLAN phases or history. CSS comments only where a rule would
+  otherwise be "fixed" wrongly. Measured values and decisions live here, in DESIGN.md and RULES.md
+  (new DESIGN.md §3 "Details" table holds the values that were only in comments).
+- Kept as code facts: the account section is *removed*, not hidden, without an accounts API (a hidden
+  section would still draw its neighbour's rule); "Download all content" is removed where downloads do not
+  persist (`InstallService.keepsDownloads`, e.g. iOS Safari tabs), and its progress counts files already
+  cached while browsing.
+- Unlock semantics as implemented: finding a target in scan mode unlocks it (`TARGET_UNLOCKED_EVENT`);
+  opening its entry marks it consulted. The 2026-09-26 note "a tap on the entity now unlocks it" is outdated.
+- Open: `pages/error-page.ts` unsubscribes with a fresh `.bind(this)`, so its store subscription is never
+  removed.
+
+## 2026-09-28 – Shorter translation calls (Tilman)
+
+- UI texts use i18next's named `t` export: `import { t } from "i18next"` and `t("about:info")` instead of
+  `i18next.t(...)`. It is bound to the default instance (initialised by `src/i18n`), and i18next-cli still
+  extracts bare `t(...)` calls (locale JSON unchanged). Files that also need `resolvedLanguage` /
+  `changeLanguage` import both: `import i18next, { t } from "i18next"`. RULES #20 updated.
+
 ## 2026-09-27 – Branch cleanup and dependency audit (Tilman)
 
 - Only `main` and `develop` remain; all experiment branches deleted locally and on GitHub (Tilman).

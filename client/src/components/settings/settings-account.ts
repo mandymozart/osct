@@ -1,5 +1,5 @@
 import { goldButton, GoldSwitch } from "@/components/buttons";
-import i18next from "i18next";
+import { t } from "i18next";
 import { UserService } from "@/services";
 import { UserData, UserNotice, UserOption, UserOptions, UserSnapshot } from "@/types";
 import { escapeHtml } from "@/utils";
@@ -9,24 +9,22 @@ import { SettingsSection } from "./settings-section";
 const OPTIONS: UserOption[] = ["bookUpdates", "artistUpdates", "publisherUpdates"];
 
 /**
- * Account section (branch `database`; in code the signed-in person is the *user*), no password. Signed out
- * (Tilman 2026-09-27): "Register your copy and receive updates in your inbox" – the email, "Register
- * account", and underneath the two update options as `<gold-switch>`, **off** until the reader turns
- * them on (opt-in). Then: the code from the email (the link in it signs in as well). Signed in: the address,
- * the update options, the progress sync, sign out, delete. The progress is always kept; "Reset progress" (the
- * section above) resets it. Hidden without an API (`VITE_API_URL`).
+ * Account section: passwordless sign-in by email (magic link or 6-digit code), update opt-ins as
+ * `<gold-switch>`, progress sync status, sign-out and deletion. Renders from `UserService` snapshots
+ * (signed-out / pending / signed-in). Update options are opt-in: off until the reader enables them.
+ * Removed when no accounts API (`VITE_API_URL`) is configured.
  */
 export class SettingsAccount extends SettingsSection {
   private user = UserService.getInstance();
   private unsubscribe?: () => void;
-  /** The form's values survive re-renders */
+  /** Form values, kept across re-renders */
   private email = "";
   private code = "";
-  /** The update options of the sign-up form – off until the reader turns them on */
+  /** Update options chosen in the sign-up form; sent with the login request */
   private choices: UserOptions = { bookUpdates: false, artistUpdates: false, publisherUpdates: false };
 
   connectedCallback() {
-    // No accounts API in this build: not there at all – a hidden section would leave its neighbour's rule
+    // Removed rather than hidden: an empty section would still draw its separator rule
     if (!this.user.isEnabled()) {
       this.remove();
       return;
@@ -70,14 +68,14 @@ export class SettingsAccount extends SettingsSection {
 
   private signedOut({ busy }: UserSnapshot): string {
     return /* html */ `
-      <p class="first">${i18next.t("account:signedOutDescription")}</p>
+      <p class="first">${t("account:signedOutDescription")}</p>
       <form class="options" data-form="email">
         <input class="field design" type="email" name="email" required autocomplete="email" inputmode="email"
-          value="${escapeHtml(this.email)}" placeholder="${escapeHtml(i18next.t("account:emailPlaceholder"))}"
-          aria-label="${escapeHtml(i18next.t("account:emailPlaceholder"))}" ${busy ? "disabled" : ""}>
-        ${goldButton({ label: i18next.t("account:send"), primary: true, type: "submit", attrs: { disabled: busy } })}
+          value="${escapeHtml(this.email)}" placeholder="${escapeHtml(t("account:emailPlaceholder"))}"
+          aria-label="${escapeHtml(t("account:emailPlaceholder"))}" ${busy ? "disabled" : ""}>
+        ${goldButton({ label: t("account:send"), primary: true, type: "submit", attrs: { disabled: busy } })}
       </form>
-      <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
+      <div class="switches" role="group" aria-label="${escapeHtml(t("account:optionsLabel"))}">
         ${OPTIONS.map(option => this.toggle(option, this.choices[option], "choose", busy)).join("")}
       </div>
     `;
@@ -85,16 +83,16 @@ export class SettingsAccount extends SettingsSection {
 
   private pending({ pending, busy }: UserSnapshot): string {
     return /* html */ `
-      <p class="description first" role="status">${i18next.t("account:pendingDescription", { email: pending?.email ?? "" })}</p>
+      <p class="description first" role="status">${t("account:pendingDescription", { email: pending?.email ?? "" })}</p>
       <form class="options" data-form="code">
         <input class="field design code" type="text" name="code" required autocomplete="one-time-code" inputmode="numeric"
           pattern="[0-9 ]{6,7}" maxlength="7" value="${escapeHtml(this.code)}"
-          placeholder="000000" aria-label="${escapeHtml(i18next.t("account:codeLabel"))}" ${busy ? "disabled" : ""}>
-        ${goldButton({ label: i18next.t("account:confirm"), primary: true, type: "submit", attrs: { disabled: busy } })}
+          placeholder="000000" aria-label="${escapeHtml(t("account:codeLabel"))}" ${busy ? "disabled" : ""}>
+        ${goldButton({ label: t("account:confirm"), primary: true, type: "submit", attrs: { disabled: busy } })}
       </form>
       <div class="row options">
-        ${goldButton({ label: i18next.t("account:sendAgain"), attrs: { "data-action": "send-again", disabled: busy } })}
-        ${goldButton({ label: i18next.t("account:otherEmail"), attrs: { "data-action": "other-email", disabled: busy } })}
+        ${goldButton({ label: t("account:sendAgain"), attrs: { "data-action": "send-again", disabled: busy } })}
+        ${goldButton({ label: t("account:otherEmail"), attrs: { "data-action": "other-email", disabled: busy } })}
       </div>
     `;
   }
@@ -105,26 +103,26 @@ export class SettingsAccount extends SettingsSection {
       : "account:syncPending";
     return /* html */ `
       <div class="row">
-        <span class="muted">${i18next.t("account:signedInAs")}</span>
+        <span class="muted">${t("account:signedInAs")}</span>
         <span>${escapeHtml(user.email)}</span>
       </div>
-      <div class="switches" role="group" aria-label="${escapeHtml(i18next.t("account:optionsLabel"))}">
+      <div class="switches" role="group" aria-label="${escapeHtml(t("account:optionsLabel"))}">
         ${OPTIONS.map(option => this.toggle(option, user.options[option], "change", busy)).join("")}
       </div>
-      <p class="description" role="status">${i18next.t(syncText)}</p>
+      <p class="description" role="status">${t(syncText)}</p>
       <div class="row options">
-        ${goldButton({ label: i18next.t("account:signOut"), attrs: { "data-action": "sign-out", disabled: busy } })}
-        ${goldButton({ label: i18next.t("account:delete"), attrs: { "data-action": "delete", disabled: busy } })}
+        ${goldButton({ label: t("account:signOut"), attrs: { "data-action": "sign-out", disabled: busy } })}
+        ${goldButton({ label: t("account:delete"), attrs: { "data-action": "delete", disabled: busy } })}
       </div>
     `;
   }
 
-  /** One `<gold-switch>` per option (Tilman: phone-style sliders, the switch on the far right) */
+  /** One `<gold-switch>` per update option; `mode` decides whether a change is a sign-up choice or a saved user option */
   private toggle(option: UserOption, on: boolean, mode: "choose" | "change", busy: boolean): string {
     const labels: Record<UserOption, string> = {
-      bookUpdates: i18next.t("account:bookUpdates", { title: getBook().title, interpolation: { escapeValue: false } }),
-      artistUpdates: i18next.t("account:artistUpdates", { author: getBook().author, interpolation: { escapeValue: false } }),
-      publisherUpdates: i18next.t("account:publisherUpdates"),
+      bookUpdates: t("account:bookUpdates", { title: getBook().title, interpolation: { escapeValue: false } }),
+      artistUpdates: t("account:artistUpdates", { author: getBook().author, interpolation: { escapeValue: false } }),
+      publisherUpdates: t("account:publisherUpdates"),
     };
     return `<gold-switch label="${escapeHtml(labels[option])}" data-option="${option}" data-mode="${mode}"${on ? " checked" : ""}${busy ? " disabled" : ""}></gold-switch>`;
   }
@@ -132,8 +130,8 @@ export class SettingsAccount extends SettingsSection {
   private notice(notice: UserNotice | null): string {
     if (!notice) return "";
     const text = typeof notice === "string"
-      ? i18next.t(notice === "confirmed" ? "account:confirmed" : notice === "deleted" ? "account:deleted" : "account:signedOut")
-      : i18next.t(`account:errors.${notice.error}`, { defaultValue: i18next.t("account:errors.server-error") });
+      ? t(notice === "confirmed" ? "account:confirmed" : notice === "deleted" ? "account:deleted" : "account:signedOut")
+      : t(`account:errors.${notice.error}`, { defaultValue: t("account:errors.server-error") });
     return `<p class="description notice" role="${typeof notice === "string" ? "status" : "alert"}">${text}</p>`;
   }
 
@@ -147,11 +145,11 @@ export class SettingsAccount extends SettingsSection {
     } else if (action === "sign-out") {
       void this.user.signOut();
     } else if (action === "delete") {
-      if (window.confirm(i18next.t("account:deleteConfirm"))) void this.user.deleteUser();
+      if (window.confirm(t("account:deleteConfirm"))) void this.user.deleteUser();
     }
   }
 
-  /** A `<gold-switch>` changed: in the sign-up form it's the choice sent along, signed in the user's option */
+  /** Signed out, a switch updates the pending sign-up choices; signed in, it saves the user's option */
   private handleSwitch = (event: Event) => {
     const element = event.target;
     if (!(element instanceof GoldSwitch)) return;

@@ -1,20 +1,19 @@
 import { ConsultationPage } from "./consultation-page";
 import { getBook } from "@/utils/game-config";
-import i18next from "i18next";
+import { t } from "i18next";
 import "@/components/settings";
 
 /**
- * About = Info (design p.32–34), opened with "i" in consultation mode; "Entries" (in the page, where the
- * entries list has its category pill) goes back to the list. Groups (Tilman 2026-09-27): Info text · Account (the progress – what it is, reset –
- * then sign-in and the update options) · Settings (sound & vibration, language, home screen, download) · colophon – one component per section.
- * Placeholder texts – the final texts belong in the content (`book.yaml`) once they arrive (PLAN Phase 4).
+ * Info page, opened with "i" in consultation mode; "Entries" goes back to the list. Sections, one component
+ * each: info text · Account (progress explanation and reset, sign-in, update options) · Settings (sound &
+ * vibration, language, home screen, download) · colophon. The texts are placeholders until they move
+ * into the content (`book.yaml`).
  */
 export class AboutPage extends ConsultationPage {
   get styles(): string {
     return /* css */ `
       .section-title:first-of-type { margin-top: 0; }
       .settings { margin-bottom: 1.5rem; }
-      /* White letters on the page's black (bf.svg is white, transparent around) */
       .logo-link {
         display: inline-block;
         margin: .5rem 0 1rem;
@@ -31,16 +30,16 @@ export class AboutPage extends ConsultationPage {
     return /* html */ `
       <div class="content below-toolbar">
         ${this.entriesToolbar()}
-        <h2 class="section-title">${i18next.t("about:info")}</h2>
-        <p>${i18next.t("about:infoText", params)}</p>
+        <h2 class="section-title">${t("about:info")}</h2>
+        <p>${t("about:infoText", params)}</p>
 
-        <h2 class="section-title">${i18next.t("about:account")}</h2>
+        <h2 class="section-title">${t("about:account")}</h2>
         <div class="settings">
           <settings-history></settings-history>
           <settings-account></settings-account>
         </div>
 
-        <h2 class="section-title">${i18next.t("about:settings")}</h2>
+        <h2 class="section-title">${t("about:settings")}</h2>
         <div class="settings">
           <settings-feedback></settings-feedback>
           <settings-language></settings-language>
@@ -48,21 +47,21 @@ export class AboutPage extends ConsultationPage {
           <settings-download></settings-download>
         </div>
 
-        <h2 class="section-title">${i18next.t("about:colophon")}</h2>
-        <p>${i18next.t("about:author", params)}<br>${i18next.t("about:publishedBy")}</p>
+        <h2 class="section-title">${t("about:colophon")}</h2>
+        <p>${t("about:author", params)}<br>${t("about:publishedBy")}</p>
         <a class="logo-link" href="https://buildingfictions.com" target="_blank" rel="noopener noreferrer">
           <img src="/assets/bf.svg" class="logo" alt="buildingfictions" />
         </a>
-        <p>${i18next.t("about:appBy")}</p>
+        <p>${t("about:appBy")}</p>
         <div class="platforms">
-          <p>${i18next.t("about:requirements")}</p>
-          <p>${i18next.t("about:android")}</p>
-          <p>${i18next.t("about:desktop")}</p>
-          <p>${i18next.t("about:ios")}</p>
+          <p>${t("about:requirements")}</p>
+          <p>${t("about:android")}</p>
+          <p>${t("about:desktop")}</p>
+          <p>${t("about:ios")}</p>
         </div>
         <!-- MindAR is MIT licensed (src/vendor/mind-ar/LICENSE) – names are not translated -->
         <p class="credits">
-          ${i18next.t("about:imageTracking")} HiuKim (MindAR)
+          ${t("about:imageTracking")} HiuKim (MindAR)
           <a href="https://github.com/hiukim/mind-ar-js" target="_blank" rel="noopener noreferrer">github.com/hiukim/mind-ar-js</a>
         </p>
       </div>
@@ -70,7 +69,7 @@ export class AboutPage extends ConsultationPage {
   }
 
   protected update(): void {
-    // Static page – the settings sections render themselves
+    // Static page: the settings sections render themselves
   }
 }
 

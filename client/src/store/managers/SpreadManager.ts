@@ -2,7 +2,9 @@ import { SpreadState, ISpreadManager, IGame, LoadingState } from '@/types';
 import { getSpread, getSpreads, getInitialSpreadId } from '@/utils/game-config';
 
 /**
- * Manages spreads through game state
+ * Spread registry (`GameState.spreads`) and the active spread (`currentSpread`). Each spread
+ * carries a loading status (INITIAL → LOADING → LOADED | ERROR). All spreads of the content
+ * are registered at startup with the initial spread active.
  */
 export class SpreadManager implements ISpreadManager {
   private game: IGame;
@@ -12,9 +14,6 @@ export class SpreadManager implements ISpreadManager {
     this.initialize()
   }
 
-  /**
-   * Initialize spreads from configuration
-  */
   private initialize(): void {
     const spreadsData = getSpreads();
     const spreadsState: Record<string, SpreadState> = {};
@@ -31,17 +30,11 @@ export class SpreadManager implements ISpreadManager {
     });
   }
 
-  /**
-   * Get the current spread ID
-   */
   public getCurrentSpread(): string | null {
     return this.game.state.currentSpread;
   }
 
-  /**
-   * Switch to a different spread
-   * @param id The ID of the spread to switch to
-   */
+  /** Make a spread active; ids unknown to the content are ignored */
   public switchSpread(id: string): void {
     const spreadData = getSpread(id);
     if (!spreadData) {
@@ -61,9 +54,6 @@ export class SpreadManager implements ISpreadManager {
     return
   }
 
-  /**
-   * Register a spread in the state
-   */
   public register(id: string): void {
     if (this.game.state.spreads[id]) {
       console.warn(`[SpreadManager] "${id}" already registered, skipping`);
@@ -80,9 +70,7 @@ export class SpreadManager implements ISpreadManager {
     console.log(`[SpreadManager] Registered "${id}"`);
   }
 
-  /**
-   * Mark spread as loading
-   */
+  /** Only a spread in INITIAL moves to LOADING; unknown ids are registered first */
   public markLoading(id: string): void {
     if (!this.game.state.spreads[id]) {
       console.warn(`[SpreadManager] "${id}" not found, registering first`);
@@ -104,9 +92,7 @@ export class SpreadManager implements ISpreadManager {
     console.log(`[SpreadManager] "${id}" marked as loading`);
   }
 
-  /**
-   * Mark spread as loaded
-   */
+  /** Unknown ids are created directly as LOADED */
   public markLoaded(id: string): void {
     if (!this.game.state.spreads[id]) {
       console.warn(`[SpreadManager] "${id}" not found, registering and marking as loaded`);
@@ -131,9 +117,7 @@ export class SpreadManager implements ISpreadManager {
     console.log(`[SpreadManager] "${id}" marked as loaded`);
   }
 
-  /**
-   * Mark spread as failed
-   */
+  /** Unknown ids are created directly as ERROR */
   public markFailed(id: string, error: Error): void {
     if (!this.game.state.spreads[id]) {
       console.warn(`[SpreadManager] "${id}" not found, registering and marking as failed`);
@@ -160,17 +144,12 @@ export class SpreadManager implements ISpreadManager {
     console.error(`[SpreadManager] "${id}" marked as failed:`, error);
   }
 
-  /**
-   * Check if a spread is loaded
-   */
   public isLoaded(id: string): boolean {
     const spread = this.game.state.spreads[id];
     return spread?.status === LoadingState.LOADED;
   }
 
-  /**
-   * Get spread loading status
-   */
+  /** Number of loaded spreads out of all registered ones */
   public getLoadingStatus(): { loaded: number; total: number } {
     const spreads = Object.values(this.game.state.spreads);
     const loaded = spreads.filter(

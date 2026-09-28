@@ -8,6 +8,11 @@ import {
 } from "@/types";
 import { assert, camelToKebab } from "@/utils";
 
+/**
+ * Shows the slotted `<x-page>` element matching the store's `currentRoute` (`<page>-page`) and hides all
+ * others. The route param is set as a kebab-case attribute on the active page; stale param attributes are
+ * removed from pages that become inactive.
+ */
 export class PagesRouter extends HTMLElement implements IPagesRouter {
   private pages: Map<string, HTMLElement> = new Map();
   private game: Readonly<IGame>;
@@ -59,9 +64,7 @@ export class PagesRouter extends HTMLElement implements IPagesRouter {
     });
   }
 
-  /**
-   * Remove all parameter attributes that were previously set
-   */
+  /** Removes route param attributes (everything except active/class/style/id) */
   private cleanupParamAttributes(page: HTMLElement) {
     const attributeNames = page.getAttributeNames();
 
@@ -96,7 +99,6 @@ export class PagesRouter extends HTMLElement implements IPagesRouter {
     const slot = this.shadowRoot!.querySelector("slot");
     assert(slot, "Slot element not found");
 
-    // Initial page setup from existing slot elements
     const initialElements = slot.assignedElements();
     if (initialElements.length > 0) {
       initialElements.forEach((page) => {

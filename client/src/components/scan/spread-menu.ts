@@ -2,18 +2,18 @@ import { feedback, GameStoreService } from "@/services";
 import { IGame, Spread } from "@/types";
 import { formatPages, getMenuSpreads, loopCopies, normalizeLoopScroll } from "./spread-menu-loop";
 import { adoptDesignStyles } from "@/styles";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /** Scroll has to rest this long before the loop is re-centered and the spread activated */
 const SETTLE_MS = 140;
-/** Extra wait before activating: loading a spread restarts AR (debounce, PLAN Phase 3) */
+/** Extra wait before activating: loading a spread restarts AR tracking, so switches are debounced */
 const ACTIVATE_MS = 250;
 
 /**
- * "Pages activated" – looped horizontal spread menu at the bottom of scan mode (design p.6–7).
- * Lists only spreads with content; the item under the center gets the glass highlight; a tick (sound +
- * vibration, FeedbackService) marks each new item. When the scroll
- * settles, the centered spread is activated (debounced).
+ * "Pages activated": looped horizontal spread menu at the bottom of scan mode. Lists only spreads with
+ * content; the item under the center gets the pill highlight and a tick (sound + vibration,
+ * FeedbackService) marks each new item. When the scroll settles, the centered spread is activated
+ * (debounced).
  */
 export class SpreadMenu extends HTMLElement {
   private game: Readonly<IGame>;
@@ -93,12 +93,11 @@ export class SpreadMenu extends HTMLElement {
           mask-image: linear-gradient(to right, transparent, #000 25%, #000 75%, transparent);
         }
         .track::-webkit-scrollbar { display: none; }
-        /* Inactive items: plain text; the centred one gets .pill + a .gold label (design p.6–7) */
         .item {
           flex: none;
           scroll-snap-align: center;
           min-height: 1.8rem;
-          padding: 0 1rem;          /* = .pill, no layout shift when an item becomes the pill */
+          padding: 0 1rem;          /* = .pill padding: no layout shift when an item becomes the pill */
           border: none;
           border-radius: 999rem;
           background: none;
@@ -110,7 +109,7 @@ export class SpreadMenu extends HTMLElement {
           -webkit-tap-highlight-color: transparent;
         }
       </style>
-      <div class="label design" id="label">${i18next.t("scan:pagesActivated")}</div>
+      <div class="label design" id="label">${t("scan:pagesActivated")}</div>
       <div class="track design" role="listbox" aria-labelledby="label"></div>
     `;
     this.toggleAttribute("hidden", this.spreads.length === 0);
@@ -137,7 +136,7 @@ export class SpreadMenu extends HTMLElement {
     const middle = copy === Math.floor(this.copies / 2);
     return this.spreads
       .map(s => `<button type="button" class="item" data-feedback="none" role="option" data-spread="${s.id}" data-copy="${copy}"
-        ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="${i18next.t("scan:pagesAria", { pages: formatPages(s) })}"><span>${formatPages(s)}</span></button>`)
+        ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="${t("scan:pagesAria", { pages: formatPages(s) })}"><span>${formatPages(s)}</span></button>`)
       .join("");
   }
 

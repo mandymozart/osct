@@ -2,7 +2,7 @@ import { Spread } from "@/types";
 import { getSpreads } from "@/utils/game-config";
 
 /**
- * Pure helpers of the looped spread menu (design p.6–7), kept apart from the element for tests.
+ * Pure helpers of the looped spread menu, kept apart from the element for tests.
  *
  * The loop renders the list several times (an odd number of copies) and keeps the scroll position in
  * the middle copy: when a scroll settles in another copy, it jumps by whole copies (instantly, the
@@ -12,7 +12,7 @@ import { getSpreads } from "@/utils/game-config";
 /** Only spreads with content: something to scan (targets) */
 export const getMenuSpreads = (): Spread[] => getSpreads().filter(s => s.targets.length > 0);
 
-/** "20–21" (en dash, as in the design) */
+/** "20–21" (en dash); a single page as "20" */
 export const formatPages = (spread: Pick<Spread, "firstPage" | "lastPage">): string =>
   spread.firstPage === spread.lastPage ? `${spread.firstPage}` : `${spread.firstPage}–${spread.lastPage}`;
 

@@ -5,10 +5,9 @@ export interface IBaseStore<T extends Record<string, any>> {
   listeners: Array<(state: T) => void>;
   propertyListeners: Map<keyof T, Array<(value: any, prevValue: any) => void>>;
   
-  // Write updates using Immer's draft pattern
+  /** Applies an Immer recipe to the state and notifies listeners */
   update(recipe: (draft: Draft<T>) => void): void;
   
-  // The rest of the interface remains similar
   subscribe(callback: (state: T) => void): () => void;
   unsubscribe(callback: (state: T) => void): void;
   

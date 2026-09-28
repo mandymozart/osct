@@ -60,7 +60,7 @@ export function buildEntity(
     return { ref: e.ref };
   }
   const type = e?.type;
-  // "link" was dropped on 2026-09-25: links are entries (consultation), not AR entities
+  // Links are entries (consultation), not AR entities
   if (!['model', 'video', 'image'].includes(type)) {
     buildErrors.push(`${label}: entity type "${type}" must be one of model, video, image (or use ref)`);
     return undefined;
