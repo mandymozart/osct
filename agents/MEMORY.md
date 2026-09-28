@@ -18,7 +18,8 @@ outcome in the line (or move it into a dated decision block).
   debug overlay setting stays). `ImageTracker` (ar/tracker.ts) is the 8th Wall tracker behind `IImageTracker`.
 - Preloader + whole-book download fetch target images instead of `.mind`. Engine files (`assets/xr8/`) are
   precached with the app shell (offline AR; precache 24 entries / 6.0 MB raw) and ship with their LICENSE;
-  the Info page credits 8th Wall (Niantic Spatial, MIT).
+  credited in the project README (Tilman: not on the Info page) – "open source image tracking engine of
+  8th Wall by Niantic Spatial, the discontinued 8th Wall platform, MIT".
 - RULES #4 now names the one allowed extra WebGL context: the engine's camera canvas.
 - MAJOR → progress format 2 = same shape as 1 (reader added). Tilman: no notice when nothing changed → an older
   record is "converted" only if the reader dropped or corrected a stored field (`keptAsItWas` in

@@ -963,7 +963,8 @@ Research and phone results: `research/webworker-tracking.md`, `MEMORY.md` 2026-0
 - [x] Demo spreads 4–14 from the layout PDF (29 → 25 targets after duplicates), load test with all loaded.
 - [x] MindAR removed: vendored build, tracker, `.mind` files, `compile:mind` tooling, `mindSrc` /
       `maxTargetsPerSpread` in the game configuration, `.mindar/`. Max targets per spread 10.
-- [x] Engine files precached with the app shell (offline AR), LICENSE served next to them, credit on Info.
+- [x] Engine files precached with the app shell (offline AR), LICENSE served next to them; credited in the
+      project README, not on the Info page (Tilman).
 - [x] S22 check of 2.0.0 (2026-09-28): 11 automatic switches across the book (pages 1–27), next spread ready in
       0–3 ms, photo spreads 20–23 found, models and videos load.
 - [ ] iPhone Safari → Phase 14 (Tilman: tested with the content, in Amsterdam).

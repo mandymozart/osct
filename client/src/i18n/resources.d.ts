@@ -7,7 +7,6 @@ export default interface Resources {
     "author": "Author: {{author}}",
     "colophon": "Colophon",
     "desktop": "Desktop: Chrome, Firefox, Safari",
-    "imageTracking": "Image tracking by",
     "info": "Info",
     "infoText": "{{title}} is a publication by {{author}}. Scan the pages of the book to unlock entries – glossary terms, videos, texts and links – and read them here in consultation mode.",
     "ios": "iOS: Safari, Chrome",
