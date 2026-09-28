@@ -27,8 +27,8 @@ export class SettingsFeedback extends SettingsSection {
       `<gold-switch label="${escapeHtml(label)}" data-setting="${setting}" data-feedback="none"${settings[setting] ? " checked" : ""}></gold-switch>`;
     return /* html */ `
       <style>
-        /* Aligns the first row's text (not its 4rem box) with where other sections' text starts */
-        gold-switch:first-of-type { margin-top: calc((var(--text-size) * var(--text-line) - 4rem) / 2); }
+        /* Places the first row's text (not its 4rem box) 2rem below the title, like the gap between the rows */
+        gold-switch:first-of-type { margin-top: calc((var(--text-size) * var(--text-line) - 4rem) / 2 + 1rem); }
       </style>
       ${toggle("sound", t("settings:soundLabel"))}
       ${toggle("haptics", t("settings:hapticsLabel"))}

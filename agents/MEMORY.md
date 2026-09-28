@@ -117,6 +117,14 @@ outcome in the line (or move it into a dated decision block).
       make the `.mind` and the compile bigger/slower – downscale in the build (e.g. max 1000 px)? Needs a
       tracking test on the book first.
 
+## 2026-09-28 – Camera denied screen and settings spacing (Tilman, 1.2.3)
+
+- Camera denied screen: no browser-specific steps any more ("too much information"; the user-agent guess
+  showed Firefox steps in Chrome). One generic hint + "Reload page"; `detectBrowser` removed. In scan mode the
+  overlay keeps clear of the header counter (`--consultation-top`) and the spread menu (bottom padding).
+- Info page: the first switch's text sits 2rem below the "Settings" title (was 1rem) – like the gap
+  between switch rows.
+
 ## 2026-09-28 – Releases deploy production (Tilman)
 
 - Production is deployed by publishing a GitHub release (`release.yml`), not by merging to `main`. The
