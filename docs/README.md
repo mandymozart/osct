@@ -34,6 +34,7 @@ Quick start: the repository [README](../README.md).
 | `server/` | User API (PHP + MySQL) – see [Server](server.md) |
 | `shared/` | Game configuration contract (types + runtime guards), used by app and build |
 | `mind-ar/` | Generated: target images per spread in MindAR order, for compiling `.mind` files |
+| `mind-history/` | Local, not in git: versions of the compiled `.mind` files (`npm run mind:restore`) |
 | `docs/` | This documentation |
 | `agents/` | Plan, rules, decisions and design reference for work on the code |
 
