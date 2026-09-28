@@ -913,6 +913,19 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] Entry view like Info (Tilman): "Entries" in the page at the category pill's height, content where the list starts –
       one shared toolbar in `ConsultationPage` (`entriesToolbar()`); the header has no "Entries" any more.
 
+## Phase 12 – `.mind` compilation in the content builder  `[~]` (branch `compilation`, 2026-09-28)
+
+Before: target images compiled by hand in MindAR's online tool, nothing checked a stale `.mind`
+beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
+- [x] `scripts/tools/compile-mind.mjs` (`npm run compile:mind`): local Chrome/Edge via `playwright-core`,
+      WebGL, the vendored MindAR 1.2.5 `Compiler` from `client/src/vendor/mind-ar/`; only stale spreads.
+- [x] Fingerprint `<name>.mind.sha256` (ordered target images); content build fails on a mismatch, warns
+      when missing; `build:content --targets` refreshes `mind-ar/` only (for the tool, works while stale).
+- [x] Existing `.mind` files adopted as they are (sidecars written, no recompile).
+- [ ] Tilman: first run on his machine (GPU renderer printed; headless vs `--headed`), and
+      `npm run compile:mind -- spread1` (target 0 differs slightly from a fresh compile, see MEMORY).
+- [ ] Merge into `develop`.
+
 ## Design tokens
 
 **Measured spec: `agents/DESIGN.md`** (colors, gold gradient, sizes, buttons/glass, gold text options,
