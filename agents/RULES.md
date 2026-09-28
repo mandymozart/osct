@@ -173,6 +173,14 @@ Extend as we go: add a rule when a decision should hold for all future work.
     measured values to `DESIGN.md`, invariants here. CSS: no comments unless a rule would otherwise be
     "fixed" wrongly (one short line). Keep the `/* html */` / `/* css */` template markers.
 
+23. **Versions and changelog** (Tilman, 2026-09-28): every change that lands bumps the version (RULES #10 –
+    `client/package.json` + lock, `scripts/package.json` + lock, `server/api/src/Version.php`; then
+    `cd scripts && npm run build && npm run build:content` and commit the regenerated `game.config.json`).
+    PATCH = fixes, refactors, comments, docs, styling; MINOR = new features compatible with existing content
+    and progress; MAJOR = content rebuild or progress format change. Each bump gets an entry at the top of
+    `docs/CHANGELOG.md` (version, date, Added / Changed / Fixed / Removed) written for people, not agents.
+    Several commits of one piece of work share one bump.
+
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server
 - Build: `npm run build`, publish `dist`, SPA
