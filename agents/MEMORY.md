@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Code comments rewritten (Tilman)
+
+- Comments across client, server and scripts now describe responsibility and business rules only: no
+  names, dates, design page/frame numbers, PLAN phases or history. CSS comments only where a rule would
+  otherwise be "fixed" wrongly. Measured values and decisions live here, in DESIGN.md and RULES.md
+  (new DESIGN.md §3 "Details" table holds the values that were only in comments).
+- Kept as code facts: the account section is *removed*, not hidden, without an accounts API (a hidden
+  section would still draw its neighbour's rule); "Download all content" is removed where downloads do not
+  persist (`InstallService.keepsDownloads`, e.g. iOS Safari tabs), and its progress counts files already
+  cached while browsing.
+- Unlock semantics as implemented: finding a target in scan mode unlocks it (`TARGET_UNLOCKED_EVENT`);
+  opening its entry marks it consulted. The 2026-09-26 note "a tap on the entity now unlocks it" is outdated.
+- Open: `pages/error-page.ts` unsubscribes with a fresh `.bind(this)`, so its store subscription is never
+  removed.
+
 ## 2026-09-28 – Shorter translation calls (Tilman)
 
 - UI texts use i18next's named `t` export: `import { t } from "i18next"` and `t("about:info")` instead of

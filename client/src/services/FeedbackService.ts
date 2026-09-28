@@ -1,15 +1,14 @@
 /**
- * Audio and haptic feedback (Tilman 2026-09-26): named events → a short sound + a vibration.
+ * Audio and haptic feedback: each named event plays a short sound and a vibration.
  *
- * - Sounds: Web Audio (no delay, several at once), files in `public/assets/sounds/<event>.wav`
+ * - Sounds: Web Audio (no latency, overlapping plays), files in `public/assets/sounds/<event>.wav`
  *   (placeholders from scripts/tools/generate-sounds.mjs – replace the files to change the sounds).
- *   Browsers only play audio after the first tap on the page; before that the events stay silent.
- * - Haptics: `navigator.vibrate` (Android). iOS has no vibration API – from iOS 18, toggling a native
- *   `<input type="checkbox" switch>` gives a light tick; it only works right after a tap (not while
- *   scrolling), elsewhere it does nothing.
- * - Settings (Info → Settings): sound and vibration on/off, kept in localStorage on this device.
+ *   Browsers only allow audio after the first user gesture; events before that stay silent.
+ * - Haptics: `navigator.vibrate` (Android). iOS has no vibration API; on iOS 18+ toggling a native
+ *   `<input type="checkbox" switch>` produces a light tick, but only right after a tap (not while scrolling).
+ * - Settings (Info page): sound and vibration on/off, stored per device in localStorage.
  *
- * Standalone – no store dependency, so the store's managers can import it by file.
+ * Standalone (no store dependency) so the store's managers can import it by file.
  */
 
 export const FEEDBACK_EVENTS = ["tick", "tap", "found", "unlock"] as const;
@@ -23,12 +22,12 @@ const VIBRATION: Record<FeedbackEvent, number | number[]> = {
   unlock: [22, 70, 22, 70, 45],
 };
 
-/** Minimum time between two plays of the same event + key (tracking flickers: found, found, found …) */
+/** Minimum time between two plays of the same event + key (AR tracking flickers between found and lost) */
 const COOLDOWN_MS: Partial<Record<FeedbackEvent, number>> = {
   found: 4000,
 };
 
-/** Loudness per event (0–1) – the tick plays often, keep it quiet */
+/** Gain per event (0–1); `tick` fires often and stays quiet */
 const VOLUME: Record<FeedbackEvent, number> = {
   tick: 0.5,
   tap: 0.7,
@@ -63,8 +62,8 @@ export class FeedbackService {
   private listening = false;
 
   /**
-   * Start listening: unlock audio on the first touch / click, a `tap` on every button, link or
-   * `[data-feedback="tap"]` (clicks cross shadow roots via `composedPath`). Call once at startup.
+   * Starts listening: unlocks audio on the first pointer-down and plays `tap` on every button, link or
+   * `[data-feedback="tap"]` click (across shadow roots via `composedPath`). Call once at startup.
    */
   start(): void {
     if (this.listening || typeof document === "undefined") return;
@@ -82,11 +81,11 @@ export class FeedbackService {
     try {
       localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(this.settings));
     } catch {
-      // private mode / blocked storage: the choice holds for this session
+      // Private mode / blocked storage: the setting holds for this session only
     }
   }
 
-  /** Play an event; `key` separates cooldowns (e.g. per target) */
+  /** Plays an event; `key` scopes the cooldown (e.g. per AR target) */
   play(event: FeedbackEvent, key = ""): void {
     const cooldown = COOLDOWN_MS[event];
     if (cooldown) {
@@ -109,7 +108,7 @@ export class FeedbackService {
         };
       }
     } catch {
-      // no storage or broken JSON: defaults
+      // No storage or invalid JSON: defaults
     }
     return { ...DEFAULT_SETTINGS };
   }
@@ -119,14 +118,14 @@ export class FeedbackService {
       try {
         navigator.vibrate(VIBRATION[event]);
       } catch {
-        // not allowed yet (no tap on the page so far)
+        // Rejected before the first user gesture
       }
       return;
     }
     this.iosHaptic();
   }
 
-  /** iOS 18+: toggling a native switch plays the system's haptic tick (no-op elsewhere) */
+  /** iOS 18+: toggling a hidden native switch plays the system haptic tick (no-op elsewhere) */
   private iosHaptic(): void {
     if (typeof document === "undefined") return;
     if (!this.switchLabel) {
@@ -156,7 +155,7 @@ export class FeedbackService {
     return this.context;
   }
 
-  /** First touch / click: create + resume the audio context (browsers need a gesture) and preload */
+  /** First pointer-down: creates and resumes the audio context (requires a user gesture) and preloads the sounds */
   private unlockAudio = (): void => {
     const context = this.audioContext();
     if (!context) return;
@@ -184,7 +183,7 @@ export class FeedbackService {
   }
 
   private async playSound(event: FeedbackEvent): Promise<void> {
-    const context = this.context; // only after the first gesture – before that, stay silent
+    const context = this.context; // null until the first gesture: stay silent
     if (!context || context.state !== "running") return;
     const buffer = await this.buffer(event);
     if (!buffer) return;
@@ -198,7 +197,7 @@ export class FeedbackService {
 
   private handleClick = (event: Event): void => {
     const path = event.composedPath().filter((node): node is HTMLElement => node instanceof HTMLElement);
-    // `data-feedback="none"` silences an element; a click on the switch is our own iOS haptic
+    // `data-feedback="none"` silences an element; clicks on the hidden iOS haptic switch are ignored
     if (path.some(node => node.dataset.feedback === "none" || node === this.switchLabel)) return;
     const tappable = path.some(node =>
       node.tagName === "BUTTON" || node.tagName === "A" || node.getAttribute("role") === "button" || node.dataset.feedback === "tap");
@@ -206,5 +205,5 @@ export class FeedbackService {
   };
 }
 
-/** Shortcut: `feedback("tick")` */
+/** Shorthand for `FeedbackService.getInstance().play(event, key)` */
 export const feedback = (event: FeedbackEvent, key?: string): void => FeedbackService.getInstance().play(event, key);

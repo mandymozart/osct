@@ -3,12 +3,12 @@ import { isEntryCategory } from "@shared/guards/game-config";
 import { t } from "i18next";
 
 /**
- * Pure helpers of consultation mode (entries list + entry view, design p.15–31). No DOM, no store.
+ * Pure helpers of consultation mode (entries list and entry view). No DOM, no store.
  */
 
 /**
- * Label of a category in the current language – plural everywhere as in the design ("Videos" in the list,
- * the menu and the entry's category row, frames 18/20).
+ * Label of a category in the current language. Always the plural form ("Videos"), in the list, the
+ * menu and the entry's category row alike.
  */
 export const categoryLabel = (category: EntryCategory): string => t(`entries:categories.${category}`);
 
@@ -17,16 +17,16 @@ export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 export const isCategory = isEntryCategory;
 
 /**
- * Unconsulted entries are hidden in the final app (more game-like) and shown **locked** during
- * development to check that everything is listed (PLAN Phase 4). `VITE_SHOW_LOCKED_ENTRIES=true|false`
- * overrides the default (dev: shown, production: hidden).
+ * Whether unconsulted entries are listed as locked. Production hides them (the reader discovers entries);
+ * development shows them so the complete list can be checked. `VITE_SHOW_LOCKED_ENTRIES=true|false`
+ * overrides the default.
  */
 export const showLockedEntries = (): boolean => {
   const flag = import.meta.env.VITE_SHOW_LOCKED_ENTRIES;
   return flag === undefined ? import.meta.env.DEV : flag === "true";
 };
 
-/** List label: texts show the author (frame 24), the others their title */
+/** List label: texts show their author, all other categories their title */
 export const entryLabel = (entry: Pick<Entry, "category" | "title" | "author">): string =>
   entry.category === EntryCategory.Text && entry.author ? `'${entry.title}', ${entry.author}` : entry.title;
 
@@ -42,8 +42,8 @@ export interface EntryGroup<T> {
 }
 
 /**
- * Sorted entries; the glossary is grouped by first letter (frame 17: "4th wall" before "A" without
- * a header), the other categories are one list.
+ * Sorted entries. The glossary is grouped by first letter; entries not starting with a letter
+ * (e.g. "4th wall") come first without a header. Other categories form one ungrouped list.
  */
 export const groupEntries = <T extends Pick<Entry, "title" | "category">>(
   entries: readonly T[],
@@ -68,9 +68,8 @@ export type LinkEmbed =
   | { kind: "page"; src: string };
 
 /**
- * How a Links entry is shown (frames 30–31): YouTube / Vimeo as a player, everything else as an
- * embedded page. Pages may refuse embedding (X-Frame-Options) – the view always offers "open in a
- * new tab" as well.
+ * How a Links entry is shown: YouTube / Vimeo as a player, everything else as an embedded page.
+ * Pages may refuse embedding (X-Frame-Options), so the view always offers "open in a new tab" as well.
  */
 export const linkEmbed = (url: string): LinkEmbed | undefined => {
   let parsed: URL;

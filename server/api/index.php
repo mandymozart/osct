@@ -36,7 +36,7 @@ if ($base !== '' && str_starts_with($path, $base . '/')) $path = substr($path, s
 $path = '/' . trim($path, '/');
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-/** POST /admin/migrate – the deploy script (server/deploy.php) sends the SECRET */
+/** POST /admin/migrate – called by the deploy workflow with the SECRET in X-Admin-Secret */
 function migrate(): never
 {
     $secret = Config::get('SECRET');

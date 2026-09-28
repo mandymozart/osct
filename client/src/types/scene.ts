@@ -19,19 +19,19 @@ export enum SceneState {
 export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "paused" | "error";
 
 /**
- * DOM event (on `document`, detail `{ targetId }`): a target was found for the first time = unlocked
- * (Tilman 2026-09-26: finding unlocks, tapping opens the entry = consulted). Sent by `<ar-bridge>`,
- * shown by `<found-indicator>` ("New entry unlocked"); entities celebrate in the AR scene.
+ * DOM event on `document` (detail `{ targetId }`), dispatched by `<ar-bridge>` when a target is found
+ * for the first time. Finding a target unlocks it; opening its entry marks it consulted.
+ * `<found-indicator>` shows "New entry unlocked" and the entity plays its unlock animation.
  */
 export const TARGET_UNLOCKED_EVENT = "osct:target-unlocked";
 
 /**
- * Length of an AR entity's unlock animation (ar/celebration.ts) – the found indicator's "New entry
- * unlocked" stays as long (defined here: the indicator must not import the AR chunk)
+ * Duration of an entity's unlock animation (ar/celebration.ts); the found indicator stays up as long.
+ * Defined here so the indicator does not import the lazily loaded AR chunk.
  */
 export const ENTITY_UNLOCK_MS = 4200;
 
-/** Part of the AR error message when the camera sends no picture in time (see CameraPermissionStatus.NOT_RESPONDING) */
+/** Marker in the AR error message for a camera start timeout (maps to CameraPermissionStatus.NOT_RESPONDING) */
 export const CAMERA_NOT_RESPONDING = "camera not responding";
 
 export type ArSceneEvents = {
@@ -45,9 +45,9 @@ export type ArSceneEvents = {
 };
 
 /**
- * The only code that touches three.js / MindAR (`ArScene`, loaded lazily via `LazyArScene`). Plain object, no store access – the
- * `<ar-bridge>` element connects it to the game state. Calls are queued; the latest wish wins
- * (a spread switch while loading builds only the newest spread).
+ * The only code that touches three.js / MindAR (`ArScene`, loaded lazily via `LazyArScene`). No store
+ * access – `<ar-bridge>` connects it to the game state. Calls are queued and the latest request wins
+ * (switching spreads while loading builds only the newest spread).
  */
 export interface IArScene {
   readonly status: ArStatus;

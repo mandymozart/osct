@@ -4,6 +4,10 @@ import { IGame, IQRCode } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 
+/**
+ * Development tool: renders the scan link of the current spread as a QR code (or a link to an unknown
+ * spread, to test error handling) and offers it as an SVG download.
+ */
 export class QRGenerator extends HTMLElement {
   private shadow: ShadowRoot;
   private qrInstance: IQRCode | null = {} as unknown as IQRCode;
@@ -24,7 +28,6 @@ export class QRGenerator extends HTMLElement {
     this.render();
     this.setupListeners();
 
-    // Subscribe to current spread changes only
     this.subscriptionCleanup = this.game.subscribeToProperty('currentSpread', (newSpreadId) => {
       if (newSpreadId) {
         this.generateQR(newSpreadId);
@@ -126,7 +129,6 @@ export class QRGenerator extends HTMLElement {
       });
     }
 
-    // Generate initial QR code if spread exists
     if (this.game.state.currentSpread) {
       this.generateQR(this.game.state.currentSpread);
     }
@@ -135,13 +137,12 @@ export class QRGenerator extends HTMLElement {
   protected setupListeners() {
     const button = this.shadow.getElementById("download");
     button?.addEventListener("click", (e) => {
-      e.stopPropagation(); // Prevent event from reaching debug overlay
+      e.stopPropagation(); // A tap inside must not toggle the surrounding debug overlay
       this.downloadSVG();
     });
     
     const selector = this.shadow.getElementById("qr-type-selector") as HTMLSelectElement;
     if (selector) {
-      // Stop propagation of all events on the select element
       selector.addEventListener("click", (e) => e.stopPropagation());
       selector.addEventListener("mousedown", (e) => e.stopPropagation());
       selector.addEventListener("change", (e) => {
@@ -157,7 +158,7 @@ export class QRGenerator extends HTMLElement {
     if (!this.qrInstance) return;
 
     const baseUrl = (__VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl).replace(/\/$/, "");
-    // Link format: services/LinkService.ts – /spread/<id>?osct=<the one app version> (RULES #10)
+    // Same link format as services/LinkService.ts: /spread/<id>?osct=<app version>
     const appVersion = this.game.version.version;
     const id = testType === "unknown-spread" ? "no-such-spread" : spreadId;
     const url = `${baseUrl}/spread/${encodeURIComponent(id)}?${VERSION_PARAM}=${appVersion}`;

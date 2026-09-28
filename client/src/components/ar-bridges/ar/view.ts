@@ -17,14 +17,14 @@ import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
-/** Bloom (as in the Codrops dissolve demo): only what is brighter than white glows; half resolution on phones */
+/** Bloom: only what is brighter than white glows; rendered at half resolution */
 const BLOOM_THRESHOLD = 1.0;
 const BLOOM_RADIUS = 0.55;
 const BLOOM_SCALE = 0.5;
 
 /**
- * Adds the pure bloom over the camera image as light: colour added, the canvas' alpha left as it is (a
- * premultiplied colour over alpha 0 is added to what lies under the canvas – the camera video)
+ * Adds the bloom over the camera image as light: colour is added, the canvas' alpha is left unchanged (a
+ * premultiplied colour over alpha 0 is added to what lies under the canvas – the camera video).
  */
 const bloomOverlayMaterial = () => new ShaderMaterial({
   uniforms: { tBloom: { value: null }, uStrength: { value: 0 } },
@@ -57,8 +57,8 @@ const bloomOverlayMaterial = () => new ShaderMaterial({
 
 /**
  * The three.js side of the AR scene: one WebGL renderer (one context for the session), scene, camera,
- * lights and the render loop. The canvas (`#scene`, main.css fades it in while AR runs) lies over the
- * camera video, transparent.
+ * lights and the render loop. The transparent canvas (`#scene`, faded in by main.css while AR runs) lies
+ * over the camera video.
  */
 export class ArView {
   readonly scene = new Scene();
@@ -70,8 +70,8 @@ export class ArView {
   /** The canvas shows nothing (last frame was rendered empty) */
   private cleared = true;
   /**
-   * Whether a frame needs drawing (something visible or animating). Scanning with nothing found then
-   * costs no GPU time for rendering – MindAR's tracking has the GPU to itself (battery, heat).
+   * Whether a frame needs drawing (something visible or animating). While nothing is found, rendering
+   * costs no GPU time and MindAR's tracking has the GPU to itself (battery, heat).
    */
   needsRender: () => boolean = () => true;
   /** Bloom strength (0 = off – no post-processing cost); set every frame by the scene's animations */
@@ -86,7 +86,7 @@ export class ArView {
     Object.assign(canvas.style, { position: "absolute", left: "0", top: "0" });
     container.appendChild(canvas);
 
-    // A-Frame's default lights (the models were made for them): ambient #BBB, directional 0.6 from above left
+    // A-Frame's default lighting, which the models were authored for: ambient #BBB, directional 0.6 from above left
     this.scene.add(new AmbientLight(0xbbbbbb, 1));
     const sun = new DirectionalLight(0xffffff, 0.6);
     sun.position.set(-0.5, 1, 1);
@@ -115,7 +115,7 @@ export class ArView {
       this.frameListeners.forEach(listener => listener(delta));
       const needed = this.needsRender();
       if (!needed && this.cleared) return;
-      this.draw(); // the last one while nothing is visible clears the canvas
+      this.draw(); // the first frame with nothing visible clears the canvas
       this.cleared = !needed;
     });
   }

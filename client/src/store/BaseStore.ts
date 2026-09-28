@@ -1,6 +1,10 @@
 import { IBaseStore } from '@/types';
 import { Draft, produce } from 'immer';
 
+/**
+ * Minimal observable store: immutable updates via Immer, global listeners and per-property
+ * listeners. Listeners fire only for top-level keys whose value actually changed.
+ */
 export class BaseStore<T extends Record<string, any>> implements IBaseStore<T> {
   state: T;
   listeners: Array<(state: T) => void> = [];
@@ -10,26 +14,22 @@ export class BaseStore<T extends Record<string, any>> implements IBaseStore<T> {
     this.state = initialState;
   }
 
-  // Main update method using Immer
+  /** Applies an Immer recipe, then notifies listeners of the changed top-level properties. */
   update(recipe: (draft: Draft<T>) => void): void {
     const prevState = this.state;
-    // Create the next state immutably using Immer
     this.state = produce(this.state, draft => {
       recipe(draft);
     });
-    
-    // Determine which properties changed
+
     this.detectChanges(prevState);
   }
 
-  // Helper to detect changes between previous and current state
   private detectChanges(prevState: T): void {
-    // Find all changed properties using more accurate detection for nested objects
     const changedProps = Object.keys(this.state).filter(key => {
       const typedKey = key as keyof T;
       const prevValue = prevState[typedKey];
       const currentValue = this.state[typedKey];
-      // For objects and arrays, use JSON stringification for deep comparison
+      // Objects compare by value: a new reference with equal content does not notify
       if (
         typeof prevValue === 'object' && prevValue !== null &&
         typeof currentValue === 'object' && currentValue !== null
@@ -37,29 +37,26 @@ export class BaseStore<T extends Record<string, any>> implements IBaseStore<T> {
         try {
           return JSON.stringify(prevValue) !== JSON.stringify(currentValue);
         } catch (e) {
-          // If stringification fails (e.g., circular references), fall back to reference comparison
+          // Circular / non-serialisable values: fall back to reference comparison
           console.warn(`[BaseStore] JSON stringification failed for property ${String(typedKey)}, falling back to reference comparison`);
           return prevValue !== currentValue;
         }
       }
-      
-      // For primitive values, use simple comparison
+
       return prevValue !== currentValue;
     });
-    
-    // Notify property listeners
+
     changedProps.forEach(key => {
       const typedKey = key as keyof T;
       this.notifyPropertyListeners(typedKey, prevState[typedKey]);
     });
-    
-    // Only notify global listeners if something changed
+
     if (changedProps.length > 0) {
       this.notifyListeners();
     }
   }
 
-  /** Shortcut for a partial update (`update` with `Object.assign`) */
+  /** Partial update: shallow-merges `newState` into the state. */
   set(newState: Partial<T>): void {
     this.update(draft => {
       Object.assign(draft, newState);

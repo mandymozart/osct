@@ -1,8 +1,4 @@
-/*
- * Gold loader (design system, agents/DESIGN.md): a ring in the gold gradient, turning.
- * One source for the startup loader (index.html, via main.css) and the loading page (shadow DOM, via
- * styles/design-styles.ts `?inline`). Tokens from main.css.
- */
+/* Shared by the startup loader (via main.css) and shadow DOM pages (inlined by design-styles.ts). */
 .gold-spinner {
   width: 2.5rem;
   height: 2.5rem;
@@ -23,7 +19,6 @@
   @keyframes gold-pulse { 50% { opacity: .45; } }
 }
 
-/* Text for screen readers only (the spinner is decorative) */
 .visually-hidden {
   position: absolute;
   width: 0.0625rem;
@@ -33,14 +28,7 @@
   white-space: nowrap;
 }
 
-/*
- * Scanning indicator (replaces MindAR's white corner brackets – `uiScanning: #osct-scanning` in
- * templates.ts). A thin circle whose gold fades in from transparent and sweeps around, like the
- * skeleton-loader shimmer of the gold illustrations. MindAR removes `.hidden` while no target is in view
- * and adds it when one is found; it only shows while the scene runs (`body.scene-active`, set by the
- * scene bridge – not in consultation or overlays). Lives in the light DOM (index.html): MindAR looks it
- * up with document.querySelector.
- */
+/* MindAR's scanning UI (`uiScanning`): must stay in the light DOM; MindAR toggles `.hidden` on it. */
 .gold-scanning {
   position: fixed;
   top: 50%;

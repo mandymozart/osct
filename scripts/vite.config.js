@@ -1,5 +1,3 @@
-// vite.config.ts
-
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -12,8 +10,8 @@ export default defineConfig({
     rollupOptions: {
       external: ['lodash', 'path', 'fs', 'url', 'crypto'],
     },
-    target: 'node18', // Specify Node.js version 18
-    ssr: true, // Enable Server Side Rendering mode
+    target: 'node18',
+    ssr: true,
     sourcemap: true,
   },
 });

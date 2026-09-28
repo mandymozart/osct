@@ -15,20 +15,10 @@ export interface Target extends Omit<TargetData, "entity"> {
 }
 
 export interface ITargetManager {
-  /**
-   * Add a target to the list of tracked targets (and unlock it in the progress)
-   * @param targetId The id of the found target
-   */
+  /** Mark a found target as tracked and unlock it in the progress */
   addTarget(targetId: string): void;
 
-  /**
-   * Remove a target from the list of tracked targets
-   * @param targetId The id of the lost target
-   */
   removeTarget(targetId: string): void;
 
-  /**
-   * Get the ids of the currently tracked targets
-   */
   getTrackedTargets(): string[];
 }

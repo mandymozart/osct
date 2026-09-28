@@ -1,13 +1,13 @@
 /**
- * The accounts API (`server/`, PHP + MySQL). Base URL from the build flag `VITE_API_URL` (set per Netlify
- * site / deploy, RULES #11 – e.g. `/api` on the production host, the full URL on staging); `npm run dev`
- * uses `/api`, which vite passes on to `npm run dev:api` (php -S). Without it the account features are off.
+ * Base URL of the accounts API (`server/`, PHP + MySQL), from the build flag `VITE_API_URL` (set per deploy,
+ * see RULES.md #11: `/api` on the production host, the full URL on staging). `npm run dev` defaults to `/api`,
+ * which Vite proxies to `npm run dev:api`. Empty = account features disabled.
  */
 export const API_URL: string = (import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "/api" : "")).replace(/\/$/, "");
 
 /**
- * A failed call: `code` is the API's error code (`invalid-code`, `expired` …), `offline` when the server
- * could not be reached, `server-error` for an unreadable answer. `data` = the whole answer (409 conflict).
+ * A failed API call. `code`: the API's error code (`invalid-code`, `expired` …), `offline` when the server
+ * is unreachable, `server-error` for an unreadable response. `data`: the full response body (used for 409 conflicts).
  */
 export class ApiError extends Error {
   constructor(public readonly status: number, public readonly code: string, public readonly data?: unknown) {
@@ -22,6 +22,7 @@ export interface ApiRequest {
   token?: string | null;
 }
 
+/** JSON client for the accounts API (singleton); disabled when no base URL is configured. */
 export class ApiService {
   private static instance: ApiService | null = null;
 
@@ -36,7 +37,7 @@ export class ApiService {
     return this.baseUrl !== "";
   }
 
-  /** JSON in, JSON out; throws `ApiError` (null for 204) */
+  /** Sends JSON, returns the parsed JSON response (null for 204); throws `ApiError` on any failure. */
   async request<T>(method: string, path: string, { body, token }: ApiRequest = {}): Promise<T> {
     const headers: Record<string, string> = {};
     if (body !== undefined) headers["Content-Type"] = "application/json";

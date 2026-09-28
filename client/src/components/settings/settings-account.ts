@@ -9,24 +9,22 @@ import { SettingsSection } from "./settings-section";
 const OPTIONS: UserOption[] = ["bookUpdates", "artistUpdates", "publisherUpdates"];
 
 /**
- * Account section (branch `database`; in code the signed-in person is the *user*), no password. Signed out
- * (Tilman 2026-09-27): "Register your copy and receive updates in your inbox" – the email, "Register
- * account", and underneath the two update options as `<gold-switch>`, **off** until the reader turns
- * them on (opt-in). Then: the code from the email (the link in it signs in as well). Signed in: the address,
- * the update options, the progress sync, sign out, delete. The progress is always kept; "Reset progress" (the
- * section above) resets it. Hidden without an API (`VITE_API_URL`).
+ * Account section: passwordless sign-in by email (magic link or 6-digit code), update opt-ins as
+ * `<gold-switch>`, progress sync status, sign-out and deletion. Renders from `UserService` snapshots
+ * (signed-out / pending / signed-in). Update options are opt-in: off until the reader enables them.
+ * Removed when no accounts API (`VITE_API_URL`) is configured.
  */
 export class SettingsAccount extends SettingsSection {
   private user = UserService.getInstance();
   private unsubscribe?: () => void;
-  /** The form's values survive re-renders */
+  /** Form values, kept across re-renders */
   private email = "";
   private code = "";
-  /** The update options of the sign-up form – off until the reader turns them on */
+  /** Update options chosen in the sign-up form; sent with the login request */
   private choices: UserOptions = { bookUpdates: false, artistUpdates: false, publisherUpdates: false };
 
   connectedCallback() {
-    // No accounts API in this build: not there at all – a hidden section would leave its neighbour's rule
+    // Removed rather than hidden: an empty section would still draw its separator rule
     if (!this.user.isEnabled()) {
       this.remove();
       return;
@@ -119,7 +117,7 @@ export class SettingsAccount extends SettingsSection {
     `;
   }
 
-  /** One `<gold-switch>` per option (Tilman: phone-style sliders, the switch on the far right) */
+  /** One `<gold-switch>` per update option; `mode` decides whether a change is a sign-up choice or a saved user option */
   private toggle(option: UserOption, on: boolean, mode: "choose" | "change", busy: boolean): string {
     const labels: Record<UserOption, string> = {
       bookUpdates: t("account:bookUpdates", { title: getBook().title, interpolation: { escapeValue: false } }),
@@ -151,7 +149,7 @@ export class SettingsAccount extends SettingsSection {
     }
   }
 
-  /** A `<gold-switch>` changed: in the sign-up form it's the choice sent along, signed in the user's option */
+  /** Signed out, a switch updates the pending sign-up choices; signed in, it saves the user's option */
   private handleSwitch = (event: Event) => {
     const element = event.target;
     if (!(element instanceof GoldSwitch)) return;

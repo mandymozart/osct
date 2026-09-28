@@ -4,17 +4,16 @@ import { t } from "i18next";
 import "@/components/settings";
 
 /**
- * About = Info (design p.32–34), opened with "i" in consultation mode; "Entries" (in the page, where the
- * entries list has its category pill) goes back to the list. Groups (Tilman 2026-09-27): Info text · Account (the progress – what it is, reset –
- * then sign-in and the update options) · Settings (sound & vibration, language, home screen, download) · colophon – one component per section.
- * Placeholder texts – the final texts belong in the content (`book.yaml`) once they arrive (PLAN Phase 4).
+ * Info page, opened with "i" in consultation mode; "Entries" goes back to the list. Sections, one component
+ * each: info text · Account (progress explanation and reset, sign-in, update options) · Settings (sound &
+ * vibration, language, home screen, download) · colophon. The texts are placeholders until they move
+ * into the content (`book.yaml`).
  */
 export class AboutPage extends ConsultationPage {
   get styles(): string {
     return /* css */ `
       .section-title:first-of-type { margin-top: 0; }
       .settings { margin-bottom: 1.5rem; }
-      /* White letters on the page's black (bf.svg is white, transparent around) */
       .logo-link {
         display: inline-block;
         margin: .5rem 0 1rem;
@@ -64,7 +63,7 @@ export class AboutPage extends ConsultationPage {
   }
 
   protected update(): void {
-    // Static page – the settings sections render themselves
+    // Static page: the settings sections render themselves
   }
 }
 

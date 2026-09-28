@@ -4,10 +4,10 @@ import { goldButton } from "@/components/buttons";
 import { t } from "i18next";
 
 /**
- * Base of the consultation mode pages (entries list, entry, info – design p.15–34): dark, slightly
- * transparent full-screen page below the top chrome (Mark, counter, "i" in `header.ts`); the entry view and
- * Info put "Entries" in the page (`entriesToolbar()`), where the entries list has its category pill.
- * Subclasses provide `styles` and `template` and re-render through `update()`.
+ * Base of the consultation mode pages (entries list, entry, Info): dark, slightly transparent full-screen
+ * page below the top chrome (`header.ts`). The entry view and Info place an "Entries" button
+ * (`entriesToolbar()`) where the entries list has its category pill. Subclasses provide `styles` and
+ * `template` and re-render through `update()`, which runs on route and progress changes.
  */
 export abstract class ConsultationPage extends PageMinimal {
   private unsubscribe: (() => void) | null = null;
@@ -50,8 +50,7 @@ export abstract class ConsultationPage extends PageMinimal {
       p { margin: 0 0 1em; white-space: pre-line; }
       a { color: var(--color-accent); }
 
-      /* Entry view and Info (Tilman 2026-09-27): the entries list's positions – "Entries" where its category
-         pill is, the content where its list starts (the same toolbar: pill, gap, one line, gap below) */
+      /* Mirrors the entries list toolbar (pill, gap, one counter line, gap) so content starts at the same height */
       .content.below-toolbar { padding-top: var(--consultation-top-counter); }
       .entries-toolbar {
         display: flex;
@@ -72,7 +71,6 @@ export abstract class ConsultationPage extends PageMinimal {
   connectedCallback() {
     super.connectedCallback();
     this.shadowRoot?.addEventListener("click", this.handleEntries);
-    // Re-render on route (param) and progress changes
     const game = this.game;
     const onChange = () => this.update();
     const cleanups = [game.subscribeToProperty("currentRoute", onChange), game.subscribeToProperty("progress", onChange)];

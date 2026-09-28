@@ -5,10 +5,9 @@ import { goToScan, goToStep } from "@/components/tutorial";
 import { t } from "i18next";
 
 /**
- * Onboarding = tutorial (design p.1–5, PLAN Phase 5): black screen, Mark, one step at a time (route
- * param `step`). Steps without a button (splash, title) advance after `advance` ms or on a tap; the
- * others advance with their button (`tutorial-navigation`). "Skip" goes straight to scan mode
- * (returning readers open the tutorial from Info).
+ * Onboarding (tutorial): one step at a time, selected by the route param `step`. Steps without a button
+ * advance after `advance` ms or on a tap; the others advance with their button (`tutorial-navigation`).
+ * "Skip" goes straight to scan mode. Returning readers can reopen the tutorial from Info.
  */
 export class TutorialPage extends Page {
   static get observedAttributes() {
@@ -40,11 +39,10 @@ export class TutorialPage extends Page {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark 88 px from the top (DESIGN.md §3) */
+        padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark position, see DESIGN.md §3 */
         box-sizing: border-box;
       }
-      /* The button follows the text (in the flow, never on top of it): short texts keep it at 58 % of the
-         screen as in the design – the text block is at least that tall – longer texts push it down */
+      /* The button stays in the flow below the text: at 58 % of the screen for short texts, pushed down by longer ones */
       tutorial-content {
         flex: 1 0 auto;
         width: 100%;
@@ -112,7 +110,7 @@ export class TutorialPage extends Page {
 
     const step = this.step;
     if (!this._active || !step || step.button || !step.advance) return;
-    // A step's time starts once the app has loaded – at startup the loading screen would hide it
+    // A step's time starts once the app has loaded, since the loading screen would hide it
     const advance = step.advance;
     const loading = (state: LoadingState) => state === LoadingState.LOADING || state === LoadingState.INITIAL;
     if (!loading(this.game.state.loading)) {

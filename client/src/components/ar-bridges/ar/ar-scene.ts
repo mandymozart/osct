@@ -31,13 +31,14 @@ const scanningIndicator = () => document.getElementById("osct-scanning");
 
 /**
  * The AR scene: plain three.js + MindAR tracking, **one** renderer and camera stream for the session.
- * Built lazily – nothing (no WebGL context, no assets, no camera) until AR first runs (RUNNING). A spread switch keeps the renderer and the camera stream and only
+ * Built lazily – no WebGL context, assets or camera until AR first runs (RUNNING). A spread switch keeps
+ * the renderer and the camera stream and only
  *   1. stops MindAR's tracking controller,
  *   2. swaps the anchors, entities and assets (assets both spreads use stay),
  *   3. starts tracking the new `.mind` on the running camera video.
  *
- * Every call only records the wish (spread, state) and queues one reconcile step; each step reads the
- * newest wish, so fast switching never races and outdated spreads are skipped.
+ * Every call only records the requested spread / state and queues one reconcile step; each step reads the
+ * newest request, so fast switching never races and outdated spreads are skipped.
  */
 export class ArScene implements IArScene {
   private emitter = new Emitter<ArSceneEvents>();
@@ -54,8 +55,8 @@ export class ArScene implements IArScene {
   private started = false;
   private running = false;
   /**
-   * The last start failed (camera denied / unavailable): no retry until the wish changes – otherwise
-   * every queued RUNNING would ask for the camera again.
+   * The last start failed (camera denied / unavailable): no retry until the requested state changes –
+   * otherwise every queued RUNNING would ask for the camera again.
    */
   private startFailed = false;
   private _status: ArStatus = "idle";
@@ -123,7 +124,7 @@ export class ArScene implements IArScene {
 
   private async step(): Promise<void> {
     if (!this.wantedSpread) return this.teardown();
-    // Lazy: the first RUNNING builds the renderer; until then only the wish is kept
+    // Lazy: the first RUNNING builds the renderer; until then only the request is kept
     if (!this.view && this.wantedState !== SceneState.RUNNING) {
       this.setStatus("idle");
       return;
@@ -334,7 +335,7 @@ export class ArScene implements IArScene {
       if (this.startFailed) return;
       this.setStatus("starting");
       await this.startTracking();
-      // A newer wish arrived while starting: the next queued step applies it
+      // A newer request arrived while starting: the next queued step applies it
       if (this.wantedState !== SceneState.RUNNING || this.wantedSpread !== this.spreadId) return;
     } else if (!this.running) {
       // MindAR starts its tracking state afresh: targets are found again (all were lost at the pause)

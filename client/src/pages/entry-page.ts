@@ -6,9 +6,8 @@ import { ConsultationPage } from "./consultation-page";
 import { t } from "i18next";
 
 /**
- * Entry view (design p.15, 20, 25, 30–31): "Entries" (back to the list) and `<entry-detail>` (meta table +
- * content per category) on the entries list's positions, like Info (Tilman 2026-09-27).
- * Opening the entry marks it consulted.
+ * Entry view: "Entries" (back to the list) and `<entry-detail>`, aligned with the entries list like Info.
+ * Opening an entry marks it consulted.
  */
 export class EntryPage extends ConsultationPage {
   /** Entry currently shown – progress changes must not re-render it (media would restart) */

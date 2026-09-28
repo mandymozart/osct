@@ -4,9 +4,9 @@ import { DEFAULT_LANGUAGE, isLanguage, Language, LANGUAGE_NAMES, LANGUAGES } fro
 import { SettingsSection } from "./settings-section";
 
 /**
- * Language section: "Language: English" + "Change language" → the languages, each named in itself.
- * `i18next.changeLanguage` stores the choice (language detector → localStorage) and the app reloads – the
- * URL keeps the view.
+ * Language section: shows the current language and a toggle that lists all languages, each in its own name.
+ * Choosing one stores it via `i18next.changeLanguage` (detector → localStorage) and reloads the app; the URL
+ * preserves the current view.
  */
 export class SettingsLanguage extends SettingsSection {
   private open = false;

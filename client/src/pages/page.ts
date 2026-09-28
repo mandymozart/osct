@@ -38,16 +38,9 @@ export abstract class Page extends HTMLElement implements IPage {
       this.setAttribute("active", value.toString());
     }
 
-    /**
-     * Handle attribute changes
-     * @param name The name of the attribute that changed
-     * @param oldValue The previous value of the attribute
-     * @param newValue The new value of the attribute
-     */
     attributeChangedCallback(name: string, oldValue: string, newValue: string): void {
       if (name === 'active' && oldValue !== newValue) {
         this._active = newValue === 'true';
-        // Additional handling for active state could be done here
       }
     }
 
@@ -64,7 +57,7 @@ export abstract class Page extends HTMLElement implements IPage {
           background: var(--app-background);
           border-radius: 1.5rem 1.5rem 0 0;
           z-index: var(--page-z-index, 1000);
-          /* Only opacity/visibility – "all" also animated z-index (overlays changed layers over a second) */
+          /* Never "all": animating z-index makes overlays change layers mid-transition */
           transition: opacity 1s ease, visibility 1s;
           opacity: 0;
           visibility: hidden;
@@ -114,9 +107,7 @@ export abstract class Page extends HTMLElement implements IPage {
       `;
     }
 
-    /**
-     * Additional styles - must be implemented by child classes
-     */
+    /** Page-specific styles, appended after `baseStyles` */
     public abstract get styles(): string;
   
     connectedCallback() {
@@ -129,12 +120,10 @@ export abstract class Page extends HTMLElement implements IPage {
     }
   
     public render() {
-      // Clear existing content
       while (this.shadowRoot!.firstChild) {
         this.shadowRoot!.removeChild(this.shadowRoot!.firstChild);
       }
       
-      // Create template content
       this._template.innerHTML = /* html */ `
         <style>
           ${this.baseStyles}
@@ -143,7 +132,6 @@ export abstract class Page extends HTMLElement implements IPage {
         ${this.template}
       `;
       
-      // Clone and append template
       this.shadowRoot!.appendChild(this._template.content.cloneNode(true));
     }
 

@@ -6,18 +6,8 @@ import { t } from "i18next";
 import { escapeHtml } from "@/utils";
 
 /**
- * Loading Page is a simple overlay page that displays
- * loading states to the user.
- *
- * Example usage:
- * // Show loading with auto-hide
- * showLoading('Loading spread...', 5000);
- *
- * // Show persistent loading
- * showLoading('Please wait...');
- *
- * // Hide manually
- * hideLoading();
+ * Loading overlay outside the pages router: shown while the store's loading state is active, with a gold
+ * loader on the consultation-mode darkness. Re-renders only when the loading state actually changes.
  */
 class LoadingPage extends Page {
   private message: string = t("common:loading");
@@ -28,10 +18,8 @@ class LoadingPage extends Page {
     super();
     this.game = GameStoreService.getInstance();
     adoptDesignStyles(this.shadowRoot);
-    // Initialize with current state
     this.currentLoadingState = this.game.state.loading;
     
-    // Set initial UI state based on loading state
     if (this.isLoading(this.currentLoadingState)) {
       this.showLoading();
     } else {
@@ -45,18 +33,11 @@ class LoadingPage extends Page {
     this.game.subscribe(this.handleStateChange.bind(this));
   }
 
-  /**
-   * Helper to check if a state is considered "loading"
-   */
   private isLoading(state: LoadingState): boolean {
     return state === LoadingState.LOADING || state === LoadingState.INITIAL;
   }
 
-  /**
-   * Handle game state changes, only updating UI when loading state changes
-   */
   protected handleStateChange(state: { loading: LoadingState }) {
-    // Only process if loading state has actually changed
     if (state.loading !== this.currentLoadingState) {
       this.currentLoadingState = state.loading;
       
@@ -68,7 +49,6 @@ class LoadingPage extends Page {
     }
   }
 
-  /** Same darkness as consultation mode, gold loader in the centre (design system, DESIGN.md) */
   get styles(): string {
     return /* css */ `
       :host {
