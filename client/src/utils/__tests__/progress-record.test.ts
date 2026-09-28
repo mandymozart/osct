@@ -28,15 +28,23 @@ describe("progress record", () => {
   });
 
   it("reads an older format silently when nothing changes, and reports a conversion when something is dropped", () => {
-    const stored = { format: 1, bookId, appVersions: ["1.2.2"], unlocked: { a: 1 }, consulted: {}, lastSpreadId: "spread2", lastCategory: null, onboarded: true };
-    const read = readProgress(stored, bookId);
-    expect(read).toMatchObject({ status: "current", record: { ...stored, format: PROGRESS_FORMAT } });
-    // A field the reader only adds as a default is no change
-    const { onboarded: _, ...withoutFlag } = stored;
-    expect(readProgress(withoutFlag, bookId).status).toBe("current");
-    // Dropped or corrected fields are
-    expect(readProgress({ ...stored, unlocked: { a: 1, b: "x" } }, bookId).status).toBe("converted");
-    expect(readProgress({ ...stored, marked: { c: 3 } }, bookId).status).toBe("converted");
+    // Stand-in for an older format whose records have the current shape (its reader = the current one)
+    const oldFormat = PROGRESS_FORMAT - 1;
+    const realReader = PROGRESS_READERS[oldFormat];
+    PROGRESS_READERS[oldFormat] = PROGRESS_READERS[PROGRESS_FORMAT];
+    try {
+      const stored = { format: oldFormat, bookId, appVersions: ["1.2.2"], unlocked: { a: 1 }, consulted: {}, lastSpreadId: "spread2", lastCategory: null, onboarded: true };
+      expect(readProgress(stored, bookId)).toMatchObject({ status: "current", record: { ...stored, format: PROGRESS_FORMAT } });
+      // A field the reader only adds as a default is no change
+      const { onboarded: _, ...withoutFlag } = stored;
+      expect(readProgress(withoutFlag, bookId).status).toBe("current");
+      // Dropped or corrected fields are
+      expect(readProgress({ ...stored, unlocked: { a: 1, b: "x" } }, bookId).status).toBe("converted");
+      expect(readProgress({ ...stored, marked: { c: 3 } }, bookId).status).toBe("converted");
+    } finally {
+      if (realReader) PROGRESS_READERS[oldFormat] = realReader;
+      else delete PROGRESS_READERS[oldFormat];
+    }
   });
 
   it("reads records written before the onboarding flag existed as not onboarded", () => {
