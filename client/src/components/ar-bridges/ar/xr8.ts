@@ -181,6 +181,12 @@ const edgeColour = (context: CanvasRenderingContext2D, width: number, height: nu
   return `rgb(${sum.map(value => Math.round(value / count)).join(",")})`;
 };
 
+const dataUrlToBlob = (dataUrl: string): Blob => {
+  const [header, base64] = dataUrl.split(",");
+  const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
+  return new Blob([bytes], { type: header.slice(5).split(";")[0] });
+};
+
 /**
  * Image target data for a target image: its frame as a grey 480×640 JPEG (object URL). The URL is also
  * the target's name – the engine unloads targets by the names it is given, which are their URLs.
@@ -218,10 +224,9 @@ export const makeImageTarget = async (imageSrc: string): Promise<PreparedImageTa
     data[i] = data[i + 1] = data[i + 2] = y;
   }
   context.putImageData(pixels, 0, 0);
-  const blob = await new Promise<Blob>((resolve, reject) =>
-    luminance.toBlob(b => (b ? resolve(b) : reject(new Error(`Could not prepare ${imageSrc}`))), "image/jpeg", 0.92),
-  );
-  const url = URL.createObjectURL(blob);
+  // toDataURL, not toBlob: Chrome encodes toBlob in idle time, and the engine's frame loop leaves almost none
+  // (S22: ~4 s per image while tracking, 12 ms synchronously)
+  const url = URL.createObjectURL(dataUrlToBlob(luminance.toDataURL("image/jpeg", 0.92)));
   return { data: { type: "PLANAR", name: url, imagePath: url, metadata: null, properties: crop }, widthFactor: frame.widthFactor };
 };
 

@@ -139,6 +139,15 @@ export const getSpreads = (): Spread[] => [...spreads];
 
 export const getSpread = (id: string): Spread | undefined => spreadById.get(id);
 
+/**
+ * The spreads next to `spreadId` in book order (the ones the spread menu reaches next) – what is preloaded
+ * ahead of a switch (`.mind` + content, and the 8th Wall tracker's targets)
+ */
+export const getNeighbourSpreads = (spreadId: string, range = 1): Spread[] => {
+  const index = spreads.findIndex(s => s.id === spreadId);
+  return index === -1 ? [] : spreads.filter((_, i) => i !== index && Math.abs(i - index) <= range);
+};
+
 export const getEntries = (): Entry[] => [...entries];
 
 export const getEntry = (id: string): Entry | undefined => entryById.get(id);

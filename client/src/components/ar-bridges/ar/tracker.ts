@@ -125,6 +125,9 @@ export class ImageTracker implements IImageTracker {
     this.controller?.processVideo(this.video);
   }
 
+  /** Nothing to do: the neighbours' `.mind` files are preloaded into the browser cache (`PreloaderService`) */
+  prepareTargets(): void {}
+
   stopTracking(): void {
     const controller = this.controller;
     this.controller = null;

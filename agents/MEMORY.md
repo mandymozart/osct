@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – 8th Wall spread switches: neighbours kept loaded (Tilman: "save switch times")
+
+- Measured on the S22: the engine's own feature extraction is fast (~0.6–0.75 s for 4 targets); the slow part
+  was ours – `canvas.toBlob()` waits for idle time, which the engine's frame loop hardly leaves (~4.2 s per image
+  while tracking). Now `toDataURL()` (synchronous, ~12 ms) → blob URL: 150–260 ms per image.
+- The engine keeps targets it already has when configured again and extracts only new ones (one per frame; a new
+  configure restarts that queue). So `IImageTracker.prepareTargets(spreads)` (called by `ArScene` when a spread
+  is ready, with `getNeighbourSpreads()` – the same ±1 as `PreloaderService.preloadNeighbours`) keeps the
+  neighbours' targets loaded next to the current ones; the app reacts only to the current spread's. The empty
+  configure on every switch is gone. MindAR: no-op (its `.mind` files are preloaded into the browser cache).
+- Result (S22): first spread ~1.15 s (was ~5 s); switch to a neighbour 0–1 ms; to a non-neighbour ~0.6 s.
+- [ ] Measure the cost of more loaded targets (≤ 15 with ±1 and 5 per spread): time to first find and frame
+  rate on the current spread, compared with only its own targets loaded.
+- Idea (not built): with the neighbours loaded, a found neighbour target could switch the spread by itself.
+
 ## 2026-09-28 – S22 test of the 8th Wall tracker: whole images instead of the 3:4 crop
 
 - Phone test over USB (`adb reverse tcp:5174`, http dev server; the phone was on mobile data, so the LAN URL
