@@ -1,5 +1,5 @@
 import { GoldSwitch } from "@/components/buttons";
-import i18next from "i18next";
+import { t } from "i18next";
 import { FeedbackService, FeedbackSettings } from "@/services";
 import { escapeHtml } from "@/utils";
 import { SettingsSection } from "./settings-section";
@@ -30,9 +30,9 @@ export class SettingsFeedback extends SettingsSection {
         /* The first row starts the section: its text (not its 4rem box) sits where other sections' text starts */
         gold-switch:first-of-type { margin-top: calc((var(--text-size) * var(--text-line) - 4rem) / 2); }
       </style>
-      ${toggle("sound", i18next.t("settings:soundLabel"))}
-      ${toggle("haptics", i18next.t("settings:hapticsLabel"))}
-      <p class="description">${i18next.t("settings:feedbackDescription")}</p>
+      ${toggle("sound", t("settings:soundLabel"))}
+      ${toggle("haptics", t("settings:hapticsLabel"))}
+      <p class="description">${t("settings:feedbackDescription")}</p>
     `;
   }
 

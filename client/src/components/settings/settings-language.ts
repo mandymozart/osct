@@ -1,5 +1,5 @@
 import { goldButton } from "@/components/buttons";
-import i18next from "i18next";
+import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE, isLanguage, Language, LANGUAGE_NAMES, LANGUAGES } from "@/i18n";
 import { SettingsSection } from "./settings-section";
 
@@ -25,9 +25,9 @@ export class SettingsLanguage extends SettingsSection {
     ).join("");
     return /* html */ `
       <div class="row">
-        <span class="muted">${i18next.t("settings:languageLabel")}</span>
+        <span class="muted">${t("settings:languageLabel")}</span>
         <span>${LANGUAGE_NAMES[current]}</span>
-        ${goldButton({ label: i18next.t("settings:languageChange"), attrs: { "data-action": "toggle", "aria-expanded": String(this.open) } })}
+        ${goldButton({ label: t("settings:languageChange"), attrs: { "data-action": "toggle", "aria-expanded": String(this.open) } })}
       </div>
       ${this.open ? `<div class="options" role="group">${options}</div>` : ""}
     `;

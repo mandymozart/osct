@@ -1,5 +1,5 @@
 import { goldButton } from "@/components/buttons";
-import i18next from "i18next";
+import { t } from "i18next";
 import { InstallService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
@@ -28,12 +28,12 @@ export class SettingsInstall extends SettingsSection {
   protected content(): string {
     const method = this.install.getMethod();
     if (method === "installed" || method === "added") {
-      return /* html */ `<p class="description first" role="status">${i18next.t(method === "installed" ? "settings:installDone" : "settings:installAdded")}</p>`;
+      return /* html */ `<p class="description first" role="status">${t(method === "installed" ? "settings:installDone" : "settings:installAdded")}</p>`;
     }
-    const steps = method === "ios" ? i18next.t("settings:installIos") : i18next.t("settings:installManual");
+    const steps = method === "ios" ? t("settings:installIos") : t("settings:installManual");
     return /* html */ `
-      <div class="row">${goldButton({ label: i18next.t("settings:installButton"), attrs: { "data-action": "install" } })}</div>
-      <p class="description" role="status">${this.explain ? steps : i18next.t("settings:installDescription")}</p>
+      <div class="row">${goldButton({ label: t("settings:installButton"), attrs: { "data-action": "install" } })}</div>
+      <p class="description" role="status">${this.explain ? steps : t("settings:installDescription")}</p>
     `;
   }
 

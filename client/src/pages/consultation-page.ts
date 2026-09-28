@@ -1,7 +1,7 @@
 import { PageMinimal } from "./page-minimal";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /**
  * Base of the consultation mode pages (entries list, entry, info – design p.15–34): dark, slightly
@@ -66,7 +66,7 @@ export abstract class ConsultationPage extends PageMinimal {
 
   /** "Entries" → back to the list with the last category; put it first in `<div class="content below-toolbar">` */
   protected entriesToolbar(): string {
-    return `<div class="entries-toolbar">${goldButton({ label: i18next.t("header:entries"), attrs: { "data-action": "entries" } })}</div>`;
+    return `<div class="entries-toolbar">${goldButton({ label: t("header:entries"), attrs: { "data-action": "entries" } })}</div>`;
   }
 
   connectedCallback() {

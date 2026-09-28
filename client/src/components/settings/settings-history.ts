@@ -1,5 +1,5 @@
 import { goldButton } from "@/components/buttons";
-import i18next from "i18next";
+import { t } from "i18next";
 import { UserService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
@@ -35,14 +35,14 @@ export class SettingsHistory extends SettingsSection {
       : "settings:historyDescriptionLocal";
     return /* html */ `
       <style>.explain { margin: 0 0 .6rem; }</style>
-      <p class="explain" role="status">${i18next.t(description)}</p>
-      <div class="row">${goldButton({ label: i18next.t("settings:historyButton"), attrs: { "data-action": "reset" } })}</div>
+      <p class="explain" role="status">${t(description)}</p>
+      <div class="row">${goldButton({ label: t("settings:historyButton"), attrs: { "data-action": "reset" } })}</div>
     `;
   }
 
   protected onAction(action: string): void {
     const confirm = this.signedIn ? "settings:historyConfirmAccount" : "settings:historyConfirm";
-    if (action !== "reset" || !window.confirm(i18next.t(confirm))) return;
+    if (action !== "reset" || !window.confirm(t(confirm))) return;
     this.game.history.reset();
     this.done = true;
     this.render();

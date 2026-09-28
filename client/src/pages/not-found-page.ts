@@ -1,7 +1,7 @@
 import { Page } from "./page";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /**
  * Overlay for unknown routes and links whose target doesn't exist (anymore) – consultation look
@@ -36,8 +36,8 @@ export class NotFoundPage extends Page {
   get template(): string {
     return /* html */ `
       <div class="content design">
-        <p>${i18next.t("notFound:text")}</p>
-        ${goldButton({ label: i18next.t("common:goToStart"), attrs: { "data-action": "start" } })}
+        <p>${t("notFound:text")}</p>
+        ${goldButton({ label: t("common:goToStart"), attrs: { "data-action": "start" } })}
       </div>
     `;
   }

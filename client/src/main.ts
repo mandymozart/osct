@@ -12,14 +12,14 @@ import {
 } from "@/types";
 import { hideStaticSplash, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
 import { getConfigurationError, getTutorial } from "@/utils/game-config";
-import i18next from "i18next";
+import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
 
 // Language of the page (screen readers, hyphenation) and the static splash's texts (index.html, English)
 document.documentElement.lang = i18next.resolvedLanguage ?? DEFAULT_LANGUAGE;
 const staticSplash = document.getElementById("static-splash");
-staticSplash?.setAttribute("aria-label", i18next.t("common:loadingBook"));
-staticSplash?.querySelector("img")?.setAttribute("alt", i18next.t("common:markAlt"));
+staticSplash?.setAttribute("aria-label", t("common:loadingBook"));
+staticSplash?.querySelector("img")?.setAttribute("alt", t("common:markAlt"));
 
 // "Add to Home Screen" on the Info page: the browser announces it once, early – keep it from the start
 InstallService.getInstance().start();
@@ -191,7 +191,7 @@ export class BookGame extends HTMLElement {
     this.game.finishLoading();
     void hideStaticSplash();
     const message =
-      error instanceof Error ? error.message : i18next.t("startup:unknownError");
+      error instanceof Error ? error.message : t("startup:unknownError");
     if (this.errorPage) {
       const errorEvent = new CustomEvent("show-error", {
         detail: { message },

@@ -1,5 +1,5 @@
 import { goldButton } from "@/components/buttons";
-import i18next from "i18next";
+import i18next, { t } from "i18next";
 import { BookDownload, InstallService, PreloaderService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
@@ -38,11 +38,11 @@ export class SettingsDownload extends SettingsSection {
     if (!download) return "";
     const total = megabytes(download.total);
     const button = (download.state === "idle" || download.state === "failed")
-      ? `<div class="row">${goldButton({ label: i18next.t("settings:downloadButton"), attrs: { "data-action": "download" } })}</div>`
+      ? `<div class="row">${goldButton({ label: t("settings:downloadButton"), attrs: { "data-action": "download" } })}</div>`
       : "";
-    const description = download.state === "done" ? i18next.t("settings:downloadDone", { size: total })
-      : download.state === "failed" ? i18next.t("settings:downloadFailed", { size: total })
-      : download.state === "idle" ? i18next.t("settings:downloadDescription", { size: total })
+    const description = download.state === "done" ? t("settings:downloadDone", { size: total })
+      : download.state === "failed" ? t("settings:downloadFailed", { size: total })
+      : download.state === "idle" ? t("settings:downloadDescription", { size: total })
       : "";
     return /* html */ `
       <style>
@@ -51,7 +51,7 @@ export class SettingsDownload extends SettingsSection {
         .amount { margin: .35rem 0 0; color: var(--color-muted); font-size: var(--text-size-small); }
       </style>
       ${button}
-      <div class="bar" role="progressbar" aria-label="${i18next.t("settings:downloadButton")}"
+      <div class="bar" role="progressbar" aria-label="${t("settings:downloadButton")}"
         aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent(download)}">
         <span style="width: ${percent(download)}%"></span>
       </div>
@@ -83,7 +83,7 @@ const percent = ({ loaded, total }: BookDownload): number => (total ? Math.round
 
 /** "5 MB of 20.2 MB downloaded" (while running) / "… on this device" */
 const amount = (download: BookDownload): string =>
-  i18next.t(download.state === "running" ? "settings:downloadProgress" : "settings:downloadStored",
+  t(download.state === "running" ? "settings:downloadProgress" : "settings:downloadStored",
     { loaded: megabytes(download.loaded), total: megabytes(download.total) });
 
 /** "24.1 MB" in the reader's language */

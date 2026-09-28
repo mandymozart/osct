@@ -7,11 +7,11 @@ import { DEFAULT_LANGUAGE, LANGUAGES } from "./languages";
  * JSON (i18next JSON v4) in `src/i18n/locales/<language>/<namespace>.json`, one namespace per page or area,
  * maintained with i18next-cli (`i18next.config.ts`: extract keys, generate the types in `i18next.d.ts`,
  * report missing translations). English is the fallback – a missing or empty translation shows English.
- * Components use i18next directly:
+ * Components use i18next's `t` directly (`import { t } from "i18next"` – bound to the default instance):
  *
- *   i18next.t("entry:accessPage")                            → "Access page"
- *   i18next.t("entry:goToPage", { page: 4 })                 → placeholders {{page}}, values escaped for HTML
- *   i18next.t("camera:chromeSteps", { returnObjects: true })   → lists
+ *   t("entry:accessPage")                            → "Access page"
+ *   t("entry:goToPage", { page: 4 })                 → placeholders {{page}}, values escaped for HTML
+ *   t("camera:chromeSteps", { returnObjects: true }) → lists
  *
  * Language: the language detector keeps the reader's choice in localStorage (`osct-language`), else the
  * device's language. It is not part of the progress – "Reset book" keeps it. `i18next.changeLanguage()`
