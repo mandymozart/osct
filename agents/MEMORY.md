@@ -4,7 +4,7 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
-## 2026-09-28 – 2.0.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
+## 2026-09-28 – 1.3.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
 
 - Why (Tilman, after the S22 tests): MindAR "doesn't do well at all" next to 8th Wall (jitter), and it cannot
   switch spreads by itself. The full-spread photo targets (pages 20–27) work with 8th Wall too (Tilman).
@@ -21,10 +21,14 @@ outcome in the line (or move it into a dated decision block).
   credited in the project README (Tilman: not on the Info page) – "open source image tracking engine of
   8th Wall by Niantic Spatial, the discontinued 8th Wall platform, MIT".
 - RULES #4 now names the one allowed extra WebGL context: the engine's camera canvas.
-- MAJOR → progress format 2 = same shape as 1 (reader added). Tilman: no notice when nothing changed → an older
-  record is "converted" only if the reader dropped or corrected a stored field (`keptAsItWas` in
-  `utils/progress-record.ts`); defaults for missing fields don't count.
-- S22 check of 2.0.0: 11 automatic switches across pages 1–27 in 90 s, ready in 0–3 ms, photo spreads found.
+- **Version 1.3.0, not 2.0.0** (Tilman asked why MAJOR): first bumped to 2.0.0 because the game configuration
+  lost `mindSrc` / `maxTargetsPerSpread` – but by RULES #23 nothing broke: old `spread.yaml` (with `mind:`)
+  still builds (unknown fields are ignored), the configuration is regenerated with every version and ships with
+  the app, and the progress shape is unchanged. So MINOR. 2.0.0 was never tagged or merged; the format-2
+  progress reader it needed is gone again. Kept from it: an older progress format is reported as "converted"
+  only when reading it dropped or corrected a stored field (`keptAsItWas`, utils/progress-record.ts) – for the
+  next real format change (Tilman: no notice when nothing changed).
+- S22 check of the 8th Wall-only build: 11 automatic switches across pages 1–27 in 90 s, ready in 0–3 ms, photo spreads found.
 - iPhone test belongs to Phase 14 "Content and refinement" (Amsterdam, with Kévin Bray – Tilman).
 - [ ] Staging: the Netlify site may still set `VITE_AR_TRACKER` – harmless now, can be deleted there.
 

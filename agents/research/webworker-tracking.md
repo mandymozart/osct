@@ -183,7 +183,7 @@ The app can now run on either engine – same scene, entities, unlock flow:
 
 ## 7. Decision (2026-09-28)
 
-**8th Wall only, MindAR removed – version 2.0.0** (Tilman). On the S22 it tracks with visibly less jitter,
+**8th Wall only, MindAR removed – version 1.3.0** (Tilman). On the S22 it tracks with visibly less jitter,
 makes the image targets on the device from the target images (nothing to compile), keeps neighbouring spreads
 loaded (a switch to them in 0–5 ms) and so recognises a turned page and switches the spread by itself. 39
 targets loaded at once showed no visible slowdown. Open: iPhone Safari, a measured all-vs-±1 comparison.

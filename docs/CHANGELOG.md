@@ -12,10 +12,10 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 2.0.0 – 2026-09-28
+## 1.3.0 – 2026-09-28
 
-**Content must be rebuilt:** `spread.yaml` no longer has `mind:`, and the game configuration no longer has
-`mindSrc` or `maxTargetsPerSpread`. Progress is kept (its format is unchanged).
+Existing content keeps building (a leftover `mind:` in `spread.yaml` is ignored – delete it when convenient);
+the game configuration no longer has `mindSrc` or `maxTargetsPerSpread`. Progress is unchanged.
 
 ### Changed
 - Image tracking with the **8th Wall engine** (`@8thwall/engine`, MIT) instead of MindAR: steadier content
@@ -25,8 +25,8 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   image is used (fitted into the engine's portrait frame).
 - Up to **10 targets per spread** (was 5); the camera follows 4 of them at the same moment.
 - The preloader and the whole-book download fetch the target images where they fetched `.mind` files.
-- Saved progress of an older format is only reported as "converted" when reading it changed something – a
-  version change alone (as from 1.x to 2.0.0, same progress shape) shows no notice.
+- Saved progress of an older format will only be reported as "converted" when reading it changed something
+  (for the next progress format change).
 
 ### Added
 - The neighbouring spreads' targets are kept ready, so switching to them is instant; turning to a

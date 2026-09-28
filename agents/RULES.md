@@ -7,7 +7,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
 - Build: vite · Tests: vitest (happy-dom)
 - 3D: three.js (A-Frame removed 2026-09-26, Phase 9) · Image tracking: the **8th Wall engine** (`@8thwall/engine`,
   MIT, image targets; served from `assets/xr8/` with its LICENSE) behind `IImageTracker` (`ar/tracker-types.ts`).
-  MindAR removed in 2.0.0 (Tilman, 2026-09-28: 8th Wall jitters less and switches spreads by itself) – no
+  MindAR removed in 1.3.0 (Tilman, 2026-09-28: 8th Wall jitters less and switches spreads by itself) – no
   `.mind` files, no compiling; image targets are made from the target images in the app.
 - State: custom monolithic game store (`IGame`, `BaseStore`) with immer drafts, split into managers
 - UI: vanilla custom web components (shadow DOM), no framework
@@ -18,7 +18,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
 
 ## Working rules
 1. **Ask before removing any feature, page, component or manager.** We are restructuring,
-   not deleting. Agreed removals: QR scanning; MindAR (2.0.0, Tilman 2026-09-28 – 8th Wall instead).
+   not deleting. Agreed removals: QR scanning; MindAR (1.3.0, Tilman 2026-09-28 – 8th Wall instead).
 2. Naming: page group = **spread** (not chapter), opened entry = **consulted** (not visited).
    Use these terms in code, content and UI.
    Modes: `IDLE`, `SCAN`, `CONSULTATION` (UI context). "About" and "Info" are the same page (`about`).
