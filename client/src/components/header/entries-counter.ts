@@ -1,11 +1,9 @@
 import { GameStoreService } from "@/services";
 import { IGame } from "@/types";
 import { getEntries } from "@/utils/game-config";
-import i18next from "i18next";
+import { t } from "i18next";
 
-/**
- * Header counter "12 / 150" = consulted entries / total entries (PLAN Phase 3, decided).
- */
+/** Header counter "12 / 150": consulted entries / total entries; re-renders on progress changes. */
 export class EntriesCounter extends HTMLElement {
   private game: Readonly<IGame>;
   private unsubscribe: (() => void) | null = null;
@@ -42,7 +40,7 @@ export class EntriesCounter extends HTMLElement {
           text-align: center;
         }
       </style>
-      <span aria-label="${i18next.t("header:counterAria", { consulted, total })}">${consulted}<span aria-hidden="true"> / </span>${total}</span>
+      <span aria-label="${t("header:counterAria", { consulted, total })}">${consulted}<span aria-hidden="true"> / </span>${total}</span>
     `;
   }
 }

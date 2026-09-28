@@ -1,9 +1,8 @@
 import { EntryCategory } from "./entries";
 
 /**
- * Progress record: what one reader discovered in one book, keyed by stable ids (PLAN Phase 2).
- * Stored per book (`book.id`) behind a storage adapter (`IProgressStorage`).
- * Ids that are no longer in the content are kept (shown as missing in the debug overlay).
+ * What one reader discovered in one book, keyed by stable content ids and stored per `book.id` via
+ * `IProgressStorage`. Ids no longer in the content are kept (listed as missing in the debug overlay).
  */
 export interface ProgressRecord {
   /** Storage format = app MAJOR that wrote the record; an older format is read and converted */
@@ -15,24 +14,21 @@ export interface ProgressRecord {
   unlocked: Record<string, number>;
   /** Stage 2: entry opened (entry id → time) */
   consulted: Record<string, number>;
-  /** Last active spread – the active spread at the next start (keep going) */
+  /** Last active spread; restored as the active spread on the next start */
   lastSpreadId: string | null;
-  /** Last selected entries category ("Entries" button, Phase 4) */
+  /** Last selected entries category ("Entries" button) */
   lastCategory: EntryCategory | null;
-  /** Onboarding finished or skipped – a first visit starts with the onboarding (Phase 5) */
+  /** Onboarding finished or skipped; until then the app starts with the onboarding */
   onboarded: boolean;
 }
 
-/**
- * History Manager State
- */
 export interface HistoryManagerState {
   progress: ProgressRecord;
 }
 
 /**
- * Storage adapter for the progress record: localStorage now, a DB/API store later.
- * Returns raw data – reading and converting formats is the manager's job.
+ * Storage adapter for the progress record (currently localStorage). Returns raw data; parsing and
+ * format conversion are the manager's job.
  */
 export interface IProgressStorage {
   /** Raw stored record: null = nothing stored, undefined = unreadable */
@@ -40,19 +36,12 @@ export interface IProgressStorage {
   save(record: ProgressRecord): void;
 }
 
-/**
- * History Manager Interface: progress of the reader (unlocked targets, consulted entries,
- * last spread / category, onboarding).
- */
+/** Owns the reader's progress: unlocked targets, consulted entries, last spread / category, onboarding. */
 export interface IHistoryManager {
-  /**
-   * Load the progress record from storage (converts older formats). Runs at startup.
-   */
+  /** Load the progress record from storage, converting older formats. Runs at startup. */
   load(): void;
 
-  /**
-   * Tell the reader when stored progress was converted (parts may be missing) or reset. Once, at startup.
-   */
+  /** Notify the reader once at startup if stored progress was converted (parts may be lost) or reset */
   reportLoadStatus(): void;
 
   /**
@@ -79,23 +68,14 @@ export interface IHistoryManager {
   /** The reader finished or skipped the onboarding */
   setOnboarded(): void;
 
-  /**
-   * Stored ids that are no longer in the content (kept in storage, shown in the debug overlay)
-   */
+  /** Stored ids that are no longer in the content (kept in storage, shown in the debug overlay) */
   getMissingIds(): { targets: string[]; entries: string[] };
 
-  /**
-   * Percentage of unlocked targets in a spread
-   */
+  /** Percentage of unlocked targets in a spread */
   getSpreadCompletionPercentage(spreadId: string): number;
 
-  /**
-   * Check if all targets in a spread have been unlocked
-   */
   isSpreadComplete(spreadId: string): boolean;
 
-  /**
-   * Reset the whole progress of this book
-   */
+  /** Reset all progress for this book */
   reset(): void;
 }

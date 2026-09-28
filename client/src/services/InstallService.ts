@@ -1,8 +1,9 @@
 /**
- * "Add to Home Screen" (PWA, Tilman 2026-09-27: an action on the Info page, not in the onboarding).
- * Chrome / Edge / Samsung Internet announce installability with `beforeinstallprompt` once, early after
- * the page loaded – `start()` (main.ts) keeps it so the Info page can show the browser's install dialog
- * later. Chrome's own install banner stays on as well (Tilman 2026-09-27). iOS has no such dialog: readers use Share → "Add to Home Screen" (the Info page explains it).
+ * "Add to Home Screen" (PWA install), offered as an action on the Info page.
+ * Chrome / Edge / Samsung Internet fire `beforeinstallprompt` once, shortly after load; `start()` (main.ts)
+ * keeps the event so the Info page can open the browser's install dialog later. The event is not
+ * prevented, so Chrome's own install banner still appears. iOS has no install dialog: readers use
+ * Share → "Add to Home Screen" (explained on the Info page).
  */
 
 /** Chromium's install prompt event (not in the DOM typings) */
@@ -35,7 +36,7 @@ export class InstallService {
     return InstallService.instance;
   }
 
-  /** Keep the browser's install prompt for later (call once at startup, before the event fires) */
+  /** Keeps the browser's install prompt for later (call once at startup, before the event fires) */
   start(): void {
     window.addEventListener("beforeinstallprompt", event => {
       this.deferredPrompt = event as BeforeInstallPromptEvent;
@@ -55,7 +56,7 @@ export class InstallService {
     return isIOS() ? "ios" : "manual";
   }
 
-  /** Shows the browser's install dialog (a prompt can be used once); true when the reader accepted */
+  /** Shows the browser's install dialog (each prompt event is single-use); true when the reader accepted */
   async prompt(): Promise<boolean> {
     const event = this.deferredPrompt;
     if (!event) return false;
@@ -66,21 +67,21 @@ export class InstallService {
     return outcome === "accepted";
   }
 
-  /** Called when the method may have changed; returns the unsubscribe function */
+  /** Listener runs whenever the install method may have changed; returns the unsubscribe function */
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  /** iPhone / iPad (Safari and the home-screen app keep separate storage there) */
+  /** iPhone / iPad (where Safari and the home-screen app keep separate storage) */
   isIOS(): boolean {
     return isIOS();
   }
 
   /**
-   * Whether files kept by the service worker last here (whole-book download, Tilman 2026-09-27): with a
-   * service worker (production builds; `npm run dev` always, for testing) – on iOS only in the home-screen
-   * app: Safari tabs have their own storage (the app doesn't see it) and clear it after 7 days unused.
+   * Whether files cached by the service worker persist here (relevant for the whole-book download).
+   * Requires a service worker (always true under `npm run dev`, for testing). On iOS only the home-screen
+   * app qualifies: Safari tabs have separate storage and clear it after 7 days without use.
    */
   keepsDownloads(): boolean {
     if (import.meta.env.DEV) return true;

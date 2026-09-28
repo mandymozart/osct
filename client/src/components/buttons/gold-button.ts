@@ -1,15 +1,14 @@
 import { escapeHtml } from "@/utils";
 
 /**
- * The design buttons (DESIGN.md §7) as one markup helper – no custom element: the button stays a native
- * `<button>` in its component's shadow root, so event delegation, `hidden`, `aria-*` and per-component
- * styles (width, bronze shadow …) keep working. The component must adopt the design styles
- * (`adoptDesignStyles`) for the look.
+ * Markup helper for the design buttons (DESIGN.md §7). Deliberately not a custom element: the result is a
+ * native `<button>` in the calling component's shadow root, so event delegation, `hidden`, `aria-*` and
+ * per-component styles keep working. The component must call `adoptDesignStyles` for the look.
  *
- *   button – onboarding button: black body, white glow (Start, Continue, Grant access …)
- *   pill   – glass pill (Entries, Dismiss, Resume …)
- *   icon   – round glass button ("i"); give it an `aria-label`
- *   primary – shining label + border sweep; without it the button is secondary
+ *   button  – onboarding button: black body, white glow
+ *   pill    – glass pill (default)
+ *   icon    – round glass button; needs an `aria-label`
+ *   primary – shining label and border sweep; otherwise secondary
  */
 export type GoldButtonShape = "button" | "pill" | "icon";
 

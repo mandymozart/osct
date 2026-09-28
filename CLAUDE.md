@@ -12,6 +12,7 @@ Before working, read:
 
 While working:
 - Tick items in `PLAN.md` as they land (`[~]` in progress, `[x]` done).
+- Bump the version and add an entry to `docs/CHANGELOG.md` for every change (`RULES.md` #23).
 - Add new decisions to the top of `MEMORY.md` with a date; add rules to `RULES.md`.
 - Never remove a feature, page, component or manager that the plan does not list as removed.
   If something seems obsolete, add it as an open item in `MEMORY.md` instead.

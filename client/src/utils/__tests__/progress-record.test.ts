@@ -24,7 +24,7 @@ describe("progress record", () => {
       bookId,
     );
     expect(record).toMatchObject({ unlocked: { a: 1 }, lastCategory: null });
-    expect(record).not.toHaveProperty("marked"); // bookmarks were removed (2026-09-25)
+    expect(record).not.toHaveProperty("marked"); // unknown fields are dropped
   });
 
   it("reads records written before the onboarding flag existed as not onboarded", () => {

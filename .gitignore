@@ -1,19 +1,29 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-coverage
-
+# Dependencies and build output
 node_modules
 dist
 dist-ssr
-*.local
+coverage
 
-# Editor directories and files
+# Local files – never committed
+*.local
+.env
+# client/.env holds comments only (documents the VITE_* build flags, no values)
+!client/.env
+# .mind compiling: target images, history, cache, browser profile, benchmark
+.mindar/
+.claude
+.netlify
+
+# Server secrets and local data (docs/server.md)
+server/api/config.local.php
+server/api/db/*.sqlite
+server/api/db/*.log
+
+# Logs
+logs
+*.log
+
+# Editors and OS
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -24,21 +34,3 @@ dist-ssr
 *.sln
 *.sw?
 .venv
-
-
-# Local Netlify folder
-.netlify
-
-# Mind AR temporary folders
-/mind-ar*
-/mind-ar
-/mind-ar
-.claude
-# Server secrets and local data (server/README.md) – never committed
-.env
-server/.env
-server/api/config.local.php
-server/api/db/*.sqlite
-server/api/db/mail.log
-
-server/api/db/error.log

@@ -12,26 +12,17 @@ export interface RouterManagerState {
 
 export interface IRouterManager {
   /**
-   * Navigate to a different page
    * @param to Target page (Pages enum or URL slug)
-   * @param params Optional route parameters
+   * @param param Optional route parameter
    */
   navigate(to: string, param?: RouteParam): void;
 
-  /**
-   * Show error page with error information
-   * @param error Error information to display
-   */
   showError(error: ErrorInfo): void;
 
-  /**
-   * Dismiss the error / notice overlay and return to the view underneath
-   */
+  /** Dismiss the error / notice overlay and return to the view underneath */
   dismissError(): void;
 
-  /**
-   * Close overlay pages and clear current route
-   */
+  /** Close overlay pages and clear the current route */
   close(): void;
 }
 

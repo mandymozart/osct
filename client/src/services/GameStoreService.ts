@@ -1,17 +1,12 @@
 import { IGame } from "@/types";
 import { createGameStore } from "@/store/GameStore";
 
-/**
- * Singleton service for accessing the game store globally
- */
+/** Global access to the single game store instance (created on first use). */
 export class GameStoreService {
   private static instance: IGame;
 
   private constructor() {}
 
-  /**
-   * Get the singleton game store instance
-   */
   public static getInstance(): Readonly<IGame> {
     if (!GameStoreService.instance) {
       const game = createGameStore();

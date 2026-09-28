@@ -84,7 +84,7 @@ The mails (with link and code) land in `MAIL_LOG_PATH`.
 
 `.github/workflows/deploy-staging.yml` ("Deploy staging server (osct.porschuetz.de)") runs on every push to `develop` –
 the whole site, app + API. osct.porschuetz.de is the staging server; the Netlify sites are temporary and call its API.
-Production will be the client's server with its own workflow.
+Production: see [Releases](#releases-production).
 1. Run the API tests.
 2. Build the app with `VITE_API_URL=/api`.
 3. Write `config.local.php` from the GitHub environment **staging** (secrets and variables are listed in the workflow).
@@ -92,6 +92,26 @@ Production will be the client's server with its own workflow.
 5. Call `/api/admin/migrate`, then `/api/health`.
 
 Local credentials for that server live in `server/.env`, which is not committed.
+
+## Releases (production)
+
+Pushes to `main` deploy nothing. Production is deployed by `.github/workflows/release.yml` ("Release
+production") when a GitHub release is **published** – or by hand (Actions → Release production → tag).
+
+1. Bump the version and add the `docs/CHANGELOG.md` section on `develop` (RULES #23), merge `develop` into `main`.
+   `.github/workflows/tag-version.yml` then tags it: every CHANGELOG version without a tag gets `vX.Y.Z` on
+   the last `main` commit carrying it. Nobody pushes tags by hand (agent sessions cannot).
+2. GitHub → Releases → *Draft a new release* → choose the existing tag `vX.Y.Z` → *Publish* (leave the notes
+   empty to get the CHANGELOG section).
+3. The workflow checks that the tag equals every version source, that the CHANGELOG has the section and that
+   the commit is on `main`; then it fills empty release notes and deploys:
+   - **Production server** (FTPS, app + API) from the GitHub environment **production** – same names as
+     staging. Skipped with a warning while `FTP_HOST` is not set.
+   - **Netlify** (temporary `osct` site): the tagged build is uploaded with the Netlify CLI. Needs secrets
+     `NETLIFY_AUTH_TOKEN` (Netlify → User settings → Applications → Personal access token) and
+     `NETLIFY_SITE_ID` (Site configuration → Site details → Site ID), variable `VITE_API_URL` (full API URL).
+     In Netlify set Site configuration → Build & deploy → Continuous deployment → **Stop builds**, so pushes
+     to `main` no longer deploy; CLI deploys keep working.
 
 Staging on Netlify has no PHP. There, set `VITE_API_URL` to the full API URL; without it the account section
 is hidden.

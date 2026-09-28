@@ -30,9 +30,9 @@ export const loadArModule = (): Promise<ArModule> => {
 };
 
 /**
- * The bridge's `IArScene`: records the wishes (spread, state) and hands them to the real `ArScene`
- * once its chunk is loaded – on the first RUNNING wish, or earlier via `warmUp()` (idle time after
- * startup). Until then it reports `idle`, while the chunk loads for a start `loading`.
+ * The bridge's `IArScene`: records the requested spread and state and hands them to the real `ArScene`
+ * once its chunk is loaded – on the first RUNNING request, or earlier via `warmUp()`. Until then it
+ * reports `idle`, and `loading` while the chunk loads for a start.
  */
 export class LazyArScene implements IArScene {
   private emitter = new Emitter<ArSceneEvents>();
@@ -79,7 +79,7 @@ export class LazyArScene implements IArScene {
     try {
       const scene = await this.create();
       if (this.disposed) return;
-      // The latest wishes – they may have changed while the chunk loaded
+      // Apply the latest requests – they may have changed while the chunk loaded
       if (this.wantedSpread) void scene.load(this.wantedSpread);
       await scene.setState(this.wantedState);
     } catch (error) {

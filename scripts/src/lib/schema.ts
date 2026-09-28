@@ -5,7 +5,6 @@
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
 
-// Define schema field interface
 interface SchemaField {
   type: string;
   required: boolean;
@@ -14,13 +13,11 @@ interface SchemaField {
   rel?: string;
 }
 
-// Define schema interface
 interface Schema {
   orderBy?: string;
   fields: Record<string, SchemaField>;
 }
 
-// Export schemas object
 export const schemas: Record<string, Schema> = {
   // content/book.yaml
   book: {

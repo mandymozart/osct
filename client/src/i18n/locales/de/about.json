@@ -10,5 +10,6 @@
   "android": "Android: Chrome",
   "desktop": "Desktop: Chrome, Firefox, Safari",
   "ios": "iOS: Safari, Chrome",
-  "account": "Konto"
+  "account": "Konto",
+  "imageTracking": "Bildverfolgung von"
 }

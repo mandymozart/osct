@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Sign-in by email, no password (Tilman 2026-09-27): the reader enters the address, gets an email with a
+ * Passwordless sign-in by email: the reader enters the address, gets an email with a
  * link and a 6-digit code, and confirming either one signs in the device. The first confirmation creates
  * the user with the options chosen in the form (double opt-in). Tokens and codes are stored as hashes.
  */
@@ -157,7 +157,7 @@ final class Auth
                 if (!is_bool($value[$key])) throw new ApiError(400, 'invalid-options', "Option $key must be true or false.");
                 $options[$key] = $value[$key];
             } elseif ($withDefaults) {
-                $options[$key] = false; // opt-in: off unless the reader turned it on (Tilman)
+                $options[$key] = false; // opt-in: off unless the reader turned it on
             }
         }
         return $options;

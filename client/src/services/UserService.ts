@@ -58,16 +58,15 @@ const write = (key: string, value: unknown): void => {
 };
 
 /**
- * The reader's account – in code the *user* (types/user.ts): signing in by email (link or code), the update options, and the
- * progress kept in the account.
+ * The reader's account (the *user* in code, types/user.ts): email sign-in (link or code), update options,
+ * and progress sync with the account.
  *
- * Progress sync – this device's record stays the one the app works with (localStorage), the account
- * holds a copy:
- * - every change is sent after a short pause (`PUT`, naming the version it builds on);
- * - the server has a newer version (another device) → at startup it replaces this device's record,
+ * Progress sync – the device's record (localStorage) stays the working copy; the account holds a copy:
+ * - every change is sent after a short pause (`PUT` with the version it builds on);
+ * - if the server has a newer version (another device), it replaces this device's record at startup,
  *   unless this device has unsent changes – then both are merged (`mergeProgress`) and sent;
  * - signing in merges this device's progress with the account's; a reset is sent like any other change;
- * - offline: the changes wait and go out when the device is back online.
+ * - offline, changes wait and are sent once the device is back online.
  */
 export class UserService implements IUserService {
   private static instance: UserService | null = null;
@@ -79,9 +78,9 @@ export class UserService implements IUserService {
   private listeners = new Set<(snapshot: UserSnapshot) => void>();
   private pushTimer: ReturnType<typeof setTimeout> | null = null;
   private pushing: Promise<void> | null = null;
-  /** Changes while a push was running (sent next) */
+  /** Changes made while a push was running (sent next) */
   private changedDuringPush = false;
-  /** Taking over the account's record – not a change of this device */
+  /** Applying the account's record – must not count as a local change */
   private applying = false;
 
   static getInstance(): UserService {
@@ -99,8 +98,8 @@ export class UserService implements IUserService {
   }
 
   /**
-   * At startup (main.ts, before the incoming link is routed): takes the login token out of the URL and
-   * confirms it, else checks the stored session and syncs the progress.
+   * Call at startup (main.ts, before the incoming link is routed): consumes a login token from the URL and
+   * confirms it, otherwise validates the stored session and syncs the progress.
    */
   start(game: IGame): Promise<void> {
     this.game = game;
@@ -167,7 +166,7 @@ export class UserService implements IUserService {
   async signOut(): Promise<void> {
     const session = this.stored?.session;
     this.signedOutLocally("signed-out");
-    // The server forgets this device's session; not reachable → it expires there by itself
+    // Ask the server to drop the session; if unreachable, it expires on the server by itself
     if (session) await this.api.request("POST", "/auth/logout", { token: session }).catch(() => undefined);
   }
 
@@ -184,8 +183,8 @@ export class UserService implements IUserService {
   }
 
   /**
-   * Bring this device and the account together (see class comment). `link`: this device joins the
-   * account now (sign-in) – merge whatever the account has.
+   * Reconciles this device with the account (see class comment). `link`: the device joins the account
+   * now (sign-in), so the account's record is always merged.
    */
   async syncProgress(link: boolean): Promise<void> {
     const game = this.game;
@@ -213,7 +212,7 @@ export class UserService implements IUserService {
     }
   }
 
-  /** Send the record now (a pause after the last change has passed, or the app goes to the background) */
+  /** Sends the record now (after the debounce pause, or when the app goes to the background) */
   async pushNow(): Promise<void> {
     if (this.pushTimer) clearTimeout(this.pushTimer);
     this.pushTimer = null;
@@ -247,7 +246,7 @@ export class UserService implements IUserService {
     const game = this.game;
     if (!game || !this.canSync()) return;
     const record: ProgressRecord = game.state.progress;
-    // Another device may have saved in between: take its version in and try again (a few times)
+    // On a 409 conflict (another device saved in between) merge its version and retry, a few times at most
     for (let attempt = 0; attempt < 3; attempt++) {
       const state = this.syncState();
       this.update({ sync: "syncing" });
@@ -287,13 +286,13 @@ export class UserService implements IUserService {
     if (error instanceof ApiError && error.status === 401) {
       this.signedOutLocally("signed-out");
     } else {
-      // Offline or the server had a problem: the changes wait (sent when back online or at the next change)
+      // Offline or server failure: changes wait (sent when back online or on the next change)
       if (!(error instanceof ApiError && error.code === "offline")) console.warn("[UserService] Progress sync failed:", error);
       this.update({ sync: "pending" });
     }
   }
 
-  /** The stored session still valid? Takes the account's current options, then syncs */
+  /** Validates the stored session, takes over the account's current options, then syncs */
   private async refresh(): Promise<void> {
     try {
       const { user } = await this.api.request<{ user: UserData }>("GET", "/user", { token: this.stored?.session });
@@ -303,7 +302,7 @@ export class UserService implements IUserService {
         this.signedOutLocally("signed-out");
         return;
       }
-      // Offline: keep the stored account, sync later
+      // Offline: keep the stored session, sync later
     }
     await this.syncProgress(false);
   }
@@ -314,7 +313,7 @@ export class UserService implements IUserService {
       await this.signedIn(await this.api.request("POST", "/auth/verify", { body: { token } }), "confirmed");
     } catch (error) {
       this.update({ notice: { error: error instanceof ApiError ? error.code : "server-error" } });
-      // A link from an older email while signed in on this device: stay signed in
+      // Invalid link (e.g. from an older email) while already signed in: stay signed in
       if (this.stored) await this.refresh();
     } finally {
       this.update({ busy: false });
@@ -337,7 +336,7 @@ export class UserService implements IUserService {
     this.update({ sync: "off", notice });
   }
 
-  /** Runs an account action: busy while it runs, its error becomes the notice */
+  /** Runs an account action: `busy` while running; an error becomes the notice (401 signs out) */
   private async run<T>(action: () => Promise<T>, onError: T): Promise<T> {
     this.update({ busy: true, notice: null });
     try {

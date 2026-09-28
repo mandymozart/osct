@@ -1,0 +1,65 @@
+# Tags versions on `main` (agents/RULES.md #23): every version with a section in docs/CHANGELOG.md gets the
+# tag vX.Y.Z on the last first-parent commit of `main` that carries it (client/package.json). Tags are made
+# here with the repository token, so nobody has to push tags. Tags made this way start no other workflow –
+# production is deployed only by publishing a release on a tag (release.yml).
+name: Tag version
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: tag-version
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Tag untagged versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create missing tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          head_version=$(node -p "require('./client/package.json').version")
+          if ! grep -q "^## $head_version " docs/CHANGELOG.md; then
+            echo "::warning::$head_version has no section in docs/CHANGELOG.md – not tagged (RULES #23)."
+          fi
+
+          wanted=$(sed -n 's/^## \([0-9][0-9.]*\) .*/\1/p' docs/CHANGELOG.md)
+          missing=""
+          for v in $wanted; do
+            git rev-parse -q --verify "refs/tags/v$v" >/dev/null || missing="$missing $v"
+          done
+          [ -z "$missing" ] && { echo "All changelog versions are tagged."; exit 0; }
+
+          # Newest first: the first commit seen with a version is the last one that carries it
+          for c in $(git rev-list --first-parent HEAD); do
+            v=$(git show "$c:client/package.json" 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).version)}catch{}})")
+            case " $missing " in
+              *" $v "*)
+                git tag -a "v$v" "$c" -m "$v – see docs/CHANGELOG.md"
+                echo "Tagged v$v at $(git log -1 --format='%h %s' "$c")"
+                missing=$(echo " $missing " | sed "s/ $v / /")
+                [ -z "$(echo $missing)" ] && break
+                ;;
+            esac
+          done
+          [ -n "$(echo $missing)" ] && echo "::warning::Not on main yet:$missing"
+
+          # The repository token may not create a tag on a commit whose workflow files differ from main's
+          # (GitHub: no `workflows` permission). Normal tags are on main's head; only late tags hit this.
+          for tag in $(git tag -l 'v*'); do
+            git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null && continue
+            git push -q origin "refs/tags/$tag" \
+              || echo "::warning::$tag could not be pushed (its commit has other workflow files). Tag it by hand: git tag -a $tag $(git rev-list -n1 "$tag") -m '${tag#v}' && git push origin $tag"
+          done

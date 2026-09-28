@@ -81,7 +81,7 @@ export const playVideo = async (video: HTMLVideoElement): Promise<void> => {
 /** Height of a video plane of width 1 until the video's proportions are known (16:9) */
 export const DEFAULT_VIDEO_HEIGHT = 0.552;
 
-/** A plane of width 1 (= target width), unlit like A-Frame's `a-video` / `a-image` (flat shader) */
+/** A plane of width 1 (= target width), unlit so video and image colours show unchanged */
 const plane = (material: MeshBasicMaterial | ReturnType<typeof chromaKeyMaterial>, height: number): Mesh => {
   const mesh = new Mesh(new PlaneGeometry(1, 1), material);
   mesh.scale.set(1, height, 1);
@@ -127,7 +127,7 @@ registerEntity("video", ({ entity, asset }) => {
   };
 });
 
-/** glTF model; its animations all play (what aframe-extras' `animation-mixer` did) */
+/** glTF model; all of its animation clips play */
 registerEntity("model", ({ entity, asset }) => {
   const data = entity.assets[0];
   const loaded = data && asset(data.id);

@@ -16,7 +16,7 @@ describe("scene state (A-Frame bridge)", () => {
   it("runs the scene only in scan mode", () => {
     expect(getSceneState(GameMode.SCAN, route("/spread"))).toBe(SceneState.RUNNING);
     expect(getSceneState(GameMode.CONSULTATION, route("/entries"))).toBe(SceneState.PAUSED);
-    // Phase 6: camera only in scan mode – released on home / onboarding
+    // The camera only runs in scan mode – released on home / onboarding
     expect(getSceneState(GameMode.IDLE, route("/"))).toBe(SceneState.STOPPED);
     expect(getSceneState(GameMode.IDLE, route("/error"))).toBe(SceneState.STOPPED);
   });

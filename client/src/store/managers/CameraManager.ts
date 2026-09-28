@@ -1,7 +1,9 @@
 import { CameraPermissionStatus, ICameraManager, IGame } from "@/types";
 
 /**
- * Manages camera permissions and access
+ * Camera permission state (`cameraPermission`): queries the Permissions API, probes access with
+ * progressively simpler constraints and reports unavailable / denied / not-responding cameras,
+ * which the permission overlay reacts to.
  */
 export class CameraManager implements ICameraManager {
   private game: IGame;
@@ -10,52 +12,44 @@ export class CameraManager implements ICameraManager {
     this.game = game;
   }
   
-  /**
-   * Set the current permission status
-   */
   private setPermissionStatus(status: CameraPermissionStatus): void {
     this.game.update(draft => {
       draft.cameraPermission = status;
     });
   }
   
-  /**
-   * Check and handle camera permission
-   */
-  /** The browser offers no camera at all – only over https (or localhost), and not in every browser */
+  /** Camera API present: requires a secure context (https or localhost) and getUserMedia support */
   private get cameraAvailable(): boolean {
     return window.isSecureContext !== false && typeof navigator.mediaDevices?.getUserMedia === "function";
   }
 
+  /** Resolves whether the camera may be used; requests access when the state is prompt / unknown. */
   public async checkPermission(): Promise<boolean> {
     if (!this.cameraAvailable) {
       this.setPermissionStatus(CameraPermissionStatus.UNAVAILABLE);
       return false;
     }
     try {
-      // First check if the permissions API is available
       if (navigator.permissions && navigator.permissions.query) {
         const permissionResult = await navigator.permissions.query({ name: 'camera' as PermissionName });
         
         const status = permissionResult.state as CameraPermissionStatus;
         this.setPermissionStatus(status);
         
-        // Set up a listener for permission changes
+        // Follow later changes, e.g. made in the browser settings
         permissionResult.addEventListener('change', () => {
           this.setPermissionStatus(permissionResult.state as CameraPermissionStatus);
         });
         
-        // Handle the current permission state
         if (status === CameraPermissionStatus.GRANTED) {
           return true;
         } else if (status === CameraPermissionStatus.DENIED) {
           return false;
         } else {
-          // For prompt or unknown status, request access
           return await this.requestAccess();
         }
       } else {
-        // Fallback for browsers without permissions API: try to access the camera directly
+        // No Permissions API: probe by requesting the camera
         return await this.requestAccess();
       }
     } catch (error) {
@@ -65,12 +59,14 @@ export class CameraManager implements ICameraManager {
     }
   }
   
+  /** Access was granted but the AR engine reports that the camera stream does not start. */
   public reportNotResponding(): void {
     this.setPermissionStatus(CameraPermissionStatus.NOT_RESPONDING);
   }
 
   /**
-   * Request camera access explicitly
+   * Probe camera access via getUserMedia; the stream is only a probe and is stopped immediately.
+   * Sets GRANTED or DENIED.
    */
   public async requestAccess(): Promise<boolean> {
     if (!this.cameraAvailable) {
@@ -81,18 +77,14 @@ export class CameraManager implements ICameraManager {
     try {
       this.setPermissionStatus(CameraPermissionStatus.PROMPT);
       
-      // Get device dimensions for adaptive constraints
+      // Ask the rear camera for about 75 % of the screen resolution
       const screenWidth = window.screen.width;
       const screenHeight = window.screen.height;
-      
-      // Calculate reasonable camera resolution based on device
-      // Using 75% of the screen dimensions as a reasonable target
+
       const targetWidth = Math.round(screenWidth * 0.75);
       const targetHeight = Math.round(screenHeight * 0.75);
-      
-      // Outer try/catch for progressive fallback
+
       try {
-        // First try with adaptive constraints based on device dimensions
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
             facingMode: 'environment',
@@ -100,19 +92,17 @@ export class CameraManager implements ICameraManager {
             height: { ideal: targetHeight }
           } 
         });
-        
-        // Clean up the stream we just requested
+
         stream.getTracks().forEach(track => track.stop());
         
         this.setPermissionStatus(CameraPermissionStatus.GRANTED);
         return true;
       } catch (constraintError) {
-        // Only catch OverconstrainedError here - this happens often on iOS Safari
+        // iOS Safari often rejects resolution constraints: retry with facingMode only
         if (constraintError instanceof OverconstrainedError || 
             (constraintError as any)?.name === 'OverconstrainedError') {
           console.warn('[Camera Manager] Detailed constraints failed, trying with simpler constraints');
-          
-          // Try with minimal constraints for iOS compatibility
+
           const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: 'environment' } 
           });
@@ -122,8 +112,7 @@ export class CameraManager implements ICameraManager {
           return true;
         }
         
-        // If it's not an OverconstrainedError, try the original simple approach
-        // This maintains compatibility with browsers that worked before
+        // Any other error: last attempt with the plainest request
         console.warn('[Camera Manager] Trying with original simple constraints');
         const legacyStream = await navigator.mediaDevices.getUserMedia({ video: true });
         legacyStream.getTracks().forEach(track => track.stop());
@@ -133,7 +122,7 @@ export class CameraManager implements ICameraManager {
     } catch (error) {
       console.warn('[Camera Manager] Requesting access failed', error);
       
-      // Set the permission status to DENIED - this will trigger the overlay
+      // DENIED shows the camera-permission overlay
       this.setPermissionStatus(CameraPermissionStatus.DENIED);
     
       return false;
