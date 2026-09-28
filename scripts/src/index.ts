@@ -1,7 +1,7 @@
 /**
  * OSCT content build: `content/` (YAML + media) → `client/src/game.config.json`
  * (+ copy of `content/` in `client/public/assets/content` with optimised media – lib/optimize-media.ts –,
- * target images in `mind-ar/`).
+ * target images in `.mindar/targets/`).
  *
  * Source layout (folder name = id):
  *   content/book.yaml
@@ -23,6 +23,7 @@ import { buildConfig } from './build/game-config';
 import { buildSpreads } from './build/spreads';
 import { assignTargetIndices } from './build/targets';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
+import { moveOldLocalFolders } from './lib/local-folders';
 import { optimizeMedia } from './lib/optimize-media';
 
 console.log('🚀 OSCT Content Build Tool 🚀');
@@ -36,7 +37,9 @@ console.log('📄 Output file:', OUTPUT_FILE);
  */
 async function generateConfigFile(): Promise<void> {
   try {
-    // `--targets`: only refresh mind-ar/ (target images + source hash per spread) for mind/compile.ts,
+    moveOldLocalFolders();
+
+    // `--targets`: only refresh .mindar/targets/ (target images + source hash per spread) for mind/compile.ts,
     // write nothing else – works while the build fails, e.g. on a stale .mind
     if (process.argv.includes('--targets')) {
       const spreads = buildSpreads();

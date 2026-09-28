@@ -1,5 +1,5 @@
 // npm run mind:history / mind:restore – the versions of the compiled `.mind` files (compile.ts stores
-// them in mind-history/): list them, put one back. Local and independent of git.
+// them in .mindar/history/): list them, put one back. Local and independent of git.
 //
 //   npm run mind:history                      all spreads
 //   npm run mind:history spread1              one spread, with its images per version

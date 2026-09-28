@@ -383,9 +383,7 @@ performance.
 | `client/src/game.config.json` | Everything the app needs to know about the book |
 | `client/public/assets/content/` | The content media, optimised |
 | `content/spreads/<spread>/*.mind` | Compiled recognition data (+ `.mind.sha256`) |
-| `mind-ar/` | The target images per spread, in order (for compiling) |
-| `mind-history/` | Earlier `.mind` versions – on your computer only |
-| `scripts/.cache/` | Compiled images, the browser's GPU cache and the benchmark – on your computer only, safe to delete |
+| `.mindar/` | On your computer only (not in git): `targets/` the target images per spread in order, `history/` earlier `.mind` versions, `cache/` compiled images, `browser/` the browser's GPU cache, `benchmark.json` |
 
 ### Folders
 

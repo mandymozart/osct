@@ -6,7 +6,7 @@ import { currentVersion, KEEP, listVersions, restoreVersion, saveVersion } from 
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'osct-versions-'));
-  const history = path.join(root, 'mind-history');
+  const history = path.join(root, 'history');
   const mind = path.join(root, 'a.mind');
   const write = (bytes: string, fingerprint = 'f1') => {
     fs.writeFileSync(mind, bytes);

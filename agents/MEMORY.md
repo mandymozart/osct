@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Workspace tidy-up, version 1.2.0 (Tilman, branch `compilation`)
+
+- **Version 1.2.0** everywhere (RULES #10: `client/package.json`, `scripts/package.json`,
+  `server/api/src/Version.php`, lockfiles; `game.config.json` rebuilt): MINOR – new features
+  (`.mind` compiling, Info page credit), nothing incompatible.
+- **`.mindar/`** in the root holds everything local about `.mind` files (not in git): `targets/` (was
+  `mind-ar/`), `history/` (was `mind-history/`), `cache/`, `browser/`, `benchmark.json` (were in
+  `scripts/.cache/`). `lib/local-folders.ts` moves the old folders on the first content build.
+  [ ] Remove `moveOldLocalFolders()` once Tilman's working copy has built once.
+- `.gitignore` rewritten (grouped, stale rules gone); `client/.env` is an explicit exception (comments only,
+  documents the `VITE_*` flags); `scripts/.gitignore` removed (the root one covers it). Checked: nothing
+  tracked is ignored, nothing untracked is missing. By design, not wrong: the content media exist twice
+  (`content/` + the optimised copy in `client/public/assets/content/`) until the content leaves the repo.
+- `compile:mind --force` = all spreads with the cache (as the docs said); `--fresh` = from scratch.
+
 ## 2026-09-28 – `scripts/` restructured + tests (Tilman, branch `compilation`)
 
 - `src/index.ts` (entry) · `src/build/` one file per part (book, spreads, entities, entries, targets,
