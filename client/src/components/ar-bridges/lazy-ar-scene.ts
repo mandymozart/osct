@@ -16,8 +16,9 @@ const SCENE_EVENTS = Object.keys({
 } satisfies Record<keyof ArSceneEvents, true>) as Array<keyof ArSceneEvents>;
 
 /**
- * Load the AR chunk (three.js; the tracking engine – MindAR with TF.js – follows, ~⅔ of the app's code). Nothing imports `./ar`
- * statically, so the first paint never waits for it. Retries after a failed load (offline).
+ * Load the AR chunk (three.js and the scene; the 8th Wall engine's own files load with the first start).
+ * Nothing imports `./ar` statically, so the first paint never waits for it. Retries after a failed load
+ * (offline).
  */
 export const loadArModule = (): Promise<ArModule> => {
   if (!arModule) {
@@ -63,7 +64,7 @@ export class LazyArScene implements IArScene {
   /** Fetch and evaluate the AR chunk and the tracking engine without building anything (no WebGL, no camera) */
   warmUp(): Promise<void> {
     return loadArModule()
-      .then(ar => ar.preloadImageTracker())
+      .then(ar => ar.prefetchXr8())
       .catch(error => console.warn("[ArScene] Could not preload AR:", error));
   }
 

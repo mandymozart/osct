@@ -4,11 +4,11 @@
  * for everything it has seen. Built by vite-plugin-pwa (injectManifest, vite.config.js) into
  * `dist/service-worker.js`; registered in production builds only (services/ServiceWorkerService.ts).
  *
- * - App shell (index.html, built files in assets/app/ incl. the three.js + MindAR chunks, UI images,
- *   sounds, icons): precached at install, one cache per build.
+ * - App shell (index.html, built files in assets/app/ incl. the three.js chunk, the 8th Wall engine in
+ *   assets/xr8/, UI images, sounds, icons): precached at install, one cache per build.
  * - Pages (navigations): always from the network while online, so a deploy shows at once; offline the
  *   precached index.html (it matches the precached files).
- * - Content (assets/content/: .mind, models, images, videos): cached when first used (the
+ * - Content (assets/content/: target images, models, images, videos): cached when first used (the
  *   PreloaderService's fetches fill it) and served from the cache afterwards. One cache per content build
  *   (`version.hash`), older ones are dropped when a new worker takes over.
  * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code.

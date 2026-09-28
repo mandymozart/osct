@@ -1,5 +1,3 @@
-import path from 'path';
-import { CONTENT_DIR } from '../config';
 import type { EntityData, EntryData, SpreadData, TargetData } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { contentFile, readSection, validate } from '../lib/content';
@@ -9,7 +7,7 @@ export interface EntryBuild {
   entry: EntryData;
   spreadId: string | null;
   targetOrder: number;
-  imageFile?: string; // source path of the target image (for .mindar/targets/)
+  
 }
 
 export function buildEntries(spreads: SpreadData[], entities: Record<string, EntityData>): EntryBuild[] {
@@ -36,13 +34,11 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
     };
 
     let targetOrder = 0;
-    let imageFile: string | undefined;
     if (e.target !== undefined) {
       const t = validate<any>(e.target, 'target', `${label} target`);
       if (t) {
         const targetId: string = t.id ?? id;
         targetOrder = t.order;
-        imageFile = path.join(CONTENT_DIR, 'entries', id, t.image);
         const target: TargetData = {
           id: targetId,
           index: -1, // assigned per spread below
@@ -54,7 +50,7 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
       }
     }
 
-    builds.push({ entry, spreadId: spread?.id ?? null, targetOrder, imageFile });
+    builds.push({ entry, spreadId: spread?.id ?? null, targetOrder });
   }
   return builds;
 }

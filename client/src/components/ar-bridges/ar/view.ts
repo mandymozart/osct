@@ -71,7 +71,7 @@ export class ArView {
   private cleared = true;
   /**
    * Whether a frame needs drawing (something visible or animating). While nothing is found, rendering
-   * costs no GPU time and MindAR's tracking has the GPU to itself (battery, heat).
+   * costs no GPU time and the tracking engine has the GPU to itself (battery, heat).
    */
   needsRender: () => boolean = () => true;
   /** Bloom strength (0 = off – no post-processing cost); set every frame by the scene's animations */

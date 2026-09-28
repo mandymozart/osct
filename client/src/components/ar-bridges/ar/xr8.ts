@@ -143,7 +143,7 @@ export interface TargetFrame {
   /** Where the (turned) image lies in the frame, in image pixels */
   imageLeft: number;
   imageTop: number;
-  /** Image width ÷ frame width, both as they lie on the page (the anchors use the image width, like MindAR) */
+  /** Image width ÷ frame width, both as they lie on the page (the anchors use the image width) */
   widthFactor: number;
 }
 
@@ -235,7 +235,7 @@ const pose = new Matrix4();
 
 /**
  * A found image's anchor relative to the camera of the frame: 1 unit = full image width, origin in the image's
- * centre (the MindAR convention the entities are placed in). World tracking is off, so only this relative
+ * centre (the convention the entities are placed in, `entities.ts`). World tracking is off, so only this relative
  * pose matters – the three.js camera stays at the origin.
  */
 export const anchorMatrix = (camera: Pick<XrReality, "position" | "rotation">, image: XrImageDetail, widthFactor: number): Matrix4 => {

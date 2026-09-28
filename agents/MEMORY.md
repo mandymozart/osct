@@ -4,6 +4,26 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – 2.0.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
+
+- Why (Tilman, after the S22 tests): MindAR "doesn't do well at all" next to 8th Wall (jitter), and it cannot
+  switch spreads by itself. The full-spread photo targets (pages 20–27) work with 8th Wall too (Tilman).
+- `develop` (1.2.2, incl. the fresh `compile:mind` tooling) was merged into the exploration branch first, then
+  everything MindAR went: vendored build + TF.js, `ar/tracker.ts` (MindAR port), `create-tracker.ts`, the engine
+  choice (`VITE_AR_TRACKER`, debug toggle, `MA`/`8W` prefix), `scripts/src/mind/` + `compile:mind` /
+  `mind:*` commands, `lib/local-folders.ts`, `lib/cli.ts`, `lib/console.ts` (only the mind tools used them),
+  `playwright-core`, `@msgpack/msgpack` (client, only the `.mind` test), all `.mind` / `.mind.sha256` files,
+  `mind:` in `spread.yaml`, `mindSrc` + `maxTargetsPerSpread` in the game configuration, `.mindar/`.
+- Decisions (Tilman): **max 10 targets per spread** (RULES #3); **±1 spreads kept loaded by default** (the
+  debug overlay setting stays). `ImageTracker` (ar/tracker.ts) is the 8th Wall tracker behind `IImageTracker`.
+- Preloader + whole-book download fetch target images instead of `.mind`. Engine files (`assets/xr8/`) are
+  precached with the app shell (offline AR; precache 24 entries / 6.0 MB raw) and ship with their LICENSE;
+  the Info page credits 8th Wall (Niantic Spatial, MIT).
+- RULES #4 now names the one allowed extra WebGL context: the engine's camera canvas.
+- MAJOR → progress format 2 = same shape as 1 (reader added; 1.x records read as "converted").
+- [ ] iPhone Safari test (motion permission, pause/resume, orientation, tracking).
+- [ ] Staging: the Netlify site may still set `VITE_AR_TRACKER` – harmless now, can be deleted there.
+
 ## 2026-09-28 – Demo spreads from the layout PDF for the tracker load test (Tilman)
 
 - `OSCT_KevinBray_06.pdf` (11 pages: page 1 single, 2–11 A3 = two book pages each; printed page numbers
@@ -32,7 +52,8 @@ outcome in the line (or move it into a dated decision block).
 - "No 3D / video" during the tests = the USB tunnel had dropped (adb forgets `reverse` when the phone
   reconnects): assets of a newly opened spread could not load. A loop re-applies the tunnels every 2 s;
   models and video confirmed working afterwards (Tilman).
-- [ ] Why the full-spread photo targets (spread11–14) are not found (dark, low contrast, landscape 2048×1425).
+- [x] Full-spread photo targets (spread11–14): found in Tilman's later test (2026-09-28) – the first sessions
+  had them on the wrong side of a dropped tunnel / not in view long enough.
 - [ ] Load test numbers with "all" vs ±1: time to first find, frame rate.
 
 ## 2026-09-28 – 8th Wall spread switches: neighbours kept loaded (Tilman: "save switch times")

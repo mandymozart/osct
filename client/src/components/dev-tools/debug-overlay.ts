@@ -2,7 +2,7 @@ import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
-import { cyclePreparedSpreadRange, getPreparedSpreadRange, getTrackerEngine, setTrackerEngine } from "@/components/ar-bridges";
+import { cyclePreparedSpreadRange, getPreparedSpreadRange } from "@/components/ar-bridges";
 
 type DebugTab = "spread" | "progress";
 
@@ -86,15 +86,9 @@ export class DebugOverlay extends HTMLElement {
       return;
     }
     if (control?.dataset.action === "cycle-prepared") {
-      // 8th Wall load test: spreads kept loaded around the current one – applies at the next spread switch
+      // Spreads kept loaded around the current one (e.g. a load test of the engine) – applies at the next switch
       cyclePreparedSpreadRange();
       this.updateContent();
-      return;
-    }
-    if (control?.dataset.action === "switch-tracker") {
-      // Comparison MindAR / 8th Wall: stored on this device, the scene is built with it after a reload
-      setTrackerEngine(getTrackerEngine() === "8thwall" ? "mindar" : "8thwall");
-      location.reload();
       return;
     }
     this.expanded = !this.expanded;
@@ -192,13 +186,10 @@ export class DebugOverlay extends HTMLElement {
     }
 
     // Scene status
-    const engine = getTrackerEngine();
     html += `<div class="section">
       <div>AR: ${this.arStatusLabel()}</div>
-      <div>Tracking: ${engine === "8thwall" ? "8th Wall" : "MindAR"}
-        <button data-action="switch-tracker">Use ${engine === "8thwall" ? "MindAR" : "8th Wall"} (reload)</button></div>
-      ${engine === "8thwall" ? `<div>Spreads loaded ahead: ${this.preparedLabel()}
-        <button data-action="cycle-prepared">Change (next switch)</button></div>` : ""}
+      <div>Spreads loaded ahead: ${this.preparedLabel()}
+        <button data-action="cycle-prepared">Change (next switch)</button></div>
     </div>`;
 
     if (currentSpread) {
@@ -246,11 +237,11 @@ export class DebugOverlay extends HTMLElement {
     // Tracked targets with how often each was found
     const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
 
-    // Progress: unlocked targets / consulted entries (whole book); first: tracking engine (MA MindAR / 8W 8th Wall)
+    // Progress across the whole book: unlocked targets / consulted entries
     const { unlocked, consulted } = this.game.state.progress;
 
     return `
-      <div>${getTrackerEngine() === "8thwall" ? "8W" : "MA"} S${sceneStatus} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
+      <div>S${sceneStatus} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
     `;
   }
 

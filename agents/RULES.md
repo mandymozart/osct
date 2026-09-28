@@ -5,11 +5,10 @@ Extend as we go: add a rule when a decision should hold for all future work.
 
 ## Stack (do not swap)
 - Build: vite · Tests: vitest (happy-dom)
-- 3D: three.js (A-Frame removed 2026-09-26, Phase 9) · Image tracking: MindAR (`Controller`, vendored in
-  `client/src/vendor/mind-ar/`)
-  – exploration 2026-09-28 (branch `claude/laughing-wright-hrt8zy`): the 8th Wall engine (`@8thwall/engine`)
-  can be chosen instead for the comparison (`VITE_AR_TRACKER=8thwall` or the debug bar); MindAR stays the default
-  until Tilman decides. Both behind `IImageTracker` (`ar/tracker-types.ts`).
+- 3D: three.js (A-Frame removed 2026-09-26, Phase 9) · Image tracking: the **8th Wall engine** (`@8thwall/engine`,
+  MIT, image targets; served from `assets/xr8/` with its LICENSE) behind `IImageTracker` (`ar/tracker-types.ts`).
+  MindAR removed in 2.0.0 (Tilman, 2026-09-28: 8th Wall jitters less and switches spreads by itself) – no
+  `.mind` files, no compiling; image targets are made from the target images in the app.
 - State: custom monolithic game store (`IGame`, `BaseStore`) with immer drafts, split into managers
 - UI: vanilla custom web components (shadow DOM), no framework
 - Page/view management is self-made (`pages-router`, `RouterManager`). No routing or animation
@@ -19,20 +18,23 @@ Extend as we go: add a rule when a decision should hold for all future work.
 
 ## Working rules
 1. **Ask before removing any feature, page, component or manager.** We are restructuring,
-   not deleting. The only agreed removal is QR scanning.
+   not deleting. Agreed removals: QR scanning; MindAR (2.0.0, Tilman 2026-09-28 – 8th Wall instead).
 2. Naming: page group = **spread** (not chapter), opened entry = **consulted** (not visited).
    Use these terms in code, content and UI.
    Modes: `IDLE`, `SCAN`, `CONSULTATION` (UI context). "About" and "Info" are the same page (`about`).
    Set the mode only through routes (`RouterManager.navigate`), never with `draft.mode = …` in components.
    The scene state is derived from mode + route (`components/ar-bridges/utils/scene-state.ts`), never set directly;
    overlay routes (no mode) pause the scene.
-3. Max **5 image targets per spread** (`.mind` group); `maxTrack` uses the same value.
-   Keep it one shared constant; the content build must enforce it.
-4. Preloading `.mind` files and content = browser cache only (`PreloaderService`; in production the
+3. Max **10 image targets per spread** (Tilman, 2026-09-28; was 5 for MindAR's `maxTrack`) – the engine tracks
+   4 at the same moment. One constant (`MAX_TARGETS_PER_SPREAD`, scripts/src/config.ts); the content build
+   enforces it.
+4. Preloading target images and content = browser cache only (`PreloaderService`; in production the
    service worker stores what it fetches in its content cache – `client/sw/service-worker.ts`). The
    whole-book download (Info) goes through the same `preload()` – no second download path. Never modify the AR
-   scene before a spread is actually activated. No second scene / WebGL context. The AR code (three.js,
-   MindAR) is only imported lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may
+   scene before a spread is actually activated. No second scene / WebGL context – except the engine's own
+   camera canvas under the three.js canvas. The tracker keeps the neighbouring spreads' image targets loaded
+   (`prepareTargets()`, ±1 by default – `utils/prepared-spreads.ts`); that is the engine's state, not the
+   scene's. The AR code (three.js, the 8th Wall engine) is only imported lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may
    import `ar-bridges/ar/` statically; the scene is built on the first scan (RUNNING).
 5. Content is placeholder until final content arrives. Keep texts/colors/media swappable
    (config / CSS variables), never hardcoded in components.
@@ -65,11 +67,12 @@ Extend as we go: add a rule when a decision should hold for all future work.
     `develop`) – `develop` deploys to staging (osct-staging.netlify.app, Netlify env `VITE_DEBUG=true`:
     debug bar on). `main` = production (osct.netlify.app, no debug bar); merge `develop` into `main` only
     when Tilman says so. Build flags (`VITE_*`) are set per Netlify site, never committed in `client/.env`.
-12. AR: only `components/ar-bridges/ar/` touches three.js / MindAR, behind `IArScene`
+12. AR: only `components/ar-bridges/ar/` touches three.js / the 8th Wall engine, behind `IArScene`
     (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. `ArScene` keeps **one** renderer
     (`ar/view.ts`) and one camera stream and swaps a spread's targets, assets and entities in place.
-    Tracking: `ar/tracker.ts` (port of MindAR's `MindARThree` on its public `Controller` API – a spread
-    switch replaces only the controller; re-check against MindAR's `three.js` on an upgrade). Assets:
+    Tracking: `ar/tracker.ts` + `ar/xr8.ts` (engine loader, image targets, anchor math – re-check the anchor
+    convention and the engine's `imageTargetData` diffing on an engine upgrade). A spread switch changes only
+    which targets are reported; a neighbour's page held in view switches the spread (`spreadSeen`). Assets:
     `ar/assets.ts` (loaded per id, disposed when released – free GPU memory). Entity registry
     `ar/entities.ts` (add entity types with `registerEntity`, no logic in content; entities dispose what
     they create). Camera only in scan mode.
@@ -89,7 +92,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
 17. Where code lives:
     - **Store managers** (`store/managers`): app state.
     - **AR context** (`components/ar-bridges`): the bridge connects the AR scene to the game state;
-      everything three.js/MindAR specific lives in `ar/` (scene, view, tracker, assets, entity registry)
+      everything three.js/8th Wall specific lives in `ar/` (scene, view, tracker, assets, entity registry)
       and `utils/chroma-key.ts`; `utils/` also holds the three-free helpers (scene state policy, emitter).
     - **Services** (`services/`): singletons giving app-wide access (`GameStoreService`: the store;
       later the game configuration and the generated API). Naming: class and file `*Service`
