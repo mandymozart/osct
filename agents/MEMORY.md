@@ -30,6 +30,12 @@ outcome in the line (or move it into a dated decision block).
   `scripts/.cache/mind-browser/<browser>/` (`launchPersistentContext`); jobs on their own sites
   (`mind-<n>.local`) for separate renderer processes. Container (SwiftShader): only ~6 % (no real shader
   compile there). [ ] Tilman: measure on the RTX – run `compile:mind --fresh` twice, compare the first images.
+- All TypeScript (Tilman: "maybe all in typescript makes more sense? why two libs?"): the tools were JS
+  only to run without a build – compile:mind builds first anyway. One `src/lib/` (cli, console joined
+  it), `src/mind/` (compile, benchmark, history, versions, browser, run, targets, stats), `src/sounds.ts`;
+  paths in `config.ts`. Vite bundles one file per command (`dist/index.js`, `mind-compile.js`,
+  `mind-benchmark.js`, `mind-history.js`, `sounds.js`), ES only (the unused `.cjs` output is gone).
+  The content hash skips the command files (`hash.ts` COMMAND_FILES). Verified: same .mind bytes.
 - Build docs cut down to a quick start + command/option/folder tables (Tilman: "for dummies").
 
 ## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)

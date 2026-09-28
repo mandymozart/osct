@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error – plain JavaScript tool modules
-import { summarize } from '../../src/tools/mind/lib/stats.js';
-// @ts-expect-error – plain JavaScript tool modules
-import { imageSize } from '../../src/tools/mind/lib/targets.js';
+import { summarize } from '../../src/mind/stats';
+import { imageSize } from '../../src/mind/targets';
 
 describe('tools/mind', () => {
   it('reads JPEG and PNG sizes from the file header', () => {

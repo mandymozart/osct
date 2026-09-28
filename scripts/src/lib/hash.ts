@@ -4,6 +4,11 @@ import path from 'path';
 import { CONTENT_DIR, OUTPUT_FILE, projectRoot, SCRIPTS_SRC_DIR } from '../config';
 import { listFiles } from './files';
 
+// The commands run by hand (compile .mind, sounds) don't shape the content build's output – editing
+// them must not force a rebuild
+const COMMAND_FILES = ['mind/', 'sounds.ts', 'lib/cli.ts', 'lib/console.ts'];
+const isCommandFile = (file: string) => COMMAND_FILES.some(prefix => file.startsWith(prefix));
+
 // Text files get normalised line endings before hashing
 const TEXT_FILE = /\.(ya?ml|json|ts|js|md|txt|html|css)$/i;
 
@@ -17,8 +22,7 @@ export function hashBuildInputs(version: string): string {
   hash.update(`version:${version}\n`);
   const sharedDir = path.join(projectRoot, 'shared');
   for (const [label, dir] of [['content', CONTENT_DIR], ['scripts', SCRIPTS_SRC_DIR], ['shared', sharedDir]] as const) {
-    // src/tools/ are commands run by hand (compile .mind, sounds) – they don't shape the output
-    for (const file of listFiles(dir).filter(f => !(label === 'scripts' && f.startsWith('tools/')))) {
+    for (const file of listFiles(dir).filter(f => !(label === 'scripts' && isCommandFile(f)))) {
       let data = fs.readFileSync(path.join(dir, file));
       if (TEXT_FILE.test(file)) {
         data = Buffer.from(data.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');

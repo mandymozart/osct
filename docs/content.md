@@ -391,11 +391,13 @@ performance.
 
 ```
 scripts/
-├── src/
+├── src/            everything in TypeScript, bundled into dist/ by `npm run build`
 │   ├── index.ts    the content build: start
-│   ├── build/      one file per part: book, spreads, entities, entries, targets, tutorial
-│   ├── lib/        helpers: reading files, checks, hash, media optimisation
-│   └── tools/      commands: mind/ (compile .mind files, versions), sounds/ (placeholder app sounds)
+│   ├── config.ts   all folders and limits
+│   ├── build/      content build parts: book, spreads, entities, entries, targets, tutorial
+│   ├── lib/        shared helpers: reading content, files, hash, checks, media, options, console
+│   ├── mind/       .mind commands: compile, benchmark, history + browser, runs, versions
+│   └── sounds.ts   placeholder app sounds
 └── test/           tests (npm test)
 ```
 
