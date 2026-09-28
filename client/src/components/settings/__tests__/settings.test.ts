@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ".."; // registers the elements
 import i18next from "i18next";
-import { FeedbackService, GameStoreService, InstallService, PreloaderService, UserService } from "@/services";
+import { FeedbackService, GameStoreService, GraphicsService, InstallService, PreloaderService, UserService } from "@/services";
 import { UserSnapshot } from "@/types";
 import { LANGUAGE_STORAGE_KEY } from "@/i18n";
 import { Pages } from "@/types";
@@ -189,6 +189,24 @@ describe("settings sections", () => {
     expect(feedback.getSettings()).toEqual({ sound: true, haptics: false });
     haptics.shadowRoot!.querySelector("input")!.click();
     expect(feedback.getSettings().haptics).toBe(true);
+  });
+
+  it("graphics: onion sky and the scene around the book, a switch each, kept on this device", () => {
+    const graphics = GraphicsService.getInstance();
+    graphics.setSettings({ onionSky: true, surroundings: true });
+    const changes: unknown[] = [];
+    const unsubscribe = graphics.subscribe(settings => changes.push(settings));
+    const section = mount("settings-graphics");
+    const sky = section.shadowRoot!.querySelector("gold-switch[data-setting=onionSky]")!.shadowRoot!.querySelector("input")!;
+    expect(sky.checked).toBe(true);
+
+    sky.click();
+    expect(graphics.getSettings()).toEqual({ onionSky: false, surroundings: true });
+    expect(changes).toEqual([{ onionSky: false, surroundings: true }]);
+    section.shadowRoot!.querySelector("gold-switch[data-setting=surroundings]")!.shadowRoot!.querySelector("input")!.click();
+    expect(JSON.parse(localStorage.getItem("osct-graphics")!)).toEqual({ onionSky: false, surroundings: false });
+    unsubscribe();
+    graphics.setSettings({ onionSky: true, surroundings: true });
   });
 
   it("history (reset): says it reaches the account when signed in", () => {

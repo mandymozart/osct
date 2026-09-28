@@ -32,8 +32,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
    service worker stores what it fetches in its content cache – `client/sw/service-worker.ts`). The
    whole-book download (Info) goes through the same `preload()` – no second download path. Never modify the AR
    scene before a spread is actually activated. No second scene / WebGL context – except the engine's own
-   camera canvas under the three.js canvas, and the look-around world's own three.js `Scene` (`ar/look-around/`),
-   drawn by the same renderer into a render target under the AR scene. The tracker keeps the neighbouring spreads' image targets loaded
+   camera canvas under the three.js canvas. (The look-around world is one full-screen pass of the same renderer
+   under the AR scene, `ar/look-around/` – no scene of its own.) The tracker keeps the neighbouring spreads' image targets loaded
    (`prepareTargets()`, ±1 by default – `utils/prepared-spreads.ts`); that is the engine's state, not the
    scene's. The AR code (three.js, the 8th Wall engine) is only imported lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may
    import `ar-bridges/ar/` statically; the scene is built on the first scan (RUNNING).

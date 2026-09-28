@@ -871,13 +871,17 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
   whose value comes substantially from it, no changes, credit, 5-day termination) rules it out; the MIT engine
   has neither SLAM nor sky segmentation (MEMORY 2026-09-28).
 - [~] **Look-around world ("alien coffee shop")** (Tilman 2026-09-28, 3DoF, branch `spatialisation`) – prototype
-  built in 1.5.0 (`ar/look-around/`): level 1 = café anchored to the book + gyroscope (book in a soft window,
-  re-anchored on every find, open roof, gone 45 s after the last page); level 3 = sky key on the camera video
-  (colour + smoothness, only above the horizon). Procedural placeholder café (`alien-cafe.ts`, no assets).
-  - [ ] Phone test (Tilman's walk): gyroscope axes, window position vs the book, sky key outdoors, frame rate.
+  built in 1.5.0 (`ar/look-around/`): level 1 = world anchored to the book + gyroscope (book in a soft window,
+  clear below 40° down, re-anchored on every find, open above, gone 45 s after the last page); level 3 = "onion
+  sky", a sky key on the camera video (colour + smoothness, only above the horizon). One full-screen pass, the world
+  a basic placeholder colour per view direction (a 3D café was tried and dropped – too heavy, Tilman). Info page →
+  Settings → Graphics: "Onion sky" / "Scene around the book" on / off (`GraphicsService`).
+  - [x] S22 check (2026-09-28): gyroscope axes right, world anchored to the book, book + table clear after widening
+        the window and clearing the floor.
+  - [ ] Sky key outdoors, frame rate on the S22 with the page scenes.
   - [ ] iPhone: motion permission on the first tap, the engine's hidden camera video as a texture.
-  - [ ] Concept: one world for the book or per spread, café vs sky only, sound, when it ends; content format
-        (in `content/`, swappable – RULES #5) instead of the procedural placeholder.
+  - [ ] Phase 14 (with Kévin): the real world as content (e.g. an equirectangular image per book or spread,
+        sampled by view direction in the same pass – RULES #5), sound, when it ends.
   - Level 2 (own world tracking from the MIT engine's feature code) not planned – months, specialist.
 - [ ] Decide per content which objects may leave the page (a flag in `entity.params`?).
 

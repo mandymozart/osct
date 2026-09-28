@@ -8,7 +8,7 @@ import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance } from "./entities";
 import { ImageTracker } from "./tracker";
 import { IImageTracker } from "./tracker-types";
-import { lookAroundEnabled, LookAround } from "./look-around";
+import { LookAround } from "./look-around";
 import { ArView } from "./view";
 
 interface Anchor {
@@ -50,7 +50,7 @@ export class ArScene implements IArScene {
   private wantedState: SceneState = SceneState.STOPPED;
 
   private view: ArView | null = null;
-  /** The café around the reader + the alien sky (3DoF, anchored to the book) – null when switched off */
+  /** The world around the reader + its sky (3DoF, anchored to the book) (off per the reader's graphics options) */
   private lookAround: LookAround | null = null;
   private tracker: IImageTracker | null = null;
   private assets = new AssetStore();
@@ -160,11 +160,9 @@ export class ArScene implements IArScene {
         },
       });
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
-      if (lookAroundEnabled()) {
-        const lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null);
-        this.lookAround = lookAround;
-        this.view.underlay = () => lookAround.render();
-      }
+      const lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null);
+      this.lookAround = lookAround;
+      this.view.underlay = () => lookAround.render();
       this.view.needsRender = () =>
         this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
       this.view.onFrame(delta => {
