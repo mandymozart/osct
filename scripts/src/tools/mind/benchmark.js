@@ -58,7 +58,7 @@ const probe = await openPage(browser, { gpu });
 const gl = await probe.webgl();
 await probe.close();
 if (!gl) fail("This browser has no WebGL.");
-const browserName = `${browser.browserType().name()} ${browser.version()}`;
+const browserName = browser.name;
 row("browser", browserName);
 row("graphics", cyan(gl.renderer));
 const hint = gpuHint(gl.renderer, gpu);

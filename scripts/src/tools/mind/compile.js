@@ -89,7 +89,7 @@ const probe = await openPage(browser, { gpu });
 const gl = await probe.webgl();
 await probe.close();
 if (!gl) fail("This browser has no WebGL.");
-row("browser", `${browser.browserType().name()} ${browser.version()} ${dim(`(${browserOptions.headed ? "window" : "headless"})`)}`);
+row("browser", `${browser.name} ${dim(`(${browserOptions.headed ? "window" : "headless"})`)}`);
 row("graphics", `${cyan(gl.renderer)}`);
 row("GPU choice", gpu === "high" ? "fast GPU requested" : dim("left to the browser (--gpu=default)"));
 const hint = gpuHint(gl.renderer, gpu);
@@ -138,7 +138,7 @@ for (const spread of todo) {
   const compiledHere = spread.images.filter(image => run.results.some(r => r.cache === image.cache));
   const version = saveVersion(HISTORY_DIR, spread.id, spread.out, {
     note: options.note,
-    browser: `${browser.browserType().name()} ${browser.version()}`,
+    browser: browser.name,
     renderer: gl.renderer,
     sourceHash: spread.hash,
     images: spread.images.map(image => {

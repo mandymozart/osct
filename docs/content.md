@@ -385,6 +385,7 @@ performance.
 | `content/spreads/<spread>/*.mind` | Compiled recognition data (+ `.mind.sha256`) |
 | `mind-ar/` | The target images per spread, in order (for compiling) |
 | `mind-history/` | Earlier `.mind` versions – on your computer only |
+| `scripts/.cache/` | Compiled images, the browser's GPU cache and the benchmark – on your computer only, safe to delete |
 
 ### Folders
 
