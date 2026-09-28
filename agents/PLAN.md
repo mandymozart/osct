@@ -848,6 +848,12 @@ Installable app (home screen, standalone, splash) + offline start. Details: MEMO
   `application/manifest+json`; `service-worker.js` + `manifest.webmanifest` with `Cache-Control: no-cache`;
   `assets/app/*` cached immutable; SPA fallback to `index.html` (`_redirects`); https. E.g. an `.htaccess`
   on Apache.
+  - [ ] **Check the gzip copies again** (Tilman 2026-09-28). Decided: the content build keeps writing
+    `.mind.gz` / `.glb.gz` – it does all media optimisation, whatever the host. On the production server
+    check: does it compress `.mind` / `.glb` itself (`mod_deflate`)? Does it send `.gz` files with or
+    without `Content-Encoding: gzip`? (`utils/compressed.ts` handles both.) Keep the originals: fallback for
+    browsers without `DecompressionStream` (iOS Safari < 16.4). Cost to weigh: ~1.8 MB git history per
+    recompiled spread in `client/public/assets/content/` – gone once the content leaves the repo.
 
 ## Phase 10 – Spatial experience  `[ ]` (added 2026-09-26 – later; concept first, Tilman)
 
@@ -912,6 +918,28 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] Update switches before sign-up stay **off** (opt-in) – confirmed by Tilman.
 - [x] Entry view like Info (Tilman): "Entries" in the page at the category pill's height, content where the list starts –
       one shared toolbar in `ConsultationPage` (`entriesToolbar()`); the header has no "Entries" any more.
+
+## Phase 12 – `.mind` compilation in the content builder  `[~]` (branch `compilation`, 2026-09-28)
+
+Before: target images compiled by hand in MindAR's online tool, nothing checked a stale `.mind`
+beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
+- [x] `scripts/tools/compile-mind.mjs` (`npm run compile:mind`): local Chrome/Edge via `playwright-core`,
+      WebGL, the vendored MindAR 1.2.5 `Compiler` from `client/src/vendor/mind-ar/`; only stale spreads.
+- [x] Fingerprint `<name>.mind.sha256` (ordered target images); content build fails on a mismatch, warns
+      when missing; `build:content --targets` refreshes `mind-ar/` only (for the tool, works while stale).
+- [x] Existing `.mind` files adopted as they are (sidecars written, no recompile).
+- [x] Speed + statistics (Tilman: "100s of image targets", RTX 2070): per-image compile + cache
+      (`scripts/.cache/mind/`), parallel jobs (`--jobs`), high-performance GPU (`--gpu`, `--angle`),
+      progress bar with MP/s + ETA, per-image GPU/CPU times, summary.
+- [x] Local version history (Tilman: test before commit/deploy, rewind; content leaves git later):
+      `mind-history/<spread>/<version>/` (+ meta: date, note, GPU, images, times), `npm run mind:history`,
+      `npm run mind:restore -- <spread> previous|<n>|<id>`; the replaced file is kept too.
+- [x] Benchmark `--jobs` on the RTX 2070 SUPER: 4 fastest; `mind:benchmark` stores it and compile:mind
+      uses it (no fixed `--jobs` in package.json). GPU cache between runs: 26 s → 4.7 s for 10 images.
+- [x] Tilman: first run on his machine – RTX 2070 SUPER headless via D3D11 (2026-09-28). [ ] Phone test
+      of the RTX-compiled spread1/spread3, then commit them (spread1 target 0 was due anyway).
+- [ ] Production server: check the `.gz` copies again – see Phase 9b "Production host".
+- [ ] Merge into `develop`.
 
 ## Design tokens
 

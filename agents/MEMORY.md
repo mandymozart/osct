@@ -4,6 +4,119 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Workspace tidy-up, version 1.2.0 (Tilman, branch `compilation`)
+
+- **Version 1.2.0** (RULES #10, #23): one bump for the whole branch, 1.1.4 → 1.2.0 after merging
+  develop; MINOR – new features (`.mind` compiling, Info page credit), nothing incompatible; CHANGELOG
+  section added. (An earlier 1.1.1 → 1.2.0 bump in `6c49057` was superseded by the merge.)
+- **`.mindar/`** in the root holds everything local about `.mind` files (not in git): `targets/` (was
+  `mind-ar/`), `history/` (was `mind-history/`), `cache/`, `browser/`, `benchmark.json` (were in
+  `scripts/.cache/`). `lib/local-folders.ts` moves the old folders on the first content build.
+  [ ] Remove `moveOldLocalFolders()` once Tilman's working copy has built once.
+- `.gitignore` rewritten (grouped, stale rules gone); `client/.env` is an explicit exception (comments only,
+  documents the `VITE_*` flags); `scripts/.gitignore` removed (the root one covers it). Checked: nothing
+  tracked is ignored, nothing untracked is missing. By design, not wrong: the content media exist twice
+  (`content/` + the optimised copy in `client/public/assets/content/`) until the content leaves the repo.
+- `compile:mind --force` = all spreads with the cache (as the docs said); `--fresh` = from scratch.
+
+## 2026-09-28 – `scripts/` restructured + tests (Tilman, branch `compilation`)
+
+- `src/index.ts` (entry) · `src/build/` one file per part (book, spreads, entities, entries, targets,
+  tutorial, game-config) · `src/lib/` helpers (errors, content, files, hash, schema, validation,
+  optimize-media; was `src/utils/`) · `tools/mind/` (compile, history, versions) · `tools/sounds/` ·
+  `tools/lib/cli.js`. Tools are `.js` (package is `"type": "module"`, `.mjs` was redundant).
+  Verified output-neutral: `game.config.json` (without version) and all public files identical.
+- Tests: vitest in `scripts/test/` (not `src/` – `src/` is part of the content hash), `npm test`, in CI.
+  Throwaway content in temp folders via `OSCT_CONTENT_DIR` / `OSCT_MINDAR_DIR` (also for content
+  outside this repo later). Covers build rules, ordering, fingerprints, tutorial, hash, cli, versions,
+  and the real content.
+- compile:mind output step by step (Tilman: "nachvollziehbar"): 1 target images (per spread: compile or
+  skip, and why) · 2 browser + graphics card · 3 compile (live line per job: image, phase GPU/CPU, %,
+  time; overall % + MP/s + time left) · 4 write · 5 summary · 6 content build. `--fresh` without spread
+  names = all spreads (before: nothing when all were up to date – Tilman's first RTX run did nothing).
+  `npm run mind:benchmark`: jobs 1, 2, 4 … on all images, table + fastest → `.cache/mind-benchmark.json`,
+  which compile:mind uses as its default `--jobs` on the same graphics card. Code: `src/tools/mind/lib/`
+  (paths, console, targets, browser, run, stats).
+- Tilman's benchmark (RTX 2070 SUPER, D3D11, Chrome 154, 12 cores, 10 images / 4.6 MP): jobs 1 35.7s (cold),
+  2 7.1s, 4 6.1s ★, 6 6.2s, 8 7.1s → ~1 min per 100 targets at this size. Run 1 was slow from the browser's
+  one-time GPU setup (images-060 7.8s alone vs 3.0s in run 2) → benchmark now does an untimed warm-up
+  first. Default stays automatic (benchmark file / half the cores, max 4 = 4 there) – no --jobs in
+  package.json. [~] Keep Chrome's GPU cache between runs: persistent profile per browser in
+  `scripts/.cache/mind-browser/<browser>/` (`launchPersistentContext`); jobs on their own sites
+  (`mind-<n>.local`) for separate renderer processes. Container (SwiftShader): only ~6 % (no real shader
+  compile there). [x] Tilman's RTX 2070 SUPER, `compile:mind --fresh`, 10 images: 26.0 s (cache
+  empty) → 4.9 s → 4.7 s (~0.5 s/image, ~47 s per 100 targets). Runs 2 and 3 byte-identical; spread2 from
+  the RTX = the online tool's file of 2026-09-24 byte for byte (version …83c85caa); spread1/3 differ in
+  float noise (other GPU).
+- All TypeScript (Tilman: "maybe all in typescript makes more sense? why two libs?"): the tools were JS
+  only to run without a build – compile:mind builds first anyway. One `src/lib/` (cli, console joined
+  it), `src/mind/` (compile, benchmark, history, versions, browser, run, targets, stats), `src/sounds.ts`;
+  paths in `config.ts`. Vite bundles one file per command (`dist/index.js`, `mind-compile.js`,
+  `mind-benchmark.js`, `mind-history.js`, `sounds.js`), ES only (the unused `.cjs` output is gone).
+  The content hash skips the command files (`hash.ts` COMMAND_FILES). Verified: same .mind bytes.
+- Build docs cut down to a quick start + command/option/folder tables (Tilman: "for dummies").
+
+## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)
+
+- [ ] Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in
+      `game.config.json`) are app UI, not book content – keeping them in `content/` overloads what content
+      is. Move them into the app (e.g. `client/src/` data + i18n keys for the texts, illustrations in
+      `client/public/assets/illustrations/`). Touches: `buildTutorial()` in `scripts/src/index.ts`,
+      `StepData` + guards in `shared/`, `getTutorial()` in `client/src/utils/game-config.ts`,
+      `components/tutorial/*`, `LinkService`, content tests, `docs/content.md` ("Onboarding screens").
+      Keep the `{{title}}`/`{{author}}`/`{{publisher}}` placeholders (filled from `book.yaml`).
+      Not started – Tilman's refactor.
+
+## 2026-09-28 – `.mind` compilation in the content builder (Tilman, branch `compilation`; PLAN Phase 12)
+
+- Goal (Tilman): compile the `.mind` files from the content build instead of MindAR's online tool. Must
+  use WebGL (fast, same code path as the online tool) → a **manual, local step**, not in CI/deploys
+  (Tilman: "otherwise my deploy script will take forever").
+- Research, MindAR 1.2.5 source (`src/image-target/`): `Compiler` (browser: canvas + TF.js WebGL, tracking
+  features in an inlined worker) and `OfflineCompiler` (Node: `canvas` package + TF.js pure-JS CPU kernels).
+  Both share `CompilerBase`; format v2 = msgpack `{ v, dataList[{ targetImage{w,h}, trackingData, matchingData }] }`.
+  - Node path works without `canvas` (subclass `CompilerBase`, decode with jpeg-js/pngjs, fake 2D context),
+    deterministic, but **57 s** for spread3 (one 2059×1796 image) vs 17.5 s in software WebGL, and ~4 %
+    of feature points differ from the online tool. npm `mind-ar` also drags in canvas, mediapipe, three,
+    a vite-5 plugin, 270 MB of TF.js. → rejected.
+  - Browser path (chosen): `playwright-core` drives an installed Chrome/Edge, page loads the vendored
+    `mindar-image.prod.js` (self-contained, exports `Compiler`) from disk via `page.route`. Recompiling
+    spread2 + spread3 reproduced the committed files' feature points and tracking data exactly (bytes
+    differ only in float noise); spread1 target 0 (`images-000.jpg`, Shadows) differs by a few points –
+    probably compiled from an earlier export of that image. Compile time grows with image resolution.
+  - `playwright-core` is a scripts devDependency: no browser download in `npm ci`; the tool falls back to
+    Playwright's Chromium only if installed.
+- The content build fails on a stale fingerprint → CI catches a forgotten recompile; the committed `.mind`
+  files stay the source of truth for Netlify and the staging deploy (they only run `vite build`).
+- Speed (2026-09-28, Tilman: final book has 100s of targets, compiles on an RTX 2070):
+  - MindAR compiles every image independently (`hierarchical-clustering` seeds a new randomizer per
+    call) → the tool compiles one image at a time and merges with `importData`/`exportData`. Verified:
+    **byte-identical** to compiling a spread in one batch (all 3 spreads). Enables the per-image cache
+    (`scripts/.cache/mind/<image sha256>-<vendored MindAR hash>.mind`) and parallel jobs (one browser
+    context per job = own renderer process + MindAR worker).
+  - Vendored TF.js creates its WebGL context without `powerPreference` → an init script injects
+    `high-performance`, plus Chrome's `--force_high_performance_gpu` (`--gpu default` turns both off).
+  - SwiftShader (container, 4 cores, 2 jobs): 10 images / 4.6 MP in 34 s, detection (GPU) 92 % of the time,
+    tracking (CPU worker) 7 %; ~3–5 s fixed cost per image (TF.js shader compiles per keyframe size –
+    MindAR's own TODO "reuse the same detector"). Real GPU numbers: Tilman's benchmark.
+- Versions (2026-09-28, Tilman: "test locally before deploy or commit … rewind"; git won't be an option
+  once the content leaves the repo): `scripts/tools/lib/mind-history.mjs` – every compile stores the new
+  `.mind` and the one it replaces in `mind-history/` (gitignored, next to `mind-ar/`), same bytes once,
+  newest 20 per spread + the current one. Restore refuses versions made from other target images
+  (would be "stale"). Test on the dev server (service worker off there).
+  - [ ] Open: when the content moves out of the repository, move `mind-history/` (and `mind-ar/`) next
+        to it – both tools resolve the paths from the repo root today.
+- Attribution (2026-09-28, Tilman): compile tool = MindAR's own `Compiler` from the vendored build (no
+  compiler code of ours; the Node CPU port from the research was never committed). MindAR's MIT `LICENSE`
+  added to `client/src/vendor/mind-ar/`; Info page colophon ends with "Image tracking by HiuKim (MindAR)
+  github.com/hiukim/mind-ar-js" (lead-in translated, names not).
+- Docs (Tilman): one file – `docs/content-build.md` merged into `docs/content.md` (section "Content build",
+  with "Compiling .mind files"); links updated.
+- `.mind.sha256` files are not copied to `client/public/assets/content`.
+- [ ] Open: target images much larger than the printed size (e.g. `edge/images-060.jpg`, 2059×1796)
+      make the `.mind` and the compile bigger/slower – downscale in the build (e.g. max 1000 px)? Needs a
+      tracking test on the book first.
+
 ## 2026-09-28 – Releases deploy production (Tilman)
 
 - Production is deployed by publishing a GitHub release (`release.yml`), not by merging to `main`. The

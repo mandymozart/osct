@@ -2,7 +2,7 @@
  * Audio and haptic feedback: each named event plays a short sound and a vibration.
  *
  * - Sounds: Web Audio (no latency, overlapping plays), files in `public/assets/sounds/<event>.wav`
- *   (placeholders from scripts/tools/generate-sounds.mjs – replace the files to change the sounds).
+ *   (placeholders from scripts/src/sounds.ts – replace the files to change the sounds).
  *   Browsers only allow audio after the first user gesture; events before that stay silent.
  * - Haptics: `navigator.vibrate` (Android). iOS has no vibration API; on iOS 18+ toggling a native
  *   `<input type="checkbox" switch>` produces a light tick, but only right after a tap (not while scrolling).

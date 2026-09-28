@@ -2,17 +2,17 @@
 // chiptune blips: square / pulse waves with short envelopes. Replace the files in
 // client/public/assets/sounds/ with designed sounds of the same names whenever they exist.
 //
-//   node scripts/tools/generate-sounds.mjs
+//   npm run sounds   (in scripts/)
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { SOUNDS_DIR as OUT } from "./config";
 
 const RATE = 22050;
-const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../client/public/assets/sounds");
 
-const note = name => {
-  const [, letter, sharp, octave] = /^([A-G])(#?)(\d)$/.exec(name);
-  const semis = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 }[letter] + (sharp ? 1 : 0) + (Number(octave) - 4) * 12;
+const note = (name: string): number => {
+  const [, letter, sharp, octave] = /^([A-G])(#?)(\d)$/.exec(name)!;
+  const steps: Record<string, number> = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };
+  const semis = steps[letter] + (sharp ? 1 : 0) + (Number(octave) - 4) * 12;
   return 440 * 2 ** (semis / 12);
 };
 
@@ -20,7 +20,18 @@ const note = name => {
  * One tone: pulse wave (duty 0.5 = square, 0.25 / 0.125 = thinner NES-like), attack + exponential decay,
  * optional vibrato, pitch slide to `slideTo` (Hz).
  */
-const tone = ({ freq, ms, duty = 0.5, volume = 0.3, decay = 6, attackMs = 2, slideTo, vibrato = 0 }) => {
+interface Tone {
+  freq: number;
+  ms: number;
+  duty?: number;
+  volume?: number;
+  decay?: number;
+  attackMs?: number;
+  slideTo?: number;
+  vibrato?: number;
+}
+
+const tone = ({ freq, ms, duty = 0.5, volume = 0.3, decay = 6, attackMs = 2, slideTo, vibrato = 0 }: Tone): Float32Array => {
   const n = Math.round((RATE * ms) / 1000);
   const out = new Float32Array(n);
   let phase = 0;
@@ -34,10 +45,10 @@ const tone = ({ freq, ms, duty = 0.5, volume = 0.3, decay = 6, attackMs = 2, sli
   return out;
 };
 
-const silence = ms => new Float32Array(Math.round((RATE * ms) / 1000));
+const silence = (ms: number): Float32Array => new Float32Array(Math.round((RATE * ms) / 1000));
 
 /** Sequence with overlap-free concatenation, then a short fade-out against clicks */
-const sequence = (...parts) => {
+const sequence = (...parts: Float32Array[]): Float32Array => {
   const total = parts.reduce((sum, p) => sum + p.length, 0);
   const out = new Float32Array(total);
   let offset = 0;
@@ -48,13 +59,13 @@ const sequence = (...parts) => {
 };
 
 /** Two layers played together (e.g. melody + an octave echo) */
-const mix = (a, b) => {
+const mix = (a: Float32Array, b: Float32Array): Float32Array => {
   const out = new Float32Array(Math.max(a.length, b.length));
   for (let i = 0; i < out.length; i++) out[i] = (a[i] ?? 0) + (b[i] ?? 0);
   return out;
 };
 
-const wav = samples => {
+const wav = (samples: Float32Array): Buffer => {
   const data = Buffer.alloc(samples.length * 2);
   samples.forEach((s, i) => data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, s)) * 32767), i * 2));
   const header = Buffer.alloc(44);
