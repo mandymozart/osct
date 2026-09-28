@@ -1,7 +1,7 @@
 // The browser that compiles: an installed Chrome/Edge (or Playwright's Chromium) driven by
 // playwright-core. Pages load MindAR's own compiler from client/src/vendor/mind-ar/ – WebGL on the GPU.
 //
-// The browser keeps a profile in scripts/.cache/mind-browser/<browser>/ (one per browser, a profile
+// The browser keeps a profile in .mindar/browser/<browser>/ (one per browser, a profile
 // can't be shared between versions): its GPU program cache survives, so only the first run pays the
 // one-time GPU setup. All pages share that profile's one context; each job gets its own site
 // (mind-1.local, mind-2.local …), which Chrome runs in its own renderer process.

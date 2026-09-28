@@ -1,4 +1,4 @@
-// The spreads' target images, in MindAR order (written to mind-ar/ by the content build), with the
+// The spreads' target images, in MindAR order (written to .mindar/targets/ by the content build), with the
 // per-image cache file each one compiles to.
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -13,11 +13,11 @@ export interface TargetImage {
   spread: string;
   index: number; // MindAR index on the spread
   name: string; // original file name
-  file: string; // copy in mind-ar/<spread>/
+  file: string; // copy in .mindar/targets/<spread>/
   width: number;
   height: number;
   pixels: number;
-  cache: string; // compiled single-image .mind in scripts/.cache/mind/
+  cache: string; // compiled single-image .mind in .mindar/cache/
 }
 
 /** new: no .mind yet · changed: images differ from the compiled ones · unknown: no fingerprint · ok */
@@ -31,11 +31,11 @@ export interface SpreadTargets {
   state: SpreadState;
 }
 
-/** Run the content build (dist/index.js): no flags = full build with output, `--targets` = only refresh mind-ar/ */
+/** Run the content build (dist/index.js): no flags = full build with output, `--targets` = only refresh .mindar/targets/ */
 export const contentBuild = (...flags: string[]): SpawnSyncReturns<string> =>
   spawnSync(process.execPath, ["dist/index.js", ...flags], { cwd: SCRIPTS_DIR, stdio: flags.length ? "pipe" : "inherit", encoding: "utf8" });
 
-/** Refresh mind-ar/ from the content; returns an error text or null */
+/** Refresh .mindar/targets/ from the content; returns an error text or null */
 export function refreshTargets(): string | null {
   const result = contentBuild("--targets");
   return result.status === 0 ? null : `${result.stdout ?? ""}${result.stderr ?? ""}`.trim() || "the content build failed";
@@ -69,7 +69,7 @@ export function mindFile(spread: string): string {
   return path.join(CONTENT_DIR, "spreads", spread, mind);
 }
 
-/** Fingerprint of a spread's current target images (null before the content build wrote mind-ar/) */
+/** Fingerprint of a spread's current target images (null before the content build wrote .mindar/targets/) */
 export function currentFingerprint(spread: string): string | null {
   const file = path.join(MINDAR_DIR, spread, MIND_SOURCE_FILE);
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim() : null;

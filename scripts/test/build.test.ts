@@ -26,7 +26,7 @@ describe('content build', () => {
     expect(entries.find(e => e.id === 'first')?.target?.imageSrc).toBe('/assets/content/entries/first/x.jpg');
   });
 
-  it('numbers targets per spread by page and copies them to mind-ar/ in that order', async () => {
+  it('numbers targets per spread by page and copies them to .mindar/targets/ in that order', async () => {
     const dirs = makeContent(valid());
     const build = await loadBuild(dirs);
     const { entries } = build.buildAll();

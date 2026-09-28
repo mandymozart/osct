@@ -9,8 +9,8 @@
 //   --jobs=4  --note="…"  --gpu=default  --angle=d3d11  --headed  --browser=<path>
 //
 // Steps: target images (from the content build) → browser + GPU → compile each image (cached in
-// scripts/.cache/mind/) → merge per spread into content/spreads/<spread>/<name>.mind (+ .sha256,
-// + a version in mind-history/) → summary → content build.
+//   .mindar/cache/) → merge per spread into content/spreads/<spread>/<name>.mind (+ .sha256,
+// + a version in .mindar/history/) → summary → content build.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -34,7 +34,7 @@ try {
   fail((error as Error).message);
 }
 const { options, rest: requested } = parsed!;
-const fresh = Boolean(options.fresh || options["no-cache"] || options.force);
+const fresh = Boolean(options.fresh || options["no-cache"]);
 const everything = Boolean(options.force || ((options.fresh || options["no-cache"]) && !requested.length));
 const gpu: GpuChoice = options.gpu === "default" ? "default" : "high";
 const browserOptions = { browserPath: text(options, "browser") ?? process.env.MIND_BROWSER, gpu, angle: text(options, "angle"), headed: Boolean(options.headed) };
@@ -130,7 +130,7 @@ if (!queue.length) {
 }
 
 // ── 4. Write the .mind files ─────────────────────────────────────────────────────────────────────
-step(4, STEPS, "Write .mind files", "one per spread, earlier versions kept in mind-history/");
+step(4, STEPS, "Write .mind files", "one per spread, earlier versions kept in .mindar/history/");
 const merger = await openPage(browser, { gpu });
 let written = 0;
 for (const spread of todo) {

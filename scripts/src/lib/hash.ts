@@ -6,7 +6,7 @@ import { listFiles } from './files';
 
 // The commands run by hand (compile .mind, sounds) don't shape the content build's output – editing
 // them must not force a rebuild
-const COMMAND_FILES = ['mind/', 'sounds.ts', 'lib/cli.ts', 'lib/console.ts'];
+const COMMAND_FILES = ['mind/', 'sounds.ts', 'lib/cli.ts', 'lib/console.ts', 'lib/local-folders.ts'];
 const isCommandFile = (file: string) => COMMAND_FILES.some(prefix => file.startsWith(prefix));
 
 // Text files get normalised line endings before hashing

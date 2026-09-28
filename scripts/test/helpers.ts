@@ -17,7 +17,7 @@ export function makeContent(files: Record<string, string | Buffer>): { root: str
     fs.mkdirSync(path.dirname(path.join(content, file)), { recursive: true });
     fs.writeFileSync(path.join(content, file), data);
   }
-  return { root, content, mindar: path.join(root, 'mind-ar') };
+  return { root, content, mindar: path.join(root, '.mindar', 'targets') };
 }
 
 /** Fresh build modules (and a fresh error list) reading the given folders */

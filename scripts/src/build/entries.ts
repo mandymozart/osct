@@ -9,7 +9,7 @@ export interface EntryBuild {
   entry: EntryData;
   spreadId: string | null;
   targetOrder: number;
-  imageFile?: string; // source path of the target image (for mind-ar/)
+  imageFile?: string; // source path of the target image (for .mindar/targets/)
 }
 
 export function buildEntries(spreads: SpreadData[], entities: Record<string, EntityData>): EntryBuild[] {

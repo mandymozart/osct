@@ -1,9 +1,9 @@
 // Local version history of the compiled `.mind` files – test a compile on the phone, go back when it
 // tracks worse. Independent of git (the content will leave this repository).
 //
-//   mind-history/<spread>/<version>/<name>.mind          the compiled file
-//                                   <name>.mind.sha256   fingerprint of the target images it was made from
-//                                   meta.json            date, note, images, GPU, timings, size
+//   .mindar/history/<spread>/<version>/<name>.mind         the compiled file
+//                                           <name>.mind.sha256   fingerprint of the target images it was made from
+//                                           meta.json            date, note, images, GPU, timings, size
 //
 // <version> = <date>_<time>-<first 8 of the .mind's sha256>, sortable. The same bytes are stored once
 // per spread. The newest KEEP versions per spread are kept, plus whatever is current.
