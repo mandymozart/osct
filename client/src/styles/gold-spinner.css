@@ -28,7 +28,7 @@
   white-space: nowrap;
 }
 
-/* MindAR's scanning UI (`uiScanning`): must stay in the light DOM; MindAR toggles `.hidden` on it. */
+/* Scanning indicator (`#osct-scanning`, index.html): in the light DOM; the AR scene toggles `.hidden` on it. */
 .gold-scanning {
   position: fixed;
   top: 50%;

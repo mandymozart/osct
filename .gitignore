@@ -9,8 +9,6 @@ coverage
 .env
 # client/.env holds comments only (documents the VITE_* build flags, no values)
 !client/.env
-# .mind compiling: target images, history, cache, browser profile, benchmark
-.mindar/
 .claude
 .netlify
 

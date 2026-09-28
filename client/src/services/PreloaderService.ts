@@ -1,5 +1,5 @@
 import { LoadOptions, LoadResult } from "@/types";
-import { getAssets, getSpread, getSpreads } from "@/utils/game-config";
+import { getAssets, getNeighbourSpreads, getSpread, getSpreads, getTargets } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed";
 
 const DEFAULT_TIMEOUT = 30000;
@@ -19,8 +19,12 @@ export interface BookDownload {
 /** Same-origin files only: external URLs (links, embeds) are cross-origin and not cached */
 const isLocal = (src?: string): src is string => !!src && !/^[a-z]+:\/\//i.test(src);
 
+/** A spread's target images: the tracker makes the engine's image targets from them (needed to start AR) */
+const getTargetImages = (spreadId: string): LoadOptions[] =>
+  getTargets(spreadId).map(t => t.imageSrc).filter(isLocal).map(src => ({ src, type: "image" }));
+
 /**
- * Files a spread uses besides its `.mind`: entity assets (AR models, images, audio, videos) and entry
+ * Files a spread uses besides its target images: entity assets (AR models, images, audio, videos) and entry
  * images (consultation). Videos come last since they are the largest.
  */
 const getSpreadContent = (spreadId: string): LoadOptions[] => {
@@ -35,11 +39,11 @@ const getSpreadContent = (spreadId: string): LoadOptions[] => {
   return [...assets.filter(o => !isVideo(o)), ...images, ...assets.filter(isVideo)];
 };
 
-/** Every content file of the book – all spreads' `.mind`, entity assets and entry images – each once */
+/** Every content file of the book – all spreads' target images, entity assets and entry images – each once */
 const getBookContent = (): LoadOptions[] => {
   const seen = new Set<string>();
   return getSpreads()
-    .flatMap(s => [{ src: compressedUrl(s.mindSrc), type: "mind" } as LoadOptions, ...getSpreadContent(s.id)])
+    .flatMap(s => [...getTargetImages(s.id), ...getSpreadContent(s.id)])
     .filter(o => !seen.has(o.src) && !!seen.add(o.src));
 };
 
@@ -48,7 +52,7 @@ const loadContentSizes = async (): Promise<Record<string, number>> => (await imp
 
 /**
  * Preloads files into the browser (HTTP) cache only (RULES.md #4): a plain fetch whose body is read and
- * discarded, so the later request by MindAR / three.js for the same URL is served from the cache.
+ * discarded, so the later request by the tracker / three.js for the same URL is served from the cache.
  * Never touches the AR scene. One request per URL; failed ones may be retried.
  * In production the service worker stores what these fetches load (its content cache), which is also how
  * `downloadBook()` puts the whole book on the device.
@@ -84,29 +88,24 @@ export class PreloaderService {
     return this.done.has(src);
   }
 
-  /** One spread: its `.mind` first (needed to start AR), then entity assets and entry images */
+  /** One spread: its target images first (needed to start AR), then entity assets and entry images */
   async preloadSpread(spreadId: string): Promise<LoadResult[]> {
-    const spread = getSpread(spreadId);
-    if (!spread) return [];
-    const mind = await this.preload({ src: compressedUrl(spread.mindSrc), type: "mind" });
+    if (!getSpread(spreadId)) return [];
+    const targets = await Promise.all(getTargetImages(spreadId).map(options => this.preload(options)));
     const content = await Promise.all(getSpreadContent(spreadId).map(options => this.preload(options)));
-    return [mind, ...content];
+    return [...targets, ...content];
   }
 
   /**
    * Content of the spreads adjacent to `spreadId` in book order (the ones the spread menu reaches next).
-   * Limited to neighbours: each `.mind` alone is ~1 MB and the book has many spreads.
-   * Per spread: `.mind` first (needed to start AR), then entity assets and entry images.
+   * Limited to neighbours: the book has many spreads and their media add up.
+   * Target images first (needed to start AR), then entity assets and entry images.
    */
   async preloadNeighbours(spreadId: string, range = 1): Promise<LoadResult[]> {
-    const spreads = getSpreads();
-    const index = spreads.findIndex(s => s.id === spreadId);
-    if (index === -1) return [];
-    const neighbours = spreads.filter((_, i) => i !== index && Math.abs(i - index) <= range);
-
-    const minds = await Promise.all(neighbours.map(s => this.preload({ src: compressedUrl(s.mindSrc), type: "mind" })));
+    const neighbours = getNeighbourSpreads(spreadId, range);
+    const targets = await Promise.all(neighbours.flatMap(s => getTargetImages(s.id)).map(options => this.preload(options)));
     const content = await Promise.all(neighbours.flatMap(s => getSpreadContent(s.id)).map(options => this.preload(options)));
-    return [...minds, ...content];
+    return [...targets, ...content];
   }
 
   /**

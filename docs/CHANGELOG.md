@@ -12,6 +12,33 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.3.0 – 2026-09-28
+
+Existing content keeps building (a leftover `mind:` in `spread.yaml` is ignored – delete it when convenient);
+the game configuration no longer has `mindSrc` or `maxTargetsPerSpread`. Progress is unchanged.
+
+### Changed
+- Image tracking with the **8th Wall engine** (`@8thwall/engine`, MIT) instead of MindAR: steadier content
+  (less jitter). The engine's files are served from `assets/xr8/` with its licence and precached by the service
+  worker, so AR works offline. It is credited in the project README (not on the Info page).
+- The app makes the recognition data from the target images itself – nothing to compile. The whole target
+  image is used (fitted into the engine's portrait frame).
+- Up to **10 targets per spread** (was 5); the camera follows 4 of them at the same moment.
+- The preloader and the whole-book download fetch the target images where they fetched `.mind` files.
+- Saved progress of an older format will only be reported as "converted" when reading it changed something
+  (for the next progress format change).
+
+### Added
+- The neighbouring spreads' targets are kept ready, so switching to them is instant; turning to a
+  neighbouring spread **switches by itself** (the page held in view for 0.4 s, in scan mode). The spread menu
+  stays.
+- Debug overlay: "Spreads loaded ahead" (±0, ±1 – the default –, ±2, all).
+- Demo spreads 4–14 (pages 7–27) from the layout PDF – placeholder targets for testing, no AR content.
+
+### Removed
+- MindAR: the vendored build (with TF.js), its tracker, all `.mind` files, `npm run compile:mind`,
+  `mind:benchmark`, `mind:history`, `mind:restore`, the `.mindar/` folder and `playwright-core`.
+
 ## 1.2.3 – 2026-09-28
 
 ### Changed

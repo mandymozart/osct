@@ -10,6 +10,5 @@
   "android": "Android: Chrome",
   "desktop": "Desktop: Chrome, Firefox, Safari",
   "ios": "iOS: Safari, Chrome",
-  "account": "Account",
-  "imageTracking": "Beeldherkenning door"
+  "account": "Account"
 }

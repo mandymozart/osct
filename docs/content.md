@@ -8,8 +8,8 @@ next to them. No code is involved.
 
 | Word | Meaning |
 |---|---|
-| **Spread** | Two facing pages of the book. The reader picks the spread they are looking at in the menu at the bottom of the app. |
-| **Target** | An image printed in the book that the camera recognises. Max **5 targets per spread**. |
+| **Spread** | Two facing pages of the book. The reader picks the spread in the menu at the bottom of the app; turning to the next or previous spread switches by itself. |
+| **Target** | An image printed in the book that the camera recognises. Max **10 targets per spread** (the camera follows up to 4 at the same moment). |
 | **Entry** | A piece of content the reader unlocks and can read later: a glossary term, a video, a text or a link. |
 | **AR content** | What appears *on top of* a target in the camera view: a video, a 3D model or an image. Optional. |
 | **Access page** | The page of the book where an entry is found (shown as "Access page" in the app). |
@@ -28,8 +28,7 @@ content/
 ├── book.yaml                     the book (title, author, publisher)
 ├── spreads/
 │   └── spread1/
-│       ├── spread.yaml           title and pages of the spread
-│       └── spread1.mind          recognition data of the spread's targets (generated, see below)
+│       └── spread.yaml           title and pages of the spread
 ├── entries/
 │   └── old-castle/
 │       ├── entry.yaml            the entry's text and settings
@@ -202,8 +201,8 @@ body: Light plays a role in architecture.
 media: https://www.youtube.com/watch?v=…
 ```
 
-**Several targets on the same page:** add `order` to the targets (0, 1, 2 …) to fix their order.
-It only matters for the recognition data (see "Recognition data" below).
+**Several targets on the same page:** `order` (0, 1, 2 …) on the targets fixes their order in the
+spread (otherwise by id). The app does not depend on it – there is nothing to recompile.
 
 **AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` and refer to
 it with `ref`:
@@ -232,28 +231,15 @@ title: The Beginning      # shown in the spread menu
 order: 0                  # position in the menu
 firstPage: 1
 lastPage: 2
-mind: spread1.mind        # recognition data, see below
 ```
 
 Spreads may not overlap. Every entry's `page` must fall inside a spread.
 
-## Recognition data (.mind files)
+## Recognition
 
-The camera recognises a spread's targets with its `.mind` file. After adding, removing, replacing or
-reordering a target image, compile it again (on your computer, needs Chrome or Edge):
-
-```bash
-cd scripts
-npm run compile:mind
-```
-
-Then test it on the phone and commit the `.mind` and `.mind.sha256` files. Didn't track well? Go back:
-
-```bash
-npm run mind:restore spread1 previous
-```
-
-More options: [Compile options](#compile-options).
+Nothing to prepare: the app makes the recognition data from the target images itself when a spread is
+opened (8th Wall engine). A new or replaced target image works as soon as the content is built. The
+spreads next to the open one are kept ready too, so turning a page switches the spread at once.
 
 ## Onboarding screens
 
@@ -341,40 +327,9 @@ Run in `scripts/`:
 |---|---|
 | `npm run build:content` | Check the content and write the app files (skips when nothing changed) |
 | `npm run build:content:force` | The same, even when nothing changed |
-| `npm run compile:mind` | Compile the `.mind` files that are out of date |
-| `npm run mind:benchmark` | Measure how fast this computer compiles, remember the fastest setting |
-| `npm run mind:history` | List the compiled versions of each spread (● = current) |
-| `npm run mind:restore spread1 previous` | Go back to an earlier version (or a number from the list) |
 | `npm test` | Run the tests |
 | `npm run build` | Rebuild the tool after changing `scripts/src/` |
 | `npm run sounds` | Generate the placeholder app sounds |
-
-### Compile options
-
-Add them after `npm run compile:mind`:
-
-| Option | What it does |
-|---|---|
-| `spread1 spread3` | Only these spreads |
-| `--force` | All spreads, even when up to date |
-| `--fresh` | All spreads (or the named ones), every image from scratch – no cache |
-| `--jobs=6` | Compile this many images at the same time (default: the benchmark's fastest) |
-| `--note="brighter scan"` | A note, shown in `mind:history` |
-| `--gpu=default` | Let the browser pick the graphics card (default: the fast one) |
-| `--angle=d3d11` | Graphics backend: `d3d11`, `vulkan`, `gl`, `metal` |
-| `--headed` | Show the browser window |
-| `--browser="C:/path/to/chrome.exe"` | Use this browser |
-
-Write options with `=` (PowerShell needs it). The output goes step by step: which spreads need
-compiling and why, the browser and graphics card, each image as it compiles (finding features on the
-GPU, then preparing tracking on the CPU), the files written, and a summary with times.
-
-`npm run mind:benchmark` compiles the target images with 1, 2, 4 … images at a time and shows which is
-fastest – `compile:mind` then uses that. `--images=6` benchmarks only the 6 largest images (quicker).
-
-The tool prints the graphics card it uses. Shows an
-integrated one (e.g. "Intel UHD")? Windows Settings → System → Display → Graphics → Chrome → High
-performance.
 
 ### What it writes
 
@@ -382,8 +337,6 @@ performance.
 |---|---|
 | `client/src/game.config.json` | Everything the app needs to know about the book |
 | `client/public/assets/content/` | The content media, optimised |
-| `content/spreads/<spread>/*.mind` | Compiled recognition data (+ `.mind.sha256`) |
-| `.mindar/` | On your computer only (not in git): `targets/` the target images per spread in order, `history/` earlier `.mind` versions, `cache/` compiled images, `browser/` the browser's GPU cache, `benchmark.json` |
 
 ### Folders
 
@@ -393,8 +346,7 @@ scripts/
 │   ├── index.ts    the content build: start
 │   ├── config.ts   all folders and limits
 │   ├── build/      content build parts: book, spreads, entities, entries, targets, tutorial
-│   ├── lib/        shared helpers: reading content, files, hash, checks, media, options, console
-│   ├── mind/       .mind commands: compile, benchmark, history + browser, runs, versions
+│   ├── lib/        shared helpers: reading content, files, hash, checks, media
 │   └── sounds.ts   placeholder app sounds
 └── test/           tests (npm test)
 ```

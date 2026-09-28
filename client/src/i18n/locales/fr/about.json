@@ -10,6 +10,5 @@
   "android": "Android : Chrome",
   "desktop": "Ordinateur : Chrome, Firefox, Safari",
   "ios": "iOS : Safari, Chrome",
-  "account": "Compte",
-  "imageTracking": "Suivi d’images par"
+  "account": "Compte"
 }

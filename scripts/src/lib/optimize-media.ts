@@ -15,7 +15,7 @@ import { PNG } from 'pngjs';
  *     (EXT_meshopt_compression; the client's GLTFLoader has the decoder), duplicate / unused data removed;
  *   - images (`.jpg` / `.png`): ≤ MAX_IMAGE_SIZE px, opaque ones as JPEG (same file name – browsers go by
  *     the content, not the extension);
- *   - recognition data (`.mind`) and models (`.glb`): a gzip copy `<name>.gz` next to it (hosts serve these
+ *   - models (`.glb`): a gzip copy `<name>.gz` next to it (hosts serve these
  *     uncompressed; the client unpacks it – utils/compressed.ts –, browsers without DecompressionStream
  *     load the original);
  *   - videos: not re-encoded (needs ffmpeg, a native binary) – large ones are reported with the
@@ -163,7 +163,7 @@ export function optimizeImage(file: string): MediaOptimization {
   return { file, before: image.byteLength, after: result?.data.byteLength ?? image.byteLength };
 }
 
-/** `<file>.gz` next to a `.mind` / `.glb` file (header time fixed: the same bytes on every build) */
+/** `<file>.gz` next to a `.glb` file (header time fixed: the same bytes on every build) */
 export function gzipCopy(file: string): MediaOptimization {
   const data = new Uint8Array(fs.readFileSync(file));
   const gz = gzipSync(data, { level: 9, mtime: 0 });
@@ -184,13 +184,13 @@ const listFiles = (dir: string, pattern: RegExp): string[] => {
   return files.sort();
 };
 
-/** Optimise the content copy: models, images, `.mind` (gzip copy); report large videos */
+/** Optimise the content copy: models (+ gzip copy), images; report large videos */
 export async function optimizeMedia(dir: string): Promise<MediaOptimization[]> {
   const results: MediaOptimization[] = [];
   for (const file of listFiles(dir, /\.glb$/i)) results.push(await optimizeModel(file));
   for (const file of listFiles(dir, /\.(jpe?g|png)$/i)) results.push(optimizeImage(file));
   // After the model optimisation: the .glb.gz holds the optimised model (client: utils/compressed.ts)
-  for (const file of listFiles(dir, /\.(mind|glb)$/i)) results.push(gzipCopy(file));
+  for (const file of listFiles(dir, /\.glb$/i)) results.push(gzipCopy(file));
   for (const file of listFiles(dir, /\.(mp4|webm|mov)$/i)) {
     const size = fs.statSync(file).size;
     if (size > VIDEO_WARN_BYTES) results.push({ file, before: size, after: size, note: VIDEO_ADVICE });

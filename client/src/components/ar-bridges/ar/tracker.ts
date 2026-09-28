@@ -1,197 +1,378 @@
-import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
-import { Controller } from "@/vendor/mind-ar/mindar-image.prod.js";
-import { loadCompressed } from "@/utils/compressed";
+import { PerspectiveCamera } from "three";
 import { CAMERA_NOT_RESPONDING } from "@/types";
+import { CAMERA_START_TIMEOUT_MS, IImageTracker, ImageTrackerOptions, TrackedSpread } from "./tracker-types";
+import {
+  anchorMatrix,
+  loadXr8,
+  makeImageTarget,
+  PreparedImageTarget,
+  XR8Api,
+  XrImageDetail,
+  XrPipelineModule,
+  XrReality,
+} from "./xr8";
 
-/** A camera that sends no picture within this time is reported as not responding */
-export const CAMERA_START_TIMEOUT_MS = 10000;
+/** Loading the targets into the engine may take this long before tracking starts anyway */
+const TARGETS_LOAD_TIMEOUT_MS = 15000;
+/** A neighbouring spread's target seen this long (and none of the current spread's) switches the spread */
+const SPREAD_SEEN_MS = 400;
+const NEAR = 0.01;
+const FAR = 1000;
+
+interface SpreadTargets {
+  spreadId: string;
+  targets: PreparedImageTarget[];
+}
+
+interface LoadedTarget {
+  index: number;
+  /** Anchor scale per engine scale: scaled width × full image width ÷ tracked width */
+  widthFactor: number;
+}
 
 /**
- * Camera + MindAR image tracking, without a renderer. A port of MindAR 1.2.5's `MindARThree`
- * (`src/image-target/three.js`: `_startVideo`, `_startAR`, `resize`) on top of its `Controller`, split
- * so the camera stream survives a spread switch: `loadTargets()` replaces only the controller.
+ * Camera + image tracking with the 8th Wall engine (`@8thwall/engine`, MIT – chosen over MindAR after the phone
+ * comparison, Tilman 2026-09-28: less jitter, spreads switch by themselves). The camera survives a spread
+ * switch, `loadTargets()` swaps the tracked image targets (made from the target images, `xr8.ts`).
  *
- * `onUpdate(targetIndex, matrix)`: the anchor matrix of a target (world matrix × MindAR's post matrix:
- * 1 unit = target width, origin in the target's centre), null when the target is lost – MindAR's own
- * warm-up / miss tolerance decides that.
+ * Spread switches: the engine extracts each target's features on the device (one target per frame, nothing
+ * precompiled). So the neighbouring spreads' targets stay loaded next to the current ones (`prepareTargets()`)
+ * – the app is told only about the current spread's, and a switch to a neighbour starts at once. The engine keeps what it already has when it
+ * is configured again and extracts only new targets. A neighbour's target seen steadily while none of the
+ * current spread's is means the reader turned the page: `onSpreadSeen` (the app switches the spread).
+ *
+ * The engine owns the camera: it draws the picture into its own canvas under the three.js canvas (a second
+ * WebGL context) and reports poses in its scene. World tracking is off, so the
+ * camera stays put; each target's anchor is its pose relative to the camera – the three.js camera stays at
+ * the origin and gets the engine's projection, as in the engine's own three.js module.
  */
-export class ImageTracker {
-  private video: HTMLVideoElement | null = null;
-  private controller: Controller | null = null;
-  private postMatrices: Matrix4[] = [];
+export class ImageTracker implements IImageTracker {
+  private XR8: XR8Api | null = null;
+  private canvas: HTMLCanvasElement | null = null;
+  private camera: PerspectiveCamera | null = null;
+  private intrinsics: number[] | null = null;
+  private started = false;
+  private paused = false;
+  /** Engine target name → app target, for the spread being tracked (empty while none is) */
+  private targets = new Map<string, LoadedTarget>();
+  /** Found targets' latest engine poses, by target index */
+  private poses = new Map<number, { detail: XrImageDetail; target: LoadedTarget }>();
+  private loadRun = 0;
+  private imageTargets = new Map<string, Promise<PreparedImageTarget>>();
+  /** The current spread's targets and the neighbours' (`prepareTargets()`) – what the engine keeps loaded */
+  private current: SpreadTargets | null = null;
+  private upcoming: SpreadTargets[] = [];
+  /** Engine target name → its spread, for the upcoming spreads' targets */
+  private spreadOf = new Map<string, string>();
+  /** Upcoming spreads' targets in view, since when (performance.now()) */
+  private seenSince = new Map<string, number>();
+  /** When the current spread's targets were ready (for the found log of the load test) */
+  private currentSince = 0;
+  /** Engine target names whose features are extracted (reported by its `imagescanning` event) */
+  private ready = new Set<string>();
+  private prepareRun = 0;
+  private startWaiter: { resolve: () => void; reject: (error: Error) => void } | null = null;
+  private scanningWaiter: (() => void) | null = null;
 
-  constructor(
-    private container: HTMLElement,
-    private options: {
-      maxTrack: number;
-      onUpdate: (targetIndex: number, matrix: Matrix4 | null) => void;
-    },
-  ) {}
+  constructor(private container: HTMLElement, private options: ImageTrackerOptions) {}
 
   get hasCamera(): boolean {
-    return !!this.video;
+    return this.started;
   }
 
   get tracking(): boolean {
-    return !!this.controller;
+    return this.targets.size > 0;
+  }
+
+  async startCamera(): Promise<void> {
+    if (this.started) return;
+    const XR8 = await loadXr8();
+    this.XR8 = XR8;
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "ar-camera";
+    Object.assign(canvas.style, { position: "absolute", top: "0", left: "0", width: "100%", height: "100%", zIndex: "-2" });
+    this.container.appendChild(canvas);
+    this.canvas = canvas;
+    this.sizeCanvas();
+
+    const started = new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(
+        () => reject(new Error(`${CAMERA_NOT_RESPONDING} (no picture after ${CAMERA_START_TIMEOUT_MS / 1000} s)`)),
+        CAMERA_START_TIMEOUT_MS,
+      );
+      this.startWaiter = {
+        resolve: () => { window.clearTimeout(timer); resolve(); },
+        reject: error => { window.clearTimeout(timer); reject(error); },
+      };
+    });
+    XR8.XrController!.configure({ disableWorldTracking: true, imageTargetData: [] });
+    XR8.addCameraPipelineModules([XR8.GlTextureRenderer.pipelineModule(), XR8.XrController!.pipelineModule(), this.module()]);
+    // Any device: desktop browsers (dev, tests) too – the default allows phones only
+    XR8.run({ canvas, allowedDevices: XR8.XrConfig.device().ANY, cameraConfig: { direction: XR8.XrConfig.camera().BACK } });
+    try {
+      await started;
+    } catch (error) {
+      this.stop();
+      throw error;
+    } finally {
+      this.startWaiter = null;
+    }
+    this.started = true;
+  }
+
+  async loadTargets({ spreadId, targets }: TrackedSpread): Promise<void> {
+    const XR8 = this.XR8;
+    if (!XR8 || !this.started) throw new Error("loadTargets() needs the camera");
+    this.stopTracking();
+    const run = this.loadRun;
+
+    const begun = performance.now();
+    const withImage = targets.filter(target => target.imageSrc);
+    const data = await Promise.all(withImage.map(target => this.imageTarget(target.imageSrc)));
+    if (run !== this.loadRun) return; // replaced or stopped meanwhile
+    this.targets = new Map(data.map((target, i) => [
+      target.data.name,
+      { index: withImage[i].index, widthFactor: target.widthFactor },
+    ]));
+    // The previous spread stays loaded until prepareTargets() names the new neighbours (it is one of them)
+    this.upcoming = this.current ? [...this.upcoming, this.current] : this.upcoming;
+    this.current = { spreadId, targets: data };
+    this.configureEngine();
+    this.currentSince = performance.now();
+    if (!data.length) return;
+    if (data.every(target => this.ready.has(target.data.name))) {
+      console.info(`[8th Wall] ${data.length} targets already loaded – ready after ${Math.round(performance.now() - begun)} ms`);
+      return;
+    }
+
+    let waiter: () => void = () => {};
+    const scanning = new Promise<void>(resolve => {
+      const timer = window.setTimeout(() => {
+        console.warn("[8th Wall] Targets still loading – tracking starts anyway");
+        resolve();
+      }, TARGETS_LOAD_TIMEOUT_MS);
+      waiter = () => { window.clearTimeout(timer); resolve(); };
+    });
+    this.scanningWaiter = waiter;
+    const configured = performance.now();
+    await scanning;
+    this.currentSince = performance.now();
+    console.info(`[8th Wall] ${data.length} targets: prepared in ${Math.round(configured - begun)} ms, engine ready after ${Math.round(performance.now() - configured)} ms`);
+    if (this.scanningWaiter === waiter) this.scanningWaiter = null;
+  }
+
+  prepareTargets(spreads: readonly TrackedSpread[]): void {
+    const run = ++this.prepareRun;
+    const prepare = (spread: TrackedSpread): Promise<SpreadTargets> =>
+      Promise.all(spread.targets.filter(target => target.imageSrc).map(target => this.imageTarget(target.imageSrc)))
+        .then(targets => ({ spreadId: spread.spreadId, targets }));
+    void Promise.all(spreads.map(prepare)).then(
+      upcoming => {
+        if (run !== this.prepareRun || !this.started) return; // newer neighbours or the camera is off
+        this.upcoming = upcoming;
+        this.configureEngine();
+        console.info(`[8th Wall] ${this.ready.size} of ${this.current!.targets.length + upcoming.reduce((n, spread) => n + spread.targets.length, 0)} targets extracted so far – next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
+      },
+      error => console.warn("[8th Wall] Could not prepare the next spreads' targets:", error),
+    );
   }
 
   /**
-   * Request the back camera; resolves once the stream's size is known. Throws when it is unavailable, or
-   * when no picture arrives within CAMERA_START_TIMEOUT_MS (the stream is released then).
+   * The engine's targets = current + upcoming. It unloads what is no longer listed, keeps the rest and
+   * extracts the new ones (each new configure restarts that queue).
    */
-  async startCamera(): Promise<void> {
-    if (this.video) return;
-    if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera not supported (no getUserMedia)");
-    const video = document.createElement("video");
-    video.setAttribute("autoplay", "");
-    video.setAttribute("muted", "");
-    video.setAttribute("playsinline", "");
-    video.muted = true;
-    video.className = "ar-camera";
-    Object.assign(video.style, { position: "absolute", top: "0px", left: "0px", zIndex: "-2" });
-
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: "environment" } });
-    } catch (error) {
-      throw new Error(`Camera unavailable: ${(error as Error)?.name ?? error}`);
-    }
-    this.container.appendChild(video);
-    this.video = video;
-    const pictured = await new Promise<boolean>(resolve => {
-      const timer = window.setTimeout(() => resolve(false), CAMERA_START_TIMEOUT_MS);
-      video.addEventListener("loadedmetadata", () => {
-        window.clearTimeout(timer);
-        resolve(true);
-      }, { once: true });
-      video.srcObject = stream;
-    });
-    if (!pictured) {
-      this.stop();
-      throw new Error(`${CAMERA_NOT_RESPONDING} (no picture after ${CAMERA_START_TIMEOUT_MS / 1000} s)`);
-    }
-    video.setAttribute("width", String(video.videoWidth));
-    video.setAttribute("height", String(video.videoHeight));
-    await video.play().catch(() => {}); // autoplay (muted, inline) normally runs by itself
+  private configureEngine(): void {
+    const XR8 = this.XR8;
+    if (!XR8 || !this.started) return;
+    const spreads = this.current ? [this.current, ...this.upcoming] : this.upcoming;
+    const byName = new Map(spreads.flatMap(spread => spread.targets).map(target => [target.data.name, target.data]));
+    this.spreadOf = new Map(this.upcoming.flatMap(spread => spread.targets.map(target => [target.data.name, spread.spreadId])));
+    this.ready.forEach(name => { if (!byName.has(name)) this.ready.delete(name); });
+    XR8.XrController!.configure({ imageTargetData: [...byName.values()] });
   }
 
-  /** Track the targets of a `.mind` file on the running camera (replaces the previous targets) */
-  async loadTargets(mindSrc: string): Promise<void> {
-    const video = this.video;
-    if (!video) throw new Error("loadTargets() needs the camera");
-    this.stopTracking();
-
-    const controller = new Controller({
-      inputWidth: video.videoWidth,
-      inputHeight: video.videoHeight,
-      maxTrack: this.options.maxTrack,
-      onUpdate: data => {
-        if (data.type !== "updateMatrix" || this.controller !== controller) return;
-        const post = this.postMatrices[data.targetIndex];
-        if (!data.worldMatrix || !post) {
-          this.options.onUpdate(data.targetIndex, null);
-          return;
-        }
-        const matrix = new Matrix4().fromArray(data.worldMatrix);
-        this.options.onUpdate(data.targetIndex, matrix.multiply(post));
-      },
-    });
-    this.controller = controller;
-
-    try {
-      const buffer = await loadCompressed(mindSrc); // the .gz where the browser can unpack it
-      if (this.controller !== controller) return; // replaced or stopped meanwhile
-      const { dimensions } = controller.addImageTargetsFromBuffer(buffer);
-      this.postMatrices = dimensions.map(([width, height]) =>
-        new Matrix4().compose(
-          new Vector3(width / 2, width / 2 + (height - width) / 2, 0),
-          new Quaternion(),
-          new Vector3(width, width, width),
-        ),
-      );
-      await controller.dummyRun(video);
-      if (this.controller !== controller) return;
-      controller.processVideo(video);
-    } catch (error) {
-      if (this.controller === controller) this.stopTracking();
-      throw error;
-    }
-  }
-
-  /** Tracking and the camera video pause, the stream stays (instant resume, frozen frame) */
   pause(): void {
-    this.controller?.stopProcessVideo();
-    this.video?.pause();
+    if (!this.XR8 || !this.started || this.paused) return;
+    this.XR8.pause();
+    this.paused = true;
+    this.poses.clear();
   }
 
   resume(): void {
-    if (!this.video) return;
-    void this.video.play().catch(() => {});
-    this.controller?.processVideo(this.video);
+    if (!this.XR8 || !this.paused) return;
+    this.XR8.resume();
+    this.paused = false;
   }
 
   stopTracking(): void {
-    const controller = this.controller;
-    this.controller = null;
-    this.postMatrices = [];
-    if (!controller) return;
-    try {
-      controller.dispose();
-    } catch (error) {
-      console.warn("[ImageTracker] Disposing the controller failed:", error);
-    }
+    this.loadRun++;
+    this.targets.clear();
+    this.poses.clear();
+    this.scanningWaiter?.();
+    this.scanningWaiter = null;
+    this.seenSince.clear();
+    // The engine keeps its targets (a switch back or to a neighbour needs no new extraction)
   }
 
-  /** Release the camera (and the tracking) */
   stop(): void {
     this.stopTracking();
-    const video = this.video;
-    this.video = null;
-    if (!video) return;
-    (video.srcObject as MediaStream | null)?.getTracks().forEach(track => track.stop());
-    video.srcObject = null;
-    video.remove();
+    const XR8 = this.XR8;
+    if (XR8 && this.canvas) {
+      try {
+        XR8.stop();
+        XR8.clearCameraPipelineModules();
+      } catch (error) {
+        console.warn("[8th Wall] Stopping the engine failed:", error);
+      }
+    }
+    this.canvas?.remove();
+    this.canvas = null;
+    this.current = null;
+    this.upcoming = [];
+    this.spreadOf.clear();
+    this.ready.clear();
+    this.prepareRun++;
+    this.started = false;
+    this.paused = false;
+    this.intrinsics = null;
+  }
+
+  fit(camera: PerspectiveCamera): void {
+    this.camera = camera;
+    this.sizeCanvas();
+    this.applyProjection();
+  }
+
+  /** Target data per image, made once per session (the object URLs stay valid) */
+  private imageTarget(imageSrc: string): Promise<PreparedImageTarget> {
+    let data = this.imageTargets.get(imageSrc);
+    if (!data) {
+      data = makeImageTarget(imageSrc);
+      data.catch(() => this.imageTargets.delete(imageSrc));
+      this.imageTargets.set(imageSrc, data);
+    }
+    return data;
+  }
+
+  /** The engine draws the camera picture at the canvas' pixel size (cover); intrinsics follow its aspect */
+  private sizeCanvas(): void {
+    const canvas = this.canvas;
+    if (!canvas) return;
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const width = Math.round(this.container.clientWidth * ratio);
+    const height = Math.round(this.container.clientHeight * ratio);
+    if (!width || !height || (canvas.width === width && canvas.height === height)) return;
+    canvas.width = width;
+    canvas.height = height;
   }
 
   /**
-   * Fit the camera video to the container (cover) and give the three.js camera the field of view that
-   * matches it – MindAR's `resize()`. Needs a loaded controller (its projection).
+   * The engine's projection on the three.js camera, as fov / aspect / near / far – `ArView.resize()` calls
+   * `updateProjectionMatrix()` after `fit()`, so a matrix set directly would be overwritten. The engine's
+   * principal point is the centre (no offset to carry over).
    */
-  fit(camera: PerspectiveCamera): void {
-    const { video, controller, container } = this;
-    if (!video || !controller || !video.videoWidth) return;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    if (!width || !height) return;
-
-    const videoRatio = video.videoWidth / video.videoHeight;
-    const containerRatio = width / height;
-    const vw = videoRatio > containerRatio ? height * videoRatio : width;
-    const vh = videoRatio > containerRatio ? height : width / videoRatio;
-
-    // Rotated phone: the video's width and height are swapped against the controller's input
-    const proj = controller.getProjectionMatrix();
-    const inputRatio = controller.inputWidth / controller.inputHeight;
-    const inputAdjust = inputRatio > containerRatio
-      ? video.videoWidth / controller.inputWidth
-      : video.videoHeight / controller.inputHeight;
-    const videoDisplayHeight = (inputRatio > containerRatio
-      ? height
-      : (width / controller.inputWidth) * controller.inputHeight) * inputAdjust;
-    const fovAdjust = height / videoDisplayHeight;
-
-    camera.fov = (2 * Math.atan((1 / proj[5]) * fovAdjust) * 180) / Math.PI;
-    camera.near = proj[14] / (proj[10] - 1.0);
-    camera.far = proj[14] / (proj[10] + 1.0);
-    camera.aspect = containerRatio;
+  private applyProjection(): void {
+    const { camera, intrinsics: m } = this;
+    if (!camera || !m || !m[0] || !m[5]) return;
+    camera.fov = (2 * Math.atan(1 / m[5]) * 180) / Math.PI;
+    camera.aspect = m[5] / m[0];
+    const near = m[14] / (m[10] - 1);
+    const far = m[14] / (m[10] + 1);
+    camera.near = Number.isFinite(near) && near > 0 ? near : NEAR;
+    camera.far = Number.isFinite(far) && far > camera.near ? far : FAR;
     camera.updateProjectionMatrix();
+  }
 
-    Object.assign(video.style, {
-      top: `${-(vh - height) / 2}px`,
-      left: `${-(vw - width) / 2}px`,
-      width: `${vw}px`,
-      height: `${vh}px`,
+  private setProjectionSize(width: number, height: number): void {
+    this.XR8?.XrController?.updateCameraProjectionMatrix({
+      cam: { pixelRectWidth: width, pixelRectHeight: height, nearClipPlane: NEAR, farClipPlane: FAR },
     });
+  }
+
+  /** Every frame: anchors of the found targets relative to the camera of that frame */
+  private onFrame(reality: XrReality): void {
+    const m = reality.intrinsics;
+    if (m && m.every(Number.isFinite) && (!this.intrinsics || m.some((v, i) => v !== this.intrinsics![i]))) {
+      this.intrinsics = [...m];
+      this.applyProjection();
+    }
+    this.poses.forEach(({ detail, target }, index) =>
+      this.options.onUpdate(index, anchorMatrix(reality, detail, target.widthFactor)));
+  }
+
+  private onImage(detail: XrImageDetail, found: boolean): void {
+    if (this.paused) return;
+    const target = this.targets.get(detail.name);
+    if (!target) return this.onUpcomingImage(detail.name, found);
+    const spreadId = this.current?.spreadId;
+    if (found) {
+      if (!this.poses.has(target.index)) {
+        console.info(`[8th Wall] Found ${spreadId}#${target.index} ${Math.round(performance.now() - this.currentSince)} ms after the spread was ready (${this.poses.size + 1} found)`);
+      }
+      this.poses.set(target.index, { detail, target });
+      return;
+    }
+    if (this.poses.delete(target.index)) {
+      console.info(`[8th Wall] Lost ${spreadId}#${target.index}`);
+      this.options.onUpdate(target.index, null);
+    }
+  }
+
+  /**
+   * An upcoming spread's target: held in view (and nothing of the current spread) → report its spread; held on
+   * (the app did not switch, e.g. not in scan mode), it is reported again after the same time
+   */
+  private onUpcomingImage(name: string, found: boolean): void {
+    const spreadId = this.spreadOf.get(name);
+    if (!spreadId) return;
+    if (!found) {
+      this.seenSince.delete(name);
+      return;
+    }
+    const now = performance.now();
+    const since = this.seenSince.get(name);
+    if (since === undefined) {
+      this.seenSince.set(name, now);
+      console.info(`[8th Wall] Target of ${spreadId} in view (current spread: ${this.poses.size} found)`);
+      return;
+    }
+    if (now - since < SPREAD_SEEN_MS || this.poses.size > 0) return;
+    this.seenSince.set(name, now);
+    console.info(`[8th Wall] ${spreadId} held in view – switching`);
+    this.options.onSpreadSeen?.(spreadId);
+  }
+
+  private module(): XrPipelineModule {
+    return {
+      name: "osct-image-tracker",
+      onStart: ({ canvasWidth, canvasHeight }) => {
+        this.setProjectionSize(canvasWidth, canvasHeight);
+        this.startWaiter?.resolve();
+      },
+      onCanvasSizeChange: ({ canvasWidth, canvasHeight }) => this.setProjectionSize(canvasWidth, canvasHeight),
+      onCameraStatusChange: ({ status, reason }) => {
+        if (status === "failed") this.startWaiter?.reject(new Error(`Camera unavailable: ${reason ?? "failed"}`));
+      },
+      onException: error => {
+        console.error("[8th Wall]", error);
+        this.startWaiter?.reject(error instanceof Error ? error : new Error(String(error)));
+      },
+      onUpdate: ({ processCpuResult }) => {
+        if (processCpuResult.reality) this.onFrame(processCpuResult.reality);
+      },
+      listeners: [
+        {
+          event: "reality.imagescanning",
+          process: ({ detail }) => {
+            (detail?.imageTargets ?? []).forEach((target: { name: string }) => this.ready.add(target.name));
+            this.scanningWaiter?.();
+          },
+        },
+        { event: "reality.imagefound", process: ({ detail }) => this.onImage(detail, true) },
+        { event: "reality.imageupdated", process: ({ detail }) => this.onImage(detail, true) },
+        { event: "reality.imagelost", process: ({ detail }) => this.onImage(detail, false) },
+      ],
+    };
   }
 }
