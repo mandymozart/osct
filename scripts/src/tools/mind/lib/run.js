@@ -16,10 +16,11 @@ export function imageLine(r) {
 }
 
 /**
- * Compile `queue` (images from targets.js). { browser, jobs, gpu, cache: write results to image.cache }
+ * Compile `queue` (images from targets.js). { browser, jobs, gpu, cache: write results to image.cache,
+ * quiet: no line per image }
  * → { results[{ ...image, mind, ms, detectMs, trackMs, keyframes, points }], wall }
  */
-export async function compileQueue(queue, { browser, jobs: jobCount, gpu, cache = true }) {
+export async function compileQueue(queue, { browser, jobs: jobCount, gpu, cache = true, quiet = false }) {
   const images = new Map(queue.map(image => [path.basename(image.cache), image.file]));
   const totalPixels = queue.reduce((n, image) => n + image.pixels, 0);
   const results = [];
@@ -72,7 +73,7 @@ export async function compileQueue(queue, { browser, jobs: jobCount, gpu, cache 
           donePixels += image.pixels;
           job.image = null;
           results.push(r);
-          log(imageLine(r));
+          if (!quiet) log(imageLine(r));
         }
       }),
     );
