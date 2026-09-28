@@ -1,8 +1,8 @@
 {
   "version": {
-    "version": "1.4.1",
-    "timestamp": "2026-09-28T11:10:53.771Z",
-    "hash": "57a1dd67c41fd65d8c38621203d8633ce5a5ba4c4ab99b2030c399e03b38f4ee"
+    "version": "1.4.2",
+    "timestamp": "2026-09-28T11:29:42.901Z",
+    "hash": "19b72224d0322a2d8a4610da608b87a5840a8648cdbd53c49e7863ce4fc00512"
   },
   "book": {
     "id": "osct",
