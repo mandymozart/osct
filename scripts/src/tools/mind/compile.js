@@ -42,7 +42,7 @@ import { chromium } from "playwright-core";
 import { parseOptions } from "../lib/cli.js";
 import { saveVersion } from "./versions.js";
 
-const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const ROOT = path.resolve(SCRIPTS, "..");
 const MINDAR_DIR = path.join(ROOT, "mind-ar");
 const SPREADS_DIR = path.join(ROOT, "content/spreads");

@@ -17,7 +17,8 @@ export function hashBuildInputs(version: string): string {
   hash.update(`version:${version}\n`);
   const sharedDir = path.join(projectRoot, 'shared');
   for (const [label, dir] of [['content', CONTENT_DIR], ['scripts', SCRIPTS_SRC_DIR], ['shared', sharedDir]] as const) {
-    for (const file of listFiles(dir)) {
+    // src/tools/ are commands run by hand (compile .mind, sounds) – they don't shape the output
+    for (const file of listFiles(dir).filter(f => !(label === 'scripts' && f.startsWith('tools/')))) {
       let data = fs.readFileSync(path.join(dir, file));
       if (TEXT_FILE.test(file)) {
         data = Buffer.from(data.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
