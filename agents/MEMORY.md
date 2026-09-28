@@ -4,6 +4,32 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Look-around world / world tracking research (Tilman)
+
+- Idea (Tilman): a reader who turns the phone from the book (e.g. to the sky) ends up inside an **alien coffee
+  shop** – like 8th Wall's `aframe-sky-effects-example`. Question: can image tracking and world tracking be combined?
+- The shipped engine `@8thwall/engine` (MIT) has **image targets only**: no SLAM, no sky segmentation
+  (`LayersController` does not occur in the package); `ar/tracker.ts` runs with `disableWorldTracking: true`.
+- SLAM + image targets + Sky Effects together exist only in 8th Wall's **engine binary** (github.com/8thwall/engine,
+  limited-use licence): no products offered for a fee whose value comes substantially from the software, no
+  changes to it, credit to Niantic Spatial, either side may end it with 5 days' notice (then the binary must be
+  removed). Too risky for a book sold for years → **not used**.
+- A sky or a room around the reader is far away: rotation (gyroscope, 3DoF) is enough to feel inside it, on iOS
+  and Android, with the current engine. Walking around inside it (6DoF) is not possible this way.
+- **Decided:** 3DoF look-around, part of **Phase 10 (later, concept first)** – nothing built now, Phase 14 stays the
+  focus. Work on branch `spatialisation`.
+- Other engines compared (same day): Blippar WebAR SDK (image tracking on top of its SLAM – the one web option with
+  both at once, paid), Zappar (switches image ↔ world), WebXR + App Clip (Variant Launch; WebXR takes the camera
+  from the tracker), AlvaAR (SLAM in WASM, GPL-3.0 – would make the app GPL), native app. Onirix closes 09/2026.
+- **Then built (Tilman: "do 1 and 3 together", sandbox branch, no permission questions)** – 1.5.0 on
+  `spatialisation`: level 1 = café anchored to the book's direction (from the page anchors × device orientation),
+  turned by the gyroscope, re-anchored on each find; level 3 = own sky key on the engine's camera video (the engine
+  plays the stream in a hidden `<video>` next to its canvas – `ImageTracker.cameraVideo`). Rendered into its own
+  target and composed under the AR scene (`ArView.underlay`) – same renderer, a second three.js `Scene` (RULES #4
+  amended). Checked on the desktop with a synthetic camera; not yet on a phone.
+- [ ] Open: café is a procedural placeholder in code (`ar/look-around/alien-cafe.ts`) – move to content when the
+  concept is decided (RULES #5).
+
 ## 2026-09-28 – 1.3.2: MindAR leftovers cleaned up (Tilman)
 
 - Targets are keyed by **id** everywhere (tracker `onUpdate(targetId)`, scene anchors, poses): MindAR's

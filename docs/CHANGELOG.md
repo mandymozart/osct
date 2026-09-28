@@ -12,6 +12,18 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.5.0 – 2026-09-28
+
+### Added
+- **Look-around world** (prototype, scan mode): once a page has been found, an alien coffee shop surrounds the
+  reader. It is tied to where the book was seen and turns with the phone (gyroscope, rotation only – walking does
+  not move through it). The book stays visible through a soft window; every new find sets the café back in place.
+  The café's roof is open, and it fades away 45 s after the last page was seen.
+- **Alien sky**: looking up, sky-coloured parts of the camera picture (blue, or bright grey and smooth) show an
+  alien sky with moons and a ringed planet – buildings, trees and people stay real.
+- Tuning on the device: `window.osctLookAround` (café opacity, sky strength, fade times, window size);
+  `localStorage["osct-look-around"] = "off"` switches it off. On iPhone the first tap asks for motion access.
+
 ## 1.4.2 – 2026-09-28
 
 ### Changed

@@ -867,6 +867,18 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
 - [ ] Floor / surface tracking (6DoF): WebXR `immersive-ar` (hit test, anchors) – Android Chrome only,
   the WebXR session takes over the camera (MindAR stops while it runs); iOS Safari has no WebXR AR.
   Alternatives: a commercial web SDK with world tracking (licence), or a native app later.
+  8th Wall's engine binary has SLAM + image targets + Sky Effects together, but its licence (no paid products
+  whose value comes substantially from it, no changes, credit, 5-day termination) rules it out; the MIT engine
+  has neither SLAM nor sky segmentation (MEMORY 2026-09-28).
+- [~] **Look-around world ("alien coffee shop")** (Tilman 2026-09-28, 3DoF, branch `spatialisation`) – prototype
+  built in 1.5.0 (`ar/look-around/`): level 1 = café anchored to the book + gyroscope (book in a soft window,
+  re-anchored on every find, open roof, gone 45 s after the last page); level 3 = sky key on the camera video
+  (colour + smoothness, only above the horizon). Procedural placeholder café (`alien-cafe.ts`, no assets).
+  - [ ] Phone test (Tilman's walk): gyroscope axes, window position vs the book, sky key outdoors, frame rate.
+  - [ ] iPhone: motion permission on the first tap, the engine's hidden camera video as a texture.
+  - [ ] Concept: one world for the book or per spread, café vs sky only, sound, when it ends; content format
+        (in `content/`, swappable – RULES #5) instead of the procedural placeholder.
+  - Level 2 (own world tracking from the MIT engine's feature code) not planned – months, specialist.
 - [ ] Decide per content which objects may leave the page (a flag in `entity.params`?).
 
 ---
