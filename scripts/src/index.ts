@@ -76,9 +76,6 @@ console.log('📁 Project root:', projectRoot);
 console.log('📁 Content directory:', CONTENT_DIR);
 console.log('📄 Output file:', OUTPUT_FILE);
 
-/**
- * Recursively delete a directory
- */
 function deleteFolderRecursive(folderPath: string): void {
   if (fs.existsSync(folderPath)) {
     fs.readdirSync(folderPath).forEach((file) => {
@@ -288,7 +285,7 @@ function buildEntity(
     return { ref: e.ref };
   }
   const type = e?.type;
-  // "link" was dropped on 2026-09-25: links are entries (consultation), not AR entities
+  // Links are entries (consultation), not AR entities
   if (!['model', 'video', 'image'].includes(type)) {
     buildErrors.push(`${label}: entity type "${type}" must be one of model, video, image (or use ref)`);
     return undefined;
@@ -523,9 +520,6 @@ function readPreviousHash(): string | null {
   }
 }
 
-/**
- * Main function to generate the config file
- */
 async function generateConfigFile(): Promise<void> {
   try {
     // Skip the build (and keep the timestamp) when nothing that affects the output changed

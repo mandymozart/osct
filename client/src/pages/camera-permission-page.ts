@@ -9,11 +9,9 @@ import { goToScan } from "@/components/tutorial";
 import { adoptDesignStyles } from "@/styles";
 
 /**
- * Camera permission overlay – no route: like `loading-page` it sits outside the pages router and is
- * driven by the store (`cameraPermission`). Shown when camera access is required or was denied.
- *
- * Styled after the onboarding (design p.4 "Grant access" – no own frame): onboarding background, gold
- * text, the camera illustration in gold chrome with a sweeping highlight (`<gold-illustration>`).
+ * Camera permission overlay. Has no route: like `loading-page` it sits outside the pages router and is
+ * driven by the store (`cameraPermission`). Shown while camera access is being requested or is unavailable;
+ * explains how to re-enable it per browser. Uses the onboarding look with a gold camera illustration.
  */
 export class CameraPermissionPage extends Page {
   protected game: Readonly<IGame>;
@@ -74,9 +72,6 @@ export class CameraPermissionPage extends Page {
     );
   }
 
-  /**
-   * Handle permission change events
-   */
   private handlePermissionChange(status: CameraPermissionStatus) {
     this.currentPermissionStatus = status;
 
@@ -115,11 +110,11 @@ export class CameraPermissionPage extends Page {
         align-items: center;
         flex-direction: column;
         text-align: center;
-        pointer-events: none; /* Allow clicks to pass through when inactive */
+        pointer-events: none;
       }
 
       :host([active]) {
-        pointer-events: auto; /* Capture clicks when active */
+        pointer-events: auto;
       }
       .continue { margin-top: 1.5rem; pointer-events: auto; }
 
@@ -145,9 +140,7 @@ export class CameraPermissionPage extends Page {
     return `<gold-illustration src="/assets/illustrations/tutorial-step-2.svg" label="${t("camera:illustration")}"></gold-illustration>`;
   }
 
-  /**
-   * Browser-specific steps to allow the camera again
-   */
+  /** Browser-specific steps to allow the camera again */
   private getSettingsInstructions(): string {
     const browser = detectBrowser();
     const which = browser === "chrome" || browser === "firefox" || browser === "safari" ? browser : "other";
@@ -217,21 +210,21 @@ export class CameraPermissionPage extends Page {
     this.render();
   }
 
-  /** Fades out with the content it had – re-rendering here drew the "denied" text during the fade (flash) */
+  /** Does not re-render: the overlay fades out with its current content (re-rendering would flash other text) */
   private hideOverlay(): void {
     this.removeAttribute('active');
   }
 
   /**
-   * Onboarding: above the page (else "Grant access" would seem to do nothing); scan mode: behind the header
-   * and the spread menu. Set inline – a toggled :host([attribute]) rule was not re-evaluated reliably.
+   * Onboarding: above the page (otherwise "Grant access" would seem to do nothing); scan mode: behind the
+   * header and the spread menu. Set inline because a toggled :host([attribute]) rule is not re-evaluated reliably.
    */
   private setOnboarding(onboarding: boolean) {
     this.toggleAttribute("onboarding", onboarding);
     this.style.zIndex = onboarding ? "2000" : "-1";
   }
 
-  /** Onboarding: go on without the camera – scan mode shows this screen again (behind its chrome) */
+  /** "Reload" reloads the app; "Continue" goes on to scan mode without the camera (which shows this screen again behind its chrome) */
   private handleClick = (event: Event) => {
     const target = event.target as HTMLElement;
     if (target.closest("[data-action=reload]")) {

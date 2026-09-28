@@ -5,10 +5,10 @@ import { categoryLabel, linkEmbed } from "./entries-model";
 import { t } from "i18next";
 
 /**
- * One entry (design p.15, 20, 25, 30–31): meta table (name, access page, category, author for texts),
- * then per category – glossary: text + image; text: long text; video: a note to scan the access page +
- * a preview player (to check rendering); link: embedded player/page + "open in a new tab".
- * The page sets `entry`; `null` empties it (stops media).
+ * One entry: meta table (name, access page, category, author for texts), then per category –
+ * glossary: text + image; text: long text; video: a note to scan the access page + a preview player;
+ * link: embedded player/page + "open in a new tab".
+ * The page sets `entry`; `null` empties it and stops media.
  */
 export class EntryDetail extends HTMLElement {
   private _entry: Entry | null = null;

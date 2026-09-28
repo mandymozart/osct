@@ -7,10 +7,7 @@ import "@/components/tutorial";
 /** Fallback duration of a splash step without `advance` */
 const STEP_MS = 2000;
 
-/**
- * The splash = the leading onboarding steps without a button (content: today Mark + title, then title,
- * author and publisher fading in – design p.1–2).
- */
+/** The splash: the leading onboarding steps before the first step with a button */
 export const getSplashSteps = (steps: readonly Step[] = getTutorial()): Step[] => {
   const sorted = [...steps].sort((a, b) => a.index - b.index);
   const firstWithButton = sorted.findIndex(step => step.button);
@@ -18,10 +15,9 @@ export const getSplashSteps = (steps: readonly Step[] = getTutorial()): Step[] =
 };
 
 /**
- * Start (`/`) for returning readers (Tilman 2026-09-26, replaces the home page with Start / Tutorial):
- * the splash plays – each step for its `advance` time, a tap skips ahead – then scan mode opens on the
- * last spread. A first visit gets the whole onboarding instead (`/tutorial`, see main.ts); the tutorial
- * itself is in Info → Settings.
+ * Start page (`/`) for returning readers: the splash plays – each step for its `advance` time, a tap
+ * skips ahead – then scan mode opens on the last spread. A first visit gets the whole onboarding instead
+ * (`/tutorial`, see main.ts); the tutorial stays reachable from Info → Settings.
  */
 export class SplashPage extends Page {
   private steps: Step[] = getSplashSteps();
@@ -50,10 +46,10 @@ export class SplashPage extends Page {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark 88 px from the top, as the onboarding */
+        padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark position as in the onboarding, see DESIGN.md §3 */
         box-sizing: border-box;
       }
-      /* As the onboarding: the text block reaches down to 58 % – the footer (publisher) sits there, design p.2 */
+      /* As the onboarding: the text block reaches down to 58 % of the screen, where the footer sits */
       tutorial-content {
         flex: 1 0 auto;
         width: 100%;
@@ -83,9 +79,9 @@ export class SplashPage extends Page {
   }
 
   /**
-   * Starts once the app has loaded – at startup the loading screen would hide the first step. The static
-   * splash (index.html) already shows the first step: then it continues with the next one, after the
-   * static splash is gone (no further step: scan mode opens underneath right away).
+   * Timing starts once the app has loaded, since the loading screen would hide the first step. When the
+   * static splash (index.html) already showed the first step, playback continues with the next one after
+   * the static splash is gone (with no further step, scan mode opens underneath right away).
    */
   private play() {
     this.stop();

@@ -6,19 +6,19 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
 import { renderStaticSplash } from './src/utils/static-splash-html.ts';
 
-// One version for app and content build (agents/RULES.md #10). Read directly:
+// One version for app and content build (RULES.md #10). Read from package.json because
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
 const APP_VERSION = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
 // The content build's checksum: the service worker keeps one content cache per content build
 const GAME_CONFIG = JSON.parse(readFileSync(resolve(import.meta.dirname, 'src/game.config.json'), 'utf8'));
 
 /**
- * PWA (2026-09-26): web app manifest + service worker (sw/service-worker.ts, precache list injected here).
- * Home-screen name: `book.title` from the game configuration (also the iOS title in index.html); black like
- * the app.
- * Icons: placeholders made from Mark the Page (public/assets/icons/) until the final app icon arrives –
- * "any" icons transparent (Chrome's app list / install dialog), the maskable one on black (Android always
- * cuts it into the launcher's shape and fills the rest), apple-touch-icon opaque (iOS requires it).
+ * PWA: web app manifest + service worker (sw/service-worker.ts, precache list injected here).
+ * Home-screen name: `book.title` from the game configuration (also the iOS title in index.html); black
+ * background like the app.
+ * Icons (public/assets/icons/, placeholders until the final app icon): "any" icons transparent (Chrome's app
+ * list / install dialog), the maskable one on black (Android crops it to the launcher shape and fills the
+ * rest), apple-touch-icon opaque (iOS requires it).
  */
 function pwa() {
   const title = GAME_CONFIG.book?.title ?? 'Onion Skin & Crocodile Tears';
@@ -31,11 +31,11 @@ function pwa() {
     srcDir: 'sw',
     filename: 'service-worker.ts',
     includeManifestIcons: false, // already in the glob below
-    injectRegister: false, // services/ServiceWorkerService.ts registers it (after the app is ready)
+    injectRegister: false, // services/ServiceWorkerService.ts registers it after page load
     manifest: {
       id: '/',
       name: title,
-      short_name: title, // Tilman 2026-09-27 – phones may cut it short on the home screen
+      short_name: title, // the full title; phones may truncate it on the home screen
       description: "Augmented reality companion to Kévin Bray's book Onion Skin & Crocodile Tears (Building Fictions).",
       lang: 'en',
       start_url: '/',
@@ -51,7 +51,7 @@ function pwa() {
       ],
     },
     injectManifest: {
-      // App shell only – content (assets/content/) is cached when used; dev tools (assets/deps/) never
+      // App shell only: content (assets/content/) is cached on first use; dev tools (assets/deps/) never
       globPatterns: [
         'index.html',
         'assets/app/**/*.{js,css}',
@@ -81,9 +81,9 @@ function getLocalIP() {
 }
 
 /**
- * Static splash (Phase 9): the first onboarding step as plain HTML in index.html, from the game configuration
- * (book fields, step timing), so it paints before any script. English Mark alt / loading label (the app
- * translates them once it runs).
+ * Static splash: the first onboarding step as plain HTML in index.html, rendered from the game configuration
+ * (book fields, step timing) so it paints before any script runs. Mark alt text and loading label are
+ * English; the app translates them once it runs.
  */
 function staticSplash() {
   const read = (file) => JSON.parse(readFileSync(resolve(import.meta.dirname, file), 'utf8'));
@@ -104,9 +104,8 @@ function staticSplash() {
 }
 
 /**
- * Sizes of the content files (`virtual:osct-content-sizes`): the whole-book download on the Info page shows
- * the total before it starts and its progress in bytes (PreloaderService). Every file under
- * public/assets/content, by URL.
+ * Content file sizes (`virtual:osct-content-sizes`): every file under public/assets/content, by URL. Lets the
+ * whole-book download (PreloaderService) show the total size up front and progress in bytes.
  */
 function contentSizes() {
   const id = 'virtual:osct-content-sizes';
@@ -125,9 +124,9 @@ function contentSizes() {
 
 export default defineConfig(({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
-  const port = 5173; // Default Vite port, change if you're using a custom port
-  // Dev server over https (Tilman): the camera needs https on a phone – http only works on localhost.
-  // Self-signed certificate, the phone asks once to accept it. `npm run dev:http` (mode "http") for plain
+  const port = 5173;
+  // Dev server over https: phones only grant camera access on https (http works on localhost only).
+  // Self-signed certificate, accepted once on the phone. `npm run dev:http` (mode "http") serves plain
   // http on localhost (e.g. automated browser checks). Builds are unaffected (the host serves https).
   const https = command === 'serve' && mode !== 'http';
 
@@ -163,8 +162,8 @@ export default defineConfig(({command,mode})=>{
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
-    // terser minifies a few percent smaller than esbuild (Lighthouse "Minify JavaScript", 2026-09-26);
-    // two passes, the inlined MindAR worker and TF.js shader strings stay as they are
+    // terser minifies a few percent smaller than esbuild; two passes. The inlined MindAR worker and TF.js
+    // shader strings are left as they are
     minify: 'terser',
     terserOptions: { compress: { passes: 2 } },
     // The AR chunks (three.js ~600 kB, MindAR with TF.js ~1.8 MB) are large by nature and load lazily
@@ -174,7 +173,7 @@ export default defineConfig(({command,mode})=>{
         main: resolve(import.meta.dirname, 'index.html')
       },
       output: {
-        // TF.js's @license headers stay in the chunks, as before Vite 8 (Rolldown drops them by default)
+        // Keep TF.js's @license headers in the chunks (Rolldown drops them by default)
         comments: { legal: true },
         // The AR code (only reached through import("./ar"), loaded on the first scan): three.js and MindAR
         // (TF.js) in two chunks that download in parallel

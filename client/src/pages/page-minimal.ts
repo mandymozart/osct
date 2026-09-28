@@ -12,7 +12,8 @@ export interface IPageMinimal extends HTMLElement {
 }
 
 /**
- * Page with minimal styling but access to game store and router enabled visibility.
+ * Base page without a visual frame: access to the game store and visibility driven by the router's
+ * `active` attribute. Subclasses provide `styles` and `template`.
  */
 export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
     protected _active: boolean;
@@ -40,16 +41,9 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
       this.setAttribute("active", value.toString());
     }
 
-    /**
-     * Handle attribute changes
-     * @param name The name of the attribute that changed
-     * @param oldValue The previous value of the attribute
-     * @param newValue The new value of the attribute
-     */
     attributeChangedCallback(name: string, oldValue: string, newValue: string): void {
       if (name === 'active' && oldValue !== newValue) {
         this._active = newValue === 'true';
-        // Additional handling for active state could be done here
       }
     }
 
@@ -82,9 +76,7 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
       `;
     }
 
-    /**
-     * Additional styles - must be implemented by child classes
-     */
+    /** Page-specific styles, appended after `baseStyles` */
     public abstract get styles(): string;
   
     connectedCallback() {
@@ -97,12 +89,10 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
     }
   
     public render() {
-      // Clear existing content
       while (this.shadowRoot!.firstChild) {
         this.shadowRoot!.removeChild(this.shadowRoot!.firstChild);
       }
       
-      // Create template content
       this._template.innerHTML = /* html */ `
         <style>
           ${this.baseStyles}
@@ -111,7 +101,6 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
         ${this.template}
       `;
       
-      // Clone and append template
       this.shadowRoot!.appendChild(this._template.content.cloneNode(true));
     }
 

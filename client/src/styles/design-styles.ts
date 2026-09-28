@@ -1,24 +1,22 @@
 /**
- * Shared design primitives (design 260804, measured spec: agents/DESIGN.md §7).
- *
- * One stylesheet for every design component: tokens live in `main.css` (:root), the primitives here,
- * components keep only their layout. Adopted into shadow roots with `adoptDesignStyles()` – one
- * CSSStyleSheet instance for all of them (survives `innerHTML` re-renders).
+ * Shared design primitives (spec: agents/DESIGN.md §7). Tokens live in `main.css` (:root); components keep
+ * only their layout. `adoptDesignStyles()` adopts one shared CSSStyleSheet into each shadow root, so it
+ * survives `innerHTML` re-renders.
  *
  * Primitives:
- *   .design      font, tracking, size, line height of the design
- *   .gold        gold gradient text (DESIGN.md §5, option A: per element, left → right)
- *   .muted       grey #8b8d8c
- *   .button      onboarding button: black body, white glow, gold label (<span class="gold">)
- *   .pill        glass pill: almost transparent + backdrop blur + dark drop shadow, gold label
- *   .icon-button round glass button ("i")
- *   .switch      on / off switch (checkbox role="switch"): glass pill track, knob gold when on;
- *                .switch-row = the label row around it (text left, switch right)
- *   .field       text input: glass pill with a muted rule, white text, gold focus ring (email, code)
- *   .primary     modifier for .button / .pill: shining label + border sweep (animated); without it = secondary
- *   .rule-table  consultation meta table (1 px rules, muted labels, white values, 24 px rows)
- *   .section-title  muted title between two rules ("Info", "Colophon")
- *   .gold-spinner   gold loader ring (styles/gold-spinner.css – also used by the startup loader)
+ *   .design         design font, tracking, size and line height
+ *   .gold           gold gradient text (per element, left to right; DESIGN.md §5)
+ *   .muted          muted grey text
+ *   .button         onboarding button: black body, white glow, gold label (<span class="gold">)
+ *   .pill           glass pill: near-transparent, backdrop blur, bronze glow, gold label
+ *   .icon-button    round glass button ("i")
+ *   .switch         on/off switch (checkbox role="switch"), knob gold when on;
+ *                   .switch-row is the surrounding label row (text left, switch right)
+ *   .field          text input: glass pill with a muted rule, gold focus border
+ *   .primary        modifier for .button / .pill: animated label shine and border sweep; absent = secondary
+ *   .rule-table     meta table with 1 px rules, muted labels, white values
+ *   .section-title  muted title between two rules
+ *   .gold-spinner   gold loader ring (from styles/gold-spinner.css, shared with the startup loader)
  */
 import goldSpinnerCss from "./gold-spinner.css?inline";
 
@@ -38,7 +36,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     color: transparent;
     -webkit-text-fill-color: transparent;
   }
-  /* Children show the parent's gradient (e.g. one gradient across the whole entries list) */
+  /* Descendants inherit the parent's gradient instead of starting their own. */
   .gold :where(*) {
     color: inherit;
     -webkit-text-fill-color: inherit;
@@ -60,8 +58,8 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
   }
 
   .button {
-    min-width: 9.5rem;              /* 79 pt ≈ 151 px */
-    min-height: 1.95rem;            /* 16 pt ≈ 31 px */
+    min-width: 9.5rem;
+    min-height: 1.95rem;
     padding: 0 1.5rem;
     border-radius: 999rem;
     background: #000;
@@ -74,15 +72,15 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     background: var(--glass-background);
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
-    box-shadow: var(--shadow-bronze);   /* the light glow of the category pill – on every pill (Tilman) */
+    box-shadow: var(--shadow-bronze);
   }
   .pill {
-    min-height: 1.8rem;             /* 15 pt ≈ 29 px */
+    min-height: 1.8rem;
     padding: 0 1rem;
     border-radius: 999rem;
   }
   .icon-button {
-    width: 2.15rem;                 /* Ø 17.9 pt ≈ 34 px */
+    width: 2.15rem;
     height: 2.15rem;
     border-radius: 50%;
   }
@@ -108,7 +106,6 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     align-items: center;
     justify-content: space-between;
     gap: .75rem;
-    /* Each option clearly by itself (Tilman 2026-09-27): two lines of text fit, .5rem above and below */
     box-sizing: border-box;
     min-height: 4rem;
     padding: .5rem 0;
@@ -161,11 +158,6 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
   .pill:active,
   .icon-button:active { transform: scale(.97); }
 
-  /*
-   * Primary action (Continue, Grant access, Access scan, Start, Resume): the label shines like the gold
-   * illustrations and a highlight runs along the border like the skeleton-loader sweep. Without
-   * .primary a button is secondary (Tutorial, Dismiss, Entries …). Combine with .button or .pill.
-   */
   .primary { position: relative; isolation: isolate; }
   .primary .gold {
     background-image:
@@ -179,13 +171,12 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     position: absolute;
     inset: 0;
     z-index: -1;
-    padding: 0.0625rem;              /* border width */
+    padding: 0.0625rem;              /* ring width of the masked border sweep */
     border-radius: inherit;
     background:
       linear-gradient(110deg, transparent 35%, var(--gold-1) 48%, var(--gold-3) 52%, transparent 65%)
       0 0 / 300% 100% no-repeat,
       linear-gradient(90deg, rgba(210, 174, 90, .25), rgba(210, 174, 90, .25));
-    /* Only the ring between border box and content box stays visible */
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);

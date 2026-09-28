@@ -7,13 +7,11 @@ import { goldButton } from "@/components/buttons";
 import { t } from "i18next";
 
 /**
- * Top chrome, per mode (design 260804):
- * - IDLE (home, tutorial): nothing (the former name line "Kevin Bray — Onion Skin and Crocodile Tears"
- *   was removed on 2026-09-25 – previous design iteration).
- * - SCAN: Mark the Page + counter (frame 6).
- * - CONSULTATION: Mark + "i" → Info (= about, frames 15, 17, 32); the counter
- *   with "Entries consulted" only on the entries list (frame 17). "Entries" (back to the list) is in the
- *   entry view and Info pages, where the entries list has its category pill (ConsultationPage).
+ * Top chrome, per mode (reflected in the `mode` and `page` attributes):
+ * - IDLE (home, tutorial): nothing.
+ * - SCAN: Mark the Page + counter.
+ * - CONSULTATION: Mark + "i" (→ About); the counter with "Entries consulted" only on the entries list.
+ *   The "Entries" back button lives in ConsultationPage, not here.
  */
 export class GameHeader extends HTMLElement {
   private game: Readonly<IGame>;
@@ -52,20 +50,18 @@ export class GameHeader extends HTMLElement {
                     top: 0;
                     left: 0;
                     right: 0;
-                    /* Mark 1rem from the top of the page area, level with the "i" (Tilman 2026-09-27).
-                       The dev debug line lies over it and moves nothing – as in the final app. */
+                    /* 1rem below the safe area, level with the "i"; the dev debug line overlays it without shifting it */
                     padding-top: calc(env(safe-area-inset-top) + 1rem);
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     gap: .25rem;
                     pointer-events: none;
-                    /* above the pages (consultation pages cover the whole screen) */
+                    /* above the full-screen consultation pages */
                     z-index: 1100;
                 }
 
-                /* The visible Mark 1rem from the top: up by the image's transparent margin; the counter
-                   below keeps its place */
+                /* Compensates the Mark image's transparent top margin; the counter below keeps its place */
                 mark-the-page {
                     margin-top: calc(-1 * var(--mark-inset-top));
                     margin-bottom: var(--mark-inset-top);
@@ -77,9 +73,7 @@ export class GameHeader extends HTMLElement {
                     position: absolute;
                     pointer-events: all;
                 }
-                /* Frame 20 (Tilman 2026-09-27), measured from the top of the page area – below the status bar
-                   in the home-screen app (DESIGN.md §3): "i" in the top right corner, the same gap above and
-                   to the right */
+                /* Same gap above and to the right, counted below the safe area (DESIGN.md §3) */
                 .info {
                     top: calc(env(safe-area-inset-top) + 1rem);
                     right: 1rem;

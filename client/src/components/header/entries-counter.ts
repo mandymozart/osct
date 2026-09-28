@@ -3,9 +3,7 @@ import { IGame } from "@/types";
 import { getEntries } from "@/utils/game-config";
 import { t } from "i18next";
 
-/**
- * Header counter "12 / 150" = consulted entries / total entries (PLAN Phase 3, decided).
- */
+/** Header counter "12 / 150": consulted entries / total entries; re-renders on progress changes. */
 export class EntriesCounter extends HTMLElement {
   private game: Readonly<IGame>;
   private unsubscribe: (() => void) | null = null;

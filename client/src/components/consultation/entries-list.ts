@@ -6,9 +6,8 @@ import { DEFAULT_CATEGORY, entryLabel, groupEntries } from "./entries-model";
 import { t } from "i18next";
 
 /**
- * Entries of one category (design p.17, 19, 24, 29): sorted by title, the glossary grouped by letter, one
- * gold gradient across the whole list. The page passes the visible entries (`setEntries`); tap → the entry
- * view.
+ * Entries of one category: sorted, the glossary grouped by letter, one gold gradient across the whole
+ * list. The page passes the visible entries (`setEntries`); tapping an entry opens the entry view.
  */
 export class EntriesList extends HTMLElement {
   private game: Readonly<IGame>;
@@ -62,7 +61,6 @@ export class EntriesList extends HTMLElement {
           cursor: pointer;
         }
         .row .label { flex: 1; }
-        /* Locked (dev only): grey instead of the list's gold */
         .row.locked { color: var(--color-muted); -webkit-text-fill-color: var(--color-muted); }
         .row .locked-note { font-size: var(--text-size-small); }
         .letter {
@@ -82,7 +80,7 @@ export class EntriesList extends HTMLElement {
       return `<p class="empty">${t("entries:empty")}</p>`;
     }
     const groups = groupEntries(this.entries, this.category);
-    // One gold gradient across the whole list (frames 17/19/24: titles run from pale to gold)
+    // One gradient spans the whole list, so titles run from pale to gold top to bottom
     return `<ul class="gold">${groups
       .map(g => `${g.letter ? `<li class="letter" aria-hidden="true">${g.letter}</li>` : ""}${g.entries.map(e => this.rowHtml(e)).join("")}`)
       .join("")}</ul>`;

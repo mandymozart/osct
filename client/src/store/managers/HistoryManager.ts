@@ -11,9 +11,9 @@ import { ProgressReadStatus, createProgressRecord, mergeProgress, readProgress }
 import { t } from "i18next";
 
 /**
- * Progress of the reader in this book (PLAN Phase 2): unlocked targets, consulted entries,
- * last spread / category, onboarding – one record per book, keyed by stable ids.
- * Loaded at startup; every change is saved through the storage adapter.
+ * Reader progress for the current book: unlocked targets, consulted entries, last spread /
+ * category, onboarding – one record per book, keyed by stable content ids.
+ * Loaded at startup; every change is saved immediately through the storage adapter.
  */
 export class HistoryManager implements IHistoryManager {
   private game: IGame;
@@ -25,7 +25,7 @@ export class HistoryManager implements IHistoryManager {
     this.game = game;
     this.storage = storage;
     this.load();
-    // Keep going where the reader left off: the last spread becomes the active one (a link overrides it)
+    // Resume where the reader left off: the last spread becomes active (a deep link overrides it)
     const last = this.progress.lastSpreadId;
     if (last && getSpread(last) && last !== this.game.state.currentSpread) this.game.spreads.switchSpread(last);
     this.game.subscribeToProperty('currentSpread', (spreadId) => {
@@ -41,7 +41,7 @@ export class HistoryManager implements IHistoryManager {
 
   /**
    * Load the progress record: current format as is, an older format converted and saved in the
-   * current one.
+   * current one. Appends the app version to the record's version history when it changed.
    */
   public load(): void {
     const bookId = getBook().id;
@@ -79,6 +79,10 @@ export class HistoryManager implements IHistoryManager {
     });
   }
 
+  /**
+   * Take over a record from outside (account sync): merge into or replace the local one.
+   * Rejects empty, unreadable and other-book records.
+   */
   public applyStoredRecord(raw: unknown, mode: 'merge' | 'replace'): boolean {
     const { record, status } = readProgress(raw, this.progress.bookId);
     if (status === 'new' || status === 'unreadable' || record.bookId !== this.progress.bookId) return false;
@@ -88,7 +92,7 @@ export class HistoryManager implements IHistoryManager {
     return true;
   }
 
-  /** Also records the target's spread as the last spread (the initial spread never "changes") */
+  /** Also records the target's spread as the last spread: the initial spread never triggers a `currentSpread` change */
   public unlockTarget(targetId: string): void {
     if (this.isUnlocked(targetId)) return;
     const spreadId = getTarget(targetId)?.spreadId;
@@ -115,6 +119,7 @@ export class HistoryManager implements IHistoryManager {
     return entryId in this.progress.consulted;
   }
 
+  /** Counts only consulted ids that still exist in the content */
   public getConsultedCount(): number {
     return Object.keys(this.progress.consulted).filter(id => getEntry(id)).length;
   }
@@ -129,6 +134,7 @@ export class HistoryManager implements IHistoryManager {
     this.change(draft => { draft.onboarded = true; });
   }
 
+  /** Ids in the record that no longer exist in the content */
   public getMissingIds(): { targets: string[]; entries: string[] } {
     const { unlocked, consulted } = this.progress;
     return {
@@ -137,13 +143,11 @@ export class HistoryManager implements IHistoryManager {
     };
   }
 
-  /**
-   * Percentage of unlocked targets in a spread
-   */
+  /** Percentage of unlocked targets in a spread; a spread without targets counts as complete */
   public getSpreadCompletionPercentage(spreadId: string): number {
     if (!getSpread(spreadId)) return 0;
     const totalTargets = getTargets(spreadId).length;
-    if (totalTargets === 0) return 100; // No targets = 100% complete
+    if (totalTargets === 0) return 100;
     return Math.round((this.getUnlockedTargets(spreadId).length / totalTargets) * 100);
   }
 

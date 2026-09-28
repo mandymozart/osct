@@ -167,6 +167,12 @@ Extend as we go: add a rule when a decision should hold for all future work.
   `game.config.json` must match the content (rebuild + commit after content/version changes),
   client `tsc` + `vitest`.
 
+22. **Code comments** (Tilman, 2026-09-28): describe what a unit is responsible for, its business rules and
+    contract (events, state, attributes), and non-obvious *why* – in neutral, present-tense English. No
+    names, dates, design page/frame numbers, PLAN phases, quotes or history; decisions go to `MEMORY.md`,
+    measured values to `DESIGN.md`, invariants here. CSS: no comments unless a rule would otherwise be
+    "fixed" wrongly (one short line). Keep the `/* html */` / `/* css */` template markers.
+
 ## Deployment (from old rules)
 - Staging: Netlify · Production: FTP GitHub action to remote server
 - Build: `npm run build`, publish `dist`, SPA

@@ -1,4 +1,4 @@
-// store/ imports these by file (a barrel import there would cycle: GameStoreService → GameStore → managers)
+// store/ imports services by file: importing this barrel there would cycle (GameStoreService → GameStore → managers)
 export * from "./GameStoreService";
 export * from "./PreloaderService";
 export * from "./ProgressStorage";

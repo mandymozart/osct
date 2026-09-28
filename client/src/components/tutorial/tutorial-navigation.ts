@@ -7,9 +7,9 @@ import { goldButton } from "@/components/buttons";
 const tutorial = getTutorial();
 
 /**
- * Onboarding step button (design p.3–5): black pill with a white glow. The step's `action` decides
- * what it does: `next` (default) → next step, `camera` → ask for camera access, then the next step,
- * `scan` → scan mode. Steps without a button show nothing here (the page advances them).
+ * Onboarding step button. The step's `action` decides what a tap does: `next` (default) → next step,
+ * `camera` → request camera access, then the next step, `scan` → scan mode. Renders nothing for steps
+ * without a button; the page advances those.
  */
 export class TutorialNavigation extends HTMLElement implements ITutorialNavigation {
   private currentStep = 0;
@@ -53,7 +53,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host { display: flex; justify-content: center; }
-        /* Fades in after the step's text (times from tutorial-content, which the button sits in) */
+        /* Timing comes from the enclosing tutorial-content (--fade-duration, --actions-delay) */
         .next-button { animation: fade-in var(--fade-duration, 600ms) ease var(--actions-delay, 0ms) both; }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .next-button { animation: none; } }
@@ -74,7 +74,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
     if (action === "camera") {
       this.busy = true;
       button.disabled = true;
-      // Denied: the camera-permission-page overlay explains how to allow it; the step stays
+      // Denied: the step stays; the camera-permission-page overlay explains how to allow access
       const granted = await this.game.camera.requestAccess();
       this.busy = false;
       button.disabled = false;
@@ -84,15 +84,15 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
   }
 }
 
-/** Next onboarding step, or scan mode after the last one */
+/** Navigates to the given onboarding step, or to scan mode after the last one */
 export const goToStep = (game: Readonly<IGame>, index: number) => {
   if (index >= tutorial.length) goToScan(game);
   else game.router.navigate("/tutorial", { key: "step", value: index.toString() });
 };
 
 /**
- * Onboarding ends in scan mode ("Access scan", design p.5; also "Skip"); the route sets the mode.
- * Either way the reader counts as onboarded – the next visit starts at home.
+ * Ends onboarding (last step or "Skip") in scan mode; the route sets the mode. Marks the reader as
+ * onboarded, so the next visit starts at home.
  */
 export const goToScan = (game: Readonly<IGame>) => {
   game.history.setOnboarded();

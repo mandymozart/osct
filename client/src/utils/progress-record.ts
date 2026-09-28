@@ -3,10 +3,9 @@ import { isEntryCategory } from "@shared/guards/game-config";
 import { parseVersion } from "./version";
 
 /**
- * Reading stored progress (PLAN Phase 2, RULES #10): the storage format is the app MAJOR that
- * wrote the record. A new MAJOR keeps one reader per older format that converts it to the
- * current shape – no generic migration framework. The first format is 1 (app 1.x); storage from
- * before (numeric `ar-game-*` keys) is not converted – the app was never deployed publicly.
+ * Storage format of the progress record = the app MAJOR that wrote it (RULES #10). Each new MAJOR adds
+ * one reader per older format that converts it to the current shape; there is no generic migration
+ * framework. Legacy numeric `ar-game-*` keys predate format 1 and are not converted.
  */
 export const PROGRESS_FORMAT = parseVersion(__VITE_APP_VERSION__)?.major ?? 0;
 
@@ -39,10 +38,7 @@ const pick = <T>(value: unknown, isValue: (v: unknown) => v is T): Record<string
 const isNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isString = (v: unknown): v is string => typeof v === "string";
 
-/**
- * Format 1 (app 1.x): the record as defined in `types/history.ts`; drops malformed and unknown fields
- * (e.g. `marked` / `notes` from before bookmarks and notes were removed, 2026-09-25).
- */
+/** Format 1 (app 1.x): the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
 const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
   ...createProgressRecord(bookId),
   appVersions: Array.isArray(raw.appVersions) ? raw.appVersions.filter(isString) : [],
@@ -50,7 +46,7 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
   consulted: pick(raw.consulted, isNumber),
   lastSpreadId: isString(raw.lastSpreadId) ? raw.lastSpreadId : null,
   lastCategory: isEntryCategory(raw.lastCategory) ? raw.lastCategory : null,
-  // Added 2026-09-25 (additive, same format): records without it count as not onboarded
+  // Additive field within format 1: records without it count as not onboarded
   onboarded: raw.onboarded === true,
 });
 
@@ -60,8 +56,8 @@ export const PROGRESS_READERS: Record<number, (raw: Record<string, unknown>, boo
 };
 
 /**
- * Stored record → current record. `raw` null = nothing stored, undefined/garbage = unreadable
- * (also a format this app does not know, e.g. written by a newer app).
+ * Stored record → current record. `raw` null means nothing stored; anything else without a known
+ * format (including one written by a newer app) is unreadable.
  */
 export const readProgress = (raw: unknown, bookId: string): ProgressReadResult => {
   if (raw === null) return { record: createProgressRecord(bookId), status: "new" };
@@ -81,9 +77,8 @@ const union = (a: Record<string, number>, b: Record<string, number>): Record<str
 };
 
 /**
- * Two records of the same book → one (account sync: this device + the account): everything unlocked or
- * consulted on either side (first time wins), onboarded if either was; this device's last spread /
- * category win, the other's fill in.
+ * Merges two records of the same book (account sync): union of unlocked and consulted ids with the
+ * earliest time, onboarded if either was; this device's last spread / category win, the other's fill gaps.
  */
 export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): ProgressRecord => ({
   ...local,

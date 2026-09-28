@@ -4,8 +4,8 @@ import { goldButton } from "@/components/buttons";
 import { t } from "i18next";
 
 /**
- * Overlay for unknown routes and links whose target doesn't exist (anymore) – consultation look
- * (DESIGN.md). "Go to start" leads to the start page.
+ * Overlay for unknown routes and links whose target doesn't exist, in the consultation look.
+ * "Go to start" leads to the start page.
  */
 export class NotFoundPage extends Page {
   get styles(): string {
