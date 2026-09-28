@@ -79,6 +79,24 @@ images at ≥ 1000 px, with texture and contrast** – it helps every tracker, 8
 - **8th Wall** (Niantic): C++ engine compiled to WASM, feature detection in WebGL shaders ("gr8"), ORB descriptors,
   LSH/tree matching, PnP pose. **Open source since 2026** (see 4.D).
 
+### Native tracking from the web? (Tilman, 2026-09-28: "Artivive also runs in the browser")
+
+A web page cannot call ARKit / ARCore directly. The only bridges:
+
+- **WebXR image tracking** (`trackedImages`, ARCore underneath): Chrome on Android, **behind a flag** since 2020 –
+  draft spec, not usable for readers. The WebXR AR session also takes over the camera.
+- **iOS Safari has no WebXR AR at all.** What looks like "native in the browser" on iOS is one of:
+  - **App Clip**: a small native app (≤ 15 MB, ARKit) launched instantly from a link, QR code or NFC tag, no
+    install. Needle's "Needle Go" App Clip does this: it adds WebXR on top of ARKit, so the same web scene runs
+    with native image tracking. Our own App Clip needs an Apple developer account, App Store review, and a native
+    shell (Swift or a WebView + ARKit bridge). Progress in the PWA and in the clip would be separate unless synced
+    through the account API.
+  - **AR Quick Look** (USDZ/Reality files, image anchors): the system viewer; no custom logic, no app UI.
+- **Android**: Google Play Instant (the App Clip counterpart) is being phased out – not a path.
+
+So a **browser** WebAR (Artivive's WebAR, 8th Wall, Zappar) is always a JS/WASM tracker without native VIO.
+Artivive's browser tracker is not public; it is a WASM/JS engine like the others (licensed or its own).
+
 ## 4. Options
 
 | | A. Tune MindAR | B. MindAR in a worker | C. Own C++/WASM tracker | D. 8th Wall open engine |
