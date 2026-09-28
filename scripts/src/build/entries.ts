@@ -6,8 +6,6 @@ import { buildEntity } from './entities';
 export interface EntryBuild {
   entry: EntryData;
   spreadId: string | null;
-  targetOrder: number;
-  
 }
 
 export function buildEntries(spreads: SpreadData[], entities: Record<string, EntityData>): EntryBuild[] {
@@ -33,15 +31,12 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
       ...(e.media ? { media: e.media } : {}),
     };
 
-    let targetOrder = 0;
     if (e.target !== undefined) {
       const t = validate<any>(e.target, 'target', `${label} target`);
       if (t) {
         const targetId: string = t.id ?? id;
-        targetOrder = t.order;
         const target: TargetData = {
           id: targetId,
-          index: -1, // assigned per spread below
           imageSrc: contentFile('entries', id, t.image, `${label} target`),
         };
         const entity = buildEntity(t.entity, id, targetId, entities, `${label} target`);
@@ -50,7 +45,7 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
       }
     }
 
-    builds.push({ entry, spreadId: spread?.id ?? null, targetOrder });
+    builds.push({ entry, spreadId: spread?.id ?? null });
   }
   return builds;
 }

@@ -24,10 +24,10 @@ describe('content build', () => {
     expect(entries.find(e => e.id === 'first')?.target?.imageSrc).toBe('/assets/content/entries/first/x.jpg');
   });
 
-  it('numbers targets per spread by page', async () => {
+  it('orders entries by page, then title', async () => {
     const build = await loadBuild(makeContent(valid()));
     const { entries } = build.buildAll();
-    expect(Object.fromEntries(entries.map(e => [e.id, e.target?.index]))).toEqual({ first: 0, second: 1 });
+    expect(entries.map(e => e.id)).toEqual(['first', 'second']);
   });
 
   it('orders spreads by order, then id', async () => {

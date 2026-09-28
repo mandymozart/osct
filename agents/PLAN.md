@@ -867,13 +867,36 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
 - [ ] Floor / surface tracking (6DoF): WebXR `immersive-ar` (hit test, anchors) – Android Chrome only,
   the WebXR session takes over the camera (MindAR stops while it runs); iOS Safari has no WebXR AR.
   Alternatives: a commercial web SDK with world tracking (licence), or a native app later.
+  8th Wall's engine binary has SLAM + image targets + Sky Effects together, but its licence (no paid products
+  whose value comes substantially from it, no changes, credit, 5-day termination) rules it out; the MIT engine
+  has neither SLAM nor sky segmentation (MEMORY 2026-09-28).
+- [~] **Look-around: scene around the book + onion sky** (Tilman 2026-09-28, branch `spatialisation`, 1.5.0) –
+  prototype built, **parked until the content discussion with Kévin**. Both are reader options in Info → Settings →
+  Graphics, **off by default**. How it works, code, tuning and limits: `docs/look-around.md`; history: MEMORY 2026-09-28.
+  - Built: world anchored to the book + gyroscope (3DoF), book and table stay clear, open roof, fades 45 s after the
+    last page; onion sky = sky test on a small camera copy; one full-screen pass, placeholder café in the shader.
+  - [x] S22 check (2026-09-28): orientation right, world stays with the book, book + table clear, ~27 fps (dev server).
+  - [ ] Merge `spatialisation` into `develop` when Tilman says so (1.5.0 is only on the branch).
+  - **To decide with Kévin (content):**
+    - [ ] What the world is: one for the book or one per spread? A still panorama (equirectangular image), a video,
+          or 3D (heavier – then the pass needs a render target again)?
+    - [ ] What the onion sky shows – the world's sky or its own image/animation; only outdoors or also through windows?
+    - [ ] When it appears and ends: right after the first find (now), only after an unlock, only on some spreads?
+    - [ ] Sound for the world? Interaction (tap objects in the world → entries)?
+    - [ ] Default on or off for readers once the real content is in.
+  - **Then build:** the content format (e.g. `world:` in `book.yaml` / `spread.yaml` with an image, schema + build +
+    guard, RULES #5/#8), a `worldColour(dir)` that samples it (replaces `PLACEHOLDER_WORLD` in `shader.ts`), loading
+    and caching with the spread (PreloaderService, service worker).
+  - [ ] Checks: sky test outdoors (blue, overcast, dusk), iPhone (motion permission on the first tap, the engine's
+        hidden camera video readable as a picture), frame rate with the page scenes on older phones.
+  - Level 2 (own world tracking from the MIT engine's feature code) not planned – months, specialist.
 - [ ] Decide per content which objects may leave the page (a flag in `entity.params`?).
 
 ---
 
 ## Phase 11 – Accounts  `[~]` (built 2026-09-27 on `database`, merged into develop + main in 1.1.1; open: SMTP, final texts, phone test)
 
-Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/` (docs/server.md).
+Sign-in by email: link + 6-digit code; PHP API + MySQL in `server/` (docs/server.md). Optional password since 1.4.0.
 - [x] API: request / verify (link or code) / logout, account (options, delete), progress per book with a
       version check (409 → merge). Hashes only, attempt and hourly limits, CORS by origin list. Tests: `server/tests/api-test.php`.
 - [x] Mail: log / mail() / SMTP (own client), texts en/fr/nl/de, lists the chosen options for a new account.
@@ -890,6 +913,10 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] GitHub environment `staging` set, API deployed to osct.porschuetz.de from `develop`.
 - [ ] Test on a phone (link on the iOS home-screen app → code); Netlify staging needs `VITE_API_URL`.
 - [ ] SMTP account for production; final mail + UI texts; privacy note for the update options.
+- [x] Optional password (1.4.0, Tilman 2026-09-28): first sign-in by email, then set / change a password (no removal – 1.4.1);
+      sign-in with email + password; bcrypt hashes; fields for password managers. Wording: one form for new and
+      returning readers ("Send sign-in link").
+- [ ] Phone test of the password flow (Chrome on the S22: save prompt; iOS: keychain in the home-screen app).
 - [ ] Sending the updates (newsletter) – not built; the options are only stored.
 - [ ] Netlify staging: `VITE_API_URL` to the dev API (needs its origin in ALLOWED_ORIGINS – already there).
 
@@ -967,6 +994,8 @@ Research and phone results: `research/webworker-tracking.md`, `MEMORY.md` 2026-0
       project README, not on the Info page (Tilman).
 - [x] S22 check of the 8th Wall-only build (2026-09-28): 11 automatic switches across the book (pages 1–27), next spread ready in
       0–3 ms, photo spreads 20–23 found, models and videos load.
+- [x] Cleanup (1.3.2): targets keyed by id – `index` (MindAR's target number) and the target `order` removed
+      from content, schema, shared types, build and client; the `.mindar/` files committed by mistake removed.
 - [ ] iPhone Safari → Phase 14 (Tilman: tested with the content, in Amsterdam).
 - [ ] Measure all targets loaded vs ±1 (time to first find, frame rate) – the default stays ±1.
 - [ ] Build-time image targets (grey 480×640 per target in the content build) instead of making them on the

@@ -31,7 +31,7 @@ final class Users
         Http::json(200, ['user' => self::toJson(Db::one('SELECT * FROM users WHERE id = :id', ['id' => $user['id']]))]);
     }
 
-    /** DELETE /user → 204: the user, its sessions, progress and open requests */
+    /** DELETE /user → 204: the user, its sessions, progress, open requests and failed password sign-ins */
     public static function delete(): never
     {
         $user = Auth::user();
@@ -40,6 +40,7 @@ final class Users
             Db::run('DELETE FROM progress WHERE user_id = :id', ['id' => $user['id']]);
             Db::run('DELETE FROM sessions WHERE user_id = :id', ['id' => $user['id']]);
             Db::run('DELETE FROM login_requests WHERE email = :email', ['email' => $user['email']]);
+            Db::run('DELETE FROM password_attempts WHERE email = :email', ['email' => $user['email']]);
             Db::run('DELETE FROM users WHERE id = :id', ['id' => $user['id']]);
         });
         Http::json(204, null);
@@ -54,6 +55,7 @@ final class Users
             'email' => $row['email'],
             'language' => $row['language'],
             'options' => $options,
+            'hasPassword' => ($row['password_hash'] ?? null) !== null,
             'createdAt' => gmdate('c', strtotime($row['created_at'] . ' UTC')),
         ];
     }

@@ -3,7 +3,7 @@
 The code lives in [`server/`](../server). Naming: *user* in code, API and database; *account* only as the UI
 label (Info → Account).
 
-Sign-in by email for the app – no password. The reader enters an email and can opt in to updates (all off
+Sign-in by email for the app, plus an optional password. The reader enters an email and can opt in to updates (all off
 until the reader turns them on):
 
 - **updates on Onion Skin & Crocodile Tears**
@@ -16,6 +16,10 @@ The server sends an email with a **link** and a **6-digit code**. Opening the li
 confirms the address and signs in the device. The first confirmation creates the account (double opt-in).
 The code is needed where the link opens a different browser than the app, e.g. the home-screen app on iOS.
 
+Afterwards the reader may set a **password** (Info → Account) and sign in with email + password instead of
+waiting for an email; the email sign-in keeps working, and it is also the way back in when the password is
+forgotten (sign in with the link, then set a new password).
+
 Plain PHP 8.1+ with PDO and no Composer; it follows the same style as qr.scutoons.com. Everything lives in
 `server/api/`, which is deployed as the `/api` folder next to the app.
 
@@ -24,8 +28,8 @@ server/api/
   index.php               front controller – the list of endpoints
   .htaccess               everything → index.php, nothing else is served
   config.local.php        settings (not committed) – from config.local.php.example / the deploy
-  src/                    Version, Config, Db, Http, Auth, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de)
-  db/schema.mysql.sql     tables (CREATE TABLE IF NOT EXISTS – POST /admin/migrate runs it)
+  src/                    Version, Config, Db, Http, Auth, Passwords, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de)
+  db/schema.mysql.sql     tables (CREATE TABLE IF NOT EXISTS, later columns as ALTER TABLE … ADD COLUMN – POST /admin/migrate runs it)
   db/schema.sqlite.sql    the same for local development / tests
 server/deploy/write-config.php   deploy: config.local.php from OSCT_* environment variables
 server/tests/api-test.php        the whole flow against php -S + SQLite, SMTP against tests/fake-smtp.php
@@ -37,14 +41,16 @@ server/tests/api-test.php        the whole flow against php -S + SQLite, SMTP ag
 |---|---|---|
 | `POST /auth/request` | `{ email, language?, options? }` | 202 `{ requestId, expiresAt }` – sends the email |
 | `POST /auth/verify` | `{ token }` or `{ requestId, code }` | `{ session, user, created }` |
+| `POST /auth/password` | `{ email, password }` | `{ session, user, created: false }`; 401 `invalid-credentials` (also for unknown addresses and users without a password) |
 | `POST /auth/logout` | | 204 – this device only |
 | `GET /user` | | `{ user }` |
 | `PATCH /user` | `{ options?, language? }` | `{ user }` |
 | `DELETE /user` | | 204 – user, sessions, progress, open requests |
+| `PUT /user/password` | `{ password, currentPassword? }` | `{ user }` – sets or changes the password (`user.hasPassword`) |
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
 | `GET /health` | | `{ status, version, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10) |
-| `POST /admin/migrate` | header `X-Admin-Secret: SECRET` | creates missing tables |
+| `POST /admin/migrate` | header `X-Admin-Secret: SECRET` | creates missing tables and columns |
 
 Signed-in calls send `Authorization: Bearer <session>`. Errors: `{ "error": { "code", "message" } }`. The
 app translates the codes (`account:errors.*`).
@@ -55,6 +61,12 @@ Security notes:
 - Per hour, at most 5 emails per address and 30 per IP (the IP is stored hashed).
 - Links point to the calling app's origin only if it is in `ALLOWED_ORIGINS`, otherwise to `APP_URL`.
 - The same `ALLOWED_ORIGINS` list controls CORS.
+- Passwords: stored only as `password_hash()` bcrypt hashes (cost 12, salted; re-hashed on sign-in when the
+  settings change). At least 8 characters (`PASSWORD_MIN_LENGTH`), at most 72 bytes – bcrypt would ignore the
+  rest, so longer ones are refused. Per hour at most 10 failed sign-ins per address and 30 per IP
+  (`PASSWORD_MAX_FAILS_PER_*`); unknown address, no password and wrong password answer the same.
+- Changing an existing password needs the current one, unless the device signed in by email in the last
+  15 minutes (`PASSWORD_RESET_MINUTES`) – the "forgot password" path. A password can be changed, not removed.
 
 ## Configuration
 

@@ -2,6 +2,7 @@
 export * from "./settings-section";
 export * from "./settings-account";
 export * from "./settings-feedback";
+export * from "./settings-graphics";
 export * from "./settings-history";
 export * from "./settings-language";
 export * from "./settings-install";

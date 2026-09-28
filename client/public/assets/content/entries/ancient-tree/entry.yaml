@@ -4,7 +4,6 @@ page: 2
 body: A mystical tree stands tall.
 target:
   image: images-102.jpg
-  order: 2
   entity:
     type: model
     src: tree.glb

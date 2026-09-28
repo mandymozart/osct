@@ -11,7 +11,6 @@ const target = (filters?: FilterData[]): Target => ({
   id: "clip",
   entryId: "clip",
   spreadId: "s",
-  index: 0,
   imageSrc: "/clip.jpg",
   entity: { type: "video", assets: [{ id: "clip-video", assetType: "video", src: "/clip.mp4" }], filters },
 });

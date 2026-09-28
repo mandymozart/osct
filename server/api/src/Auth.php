@@ -2,9 +2,10 @@
 declare(strict_types=1);
 
 /**
- * Passwordless sign-in by email: the reader enters the address, gets an email with a
- * link and a 6-digit code, and confirming either one signs in the device. The first confirmation creates
- * the user with the options chosen in the form (double opt-in). Tokens and codes are stored as hashes.
+ * Sign-in by email: the reader enters the address, gets an email with a link and a 6-digit code, and
+ * confirming either one signs in the device. The first confirmation creates the user with the options chosen
+ * in the form (double opt-in). Tokens and codes are stored as hashes. A user may add a password later
+ * (Passwords); the email sign-in keeps working either way.
  */
 final class Auth
 {
@@ -104,12 +105,7 @@ final class Auth
                 $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $id]);
                 $created = true;
             }
-            $session = self::randomToken();
-            Db::run(
-                'INSERT INTO sessions (id, user_id, token_hash, created_at, last_used_at) VALUES (:id, :user, :hash, :now, :now2)',
-                ['id' => Db::uuid(), 'user' => $user['id'], 'hash' => hash('sha256', $session), 'now' => Db::now(), 'now2' => Db::now()]
-            );
-            return [$user, $created, $session];
+            return [$user, $created, self::createSession($user['id'], 'email')];
         });
 
         Http::json(200, ['session' => $session, 'user' => Users::toJson($user), 'created' => $created]);
@@ -124,10 +120,34 @@ final class Auth
     }
 
     /**
-     * The signed-in user (Bearer token), else 401. Sessions end after SESSION_TTL_DAYS without use.
+     * A new session for this device; returns the token (only its hash is stored).
+     * `$method`: how the device signed in – `email` (link or code) or `password`.
+     */
+    public static function createSession(string $userId, string $method): string
+    {
+        $session = self::randomToken();
+        Db::run(
+            'INSERT INTO sessions (id, user_id, token_hash, method, created_at, last_used_at) VALUES (:id, :user, :hash, :method, :now, :now2)',
+            ['id' => Db::uuid(), 'user' => $userId, 'hash' => hash('sha256', $session), 'method' => $method, 'now' => Db::now(), 'now2' => Db::now()]
+        );
+        return $session;
+    }
+
+    /**
+     * The signed-in user (Bearer token), else 401.
      * @return array<string, mixed>
      */
     public static function user(): array
+    {
+        return self::session()[0];
+    }
+
+    /**
+     * The signed-in user and this device's session row (Bearer token), else 401. Sessions end after
+     * SESSION_TTL_DAYS without use.
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    public static function session(): array
     {
         $token = Http::bearerToken();
         if ($token === null) throw new ApiError(401, 'unauthorized', 'Not signed in.');
@@ -142,7 +162,7 @@ final class Auth
         }
         $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $session['user_id']]);
         if (!$user) throw new ApiError(401, 'unauthorized', 'Not signed in.');
-        return $user;
+        return [$user, $session];
     }
 
     /**
@@ -163,7 +183,7 @@ final class Auth
         return $options;
     }
 
-    private static function email(mixed $value): string
+    public static function email(mixed $value): string
     {
         $email = is_string($value) ? strtolower(trim($value)) : '';
         if ($email === '' || strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -177,7 +197,7 @@ final class Auth
         return hash_hmac('sha256', "$requestId:$code", self::secret());
     }
 
-    private static function secret(): string
+    public static function secret(): string
     {
         $secret = Config::get('SECRET');
         if (strlen($secret) < 32) throw new RuntimeException('SECRET is missing or shorter than 32 characters');

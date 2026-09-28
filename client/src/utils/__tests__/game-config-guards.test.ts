@@ -18,12 +18,12 @@ const valid = () => ({
   entries: [
     {
       id: "racoon", category: "glossary", title: "Racoon", page: 1, body: "…", tags: [],
-      target: { id: "racoon", index: 0, imageSrc: "/r.jpg", entity: { ref: "castle" } },
+      target: { id: "racoon", imageSrc: "/r.jpg", entity: { ref: "castle" } },
     },
     {
       id: "video", category: "video", title: "Video", page: 2, body: "", tags: ["demo"],
       target: {
-        id: "video", index: 1, imageSrc: "/v.jpg",
+        id: "video", imageSrc: "/v.jpg",
         entity: { type: "video", assets: [{ id: "video", assetType: "video", src: "/v.mp4" }] },
       },
     },

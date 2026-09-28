@@ -4,7 +4,6 @@ page: 1
 body: A beast, a friend, a dimension jumper.
 target:
   image: images-028.jpg
-  order: 1
   entity:
     type: model
     src: racoon.glb
