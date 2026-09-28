@@ -25,6 +25,17 @@ outcome in the line (or move it into a dated decision block).
     Playwright's Chromium only if installed.
 - The content build fails on a stale fingerprint → CI catches a forgotten recompile; the committed `.mind`
   files stay the source of truth for Netlify and the staging deploy (they only run `vite build`).
+- Speed (2026-09-28, Tilman: final book has 100s of targets, compiles on an RTX 2070):
+  - MindAR compiles every image independently (`hierarchical-clustering` seeds a new randomizer per
+    call) → the tool compiles one image at a time and merges with `importData`/`exportData`. Verified:
+    **byte-identical** to compiling a spread in one batch (all 3 spreads). Enables the per-image cache
+    (`scripts/.cache/mind/<image sha256>-<vendored MindAR hash>.mind`) and parallel jobs (one browser
+    context per job = own renderer process + MindAR worker).
+  - Vendored TF.js creates its WebGL context without `powerPreference` → an init script injects
+    `high-performance`, plus Chrome's `--force_high_performance_gpu` (`--gpu default` turns both off).
+  - SwiftShader (container, 4 cores, 2 jobs): 10 images / 4.6 MP in 34 s, detection (GPU) 92 % of the time,
+    tracking (CPU worker) 7 %; ~3–5 s fixed cost per image (TF.js shader compiles per keyframe size –
+    MindAR's own TODO "reuse the same detector"). Real GPU numbers: Tilman's benchmark.
 - `.mind.sha256` files are not copied to `client/public/assets/content`.
 - [ ] Open: target images much larger than the printed size (e.g. `edge/images-060.jpg`, 2059×1796)
       make the `.mind` and the compile bigger/slower – downscale in the build (e.g. max 1000 px)? Needs a

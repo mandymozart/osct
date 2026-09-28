@@ -922,6 +922,10 @@ beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
 - [x] Fingerprint `<name>.mind.sha256` (ordered target images); content build fails on a mismatch, warns
       when missing; `build:content --targets` refreshes `mind-ar/` only (for the tool, works while stale).
 - [x] Existing `.mind` files adopted as they are (sidecars written, no recompile).
+- [x] Speed + statistics (Tilman: "100s of image targets", RTX 2070): per-image compile + cache
+      (`scripts/.cache/mind/`), parallel jobs (`--jobs`), high-performance GPU (`--gpu`, `--angle`),
+      progress bar with MP/s + ETA, per-image GPU/CPU times, summary.
+- [ ] Tilman: benchmark `--jobs` values on the RTX 2070 (`--no-cache`), set the default from it.
 - [ ] Tilman: first run on his machine (GPU renderer printed; headless vs `--headed`), and
       `npm run compile:mind -- spread1` (target 0 differs slightly from a fresh compile, see MEMORY).
 - [ ] Merge into `develop`.
