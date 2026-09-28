@@ -37,7 +37,7 @@ See [Managers](managers.md).
 The store does not load `game.config.json` itself: content (book, spreads, targets, entries,
 tutorial) is read through `client/src/utils/game-config.ts` (`getBook()`, `getSpreads()`,
 `getTargets(spreadId)`, `getEntries()`, `getEntry(id)`, …), the only module that imports the file.
-Its shape is defined in `shared/types/game-config.ts` – see [Content build](content-build.md).
+Its shape is defined in `shared/types/game-config.ts` – see [Content build](content.md#content-build).
 
 ## Component Integration
 

@@ -4,7 +4,7 @@ import { getEntry, getSpread, getTutorial } from "@/utils/game-config";
 import { isEntryCategory } from "@shared/guards/game-config";
 
 /**
- * Links = app state as a plain URL (PLAN Phase 2 "deep links", Tilman 2026-09-26):
+ * Deep links: the app state as a plain URL.
  *
  *   /                          start (onboarding on a first visit, else the splash → scan mode)
  *   /spread/<spreadId>         scan mode on that spread
@@ -16,9 +16,9 @@ import { isEntryCategory } from "@shared/guards/game-config";
  *
  * Incoming links only route. A link to an entry the reader hasn't consulted yet opens scan mode on the
  * spread of its access page (no shortcut past the game). An unknown route, spread, entry, category or step
- * shows the not-found page (with "Go to start"). The version in a link is informative only: links just
- * route (a stored progress record of another format is handled by the progress reader). Nothing from
- * before 1.1.0 is supported (no old `?code=` links – RULES #10).
+ * shows the not-found page (with "Go to start"). The version in a link is informative only (stored progress
+ * of another format is handled by the progress reader). Link formats from before 1.1.0 (e.g. `?code=`) are
+ * not supported (RULES.md #10).
  *
  * While the app runs, the URL follows the state (`LinkService.startSync`): a new view pushes a history entry, a
  * spread switch or tutorial step replaces it, and the browser's back button goes back through the views.
@@ -106,7 +106,7 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
       const entry = value === undefined ? undefined : getEntry(value);
       if (!entry) return notFound();
       if (!game.history.isConsulted(entry.id)) {
-        // Not found by the reader yet: no shortcut past the game – scan mode on the entry's page instead
+        // Not yet consulted by the reader: no shortcut past the game – open scan mode on the entry's spread instead
         game.spreads.switchSpread(entry.spreadId);
         game.router.navigate("/spread");
         return true;
@@ -126,8 +126,8 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
 };
 
 /**
- * The browser side of links (singleton): opens the link the app was started with and keeps the address
- * bar in sync with the state afterwards.
+ * Browser side of deep links (singleton): routes the link the app was opened with, then keeps the address
+ * bar in sync with the state.
  */
 export class LinkService {
   private static instance: LinkService | null = null;
@@ -143,7 +143,7 @@ export class LinkService {
     return parseLink(window.location.pathname, window.location.search);
   }
 
-  /** Route to the link the app was opened with. False when there is none – the normal start follows. */
+  /** Routes to the link the app was opened with. False when there is none (the normal start follows). */
   openIncomingLink(game: IGame): boolean {
     const link = this.currentLink();
     if (!link) return false;
@@ -152,8 +152,8 @@ export class LinkService {
   }
 
   /**
-   * Keep the URL in sync with the state and follow the browser's back / forward buttons.
-   * Start after the incoming link was opened (else the start page would overwrite it).
+   * Keeps the URL in sync with the state and follows the browser's back / forward buttons.
+   * Call after the incoming link was opened, otherwise the start page overwrites it.
    */
   startSync(game: IGame): void {
     this.stopSync();
@@ -165,8 +165,8 @@ export class LinkService {
       const link = linkForState(game.state, game.version.version);
       if (!link || !currentRoute) return;
       const param = currentRoute.param === undefined ? undefined : String(currentRoute.param.value);
-      // A new view (or another entry) gets its own history entry; spread / step changes replace it, and so
-      // does leaving the splash (it only plays on the way in – back must not replay it)
+      // A new view (or another entry) pushes a history entry; spread / step changes replace it, and so does
+      // leaving the splash (it only plays on entry – back must not replay it)
       const push = lastPage !== null && lastPage !== Pages.SPLASH &&
         (currentRoute.page !== lastPage || (currentRoute.page === Pages.ENTRY && param !== lastParam));
       lastPage = currentRoute.page;

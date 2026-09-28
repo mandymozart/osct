@@ -6,10 +6,9 @@ import { categoryLabel, DEFAULT_CATEGORY } from "./entries-model";
 import { escapeHtml } from "@/utils";
 
 /**
- * Category dropdown of the entries list (design p.17–18, "burger menu"): a glass pill with the current
- * category; open, it grows downwards into the menu (same width and left edge, first item on the label).
- * Choosing an option navigates to `/entries` with that category. Closes on an outside tap and Escape.
- * The page sets `value`.
+ * Category dropdown of the entries list: a glass pill with the current category; when open it grows
+ * downwards into the menu (same width and left edge, first item on the label). Choosing an option
+ * navigates to `/entries` with that category. Closes on an outside tap and Escape. The page sets `value`.
  */
 export class EntriesFilterElement extends HTMLElement {
   private game: Readonly<IGame>;
@@ -51,10 +50,8 @@ export class EntriesFilterElement extends HTMLElement {
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host { display: block; position: relative; width: var(--category-width); }
-        /* 52.5 pt ≈ 100 px: the label centred, and the open menu has the same width */
         /* :host raises specificity – the adopted design sheet comes after this <style> */
         :host .pill { width: 100%; }
-        /* Open (frame 18): the pill grows downwards */
         .menu {
           position: absolute;
           top: 0;
@@ -65,7 +62,7 @@ export class EntriesFilterElement extends HTMLElement {
           margin: 0;
           padding: .3rem 0 .55rem;
           list-style: none;
-          border-radius: 1.45rem;          /* 12 pt */
+          border-radius: 1.45rem;
           background: var(--glass-background);
           -webkit-backdrop-filter: var(--glass-blur);
           backdrop-filter: var(--glass-blur);
@@ -86,7 +83,7 @@ export class EntriesFilterElement extends HTMLElement {
           background-color: transparent;
           font: inherit;
           letter-spacing: inherit;
-          line-height: 1.5;                /* 1.5 × the text (Tilman – was 10 pt in the design) */
+          line-height: 1.5;
           text-align: center;
           cursor: pointer;
         }

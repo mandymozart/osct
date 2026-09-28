@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import i18next from "i18next";
+import i18next, { t } from "i18next";
 import { LANGUAGE_STORAGE_KEY, LANGUAGES, resources } from "..";
 
 /** All texts of a language by "domain:key" */
@@ -21,29 +21,29 @@ describe("i18n (i18next)", () => {
 
   it("uses English on an English device", () => {
     expect(i18next.resolvedLanguage).toBe("en");
-    expect(i18next.t("entry:accessPage")).toBe("Access page");
+    expect(t("entry:accessPage")).toBe("Access page");
   });
 
   it("fills placeholders and escapes their values for HTML", () => {
-    expect(i18next.t("entry:goToPage", { page: 4 })).toBe("Go to access page 4 in scan mode to see the video.");
-    expect(i18next.t("scan:openEntry", { title: "<b>" })).toBe("Open entry &lt;b&gt;");
+    expect(t("entry:goToPage", { page: 4 })).toBe("Go to access page 4 in scan mode to see the video.");
+    expect(t("scan:openEntry", { title: "<b>" })).toBe("Open entry &lt;b&gt;");
   });
 
   it("switches language, returns lists and keeps the choice in localStorage", async () => {
     await i18next.changeLanguage("de");
-    expect(i18next.t("common:dismiss")).toBe("Schließen");
-    expect(Object.values(i18next.t("camera:otherSteps", { returnObjects: true }))).toHaveLength(3);
+    expect(t("common:dismiss")).toBe("Schließen");
+    expect(Object.values(t("camera:otherSteps", { returnObjects: true }))).toHaveLength(3);
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("de");
     await i18next.changeLanguage("fr-BE");
     expect(i18next.resolvedLanguage).toBe("fr");
-    expect(i18next.t("entries:categories.video")).toBe("Vidéos");
+    expect(t("entries:categories.video")).toBe("Vidéos");
   });
 
   it("shows English for a missing (empty) translation", async () => {
     const french = i18next.getResource("fr", "common", "dismiss");
     i18next.addResource("fr", "common", "dismiss", "");
     await i18next.changeLanguage("fr");
-    expect(i18next.t("common:dismiss")).toBe("Dismiss");
+    expect(t("common:dismiss")).toBe("Dismiss");
     i18next.addResource("fr", "common", "dismiss", french);
   });
 

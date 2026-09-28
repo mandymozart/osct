@@ -2,19 +2,18 @@ import { Entry, EntryCategory, Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
 import { DEFAULT_CATEGORY, EntriesFilterElement, EntriesList, isCategory, showLockedEntries } from "@/components/consultation";
 import { ConsultationPage } from "./consultation-page";
-import i18next from "i18next";
+import { t } from "i18next";
 
 /**
- * Entries list (design p.17–19, 24, 29): `<entries-filter>` (category dropdown), consulted / total of
- * the category below it, and `<entries-list>`. Unconsulted entries are hidden; in development they are
- * listed locked (`showLockedEntries`).
+ * Entries list: `<entries-filter>` (category dropdown), consulted / total of the category below it, and
+ * `<entries-list>`. Unconsulted entries are hidden; in development they are listed as locked
+ * (`showLockedEntries`).
  */
 export class EntriesPage extends ConsultationPage {
   get styles(): string {
     return /* css */ `
-      /* Below the "Entries consulted" counter the header shows on this page only */
+      /* Leaves room for the "Entries consulted" counter the header shows on this page only */
       .content { padding-top: var(--consultation-top-counter); }
-      /* Toolbar (frames 17, 18): category pill + count below it */
       .toolbar {
         display: flex;
         flex-direction: column;
@@ -38,7 +37,7 @@ export class EntriesPage extends ConsultationPage {
     `;
   }
 
-  /** Route param → category; without param the last category (the "Entries" button, p.21) */
+  /** Route param → category; without a param (the "Entries" button) the last category viewed */
   private get category(): EntryCategory {
     const param = this.routeParam(Pages.ENTRIES);
     if (isCategory(param)) return param;
@@ -64,7 +63,7 @@ export class EntriesPage extends ConsultationPage {
 
     filter.value = category;
     count.textContent = `${consulted} / ${inCategory.length}`;
-    count.setAttribute("aria-label", i18next.t("entries:countAria", { consulted, total: inCategory.length }));
+    count.setAttribute("aria-label", t("entries:countAria", { consulted, total: inCategory.length }));
     list.setEntries(category, inCategory.filter(visible));
   }
 }

@@ -52,7 +52,7 @@ describe("LazyArScene", () => {
     scene.listeners.get("targetFound")!("target-a");
     expect(found).toEqual(["target-a"]);
 
-    // From now on straight through
+    // Once created, calls go straight to the real scene
     await lazy.load("spread-3");
     await lazy.setState(SceneState.PAUSED);
     expect(scene.loads).toEqual(["spread-2", "spread-3"]);

@@ -4,75 +4,65 @@
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
-  /* 100 % (not px): keeps the reader's text size setting – every size below is in rem */
+  /* 100 %, not px: respects the reader's text size setting; all sizes are in rem */
   font-size: 100%;
   font-weight: 400;
 
   --offset-top: 4rem;
 
-  /* ── Design 260804 – measured from the PDF (agents/DESIGN.md). Components use only these. ── */
+  /* Design tokens (agents/DESIGN.md) – components use only these */
   --font-design: Arial, Helvetica, sans-serif;
   --tracking-design: 0.02em;
-  --text-size: 0.9375rem;          /* 8 pt ≈ 15 px */
+  --text-size: 0.9375rem;
   --text-size-small: 0.8125rem;    /* hints, instructions */
   --text-line: 1.25;
-  --row-height: 1.5rem;            /* table + list rows: 12.5 pt ≈ 24 px */
+  --row-height: 1.5rem;            /* table and list rows */
 
-  /* Gold = one gradient, clipped by the text, left → right per element (DESIGN.md §1) */
-  --gold-1: #f5e7c8;               /* pale champagne */
-  --gold-2: #7f6032;               /* dark bronze */
-  --gold-3: #d2ae5a;               /* gold */
-  --gold-4: #f3cc94;               /* light gold */
+  /* Gold is always this gradient, clipped to the text, left → right per element (DESIGN.md §1) */
+  --gold-1: #f5e7c8;
+  --gold-2: #7f6032;
+  --gold-3: #d2ae5a;
+  --gold-4: #f3cc94;
   --gold-gradient: linear-gradient(90deg,
     var(--gold-1) 0%, var(--gold-1) 3.8%, var(--gold-2) 31.5%,
     var(--gold-3) 57%, var(--gold-4) 73.6%, var(--gold-4) 100%);
-  --color-accent: var(--gold-3);   /* flat gold where a gradient is not possible (borders, focus) */
+  --color-accent: var(--gold-3);   /* where a gradient is not possible (borders, focus) */
 
-  --color-muted: #8b8d8c;          /* scan counter, "Pages activated", labels, rules */
-  --color-inactive: #d6d8d8;       /* inactive spread menu items */
-  --color-on-dark: #ffffff;        /* consultation values, body text */
+  --color-muted: #8b8d8c;
+  --color-inactive: #d6d8d8;
+  --color-on-dark: #ffffff;
   --rule: 0.0625rem solid var(--color-muted);
 
-  /* Backgrounds */
-  --app-background: #000;          /* behind the camera and every page (design: black) */
+  --app-background: #000;
   --consultation-background: rgba(0, 0, 0, 0.82);
-  /* Loading (startup + spread switch): the consultation darkness with a slight vignette */
+  /* Startup and spread switch */
   --loading-background:
     radial-gradient(ellipse 60% 55% at 50% 50%, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.82) 100%);
-  /* Measured from the design frames (p.1–5): black in the middle, #070707 half way, #0c0c0c at the side
-     edges, #1a1a1a in the corners. The gradient reaches the corners (farthest-corner) – the former ellipse
-     ended at the side edges and let a grey base show there (Tilman, 2026-09-26) */
+  /* farthest-corner: the gradient must reach the corners, or a grey base shows there */
   --onboarding-background:
     radial-gradient(ellipse farthest-corner at 50% 50%, #000 0%, #000 35%, #070707 52%, #0c0c0c 71%, #1a1a1a 100%);
 
-  /* Buttons: almost transparent body (non-zero alpha, else no backdrop blur) + blur + drop shadow */
+  /* Glass buttons: alpha must stay non-zero, otherwise backdrop-filter does not blur */
   --glass-background: rgba(255, 255, 255, 0.001);
   --glass-blur: blur(0.625rem);
   --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);   /* menu highlight */
-  --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);  /* onboarding buttons on black (primary) */
-  --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);  /* pills and "i" – the light glow of the category pill (frame 17: #957149) */
-  --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);   /* open category menu (frame 18: #8b8d8c) */
+  --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);  /* primary onboarding buttons */
+  --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);  /* pills and "i" */
+  --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);   /* open category menu */
   --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);  /* secondary onboarding buttons */
 
-  --category-width: 6.25rem;       /* category pill + menu: 52.5 pt (frames 17, 18) */
+  --category-width: 6.25rem;       /* category pill and its open menu */
 
-  /* Mark (same image in every mode) */
   --mark-width: 6.1875rem;
   --mark-height: 6rem;
-  /* Transparent margin above the drawing in scan.png (14 of 125 px at --mark-height) – the header pulls
-     the Mark up by it, so the visible Mark sits 1rem from the top (Tilman 2026-09-27) */
+  /* Transparent margin above the drawing in the Mark image; the header offsets it so the visible Mark sits 1rem from the top */
   --mark-inset-top: calc(var(--mark-height) * 14 / 125);
 
-  /* Content of consultation pages starts below the header, from the top of the page area (below the
-     status bar in the home-screen app) – the same on every consultation screen (Tilman 2026-09-27):
-     entry and Info: first rule at 8.5rem (frames 15, 20, 21, 33); entries list: 1rem below the
-     "Entries consulted" counter (frame 17), which ends at 9.75rem under the Mark. Info uses the entries
-     list's positions: the "Entries" pill where the category pill is, the text where the list starts.
-     The dev debug line lies over the page and moves nothing (Tilman 2026-09-27: as in the final app). */
+  /* Where consultation content starts below the header: entry and Info pages / entries list (below the counter) */
   --consultation-top: calc(env(safe-area-inset-top) + 8.5rem);
   --consultation-top-counter: calc(env(safe-area-inset-top) + 10.75rem);
 
-  color-scheme: dark;              /* native controls (scrollbars, fields) on the dark UI */
+  color-scheme: dark;              /* native scrollbars and fields */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -80,14 +70,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* iOS Safari specific fixes without @supports */
 html, body {
   background: var(--app-background);
   height: 100vh;
-  height: -webkit-fill-available; /* Fix for 100vh issue in iOS Safari */
+  height: -webkit-fill-available; /* iOS Safari 100vh */
 }
 
-/* Force hardware acceleration for active elements */
 .active, [active] {
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
@@ -123,12 +111,12 @@ img {
   width: 100vw;
   height: 100vh;
 }
-/* Camera video (ar/tracker.ts sizes and places it: cover) */
+/* ar/tracker.ts sizes and positions the camera video */
 #scene-container video {
   position: absolute;
 }
 
-/* The 3D layer (three.js canvas #scene) shows while AR runs (ar-bridge sets body.scene-active on status "running") */
+/* <ar-bridge> sets body.scene-active while AR runs */
 #scene {
   opacity: 0;
   transition: opacity .2s linear;

@@ -1,8 +1,7 @@
 /**
- * The static splash in index.html (utils/static-splash-html.ts) – the first onboarding step, painted before
- * the app's scripts load. The app starts underneath with the *next* step of the flow; `release()` fades
- * the splash out once the app is ready: at once (a link opened a view) or when the step's time is up,
- * counted from its first paint (a tap skips).
+ * Runtime control of the static splash in index.html (markup from utils/static-splash-html.ts). The app
+ * starts underneath with the step after the splash; `releaseStaticSplash()` fades the splash out once the
+ * app is ready – immediately (deep link) or when the step's `advance` time since first paint is up (a tap skips).
  */
 
 declare global {
@@ -21,8 +20,8 @@ const hidden = new Promise<void>(resolve => (resolveHidden = resolve));
 const element = (): HTMLElement | null => document.getElementById("static-splash");
 
 /**
- * The onboarding step the splash shows while it is on screen (undefined: gone, or a plain loader). The splash
- * page / onboarding continue after it instead of showing it again.
+ * Index of the onboarding step the splash is showing (undefined when gone or a plain loader). The
+ * onboarding continues after this step instead of repeating it.
  */
 export const staticSplashStep = (): number | undefined => {
   const value = element()?.dataset.step;
@@ -47,10 +46,7 @@ export const hideStaticSplash = (): Promise<void> => {
 /** Resolves once the splash is gone (at once when there is none) */
 export const whenStaticSplashHidden = (): Promise<void> => (element() ? hidden : Promise.resolve());
 
-/**
- * The app is ready: fade the splash out – `wait`: not before the step's `advance` time since its first
- * paint (a tap on it skips the rest).
- */
+/** Fade the splash out once the app is ready; with `wait`, not before the step's `advance` time since first paint (a tap skips). */
 export const releaseStaticSplash = ({ wait }: { wait: boolean }): Promise<void> => {
   const el = element();
   if (!el) return hideStaticSplash();

@@ -1,7 +1,6 @@
 /**
- * The static splash (Phase 9): the first onboarding step as plain HTML in `index.html`, written at build
- * time from the game configuration (vite.config.js, `transformIndexHtml`) – it paints before any script
- * has loaded. `utils/static-splash.ts` fades it out once the app is ready.
+ * Renders the first onboarding step as plain HTML into `index.html` at build time (vite.config.js,
+ * `transformIndexHtml`) so it paints before any script loads. `utils/static-splash.ts` removes it at runtime.
  *
  * No imports: vite.config.js loads this file directly (no path aliases there).
  */
@@ -27,7 +26,7 @@ export interface StaticSplashSource {
   loadingLabel: string;
 }
 
-/** Same defaults as tutorial-content / splash-page */
+/** Must match the defaults of tutorial-content / splash-page */
 const DEFAULT_FADE_MS = 600;
 const DEFAULT_STAGGER_MS = 250;
 const DEFAULT_ADVANCE_MS = 2000;
@@ -50,7 +49,7 @@ export const staticSplashStep = (steps: readonly SplashStepSource[]): SplashStep
 };
 
 /**
- * `<div id="static-splash">` + a timestamp script. Parts fade in one after the other like tutorial-content
+ * `<div id="static-splash">` plus a first-paint timestamp script. Parts fade in staggered like tutorial-content
  * (Mark, title, text, footer); `data-step` / `data-advance` tell the app which step it showed and for how long.
  */
 export const renderStaticSplash = ({ book, steps, markSrc, markAlt, loadingLabel }: StaticSplashSource): string => {

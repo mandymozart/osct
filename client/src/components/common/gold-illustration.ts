@@ -1,11 +1,10 @@
 /**
  * <gold-illustration src="/assets/illustrations/….svg" label="Camera">
  *
- * Shows a (black line art) SVG in gold "chrome" with a sweeping highlight, like a skeleton loader
- * (DESIGN.md §5, option F). The SVG stays a file in `public/` (swappable content); on load its dark
- * shapes get the gold chrome gradient, white shapes become transparent (cut-outs on the dark UI), and
- * a copy on top carries the moving highlight. No sweep with `prefers-reduced-motion`.
- * Gradient stops come from the gold tokens (`--gold-1…4`, main.css).
+ * Renders a black line-art SVG from `public/` in gold chrome with a sweeping highlight (DESIGN.md §5,
+ * option F). Dark shapes get the chrome gradient, white shapes become transparent cut-outs, and a copy on
+ * top carries the moving highlight (static under `prefers-reduced-motion`). Gradient stops use the gold
+ * tokens `--gold-1…4` from main.css. `label` makes it an image with that accessible name; otherwise it is hidden.
  */
 
 const cache = new Map<string, Promise<string>>();
@@ -72,7 +71,7 @@ export class GoldIllustration extends HTMLElement {
       this.shadowRoot.innerHTML = "";
       return;
     }
-    if (this.getAttribute("src") !== src) return; // changed while loading
+    if (this.getAttribute("src") !== src) return; // src changed while loading
     this.shadowRoot.innerHTML = this.goldSvg(text);
   }
 
@@ -88,8 +87,7 @@ export class GoldIllustration extends HTMLElement {
     const chrome = `url(#${this.gradientId}-chrome)`;
     const sweep = `url(#${this.gradientId}-sweep)`;
 
-    // Dark shapes → gold chrome, white → transparent (cut-outs), keep "none"
-    // Resolve first, then write – writing while resolving would change what descendants inherit
+    // Resolve all paints before writing any: writing first would change what descendants inherit
     const shapes = Array.from(svg.querySelectorAll(SHAPES));
     const resolved = shapes.map(el => (["fill", "stroke"] as const).map(prop => {
       const color = effectivePaint(el, prop);
@@ -101,10 +99,10 @@ export class GoldIllustration extends HTMLElement {
         (el as SVGElement).style?.removeProperty(prop);
       });
     });
-    // Embedded font imports etc. (Penpot text exports) are not needed for line art
+    // Embedded styles (e.g. font imports from Penpot text exports) are not needed for line art
     svg.querySelectorAll("style").forEach(style => style.remove());
     const art = svg.innerHTML;
-    // Highlight copy: same geometry, sweep gradient instead of chrome
+    // Highlight layer: same geometry, sweep gradient instead of chrome
     const highlight = art.split(chrome).join(sweep);
 
     const reduceMotion = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;

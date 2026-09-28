@@ -9,7 +9,7 @@ import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import { PNG } from 'pngjs';
 
 /**
- * Media optimisation of the content build (Phase 9), on the copy in `client/public/assets/content` only –
+ * Media optimisation of the content build, on the copy in `client/public/assets/content` only –
  * the authored files in `content/` stay as they are:
  *   - models (`.glb`): textures ≤ MAX_TEXTURE_SIZE px (opaque ones as JPEG), meshopt geometry
  *     (EXT_meshopt_compression; the client's GLTFLoader has the decoder), duplicate / unused data removed;

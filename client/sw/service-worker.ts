@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 /**
- * Service worker (PWA, 2026-09-26): the installed app starts from the phone's storage and works offline
+ * Service worker (PWA): the installed app starts from device storage and works offline
  * for everything it has seen. Built by vite-plugin-pwa (injectManifest, vite.config.js) into
  * `dist/service-worker.js`; registered in production builds only (services/ServiceWorkerService.ts).
  *
@@ -25,13 +25,13 @@ declare const __VITE_CONTENT_HASH__: string;
 
 const CONTENT_CACHE_PREFIX = "osct-content-";
 const CONTENT_CACHE = `${CONTENT_CACHE_PREFIX}${__VITE_CONTENT_HASH__.slice(0, 16)}`;
-/** Waiting longer for index.html than this on a bad connection: start from the cached one */
+/** Network timeout for index.html; after it, the precached copy is served */
 const PAGE_TIMEOUT_SECONDS = 4;
 
 self.skipWaiting();
 clientsClaim();
 
-// Before the precache route: "/" and "/index.html" are precached too, but pages come from the network first
+// Must be registered before the precache route: "/" and "/index.html" are precached, but pages come from the network first
 registerRoute(({ request }) => request.mode === "navigate", new NetworkOnly({ networkTimeoutSeconds: PAGE_TIMEOUT_SECONDS }));
 
 precacheAndRoute(self.__WB_MANIFEST);
@@ -54,7 +54,7 @@ setCatchHandler(async ({ request }) => {
   return Response.error();
 });
 
-// Content of older builds
+// Drop content caches of older builds
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(

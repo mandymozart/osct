@@ -46,7 +46,7 @@ describe("RouterManager", () => {
     expect(game.state.currentRoute?.param).toEqual({ key: "step", value: 2 });
   });
 
-  // PLAN Phase 2 "Modes vs views": each route declares its mode
+  // Each route declares its mode; navigating applies it
   it.each([
     ["/", GameMode.IDLE],
     ["/tutorial", GameMode.IDLE],

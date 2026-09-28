@@ -1,8 +1,4 @@
-/*
- * Static splash (index.html, written at build time – utils/static-splash-html.ts): the first onboarding step
- * before any script runs. Same look as splash-page + tutorial-content (design p.1–2); faded out by
- * utils/static-splash.ts once the app is ready. Everything scoped to #static-splash.
- */
+/* Mirrors splash-page + tutorial-content; keep in sync. Everything scoped to #static-splash. */
 #static-splash {
   position: fixed;
   inset: 0;
@@ -12,7 +8,6 @@
   cursor: default;
 }
 #static-splash.hiding { opacity: 0; pointer-events: none; }
-/* No splash step: the gold spinner in the middle */
 #static-splash > .gold-spinner { position: absolute; top: 50%; left: 50%; margin: -1.25rem 0 0 -1.25rem; }
 
 #static-splash .content {
@@ -22,14 +17,14 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: max(11vh, 5.5rem) 1.5rem 1rem; /* Mark 88 px from the top, as the onboarding */
+  padding: max(11vh, 5.5rem) 1.5rem 1rem;
   box-sizing: border-box;
   font-family: var(--font-design);
   letter-spacing: var(--tracking-design);
   font-size: var(--text-size);
   line-height: var(--text-line);
 }
-/* The text block reaches down to 58 % – the footer (publisher) sits there, design p.2 */
+/* Footer sits at 58 % of the viewport; longer text pushes it down. */
 #static-splash .head {
   display: flex;
   flex-direction: column;

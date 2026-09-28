@@ -1,8 +1,8 @@
 import { IProgressStorage, ProgressRecord } from "@/types";
 
 /**
- * Progress storage in localStorage, one key per book. A DB/API store can replace it later with the
- * same record shape (RULES #17: storage adapter as a service).
+ * Progress storage adapter backed by localStorage, one key per book. Another store (DB/API) can replace
+ * it with the same record shape (RULES.md #17).
  */
 export class LocalProgressStorage implements IProgressStorage {
   static key(bookId: string): string {
@@ -15,7 +15,7 @@ export class LocalProgressStorage implements IProgressStorage {
       return text === null ? null : JSON.parse(text);
     } catch (error) {
       console.warn("[ProgressStorage] Failed to load progress:", error);
-      return undefined; // corrupt – the reader treats it as unreadable
+      return undefined; // corrupt: the progress reader treats it as unreadable
     }
   }
 

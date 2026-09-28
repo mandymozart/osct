@@ -1,25 +1,24 @@
 /**
- * Reader accounts (branch `database`, Tilman 2026-09-27): sign-in by email – a link and a 6-digit code,
- * no password – against the PHP API in `server/` (MySQL). Very basic: the account holds the email, the
- * update options and the progress record.
+ * Reader accounts: passwordless email sign-in (link or 6-digit code) against the PHP API in `server/`.
+ * An account holds the email, the update options and the progress record.
  */
 
 /**
- * The update options – opt-in: off until the reader turns them on (Tilman 2026-09-27: "very important"). The progress is always kept in the account (restored on other
- * devices) and can be reset ("Reset progress").
+ * Update options are opt-in: off until the reader enables them. Progress is always stored in the
+ * account (restored on other devices) and can be reset.
  */
 export interface UserOptions {
   /** Updates on the publication (Onion Skin & Crocodile Tears) */
   bookUpdates: boolean;
-  /** Updates from the publisher (Building Fictions) */
-  /** Updates from the artist (Kévin Bray – the book's author in the content) */
+  /** Updates from the artist (the book's author) */
   artistUpdates: boolean;
+  /** Updates from the publisher */
   publisherUpdates: boolean;
 }
 
 export type UserOption = keyof UserOptions;
 
-/** The user as the API returns it (UI: "Account") */
+/** The user as returned by the API */
 export interface UserData {
   email: string;
   language: string;
@@ -56,7 +55,7 @@ export interface UserSnapshot {
   notice: UserNotice | null;
 }
 
-/** User service (services/UserService.ts) */
+/** Account API client (services/UserService.ts); publishes `UserSnapshot` to subscribers */
 export interface IUserService {
   /** false when the build has no API (VITE_API_URL) – the account section is hidden */
   isEnabled(): boolean;

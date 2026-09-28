@@ -30,41 +30,27 @@ const initialState: GameState = {
   trackedTargets: [],
   currentSpread: null,
   spreads: {}, 
-  progress: createProgressRecord(getBook().id), // loaded by the HistoryManager
+  progress: createProgressRecord(getBook().id), // replaced by the stored record in HistoryManager.load()
   loading: LoadingState.LOADING,
   arStatus: "idle",
   cameraPermission: CameraPermissionStatus.UNKNOWN
 }
 
 /**
- * Game-specific store
- * Uses specialized managers for different concerns
+ * Central app store (`GameState`): mode, route, error, tracked targets, spreads, reader progress
+ * and loading / AR / camera status. Domain logic lives in the managers. Construction order
+ * matters: spreads must exist before history, which restores the last spread.
  */
 class Game extends BaseStore<GameState> implements IGame {
   public version: GameVersion = { version: __VITE_APP_VERSION__, timestamp: __VITE_BUILD_DATE__ } as GameVersion;
 
-  // Managers
   public spreads: ISpreadManager;
   public targets: ITargetManager;
   public history: IHistoryManager;
   public router: IRouterManager;
   public camera: ICameraManager;
 
-  /**
-   * Notification and Error listeners
-   *
-   * Usage:
-   * In a component or manager
-   *
-   * const cleanup = game.onError((error) => {
-   *    console.error(`Error occurred: ${error.message}`);
-   *    // Handle error in UI
-   * });
-   *
-   * Later, when done
-   *
-   * cleanup();
-   */
+  /** Subscribers to `notifyError`, registered via `onError` */
   private errorListeners: Array<(error: ErrorInfo) => void> = [];
 
   constructor() {
@@ -77,9 +63,6 @@ class Game extends BaseStore<GameState> implements IGame {
     this.router = new RouterManager(this);
   }
 
-  /**
-   * Signals that loading is complete
-   */
   public finishLoading(): void {
     this.set({ loading: LoadingState.LOADED });
   }
@@ -96,9 +79,7 @@ class Game extends BaseStore<GameState> implements IGame {
     if (this.state.arStatus !== status) this.set({ arStatus: status });
   }
 
-  /**
-   * Notify listeners about an error
-   */
+  /** Shows the error / notice overlay, informs `onError` subscribers and logs the error. */
   public notifyError(error: ErrorInfo): void {
     const { code, msg } = error;
     this.router.showError(error);
@@ -106,13 +87,10 @@ class Game extends BaseStore<GameState> implements IGame {
     console.error(`[Game] Error: ${msg} (${code})`);
   }
 
-  /**
-   * Add error listener
-   */
+  /** Registers an error listener; returns its cleanup function. */
   public onError(listener: (error: ErrorInfo) => void): () => void {
     this.errorListeners.push(listener);
 
-    // Return cleanup function
     return () => {
       const index = this.errorListeners.indexOf(listener);
       if (index > -1) {

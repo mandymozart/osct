@@ -10,7 +10,7 @@ Staging: [osct.netlify.app](https://osct.netlify.app) (built from `main`) [![Net
 
 | | |
 |---|---|
-| **Content** | [Content guide](content.md) – how `content/` is organised (for artists, designers, editors) · [Content build](content-build.md) – `scripts/` |
+| **Content** | [Content guide](content.md) – how `content/` is organised (for artists, designers, editors) and how `scripts/` builds it |
 | **Server** | [User API](server.md) – accounts by email, progress in the account, opt-in updates; PHP + MySQL, deploy to osct.porschuetz.de |
 | **App** | [Languages (i18n)](i18n.md) · [Game store](game-store.md) · [Base store](base-store.md) · [Managers](managers.md) · [Pages](pages.md) · [Error page](error-page.md) · [Components](components.md) |
 
@@ -30,10 +30,10 @@ Quick start: the repository [README](../README.md).
 |---|---|
 | `client/` | The app |
 | `content/` | Book content as YAML + media – see [Content guide](content.md) |
-| `scripts/` | Content build: `content/` → `client/src/game.config.json` – see [Content build](content-build.md) |
+| `scripts/` | Content build: `content/` → `client/src/game.config.json` – see [Content build](content.md#content-build) |
 | `server/` | User API (PHP + MySQL) – see [Server](server.md) |
 | `shared/` | Game configuration contract (types + runtime guards), used by app and build |
-| `mind-ar/` | Generated: target images per spread in MindAR order, for compiling `.mind` files |
+| `.mindar/` | Local, not in git: everything for compiling `.mind` files – target images, earlier versions, cache |
 | `docs/` | This documentation |
 | `agents/` | Plan, rules, decisions and design reference for work on the code |
 
@@ -73,7 +73,8 @@ Netlify builds `main`; an FTP production deploy follows later. Both need every p
 ### Version
 
 One semver for app and content build (`client/package.json` = `scripts/package.json`, checked by
-tests and CI). Rebuild the content after a version bump.
+tests and CI). Rebuild the content after a version bump. Every bump has an entry in the
+[Changelog](CHANGELOG.md).
 
 ## Technical stack
 
