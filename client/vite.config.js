@@ -57,10 +57,11 @@ function pwa() {
         'assets/app/**/*.{js,css}',
         'assets/{ui,illustrations,sounds,icons}/**/*',
         'assets/{bf.svg,favicon.ico}',
+        'assets/xr8/*.js', // the tracking engine (unhashed names: the precache manifest carries a revision)
       ],
       // Hashed file names: no cache-busting query, the immutable HTTP cache can answer
       dontCacheBustURLsMatching: /^assets\/app\//,
-      maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // the MindAR chunk (TF.js) is ~1.8 MB
+      maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // the engine's xr-tracking.js is ~3.9 MB (1.2 MB gzip)
     },
     devOptions: { enabled: false },
   })];
@@ -122,6 +123,32 @@ function contentSizes() {
   };
 }
 
+/**
+ * The 8th Wall engine (`@8thwall/engine`, MIT – the image tracking, ar/xr8.ts): its prebuilt files are served as
+ * they are from `assets/xr8/` (a classic script plus a chunk it imports; not bundled), with its LICENSE (MIT
+ * asks for it next to the copies). Dev: from node_modules; build: copied. Precached with the app shell (pwa()),
+ * so AR works offline.
+ */
+function xr8Engine() {
+  const engine = resolve(import.meta.dirname, 'node_modules/@8thwall/engine');
+  const files = { 'xr.js': 'dist/xr.js', 'xr-tracking.js': 'dist/xr-tracking.js', LICENSE: 'LICENSE' };
+  return {
+    name: 'osct-xr8-engine',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const name = req.url?.split('?')[0].replace(/^\/assets\/xr8\//, '');
+        if (!name || !(name in files) || !req.url.startsWith('/assets/xr8/')) return next();
+        res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : 'text/plain');
+        res.end(readFileSync(resolve(engine, files[name])));
+      });
+    },
+    generateBundle() {
+      Object.entries(files).forEach(([name, file]) =>
+        this.emitFile({ type: 'asset', fileName: `assets/xr8/${name}`, source: readFileSync(resolve(engine, file)) }));
+    },
+  };
+}
+
 export default defineConfig(({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
   const port = 5173;
@@ -131,7 +158,7 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [staticSplash(), contentSizes(), ...pwa(), ...(https ? [basicSsl()] : [])],
+  plugins: [staticSplash(), contentSizes(), xr8Engine(), ...pwa(), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
@@ -143,8 +170,6 @@ export default defineConfig(({command,mode})=>{
     alias: {
       '@': resolve(import.meta.dirname, 'src'),
       '@shared': resolve(import.meta.dirname, '../shared'),
-      // TF.js (inside MindAR) imports it for Node.js only (src/vendor/mind-ar/node-fetch-stub.js)
-      'node-fetch': resolve(import.meta.dirname, 'src/vendor/mind-ar/node-fetch-stub.js'),
     }
   },
   server: {
@@ -162,24 +187,21 @@ export default defineConfig(({command,mode})=>{
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
-    // terser minifies a few percent smaller than esbuild; two passes. The inlined MindAR worker and TF.js
-    // shader strings are left as they are
+    // terser minifies a few percent smaller than esbuild; two passes
     minify: 'terser',
     terserOptions: { compress: { passes: 2 } },
-    // The AR chunks (three.js ~600 kB, MindAR with TF.js ~1.8 MB) are large by nature and load lazily
-    chunkSizeWarningLimit: 2000,
+    // The three.js chunk (~600 kB) is large by nature and loads lazily
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       input: {
         main: resolve(import.meta.dirname, 'index.html')
       },
       output: {
-        // Keep TF.js's @license headers in the chunks (Rolldown drops them by default)
+        // Keep @license headers in the chunks (Rolldown drops them by default)
         comments: { legal: true },
-        // The AR code (only reached through import("./ar"), loaded on the first scan): three.js and MindAR
-        // (TF.js) in two chunks that download in parallel
+        // The AR code (only reached through import("./ar"), loaded on the first scan): three.js in its own chunk
         manualChunks: (id) => {
           if (id.includes('/node_modules/three/')) return 'three';
-          if (id.includes('/src/vendor/mind-ar/')) return 'mindar';
         },
         // Built (hashed) files in assets/app/ – served with a long, immutable cache (public/_headers);
         // assets/ itself also holds the unhashed content (public/assets/content)

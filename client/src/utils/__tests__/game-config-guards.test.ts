@@ -10,9 +10,8 @@ import {
 const valid = () => ({
   version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc" },
   book: { id: "osct", title: "Onion Skin & Crocodile Tears", author: "Kévin Bray" },
-  maxTargetsPerSpread: 5,
   initialSpreadId: "spread1",
-  spreads: [{ id: "spread1", title: "The Beginning", firstPage: 1, lastPage: 2, mindSrc: "/s1.mind" }],
+  spreads: [{ id: "spread1", title: "The Beginning", firstPage: 1, lastPage: 2 }],
   entities: {
     castle: { type: "model", assets: [{ id: "castle", assetType: "glb", src: "/castle.glb" }] },
   },
@@ -62,10 +61,10 @@ describe("game configuration guards", () => {
     config.entries[0].category = "poems";
     config.entries[1].target.entity.type = "hologram";
     config.entries[1].target.entity.assets[0].assetType = "pdf";
-    delete config.spreads[0].mindSrc;
+    delete config.spreads[0].title;
 
     expect(problemsOf(config)).toEqual([
-      'spreads[0].mindSrc: expected a non-empty string',
+      'spreads[0].title: expected a non-empty string',
       'entries[0].category: "poems" is not one of glossary, video, text, link',
       'entries[1].target.entity.type: "hologram" is not one of model, video, image',
       'entries[1].target.entity.assets[0].assetType: "pdf" is not one of glb, gltf, video, image, audio',

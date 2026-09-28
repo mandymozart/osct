@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { PreloaderService } from "@/services/PreloaderService";
-import { getAssets, getSpread, getSpreads } from "@/utils/game-config";
-import { compressedUrl as mindUrl } from "@/utils/compressed"; // .mind and .glb
+import { getAssets, getSpread, getSpreads, getTargets } from "@/utils/game-config";
+import { compressedUrl } from "@/utils/compressed"; // .glb
 
 describe("PreloaderService", () => {
   const spreads = getSpreads();
@@ -19,11 +19,13 @@ describe("PreloaderService", () => {
   });
 
   const fetchedUrls = () => fetchMock.mock.calls.map(([url]) => url);
+  /** A spread's target images – what the tracker needs to start (the preloader fetches them first) */
+  const targetsOf = (spreadId: string) => getTargets(spreadId).map(t => t.imageSrc);
 
   it("fetches a file once, even when asked twice", async () => {
-    const src = spreads[0].mindSrc;
-    await Promise.all([preloader.preload({ src, type: "mind" }), preloader.preload({ src, type: "mind" })]);
-    await preloader.preload({ src, type: "mind" });
+    const src = targetsOf(spreads[0].id)[0];
+    await Promise.all([preloader.preload({ src, type: "image" }), preloader.preload({ src, type: "image" })]);
+    await preloader.preload({ src, type: "image" });
 
     expect(fetchedUrls()).toEqual([src]);
     expect(preloader.isPreloaded(src)).toBe(true);
@@ -31,16 +33,17 @@ describe("PreloaderService", () => {
 
   const contentOf = (spreadId: string) =>
     // models: their gzip copy – the same URL the AR scene loads (utils/compressed.ts)
-    [...getAssets(spreadId).map(a => mindUrl(a.src)), ...getSpread(spreadId)!.entries.map(e => e.image)]
+    [...getAssets(spreadId).map(a => compressedUrl(a.src)), ...getSpread(spreadId)!.entries.map(e => e.image)]
       .filter((src): src is string => !!src && !/^https?:\/\//.test(src));
 
-  it("preloads the neighbouring spreads (.mind first, then their content), never the active one", async () => {
+  it("preloads the neighbouring spreads (target images first, then their content), never the active one", async () => {
     await preloader.preloadNeighbours(spreads[1].id);
     const urls = fetchedUrls();
+    const targets = [...targetsOf(spreads[0].id), ...targetsOf(spreads[2].id)];
 
-    expect(urls.slice(0, 2)).toEqual([mindUrl(spreads[0].mindSrc), mindUrl(spreads[2].mindSrc)]);
-    expect(new Set(urls.slice(2))).toEqual(new Set([...contentOf(spreads[0].id), ...contentOf(spreads[2].id)]));
-    expect(urls).not.toContain(mindUrl(spreads[1].mindSrc));
+    expect(urls.slice(0, targets.length)).toEqual(targets);
+    expect(new Set(urls)).toEqual(new Set([...targets, ...contentOf(spreads[0].id), ...contentOf(spreads[2].id)]));
+    expect(urls).not.toContain(targetsOf(spreads[1].id)[0]);
     expect(urls.filter(url => /^https?:\/\//.test(url))).toEqual([]);
   });
 
@@ -58,20 +61,20 @@ describe("PreloaderService", () => {
 
   it("handles the first spread and unknown spreads", async () => {
     await preloader.preloadNeighbours(spreads[0].id);
-    expect(fetchedUrls()[0]).toBe(mindUrl(spreads[1].mindSrc));
-    expect(fetchedUrls()).not.toContain(mindUrl(spreads[2].mindSrc));
+    expect(fetchedUrls()[0]).toBe(targetsOf(spreads[1].id)[0]);
+    expect(fetchedUrls()).not.toContain(targetsOf(spreads[2].id)[0]);
     expect(await preloader.preloadNeighbours("unknown")).toEqual([]);
   });
 
   it("reports a failed request and allows a retry", async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 404, statusText: "Not Found" }));
-    const src = spreads[0].mindSrc;
+    const src = targetsOf(spreads[0].id)[0];
 
-    const first = await preloader.preload({ src, type: "mind" });
+    const first = await preloader.preload({ src, type: "image" });
     expect(first.success).toBe(false);
     expect(preloader.isPreloaded(src)).toBe(false);
 
-    expect((await preloader.preload({ src, type: "mind" })).success).toBe(true);
+    expect((await preloader.preload({ src, type: "image" })).success).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -97,7 +100,7 @@ describe("PreloaderService", () => {
 
       const urls = fetchedUrls();
       expect(new Set(urls).size).toBe(urls.length);
-      for (const spread of spreads) expect(urls).toContain(mindUrl(spread.mindSrc));
+      for (const spread of spreads) for (const src of targetsOf(spread.id)) expect(urls).toContain(src);
       expect((await preloader.getBookDownload()).state).toBe("done");
     });
 
@@ -109,7 +112,7 @@ describe("PreloaderService", () => {
       const result = await preloader.downloadBook();
       expect(result).toMatchObject({ state: "failed", failed: 1 });
       expect(result.loaded).toBeLessThan(result.total);
-      expect(fetchedUrls().slice(already)).not.toContain(mindUrl(spreads[0].mindSrc));
+      expect(fetchedUrls().slice(already)).not.toContain(targetsOf(spreads[0].id)[0]);
 
       expect((await preloader.downloadBook()).state).toBe("done"); // try again: the rest
     });

@@ -8,9 +8,8 @@ The use of open source libraries causes a serious of issues that limit the usage
 
 ### Supported devices
 
-`mind-ar` requires Chrome or Safari on mobile devices. It is not clear to this point which Android setup actually works best. 
-* Samsung S22 Chrome [failed]
-* Apple IPhone 7 Safari [ok]
-* Apple IPhone 11 Safari [ok]
+Image tracking: the 8th Wall engine (since 1.3.0; MindAR before).
+* Samsung S22 Chrome [ok – 8th Wall, 2026-09-28]
+* Apple iPhone Safari [not yet tested with 8th Wall]
 
 
