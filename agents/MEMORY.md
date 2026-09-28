@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Demo spreads from the layout PDF for the tracker load test (Tilman)
+
+- `OSCT_KevinBray_06.pdf` (11 pages: page 1 single, 2–11 A3 = two book pages each; printed page numbers
+  1, 2|3 … 20|21) → **spread4–spread14**, app pages continue at 7 (Tilman): PDF page 1 = page 7 (single),
+  PDF page n = pages 2n+4 / 2n+5 … PDF 11 = 26–27. Titles "Demo 8–9" etc.
+- Per PDF page the up to **5 largest printed images** (RULES #3) → 29 glossary entries `demo-p<page>-<n>`
+  ("Demo p. 8 · 1"), target only, no AR content. Rendered from the page at their printed position (overlaps and
+  gold frames as the camera sees them), ≥ native resolution, ≤ 2048 px. Pages 8–11 (PDF): one full-spread
+  photo each. Book total now 14 spreads / 39 targets. Some targets are tiny (e.g. `demo-p07-2`, 154×93).
+- `.mind` files compiled with the vendored MindAR `Compiler` in a GPU Edge window over CDP (one-off script,
+  1–24 s per spread; headless = software GL was far too slow). `develop` has `npm run compile:mind` for this
+  (1.2.0) – this branch is older (1.1.1); on a merge the `.mind` location differs (`.mindar/` there).
+- Debug overlay (8th Wall): **"Spreads loaded ahead"** ±0 / ±1 (default) / ±2 / all (`osct-ar-prepared-spreads`,
+  applies at the next spread switch) – the knob for the load test.
+- Tilman (2026-09-28): 8th Wall tracks with visibly less jitter than MindAR, and more loaded targets have not
+  added jitter so far. MindAR stays supported (default) for now.
+- [ ] Load test on the S22 with "all" (39 targets) vs ±1: time to first find, frame rate, auto switch.
+
 ## 2026-09-28 – 8th Wall spread switches: neighbours kept loaded (Tilman: "save switch times")
 
 - Measured on the S22: the engine's own feature extraction is fast (~0.6–0.75 s for 4 targets); the slow part
