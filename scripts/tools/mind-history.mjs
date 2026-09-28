@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
+import { parseOptions } from "./lib/cli.mjs";
 import { currentVersion, KEEP, listVersions, restoreVersion } from "./lib/mind-history.mjs";
 
 const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -31,9 +32,9 @@ const kb = bytes => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)}
 const when = iso => new Date(iso).toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "short" });
 const seconds = ms => `${(ms / 1000).toFixed(1)}s`;
 
-const args = process.argv.slice(2);
-const force = args.includes("--force");
-const [command, ...rest] = args.filter(a => a !== "--force");
+const { options, rest: args } = parseOptions(process.argv.slice(2), { flags: ["force"] });
+const force = Boolean(options.force);
+const [command, ...rest] = args;
 const contentBuild = (...flags) =>
   spawnSync(process.execPath, ["dist/index.js", ...flags], { cwd: SCRIPTS, stdio: flags.length ? "pipe" : "inherit" }).status;
 

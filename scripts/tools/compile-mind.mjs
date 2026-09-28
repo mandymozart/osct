@@ -8,13 +8,16 @@
 //   npm run compile:mind                        # spreads whose target images changed
 //   npm run compile:mind -- spread1 spread3     # these spreads (always rebuilt)
 //   npm run compile:mind -- --force             # all spreads, no cache
-//   npm run compile:mind -- --no-cache          # compile every image again (benchmarks)
+//   npm run compile:mind -- --fresh             # compile every image again (benchmarks; also --no-cache)
 //   npm run compile:mind -- --jobs 6            # parallel browser jobs (default: half the CPU cores, max 4)
 //   npm run compile:mind -- --gpu default       # let Chrome pick the GPU (default: high-performance)
 //   npm run compile:mind -- --angle d3d11       # WebGL backend: d3d11 | vulkan | gl | metal …
 //   npm run compile:mind -- --headed            # visible browser window (if headless has no GPU)
 //   npm run compile:mind -- --browser <path>    # this Chrome/Chromium/Edge (or env MIND_BROWSER)
 //   npm run compile:mind -- --note "sharper scan"  # note stored with the version (mind:history)
+//
+// PowerShell drops the `--` – there write values with "=": npm run compile:mind --gpu=default --jobs=6
+// (tools/lib/cli.mjs), or call npm.cmd.
 //
 // Every compiled .mind is kept as a version in mind-history/ (the one it replaces too): test it on the
 // phone, `npm run mind:restore -- <spread> previous` goes back (tools/mind-history.mjs).
@@ -36,6 +39,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import { chromium } from "playwright-core";
+import { parseOptions } from "./lib/cli.mjs";
 import { saveVersion } from "./lib/mind-history.mjs";
 
 const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,24 +54,25 @@ const ORIGIN = "http://mind.local";
 
 // ── Options ──────────────────────────────────────────────────────────────────────────────────────
 
-const args = process.argv.slice(2);
-const option = name => {
-  const i = args.indexOf(name);
-  return i >= 0 ? args.splice(i, 2)[1] : undefined;
-};
-const flag = name => {
-  const i = args.indexOf(name);
-  return i >= 0 && args.splice(i, 1).length > 0;
-};
-const browserPath = option("--browser") ?? process.env.MIND_BROWSER;
-const gpu = option("--gpu") ?? "high";
-const angle = option("--angle");
-const jobsOption = option("--jobs");
-const force = flag("--force");
-const noCache = flag("--no-cache") || force;
-const headed = flag("--headed");
-const note = option("--note");
-const requested = args;
+let parsed;
+try {
+  parsed = parseOptions(process.argv.slice(2), {
+    values: ["browser", "gpu", "angle", "jobs", "note"],
+    flags: ["force", "no-cache", "fresh", "headed"],
+  });
+} catch (error) {
+  console.error(`✖ ${error.message}`);
+  process.exit(1);
+}
+const { options, rest: requested } = parsed;
+const browserPath = options.browser ?? process.env.MIND_BROWSER;
+const gpu = options.gpu ?? "high";
+const angle = options.angle;
+const jobsOption = options.jobs;
+const force = Boolean(options.force);
+const noCache = Boolean(options["no-cache"] || options.fresh) || force;
+const headed = Boolean(options.headed);
+const note = options.note;
 const cpus = os.availableParallelism?.() ?? os.cpus().length;
 const jobCount = Math.max(1, Number(jobsOption) || Math.min(4, Math.floor(cpus / 2)));
 

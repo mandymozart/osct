@@ -361,7 +361,7 @@ Chrome/Edge with WebGL via `playwright-core`. It runs MindAR's own `Compiler` fr
 npm run compile:mind                        # every spread whose target images changed
 npm run compile:mind -- spread1 spread3     # these spreads
 npm run compile:mind -- --force             # all spreads, nothing from the cache
-npm run compile:mind -- --no-cache          # compile every image again (benchmarks)
+npm run compile:mind -- --fresh             # compile every image again (benchmarks; also --no-cache)
 npm run compile:mind -- --jobs 6            # parallel browser jobs (default: half the CPU cores, max 4)
 npm run compile:mind -- --gpu default       # let Chrome pick the GPU (default: the high-performance one)
 npm run compile:mind -- --angle d3d11       # WebGL backend: d3d11 | vulkan | gl | metal …
@@ -369,6 +369,11 @@ npm run compile:mind -- --headed            # visible browser window, if the hea
 npm run compile:mind -- --browser <path>    # a specific Chrome / Chromium / Edge (or env MIND_BROWSER)
 npm run compile:mind -- --note "…"          # note stored with the version
 ```
+
+**PowerShell** removes the `--`, and npm then keeps the options for itself. Write values with `=` and
+leave the `--` out – `npm run compile:mind --gpu=default --jobs=6 --fresh spread1` – or call
+`npm.cmd run compile:mind -- --gpu default`. The tools read options both ways (`scripts/tools/lib/cli.mjs`)
+and stop with this hint when npm took one apart.
 
 1. `node dist/index.js --targets` puts each spread's target images into `mind-ar/<spread>/`, numbered
    in MindAR order, with `source.sha256` (fingerprint of those images in order).
