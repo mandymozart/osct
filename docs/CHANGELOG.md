@@ -19,9 +19,11 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   is tied to where the book was seen and turns with the phone (gyroscope, rotation only – walking does not move
   through it). The book and the table stay visible (a soft window around the book, clear when looking down);
   every new find sets the world back in place. It fades away 45 s after the last page was seen. For now a basic
-  placeholder (sky gradient, stars, a moon) drawn in one pass – the real world comes with the content.
+  placeholder café drawn in one pass – sky gradient, stars, a moon, a ringed planet, a grid floor, floating tables,
+  glowing orbs and turning cubes as simple shapes in the shader; the real world comes with the content.
 - **Onion sky**: looking up, sky-coloured parts of the camera picture (blue, or bright grey and smooth) show the
-  world's sky – buildings, trees and people stay real.
+  world's sky – buildings, trees and people stay real (light, warm façades are not taken for an overcast sky). It
+  reads a small copy of the camera picture (160 px wide, every other frame), not the full video.
 - **Graphics** options on the Info page (Settings): "Onion sky" and "Scene around the book" on / off, stored on
   this device (en/fr/nl/de) – for phones that need the power for the page scenes.
 - Tuning on the device: `window.osctLookAround` (opacity, sky strength, fade time, window and floor angles). On

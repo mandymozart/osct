@@ -2,13 +2,14 @@ import {
   Matrix3,
   Matrix4,
   NoBlending,
+  CanvasTexture,
+  LinearFilter,
   NoColorSpace,
   PerspectiveCamera,
   Quaternion,
   ShaderMaterial,
   Vector2,
   Vector3,
-  VideoTexture,
   WebGLRenderer,
 } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
@@ -16,6 +17,8 @@ import { GraphicsService } from "@/services";
 import { DeviceOrientation } from "./orientation";
 
 const DEG = Math.PI / 180;
+/** Width of the camera copy the sky test reads, in pixels */
+const SKY_SAMPLE_WIDTH = 160;
 
 /** Tuning – exposed on `window.osctLookAround` in the browser for trying values on the phone */
 export interface LookAroundSettings {
@@ -88,8 +91,11 @@ export class LookAround {
   private camera = new PerspectiveCamera(60, 1, 0.1, 400);
   private material: ShaderMaterial;
   private quad: FullScreenQuad;
-  private video: VideoTexture | null = null;
+  /** Small copy of the camera picture for the sky test (a full video upload every frame costs too much) */
+  private skyCanvas: HTMLCanvasElement | null = null;
+  private skyTexture: CanvasTexture | null = null;
   private videoElement: HTMLVideoElement | null = null;
+  private frame = 0;
 
   private time = 0;
   /** 0…1: how present the world is */
@@ -152,14 +158,15 @@ export class LookAround {
           float lo = min(c.r, min(c.g, c.b));
           float saturation = (hi - lo) / (hi + 0.001);
           float blue = smoothstep(0.03, 0.14, c.b - c.r) * smoothstep(0.28, 0.5, lum) * (1.0 - smoothstep(0.02, 0.12, c.g - c.b));
-          float grey = smoothstep(0.6, 0.8, lum) * (1.0 - smoothstep(0.1, 0.24, saturation));
+          // Overcast is neutral or bluish; light façades and walls are warm (more red than blue)
+          float grey = smoothstep(0.6, 0.8, lum) * (1.0 - smoothstep(0.1, 0.24, saturation)) * smoothstep(-0.035, 0.0, c.b - c.r);
           return max(blue, grey);
         }
 
         float skyMask(vec2 uv) {
           // The camera picture covers the screen (cropped like the engine draws it); five taps in a cross
           vec2 cam = (uv - 0.5) * uCover + 0.5;
-          vec2 d = uTexel * 4.0;
+          vec2 d = uTexel * 1.5;
           vec3 c0 = texture2D(tCamera, cam).rgb;
           vec3 c1 = texture2D(tCamera, cam + vec2(d.x, 0.0)).rgb;
           vec3 c2 = texture2D(tCamera, cam - vec2(d.x, 0.0)).rgb;
@@ -175,17 +182,106 @@ export class LookAround {
 
         float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
-        // Placeholder world (the content brings the real one): sky gradient, stars, one moon, a dark ground
+        const vec3 LIGHT = vec3(-0.37, 0.74, 0.56);
+
+        // A lit sphere (floating orb); also adds its glow around it
+        void orb(vec3 dir, vec3 centre, float radius, vec3 tint, inout vec3 colour, inout float nearest, inout vec3 glow) {
+          float b = dot(dir, centre);
+          float h = b * b - dot(centre, centre) + radius * radius;
+          if (b > 0.0) glow += tint * exp(-max(length(centre - dir * b) - radius, 0.0) * 9.0) * 0.35;
+          if (h < 0.0) return;
+          float t = b - sqrt(h);
+          if (t <= 0.0 || t >= nearest) return;
+          nearest = t;
+          vec3 n = normalize(dir * t - centre);
+          float rim = pow(1.0 - max(dot(n, -dir), 0.0), 2.0);
+          colour = tint * (0.45 + 0.55 * max(dot(n, LIGHT), 0.0)) + rim * vec3(1.0, 0.9, 1.0) * 0.6;
+        }
+
+        // A floating round table top (a disc in a horizontal plane) with a glowing rim
+        void table(vec3 dir, vec3 centre, float radius, vec3 tint, inout vec3 colour, inout float nearest) {
+          if (abs(dir.y) < 1e-4) return;
+          float t = centre.y / dir.y;
+          if (t <= 0.0 || t >= nearest) return;
+          float d = length(dir.xz * t - centre.xz);
+          if (d > radius) return;
+          nearest = t;
+          colour = mix(tint * 0.35, tint * 1.4, smoothstep(radius * 0.82, radius, d));
+        }
+
+        // A turning cube (ray against a box in its own frame)
+        void cube(vec3 dir, vec3 centre, float size, float turn, vec3 tint, inout vec3 colour, inout float nearest) {
+          float c = cos(turn);
+          float s = sin(turn);
+          mat3 spin = mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c) * mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c);
+          vec3 origin = transpose(spin) * -centre;
+          vec3 ray = transpose(spin) * dir;
+          vec3 inverse = 1.0 / ray;
+          vec3 t1 = (-vec3(size) - origin) * inverse;
+          vec3 t2 = (vec3(size) - origin) * inverse;
+          vec3 tMin = min(t1, t2);
+          vec3 tMax = max(t1, t2);
+          float tNear = max(max(tMin.x, tMin.y), tMin.z);
+          float tFar = min(min(tMax.x, tMax.y), tMax.z);
+          if (tNear > tFar || tNear <= 0.0 || tNear >= nearest) return;
+          nearest = tNear;
+          vec3 local = abs(origin + ray * tNear) / size;
+          vec3 n = step(max(local.yzx, local.zxy), local) * sign(origin + ray * tNear);
+          float edge = smoothstep(0.9, 0.98, max(max(min(local.x, local.y), min(local.y, local.z)), min(local.x, local.z)));
+          colour = tint * (0.4 + 0.6 * max(dot(spin * n, LIGHT), 0.0)) + edge * vec3(0.6, 1.0, 0.95);
+        }
+
+        // Placeholder world (the content brings the real one): an open-air café under an alien sky
         vec3 worldColour(vec3 dir) {
           float h = dir.y;
           vec3 colour = mix(vec3(0.95, 0.45, 0.4), vec3(0.35, 0.08, 0.45), smoothstep(0.0, 0.3, h));
           colour = mix(colour, vec3(0.08, 0.02, 0.2), smoothstep(0.3, 0.9, h));
-          vec2 cell = floor(vec2(atan(dir.x, dir.z), h) * 120.0);
-          colour += step(0.996, hash(cell)) * smoothstep(0.15, 0.5, h) * (0.6 + 0.4 * sin(uTime * 3.0 + hash(cell) * 50.0));
+          vec2 cell = floor(vec2(atan(dir.x, dir.z), h) * 160.0);
+          vec2 inCell = fract(vec2(atan(dir.x, dir.z), h) * 160.0) - 0.5;
+          float star = step(0.994, hash(cell)) * (1.0 - smoothstep(0.1, 0.3, length(inCell)));
+          colour += star * smoothstep(0.15, 0.5, h) * (0.6 + 0.4 * sin(uTime * 3.0 + hash(cell) * 50.0));
           float moon = smoothstep(0.075, 0.07, acos(clamp(dot(dir, normalize(vec3(0.45, 0.5, -0.75))), -1.0, 1.0)));
           colour = mix(colour, vec3(0.8, 0.95, 1.0), moon);
-          vec3 ground = mix(vec3(0.1, 0.03, 0.14), vec3(0.3, 0.1, 0.3), smoothstep(-0.3, 0.0, h));
-          return mix(ground, colour, smoothstep(-0.01, 0.01, h));
+
+          // A ringed planet, far away
+          float nearest = 1e9;
+          vec3 glow = vec3(0.0);
+          vec3 planet = normalize(vec3(-0.7, 0.55, 0.45)) * 80.0;
+          orb(dir, planet, 9.0, vec3(0.55, 0.35, 0.95), colour, nearest, glow);
+          vec3 ringNormal = normalize(vec3(0.25, 1.0, 0.15));
+          float tRing = dot(planet, ringNormal) / dot(dir, ringNormal);
+          if (tRing > 0.0 && tRing < nearest) {
+            float r = length(dir * tRing - planet);
+            float band = smoothstep(12.0, 12.5, r) * (1.0 - smoothstep(17.5, 18.0, r)) * (0.55 + 0.45 * sin(r * 5.0));
+            colour = mix(colour, vec3(0.95, 0.85, 0.7), band * 0.85);
+          }
+          glow = vec3(0.0);
+          nearest = 1e9;
+
+          // Floor: a glowing grid that fades into the haze
+          if (h < -0.001) {
+            float t = -1.6 / h;
+            vec2 grid = abs(fract(dir.xz * t * 1.2) - 0.5);
+            float line = smoothstep(0.44, 0.5, max(grid.x, grid.y));
+            vec3 floorColour = vec3(0.06, 0.02, 0.1) + line * mix(vec3(0.2, 0.9, 0.8), vec3(0.9, 0.3, 1.0), 0.5 + 0.5 * sin(t - uTime)) * 0.7;
+            colour = mix(vec3(0.3, 0.1, 0.3), floorColour, 1.0 - smoothstep(6.0, 30.0, t));
+            nearest = t;
+          }
+
+          // Tables around the reader (none in front: the book is there), orbs and cubes floating here and there
+          table(dir, vec3(-2.4, -0.8, -0.8), 0.5, vec3(1.0, 0.3, 0.65), colour, nearest);
+          table(dir, vec3(2.6, -0.7, -0.4), 0.45, vec3(0.3, 0.85, 1.0), colour, nearest);
+          table(dir, vec3(-1.6, -0.75, 2.4), 0.5, vec3(0.7, 0.45, 1.0), colour, nearest);
+          table(dir, vec3(2.0, -0.8, 2.2), 0.5, vec3(1.0, 0.7, 0.3), colour, nearest);
+          float bob = sin(uTime * 0.8);
+          orb(dir, vec3(-2.2, 0.4 + 0.12 * bob, -2.8), 0.22, vec3(1.0, 0.75, 0.35), colour, nearest, glow);
+          orb(dir, vec3(2.5, 0.9 - 0.1 * bob, -2.0), 0.16, vec3(1.0, 0.4, 0.8), colour, nearest, glow);
+          orb(dir, vec3(-3.0, 1.3 + 0.08 * bob, 1.5), 0.3, vec3(0.4, 1.0, 0.9), colour, nearest, glow);
+          orb(dir, vec3(1.8, 0.2 - 0.1 * bob, 2.6), 0.18, vec3(0.8, 0.6, 1.0), colour, nearest, glow);
+          orb(dir, vec3(0.4, 1.8 + 0.15 * bob, -3.5), 0.26, vec3(0.5, 0.95, 1.0), colour, nearest, glow);
+          cube(dir, vec3(3.2, 0.3, 0.3), 0.3, uTime * 0.4, vec3(0.9, 0.25, 0.6), colour, nearest);
+          cube(dir, vec3(-3.4, 0.6, -0.4), 0.24, -uTime * 0.5 + 1.0, vec3(0.3, 0.6, 1.0), colour, nearest);
+          return colour + glow;
         }
 
         void main() {
@@ -200,7 +296,7 @@ export class LookAround {
           float world = uPresence * uOpacity * outside * roof * floorClear;
 
           float sky = 0.0;
-          if (uHasCamera > 0.5 && uSky > 0.0) sky = uSky * smoothstep(0.03, 0.3, elevation) * skyMask(vUv);
+          if (uHasCamera > 0.5 && uSky > 0.0 && elevation > 0.03) sky = uSky * smoothstep(0.03, 0.3, elevation) * skyMask(vUv);
 
           float alpha = max(world, sky);
           if (alpha < 0.002) { gl_FragColor = vec4(0.0); return; }
@@ -302,7 +398,7 @@ export class LookAround {
     const renderer = this.renderer;
     const size = renderer.getDrawingBufferSize(new Vector2());
     const uniforms = this.material.uniforms;
-    const video = this.cameraTexture();
+    const video = this.skyStrength() > 0 && this.skyInView ? this.cameraTexture() : null;
     uniforms.uTime.value = this.time;
     uniforms.uYaw.value = this.yaw;
     uniforms.tCamera.value = video;
@@ -311,7 +407,7 @@ export class LookAround {
       const videoAspect = this.videoElement.videoWidth / Math.max(1, this.videoElement.videoHeight);
       const screenAspect = size.x / Math.max(1, size.y);
       uniforms.uCover.value.set(Math.min(1, screenAspect / videoAspect), Math.min(1, videoAspect / screenAspect));
-      uniforms.uTexel.value.set(1 / Math.max(1, this.videoElement.videoWidth), 1 / Math.max(1, this.videoElement.videoHeight));
+      uniforms.uTexel.value.set(1 / this.skyCanvas!.width, 1 / this.skyCanvas!.height);
     }
     uniforms.uInverseProjection.value.copy(this.camera.projectionMatrixInverse);
     uniforms.uRotation.value.setFromMatrix4(this.camera.matrixWorld);
@@ -329,25 +425,36 @@ export class LookAround {
     return this.graphics.getSettings().onionSky ? this.settings.skyStrength : 0;
   }
 
-  /** The engine's camera video as a texture (raw sRGB values for the sky test) */
-  private cameraTexture(): VideoTexture | null {
+  /**
+   * The camera picture for the sky test: the engine's video drawn into a small canvas (SKY_SAMPLE_WIDTH wide, same
+   * aspect), refreshed every other frame – the sky's edges need no more, and the upload stays tiny
+   */
+  private cameraTexture(): CanvasTexture | null {
     const element = this.cameraVideo();
-    if (element !== this.videoElement) {
-      this.video?.dispose();
-      this.video = null;
+    if (!element || element.readyState < 2 || !element.videoWidth) return null;
+    if (element !== this.videoElement || !this.skyCanvas) {
       this.videoElement = element;
-      if (element) {
-        this.video = new VideoTexture(element);
-        this.video.colorSpace = NoColorSpace;
-      }
+      this.skyCanvas ??= document.createElement("canvas");
+      this.skyCanvas.width = SKY_SAMPLE_WIDTH;
+      this.skyCanvas.height = Math.round((SKY_SAMPLE_WIDTH * element.videoHeight) / element.videoWidth);
+      this.skyTexture?.dispose();
+      this.skyTexture = new CanvasTexture(this.skyCanvas);
+      this.skyTexture.colorSpace = NoColorSpace;
+      this.skyTexture.minFilter = LinearFilter;
+      this.skyTexture.generateMipmaps = false;
+      this.frame = 0;
     }
-    return this.videoElement && this.videoElement.readyState >= 2 ? this.video : null;
+    if (this.frame++ % 2 === 0) {
+      this.skyCanvas.getContext("2d")?.drawImage(element, 0, 0, this.skyCanvas.width, this.skyCanvas.height);
+      this.skyTexture!.needsUpdate = true;
+    }
+    return this.skyTexture;
   }
 
   dispose(): void {
     this.running = false;
     this.orientation.stop();
-    this.video?.dispose();
+    this.skyTexture?.dispose();
     this.material.dispose();
     this.quad.dispose();
   }
