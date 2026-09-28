@@ -154,6 +154,21 @@ WASM, **GPL-3.0**), but none is ahead of 8th Wall's engine, which is now MIT.
 4. Decide after the spike: switch to 8th Wall (RULES stack change, content build change) or stay on tuned
    MindAR. **B** (worker) only if MindAR stays and the devices show stutter; **C** not at all.
 
+## 6. Spike built (2026-09-28)
+
+The app can now run on either engine – same scene, entities, unlock flow:
+
+- **Switch:** debug bar → "Tracking: MindAR – Use 8th Wall (reload)" (per device), or build flag
+  `VITE_AR_TRACKER=8thwall`. Collapsed debug line starts with `MA` or `8W`.
+- **Code:** `client/src/components/ar-bridges/ar/tracker-8thwall.ts`, `xr8.ts` (loader, target data, anchor
+  math), `create-tracker.ts`, `tracker-types.ts`; `vite.config.js` → `xr8Engine()` serves the engine files.
+- **Targets:** made in the browser from the target images (no `.mind`, no content build change): the centred
+  3:4 part, grey, 480×640. The final content should get proper 8th Wall targets (image-target CLI, crop chosen
+  per page) if the engine wins.
+- **Checked headless** (Chromium, fake camera clip of a target image, software GL – no speed numbers): target
+  found ~2 s after start, entity placed like MindAR places it, spread switch with the camera kept, production build.
+- **Still open – on the phones:** the comparison itself (section 5.2), iOS motion permission prompt, pause/resume.
+
 ## Sources
 
 - MindAR 1.2.5 vendored build (`client/src/vendor/mind-ar/`), `.mind` files in `client/public/assets/content/spreads/`

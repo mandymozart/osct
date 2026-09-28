@@ -19,9 +19,10 @@ class FakeScene {
   }
 }
 const imported = vi.fn();
+const preloadImageTracker = vi.fn(async () => {});
 vi.mock("../ar", () => {
   imported();
-  return { ArScene: FakeScene };
+  return { ArScene: FakeScene, preloadImageTracker };
 });
 
 const { LazyArScene } = await import("../lazy-ar-scene");
@@ -57,5 +58,12 @@ describe("LazyArScene", () => {
     expect(scene.loads).toEqual(["spread-2", "spread-3"]);
     expect(scene.states).toEqual([SceneState.RUNNING, SceneState.PAUSED]);
     expect(created).toHaveLength(1);
+  });
+
+  it("warms up the AR chunk and the tracking engine without building a scene", async () => {
+    const before = created.length;
+    await new LazyArScene(document.createElement("div")).warmUp();
+    expect(preloadImageTracker).toHaveBeenCalled();
+    expect(created).toHaveLength(before);
   });
 });

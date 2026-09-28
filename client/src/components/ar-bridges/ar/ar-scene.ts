@@ -4,8 +4,9 @@ import { getAssets, getMaxTargetsPerSpread, getSpread, getTargets } from "@/util
 import { Emitter } from "../utils/emitter";
 import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
+import { createImageTracker } from "./create-tracker";
 import { buildEntity, EntityInstance } from "./entities";
-import { ImageTracker } from "./tracker";
+import { IImageTracker } from "./tracker-types";
 import { ArView } from "./view";
 
 interface Anchor {
@@ -17,6 +18,7 @@ interface Anchor {
 interface SpreadContent {
   spreadId: string;
   mindSrc: string;
+  targets: Target[];
   anchors: Anchor[];
 }
 
@@ -30,11 +32,12 @@ const TAP_MARGIN_PX = 24;
 const scanningIndicator = () => document.getElementById("osct-scanning");
 
 /**
- * The AR scene: plain three.js + MindAR tracking, **one** renderer and camera stream for the session.
+ * The AR scene: plain three.js + image tracking (MindAR, or 8th Wall for the comparison – `create-tracker.ts`),
+ * **one** renderer and camera stream for the session.
  * Built lazily – nothing (no WebGL context, no assets, no camera) until AR first runs (RUNNING). A spread switch keeps the renderer and the camera stream and only
- *   1. stops MindAR's tracking controller,
+ *   1. stops the tracking (MindAR: its controller),
  *   2. swaps the anchors, entities and assets (assets both spreads use stay),
- *   3. starts tracking the new `.mind` on the running camera video.
+ *   3. starts tracking the new spread's targets on the running camera.
  *
  * Every call only records the wish (spread, state) and queues one reconcile step; each step reads the
  * newest wish, so fast switching never races and outdated spreads are skipped.
@@ -46,7 +49,7 @@ export class ArScene implements IArScene {
   private wantedState: SceneState = SceneState.STOPPED;
 
   private view: ArView | null = null;
-  private tracker: ImageTracker | null = null;
+  private tracker: IImageTracker | null = null;
   private assets = new AssetStore();
   private content: SpreadContent | null = null;
   private found = new Set<string>();
@@ -144,9 +147,10 @@ export class ArScene implements IArScene {
 
   // ── Spreads ─────────────────────────────────────────────────────────────────────────────────
 
-  private ensureView(): ArView {
+  /** Renderer + tracker (of the chosen engine, its chunk loads here) – steps run one at a time, no race */
+  private async ensureView(): Promise<ArView> {
     if (!this.view) {
-      this.tracker = new ImageTracker(this.container, {
+      this.tracker = await createImageTracker(this.container, {
         maxTrack: getMaxTargetsPerSpread(),
         onUpdate: (index, matrix) => this.onTrackingUpdate(index, matrix),
       });
@@ -176,7 +180,7 @@ export class ArScene implements IArScene {
   private async changeSpread(spreadId: string): Promise<void> {
     const spread = getSpread(spreadId);
     if (!spread) throw new Error(`Unknown spread ${spreadId}`);
-    const view = this.ensureView();
+    const view = await this.ensureView();
     const tracker = this.tracker!;
     const cameraOn = tracker.hasCamera;
     this.setStatus(cameraOn ? "starting" : "loading");
@@ -193,9 +197,10 @@ export class ArScene implements IArScene {
     const assets = getAssets(spreadId);
     this.assets.release(new Set(assets.map(a => a.id)));
     await this.assets.load(assets);
-    const anchors = getTargets(spreadId).map(target => this.buildAnchor(target));
+    const targets = getTargets(spreadId);
+    const anchors = targets.map(target => this.buildAnchor(target));
     anchors.forEach(anchor => view.scene.add(anchor.group));
-    this.content = { spreadId, mindSrc: spread.mindSrc, anchors };
+    this.content = { spreadId, mindSrc: spread.mindSrc, targets, anchors };
 
     // 3. Tracking restarts in run() (camera kept); paused / stopped it waits for the next start
     if (this.wantedState !== SceneState.RUNNING) this.setStatus("ready");
@@ -228,7 +233,7 @@ export class ArScene implements IArScene {
     if (this.view) this.view.bloomStrength = 0;
   }
 
-  /** MindAR update of one target: move its anchor, report found / lost */
+  /** Tracker update of one target: move its anchor, report found / lost */
   private onTrackingUpdate(targetIndex: number, matrix: Matrix4 | null): void {
     const anchor = this.content?.anchors.find(a => a.target.index === targetIndex);
     if (!anchor || !this.running) return;
@@ -316,7 +321,7 @@ export class ArScene implements IArScene {
     const content = this.content!;
     try {
       await tracker.startCamera();
-      await tracker.loadTargets(content.mindSrc);
+      await tracker.loadTargets(content);
     } catch (error) {
       tracker.stop();
       this.started = false;

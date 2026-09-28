@@ -6,7 +6,7 @@ type ArModule = typeof import("./ar");
 let arModule: Promise<ArModule> | null = null;
 
 /**
- * Load the AR chunk (three.js + MindAR with TF.js, ~⅔ of the app's code). Nothing imports `./ar`
+ * Load the AR chunk (three.js; the tracking engine – MindAR with TF.js – follows, ~⅔ of the app's code). Nothing imports `./ar`
  * statically, so the first paint never waits for it. Retries after a failed load (offline).
  */
 export const loadArModule = (): Promise<ArModule> => {
@@ -50,9 +50,11 @@ export class LazyArScene implements IArScene {
     return this.emitter.on(event, listener);
   }
 
-  /** Fetch and evaluate the AR chunk without building anything (no WebGL, no camera) */
+  /** Fetch and evaluate the AR chunk and the tracking engine without building anything (no WebGL, no camera) */
   warmUp(): Promise<void> {
-    return loadArModule().then(() => {}, error => console.warn("[ArScene] Could not preload AR:", error));
+    return loadArModule()
+      .then(ar => ar.preloadImageTracker())
+      .catch(error => console.warn("[ArScene] Could not preload AR:", error));
   }
 
   async load(spreadId: string): Promise<void> {

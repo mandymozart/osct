@@ -4,14 +4,31 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – 8th Wall tracker built side by side with MindAR (Tilman: "build a working version")
+
+- `ar/tracker-8thwall.ts` (+ `ar/xr8.ts`) implements `IImageTracker` (`ar/tracker-types.ts`) like the MindAR
+  `ImageTracker`; `ar/create-tracker.ts` picks one (each engine its own chunk). Choice: build flag
+  `VITE_AR_TRACKER=mindar|8thwall` (default MindAR), overridden per device in the debug bar ("Use 8th Wall
+  (reload)", localStorage `osct-ar-tracker`); the collapsed debug line starts with `MA` / `8W`.
+- Engine files (`@8thwall/engine` 0.1.0, MIT, 1.57 MB gz) served as-is from `assets/xr8/` (vite plugin
+  `xr8Engine`), not precached. Targets are made at runtime from each target's `imageSrc` (the image-target
+  CLI's default crop: centred 3:4, landscape turned, grey 480×640) – no content build change for the test.
+- Anchors keep the MindAR convention (1 unit = image width, origin centre); verified headless (fake camera, both
+  engines on the same clip: same apparent size and orientation), spread switch keeps the camera, prod build ok.
+- [ ] Phone comparison S22 + iPhone (staging with the debug bar): time to first find, jitter, lag, angles, frame
+  rate, heat, first-scan load time. Also check: iOS motion permission prompt, pause/resume, camera orientation.
+- Known limits of the 8th Wall path: only the centred 3:4 part of a target is tracked (e.g. `shadows` 254×650 →
+  52 %); the engine tracks max. 4 targets at once (`maxTrack` is MindAR's); its camera canvas is a second WebGL
+  context (as MindAR's TF.js).
+
 ## 2026-09-28 – Exploration "webworker tracking" (Tilman; branch `claude/laughing-wright-hrt8zy`)
 
 - Research only: `agents/research/webworker-tracking.md`. A worker makes the app smoother, not the tracking
   more precise; MindAR tracks on a 128-px template with 10–41 points, and our target images are 146–462 px.
   8th Wall's engine (Image Targets, C++/WASM) is MIT open source now → spike it instead of rebuilding.
 - [ ] Final target images ≥ 1000 px, textured (with the artist) – helps any tracker.
-- [ ] Decide (Tilman): spike 8th Wall side by side with MindAR behind a build flag (S22 + iPhone)? Switching
-  would change the RULES stack line "Image tracking: MindAR" and the `.mind` content build.
+- [x] Spike 8th Wall side by side with MindAR – Tilman: yes, built (entry above). Switching for good would change
+  the RULES stack line "Image tracking: MindAR" and the `.mind` content build – after the phone comparison.
 
 ## 2026-09-27 – Branch cleanup and dependency audit (Tilman)
 

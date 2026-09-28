@@ -123,6 +123,31 @@ function contentSizes() {
   };
 }
 
+/**
+ * The 8th Wall engine (`@8thwall/engine`, image tracking for the comparison with MindAR – exploration
+ * 2026-09-28, agents/research/webworker-tracking.md): its prebuilt files are served as they are from
+ * `assets/xr8/` (a classic script plus a chunk it imports; not bundled). Dev: from node_modules; build: copied.
+ * Loaded only when the 8th Wall tracker is chosen (ar/xr8.ts); not precached by the service worker.
+ */
+function xr8Engine() {
+  const dist = resolve(import.meta.dirname, 'node_modules/@8thwall/engine/dist');
+  const files = ['xr.js', 'xr-tracking.js'];
+  return {
+    name: 'osct-xr8-engine',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const file = files.find(name => req.url?.split('?')[0] === `/assets/xr8/${name}`);
+        if (!file) return next();
+        res.setHeader('Content-Type', 'text/javascript');
+        res.end(readFileSync(resolve(dist, file)));
+      });
+    },
+    generateBundle() {
+      files.forEach(file => this.emitFile({ type: 'asset', fileName: `assets/xr8/${file}`, source: readFileSync(resolve(dist, file)) }));
+    },
+  };
+}
+
 export default defineConfig(({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
   const port = 5173; // Default Vite port, change if you're using a custom port
@@ -132,7 +157,7 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [staticSplash(), contentSizes(), ...pwa(), ...(https ? [basicSsl()] : [])],
+  plugins: [staticSplash(), contentSizes(), xr8Engine(), ...pwa(), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),

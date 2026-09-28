@@ -2,9 +2,9 @@ import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import { Controller } from "@/vendor/mind-ar/mindar-image.prod.js";
 import { loadCompressed } from "@/utils/compressed";
 import { CAMERA_NOT_RESPONDING } from "@/types";
+import { CAMERA_START_TIMEOUT_MS, IImageTracker, ImageTrackerOptions, TrackedSpread } from "./tracker-types";
 
-/** A camera that sends no picture within this time is reported as not responding */
-export const CAMERA_START_TIMEOUT_MS = 10000;
+export { CAMERA_START_TIMEOUT_MS };
 
 /**
  * Camera + MindAR image tracking, without a renderer. A port of MindAR 1.2.5's `MindARThree`
@@ -15,18 +15,12 @@ export const CAMERA_START_TIMEOUT_MS = 10000;
  * 1 unit = target width, origin in the target's centre), null when the target is lost – MindAR's own
  * warm-up / miss tolerance decides that.
  */
-export class ImageTracker {
+export class ImageTracker implements IImageTracker {
   private video: HTMLVideoElement | null = null;
   private controller: Controller | null = null;
   private postMatrices: Matrix4[] = [];
 
-  constructor(
-    private container: HTMLElement,
-    private options: {
-      maxTrack: number;
-      onUpdate: (targetIndex: number, matrix: Matrix4 | null) => void;
-    },
-  ) {}
+  constructor(private container: HTMLElement, private options: ImageTrackerOptions) {}
 
   get hasCamera(): boolean {
     return !!this.video;
@@ -76,8 +70,8 @@ export class ImageTracker {
     await video.play().catch(() => {}); // autoplay (muted, inline) normally runs by itself
   }
 
-  /** Track the targets of a `.mind` file on the running camera (replaces the previous targets) */
-  async loadTargets(mindSrc: string): Promise<void> {
+  /** Track the targets of the spread's `.mind` file on the running camera (replaces the previous targets) */
+  async loadTargets({ mindSrc }: TrackedSpread): Promise<void> {
     const video = this.video;
     if (!video) throw new Error("loadTargets() needs the camera");
     this.stopTracking();

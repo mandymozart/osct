@@ -7,6 +7,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
 - Build: vite · Tests: vitest (happy-dom)
 - 3D: three.js (A-Frame removed 2026-09-26, Phase 9) · Image tracking: MindAR (`Controller`, vendored in
   `client/src/vendor/mind-ar/`)
+  – exploration 2026-09-28 (branch `claude/laughing-wright-hrt8zy`): the 8th Wall engine (`@8thwall/engine`)
+  can be chosen instead for the comparison (`VITE_AR_TRACKER=8thwall` or the debug bar); MindAR stays the default
+  until Tilman decides. Both behind `IImageTracker` (`ar/tracker-types.ts`).
 - State: custom monolithic game store (`IGame`, `BaseStore`) with immer drafts, split into managers
 - UI: vanilla custom web components (shadow DOM), no framework
 - Page/view management is self-made (`pages-router`, `RouterManager`). No routing or animation
