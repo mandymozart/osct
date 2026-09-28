@@ -34,6 +34,11 @@ outcome in the line (or move it into a dated decision block).
 - Tilman: both effects are **reader options** like sound – Info → Settings, "Onion sky" and "Scene around the
   book" (`GraphicsService`, localStorage `osct-graphics`, default on) – so phones can save the power for the page
   scenes. The `localStorage["osct-look-around"]` switch is gone.
+- Then (Tilman, phone test): "add a few things to the café, objects here and there" and "the slow part is the sky,
+  it is a video filter" → objects as analytic shapes in the same pass (orbs, table discs, cubes, planet, grid floor);
+  the sky test reads a 160 px canvas copy of the camera, drawn every other frame (was a full VideoTexture upload per
+  frame). Façade fix: grey sky must not be warmer than neutral. S22 (dev server): ~27 fps with both on; the
+  on/off measurements were too noisy to show the effects' own cost.
 - [ ] Open: the world is a placeholder in the shader (`worldColour` in `look-around.ts`) – the real one comes as
   content in Phase 14 (RULES #5).
 
