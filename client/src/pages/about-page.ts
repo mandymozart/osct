@@ -7,7 +7,8 @@ import "@/components/settings";
  * Info page, opened with "i" in consultation mode; "Entries" goes back to the list. Sections, one component
  * each: info text · Account (progress explanation and reset, sign-in, update options) · Settings (sound &
  * vibration, language, home screen, download) · colophon. The texts are placeholders until they move
- * into the content (`book.yaml`).
+ * into the content (`book.yaml`). The colophon credits MindAR (MIT, `src/vendor/mind-ar/LICENSE`); names and
+ * links there are not translated.
  */
 export class AboutPage extends ConsultationPage {
   get styles(): string {
@@ -59,7 +60,6 @@ export class AboutPage extends ConsultationPage {
           <p>${t("about:desktop")}</p>
           <p>${t("about:ios")}</p>
         </div>
-        <!-- MindAR is MIT licensed (src/vendor/mind-ar/LICENSE) – names are not translated -->
         <p class="credits">
           ${t("about:imageTracking")} HiuKim (MindAR)
           <a href="https://github.com/hiukim/mind-ar-js" target="_blank" rel="noopener noreferrer">github.com/hiukim/mind-ar-js</a>

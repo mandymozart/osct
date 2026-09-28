@@ -12,6 +12,12 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.2.1 – 2026-09-28
+
+### Changed
+- Comment cleanup: the Info page's MindAR note no longer ends up in the page's HTML; the staging deploy
+  workflow's comments follow the comment rules.
+
 ## 1.2.0 – 2026-09-28
 
 ### Added
