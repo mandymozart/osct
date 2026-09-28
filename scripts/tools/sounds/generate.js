@@ -2,13 +2,13 @@
 // chiptune blips: square / pulse waves with short envelopes. Replace the files in
 // client/public/assets/sounds/ with designed sounds of the same names whenever they exist.
 //
-//   node scripts/tools/generate-sounds.mjs
+//   npm run sounds   (in scripts/)
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const RATE = 22050;
-const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../client/public/assets/sounds");
+const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../client/public/assets/sounds");
 
 const note = name => {
   const [, letter, sharp, octave] = /^([A-G])(#?)(\d)$/.exec(name);

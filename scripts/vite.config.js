@@ -16,4 +16,10 @@ export default defineConfig({
     ssr: true, // Enable Server Side Rendering mode
     sourcemap: true,
   },
+  // npm test – tests live in test/, not src/ (src/ is part of the content hash)
+  test: {
+    include: ['test/**/*.test.ts'],
+    environment: 'node',
+    silent: 'passed-only', // build logs only for failing tests
+  },
 });

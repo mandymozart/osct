@@ -17,10 +17,10 @@
 //   npm run compile:mind -- --note "sharper scan"  # note stored with the version (mind:history)
 //
 // PowerShell drops the `--` – there write values with "=": npm run compile:mind --gpu=default --jobs=6
-// (tools/lib/cli.mjs), or call npm.cmd.
+// (tools/lib/cli.js), or call npm.cmd.
 //
 // Every compiled .mind is kept as a version in mind-history/ (the one it replaces too): test it on the
-// phone, `npm run mind:restore -- <spread> previous` goes back (tools/mind-history.mjs).
+// phone, `npm run mind:restore -- <spread> previous` goes back (tools/mind/history.js).
 //
 // Browser: your installed Chrome, else Edge, else Playwright's Chromium (`npx playwright install
 // chromium`). The WebGL renderer is printed – "SwiftShader" / "llvmpipe" means software WebGL (slow).
@@ -39,10 +39,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import { chromium } from "playwright-core";
-import { parseOptions } from "./lib/cli.mjs";
-import { saveVersion } from "./lib/mind-history.mjs";
+import { parseOptions } from "../lib/cli.js";
+import { saveVersion } from "./versions.js";
 
-const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ROOT = path.resolve(SCRIPTS, "..");
 const MINDAR_DIR = path.join(ROOT, "mind-ar");
 const SPREADS_DIR = path.join(ROOT, "content/spreads");
