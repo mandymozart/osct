@@ -12,6 +12,12 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.2.2 – 2026-09-28
+
+### Fixed
+- Automatic tagging no longer fails when an older version's commit has different workflow files (GitHub
+  does not let the repository token tag it); that tag is reported with the command to create it by hand.
+
 ## 1.2.1 – 2026-09-28
 
 ### Changed
