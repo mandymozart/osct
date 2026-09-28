@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Releases deploy production (Tilman)
+
+- Production is deployed by publishing a GitHub release (`release.yml`), not by merging to `main`. The
+  workflow verifies tag = version (client, scripts, Version.php), a CHANGELOG section and that the commit
+  is on `main`; empty release notes get the CHANGELOG section.
+- Netlify cannot trigger on tags/releases itself → its automatic builds are stopped (Netlify UI) and the
+  release workflow uploads the tagged build with the Netlify CLI.
+- [ ] Tilman: GitHub environment `production` with `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `VITE_API_URL`;
+  Netlify site `osct` → Stop builds. Production server settings (`FTP_*`, `DB_*`, …) once the client's
+  server exists – until then that job is skipped with a warning.
+
 ## 2026-09-28 – Code comments rewritten (Tilman)
 
 - Comments across client, server and scripts now describe responsibility and business rules only: no
