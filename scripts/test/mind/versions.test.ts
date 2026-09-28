@@ -2,8 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error – plain JavaScript tool module
-import { currentVersion, KEEP, listVersions, restoreVersion, saveVersion } from '../../src/tools/mind/versions.js';
+import { currentVersion, KEEP, listVersions, restoreVersion, saveVersion } from '../../src/mind/versions';
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'osct-versions-'));

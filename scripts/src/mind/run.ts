@@ -1,13 +1,35 @@
 // Compile a list of images with N parallel browser pages, showing live what every job does.
 import fs from "node:fs";
 import path from "node:path";
-import { openPage } from "./browser.js";
-import { bar, bold, count, cyan, dim, endLive, green, log, magenta, mp, pad, red, seconds, setLive, tty } from "./console.js";
+import { bar, bold, count, cyan, dim, endLive, green, log, magenta, mp, pad, red, seconds, setLive, tty } from "../lib/console";
+import { openPage, type Browser, type CompilePage, type GpuChoice, type PageResult } from "./browser";
+import type { TargetImage } from "./targets";
 
-const label = image => `${image.spread}[${image.index}] ${image.name}`;
+export interface CompiledImage extends TargetImage, PageResult {
+  ms: number; // whole image, as seen by the job
+  job: number;
+}
 
-/** One finished image, e.g. "✔ spread3[0] images-060.jpg  2059×1796 3.7 MP  find 9.8s + track 0.4s = 10.2s  14 sizes · 4.8k features" */
-export function imageLine(r) {
+export interface RunOptions {
+  browser: Browser;
+  jobs: number;
+  gpu: GpuChoice;
+  cache?: boolean; // write each result to image.cache
+  quiet?: boolean; // no line per image
+}
+
+interface Job {
+  n: number;
+  page?: CompilePage;
+  image: TargetImage | null;
+  percent: number;
+  since: number;
+}
+
+const label = (image: TargetImage) => `${image.spread}[${image.index}] ${image.name}`;
+
+/** One finished image: size, time finding features (GPU) + preparing tracking (CPU), what was found */
+export function imageLine(r: CompiledImage): string {
   return (
     `  ${green("✔")} ${pad(bold(label(r)), 34)} ${pad(dim(`${r.width}×${r.height} ${mp(r.pixels)}`), 18)}` +
     `  ${magenta(`find ${seconds(r.detectMs)}`)} + ${cyan(`track ${seconds(r.trackMs)}`)} = ${bold(seconds(r.ms))}` +
@@ -15,21 +37,16 @@ export function imageLine(r) {
   );
 }
 
-/**
- * Compile `queue` (images from targets.js). { browser, jobs, gpu, cache: write results to image.cache,
- * quiet: no line per image }
- * → { results[{ ...image, mind, ms, detectMs, trackMs, keyframes, points }], wall }
- */
-export async function compileQueue(queue, { browser, jobs: jobCount, gpu, cache = true, quiet = false }) {
+export async function compileQueue(queue: TargetImage[], { browser, jobs: jobCount, gpu, cache = true, quiet = false }: RunOptions): Promise<{ results: CompiledImage[]; wall: number }> {
   const images = new Map(queue.map(image => [path.basename(image.cache), image.file]));
   const totalPixels = queue.reduce((n, image) => n + image.pixels, 0);
-  const results = [];
+  const results: CompiledImage[] = [];
   const started = Date.now();
   let donePixels = 0;
 
   const jobs = await Promise.all(
     Array.from({ length: Math.max(1, Math.min(jobCount, queue.length)) }, async (_, i) => {
-      const job = { n: i + 1, image: null, percent: 0, since: 0 };
+      const job: Job = { n: i + 1, image: null, percent: 0, since: 0 };
       job.page = await openPage(browser, {
         site: job.n,
         gpu,
@@ -37,7 +54,7 @@ export async function compileQueue(queue, { browser, jobs: jobCount, gpu, cache 
         onProgress: percent => (job.percent = percent),
         onError: message => log(red(`  page error (job ${job.n}): ${message}`)),
       });
-      return job;
+      return job as Required<Job>;
     }),
   );
 
@@ -63,10 +80,10 @@ export async function compileQueue(queue, { browser, jobs: jobCount, gpu, cache 
   try {
     await Promise.all(
       jobs.map(async job => {
-        for (let image; (image = next.shift()); ) {
+        for (let image = next.shift(); image; image = next.shift()) {
           Object.assign(job, { image, percent: 0, since: Date.now() });
           const result = await job.page.compile(path.basename(image.cache));
-          const r = { ...image, ...result, ms: Date.now() - job.since, job: job.n };
+          const r: CompiledImage = { ...image, ...result, ms: Date.now() - job.since, job: job.n };
           if (cache) {
             fs.mkdirSync(path.dirname(image.cache), { recursive: true });
             fs.writeFileSync(image.cache, Buffer.from(result.mind, "base64"));

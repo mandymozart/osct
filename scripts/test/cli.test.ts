@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-// @ts-expect-error – plain JavaScript tool module
-import { parseOptions } from '../../src/tools/lib/cli.js';
+import { parseOptions } from '../src/lib/cli';
 
 const spec = { values: ['gpu', 'jobs'], flags: ['force', 'headed'] };
 afterEach(() => vi.unstubAllEnvs());

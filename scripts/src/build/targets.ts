@@ -10,7 +10,7 @@ import type { EntryBuild } from './entries';
 /**
  * Assign MindAR indices per spread (page → target order → id; must match the compiled .mind)
  * and copy the target images to `mind-ar/<spread>/<index>-<file>` for compiling, with
- * `source.sha256` = hash of those images in order. `tools/mind/compile.js` stores that hash next to
+ * `source.sha256` = hash of those images in order. `mind/compile.ts` stores that hash next to
  * the `.mind` it compiles (`<name>.mind.sha256`); a different hash means the `.mind` is stale.
  */
 export function assignTargetIndices(spreads: SpreadData[], builds: EntryBuild[]): void {

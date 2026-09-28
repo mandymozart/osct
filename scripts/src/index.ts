@@ -36,7 +36,7 @@ console.log('📄 Output file:', OUTPUT_FILE);
  */
 async function generateConfigFile(): Promise<void> {
   try {
-    // `--targets`: only refresh mind-ar/ (target images + source hash per spread) for tools/mind/compile.js,
+    // `--targets`: only refresh mind-ar/ (target images + source hash per spread) for mind/compile.ts,
     // write nothing else – works while the build fails, e.g. on a stale .mind
     if (process.argv.includes('--targets')) {
       const spreads = buildSpreads();

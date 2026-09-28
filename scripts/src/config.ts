@@ -14,11 +14,20 @@ export const CONTENT_DIR = resolve(process.env.OSCT_CONTENT_DIR || resolve(proje
 export const OUTPUT_FILE = resolve(projectRoot, 'client/src/game.config.json');
 export const MINDAR_DIR = resolve(process.env.OSCT_MINDAR_DIR || resolve(projectRoot, 'mind-ar'));
 // mind-ar/<spread>/source.sha256: hash of the spread's target images in MindAR order;
-// content/spreads/<spread>/<name>.mind.sha256: the hash the .mind was compiled from (tools/mind/compile.js)
+// content/spreads/<spread>/<name>.mind.sha256: the hash the .mind was compiled from (mind/compile.ts)
 export const MIND_SOURCE_FILE = 'source.sha256';
 export const MIND_HASH_SUFFIX = '.sha256';
+export const SCRIPTS_DIR = resolve(projectRoot, 'scripts');
 export const SCRIPTS_SRC_DIR = resolve(projectRoot, 'scripts/src');
 export const CLIENT_PUBLIC_ASSETS_DIR = resolve(projectRoot, 'client/public/assets/content');
+
+// .mind compiling (mind/) – everything below scripts/.cache/ and mind-history/ stays on this computer
+export const MINDAR_VENDOR_DIR = resolve(projectRoot, 'client/src/vendor/mind-ar'); // MindAR, unchanged
+export const MIND_CACHE_DIR = resolve(SCRIPTS_DIR, '.cache/mind'); // one compiled .mind per image
+export const MIND_BROWSER_DIR = resolve(SCRIPTS_DIR, '.cache/mind-browser'); // browser profiles (GPU cache)
+export const MIND_BENCHMARK_FILE = resolve(SCRIPTS_DIR, '.cache/mind-benchmark.json');
+export const MIND_HISTORY_DIR = resolve(projectRoot, 'mind-history');
+export const SOUNDS_DIR = resolve(projectRoot, 'client/public/assets/sounds');
 
 // One version for app and content build (RULES.md #10). Source: client/package.json –
 // read directly, npm_package_version is missing outside `npm run`.
