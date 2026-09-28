@@ -38,6 +38,8 @@ outcome in the line (or move it into a dated decision block).
   link" button (new primitive `.text-link`, RULES #18). Fields take the full width so button + link share a line;
   link texts kept short so they fit at 375 px in en/fr/nl/de (fr "Recevoir un lien" / "Avec un mot de passe",
   de "Mit Passwort" / "Mit Link").
+- 1.4.1 (Tilman): **no "Remove password"** – once set, a password can only be changed (button, service method,
+  `DELETE /user/password` removed).
 - [ ] "Password changed" notification email (mail texts en/fr/nl/de) – not built.
 
 ## 2026-09-28 – 1.3.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
@@ -533,8 +535,10 @@ outcome in the line (or move it into a dated decision block).
   `adb forward tcp:9444 localabstract:chrome_devtools_remote`, then CDP on the Chrome tab (evaluate,
   console, screenshots incl. WebGL). Headless Edge screenshots don't capture the WebGL canvas.
 - The debug bar shows tracked targets and how often each was found (`F[stone-guardian×3]`).
-- [ ] Open: `SpreadManager.markLoading/markLoaded` are never called – the spread dot in the debug bar is
-  always orange. Remove the spread status or wire it to the AR scene?
+- [x] Open: `SpreadManager.markLoading/markLoaded` are never called – the spread dot in the debug bar is
+  always orange. Remove the spread status or wire it to the AR scene? → Removed in 1.4.1 (Tilman 2026-09-28:
+  "status initial never changes, redundant"): `GameState.spreads`, `SpreadState`, the mark*/register/isLoaded/
+  getLoadingStatus methods, the "C" dot and "Status" line in the debug overlay. `SpreadManager` keeps the current spread.
 
 ## 2026-09-26 – Onboarding flow and look (Tilman, mobile test)
 

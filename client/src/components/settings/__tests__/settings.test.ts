@@ -102,7 +102,6 @@ describe("settings sections", () => {
       const setPassword = vi.spyOn(users, "setPassword").mockResolvedValue(true);
       const section = mount("settings-account");
       const root = section.shadowRoot!;
-      expect(root.querySelector("[data-action=remove-password]")).toBeNull();
       click(section, "[data-action=edit-password]");
       expect(root.querySelector<HTMLInputElement>("input[name=username]")!.value).toBe("reader@example.com");
       expect(root.querySelector("input[name=current-password]")).toBeNull();
@@ -114,18 +113,15 @@ describe("settings sections", () => {
       expect(setPassword).toHaveBeenCalledWith("a new password", undefined);
     });
 
-    it("signed in with a password: change asks for the current one, remove after a confirmation", () => {
+    it("signed in with a password: change asks for the current one; it cannot be removed", () => {
       vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({
         status: "signed-in", sync: "synced",
         user: { email: "reader@example.com", language: "en", createdAt: "", options: { bookUpdates: false, artistUpdates: false, publisherUpdates: false }, hasPassword: true },
       }));
       vi.spyOn(users, "passwordNeedsCurrent").mockReturnValue(true);
-      const remove = vi.spyOn(users, "removePassword").mockResolvedValue(true);
       const section = mount("settings-account");
       expect(section.shadowRoot!.textContent).toContain("Change password");
-      vi.spyOn(window, "confirm").mockReturnValueOnce(true);
-      click(section, "[data-action=remove-password]");
-      expect(remove).toHaveBeenCalled();
+      expect(section.shadowRoot!.querySelector("[data-action=remove-password]")).toBeNull();
       click(section, "[data-action=edit-password]");
       expect(section.shadowRoot!.querySelector("input[name=current-password]")!.getAttribute("autocomplete")).toBe("current-password");
     });

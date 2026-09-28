@@ -47,7 +47,6 @@ server/tests/api-test.php        the whole flow against php -S + SQLite, SMTP ag
 | `PATCH /user` | `{ options?, language? }` | `{ user }` |
 | `DELETE /user` | | 204 – user, sessions, progress, open requests |
 | `PUT /user/password` | `{ password, currentPassword? }` | `{ user }` – sets or changes the password (`user.hasPassword`) |
-| `DELETE /user/password` | | `{ user }` – sign-in by email only again |
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
 | `GET /health` | | `{ status, version, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10) |
@@ -67,7 +66,7 @@ Security notes:
   rest, so longer ones are refused. Per hour at most 10 failed sign-ins per address and 30 per IP
   (`PASSWORD_MAX_FAILS_PER_*`); unknown address, no password and wrong password answer the same.
 - Changing an existing password needs the current one, unless the device signed in by email in the last
-  15 minutes (`PASSWORD_RESET_MINUTES`) – the "forgot password" path. Removing it needs only the session.
+  15 minutes (`PASSWORD_RESET_MINUTES`) – the "forgot password" path. A password can be changed, not removed.
 
 ## Configuration
 

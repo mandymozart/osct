@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 /**
  * Optional password for a user. The first sign-in is always by email (it confirms the address and creates the
- * user); afterwards the user may set a password and sign in with email + password, or keep using the email.
+ * user); afterwards the user may set a password and sign in with email + password, or keep using the email. Once set, a
+ * password can be changed but not removed.
  *
  * Hashes: PHP `password_hash()` with bcrypt (cost 12, salted), upgraded on sign-in when the settings change.
  * bcrypt only reads 72 bytes, so longer passwords are refused instead of silently cut.
@@ -72,14 +73,6 @@ final class Passwords
 
         Db::run('UPDATE users SET password_hash = :hash, updated_at = :now WHERE id = :id',
             ['hash' => self::hash($password), 'now' => Db::now(), 'id' => $user['id']]);
-        Http::json(200, ['user' => Users::toJson(Db::one('SELECT * FROM users WHERE id = :id', ['id' => $user['id']]))]);
-    }
-
-    /** DELETE /user/password → { user } (sign-in by email only again) */
-    public static function remove(): never
-    {
-        $user = Auth::user();
-        Db::run('UPDATE users SET password_hash = NULL, updated_at = :now WHERE id = :id', ['now' => Db::now(), 'id' => $user['id']]);
         Http::json(200, ['user' => Users::toJson(Db::one('SELECT * FROM users WHERE id = :id', ['id' => $user['id']]))]);
     }
 

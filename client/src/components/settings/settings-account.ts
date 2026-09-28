@@ -14,13 +14,12 @@ const NOTICES = {
   "signed-out": "account:signedOut",
   "deleted": "account:deleted",
   "password-saved": "account:passwordSaved",
-  "password-removed": "account:passwordRemoved",
 } as const satisfies Record<Exclude<UserNotice, { error: string }>, string>;
 
 /**
  * Account section: sign-in by email (link or 6-digit code) – one form for new and returning readers – or, for
  * readers who set one, email + password. Signed in: update opt-ins as `<gold-switch>`, the optional password
- * (set, change, remove), progress sync status, sign-out and deletion. Renders from `UserService` snapshots
+ * (set, change), progress sync status, sign-out and deletion. Renders from `UserService` snapshots
  * (signed-out / pending / signed-in). Update options are opt-in: off until the reader enables them.
  * Removed when no accounts API (`VITE_API_URL`) is configured.
  *
@@ -167,7 +166,7 @@ export class SettingsAccount extends SettingsSection {
     `;
   }
 
-  /** The optional password: what it does, then set / change / remove, or the form while editing */
+  /** The optional password: what it does, then set / change, or the form while editing */
   private passwordSettings(user: UserData, busy: boolean): string {
     const description = `<p class="description">${t(user.hasPassword ? "account:passwordOn" : "account:passwordOff")}</p>`;
     if (!this.editingPassword) {
@@ -175,7 +174,6 @@ export class SettingsAccount extends SettingsSection {
         ${description}
         <div class="row options">
           ${goldButton({ label: t(user.hasPassword ? "account:changePassword" : "account:setPassword"), attrs: { "data-action": "edit-password", disabled: busy } })}
-          ${user.hasPassword ? goldButton({ label: t("account:removePassword"), attrs: { "data-action": "remove-password", disabled: busy } }) : ""}
         </div>
       `;
     }
@@ -233,8 +231,6 @@ export class SettingsAccount extends SettingsSection {
       this.currentPassword = this.newPassword = "";
       this.user.clearNotice();
       this.render();
-    } else if (action === "remove-password") {
-      if (window.confirm(t("account:removePasswordConfirm"))) void this.user.removePassword();
     } else if (action === "sign-out") {
       this.editingPassword = false;
       void this.user.signOut();

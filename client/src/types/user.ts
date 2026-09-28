@@ -46,7 +46,7 @@ export type UserStatus = "signed-out" | "pending" | "signed-in";
 export type ProgressSyncStatus = "off" | "syncing" | "synced" | "pending";
 
 /** Something the account section tells the reader once (after a link or password sign-in, sign-out, deletion, a password change) */
-export type UserNotice = "confirmed" | "signed-in" | "signed-out" | "deleted" | "password-saved" | "password-removed" | { error: string };
+export type UserNotice = "confirmed" | "signed-in" | "signed-out" | "deleted" | "password-saved" | { error: string };
 
 export interface UserSnapshot {
   status: UserStatus;
@@ -73,8 +73,6 @@ export interface IUserService {
   signInWithPassword(email: string, password: string): Promise<boolean>;
   /** Set or change the password; `currentPassword` when `passwordNeedsCurrent()` */
   setPassword(password: string, currentPassword?: string): Promise<boolean>;
-  /** Back to sign-in by email only */
-  removePassword(): Promise<boolean>;
   /** Changing the password asks for the current one (server/api/src/Passwords.php) */
   passwordNeedsCurrent(): boolean;
   /** Back to the email form */
