@@ -11,7 +11,9 @@
     "build:content": "node dist/index.js",
     "build:content:force": "node dist/index.js --force",
     "start": "npm run build && npm run build:content",
-    "compile:mind": "npm run build && node tools/compile-mind.mjs"
+    "compile:mind": "npm run build && node tools/compile-mind.mjs",
+    "mind:history": "node tools/mind-history.mjs",
+    "mind:restore": "npm run build && node tools/mind-history.mjs restore"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.5.0",
