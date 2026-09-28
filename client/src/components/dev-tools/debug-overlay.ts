@@ -1,6 +1,6 @@
 import { IGame, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
+import { getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
 import { cyclePreparedSpreadRange, getPreparedSpreadRange } from "@/components/ar-bridges";
 
@@ -234,11 +234,8 @@ export class DebugOverlay extends HTMLElement {
     // Tracked targets with how often each was found
     const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
 
-    // Progress across the whole book: unlocked targets / consulted entries
-    const { unlocked, consulted } = this.game.state.progress;
-
     return `
-      <div>S${sceneStatus} [${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
+      <div>${sceneStatus} ${spread?.id} T${getTargets(spread?.id || '').length} F[${found}]</div>
     `;
   }
 

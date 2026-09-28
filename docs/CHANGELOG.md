@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.4.2 – 2026-09-28
+
+### Changed
+- Debug overlay top line shortened to `◉ spread1 T4 F[…]`: the dot's color is the AR status (no "S"), then the
+  spread, its number of targets and the found targets. The asset count and the book's unlocked / consulted
+  counts are gone from the line (the progress panel lists them in full).
+
 ## 1.4.1 – 2026-09-28
 
 ### Removed

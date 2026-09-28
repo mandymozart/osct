@@ -40,6 +40,8 @@ outcome in the line (or move it into a dated decision block).
   de "Mit Passwort" / "Mit Link").
 - 1.4.1 (Tilman): **no "Remove password"** – once set, a password can only be changed (button, service method,
   `DELETE /user/password` removed).
+- 1.4.2 (Tilman): debug top line `◉ spread1 T4 F[…]` – no "S" (the dot's color says it), no A (assets on the
+  spread) / U (unlocked targets) / K (consulted entries): unclear letters; U and K are in the progress panel.
 - [ ] "Password changed" notification email (mail texts en/fr/nl/de) – not built.
 
 ## 2026-09-28 – 1.3.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
