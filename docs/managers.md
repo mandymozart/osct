@@ -6,7 +6,7 @@ injected in the constructor. Interfaces: `client/src/types/`.
 
 | Manager | Store | State / responsibility |
 |---|---|---|
-| `SpreadManager` | `game.spreads` | `currentSpread` – switching the active spread (the MindAR target group of two pages) |
+| `SpreadManager` | `game.spreads` | `currentSpread` – switching the active spread (two pages and their targets; the menu, a link, or a found page of a neighbouring spread) |
 | `TargetManager` | `game.targets` | `trackedTargets` – targets found / lost by the AR scene; unlocks via the history |
 | `HistoryManager` | `game.history` | `progress` – unlocked targets, consulted entries, last spread (the active spread at the next start) / category, onboarding; tells once at startup when stored progress was converted or reset |
 | `RouterManager` | `game.router` | `currentRoute`, `mode` – navigation, see [Pages](pages.md) |
@@ -22,5 +22,5 @@ reader is told.
 ## Services used by managers
 
 - `GameStoreService` – the store singleton
-- `PreloaderService` – warms the browser cache with the neighbouring spreads' `.mind` files and content
+- `PreloaderService` – warms the browser cache with the neighbouring spreads' target images and content
 - `ProgressStorage` – reads and writes the progress record

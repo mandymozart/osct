@@ -11,8 +11,6 @@ interface ImportMetaEnv {
   readonly VITE_SHOW_LOCKED_ENTRIES?: string;
   /** Accounts API (server/): "/api" on the production host, the full URL elsewhere; unset = no accounts */
   readonly VITE_API_URL?: string;
-  /** Image tracking engine: "mindar" (default) or "8thwall" (comparison, components/ar-bridges/utils/tracker-choice.ts) */
-  readonly VITE_AR_TRACKER?: string;
 }
 
 interface ImportMeta {

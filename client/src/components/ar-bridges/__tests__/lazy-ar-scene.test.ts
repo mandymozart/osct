@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ArSceneEvents, ArStatus, SceneState } from "@/types";
 
-/** The real ArScene (three.js + MindAR) replaced: records what the lazy wrapper hands on */
+/** The real ArScene (three.js + 8th Wall) replaced: records what the lazy wrapper hands on */
 const created: FakeScene[] = [];
 class FakeScene {
   status: ArStatus = "idle";
@@ -19,10 +19,10 @@ class FakeScene {
   }
 }
 const imported = vi.fn();
-const preloadImageTracker = vi.fn(async () => {});
+const prefetchXr8 = vi.fn(async () => {});
 vi.mock("../ar", () => {
   imported();
-  return { ArScene: FakeScene, preloadImageTracker };
+  return { ArScene: FakeScene, prefetchXr8 };
 });
 
 const { LazyArScene } = await import("../lazy-ar-scene");
@@ -63,7 +63,7 @@ describe("LazyArScene", () => {
   it("warms up the AR chunk and the tracking engine without building a scene", async () => {
     const before = created.length;
     await new LazyArScene(document.createElement("div")).warmUp();
-    expect(preloadImageTracker).toHaveBeenCalled();
+    expect(prefetchXr8).toHaveBeenCalled();
     expect(created).toHaveLength(before);
   });
 });

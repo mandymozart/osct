@@ -1,6 +1,6 @@
 import type { SpreadData } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
-import { contentFile, readSection, validate } from '../lib/content';
+import { readSection, validate } from '../lib/content';
 
 export function buildSpreads(): SpreadData[] {
   const spreads = readSection('spreads', 'spread.yaml')
@@ -16,7 +16,6 @@ export function buildSpreads(): SpreadData[] {
           title: s.title,
           firstPage: s.firstPage,
           lastPage: s.lastPage,
-          mindSrc: contentFile('spreads', id, s.mind, label),
         } satisfies SpreadData,
       };
     })

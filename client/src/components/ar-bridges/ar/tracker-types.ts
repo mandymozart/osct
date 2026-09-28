@@ -4,15 +4,13 @@ import type { Target } from "@/types";
 /** A camera that sends no picture within this time is reported as not responding */
 export const CAMERA_START_TIMEOUT_MS = 10000;
 
-/** What a tracker needs to track a spread: MindAR reads the compiled `.mind`, 8th Wall the target images */
+/** What the tracker needs to track a spread: its targets (the engine's image targets are made from their images) */
 export interface TrackedSpread {
   spreadId: string;
-  mindSrc: string;
   targets: readonly Target[];
 }
 
 export interface ImageTrackerOptions {
-  maxTrack: number;
   /**
    * The anchor matrix of a target (1 unit = target width, origin in the target's centre, the image in the
    * x/y plane), null when the target is lost
@@ -20,15 +18,14 @@ export interface ImageTrackerOptions {
   onUpdate: (targetIndex: number, matrix: Matrix4 | null) => void;
   /**
    * A target of a prepared spread (`prepareTargets()`) is seen steadily while none of the current spread's is –
-   * the reader has turned the page (8th Wall only: MindAR tracks only the current spread)
+   * the reader has turned the page
    */
   onSpreadSeen?: (spreadId: string) => void;
 }
 
 /**
  * Camera + image tracking, without a renderer (`ArScene` renders). The camera stream survives a spread
- * switch: `loadTargets()` replaces only the tracked targets. Implementations: `ImageTracker` (MindAR) and
- * `EighthWallTracker` (8th Wall engine, exploration 2026-09-28) – chosen by `createImageTracker()`.
+ * switch: `loadTargets()` replaces only the tracked targets. Implementation: `ImageTracker` (8th Wall engine).
  */
 export interface IImageTracker {
   readonly hasCamera: boolean;

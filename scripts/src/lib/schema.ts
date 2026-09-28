@@ -37,7 +37,6 @@ export const schemas: Record<string, Schema> = {
       order: { type: "Number", required: false, default: 0 },
       firstPage: { type: "Number", required: true },
       lastPage: { type: "Number", required: true },
-      mind: { type: "String", required: true },
     },
   },
 

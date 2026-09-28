@@ -8,7 +8,6 @@ afterEach(() => vi.unstubAllEnvs());
 const valid = () => ({
   'book.yaml': BOOK,
   'spreads/a/spread.yaml': spread(1, 2),
-  'spreads/a/a.mind': 'mind',
   'entries/second/entry.yaml': entry(2, 'y.jpg'),
   'entries/second/y.jpg': 'image y',
   'entries/first/entry.yaml': entry(1, 'x.jpg'),
@@ -22,65 +21,21 @@ describe('content build', () => {
     expect(build.errors).toEqual([]);
     expect(book.title).toBe('Test Book');
     expect(spreads.map(s => s.id)).toEqual(['a']);
-    expect(spreads[0].mindSrc).toBe('/assets/content/spreads/a/a.mind');
     expect(entries.find(e => e.id === 'first')?.target?.imageSrc).toBe('/assets/content/entries/first/x.jpg');
   });
 
-  it('numbers targets per spread by page and copies them to .mindar/targets/ in that order', async () => {
-    const dirs = makeContent(valid());
-    const build = await loadBuild(dirs);
+  it('numbers targets per spread by page', async () => {
+    const build = await loadBuild(makeContent(valid()));
     const { entries } = build.buildAll();
     expect(Object.fromEntries(entries.map(e => [e.id, e.target?.index]))).toEqual({ first: 0, second: 1 });
-    expect(fs.readdirSync(path.join(dirs.mindar, 'a')).sort()).toEqual(['0-x.jpg', '1-y.jpg', 'source.sha256']);
   });
 
   it('orders spreads by order, then id', async () => {
     const build = await loadBuild(makeContent({
       ...valid(),
-      'spreads/b/spread.yaml': spread(3, 4, 'b.mind', -1),
-      'spreads/b/b.mind': 'mind',
+      'spreads/b/spread.yaml': spread(3, 4, -1),
     }));
     expect(build.spreads.buildSpreads().map(s => s.id)).toEqual(['b', 'a']);
-  });
-
-  describe('.mind fingerprint', () => {
-    it('only warns when the fingerprint is missing', async () => {
-      const build = await loadBuild(makeContent(valid()));
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      build.buildAll();
-      expect(build.errors).toEqual([]);
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('no a.mind.sha256'));
-      warn.mockRestore();
-    });
-
-    it('accepts a matching fingerprint and fails on a stale one', async () => {
-      const dirs = makeContent(valid());
-      let build = await loadBuild(dirs);
-      build.buildAll();
-      const fingerprint = fs.readFileSync(path.join(dirs.mindar, 'a/source.sha256'), 'utf8');
-      fs.writeFileSync(path.join(dirs.content, 'spreads/a/a.mind.sha256'), fingerprint);
-
-      build = await loadBuild(dirs);
-      build.buildAll();
-      expect(build.errors).toEqual([]);
-
-      fs.writeFileSync(path.join(dirs.content, 'entries/first/x.jpg'), 'replaced image');
-      build = await loadBuild(dirs);
-      build.buildAll();
-      expect(build.errors).toEqual([expect.stringContaining('spreads/a/a.mind is stale')]);
-    });
-
-    it('changes when targets are reordered', async () => {
-      const dirs = makeContent(valid());
-      let build = await loadBuild(dirs);
-      build.buildAll();
-      const before = fs.readFileSync(path.join(dirs.mindar, 'a/source.sha256'), 'utf8');
-      fs.writeFileSync(path.join(dirs.content, 'entries/first/entry.yaml'), entry(2, 'x.jpg', ''));
-      fs.writeFileSync(path.join(dirs.content, 'entries/second/entry.yaml'), entry(1, 'y.jpg'));
-      build = await loadBuild(dirs);
-      build.buildAll();
-      expect(fs.readFileSync(path.join(dirs.mindar, 'a/source.sha256'), 'utf8')).not.toBe(before);
-    });
   });
 
   describe('errors', () => {
@@ -94,7 +49,7 @@ describe('content build', () => {
     };
 
     it('overlapping spreads', async () => {
-      expect(await errorsFor({ ...valid(), 'spreads/b/spread.yaml': spread(2, 3, 'b.mind'), 'spreads/b/b.mind': 'm' }))
+      expect(await errorsFor({ ...valid(), 'spreads/b/spread.yaml': spread(2, 3) }))
         .toContainEqual('spreads/a and spreads/b: page ranges overlap');
     });
 
@@ -103,13 +58,13 @@ describe('content build', () => {
         .toContainEqual('entries/lost: page 9 is not part of any spread');
     });
 
-    it('more than 5 targets on a spread', async () => {
+    it('more than 10 targets on a spread', async () => {
       const files: Record<string, string> = { ...valid() };
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 9; i++) {
         files[`entries/extra${i}/entry.yaml`] = entry(1, 'z.jpg');
         files[`entries/extra${i}/z.jpg`] = `z${i}`;
       }
-      expect(await errorsFor(files)).toContainEqual('spreads/a has 6 targets, max is 5.');
+      expect(await errorsFor(files)).toContainEqual('spreads/a has 11 targets, max is 10.');
     });
 
     it('a missing file', async () => {
@@ -175,9 +130,8 @@ describe('content build', () => {
 });
 
 describe('the real content', () => {
-  it('builds without errors, and every .mind matches its target images', async () => {
-    const dirs = makeContent({});
-    const build = await loadBuild({ content: path.resolve(__dirname, '../../content'), mindar: dirs.mindar });
+  it('builds without errors', async () => {
+    const build = await loadBuild({ content: path.resolve(__dirname, '../../content') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     build.buildAll();
     vi.restoreAllMocks();

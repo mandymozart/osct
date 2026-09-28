@@ -14,10 +14,11 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` needs deci
 
 ## Constraints (fixed)
 
-- Libraries stay: three.js (A-Frame until Phase 9) + MindAR + immer + vanilla custom elements + vite/vitest.
-- **Max 5 image targets per `.mind` group.** Designers keep spreads below that by design.
-- One `.mind` group = currently one **spread** (2 pages). The user picks the active spread
-  manually (bottom scroll menu); the app does not auto-detect across all targets.
+- Libraries stay: three.js (A-Frame until Phase 9) + the 8th Wall engine (MindAR until 2.0.0, Phase 13) +
+  immer + vanilla custom elements + vite/vitest.
+- **Max 10 image targets per spread** (was 5 with MindAR) – the engine tracks 4 at the same moment.
+- A spread = two pages. The user picks the active spread in the bottom scroll menu; turning to a
+  neighbouring spread switches by itself (its targets are kept loaded, Phase 13).
 - Self-made page/view management stays. Transitions are simple (CSS), no router/animation lib.
 - Content (texts, videos, Mark animations) arrives later (on site in Amsterdam, fall 2026).
   Build everything against placeholder content.
@@ -919,7 +920,7 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] Entry view like Info (Tilman): "Entries" in the page at the category pill's height, content where the list starts –
       one shared toolbar in `ConsultationPage` (`entriesToolbar()`); the header has no "Entries" any more.
 
-## Phase 12 – `.mind` compilation in the content builder  `[x]` (1.2.0, 2026-09-28; open: phone test of the RTX-compiled spreads)
+## Phase 12 – `.mind` compilation in the content builder  `[x]` (1.2.0, 2026-09-28) – **superseded by Phase 13** (2.0.0 removed MindAR and the `.mind` tooling)
 
 Before: target images compiled by hand in MindAR's online tool, nothing checked a stale `.mind`
 beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
@@ -950,6 +951,23 @@ The notes below are the earlier, rougher summary.
 - Font: Arial, extra tracking 20 → `letter-spacing: 0.02em`.
 - Accent: **gold** for now (the PDF note says to use a flashy placeholder such as R100%; final color TBD). Keep it one CSS variable.
 - Scan chrome on camera; consultation dark (black/dark grey), outlined pill buttons, glass highlight.
+
+## Phase 13 – 8th Wall image tracking  `[~]` (2.0.0, 2026-09-28 – exploration "webworker tracking", Tilman: "move to 8th Wall entirely")
+
+Research and phone results: `research/webworker-tracking.md`, `MEMORY.md` 2026-09-28.
+- [x] 8th Wall engine (`@8thwall/engine`, MIT) behind `IImageTracker`; image targets made in the app from the
+      target images (whole image fitted into the engine's 3:4 frame), `xr8.ts`.
+- [x] Neighbouring spreads' targets kept loaded (`prepareTargets()`, ±1 default, debug overlay ±0/±1/±2/all);
+      a switch to a neighbour starts at once (S22: 0–5 ms).
+- [x] Automatic spread switch: a neighbour's page held 400 ms → `spreadSeen` → `switchSpread()` (scan mode).
+- [x] Demo spreads 4–14 from the layout PDF (29 → 25 targets after duplicates), load test with all loaded.
+- [x] MindAR removed: vendored build, tracker, `.mind` files, `compile:mind` tooling, `mindSrc` /
+      `maxTargetsPerSpread` in the game configuration, `.mindar/`. Max targets per spread 10.
+- [x] Engine files precached with the app shell (offline AR), LICENSE served next to them, credit on Info.
+- [ ] iPhone Safari: motion permission prompt, pause/resume, camera orientation, tracking quality.
+- [ ] Measure all targets loaded vs ±1 (time to first find, frame rate) – the default stays ±1.
+- [ ] Build-time image targets (grey 480×640 per target in the content build) instead of making them on the
+      device (~150–260 ms per image on the S22) – if first-scan time matters.
 
 ---
 

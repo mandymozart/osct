@@ -1,4 +1,3 @@
-import { decode } from "@msgpack/msgpack";
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { join, relative, resolve } from "path";
 import { describe, expect, it } from "vitest";
@@ -8,7 +7,6 @@ import {
   getConfigVersion,
   getEntries,
   getInitialSpreadId,
-  getMaxTargetsPerSpread,
   getSpread,
   getSpreads,
   getTarget,
@@ -24,26 +22,7 @@ import {
 const srcDir = resolve(__dirname, "../..");
 const publicDir = resolve(__dirname, "../../../public");
 const publicFile = (src: string) => resolve(publicDir, src.replace(/^\//, ""));
-/** The authored original of a content file (the client copy of images may be scaled – optimize-media.ts) */
-const contentFile = (src: string) => resolve(publicDir, "../../content", src.replace(/^\/assets\/content\//, ""));
 const isLocal = (src?: string): src is string => !!src && !/^https?:\/\//.test(src);
-
-type MindFile = { dataList: { targetImage: { width: number; height: number } }[] };
-
-/** Width x height from a JPEG header (SOF marker) */
-const jpegSize = (file: string): string => {
-  const data = readFileSync(file);
-  let offset = 2;
-  while (offset < data.length) {
-    const marker = data[offset + 1];
-    const length = data.readUInt16BE(offset + 2);
-    if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
-      return `${data.readUInt16BE(offset + 7)}x${data.readUInt16BE(offset + 5)}`;
-    }
-    offset += 2 + length;
-  }
-  throw new Error(`No JPEG size in ${file}`);
-};
 
 const listSourceFiles = (dir: string): string[] =>
   readdirSync(dir).flatMap(name => {
@@ -64,34 +43,16 @@ describe("game configuration", () => {
     expect(getSpread(getInitialSpreadId())).toBeDefined();
   });
 
-  it("uses the shared target limit (RULES.md #3)", () => {
-    expect(getMaxTargetsPerSpread()).toBe(5);
-  });
-
   it.each(spreads.map(s => [s.id, s] as const))(
-    "%s stays within the target limit and indexes its targets 0..n-1",
+    "%s stays within the target limit (RULES.md #3: 10) and indexes its targets 0..n-1",
     (_id, spread) => {
-      expect(spread.targets.length).toBeLessThanOrEqual(getMaxTargetsPerSpread());
+      expect(spread.targets.length).toBeLessThanOrEqual(10);
       expect(spread.targets.map(t => t.index)).toEqual(spread.targets.map((_, i) => i));
-    },
-  );
-
-  // MindAR matches by position: image i of the spread .mind must be the image of the target with
-  // index i. A stale .mind silently shows the wrong AR content on a page.
-  it.each(spreads.map(s => [s.id, s] as const))(
-    "%s .mind contains exactly its targets' images, in order",
-    (_id, spread) => {
-      const { dataList } = decode(readFileSync(publicFile(spread.mindSrc))) as MindFile;
-      const mindImages = dataList.map(({ targetImage: { width, height } }) => `${width}x${height}`);
-      // The .mind is compiled from the original target images in content/
-      expect(mindImages).toEqual(spread.targets.map(t => jpegSize(contentFile(t.imageSrc))));
     },
   );
 
   it("references files that exist in public/", () => {
     const files = [
-      ...spreads.map(s => s.mindSrc),
-      ...spreads.map(s => `${s.mindSrc}.gz`), // gzip copy (utils/compressed.ts)
       ...entries.map(e => e.image),
       ...entries.map(e => e.target?.imageSrc),
       ...getAssets().map(a => a.src),

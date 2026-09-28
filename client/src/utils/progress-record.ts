@@ -38,7 +38,7 @@ const pick = <T>(value: unknown, isValue: (v: unknown) => v is T): Record<string
 const isNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isString = (v: unknown): v is string => typeof v === "string";
 
-/** Format 1 (app 1.x): the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
+/** Format 1 (app 1.x) and 2: the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
 const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
   ...createProgressRecord(bookId),
   appVersions: Array.isArray(raw.appVersions) ? raw.appVersions.filter(isString) : [],
@@ -53,6 +53,8 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
 /** One reader per storage format, each returns the current shape */
 export const PROGRESS_READERS: Record<number, (raw: Record<string, unknown>, bookId: string) => ProgressRecord> = {
   1: readFormat1,
+  // Format 2 (app 2.x, 2026-09-28 – the MAJOR was for the tracking engine, not for progress): same shape as 1
+  2: readFormat1,
 };
 
 /**

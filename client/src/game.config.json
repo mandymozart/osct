@@ -1,8 +1,8 @@
 {
   "version": {
-    "version": "1.2.2",
-    "timestamp": "2026-09-28T08:16:14.369Z",
-    "hash": "41ad96d270cde2aac6ef2ac97807733d468267125b416eee3244de1bd2f08f50"
+    "version": "2.0.0",
+    "timestamp": "2026-09-28T08:33:31.330Z",
+    "hash": "0454893e4a84f95b21bbda558e44fa07a1f0f303e539f92d82d8691bff87e5ec"
   },
   "book": {
     "id": "osct",
@@ -10,106 +10,91 @@
     "author": "Kévin Bray",
     "publisher": "Building Fictions"
   },
-  "maxTargetsPerSpread": 5,
   "initialSpreadId": "spread1",
   "spreads": [
     {
       "id": "spread1",
       "title": "The Beginning",
       "firstPage": 1,
-      "lastPage": 2,
-      "mindSrc": "/assets/content/spreads/spread1/spread1.mind"
+      "lastPage": 2
     },
     {
       "id": "spread2",
       "title": "The Castle Gates",
       "firstPage": 3,
-      "lastPage": 4,
-      "mindSrc": "/assets/content/spreads/spread2/spread2.mind"
+      "lastPage": 4
     },
     {
       "id": "spread3",
       "title": "The Dragon's Lair",
       "firstPage": 5,
-      "lastPage": 6,
-      "mindSrc": "/assets/content/spreads/spread3/spread3.mind"
+      "lastPage": 6
     },
     {
       "id": "spread4",
       "title": "Demo 7",
       "firstPage": 7,
-      "lastPage": 7,
-      "mindSrc": "/assets/content/spreads/spread4/spread4.mind"
+      "lastPage": 7
     },
     {
       "id": "spread5",
       "title": "Demo 8–9",
       "firstPage": 8,
-      "lastPage": 9,
-      "mindSrc": "/assets/content/spreads/spread5/spread5.mind"
+      "lastPage": 9
     },
     {
       "id": "spread6",
       "title": "Demo 10–11",
       "firstPage": 10,
-      "lastPage": 11,
-      "mindSrc": "/assets/content/spreads/spread6/spread6.mind"
+      "lastPage": 11
     },
     {
       "id": "spread7",
       "title": "Demo 12–13",
       "firstPage": 12,
-      "lastPage": 13,
-      "mindSrc": "/assets/content/spreads/spread7/spread7.mind"
+      "lastPage": 13
     },
     {
       "id": "spread8",
       "title": "Demo 14–15",
       "firstPage": 14,
-      "lastPage": 15,
-      "mindSrc": "/assets/content/spreads/spread8/spread8.mind"
+      "lastPage": 15
     },
     {
       "id": "spread9",
       "title": "Demo 16–17",
       "firstPage": 16,
-      "lastPage": 17,
-      "mindSrc": "/assets/content/spreads/spread9/spread9.mind"
+      "lastPage": 17
     },
     {
       "id": "spread10",
       "title": "Demo 18–19",
       "firstPage": 18,
-      "lastPage": 19,
-      "mindSrc": "/assets/content/spreads/spread10/spread10.mind"
+      "lastPage": 19
     },
     {
       "id": "spread11",
       "title": "Demo 20–21",
       "firstPage": 20,
-      "lastPage": 21,
-      "mindSrc": "/assets/content/spreads/spread11/spread11.mind"
+      "lastPage": 21
     },
     {
       "id": "spread12",
       "title": "Demo 22–23",
       "firstPage": 22,
-      "lastPage": 23,
-      "mindSrc": "/assets/content/spreads/spread12/spread12.mind"
+      "lastPage": 23
     },
     {
       "id": "spread13",
       "title": "Demo 24–25",
       "firstPage": 24,
-      "lastPage": 25,
-      "mindSrc": "/assets/content/spreads/spread13/spread13.mind"
+      "lastPage": 25
     },
     {
       "id": "spread14",
       "title": "Demo 26–27",
       "firstPage": 26,
-      "lastPage": 27,
-      "mindSrc": "/assets/content/spreads/spread14/spread14.mind"
+      "lastPage": 27
     }
   ],
   "entries": [

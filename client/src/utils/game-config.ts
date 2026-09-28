@@ -29,7 +29,6 @@ import { t } from "i18next";
 const EMPTY_CONFIGURATION: GameConfiguration = {
   version: { version: '0.0.0', timestamp: '' },
   book: { id: '', title: '', author: '' },
-  maxTargetsPerSpread: 0,
   initialSpreadId: '',
   spreads: [],
   entries: [],
@@ -130,8 +129,6 @@ export const getConfigVersion = (): ConfigurationVersion => config.version;
 
 export const getBook = (): BookData => config.book;
 
-/** Max image targets per spread (.mind group) = MindAR maxTrack. Set by the content build. */
-export const getMaxTargetsPerSpread = (): number => config.maxTargetsPerSpread;
 
 export const getInitialSpreadId = (): string => config.initialSpreadId;
 
@@ -141,7 +138,7 @@ export const getSpread = (id: string): Spread | undefined => spreadById.get(id);
 
 /**
  * The spreads next to `spreadId` in book order (the ones the spread menu reaches next) – what is preloaded
- * ahead of a switch (`.mind` + content, and the 8th Wall tracker's targets)
+ * ahead of a switch (target images + content, and the tracker's image targets)
  */
 export const getNeighbourSpreads = (spreadId: string, range = 1): Spread[] => {
   const index = spreads.findIndex(s => s.id === spreadId);
@@ -152,7 +149,7 @@ export const getEntries = (): Entry[] => [...entries];
 
 export const getEntry = (id: string): Entry | undefined => entryById.get(id);
 
-/** Targets of a spread in MindAR index order */
+/** Targets of a spread in index order */
 export const getTargets = (spreadId: string): Target[] => spreadById.get(spreadId)?.targets ?? [];
 
 export const getTarget = (id: string): Target | undefined => targetById.get(id);

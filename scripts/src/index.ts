@@ -1,11 +1,11 @@
 /**
  * OSCT content build: `content/` (YAML + media) → `client/src/game.config.json`
- * (+ copy of `content/` in `client/public/assets/content` with optimised media – lib/optimize-media.ts –,
- * target images in `.mindar/targets/`).
+ * (+ copy of `content/` in `client/public/assets/content` with optimised media – lib/optimize-media.ts).
+ * The app makes the image targets from the target images itself (8th Wall engine).
  *
  * Source layout (folder name = id):
  *   content/book.yaml
- *   content/spreads/<id>/spread.yaml   title, order, firstPage, lastPage, mind
+ *   content/spreads/<id>/spread.yaml   title, order, firstPage, lastPage
  *   content/entries/<id>/entry.yaml    category, title, page, body, …, target? { image, order?, id?, entity? }
  *   content/entities/<id>/entity.yaml  type, assets[{ id?, src }], params   (referenced as entity: { ref })
  *   content/steps/<id>/step.yaml       tutorial
@@ -16,14 +16,9 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, MINDAR_DIR, OUTPUT_FILE, projectRoot } from './config';
-import { buildEntities } from './build/entities';
-import { buildEntries } from './build/entries';
+import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, OUTPUT_FILE, projectRoot } from './config';
 import { buildConfig } from './build/game-config';
-import { buildSpreads } from './build/spreads';
-import { assignTargetIndices } from './build/targets';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
-import { moveOldLocalFolders } from './lib/local-folders';
 import { optimizeMedia } from './lib/optimize-media';
 
 console.log('🚀 OSCT Content Build Tool 🚀');
@@ -34,17 +29,6 @@ console.log('📄 Output file:', OUTPUT_FILE);
 
 async function generateConfigFile(): Promise<void> {
   try {
-    moveOldLocalFolders();
-
-    // `--targets`: only refresh .mindar/targets/ (target images + source hash per spread) for mind/compile.ts,
-    // write nothing else – works while the build fails, e.g. on a stale .mind
-    if (process.argv.includes('--targets')) {
-      const spreads = buildSpreads();
-      assignTargetIndices(spreads, buildEntries(spreads, buildEntities()));
-      console.log(`✅ Target images in ${MINDAR_DIR}`);
-      return;
-    }
-
     // Skip the build (and keep the timestamp) when nothing that affects the output changed
     const versionStr = APP_VERSION;
     const inputHash = hashBuildInputs(versionStr);
@@ -56,7 +40,7 @@ async function generateConfigFile(): Promise<void> {
 
     const config = buildConfig(versionStr, inputHash);
 
-    // Media in the client copy: models, images, .mind gzip, large videos reported (content/ stays as authored)
+    // Media in the client copy: models, images, large videos reported (content/ stays as authored)
     console.log('\n🗜️  Optimising media...');
     for (const { file, before, after, note } of await optimizeMedia(CLIENT_PUBLIC_ASSETS_DIR)) {
       const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
