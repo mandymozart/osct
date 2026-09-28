@@ -25,6 +25,8 @@ jobs:
       - run: npm ci
       - name: Type-check and build
         run: npm run build
+      - name: Tests
+        run: npm test
       # The build skips when its input hash equals the committed game.config.json; any rebuild
       # (content, build logic or version changed without rebuilding) shows up as a diff.
       - name: Committed game configuration is up to date

@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – `scripts/` restructured + tests (Tilman, branch `compilation`)
+
+- `src/index.ts` (entry) · `src/build/` one file per part (book, spreads, entities, entries, targets,
+  tutorial, game-config) · `src/lib/` helpers (errors, content, files, hash, schema, validation,
+  optimize-media; was `src/utils/`) · `tools/mind/` (compile, history, versions) · `tools/sounds/` ·
+  `tools/lib/cli.js`. Tools are `.js` (package is `"type": "module"`, `.mjs` was redundant).
+  Verified output-neutral: `game.config.json` (without version) and all public files identical.
+- Tests: vitest in `scripts/test/` (not `src/` – `src/` is part of the content hash), `npm test`, in CI.
+  Throwaway content in temp folders via `OSCT_CONTENT_DIR` / `OSCT_MINDAR_DIR` (also for content
+  outside this repo later). Covers build rules, ordering, fingerprints, tutorial, hash, cli, versions,
+  and the real content.
+- Build docs cut down to a quick start + command/option/folder tables (Tilman: "for dummies").
+
 ## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)
 
 - [ ] Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in

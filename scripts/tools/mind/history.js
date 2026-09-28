@@ -1,4 +1,4 @@
-// Versions of the compiled `.mind` files (written by compile-mind.mjs into mind-history/) – list them,
+// Versions of the compiled `.mind` files (written by compile.js into mind-history/) – list them,
 // put one back. Local and independent of git.
 //
 //   cd scripts
@@ -16,10 +16,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
-import { parseOptions } from "./lib/cli.mjs";
-import { currentVersion, KEEP, listVersions, restoreVersion } from "./lib/mind-history.mjs";
+import { parseOptions } from "../lib/cli.js";
+import { currentVersion, KEEP, listVersions, restoreVersion } from "./versions.js";
 
-const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const SCRIPTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ROOT = path.resolve(SCRIPTS, "..");
 const HISTORY_DIR = path.join(ROOT, "mind-history");
 const MINDAR_DIR = path.join(ROOT, "mind-ar");

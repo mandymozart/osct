@@ -9,12 +9,12 @@ const __dirname = resolve(__filename, '..');
 // Define project root relative to scripts directory
 export const projectRoot = resolve(__dirname, '../../');
 
-// Other config exports can go here
-export const CONTENT_DIR = resolve(projectRoot, 'content');
+// OSCT_CONTENT_DIR / OSCT_MINDAR_DIR point the build at another folder (tests; content outside this repo)
+export const CONTENT_DIR = resolve(process.env.OSCT_CONTENT_DIR || resolve(projectRoot, 'content'));
 export const OUTPUT_FILE = resolve(projectRoot, 'client/src/game.config.json');
-export const MINDAR_DIR = resolve(projectRoot, 'mind-ar');
+export const MINDAR_DIR = resolve(process.env.OSCT_MINDAR_DIR || resolve(projectRoot, 'mind-ar'));
 // mind-ar/<spread>/source.sha256: hash of the spread's target images in MindAR order;
-// content/spreads/<spread>/<name>.mind.sha256: the hash the .mind was compiled from (tools/compile-mind.mjs)
+// content/spreads/<spread>/<name>.mind.sha256: the hash the .mind was compiled from (tools/mind/compile.js)
 export const MIND_SOURCE_FILE = 'source.sha256';
 export const MIND_HASH_SUFFIX = '.sha256';
 export const SCRIPTS_SRC_DIR = resolve(projectRoot, 'scripts/src');
