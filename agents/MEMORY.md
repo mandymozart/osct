@@ -9,6 +9,9 @@ outcome in the line (or move it into a dated decision block).
 - Production is deployed by publishing a GitHub release (`release.yml`), not by merging to `main`. The
   workflow verifies tag = version (client, scripts, Version.php), a CHANGELOG section and that the commit
   is on `main`; empty release notes get the CHANGELOG section.
+- Tags come from `tag-version.yml` on every push to `main` (repository token): cloud agent sessions get
+  HTTP 403 on tag pushes. It tags every CHANGELOG version that has no tag yet, on the last `main` commit
+  carrying it (so v1.1.2 and v1.1.3 were tagged retroactively). Bot-made tags start no workflows.
 - Netlify cannot trigger on tags/releases itself → its automatic builds are stopped (Netlify UI) and the
   release workflow uploads the tagged build with the Netlify CLI.
 - [ ] Tilman: GitHub environment `production` with `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `VITE_API_URL`;

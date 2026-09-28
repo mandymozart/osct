@@ -99,8 +99,10 @@ Pushes to `main` deploy nothing. Production is deployed by `.github/workflows/re
 production") when a GitHub release is **published** – or by hand (Actions → Release production → tag).
 
 1. Bump the version and add the `docs/CHANGELOG.md` section on `develop` (RULES #23), merge `develop` into `main`.
-2. GitHub → Releases → *Draft a new release* → tag `vX.Y.Z` on `main` → *Publish* (leave the notes empty to
-   get the CHANGELOG section).
+   `.github/workflows/tag-version.yml` then tags it: every CHANGELOG version without a tag gets `vX.Y.Z` on
+   the last `main` commit carrying it. Nobody pushes tags by hand (agent sessions cannot).
+2. GitHub → Releases → *Draft a new release* → choose the existing tag `vX.Y.Z` → *Publish* (leave the notes
+   empty to get the CHANGELOG section).
 3. The workflow checks that the tag equals every version source, that the CHANGELOG has the section and that
    the commit is on `main`; then it fills empty release notes and deploys:
    - **Production server** (FTPS, app + API) from the GitHub environment **production** – same names as

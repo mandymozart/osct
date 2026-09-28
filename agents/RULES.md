@@ -180,7 +180,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
     and progress; MAJOR = content rebuild or progress format change. Each bump gets an entry at the top of
     `docs/CHANGELOG.md` (version, date, Added / Changed / Fixed / Removed) written for people, not agents.
     Several commits of one piece of work share one bump.
-    **Releases** deploy production, not merges: `main` → GitHub release `vX.Y.Z` → `release.yml` (tag must
+    **Releases** deploy production, not merges: merge to `main` → `tag-version.yml` tags `vX.Y.Z` (never push
+    tags yourself) → publish a GitHub release on that tag → `release.yml` (tag must
     equal the version and have a CHANGELOG section; docs/server.md "Releases").
 
 ## Deployment (from old rules)

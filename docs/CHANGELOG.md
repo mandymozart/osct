@@ -11,6 +11,12 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.1.4 – 2026-09-28
+
+### Added
+- Versions are tagged automatically on `main` (`tag-version.yml`): every changelog version without a tag
+  gets `vX.Y.Z`. Publishing a release on that tag deploys production.
+
 ## 1.1.3 – 2026-09-28
 
 ### Added
