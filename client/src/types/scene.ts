@@ -1,5 +1,5 @@
 /**
- * What the AR scene (three.js / MindAR) should be doing. Derived from the game mode and the current
+ * What the AR scene (three.js / 8th Wall) should be doing. Derived from the game mode and the current
  * route (`ar-bridges/utils/scene-state.ts`), applied by `<ar-bridge>`. Ordered from least to most active.
  * STOPPED: camera released · PAUSED: tracking + video paused, camera stream kept (instant resume,
  * last frame frozen behind the UI) · RUNNING: camera, tracking and rendering.
@@ -40,12 +40,14 @@ export type ArSceneEvents = {
   status: (status: ArStatus, error?: string) => void;
   /** A found target's AR entity was tapped (scan mode) */
   targetTapped: (targetId: string) => void;
-  /** The spread's `.mind` is loaded and tracking began */
+  /** The spread's targets are loaded and tracking began */
   ready: (spreadId: string) => void;
+  /** A neighbouring spread's page is in view instead of the current spread (the reader turned the page) */
+  spreadSeen: (spreadId: string) => void;
 };
 
 /**
- * The only code that touches three.js / MindAR (`ArScene`, loaded lazily via `LazyArScene`). No store
+ * The only code that touches three.js / the 8th Wall engine (`ArScene`, loaded lazily via `LazyArScene`). No store
  * access – `<ar-bridge>` connects it to the game state. Calls are queued and the latest request wins
  * (switching spreads while loading builds only the newest spread).
  */

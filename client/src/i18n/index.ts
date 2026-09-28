@@ -11,7 +11,6 @@ import { DEFAULT_LANGUAGE, LANGUAGES } from "./languages";
  *
  *   t("entry:accessPage")                            → "Access page"
  *   t("entry:goToPage", { page: 4 })                 → placeholders {{page}}, values escaped for HTML
- *   t("camera:chromeSteps", { returnObjects: true }) → lists
  *
  * Language: the reader's choice from localStorage (`osct-language`), else the device language. It is not
  * part of the progress, so "Reset book" keeps it. `i18next.changeLanguage()` stores a new choice; the app

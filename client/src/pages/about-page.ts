@@ -7,8 +7,8 @@ import "@/components/settings";
  * Info page, opened with "i" in consultation mode; "Entries" goes back to the list. Sections, one component
  * each: info text · Account (progress explanation and reset, sign-in, update options) · Settings (sound &
  * vibration, language, home screen, download) · colophon. The texts are placeholders until they move
- * into the content (`book.yaml`). The colophon credits MindAR (MIT, `src/vendor/mind-ar/LICENSE`); names and
- * links there are not translated.
+ * into the content (`book.yaml`). The image tracking library is credited in the project README (Tilman,
+ * 2026-09-28), not here; its MIT LICENSE is served next to the engine (`assets/xr8/LICENSE`).
  */
 export class AboutPage extends ConsultationPage {
   get styles(): string {
@@ -21,7 +21,6 @@ export class AboutPage extends ConsultationPage {
       }
       .logo { display: block; height: 3rem; }
       .platforms p { margin: 0; }
-      .credits a { color: inherit; }
     `;
   }
 
@@ -60,10 +59,6 @@ export class AboutPage extends ConsultationPage {
           <p>${t("about:desktop")}</p>
           <p>${t("about:ios")}</p>
         </div>
-        <p class="credits">
-          ${t("about:imageTracking")} HiuKim (MindAR)
-          <a href="https://github.com/hiukim/mind-ar-js" target="_blank" rel="noopener noreferrer">github.com/hiukim/mind-ar-js</a>
-        </p>
       </div>
     `;
   }

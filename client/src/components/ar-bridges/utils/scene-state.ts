@@ -2,7 +2,7 @@ import { router } from "@/router";
 import { GameMode, PageRoute, SceneState } from "@/types";
 
 /**
- * Scene state policy: what the AR scene (three.js + MindAR) should be doing for the app state.
+ * Scene state policy: what the AR scene (three.js + 8th Wall) should be doing for the app state.
  * Applied by `<ar-bridge>`.
  */
 

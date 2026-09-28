@@ -104,7 +104,6 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     str(book, "publisher", "book", true);
   }
 
-  num(root, "maxTargetsPerSpread", "config");
   str(root, "initialSpreadId", "config");
 
   const spreadIds = new Set<string>();
@@ -113,7 +112,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     const path = `spreads[${i}]`;
     const spread = obj(s, path);
     if (!spread) return;
-    ["id", "title", "mindSrc"].forEach(key => str(spread, key, path));
+    ["id", "title"].forEach(key => str(spread, key, path));
     ["firstPage", "lastPage"].forEach(key => num(spread, key, path));
     if (typeof spread.id === "string") {
       if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);

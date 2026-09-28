@@ -6,9 +6,6 @@ export default defineConfig({
     lib: {
       entry: {
         index: 'src/index.ts', // content build (npm run build:content)
-        'mind-compile': 'src/mind/compile.ts', // npm run compile:mind
-        'mind-benchmark': 'src/mind/benchmark.ts', // npm run mind:benchmark
-        'mind-history': 'src/mind/history.ts', // npm run mind:history / mind:restore
         sounds: 'src/sounds.ts', // npm run sounds
       },
       formats: ['es'],

@@ -29,10 +29,10 @@ describe("i18n (i18next)", () => {
     expect(t("scan:openEntry", { title: "<b>" })).toBe("Open entry &lt;b&gt;");
   });
 
-  it("switches language, returns lists and keeps the choice in localStorage", async () => {
+  it("switches language and keeps the choice in localStorage", async () => {
     await i18next.changeLanguage("de");
     expect(t("common:dismiss")).toBe("Schließen");
-    expect(Object.values(t("camera:otherSteps", { returnObjects: true }))).toHaveLength(3);
+    expect(t("camera:reload")).toBe("Seite neu laden");
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("de");
     await i18next.changeLanguage("fr-BE");
     expect(i18next.resolvedLanguage).toBe("fr");

@@ -2,6 +2,7 @@ import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
+import { cyclePreparedSpreadRange, getPreparedSpreadRange } from "@/components/ar-bridges";
 
 type DebugTab = "spread" | "progress";
 
@@ -82,6 +83,12 @@ export class DebugOverlay extends HTMLElement {
     }
     if (control?.dataset.action === "reset-progress") {
       if (confirm("Reset the progress of this book?")) this.game.history.reset();
+      return;
+    }
+    if (control?.dataset.action === "cycle-prepared") {
+      // Spreads kept loaded around the current one (e.g. a load test of the engine) – applies at the next switch
+      cyclePreparedSpreadRange();
+      this.updateContent();
       return;
     }
     this.expanded = !this.expanded;
@@ -178,8 +185,11 @@ export class DebugOverlay extends HTMLElement {
       return;
     }
 
+    // Scene status
     html += `<div class="section">
       <div>AR: ${this.arStatusLabel()}</div>
+      <div>Spreads loaded ahead: ${this.preparedLabel()}
+        <button data-action="cycle-prepared">Change (next switch)</button></div>
     </div>`;
 
     if (currentSpread) {
@@ -323,6 +333,12 @@ export class DebugOverlay extends HTMLElement {
     html += '</div>';
     
     return html;
+  }
+
+  /** ±n spreads, or the whole book (all targets loaded) */
+  private preparedLabel(): string {
+    const range = getPreparedSpreadRange();
+    return range === Infinity ? "all" : `±${range}`;
   }
 
   private arStatusLabel(): string {

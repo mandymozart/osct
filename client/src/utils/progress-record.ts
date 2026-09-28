@@ -55,17 +55,37 @@ export const PROGRESS_READERS: Record<number, (raw: Record<string, unknown>, boo
   1: readFormat1,
 };
 
+/** Same JSON value (key order ignored) */
+const sameValue = (a: unknown, b: unknown): boolean => {
+  if (isObject(a) && isObject(b)) {
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every(key => key in b && sameValue(a[key], b[key]));
+  }
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => sameValue(v, b[i]));
+  return a === b;
+};
+
+/**
+ * Every field the stored record had comes out of the reader as it was (only its format and defaults for
+ * missing fields differ) – nothing was dropped or corrected, so the reader need not be told (Tilman,
+ * 2026-09-28: a new format that didn't change someone's progress shows no notice).
+ */
+const keptAsItWas = (raw: Record<string, unknown>, record: ProgressRecord): boolean =>
+  Object.entries(raw).every(([key, value]) => key === "format" || sameValue(value, (record as unknown as Record<string, unknown>)[key]));
+
 /**
  * Stored record → current record. `raw` null means nothing stored; anything else without a known
- * format (including one written by a newer app) is unreadable.
+ * format (including one written by a newer app) is unreadable. An older format is "converted" only when
+ * reading it changed something (`keptAsItWas`).
  */
 export const readProgress = (raw: unknown, bookId: string): ProgressReadResult => {
   if (raw === null) return { record: createProgressRecord(bookId), status: "new" };
   const reader = isObject(raw) && isNumber(raw.format) ? PROGRESS_READERS[raw.format] : undefined;
   if (!isObject(raw) || !reader) return { record: createProgressRecord(bookId), status: "unreadable" };
+  const record = reader(raw, bookId);
   return {
-    record: reader(raw, bookId),
-    status: raw.format === PROGRESS_FORMAT ? "current" : "converted",
+    record,
+    status: raw.format === PROGRESS_FORMAT || keptAsItWas(raw, record) ? "current" : "converted",
   };
 };
 

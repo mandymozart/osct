@@ -1,13 +1,13 @@
 /**
- * Gzip copies of binary content: the content build writes `<file>.gz` next to every `.mind` (recognition
- * data) and `.glb` (models) – hosts serve these types uncompressed (Netlify: application/octet-stream).
+ * Gzip copies of binary content: the content build writes `<file>.gz` next to every `.glb` (models) – hosts
+ * serve this type uncompressed (Netlify: application/octet-stream).
  * Browsers with DecompressionStream (Chrome 80+, Safari 16.4+) load the `.gz` and unpack it; others – or a
  * missing `.gz` – load the original. The preloader and the AR scene use the same URL, so a preload is a
  * cache hit.
  */
 
 /** File types the content build writes a `.gz` copy for (scripts/src/lib/optimize-media.ts) */
-const GZIPPED = /\.(mind|glb)$/i;
+const GZIPPED = /\.glb$/i;
 
 export const supportsGzip = (): boolean => typeof DecompressionStream === "function";
 
@@ -22,7 +22,7 @@ const fetchBuffer = async (url: string): Promise<ArrayBuffer> => {
   return response.arrayBuffer();
 };
 
-/** Gzip data starts with 1f 8b (a .mind / .glb never does) */
+/** Gzip data starts with 1f 8b (a .glb never does) */
 const isGzip = (bytes: Uint8Array): boolean => bytes[0] === 0x1f && bytes[1] === 0x8b;
 
 /**

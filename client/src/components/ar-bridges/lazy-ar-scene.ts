@@ -5,9 +5,20 @@ type ArModule = typeof import("./ar");
 
 let arModule: Promise<ArModule> | null = null;
 
+/** Every scene event, forwarded from the real scene (a record over the event type: a new event can't be left out) */
+const SCENE_EVENTS = Object.keys({
+  status: true,
+  targetFound: true,
+  targetLost: true,
+  targetTapped: true,
+  ready: true,
+  spreadSeen: true,
+} satisfies Record<keyof ArSceneEvents, true>) as Array<keyof ArSceneEvents>;
+
 /**
- * Load the AR chunk (three.js + MindAR with TF.js, ~⅔ of the app's code). Nothing imports `./ar`
- * statically, so the first paint never waits for it. Retries after a failed load (offline).
+ * Load the AR chunk (three.js and the scene; the 8th Wall engine's own files load with the first start).
+ * Nothing imports `./ar` statically, so the first paint never waits for it. Retries after a failed load
+ * (offline).
  */
 export const loadArModule = (): Promise<ArModule> => {
   if (!arModule) {
@@ -50,9 +61,11 @@ export class LazyArScene implements IArScene {
     return this.emitter.on(event, listener);
   }
 
-  /** Fetch and evaluate the AR chunk without building anything (no WebGL, no camera) */
+  /** Fetch and evaluate the AR chunk and the tracking engine without building anything (no WebGL, no camera) */
   warmUp(): Promise<void> {
-    return loadArModule().then(() => {}, error => console.warn("[ArScene] Could not preload AR:", error));
+    return loadArModule()
+      .then(ar => ar.prefetchXr8())
+      .catch(error => console.warn("[ArScene] Could not preload AR:", error));
   }
 
   async load(spreadId: string): Promise<void> {
@@ -91,7 +104,7 @@ export class LazyArScene implements IArScene {
       this.creating = loadArModule().then(({ ArScene }) => {
         const scene = new ArScene(this.container);
         // Forward the real scene's events
-        (["status", "targetFound", "targetLost", "targetTapped", "ready"] as const).forEach(event =>
+        SCENE_EVENTS.forEach(event =>
           scene.on(event, ((...args: unknown[]) =>
             (this.emitter.emit as (e: string, ...a: unknown[]) => void)(event, ...args)) as never),
         );

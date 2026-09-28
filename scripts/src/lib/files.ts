@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, MIND_HASH_SUFFIX } from '../config';
+import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR } from '../config';
 
 export function deleteFolderRecursive(folderPath: string): void {
   if (fs.existsSync(folderPath)) {
@@ -31,8 +31,6 @@ export function copyFolderRecursive(source: string, target: string): number {
     const targetPath = path.join(target, file);
     if (fs.statSync(sourcePath).isDirectory()) {
       fileCount += copyFolderRecursive(sourcePath, targetPath);
-    } else if (file.endsWith(`.mind${MIND_HASH_SUFFIX}`)) {
-      continue; // build bookkeeping, not loaded by the app
     } else {
       fs.copyFileSync(sourcePath, targetPath);
       fileCount++;

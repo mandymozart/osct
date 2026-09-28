@@ -126,6 +126,7 @@ describe("HistoryManager (progress)", () => {
     // Stand-in for the reader a MAJOR bump adds for the previous format
     it("converts an older format, saves it in the current one and says parts may be missing", () => {
       const oldFormat = PROGRESS_FORMAT - 1;
+      const realReader = PROGRESS_READERS[oldFormat]; // may be a real format – put it back afterwards
       PROGRESS_READERS[oldFormat] = (raw, id) => ({
         ...readProgress({ format: PROGRESS_FORMAT }, id).record,
         unlocked: raw.found as Record<string, number>,
@@ -145,7 +146,8 @@ describe("HistoryManager (progress)", () => {
         expect(game.state.currentError?.msg).toContain("Parts of it may be missing");
         expect(game.state.currentError?.action).toBeUndefined();
       } finally {
-        delete PROGRESS_READERS[oldFormat];
+        if (realReader) PROGRESS_READERS[oldFormat] = realReader;
+        else delete PROGRESS_READERS[oldFormat];
       }
     });
   });

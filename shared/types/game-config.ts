@@ -38,7 +38,6 @@ export interface SpreadData {
   title: string;
   firstPage: number;
   lastPage: number;
-  mindSrc: string; // compiled MindAR targets of this spread
 }
 
 export interface AssetData {
@@ -62,7 +61,7 @@ export interface EntityRefData {
 
 export interface TargetData {
   id: string; // defaults to the entry id
-  index: number; // position in the spread's .mind file (MindAR targetIndex)
+  index: number; // position in its spread (page → target order → id), the key of its anchor
   imageSrc: string;
   entity?: EntityData | EntityRefData;
 }
@@ -111,7 +110,6 @@ export interface StepData {
 export interface GameConfiguration {
   version: ConfigurationVersion;
   book: BookData;
-  maxTargetsPerSpread: number;
   initialSpreadId: string;
   spreads: readonly SpreadData[];
   entries: readonly EntryData[];

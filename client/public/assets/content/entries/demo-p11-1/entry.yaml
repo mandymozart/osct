@@ -1,0 +1,8 @@
+# Demo target from OSCT_KevinBray_06.pdf, PDF page 3 (load test, 2026-09-28)
+category: glossary
+title: Demo p. 11 · 1
+page: 11
+body: A demo target from the layout PDF, page 3.
+target:
+  image: target.jpg
+  order: 0

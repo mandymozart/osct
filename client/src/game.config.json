@@ -1,8 +1,8 @@
 {
   "version": {
-    "version": "1.2.2",
-    "timestamp": "2026-09-28T06:05:05.973Z",
-    "hash": "bf330f55e8ed6da9dcee08ee6aac6d6bbc763531f740c1c5e06a5e596ad3c345"
+    "version": "1.3.0",
+    "timestamp": "2026-09-28T10:01:05.940Z",
+    "hash": "27d5350ce1be377b47dc6a6045b5d9ed935b03691049a22683a4f4d22d4ab68a"
   },
   "book": {
     "id": "osct",
@@ -10,29 +10,91 @@
     "author": "Kévin Bray",
     "publisher": "Building Fictions"
   },
-  "maxTargetsPerSpread": 5,
   "initialSpreadId": "spread1",
   "spreads": [
     {
       "id": "spread1",
       "title": "The Beginning",
       "firstPage": 1,
-      "lastPage": 2,
-      "mindSrc": "/assets/content/spreads/spread1/spread1.mind"
+      "lastPage": 2
     },
     {
       "id": "spread2",
       "title": "The Castle Gates",
       "firstPage": 3,
-      "lastPage": 4,
-      "mindSrc": "/assets/content/spreads/spread2/spread2.mind"
+      "lastPage": 4
     },
     {
       "id": "spread3",
       "title": "The Dragon's Lair",
       "firstPage": 5,
-      "lastPage": 6,
-      "mindSrc": "/assets/content/spreads/spread3/spread3.mind"
+      "lastPage": 6
+    },
+    {
+      "id": "spread4",
+      "title": "Demo 7",
+      "firstPage": 7,
+      "lastPage": 7
+    },
+    {
+      "id": "spread5",
+      "title": "Demo 8–9",
+      "firstPage": 8,
+      "lastPage": 9
+    },
+    {
+      "id": "spread6",
+      "title": "Demo 10–11",
+      "firstPage": 10,
+      "lastPage": 11
+    },
+    {
+      "id": "spread7",
+      "title": "Demo 12–13",
+      "firstPage": 12,
+      "lastPage": 13
+    },
+    {
+      "id": "spread8",
+      "title": "Demo 14–15",
+      "firstPage": 14,
+      "lastPage": 15
+    },
+    {
+      "id": "spread9",
+      "title": "Demo 16–17",
+      "firstPage": 16,
+      "lastPage": 17
+    },
+    {
+      "id": "spread10",
+      "title": "Demo 18–19",
+      "firstPage": 18,
+      "lastPage": 19
+    },
+    {
+      "id": "spread11",
+      "title": "Demo 20–21",
+      "firstPage": 20,
+      "lastPage": 21
+    },
+    {
+      "id": "spread12",
+      "title": "Demo 22–23",
+      "firstPage": 22,
+      "lastPage": 23
+    },
+    {
+      "id": "spread13",
+      "title": "Demo 24–25",
+      "firstPage": 24,
+      "lastPage": 25
+    },
+    {
+      "id": "spread14",
+      "title": "Demo 26–27",
+      "firstPage": 26,
+      "lastPage": 27
     }
   ],
   "entries": [
@@ -277,6 +339,331 @@
             }
           ]
         }
+      }
+    },
+    {
+      "id": "demo-p07-1",
+      "category": "glossary",
+      "title": "Demo p. 7 · 1",
+      "page": 7,
+      "body": "A demo target from the layout PDF, page 1.",
+      "tags": [],
+      "target": {
+        "id": "demo-p07-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p07-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p07-2",
+      "category": "glossary",
+      "title": "Demo p. 7 · 2",
+      "page": 7,
+      "body": "A demo target from the layout PDF, page 1.",
+      "tags": [],
+      "target": {
+        "id": "demo-p07-2",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/demo-p07-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p08-1",
+      "category": "glossary",
+      "title": "Demo p. 8 · 1",
+      "page": 8,
+      "body": "A demo target from the layout PDF, page 2.",
+      "tags": [],
+      "target": {
+        "id": "demo-p08-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p08-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p08-2",
+      "category": "glossary",
+      "title": "Demo p. 8 · 2",
+      "page": 8,
+      "body": "A demo target from the layout PDF, page 2.",
+      "tags": [],
+      "target": {
+        "id": "demo-p08-2",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/demo-p08-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p11-1",
+      "category": "glossary",
+      "title": "Demo p. 11 · 1",
+      "page": 11,
+      "body": "A demo target from the layout PDF, page 3.",
+      "tags": [],
+      "target": {
+        "id": "demo-p11-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p11-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p12-1",
+      "category": "glossary",
+      "title": "Demo p. 12 · 1",
+      "page": 12,
+      "body": "A demo target from the layout PDF, page 4.",
+      "tags": [],
+      "target": {
+        "id": "demo-p12-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p12-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p12-2",
+      "category": "glossary",
+      "title": "Demo p. 12 · 2",
+      "page": 12,
+      "body": "A demo target from the layout PDF, page 4.",
+      "tags": [],
+      "target": {
+        "id": "demo-p12-2",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/demo-p12-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p12-3",
+      "category": "glossary",
+      "title": "Demo p. 12 · 3",
+      "page": 12,
+      "body": "A demo target from the layout PDF, page 4.",
+      "tags": [],
+      "target": {
+        "id": "demo-p12-3",
+        "index": 2,
+        "imageSrc": "/assets/content/entries/demo-p12-3/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p13-1",
+      "category": "glossary",
+      "title": "Demo p. 13 · 1",
+      "page": 13,
+      "body": "A demo target from the layout PDF, page 4.",
+      "tags": [],
+      "target": {
+        "id": "demo-p13-1",
+        "index": 3,
+        "imageSrc": "/assets/content/entries/demo-p13-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p13-2",
+      "category": "glossary",
+      "title": "Demo p. 13 · 2",
+      "page": 13,
+      "body": "A demo target from the layout PDF, page 4.",
+      "tags": [],
+      "target": {
+        "id": "demo-p13-2",
+        "index": 4,
+        "imageSrc": "/assets/content/entries/demo-p13-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p15-1",
+      "category": "glossary",
+      "title": "Demo p. 15 · 1",
+      "page": 15,
+      "body": "A demo target from the layout PDF, page 5.",
+      "tags": [],
+      "target": {
+        "id": "demo-p15-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p15-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p15-2",
+      "category": "glossary",
+      "title": "Demo p. 15 · 2",
+      "page": 15,
+      "body": "A demo target from the layout PDF, page 5.",
+      "tags": [],
+      "target": {
+        "id": "demo-p15-2",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/demo-p15-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p16-1",
+      "category": "glossary",
+      "title": "Demo p. 16 · 1",
+      "page": 16,
+      "body": "A demo target from the layout PDF, page 6.",
+      "tags": [],
+      "target": {
+        "id": "demo-p16-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p16-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p16-2",
+      "category": "glossary",
+      "title": "Demo p. 16 · 2",
+      "page": 16,
+      "body": "A demo target from the layout PDF, page 6.",
+      "tags": [],
+      "target": {
+        "id": "demo-p16-2",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/demo-p16-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p16-3",
+      "category": "glossary",
+      "title": "Demo p. 16 · 3",
+      "page": 16,
+      "body": "A demo target from the layout PDF, page 6.",
+      "tags": [],
+      "target": {
+        "id": "demo-p16-3",
+        "index": 2,
+        "imageSrc": "/assets/content/entries/demo-p16-3/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p17-1",
+      "category": "glossary",
+      "title": "Demo p. 17 · 1",
+      "page": 17,
+      "body": "A demo target from the layout PDF, page 6.",
+      "tags": [],
+      "target": {
+        "id": "demo-p17-1",
+        "index": 3,
+        "imageSrc": "/assets/content/entries/demo-p17-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p17-2",
+      "category": "glossary",
+      "title": "Demo p. 17 · 2",
+      "page": 17,
+      "body": "A demo target from the layout PDF, page 6.",
+      "tags": [],
+      "target": {
+        "id": "demo-p17-2",
+        "index": 4,
+        "imageSrc": "/assets/content/entries/demo-p17-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p18-1",
+      "category": "glossary",
+      "title": "Demo p. 18 · 1",
+      "page": 18,
+      "body": "A demo target from the layout PDF, page 7.",
+      "tags": [],
+      "target": {
+        "id": "demo-p18-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p18-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p18-2",
+      "category": "glossary",
+      "title": "Demo p. 18 · 2",
+      "page": 18,
+      "body": "A demo target from the layout PDF, page 7.",
+      "tags": [],
+      "target": {
+        "id": "demo-p18-2",
+        "index": 1,
+        "imageSrc": "/assets/content/entries/demo-p18-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p18-3",
+      "category": "glossary",
+      "title": "Demo p. 18 · 3",
+      "page": 18,
+      "body": "A demo target from the layout PDF, page 7.",
+      "tags": [],
+      "target": {
+        "id": "demo-p18-3",
+        "index": 2,
+        "imageSrc": "/assets/content/entries/demo-p18-3/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p19-2",
+      "category": "glossary",
+      "title": "Demo p. 19 · 2",
+      "page": 19,
+      "body": "A demo target from the layout PDF, page 7.",
+      "tags": [],
+      "target": {
+        "id": "demo-p19-2",
+        "index": 3,
+        "imageSrc": "/assets/content/entries/demo-p19-2/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p21-1",
+      "category": "glossary",
+      "title": "Demo p. 21 · 1",
+      "page": 21,
+      "body": "A demo target from the layout PDF, page 8.",
+      "tags": [],
+      "target": {
+        "id": "demo-p21-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p21-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p23-1",
+      "category": "glossary",
+      "title": "Demo p. 23 · 1",
+      "page": 23,
+      "body": "A demo target from the layout PDF, page 9.",
+      "tags": [],
+      "target": {
+        "id": "demo-p23-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p23-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p25-1",
+      "category": "glossary",
+      "title": "Demo p. 25 · 1",
+      "page": 25,
+      "body": "A demo target from the layout PDF, page 10.",
+      "tags": [],
+      "target": {
+        "id": "demo-p25-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p25-1/target.jpg"
+      }
+    },
+    {
+      "id": "demo-p27-1",
+      "category": "glossary",
+      "title": "Demo p. 27 · 1",
+      "page": 27,
+      "body": "A demo target from the layout PDF, page 11.",
+      "tags": [],
+      "target": {
+        "id": "demo-p27-1",
+        "index": 0,
+        "imageSrc": "/assets/content/entries/demo-p27-1/target.jpg"
       }
     }
   ],

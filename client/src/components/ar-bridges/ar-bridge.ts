@@ -12,7 +12,7 @@ const WARM_UP_DELAY_MS = 1500;
  *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (policy in scene-state.ts).
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → neighbour preload.
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
- * tapping an entity opens its entry. The scene is a `LazyArScene` (three.js + MindAR load on the first scan,
+ * tapping an entity opens its entry. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first scan,
  * warmed up in idle time after startup); tests inject one via `sceneFactory`.
  */
 export class ArBridge extends HTMLElement {
@@ -40,7 +40,11 @@ export class ArBridge extends HTMLElement {
       scene.on("targetFound", id => this.handleFound(id)),
       scene.on("targetLost", id => game.targets.removeTarget(id)),
       scene.on("targetTapped", id => this.handleTap(id)),
-      // The active .mind is loaded: fetch the neighbours' .mind + content into the browser cache
+      // The reader turned to a neighbouring spread (8th Wall): switch like the spread menu does
+      scene.on("spreadSeen", id => {
+        if (this.game.state.mode === GameMode.SCAN && id !== this.game.state.currentSpread) this.game.spreads.switchSpread(id);
+      }),
+      // The spread is tracked: fetch the neighbours' target images + content into the browser cache
       scene.on("ready", spreadId => void PreloaderService.getInstance().preloadNeighbours(spreadId)),
       game.subscribeToProperty("currentSpread", id => {
         if (id) void scene.load(id);
@@ -56,8 +60,8 @@ export class ArBridge extends HTMLElement {
   }
 
   /**
-   * Once the loading screen is gone, in idle time: load the AR chunk and fetch the current spread's `.mind`
-   * and content into the browser cache, so the first scan only has to start the camera.
+   * Once the loading screen is gone, in idle time: load the AR chunk, fetch the engine's files and the current
+   * spread's target images and content into the browser cache, so the first scan only has to start the camera.
    */
   private scheduleWarmUp(lazy: LazyArScene) {
     const idle = (run: () => void) =>
