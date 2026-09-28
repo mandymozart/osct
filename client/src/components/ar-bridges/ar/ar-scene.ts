@@ -8,6 +8,7 @@ import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance } from "./entities";
 import { ImageTracker } from "./tracker";
 import { IImageTracker } from "./tracker-types";
+import { lookAroundEnabled, LookAround } from "./look-around";
 import { ArView } from "./view";
 
 interface Anchor {
@@ -49,6 +50,8 @@ export class ArScene implements IArScene {
   private wantedState: SceneState = SceneState.STOPPED;
 
   private view: ArView | null = null;
+  /** The café around the reader + the alien sky (3DoF, anchored to the book) – null when switched off */
+  private lookAround: LookAround | null = null;
   private tracker: IImageTracker | null = null;
   private assets = new AssetStore();
   private content: SpreadContent | null = null;
@@ -157,8 +160,16 @@ export class ArScene implements IArScene {
         },
       });
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
-      this.view.needsRender = () => this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible);
+      if (lookAroundEnabled()) {
+        const lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null);
+        this.lookAround = lookAround;
+        this.view.underlay = () => lookAround.render();
+      }
+      this.view.needsRender = () =>
+        this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
       this.view.onFrame(delta => {
+        const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
+        this.lookAround?.update(delta, this.view!.camera, anchors);
         this.content?.anchors.forEach(a => a.entity?.update?.(delta));
         let bloom = 0;
         this.animations.forEach((animation, id) => {
@@ -305,6 +316,8 @@ export class ArScene implements IArScene {
     this.removeContent();
     this.assets.release();
     this.tracker?.stop();
+    this.lookAround?.dispose();
+    this.lookAround = null;
     this.view?.dispose();
     this.tracker = null;
     this.view = null;
@@ -349,6 +362,7 @@ export class ArScene implements IArScene {
       this.tracker!.resume();
     }
     this.running = true;
+    this.lookAround?.start();
     this.view!.start();
     scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
     this.setStatus("running");
@@ -360,6 +374,7 @@ export class ArScene implements IArScene {
       this.view!.stop();
       this.running = false;
     }
+    this.lookAround?.pause();
     this.pauseEntities();
     // Nothing stays where it was: the tracker drops its poses at a pause without reporting the targets lost –
     // their anchors would stay visible at the old position ("stuck in space")
@@ -372,6 +387,7 @@ export class ArScene implements IArScene {
   private stop(): void {
     this.pauseEntities();
     this.tracker?.stop();
+    this.lookAround?.pause();
     this.view?.stop();
     this.loseAll();
     this.started = false;
