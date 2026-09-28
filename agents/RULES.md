@@ -105,7 +105,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
     from the PDF). Colors, gradients, shadows, sizes only as tokens in `client/src/main.css`; controls and
     text effects only through the shared primitives in `client/src/styles/design-styles.ts`
     (`adoptDesignStyles(shadowRoot)`: `.design`, `.gold`, `.muted`, `.button`, `.pill`, `.icon-button`,
-    `.rule-table`, `.section-title`). Components keep layout only – no literal colors.
+    `.text-link`, `.rule-table`, `.section-title`). Components keep layout only – no literal colors.
     - `.gold` replaces the element's background (it is `background-clip: text`): put it on the label
       (`<button class="pill"><span class="gold">…`), never on an element that needs its own background.
       On a `.gold` element don't set `background` in the component (a more specific selector wipes the

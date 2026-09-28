@@ -16,6 +16,30 @@ outcome in the line (or move it into a dated decision block).
   `client/public/assets/content/`): the deploys (staging workflow, release, Netlify) build only `client/`.
   Option: build the content in CI/deploys and stop committing the output – awaiting Tilman's decision.
 
+## 2026-09-28 – 1.4.0: optional password, one sign-in form (Tilman)
+
+- Why: "Register" and "Login" were the same step (the email creates or signs in), but "Register account" made
+  returning readers think the form was not for them. Now "Send sign-in link" + a line for readers already
+  registered on another device.
+- Tilman: fields must work with password managers; add an **optional password** – the sign-in link stays first
+  and required for the first sign-in (it confirms the address), then the reader may set a password or keep using
+  the link. Password configured on the server and hashed properly.
+- Decisions: bcrypt via `password_hash()` (cost 12, portable across shared hosts – Argon2 is not everywhere),
+  max 72 bytes refused rather than cut; same 401 for unknown address / no password / wrong password; 10 failed
+  sign-ins per address and 30 per IP per hour. Changing needs the current password unless the device signed in
+  by email in the last 15 minutes ("forgot password" = sign in with the link, set a new one). No "password
+  changed" email yet.
+- Schema changes are now additive `ALTER TABLE … ADD COLUMN` at the end of the schema files; `Db::migrate`
+  skips a column that exists (MySQL 5.7 has no `ADD COLUMN IF NOT EXISTS`).
+- Password managers: the account section is in shadow DOM; fields carry `autocomplete` + names, the set-password
+  form has the email as a hidden `username`. Chromium also gets `navigator.credentials.store()` (explicit save
+  prompt). Not yet checked on iOS (keychain + shadow DOM).
+- Tilman: "Sign in with password" is **not a button** – a text link on the same line as the "Send sign-in
+  link" button (new primitive `.text-link`, RULES #18). Fields take the full width so button + link share a line;
+  link texts kept short so they fit at 375 px in en/fr/nl/de (fr "Recevoir un lien" / "Avec un mot de passe",
+  de "Mit Passwort" / "Mit Link").
+- [ ] "Password changed" notification email (mail texts en/fr/nl/de) – not built.
+
 ## 2026-09-28 – 1.3.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
 
 - Why (Tilman, after the S22 tests): MindAR "doesn't do well at all" next to 8th Wall (jitter), and it cannot
