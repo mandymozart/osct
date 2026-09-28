@@ -26,8 +26,10 @@ outcome in the line (or move it into a dated decision block).
   2 7.1s, 4 6.1s ★, 6 6.2s, 8 7.1s → ~1 min per 100 targets at this size. Run 1 was slow from the browser's
   one-time GPU setup (images-060 7.8s alone vs 3.0s in run 2) → benchmark now does an untimed warm-up
   first. Default stays automatic (benchmark file / half the cores, max 4 = 4 there) – no --jobs in
-  package.json. [ ] Idea: keep Chrome's GPU shader cache between runs (persistent profile) to save the
-  warm-up on every compile:mind.
+  package.json. [~] Keep Chrome's GPU cache between runs: persistent profile per browser in
+  `scripts/.cache/mind-browser/<browser>/` (`launchPersistentContext`); jobs on their own sites
+  (`mind-<n>.local`) for separate renderer processes. Container (SwiftShader): only ~6 % (no real shader
+  compile there). [ ] Tilman: measure on the RTX – run `compile:mind --fresh` twice, compare the first images.
 - Build docs cut down to a quick start + command/option/folder tables (Tilman: "for dummies").
 
 ## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)

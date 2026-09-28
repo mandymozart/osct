@@ -31,6 +31,7 @@ export async function compileQueue(queue, { browser, jobs: jobCount, gpu, cache 
     Array.from({ length: Math.max(1, Math.min(jobCount, queue.length)) }, async (_, i) => {
       const job = { n: i + 1, image: null, percent: 0, since: 0 };
       job.page = await openPage(browser, {
+        site: job.n,
         gpu,
         images,
         onProgress: percent => (job.percent = percent),
