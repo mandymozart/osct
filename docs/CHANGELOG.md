@@ -24,8 +24,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **Onion sky**: looking up, sky-coloured parts of the camera picture (blue, or bright grey and smooth) show the
   world's sky – buildings, trees and people stay real (light, warm façades are not taken for an overcast sky). It
   reads a small copy of the camera picture (160 px wide, every other frame), not the full video.
-- **Graphics** options on the Info page (Settings): "Onion sky" and "Scene around the book" on / off, stored on
-  this device (en/fr/nl/de) – for phones that need the power for the page scenes.
+- **Graphics** options on the Info page (Settings): "Onion sky" and "Scene around the book", **off by default**,
+  stored on this device (en/fr/nl/de) – for phones that need the power for the page scenes. With both off nothing
+  extra is drawn and the gyroscope is not read.
+- Documentation: `docs/look-around.md`.
 - Tuning on the device: `window.osctLookAround` (opacity, sky strength, fade time, window and floor angles). On
   iPhone the first tap asks for motion access.
 

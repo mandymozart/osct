@@ -1,7 +1,7 @@
-import { Vector3 } from "three";
-import { describe, expect, it } from "vitest";
+import { Matrix4, Quaternion, Vector3 } from "three";
+import { describe, expect, it, vi } from "vitest";
 import { deviceQuaternion } from "../look-around/orientation";
-import { lerpAngle, windowRadii, yawTowards } from "../look-around/look-around";
+import { BookAnchor, lerpAngle, windowRadii, yawTowards } from "../look-around/book-anchor";
 
 const forward = (alpha: number, beta: number, gamma: number, screen = 0) =>
   new Vector3(0, 0, -1).applyQuaternion(deviceQuaternion(alpha, beta, gamma, screen));
@@ -50,5 +50,40 @@ describe("windowRadii", () => {
     expect(far.inner).toBe(14);
     expect(windowRadii(10, 0.5, 9, 16).inner).toBe(45);
     expect(near.outer - near.inner).toBe(16);
+  });
+});
+
+describe("BookAnchor", () => {
+  const pageAt = (x: number, y: number, z: number, width = 0.2) =>
+    new Matrix4().compose(new Vector3(x, y, z), new Quaternion(), new Vector3(width, width, width));
+
+  it("places the book in the world from the anchor and the phone's orientation, the world's front facing it", () => {
+    const anchor = new BookAnchor();
+    // Phone upright, turned left by 90° (looks to −x); the page straight ahead of the camera
+    anchor.see([pageAt(0, 0, -1)], deviceQuaternion(90, 90, 0, 0), 16, 18);
+    close(anchor.direction!, new Vector3(-1, 0, 0));
+    close(new Vector3(0, 0, -1).applyAxisAngle(new Vector3(0, 1, 0), anchor.yaw), new Vector3(-1, 0, 0));
+    expect(anchor.sinceSeen).toBe(0);
+  });
+
+  it("moves smoothly on later finds, counts the time unseen and can forget", () => {
+    const anchor = new BookAnchor();
+    const upright = deviceQuaternion(0, 90, 0, 0);
+    anchor.see([pageAt(0, 0, -1)], upright, 16, 18);
+    anchor.see([pageAt(1, 0, 0)], upright, 16, 18);
+    expect(anchor.direction!.z).toBeLessThan(-0.9); // one jittery frame barely moves it
+    anchor.unseen(2);
+    expect(anchor.sinceSeen).toBe(2);
+    anchor.forget();
+    expect(anchor.direction).toBeNull();
+  });
+});
+
+describe("GraphicsService", () => {
+  it("both effects are off until the reader turns them on", async () => {
+    localStorage.removeItem("osct-graphics");
+    vi.resetModules();
+    const { GraphicsService } = await import("@/services/GraphicsService");
+    expect(GraphicsService.getInstance().getSettings()).toEqual({ onionSky: false, surroundings: false });
   });
 });

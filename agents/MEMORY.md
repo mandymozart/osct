@@ -39,7 +39,11 @@ outcome in the line (or move it into a dated decision block).
   the sky test reads a 160 px canvas copy of the camera, drawn every other frame (was a full VideoTexture upload per
   frame). Façade fix: grey sky must not be warmer than neutral. S22 (dev server): ~27 fps with both on; the
   on/off measurements were too noisy to show the effects' own cost.
-- [ ] Open: the world is a placeholder in the shader (`worldColour` in `look-around.ts`) – the real one comes as
+- Tilman, end of the session: both effects **off by default** for now; refactor + short docs; parked until the
+  content discussion with Kévin (PLAN Phase 10 has the questions). Code split into `book-anchor.ts`, `sky-sample.ts`,
+  `shader.ts` (placeholder world in its own GLSL block), `look-around.ts`; the gyroscope is read only while an option is
+  on; `ArView.underlay` is an object with `active` (no clear when inactive).
+- [ ] Open: the world is a placeholder in the shader (`PLACEHOLDER_WORLD` in `look-around/shader.ts`) – the real one comes as
   content in Phase 14 (RULES #5).
 
 ## 2026-09-28 – 1.3.2: MindAR leftovers cleaned up (Tilman)
