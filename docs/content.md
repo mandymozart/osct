@@ -240,67 +240,32 @@ Spreads may not overlap. Every entry's `page` must fall inside a spread.
 ## Recognition data (.mind files)
 
 The camera recognises targets with a `.mind` file per spread, compiled from the spread's target
-images. **The order of the images matters.** Compile on your own computer – it needs a browser with
-WebGL (Chrome or Edge, installed as usual):
+images. **The order of the images matters** – the compile script takes care of it. Compile on your own
+computer; it needs Chrome or Edge (it uses the graphics card):
 
 ```bash
 cd scripts
-npm run compile:mind                        # every spread whose target images changed
-npm run compile:mind -- spread1             # this spread
-npm run compile:mind -- --force             # all spreads, nothing from the cache
-npm run compile:mind -- --no-cache          # compile every image again (benchmarks)
-npm run compile:mind -- --jobs 6            # parallel browser jobs (default: half the CPU cores, max 4)
-npm run compile:mind -- --gpu default       # let Chrome pick the GPU (default: the high-performance one)
-npm run compile:mind -- --angle d3d11       # WebGL backend: d3d11 | vulkan | gl | metal …
-npm run compile:mind -- --headed            # visible browser window, if the headless one has no GPU
-npm run compile:mind -- --browser <path>    # a specific Chrome / Chromium / Edge (or env MIND_BROWSER)
+npm run compile:mind                                     # every spread whose target images changed
+npm run compile:mind -- spread1 --note "brighter scan"   # one spread, with a note for the history
 ```
 
-Each image is compiled once and cached in `scripts/.cache/mind/` (by image content and MindAR version),
-so a changed spread only compiles its new images. The output shows the GPU in use, a progress bar with
-speed and ETA, the time per image (GPU feature detection, CPU tracking features) and a summary
-(images/min, slowest images, an estimate for 100 targets). Compile time grows with image size.
-
-On a laptop with two GPUs the script asks for the fast one. If it still prints the integrated GPU (e.g.
-"Intel UHD"): Windows Settings → System → Display → Graphics → Chrome → High performance, or NVIDIA
-Control Panel → Manage 3D settings → Chrome → High-performance NVIDIA processor.
-
-It writes `content/spreads/<spread>/<name>.mind` (the name in `mind:`) plus `<name>.mind.sha256`, the
-fingerprint of the images it was compiled from, then runs the content build. The script uses the
-same MindAR compiler (and version) as the app and the
-[online compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile), in the browser with WebGL.
-It prints the WebGL renderer: "SwiftShader" or "llvmpipe" means software WebGL – it works, just
-slower.
+Whenever a target is added, removed, replaced or reordered on a spread, the content build stops with
+"… is stale" until that spread is recompiled. Commit the `.mind` and `.mind.sha256` files – GitHub and
+the deploys never compile.
 
 ### Test a compile, go back
 
-Every compile keeps the new `.mind` – and the one it replaced – as a version in `mind-history/`
-(local, not in git; the newest 20 per spread). Test on the phone, rewind when a version tracks worse:
+Every compile is kept as a version on your computer (`mind-history/`, not in git). Test on the phone,
+go back when a version tracks worse:
 
 ```bash
+cd client && npm run dev                          # open on the phone, scan the spread
 cd scripts
-npm run compile:mind -- spread1 --note "brighter scan"   # the note shows up in the list
-cd ../client && npm run dev                              # open on the phone, scan the spread
-cd ../scripts
-npm run mind:history                                     # versions of all spreads, ● = current
-npm run mind:history -- spread1                          # one spread, with images and times per version
-npm run mind:restore -- spread1 previous                 # back to the version before
-npm run mind:restore -- spread1 3                        # or any version by number (or id)
+npm run mind:history                              # versions of all spreads, ● = current
+npm run mind:restore -- spread1 previous          # back to the version before, then reload the app
 ```
 
-Restoring copies the version back to `content/spreads/<spread>/` and runs the content build – reload
-the app. Test with the dev server: the built app's service worker keeps a `.mind` it has cached. A
-version compiled from other target images than the spread has now is refused (the content build
-would stop with "stale"); `--force` restores it anyway.
-
-Whenever a target is added, removed, replaced or reordered on a spread, the content build stops
-with "… is stale" until that spread is recompiled. GitHub checks and deploys never compile – commit
-the `.mind` and `.mind.sha256` files.
-
-By hand, without the script: run the content build, which puts each spread's target images into
-`mind-ar/<spread>/` numbered in the right order (`0-…`, `1-…`, …); add them to the online compiler in
-that order, save the download as `content/spreads/<spread>/<name>.mind` and copy
-`mind-ar/<spread>/source.sha256` to `content/spreads/<spread>/<name>.mind.sha256`.
+Options, GPU choice, the cache and compiling by hand: [Content build](content-build.md#compiling-mind-files).
 
 ## Onboarding screens
 
