@@ -9,6 +9,22 @@ on:
   pull_request:
 
 jobs:
+  version:
+    name: Version and changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Strict on develop, main and PRs into them: code changes there need a bump (RULES #23)
+      - name: Check version
+        run: |
+          target="${{ github.base_ref || github.ref_name }}"
+          case "$target" in
+            develop|main) .github/scripts/check-version.sh --strict ;;
+            *) .github/scripts/check-version.sh ;;
+          esac
+
   scripts:
     name: Content build
     runs-on: ubuntu-latest

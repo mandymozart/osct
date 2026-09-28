@@ -3,7 +3,8 @@
 Every versioned change is listed here, newest first. Versions follow [semver](https://semver.org/) and
 are the same for app, content build and server (`agents/RULES.md` #10, #23):
 
-- **PATCH** – fixes, refactors, comments, docs, styling tweaks; nothing a reader or editor has to act on.
+- **PATCH** – fixes, refactors, comments, styling tweaks, tooling; nothing a reader or editor has to act on.
+  Changes only to `agents/`, `docs/` or Markdown need no version.
 - **MINOR** – new features or content-build options that work with existing content and progress.
 - **MAJOR** – content must be rebuilt, or the progress storage format changes (needs a reader in
   `utils/progress-record.ts`).
@@ -33,6 +34,16 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   images, earlier versions, cache, browser profile); older folders are moved there on the first build.
 - The content build documentation is part of `docs/content.md`, as a short quick start.
 - `.gitignore` tidied up.
+
+## 1.1.5 – 2026-09-28
+
+### Added
+- Version check in Checks (`.github/scripts/check-version.sh`): version sources agree, a changelog section
+  exists, the version never goes below the newest tag, and code changes on `develop`/`main` come with a bump.
+
+### Changed
+- Versioning rules for parallel branches: one bump per piece of work, above `develop`'s version; version
+  conflicts resolve to the next version above both sides.
 
 ## 1.1.4 – 2026-09-28
 
