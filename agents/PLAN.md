@@ -848,6 +848,12 @@ Installable app (home screen, standalone, splash) + offline start. Details: MEMO
   `application/manifest+json`; `service-worker.js` + `manifest.webmanifest` with `Cache-Control: no-cache`;
   `assets/app/*` cached immutable; SPA fallback to `index.html` (`_redirects`); https. E.g. an `.htaccess`
   on Apache.
+  - [ ] **Check the gzip copies again** (Tilman 2026-09-28). Decided: the content build keeps writing
+    `.mind.gz` / `.glb.gz` – it does all media optimisation, whatever the host. On the production server
+    check: does it compress `.mind` / `.glb` itself (`mod_deflate`)? Does it send `.gz` files with or
+    without `Content-Encoding: gzip`? (`utils/compressed.ts` handles both.) Keep the originals: fallback for
+    browsers without `DecompressionStream` (iOS Safari < 16.4). Cost to weigh: ~1.8 MB git history per
+    recompiled spread in `client/public/assets/content/` – gone once the content leaves the repo.
 
 ## Phase 10 – Spatial experience  `[ ]` (added 2026-09-26 – later; concept first, Tilman)
 
@@ -932,6 +938,7 @@ beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
       uses it (no fixed `--jobs` in package.json). GPU cache between runs: 26 s → 4.7 s for 10 images.
 - [x] Tilman: first run on his machine – RTX 2070 SUPER headless via D3D11 (2026-09-28). [ ] Phone test
       of the RTX-compiled spread1/spread3, then commit them (spread1 target 0 was due anyway).
+- [ ] Production server: check the `.gz` copies again – see Phase 9b "Production host".
 - [ ] Merge into `develop`.
 
 ## Design tokens
