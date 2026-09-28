@@ -42,6 +42,8 @@ export type ArSceneEvents = {
   targetTapped: (targetId: string) => void;
   /** The spread's `.mind` is loaded and tracking began */
   ready: (spreadId: string) => void;
+  /** A neighbouring spread's page is in view instead of the current spread (the reader turned the page) */
+  spreadSeen: (spreadId: string) => void;
 };
 
 /**

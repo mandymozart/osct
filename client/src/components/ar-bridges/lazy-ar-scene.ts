@@ -5,6 +5,16 @@ type ArModule = typeof import("./ar");
 
 let arModule: Promise<ArModule> | null = null;
 
+/** Every scene event, forwarded from the real scene (a record over the event type: a new event can't be left out) */
+const SCENE_EVENTS = Object.keys({
+  status: true,
+  targetFound: true,
+  targetLost: true,
+  targetTapped: true,
+  ready: true,
+  spreadSeen: true,
+} satisfies Record<keyof ArSceneEvents, true>) as Array<keyof ArSceneEvents>;
+
 /**
  * Load the AR chunk (three.js; the tracking engine – MindAR with TF.js – follows, ~⅔ of the app's code). Nothing imports `./ar`
  * statically, so the first paint never waits for it. Retries after a failed load (offline).
@@ -93,7 +103,7 @@ export class LazyArScene implements IArScene {
       this.creating = loadArModule().then(({ ArScene }) => {
         const scene = new ArScene(this.container);
         // Forward the real scene's events
-        (["status", "targetFound", "targetLost", "targetTapped", "ready"] as const).forEach(event =>
+        SCENE_EVENTS.forEach(event =>
           scene.on(event, ((...args: unknown[]) =>
             (this.emitter.emit as (e: string, ...a: unknown[]) => void)(event, ...args)) as never),
         );

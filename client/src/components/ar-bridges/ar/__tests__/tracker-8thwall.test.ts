@@ -50,7 +50,14 @@ vi.mock("../xr8", async importOriginal => {
 
 const { EighthWallTracker } = await import("../tracker-8thwall");
 
+/** An engine image event for a target (pose details don't matter here) */
+const image = (event: "imagefound" | "imageupdated" | "imagelost", name: string) =>
+  engine.modules.forEach(module => module.listeners
+    ?.find(listener => listener.event === `reality.${event}`)
+    ?.process({ detail: { name, position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: 1, scaledWidth: 1, scaledHeight: 1 } }));
+
 const spread = (id: string): TrackedSpread => ({
+  spreadId: id,
   mindSrc: `${id}.mind`,
   targets: [0, 1].map(index => ({ index, imageSrc: `${id}-${index}.jpg` }) as unknown as Target),
 });
@@ -79,5 +86,45 @@ describe("EighthWallTracker spread switches", () => {
     expect([...engine.loaded].sort()).toEqual(["s2-0.jpg", "s2-1.jpg", "s3-0.jpg", "s3-1.jpg", "s4-0.jpg", "s4-1.jpg"]);
 
     tracker.stop();
+  });
+
+  it("reports a neighbouring spread held in view while nothing of the current spread is", async () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(0);
+    const onSpreadSeen = vi.fn();
+    const tracker = new EighthWallTracker(document.createElement("div"), { maxTrack: 4, onUpdate: () => {}, onSpreadSeen });
+    await tracker.startCamera();
+    await tracker.loadTargets(spread("s2"));
+    tracker.prepareTargets([spread("s1"), spread("s3")]);
+    await vi.waitFor(() => expect(engine.loaded.has("s3-0.jpg")).toBe(true));
+
+    // A glimpse is not enough
+    image("imagefound", "s3-0.jpg");
+    now.mockReturnValue(200);
+    image("imageupdated", "s3-0.jpg");
+    expect(onSpreadSeen).not.toHaveBeenCalled();
+
+    // While a current target is found, the neighbour is ignored
+    image("imagefound", "s2-1.jpg");
+    now.mockReturnValue(600);
+    image("imageupdated", "s3-0.jpg");
+    expect(onSpreadSeen).not.toHaveBeenCalled();
+
+    // The current page left the view: the neighbour held for 400 ms is reported …
+    image("imagelost", "s2-1.jpg");
+    now.mockReturnValue(700);
+    image("imageupdated", "s3-0.jpg");
+    image("imageupdated", "s3-0.jpg");
+    expect(onSpreadSeen).toHaveBeenCalledTimes(1);
+    expect(onSpreadSeen).toHaveBeenCalledWith("s3");
+    // … and again after another 400 ms if the app did not switch
+    now.mockReturnValue(1000);
+    image("imageupdated", "s3-0.jpg");
+    expect(onSpreadSeen).toHaveBeenCalledTimes(1);
+    now.mockReturnValue(1100);
+    image("imageupdated", "s3-0.jpg");
+    expect(onSpreadSeen).toHaveBeenCalledTimes(2);
+
+    tracker.stop();
+    now.mockRestore();
   });
 });

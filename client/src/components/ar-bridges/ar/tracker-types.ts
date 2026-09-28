@@ -6,6 +6,7 @@ export const CAMERA_START_TIMEOUT_MS = 10000;
 
 /** What a tracker needs to track a spread: MindAR reads the compiled `.mind`, 8th Wall the target images */
 export interface TrackedSpread {
+  spreadId: string;
   mindSrc: string;
   targets: readonly Target[];
 }
@@ -17,6 +18,11 @@ export interface ImageTrackerOptions {
    * x/y plane), null when the target is lost
    */
   onUpdate: (targetIndex: number, matrix: Matrix4 | null) => void;
+  /**
+   * A target of a prepared spread (`prepareTargets()`) is seen steadily while none of the current spread's is –
+   * the reader has turned the page (8th Wall only: MindAR tracks only the current spread)
+   */
+  onSpreadSeen?: (spreadId: string) => void;
 }
 
 /**

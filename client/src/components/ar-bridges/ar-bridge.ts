@@ -41,6 +41,10 @@ export class ArBridge extends HTMLElement {
       scene.on("targetFound", id => this.handleFound(id)),
       scene.on("targetLost", id => game.targets.removeTarget(id)),
       scene.on("targetTapped", id => this.handleTap(id)),
+      // The reader turned to a neighbouring spread (8th Wall): switch like the spread menu does
+      scene.on("spreadSeen", id => {
+        if (this.game.state.mode === GameMode.SCAN && id !== this.game.state.currentSpread) this.game.spreads.switchSpread(id);
+      }),
       // The active .mind is loaded: fetch the neighbours' .mind + content into the browser cache
       scene.on("ready", spreadId => void PreloaderService.getInstance().preloadNeighbours(spreadId)),
       game.subscribeToProperty("currentSpread", id => {

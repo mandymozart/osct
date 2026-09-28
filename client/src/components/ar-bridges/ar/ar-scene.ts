@@ -153,6 +153,9 @@ export class ArScene implements IArScene {
       this.tracker = await createImageTracker(this.container, {
         maxTrack: getMaxTargetsPerSpread(),
         onUpdate: (index, matrix) => this.onTrackingUpdate(index, matrix),
+        onSpreadSeen: spreadId => {
+          if (spreadId !== this.content?.spreadId) this.emitter.emit("spreadSeen", spreadId);
+        },
       });
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
       this.view.needsRender = () => this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible);
@@ -332,7 +335,7 @@ export class ArScene implements IArScene {
     this.view!.resize(); // field of view from the controller's projection
     this.started = true;
     // The spreads the menu reaches next: their targets get ready ahead (8th Wall; MindAR preloads its .mind)
-    tracker.prepareTargets(getNeighbourSpreads(content.spreadId).map(spread => ({ mindSrc: spread.mindSrc, targets: getTargets(spread.id) })));
+    tracker.prepareTargets(getNeighbourSpreads(content.spreadId).map(spread => ({ spreadId: spread.id, mindSrc: spread.mindSrc, targets: getTargets(spread.id) })));
     this.emitter.emit("ready", content.spreadId);
   }
 

@@ -175,6 +175,10 @@ The app can now run on either engine – same scene, entities, unlock flow:
   loaded in the engine (`prepareTargets()`, the counterpart of the `.mind` preloading): first spread ~1.15 s,
   switch to a neighbour 0–1 ms, to another spread ~0.6 s. The encode uses `toDataURL` – `toBlob` waited ~4 s
   per image for idle time while the engine ran.
+- **Automatic spread switch (8th Wall only):** the loaded neighbour targets also tell when the reader turned
+  the page – held 400 ms with nothing of the current spread in view, the app switches like the spread menu.
+  S22: works, ~0.4 s. MindAR cannot do this (one `.mind` at a time). Open: how many targets the engine keeps
+  loaded before detection or frame rate suffers.
 - **Still open – on the phones:** the comparison itself (section 5.2), iOS motion permission prompt, pause/resume.
 
 ## Sources
