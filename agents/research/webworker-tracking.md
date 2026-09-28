@@ -92,7 +92,7 @@ A web page cannot call ARKit / ARCore directly. The only bridges:
     shell (Swift or a WebView + ARKit bridge). Progress in the PWA and in the clip would be separate unless synced
     through the account API.
   - **AR Quick Look** (USDZ/Reality files, image anchors): the system viewer; no custom logic, no app UI.
-- **Android**: Google Play Instant (the App Clip counterpart) is being phased out – not a path.
+- **Android**: Google Play Instant (the App Clip counterpart) is reportedly being phased out (not verified) – not a path to plan on.
 
 So a **browser** WebAR (Artivive's WebAR, 8th Wall, Zappar) is always a JS/WASM tracker without native VIO.
 Artivive's browser tracker is not public; it is a WASM/JS engine like the others (licensed or its own).
