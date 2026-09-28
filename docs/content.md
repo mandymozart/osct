@@ -247,10 +247,23 @@ WebGL (Chrome or Edge, installed as usual):
 cd scripts
 npm run compile:mind                        # every spread whose target images changed
 npm run compile:mind -- spread1             # this spread
-npm run compile:mind -- --force             # all spreads
+npm run compile:mind -- --force             # all spreads, nothing from the cache
+npm run compile:mind -- --no-cache          # compile every image again (benchmarks)
+npm run compile:mind -- --jobs 6            # parallel browser jobs (default: half the CPU cores, max 4)
+npm run compile:mind -- --gpu default       # let Chrome pick the GPU (default: the high-performance one)
+npm run compile:mind -- --angle d3d11       # WebGL backend: d3d11 | vulkan | gl | metal …
 npm run compile:mind -- --headed            # visible browser window, if the headless one has no GPU
 npm run compile:mind -- --browser <path>    # a specific Chrome / Chromium / Edge (or env MIND_BROWSER)
 ```
+
+Each image is compiled once and cached in `scripts/.cache/mind/` (by image content and MindAR version),
+so a changed spread only compiles its new images. The output shows the GPU in use, a progress bar with
+speed and ETA, the time per image (GPU feature detection, CPU tracking features) and a summary
+(images/min, slowest images, an estimate for 100 targets). Compile time grows with image size.
+
+On a laptop with two GPUs the script asks for the fast one. If it still prints the integrated GPU (e.g.
+"Intel UHD"): Windows Settings → System → Display → Graphics → Chrome → High performance, or NVIDIA
+Control Panel → Manage 3D settings → Chrome → High-performance NVIDIA processor.
 
 It writes `content/spreads/<spread>/<name>.mind` (the name in `mind:`) plus `<name>.mind.sha256`, the
 fingerprint of the images it was compiled from, then runs the content build. The script uses the

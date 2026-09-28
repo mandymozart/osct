@@ -42,3 +42,6 @@ server/api/db/*.sqlite
 server/api/db/mail.log
 
 server/api/db/error.log
+
+# compile-mind per-image cache
+/scripts/.cache
