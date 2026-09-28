@@ -11,6 +11,9 @@ coverage
 !client/.env
 .claude
 .netlify
+# Content build output – built by every `npm run build` in client/ (prebuild → `npm run content`), CI and deploys
+client/src/game.config.json
+client/public/assets/content/
 # Local folder of the removed .mind tooling (1.2.x) – delete it where it still exists
 .mindar/
 

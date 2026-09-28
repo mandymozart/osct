@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
@@ -9,8 +9,14 @@ import { renderStaticSplash } from './src/utils/static-splash-html.ts';
 // One version for app and content build (RULES.md #10). Read from package.json because
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
 const APP_VERSION = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
+// The game configuration is written by the content build and is not in git (built by every `npm run build`
+// – prebuild → `npm run content`). A fresh checkout builds it once before `npm run dev` or the tests.
+const GAME_CONFIG_FILE = resolve(import.meta.dirname, 'src/game.config.json');
+if (!existsSync(GAME_CONFIG_FILE)) {
+  throw new Error('client/src/game.config.json is missing – build the content first: `npm run content` (in client/)');
+}
 // The content build's checksum: the service worker keeps one content cache per content build
-const GAME_CONFIG = JSON.parse(readFileSync(resolve(import.meta.dirname, 'src/game.config.json'), 'utf8'));
+const GAME_CONFIG = JSON.parse(readFileSync(GAME_CONFIG_FILE, 'utf8'));
 
 /**
  * PWA: web app manifest + service worker (sw/service-worker.ts, precache list injected here).

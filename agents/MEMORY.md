@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Content build output not in git (Tilman; branch `build-content-in-ci`)
+
+- `client/src/game.config.json` and `client/public/assets/content/` are ignored and untracked. `npm run build`
+  in `client/` builds the content first (`prebuild` → `npm run content` = `npm --prefix ../scripts install` +
+  `npm --prefix ../scripts start`). So nothing changes in the deploy commands: the staging workflow, the
+  release workflow and both Netlify sites (base `/client`, `npm run build` – read from the Netlify API) build
+  the content of their commit. Fresh build incl. content: ~25 s locally.
+- Checks: the "committed game configuration is up to date" diff is gone; the scripts job still builds the
+  content (content errors fail), the client job runs `npm run content` before `tsc` / `vitest`.
+- `vite.config.js` stops with "game.config.json is missing – run `npm run content`" on a fresh checkout
+  (dev server and vitest), instead of a bare ENOENT. The broken `build:config` script is gone.
+- The config's `timestamp` is now the build time of each deploy; the content cache key stays the content
+  hash (`version.hash`), so a deploy without content changes keeps the phones' content cache.
+- Version: bump when it lands on `develop` (RULES #23 – another agent works on `develop` meanwhile).
+
 ## 2026-09-28 – 1.3.2: MindAR leftovers cleaned up (Tilman)
 
 - Targets are keyed by **id** everywhere (tracker `onUpdate(targetId)`, scene anchors, poses): MindAR's
@@ -12,9 +27,8 @@ outcome in the line (or move it into a dated decision block).
   build only checks the 10-per-spread limit (`checkTargetsPerSpread`). A test asserts unique target ids.
 - `.mindar/targets/` (49 files) had been committed with 1.3.0 by mistake (its ignore rule was removed while the
   folder still existed) – removed from git, `.mindar/` ignored again (other machines may still have it).
-- [ ] Tilman asked why the generated content is committed (`client/src/game.config.json`,
-  `client/public/assets/content/`): the deploys (staging workflow, release, Netlify) build only `client/`.
-  Option: build the content in CI/deploys and stop committing the output – awaiting Tilman's decision.
+- [x] Tilman asked why the generated content is committed: the deploys only built `client/`. Decided
+  (Tilman: yes) → the output is no longer in git (branch `build-content-in-ci`, entry above).
 
 ## 2026-09-28 – 1.3.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
 

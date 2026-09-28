@@ -37,8 +37,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: client/package-lock.json
-      - name: Build the app
+          cache-dependency-path: |
+            client/package-lock.json
+            scripts/package-lock.json
+      - name: Build the content and the app (prebuild runs the content build)
         working-directory: client
         env:
           VITE_API_URL: /api
