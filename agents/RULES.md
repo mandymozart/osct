@@ -173,16 +173,26 @@ Extend as we go: add a rule when a decision should hold for all future work.
     measured values to `DESIGN.md`, invariants here. CSS: no comments unless a rule would otherwise be
     "fixed" wrongly (one short line). Keep the `/* html */` / `/* css */` template markers.
 
-23. **Versions and changelog** (Tilman, 2026-09-28): every change that lands bumps the version (RULES #10 –
-    `client/package.json` + lock, `scripts/package.json` + lock, `server/api/src/Version.php`; then
-    `cd scripts && npm run build && npm run build:content` and commit the regenerated `game.config.json`).
-    PATCH = fixes, refactors, comments, docs, styling; MINOR = new features compatible with existing content
-    and progress; MAJOR = content rebuild or progress format change. Each bump gets an entry at the top of
-    `docs/CHANGELOG.md` (version, date, Added / Changed / Fixed / Removed) written for people, not agents.
-    Several commits of one piece of work share one bump.
-    **Releases** deploy production, not merges: merge to `main` → `tag-version.yml` tags `vX.Y.Z` (never push
-    tags yourself) → publish a GitHub release on that tag → `release.yml` (tag must
-    equal the version and have a CHANGELOG section; docs/server.md "Releases").
+23. **Versions and changelog** (Tilman, 2026-09-28): the version (RULES #10) only goes up, and every shipped
+    change is in `docs/CHANGELOG.md`. Check before pushing: `.github/scripts/check-version.sh --strict`
+    (also run by Checks – strict on `develop`, `main` and PRs into them).
+    - **What bumps:** PATCH = fixes, refactors, comments, styling, tooling; MINOR = new features compatible
+      with existing content and progress; MAJOR = content rebuild or progress format change. Changes only
+      in `agents/`, `docs/` or `*.md` need no bump.
+    - **How:** `client/package.json` + lock, `scripts/package.json` + lock, `server/api/src/Version.php`
+      (`npm version X.Y.Z --no-git-tag-version` in client/ and scripts/), then
+      `cd scripts && npm run build && npm run build:content` and commit the regenerated `game.config.json`.
+      Add `## X.Y.Z – <date>` at the top of `docs/CHANGELOG.md` (Added / Changed / Fixed / Removed), written
+      for people, not agents.
+    - **One bump per piece of work**, made when it lands on `develop` – not per commit. On a branch, bump
+      last: first merge `origin/develop` into the branch, then pick the next version **above `develop`'s**
+      (and above the newest `v*` tag), never the version the branch started from.
+    - **Merge conflicts in version files:** never pick either side – take the next version above both.
+      `game.config.json`: regenerate, never hand-merge. `CHANGELOG.md`: keep every section; merged work
+      without its own shipped version goes into the new section. A version must never go down.
+    - **Releases** deploy production, not merges: merge to `main` → `tag-version.yml` tags `vX.Y.Z` (never
+      push tags yourself – agent sessions cannot) → publish a GitHub release on that tag → `release.yml`
+      (tag must equal the version and have a CHANGELOG section; docs/server.md "Releases").
 
 ## Deployment (from old rules)
 - Staging: `develop` → osct.porschuetz.de (`deploy-staging.yml`) · Production: published release → `release.yml`
