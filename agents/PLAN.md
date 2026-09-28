@@ -928,9 +928,10 @@ beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
 - [x] Local version history (Tilman: test before commit/deploy, rewind; content leaves git later):
       `mind-history/<spread>/<version>/` (+ meta: date, note, GPU, images, times), `npm run mind:history`,
       `npm run mind:restore -- <spread> previous|<n>|<id>`; the replaced file is kept too.
-- [ ] Tilman: benchmark `--jobs` values on the RTX 2070 (`--no-cache`), set the default from it.
-- [ ] Tilman: first run on his machine (GPU renderer printed; headless vs `--headed`), and
-      `npm run compile:mind -- spread1` (target 0 differs slightly from a fresh compile, see MEMORY).
+- [x] Benchmark `--jobs` on the RTX 2070 SUPER: 4 fastest; `mind:benchmark` stores it and compile:mind
+      uses it (no fixed `--jobs` in package.json). GPU cache between runs: 26 s → 4.7 s for 10 images.
+- [x] Tilman: first run on his machine – RTX 2070 SUPER headless via D3D11 (2026-09-28). [ ] Phone test
+      of the RTX-compiled spread1/spread3, then commit them (spread1 target 0 was due anyway).
 - [ ] Merge into `develop`.
 
 ## Design tokens

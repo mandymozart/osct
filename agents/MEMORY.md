@@ -29,7 +29,10 @@ outcome in the line (or move it into a dated decision block).
   package.json. [~] Keep Chrome's GPU cache between runs: persistent profile per browser in
   `scripts/.cache/mind-browser/<browser>/` (`launchPersistentContext`); jobs on their own sites
   (`mind-<n>.local`) for separate renderer processes. Container (SwiftShader): only ~6 % (no real shader
-  compile there). [ ] Tilman: measure on the RTX – run `compile:mind --fresh` twice, compare the first images.
+  compile there). [x] Tilman's RTX 2070 SUPER, `compile:mind --fresh`, 10 images: 26.0 s (cache
+  empty) → 4.9 s → 4.7 s (~0.5 s/image, ~47 s per 100 targets). Runs 2 and 3 byte-identical; spread2 from
+  the RTX = the online tool's file of 2026-09-24 byte for byte (version …83c85caa); spread1/3 differ in
+  float noise (other GPU).
 - All TypeScript (Tilman: "maybe all in typescript makes more sense? why two libs?"): the tools were JS
   only to run without a build – compile:mind builds first anyway. One `src/lib/` (cli, console joined
   it), `src/mind/` (compile, benchmark, history, versions, browser, run, targets, stats), `src/sounds.ts`;
