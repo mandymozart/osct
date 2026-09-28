@@ -25,9 +25,13 @@ outcome in the line (or move it into a dated decision block).
   correlation ≥ 0.997; everything else ≤ 0.73). Book now 35 targets; spread8/spread10 `.mind` recompiled.
 - S22 session 1 (±1): page-by-page auto switch 4→10 worked, next spread ready in 0–2 ms; jumping back to 1–2
   could not switch (only neighbours loaded). The four full-spread photo targets (pages 20–27) were never found.
-- S22 session 2 ("all", 39 targets): all extracted ~3 s after start; far jumps switch (e.g. 8 → 4).
+- S22 session 2 ("all", 39 targets): all extracted ~3 s after start; far jumps switch by themselves
+  (5–6 → 18–19 → 1–2 → 3–4 → 7 → 11 → 14–15), next spread ready in 1–5 ms, the target that caused the switch
+  found 34–71 ms later. No visible slowdown or extra jitter with all targets loaded (Tilman) – not yet measured
+  side by side. Small targets are found late or flicker (e.g. 6.4 s for a second target on 1–2).
 - "No 3D / video" during the tests = the USB tunnel had dropped (adb forgets `reverse` when the phone
-  reconnects): assets of a newly opened spread could not load. A loop re-applies the tunnels every 2 s.
+  reconnects): assets of a newly opened spread could not load. A loop re-applies the tunnels every 2 s;
+  models and video confirmed working afterwards (Tilman).
 - [ ] Why the full-spread photo targets (spread11–14) are not found (dark, low contrast, landscape 2048×1425).
 - [ ] Load test numbers with "all" vs ±1: time to first find, frame rate.
 
