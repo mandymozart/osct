@@ -919,7 +919,7 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] Entry view like Info (Tilman): "Entries" in the page at the category pill's height, content where the list starts –
       one shared toolbar in `ConsultationPage` (`entriesToolbar()`); the header has no "Entries" any more.
 
-## Phase 12 – `.mind` compilation in the content builder  `[~]` (branch `compilation`, 2026-09-28)
+## Phase 12 – `.mind` compilation in the content builder  `[x]` (1.2.0, 2026-09-28; open: phone test of the RTX-compiled spreads)
 
 Before: target images compiled by hand in MindAR's online tool, nothing checked a stale `.mind`
 beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
@@ -939,7 +939,7 @@ beyond image sizes. Research and the choice of approach: `MEMORY.md` 2026-09-28.
 - [x] Tilman: first run on his machine – RTX 2070 SUPER headless via D3D11 (2026-09-28). [ ] Phone test
       of the RTX-compiled spread1/spread3, then commit them (spread1 target 0 was due anyway).
 - [ ] Production server: check the `.gz` copies again – see Phase 9b "Production host".
-- [ ] Merge into `develop`.
+- [x] Merged into `develop` as 1.2.0 (2026-09-28); branch `compilation` removed.
 
 ## Design tokens
 
