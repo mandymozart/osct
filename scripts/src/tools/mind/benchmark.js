@@ -44,7 +44,7 @@ const jobList = (options.jobs ? String(options.jobs).split(",").map(Number) : [1
   .filter((n, i, all) => all.indexOf(n) === i);
 if (!jobList.length) jobList.push(1);
 row("job counts", `${jobList.join(", ")} ${dim(`(${cpus} CPU cores)`)}`);
-row("runs", `${jobList.length} × ${images.length} images ${dim("– every run compiles all of them from scratch")}`);
+row("runs", `1 warm-up + ${jobList.length} × ${images.length} images ${dim("– every run compiles all of them from scratch")}`);
 
 // ── 2. Browser and graphics card ─────────────────────────────────────────────────────────────────
 step(2, STEPS, "Browser and graphics card");
@@ -66,6 +66,15 @@ if (hint) log(yellow(`  ⚠ ${hint}`));
 
 // ── 3. Runs ──────────────────────────────────────────────────────────────────────────────────────
 step(3, STEPS, "Runs");
+// The first compile in a fresh browser also builds its GPU programs – a one-time cost that would make
+// whichever run comes first look slow. One untimed pass first, so every run starts warm.
+log(`\n  ${bold("Warm-up")} – ${dim("not timed: the browser prepares its GPU programs once")}`);
+try {
+  await compileQueue(images, { browser, jobs: Math.max(...jobList), gpu, cache: false, quiet: true });
+} catch (error) {
+  await browser.close();
+  fail(error.message);
+}
 const runs = [];
 for (const [i, jobs] of jobList.entries()) {
   log(`\n  ${bold(`Run ${i + 1}/${jobList.length}`)} – ${jobs} image(s) at a time`);
