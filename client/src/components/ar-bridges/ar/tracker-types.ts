@@ -15,7 +15,7 @@ export interface ImageTrackerOptions {
    * The anchor matrix of a target (1 unit = target width, origin in the target's centre, the image in the
    * x/y plane), null when the target is lost
    */
-  onUpdate: (targetIndex: number, matrix: Matrix4 | null) => void;
+  onUpdate: (targetId: string, matrix: Matrix4 | null) => void;
   /**
    * A target of a prepared spread (`prepareTargets()`) is seen steadily while none of the current spread's is –
    * the reader has turned the page
@@ -30,6 +30,8 @@ export interface ImageTrackerOptions {
 export interface IImageTracker {
   readonly hasCamera: boolean;
   readonly tracking: boolean;
+  /** The camera stream's video element (for effects that read the picture), while the camera runs */
+  readonly cameraVideo: HTMLVideoElement | null;
   /** Request the back camera; throws when it is unavailable or sends no picture */
   startCamera(): Promise<void>;
   /** Track the targets of a spread on the running camera (replaces the previous targets) */

@@ -4,6 +4,7 @@ export * from "./PreloaderService";
 export * from "./ProgressStorage";
 export * from "./LinkService";
 export * from "./FeedbackService";
+export * from "./GraphicsService";
 export * from "./ServiceWorkerService";
 export * from "./InstallService";
 export * from "./ApiService";

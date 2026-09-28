@@ -47,3 +47,15 @@ CREATE TABLE IF NOT EXISTS progress (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, book_id)
 );
+
+CREATE TABLE IF NOT EXISTS password_attempts (
+  id TEXT NOT NULL PRIMARY KEY,
+  email TEXT NOT NULL,
+  ip_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS password_attempts_email ON password_attempts (email, created_at);
+CREATE INDEX IF NOT EXISTS password_attempts_ip ON password_attempts (ip_hash, created_at);
+
+ALTER TABLE users ADD COLUMN password_hash TEXT NULL DEFAULT NULL;
+ALTER TABLE sessions ADD COLUMN method TEXT NOT NULL DEFAULT 'email';

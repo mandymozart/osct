@@ -32,7 +32,8 @@ Extend as we go: add a rule when a decision should hold for all future work.
    service worker stores what it fetches in its content cache – `client/sw/service-worker.ts`). The
    whole-book download (Info) goes through the same `preload()` – no second download path. Never modify the AR
    scene before a spread is actually activated. No second scene / WebGL context – except the engine's own
-   camera canvas under the three.js canvas. The tracker keeps the neighbouring spreads' image targets loaded
+   camera canvas under the three.js canvas. (The look-around world is one full-screen pass of the same renderer
+   under the AR scene, `ar/look-around/` – no scene of its own.) The tracker keeps the neighbouring spreads' image targets loaded
    (`prepareTargets()`, ±1 by default – `utils/prepared-spreads.ts`); that is the engine's state, not the
    scene's. The AR code (three.js, the 8th Wall engine) is only imported lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may
    import `ar-bridges/ar/` statically; the scene is built on the first scan (RUNNING).
@@ -105,7 +106,7 @@ Extend as we go: add a rule when a decision should hold for all future work.
     from the PDF). Colors, gradients, shadows, sizes only as tokens in `client/src/main.css`; controls and
     text effects only through the shared primitives in `client/src/styles/design-styles.ts`
     (`adoptDesignStyles(shadowRoot)`: `.design`, `.gold`, `.muted`, `.button`, `.pill`, `.icon-button`,
-    `.rule-table`, `.section-title`). Components keep layout only – no literal colors.
+    `.text-link`, `.rule-table`, `.section-title`). Components keep layout only – no literal colors.
     - `.gold` replaces the element's background (it is `background-clip: text`): put it on the label
       (`<button class="pill"><span class="gold">…`), never on an element that needs its own background.
       On a `.gold` element don't set `background` in the component (a more specific selector wipes the

@@ -58,7 +58,7 @@ const image = (event: "imagefound" | "imageupdated" | "imagelost", name: string)
 
 const spread = (id: string): TrackedSpread => ({
   spreadId: id,
-  targets: [0, 1].map(index => ({ index, imageSrc: `${id}-${index}.jpg` }) as unknown as Target),
+  targets: [0, 1].map(n => ({ id: `${id}-${n}`, imageSrc: `${id}-${n}.jpg` }) as unknown as Target),
 });
 
 describe("ImageTracker spread switches", () => {
