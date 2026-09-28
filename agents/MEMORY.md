@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)
+
+- [ ] Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in
+      `game.config.json`) are app UI, not book content – keeping them in `content/` overloads what content
+      is. Move them into the app (e.g. `client/src/` data + i18n keys for the texts, illustrations in
+      `client/public/assets/illustrations/`). Touches: `buildTutorial()` in `scripts/src/index.ts`,
+      `StepData` + guards in `shared/`, `getTutorial()` in `client/src/utils/game-config.ts`,
+      `components/tutorial/*`, `LinkService`, content tests, `docs/content.md` ("Onboarding screens").
+      Keep the `{{title}}`/`{{author}}`/`{{publisher}}` placeholders (filled from `book.yaml`).
+      Not started – Tilman's refactor.
+
 ## 2026-09-28 – `.mind` compilation in the content builder (Tilman, branch `compilation`; PLAN Phase 12)
 
 - Goal (Tilman): compile the `.mind` files from the content build instead of MindAR's online tool. Must
