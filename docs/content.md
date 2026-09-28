@@ -239,18 +239,21 @@ Spreads may not overlap. Every entry's `page` must fall inside a spread.
 
 ## Recognition data (.mind files)
 
-The camera recognises targets with a `.mind` file per spread, made from the spread's target images
-with the free [MindAR compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile). **The order
-of the images matters.**
+The camera recognises a spread's targets with its `.mind` file. After adding, removing, replacing or
+reordering a target image, compile it again (on your computer, needs Chrome or Edge):
 
-1. Run the content build (see [Content build](content-build.md)). It puts each spread's target
-   images into `mind-ar/<spread>/`, numbered in the right order (`0-…`, `1-…`, …).
-2. Open the MindAR compiler, add the images of one spread **in that numbered order**, compile and
-   download.
-3. Save the file as `content/spreads/<spread>/<name>.mind` (the name in `mind:`) and run the build
-   again.
+```bash
+cd scripts
+npm run compile:mind
+```
 
-Whenever a target is added, removed, replaced or reordered on a spread, recompile that spread.
+Then test it on the phone and commit the `.mind` and `.mind.sha256` files. Didn't track well? Go back:
+
+```bash
+npm run mind:restore spread1 previous
+```
+
+More options: [Compile options](#compile-options).
 
 ## Onboarding screens
 
@@ -299,7 +302,7 @@ The app plays short sounds (and vibrates on Android) – they are app files, not
 | `unlock.wav` | A page is recognised for the first time – a new entry is unlocked |
 
 To change a sound, replace the file with one of the same name (WAV, mono is enough, short and without
-silence at the start). The current ones are generated placeholders (`scripts/tools/generate-sounds.mjs`).
+silence at the start). The current ones are generated placeholders (`npm run sounds` in `scripts/`).
 Readers can turn sounds and vibration off in Info → Settings.
 
 ## Checking your work
@@ -314,3 +317,86 @@ spreads/spread1 has 6 targets, max is 5.
 ```
 
 Then look at the result in the app – see the quick start in the [README](../README.md).
+
+## Content build
+
+`scripts/` checks `content/` and turns it into the files the app loads.
+
+### Quick start
+
+```bash
+cd scripts
+npm install     # once
+npm start       # build the tool, then the content
+```
+
+Commit what changed in `content/`, `client/src/game.config.json` and `client/public/assets/content/`
+– the checks on GitHub fail when they don't match.
+
+### Commands
+
+Run in `scripts/`:
+
+| Command | What it does |
+|---|---|
+| `npm run build:content` | Check the content and write the app files (skips when nothing changed) |
+| `npm run build:content:force` | The same, even when nothing changed |
+| `npm run compile:mind` | Compile the `.mind` files that are out of date |
+| `npm run mind:benchmark` | Measure how fast this computer compiles, remember the fastest setting |
+| `npm run mind:history` | List the compiled versions of each spread (● = current) |
+| `npm run mind:restore spread1 previous` | Go back to an earlier version (or a number from the list) |
+| `npm test` | Run the tests |
+| `npm run build` | Rebuild the tool after changing `scripts/src/` |
+| `npm run sounds` | Generate the placeholder app sounds |
+
+### Compile options
+
+Add them after `npm run compile:mind`:
+
+| Option | What it does |
+|---|---|
+| `spread1 spread3` | Only these spreads |
+| `--force` | All spreads, even when up to date |
+| `--fresh` | All spreads (or the named ones), every image from scratch – no cache |
+| `--jobs=6` | Compile this many images at the same time (default: the benchmark's fastest) |
+| `--note="brighter scan"` | A note, shown in `mind:history` |
+| `--gpu=default` | Let the browser pick the graphics card (default: the fast one) |
+| `--angle=d3d11` | Graphics backend: `d3d11`, `vulkan`, `gl`, `metal` |
+| `--headed` | Show the browser window |
+| `--browser="C:/path/to/chrome.exe"` | Use this browser |
+
+Write options with `=` (PowerShell needs it). The output goes step by step: which spreads need
+compiling and why, the browser and graphics card, each image as it compiles (finding features on the
+GPU, then preparing tracking on the CPU), the files written, and a summary with times.
+
+`npm run mind:benchmark` compiles the target images with 1, 2, 4 … images at a time and shows which is
+fastest – `compile:mind` then uses that. `--images=6` benchmarks only the 6 largest images (quicker).
+
+The tool prints the graphics card it uses. Shows an
+integrated one (e.g. "Intel UHD")? Windows Settings → System → Display → Graphics → Chrome → High
+performance.
+
+### What it writes
+
+| Where | What |
+|---|---|
+| `client/src/game.config.json` | Everything the app needs to know about the book |
+| `client/public/assets/content/` | The content media, optimised |
+| `content/spreads/<spread>/*.mind` | Compiled recognition data (+ `.mind.sha256`) |
+| `.mindar/` | On your computer only (not in git): `targets/` the target images per spread in order, `history/` earlier `.mind` versions, `cache/` compiled images, `browser/` the browser's GPU cache, `benchmark.json` |
+
+### Folders
+
+```
+scripts/
+├── src/            everything in TypeScript, bundled into dist/ by `npm run build`
+│   ├── index.ts    the content build: start
+│   ├── config.ts   all folders and limits
+│   ├── build/      content build parts: book, spreads, entities, entries, targets, tutorial
+│   ├── lib/        shared helpers: reading content, files, hash, checks, media, options, console
+│   ├── mind/       .mind commands: compile, benchmark, history + browser, runs, versions
+│   └── sounds.ts   placeholder app sounds
+└── test/           tests (npm test)
+```
+
+The shape of `game.config.json` is defined in `shared/types/game-config.ts`.

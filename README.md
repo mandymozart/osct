@@ -31,8 +31,8 @@ npm run build:content:force    # same, even when nothing changed
 ```
 
 - It stops with a message naming the file and the problem when something is wrong.
-- It also puts each spread's target images into `mind-ar/`, numbered for the MindAR compiler –
-  see [Recognition data](docs/content.md#recognition-data-mind-files).
+- When a spread's target images changed it stops with "… is stale": run `npm run compile:mind`
+  (compiles the `.mind` files in your browser) – see [Recognition data](docs/content.md#recognition-data-mind-files).
 - Commit the changed `content/`, `client/src/game.config.json` and `client/public/assets/content`
   together – the checks on GitHub fail if they don't match.
 - The dev server picks up the new content on reload.

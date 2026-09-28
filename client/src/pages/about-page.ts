@@ -20,6 +20,7 @@ export class AboutPage extends ConsultationPage {
       }
       .logo { display: block; height: 3rem; }
       .platforms p { margin: 0; }
+      .credits a { color: inherit; }
     `;
   }
 
@@ -58,6 +59,11 @@ export class AboutPage extends ConsultationPage {
           <p>${t("about:desktop")}</p>
           <p>${t("about:ios")}</p>
         </div>
+        <!-- MindAR is MIT licensed (src/vendor/mind-ar/LICENSE) – names are not translated -->
+        <p class="credits">
+          ${t("about:imageTracking")} HiuKim (MindAR)
+          <a href="https://github.com/hiukim/mind-ar-js" target="_blank" rel="noopener noreferrer">github.com/hiukim/mind-ar-js</a>
+        </p>
       </div>
     `;
   }

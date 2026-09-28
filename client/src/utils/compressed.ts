@@ -6,7 +6,7 @@
  * cache hit.
  */
 
-/** File types the content build writes a `.gz` copy for (scripts/src/utils/optimize-media.ts) */
+/** File types the content build writes a `.gz` copy for (scripts/src/lib/optimize-media.ts) */
 const GZIPPED = /\.(mind|glb)$/i;
 
 export const supportsGzip = (): boolean => typeof DecompressionStream === "function";
