@@ -15,6 +15,13 @@ outcome in the line (or move it into a dated decision block).
   Throwaway content in temp folders via `OSCT_CONTENT_DIR` / `OSCT_MINDAR_DIR` (also for content
   outside this repo later). Covers build rules, ordering, fingerprints, tutorial, hash, cli, versions,
   and the real content.
+- compile:mind output step by step (Tilman: "nachvollziehbar"): 1 target images (per spread: compile or
+  skip, and why) · 2 browser + graphics card · 3 compile (live line per job: image, phase GPU/CPU, %,
+  time; overall % + MP/s + time left) · 4 write · 5 summary · 6 content build. `--fresh` without spread
+  names = all spreads (before: nothing when all were up to date – Tilman's first RTX run did nothing).
+  `npm run mind:benchmark`: jobs 1, 2, 4 … on all images, table + fastest → `.cache/mind-benchmark.json`,
+  which compile:mind uses as its default `--jobs` on the same graphics card. Code: `src/tools/mind/lib/`
+  (paths, console, targets, browser, run, stats).
 - Build docs cut down to a quick start + command/option/folder tables (Tilman: "for dummies").
 
 ## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)
