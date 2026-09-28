@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getTrackerEngine, setTrackerEngine } from "../tracker-choice";
+import { cyclePreparedSpreadRange, getPreparedSpreadRange, getTrackerEngine, setTrackerEngine } from "../tracker-choice";
 
 describe("tracker choice", () => {
   afterEach(() => {
@@ -21,5 +21,15 @@ describe("tracker choice", () => {
     expect(getTrackerEngine()).toBe("8thwall");
     setTrackerEngine(null);
     expect(getTrackerEngine()).toBe("mindar");
+  });
+
+  it("keeps the neighbours loaded by default and cycles the load-test range through to the whole book", () => {
+    localStorage.removeItem("osct-ar-prepared-spreads");
+    expect(getPreparedSpreadRange()).toBe(1);
+    expect([cyclePreparedSpreadRange(), cyclePreparedSpreadRange(), cyclePreparedSpreadRange()]).toEqual([2, Infinity, 0]);
+    expect(localStorage.getItem("osct-ar-prepared-spreads")).toBe("0");
+    localStorage.setItem("osct-ar-prepared-spreads", "7");
+    expect(getPreparedSpreadRange()).toBe(1);
+    localStorage.removeItem("osct-ar-prepared-spreads");
   });
 });

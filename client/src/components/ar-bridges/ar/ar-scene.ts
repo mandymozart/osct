@@ -2,6 +2,7 @@ import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, IArScene, SceneState, Target } from "@/types";
 import { getAssets, getMaxTargetsPerSpread, getNeighbourSpreads, getSpread, getTargets } from "@/utils/game-config";
 import { Emitter } from "../utils/emitter";
+import { getPreparedSpreadRange } from "../utils/tracker-choice";
 import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { createImageTracker } from "./create-tracker";
@@ -335,7 +336,7 @@ export class ArScene implements IArScene {
     this.view!.resize(); // field of view from the controller's projection
     this.started = true;
     // The spreads the menu reaches next: their targets get ready ahead (8th Wall; MindAR preloads its .mind)
-    tracker.prepareTargets(getNeighbourSpreads(content.spreadId).map(spread => ({ spreadId: spread.id, mindSrc: spread.mindSrc, targets: getTargets(spread.id) })));
+    tracker.prepareTargets(getNeighbourSpreads(content.spreadId, getPreparedSpreadRange()).map(spread => ({ spreadId: spread.id, mindSrc: spread.mindSrc, targets: getTargets(spread.id) })));
     this.emitter.emit("ready", content.spreadId);
   }
 

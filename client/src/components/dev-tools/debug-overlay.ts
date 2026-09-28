@@ -2,7 +2,7 @@ import { IGame, LoadingState, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
-import { getTrackerEngine, setTrackerEngine } from "@/components/ar-bridges";
+import { cyclePreparedSpreadRange, getPreparedSpreadRange, getTrackerEngine, setTrackerEngine } from "@/components/ar-bridges";
 
 type DebugTab = "spread" | "progress";
 
@@ -80,6 +80,12 @@ export class DebugOverlay extends HTMLElement {
     }
     if (control?.dataset.action === "reset-progress") {
       if (confirm("Reset the progress of this book?")) this.game.history.reset();
+      return;
+    }
+    if (control?.dataset.action === "cycle-prepared") {
+      // 8th Wall load test: spreads kept loaded around the current one – applies at the next spread switch
+      cyclePreparedSpreadRange();
+      this.updateContent();
       return;
     }
     if (control?.dataset.action === "switch-tracker") {
@@ -189,6 +195,8 @@ export class DebugOverlay extends HTMLElement {
       <div>AR: ${this.arStatusLabel()}</div>
       <div>Tracking: ${engine === "8thwall" ? "8th Wall" : "MindAR"}
         <button data-action="switch-tracker">Use ${engine === "8thwall" ? "MindAR" : "8th Wall"} (reload)</button></div>
+      ${engine === "8thwall" ? `<div>Spreads loaded ahead: ${this.preparedLabel()}
+        <button data-action="cycle-prepared">Change (next switch)</button></div>` : ""}
     </div>`;
 
     // Current spread
@@ -337,6 +345,12 @@ export class DebugOverlay extends HTMLElement {
     html += '</div>';
     
     return html;
+  }
+
+  /** ±n spreads, or the whole book (all targets loaded) */
+  private preparedLabel(): string {
+    const range = getPreparedSpreadRange();
+    return range === Infinity ? "all" : `±${range}`;
   }
 
   private arStatusLabel(): string {
