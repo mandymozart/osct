@@ -11,6 +11,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.1.3 – 2026-09-28
+
+### Added
+- Production deploys from GitHub releases (`release.yml`): the tag must match the version and have a
+  changelog section; empty release notes are filled from this file. Deploys the production server (once
+  configured) and the Netlify site.
+
+### Changed
+- Pushes to `main` no longer deploy (Netlify builds to be stopped in the Netlify UI).
+
 ## 1.1.2 – 2026-09-28
 
 ### Changed

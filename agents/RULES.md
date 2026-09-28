@@ -180,7 +180,10 @@ Extend as we go: add a rule when a decision should hold for all future work.
     and progress; MAJOR = content rebuild or progress format change. Each bump gets an entry at the top of
     `docs/CHANGELOG.md` (version, date, Added / Changed / Fixed / Removed) written for people, not agents.
     Several commits of one piece of work share one bump.
+    **Releases** deploy production, not merges: `main` → GitHub release `vX.Y.Z` → `release.yml` (tag must
+    equal the version and have a CHANGELOG section; docs/server.md "Releases").
 
 ## Deployment (from old rules)
-- Staging: Netlify · Production: FTP GitHub action to remote server
+- Staging: `develop` → osct.porschuetz.de (`deploy-staging.yml`) · Production: published release → `release.yml`
+  (production server over FTPS + Netlify via CLI; Netlify's own builds of `main` are stopped)
 - Build: `npm run build`, publish `dist`, SPA

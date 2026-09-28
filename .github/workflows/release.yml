@@ -1,0 +1,231 @@
+# Production release: runs when a GitHub release is published (tag vX.Y.Z on `main`), or by hand for an
+# existing tag. Pushes to `main` deploy nothing – only releases do (agents/RULES.md #23, docs/server.md).
+#
+# 1. Verify: the tag equals the version in client/package.json, scripts/package.json and Version.php,
+#    docs/CHANGELOG.md has a section for it, and the tagged commit is on `main`.
+# 2. Release notes: an empty release body is filled with the CHANGELOG section.
+# 3. Deploy, each target skipped with a warning until its settings exist in the GitHub environment
+#    "production" (same names as "staging", see deploy-staging.yml):
+#    - Server (FTPS, app + API): FTP_HOST, FTP_USER, FTP_PASS, FTP_ROOT, DB_*, SECRET, APP_URL, …
+#    - Netlify (temporary site): secrets NETLIFY_AUTH_TOKEN, NETLIFY_SITE_ID; variable VITE_API_URL
+#      (full API URL – Netlify has no PHP). Automatic Netlify builds of `main` must be stopped.
+name: Release production
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to deploy (e.g. v1.1.3)"
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  verify:
+    name: Verify version, changelog and branch
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+
+      - name: Tag matches every version source
+        id: version
+        run: |
+          version="${TAG#v}"
+          client=$(node -p "require('./client/package.json').version")
+          scripts=$(node -p "require('./scripts/package.json').version")
+          server=$(sed -n "s/.*APP = '\(.*\)'.*/\1/p" server/api/src/Version.php)
+          echo "tag $version · client $client · scripts $scripts · server $server"
+          if [ "$client" != "$version" ] || [ "$scripts" != "$version" ] || [ "$server" != "$version" ]; then
+            echo "::error::Tag $TAG does not match the versions in the code – bump them (RULES #10, #23) and tag again."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: CHANGELOG has an entry
+        run: |
+          grep -q "^## ${TAG#v} " docs/CHANGELOG.md \
+            || { echo "::error::docs/CHANGELOG.md has no section '## ${TAG#v} …'."; exit 1; }
+
+      - name: Tagged commit is on main
+        run: |
+          git fetch -q origin main
+          git merge-base --is-ancestor HEAD origin/main \
+            || { echo "::error::$TAG is not on main – merge develop into main first, then tag."; exit 1; }
+
+  notes:
+    name: Release notes from CHANGELOG
+    needs: verify
+    if: github.event_name == 'release' && github.event.release.body == ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Copy the CHANGELOG section into the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          awk -v v="$VERSION" '/^## /{p = index($0, "## " v " ") == 1; next} p' docs/CHANGELOG.md > notes.md
+          gh release edit "$TAG" --notes-file notes.md
+
+  server:
+    name: Deploy production server
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Production server configured?
+        id: configured
+        env:
+          FTP_HOST: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
+        run: |
+          if [ -z "$FTP_HOST" ]; then
+            echo "::warning::GitHub environment 'production' has no FTP_HOST – production server deploy skipped."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.configured.outputs.ok == 'true'
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: shivammathur/setup-php@v2
+        if: steps.configured.outputs.ok == 'true'
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite, pdo_mysql
+      - name: API tests
+        if: steps.configured.outputs.ok == 'true'
+        run: php server/tests/api-test.php
+
+      - uses: actions/setup-node@v4
+        if: steps.configured.outputs.ok == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Build the app
+        if: steps.configured.outputs.ok == 'true'
+        working-directory: client
+        env:
+          VITE_API_URL: /api
+        run: |
+          npm ci
+          npm run build
+
+      - name: Write the server configuration
+        if: steps.configured.outputs.ok == 'true'
+        env:
+          OSCT_DB_HOST: ${{ vars.DB_HOST || secrets.DB_HOST || 'localhost' }}
+          OSCT_DB_NAME: ${{ vars.DB_NAME || secrets.DB_NAME }}
+          OSCT_DB_USER: ${{ secrets.DB_USER || vars.DB_USER }}
+          OSCT_DB_PASS: ${{ secrets.DB_PASS || vars.DB_PASS }}
+          OSCT_SECRET: ${{ secrets.SECRET || vars.SECRET }}
+          OSCT_APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
+          OSCT_ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS || secrets.ALLOWED_ORIGINS }}
+          OSCT_MAIL_TRANSPORT: ${{ vars.MAIL_TRANSPORT || secrets.MAIL_TRANSPORT || 'smtp' }}
+          OSCT_MAIL_FROM: ${{ vars.MAIL_FROM || secrets.MAIL_FROM }}
+          OSCT_SMTP_HOST: ${{ secrets.SMTP_HOST || vars.SMTP_HOST }}
+          OSCT_SMTP_PORT: ${{ vars.SMTP_PORT || secrets.SMTP_PORT }}
+          OSCT_SMTP_SECURE: ${{ vars.SMTP_SECURE || secrets.SMTP_SECURE }}
+          OSCT_SMTP_USER: ${{ secrets.SMTP_USER || vars.SMTP_USER }}
+          OSCT_SMTP_PASS: ${{ secrets.SMTP_PASS || vars.SMTP_PASS }}
+        run: php server/deploy/write-config.php server/api/config.local.php
+
+      - name: Assemble the site
+        if: steps.configured.outputs.ok == 'true'
+        run: |
+          mkdir -p site/api
+          cp -r client/dist/. site/
+          cp -r server/api/. site/api/
+          rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/mail.log
+          find site -name '*.map' -delete
+
+      - name: Upload (FTPS)
+        if: steps.configured.outputs.ok == 'true'
+        env:
+          FTP_HOST: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER || vars.FTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASS || vars.FTP_PASS }}
+          FTP_ROOT: ${{ vars.FTP_ROOT || secrets.FTP_ROOT || '/' }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          lftp -c "
+            set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate true;
+            set net:timeout 30; set net:max-retries 3; set net:reconnect-interval-base 5;
+            open --env-password -u \"$FTP_USER\" \"$FTP_HOST\";
+            mirror --reverse --parallel=4 --no-perms --verbose=1 site/ \"$FTP_ROOT\"
+          "
+
+      - name: Create missing tables, check the API
+        if: steps.configured.outputs.ok == 'true'
+        env:
+          SECRET: ${{ secrets.SECRET || vars.SECRET }}
+          APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
+        run: |
+          curl -fsS -X POST -H "X-Admin-Secret: $SECRET" "$APP_URL/api/admin/migrate"
+          echo
+          curl -fsS "$APP_URL/api/health"
+
+  netlify:
+    name: Deploy Netlify (osct)
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Netlify configured?
+        id: configured
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID || vars.NETLIFY_SITE_ID }}
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID" ]; then
+            echo "::warning::GitHub environment 'production' has no NETLIFY_AUTH_TOKEN / NETLIFY_SITE_ID – Netlify deploy skipped."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.configured.outputs.ok == 'true'
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-node@v4
+        if: steps.configured.outputs.ok == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Build the app
+        if: steps.configured.outputs.ok == 'true'
+        working-directory: client
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to Netlify
+        if: steps.configured.outputs.ok == 'true'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID || vars.NETLIFY_SITE_ID }}
+        run: npx --yes netlify-cli deploy --prod --no-build --dir client/dist --site "$NETLIFY_SITE_ID" --message "$TAG"
