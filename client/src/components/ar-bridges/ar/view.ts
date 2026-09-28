@@ -76,7 +76,7 @@ export class ArView {
   needsRender: () => boolean = () => true;
   /** Bloom strength (0 = off – no post-processing cost); set every frame by the scene's animations */
   bloomStrength = 0;
-  /** Drawn first each frame, under the scene (the look-around café) – it renders into the cleared screen */
+  /** Drawn first each frame, under the scene (the look-around world) – it draws into the cleared screen */
   underlay: (() => void) | null = null;
   private bloom: { composer: EffectComposer; pass: UnrealBloomPass; quad: FullScreenQuad; material: ShaderMaterial } | null = null;
 

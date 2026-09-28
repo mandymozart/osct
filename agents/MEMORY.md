@@ -27,8 +27,15 @@ outcome in the line (or move it into a dated decision block).
   plays the stream in a hidden `<video>` next to its canvas – `ImageTracker.cameraVideo`). Rendered into its own
   target and composed under the AR scene (`ArView.underlay`) – same renderer, a second three.js `Scene` (RULES #4
   amended). Checked on the desktop with a synthetic camera; not yet on a phone.
-- [ ] Open: café is a procedural placeholder in code (`ar/look-around/alien-cafe.ts`) – move to content when the
-  concept is decided (RULES #5).
+- S22 test with Tilman (same day): works; the café floor covered the book → window widened, the world clears below
+  40° down. Then Tilman: "make it less resource intense, super basic – we add the scene in the content phase with
+  Kévin": the 3D café (own scene + render target) was dropped; the world is now a placeholder colour computed per
+  pixel in the one composite pass (no scene, no render target – RULES #4 amendment reverted). Sky key 5 taps.
+- Tilman: both effects are **reader options** like sound – Info → Settings, "Onion sky" and "Scene around the
+  book" (`GraphicsService`, localStorage `osct-graphics`, default on) – so phones can save the power for the page
+  scenes. The `localStorage["osct-look-around"]` switch is gone.
+- [ ] Open: the world is a placeholder in the shader (`worldColour` in `look-around.ts`) – the real one comes as
+  content in Phase 14 (RULES #5).
 
 ## 2026-09-28 – 1.3.2: MindAR leftovers cleaned up (Tilman)
 

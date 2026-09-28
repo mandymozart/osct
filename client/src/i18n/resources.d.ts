@@ -141,6 +141,7 @@ export default interface Resources {
     "downloadProgress": "{{loaded}} of {{total}} downloaded",
     "downloadStored": "{{loaded}} of {{total}} on this device",
     "feedbackDescription": "Short sounds and vibrations when you scroll through the pages, tap a button or find a page.",
+    "graphicsDescription": "Onion sky swaps the real sky for another one when you look up. The scene around the book surrounds you while you scan. Turn them off if your phone gets slow or warm.",
     "hapticsLabel": "Vibration",
     "historyButton": "Reset progress",
     "historyConfirm": "Delete all saved progress for this book on this device?",
@@ -157,7 +158,9 @@ export default interface Resources {
     "installManual": "Open your browser's menu and choose \"Add to Home Screen\" or \"Install app\", if your browser offers it.",
     "languageChange": "Change language",
     "languageLabel": "Language:",
-    "soundLabel": "Sounds"
+    "onionSkyLabel": "Onion sky",
+    "soundLabel": "Sounds",
+    "surroundingsLabel": "Scene around the book"
   },
   "startup": {
     "contentNotLoaded": "The book content could not be loaded.",

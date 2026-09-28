@@ -1,51 +1,52 @@
 import {
-  HalfFloatType,
-  LinearFilter,
   Matrix3,
   Matrix4,
   NoBlending,
   NoColorSpace,
   PerspectiveCamera,
   Quaternion,
-  Scene,
   ShaderMaterial,
   Vector2,
   Vector3,
   VideoTexture,
   WebGLRenderer,
-  WebGLRenderTarget,
 } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
-import { AlienCafe, buildAlienCafe } from "./alien-cafe";
+import { GraphicsService } from "@/services";
 import { DeviceOrientation } from "./orientation";
 
 const DEG = Math.PI / 180;
 
 /** Tuning – exposed on `window.osctLookAround` in the browser for trying values on the phone */
 export interface LookAroundSettings {
-  /** How much the café covers the camera picture outside the book's window (1 = fully) */
-  cafeOpacity: number;
+  /** How much the world covers the camera picture outside the book's window (1 = fully) */
+  worldOpacity: number;
   /** How strongly sky-coloured camera pixels turn into the alien sky when looking up (0 = off) */
   skyStrength: number;
-  /** Seconds without a page before the café fades away (the gyroscope drifts; the book anchors the world) */
+  /** Seconds without a page before the world fades away (the gyroscope drifts; the book anchors the world) */
   forgetAfter: number;
-  /** Seconds the café takes to appear / to fade when a page is found again */
+  /** Seconds the world takes to appear */
   fadeIn: number;
   /** The window around the book: extra degrees around the tracked page, and the soft edge */
   windowMargin: number;
   windowSoftness: number;
-  /** Render the café at this share of the screen's resolution */
-  resolution: number;
+  /**
+   * Looking down, the world clears for the real table and book: fully clear this many degrees below the horizon,
+   * fully there `floorSoftness` degrees above that
+   */
+  floorClear: number;
+  floorSoftness: number;
 }
 
 export const DEFAULT_LOOK_AROUND: LookAroundSettings = {
-  cafeOpacity: 0.92,
+  worldOpacity: 0.92,
   skyStrength: 1,
   forgetAfter: 45,
   fadeIn: 1.4,
-  windowMargin: 9,
-  windowSoftness: 16,
-  resolution: 0.75,
+  windowMargin: 16,
+  windowSoftness: 18,
+  floorClear: 40,
+  floorSoftness: 15,
 };
 
 /** Turn about y that brings the front (−z) to face a direction (its horizontal part) */
@@ -68,29 +69,30 @@ export const windowRadii = (size: number, distance: number, margin: number, soft
 };
 
 /**
- * Draws the camera picture's surroundings as an alien café (3DoF) and keys the sky:
- * - The café is anchored to the book: while a page is tracked, its direction in the world (from the gyroscope's
- *   orientation) sets where the café's front is and where the book's window is; each new find corrects the
- *   gyroscope's drift. Turning the phone turns the view through the café; the book stays visible in a soft
- *   window, the café's roof is open (it fades out above the horizon).
- * - Looking up, sky-like camera pixels (blue or bright grey, smooth) show the alien sky instead.
- * Rendered first into its own target, then composed under the AR scene (`ArView.underlay`) with per-pixel alpha
- * over the camera canvas. No position tracking: walking does not move through the café.
+ * Draws a world around the reader over the camera picture (3DoF) and keys the sky:
+ * - The world is anchored to the book: while a page is tracked, its direction in the world (from the gyroscope's
+ *   orientation) sets where the world's front is and where the book's window is; each new find corrects the
+ *   gyroscope's drift. Turning the phone turns the view through the world; the book and the table stay visible
+ *   (a soft window around the book, clear below the horizon), and the world is open above.
+ * - Looking up, sky-like camera pixels (blue or bright grey, smooth) show the world's sky instead.
+ * One full-screen pass under the AR scene (`ArView.underlay`): the world's colour is computed from each pixel's
+ * view direction (`worldColour` - a placeholder until the content brings the real world), alpha per pixel over
+ * the camera canvas. No scene, no render target. No position tracking: walking does not move through it.
  */
 export class LookAround {
   readonly settings: LookAroundSettings = { ...DEFAULT_LOOK_AROUND };
   private orientation = new DeviceOrientation();
-  private scene = new Scene();
+  /** The reader's graphics options (Info page): onion sky, scene around the book */
+  private graphics = GraphicsService.getInstance();
+  /** Only the view's projection and orientation - nothing is rendered with it */
   private camera = new PerspectiveCamera(60, 1, 0.1, 400);
-  private cafe: AlienCafe = buildAlienCafe();
-  private target: WebGLRenderTarget | null = null;
   private material: ShaderMaterial;
   private quad: FullScreenQuad;
   private video: VideoTexture | null = null;
   private videoElement: HTMLVideoElement | null = null;
 
   private time = 0;
-  /** 0…1: how present the café is */
+  /** 0…1: how present the world is */
   private presence = 0;
   /** The book's direction in the world, while known */
   private bookDirection: Vector3 | null = null;
@@ -102,10 +104,10 @@ export class LookAround {
   private skyInView = false;
 
   constructor(private renderer: WebGLRenderer, private cameraVideo: () => HTMLVideoElement | null) {
-    this.scene.add(this.cafe.root);
     this.material = new ShaderMaterial({
       uniforms: {
-        tCafe: { value: null },
+        uTime: { value: 0 },
+        uYaw: { value: 0 },
         tCamera: { value: null },
         uHasCamera: { value: 0 },
         uCover: { value: new Vector2(1, 1) },
@@ -114,8 +116,9 @@ export class LookAround {
         uBook: { value: new Vector3(0, -1, 0) },
         uWindow: { value: new Vector2(0.3, 0.6) },
         uPresence: { value: 0 },
-        uCafeOpacity: { value: 1 },
+        uOpacity: { value: 1 },
         uSky: { value: 1 },
+        uFloor: { value: new Vector2(-0.7, -0.44) },
         uTexel: { value: new Vector2(0.004, 0.004) },
       },
       vertexShader: /* glsl */ `
@@ -126,7 +129,8 @@ export class LookAround {
         }
       `,
       fragmentShader: /* glsl */ `
-        uniform sampler2D tCafe;
+        uniform float uTime;
+        uniform float uYaw;
         uniform sampler2D tCamera;
         uniform float uHasCamera;
         uniform vec2 uCover;
@@ -135,8 +139,9 @@ export class LookAround {
         uniform vec3 uBook;
         uniform vec2 uWindow;
         uniform float uPresence;
-        uniform float uCafeOpacity;
+        uniform float uOpacity;
         uniform float uSky;
+        uniform vec2 uFloor;
         uniform vec2 uTexel;
         varying vec2 vUv;
 
@@ -152,25 +157,35 @@ export class LookAround {
         }
 
         float skyMask(vec2 uv) {
-          // The camera picture covers the screen (cropped like the engine draws it)
+          // The camera picture covers the screen (cropped like the engine draws it); five taps in a cross
           vec2 cam = (uv - 0.5) * uCover + 0.5;
-          float score = 0.0;
-          float sum = 0.0;
-          float sumSq = 0.0;
-          for (int x = -1; x <= 1; x++) {
-            for (int y = -1; y <= 1; y++) {
-              vec3 c = texture2D(tCamera, cam + vec2(float(x), float(y)) * uTexel * 3.0).rgb;
-              score += skyColour(c);
-              float l = dot(c, vec3(0.299, 0.587, 0.114));
-              sum += l;
-              sumSq += l * l;
-            }
-          }
-          score /= 9.0;
-          float mean = sum / 9.0;
-          float deviation = sqrt(max(sumSq / 9.0 - mean * mean, 0.0));
+          vec2 d = uTexel * 4.0;
+          vec3 c0 = texture2D(tCamera, cam).rgb;
+          vec3 c1 = texture2D(tCamera, cam + vec2(d.x, 0.0)).rgb;
+          vec3 c2 = texture2D(tCamera, cam - vec2(d.x, 0.0)).rgb;
+          vec3 c3 = texture2D(tCamera, cam + vec2(0.0, d.y)).rgb;
+          vec3 c4 = texture2D(tCamera, cam - vec2(0.0, d.y)).rgb;
+          float score = (skyColour(c0) + skyColour(c1) + skyColour(c2) + skyColour(c3) + skyColour(c4)) / 5.0;
+          vec3 w = vec3(0.299, 0.587, 0.114);
+          float l0 = dot(c0, w);
+          float edge = abs(dot(c1, w) - l0) + abs(dot(c2, w) - l0) + abs(dot(c3, w) - l0) + abs(dot(c4, w) - l0);
           // Sky is smooth: leaves, edges and texture are not
-          return score * (1.0 - smoothstep(0.025, 0.08, deviation));
+          return score * (1.0 - smoothstep(0.06, 0.2, edge));
+        }
+
+        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+        // Placeholder world (the content brings the real one): sky gradient, stars, one moon, a dark ground
+        vec3 worldColour(vec3 dir) {
+          float h = dir.y;
+          vec3 colour = mix(vec3(0.95, 0.45, 0.4), vec3(0.35, 0.08, 0.45), smoothstep(0.0, 0.3, h));
+          colour = mix(colour, vec3(0.08, 0.02, 0.2), smoothstep(0.3, 0.9, h));
+          vec2 cell = floor(vec2(atan(dir.x, dir.z), h) * 120.0);
+          colour += step(0.996, hash(cell)) * smoothstep(0.15, 0.5, h) * (0.6 + 0.4 * sin(uTime * 3.0 + hash(cell) * 50.0));
+          float moon = smoothstep(0.075, 0.07, acos(clamp(dot(dir, normalize(vec3(0.45, 0.5, -0.75))), -1.0, 1.0)));
+          colour = mix(colour, vec3(0.8, 0.95, 1.0), moon);
+          vec3 ground = mix(vec3(0.1, 0.03, 0.14), vec3(0.3, 0.1, 0.3), smoothstep(-0.3, 0.0, h));
+          return mix(ground, colour, smoothstep(-0.01, 0.01, h));
         }
 
         void main() {
@@ -181,13 +196,18 @@ export class LookAround {
           float angle = acos(clamp(dot(ray, uBook), -1.0, 1.0));
           float outside = smoothstep(uWindow.x, uWindow.y, angle);
           float roof = 1.0 - smoothstep(0.35, 0.8, elevation);
-          float cafe = uPresence * uCafeOpacity * outside * roof;
+          float floorClear = smoothstep(uFloor.x, uFloor.y, elevation);
+          float world = uPresence * uOpacity * outside * roof * floorClear;
 
           float sky = 0.0;
           if (uHasCamera > 0.5 && uSky > 0.0) sky = uSky * smoothstep(0.03, 0.3, elevation) * skyMask(vUv);
 
-          float alpha = max(cafe, sky);
-          gl_FragColor = vec4(texture2D(tCafe, vUv).rgb, 1.0);
+          float alpha = max(world, sky);
+          if (alpha < 0.002) { gl_FragColor = vec4(0.0); return; }
+          float yc = cos(uYaw);
+          float ys = sin(uYaw);
+          vec3 local = vec3(yc * ray.x - ys * ray.z, ray.y, ys * ray.x + yc * ray.z);
+          gl_FragColor = vec4(worldColour(local), 1.0);
           #include <colorspace_fragment>
           gl_FragColor = vec4(gl_FragColor.rgb * alpha, alpha);
         }
@@ -199,9 +219,9 @@ export class LookAround {
     this.quad = new FullScreenQuad(this.material);
   }
 
-  /** Something to draw: the café is (partly) there, or the sky may be keyed */
+  /** Something to draw: the world is (partly) there, or the sky may be keyed */
   get active(): boolean {
-    return this.running && (this.presence > 0.002 || (this.settings.skyStrength > 0 && this.skyInView));
+    return this.running && (this.presence > 0.002 || (this.skyStrength() > 0 && this.skyInView));
   }
 
   start(): void {
@@ -225,7 +245,7 @@ export class LookAround {
     };
   }
 
-  /** Scan paused or stopped: the café goes, the book's direction is kept for a quick return */
+  /** Scan paused or stopped: the world goes, the book's direction is kept for a quick return */
   pause(): void {
     this.running = false;
     this.presence = 0;
@@ -241,13 +261,10 @@ export class LookAround {
     else this.sinceSeen += delta;
 
     const known = this.bookDirection !== null && this.sinceSeen < this.settings.forgetAfter;
-    const wanted = known ? 1 : 0;
+    const wanted = known && this.graphics.getSettings().surroundings ? 1 : 0;
     const rate = delta / Math.max(0.05, wanted > this.presence ? this.settings.fadeIn : 3);
     this.presence = wanted > this.presence ? Math.min(wanted, this.presence + rate) : Math.max(wanted, this.presence - rate);
     if (!known && this.presence === 0) this.bookDirection = null;
-
-    this.cafe.root.rotation.y = this.yaw;
-    this.cafe.update(this.time);
 
     this.camera.fov = viewCamera.fov;
     this.camera.aspect = viewCamera.aspect;
@@ -284,19 +301,10 @@ export class LookAround {
     if (!this.active) return;
     const renderer = this.renderer;
     const size = renderer.getDrawingBufferSize(new Vector2());
-    const width = Math.max(1, Math.round(size.x * this.settings.resolution));
-    const height = Math.max(1, Math.round(size.y * this.settings.resolution));
-    if (!this.target) this.target = new WebGLRenderTarget(width, height, { type: HalfFloatType, minFilter: LinearFilter, magFilter: LinearFilter });
-    else if (this.target.width !== width || this.target.height !== height) this.target.setSize(width, height);
-
-    renderer.setRenderTarget(this.target);
-    renderer.clear();
-    renderer.render(this.scene, this.camera);
-    renderer.setRenderTarget(null);
-
     const uniforms = this.material.uniforms;
     const video = this.cameraTexture();
-    uniforms.tCafe.value = this.target.texture;
+    uniforms.uTime.value = this.time;
+    uniforms.uYaw.value = this.yaw;
     uniforms.tCamera.value = video;
     uniforms.uHasCamera.value = video ? 1 : 0;
     if (video && this.videoElement) {
@@ -310,9 +318,15 @@ export class LookAround {
     if (this.bookDirection) uniforms.uBook.value.copy(this.bookDirection);
     uniforms.uWindow.value.set(this.window.inner * DEG, this.window.outer * DEG);
     uniforms.uPresence.value = this.bookDirection ? this.presence : 0;
-    uniforms.uCafeOpacity.value = this.settings.cafeOpacity;
-    uniforms.uSky.value = this.settings.skyStrength;
+    uniforms.uOpacity.value = this.settings.worldOpacity;
+    uniforms.uSky.value = this.skyStrength();
+    uniforms.uFloor.value.set(-this.settings.floorClear * DEG, (-this.settings.floorClear + this.settings.floorSoftness) * DEG);
     this.quad.render(renderer);
+  }
+
+  /** The sky key's strength: off when the reader turned the onion sky off */
+  private skyStrength(): number {
+    return this.graphics.getSettings().onionSky ? this.settings.skyStrength : 0;
   }
 
   /** The engine's camera video as a texture (raw sRGB values for the sky test) */
@@ -333,8 +347,6 @@ export class LookAround {
   dispose(): void {
     this.running = false;
     this.orientation.stop();
-    this.cafe.dispose();
-    this.target?.dispose();
     this.video?.dispose();
     this.material.dispose();
     this.quad.dispose();

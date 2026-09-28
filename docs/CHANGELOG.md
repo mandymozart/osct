@@ -15,14 +15,17 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.5.0 – 2026-09-28
 
 ### Added
-- **Look-around world** (prototype, scan mode): once a page has been found, an alien coffee shop surrounds the
-  reader. It is tied to where the book was seen and turns with the phone (gyroscope, rotation only – walking does
-  not move through it). The book stays visible through a soft window; every new find sets the café back in place.
-  The café's roof is open, and it fades away 45 s after the last page was seen.
-- **Alien sky**: looking up, sky-coloured parts of the camera picture (blue, or bright grey and smooth) show an
-  alien sky with moons and a ringed planet – buildings, trees and people stay real.
-- Tuning on the device: `window.osctLookAround` (café opacity, sky strength, fade times, window size);
-  `localStorage["osct-look-around"] = "off"` switches it off. On iPhone the first tap asks for motion access.
+- **Scene around the book** (prototype, scan mode): once a page has been found, a world surrounds the reader. It
+  is tied to where the book was seen and turns with the phone (gyroscope, rotation only – walking does not move
+  through it). The book and the table stay visible (a soft window around the book, clear when looking down);
+  every new find sets the world back in place. It fades away 45 s after the last page was seen. For now a basic
+  placeholder (sky gradient, stars, a moon) drawn in one pass – the real world comes with the content.
+- **Onion sky**: looking up, sky-coloured parts of the camera picture (blue, or bright grey and smooth) show the
+  world's sky – buildings, trees and people stay real.
+- **Graphics** options on the Info page (Settings): "Onion sky" and "Scene around the book" on / off, stored on
+  this device (en/fr/nl/de) – for phones that need the power for the page scenes.
+- Tuning on the device: `window.osctLookAround` (opacity, sky strength, fade time, window and floor angles). On
+  iPhone the first tap asks for motion access.
 
 ## 1.4.2 – 2026-09-28
 

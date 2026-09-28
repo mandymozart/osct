@@ -6,7 +6,7 @@ import "@/components/settings";
 /**
  * Info page, opened with "i" in consultation mode; "Entries" goes back to the list. Sections, one component
  * each: info text · Account (progress explanation and reset, sign-in, update options) · Settings (sound &
- * vibration, language, home screen, download) · colophon. The texts are placeholders until they move
+ * vibration, graphics, language, home screen, download) · colophon. The texts are placeholders until they move
  * into the content (`book.yaml`). The image tracking library is credited in the project README (Tilman,
  * 2026-09-28), not here; its MIT LICENSE is served next to the engine (`assets/xr8/LICENSE`).
  */
@@ -42,6 +42,7 @@ export class AboutPage extends ConsultationPage {
         <h2 class="section-title">${t("about:settings")}</h2>
         <div class="settings">
           <settings-feedback></settings-feedback>
+          <settings-graphics></settings-graphics>
           <settings-language></settings-language>
           <settings-install></settings-install>
           <settings-download></settings-download>
