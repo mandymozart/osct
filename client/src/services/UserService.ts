@@ -19,10 +19,28 @@ const SESSION_KEY = "osct-user";
 const PENDING_KEY = "osct-user-pending";
 const syncKey = (bookId: string) => `osct-user-sync:${bookId}`;
 
+/**
+ * How long after an email sign-in the password can be changed without the current one – the server's
+ * PASSWORD_RESET_MINUTES (server/api/src/Config.php); the server decides, this only picks the form.
+ */
+const PASSWORD_RESET_MS = 15 * 60_000;
+
 interface StoredSession {
   session: string;
   user: UserData;
+  /** How this device signed in; missing on sessions stored before passwords existed (= email, long ago) */
+  method?: "email" | "password";
+  /** When this device signed in (ms) */
+  signedInAt?: number;
 }
+
+/** Chromium's Credential Management API (not in TypeScript's DOM types): asks the browser to save the password */
+declare const PasswordCredential: { new (data: { id: string; password: string }): Credential } | undefined;
+
+const offerToSavePassword = (email: string, password: string): void => {
+  if (typeof PasswordCredential === "undefined" || !navigator.credentials?.store) return;
+  navigator.credentials.store(new PasswordCredential({ id: email, password })).catch(() => undefined);
+};
 
 /**
  * What this device knows about the progress on the server: the version it last saw (`updatedAt`) and
@@ -58,7 +76,7 @@ const write = (key: string, value: unknown): void => {
 };
 
 /**
- * The reader's account (the *user* in code, types/user.ts): email sign-in (link or code), update options,
+ * The reader's account (the *user* in code, types/user.ts): email sign-in (link or code) or with the optional password, update options,
  * and progress sync with the account.
  *
  * Progress sync – the device's record (localStorage) stays the working copy; the account holds a copy:
@@ -82,6 +100,8 @@ export class UserService implements IUserService {
   private changedDuringPush = false;
   /** Applying the account's record – must not count as a local change */
   private applying = false;
+  /** The server asked for the current password although the reset window seemed open */
+  private needsCurrentPassword = false;
 
   static getInstance(): UserService {
     if (!UserService.instance) UserService.instance = new UserService();
@@ -146,6 +166,53 @@ export class UserService implements IUserService {
       await this.signedIn(await this.api.request("POST", "/auth/verify", { body: { requestId: pending.requestId, code } }), null);
       return true;
     }, false);
+  }
+
+  async signInWithPassword(email: string, password: string): Promise<boolean> {
+    return this.run(async () => {
+      const result = await this.api.request<{ session: string; user: UserData }>("POST", "/auth/password", {
+        body: { email: email.trim(), password },
+      });
+      await this.signedIn(result, "signed-in", "password");
+      offerToSavePassword(result.user.email, password);
+      return true;
+    }, false);
+  }
+
+  async setPassword(password: string, currentPassword?: string): Promise<boolean> {
+    return this.run(async () => {
+      try {
+        const { user } = await this.api.request<{ user: UserData }>("PUT", "/user/password", {
+          body: currentPassword ? { password, currentPassword } : { password },
+          token: this.stored?.session,
+        });
+        this.needsCurrentPassword = false;
+        this.setSession(this.stored && { ...this.stored, user });
+        this.update({ notice: "password-saved" });
+        offerToSavePassword(user.email, password);
+        return true;
+      } catch (error) {
+        // The server's rule decides (e.g. the device clock is off): ask for the current password from now on
+        if (error instanceof ApiError && error.code === "current-password-required") this.needsCurrentPassword = true;
+        throw error;
+      }
+    }, false);
+  }
+
+  async removePassword(): Promise<boolean> {
+    return this.run(async () => {
+      const { user } = await this.api.request<{ user: UserData }>("DELETE", "/user/password", { token: this.stored?.session });
+      this.setSession(this.stored && { ...this.stored, user });
+      this.update({ notice: "password-removed" });
+      return true;
+    }, false);
+  }
+
+  passwordNeedsCurrent(): boolean {
+    const stored = this.stored;
+    if (!stored?.user.hasPassword) return false;
+    if (this.needsCurrentPassword) return true;
+    return !(stored.method === "email" && Date.now() - (stored.signedInAt ?? 0) < PASSWORD_RESET_MS);
   }
 
   cancelPending(): void {
@@ -320,8 +387,9 @@ export class UserService implements IUserService {
     }
   }
 
-  private async signedIn(result: { session: string; user: UserData }, notice: UserNotice | null): Promise<void> {
-    this.setSession({ session: result.session, user: result.user });
+  private async signedIn(result: { session: string; user: UserData }, notice: UserNotice | null, method: "email" | "password" = "email"): Promise<void> {
+    this.needsCurrentPassword = false;
+    this.setSession({ session: result.session, user: result.user, method, signedInAt: Date.now() });
     this.setPending(null);
     this.setSyncState(this.freshSyncState());
     this.update({ notice: notice ?? "confirmed", sync: "syncing" });

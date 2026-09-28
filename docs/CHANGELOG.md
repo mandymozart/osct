@@ -12,6 +12,24 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.4.0 – 2026-09-28
+
+### Added
+- Optional password for accounts. The first sign-in is still by email (it confirms the address); afterwards
+  readers can set a password under Info → Account and sign in with email + password, or keep using the
+  sign-in link. The password can be changed or removed again. Forgot it? Sign in with the link and set a new one.
+- Server: `POST /auth/password`, `PUT /user/password`, `DELETE /user/password`. Passwords are stored as bcrypt
+  hashes (cost 12) only; failed sign-ins are limited per address and per IP. The deploy's migration adds the
+  new column and table to the existing database – no data is touched.
+- Password managers can fill and save the account fields (email as the username, `current-password` /
+  `new-password`); Chrome also offers to save the password after signing in or setting it.
+
+### Changed
+- Account wording: one form for new and returning readers – "Send sign-in link" instead of "Register
+  account", and the text tells readers who registered on another device to use the same email. Switching to
+  the password form is a text link next to the button ("Sign in with password" / "Sign in with link"), not a
+  second button.
+
 ## 1.3.2 – 2026-09-28
 
 ### Changed

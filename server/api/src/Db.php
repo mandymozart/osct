@@ -22,7 +22,10 @@ final class Db
             $new = !is_file($sqlite);
             $pdo = new PDO('sqlite:' . $sqlite, null, null, $options);
             $pdo->exec('PRAGMA foreign_keys = ON');
-            if ($new) $pdo->exec((string) file_get_contents(__DIR__ . '/../db/schema.sqlite.sql'));
+            if ($new) {
+                self::$pdo = $pdo;
+                self::migrate();
+            }
         } else {
             $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
                 Config::get('DB_HOST'), Config::get('DB_PORT'), Config::get('DB_NAME'));
@@ -33,8 +36,9 @@ final class Db
     }
 
     /**
-     * Creates the missing tables (schema files use CREATE TABLE IF NOT EXISTS – safe to run again).
-     * @return int statements run
+     * Creates the missing tables and columns – safe to run again: the schema files use CREATE TABLE IF NOT EXISTS,
+     * and an `ALTER TABLE … ADD COLUMN` is skipped when the column exists.
+     * @return int statements in the schema
      */
     public static function migrate(): int
     {
@@ -42,8 +46,23 @@ final class Db
         $sql = preg_replace('/^\s*--.*$/m', '', (string) file_get_contents($file));
         $statements = array_filter(array_map('trim', preg_split('/;\s*(
 |$)/', (string) $sql)));
-        foreach ($statements as $statement) self::pdo()->exec($statement);
+        foreach ($statements as $statement) {
+            if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+ADD\s+COLUMN\s+`?(\w+)`?/i', $statement, $match)
+                && self::hasColumn($match[1], $match[2])) continue;
+            self::pdo()->exec($statement);
+        }
         return count($statements);
+    }
+
+    public static function hasColumn(string $table, string $column): bool
+    {
+        $rows = self::isSqlite()
+            ? self::pdo()->query("PRAGMA table_info($table)")->fetchAll()
+            : self::pdo()->query("SHOW COLUMNS FROM `$table`")->fetchAll();
+        foreach ($rows as $row) {
+            if (strcasecmp((string) ($row['name'] ?? $row['Field'] ?? ''), $column) === 0) return true;
+        }
+        return false;
     }
 
     public static function isSqlite(): bool

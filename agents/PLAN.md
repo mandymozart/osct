@@ -873,7 +873,7 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
 
 ## Phase 11 – Accounts  `[~]` (built 2026-09-27 on `database`, merged into develop + main in 1.1.1; open: SMTP, final texts, phone test)
 
-Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/` (docs/server.md).
+Sign-in by email: link + 6-digit code; PHP API + MySQL in `server/` (docs/server.md). Optional password since 1.4.0.
 - [x] API: request / verify (link or code) / logout, account (options, delete), progress per book with a
       version check (409 → merge). Hashes only, attempt and hourly limits, CORS by origin list. Tests: `server/tests/api-test.php`.
 - [x] Mail: log / mail() / SMTP (own client), texts en/fr/nl/de, lists the chosen options for a new account.
@@ -890,6 +890,10 @@ Sign-in by email, no password: link + 6-digit code; PHP API + MySQL in `server/`
 - [x] GitHub environment `staging` set, API deployed to osct.porschuetz.de from `develop`.
 - [ ] Test on a phone (link on the iOS home-screen app → code); Netlify staging needs `VITE_API_URL`.
 - [ ] SMTP account for production; final mail + UI texts; privacy note for the update options.
+- [x] Optional password (1.4.0, Tilman 2026-09-28): first sign-in by email, then set / change / remove a password;
+      sign-in with email + password; bcrypt hashes; fields for password managers. Wording: one form for new and
+      returning readers ("Send sign-in link").
+- [ ] Phone test of the password flow (Chrome on the S22: save prompt; iOS: keychain in the home-screen app).
 - [ ] Sending the updates (newsletter) – not built; the options are only stored.
 - [ ] Netlify staging: `VITE_API_URL` to the dev API (needs its origin in ALLOWED_ORIGINS – already there).
 
