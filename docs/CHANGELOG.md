@@ -39,6 +39,20 @@ the game configuration no longer has `mindSrc` or `maxTargetsPerSpread`. Progres
 - MindAR: the vendored build (with TF.js), its tracker, all `.mind` files, `npm run compile:mind`,
   `mind:benchmark`, `mind:history`, `mind:restore`, the `.mindar/` folder and `playwright-core`.
 
+## 1.2.3 – 2026-09-28
+
+### Changed
+- Info page: more space between the "Settings" title and the first switch, like the gap between the rows.
+- Camera denied screen: one short hint (allow the camera in the browser settings, then reload) and a
+  "Reload page" button instead of step lists per browser.
+
+### Fixed
+- Camera denied screen in scan mode no longer overlaps the counter or the "Pages activated" menu.
+- The screen no longer shows Firefox instructions in Chrome (the browser guess was wrong).
+
+### Removed
+- Browser detection (`utils/browser.ts`) and the per-browser camera steps in all languages.
+
 ## 1.2.2 – 2026-09-28
 
 ### Fixed
