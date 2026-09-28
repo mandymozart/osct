@@ -25,6 +25,8 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   image is used (fitted into the engine's portrait frame).
 - Up to **10 targets per spread** (was 5); the camera follows 4 of them at the same moment.
 - The preloader and the whole-book download fetch the target images where they fetched `.mind` files.
+- Saved progress of an older format is only reported as "converted" when reading it changed something – a
+  version change alone (as from 1.x to 2.0.0, same progress shape) shows no notice.
 
 ### Added
 - The neighbouring spreads' targets are kept ready, so switching to them is instant; turning to a

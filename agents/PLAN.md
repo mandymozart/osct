@@ -964,10 +964,23 @@ Research and phone results: `research/webworker-tracking.md`, `MEMORY.md` 2026-0
 - [x] MindAR removed: vendored build, tracker, `.mind` files, `compile:mind` tooling, `mindSrc` /
       `maxTargetsPerSpread` in the game configuration, `.mindar/`. Max targets per spread 10.
 - [x] Engine files precached with the app shell (offline AR), LICENSE served next to them, credit on Info.
-- [ ] iPhone Safari: motion permission prompt, pause/resume, camera orientation, tracking quality.
+- [x] S22 check of 2.0.0 (2026-09-28): 11 automatic switches across the book (pages 1–27), next spread ready in
+      0–3 ms, photo spreads 20–23 found, models and videos load.
+- [ ] iPhone Safari → Phase 14 (Tilman: tested with the content, in Amsterdam).
 - [ ] Measure all targets loaded vs ±1 (time to first find, frame rate) – the default stays ±1.
 - [ ] Build-time image targets (grey 480×640 per target in the content build) instead of making them on the
       device (~150–260 ms per image on the S22) – if first-scan time matters.
+
+## Phase 14 – Content and refinement  `[ ]` (Amsterdam, with Kévin Bray – fall 2026 or afterwards; Tilman 2026-09-28)
+
+The final content goes in and the app is tuned on it, on the devices readers will use.
+- [ ] iPhone Safari with 8th Wall: motion permission prompt, pause/resume (entry opened and back), camera
+      orientation, tracking quality, automatic spread switch.
+- [ ] Final target images: ≥ 1000 px, textured, cropped as printed; very small printed images (e.g. the
+      layout PDF's thumbnails) are found late or flicker – decide per page with the artist.
+- [ ] Replace the demo spreads 4–14 (`demo-p*` entries, from the layout PDF) with the real content.
+- [ ] Spreads kept loaded (±1 now): measure all vs ±1 with the real target count, then decide the default.
+- [ ] Videos of the final content: 720p H.264 ~2 Mbit/s (Phase 9).
 
 ---
 
