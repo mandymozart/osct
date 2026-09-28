@@ -162,11 +162,15 @@ The app can now run on either engine – same scene, entities, unlock flow:
   `VITE_AR_TRACKER=8thwall`. Collapsed debug line starts with `MA` or `8W`.
 - **Code:** `client/src/components/ar-bridges/ar/tracker-8thwall.ts`, `xr8.ts` (loader, target data, anchor
   math), `create-tracker.ts`, `tracker-types.ts`; `vite.config.js` → `xr8Engine()` serves the engine files.
-- **Targets:** made in the browser from the target images (no `.mind`, no content build change): the centred
-  3:4 part, grey, 480×640. The final content should get proper 8th Wall targets (image-target CLI, crop chosen
-  per page) if the engine wins.
+- **Targets:** made in the browser from the target images (no `.mind`, no content build change): the whole
+  image fitted into the engine's 3:4 frame (rest filled with the image's edge colour), grey, 480×640. The
+  image-target CLI's centred 3:4 crop lost too much of tall pages – `shadows` (254×650, 52 % kept) was never
+  found on the S22; whole-image targets find it. If the engine wins, the content build makes the same targets.
 - **Checked headless** (Chromium, fake camera clip of a target image, software GL – no speed numbers): target
   found ~2 s after start, entity placed like MindAR places it, spread switch with the camera kept, production build.
+- **S22 (Chrome, 2026-09-28), first look on 8th Wall:** camera picture under the three.js canvas ok, targets
+  found and placed like MindAR, ~34 fps page frame rate while tracking; many WebGL readback performance
+  warnings from the engine. `shadows` needed the whole-image targets (above).
 - **Still open – on the phones:** the comparison itself (section 5.2), iOS motion permission prompt, pause/resume.
 
 ## Sources

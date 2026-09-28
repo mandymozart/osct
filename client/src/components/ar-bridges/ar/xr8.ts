@@ -133,44 +133,72 @@ const LUMINANCE_WIDTH = 480;
 const LUMINANCE_HEIGHT = 640;
 
 /**
- * The image-target CLI's default crop: the centred 3:4 part of the image, landscape images turned 90°
- * clockwise first (`isRotated`). The engine tracks only this part.
+ * The 3:4 frame (portrait) the engine reads for an image: the **whole** image, centred, landscape images turned
+ * 90° clockwise first (`isRotated`); the rest is filled with the image's edge colour. (The image-target CLI crops
+ * the centred 3:4 part instead – a tall page like `shadows`, 254×650, lost its distinctive top and bottom and
+ * was not found, phone test 2026-09-28.) The engine gets the frame as an uncropped image.
  */
-export const defaultCrop = (imageWidth: number, imageHeight: number): XrCrop => {
+export interface TargetFrame {
+  crop: XrCrop;
+  /** Where the (turned) image lies in the frame, in image pixels */
+  imageLeft: number;
+  imageTop: number;
+  /** Image width ÷ frame width, both as they lie on the page (the anchors use the image width, like MindAR) */
+  widthFactor: number;
+}
+
+export const targetFrame = (imageWidth: number, imageHeight: number): TargetFrame => {
   const isRotated = imageWidth > imageHeight;
   const [width, height] = isRotated ? [imageHeight, imageWidth] : [imageWidth, imageHeight];
-  if (width / 3 > height / 4) {
-    const cropWidth = Math.round((height * 3) / 4);
-    return { left: Math.round((width - cropWidth) / 2), top: 0, width: cropWidth, height, isRotated, originalWidth: width, originalHeight: height };
-  }
-  const cropHeight = Math.round((width * 4) / 3);
-  return { left: 0, top: Math.round((height - cropHeight) / 2), width, height: cropHeight, isRotated, originalWidth: width, originalHeight: height };
+  const frameWidth = Math.max(width, Math.round((height * 3) / 4));
+  const frameHeight = Math.max(height, Math.round((width * 4) / 3));
+  return {
+    crop: { left: 0, top: 0, width: frameWidth, height: frameHeight, isRotated, originalWidth: frameWidth, originalHeight: frameHeight },
+    imageLeft: (frameWidth - width) / 2,
+    imageTop: (frameHeight - height) / 2,
+    widthFactor: imageWidth / (isRotated ? frameHeight : frameWidth),
+  };
+};
+
+/** A target image prepared for the engine, plus the factor its anchors need */
+export interface PreparedImageTarget {
+  data: XrImageTargetData;
+  widthFactor: number;
+}
+
+/** Mean colour of an image's outer pixel ring (fills the frame around it) */
+const edgeColour = (context: CanvasRenderingContext2D, width: number, height: number): string => {
+  const { data } = context.getImageData(0, 0, width, height);
+  const sum = [0, 0, 0];
+  let count = 0;
+  const add = (x: number, y: number) => {
+    const i = (y * width + x) * 4;
+    sum[0] += data[i]; sum[1] += data[i + 1]; sum[2] += data[i + 2];
+    count++;
+  };
+  for (let x = 0; x < width; x++) { add(x, 0); add(x, height - 1); }
+  for (let y = 0; y < height; y++) { add(0, y); add(width - 1, y); }
+  return `rgb(${sum.map(value => Math.round(value / count)).join(",")})`;
 };
 
 /**
- * Full image width ÷ tracked (cropped) width, both as the image lies on the page. The engine's pose is the
- * crop's; the app's anchors use the whole image (1 unit = image width, as with MindAR).
- */
-export const fullWidthFactor = (crop: XrCrop): number =>
-  crop.isRotated ? crop.originalHeight / crop.height : crop.originalWidth / crop.width;
-
-/**
- * Image target data for a target image: the default crop as a grey 480×640 JPEG (object URL). The URL is also
+ * Image target data for a target image: its frame as a grey 480×640 JPEG (object URL). The URL is also
  * the target's name – the engine unloads targets by the names it is given, which are their URLs.
  */
-export const makeImageTarget = async (imageSrc: string): Promise<XrImageTargetData> => {
+export const makeImageTarget = async (imageSrc: string): Promise<PreparedImageTarget> => {
   const image = new Image();
   image.crossOrigin = "anonymous";
   image.src = imageSrc;
   await image.decode();
-  const crop = defaultCrop(image.naturalWidth, image.naturalHeight);
+  const frame = targetFrame(image.naturalWidth, image.naturalHeight);
+  const { crop } = frame;
 
   const turned = document.createElement("canvas");
-  turned.width = crop.originalWidth;
-  turned.height = crop.originalHeight;
-  const turnedContext = turned.getContext("2d")!;
+  turned.width = crop.isRotated ? image.naturalHeight : image.naturalWidth;
+  turned.height = crop.isRotated ? image.naturalWidth : image.naturalHeight;
+  const turnedContext = turned.getContext("2d", { willReadFrequently: true })!;
   if (crop.isRotated) {
-    turnedContext.translate(crop.originalWidth, 0);
+    turnedContext.translate(turned.width, 0);
     turnedContext.rotate(Math.PI / 2);
   }
   turnedContext.drawImage(image, 0, 0);
@@ -179,7 +207,10 @@ export const makeImageTarget = async (imageSrc: string): Promise<XrImageTargetDa
   luminance.width = LUMINANCE_WIDTH;
   luminance.height = LUMINANCE_HEIGHT;
   const context = luminance.getContext("2d")!;
-  context.drawImage(turned, crop.left, crop.top, crop.width, crop.height, 0, 0, LUMINANCE_WIDTH, LUMINANCE_HEIGHT);
+  context.fillStyle = edgeColour(turnedContext, turned.width, turned.height);
+  context.fillRect(0, 0, LUMINANCE_WIDTH, LUMINANCE_HEIGHT);
+  const scale = LUMINANCE_WIDTH / crop.width;
+  context.drawImage(turned, frame.imageLeft * scale, frame.imageTop * scale, turned.width * scale, turned.height * scale);
   const pixels = context.getImageData(0, 0, LUMINANCE_WIDTH, LUMINANCE_HEIGHT);
   const data = pixels.data;
   for (let i = 0; i < data.length; i += 4) {
@@ -191,7 +222,7 @@ export const makeImageTarget = async (imageSrc: string): Promise<XrImageTargetDa
     luminance.toBlob(b => (b ? resolve(b) : reject(new Error(`Could not prepare ${imageSrc}`))), "image/jpeg", 0.92),
   );
   const url = URL.createObjectURL(blob);
-  return { type: "PLANAR", name: url, imagePath: url, metadata: null, properties: crop };
+  return { data: { type: "PLANAR", name: url, imagePath: url, metadata: null, properties: crop }, widthFactor: frame.widthFactor };
 };
 
 const cameraInverse = new Matrix4();
