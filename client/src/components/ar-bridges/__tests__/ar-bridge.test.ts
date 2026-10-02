@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArSceneEvents, ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { ArSceneEvents, ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT, TUNE_ENTITY_EVENT } from "@/types";
 import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 
@@ -19,6 +19,8 @@ class FakeArScene implements IArScene {
   celebrated: string[] = [];
   async dispose() { this.disposed = true; }
   celebrate(targetId: string) { this.celebrated.push(targetId); }
+  tuned: Array<[string, unknown]> = [];
+  tuneEntity(targetId: string, entity: unknown) { this.tuned.push([targetId, entity]); }
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]) {
     const list = this.listeners.get(event) ?? [];
     list.push(listener);
@@ -53,6 +55,14 @@ describe("<ar-bridge>", () => {
     ArBridge.sceneFactory = null;
     document.body.classList.remove("scene-active");
     vi.restoreAllMocks();
+  });
+
+  it("hands the tune panel's values to the scene", () => {
+    const [withEntity] = getTargets(spread1.id).filter(t => t.entity);
+    const entity = { ...withEntity.entity!, params: { scale: 2 } };
+    document.dispatchEvent(new CustomEvent(TUNE_ENTITY_EVENT, { detail: { targetId: withEntity.id, entity } }));
+    document.dispatchEvent(new CustomEvent(TUNE_ENTITY_EVENT, { detail: { targetId: withEntity.id, entity: null } }));
+    expect(scene.tuned).toEqual([[withEntity.id, entity], [withEntity.id, null]]);
   });
 
   it("loads the current spread and follows spread switches", () => {

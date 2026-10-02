@@ -152,6 +152,19 @@ export const getTargets = (spreadId: string): Target[] => spreadById.get(spreadI
 
 export const getTarget = (id: string): Target | undefined => targetById.get(id);
 
+/** The shared entity (`content/entities/<id>`) a target refers to with `ref`, or undefined for an inline entity */
+export const getEntityRef = (targetId: string): string | undefined => {
+  const entity = config.entries.find(e => e.target?.id === targetId)?.target?.entity;
+  return entity && isEntityRef(entity) ? entity.ref : undefined;
+};
+
+/** Ids of the targets whose entity is the shared entity `ref` */
+export const getTargetsUsingEntity = (ref: string): string[] =>
+  config.entries.flatMap(e => {
+    const entity = e.target?.entity;
+    return e.target && entity && isEntityRef(entity) && entity.ref === ref ? [e.target.id] : [];
+  });
+
 /** Assets of all entities (optionally of one spread), deduplicated by id */
 export const getAssets = (spreadId?: string): AssetData[] => {
   const targets = spreadId ? getTargets(spreadId) : [...targetById.values()];

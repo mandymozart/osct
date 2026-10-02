@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-02 – Content editor: not built (Tilman)
+
+- Researched a standalone, reusable content + 3D scene editor (`agents/research/content-editor.md`). Tilman: "we will
+  be fine with just tweaking and using the agent" – **abandoned for now**; content changes go through Claude Code.
+- [x] Built in 1.5.1 (branch `tune-panel`, 2026-10-03): on-phone tune panel in the debug bar (placement sliders on the found target, "Copy YAML" with
+  the file path) pasted into a Claude session – avoids the USB tunnel for tuning on staging.
+  Tilman (2026-10-03): **every** adjustable parameter (placement, all filter parameters), slider **plus a number
+  field** for exact values; rows labelled with the three.js names (`position.x`, `rotation.y`, `scale.z`); the panel
+  opens with the values currently in the content. Copy = only values that differ from the defaults.
+  Built: `dev-tools/tune-panel.ts` + `tune-values.ts` (rows from `PLACEMENT_PARAMS` – new in shared placement – and
+  `FILTERS`), `TUNE_ENTITY_EVENT` → `<ar-bridge>` → `IArScene.tuneEntity` (placement in place, chroma key uniforms in
+  place, otherwise the entity is rebuilt; tuned values survive spread switches until "Back to content"). Typed
+  placement values may leave the slider range (content accepts any finite number), filter values may not.
+  `keyMode` moved to `shared/types/filters.ts` (the panel must not import three.js). Look-around section later.
+
 ## 2026-09-28 – Look-around world / world tracking research (Tilman)
 
 - Idea (Tilman): a reader who turns the phone from the book (e.g. to the sky) ends up inside an **alien coffee

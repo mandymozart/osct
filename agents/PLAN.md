@@ -1011,6 +1011,11 @@ The final content goes in and the app is tuned on it, on the devices readers wil
 - [ ] Replace the demo spreads 4–14 (`demo-p*` entries, from the layout PDF) with the real content.
 - [ ] Spreads kept loaded (±1 now): measure all vs ±1 with the real target count, then decide the default.
 - [ ] Videos of the final content: 720p H.264 ~2 Mbit/s (Phase 9).
+- [x] Tune panel for the content session (1.5.1, 2026-10-03 – Tilman): debug overlay → tune; every placement value
+      and filter parameter as slider + number field (three.js names), live on the page, "Copy YAML" (only non-defaults,
+      with the file path) to paste into the content / a Claude session – no USB tunnel needed on staging.
+  - [ ] Phone check on staging (S22, iPhone): sliders and fields with the on-screen keyboard, copy to the Claude app.
+  - [ ] Later: look-around values (`window.osctLookAround`) as a section of the panel (copy → code defaults).
 
 ---
 

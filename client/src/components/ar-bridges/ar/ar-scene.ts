@@ -1,11 +1,11 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
-import { ArSceneEvents, ArStatus, IArScene, SceneState, Target } from "@/types";
+import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneState, Target } from "@/types";
 import { getAssets, getNeighbourSpreads, getSpread, getTargets } from "@/utils/game-config";
 import { Emitter } from "../utils/emitter";
 import { getPreparedSpreadRange } from "../utils/prepared-spreads";
 import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
-import { buildEntity, EntityInstance } from "./entities";
+import { buildEntity, EntityInstance, placeEntity } from "./entities";
 import { ImageTracker } from "./tracker";
 import { IImageTracker } from "./tracker-types";
 import { LookAround } from "./look-around";
@@ -14,7 +14,8 @@ import { ArView } from "./view";
 interface Anchor {
   target: Target;
   group: Group;
-  entity: EntityInstance | null;
+  /** With the entity type it was built for (a tuned entity of another type is built anew) */
+  entity: (EntityInstance & { type: string }) | null;
 }
 
 interface SpreadContent {
@@ -24,7 +25,7 @@ interface SpreadContent {
 }
 
 /** Taps on these (and inside them) are app UI, not taps on the AR scene */
-const UI_SELECTOR = 'button, a, input, select, textarea, label, [role="button"], [role="listbox"], [role="option"]';
+const UI_SELECTOR = 'button, a, input, select, textarea, label, [role="button"], [role="listbox"], [role="option"], [role="dialog"]';
 
 /** A tap this close to an entity's on-screen bounds still hits it (small models) */
 const TAP_MARGIN_PX = 24;
@@ -67,6 +68,8 @@ export class ArScene implements IArScene {
   private _status: ArStatus = "idle";
   /** Running appear / disappear animation per target id (unlock, reveal, outro), removed when done */
   private animations = new Map<string, Celebration>();
+  /** Entities shown with tuned values instead of the content's, by target id (debug tune panel) */
+  private tuned = new Map<string, EntityData>();
 
   constructor(private container: HTMLElement) {}
 
@@ -97,6 +100,40 @@ export class ArScene implements IArScene {
   celebrate(targetId: string): void {
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (anchor) this.animate(anchor, "unlock");
+  }
+
+  tuneEntity(targetId: string, entity: EntityData | null): void {
+    if (entity) this.tuned.set(targetId, entity);
+    else this.tuned.delete(targetId);
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (!anchor) return;
+    const wanted = this.entityOf(anchor.target);
+    // A running animation holds the entity's materials – it ends first
+    this.animations.get(targetId)?.finish();
+    this.animations.delete(targetId);
+    if (wanted && anchor.entity && wanted.type === anchor.entity.type && (anchor.entity.tune?.(wanted) ?? true)) {
+      placeEntity(anchor.entity.object, wanted);
+      return;
+    }
+    // Filters the entity can't change in place: build it anew with the tuned values
+    anchor.entity?.dispose?.();
+    anchor.entity?.object.removeFromParent();
+    anchor.entity = this.createEntity(anchor.target);
+    if (anchor.entity) {
+      anchor.group.add(anchor.entity.object);
+      if (this.found.has(targetId)) anchor.entity.onFound?.();
+    }
+  }
+
+  /** The target's entity as shown: tuned values (debug tune panel) or the content's */
+  private entityOf(target: Target): EntityData | undefined {
+    return this.tuned.get(target.id) ?? target.entity;
+  }
+
+  private createEntity(target: Target): (EntityInstance & { type: string }) | null {
+    const entity = this.entityOf(target);
+    const instance = entity ? buildEntity({ ...target, entity }, id => this.assets.get(id)) : null;
+    return instance && entity ? { ...instance, type: entity.type } : null;
   }
 
   /** Start an animation of an anchor's entity (a running one of the same anchor ends first) */
@@ -220,7 +257,7 @@ export class ArScene implements IArScene {
     group.name = target.id;
     group.visible = false;
     group.matrixAutoUpdate = false;
-    const entity = buildEntity(target, id => this.assets.get(id));
+    const entity = this.createEntity(target);
     if (entity) group.add(entity.object);
     return { target, group, entity };
   }

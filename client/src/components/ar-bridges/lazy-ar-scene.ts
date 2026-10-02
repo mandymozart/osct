@@ -1,4 +1,4 @@
-import { ArSceneEvents, ArStatus, IArScene, SceneState } from "@/types";
+import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneState } from "@/types";
 import { Emitter } from "./utils/emitter";
 
 type ArModule = typeof import("./ar");
@@ -91,6 +91,10 @@ export class LazyArScene implements IArScene {
 
   celebrate(targetId: string): void {
     this.scene?.celebrate(targetId);
+  }
+
+  tuneEntity(targetId: string, entity: EntityData | null): void {
+    this.scene?.tuneEntity(targetId, entity);
   }
 
   async dispose(): Promise<void> {

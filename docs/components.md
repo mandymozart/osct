@@ -15,7 +15,7 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 | `settings/` | Info page settings, one component per section: `<settings-tutorial>`, `<settings-history>` (reset book), `<settings-language>` |
 | `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary) |
 | `pages-router/` | `<pages-router>` – shows the page of the current route |
-| `dev-tools/` | `<debug-overlay>` (with `VITE_DEBUG=true`) and `<qr-generator>` |
+| `dev-tools/` | `<debug-overlay>` (with `VITE_DEBUG=true`), `<qr-generator>` and `<tune-panel>` (placement / filter values of an entity, live, "Copy YAML" – values in `tune-values.ts`) |
 
 ## Design styles
 

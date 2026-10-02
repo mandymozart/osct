@@ -91,4 +91,19 @@ describe("chroma key filter", () => {
     later.dispatchEvent(new Event("loadedmetadata"));
     expect(keyed.scale.y).toBe(1);
   });
+
+  it("takes tuned values in place; adding or removing the key needs a new entity", () => {
+    const texture = new VideoTexture(document.createElement("video"));
+    const video: LoadedAsset = { assetType: "video", element: document.createElement("video"), texture } as LoadedAsset;
+    const keyed = buildEntity(target(chromaKey()), () => video)!;
+    const material = ((keyed.object.children[0] as Mesh).material as ShaderMaterial);
+    expect(keyed.tune?.({ ...target().entity!, filters: chromaKey({ threshold: 0.5, color: "#000000" }) })).toBe(true);
+    expect(material.uniforms.threshold.value).toBe(0.5);
+    expect(material.uniforms.luma.value).toBe(1);
+    expect(keyed.tune?.({ ...target().entity!, filters: [] })).toBe(false);
+
+    const plain = buildEntity(target(), () => video)!;
+    expect(plain.tune?.({ ...target().entity!, filters: chromaKey() })).toBe(false);
+    expect(plain.tune?.(target().entity!)).toBe(true);
+  });
 });

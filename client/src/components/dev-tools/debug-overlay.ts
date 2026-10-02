@@ -13,8 +13,8 @@ const formatTime = (time: number) => new Date(time).toLocaleString();
 
 /**
  * Development overlay: a one-line status summary (AR, spread, targets, assets, progress, found counts)
- * that expands on tap into spread, target and progress details. Sets `--debug-offset` so app chrome
- * moves below the collapsed line.
+ * that expands on tap into spread, target and progress details, and opens the tune panel (`<tune-panel>`).
+ * Sets `--debug-offset` so app chrome moves below the collapsed line.
  */
 export class DebugOverlay extends HTMLElement {
   private shadow: ShadowRoot;
@@ -82,6 +82,15 @@ export class DebugOverlay extends HTMLElement {
     }
     if (control?.dataset.action === "reset-progress") {
       if (confirm("Reset the progress of this book?")) this.game.history.reset();
+      return;
+    }
+    if (control?.dataset.action === "tune") {
+      // The tune panel sits at the bottom; the overlay collapses so the scene stays in view
+      const panel = document.querySelector("tune-panel");
+      if (panel) panel.remove();
+      else document.body.appendChild(document.createElement("tune-panel"));
+      this.expanded = false;
+      this.updateContent();
       return;
     }
     if (control?.dataset.action === "cycle-prepared") {
@@ -177,7 +186,7 @@ export class DebugOverlay extends HTMLElement {
     const { currentSpread } = this.game.state;
     let html = `<div class="tabs">${(["spread", "progress"] as DebugTab[])
       .map(tab => `<button data-tab="${tab}" class="${tab === this.tab ? "active" : ""}">${tab}</button>`)
-      .join("")}</div>`;
+      .join("")}<button data-action="tune">tune</button></div>`;
 
     if (this.expanded && this.tab === "progress") {
       contentEl.innerHTML = html + this.renderProgress();
