@@ -12,6 +12,17 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.5.1 – 2026-10-03
+
+### Added
+- **Tune panel** (debug builds: dev server and staging): debug overlay → "tune" opens a panel at the bottom of the
+  screen for the AR content of a page – every placement value (`position.x`, `rotation.y`, `scale` … – the three.js
+  names) and every parameter of its filters (chroma key: color, mode, threshold, softness, spill, opacity), each
+  with a slider and a field for an exact value (a comma works as the decimal point). It opens with the values in the
+  content and shows changes live on the page; filters can be added and removed. "Copy YAML" copies the `params` /
+  `filters` block with the file it belongs in – only values that differ from the defaults. The content itself is
+  not changed: paste the block into the entry (or into a Claude session). How to use it: `docs/content.md`.
+
 ## 1.5.0 – 2026-09-28
 
 ### Added

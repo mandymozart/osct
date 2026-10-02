@@ -36,6 +36,24 @@ export interface Placement {
 }
 
 export const PLACEMENT_KEYS = ["position", "rotation", "scale"] as const;
+export type PlacementKey = (typeof PLACEMENT_KEYS)[number];
+
+/** How a placement value is adjusted in tools (debug tune panel): slider range and step, unit shown */
+export interface PlacementParamSpec {
+  unit: string;
+  /** Slider range – a typed value may lie outside it (the content accepts any finite number, scale > 0) */
+  min: number;
+  max: number;
+  step: number;
+  description: string;
+}
+
+/** The placement values with the names of three.js `Object3D` (`position.x`, `rotation.y`, `scale.z`) */
+export const PLACEMENT_PARAMS: Record<PlacementKey, PlacementParamSpec> = {
+  position: { unit: "target widths", min: -1, max: 1, step: 0.01, description: "x → right, y → top of the page, z → out of the page" },
+  rotation: { unit: "°", min: -180, max: 180, step: 1, description: "Degrees, Euler order XYZ (three.js uses radians)" },
+  scale: { unit: "×", min: 0.05, max: 3, step: 0.01, description: "Relative to the target's width" },
+};
 
 const FLAT: Placement = { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] };
 
