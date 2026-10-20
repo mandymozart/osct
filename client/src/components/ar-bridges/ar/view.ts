@@ -55,6 +55,12 @@ const bloomOverlayMaterial = () => new ShaderMaterial({
   blendDstAlpha: OneFactor,
 });
 
+/** Something drawn under the scene each frame (the look-around pass) – into the cleared screen, while active */
+export interface Underlay {
+  readonly active: boolean;
+  render(): void;
+}
+
 /**
  * The three.js side of the AR scene: one WebGL renderer (one context for the session), scene, camera,
  * lights and the render loop. The transparent canvas (`#scene`, faded in by main.css while AR runs) lies
@@ -76,6 +82,7 @@ export class ArView {
   needsRender: () => boolean = () => true;
   /** Bloom strength (0 = off – no post-processing cost); set every frame by the scene's animations */
   bloomStrength = 0;
+  underlay: Underlay | null = null;
   private bloom: { composer: EffectComposer; pass: UnrealBloomPass; quad: FullScreenQuad; material: ShaderMaterial } | null = null;
 
   constructor(private container: HTMLElement, private onResize: (camera: PerspectiveCamera) => void) {
@@ -128,19 +135,24 @@ export class ArView {
 
   /** The scene, plus the bloom over it while an animation wants it */
   private draw(): void {
-    if (this.bloomStrength <= 0) {
-      this.renderer.render(this.scene, this.camera);
-      return;
-    }
-    const bloom = this.ensureBloom();
-    bloom.composer.render(); // scene → half-size target → bloom (only the part brighter than white)
-    this.renderer.setRenderTarget(null);
-    this.renderer.render(this.scene, this.camera);
-    bloom.material.uniforms.tBloom.value = bloom.pass.renderTargetsHorizontal[0].texture;
-    bloom.material.uniforms.uStrength.value = this.bloomStrength;
+    const bloom = this.bloomStrength > 0 ? this.ensureBloom() : null;
+    bloom?.composer.render(); // scene → half-size target → bloom (only the part brighter than white)
     const autoClear = this.renderer.autoClear;
-    this.renderer.autoClear = false;
-    bloom.quad.render(this.renderer);
+    this.renderer.setRenderTarget(null);
+    if (this.underlay?.active) {
+      this.renderer.clear();
+      this.underlay.render();
+      this.renderer.setRenderTarget(null);
+      this.renderer.clearDepth();
+      this.renderer.autoClear = false;
+    }
+    this.renderer.render(this.scene, this.camera);
+    if (bloom) {
+      bloom.material.uniforms.tBloom.value = bloom.pass.renderTargetsHorizontal[0].texture;
+      bloom.material.uniforms.uStrength.value = this.bloomStrength;
+      this.renderer.autoClear = false;
+      bloom.quad.render(this.renderer);
+    }
     this.renderer.autoClear = autoClear;
   }
 

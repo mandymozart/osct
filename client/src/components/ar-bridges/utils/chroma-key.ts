@@ -1,5 +1,5 @@
 import { Color, DoubleSide, ShaderMaterial, Texture } from "three";
-import { FilterData, FILTERS, FilterParamSpec } from "@/types";
+import { FilterData, FILTERS, FilterParamSpec, keyMode } from "@/types";
 
 /**
  * Chroma key filter for AR videos: one key color (e.g. neon green, purple or black) in the video becomes
@@ -30,12 +30,7 @@ export interface ChromaKey {
   opacity: number;
 }
 
-/** Neutral = no noticeable color tone: the channels differ by less than 16 of 255 */
-export const keyMode = (color: string): ChromaKeyMode => {
-  const hex = color.length === 4 ? color.replace(/[0-9a-f]/gi, c => c + c) : color;
-  const channels = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-  return Math.max(...channels) - Math.min(...channels) < 16 ? "luma" : "chroma";
-};
+export { keyMode };
 
 type NumberParam = Extract<FilterParamSpec, { kind: "number" }>;
 
@@ -115,19 +110,33 @@ void main() {
  * key color (a THREE.Color, linear with color management like the samples) and one uniform per number
  * parameter of the filter definition (`opacity` is `keyOpacity`); `mode` is resolved in JS → `luma`.
  */
-export const chromaKeyMaterial = (texture: Texture | null, key: ChromaKey): ShaderMaterial =>
-  new ShaderMaterial({
+export const chromaKeyMaterial = (texture: Texture | null, key: ChromaKey): ShaderMaterial => {
+  const material = new ShaderMaterial({
     uniforms: {
       src: { value: texture },
-      color: { value: new Color(key.color) },
-      luma: { value: key.mode === "luma" ? 1 : 0 },
-      threshold: { value: key.threshold },
-      softness: { value: key.softness },
-      spill: { value: key.spill },
-      keyOpacity: { value: key.opacity },
+      color: { value: new Color() },
+      luma: { value: 0 },
+      threshold: { value: 0 },
+      softness: { value: 0 },
+      spill: { value: 0 },
+      keyOpacity: { value: 1 },
     },
     vertexShader,
     fragmentShader,
     transparent: true,
     side: DoubleSide,
   });
+  setChromaKey(material, key);
+  return material;
+};
+
+/** Put a chroma key's values into a keyed video material's uniforms */
+export const setChromaKey = (material: ShaderMaterial, key: ChromaKey): void => {
+  const u = material.uniforms;
+  (u.color.value as Color).set(key.color);
+  u.luma.value = key.mode === "luma" ? 1 : 0;
+  u.threshold.value = key.threshold;
+  u.softness.value = key.softness;
+  u.spill.value = key.spill;
+  u.keyOpacity.value = key.opacity;
+};

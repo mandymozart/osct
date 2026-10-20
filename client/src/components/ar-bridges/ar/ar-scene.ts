@@ -1,19 +1,21 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
-import { ArSceneEvents, ArStatus, IArScene, SceneState, Target } from "@/types";
+import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneState, Target } from "@/types";
 import { getAssets, getNeighbourSpreads, getSpread, getTargets } from "@/utils/game-config";
 import { Emitter } from "../utils/emitter";
 import { getPreparedSpreadRange } from "../utils/prepared-spreads";
 import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
-import { buildEntity, EntityInstance } from "./entities";
+import { buildEntity, EntityInstance, placeEntity } from "./entities";
 import { ImageTracker } from "./tracker";
 import { IImageTracker } from "./tracker-types";
+import { LookAround } from "./look-around";
 import { ArView } from "./view";
 
 interface Anchor {
   target: Target;
   group: Group;
-  entity: EntityInstance | null;
+  /** With the entity type it was built for (a tuned entity of another type is built anew) */
+  entity: (EntityInstance & { type: string }) | null;
 }
 
 interface SpreadContent {
@@ -23,7 +25,7 @@ interface SpreadContent {
 }
 
 /** Taps on these (and inside them) are app UI, not taps on the AR scene */
-const UI_SELECTOR = 'button, a, input, select, textarea, label, [role="button"], [role="listbox"], [role="option"]';
+const UI_SELECTOR = 'button, a, input, select, textarea, label, [role="button"], [role="listbox"], [role="option"], [role="dialog"]';
 
 /** A tap this close to an entity's on-screen bounds still hits it (small models) */
 const TAP_MARGIN_PX = 24;
@@ -49,6 +51,8 @@ export class ArScene implements IArScene {
   private wantedState: SceneState = SceneState.STOPPED;
 
   private view: ArView | null = null;
+  /** The world around the reader + its sky (3DoF, anchored to the book) (off per the reader's graphics options) */
+  private lookAround: LookAround | null = null;
   private tracker: IImageTracker | null = null;
   private assets = new AssetStore();
   private content: SpreadContent | null = null;
@@ -64,6 +68,8 @@ export class ArScene implements IArScene {
   private _status: ArStatus = "idle";
   /** Running appear / disappear animation per target id (unlock, reveal, outro), removed when done */
   private animations = new Map<string, Celebration>();
+  /** Entities shown with tuned values instead of the content's, by target id (debug tune panel) */
+  private tuned = new Map<string, EntityData>();
 
   constructor(private container: HTMLElement) {}
 
@@ -94,6 +100,40 @@ export class ArScene implements IArScene {
   celebrate(targetId: string): void {
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (anchor) this.animate(anchor, "unlock");
+  }
+
+  tuneEntity(targetId: string, entity: EntityData | null): void {
+    if (entity) this.tuned.set(targetId, entity);
+    else this.tuned.delete(targetId);
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (!anchor) return;
+    const wanted = this.entityOf(anchor.target);
+    // A running animation holds the entity's materials – it ends first
+    this.animations.get(targetId)?.finish();
+    this.animations.delete(targetId);
+    if (wanted && anchor.entity && wanted.type === anchor.entity.type && (anchor.entity.tune?.(wanted) ?? true)) {
+      placeEntity(anchor.entity.object, wanted);
+      return;
+    }
+    // Filters the entity can't change in place: build it anew with the tuned values
+    anchor.entity?.dispose?.();
+    anchor.entity?.object.removeFromParent();
+    anchor.entity = this.createEntity(anchor.target);
+    if (anchor.entity) {
+      anchor.group.add(anchor.entity.object);
+      if (this.found.has(targetId)) anchor.entity.onFound?.();
+    }
+  }
+
+  /** The target's entity as shown: tuned values (debug tune panel) or the content's */
+  private entityOf(target: Target): EntityData | undefined {
+    return this.tuned.get(target.id) ?? target.entity;
+  }
+
+  private createEntity(target: Target): (EntityInstance & { type: string }) | null {
+    const entity = this.entityOf(target);
+    const instance = entity ? buildEntity({ ...target, entity }, id => this.assets.get(id)) : null;
+    return instance && entity ? { ...instance, type: entity.type } : null;
   }
 
   /** Start an animation of an anchor's entity (a running one of the same anchor ends first) */
@@ -157,8 +197,13 @@ export class ArScene implements IArScene {
         },
       });
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
-      this.view.needsRender = () => this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible);
+      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null);
+      this.view.underlay = this.lookAround;
+      this.view.needsRender = () =>
+        this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
       this.view.onFrame(delta => {
+        const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
+        this.lookAround?.update(delta, this.view!.camera, anchors);
         this.content?.anchors.forEach(a => a.entity?.update?.(delta));
         let bloom = 0;
         this.animations.forEach((animation, id) => {
@@ -212,7 +257,7 @@ export class ArScene implements IArScene {
     group.name = target.id;
     group.visible = false;
     group.matrixAutoUpdate = false;
-    const entity = buildEntity(target, id => this.assets.get(id));
+    const entity = this.createEntity(target);
     if (entity) group.add(entity.object);
     return { target, group, entity };
   }
@@ -305,6 +350,8 @@ export class ArScene implements IArScene {
     this.removeContent();
     this.assets.release();
     this.tracker?.stop();
+    this.lookAround?.dispose();
+    this.lookAround = null;
     this.view?.dispose();
     this.tracker = null;
     this.view = null;
@@ -349,6 +396,7 @@ export class ArScene implements IArScene {
       this.tracker!.resume();
     }
     this.running = true;
+    this.lookAround?.start();
     this.view!.start();
     scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
     this.setStatus("running");
@@ -360,6 +408,7 @@ export class ArScene implements IArScene {
       this.view!.stop();
       this.running = false;
     }
+    this.lookAround?.pause();
     this.pauseEntities();
     // Nothing stays where it was: the tracker drops its poses at a pause without reporting the targets lost –
     // their anchors would stay visible at the old position ("stuck in space")
@@ -372,6 +421,7 @@ export class ArScene implements IArScene {
   private stop(): void {
     this.pauseEntities();
     this.tracker?.stop();
+    this.lookAround?.pause();
     this.view?.stop();
     this.loseAll();
     this.started = false;

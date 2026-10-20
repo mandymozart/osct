@@ -30,6 +30,8 @@ export interface ImageTrackerOptions {
 export interface IImageTracker {
   readonly hasCamera: boolean;
   readonly tracking: boolean;
+  /** The camera stream's video element (for effects that read the picture), while the camera runs */
+  readonly cameraVideo: HTMLVideoElement | null;
   /** Request the back camera; throws when it is unavailable or sends no picture */
   startCamera(): Promise<void>;
   /** Track the targets of a spread on the running camera (replaces the previous targets) */

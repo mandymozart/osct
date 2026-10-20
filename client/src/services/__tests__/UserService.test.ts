@@ -12,8 +12,11 @@ const [entryA, entryB, entryC] = getEntries().map(e => e.id);
 class FakeApi extends ApiService {
   user: UserData = {
     email: "reader@example.com", language: "en", createdAt: "2026-09-27T00:00:00+00:00",
-    options: { bookUpdates: true, artistUpdates: false, publisherUpdates: true },
+    options: { bookUpdates: true, artistUpdates: false, publisherUpdates: true }, hasPassword: false,
   };
+  /** The user's password (null = none) and whether this device just signed in by email (no current password needed) */
+  password: string | null = null;
+  freshEmailSession = false;
   progress: { record: ProgressRecord | null; updatedAt: number | null } = { record: null, updatedAt: null };
   offline = false;
   sessionValid = true;
@@ -32,12 +35,27 @@ class FakeApi extends ApiService {
     if (route === "POST /auth/verify") {
       if (body.code && body.code !== "123456") throw new ApiError(400, "invalid-code");
       if (body.token && body.token !== "good-token") throw new ApiError(400, "invalid-link");
+      this.freshEmailSession = true;
       return { session: "session-token", user: this.user, created: true } as T;
+    }
+    if (route === "POST /auth/password") {
+      if (this.password === null || body.password !== this.password) throw new ApiError(401, "invalid-credentials");
+      this.user = { ...this.user, hasPassword: true };
+      return { session: "session-token", user: this.user, created: false } as T;
     }
     if (!token || !this.sessionValid) throw new ApiError(401, "unauthorized");
     if (route === "GET /user") return { user: this.user } as T;
     if (route === "PATCH /user") {
       this.user = { ...this.user, options: { ...this.user.options, ...body.options } };
+      return { user: this.user } as T;
+    }
+    if (route === "PUT /user/password") {
+      if (this.user.hasPassword && !this.freshEmailSession) {
+        if (!body.currentPassword) throw new ApiError(403, "current-password-required");
+        if (body.currentPassword !== this.password) throw new ApiError(403, "wrong-current-password");
+      }
+      this.password = body.password;
+      this.user = { ...this.user, hasPassword: true };
       return { user: this.user } as T;
     }
     if (route === "POST /auth/logout" || route === "DELETE /user") return null as T;
@@ -208,6 +226,52 @@ describe("UserService", () => {
     expect(await again.deleteUser()).toBe(true);
     expect(again.getSnapshot()).toMatchObject({ status: "signed-out", notice: "deleted" });
     expect(api.calls.at(-1)).toMatchObject({ method: "DELETE", path: "/user" });
+  });
+
+  it("signs in with a password and offers the browser to save it", async () => {
+    const stored: unknown[] = [];
+    vi.stubGlobal("PasswordCredential", class { constructor(public data: unknown) { stored.push(data); } });
+    Object.defineProperty(navigator, "credentials", { configurable: true, value: { store: vi.fn().mockResolvedValue(undefined) } });
+    api.password = "a good password";
+    const users = service();
+    await users.start(game);
+
+    expect(await users.signInWithPassword("reader@example.com", "wrong")).toBe(false);
+    expect(users.getSnapshot()).toMatchObject({ status: "signed-out", notice: { error: "invalid-credentials" } });
+
+    expect(await users.signInWithPassword(" reader@example.com ", "a good password")).toBe(true);
+    expect(api.calls.filter(c => c.path === "/auth/password").at(-1)!.body).toEqual({ email: "reader@example.com", password: "a good password" });
+    expect(users.getSnapshot()).toMatchObject({ status: "signed-in", notice: "signed-in" });
+    expect(stored).toEqual([{ id: "reader@example.com", password: "a good password" }]);
+    // Signed in with the password: changing it asks for the current one
+    expect(users.passwordNeedsCurrent()).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it("sets a password after an email sign-in without the current one", async () => {
+    const users = service();
+    await users.start(game);
+    await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
+    await users.confirmCode("123456");
+    expect(users.passwordNeedsCurrent()).toBe(false);
+
+    expect(await users.setPassword("a new password")).toBe(true);
+    expect(api.calls.at(-1)).toMatchObject({ method: "PUT", path: "/user/password", body: { password: "a new password" } });
+    expect(users.getSnapshot()).toMatchObject({ notice: "password-saved", user: { hasPassword: true } });
+    // Right after the email sign-in the current password is still not needed ("forgot password")
+    expect(users.passwordNeedsCurrent()).toBe(false);
+  });
+
+  it("an older session (or the server's say) asks for the current password", async () => {
+    api.user = { ...api.user, hasPassword: true };
+    api.password = "a good password";
+    signedInStorage();
+    const users = service();
+    await users.start(game);
+    expect(users.passwordNeedsCurrent()).toBe(true);
+    expect(await users.setPassword("another one")).toBe(false);
+    expect(users.getSnapshot().notice).toEqual({ error: "current-password-required" });
+    expect(await users.setPassword("another one", "a good password")).toBe(true);
   });
 });
 

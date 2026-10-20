@@ -61,6 +61,16 @@ export const FILTER_TYPES = Object.keys(FILTERS) as FilterType[];
 export const isFilterType = (value: unknown): value is FilterType =>
   typeof value === "string" && value in FILTERS;
 
+/**
+ * How a chroma key compares colors when its `mode` is `auto`: neutral key colors (black, grey, white – the channels
+ * differ by less than 16 of 255) by brightness (`luma`), others by color tone (`chroma`)
+ */
+export const keyMode = (color: string): "chroma" | "luma" => {
+  const hex = color.length === 4 ? color.replace(/[0-9a-f]/gi, c => c + c) : color;
+  const channels = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  return Math.max(...channels) - Math.min(...channels) < 16 ? "luma" : "chroma";
+};
+
 /** A filter as written in the content and stored in the game configuration (unset params = defaults) */
 export interface FilterData {
   type: FilterType;

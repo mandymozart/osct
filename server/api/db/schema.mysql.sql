@@ -1,6 +1,7 @@
 -- OSCT users (docs/server.md). MySQL 5.7+ / MariaDB 10.3+, utf8mb4.
 -- Times are UTC, written by PHP (no NOW()) so the same queries run on SQLite for local development.
--- Changes after the first deploy: add a dated file to server/db/migrations/ and update this file.
+-- Changes after the first deploy are additive statements at the end of this file: `ALTER TABLE … ADD COLUMN`
+-- runs only while the column is missing (Db::migrate), so the file can run on every deploy.
 
 CREATE TABLE IF NOT EXISTS `users` (
   `id` CHAR(36) NOT NULL,
@@ -61,3 +62,20 @@ CREATE TABLE IF NOT EXISTS `progress` (
   PRIMARY KEY (`user_id`, `book_id`),
   CONSTRAINT `progress_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Failed password sign-ins, for the hourly limits (email and hashed IP)
+CREATE TABLE IF NOT EXISTS `password_attempts` (
+  `id` CHAR(36) NOT NULL,
+  `email` VARCHAR(254) NOT NULL,
+  `ip_hash` CHAR(64) NOT NULL,
+  `created_at` DATETIME NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `password_attempts_email` (`email`, `created_at`),
+  KEY `password_attempts_ip` (`ip_hash`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Optional password (PHP password_hash, bcrypt); NULL = sign-in by email only. The email always works too.
+ALTER TABLE `users` ADD COLUMN `password_hash` VARCHAR(255) NULL DEFAULT NULL;
+
+-- How the device signed in: `email` (link or code) or `password`
+ALTER TABLE `sessions` ADD COLUMN `method` VARCHAR(16) NOT NULL DEFAULT 'email';

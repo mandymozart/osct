@@ -1,5 +1,5 @@
 import { GameStoreService, PreloaderService } from "@/services";
-import { ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, GameMode, IArScene, IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, GameMode, IArScene, IGame, LoadingState, TARGET_UNLOCKED_EVENT, TUNE_ENTITY_EVENT, TuneEntityDetail } from "@/types";
 import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
 import { getSceneState } from "./utils/scene-state";
@@ -12,7 +12,7 @@ const WARM_UP_DELAY_MS = 1500;
  *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (policy in scene-state.ts).
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → neighbour preload.
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
- * tapping an entity opens its entry. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first scan,
+ * tapping an entity opens its entry. TUNE_ENTITY_EVENT (debug tune panel) goes to `tuneEntity()`. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first scan,
  * warmed up in idle time after startup); tests inject one via `sceneFactory`.
  */
 export class ArBridge extends HTMLElement {
@@ -52,6 +52,14 @@ export class ArBridge extends HTMLElement {
       game.subscribeToProperty("mode", () => this.applySceneState()),
       game.subscribeToProperty("currentRoute", () => this.applySceneState()),
     );
+
+    // Debug tune panel: other placement / filter values for an entity, live
+    const onTune = (event: Event) => {
+      const { targetId, entity } = (event as CustomEvent<TuneEntityDetail>).detail;
+      scene.tuneEntity(targetId, entity);
+    };
+    document.addEventListener(TUNE_ENTITY_EVENT, onTune);
+    this.cleanups.push(() => document.removeEventListener(TUNE_ENTITY_EVENT, onTune));
 
     const spread = game.state.currentSpread;
     if (spread) void scene.load(spread);
