@@ -12,6 +12,82 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.5.2 – 2026-10-20
+
+### Changed
+- The content build output (`client/src/game.config.json`, `client/public/assets/content/`) is no longer in
+  git: `npm run build` in `client/` builds the content first, so every deploy (staging, release, Netlify)
+  builds the content of its commit. After a content change, run `npm run content` in `client/` locally and
+  commit only `content/`.
+- The checks build the content instead of comparing a committed copy.
+
+### Fixed
+- A fresh checkout tells you to run `npm run content` instead of failing on a missing file; the broken
+  `build:config` script is gone.
+
+## 1.5.1 – 2026-10-03
+
+### Added
+- **Tune panel** (debug builds: dev server and staging): debug overlay → "tune" opens a panel at the bottom of the
+  screen for the AR content of a page – every placement value (`position.x`, `rotation.y`, `scale` … – the three.js
+  names) and every parameter of its filters (chroma key: color, mode, threshold, softness, spill, opacity), each
+  with a slider and a field for an exact value (a comma works as the decimal point). It opens with the values in the
+  content and shows changes live on the page; filters can be added and removed. "Copy YAML" copies the `params` /
+  `filters` block with the file it belongs in – only values that differ from the defaults. The content itself is
+  not changed: paste the block into the entry (or into a Claude session). How to use it: `docs/content.md`.
+
+## 1.5.0 – 2026-09-28
+
+### Added
+- **Scene around the book** (prototype, scan mode): once a page has been found, a world surrounds the reader. It
+  is tied to where the book was seen and turns with the phone (gyroscope, rotation only – walking does not move
+  through it). The book and the table stay visible (a soft window around the book, clear when looking down);
+  every new find sets the world back in place. It fades away 45 s after the last page was seen. For now a basic
+  placeholder café drawn in one pass – sky gradient, stars, a moon, a ringed planet, a grid floor, floating tables,
+  glowing orbs and turning cubes as simple shapes in the shader; the real world comes with the content.
+- **Onion sky**: looking up, sky-coloured parts of the camera picture (blue, or bright grey and smooth) show the
+  world's sky – buildings, trees and people stay real (light, warm façades are not taken for an overcast sky). It
+  reads a small copy of the camera picture (160 px wide, every other frame), not the full video.
+- **Graphics** options on the Info page (Settings): "Onion sky" and "Scene around the book", **off by default**,
+  stored on this device (en/fr/nl/de) – for phones that need the power for the page scenes. With both off nothing
+  extra is drawn and the gyroscope is not read.
+- Documentation: `docs/look-around.md`.
+- Tuning on the device: `window.osctLookAround` (opacity, sky strength, fade time, window and floor angles). On
+  iPhone the first tap asks for motion access.
+
+## 1.4.2 – 2026-09-28
+
+### Changed
+- Debug overlay top line shortened to `◉ spread1 T4 F[…]`: the dot's color is the AR status (no "S"), then the
+  spread, its number of targets and the found targets. The asset count and the book's unlocked / consulted
+  counts are gone from the line (the progress panel lists them in full).
+
+## 1.4.1 – 2026-09-28
+
+### Removed
+- Removing the account password: once set, it can be changed but not removed ("Remove password" button and
+  `DELETE /user/password` are gone). The sign-in link keeps working either way.
+- Debug overlay: the spread status ("Initial") and the spread dot next to the scene dot – no code ever changed
+  it. The unused per-spread loading state is gone from the store; the current spread stays.
+
+## 1.4.0 – 2026-09-28
+
+### Added
+- Optional password for accounts. The first sign-in is still by email (it confirms the address); afterwards
+  readers can set a password under Info → Account and sign in with email + password, or keep using the
+  sign-in link. The password can be changed or removed again. Forgot it? Sign in with the link and set a new one.
+- Server: `POST /auth/password`, `PUT /user/password`, `DELETE /user/password`. Passwords are stored as bcrypt
+  hashes (cost 12) only; failed sign-ins are limited per address and per IP. The deploy's migration adds the
+  new column and table to the existing database – no data is touched.
+- Password managers can fill and save the account fields (email as the username, `current-password` /
+  `new-password`); Chrome also offers to save the password after signing in or setting it.
+
+### Changed
+- Account wording: one form for new and returning readers – "Send sign-in link" instead of "Register
+  account", and the text tells readers who registered on another device to use the same email. Switching to
+  the password form is a text link next to the button ("Sign in with password" / "Sign in with link"), not a
+  second button.
+
 ## 1.3.2 – 2026-09-28
 
 ### Changed

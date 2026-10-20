@@ -1,7 +1,7 @@
-import { AnimationMixer, DoubleSide, Group, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry } from "three";
+import { AnimationMixer, DoubleSide, Group, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial } from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EntityData, EntityType, resolvePlacement, Target } from "@/types";
-import { chromaKeyMaterial, parseChromaKey } from "../utils/chroma-key";
+import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma-key";
 import { LoadedAsset } from "./assets";
 
 /**
@@ -23,6 +23,11 @@ export interface EntityInstance {
   update?(delta: number): void;
   /** Free what the entity created itself (not the shared assets) */
   dispose?(): void;
+  /**
+   * Apply other filter values in place (debug tune panel); false when it can't – the scene builds the entity anew.
+   * Placement is applied by the scene (`placeEntity`).
+   */
+  tune?(entity: EntityData): boolean;
 }
 
 export interface EntityContext {
@@ -51,14 +56,19 @@ export const buildEntity = (target: Target, asset: EntityContext["asset"]): Enti
   }
   const instance = builder({ target, entity, asset });
   if (!instance) return null;
-  const { position, rotation, scale } = resolvePlacement(entity.type, entity.params);
   const placed = new Group();
   placed.name = `${target.id}-placement`;
+  placeEntity(placed, entity);
+  placed.add(instance.object);
+  return { ...instance, object: placed };
+};
+
+/** Set the placement group's transform from the entity's `params` (defaults per type) */
+export const placeEntity = (placed: Object3D, entity: EntityData): void => {
+  const { position, rotation, scale } = resolvePlacement(entity.type, entity.params);
   placed.position.set(...position);
   placed.rotation.set(...(rotation.map(MathUtils.degToRad) as [number, number, number]));
   placed.scale.set(...scale);
-  placed.add(instance.object);
-  return { ...instance, object: placed };
 };
 
 /**
@@ -119,6 +129,13 @@ registerEntity("video", ({ entity, asset }) => {
     },
     onLost: () => element?.pause(),
     onPause: () => element?.pause(),
+    // A keyed video stays keyed: new values go into the uniforms; adding or removing the key needs a new material
+    tune: tuned => {
+      const key = parseChromaKey(tuned.filters);
+      if (!chromaKey || !key || !(material instanceof ShaderMaterial)) return !chromaKey && !key;
+      setChromaKey(material, key);
+      return true;
+    },
     dispose: () => {
       element?.removeEventListener("loadedmetadata", fit);
       mesh.geometry.dispose();

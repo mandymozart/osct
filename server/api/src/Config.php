@@ -39,6 +39,12 @@ final class Config
         'LOGIN_MAX_PER_EMAIL_HOUR' => '5',
         'LOGIN_MAX_PER_IP_HOUR' => '30',
         'SESSION_TTL_DAYS' => '365',
+        // Optional passwords: minimum length, failed sign-ins per hour, and how long after an email sign-in a
+        // password can be changed without the current one ("forgot password")
+        'PASSWORD_MIN_LENGTH' => '8',
+        'PASSWORD_MAX_FAILS_PER_EMAIL_HOUR' => '10',
+        'PASSWORD_MAX_FAILS_PER_IP_HOUR' => '30',
+        'PASSWORD_RESET_MINUTES' => '15',
         'PROGRESS_MAX_BYTES' => '262144',
         // Error log of the API (db/ is never served over HTTP – read it over FTP); empty = the host's log
         'LOG_PATH' => __DIR__ . '/../db/error.log',

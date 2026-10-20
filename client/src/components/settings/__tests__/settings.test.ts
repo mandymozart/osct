@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ".."; // registers the elements
 import i18next from "i18next";
-import { FeedbackService, GameStoreService, InstallService, PreloaderService, UserService } from "@/services";
+import { FeedbackService, GameStoreService, GraphicsService, InstallService, PreloaderService, UserService } from "@/services";
 import { UserSnapshot } from "@/types";
 import { LANGUAGE_STORAGE_KEY } from "@/i18n";
 import { Pages } from "@/types";
@@ -34,7 +34,7 @@ describe("settings sections", () => {
     it("signed out: email, then the update options underneath – off until turned on (opt-in)", () => {
       const request = vi.spyOn(users, "requestLogin").mockResolvedValue(true);
       const section = mount("settings-account");
-      expect(section.shadowRoot!.textContent).toContain("Register your copy");
+      expect(section.shadowRoot!.textContent).toContain("Already registered? Enter the same email");
       expect(section.shadowRoot!.querySelector("form + .switches")).not.toBeNull();
       expect(switchInput(section, "bookUpdates").checked || switchInput(section, "publisherUpdates").checked).toBe(false);
       switchInput(section, "bookUpdates").click();
@@ -60,7 +60,7 @@ describe("settings sections", () => {
     it("signed in: the address, the options as switches, sign out, delete after a confirmation", () => {
       vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({
         status: "signed-in", sync: "synced",
-        user: { email: "reader@example.com", language: "en", createdAt: "", options: { bookUpdates: false, artistUpdates: false, publisherUpdates: true } },
+        user: { email: "reader@example.com", language: "en", createdAt: "", options: { bookUpdates: false, artistUpdates: false, publisherUpdates: true }, hasPassword: false },
       }));
       const setOption = vi.spyOn(users, "setOption").mockResolvedValue();
       const remove = vi.spyOn(users, "deleteUser").mockResolvedValue(true);
@@ -71,6 +71,59 @@ describe("settings sections", () => {
       vi.spyOn(window, "confirm").mockReturnValueOnce(false);
       click(section, "[data-action=delete]");
       expect(remove).not.toHaveBeenCalled();
+    });
+
+    it("signed out: the email field is the password manager's username; password sign-in is the second way", () => {
+      const signIn = vi.spyOn(users, "signInWithPassword").mockResolvedValue(true);
+      const section = mount("settings-account");
+      const root = section.shadowRoot!;
+      expect(root.querySelector("input[name=email]")!.getAttribute("autocomplete")).toBe("username");
+      expect(root.querySelector("input[type=password]")).toBeNull();
+      click(section, "[data-action=password-mode]");
+      expect(root.querySelector(".switches")).toBeNull();
+      expect(root.querySelector("input[name=password]")!.getAttribute("autocomplete")).toBe("current-password");
+      for (const [name, value] of [["email", "reader@example.com"], ["password", "a good password"]]) {
+        const input = root.querySelector<HTMLInputElement>(`input[name=${name}]`)!;
+        input.value = value;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      root.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(signIn).toHaveBeenCalledWith("reader@example.com", "a good password");
+      click(section, "[data-action=link-mode]");
+      expect(root.querySelector("input[type=password]")).toBeNull();
+    });
+
+    it("signed in: sets a password in a form a password manager can save (email as hidden username)", () => {
+      vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({
+        status: "signed-in", sync: "synced",
+        user: { email: "reader@example.com", language: "en", createdAt: "", options: { bookUpdates: false, artistUpdates: false, publisherUpdates: false }, hasPassword: false },
+      }));
+      vi.spyOn(users, "passwordNeedsCurrent").mockReturnValue(false);
+      const setPassword = vi.spyOn(users, "setPassword").mockResolvedValue(true);
+      const section = mount("settings-account");
+      const root = section.shadowRoot!;
+      click(section, "[data-action=edit-password]");
+      expect(root.querySelector<HTMLInputElement>("input[name=username]")!.value).toBe("reader@example.com");
+      expect(root.querySelector("input[name=current-password]")).toBeNull();
+      const input = root.querySelector<HTMLInputElement>("input[name=new-password]")!;
+      expect(input.getAttribute("autocomplete")).toBe("new-password");
+      input.value = "a new password";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      root.querySelector("form[data-form=set-password]")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      expect(setPassword).toHaveBeenCalledWith("a new password", undefined);
+    });
+
+    it("signed in with a password: change asks for the current one; it cannot be removed", () => {
+      vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({
+        status: "signed-in", sync: "synced",
+        user: { email: "reader@example.com", language: "en", createdAt: "", options: { bookUpdates: false, artistUpdates: false, publisherUpdates: false }, hasPassword: true },
+      }));
+      vi.spyOn(users, "passwordNeedsCurrent").mockReturnValue(true);
+      const section = mount("settings-account");
+      expect(section.shadowRoot!.textContent).toContain("Change password");
+      expect(section.shadowRoot!.querySelector("[data-action=remove-password]")).toBeNull();
+      click(section, "[data-action=edit-password]");
+      expect(section.shadowRoot!.querySelector("input[name=current-password]")!.getAttribute("autocomplete")).toBe("current-password");
     });
 
     it("shows the API's error in the reader's words", () => {
@@ -138,10 +191,28 @@ describe("settings sections", () => {
     expect(feedback.getSettings().haptics).toBe(true);
   });
 
+  it("graphics: onion sky and the scene around the book, a switch each, kept on this device", () => {
+    const graphics = GraphicsService.getInstance();
+    graphics.setSettings({ onionSky: true, surroundings: true });
+    const changes: unknown[] = [];
+    const unsubscribe = graphics.subscribe(settings => changes.push(settings));
+    const section = mount("settings-graphics");
+    const sky = section.shadowRoot!.querySelector("gold-switch[data-setting=onionSky]")!.shadowRoot!.querySelector("input")!;
+    expect(sky.checked).toBe(true);
+
+    sky.click();
+    expect(graphics.getSettings()).toEqual({ onionSky: false, surroundings: true });
+    expect(changes).toEqual([{ onionSky: false, surroundings: true }]);
+    section.shadowRoot!.querySelector("gold-switch[data-setting=surroundings]")!.shadowRoot!.querySelector("input")!.click();
+    expect(JSON.parse(localStorage.getItem("osct-graphics")!)).toEqual({ onionSky: false, surroundings: false });
+    unsubscribe();
+    graphics.setSettings({ onionSky: true, surroundings: true });
+  });
+
   it("history (reset): says it reaches the account when signed in", () => {
     vi.spyOn(UserService.getInstance(), "getSnapshot").mockReturnValue({
       status: "signed-in", pending: null, sync: "synced", busy: false, notice: null,
-      user: { email: "a@b.c", language: "en", createdAt: "", options: { bookUpdates: true, artistUpdates: false, publisherUpdates: true } },
+      user: { email: "a@b.c", language: "en", createdAt: "", options: { bookUpdates: true, artistUpdates: false, publisherUpdates: true }, hasPassword: false },
     });
     expect(mount("settings-history").shadowRoot!.textContent).toContain("on this device and in your account");
   });

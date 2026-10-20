@@ -29,7 +29,6 @@ const initialState: GameState = {
   currentError: null,
   trackedTargets: [],
   currentSpread: null,
-  spreads: {}, 
   progress: createProgressRecord(getBook().id), // replaced by the stored record in HistoryManager.load()
   loading: LoadingState.LOADING,
   arStatus: "idle",

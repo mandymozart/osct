@@ -84,6 +84,13 @@ export class ImageTracker implements IImageTracker {
     return this.targets.size > 0;
   }
 
+  /** The engine plays the stream in a hidden video next to its canvas */
+  get cameraVideo(): HTMLVideoElement | null {
+    if (!this.started) return null;
+    const videos = Array.from(this.container.querySelectorAll("video"));
+    return videos.find(video => video.srcObject instanceof MediaStream) ?? null;
+  }
+
   async startCamera(): Promise<void> {
     if (this.started) return;
     const XR8 = await loadXr8();

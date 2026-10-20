@@ -4,6 +4,63 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-02 – Content editor: not built (Tilman)
+
+- Researched a standalone, reusable content + 3D scene editor (`agents/research/content-editor.md`). Tilman: "we will
+  be fine with just tweaking and using the agent" – **abandoned for now**; content changes go through Claude Code.
+- [x] Built in 1.5.1 (branch `tune-panel`, 2026-10-03): on-phone tune panel in the debug bar (placement sliders on the found target, "Copy YAML" with
+  the file path) pasted into a Claude session – avoids the USB tunnel for tuning on staging.
+  Tilman (2026-10-03): **every** adjustable parameter (placement, all filter parameters), slider **plus a number
+  field** for exact values; rows labelled with the three.js names (`position.x`, `rotation.y`, `scale.z`); the panel
+  opens with the values currently in the content. Copy = only values that differ from the defaults.
+  Built: `dev-tools/tune-panel.ts` + `tune-values.ts` (rows from `PLACEMENT_PARAMS` – new in shared placement – and
+  `FILTERS`), `TUNE_ENTITY_EVENT` → `<ar-bridge>` → `IArScene.tuneEntity` (placement in place, chroma key uniforms in
+  place, otherwise the entity is rebuilt; tuned values survive spread switches until "Back to content"). Typed
+  placement values may leave the slider range (content accepts any finite number), filter values may not.
+  `keyMode` moved to `shared/types/filters.ts` (the panel must not import three.js). Look-around section later.
+
+## 2026-09-28 – Look-around world / world tracking research (Tilman)
+
+- Idea (Tilman): a reader who turns the phone from the book (e.g. to the sky) ends up inside an **alien coffee
+  shop** – like 8th Wall's `aframe-sky-effects-example`. Question: can image tracking and world tracking be combined?
+- The shipped engine `@8thwall/engine` (MIT) has **image targets only**: no SLAM, no sky segmentation
+  (`LayersController` does not occur in the package); `ar/tracker.ts` runs with `disableWorldTracking: true`.
+- SLAM + image targets + Sky Effects together exist only in 8th Wall's **engine binary** (github.com/8thwall/engine,
+  limited-use licence): no products offered for a fee whose value comes substantially from the software, no
+  changes to it, credit to Niantic Spatial, either side may end it with 5 days' notice (then the binary must be
+  removed). Too risky for a book sold for years → **not used**.
+- A sky or a room around the reader is far away: rotation (gyroscope, 3DoF) is enough to feel inside it, on iOS
+  and Android, with the current engine. Walking around inside it (6DoF) is not possible this way.
+- **Decided:** 3DoF look-around, part of **Phase 10 (later, concept first)** – nothing built now, Phase 14 stays the
+  focus. Work on branch `spatialisation`.
+- Other engines compared (same day): Blippar WebAR SDK (image tracking on top of its SLAM – the one web option with
+  both at once, paid), Zappar (switches image ↔ world), WebXR + App Clip (Variant Launch; WebXR takes the camera
+  from the tracker), AlvaAR (SLAM in WASM, GPL-3.0 – would make the app GPL), native app. Onirix closes 09/2026.
+- **Then built (Tilman: "do 1 and 3 together", sandbox branch, no permission questions)** – 1.5.0 on
+  `spatialisation`: level 1 = café anchored to the book's direction (from the page anchors × device orientation),
+  turned by the gyroscope, re-anchored on each find; level 3 = own sky key on the engine's camera video (the engine
+  plays the stream in a hidden `<video>` next to its canvas – `ImageTracker.cameraVideo`). Rendered into its own
+  target and composed under the AR scene (`ArView.underlay`) – same renderer, a second three.js `Scene` (RULES #4
+  amended). Checked on the desktop with a synthetic camera; not yet on a phone.
+- S22 test with Tilman (same day): works; the café floor covered the book → window widened, the world clears below
+  40° down. Then Tilman: "make it less resource intense, super basic – we add the scene in the content phase with
+  Kévin": the 3D café (own scene + render target) was dropped; the world is now a placeholder colour computed per
+  pixel in the one composite pass (no scene, no render target – RULES #4 amendment reverted). Sky key 5 taps.
+- Tilman: both effects are **reader options** like sound – Info → Settings, "Onion sky" and "Scene around the
+  book" (`GraphicsService`, localStorage `osct-graphics`, default on) – so phones can save the power for the page
+  scenes. The `localStorage["osct-look-around"]` switch is gone.
+- Then (Tilman, phone test): "add a few things to the café, objects here and there" and "the slow part is the sky,
+  it is a video filter" → objects as analytic shapes in the same pass (orbs, table discs, cubes, planet, grid floor);
+  the sky test reads a 160 px canvas copy of the camera, drawn every other frame (was a full VideoTexture upload per
+  frame). Façade fix: grey sky must not be warmer than neutral. S22 (dev server): ~27 fps with both on; the
+  on/off measurements were too noisy to show the effects' own cost.
+- Tilman, end of the session: both effects **off by default** for now; refactor + short docs; parked until the
+  content discussion with Kévin (PLAN Phase 10 has the questions). Code split into `book-anchor.ts`, `sky-sample.ts`,
+  `shader.ts` (placeholder world in its own GLSL block), `look-around.ts`; the gyroscope is read only while an option is
+  on; `ArView.underlay` is an object with `active` (no clear when inactive).
+- [ ] Open: the world is a placeholder in the shader (`PLACEHOLDER_WORLD` in `look-around/shader.ts`) – the real one comes as
+  content in Phase 14 (RULES #5).
+
 ## 2026-09-28 – Content build output not in git (Tilman; branch `build-content-in-ci`)
 
 - `client/src/game.config.json` and `client/public/assets/content/` are ignored and untracked. `npm run build`
@@ -17,7 +74,7 @@ outcome in the line (or move it into a dated decision block).
   (dev server and vitest), instead of a bare ENOENT. The broken `build:config` script is gone.
 - The config's `timestamp` is now the build time of each deploy; the content cache key stays the content
   hash (`version.hash`), so a deploy without content changes keeps the phones' content cache.
-- Version: bump when it lands on `develop` (RULES #23 – another agent works on `develop` meanwhile).
+- Landed on `develop` 2026-10-20 as **1.5.2** (Tilman: "merge"), after merging 1.4.0–1.5.1 into the branch.
 
 ## 2026-09-28 – 1.3.2: MindAR leftovers cleaned up (Tilman)
 
@@ -29,6 +86,34 @@ outcome in the line (or move it into a dated decision block).
   folder still existed) – removed from git, `.mindar/` ignored again (other machines may still have it).
 - [x] Tilman asked why the generated content is committed: the deploys only built `client/`. Decided
   (Tilman: yes) → the output is no longer in git (branch `build-content-in-ci`, entry above).
+
+## 2026-09-28 – 1.4.0: optional password, one sign-in form (Tilman)
+
+- Why: "Register" and "Login" were the same step (the email creates or signs in), but "Register account" made
+  returning readers think the form was not for them. Now "Send sign-in link" + a line for readers already
+  registered on another device.
+- Tilman: fields must work with password managers; add an **optional password** – the sign-in link stays first
+  and required for the first sign-in (it confirms the address), then the reader may set a password or keep using
+  the link. Password configured on the server and hashed properly.
+- Decisions: bcrypt via `password_hash()` (cost 12, portable across shared hosts – Argon2 is not everywhere),
+  max 72 bytes refused rather than cut; same 401 for unknown address / no password / wrong password; 10 failed
+  sign-ins per address and 30 per IP per hour. Changing needs the current password unless the device signed in
+  by email in the last 15 minutes ("forgot password" = sign in with the link, set a new one). No "password
+  changed" email yet.
+- Schema changes are now additive `ALTER TABLE … ADD COLUMN` at the end of the schema files; `Db::migrate`
+  skips a column that exists (MySQL 5.7 has no `ADD COLUMN IF NOT EXISTS`).
+- Password managers: the account section is in shadow DOM; fields carry `autocomplete` + names, the set-password
+  form has the email as a hidden `username`. Chromium also gets `navigator.credentials.store()` (explicit save
+  prompt). Not yet checked on iOS (keychain + shadow DOM).
+- Tilman: "Sign in with password" is **not a button** – a text link on the same line as the "Send sign-in
+  link" button (new primitive `.text-link`, RULES #18). Fields take the full width so button + link share a line;
+  link texts kept short so they fit at 375 px in en/fr/nl/de (fr "Recevoir un lien" / "Avec un mot de passe",
+  de "Mit Passwort" / "Mit Link").
+- 1.4.1 (Tilman): **no "Remove password"** – once set, a password can only be changed (button, service method,
+  `DELETE /user/password` removed).
+- 1.4.2 (Tilman): debug top line `◉ spread1 T4 F[…]` – no "S" (the dot's color says it), no A (assets on the
+  spread) / U (unlocked targets) / K (consulted entries): unclear letters; U and K are in the progress panel.
+- [ ] "Password changed" notification email (mail texts en/fr/nl/de) – not built.
 
 ## 2026-09-28 – 1.3.0: 8th Wall only, MindAR removed (Tilman: "move to 8th Wall entirely")
 
@@ -523,8 +608,10 @@ outcome in the line (or move it into a dated decision block).
   `adb forward tcp:9444 localabstract:chrome_devtools_remote`, then CDP on the Chrome tab (evaluate,
   console, screenshots incl. WebGL). Headless Edge screenshots don't capture the WebGL canvas.
 - The debug bar shows tracked targets and how often each was found (`F[stone-guardian×3]`).
-- [ ] Open: `SpreadManager.markLoading/markLoaded` are never called – the spread dot in the debug bar is
-  always orange. Remove the spread status or wire it to the AR scene?
+- [x] Open: `SpreadManager.markLoading/markLoaded` are never called – the spread dot in the debug bar is
+  always orange. Remove the spread status or wire it to the AR scene? → Removed in 1.4.1 (Tilman 2026-09-28:
+  "status initial never changes, redundant"): `GameState.spreads`, `SpreadState`, the mark*/register/isLoaded/
+  getLoadingStatus methods, the "C" dot and "Status" line in the debug overlay. `SpreadManager` keeps the current spread.
 
 ## 2026-09-26 – Onboarding flow and look (Tilman, mobile test)
 

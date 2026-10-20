@@ -176,6 +176,15 @@ half the image's width; videos and images lie flat on the image, as wide as it.
 
 Each value you leave out keeps its default, so `rotation` alone is enough to turn a model.
 
+**Tuning placement and filters on the phone:** on staging (or the dev server) open the debug line at the top →
+**tune**. The panel lists the spread's targets with AR content (◉ = in view now; the last found one is selected) and
+has a slider and a number field for every placement value and every filter parameter – the names are three.js's
+(`position.x`, `rotation.y`, `scale`; rotation in degrees). Type an exact value and press Enter (a comma works
+too); a value out of range turns red. ↺ sets a value back to its default, ● marks values changed from the content.
+Changes show on the page at once but are **not saved**: "Copy YAML" copies the block to paste into `entry.yaml`
+(or the shared `entity.yaml` – the first line names the file), e.g. into a Claude session on the same phone.
+"Back to content" drops the changes. Tuned values stay until the app is reloaded.
+
 **Unlock and consult:** finding a target for the first time unlocks its entry – "New entry unlocked"
 appears, AR content (model, video, image) pops, turns once and sparkles on the page. Tapping the found
 image or the AR content opens the entry – from then on it counts as consulted.

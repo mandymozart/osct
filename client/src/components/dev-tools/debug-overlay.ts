@@ -1,6 +1,6 @@
-import { IGame, LoadingState, Target } from "@/types";
+import { IGame, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { getAssets, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
+import { getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
 import { cyclePreparedSpreadRange, getPreparedSpreadRange } from "@/components/ar-bridges";
 
@@ -13,8 +13,8 @@ const formatTime = (time: number) => new Date(time).toLocaleString();
 
 /**
  * Development overlay: a one-line status summary (AR, spread, targets, assets, progress, found counts)
- * that expands on tap into spread, target and progress details. Sets `--debug-offset` so app chrome
- * moves below the collapsed line.
+ * that expands on tap into spread, target and progress details, and opens the tune panel (`<tune-panel>`).
+ * Sets `--debug-offset` so app chrome moves below the collapsed line.
  */
 export class DebugOverlay extends HTMLElement {
   private shadow: ShadowRoot;
@@ -56,7 +56,6 @@ export class DebugOverlay extends HTMLElement {
   private setupListeners() {
     this.subscriptionCleanups.push(
       this.game.subscribeToProperty('currentSpread', () => this.updateContent()),
-      this.game.subscribeToProperty('spreads', () => this.updateContent()),
       this.game.subscribeToProperty('cameraPermission', () => this.updateContent()),
       this.game.subscribeToProperty('progress', () => this.updateContent()),
       this.game.subscribeToProperty('arStatus', () => this.updateContent()),
@@ -83,6 +82,15 @@ export class DebugOverlay extends HTMLElement {
     }
     if (control?.dataset.action === "reset-progress") {
       if (confirm("Reset the progress of this book?")) this.game.history.reset();
+      return;
+    }
+    if (control?.dataset.action === "tune") {
+      // The tune panel sits at the bottom; the overlay collapses so the scene stays in view
+      const panel = document.querySelector("tune-panel");
+      if (panel) panel.remove();
+      else document.body.appendChild(document.createElement("tune-panel"));
+      this.expanded = false;
+      this.updateContent();
       return;
     }
     if (control?.dataset.action === "cycle-prepared") {
@@ -178,7 +186,7 @@ export class DebugOverlay extends HTMLElement {
     const { currentSpread } = this.game.state;
     let html = `<div class="tabs">${(["spread", "progress"] as DebugTab[])
       .map(tab => `<button data-tab="${tab}" class="${tab === this.tab ? "active" : ""}">${tab}</button>`)
-      .join("")}</div>`;
+      .join("")}<button data-action="tune">tune</button></div>`;
 
     if (this.expanded && this.tab === "progress") {
       contentEl.innerHTML = html + this.renderProgress();
@@ -232,16 +240,11 @@ export class DebugOverlay extends HTMLElement {
     const arStatus = this.game.state.arStatus;
     const sceneStatus = getStatusDot(arStatus === "running", arStatus === "error");
 
-    const spreadStatus = getStatusDot(this.game.state.spreads[id].status === LoadingState.LOADED, false);
-
     // Tracked targets with how often each was found
     const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
 
-    // Progress across the whole book: unlocked targets / consulted entries
-    const { unlocked, consulted } = this.game.state.progress;
-
     return `
-      <div>S${sceneStatus} C${spreadStatus}[${spread?.id}] T${getTargets(spread?.id || '').length} A${getAssets(spread?.id || '').length} U${Object.keys(unlocked).length} K${Object.keys(consulted).length} F[${found}]</div>
+      <div>${sceneStatus} ${spread?.id} T${getTargets(spread?.id || '').length} F[${found}]</div>
     `;
   }
 
@@ -293,7 +296,6 @@ export class DebugOverlay extends HTMLElement {
     let html = `
       <div class="section">
         <div>Spread: ${spread.id || "unknown"}</div>
-        <div>Status: ${this.getStatusLabel(this.game.state.spreads[spreadId])}</div>
         <qr-generator></qr-generator>
       </div>
     `;
@@ -345,22 +347,6 @@ export class DebugOverlay extends HTMLElement {
     const status = this.game.state.arStatus;
     const css = status === "running" ? "loaded" : status === "error" ? "error" : "loading";
     return `<span class="${css}">${status}</span>`;
-  }
-
-  private getStatusLabel(state: { status: LoadingState; error?: Error }): string {
-    switch (state.status) {
-      case LoadingState.INITIAL:
-        return '<span class="loading">Initial</span>';
-      case LoadingState.LOADING:
-        return '<span class="loading">Loading</span>';
-      case LoadingState.LOADED:
-        return '<span class="loaded">Loaded</span>';
-      case LoadingState.ERROR:
-        const errorMsg = state.error ? state.error.message || 'Error' : 'Error';
-        return `<span class="error">Error: ${errorMsg}</span>`;
-      default:
-        return '<span class="info">Unknown</span>';
-    }
   }
 }
 

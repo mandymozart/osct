@@ -1,6 +1,7 @@
 /**
- * Reader accounts: passwordless email sign-in (link or 6-digit code) against the PHP API in `server/`.
- * An account holds the email, the update options and the progress record.
+ * Reader accounts against the PHP API in `server/`: sign-in by email (link or 6-digit code) – always the first
+ * sign-in, it confirms the address – and afterwards optionally with a password the reader sets. An account holds
+ * the email, the update options, the optional password (hashed on the server) and the progress record.
  */
 
 /**
@@ -23,6 +24,8 @@ export interface UserData {
   email: string;
   language: string;
   options: UserOptions;
+  /** A password is set: the reader can also sign in with email + password */
+  hasPassword: boolean;
   createdAt: string;
 }
 
@@ -42,8 +45,8 @@ export type UserStatus = "signed-out" | "pending" | "signed-in";
  */
 export type ProgressSyncStatus = "off" | "syncing" | "synced" | "pending";
 
-/** Something the account section tells the reader once (after a link, sign-out, deletion) */
-export type UserNotice = "confirmed" | "signed-out" | "deleted" | { error: string };
+/** Something the account section tells the reader once (after a link or password sign-in, sign-out, deletion, a password change) */
+export type UserNotice = "confirmed" | "signed-in" | "signed-out" | "deleted" | "password-saved" | { error: string };
 
 export interface UserSnapshot {
   status: UserStatus;
@@ -66,6 +69,12 @@ export interface IUserService {
   requestLogin(email: string, options: UserOptions): Promise<boolean>;
   /** Confirm with the code from the email */
   confirmCode(code: string): Promise<boolean>;
+  /** Sign in with email + password (users who set one) */
+  signInWithPassword(email: string, password: string): Promise<boolean>;
+  /** Set or change the password; `currentPassword` when `passwordNeedsCurrent()` */
+  setPassword(password: string, currentPassword?: string): Promise<boolean>;
+  /** Changing the password asks for the current one (server/api/src/Passwords.php) */
+  passwordNeedsCurrent(): boolean;
   /** Back to the email form */
   cancelPending(): void;
   setOption(option: UserOption, on: boolean): Promise<void>;

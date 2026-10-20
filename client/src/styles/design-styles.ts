@@ -13,6 +13,7 @@
  *   .switch         on/off switch (checkbox role="switch"), knob gold when on;
  *                   .switch-row is the surrounding label row (text left, switch right)
  *   .field          text input: glass pill with a muted rule, gold focus border
+ *   .text-link      secondary action as underlined muted text (a native <button>), e.g. next to a pill
  *   .primary        modifier for .button / .pill: animated label shine and border sweep; absent = secondary
  *   .rule-table     meta table with 1 px rules, muted labels, white values
  *   .section-title  muted title between two rules
@@ -100,6 +101,21 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
   .field::placeholder { color: var(--color-muted); }
   .field:focus-visible { outline: none; border-color: var(--color-accent); }
   .field:disabled { opacity: .6; }
+
+  .text-link {
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    letter-spacing: inherit;
+    color: var(--color-muted);
+    text-decoration: underline;
+    text-underline-offset: .2em;
+    cursor: pointer;
+  }
+  .text-link:hover { color: var(--color-on-dark); }
+  .text-link:focus-visible { outline: .125rem solid var(--color-accent); outline-offset: .125rem; }
+  .text-link:disabled { opacity: .6; cursor: wait; }
 
   .switch-row {
     display: flex;
