@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-27 – Sessions start with their issue; deploys move issues on the board (Tilman, 1.7.1, #11)
+
+- Tilman: "every session should start with their respective issue number. look for an issue first, if one exists, and
+  if not create one an analyse what stage it will enter the board." → RULES.md "Every session starts with its issue"
+  (lanes for a new issue: In progress / Backlog / Proposals), pointer at the top of CLAUDE.md; the OSCT sessions of the
+  day were told by message.
+- #11 (Tilman said "start issue #11" = wanted): `board-status.yml` runs on `workflow_run` of the three deploy
+  workflows, so the deploy files stay untouched. Agent decisions: `Refs #N` moves nothing (a step, not finished);
+  only forward (Deployed / Done stay); a Kamal run with a skipped Deploy step does not count; the built-in board
+  workflow "Item closed → Done" from the proposal stays off – it would skip Deployed. Dry-run against real runs.
+- [ ] Open (Tilman): repo secret `PROJECT_TOKEN` (classic PAT, scope `project`); runs only once on `main`.
+
 ## 2026-10-27 – Preload flow analysis, engine view and load test (Tilman, 1.7.0)
 
 - Tilman's idea: once a spread is found, preload the spreads around it in the background and switch to them, until
@@ -150,7 +162,7 @@ outcome in the line (or move it into a dated decision block).
   "Deployment".
 - [ ] Open: first `kamal setup -d staging` / `-d production` once the server exists; DNS of both domains; move the
   staging users database from all-inkl; shut down Netlify + all-inkl (issues on the board).
-- [ ] Open (proposal issue): deploys move issues on the board like SCUTOONS / Nadeos.
+- [x] Deploys move issues on the board like SCUTOONS / Nadeos – built in 1.7.1 (#11, entry above).
 
 ## 2026-10-02 – Content editor: not built (Tilman)
 
