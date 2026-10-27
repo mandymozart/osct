@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.7.1 – 2026-10-27
+
+### Added
+- **Deploys move issues on the board** (#11): after a successful deploy, `board-status.yml` sets every `Fixes #N` in the
+  deployed commits to *Review on staging* (staging) or *Deployed* (production) on the board OSCT and comments the
+  version – only forward, `Refs #N` moves nothing. Needs the repo secret `PROJECT_TOKEN` and runs once it is on `main`
+  ([deploy](deploy.md) "Board").
+- **Every session starts with its issue** (`agents/RULES.md`, `CLAUDE.md`): find or create the issue, pick its lane,
+  start the session title with `#N`.
+
 ## 1.7.0 – 2026-10-27
 
 ### Added

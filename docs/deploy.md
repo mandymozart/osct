@@ -164,3 +164,18 @@ the migration on the next start adds whatever columns the dump lacks.
 
 Releases: GitHub releases are optional now (notes only – nothing deploys from them); the version on `main` is tagged
 by `tag-version.yml` as before.
+
+## Board
+
+After each successful deploy, `board-status.yml` (`.github/scripts/board-status.js`) moves the issues it shipped on
+the board **OSCT** (#11): every `Fixes #N` in the deployed commits goes to **Review on staging** (staging deploy, Kamal
+or the temporary FTPS upload) or **Deployed** (production), with a comment naming the version and the deploy run.
+
+- Deployed commits = since the previous successful run of the same deploy workflow on that branch. A Kamal run that
+  skipped its Deploy step (no `SSH_HOST`) does not count.
+- Only forward: an issue that is already Deployed or Done stays. `Refs #N` (a step) moves nothing. Done is Tilman's.
+- **Repo secret `PROJECT_TOKEN`** (Settings → Secrets → Actions): a classic personal access token with the scope
+  `project` – the workflow token cannot write to a user-owned project. Without it the run notes that and stays green.
+- GitHub starts `workflow_run` workflows only from the default branch: it runs once `board-status.yml` is on `main`.
+- The board's built-in workflow "Item closed" stays **off** (or set to Deployed): a `Fixes #N` merged into `main` closes
+  the issue at once, and "→ Done" would skip Deployed.
