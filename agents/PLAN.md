@@ -844,12 +844,14 @@ Installable app (home screen, standalone, splash) + offline start. Details: MEMO
   (headless). The service worker stores it (content cache); Info shows "on this device" afterwards.
 - [ ] Test on the phones how long the whole download takes with real content; then decide whether it
   should also start by itself (e.g. after install, on Wi-Fi) – Tilman.
-- [ ] **Production host (FTP, not Netlify) – when production is set up** (Tilman 2026-09-27: note it,
-  handle it then): `public/_headers` does not apply there. Needed: `.webmanifest` served as
+- [x] **Production host – when production is set up** (Tilman 2026-09-27: note it, handle it then). Done 2026-10-27 with
+  the Docker image: `server/docker/apache.conf` sets the types and cache headers, `.htaccess` the SPA fallback,
+  kamal-proxy https (docs/deploy.md). Was: `public/_headers` does not apply there. Needed: `.webmanifest` served as
   `application/manifest+json`; `service-worker.js` + `manifest.webmanifest` with `Cache-Control: no-cache`;
   `assets/app/*` cached immutable; SPA fallback to `index.html` (`_redirects`); https. E.g. an `.htaccess`
   on Apache.
-  - [ ] **Check the gzip copies again** (Tilman 2026-09-28). Decided: the content build keeps writing
+  - [x] **Check the gzip copies again** (Tilman 2026-09-28). 2026-10-27, the image: `.gz` files are served as
+    `application/x-gzip` without `Content-Encoding` (like Netlify – the app unpacks), `mod_deflate` compresses text only. Decided: the content build keeps writing
     `.mind.gz` / `.glb.gz` – it does all media optimisation, whatever the host. On the production server
     check: does it compress `.mind` / `.glb` itself (`mod_deflate`)? Does it send `.gz` files with or
     without `Content-Encoding: gzip`? (`utils/compressed.ts` handles both.) Keep the originals: fallback for
@@ -907,18 +909,21 @@ Sign-in by email: link + 6-digit code; PHP API + MySQL in `server/` (docs/server
 - [x] Sounds / vibration as `<gold-switch>` too.
 - [x] Info page groups: Info · Account (+ Reset progress) · Settings · colophon; Tutorial section removed (Tilman).
 - [x] Staging server osct.porschuetz.de (app + API): `.github/workflows/deploy-staging.yml` (GitHub environment `staging`).
-- [ ] Production: the client's server (final hosting) – own workflow + GitHub environment `production`; the Netlify
-      sites are dropped then.
+- [~] Production: the client's server (final hosting) – own workflow + GitHub environment `production`; the Netlify
+      sites are dropped then. 2026-10-27: Kamal (`deploy-production.yml`, osct.buildingfictions.com, docs/deploy.md);
+      open: server access + credentials (GitHub issues, milestone Release Japan). Netlify removed from the workflows.
 - [x] Naming: **user** in code / API / database, "Account" in the UI (Tilman).
 - [x] GitHub environment `staging` set, API deployed to osct.porschuetz.de from `develop`.
-- [ ] Test on a phone (link on the iOS home-screen app → code); Netlify staging needs `VITE_API_URL`.
-- [ ] SMTP account for production; final mail + UI texts; privacy note for the update options.
+- [ ] Test on a phone (link on the iOS home-screen app → code).
+- [~] SMTP account for production = **Amazon SES eu-west-1** (asgerb, 2026-10-27; docs/deploy.md "Mail"): deploy defaults to the
+      SES endpoint, `mail-test.php` in the image, `ses-smtp-password.php`; open: SES SMTP credentials from asgerb / Building Fictions
+      into the GitHub environments, sandbox check (GitHub issue, milestone Release Japan). Final mail + UI texts; privacy note for the update options.
 - [x] Optional password (1.4.0, Tilman 2026-09-28): first sign-in by email, then set / change a password (no removal – 1.4.1);
       sign-in with email + password; bcrypt hashes; fields for password managers. Wording: one form for new and
       returning readers ("Send sign-in link").
 - [ ] Phone test of the password flow (Chrome on the S22: save prompt; iOS: keychain in the home-screen app).
 - [ ] Sending the updates (newsletter) – not built; the options are only stored.
-- [ ] Netlify staging: `VITE_API_URL` to the dev API (needs its origin in ALLOWED_ORIGINS – already there).
+- [x] ~~Netlify staging: `VITE_API_URL` to the dev API~~ – obsolete, Netlify dropped 2026-10-27 (the API is in the same image).
 
 ### Review 2026-09-27 (Tilman, phone test of staging + production)  `[x]`
 - [x] Mark: the visible Mark exactly 1rem from the top on every page – the header pulls it up by the image's
@@ -997,7 +1002,22 @@ Research and phone results: `research/webworker-tracking.md`, `MEMORY.md` 2026-0
 - [x] Cleanup (1.3.2): targets keyed by id – `index` (MindAR's target number) and the target `order` removed
       from content, schema, shared types, build and client; the `.mindar/` files committed by mistake removed.
 - [ ] iPhone Safari → Phase 14 (Tilman: tested with the content, in Amsterdam).
-- [ ] Measure all targets loaded vs ±1 (time to first find, frame rate) – the default stays ±1.
+- [x] Debug overlay shows what the engine holds (current spread ◉, held spreads with target counts, ready /
+      extracting, preparing; `E<ready>/<held>` in the summary) – 1.7.0.
+- [x] Engine load test (debug overlay → *load*, `ar/load-test.ts`, `docs/tracking.md`), in the running app: the
+      window gets a target budget of 0, 5, 10, 20, 40, 80, all other targets (nearest first), pages switch, content
+      preload follows; prepare / extract time, engine and page fps, stutter, found share, lost, re-find after a lens
+      cover; Markdown report – 1.7.0.
+- [x] Window nearest first; content preload follows the tracker's window (was always ±1) – 1.7.0.
+- [ ] Progressive preload towards the whole book (Tilman): targets → content → higher resolutions (issue #13), cached
+      (service worker, browser, Bunny CDN) – after the load test numbers.
+- [~] Measure all targets loaded vs ±1 (time to first find, frame rate) – the default stays ±1. Tool is there; run it
+      on the S22 (and iPhone, slowest target phone) with the trial printout, small and large target pages.
+- [x] Preload flow decided from the first load test (Tilman, 2026-10-27): **grow** – hold the current spread, add the
+      nearest spreads in idle time (3 targets per batch) until the whole book is held; default since 1.7.0, fixed
+      windows stay selectable.
+- [ ] Still open from `docs/tracking.md` "Options": one configure per switch, image targets at build time, Tilman's
+      regrouping of spreads, a budget/eviction only if a slower phone needs it.
 - [ ] Build-time image targets (grey 480×640 per target in the content build) instead of making them on the
       device (~150–260 ms per image on the S22) – if first-scan time matters.
 
@@ -1008,9 +1028,19 @@ The final content goes in and the app is tuned on it, on the devices readers wil
       orientation, tracking quality, automatic spread switch.
 - [ ] Final target images: ≥ 1000 px, textured, cropped as printed; very small printed images (e.g. the
       layout PDF's thumbnails) are found late or flicker – decide per page with the artist.
-- [ ] Replace the demo spreads 4–14 (`demo-p*` entries, from the layout PDF) with the real content.
+- [x] Replace the demo spreads 4–14 (`demo-p*` entries, from the layout PDF) with the real content – done 2026-10-27
+      with the **trial delivery 2110** (1.6.0): `content/` holds the delivered content (138 entries, 131 targets, 87
+      spreads), the placeholder content moved to `content-demo/`. Import through `scripts/import/2110.yaml` +
+      `npm run import` (docs/content.md "Importing a delivery"); MEMORY 2026-10-27 "Trial content".
+- [ ] **Trigger trial** (Tilman, printout of `All_Triggers.pdf` from a print shop): go through the protocol
+      (debug overlay → trial, Markdown report) on the S22 and an iPhone; the report to the designers and into the issue; then decide
+      per failing trigger with Kévin (bigger print, other crop, other image).
+- [ ] Texts, titles, link URLs for every entry (all placeholders now); which image triggers the videos on pages
+      99, 103, 106, 116, 127, 130, 132, 146, 148, 191, 218, 255 (see the notes in `import/2110.yaml`).
 - [ ] Spreads kept loaded (±1 now): measure all vs ±1 with the real target count, then decide the default.
-- [ ] Videos of the final content: 720p H.264 ~2 Mbit/s (Phase 9).
+- [x] Videos of the final content: 720p H.264 ~2 Mbit/s (Phase 9) – the delivery import re-encodes them (ffmpeg, long
+      side ≤ 1280 px, crf 23, maxrate 2 Mbit/s, AAC 96 kbit/s); the 16 documentation videos of 2110 went from 860 MB
+      to the sizes in `content/entries/*/video.mp4`.
 - [x] Tune panel for the content session (1.5.1, 2026-10-03 – Tilman): debug overlay → tune; every placement value
       and filter parameter as slider + number field (three.js names), live on the page, "Copy YAML" (only non-defaults,
       with the file path) to paste into the content / a Claude session – no USB tunnel needed on staging.

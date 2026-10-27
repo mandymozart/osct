@@ -1,0 +1,773 @@
+{
+ "p002-1": {
+  "source": "P2_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p004-1": {
+  "source": "OSCT_Ref_Cheaptricks.png",
+  "width": 31,
+  "height": 23,
+  "position": "top left"
+ },
+ "p004-2": {
+  "source": "P4_Print_01.jpg",
+  "width": 49,
+  "height": 18,
+  "position": "bottom right"
+ },
+ "p008-1": {
+  "source": "P8_Print_01.jpg",
+  "width": 31,
+  "height": 23,
+  "position": "middle left"
+ },
+ "p009-1": {
+  "source": "OSCT_Ref_BodyTalk.png",
+  "width": 37,
+  "height": 21,
+  "position": "bottom right"
+ },
+ "p011-1": {
+  "source": "OSCT_Ref_Dino.jpg",
+  "width": 34,
+  "height": 22,
+  "position": "bottom left"
+ },
+ "p013-1": {
+  "source": "OSCT_Ref_Annecyanimation.png",
+  "width": 39,
+  "height": 22,
+  "position": "top centre"
+ },
+ "p013-2": {
+  "source": "P13_Print_01.jpg",
+  "width": 27,
+  "height": 30,
+  "position": "bottom left"
+ },
+ "p014-1": {
+  "source": "P14_Print_01.jpg",
+  "width": 29,
+  "height": 40,
+  "position": "middle left"
+ },
+ "p015-1": {
+  "source": "P15_Print_01.jpg",
+  "width": 30,
+  "height": 42,
+  "position": "middle right"
+ },
+ "p017-1": {
+  "source": "P17_Print_01.jpg",
+  "width": 21,
+  "height": 30,
+  "position": "top left"
+ },
+ "p019-1": {
+  "source": "P19_Print_01.jpg",
+  "width": 28,
+  "height": 35,
+  "position": "top centre"
+ },
+ "p020-1": {
+  "source": "OSCT_Ref_Animationrules.png",
+  "width": 38,
+  "height": 29,
+  "position": "top centre"
+ },
+ "p020-2": {
+  "source": "P20_Print_01.jpg",
+  "width": 24,
+  "height": 36,
+  "position": "bottom centre"
+ },
+ "p022-1": {
+  "source": "P22_Print_01.jpg",
+  "width": 36,
+  "height": 51,
+  "position": "bottom centre"
+ },
+ "p026-1": {
+  "source": "P26_Print_01.jpg",
+  "width": 31,
+  "height": 40,
+  "position": "top right"
+ },
+ "p030-1": {
+  "source": "P30_Print_02.jpg",
+  "width": 23,
+  "height": 23,
+  "position": "bottom left"
+ },
+ "p030-2": {
+  "source": "P30_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p034-1": {
+  "source": "P34_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p035-1": {
+  "source": "P35_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p037-1": {
+  "source": "OSCT_Ref_12yearold.png",
+  "width": 32,
+  "height": 18,
+  "position": "top right"
+ },
+ "p038-1": {
+  "source": "P38_Print_01.jpg",
+  "width": 30,
+  "height": 42,
+  "position": "middle left"
+ },
+ "p038-2": {
+  "source": "OSCT_Ref_Gadsby.jpg",
+  "width": 31,
+  "height": 20,
+  "position": "bottom left"
+ },
+ "p039-1": {
+  "source": "P39_Print_01.jpg",
+  "width": 37,
+  "height": 20,
+  "position": "top right"
+ },
+ "p041-1": {
+  "source": "P41_Print_01.jpg",
+  "width": 26,
+  "height": 42,
+  "position": "bottom right"
+ },
+ "p042-1": {
+  "source": "OSCT_Ref_AINPC.png",
+  "width": 37,
+  "height": 22,
+  "position": "top left"
+ },
+ "p045-1": {
+  "source": "OSCT_Ref_Helldivers.jpg",
+  "width": 37,
+  "height": 24,
+  "position": "top left"
+ },
+ "p046-1": {
+  "source": "P46_Print_02.jpg",
+  "width": 47,
+  "height": 29,
+  "position": "middle left"
+ },
+ "p046-2": {
+  "source": "P46_Print_01.jpg",
+  "width": 28,
+  "height": 23,
+  "position": "bottom right"
+ },
+ "p050-1": {
+  "source": "OSCT_Ref_inzoi.jpg",
+  "width": 39,
+  "height": 25,
+  "position": "middle centre"
+ },
+ "p052-1": {
+  "source": "OSCT_Ref_Crash.png",
+  "width": 37,
+  "height": 21,
+  "position": "middle right"
+ },
+ "p052-2": {
+  "source": "P52_Print_01.jpg",
+  "width": 28,
+  "height": 42,
+  "position": "bottom centre"
+ },
+ "p058-1": {
+  "source": "P58_Print_01.jpg",
+  "width": 40,
+  "height": 23,
+  "position": "top centre"
+ },
+ "p058-2": {
+  "source": "OSCT_Ref_Leroy.jpg",
+  "width": 41,
+  "height": 24,
+  "position": "bottom centre"
+ },
+ "p061-1": {
+  "source": "OSCT_Ref_DeridaGhost.png",
+  "width": 37,
+  "height": 23,
+  "position": "bottom left"
+ },
+ "p062-1": {
+  "source": "P62_Print_01.jpg",
+  "width": 26,
+  "height": 20,
+  "position": "top right"
+ },
+ "p063-1": {
+  "source": "OSCT_Ref_DisneyCity.png",
+  "width": 35,
+  "height": 20,
+  "position": "bottom right",
+  "note": "match with the delivered file is uncertain (the printed crop differs) - check against the printout"
+ },
+ "p067-1": {
+  "source": "P67_Print_01.jpg",
+  "width": 26,
+  "height": 21,
+  "position": "bottom left"
+ },
+ "p068-1": {
+  "source": "OSCT_Ref_DisneyEYE.png",
+  "width": 42,
+  "height": 23,
+  "position": "bottom left"
+ },
+ "p074-1": {
+  "source": "OSCT_Ref_Civilization.png",
+  "width": 42,
+  "height": 24,
+  "position": "top right"
+ },
+ "p080-1": {
+  "source": "OSCT_Ref_DisneyMansion.png",
+  "width": 40,
+  "height": 26,
+  "position": "bottom right"
+ },
+ "p082-1": {
+  "source": "P82_Print_01.jpg",
+  "width": 21,
+  "height": 37,
+  "position": "bottom right"
+ },
+ "p083-1": {
+  "source": "P83_Print_01.jpg",
+  "width": 30,
+  "height": 37,
+  "position": "top left"
+ },
+ "p086-1": {
+  "source": "P86_Print_03.jpg",
+  "width": 39,
+  "height": 26,
+  "position": "top left"
+ },
+ "p086-2": {
+  "source": "OSCT_Ref_Midnight.jpg",
+  "width": 33,
+  "height": 22,
+  "position": "top centre"
+ },
+ "p086-3": {
+  "source": "P86_Print_01.jpg",
+  "width": 39,
+  "height": 36,
+  "position": "middle centre"
+ },
+ "p086-4": {
+  "source": "P86_Print_02.jpg",
+  "width": 39,
+  "height": 29,
+  "position": "bottom left"
+ },
+ "p094-1": {
+  "source": "P94_Print_01.jpg",
+  "width": 24,
+  "height": 40,
+  "position": "bottom right"
+ },
+ "p095-1": {
+  "source": "OSCT_Ref_Effaceurdebites.png",
+  "width": 20,
+  "height": 26,
+  "position": "bottom right"
+ },
+ "p095-2": {
+  "source": "P95_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p096-1": {
+  "source": "P96_Print_02.jpg",
+  "width": 23,
+  "height": 30,
+  "position": "top centre"
+ },
+ "p096-2": {
+  "source": "P96_Print_01.jpg",
+  "width": 25,
+  "height": 25,
+  "position": "bottom left"
+ },
+ "p100-1": {
+  "source": "P100_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p101-1": {
+  "source": "P101_Print_01.jpg",
+  "width": 36,
+  "height": 30,
+  "position": "bottom right"
+ },
+ "p102-1": {
+  "source": "P102_Print_01.jpg",
+  "width": 33,
+  "height": 26,
+  "position": "bottom centre"
+ },
+ "p103-1": {
+  "source": "OSCT_Ref_Fauxrire.png",
+  "width": 43,
+  "height": 24,
+  "position": "bottom centre",
+  "note": "the only trigger on the page is a link image; the documentation video is attached to it for the trial - confirm with Kevin which image on the page triggers the video"
+ },
+ "p105-1": {
+  "source": "P105_Print_01.jpg",
+  "width": 34,
+  "height": 28,
+  "position": "top centre"
+ },
+ "p106-1": {
+  "source": "P106_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p109-1": {
+  "source": "OSCT_Ref_Gameecosystem.png",
+  "width": 40,
+  "height": 22,
+  "position": "bottom right"
+ },
+ "p110-1": {
+  "source": "OSCT_Ref_Gameplay.png",
+  "width": 44,
+  "height": 25,
+  "position": "bottom left"
+ },
+ "p114-1": {
+  "source": "OSCT_Ref_JapaneseToys.png",
+  "width": 48,
+  "height": 26,
+  "position": "middle centre"
+ },
+ "p117-1": {
+  "source": "P117_Print_01.jpg",
+  "width": 31,
+  "height": 23,
+  "position": "top centre"
+ },
+ "p123-1": {
+  "source": "OSCT_Ref_Megapixel.png",
+  "width": 16,
+  "height": 20,
+  "position": "bottom left"
+ },
+ "p124-1": {
+  "source": "P124_Print_01.jpg",
+  "width": 20,
+  "height": 32,
+  "position": "top right"
+ },
+ "p125-1": {
+  "source": "OSCT_Ref_pegasus.png",
+  "width": 31,
+  "height": 22,
+  "position": "top right"
+ },
+ "p126-1": {
+  "source": "P126_Print_01.jpg",
+  "width": 28,
+  "height": 46,
+  "position": "bottom right"
+ },
+ "p129-1": {
+  "source": "P129_Print_01.jpg",
+  "width": 26,
+  "height": 26,
+  "position": "middle left"
+ },
+ "p130-1": {
+  "source": "P130_Print_01.jpg",
+  "width": 32,
+  "height": 21,
+  "position": "bottom centre"
+ },
+ "p131-1": {
+  "source": "P131_Print_02.jpg",
+  "width": 29,
+  "height": 29,
+  "position": "bottom left"
+ },
+ "p132-1": {
+  "source": "OSCT_Ref_NextSecond.jpg",
+  "width": 42,
+  "height": 28,
+  "position": "bottom left",
+  "note": "the only trigger on the page is a link image; the documentation video is attached to it for the trial - confirm with Kevin which image on the page triggers the video"
+ },
+ "p132-2": {
+  "source": "P132_Print_01.jpg",
+  "width": 27,
+  "height": 38,
+  "position": "bottom right"
+ },
+ "p145-1": {
+  "source": "P145_Print_02.jpg",
+  "width": 28,
+  "height": 28,
+  "position": "middle left"
+ },
+ "p145-2": {
+  "source": "P145_Print_01.jpg",
+  "width": 35,
+  "height": 34,
+  "position": "bottom centre"
+ },
+ "p148-1": {
+  "source": "OSCT_Ref_PS1.png",
+  "width": 49,
+  "height": 28,
+  "position": "bottom right",
+  "note": "the only trigger on the page is a link image; the documentation video is attached to it for the trial - confirm with Kevin which image on the page triggers the video"
+ },
+ "p150-1": {
+  "source": "P150_Print_01.jpg",
+  "width": 19,
+  "height": 36,
+  "position": "bottom centre"
+ },
+ "p152-1": {
+  "source": "P152_Print_01.jpg",
+  "width": 44,
+  "height": 25,
+  "position": "bottom centre"
+ },
+ "p153-1": {
+  "source": "OSCT_Ref_Painted.jpg",
+  "width": 33,
+  "height": 21,
+  "position": "middle left"
+ },
+ "p153-2": {
+  "source": "P153_Print_01.jpg",
+  "width": 30,
+  "height": 38,
+  "position": "bottom centre"
+ },
+ "p158-1": {
+  "source": "P158_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p159-1": {
+  "source": "OSCT_Ref_Quaddel.png",
+  "width": 40,
+  "height": 26,
+  "position": "bottom right"
+ },
+ "p160-1": {
+  "source": "P160_Print_01.jpg",
+  "width": 27,
+  "height": 36,
+  "position": "bottom left"
+ },
+ "p162-1": {
+  "source": "P162_Print_01.jpg",
+  "width": 25,
+  "height": 25,
+  "position": "top left"
+ },
+ "p163-1": {
+  "source": "P163_Print_01.jpg",
+  "width": 35,
+  "height": 24,
+  "position": "bottom left"
+ },
+ "p164-1": {
+  "source": "P164_Print_01.jpg",
+  "width": 26,
+  "height": 40,
+  "position": "top right"
+ },
+ "p164-2": {
+  "source": "OSCT_Ref_Permacomputing.jpg",
+  "width": 43,
+  "height": 28,
+  "position": "bottom left"
+ },
+ "p166-1": {
+  "source": "P166_Print_01.jpg",
+  "width": 37,
+  "height": 31,
+  "position": "middle centre"
+ },
+ "p167-1": {
+  "source": "OSCT_Ref_Ramen.png",
+  "width": 34,
+  "height": 19,
+  "position": "bottom right"
+ },
+ "p170-1": {
+  "source": "OSCT_Ref_Stephen.jpg",
+  "width": 41,
+  "height": 27,
+  "position": "middle centre"
+ },
+ "p171-1": {
+  "source": "OSCT_Ref_Rutt.png",
+  "width": 37,
+  "height": 22,
+  "position": "bottom right",
+  "note": "match with the delivered file is uncertain (the printed crop differs) - check against the printout"
+ },
+ "p172-1": {
+  "source": "P172_Print_01.jpg",
+  "width": 27,
+  "height": 40,
+  "position": "bottom left"
+ },
+ "p173-1": {
+  "source": "OSCT_Ref_Turing.jpg",
+  "width": 36,
+  "height": 24,
+  "position": "bottom centre"
+ },
+ "p175-1": {
+  "source": "OSCT_Ref_Shading.png",
+  "width": 37,
+  "height": 21,
+  "position": "top left"
+ },
+ "p176-1": {
+  "source": "P176_Print_02.jpg",
+  "width": 30,
+  "height": 24,
+  "position": "top left"
+ },
+ "p176-2": {
+  "source": "P176_Print_01.jpg",
+  "width": 32,
+  "height": 35,
+  "position": "bottom centre"
+ },
+ "p178-1": {
+  "source": "P178_Print_01.jpg",
+  "width": 32,
+  "height": 24,
+  "position": "middle centre"
+ },
+ "p180-1": {
+  "source": "P180_Print_02.jpg",
+  "width": 29,
+  "height": 43,
+  "position": "bottom left"
+ },
+ "p180-2": {
+  "source": "P180_Print_01.jpg",
+  "width": 27,
+  "height": 35,
+  "position": "bottom right"
+ },
+ "p185-1": {
+  "source": "P185_Print_01.jpg",
+  "width": 39,
+  "height": 24,
+  "position": "top right"
+ },
+ "p186-1": {
+  "source": "P186_Print_01.jpg",
+  "width": 20,
+  "height": 30,
+  "position": "bottom centre"
+ },
+ "p187-1": {
+  "source": "P187_Print_01.jpg",
+  "width": 30,
+  "height": 23,
+  "position": "bottom centre"
+ },
+ "p187-2": {
+  "source": "OSCT_Ref_Ultimate.jpg",
+  "width": 43,
+  "height": 28,
+  "position": "bottom left"
+ },
+ "p188-1": {
+  "source": "OSCT_Ref_Sphericalgeometry.png",
+  "width": 52,
+  "height": 29,
+  "position": "bottom left"
+ },
+ "p188-2": {
+  "source": "P188_Print_01.jpg",
+  "width": 23,
+  "height": 37,
+  "position": "bottom right"
+ },
+ "p190-1": {
+  "source": "P190_Print_01.jpg",
+  "width": 26,
+  "height": 41,
+  "position": "top right"
+ },
+ "p192-1": {
+  "source": "P192_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p193-1": {
+  "source": "OSCT_Ref_Veggiesound.png",
+  "width": 37,
+  "height": 19,
+  "position": "top centre"
+ },
+ "p194-1": {
+  "source": "P194_Print_01.jpg",
+  "width": 26,
+  "height": 28,
+  "position": "top right"
+ },
+ "p195-1": {
+  "source": "P195_Print_01.jpg",
+  "width": 36,
+  "height": 20,
+  "position": "bottom right"
+ },
+ "p198-1": {
+  "source": "P198_Print_01.jpg",
+  "width": 27,
+  "height": 32,
+  "position": "bottom left"
+ },
+ "p199-1": {
+  "source": "P199_Print_01.jpg",
+  "width": 24,
+  "height": 24,
+  "position": "bottom right"
+ },
+ "p200-1": {
+  "source": "OSCT_Ref_Vonnegut.jpg",
+  "width": 41,
+  "height": 26,
+  "position": "middle centre"
+ },
+ "p204-1": {
+  "source": "P204_Print_01.jpg",
+  "width": 40,
+  "height": 31,
+  "position": "bottom left"
+ },
+ "p206-1": {
+  "source": "P206_Print_01.jpg",
+  "width": 29,
+  "height": 43,
+  "position": "top centre"
+ },
+ "p206-2": {
+  "source": "P206_Print_02.jpg",
+  "width": 22,
+  "height": 39,
+  "position": "bottom left"
+ },
+ "p213-1": {
+  "source": "OSCT_Ref_WHODUNNIT.png",
+  "width": 36,
+  "height": 20,
+  "position": "top right"
+ },
+ "p213-2": {
+  "source": "P213_Print_01.jpg",
+  "width": 20,
+  "height": 26,
+  "position": "bottom left"
+ },
+ "p215-1": {
+  "source": "P215_Print_01.jpg",
+  "width": 23,
+  "height": 47,
+  "position": "middle right"
+ },
+ "p216-1": {
+  "source": "P216_Print_02.jpg",
+  "width": 40,
+  "height": 24,
+  "position": "top centre"
+ },
+ "p216-2": {
+  "source": "P216_Print_01.jpg",
+  "width": 28,
+  "height": 35,
+  "position": "middle centre"
+ },
+ "p219-1": {
+  "source": "P219_Print_01.jpg",
+  "width": 24,
+  "height": 24,
+  "position": "top right"
+ },
+ "p222-1": {
+  "source": "OSCT_Ref_Zelda.png",
+  "width": 42,
+  "height": 24,
+  "position": "middle left"
+ },
+ "p222-2": {
+  "source": "P222_Print_01.jpg",
+  "note": "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
+ },
+ "p224-1": {
+  "source": "P224_Print_01.jpg",
+  "width": 27,
+  "height": 39,
+  "position": "bottom right"
+ },
+ "p225-1": {
+  "source": "P225_Print_01.jpg",
+  "width": 27,
+  "height": 34,
+  "position": "bottom centre"
+ },
+ "p226-1": {
+  "source": "P226_Print_01.jpg",
+  "width": 53,
+  "height": 53,
+  "position": "bottom right"
+ },
+ "p230-1": {
+  "source": "P230_Print_01.jpg",
+  "width": 32,
+  "height": 43,
+  "position": "bottom right"
+ },
+ "p234-1": {
+  "source": "P234_Print_01.jpg",
+  "width": 41,
+  "height": 26,
+  "position": "bottom left"
+ },
+ "p237-1": {
+  "source": "P237_Print_01.jpg",
+  "width": 33,
+  "height": 25,
+  "position": "bottom left"
+ },
+ "p241-1": {
+  "source": "P241_Print_01.jpg",
+  "width": 47,
+  "height": 26,
+  "position": "top left"
+ },
+ "p245-1": {
+  "source": "P245_Print_01.jpg",
+  "width": 29,
+  "height": 36,
+  "position": "bottom right"
+ },
+ "p252-1": {
+  "source": "P252_Print_01.jpg",
+  "width": 21,
+  "height": 34,
+  "position": "bottom left"
+ }
+}

@@ -154,10 +154,24 @@ export class QRGenerator extends HTMLElement {
     }
   }
 
+  /**
+   * Where the phone finds this app: the dev server's Wi-Fi address (from the build) with the protocol and port of
+   * the server this page came from (a dev server may run on another port than the default), else the environment.
+   */
+  private baseUrl(): string {
+    if (!__VITE_SERVER_URL__) return this.serverUrl.replace(/\/$/, "");
+    const url = new URL(__VITE_SERVER_URL__);
+    if (location.port) {
+      url.protocol = location.protocol;
+      url.port = location.port;
+    }
+    return url.toString().replace(/\/$/, "");
+  }
+
   private generateQR(spreadId: string, testType: string = "valid") {
     if (!this.qrInstance) return;
 
-    const baseUrl = (__VITE_SERVER_URL__ ? __VITE_SERVER_URL__ : this.serverUrl).replace(/\/$/, "");
+    const baseUrl = this.baseUrl();
     // Same link format as services/LinkService.ts: /spread/<id>?osct=<app version>
     const appVersion = this.game.version.version;
     const id = testType === "unknown-spread" ? "no-such-spread" : spreadId;

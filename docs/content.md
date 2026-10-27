@@ -142,7 +142,7 @@ the defaults). Today there is one filter type:
 Tips: raise `threshold` in small steps (0.02) until the background is gone; if edges look hard, raise
 `softness`. A black key also makes very dark parts of the picture see-through – keep the subject lighter
 than the background. The content build checks every value and names the file and parameter if one is off.
-Example with all parameters: `content/entries/edge/entry.yaml`.
+Example with all parameters: `content-demo/entries/edge/entry.yaml`.
 
 **A 3D model on a printed image:**
 
@@ -339,6 +339,75 @@ Run in `scripts/`:
 | `npm test` | Run the tests |
 | `npm run build` | Rebuild the tool after changing `scripts/src/` |
 | `npm run sounds` | Generate the placeholder app sounds |
+| `npm run import -- <delivery folder> import/<name>.yaml` | Import a publisher's delivery into `content/` (below) |
+| `npm run protocol -- import/<name>.yaml` | Write the printed-image details for the trigger trial panel (below) |
+
+### Importing a delivery
+
+A publisher's delivery (folders of printed images, entry images and videos) goes into `content/` through a
+**mapping file** in `scripts/import/` – one per delivery, e.g. `import/2110.yaml` for the trial content of
+October 2026. The mapping says, per entry id, what the entry is and which delivered file is what:
+
+```yaml
+entries:
+  p038-1:
+    category: glossary
+    title: "p. 38 · 1"                # placeholder until the texts arrive
+    page: 38
+    target: glossary/P38_Print_01.jpg   # the image as printed → target.jpg
+    image: glossary/P38_Online_01.jpg   # the entry image → image.jpg
+    video: documentation/P38.mov        # AR video on the target → video.mp4 (optional)
+    printed: { width: 44, height: 26, position: top left }   # mm – only for the protocol
+    note: "anything the editors should know"
+```
+
+```bash
+cd scripts
+npm run import -- "C:/path/to/delivery" import/2110.yaml
+```
+
+What it does: every image becomes a JPEG (targets ≤ 1600 px, entry images ≤ 1600 px, transparency flattened
+on white), every video is re-encoded with ffmpeg (H.264 MP4, long side ≤ 1280 px, ~2 Mbit/s, AAC – ffmpeg
+has to be installed), `entry.yaml` is written with placeholder texts and the note as a comment, and a spread
+is created for every pair of facing pages that has an entry (`s038-039`, title "38–39"). Media is rewritten
+when the delivered file is newer; **`entry.yaml` and `spread.yaml` are never overwritten** – edit them
+freely and run the import again when the next delivery comes. Problems (a file missing, ffmpeg failing, a
+video without a target) are listed at the end.
+
+The mapping of a delivery is made by hand or with a script – for 2110 the printed images were matched
+against the trigger layout PDF (`All_Triggers.pdf`) by page and appearance, the link screenshots have no
+page in their file names. Files the delivery contains but the book does not place are listed in a comment at
+the top of the mapping.
+
+`content-demo/` holds the placeholder content from before the first delivery (every entity type, chroma key,
+shared entities): build it with `OSCT_CONTENT_DIR=../content-demo npm run build:content:force`.
+
+### Videos are not in git
+
+The imported entry videos (`content/entries/<id>/video.mp4`) are git-ignored – they are large and come to the servers
+through a CDN sync (planned: issue #15, after the bunny.net setup in #5). Keep them in the local `content/` folder: the local build uses
+them. A build on a machine without them (CI, a deploy, a fresh clone) prints a warning per missing video and builds
+those targets without their AR video.
+
+### Trigger test protocol
+
+The checklist for a test with the printed book (or the trigger printout) is in the app: debug overlay → **trial**
+(dev server and staging; *trial* again or × closes it). A strip at the bottom shows the current spread's targets as
+thumbnails – found ones dimmed with ✓, the one in view outlined – followed by every target not found yet, from the
+next pages on. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to make it
+taller or lower. The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
+(debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their
+printed image, then the found ones – to forward to the designers.
+
+The printed-image details come from the delivery mapping:
+
+```bash
+cd scripts
+npm run protocol -- import/2110.yaml       # → client/public/trigger-protocol.json
+```
+
+Run it after an import (the file is committed and served at `/trigger-protocol.json`); the panel works without
+it, then without file names and sizes.
 
 ### What it writes
 

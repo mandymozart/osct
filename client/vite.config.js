@@ -74,19 +74,25 @@ function pwa() {
 }
 
 // Get local IP address
+/**
+ * The address a phone on the same Wi-Fi reaches this machine at (the dev overlay's QR code). Virtual adapters
+ * (WSL, Hyper-V, Docker, VirtualBox – 172.x and names like "vEthernet") come first in the interface list on
+ * Windows, so the private 192.168.x / 10.x address of a physical adapter wins over them.
+ */
 function getLocalIP() {
   const nets = networkInterfaces();
+  const candidates = [];
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
-      // Skip internal and non-IPv4 addresses
-      if (!net.internal && net.family === 'IPv4') {
-        return net.address;
-      }
+      if (net.internal || net.family !== 'IPv4') continue;
+      const virtual = /vethernet|wsl|hyper-v|docker|virtualbox|vmware/i.test(name) || /^172\.(1[6-9]|2\d|3[01])\./.test(net.address);
+      const lan = /^(192\.168\.|10\.)/.test(net.address);
+      candidates.push({ address: net.address, rank: (lan ? 0 : 1) + (virtual ? 2 : 0) });
     }
   }
-  return 'localhost';
+  candidates.sort((a, b) => a.rank - b.rank);
+  return candidates[0]?.address ?? 'localhost';
 }
-
 /**
  * Static splash: the first onboarding step as plain HTML in index.html, rendered from the game configuration
  * (book fields, step timing) so it paints before any script runs. Mark alt text and loading label are
@@ -209,7 +215,7 @@ export default defineConfig(({command,mode})=>{
         manualChunks: (id) => {
           if (id.includes('/node_modules/three/')) return 'three';
         },
-        // Built (hashed) files in assets/app/ – served with a long, immutable cache (public/_headers);
+        // Built (hashed) files in assets/app/ – served with a long, immutable cache (server/docker/apache.conf);
         // assets/ itself also holds the unhashed content (public/assets/content)
         entryFileNames: 'assets/app/[name]-[hash].js',
         chunkFileNames: 'assets/app/[name]-[hash].js',

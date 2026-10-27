@@ -1,0 +1,78 @@
+# Kamal (kamal-deploy.org): the whole site as one container (Dockerfile) on a server reached over SSH, behind
+# kamal-proxy (TLS from Let's Encrypt), with MariaDB as an accessory on the same host – docs/deploy.md.
+# Always with a destination – `-d staging` (develop → osct.porschuetz.de) or `-d production`
+# (main → osct.buildingfictions.com): config/deploy.<destination>.yml carries the service name, the server
+# and the public settings. Secrets come from the environment through .kamal/secrets (never from a file in git).
+# The file is ERB: SSH_HOST (the server), SSH_USER (default root) and the MAIL_* / SMTP_* values are
+# environment variables (GitHub environment variables in the workflows, server/.env locally).
+# Mail goes out through AWS SES in eu-west-1 (SMTP interface, STARTTLS on 587): SMTP_HOST defaults to its
+# endpoint, SMTP_USER / SMTP_PASS are SES SMTP credentials, MAIL_FROM any address at the verified domain
+# (docs/deploy.md "Mail").
+image: mandymozart/osct
+
+registry:
+  server: ghcr.io
+  username: <%= ENV.fetch("KAMAL_REGISTRY_USERNAME", "mandymozart") %>
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Built on the deploying machine from a clean clone of the commit – uncommitted changes never reach a server
+builder:
+  arch: amd64
+
+ssh:
+  user: <%= ENV.fetch("SSH_USER", "root") %>
+
+proxy:
+  ssl: true
+  app_port: 80
+  healthcheck:
+    path: /api/health
+    interval: 5
+    timeout: 10
+  # Large content files (models, videos) on slow mobile connections
+  response_timeout: 300
+
+# The API's settings (server/api/src/Config.php) – the destination adds the host, the app URL and the origins
+env:
+  clear:
+    OSCT_DB_PORT: "3306"
+    OSCT_DB_NAME: osct
+    OSCT_DB_USER: osct
+    # Errors go to the container's log (`kamal app logs`)
+    OSCT_LOG_PATH: /dev/stderr
+    OSCT_MAIL_TRANSPORT: <%= ENV.fetch("MAIL_TRANSPORT", "smtp") %>
+    OSCT_MAIL_FROM: <%= ENV.fetch("MAIL_FROM", "no-reply@buildingfictions.com") %>
+    OSCT_SMTP_HOST: <%= ENV.fetch("SMTP_HOST", "email-smtp.eu-west-1.amazonaws.com") %>
+    OSCT_SMTP_PORT: "<%= ENV.fetch("SMTP_PORT", "587") %>"
+    OSCT_SMTP_SECURE: <%= ENV.fetch("SMTP_SECURE", "tls") %>
+    OSCT_SMTP_USER: <%= ENV.fetch("SMTP_USER", "") %>
+  secret:
+    - OSCT_DB_PASS
+    - OSCT_SECRET
+    - OSCT_SMTP_PASS
+
+logging:
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+# MariaDB next to the app (the same engine as the shared host the data came from). The container is named
+# <service>-db, which is also its host name on the Docker network (OSCT_DB_HOST in the destination file);
+# the data lives on the server in <service>-db/data and survives every deploy.
+accessories:
+  db:
+    image: mariadb:11.4
+    host: <%= ENV.fetch("SSH_HOST") %>
+    cmd: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    env:
+      clear:
+        MARIADB_DATABASE: osct
+        MARIADB_USER: osct
+        MARIADB_AUTO_UPGRADE: "1"
+      secret:
+        - MARIADB_PASSWORD
+        - MARIADB_ROOT_PASSWORD
+    directories:
+      - data:/var/lib/mysql

@@ -1,7 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from "vitest";
 import { PreloaderService } from "@/services/PreloaderService";
 import { getAssets, getSpread, getSpreads, getTargets } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed"; // .glb
+import { targetWithVideo } from "@/test/content-fixtures";
 
 describe("PreloaderService", () => {
   const spreads = getSpreads();
@@ -48,7 +49,9 @@ describe("PreloaderService", () => {
   });
 
   it("preloads a spread's videos after its other content", async () => {
-    const spread = spreads.find(s => getAssets(s.id).some(a => a.assetType === "video"))!;
+    const { target, restore } = targetWithVideo();
+    onTestFinished(restore);
+    const spread = spreads.find(s => s.id === target.spreadId)!;
     const neighbour = spreads[spreads.indexOf(spread) - 1] ?? spreads[spreads.indexOf(spread) + 1];
     await preloader.preloadNeighbours(neighbour.id);
 
@@ -57,6 +60,18 @@ describe("PreloaderService", () => {
     const firstVideo = own.findIndex(url => videos.has(url));
     expect(firstVideo).toBeGreaterThan(-1);
     expect(own.slice(firstVideo).every(url => videos.has(url))).toBe(true);
+  });
+
+  it("preloads a window: all its target images first, then the content spread by spread in the given order", async () => {
+    const withContent = spreads.filter(s => contentOf(s.id).length && targetsOf(s.id).length).slice(0, 2);
+    const window = [withContent[1].id, withContent[0].id];
+    await preloader.preloadSpreads(window);
+    const urls = fetchedUrls();
+    const targets = window.flatMap(targetsOf);
+    expect(urls.slice(0, targets.length)).toEqual(targets);
+    const firstOf = (id: string) => urls.findIndex(url => contentOf(id).includes(url) && !targets.includes(url));
+    expect(firstOf(window[0])).toBeLessThan(firstOf(window[1]));
+    expect(await new PreloaderService().preloadSpreads(["unknown"])).toEqual([]);
   });
 
   it("handles the first spread and unknown spreads", async () => {

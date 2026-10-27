@@ -108,6 +108,27 @@ const shrinkImage = (image: Uint8Array, mimeType: string, maxSize: number): { da
   return data.byteLength < limit ? { data, opaque } : null;
 };
 
+/**
+ * A JPEG of an image for `content/` (delivery import): scaled to `maxSize` (long side), transparency
+ * flattened on white. Null when the image cannot be read.
+ */
+export const toJpeg = (image: Uint8Array, mimeType: string, maxSize: number, quality = 90): Uint8Array | null => {
+  const decoded = decode(image, mimeType);
+  if (!decoded) return null;
+  const scale = Math.min(1, maxSize / Math.max(decoded.width, decoded.height));
+  const resized = scale < 1
+    ? downscale(decoded, Math.max(1, Math.round(decoded.width * scale)), Math.max(1, Math.round(decoded.height * scale)))
+    : decoded;
+  if (!isOpaque(resized)) {
+    for (let i = 0; i < resized.data.length; i += 4) {
+      const a = resized.data[i + 3] / 255;
+      for (let c = 0; c < 3; c++) resized.data[i + c] = Math.round(resized.data[i + c] * a + 255 * (1 - a));
+      resized.data[i + 3] = 255;
+    }
+  }
+  return new Uint8Array(jpeg.encode({ width: resized.width, height: resized.height, data: resized.data }, quality).data);
+};
+
 /** Smaller texture (scaled down, opaque → JPEG), or false when it would not get smaller */
 const optimizeTexture = (texture: Texture): boolean => {
   const image = texture.getImage();

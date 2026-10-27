@@ -49,6 +49,7 @@ vi.mock("../xr8", async importOriginal => {
 });
 
 const { ImageTracker } = await import("../tracker");
+const { getEngineState } = await import("../../utils/tracker-debug");
 
 /** An engine image event for a target (pose details don't matter here) */
 const image = (event: "imagefound" | "imageupdated" | "imagelost", name: string) =>
@@ -125,5 +126,80 @@ describe("ImageTracker spread switches", () => {
 
     tracker.stop();
     now.mockRestore();
+  });
+
+  it("reports every target the engine sees, of any held spread, and the last automatic switch (debug view)", async () => {
+    engine.loaded = new Set(); engine.extracted = [];
+    const now = vi.spyOn(performance, "now").mockReturnValue(0);
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSpreadSeen: () => {} });
+    await tracker.startCamera();
+    await tracker.loadTargets(spread("s2"));
+    tracker.prepareTargets([spread("s3")]);
+    await vi.waitFor(() => expect(engine.loaded.has("s3-1.jpg")).toBe(true));
+
+    image("imagefound", "s2-0.jpg");
+    image("imagefound", "s3-1.jpg");
+    expect(getEngineState().seen).toEqual(["s2-0", "s3-1"]);
+    image("imagelost", "s2-0.jpg");
+    expect(getEngineState().seen).toEqual(["s3-1"]);
+    expect(getEngineState().lastSwitch).toBeNull();
+
+    now.mockReturnValue(500);
+    image("imageupdated", "s3-1.jpg");
+    expect(getEngineState().lastSwitch).toMatchObject({ spreadId: "s3", targetId: "s3-1" });
+    tracker.stop();
+    expect(getEngineState().seen).toEqual([]);
+    now.mockRestore();
+  });
+
+  describe("grow mode", () => {
+    const reset = () => { engine.loaded = new Set(); engine.extracted = []; };
+    const all = (ids: string[]) => ids.flatMap(id => [`${id}-0.jpg`, `${id}-1.jpg`]);
+
+    it("adds the spreads nearest first, one batch after the other, and drops nothing", async () => {
+      reset();
+      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+      await tracker.startCamera();
+      await tracker.loadTargets(spread("s2"));
+      tracker.growTargets([spread("s3"), spread("s1"), spread("s4"), spread("s0")]);
+      await vi.waitFor(() => expect(engine.extracted).toHaveLength(10), { timeout: 5000 });
+      // Two targets per spread, at most three per batch: one spread per configure, in the given order
+      expect(engine.extracted).toEqual(all(["s2", "s3", "s1", "s4", "s0"]));
+      expect(engine.loaded.size).toBe(10);
+      expect(tracker.heldSpreads).toBe(5);
+      tracker.stop();
+    });
+
+    it("keeps growing across a spread switch, in the new order, without unloading", async () => {
+      reset();
+      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+      await tracker.startCamera();
+      await tracker.loadTargets(spread("s2"));
+      tracker.growTargets([spread("s3"), spread("s1"), spread("s4"), spread("s0")]);
+      await vi.waitFor(() => expect(engine.loaded.has("s3-1.jpg")).toBe(true), { timeout: 5000 });
+
+      // The reader turned to s4: it is tracked at once, the rest grows from there
+      tracker.stopTracking();
+      await tracker.loadTargets(spread("s4"));
+      tracker.growTargets([spread("s5"), spread("s3"), spread("s6"), spread("s2"), spread("s1"), spread("s0")]);
+      await vi.waitFor(() => expect(engine.loaded.size).toBe(14), { timeout: 8000 });
+      expect(engine.extracted.slice(0, 6)).toEqual(all(["s2", "s3", "s4"]));
+      expect(engine.extracted.indexOf("s5-0.jpg")).toBeLessThan(engine.extracted.indexOf("s6-0.jpg"));
+      expect(new Set(engine.extracted).size).toBe(engine.extracted.length); // nothing extracted twice
+      tracker.stop();
+    });
+
+    it("a fixed window ends the growth", async () => {
+      reset();
+      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+      await tracker.startCamera();
+      await tracker.loadTargets(spread("s2"));
+      tracker.growTargets([spread("s3"), spread("s1"), spread("s4")]);
+      tracker.prepareTargets([spread("s1")]);
+      await vi.waitFor(() => expect([...engine.loaded].sort()).toEqual(all(["s1", "s2"])), { timeout: 5000 });
+      await new Promise(resolve => setTimeout(resolve, 600));
+      expect([...engine.loaded].sort()).toEqual(all(["s1", "s2"]));
+      tracker.stop();
+    });
   });
 });

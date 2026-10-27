@@ -1,8 +1,8 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneState, Target } from "@/types";
-import { getAssets, getNeighbourSpreads, getSpread, getTargets } from "@/utils/game-config";
+import { getAssets, getSpread, getTargets } from "@/utils/game-config";
 import { Emitter } from "../utils/emitter";
-import { getPreparedSpreadRange } from "../utils/prepared-spreads";
+import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
 import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance, placeEntity } from "./entities";
@@ -70,6 +70,7 @@ export class ArScene implements IArScene {
   private animations = new Map<string, Celebration>();
   /** Entities shown with tuned values instead of the content's, by target id (debug tune panel) */
   private tuned = new Map<string, EntityData>();
+  private windowCleanup: (() => void) | null = null;
 
   constructor(private container: HTMLElement) {}
 
@@ -219,6 +220,12 @@ export class ArScene implements IArScene {
         this.view!.bloomStrength = bloom;
       });
       document.addEventListener("click", this.onTap);
+      // The window's size changed (load test budget): the tracker and the preload follow at once
+      this.windowCleanup = subscribePreparedWindow(() => {
+        if (!this.started || !this.content) return;
+        this.prepareWindow();
+        this.emitter.emit("ready", this.content.spreadId);
+      });
     }
     return this.view;
   }
@@ -345,6 +352,8 @@ export class ArScene implements IArScene {
 
   private teardown(): void {
     document.removeEventListener("click", this.onTap);
+    this.windowCleanup?.();
+    this.windowCleanup = null;
     this.pauseEntities();
     this.loseAll();
     this.removeContent();
@@ -380,8 +389,19 @@ export class ArScene implements IArScene {
     this.view!.resize(); // field of view from the engine's projection
     this.started = true;
     // The spreads around this one: their targets get ready ahead (instant switch, found pages switch by themselves)
-    tracker.prepareTargets(getNeighbourSpreads(content.spreadId, getPreparedSpreadRange()).map(spread => ({ spreadId: spread.id, targets: getTargets(spread.id) })));
+    this.prepareWindow();
     this.emitter.emit("ready", content.spreadId);
+  }
+
+  /**
+   * The tracker holds the spreads next to the current one (`prepared-spreads.ts`, nearest first): in grow mode it
+   * adds every other spread in idle time, nearest first; otherwise it holds the fixed ±n window (or the load test's).
+   */
+  private prepareWindow(): void {
+    if (!this.tracker || !this.content) return;
+    const tracked = (spreads: ReturnType<typeof spreadsByDistance>) => spreads.map(spread => ({ spreadId: spread.id, targets: getTargets(spread.id) }));
+    if (isGrowingWindow()) this.tracker.growTargets(tracked(spreadsByDistance(this.content.spreadId)));
+    else this.tracker.prepareTargets(tracked(getPreparedWindow(this.content.spreadId)));
   }
 
   private async run(): Promise<void> {

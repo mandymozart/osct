@@ -1,7 +1,10 @@
 import type { AssetData, EntityData, EntityRefData } from '../../../shared/types/game-config';
 import { FilterData, filterProblems } from '../../../shared/types/filters';
 import { placementProblems } from '../../../shared/types/placement';
-import { buildErrors } from '../lib/errors';
+import fs from 'fs';
+import path from 'path';
+import { CONTENT_DIR } from '../config';
+import { buildErrors, buildWarnings } from '../lib/errors';
 import { assetType, contentFile, readSection, validate } from '../lib/content';
 
 export function buildEntities(): Record<string, EntityData> {
@@ -71,6 +74,12 @@ export function buildEntity(
   buildErrors.push(...placementProblems(e.params, `${label}: params`));
   if (typeof e.src !== 'string') {
     buildErrors.push(`${label}: entity type "${type}" needs a src`);
+    return undefined;
+  }
+  // Entry videos are kept out of git (Tilman, 2026-10-27 – they come from the CDN sync later): a build without
+  // them (CI, deploys) gives the target no AR video instead of failing
+  if (type === 'video' && !fs.existsSync(path.join(CONTENT_DIR, 'entries', entryId, e.src))) {
+    buildWarnings.push(`${label}: video "${e.src}" is not on this machine (videos are not in git) – built without its AR video`);
     return undefined;
   }
   const filters = buildFilters(e.filters, type, label);

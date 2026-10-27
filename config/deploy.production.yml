@@ -1,0 +1,14 @@
+# Production: `main` → https://osct.buildingfictions.com (no debug bar). `kamal deploy -d production`
+service: osct
+
+servers:
+  - <%= ENV.fetch("SSH_HOST") %>
+
+proxy:
+  host: osct.buildingfictions.com
+
+env:
+  clear:
+    OSCT_DB_HOST: osct-db
+    OSCT_APP_URL: https://osct.buildingfictions.com
+    OSCT_ALLOWED_ORIGINS: <%= ENV.fetch("ALLOWED_ORIGINS", "") %>

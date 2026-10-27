@@ -1,8 +1,8 @@
 import { IGame, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
+import { getConfigVersion, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
-import { cyclePreparedSpreadRange, getPreparedSpreadRange } from "@/components/ar-bridges";
+import { cyclePreparedSpreadRange, getEngineState, getPreparedWindowSetting, subscribeEngineState } from "@/components/ar-bridges";
 
 type DebugTab = "spread" | "progress";
 
@@ -13,7 +13,8 @@ const formatTime = (time: number) => new Date(time).toLocaleString();
 
 /**
  * Development overlay: a one-line status summary (AR, spread, targets, assets, progress, found counts)
- * that expands on tap into spread, target and progress details, and opens the tune panel (`<tune-panel>`).
+ * that expands on tap into spread, target and progress details, and opens the tune panel (`<tune-panel>`), the
+ * trigger trial panel (`<trial-panel>`) or the engine load test (`<load-test-panel>`).
  * Sets `--debug-offset` so app chrome moves below the collapsed line.
  */
 export class DebugOverlay extends HTMLElement {
@@ -59,7 +60,8 @@ export class DebugOverlay extends HTMLElement {
       this.game.subscribeToProperty('cameraPermission', () => this.updateContent()),
       this.game.subscribeToProperty('progress', () => this.updateContent()),
       this.game.subscribeToProperty('arStatus', () => this.updateContent()),
-      this.game.subscribeToProperty('trackedTargets', tracked => this.countFound(tracked))
+      this.game.subscribeToProperty('trackedTargets', tracked => this.countFound(tracked)),
+      subscribeEngineState(() => this.updateContent()),
     );
   }
 
@@ -84,17 +86,22 @@ export class DebugOverlay extends HTMLElement {
       if (confirm("Reset the progress of this book?")) this.game.history.reset();
       return;
     }
-    if (control?.dataset.action === "tune") {
-      // The tune panel sits at the bottom; the overlay collapses so the scene stays in view
-      const panel = document.querySelector("tune-panel");
-      if (panel) panel.remove();
-      else document.body.appendChild(document.createElement("tune-panel"));
+    if (control?.dataset.action === "copy-progress") {
+      void this.copyProgress(control);
+      return;
+    }
+    if (control?.dataset.action === "tune" || control?.dataset.action === "trial" || control?.dataset.action === "load-test") {
+      // The panels sit at the bottom; the overlay collapses so the scene stays in view
+      const name = `${control.dataset.action}-panel`;
+      const panel = document.querySelector(name);
+      document.querySelectorAll("tune-panel, trial-panel, load-test-panel").forEach(open => open.remove());
+      if (!panel) document.body.appendChild(document.createElement(name));
       this.expanded = false;
       this.updateContent();
       return;
     }
     if (control?.dataset.action === "cycle-prepared") {
-      // Spreads kept loaded around the current one (e.g. a load test of the engine) – applies at the next switch
+      // Spreads kept loaded around the current one – applies at once (the scene re-prepares its window)
       cyclePreparedSpreadRange();
       this.updateContent();
       return;
@@ -145,6 +152,7 @@ export class DebugOverlay extends HTMLElement {
         .loaded { color: lime; }
         .error { color: red; }
         .info { color: cyan; }
+        .small { font-size: .6875rem; color: #9c9; overflow-wrap: anywhere; }
         .target-list {
           display: flex;
           overflow-x: auto;
@@ -186,7 +194,7 @@ export class DebugOverlay extends HTMLElement {
     const { currentSpread } = this.game.state;
     let html = `<div class="tabs">${(["spread", "progress"] as DebugTab[])
       .map(tab => `<button data-tab="${tab}" class="${tab === this.tab ? "active" : ""}">${tab}</button>`)
-      .join("")}<button data-action="tune">tune</button></div>`;
+      .join("")}<button data-action="tune">tune</button> <button data-action="trial">trial</button> <button data-action="load-test">load</button></div>`;
 
     if (this.expanded && this.tab === "progress") {
       contentEl.innerHTML = html + this.renderProgress();
@@ -196,8 +204,9 @@ export class DebugOverlay extends HTMLElement {
     // Scene status
     html += `<div class="section">
       <div>AR: ${this.arStatusLabel()}</div>
-      <div>Spreads loaded ahead: ${this.preparedLabel()}
-        <button data-action="cycle-prepared">Change (next switch)</button></div>
+      <div>Spreads held: ${this.preparedLabel()}
+        <button data-action="cycle-prepared">Change</button></div>
+      ${this.renderEngine()}
     </div>`;
 
     if (currentSpread) {
@@ -244,7 +253,7 @@ export class DebugOverlay extends HTMLElement {
     const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
 
     return `
-      <div>${sceneStatus} ${spread?.id} T${getTargets(spread?.id || '').length} F[${found}]</div>
+      <div>${sceneStatus} ${spread?.id} T${getTargets(spread?.id || '').length} ${this.engineSummary()} F[${found}] ${this.seenSummary(spread?.id)}</div>
     `;
   }
 
@@ -283,8 +292,47 @@ export class DebugOverlay extends HTMLElement {
       ${table("Consulted entries", timeRows(progress.consulted), getEntries().length)}
       <div class="section section--summary">
         <button data-action="reset-progress">Reset progress</button>
+        <button data-action="copy-progress">Copy</button>
       </div>
     `;
+  }
+
+  /**
+   * The progress as text (a test record): app version, content hash, device, then every unlocked target
+   * and consulted entry with its time, oldest first.
+   */
+  progressText(): string {
+    const progress = this.game.state.progress;
+    const rows = (record: Record<string, number>) =>
+      Object.entries(record).sort((a, b) => a[1] - b[1]).map(([id, time]) => `${new Date(time).toISOString()} ${id}`);
+    const targets = getEntries().filter(e => e.target).length;
+    return [
+      `OSCT progress · book ${progress.bookId} · app ${__VITE_APP_VERSION__} · content ${(getConfigVersion().hash ?? "").slice(0, 12)}`,
+      `${new Date().toISOString()} · ${navigator.userAgent}`,
+      `Unlocked targets (${Object.keys(progress.unlocked).length} / ${targets}):`,
+      ...rows(progress.unlocked),
+      `Consulted entries (${Object.keys(progress.consulted).length} / ${getEntries().length}):`,
+      ...rows(progress.consulted),
+    ].join("\n");
+  }
+
+  private async copyProgress(button: HTMLElement) {
+    const text = this.progressText();
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch {
+      // No clipboard API (http on a LAN address): copy through a selected text field
+      const area = document.createElement("textarea");
+      area.value = text;
+      this.shadow.appendChild(area);
+      area.select();
+      copied = document.execCommand("copy");
+      area.remove();
+    }
+    button.textContent = copied ? "Copied" : "Copy failed";
+    setTimeout(() => (button.textContent = "Copy"), 1500);
   }
 
   private renderSpreadInfo(spreadId: string): string {
@@ -337,10 +385,56 @@ export class DebugOverlay extends HTMLElement {
     return html;
   }
 
+  /**
+   * What the engine holds right now: the current spread (◉) and the spreads next to it with their target
+   * counts, how many targets are extracted (can be found), and spreads still being prepared
+   */
+  private renderEngine(): string {
+    const engine = getEngineState();
+    if (!engine.current && !engine.held.length) return `<div>Engine: <span class="small">no targets (camera off)</span></div>`;
+    const spreads = [
+      ...(engine.current ? [`<span class="loaded">◉ ${escapeHtml(engine.current.spreadId)} (${engine.current.targets})</span>`] : []),
+      ...engine.held.map(spread => `${escapeHtml(spread.spreadId)} (${spread.targets})`),
+    ];
+    // A grown window lists the whole book: show the nearest few and the count
+    const listed = spreads.length > 12 ? [...spreads.slice(0, 12), `+${spreads.length - 12} more`] : spreads;
+    const extracting = engine.extractingSince !== null
+      ? ` · <span class="loading">extracting ${Math.round((performance.now() - engine.extractingSince) / 1000)} s</span>`
+      : "";
+    const growing = engine.growing === null ? ""
+      : engine.growing > 0 ? ` · <span class="loading">growing, ${engine.growing} spreads to add</span>`
+      : extracting ? "" : ' · <span class="loaded">grown</span>';
+    return `<div>Engine: ${engine.ready}/${engine.targets} targets ready in ${spreads.length} spreads${extracting}${growing}${engine.budget !== null ? ` · <span class="loading">load test: ${engine.budget === Infinity ? "all" : engine.budget} targets</span>` : ""}</div>
+      <div class="small">${listed.join(" · ")}</div>
+      ${engine.preparing.length ? `<div class="small">preparing: ${engine.preparing.map(escapeHtml).join(" · ")}</div>` : ""}
+      <div>Engine sees: ${engine.seen.length ? engine.seen.map(escapeHtml).join(" · ") : '<span class="small">nothing</span>'}</div>
+      ${engine.lastSwitch ? `<div class="small">Last auto switch: ${escapeHtml(engine.lastSwitch.spreadId)} via ${escapeHtml(engine.lastSwitch.targetId)}, ${Math.round((Date.now() - engine.lastSwitch.at) / 1000)} s ago</div>` : ""}`;
+  }
+
+  /**
+   * S[…]: every target the engine finds right now – the current spread's in green, other spreads' in orange (on a
+   * dense printout these compete with the page aimed at). ↪ the last automatic switch, for 10 s.
+   */
+  private seenSummary(currentSpread?: string): string {
+    const engine = getEngineState();
+    const own = new Set(getTargets(currentSpread ?? "").map(target => target.id));
+    const seen = engine.seen.map(id => `<span class="${own.has(id) ? "loaded" : "loading"}">${escapeHtml(id)}</span>`).join(" ");
+    const recent = engine.lastSwitch && Date.now() - engine.lastSwitch.at < 10000
+      ? ` <span class="loading">↪${escapeHtml(engine.lastSwitch.spreadId)}</span>` : "";
+    return `S[${seen}]${recent}`;
+  }
+
+  /** E<ready>/<held>: targets the engine can find / holds (orange while it extracts) */
+  private engineSummary(): string {
+    const engine = getEngineState();
+    if (!engine.targets) return "E0";
+    return `<span class="${engine.extractingSince !== null ? "loading" : "loaded"}">E${engine.ready}/${engine.targets}</span>`;
+  }
+
   /** ±n spreads, or the whole book (all targets loaded) */
   private preparedLabel(): string {
-    const range = getPreparedSpreadRange();
-    return range === Infinity ? "all" : `±${range}`;
+    const setting = getPreparedWindowSetting();
+    return setting === "grow" ? "grow (whole book in idle time)" : setting === Infinity ? "all" : `±${setting}`;
   }
 
   private arStatusLabel(): string {

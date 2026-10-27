@@ -7,6 +7,8 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts', // content build (npm run build:content)
         sounds: 'src/sounds.ts', // npm run sounds
+        'import-delivery': 'src/import-delivery.ts', // npm run import
+        protocol: 'src/protocol.ts', // npm run protocol
       },
       formats: ['es'],
       fileName: (_format, name) => `${name}.js`,

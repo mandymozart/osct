@@ -1,0 +1,112 @@
+# The deploy itself, shared by deploy-staging.yml (develop → staging) and deploy-production.yml (main →
+# production): API tests, then `kamal deploy -d <destination>` – the image is built here from the commit
+# (content build included), pushed to ghcr.io and started on the server (config/deploy.yml, docs/deploy.md).
+# While the GitHub environment has no SSH_HOST, the deploy is skipped with a warning (staging until its VM exists).
+#
+# GitHub → Settings → Environments → "staging" / "production":
+#   variables: SSH_HOST (the server), SSH_USER (default root), ALLOWED_ORIGINS, MAIL_TRANSPORT (default smtp),
+#              MAIL_FROM (default no-reply@buildingfictions.com), SMTP_HOST (default: AWS SES eu-west-1),
+#              SMTP_PORT (default 587), SMTP_SECURE (default tls), SMTP_USER (SES SMTP user name)
+#   secrets:   SSH_PRIVATE_KEY (its public key on the server), DB_PASS, DB_ROOT_PASS, SECRET (32+ characters),
+#              SMTP_PASS (SES SMTP password)
+# With MAIL_TRANSPORT=smtp the deploy stops before Kamal when SMTP_USER or SMTP_PASS is missing – a site whose
+# sign-in mails fail is worse than no deploy (docs/deploy.md "Mail").
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      destination:
+        description: "Kamal destination: staging or production"
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    name: Build the image and deploy (${{ inputs.destination }})
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.destination }}
+      url: ${{ inputs.destination == 'production' && 'https://osct.buildingfictions.com' || 'https://osct.porschuetz.de' }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SSH_HOST: ${{ vars.SSH_HOST }}
+      SSH_USER: ${{ vars.SSH_USER || 'root' }}
+      APP_URL: ${{ inputs.destination == 'production' && 'https://osct.buildingfictions.com' || 'https://osct.porschuetz.de' }}
+    steps:
+      - name: Server configured?
+        id: configured
+        run: |
+          if [ -z "$SSH_HOST" ]; then
+            echo "::warning::GitHub environment '${{ inputs.destination }}' has no SSH_HOST variable – Kamal deploy skipped (deploy.yml lists the settings)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mail configured?
+        if: steps.configured.outputs.ok == 'true'
+        env:
+          MAIL_TRANSPORT: ${{ vars.MAIL_TRANSPORT || 'smtp' }}
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          if [ "$MAIL_TRANSPORT" = "smtp" ] && { [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASS" ]; }; then
+            echo "::error::GitHub environment '${{ inputs.destination }}': MAIL_TRANSPORT is smtp but SMTP_USER / SMTP_PASS are missing – the sign-in mails would fail. Set the SES SMTP credentials (docs/deploy.md 'Mail'), or MAIL_TRANSPORT=log for a site without mail."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.configured.outputs.ok == 'true'
+
+      - uses: shivammathur/setup-php@v2
+        if: steps.configured.outputs.ok == 'true'
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite
+      - name: API tests
+        if: steps.configured.outputs.ok == 'true'
+        run: php server/tests/api-test.php
+
+      - uses: ruby/setup-ruby@v1
+        if: steps.configured.outputs.ok == 'true'
+        with:
+          ruby-version: "3.4"
+      - name: Install Kamal
+        if: steps.configured.outputs.ok == 'true'
+        run: gem install kamal -v "~> 2.0" --no-document
+
+      - uses: webfactory/ssh-agent@v0.9.1
+        if: steps.configured.outputs.ok == 'true'
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Trust the server's host key
+        if: steps.configured.outputs.ok == 'true'
+        run: mkdir -p ~/.ssh && ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        if: steps.configured.outputs.ok == 'true'
+        env:
+          KAMAL_REGISTRY_USERNAME: ${{ github.actor }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_ROOT_PASS: ${{ secrets.DB_ROOT_PASS }}
+          SECRET: ${{ secrets.SECRET }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
+          MAIL_TRANSPORT: ${{ vars.MAIL_TRANSPORT || 'smtp' }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
+          SMTP_SECURE: ${{ vars.SMTP_SECURE || 'tls' }}
+          SMTP_USER: ${{ vars.SMTP_USER }}
+        run: kamal deploy -d "${{ inputs.destination }}"
+
+      # The container ran the migration before Apache started; this confirms the site answers through the proxy
+      - name: Check the API
+        if: steps.configured.outputs.ok == 'true'
+        run: |
+          curl -fsS "$APP_URL/api/health"
+          echo

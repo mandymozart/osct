@@ -4,6 +4,154 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-27 – Preload flow analysis, engine view and load test (Tilman, 1.7.0)
+
+- Tilman's idea: once a spread is found, preload the spreads around it in the background and switch to them, until
+  eventually every target is loaded. With the trial content (87 spreads, 131 targets, mostly 1–2 per spread) the ±1
+  window holds only ~3 spreads / 4–5 targets, so only the next and previous spread switch by themselves. Tilman: he
+  will regroup the content ("I will have to group better"), and wants an incremental way to find how many targets
+  the engine can hold ("how wide we can scale the window").
+- Engine internals read from `xr-tracking.js` (`@8thwall/engine` 0.1.0): `configure()` unloads targets not listed,
+  keeps loaded ones, queues new ones and extracts **one per animation frame** on the main thread; every configure
+  **cancels and re-queues** what is not extracted yet; `reality.imagescanning` fires when the queue is empty (no
+  per-target event). No target limit in the code. A spread switch configures twice today (current, then window).
+- Built (1.7.0): overlay "Engine" lines (current ◉ + held spreads with target counts, ready/held, extracting,
+  preparing; `E<ready>/<held>` in the summary), published by the tracker through `ar-bridges/utils/tracker-debug.ts`.
+  Load test panel (overlay → *load*, `ar/load-test.ts`, `dev-tools/load-test-panel.ts`): the tracker's
+  `holdTargets()` replaces the window with the current spread + N nearest targets (no automatic switch meanwhile),
+  steps 0/5/10/20/40/80/all; lens cover detected by camera brightness. `docs/tracking.md` documents flow, test and
+  options.
+- Tilman, same day, after a phone trial: "I still want to switch pages – always test the entire app". So the load test
+  no longer pins the spread: it sets a **target budget** for the normal window (`setTargetBudget()`,
+  `prepared-spreads.ts`), the window follows the scanned spread, pages switch, and the content preload follows the same
+  window (`PreloaderService.preloadSpreads()`, nearest first – before, content was always ±1). The window is now nearest
+  first for ±n too.
+- **Preload direction** (Tilman): preload everything eventually, in steps – targets, then content, then higher
+  resolutions (1x/2x/3x images, video levels – issue #13); caching (service worker, browser, Bunny CDN server-side
+  cache – Tilman assumes the CDN has one, not checked) means a window preloaded once comes back sharp later.
+- **Trial panel** (Tilman): no notes, no slow/flicker/no buttons, header only the number not found; small strip whose
+  height is dragged by its top bar (`osct-trial-height`); thumbnails, tap → that spread, ‹ › spread buttons (the panel
+  covered the app's own navigation and adjacent pages were not always found). Clicking *trial* again closes it (×
+  too). Report = targets not found + list of found. Old marks (`osct-trial:<book>`) are no longer read.
+- All of this is 1.7.0 (1.6.1 was never committed or shipped; folded in with the growing window).
+- **First load test result** (Tilman's Android phone, Chrome 155, dev server, 18:18 UTC; label says 1.6.0 because the dev
+  server was started before the bump): 2 → 131 targets held made no measurable difference – engine = page fps
+  12–18 at every step (13.6 at 2 targets, 18.5 at all 131), stutter frames ~70–80 per 6 s at every step, tracking 100 %
+  found / 0 lost at 83 and 131 targets, best re-find ~0.5 s at 2, 24 and 131 targets (the 3.8–7.9 s outliers came with
+  page changes / handling, not with load). JS heap flat 32 MB. The cost of more targets is only the one-time work:
+  ~0.16 s prepare + ~0.19 s extract per new target on the main thread (+50 targets: 7.8 s + 9.4 s).
+  → Holding the whole book is affordable; build it up incrementally (nearest first, in idle time) instead of up front.
+  → The real problem is the **base frame rate (~14 fps, almost every frame > 50 ms) even with 2 targets** – before it
+  was ~34 fps on the S22 (2026-09-28). Not caused by the target count; cause open.
+- **Videos out of git** (Tilman: "leave them out. i believe i have a seperate cdn sync setup? if not we need to add
+  one … a sepearte issue that follows the setup of the bunny cdn"): `content/entries/*/video.mp4` git-ignored (117 MB,
+  16 files); the content build turns a missing entry video into a warning (target without AR video) so CI and deploys
+  still build. No CDN sync exists in the repo (checked) – issue #15 (Backlog), after #5 (bunny.net).
+- **Growing window** (Tilman: "Build the growing window: hold the current spread, then add the nearest spreads in idle
+  time until the whole book is held"): default `grow` setting (`prepared-spreads.ts`, stored `grow`), tracker
+  `growTargets()` – batches of ≤ 3 targets (whole spreads), each after the previous is extracted (the engine cancels
+  and re-queues on every configure, so batches must not overlap), 150 ms pause + `requestIdleCallback`; a switch only
+  re-orders the queue, nothing is unloaded; `prepareTargets()` (fixed window / load test) ends the growth. Content
+  preload stays ±1 in grow mode (the media step comes later). A device that cycled the old setting keeps its stored
+  ±n until cycled to *grow*.
+- [ ] Run the load test on an iPhone; check the growing window on the phone (time until the whole book is held,
+  stutter while it grows).
+- **Grow on the phone (Tilman, same evening, A3 printout):** with all 131 held (overlay 131/131 ready, current
+  s004-005), pages 4–5 that were found at once at the start were **not found at all**, and some images became slow to
+  find. The engine's native matcher is global (`DetectionImageMatcher` with LSH tables over all loaded targets – strings
+  in the wasm), so more targets dilute the matches for a weak target; on the dense printout every other trigger in view
+  is now also a loaded target that can be tracked or switch the spread. The load test missed it: it re-found only the
+  scanned page's (strong) target. Open: tell the two apart (cover the neighbouring images, or ±1), then cap what the
+  engine holds (nearest targets up to a budget) while the cheap part – downloading and preparing target images – can
+  still grow to the whole book.
+- [ ] Find why the base frame rate is ~14 fps (production build vs dev server, overlay/panels, video textures,
+  look-around, content preload in the background).
+
+## 2026-10-27 – Trial content: delivery 2110 imported, trigger protocol (Tilman)
+
+- Building Fictions delivered the trial content (`C:\Development\osct\osct-incoming-content`, 1.5 GB): `00_Glossary.zip`
+  (90 pairs `P<page>_Print_<n>.jpg` = the image as printed, `P<page>_Online_<n>.jpg` = the colour original for the
+  entry), `00_Links.zip` (43 screenshots `OSCT_Ref_<name>`, no page in the name), `00_Documentation Works Kevin.zip`
+  (16 videos `P<page>.mov/mp4`, up to 195 MB each), `2110.zip` (`All_Triggers.pdf` – 129 spreads with the 121 printed
+  triggers in place, the trial printout; the book as PDF, print and low-res; back covers). No texts, titles or
+  URLs yet – every title and body is a placeholder.
+- Mapping (`scripts/import/2110.yaml`): the 121 triggers of the PDF matched against the delivered files by page and
+  appearance (24 px greyscale correlation, ≥ 0.73 for 119; `p063-1` → Disney City and `p171-1` → Rutt are uncertain –
+  the printed crop differs). 79 are glossary images, 42 link screenshots. 10 Print images are **not** in the PDF
+  (p. 2, 30, 34, 35, 95, 100, 106, 130, 158, 192, 222 – imported with targets, not on the printout) and the links
+  `Evangelion_02`, `Vonnegut_02` have no place in the book (not imported). The videos sit on the trigger of their
+  page where there is exactly one (category → `video`), on a link trigger for p. 103, 132, 148 (kept `link`, video
+  attached, note) and without a target for p. 99, 116, 127, 146, 191, 218, 255 – which image triggers them is a
+  question for Kévin. `text-placeholder` keeps the Texts category (tests need every category).
+- Decisions: content ids `p<page>-<n>` (n = reading order on the page) until titles exist – rename before the
+  release, not after (progress is keyed by id). Spreads only for pages with an entry (`s038-039`), one per pair of
+  facing pages; the menu lists only spreads with targets anyway. Target images ≤ 1600 px JPEG in `content/`
+  (the build still copies ≤ 1200 px to the client), link PNGs flattened to JPEG. Videos re-encoded on import
+  (ffmpeg), not committed as delivered. `content/` is ~100 MB now – the CDN issue (bunny.net) becomes relevant.
+- The placeholder content moved to `content-demo/` (build with `OSCT_CONTENT_DIR=../content-demo`); it keeps the
+  examples for every entity type and the chroma key. Nothing deleted.
+- Protocol (Tilman: "doesn't need to be printed – the checklist in the debug overlay is fine, with a report md file
+  to forward to the designers"): `<trial-panel>` (overlay → trial), marks per target in `localStorage`
+  `osct-trial:<book>`, report `trial-report.ts`; `npm run protocol -- import/2110.yaml` writes
+  `client/public/trigger-protocol.json` (delivered file, mm, position per target) for the panel. The printable HTML
+  of the first draft was dropped the same day.
+- Phone on the dev server: the overlay's QR code now shows the Wi-Fi address of a physical adapter (was the first
+  interface: WSL/Hyper-V 172.31.x) with the port of the running server. Camera needs https on a LAN address →
+  `client-https` (5173) or USB + `adb reverse` (memory "Phone testing from the PC").
+- **Media quality** (Tilman, same day): production images will be **WebP**; the content builder should write three
+  quality levels (images 1x/2x/3x, videos 480p/720p/1080p) and the app pick by bandwidth – modelled on SCUTOONS'
+  "Media quality" account setting (auto / low / medium / high, suffix naming `.2x.webp` / `.720p.mp4`, automatic by
+  `saveData` / `effectiveType` / `downlink` + a 512 KB probe). Issue #13 on the board has the research and scope.
+- [ ] Open: trial on the printout (S22, iPhone) → results; texts and URLs from Kévin; video ↔ trigger questions above;
+  whether the 10 Print images missing from the PDF are printed in the book.
+
+## 2026-10-27 – Sign-in mails through Amazon SES (Tilman, asgerb)
+
+- asgerb: Building Fictions' apps send mail via **AWS SES, eu-west-1**; the entire domain is verified, so any sender
+  address at it works with the right credentials. Tilman: make the mail setup part of the production deployment.
+- Built (1.5.3): `config/deploy.yml` defaults `SMTP_HOST` to `email-smtp.eu-west-1.amazonaws.com` (587, STARTTLS) and
+  `MAIL_FROM` to `no-reply@buildingfictions.com` – an environment only sets `SMTP_USER` + `SMTP_PASS` (SES SMTP
+  credentials, one pair per environment). `deploy.yml` fails before Kamal when `MAIL_TRANSPORT=smtp` and they are
+  missing. `server/deploy/mail-test.php` (in the image: `/opt/osct/mail-test.php`) sends one test mail;
+  `server/deploy/ses-smtp-password.php` derives the SES SMTP password from an IAM secret key (SigV4, fixed date
+  11111111, message SendRawEmail). The API's `Smtp.php` (AUTH LOGIN, STARTTLS) needs no change for SES.
+- Assumed, to confirm with asgerb: the verified domain is `buildingfictions.com`; the account has production access
+  (out of the SES sandbox) in eu-west-1.
+- [ ] Open: SES SMTP credentials from asgerb / Building Fictions → GitHub environments `production` (and `staging`);
+  then `mail-test.php` against a real inbox. Issue #12 (milestone Release Japan) is written for asgerb; his
+  collaborator invite (write, sent 2026-10-27) is pending – assign #12 to him once he has accepted (Tilman).
+
+## 2026-10-27 – Deployment with Kamal; issues on the OSCT board (Tilman)
+
+- Tilman: "rework deployment for ssh server with kamal docker containers … main deploys to prod and develop to stag";
+  staging = https://osct.porschuetz.de, production = https://osct.buildingfictions.com; osct.netlify.app (a clone of
+  the staging frontend) is abandoned now. Built as 1.5.3: one image (`Dockerfile`), `config/deploy.yml` +
+  `deploy.staging.yml` / `deploy.production.yml` (service `osct-staging` / `osct` – both may share one server),
+  MariaDB 11.4 as a Kamal accessory per destination, migration in the container's entrypoint, `.kamal/secrets` only
+  references environment variables. Workflows `deploy-staging.yml` / `deploy-production.yml` → `deploy.yml`;
+  `release.yml`, the FTPS upload (`write-config.php`) and the Netlify files are gone; `tag-version.yml` stays.
+- Decisions: Apache + mod_php (the two `.htaccess` files keep working as on the shared host), client IP from
+  kamal-proxy's `X-Forwarded-For` (rate limits per IP), `.gz` copies served without `Content-Encoding` (the app
+  unpacks), errors to the container log. Image checked locally (`docker build`, SQLite run: health, SPA fallback,
+  headers, API routing, content types). Not yet run against a server – the server and credentials are open.
+- Staging host (Tilman, same day): osct.porschuetz.de is the all-inkl shared host without Docker. Decided: a **staging VM
+  on the production server** (asgerb) instead of a second deploy method; until then `deploy-staging-ftps.yml` (the old
+  upload, marked temporary) keeps staging alive and the Kamal staging deploy skips with a warning (no `SSH_HOST`).
+- Mail (same day, from a parallel editor – not this session and not the CDN session; Tilman to confirm): Amazon SES
+  eu-west-1 as the SMTP default in `config/deploy.yml`, a "Mail configured?" step in `deploy.yml` that stops a
+  deploy with `smtp` but no credentials, `server/deploy/mail-test.php` (test mail from the container) and
+  `ses-smtp-password.php` (IAM secret → SES SMTP password), docs/deploy.md "Mail (AWS SES)". Kept as is;
+  `.dockerignore` lets `mail-test.php` into the image.
+- Credentials: a colleague (GitHub `asgerb`) fills them in – issue "Credentials and access for the Kamal deploys"
+  lists every variable and secret per GitHub environment; docs/deploy.md "Configuration" is the reference.
+- Tracking: GitHub project **OSCT** (users/mandymozart/projects/5), copied from the SCUTOONS board (lanes Backlog ·
+  Proposals · In progress · Review on staging · Deployed · Done), labels like SCUTOONS, milestone `Release Japan`
+  (production launch; made by the CDN session, which also owns "Host content on bunny.net CDN"). Rule in RULES.md
+  "Deployment".
+- [ ] Open: first `kamal setup -d staging` / `-d production` once the server exists; DNS of both domains; move the
+  staging users database from all-inkl; shut down Netlify + all-inkl (issues on the board).
+- [ ] Open (proposal issue): deploys move issues on the board like SCUTOONS / Nadeos.
+
 ## 2026-10-02 – Content editor: not built (Tilman)
 
 - Researched a standalone, reusable content + 3D scene editor (`agents/research/content-editor.md`). Tilman: "we will

@@ -37,3 +37,10 @@ logs
 *.sln
 *.sw?
 .venv
+
+# Kamal: only .kamal/secrets (references to environment variables) is committed
+.kamal/secrets.*
+.kamal/secrets-common
+# Trial/final content videos stay out of git (Tilman, 2026-10-27) – synced to the CDN separately; a build without
+# them gives those targets no AR video (warning, not an error)
+content/entries/*/video.mp4

@@ -1,5 +1,8 @@
 import { PerspectiveCamera } from "three";
 import { CAMERA_NOT_RESPONDING } from "@/types";
+import { getTargetBudget } from "../utils/prepared-spreads";
+import { publishEngineState, EMPTY_ENGINE_STATE, registerLoadTest } from "../utils/tracker-debug";
+import { runLoadTest } from "./load-test";
 import { CAMERA_START_TIMEOUT_MS, IImageTracker, ImageTrackerOptions, TrackedSpread } from "./tracker-types";
 import {
   anchorMatrix,
@@ -16,6 +19,21 @@ import {
 const TARGETS_LOAD_TIMEOUT_MS = 15000;
 /** A neighbouring spread's target seen this long (and none of the current spread's) switches the spread */
 const SPREAD_SEEN_MS = 400;
+/** `whenSettled()` gives up after this long (a window of the whole book on a slow phone) */
+const SETTLE_TIMEOUT_MS = 180000;
+/**
+ * Grow mode: targets added per batch. Each new target costs ~0.35 s of main-thread work (preparing ~0.16 s,
+ * extracting ~0.19 s – load test 2026-10-27), so a batch stays short enough not to hold up a page switch.
+ */
+const GROW_BATCH_TARGETS = 3;
+/** Grow mode: pause between batches, and the longest wait for idle time */
+const GROW_PAUSE_MS = 150;
+const GROW_IDLE_TIMEOUT_MS = 1000;
+
+const idle = () => new Promise<void>(resolve => {
+  if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(() => resolve(), { timeout: GROW_IDLE_TIMEOUT_MS });
+  else window.setTimeout(resolve, 50);
+});
 const NEAR = 0.01;
 const FAR = 1000;
 
@@ -73,6 +91,27 @@ export class ImageTracker implements IImageTracker {
   private prepareRun = 0;
   private startWaiter: { resolve: () => void; reject: (error: Error) => void } | null = null;
   private scanningWaiter: (() => void) | null = null;
+  /** Engine target name → app target id, for every target ever prepared (debug view of what the engine sees) */
+  private idOf = new Map<string, string>();
+  /** Targets the engine reports as found right now, any loaded spread (name → target id) – debug view */
+  private seen = new Map<string, string>();
+  /** The last automatic spread switch the tracker asked for – debug view */
+  private lastSwitch: { spreadId: string; targetId: string; at: number } | null = null;
+  /** Grow mode: spreads still to add, nearest first, and whether the growth loop runs */
+  private growQueue: TrackedSpread[] = [];
+  private growing = false;
+  /** Grow mode is on (`growTargets()`), until a fixed window (`prepareTargets()`) replaces it */
+  private growMode = false;
+  /** Resolved once nothing is being prepared or extracted (`whenSettled()`) */
+  private settleWaiters = new Set<() => void>();
+  /** The latest window (`prepareTargets()`): when it was configured, and how long preparing / extracting took */
+  private windowTimes = { configuredAt: 0, prepareMs: 0, extractMs: 0 };
+  /** Spreads whose target images are being prepared (debug view) */
+  private preparing: string[] = [];
+  /** The engine is extracting since (performance.now()), null when idle (debug view) */
+  private extractingSince: number | null = null;
+  /** Counters for the load test: engine frames, frames with a current target found, current targets lost */
+  private counters = { frames: 0, framesFound: 0, lost: 0 };
 
   constructor(private container: HTMLElement, private options: ImageTrackerOptions) {}
 
@@ -89,6 +128,34 @@ export class ImageTracker implements IImageTracker {
     if (!this.started) return null;
     const videos = Array.from(this.container.querySelectorAll("video"));
     return videos.find(video => video.srcObject instanceof MediaStream) ?? null;
+  }
+
+  /** The spread being tracked (load test) */
+  get currentSpreadId(): string | null {
+    return this.current?.spreadId ?? null;
+  }
+
+  /** Targets of the current spread found right now (load test) */
+  get foundCount(): number {
+    return this.poses.size;
+  }
+
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** Targets and spreads the engine holds: the current spread + the window (load test) */
+  get heldTargets(): number {
+    return (this.current?.targets.length ?? 0) + this.upcoming.reduce((n, spread) => n + spread.targets.length, 0);
+  }
+
+  get heldSpreads(): number {
+    return (this.current ? 1 : 0) + this.upcoming.length;
+  }
+
+  /** Load test counters since the camera started: engine frames, frames with a find, current targets lost */
+  get stats(): { frames: number; framesFound: number; lost: number } {
+    return { ...this.counters };
   }
 
   async startCamera(): Promise<void> {
@@ -126,6 +193,8 @@ export class ImageTracker implements IImageTracker {
       this.startWaiter = null;
     }
     this.started = true;
+    registerLoadTest((options, onProgress) => runLoadTest(this, options, onProgress));
+    this.publishState();
   }
 
   async loadTargets({ spreadId, targets }: TrackedSpread): Promise<void> {
@@ -142,8 +211,10 @@ export class ImageTracker implements IImageTracker {
       target.data.name,
       { id: withImage[i].id, widthFactor: target.widthFactor },
     ]));
+    data.forEach((target, i) => this.idOf.set(target.data.name, withImage[i].id));
     // The previous spread stays loaded until prepareTargets() names the new neighbours (it is one of them)
-    this.upcoming = this.current ? [...this.upcoming, this.current] : this.upcoming;
+    const previous = this.current && this.current.spreadId !== spreadId ? [this.current] : [];
+    this.upcoming = [...this.upcoming.filter(spread => spread.spreadId !== spreadId), ...previous];
     this.current = { spreadId, targets: data };
     this.configureEngine();
     this.currentSince = performance.now();
@@ -171,18 +242,113 @@ export class ImageTracker implements IImageTracker {
 
   prepareTargets(spreads: readonly TrackedSpread[]): void {
     const run = ++this.prepareRun;
-    const prepare = (spread: TrackedSpread): Promise<SpreadTargets> =>
-      Promise.all(spread.targets.filter(target => target.imageSrc).map(target => this.imageTarget(target.imageSrc)))
-        .then(targets => ({ spreadId: spread.spreadId, targets }));
-    void Promise.all(spreads.map(prepare)).then(
+    this.growQueue = []; // a fixed window ends the growth
+    this.growMode = false;
+    const requested = performance.now();
+    this.preparing = spreads.map(spread => spread.spreadId);
+    this.publishState();
+    void Promise.all(spreads.map(spread => this.prepareSpread(spread))).then(
       upcoming => {
         if (run !== this.prepareRun || !this.started) return; // newer neighbours or the camera is off
+        this.preparing = [];
         this.upcoming = upcoming;
+        const now = performance.now();
+        this.windowTimes = { configuredAt: now, prepareMs: now - requested, extractMs: 0 };
         this.configureEngine();
         console.info(`[8th Wall] ${this.ready.size} of ${this.current!.targets.length + upcoming.reduce((n, spread) => n + spread.targets.length, 0)} targets extracted so far – next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
       },
-      error => console.warn("[8th Wall] Could not prepare the next spreads' targets:", error),
+      error => {
+        if (run === this.prepareRun) this.preparing = [];
+        this.publishState();
+        console.warn("[8th Wall] Could not prepare the next spreads' targets:", error);
+      },
     );
+  }
+
+  private prepareSpread(spread: TrackedSpread): Promise<SpreadTargets> {
+    const withImage = spread.targets.filter(target => target.imageSrc);
+    return Promise.all(withImage.map(target => this.imageTarget(target.imageSrc))).then(targets => {
+      targets.forEach((target, i) => this.idOf.set(target.data.name, withImage[i].id));
+      return { spreadId: spread.spreadId, targets };
+    });
+  }
+
+  growTargets(spreads: readonly TrackedSpread[]): void {
+    this.prepareRun++; // a running fixed-window prepare must not replace what grows
+    if (!this.growing) this.preparing = []; // …and what it was preparing no longer counts
+    this.growMode = true;
+    this.growQueue = spreads.filter(spread => !this.holds(spread.spreadId));
+    this.publishState();
+    if (!this.growing) void this.grow();
+  }
+
+  private holds(spreadId: string): boolean {
+    return this.current?.spreadId === spreadId || this.upcoming.some(spread => spread.spreadId === spreadId);
+  }
+
+  /**
+   * The growth loop: waits until the engine has nothing to do and the page is idle, prepares the next few targets
+   * (whole spreads, nearest first), adds them to what the engine holds, waits for their extraction, repeats until
+   * the queue is empty. The engine restarts its queue with every configure, so batches never overlap.
+   */
+  private async grow(): Promise<void> {
+    this.growing = true;
+    try {
+      while (this.started && this.growQueue.length) {
+        try {
+          await this.whenSettled();
+        } catch {
+          // The engine took very long: add the next batch anyway
+        }
+        await new Promise(resolve => window.setTimeout(resolve, GROW_PAUSE_MS));
+        await idle();
+        if (!this.started) break;
+        const batch: TrackedSpread[] = [];
+        let count = 0;
+        while (this.growQueue.length && (!batch.length || count + this.growQueue[0].targets.length <= GROW_BATCH_TARGETS)) {
+          const spread = this.growQueue.shift()!;
+          if (this.holds(spread.spreadId)) continue;
+          batch.push(spread);
+          count += spread.targets.length;
+        }
+        if (!batch.length) continue;
+        this.preparing = batch.map(spread => spread.spreadId);
+        this.publishState();
+        const prepared = await Promise.all(batch.map(spread => this.prepareSpread(spread)));
+        this.preparing = [];
+        // Stopped, or a fixed window took over meanwhile
+        if (!this.started || !this.growMode) break;
+        this.upcoming = [...this.upcoming, ...prepared.filter(spread => !this.holds(spread.spreadId))];
+        this.windowTimes = { configuredAt: performance.now(), prepareMs: 0, extractMs: 0 };
+        this.configureEngine();
+      }
+    } catch (error) {
+      console.warn("[8th Wall] Growing the held targets stopped:", error);
+    } finally {
+      this.growing = false;
+      this.publishState();
+    }
+  }
+
+  /**
+   * Resolves once the window is ready: nothing being prepared, nothing left to extract. With the latest window's
+   * times – the app preparing its new target images, the engine extracting them (load test).
+   */
+  whenSettled(): Promise<{ prepareMs: number; extractMs: number }> {
+    const times = () => ({ prepareMs: this.windowTimes.prepareMs, extractMs: this.windowTimes.extractMs });
+    if (this.settled) return Promise.resolve(times());
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        this.settleWaiters.delete(done);
+        reject(new Error(`the targets were not ready within ${SETTLE_TIMEOUT_MS / 1000} s`));
+      }, SETTLE_TIMEOUT_MS);
+      const done = () => { window.clearTimeout(timer); resolve(times()); };
+      this.settleWaiters.add(done);
+    });
+  }
+
+  private get settled(): boolean {
+    return !this.preparing.length && this.extractingSince === null;
   }
 
   /**
@@ -192,11 +358,44 @@ export class ImageTracker implements IImageTracker {
   private configureEngine(): void {
     const XR8 = this.XR8;
     if (!XR8 || !this.started) return;
-    const spreads = this.current ? [this.current, ...this.upcoming] : this.upcoming;
+    const upcoming = this.upcoming;
+    const spreads = this.current ? [this.current, ...upcoming] : upcoming;
     const byName = new Map(spreads.flatMap(spread => spread.targets).map(target => [target.data.name, target.data]));
-    this.spreadOf = new Map(this.upcoming.flatMap(spread => spread.targets.map(target => [target.data.name, spread.spreadId])));
+    this.spreadOf = new Map(upcoming.flatMap(spread => spread.targets.map(target => [target.data.name, spread.spreadId])));
     this.ready.forEach(name => { if (!byName.has(name)) this.ready.delete(name); });
+    // New targets: the engine extracts them now (the queue restarts with every configure)
+    const extracting = [...byName.keys()].some(name => !this.ready.has(name));
+    this.extractingSince = extracting ? (this.extractingSince ?? performance.now()) : null;
     XR8.XrController!.configure({ imageTargetData: [...byName.values()] });
+    this.publishState();
+  }
+
+  /** What the engine holds, for the debug overlay (`tracker-debug.ts`) */
+  private publishState(): void {
+    if (!this.started) {
+      publishEngineState(EMPTY_ENGINE_STATE);
+      return;
+    }
+    if (this.settled && this.settleWaiters.size) {
+      const waiters = [...this.settleWaiters];
+      this.settleWaiters.clear();
+      waiters.forEach(waiter => waiter());
+    }
+    const upcoming = this.upcoming;
+    const all = this.current ? [this.current, ...upcoming] : upcoming;
+    const names = new Set(all.flatMap(spread => spread.targets.map(target => target.data.name)));
+    publishEngineState({
+      current: this.current ? { spreadId: this.current.spreadId, targets: this.current.targets.length } : null,
+      held: upcoming.map(spread => ({ spreadId: spread.spreadId, targets: spread.targets.length })),
+      preparing: [...this.preparing],
+      targets: names.size,
+      ready: [...names].filter(name => this.ready.has(name)).length,
+      extractingSince: this.extractingSince,
+      budget: getTargetBudget(),
+      growing: this.growing || this.growQueue.length > 0 ? this.growQueue.length : null,
+      seen: [...this.seen.values()],
+      lastSwitch: this.lastSwitch,
+    });
   }
 
   pause(): void {
@@ -204,6 +403,8 @@ export class ImageTracker implements IImageTracker {
     this.XR8.pause();
     this.paused = true;
     this.poses.clear();
+    this.seen.clear();
+    this.publishState();
   }
 
   resume(): void {
@@ -237,12 +438,23 @@ export class ImageTracker implements IImageTracker {
     this.canvas = null;
     this.current = null;
     this.upcoming = [];
+    this.preparing = [];
+    this.extractingSince = null;
+    this.growQueue = [];
+    this.growMode = false;
+    this.seen.clear();
+    // Waiters (the growth loop, the load test) go on and see that the camera is off
+    const waiters = [...this.settleWaiters];
+    this.settleWaiters.clear();
+    waiters.forEach(waiter => waiter());
     this.spreadOf.clear();
     this.ready.clear();
     this.prepareRun++;
     this.started = false;
     this.paused = false;
     this.intrinsics = null;
+    registerLoadTest(null);
+    this.publishState();
   }
 
   fit(camera: PerspectiveCamera): void {
@@ -304,12 +516,15 @@ export class ImageTracker implements IImageTracker {
       this.intrinsics = [...m];
       this.applyProjection();
     }
+    this.counters.frames++;
+    if (this.poses.size) this.counters.framesFound++;
     this.poses.forEach(({ detail, target }, id) =>
       this.options.onUpdate(id, anchorMatrix(reality, detail, target.widthFactor)));
   }
 
   private onImage(detail: XrImageDetail, found: boolean): void {
     if (this.paused) return;
+    this.noteSeen(detail.name, found);
     const target = this.targets.get(detail.name);
     if (!target) return this.onUpcomingImage(detail.name, found);
     const spreadId = this.current?.spreadId;
@@ -321,6 +536,7 @@ export class ImageTracker implements IImageTracker {
       return;
     }
     if (this.poses.delete(target.id)) {
+      this.counters.lost++;
       console.info(`[8th Wall] Lost ${spreadId}/${target.id}`);
       this.options.onUpdate(target.id, null);
     }
@@ -347,7 +563,17 @@ export class ImageTracker implements IImageTracker {
     if (now - since < SPREAD_SEEN_MS || this.poses.size > 0) return;
     this.seenSince.set(name, now);
     console.info(`[8th Wall] ${spreadId} held in view – switching`);
+    this.lastSwitch = { spreadId, targetId: this.idOf.get(name) ?? name, at: Date.now() };
+    this.publishState();
     this.options.onSpreadSeen?.(spreadId);
+  }
+
+  /** Debug view: every target the engine finds or loses, whatever spread it belongs to */
+  private noteSeen(name: string, found: boolean): void {
+    if (found === this.seen.has(name)) return;
+    if (found) this.seen.set(name, this.idOf.get(name) ?? name);
+    else this.seen.delete(name);
+    this.publishState();
   }
 
   private module(): XrPipelineModule {
@@ -373,7 +599,12 @@ export class ImageTracker implements IImageTracker {
           event: "reality.imagescanning",
           process: ({ detail }) => {
             (detail?.imageTargets ?? []).forEach((target: { name: string }) => this.ready.add(target.name));
+            if (this.extractingSince !== null && this.windowTimes.configuredAt) {
+              this.windowTimes.extractMs = performance.now() - Math.max(this.windowTimes.configuredAt, this.extractingSince);
+            }
+            this.extractingSince = null;
             this.scanningWaiter?.();
+            this.publishState();
           },
         },
         { event: "reality.imagefound", process: ({ detail }) => this.onImage(detail, true) },

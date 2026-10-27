@@ -48,8 +48,8 @@ exists → converted, with a notice that parts may be missing; none exists → p
 
 Printed QR codes: `https://osct.buildingfictions.com/spread/<spreadId>?osct=<version>` – the dev QR
 generator in the debug overlay makes them for the current spread. The server has to answer every path
-with `index.html`: `client/public/.htaccess` (Apache / FTP production) and `client/public/_redirects`
-(Netlify) do that; Vite does it in dev and preview.
+with `index.html`: `client/public/.htaccess` does that (Apache – the Docker image, [deploy](deploy.md)); Vite does
+it in dev and preview.
 
 Two overlays have no route – they sit outside `<pages-router>` and follow the store:
 
