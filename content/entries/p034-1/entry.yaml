@@ -1,0 +1,10 @@
+# Imported from 2110.yaml (glossary/P34_Print_01.jpg, glossary/P34_Online_01.jpg).
+# Placeholder title and body – the texts follow.
+# Note: delivered as a print image but not in All_Triggers.pdf - not on the test printout
+category: glossary
+title: "p. 34 · 1"
+page: 34
+body: "Placeholder – the text follows."
+image: image.jpg
+target:
+  image: target.jpg

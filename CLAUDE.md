@@ -10,6 +10,9 @@ Before working, read:
 - `agents/reference/README.md` – design PDF, rendered frames and extracted placeholder images
 - `agents/DESIGN.md` – measured design spec (colors, gold gradient, sizes, buttons) – before any styling
 
+First, before any edit: find or create the session's GitHub issue, put it in its lane on the OSCT board and
+start the session title with its number (`#N …`) – `agents/RULES.md` "Every session starts with its issue".
+
 While working:
 - Tick items in `PLAN.md` as they land (`[~]` in progress, `[x]` done).
 - Bump the version and add an entry to `docs/CHANGELOG.md` for every change (`RULES.md` #23).

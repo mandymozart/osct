@@ -1,3 +1,7 @@
 export * from "./debug-overlay";
 export * from "./qr-generator";
 export * from "./tune-panel";
+export * from "./trial-panel";
+export * from "./trial-report";
+export * from "./load-test-panel";
+export * from "./load-test-report";

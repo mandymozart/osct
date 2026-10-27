@@ -72,6 +72,19 @@ describe('content build', () => {
       expect(await errorsFor(files)).toContainEqual('entries/first target: file "x.jpg" not found in content/entries/first/');
     });
 
+    it('a missing entry video is a warning: the target is built without its AR video', async () => {
+      const videoEntity = ['  entity:', '    type: video', '    src: video.mp4', ''].join('\n');
+      const files = { ...valid(), 'entries/first/entry.yaml': entry(1, 'x.jpg', videoEntity) };
+      const build = await loadBuild(makeContent(files));
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const { entries } = build.buildAll();
+      vi.restoreAllMocks();
+      expect(build.errors).toEqual([]);
+      expect(build.warnings).toContainEqual('entries/first target: video "video.mp4" is not on this machine (videos are not in git) – built without its AR video');
+      expect(entries.find(e => e.id === 'first')?.target?.entity).toBeUndefined();
+    });
+
     it('an unknown category', async () => {
       const errors = await errorsFor({ ...valid(), 'entries/first/entry.yaml': entry(1, 'x.jpg').replace('glossary', 'poem') });
       expect(errors.join('\n')).toMatch(/entries\/first: .*category.*must be one of/);

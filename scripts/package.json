@@ -1,7 +1,7 @@
 {
   "name": "osct-scripts",
   "private": true,
-  "version": "1.5.2",
+  "version": "1.7.0",
   "engines": {
     "node": ">=22"
   },
@@ -12,6 +12,8 @@
     "build:content:force": "node dist/index.js --force",
     "start": "npm run build && npm run build:content",
     "sounds": "npm run build && node dist/sounds.js",
+    "import": "npm run build && node dist/import-delivery.js",
+    "protocol": "npm run build && node dist/protocol.js",
     "test": "vitest run"
   },
   "dependencies": {

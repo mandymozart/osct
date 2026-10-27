@@ -1,0 +1,20 @@
+# Production https://osct.buildingfictions.com: every push to `main` (merge develop into main when Tilman says
+# so – agents/RULES.md #11) deploys the site with Kamal (deploy.yml, GitHub environment "production").
+# tag-version.yml tags the version on main at the same time. By hand: Actions → Deploy production → Run workflow.
+name: Deploy production (osct.buildingfictions.com)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  production:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      destination: production
+    secrets: inherit

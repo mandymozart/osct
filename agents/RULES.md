@@ -46,8 +46,12 @@ Extend as we go: add a rule when a decision should hold for all future work.
    target. Never assume an entity is video-only – keep entity types extensible.
 8. Content lives in `content/` (YAML) → built by `scripts/` into `client/src/game.config.json`
    and `client/public/assets/content`. **The output is not in git** (Tilman, 2026-09-28): `npm run build` in
-   `client/` builds the content first (prebuild → `npm run content`), so CI, the deploys and Netlify (base
-   `client/`, `npm run build`) always build the content of their commit. Commit `content/` only.
+   `client/` builds the content first (prebuild → `npm run content`), so CI and the deploys (the Docker image runs
+   `npm run build`) always build the content of their commit. Commit `content/` only.
+   **Deliveries** from the publisher (2026-10-27): never copied into `content/` by hand – a mapping file
+   `scripts/import/<delivery>.yaml` + `npm run import` does it (docs/content.md "Importing a delivery"), so the next
+   delivery lands the same way. `content-demo/` is the placeholder content (every entity type, chroma key);
+   `npm run protocol` writes the printed-image details for the trigger trial panel (overlay → trial).
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
    Tests of removed features are not wanted – test behaviour that stays.
@@ -67,9 +71,10 @@ Extend as we go: add a rule when a decision should hold for all future work.
 11. Windows: stop the dev/preview server before any git command that rewrites the working tree
     (`stash`, `checkout`, `reset`, `switch`) – vite holds file locks and the operation half-fails.
     **Branches (Tilman, 2026-09-26):** all work goes to `develop` first (or a feature branch merged into
-    `develop`) – `develop` deploys to staging (osct-staging.netlify.app, Netlify env `VITE_DEBUG=true`:
-    debug bar on). `main` = production (osct.netlify.app, no debug bar); merge `develop` into `main` only
-    when Tilman says so. Build flags (`VITE_*`) are set per Netlify site, never committed in `client/.env`.
+    `develop`) – `develop` deploys to staging (https://osct.porschuetz.de, debug bar on). `main` = production
+    (https://osct.buildingfictions.com, no debug bar); merge `develop` into `main` only when Tilman says so – the
+    push deploys (Kamal, 2026-10-27: docs/deploy.md). Build flags (`VITE_*`) are set per Kamal destination
+    (`config/deploy.<destination>.yml` → `builder.args`), never committed in `client/.env`.
 12. AR: only `components/ar-bridges/ar/` touches three.js / the 8th Wall engine, behind `IArScene`
     (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. `ArScene` keeps **one** renderer
     (`ar/view.ts`) and one camera stream and swaps a spread's targets, assets and entities in place.
@@ -157,8 +162,9 @@ Extend as we go: add a rule when a decision should hold for all future work.
     `assets/content/`. Never make the worker serve pages cache-first (deploys would not show).
 
 21. **Server** (Tilman, 2026-09-27): the accounts API is plain **PHP 8.1+ with PDO/MySQL** in `server/api/`
-    (no framework, no Composer), deployed as `/api` next to the app. Secrets never in the repository: locally
-    `server/.env` / `server/api/config.local.php` (ignored), in CI GitHub environment secrets. Queries must run
+    (no framework, no Composer), served as `/api` next to the app from the site's Docker image (docs/deploy.md).
+    Secrets never in the repository: locally `server/.env` / `server/api/config.local.php` (ignored), in CI GitHub
+    environment secrets – the container gets them as `OSCT_*` environment variables. Queries must run
     on MySQL and SQLite (tests); schema changes go into `api/db/schema.*.sql` (idempotent). The app talks to it
     only through `ApiService` (`VITE_API_URL`); `php server/tests/api-test.php` must pass.
     Naming: the signed-in person is the **user** in code, API and database; "Account" is only the UI label.
@@ -198,11 +204,35 @@ Extend as we go: add a rule when a decision should hold for all future work.
     - **Merge conflicts in version files:** never pick either side – take the next version above both.
       `game.config.json` is not in git (nothing to merge). `CHANGELOG.md`: keep every section; merged work
       without its own shipped version goes into the new section. A version must never go down.
-    - **Releases** deploy production, not merges: merge to `main` → `tag-version.yml` tags `vX.Y.Z` (never
-      push tags yourself – agent sessions cannot) → publish a GitHub release on that tag → `release.yml`
-      (tag must equal the version and have a CHANGELOG section; docs/server.md "Releases").
+    - **Production deploys from `main`** (2026-10-27): merge `develop` into `main` when Tilman says so →
+      `deploy-production.yml` deploys, `tag-version.yml` tags `vX.Y.Z` (never push tags yourself – agent sessions
+      cannot). GitHub releases are optional notes; nothing deploys from them (docs/deploy.md).
 
-## Deployment (from old rules)
-- Staging: `develop` → osct.porschuetz.de (`deploy-staging.yml`) · Production: published release → `release.yml`
-  (production server over FTPS + Netlify via CLI; Netlify's own builds of `main` are stopped)
-- Build: `npm run build`, publish `dist`, SPA
+## Deployment (Kamal, 2026-10-27 – docs/deploy.md)
+- One Docker image (`Dockerfile`: content build + app + `server/api` as `/api`, Apache + PHP) deployed with Kamal
+  over SSH behind kamal-proxy; MariaDB as a Kamal accessory per destination. Staging: `develop` →
+  https://osct.porschuetz.de (`deploy-staging.yml`) · Production: `main` → https://osct.buildingfictions.com
+  (`deploy-production.yml`); both call `deploy.yml`. Netlify is gone; the FTPS upload (`deploy-staging-ftps.yml`)
+  stays only until the staging VM exists.
+- Settings are `OSCT_*` environment variables (`config/deploy.yml` + `config/deploy.<destination>.yml`), secrets
+  through `.kamal/secrets` from the GitHub environments `staging` / `production` – never values in git.
+- Server-side HTTP behaviour (cache headers, MIME types, SPA fallback, client IP) lives in
+  `server/docker/apache.conf` and the two `.htaccess` files – not at a hosting provider.
+- **Issues and board** (Tilman, 2026-10-27): work is tracked as GitHub issues on the project board **OSCT**
+  (github.com/users/mandymozart/projects/5 – the SCUTOONS layout: Backlog · Proposals · In progress · Review on
+  staging · Deployed · Done). Labels: one type (`bug` / `feature` / `chore`) + one `area:*`, plus `owner` (only
+  Tilman or a colleague can do it) / `decide`. Milestones are dated targets (`Release Japan`). Several sessions may
+  create issues at once: search first (`gh issue list --search …`), never a second issue for the same thing.
+- **Every session starts with its issue** (Tilman, 2026-10-27), before the first edit:
+  1. Tilman names it (`#N`), or search for one: `gh issue list -s all --search "<words>"`. Read it with
+     `gh issue view N --comments`.
+  2. None exists → `gh issue create` (labels and body as above), then decide which lane it enters and say so:
+     **In progress** – this session works on it now · **Backlog** – Tilman wants it, but not in this session ·
+     **Proposals** – an idea, something found in passing, or it needs Tilman's decision first (label `decide`, the
+     options and a recommendation in the body). Only Tilman moves an issue into Backlog or reorders it, unless he
+     asked for it in this session.
+  3. Rename the session so its title **starts with the issue number**: `#N <short title>` (several: `#N #M …`).
+  4. Set your issue to **In progress** (`gh project item-edit`, ids from `gh project field-list 5 --owner @me`).
+  Commits end with `Refs #N` (a step) or `Fixes #N` (the commit that finishes it); `#N` never starts a line. The
+  deploys then move a `Fixes #N` issue to **Review on staging** (develop) and **Deployed** (main) –
+  `board-status.yml`, #11. Anything outside the issue becomes its own issue (Proposals), not part of this session.

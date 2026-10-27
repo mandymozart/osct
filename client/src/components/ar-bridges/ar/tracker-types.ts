@@ -41,6 +41,12 @@ export interface IImageTracker {
    * `loadTargets()` for one of them starts at once. Called after the current spread is tracked.
    */
   prepareTargets(spreads: readonly TrackedSpread[]): void;
+  /**
+   * Grow mode: add these spreads' targets to what the tracker holds, in this order (nearest first), a few at a time
+   * in idle time, each batch after the previous one is ready – nothing already held is dropped. A newer call
+   * replaces the order (the reader switched spreads); `prepareTargets()` ends the growth.
+   */
+  growTargets(spreads: readonly TrackedSpread[]): void;
   /** Tracking and the camera picture pause, the stream stays */
   pause(): void;
   resume(): void;

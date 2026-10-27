@@ -21,17 +21,21 @@ waiting for an email; the email sign-in keeps working, and it is also the way ba
 forgotten (sign in with the link, then set a new password).
 
 Plain PHP 8.1+ with PDO and no Composer; it follows the same style as qr.scutoons.com. Everything lives in
-`server/api/`, which is deployed as the `/api` folder next to the app.
+`server/api/`, which the site's Docker image serves as `/api` next to the app ([Deploy](deploy.md)).
 
 ```
 server/api/
   index.php               front controller – the list of endpoints
   .htaccess               everything → index.php, nothing else is served
-  config.local.php        settings (not committed) – from config.local.php.example / the deploy
+  config.local.php        settings for local development (not committed) – from config.local.php.example; the
+                          container has none, it gets OSCT_* environment variables
   src/                    Version, Config, Db, Http, Auth, Passwords, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de)
   db/schema.mysql.sql     tables (CREATE TABLE IF NOT EXISTS, later columns as ALTER TABLE … ADD COLUMN – POST /admin/migrate runs it)
   db/schema.sqlite.sql    the same for local development / tests
-server/deploy/write-config.php   deploy: config.local.php from OSCT_* environment variables
+server/deploy/migrate.php        deploy: the migration from the command line (the container's entrypoint runs it)
+server/deploy/mail-test.php      one test mail with the current mail settings (in the image as /opt/osct/mail-test.php)
+server/deploy/ses-smtp-password.php   SES SMTP password from an IAM secret key (docs/deploy.md "Mail")
+server/docker/                   Apache configuration and entrypoint of the image (docs/deploy.md)
 server/tests/api-test.php        the whole flow against php -S + SQLite, SMTP against tests/fake-smtp.php
 ```
 
@@ -50,7 +54,7 @@ server/tests/api-test.php        the whole flow against php -S + SQLite, SMTP ag
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
 | `GET /health` | | `{ status, version, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10) |
-| `POST /admin/migrate` | header `X-Admin-Secret: SECRET` | creates missing tables and columns |
+| `POST /admin/migrate` | header `X-Admin-Secret: SECRET` | creates missing tables and columns (the container does this at every start) |
 
 Signed-in calls send `Authorization: Bearer <session>`. Errors: `{ "error": { "code", "message" } }`. The
 app translates the codes (`account:errors.*`).
@@ -78,8 +82,9 @@ Security notes:
 
 ## Logs
 
-The API writes its errors (with the reason, e.g. a failed mail or a database error) to `server/api/db/error.log` (on the server: `api/db/error.log`)
-(`LOG_PATH`). `db/` is never served over HTTP; read the file over FTP. Readers only see "Something went wrong".
+The API writes its errors (with the reason, e.g. a failed mail or a database error) to `LOG_PATH` – locally
+`server/api/db/error.log` (`db/` is never served over HTTP), in the container `/dev/stderr` = `kamal app logs`. Readers
+only see "Something went wrong".
 
 ## Local development
 
@@ -92,38 +97,18 @@ php server/tests/api-test.php    # API tests (CI runs them too)
 
 The mails (with link and code) land in `MAIL_LOG_PATH`.
 
-## Deploy (development server)
+## Deploy
 
-`.github/workflows/deploy-staging.yml` ("Deploy staging server (osct.porschuetz.de)") runs on every push to `develop` –
-the whole site, app + API. osct.porschuetz.de is the staging server; the Netlify sites are temporary and call its API.
-Production: see [Releases](#releases-production).
-1. Run the API tests.
-2. Build the app with `VITE_API_URL=/api`.
-3. Write `config.local.php` from the GitHub environment **staging** (secrets and variables are listed in the workflow).
-4. Upload the app and `server/api/` (as `api/`) over FTPS to osct.porschuetz.de.
-5. Call `/api/admin/migrate`, then `/api/health`.
+The API ships inside the site's Docker image (`server/api` as `/api`, next to the app) and is deployed with Kamal –
+`develop` → staging https://osct.porschuetz.de, `main` → production https://osct.buildingfictions.com:
+[Deploy](deploy.md). Every setting comes from `OSCT_*` environment variables (`config/deploy.yml` and the
+destination files; secrets through `.kamal/secrets` from the GitHub environment). The container runs the migration
+(`server/deploy/migrate.php`, the same as `POST /admin/migrate`) before Apache starts, and the workflow checks
+`/api/health` afterwards.
 
-Local credentials for that server live in `server/.env`, which is not committed.
-
-## Releases (production)
-
-Pushes to `main` deploy nothing. Production is deployed by `.github/workflows/release.yml` ("Release
-production") when a GitHub release is **published** – or by hand (Actions → Release production → tag).
-
-1. Bump the version and add the `docs/CHANGELOG.md` section on `develop` (RULES #23), merge `develop` into `main`.
-   `.github/workflows/tag-version.yml` then tags it: every CHANGELOG version without a tag gets `vX.Y.Z` on
-   the last `main` commit carrying it. Nobody pushes tags by hand (agent sessions cannot).
-2. GitHub → Releases → *Draft a new release* → choose the existing tag `vX.Y.Z` → *Publish* (leave the notes
-   empty to get the CHANGELOG section).
-3. The workflow checks that the tag equals every version source, that the CHANGELOG has the section and that
-   the commit is on `main`; then it fills empty release notes and deploys:
-   - **Production server** (FTPS, app + API) from the GitHub environment **production** – same names as
-     staging. Skipped with a warning while `FTP_HOST` is not set.
-   - **Netlify** (temporary `osct` site): the tagged build is uploaded with the Netlify CLI. Needs secrets
-     `NETLIFY_AUTH_TOKEN` (Netlify → User settings → Applications → Personal access token) and
-     `NETLIFY_SITE_ID` (Site configuration → Site details → Site ID), variable `VITE_API_URL` (full API URL).
-     In Netlify set Site configuration → Build & deploy → Continuous deployment → **Stop builds**, so pushes
-     to `main` no longer deploy; CLI deploys keep working.
-
-Staging on Netlify has no PHP. There, set `VITE_API_URL` to the full API URL; without it the account section
-is hidden.
+The container has no `mail()`: `MAIL_TRANSPORT` is `smtp` (or `log` for a test – the file is inside the container,
+`kamal app logs` does not show it). The SMTP account is **Amazon SES** (eu-west-1; `SMTP_HOST` defaults to its
+endpoint, `SMTP_USER` / `SMTP_PASS` are SES SMTP credentials, `MAIL_FROM` at the verified domain) – [Deploy, "Mail"](deploy.md#mail-aws-ses).
+`php server/deploy/mail-test.php <address>` sends one test mail with the current settings (in the container:
+`kamal app exec … 'php /opt/osct/mail-test.php <address>'`). Errors go to the container log (`OSCT_LOG_PATH=/dev/stderr`), read with
+`kamal app logs -d staging`.

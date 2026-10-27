@@ -42,5 +42,5 @@ export async function loadBuild(dirs: { content: string }) {
     targets.checkTargetsPerSpread(s, builds);
     return { book: b, spreads: s, entries: builds.map(x => x.entry), tutorial: tutorial.buildTutorial(b) };
   };
-  return { errors: errors.buildErrors, buildAll, book, spreads, entities, entries, targets, tutorial, hash };
+  return { errors: errors.buildErrors, warnings: errors.buildWarnings, buildAll, book, spreads, entities, entries, targets, tutorial, hash };
 }

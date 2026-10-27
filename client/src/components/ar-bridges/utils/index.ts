@@ -2,3 +2,4 @@
 export * from './scene-state';
 export * from './emitter';
 export * from './prepared-spreads';
+export * from './tracker-debug';

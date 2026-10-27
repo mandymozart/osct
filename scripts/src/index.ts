@@ -20,6 +20,7 @@ import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, OUTPUT_FILE, projec
 import { buildConfig } from './build/game-config';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
 import { optimizeMedia } from './lib/optimize-media';
+import { buildWarnings } from './lib/errors';
 
 console.log('🚀 OSCT Content Build Tool 🚀');
 console.log('----------------------------');
@@ -39,6 +40,7 @@ async function generateConfigFile(): Promise<void> {
     }
 
     const config = buildConfig(versionStr, inputHash);
+    buildWarnings.forEach(warning => console.warn(`   ⚠️  ${warning}`));
 
     // Media in the client copy: models, images, large videos reported (content/ stays as authored)
     console.log('\n🗜️  Optimising media...');

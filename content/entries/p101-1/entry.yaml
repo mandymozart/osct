@@ -1,0 +1,12 @@
+# Imported from 2110.yaml (glossary/P101_Print_01.jpg, glossary/P101_Online_01.jpg, documentation/P101.MOV).
+# Placeholder title and body – the texts follow.
+category: video
+title: "Video p. 101"
+page: 101
+body: "Placeholder – the text follows."
+image: image.jpg
+target:
+  image: target.jpg
+  entity:
+    type: video
+    src: video.mp4

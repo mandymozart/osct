@@ -12,6 +12,91 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.7.0 – 2026-10-27
+
+### Added
+- **Growing window** (new default, debug overlay *Spreads held: grow*): the tracker holds the current spread, then adds
+  the nearest spreads in idle time – three targets at a time, each batch after the previous one is extracted – until
+  the whole book is held. Nothing is dropped on a switch, so every page visited or grown into switches by itself
+  afterwards. Based on the first load test: holding all 131 targets cost no frame rate, tracking stability or detection
+  speed, only ~0.35 s of main-thread work per new target. Content is still preloaded for ±1. The fixed windows (±0,
+  ±1, ±2, all) stay selectable for comparison. The overlay shows how many spreads are left to add.
+- **What the engine sees** (debug overlay): `S[…]` on the collapsed line lists every target the engine finds right now,
+  of any held spread – the current spread's in green, others in orange – and `↪<spread>` the last automatic switch for
+  10 s; expanded, *Engine sees* and *Last auto switch* (via which target, how long ago). The window setting's
+  **Change** button now applies at once instead of at the next switch. To tell a crowded printout from too many held
+  targets when a page is not found ([tracking](tracking.md)).
+- **Engine view in the debug overlay**: which spreads the image tracker holds right now – the current one (◉) and the
+  ones kept loaded next to it, with their target counts – how many targets are extracted (can be found), whether the
+  engine is still extracting, and which spreads are being prepared. The summary line shows `E<ready>/<held>`.
+- **Engine load test** (debug overlay → *load*, dev server and staging), run in the app as it is used: the window of
+  spreads kept ready next to the scanned one gets a growing target budget (0, 5, 10, 20, 40, 80, all – nearest spreads
+  first); the tracker holds it, the preloader fetches its content, pages switch as usual. Per step it measures preparing
+  and extracting the window's new targets, engine and page frame rate, stutter, how steadily the scanned page stays
+  found, and – when the tester covers and uncovers the lens – how fast it is found again. Download .md / Copy give the
+  table ([tracking](tracking.md)).
+
+### Changed
+- **Entry videos stay out of git** (`content/entries/*/video.mp4` in `.gitignore`): the trial's 16 videos (117 MB) are
+  not committed; they reach the servers through a CDN sync later. A content build without a video (CI, deploys) warns
+  and builds that target without its AR video instead of failing.
+- **Trigger trial panel** is a small strip at the bottom: drag its top bar to make it taller or lower (remembered on
+  the device). It shows the current spread's targets (found ones dimmed with ✓, the one in view outlined), then every
+  target not found yet from the next pages on – tap one to go to its spread; ‹ › step through the spreads. The bar only
+  counts the targets not found yet; **md** downloads the report of those. The slow / flicker / no buttons and notes are
+  gone (found comes from the progress; reset the progress to start a trial over).
+- **Content preload follows the tracker's window**: the spreads whose targets the engine holds (±n, nearest first) also
+  get their content preloaded – before, content was always ±1 while the targets could be ±2 or all. Target images
+  first, then one spread at a time, nearest first; a moved window stops the older run.
+
+## 1.6.0 – 2026-10-27
+
+### Added
+- **Trial content** from the publisher's delivery of 21 October (`scripts/import/2110.yaml`): 138 entries on 87 spreads –
+  84 glossary images, 41 link screenshots, 16 documentation videos (13 as AR videos on their page's trigger) – with
+  placeholder titles and texts. 121 of the 131 targets are on the trial printout (`All_Triggers.pdf`).
+- **Delivery import** (`npm run import -- <delivery folder> import/<name>.yaml` in `scripts/`): a mapping file names,
+  per entry, the delivered printed image, entry image and video; the import writes resized JPEGs, re-encodes videos
+  with ffmpeg (H.264, ≤ 1280 px, ~2 Mbit/s), creates `entry.yaml` with placeholders and the spreads, and never
+  overwrites an edited `entry.yaml` (`docs/content.md` "Importing a delivery").
+- **Trigger trial panel** (debug overlay → *trial*, dev server and staging): the checklist for a test with the printed
+  book. It lists the targets of the current spread or the whole book with thumbnail, delivered file, printed size and
+  position (`npm run protocol -- import/2110.yaml` → `trigger-protocol.json`), marks what the scanner found, takes
+  *slow* / *flicker* / *no* and a note per target, and downloads (or copies) a Markdown report – problems first – for
+  the designers. The progress tab's **Copy** button gives the raw list of unlocked targets with times.
+
+### Changed
+- The placeholder content (demo spreads, castle, racoon, edge …) moved from `content/` to `content-demo/`; build it with
+  `OSCT_CONTENT_DIR=../content-demo`. `content/` now holds the book's content only.
+
+### Fixed
+- The debug overlay's QR code (opens the dev server on a phone) named a virtual adapter's address (WSL, Hyper-V, Docker)
+  and always port 5173; it now uses the Wi-Fi address of a physical adapter and the port and protocol of the server
+  the page came from.
+
+## 1.5.3 – 2026-10-27
+
+### Added
+- The sign-in mails go out through Amazon SES (eu-west-1): the deploy configuration defaults to its SMTP endpoint,
+  an environment only needs the SES SMTP user name and password (`docs/deploy.md` "Mail"). The deploy stops before
+  Kamal when mail is set to SMTP but the credentials are missing.
+- `php /opt/osct/mail-test.php <address>` in the container (`server/deploy/mail-test.php` locally) sends one test mail
+  with the current settings and prints the SMTP error when it fails; `server/deploy/ses-smtp-password.php` turns an
+  IAM secret key into the SES SMTP password.
+
+### Changed
+- Deployment: the site – app and user API – ships as one Docker image, deployed with Kamal over SSH:
+  `develop` → staging https://osct.porschuetz.de, `main` → production https://osct.buildingfictions.com
+  (`docs/deploy.md`). The container creates missing tables and columns at every start; the API reads its settings
+  from `OSCT_*` environment variables, there is no `config.local.php` on a server any more.
+- Cache headers, MIME types, gzip and the SPA fallback are part of the image (`server/docker/apache.conf`,
+  `.htaccess`), not a hosting provider's settings.
+
+### Removed
+- The Netlify deploys (`_headers`, `_redirects`) and the release workflow: production deploys from `main`; GitHub
+  releases are optional notes. The FTPS upload to the shared host stays as a temporary workflow until the staging
+  VM exists.
+
 ## 1.5.2 – 2026-10-20
 
 ### Changed

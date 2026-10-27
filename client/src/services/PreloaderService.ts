@@ -64,6 +64,7 @@ export class PreloaderService {
   private book: BookDownload = { state: "idle", loaded: 0, total: 0, failed: 0 };
   private bookRun: Promise<BookDownload> | null = null;
   private bookListeners = new Set<(download: BookDownload) => void>();
+  private windowRun = 0;
 
   static getInstance(): PreloaderService {
     if (!PreloaderService.instance) PreloaderService.instance = new PreloaderService();
@@ -106,6 +107,23 @@ export class PreloaderService {
     const targets = await Promise.all(neighbours.flatMap(s => getTargetImages(s.id)).map(options => this.preload(options)));
     const content = await Promise.all(neighbours.flatMap(s => getSpreadContent(s.id)).map(options => this.preload(options)));
     return [...targets, ...content];
+  }
+
+  /**
+   * Content of the spreads kept ready next to the current one (the tracker's window, nearest first): their target
+   * images first (the tracker needs them), then each spread's assets and entry images, one spread at a time – the
+   * nearest are ready first and a large window does not start every download at once. A newer call (the window
+   * moved) stops the older one between spreads; what it fetched stays cached.
+   */
+  async preloadSpreads(spreadIds: readonly string[]): Promise<LoadResult[]> {
+    const run = ++this.windowRun;
+    const ids = spreadIds.filter(id => getSpread(id));
+    const results = await Promise.all(ids.flatMap(id => getTargetImages(id)).map(options => this.preload(options)));
+    for (const id of ids) {
+      if (run !== this.windowRun) break;
+      results.push(...await Promise.all(getSpreadContent(id).map(options => this.preload(options))));
+    }
+    return results;
   }
 
   /**
