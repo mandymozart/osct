@@ -4,6 +4,36 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-27 – Content on the bunny.net CDN (#5, Tilman)
+
+- Decisions (all on GitHub issue #5): one storage zone `osct` (Frankfurt main, Singapore, New York) with a folder
+  per environment (`staging/`, `production/`), pull zone `buildingfictions.b-cdn.net` (→ `cdn.buildingfictions.com`
+  once #17's CNAME exists). Storage API only (zone access key) – no account API key, no Magic Containers. GitHub
+  environments carry `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ZONE_ENDPOINT`, `CONTENT_BASE_URL` and the secrets.
+- Built in 1.7.2: `scripts/src/upload.ts` (+ `lib/storage.ts`, both excluded from the content hash) uploads the
+  bundle to `<env>/<version>-<hash12>/` and writes `<env>/latest.json` (`shared/types/content-manifest.ts`); a bundle
+  already there is skipped. Workflow `content.yml`: push to `develop` → staging, push to `main` → production
+  (before the release deploys the app), `workflow_dispatch` with an environment choice.
+- App: `loadGameConfiguration()` runs before `book-game` is defined (`main.ts`); CDN when `VITE_CONTENT_BASE_URL`
+  is set, else the bundled copy (dynamic import). Content paths become bundle URLs inside `utils/game-config.ts`
+  only. The service worker caches the CDN content (and keeps `latest.json` network-first for offline starts);
+  `vite build` drops `dist/assets/content/` in CDN mode. Content schema `version.schema` – a newer schema is refused.
+- Why a manifest and not a build-time bundle id: the app must keep working when a content upload fails or runs
+  after the app deploy (it then shows the previous bundle), and content can move without an app build later.
+- Verified 2026-10-27 (workflow run on the branch, `staging/1.6.0-29a25c7416d2`, 108 files / 20 MB in ~20 s): the
+  bundle is on the storage and served by the CDN; the app loads it (dev server behind a same-origin proxy of the
+  CDN), the failure screen and the bundled fallback work. Not yet verified: the deployed staging app – the deploy
+  workflow does not pass the flag yet (Kamal session).
+- [ ] Open (dashboard, Tilman): **CORS** – the pull zone's "CORS headers" option sends
+  `Access-Control-Allow-Origin` only for its extension list (`mp4` yes, `json`/`jpg`/`glb`/`gz` no); the app needs
+  it on every content file → extend the list or an edge rule for the whole zone. The upload's CDN check warns.
+- [ ] Open (dashboard, Tilman): **`latest.json` edge cache** – 30-day TTL, query strings ignored, no purge on
+  upload (a rewritten manifest stayed stale at the Vienna edge). Edge rule `*/latest.json` → cache time 0. Until
+  then an edge may serve the previous bundle for a while (nothing breaks – bundles are never deleted).
+- [ ] Open: the deploy workflows (Kamal session, #6) must pass `VITE_CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}`
+  to the app build; until then the deployed app keeps the bundled content.
+- [ ] Open: old bundles on the storage are never deleted; prune by hand (dashboard) when the zone grows.
+- [ ] Open: #15 – trial videos (not in git) need a sync to the CDN; the upload only knows the content build output.
 ## 2026-10-27 – Sessions start with their issue; deploys move issues on the board (Tilman, 1.7.1, #11)
 
 - Tilman: "every session should start with their respective issue number. look for an issue first, if one exists, and

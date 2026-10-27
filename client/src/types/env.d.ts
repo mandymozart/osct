@@ -11,6 +11,11 @@ interface ImportMetaEnv {
   readonly VITE_SHOW_LOCKED_ENTRIES?: string;
   /** Accounts API (server/): "/api" on the production host, the full URL elsewhere; unset = no accounts */
   readonly VITE_API_URL?: string;
+  /**
+   * Content CDN base URL of the environment (`https://…/staging`): the app loads `latest.json` and the content
+   * bundle from there (docs/content-cdn.md); unset = the content bundled with the app (dev server, tests)
+   */
+  readonly VITE_CONTENT_BASE_URL?: string;
 }
 
 interface ImportMeta {

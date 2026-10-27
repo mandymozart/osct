@@ -19,10 +19,20 @@ export type EntityType = (typeof ENTITY_TYPES)[number];
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
 export type AssetType = (typeof ASSET_TYPES)[number];
 
+/**
+ * Content schema version: the shape of the game configuration an app can read. Bumped when the contract
+ * changes in a way older apps cannot ignore (a new entity type, a renamed field); additive fields do not
+ * bump it. The app refuses a bundle with a newer schema at startup (content loaded at runtime may be newer
+ * than the installed app).
+ */
+export const CONTENT_SCHEMA_VERSION = 1;
+
 export interface ConfigurationVersion {
   version: string;
   timestamp: string; // when the content build inputs last changed
   hash?: string; // checksum of the content build inputs
+  /** Content schema the bundle was built with (`CONTENT_SCHEMA_VERSION`); missing = 1 */
+  schema?: number;
 }
 
 export interface BookData {

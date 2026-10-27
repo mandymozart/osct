@@ -1,0 +1,68 @@
+# Content upload to the bunny.net CDN (docs/content-cdn.md): builds the content and uploads the bundle to the
+# storage zone's folder of the environment – `staging/` on every push to `develop`, `production/` on every push
+# to `main` (so the content is on the CDN before the release deploys the app), or by hand for either.
+# A bundle that is already there (same content build checksum) is not uploaded again; only `latest.json` moves.
+# The app itself is deployed by the deploy workflows; it reads the content from `CONTENT_BASE_URL`
+# (build flag VITE_CONTENT_BASE_URL).
+#
+# GitHub → Settings → Environments → "staging" / "production":
+#   variables: BUNNY_STORAGE_ZONE (osct), BUNNY_STORAGE_ZONE_ENDPOINT (storage.bunnycdn.com),
+#              CONTENT_BASE_URL (https://buildingfictions.b-cdn.net/<env>)
+#   secrets:   BUNNY_STORAGE_PASSWORD (the storage zone's read/write access key)
+name: Content upload
+
+on:
+  push:
+    branches: [develop, main]
+    # Everything the content build output depends on (scripts/src/lib/hash.ts)
+    paths:
+      - content/**
+      - scripts/**
+      - shared/**
+      - client/package.json
+      - .github/workflows/content.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment (storage folder and secrets)"
+        type: choice
+        options: [staging, production]
+        default: staging
+      force:
+        description: "Upload the bundle again even if it is already on the storage"
+        type: boolean
+        default: false
+
+concurrency:
+  group: content-${{ inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Build and upload the content
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - run: npm ci
+      - name: Build the content
+        run: |
+          npm run build
+          npm run build:content
+      - name: Upload to the storage zone
+        env:
+          OSCT_CONTENT_ENV: ${{ inputs.environment || (github.ref_name == 'main' && 'production' || 'staging') }}
+          BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
+          BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
+          BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          # The upload checks itself through the CDN afterwards
+          CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
+        run: npm run upload:content -- ${{ inputs.force && '--force' || '' }}

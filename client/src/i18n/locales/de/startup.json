@@ -1,5 +1,6 @@
 {
   "contentOtherVersion": "Der Buchinhalt wurde für eine andere App-Version erstellt.",
+  "contentNewer": "Der Buchinhalt ist neuer als diese App. Bitte aktualisiere die App.",
   "contentNotLoaded": "Der Buchinhalt konnte nicht geladen werden.",
   "unknownError": "Ein unbekannter Fehler ist aufgetreten."
 }

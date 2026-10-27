@@ -96,6 +96,9 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     str(version, "version", "version");
     str(version, "timestamp", "version");
     str(version, "hash", "version", true);
+    if (version.schema !== undefined && !(Number.isInteger(version.schema) && (version.schema as number) >= 1)) {
+      fail("version.schema", "expected a positive integer");
+    }
   }
 
   const book = obj(root.book, "book");

@@ -12,20 +12,21 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.7.4 – 2026-10-28
+## 1.7.2 – 2026-10-27
 
-### Fixed
-- The debug overlay removed its click listener with a freshly bound function, so nothing was removed: after a disconnect and reconnect one tap toggled it twice (#21). Add and remove now use the same function.
+### Added
+- **Content on the CDN** (bunny.net): the content build is uploaded to a storage zone (`npm run upload:content`
+  in `scripts/`, workflow "Content upload" – `staging/` from `develop`, `production/` from `main`), one immutable
+  folder per content build (`<version>-<hash>`) and a `latest.json` naming the current one. The app loads the
+  configuration and the content from there at startup when it is built with `VITE_CONTENT_BASE_URL`; without
+  the flag it keeps the content bundled with the build (dev server, tests). The installed app still works offline
+  (the last `latest.json` and everything seen is cached). How it works: `docs/content-cdn.md`.
+- **Content schema version** in the game configuration (`version.schema`): a bundle newer than the app is refused
+  at startup with "The book content is newer than this app" (en/fr/nl/de) instead of failing somewhere later.
 
-## 1.7.2 – 2026-10-28
-
-### Fixed
-- The first push of the Kamal deploy: the staging and production workflows now grant `packages: write` to the
-  deploy they call (the repository's token is read-only by default, so the called workflow could not ask for it
-  and the run failed at startup).
-- 1.7.1 had bumped only the app's version; the content build and the API said 1.7.0, which the API test caught
-  (the FTPS staging deploy failed). All three are 1.7.2.
-
+### Changed
+- The game configuration is loaded before the app element starts (`loadGameConfiguration()`), no longer imported
+  at build time. The whole-book download takes the file sizes from the bundle (`files.json`) on the CDN.
 ## 1.7.1 – 2026-10-27
 
 ### Added

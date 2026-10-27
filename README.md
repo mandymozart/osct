@@ -22,6 +22,7 @@ the camera only works over https).
 ## Content
 
 The book's content lives in `content/` (text files + media) – see the [content guide](docs/content.md).
+The built content is served from a CDN – see [content on the CDN](docs/content-cdn.md).
 The app doesn't read `content/` directly: the content build turns it into the app's configuration
 (`client/src/game.config.json`) and an optimised copy of the media (`client/public/assets/content/`).
 Neither is in git – every build and deploy makes them (`npm run build` in `client/` runs the content

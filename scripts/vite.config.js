@@ -9,6 +9,7 @@ export default defineConfig({
         sounds: 'src/sounds.ts', // npm run sounds
         'import-delivery': 'src/import-delivery.ts', // npm run import
         protocol: 'src/protocol.ts', // npm run protocol
+        upload: 'src/upload.ts', // npm run upload:content
       },
       formats: ['es'],
       fileName: (_format, name) => `${name}.js`,

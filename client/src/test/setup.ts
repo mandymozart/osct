@@ -40,3 +40,7 @@ window.confirm = () => false;
 
 // UI texts: i18next is set up once for all tests (as main.ts does first in the app)
 import "@/i18n";
+
+// The game configuration (bundled copy) is loaded before each test file, as main.ts does before the app starts
+import { loadGameConfiguration } from "@/utils/game-config";
+await loadGameConfiguration();

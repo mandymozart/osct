@@ -300,10 +300,12 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     content changes don't bump it. Should be versioned **by the content builder** (e.g. explicit
     version in `content/`, or a hash of the bundle).
   - `utils/game-config.ts` is a primitive service (module-level singleton) → move it to `services/`
-    when the data access is built (runtime/CDN loading, generated API) – RULES #17.
-  - `game.config.json` is **imported at build time** → content is baked into the app build. A future
-    **CDN upload** from the content builder needs the config (+ assets) to be fetched at runtime,
-    with the content version in the path/manifest, and a check which app versions can read it.
+    when the data access is built (runtime/CDN loading, generated API) – RULES #17. (Still in `utils/`
+    after the CDN work – the move is a rename for a later cleanup.)
+  - [x] (2026-10-27, #5) ~~`game.config.json` is **imported at build time**~~ → loaded at runtime
+    (`loadGameConfiguration()` in `main.ts`): from the CDN (`VITE_CONTENT_BASE_URL` → `latest.json` →
+    `<build>/game.config.json`) or the bundled copy. The content build is uploaded by `scripts/src/upload.ts`
+    (workflow `content.yml`), one folder per content build `<version>-<hash>` – `docs/content-cdn.md`.
   - Saved progress should be keyed/migrated against the **content version** (ties into the
     HistoryManager rethink above).
 
@@ -316,15 +318,14 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   | **Storage** (localStorage schema) | shape of saved data: history, last spread/category, settings | saved data unreadable → migrate or discard (tell the user) | additive | – |
 
   Open work:
-  - **Content ahead of app is breaking**: a bundle built for a newer app (e.g. new content schema,
-    new entity type) must be detected by an older app. The bundle should declare the content
-    *schema* version (or a minimum app version) separately from its data version/hash; the app
-    declares which content schema range it supports and refuses/falls back otherwise. Matters as soon
-    as content is loaded at runtime (CDN) instead of baked into the app build.
+  - [x] (2026-10-27, #5, minimal form) **Content ahead of app is breaking**: the bundle declares
+    `version.schema` (`CONTENT_SCHEMA_VERSION`, shared); the app refuses a newer schema at startup
+    (`checkContentCompatibility`, `ErrorCode.NOT_SUPPORTED`, "content is newer than this app"). No schema
+    range yet – older content is accepted when the MAJOR version matches.
   - **Startup compatibility check** between the three – reuse the startup path built for invalid
     game configurations (`getConfigurationError()` → critical screen in `main.ts`, `ErrorCode`
     mapping in `utils/game-config.ts`): app ↔ storage (can I read saved data?),
-    app ↔ content (can I read this bundle?), content ↔ saved progress (do the saved ids still exist?).
+    [x] app ↔ content (can I read this bundle? – schema + MAJOR, 2026-10-27), content ↔ saved progress (do the saved ids still exist?).
   - **Migrations** instead of silent filtering: `migrate(fromStorageVersion)` steps. The pre-rename
     `chapterId` filter in `HistoryManager.loadTargetHistory` (1c) is a stopgap for exactly this.
   - **Item identity across content versions**: stable ids per entry/target, plus a per-item hash in the

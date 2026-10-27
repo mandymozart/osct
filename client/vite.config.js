@@ -1,6 +1,6 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'fs';
 import { resolve } from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
@@ -136,6 +136,24 @@ function contentSizes() {
 }
 
 /**
+ * Content from the CDN (`VITE_CONTENT_BASE_URL`, docs/content-cdn.md): the app loads the bundle at runtime, so the
+ * built site does not ship the content copy (`assets/content/`) – the server serves the app shell and the API only.
+ * Without the base URL the content stays in the build (dev server, tests, hosts without the CDN).
+ */
+function contentFromCdn(baseUrl) {
+  return {
+    name: 'osct-content-from-cdn',
+    apply: 'build',
+    closeBundle() {
+      if (!baseUrl) return;
+      rmSync(resolve(import.meta.dirname, 'dist/assets/content'), { recursive: true, force: true });
+      console.log(`
+Content served from ${baseUrl} – assets/content/ removed from the build.`);
+    },
+  };
+}
+
+/**
  * The 8th Wall engine (`@8thwall/engine`, MIT – the image tracking, ar/xr8.ts): its prebuilt files are served as
  * they are from `assets/xr8/` (a classic script plus a chunk it imports; not bundled), with its LICENSE (MIT
  * asks for it next to the copies). Dev: from node_modules; build: copied. Precached with the app shell (pwa()),
@@ -163,6 +181,8 @@ function xr8Engine() {
 
 export default defineConfig(({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
+  // Content CDN of the environment (client/.env.local or the deploy's environment); '' = bundled content
+  const contentBaseUrl = (loadEnv(mode, import.meta.dirname, 'VITE_').VITE_CONTENT_BASE_URL ?? '').replace(/\/+$/, '');
   const port = 5173;
   // Dev server over https: phones only grant camera access on https (http works on localhost only).
   // Self-signed certificate, accepted once on the phone. `npm run dev:http` (mode "http") serves plain
@@ -170,11 +190,12 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [staticSplash(), contentSizes(), xr8Engine(), ...pwa(), ...(https ? [basicSsl()] : [])],
+  plugins: [staticSplash(), contentSizes(), xr8Engine(), ...pwa(), contentFromCdn(contentBaseUrl), ...(https ? [basicSsl()] : [])],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
     __VITE_CONTENT_HASH__: JSON.stringify(GAME_CONFIG.version?.hash ?? APP_VERSION),
+    __VITE_CONTENT_BASE_URL__: JSON.stringify(contentBaseUrl), // the service worker (the app reads import.meta.env)
     __VITE_SERVER_URL__: JSON.stringify(`${https ? 'https' : 'http'}://${localIP}:${port}`),
   },
   resolve: {

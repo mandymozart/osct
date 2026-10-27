@@ -6,7 +6,6 @@ import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
 import { t } from "i18next";
 
-const tutorial = getTutorial();
 
 /** Default fade duration per part and delay between consecutive parts; a step can override both */
 const DEFAULT_FADE_MS = 600;
@@ -60,7 +59,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
 
   private render() {
     if (!this.shadowRoot) return;
-    const step = tutorial.find(s => s.index === this._currentStep);
+    const step = getTutorial().find(s => s.index === this._currentStep);
     if (!step) return;
 
     // Fade sequence: Mark (only on steps that set `stagger`, i.e. the splash; otherwise it stays still),

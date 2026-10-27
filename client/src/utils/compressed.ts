@@ -6,12 +6,15 @@
  * cache hit.
  */
 
+import { isContentUrl } from "./game-config";
+
 /** File types the content build writes a `.gz` copy for (scripts/src/lib/optimize-media.ts) */
 const GZIPPED = /\.glb$/i;
 
 export const supportsGzip = (): boolean => typeof DecompressionStream === "function";
 
-const isGzipped = (src: string): boolean => GZIPPED.test(src) && !/^[a-z]+:\/\//i.test(src);
+/** Same-origin paths and the content bundle have the `.gz` copies; external URLs do not */
+const isGzipped = (src: string): boolean => GZIPPED.test(src) && (isContentUrl(src) || !/^[a-z]+:\/\//i.test(src));
 
 /** The URL to download for a content file (its `.gz` copy where there is one and the browser can unpack it) */
 export const compressedUrl = (src: string): string => (isGzipped(src) && supportsGzip() ? `${src}.gz` : src);

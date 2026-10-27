@@ -208,6 +208,16 @@ Extend as we go: add a rule when a decision should hold for all future work.
       `deploy-production.yml` deploys, `tag-version.yml` tags `vX.Y.Z` (never push tags yourself – agent sessions
       cannot). GitHub releases are optional notes; nothing deploys from them (docs/deploy.md).
 
+24. **Content on the CDN** (Tilman, 2026-10-27, #5): the built content is uploaded to the bunny.net storage zone
+    `osct` – one folder per environment (`staging/`, `production/`), one immutable folder per content build,
+    `latest.json` names the current one (`scripts/src/upload.ts`, workflow `content.yml`, `docs/content-cdn.md`).
+    The app reads it from `VITE_CONTENT_BASE_URL` (GitHub environment variable `CONTENT_BASE_URL`); without the
+    flag it uses the bundled content – never hardcode a CDN URL. Every content path stays `/assets/content/…` in
+    the configuration; only `utils/game-config.ts` turns it into a URL (`contentUrl`, `isContentUrl`). A change of
+    the contract older apps cannot ignore bumps `CONTENT_SCHEMA_VERSION` (`shared/types/game-config.ts`).
+    Secrets (the zone's access key) only in GitHub environments. Deploy workflows pass the flag; the content
+    workflow is separate.
+
 ## Deployment (Kamal, 2026-10-27 – docs/deploy.md)
 - One Docker image (`Dockerfile`: content build + app + `server/api` as `/api`, Apache + PHP) deployed with Kamal
   over SSH behind kamal-proxy; MariaDB as a Kamal accessory per destination. Staging: `develop` →
