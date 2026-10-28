@@ -275,6 +275,15 @@ stage, #60) gets a per-spread override over the book's default (a wall is not 23
 ≤ 10 targets per spread, 4 tracked at once (RULES #3) – a wall with more targets is several spreads, or the
 budget grows with the device.
 
+**For the editor this means a layout template per spread** (Tilman: "wichtig, da wir mit Buch als Layout-Vorlage
+anfangen"). The mock stage draws the spread's physical shape from a template: `book` (two pages with a spine, the
+book's page format, surfaces `left` and `right`), `sheet` (one page), `cover` (front, spine, back), `sleeve`
+(a record sleeve: `front`, `back`, `label`), `wall` (one surface of any size), `free` (no surface – targets float
+at given distances). A template is a few planes and named **surfaces**; a target's printed geometry (#60) is
+given per surface: `surface: right, x, y, width, height` in mm. The editor starts with `book` and the OSCT page
+format; the others are small builders added when a work needs them – the same registry idea as for node types.
+A spread's template with its dimensions overrides the book's default (`spreads.layout` in the data model).
+
 **What a scene is.** Two words for two things, to end the ambiguity: in the **content** a *scene* is the authoring
 unit – a spread's entities and, later, its world (`world:` in `spread.yaml`, PLAN Phase 10) – and an entity's
 node tree is a sub-scene of it. So the `spread` scope *is* the scene's instance: the spread is the natural unit of

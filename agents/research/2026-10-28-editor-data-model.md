@@ -67,8 +67,9 @@ erDiagram
     varchar id PK "slug"
     varchar title
     int position "order"
-    int first_page
-    int last_page
+    int first_page "nullable: a cover, a wall has none"
+    int last_page "nullable"
+    text layout "JSON: template + dimensions, null = the book's"
   }
   entries {
     varchar book_id PK,FK
@@ -90,7 +91,8 @@ erDiagram
     varchar entry_id FK "unique"
     char image_asset_id FK "the printed image"
     char entity_id FK "nullable"
-    decimal printed_x_mm "from the page's top left"
+    varchar printed_surface "left right front back label …"
+    decimal printed_x_mm "from the surface's top left"
     decimal printed_y_mm
     decimal printed_width_mm
     decimal printed_height_mm
@@ -155,11 +157,16 @@ Notes per table:
 
 - **books** – `BookData` plus the page format (the geometry issue: from the designed PDF) and the initial spread.
   One row today; the model is per book from the start (STRATEGY: instances per brand, several titles later).
+- **spreads.layout** – the spread's physical shape for the editor's stage: a layout template (`book`, `sheet`,
+  `cover`, `sleeve`, `wall`, `free` – the entity concept, "layout template per spread") with its dimensions in
+  mm; null = the book's default (`books.page_*`, template `book`). Pages are optional metadata: a cover or a wall
+  has none. The book is the first template, not the only one (Tilman, 2026-10-28).
 - **spreads / entries / targets** – the content folders as rows, same fields as the YAML (`docs/content.md`),
   same checks (page inside one spread, ≤ 10 targets per spread – `MAX_TARGETS_PER_SPREAD` – run by the API on save
   and by the build on publish, from `shared/`).
-- **targets** – `printed_*` carries the geometry from the PDF (mm from the page's top left corner), which the mock
-  stage places exactly and the trial protocol reports. Nullable until the layout import runs.
+- **targets** – `printed_*` carries the geometry from the PDF (mm from the top left corner of the named surface
+  of the spread's template: `left` / `right` page of a book, `front` / `back` / `label` of a sleeve), which the
+  mock stage places exactly and the trial protocol reports. Nullable until the layout import runs.
 - **entities** – inline (one target) or shared (`ref` set, several targets point at it – today
   `content/entities/<ref>/entity.yaml`). `scene` is **one JSON document: the node tree** (type, placement
   `params`, type fields, `children`, `components` – the concept in `2026-10-28-entity-components.md`); today's
