@@ -239,7 +239,7 @@ active at once and placing things in the room keeps whole worlds standing.
 
 **Two owners of events.** *Core events* belong to the app and describe the book: `targetFound` / `targetLost`,
 `targetUnlocked` (first find), `entryConsulted`, `spreadChanged`, `spreadComplete`, `bookComplete`,
-`modeChanged`, `entryOpened`, later `signedIn`. Plugins and behaviours **subscribe** to them and never emit them –
+`modeChanged`, `entryOpened`, later `signedIn`; `spreadChanged` is the border of the `spread` scope. Plugins and behaviours **subscribe** to them and never emit them –
 unlocking, progress, consultation and spread switching stay core, so every book behaves the same and progress
 stays compatible. *Scene events* belong to the content: a tap on a node, `videoEnded`, a timer, a state change, and
 whatever a plugin registers (`allFoundInChapter`); content and plugins emit and consume them freely.
@@ -249,14 +249,18 @@ whatever a plugin registers (`allFoundInChapter`); content and plugins emit and 
 | Scope | Lives | Holds | Example |
 |---|---|---|---|
 | `node` | while the entity's tree exists | a node's own state, its behaviours | the racoon's animation state |
-| `stage` | while scanning (the AR session) | everything instantiated right now: every active target's entity, the look-around world, placed objects | "when target B is found while A is on stage, A turns towards B" |
+| `spread` | while the spread is the current one (`currentSpread`, one at any time – grow loading changes what is *held*, never what is *current*) | the spread's scene: its entities' shared state, variables of this double page | "the second target's video waits until the first one was found" |
+| `stage` | while scanning (the AR session) | everything instantiated right now: every active target's entity (of the current spread and, with grow loading, of held neighbours), the look-around world, placed objects | "when target B is found while A is on stage, A turns towards B" |
 | `book` | per reader and book, persisted with the progress | variables an author defines (`hasKey`, `chapter`), set by actions, read by conditions | "the door opens only with the key from page 12" |
 | `session` | per app start, not persisted | temporary flags | "the hint was shown once" |
 | `global` | all readers, on the server | shared state through the API (counts, collective unlocks) | "every 100th reader sees the comet" – later, a privacy decision |
 
 **What a scene is.** Two words for two things, to end the ambiguity: in the **content** a *scene* is the authoring
 unit – a spread's entities and, later, its world (`world:` in `spread.yaml`, PLAN Phase 10) – and an entity's
-node tree is a sub-scene of it. At **runtime** there is one **stage**: the set of everything instantiated now –
+node tree is a sub-scene of it. So the `spread` scope *is* the scene's instance: the spread is the natural unit of
+authoring, of state and of events (Tilman: "spread ist definitiv ein Scope, was ja vom Grow auch immer gleich
+bleibt") – the tracker may hold neighbours' targets, the app still has one current spread, and a neighbour's page
+held in view switches it (`spreadSeen`). At **runtime** there is one **stage**: the set of everything instantiated now –
 with grow loading that may be targets of several spreads at once, with spatial placement also objects that stay
 in the room after their page is gone. Stage events cross entities; the stage is where "whole worlds stand". Scene
 = what the author writes, stage = what the reader sees.
