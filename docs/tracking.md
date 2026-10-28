@@ -71,29 +71,46 @@ not found:
 The trial panel (debug overlay → *trial*) sets ±0 itself while it is open (1.7.8), so during a trial every miss is
 already the last case.
 
-## Camera: lens, focus, zoom
+## Camera: lens, focus, resolution
 
-The 8th Wall engine opens the camera itself: the back camera (on Samsung phones with more than two cameras the one
-labelled `camera2 0, facing back`, the main camera; on iOS ≥ 16.4 "Back Camera"), exactly 960 × 720 first. It sets no
-focus mode and no zoom, so the browser's default applies. Small printed triggers need the phone close, and closer
-than the lens's minimum focus distance the picture stays blurry (trigger test 2026-10-28, `docs/trigger-tests/`).
+The 8th Wall engine opens the camera itself and asks for exactly 960 × 720 first. On Samsung phones (and any Android
+browser whose user agent names no maker – Chrome's reduced user agent) it picks the main back lens by the label
+`camera2 0, facing back`. Chromium now labels the lenses `camera 0, facing back`, so that choice fails and the browser
+picks a back lens itself – on the Galaxy S22 the **ultra-wide**, which has a fixed focus (camera test 2026-10-28,
+`docs/trigger-tests/2026-10-28-camera.md`).
 
-Debug overlay → *Camera* (1.8.0, `ar-bridges/utils/camera-debug.ts`) shows what the browser reports for the
-engine's camera track: lens label, resolution and frame rate, focus mode / distance / range, zoom and its range.
-The collapsed line ends with `C<lens> <resolution> <focus> <distance> <zoom>`, e.g. `C0 960×720 cont 0.15m 1×`.
-Test switches (also in the trial panel's camera row):
+What the app sets (`ar-bridges/utils/camera-request.ts`; the tracker wraps `getUserMedia` while the engine starts):
 
-- **AF continuous** – `focusMode: "continuous"`.
-- **Tap to focus** (◎) – the next tap on the camera picture focuses there once (`pointsOfInterest`, single-shot);
-  taps on the debug UI do not count. The tap is mapped through the picture's cover crop.
-- **Zoom** 1× / 1.5× / 2× / 3× within the lens's range – small triggers can then be scanned from further away,
-  beyond the minimum focus distance. The engine assumes the unzoomed field of view: finding works, the AR overlay
-  may sit slightly off while zoomed.
-- **Ask for zoom** – if no zoom is offered: the next camera start (reload) requests `zoom: true`; Chrome then asks
-  for the camera's pan-tilt-zoom permission.
+- **Lens** (Android only): the engine's request for "the back camera" gets the device id of `camera 0, facing back`
+  (old or new label) – camera id 0 is Android's main back lens. Labels are listed only once the camera is allowed;
+  without them the camera is opened once briefly to list them. On iOS and desktops the request stays as it is.
+- **Focus**: continuous focus once the camera runs, where the camera offers it and does not use it already
+  (`applyCameraDefaults()`). Chrome reports focus distance 0 while focusing continuously.
+- **Resolution**: the engine's 960 × 720. On the S22 1920 × 1440 found the smallest trigger later and held it less
+  steadily, 1280 × 960 brought nothing – the engine works on its own reduced size.
+- **Zoom**: none. The engine assumes the unzoomed field of view; while zoomed the AR overlay sits off.
 
-The outcome of each switch (or the browser's refusal) shows under the readout. Safari on iOS reports little or none
-of focus and zoom; the readout then shows "–".
+**Browsers that cannot scan**: the engine's tracking WebAssembly needs WebAssembly SIMD (Safari from iOS 16.4;
+iPhone 7, 6s and SE 1st generation end at iOS 15). The camera manager checks it before any camera request and sets
+`CameraPermissionStatus.UNSUPPORTED`; the camera overlay asks to update iOS (if the phone can) or the browser.
+Safari 15 reports no focus, focus distance or zoom for the camera at all. A SIMD-free engine build: proposal #39.
+
+**Debug camera panel** (overlay → *camera*, `dev-tools/camera-panel.ts`; the readout in
+`ar-bridges/utils/camera-debug.ts`): lens label, resolution and frame rate, focus mode (bold) / distance / range, zoom
+and range, and the current spread's targets (yellow in view, ✓ found since the panel opened). While open the tracker
+holds the current spread only, as in the trial. Why AR could not start shows here and after "AR: error" in the
+overlay. Switches:
+
+- **AF** – continuous focus (lit while it is in use). **◎** – the next tap on the camera picture focuses there once
+  (`pointsOfInterest`, single-shot; taps on the debug UI do not count).
+- **Zoom** 1× / 1.5× / 2× / 3× within the lens's range.
+- On the next start (reload): **lens** `main` / `browser` (the old behaviour, to compare), **res** engine /
+  1280 × 960 / 1920 × 1440 (`ideal`, so a camera without that size still opens), **ask zoom** (`zoom: true` – Chrome
+  then asks for the pan-tilt-zoom permission).
+- **Retest list**: a link `/?retest=p009-1,p013-1,…` (or `osct-camera-retest` in local storage) shows one chip per
+  target – tap to go to its spread, ✓ once found.
+
+The trial panel keeps its camera row (AF, ◎, zoom step); its `md` report records the camera.
 
 ## Load test
 

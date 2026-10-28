@@ -8,5 +8,8 @@
   "continueWithout": "Continuer sans caméra",
   "notResponding": "La caméra ne répond pas.",
   "notRespondingHelp": "Recharge la page. Si ça ne suffit pas, ferme complètement ton navigateur et rouvre-le – une autre application utilise peut-être encore la caméra.",
-  "reload": "Recharger la page"
+  "reload": "Recharger la page",
+  "unsupported": "Ce navigateur ne peut pas faire fonctionner le scanner du livre.",
+  "unsupportedIos": "Pour scanner, il te faut iOS 16.4 ou plus récent. Si ton iPhone peut être mis à jour : Réglages → Général → Mise à jour logicielle, puis rouvre l’application. Les iPhone 7, 6s et SE (1re génération) ne peuvent pas aller jusque-là – le scan ne fonctionne pas sur ces modèles.",
+  "unsupportedOther": "Mets ton navigateur à jour avec la dernière version, puis rouvre l’application."
 }

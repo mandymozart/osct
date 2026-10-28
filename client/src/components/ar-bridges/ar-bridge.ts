@@ -2,6 +2,7 @@ import { GameStoreService, PreloaderService } from "@/services";
 import { ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, GameMode, IArScene, IGame, LoadingState, TARGET_UNLOCKED_EVENT, TUNE_ENTITY_EVENT, TuneEntityDetail } from "@/types";
 import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
+import { reportArError } from "./utils/camera-debug";
 import { getPreparedWindow } from "./utils/prepared-spreads";
 import { getSceneState } from "./utils/scene-state";
 
@@ -123,6 +124,7 @@ export class ArBridge extends HTMLElement {
   }
 
   private handleStatus(status: ArStatus, error?: string) {
+    reportArError(status === "error" ? error ?? "unknown" : null);
     this.game.setArStatus(status);
     // The 3D layer shows while AR runs (main.css: body.scene-active #scene)
     document.body.classList.toggle("scene-active", status === "running");

@@ -12,6 +12,40 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.9.0 – 2026-10-28
+
+### Fixed
+- **Android scans with the main lens again** (#37): the 8th Wall engine chooses Samsung's main back lens by the label
+  `camera2 0, facing back`; Chromium now names the lenses `camera 0, facing back` (Chrome 156, Brave 155), so the
+  engine asked for "the back camera" and the S22 opened its **ultra-wide lens** – fixed focus, small triggers held
+  close stay blurry and look even smaller. The app now changes the engine's camera request on the way and asks for
+  camera 0 by its device id (`ar-bridges/utils/camera-request.ts`; old and new label; only on Android – elsewhere the
+  request stays). On the S22, 23 of the 25 triggers the first trigger test missed are now found, without zoom; the
+  two left are flat logos (`docs/trigger-tests/2026-10-28-camera.md`).
+- **The dev server runs on Safari 15** (iPhone 7): its TypeScript transform turned static class fields into
+  `static {}` blocks, which Safari before 16.4 cannot parse – the app stopped on the splash screen. The dev server now
+  lowers them for Safari 15 (`vite.config.js`), as the build already did.
+
+### Added
+- **Notice for browsers that cannot scan** (#37): the engine's tracking WebAssembly needs WebAssembly SIMD – Safari
+  from iOS 16.4. Without it the camera overlay says so instead of the generic AR error: on an iPhone, update to
+  iOS 16.4 or newer if the phone can (iPhone 7, 6s and SE 1st generation cannot); elsewhere, update the browser
+  (`CameraPermissionStatus.UNSUPPORTED`, checked before any camera request). A SIMD-free engine build is proposal #39.
+- **Continuous focus at camera start** where the camera offers it and does not use it already
+  (`applyCameraDefaults()`).
+- **Debug camera panel** (overlay → *camera*, a strip at the bottom like the trial): the camera readout and switches
+  moved out of the overlay into it. It lists the current spread's targets (yellow in view, ✓ found since opened), a
+  retest list (`?retest=<ids>` link or `osct-camera-retest`), and next to AF / ◎ / zoom: **lens** (main or the
+  browser's choice), **res** (engine 960 × 720, 1280 × 960, 1920 × 1440) and **ask zoom**, each on the next start.
+  It shows why AR could not start (also after "AR: error" in the overlay) – the console is out of reach on a phone.
+  While open the tracker holds the current spread only, as in the trial.
+
+### Changed
+- **Debug overlay**: tabs `spread · progress · camera · trial · load · tune` and a **×** that closes it (the expanded
+  overlay could not be closed on a phone); the spread's QR code is behind a **QR** button.
+- The camera resolution stays the engine's 960 × 720: 1920 × 1440 found the smallest trigger later and held it less
+  steadily on the S22, 1280 × 960 brought nothing.
+
 ## 1.8.2 – 2026-10-28
 
 ### Changed

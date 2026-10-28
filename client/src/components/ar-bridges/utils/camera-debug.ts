@@ -7,10 +7,12 @@
  * Why (trigger test 2026-10-28, `docs/trigger-tests/`): small printed triggers were missed and the camera seemed not
  * to focus. The engine sets no focus mode and no zoom – the browser's default applies. Focus and zoom are
  * `MediaStreamTrack` constraints (Image Capture extensions): Chrome on Android has `focusMode`, `focusDistance`,
- * `pointsOfInterest` and `zoom` (zoom may need the camera's pan-tilt-zoom permission, `setAskZoom()`); Safari on iOS
+ * `pointsOfInterest` and `zoom` (zoom may need the camera's pan-tilt-zoom permission, "ask for zoom" in `camera-request.ts`); Safari on iOS
  * reports little or none of it. Zoom changes the field of view the engine assumes: finding a target works, the AR
  * overlay may sit slightly off while zoomed.
  */
+
+import { getAskZoom } from "./camera-request";
 
 export interface CameraRange {
   min: number;
@@ -44,7 +46,6 @@ export interface CameraInfo {
 export const ZOOM_STEPS = [1, 1.5, 2, 3];
 /** How often the readout re-reads the camera (focus distance and mode change while it runs) */
 const REFRESH_MS = 1000;
-const ASK_ZOOM_KEY = "osct-camera-ask-zoom";
 
 type LooseRecord = Record<string, unknown>;
 
@@ -105,6 +106,18 @@ export const setCameraTrack = (next: MediaStreamTrack | null): void => {
 };
 
 export const getCameraInfo = (): CameraInfo | null => info;
+
+let arError: string | null = null;
+
+/** Why AR could not start (camera or engine), for the debug views – the console is out of reach on a phone */
+export const getArError = (): string | null => arError;
+
+/** The bridge reports the AR start error, null once AR runs again */
+export const reportArError = (message: string | null): void => {
+  if (message === arError) return;
+  arError = message;
+  listeners.forEach(listener => listener(info));
+};
 
 export const subscribeCamera = (listener: (info: CameraInfo | null) => void): (() => void) => {
   listeners.add(listener);
@@ -196,52 +209,6 @@ export const armTapToFocus = (): void => {
   else window.removeEventListener("pointerdown", onTap, true);
   lastAction = tapArmed ? "tap the picture to focus" : null;
   refreshCamera();
-};
-
-/** Ask for the camera's zoom when it starts (Chrome: the pan-tilt-zoom permission) – this device, next start */
-export const getAskZoom = (): boolean => {
-  try {
-    return localStorage.getItem(ASK_ZOOM_KEY) === "true";
-  } catch {
-    return false;
-  }
-};
-
-export const setAskZoom = (ask: boolean): void => {
-  try {
-    if (ask) localStorage.setItem(ASK_ZOOM_KEY, "true");
-    else localStorage.removeItem(ASK_ZOOM_KEY);
-  } catch {
-    // storage blocked: stays off
-  }
-};
-
-/** Video constraints with the zoom request added (an object; `true` becomes one) */
-export const withZoomRequest = (constraints: MediaStreamConstraints): MediaStreamConstraints => {
-  if (!constraints.video) return constraints;
-  const video = constraints.video === true ? {} : constraints.video;
-  return { ...constraints, video: { ...video, zoom: true } as MediaTrackConstraints };
-};
-
-let originalGetUserMedia: MediaDevices["getUserMedia"] | null = null;
-
-/**
- * While "ask for zoom" is on, every camera request of the page asks for zoom too – the engine opens its camera
- * itself, so its request is changed on the way. Call before the engine starts; `releaseZoomRequest()` undoes it.
- */
-export const requestZoomOnCameraStart = (): void => {
-  const devices = navigator.mediaDevices;
-  if (!getAskZoom() || !devices?.getUserMedia || originalGetUserMedia) return;
-  const original = devices.getUserMedia.bind(devices);
-  originalGetUserMedia = devices.getUserMedia;
-  devices.getUserMedia = (constraints?: MediaStreamConstraints) =>
-    original(constraints ? withZoomRequest(constraints) : constraints);
-};
-
-export const releaseZoomRequest = (): void => {
-  if (!originalGetUserMedia) return;
-  navigator.mediaDevices.getUserMedia = originalGetUserMedia;
-  originalGetUserMedia = null;
 };
 
 /** One line for the collapsed overlay: lens number, resolution, focus mode and distance, zoom */

@@ -5,3 +5,4 @@ export { cyclePreparedSpreadRange, getPreparedSpreadRange, getPreparedWindowSett
 // What the tracker holds in the engine, and the engine load test – read by the debug overlay and panels
 export * from "./utils/tracker-debug";
 export * from "./utils/camera-debug";
+export * from "./utils/camera-request";

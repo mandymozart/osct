@@ -4,6 +4,32 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-28 – Camera defaults: main lens, continuous focus, engine size; iOS below 16.4 cannot scan (#37, Tilman, 1.9.0)
+
+- **The first trigger test ran on the S22's ultra-wide lens** (fixed focus, `camera 2, facing back`, 60 fps): the
+  engine picks Samsung's main lens by the label `camera2 0, facing back`, Chromium now says `camera 0, facing back`
+  (Chrome 156 and Brave 155 alike; the first test was in Brave). The app asks for camera 0 by device id itself
+  (`camera-request.ts`, Android only). Main lens retest: 23 of the 25 misses found without zoom, only the flat logos
+  p067-1 / p129-1 not (`docs/trigger-tests/2026-10-28-camera.md`).
+- Tilman: "Please just do the defaults like this" – **main lens, continuous focus at start (if offered), the engine's
+  960 × 720, no zoom**. 1920 × 1440 found p123-1 later (27 s vs. 14 s) and less steadily; Tilman's impression the
+  same. His wish for an automatic resolution choice with a menu override is not built: no size found better on the
+  S22. Revisit with a recent iPhone (second trial #36) – the **res** switch in the debug camera panel stays for that.
+- **iPhone 7 (iOS 15.8.3) cannot scan**: the engine's tracking WebAssembly uses SIMD (Safari from iOS 16.4). Tilman:
+  build the warning – update if the phone can, otherwise scanning does not work; a SIMD-free engine build is proposal
+  #39 ("decide later"). The app cannot tell an iPhone 7 from an iPhone 8 (same screen, no model in the user agent),
+  so one notice names both cases. Safari 15 reports no focus or zoom controls at all.
+- **Frame rate** (~14–16 fps) is its own issue #40 (Tilman: "I want to tackle the frame rate issue by itself"); lead:
+  the ultra-wide ran at 60 fps – compare with the lens switch.
+- Debug overlay re-sorted on Tilman's request ("i cant close the overlay … for the camera focus test do your own tab
+  which open perhapse the same slide out as the trial has"): camera panel at the bottom, × to close, QR behind a button
+  ("its mostly not needed on mobile. also on the long run we need to provide this somewhere else").
+- [ ] Open: where the dev QR codes live in the long run (Tilman; options: desktop only, a dev page with every spread's
+  QR, or QR codes from the content build) – not filed as an issue yet.
+- [ ] Open (found on the iPhone 7, not #37): the onboarding **Continue** button is unstyled on Safari 15 (likely CSS
+  nesting or `color-mix()`, Safari 16.x); the trial panel's top bar cannot be dragged on iOS 15.
+- [ ] Open: check the camera choice on a recent iPhone (Safari reports "Back Camera" etc.; no lens rewrite on iOS).
+
 ## 2026-10-28 – The tracker window defaults to ±1 again, not grow (#38, Tilman, 1.8.2)
 
 - Tilman, after testers on staging (iOS among them) had trouble: the growing window "will make it really difficult for

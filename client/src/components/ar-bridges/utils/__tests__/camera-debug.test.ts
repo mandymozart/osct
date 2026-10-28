@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  applyContinuousFocus, armTapToFocus, cameraLine, cameraSummary, cycleZoom, getCameraInfo, releaseZoomRequest,
-  requestZoomOnCameraStart, setAskZoom, setCameraTrack, subscribeCamera, tapToFramePoint, withZoomRequest, zoomSteps,
+  applyContinuousFocus, armTapToFocus, cameraLine, cameraSummary, cycleZoom, getCameraInfo, setCameraTrack, subscribeCamera,
+  tapToFramePoint, zoomSteps,
 } from "../camera-debug";
 
 /** A camera track like Chrome on Android reports it (Image Capture constraints) */
@@ -22,8 +22,6 @@ const fakeTrack = (overrides: { capabilities?: Record<string, unknown>; settings
 describe("camera debug", () => {
   afterEach(() => {
     setCameraTrack(null);
-    setAskZoom(false);
-    releaseZoomRequest();
     vi.unstubAllGlobals();
   });
 
@@ -96,23 +94,5 @@ describe("camera debug", () => {
     const left = tapToFramePoint(0, 0, 360, 800, 960, 720);
     expect(left.x).toBeCloseTo(120 / 600);
     expect(left.y).toBe(0);
-  });
-
-  it("ask for zoom: the camera request on start gets zoom, only while it is on, and is restored", async () => {
-    expect(withZoomRequest({ video: true })).toEqual({ video: { zoom: true } });
-    expect(withZoomRequest({ video: { width: { exact: 960 } }, audio: false })).toEqual({ video: { width: { exact: 960 }, zoom: true }, audio: false });
-    expect(withZoomRequest({ audio: true })).toEqual({ audio: true });
-
-    const getUserMedia = vi.fn(async (_constraints?: MediaStreamConstraints) => ({}) as MediaStream);
-    vi.stubGlobal("navigator", { ...navigator, mediaDevices: { getUserMedia } });
-    requestZoomOnCameraStart(); // off: unchanged
-    expect(navigator.mediaDevices.getUserMedia).toBe(getUserMedia);
-
-    setAskZoom(true);
-    requestZoomOnCameraStart();
-    await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
-    expect(getUserMedia).toHaveBeenCalledWith({ video: { facingMode: { exact: "environment" }, zoom: true } });
-    releaseZoomRequest();
-    expect(navigator.mediaDevices.getUserMedia).toBe(getUserMedia);
   });
 });
