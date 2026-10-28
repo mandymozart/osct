@@ -43,7 +43,6 @@ export enum Pages {
   SPREAD = "spread",
   ABOUT = "about",
   ERROR = "error",
-  NOTIFICATION = "notification",
   ENTRIES = "entries",
   ENTRY = "entry",
   NOT_FOUND = "not-found",

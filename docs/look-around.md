@@ -51,6 +51,6 @@ the book, reader at the origin.
 
 ## Limits
 
-- No walking through the world (no world tracking – see MEMORY 2026-09-28 for the engines compared).
+- No walking through the world (no world tracking – the engines compared are in `agents/research/`).
 - The gyroscope drifts slowly; it is corrected only when a page is found again.
 - The sky test is colour-based: white walls or ceilings may count as sky when looking up; skies at dusk may not.

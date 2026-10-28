@@ -24,7 +24,7 @@ how a spread switch works, and how to measure how many targets a phone can hold.
    spread's is found → `spreadSeen` → `switchSpread()` (scan mode only). Only held spreads can switch by themselves;
    any other page needs the spread menu.
 
-Measured on the S22 (MEMORY 2026-09-28): switch to a held spread 0–5 ms, to a spread not held ~0.6 s, first spread
+Measured on a Samsung S22: switch to a held spread 0–5 ms, to a spread not held ~0.6 s, first spread
 ~1.15 s. With all 39 demo targets held, far jumps switched by themselves and nothing felt slower – not measured
 side by side.
 

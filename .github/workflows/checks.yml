@@ -1,6 +1,5 @@
 # Checks for every push and pull request (agents/RULES.md #9, #10): type checks, tests, content build,
-# API tests. Deploys nothing – the staging server (app + API) is deployed by deploy-staging.yml; the
-# temporary Netlify site osct-staging builds itself from develop; production deploys from releases (release.yml).
+# API tests. Deploys nothing – deploy-staging.yml and deploy-production.yml do (docs/deploy.md).
 name: Checks
 
 on:

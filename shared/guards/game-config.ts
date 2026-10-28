@@ -27,7 +27,7 @@ export const isEntityType: (value: unknown) => value is EntityType = oneOf(ENTIT
 export const isAssetType: (value: unknown) => value is AssetType = oneOf(ASSET_TYPES);
 export const isStepAction: (value: unknown) => value is StepAction = oneOf(STEP_ACTIONS);
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
+export const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const isEntityRef = (value: unknown): value is EntityRefData =>

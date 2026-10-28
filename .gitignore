@@ -10,12 +10,9 @@ coverage
 # client/.env holds comments only (documents the VITE_* build flags, no values)
 !client/.env
 .claude
-.netlify
 # Content build output – built by every `npm run build` in client/ (prebuild → `npm run content`), CI and deploys
 client/src/game.config.json
 client/public/assets/content/
-# Local folder of the removed .mind tooling (1.2.x) – delete it where it still exists
-.mindar/
 
 # Server secrets and local data (docs/server.md)
 server/api/config.local.php
@@ -41,6 +38,6 @@ logs
 # Kamal: only .kamal/secrets (references to environment variables) is committed
 .kamal/secrets.*
 .kamal/secrets-common
-# Trial/final content videos stay out of git (Tilman, 2026-10-27) – synced to the CDN separately; a build without
+# Trial/final content videos stay out of git – synced to the CDN separately; a build without
 # them gives those targets no AR video (warning, not an error)
 content/entries/*/video.mp4

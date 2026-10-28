@@ -1,5 +1,5 @@
 // Moves the issues of a finished deploy on the board OSCT (users/mandymozart/projects/5) – called by
-// board-status.yml through actions/github-script (#11, agents/RULES.md "Every session starts with its issue").
+// board-status.yml through actions/github-script (#11, agents/RULES.md #30).
 //
 // Every `Fixes #N` (or closes / resolves) in the deployed commits → Status "Review on staging" (staging deploy) or
 // "Deployed" (production deploy), plus one comment with the version. Only forward: an issue that is already as far
@@ -130,7 +130,7 @@ module.exports = async ({ github, context, core, getOctokit }) => {
       ? `Deployed to staging (${site.url})${version ? ` in **${version}**` : ''} – ${sha}, [deploy](${runUrl}). ` +
         `Status → **Review on staging**: check it there.`
       : `Live on production (${site.url})${version ? ` in **${version}**` : ''} – ${sha}, [deploy](${runUrl}). ` +
-        `Status → **Deployed**; Done is Tilman's once he has checked it.`;
+        `Status → **Deployed**; Done follows once it has been checked.`;
     await github.rest.issues.createComment({ owner, repo, issue_number: n, body });
     moved.push(`#${n} ${current || 'no status'} → ${site.status}`);
   }

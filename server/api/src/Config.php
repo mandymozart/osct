@@ -46,7 +46,7 @@ final class Config
         'PASSWORD_MAX_FAILS_PER_IP_HOUR' => '30',
         'PASSWORD_RESET_MINUTES' => '15',
         'PROGRESS_MAX_BYTES' => '262144',
-        // Error log of the API (db/ is never served over HTTP – read it over FTP); empty = the host's log
+        // Error log of the API (db/ is never served over HTTP – read it on the server); empty = the host's log
         'LOG_PATH' => __DIR__ . '/../db/error.log',
     ];
 

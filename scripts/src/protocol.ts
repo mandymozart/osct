@@ -10,6 +10,7 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
 import { CONTENT_DIR, projectRoot } from './config';
+import { isMainModule } from './lib/entry';
 import { readMapping } from './import-delivery';
 
 export const DEFAULT_OUTPUT = path.resolve(projectRoot, 'client/public/trigger-protocol.json');
@@ -42,8 +43,7 @@ export function protocolInfos(mappingFile: string): Record<string, TriggerInfo> 
   return infos;
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
-if (isMain) {
+if (isMainModule(import.meta.url)) {
   const [mappingFile, output = DEFAULT_OUTPUT] = process.argv.slice(2);
   if (!mappingFile) {
     console.error('Usage: node dist/protocol.js <mapping.yaml> [output.json]');

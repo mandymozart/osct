@@ -1,5 +1,7 @@
 # Content out of git
 
+> Temporary runbook: it ends when the content has left the repository and its history (#5). Delete it then.
+
 The book content leaves this repository, history included (Tilman, 2026-10-28: "there will not be any content in
 git", "aus dem Git … raus purgen, auch in der History, dass das Repository wieder klein und handelbar wird"). The
 app loads the built content from the CDN ([content on the CDN](content-cdn.md)); the content source lives in a

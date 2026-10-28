@@ -8,32 +8,27 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 |---|---|
 | `header/` | `<game-header>` with `<mark-the-page>` (Mark, the app's main button) and `<entries-counter>` |
 | `scan/` | `<spread-menu>` (looped spread menu at the bottom), `<found-indicator>` (found target without AR content) |
-| `ar-bridges/` | `<ar-bridge>` – the three.js / 8th Wall scene (`ArScene`: one renderer + camera stream, spreads swapped in place, loaded lazily on the first scan; a found page of a neighbouring spread switches the spread); entities, video filters |
+| `ar-bridges/` | `<ar-bridge>` – the three.js / 8th Wall scene (`ArScene`: one renderer + camera stream, spreads swapped in place, loaded lazily on the first scan; a found page of a neighbouring spread switches the spread); entities, video filters, the look-around world |
 | `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category); helpers in `entries-model.ts` |
 | `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` |
 | `common/` | `<gold-illustration>` (SVG in the gold gradient) |
-| `settings/` | Info page settings, one component per section: `<settings-tutorial>`, `<settings-history>` (reset book), `<settings-language>` |
-| `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary) |
+| `settings/` | Info page sections, one component each: `<settings-account>`, `<settings-feedback>` (sound, vibration), `<settings-graphics>`, `<settings-language>`, `<settings-install>` (home screen), `<settings-download>` (whole book), `<settings-history>` (reset book); `settings-section.ts` is their shared frame |
+| `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary); `<gold-switch>` |
 | `pages-router/` | `<pages-router>` – shows the page of the current route |
-| `dev-tools/` | `<debug-overlay>` (with `VITE_DEBUG=true`), `<qr-generator>` and `<tune-panel>` (placement / filter values of an entity, live, "Copy YAML" – values in `tune-values.ts`) |
+| `dev-tools/` | With `VITE_DEBUG=true`: `<debug-overlay>` (status, settings, the panels below), `<qr-generator>`, `<tune-panel>` (placement / filter values of an entity, live, "Copy YAML" – values in `tune-values.ts`), `<load-test-panel>` (engine load test, report in `load-test-report.ts`), `<trial-panel>` (trigger trial of a printed delivery, report in `trial-report.ts`) |
 
 ## Design styles
 
-Colors, the gold gradient, glass and shadows are CSS tokens in `client/src/main.css`. Shared
-primitives (`.button`, `.pill`, `.primary`, `.gold`, `.muted`, …) are one constructable stylesheet:
+Colors, the gold gradient, glass and shadows are CSS tokens in `client/src/main.css`; the shared primitives
+(`.button`, `.pill`, `.primary`, `.gold`, `.muted`, …) are one constructable stylesheet that a component adopts:
 
 ```typescript
-import { adoptDesignStyles } from "@/styles/design-styles";
-
-adoptDesignStyles(this.shadowRoot!);
-```
-
-Buttons are native `<button>`s built with `goldButton()` (the component adopts the design styles):
-
-```typescript
+import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 
+adoptDesignStyles(this.shadowRoot!);
 goldButton({ label: "Start", shape: "button", primary: true, attrs: { id: "start-btn" } });
 ```
 
-Values come from the measured design spec, `agents/DESIGN.md`.
+The values come from the measured design spec (`agents/DESIGN.md`); the rules for using them (tokens only, rem,
+`.gold` on labels, glass) are `agents/RULES.md` #18.

@@ -1,4 +1,3 @@
-import fs from 'fs';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOOK, entry, loadBuild, makeContent, spread } from './helpers';
@@ -141,9 +140,9 @@ describe('content build', () => {
   });
 });
 
-describe('the real content', () => {
+describe('the test fixture', () => {
   it('builds without errors', async () => {
-    const build = await loadBuild({ content: path.resolve(__dirname, '../../content') });
+    const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/content') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     build.buildAll();
     vi.restoreAllMocks();

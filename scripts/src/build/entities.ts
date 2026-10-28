@@ -1,4 +1,4 @@
-import type { AssetData, EntityData, EntityRefData } from '../../../shared/types/game-config';
+import { ENTITY_TYPES, type AssetData, type EntityData, type EntityRefData } from '../../../shared/types/game-config';
 import { FilterData, filterProblems } from '../../../shared/types/filters';
 import { placementProblems } from '../../../shared/types/placement';
 import fs from 'fs';
@@ -64,8 +64,8 @@ export function buildEntity(
   }
   const type = e?.type;
   // Links are entries (consultation), not AR entities
-  if (!['model', 'video', 'image'].includes(type)) {
-    buildErrors.push(`${label}: entity type "${type}" must be one of model, video, image (or use ref)`);
+  if (!(ENTITY_TYPES as readonly string[]).includes(type)) {
+    buildErrors.push(`${label}: entity type "${type}" must be one of ${ENTITY_TYPES.join(', ')} (or use ref)`);
     return undefined;
   }
   if (e.params !== undefined && (typeof e.params !== 'object' || Array.isArray(e.params))) {
@@ -76,7 +76,7 @@ export function buildEntity(
     buildErrors.push(`${label}: entity type "${type}" needs a src`);
     return undefined;
   }
-  // Entry videos are kept out of git (Tilman, 2026-10-27 – they come from the CDN sync later): a build without
+  // Entry videos may be missing from a checkout (they reach the CDN by the content sync): a build without
   // them (CI, deploys) gives the target no AR video instead of failing
   if (type === 'video' && !fs.existsSync(path.join(CONTENT_DIR, 'entries', entryId, e.src))) {
     buildWarnings.push(`${label}: video "${e.src}" is not on this machine (videos are not in git) – built without its AR video`);

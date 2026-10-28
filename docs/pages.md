@@ -11,11 +11,11 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | Route | Page | Mode | |
 |---|---|---|---|
 | `/` | `<splash-page>` | idle | start for returning readers: the splash (the onboarding steps before the first button), then scan mode |
-| `/tutorial` (`step`) | `<tutorial-page>` | idle | onboarding / tutorial steps from `content/steps` |
+| `/tutorial` (`step`) | `<tutorial-page>` | idle | onboarding / tutorial steps from the content's `steps/` |
 | `/spread` (`spreadId`) | `<spread-page>` | scan | scan mode: found indicator, spread menu |
 | `/entries` (`category`) | `<entries-page>` | consultation | entries list by category |
 | `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: meta table, text, media |
-| `/about` | `<about-page>` | consultation | Info: about text, settings (Tutorial, History = reset book, Language), colophon |
+| `/about` | `<about-page>` | consultation | Info: about text, settings (account, sound and vibration, graphics, language, home screen, download, reset book), colophon |
 | `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](error-page.md) |
 | `/not-found` | `<not-found-page>` | (keeps mode) | unknown route or link target, with "Go to start" |
 

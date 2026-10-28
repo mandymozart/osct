@@ -4,6 +4,7 @@
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
+import { ENTITY_TYPES } from "../../../shared/types/game-config";
 
 interface SchemaField {
   type: string;
@@ -71,7 +72,7 @@ export const schemas: Record<string, Schema> = {
   // content/entities/<id>/entity.yaml
   entity: {
     fields: {
-      type: { type: "String", required: true, enum: ["model", "video", "image"] },
+      type: { type: "String", required: true, enum: [...ENTITY_TYPES] },
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts

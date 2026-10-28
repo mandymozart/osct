@@ -140,7 +140,6 @@ export class BookGame extends HTMLElement {
 
   private initializeComponents() {
     this.game.startLoading();
-    // TODO: move error handling to centralized error page and game state.
     this.errorPage = this.shadowRoot!.querySelector("error-page");
   }
 

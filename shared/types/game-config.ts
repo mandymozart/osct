@@ -13,7 +13,7 @@ export * from "./filters";
 export * from "./placement";
 
 /** Entity types the app can render in AR (extensible, RULES #7). */
-export const ENTITY_TYPES = ["model", "video", "image"] as const; // "link" dropped 2026-09-25 (links are entries)
+export const ENTITY_TYPES = ["model", "video", "image"] as const; // links are entries, not entities
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
@@ -29,7 +29,7 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "1.1";
+export const CONTENT_SCHEMA_VERSION = "1.2";
 
 export interface ContentSchema {
   major: number;
@@ -52,7 +52,7 @@ export interface ConfigurationVersion {
 }
 
 export interface BookData {
-  id: string; // e.g. "osct" – identifies the book (storage keys, QR codes)
+  id: string; // e.g. "osct" – identifies the book (storage keys)
   title: string;
   author: string;
   /** Shown on the home page above "Start" (optional) */
@@ -75,7 +75,7 @@ export interface AssetData {
 /** Description of an AR entity projected on a found target. */
 export interface EntityData {
   type: EntityType;
-  assets: AssetData[]; // empty for `link` (renders the entry title)
+  assets: AssetData[];
   params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
 }
@@ -104,12 +104,12 @@ export interface EntryData {
   target?: TargetData;
 }
 
-/** What a tutorial step's button does (onboarding, design p.1–5) */
+/** What a tutorial step's button does (onboarding) */
 export const STEP_ACTIONS = ["next", "camera", "scan"] as const;
 export type StepAction = (typeof STEP_ACTIONS)[number];
 
 /**
- * Onboarding / tutorial step (design p.1–5). Without `button` the step advances by itself after
+ * Onboarding / tutorial step. Without `button` the step advances by itself after
  * `advance` ms (or on tap). `description` may use `*emphasis*` and blank lines for paragraphs.
  */
 export interface StepData {
@@ -123,7 +123,7 @@ export interface StepData {
   /** Button label; with `action` (default `next`) */
   button?: string;
   action?: StepAction;
-  /** Fade-in duration of the step's parts (ms; default in the app) – design: 1s on the title step */
+  /** Fade-in duration of the step's parts (ms; default in the app) */
   fadeIn?: number;
   /** Delay between its parts fading in one after the other (ms). Set on the splash: Mark, then title,
    *  author and publisher. Without it the parts follow with a short default delay and Mark stays still. */
