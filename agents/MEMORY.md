@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-28 – Entity animations shorter (#57, Tilman)
+
+- On the phone the unlock ran too long: by the time a video or a 3D object had materialised the reader had often
+  drifted off the trigger. The durations are global for every entity type (`ANIMATIONS` in `ar/celebration.ts`,
+  `ENTITY_UNLOCK_MS` in `types/scene.ts`): unlock 4.2 → **3 s**, reveal 1 → **0.6 s**, outro stays 0.7 s. Image
+  targets without an entity never had the dissolve (found indicator rotation, 2.6 s) – they felt right already.
+- Video suffers most because it plays from `onFound`, i.e. during the dissolve – the first seconds of motion are
+  only seen through the noise mask. A model's shape is its content, the gold edge carries the time.
+- [ ] Tilman tests on the phone (video and 3D target). If video still feels long: a duration factor per entity type
+  passed to `celebrate()` – only after the global values have been tried (#57).
+
 ## 2026-10-28 – Direction: scutoons-animus-ar, a white-label AR core; data sovereignty (Tilman, milestone 2)
 
 - Tilman: "game.config.json is tied to a version of the book, so current data is testing data". Goal: a bare core
@@ -842,7 +853,7 @@ outcome in the line (or move it into a dated decision block).
   **reveal** (every later find) the plain dissolve (1 s, no colour, no bloom); **outro** (target lost) the
   reveal rewound (0.7 s) at the last position, then the anchor hides.
 - Sounds: the calm second take was reverted – Tilman prefers the chiptune placeholders (for now).
-- [ ] Tune further on the phone – Tilman.
+- [x] Tune further on the phone – Tilman: shorter in 1.9.6 (#57, see 2026-10-28).
 
 ## 2026-09-26 – Stuck spinner on the S22 = Chrome's camera, not the app
 

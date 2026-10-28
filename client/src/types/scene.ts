@@ -31,7 +31,7 @@ export const TARGET_UNLOCKED_EVENT = "osct:target-unlocked";
  * Duration of an entity's unlock animation (ar/celebration.ts); the found indicator stays up as long.
  * Defined here so the indicator does not import the lazily loaded AR chunk.
  */
-export const ENTITY_UNLOCK_MS = 4200;
+export const ENTITY_UNLOCK_MS = 3000;
 
 /** Marker in the AR error message for a camera start timeout (maps to CameraPermissionStatus.NOT_RESPONDING) */
 export const CAMERA_NOT_RESPONDING = "camera not responding";
