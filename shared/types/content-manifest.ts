@@ -10,6 +10,9 @@
  * `<build>` = the first 12 hex digits of the content build checksum (`ConfigurationVersion.hash`): the same content
  * is the same folder, whatever app version built it.
  */
+
+import { isObject } from "../guards/game-config";
+
 export interface ContentManifest {
   /** Folder of the current version below the environment */
   build: string;
@@ -43,9 +46,6 @@ export type ContentFiles = Record<string, { size: number; v: string }>;
 export const CONTENT_BUILD = /^[0-9a-f]{12}$/;
 
 export const contentBuildName = (hash: string): string => hash.slice(0, 12).toLowerCase();
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const isContentManifest = (value: unknown): value is ContentManifest =>
   isObject(value) &&

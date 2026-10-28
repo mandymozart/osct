@@ -11,5 +11,5 @@ export enum EntryCategory {
   Link = "link",
 }
 
-/** All categories in menu order (design p.15) */
+/** All categories in menu order */
 export const ENTRY_CATEGORIES: readonly EntryCategory[] = Object.values(EntryCategory);
