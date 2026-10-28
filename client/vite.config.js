@@ -175,7 +175,8 @@ export default defineConfig(({command,mode})=>{
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
     __VITE_CONTENT_HASH__: JSON.stringify(GAME_CONFIG.version?.hash ?? APP_VERSION),
-    __VITE_SERVER_URL__: JSON.stringify(`${https ? 'https' : 'http'}://${localIP}:${port}`),
+    // The dev server's Wi-Fi address for the debug overlay's QR code; empty in builds (the page's own origin then)
+    __VITE_SERVER_URL__: JSON.stringify(command === 'serve' ? `${https ? 'https' : 'http'}://${localIP}:${port}` : ''),
   },
   resolve: {
     tsconfigPaths: true, // tsconfig.json "paths" (built into Vite 8)
