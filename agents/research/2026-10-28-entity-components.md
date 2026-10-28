@@ -171,7 +171,16 @@ entity:                                  # the root node sits on the target (1 u
 
 ### Plugins: the book's own code, compiled by the content build
 
-8th Wall's model, adapted to "content on a CDN, app deployed apart":
+How 8th Wall actually did it (checked in the open source repository, not assumed): a Studio / Desktop project
+has its own `package.json` and is **compiled with webpack** (`ts-loader`, Babel) – `npm run build` for the
+published site, `webpack-dev-server` while developing; the project depends on `@8thwall/ecs` and the engine
+binary as packages (`apps/desktop/new-project/package.json`). The editor does not run project code to learn
+its schema: it **parses the component files' AST** (`c8/ecs/src/shared/parse-component-ast.ts`, `@babel/parser`)
+for `registerComponent({ name, schema, schemaDefaults, … })` and shows the fields in the inspector at once, with
+errors at their source location. So the "extend without drilling into the framework" came from three things: a
+registry API in a versioned package, a per-project compile step, and an editor that reads schemas statically.
+
+The same, adapted to "content on a CDN, app deployed apart":
 
 - **Where**: `plugins/` next to the content (`OSCT_CONTENT_DIR/plugins/*.ts`, later the content repository): small
   TypeScript modules that export `register(api)` and call the same registries the core uses. The `api` object hands
@@ -196,6 +205,14 @@ entity:                                  # the root node sits on the target (1 u
 - **Trust**: a plugin runs with the page's full power, so plugins come only from the book's repository through the
   build and a review (STRATEGY: contracted model), never from an upload or an editor text field. The build signs
   nothing today; the immutable CDN folder plus the repository history are the provenance.
+- **Alternatives to a compile step**, for the record: (a) plain ES modules in `plugins/*.js`, served from the
+  content folder as they are – no TypeScript, no type check, one file per plugin, nothing to install; works today
+  with the same `register(api)` contract and could be the first version; (b) transpiling in the browser
+  (esbuild-wasm, ~10 MB, editor only) – what a true in-editor sandbox needs later: edit a plugin in the editor,
+  see it in the preview without a local build; the published bundle still comes from the content build. The
+  recommendation stays (compile in the content build) because the build exists, runs Node and Vite already, and
+  is where every other content check lives; (a) is the fallback if we want plugins before the build step is
+  written; (b) is the sandbox's future.
 - **What the API freezes**: the registries' signatures, the spec shape, `api.three` (the three.js major), a few
   helpers. Everything else inside the app may change without breaking plugins – that is the point of the API.
   Versioned like the content schema (`PLUGIN_API_VERSION` in `shared/`).
