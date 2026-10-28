@@ -2,7 +2,8 @@
 # build of this commit) and the user API (server/api, PHP) under /api – Apache + PHP on port 80. TLS and the
 # public port belong to kamal-proxy in front of it (config/deploy.yml, docs/deploy.md).
 #
-#   docker build -t osct .                      (--build-arg VITE_DEBUG=true for the debug bar: staging)
+#   docker build -t osct .                      (--build-arg VITE_DEBUG=true for the debug bar: staging;
+#                                                --build-arg VITE_CONTENT_BASE_URL=<CDN> for content from the CDN)
 #   docker run --rm -p 8080:80 -e OSCT_DB_SQLITE_PATH=/data/osct.sqlite -e OSCT_SECRET=$(openssl rand -hex 32) osct
 
 # ---- 1. Build the content and the app -------------------------------------------------------------------
@@ -20,11 +21,16 @@ COPY content content
 COPY scripts scripts
 COPY client client
 
-# Build flags (client/.env lists them): the API lives next to the app, the debug bar only where asked for
+# Build flags (client/.env lists them): the API lives next to the app, the debug bar only where asked for.
+# VITE_CONTENT_BASE_URL (the environment's content CDN, docs/content-cdn.md): with it the app loads its content from
+# the CDN at runtime and the build reads no content; without it the content of this commit is built and bundled.
 ARG VITE_DEBUG=
 ARG VITE_SHOW_LOCKED_ENTRIES=
-ENV VITE_API_URL=/api VITE_DEBUG=$VITE_DEBUG VITE_SHOW_LOCKED_ENTRIES=$VITE_SHOW_LOCKED_ENTRIES
-# prebuild runs the content build and the translation check, then vite + the type checks
+ARG VITE_CONTENT_BASE_URL=
+ENV VITE_API_URL=/api VITE_DEBUG=$VITE_DEBUG VITE_SHOW_LOCKED_ENTRIES=$VITE_SHOW_LOCKED_ENTRIES \
+    VITE_CONTENT_BASE_URL=$VITE_CONTENT_BASE_URL
+# prebuild runs the content build (unless the content comes from the CDN) and the translation check, then vite +
+# the type checks
 RUN cd client && npm run build && find dist -name '*.map' -delete
 
 # ---- 2. Serve it ------------------------------------------------------------------------------------------

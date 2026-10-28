@@ -45,6 +45,8 @@ jobs:
         env:
           VITE_API_URL: /api
           VITE_DEBUG: "true"
+          # Content from the CDN (docs/content-cdn.md); empty = the commit's content is built and uploaded
+          VITE_CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
         run: |
           npm ci
           npm run build

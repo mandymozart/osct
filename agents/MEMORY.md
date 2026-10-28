@@ -25,8 +25,8 @@ outcome in the line (or move it into a dated decision block).
   The repository is public; GitHub keeps old objects through PR refs until GitHub Support collects them.
 - [ ] Open (Tilman): where `osct-content` is backed up (private repository or the storage zone) – before the
   rewrite, the history is the only other copy.
-- [ ] Open (Kamal session): deploys build with `VITE_CONTENT_BASE_URL`, `Dockerfile` without `COPY content`, the
-  FTPS staging deploy too – then the removal commit, release, freeze, rewrite, force push (Tilman), GitHub Support.
+- [x] Deploys build with `VITE_CONTENT_BASE_URL` (1.7.9, #6: Kamal image + FTPS staging). [ ] Open: `Dockerfile`
+  without `COPY content` with the removal commit – then the removal commit, release, freeze, rewrite, force push (Tilman), GitHub Support.
 
 ## 2026-10-28 – Content deployment apart from the app: versions + strict purge; content schema MAJOR.MINOR (#5, Tilman, 1.7.6)
 
@@ -74,8 +74,9 @@ outcome in the line (or move it into a dated decision block).
   to 30 days.
 - [x] CORS (checked 2026-10-28): `latest.json`, `game.config.json`, `files.json` and `.jpg` send
   `Access-Control-Allow-Origin: *`. Models and videos not checked – none in the CI sync.
-- [ ] Open (Kamal session, #6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable
-  `CONTENT_BASE_URL`); later `Dockerfile` drops `COPY content` – hand-over note in the side-session notes.
+- [x] 1.7.9 (#6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable `CONTENT_BASE_URL`,
+  `config/deploy.yml` builder.args → `Dockerfile` ARG), the FTPS staging deploy too. [ ] Later `Dockerfile` drops
+  `COPY content` (with the removal commit, docs/content-out-of-git.md step 1).
 - [~] Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
   Repository wieder klein und handelbar wird") – prepared, see the entry above and `docs/content-out-of-git.md`.
 - [ ] Open: #15 – trial videos go through the same sync once they are part of the content folder outside git.
