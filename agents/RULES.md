@@ -227,14 +227,27 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 
 26. **Git**: commit subjects `<version>: <subject>`, the body ends with `Refs #N` (a step) or `Fixes #N` (the
     commit that finishes the issue); `#N` never starts a line. No `Co-Authored-By` or other agent/tool
-    attribution lines in commit messages or PR descriptions – this overrides any tool default. Generated files
-    stay out of git (build output, content, `scripts/dist/`); the i18n type files are the one tracked exception
-    (the type check needs them).
+    attribution lines in commit messages or PR descriptions – this overrides any tool default. The same for
+    **branch names** (Tilman, 2026-10-28): `feature/`, `bug/` or `hotfix/`, then the issue number and the topic –
+    `feature/42-actions-minutes`, `bug/20-error-page-unsubscribe`, `hotfix/health-check` (a hotfix has no issue). No
+    other prefix – not `issue/` (the number says it), never a tool name (`claude/…`), a generated word pair or a
+    random suffix. The app's branch prefix for worktree sessions (Settings → Claude Code; it cannot be empty) is
+    `feature`; rename a generated branch before its first push (`git branch -m bug/20-error-page-unsubscribe`).
+    Generated files stay out of git (build output, content, `scripts/dist/`); the i18n type files are the
+    one tracked exception (the type check needs them).
 
 27. **CI**: `.github/workflows/checks.yml` ("Checks") runs on every push/PR: the version check (strict into
     `develop`/`main`), scripts type-check + build + tests + fixture build (+ the book content while it is in
     git), the Accounts API test (PHP 8.3, SQLite), client fixture build + `tsc` (app and service worker) +
     translations status + `vitest`. All four jobs must be green before a merge.
+    **Actions minutes** (Tilman, 2026-10-28, #42): every push starts runners. Runs on this public repository are
+    free today, but the account's included compute is nearly used up by the private repositories, and OSCT may
+    become private. So **push bundled** – at the end of a round or when a stage is done, never after every commit;
+    doc-only commits ride along with the next code push (a branch with a PR runs Checks twice per push: `push` +
+    `pull_request`). Agents watch their own runs (`gh run watch`, `gh pr checks <n>`, `gh run list --branch <b>`)
+    and read a failed one (`gh run view <id> --log-failed`) – Tilman gets no Actions mails (account setting), so a
+    red run nobody looks at stays red. No self-hosted runner while the repository is public (pull requests from
+    forks would run code on the PC); trimming the workflows and a local runner for `develop` are decided in #42.
 
 28. **Deployment** (Kamal – docs/deploy.md, owned by #6): one Docker image (`Dockerfile`: content build + app +
     `server/api` as `/api`, Apache + PHP) deployed with Kamal over SSH behind kamal-proxy; MariaDB as a Kamal

@@ -60,6 +60,20 @@ outcome in the line (or move it into a dated decision block).
   not deploy it as a default." Default ±1 (the default before 1.7.0: the next and previous spread switch by
   themselves); grow stays selectable in the debug overlay. A device that stored *grow* by cycling keeps it.
 - #38 goes on: diagnose grow vs ±0 on the S22, then grow or a sliding target budget.
+## 2026-10-28 – GitHub Actions: minutes, notifications, runners (#42, Tilman)
+
+- Tilman: worktree pushes and small commits to `develop` burn the account's Actions compute; no Actions mails
+  ("just don't notify me"); the repository may go private, so the research continued.
+- Found: OSCT is public, so its runs are free today (timing API: billable 0); the quota goes to the private repos.
+  OSCT's cost per push as a private repo is measured in #42 (Checks bills 4 min for ~2 real, a PR branch runs it
+  twice per push, a `develop` push 7–12 min) with options A (rules), B (trim workflows), C (local runner). GitHub
+  mails the run's triggering actor and has no branch or repository filter: "failures on main only" cannot be set in
+  GitHub – Actions email off, or failures-only plus a mail rule.
+- Nadeos pattern for a local runner: `nadeos-cli/runner/` (Docker Desktop; develop/PR local, main GitHub-hosted,
+  GitHub fallback when offline). A personal account registers runners per repository; never on a public repo.
+- Decided: RULES #27 – push bundled, agents watch their runs. Actions email is off entirely (Tilman, 2026-10-28). Open
+  (Tilman, #42): repository private? Then B: Checks `push` only on develop/main, fold the jobs, drop the FTPS deploy
+  with the staging VM, no runner boot while SSH_HOST is missing; C only if B is not enough.
 
 ## 2026-10-28 – Trigger test S22: size, texture, camera readout (#14, Tilman, 1.8.0)
 

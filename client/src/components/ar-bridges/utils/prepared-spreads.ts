@@ -14,7 +14,8 @@ import { getSpreads, getTargets } from "@/utils/game-config";
  *   preloaded for ±1. Not the default: with the whole book held, pages of a printout were no longer found.
  * The engine load test sets a **target budget** instead (the nearest spreads until their targets reach it) while
  * it runs; the window follows every change at once.
- * The trigger trial overrides the setting with ±0 while its panel is open (`setWindowOverride()`, not stored): only
+ * The trigger trial overrides the setting with ±1 while its panel is open (`setWindowOverride()`, not stored; ±0 from
+ * 1.7.8 to 1.9.0 – since 1.9.1 the next page is found by itself while scanning the sheet in order): only
  * the current spread is held and nothing else is prepared or preloaded, so a target that is not found is down to
  * the engine and the printout, not to work in the background (Tilman, 2026-10-28).
  */
@@ -65,7 +66,7 @@ export const cyclePreparedSpreadRange = (): PreparedWindowSetting => {
 let targetBudget: number | null = null;
 const windowListeners = new Set<() => void>();
 
-/** Overrides the stored setting until it is set back to null (the trial panel: ±0) – applies at once, not stored */
+/** Overrides the stored setting until it is set back to null (the trial panel: ±1) – applies at once, not stored */
 export const setWindowOverride = (setting: PreparedWindowSetting | null): void => {
   if (setting === windowOverride) return;
   windowOverride = setting;
