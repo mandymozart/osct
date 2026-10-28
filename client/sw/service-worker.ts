@@ -11,10 +11,10 @@
  * - Content (target images, models, images, videos – from the content CDN when the build has a content base
  *   URL, else assets/content/ of the app): cached when first used (the PreloaderService's fetches fill it) and
  *   served from the cache afterwards. Bundled content: one cache per content build (`version.hash`), older ones
- *   are dropped when a new worker takes over. CDN content: one cache; a file's URL carries its checksum
- *   (`?v=`), and storing a new version drops the older ones of the same file. The CDN's `game.config.json` and
- *   `files.json` are fetched network-first and kept, so the installed app starts offline with the last content
- *   it saw.
+ *   are dropped when a new worker takes over. CDN content: one cache; every content version is its own
+ *   immutable folder (`<base>/<build>/`), and when `latest.json` names another version the entries of the other
+ *   versions are dropped. `latest.json` is fetched network-first and kept, so the installed app starts offline
+ *   with the last content it saw.
  * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code.
  */
 import { clientsClaim } from "workbox-core";
@@ -62,29 +62,29 @@ const withoutQuery: WorkboxPlugin = {
   },
 };
 
-/** A new version of a CDN file (`?v=`) replaces the older ones of the same file in the cache */
-const dropOlderVersions: WorkboxPlugin = {
+/** When latest.json names another version, the cached files of every other version go */
+const dropOtherVersions: WorkboxPlugin = {
   cacheDidUpdate: async ({ cacheName, request }) => {
-    const stored = new URL(request.url);
     const cache = await caches.open(cacheName);
-    const older = (await cache.keys()).filter(key => {
-      const url = new URL(key.url);
-      return url.origin === stored.origin && url.pathname === stored.pathname && url.search !== stored.search;
-    });
-    await Promise.all(older.map(key => cache.delete(key)));
+    const stored = await cache.match(request.url.split("?")[0]);
+    const build = stored ? ((await stored.json()) as { build?: unknown }).build : undefined;
+    if (typeof build !== "string") return;
+    const current = `${CONTENT_BASE_URL}/${build}/`;
+    const versionFile = /^[0-9a-f]{12}\//;
+    const others = (await cache.keys()).filter(key =>
+      key.url.startsWith(`${CONTENT_BASE_URL}/`) && versionFile.test(key.url.slice(CONTENT_BASE_URL.length + 1)) && !key.url.startsWith(current));
+    await Promise.all(others.map(key => cache.delete(key)));
   },
 };
 
-// The configuration and the file list change with every content sync: from the network, the stored copy only
-// when offline
+// latest.json changes with every content sync: from the network, the stored copy only when offline
 if (CONTENT_BASE_URL) {
-  const changing = [`${CONTENT_BASE_URL}/game.config.json`, `${CONTENT_BASE_URL}/files.json`];
   registerRoute(
-    ({ url }) => changing.includes(`${url.origin}${url.pathname}`),
+    ({ url }) => `${url.origin}${url.pathname}` === `${CONTENT_BASE_URL}/latest.json`,
     new NetworkFirst({
       cacheName: CONTENT_CACHE,
       networkTimeoutSeconds: MANIFEST_TIMEOUT_SECONDS,
-      plugins: [new CacheableResponsePlugin({ statuses: [200] }), withoutQuery],
+      plugins: [new CacheableResponsePlugin({ statuses: [200] }), withoutQuery, dropOtherVersions],
     }),
   );
 }
@@ -93,7 +93,7 @@ registerRoute(
   isContent,
   new CacheFirst({
     cacheName: CONTENT_CACHE,
-    plugins: [new CacheableResponsePlugin({ statuses: [200] }), new RangeRequestsPlugin(), ...(CONTENT_BASE_URL ? [dropOlderVersions] : [])],
+    plugins: [new CacheableResponsePlugin({ statuses: [200] }), new RangeRequestsPlugin()],
   }),
 );
 

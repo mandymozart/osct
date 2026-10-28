@@ -1,102 +1,145 @@
 import { describe, expect, it } from 'vitest';
-import { ContentBuild, fileIndex, isInSync, planFromListing, videosMissingLocally } from '../src/lib/content-sync';
+import { ContentVersion } from '../../shared/types/content-manifest';
+import {
+  activate,
+  ContentBuild,
+  DEFAULT_PURGE,
+  EnvironmentState,
+  fileIndex,
+  planPurge,
+  videosMissing,
+} from '../src/lib/content-sync';
 import { StoredFile } from '../src/lib/storage';
 
 /**
- * The CDN sync mirrors the content build into one folder per environment: changed files are overwritten in
- * place, files that are no longer part of the content – and anything else in the folder, like old version
- * folders – are deleted. Planned from the storage listing, no storage zone needed.
+ * Content versions on the CDN: every content build is its own immutable folder, latest.json names the current one,
+ * versions.json records when each was current. Purge removes only versions that are provably out of use.
+ * Planned from storage listings – no storage zone needed.
  */
 const build: ContentBuild = {
+  build: 'aaaaaaaaaaaa',
   hash: 'a'.repeat(64),
-  schema: '1.0',
+  schema: '1.1',
   version: '1.7.2',
   config: Buffer.from('{}'),
   files: [
     { file: 'entries/one/image.jpg', size: 10, sha256: 'AAA111' },
-    { file: 'entries/two/model.glb', size: 20, sha256: 'BBB222' },
-    { file: 'entries/two/model.glb.gz', size: 5, sha256: 'CCC333' },
+    { file: 'entries/two/target.jpg', size: 20, sha256: 'BBB222' },
   ],
 };
 
-const file = (path: string, checksum: string | null = null, size = 1): StoredFile => ({ path, size, isDirectory: false, checksum });
-const folder = (path: string): StoredFile => ({ path, size: 0, isDirectory: true, checksum: null });
+const DAY = 24 * 60 * 60 * 1000;
+const NOW = Date.parse('2026-12-31T00:00:00.000Z');
+const daysAgo = (days: number) => new Date(NOW - days * DAY).toISOString();
 
-describe('CDN sync plan', () => {
-  it('uploads everything into an empty environment folder', () => {
-    const plan = planFromListing('staging', build, [], null);
-    expect(plan.upload.map(f => f.file)).toEqual(build.files.map(f => f.file));
-    expect(plan.remove).toEqual([]);
-    expect(plan.configChanged).toBe(true);
+const version = (name: string, activatedDaysAgo: number, retiredDaysAgo: number | null): ContentVersion => ({
+  build: name,
+  hash: name.padEnd(64, '0'),
+  schema: '1.1',
+  version: '1.7.2',
+  uploadedAt: daysAgo(activatedDaysAgo),
+  activatedAt: daysAgo(activatedDaysAgo),
+  retiredAt: retiredDaysAgo === null ? null : daysAgo(retiredDaysAgo),
+});
+
+const folder = (name: string): StoredFile => ({ path: `staging/${name}`, size: 0, isDirectory: true, checksum: null });
+const file = (name: string): StoredFile => ({ path: `staging/${name}`, size: 1, isDirectory: false, checksum: null });
+
+const OLDER = '000000000001';
+const OLD = '000000000002';
+const RECENT = '000000000003';
+const CURRENT = '000000000004';
+
+/** Four versions: two retired long ago, one retired yesterday, one current */
+const state = (overrides: Partial<EnvironmentState> = {}): EnvironmentState => ({
+  env: 'staging',
+  current: { build: CURRENT, hash: CURRENT, schema: '1.1', version: '1.7.2', activatedAt: daysAgo(1) },
+  versions: [version(OLDER, 120, 90), version(OLD, 90, 60), version(RECENT, 60, 1), version(CURRENT, 1, null)],
+  listing: [file('latest.json'), file('versions.json'), folder(OLDER), folder(OLD), folder(RECENT), folder(CURRENT)],
+  ...overrides,
+});
+
+const purged = (plan: ReturnType<typeof planPurge>) => plan.items.filter(i => i.purge).map(i => i.target);
+
+describe('content versions', () => {
+  it('records a new current version and retires the previous one', () => {
+    const before = [version(OLD, 10, 5), version(RECENT, 5, null)];
+    const after = activate(before, build, '2026-12-31T00:00:00.000Z', true);
+    expect(after.find(v => v.build === RECENT)?.retiredAt).toBe('2026-12-31T00:00:00.000Z');
+    expect(after.find(v => v.build === OLD)?.retiredAt).toBe(before[0].retiredAt);
+    expect(after.filter(v => v.retiredAt === null).map(v => v.build)).toEqual([build.build]);
   });
 
-  it('uploads only changed files and deletes what the content no longer has', () => {
-    const remote = [
-      file('staging/game.config.json', 'OLDCONFIG'),
-      file('staging/files.json', 'X'),
-      folder('staging/assets'),
-      folder('staging/assets/content'),
-      folder('staging/assets/content/entries'),
-      folder('staging/assets/content/entries/one'),
-      file('staging/assets/content/entries/one/image.jpg', 'AAA111'),
-      file('staging/assets/content/entries/one/old.jpg', 'DDD'),
-      folder('staging/assets/content/entries/two'),
-      file('staging/assets/content/entries/two/model.glb', 'CHANGED'),
-      folder('staging/assets/content/entries/gone'),
-      file('staging/assets/content/entries/gone/video.mp4', 'EEE'),
-      // from the versioned layout before 1.7.2
-      file('staging/latest.json', 'F'),
-      folder('staging/1.6.0-29a25c7416d2'),
-      folder('staging/1.6.0-29a25c7416d2/assets'),
-      file('staging/1.6.0-29a25c7416d2/game.config.json', 'G'),
-    ];
-    const plan = planFromListing('staging', build, remote, 'b'.repeat(64));
-    expect(plan.upload.map(f => f.file)).toEqual(['entries/two/model.glb', 'entries/two/model.glb.gz']);
-    expect(plan.unchanged).toBe(1);
-    expect(plan.remove.sort()).toEqual([
-      'staging/1.6.0-29a25c7416d2/',
-      'staging/assets/content/entries/gone/',
-      'staging/assets/content/entries/one/old.jpg',
-      'staging/latest.json',
-    ]);
-    expect(plan.configChanged).toBe(true);
+  it('rolls back to a version that is still on the storage without uploading it again', () => {
+    const before = [version(build.build, 10, 5), version(RECENT, 5, null)];
+    const after = activate(before, build, '2026-12-31T00:00:00.000Z', false);
+    const entry = after.find(v => v.build === build.build)!;
+    expect(entry.retiredAt).toBeNull();
+    expect(entry.uploadedAt).toBe(before[0].uploadedAt);
+    expect(entry.activatedAt).toBe('2026-12-31T00:00:00.000Z');
   });
 
-  it('re-uploads a file the storage reports no checksum for, and everything with force', () => {
-    const remote = build.files.map(f => file(`staging/assets/content/${f.file}`, f.sha256));
-    remote[0] = file(remote[0].path, null);
-    expect(planFromListing('staging', build, remote, null).upload.map(f => f.file)).toEqual(['entries/one/image.jpg']);
-    expect(planFromListing('staging', build, remote, null, true).upload.length).toBe(3);
+  it('spots videos a build without the git-ignored videos would drop', () => {
+    const current = {
+      '/assets/content/entries/one/image.jpg': { size: 1, v: 'x' },
+      '/assets/content/entries/one/video.mp4': { size: 1, v: 'x' },
+      '/assets/content/entries/gone/video.mp4': { size: 1, v: 'x' },
+    };
+    expect(videosMissing(current, build)).toEqual(['/assets/content/entries/one/video.mp4']);
+    expect(videosMissing(null, build)).toEqual([]);
   });
 
-  it('is in sync when files and configuration match', () => {
-    const remote = [
-      file('staging/game.config.json', 'CONFIG'),
-      file('staging/files.json', 'X'),
-      ...build.files.map(f => file(`staging/assets/content/${f.file}`, f.sha256)),
-    ];
-    expect(isInSync(planFromListing('staging', build, remote, build.hash))).toBe(true);
-    // Another content version on the storage: the configuration is written
-    expect(planFromListing('staging', build, remote, 'other').configChanged).toBe(true);
-  });
-
-  it('never touches another environment', () => {
-    const remote = [file('production/game.config.json', 'P')];
-    expect(planFromListing('staging', build, remote, null).remove).toEqual([]);
-  });
-
-  it('indexes every file with its size and a short checksum for the app', () => {
+  it('indexes every file with its size and a short checksum', () => {
     expect(fileIndex(build)['/assets/content/entries/one/image.jpg']).toEqual({ size: 10, v: 'aaa111' });
   });
+});
 
-  it('spots videos a build without the git-ignored videos would take off the CDN', () => {
-    const remote = [
-      file('staging/assets/content/entries/one/image.jpg', 'AAA111'),
-      file('staging/assets/content/entries/one/video.mp4', 'V'),
-      folder('staging/assets/content/entries/gone'),
-      file('staging/assets/content/entries/gone/video.mp4', 'W'),
-    ];
-    const plan = planFromListing('staging', build, remote, null);
-    expect(videosMissingLocally(plan)).toEqual(['staging/assets/content/entries/one/video.mp4']);
+describe('purge', () => {
+  it('deletes only versions retired long ago, keeping the newest retired one for rollback', () => {
+    const plan = planPurge(state(), CURRENT, NOW, DEFAULT_PURGE);
+    // RECENT is the newest retired (kept, and too recent anyway); OLD and OLDER went 60 and 90 days ago
+    expect(purged(plan)).toEqual([`staging/${OLDER}/`, `staging/${OLD}/`]);
+    expect(plan.versions.map(v => v.build)).toEqual([RECENT, CURRENT]);
+  });
+
+  it('keeps more versions with --keep and younger ones with --min-age', () => {
+    expect(purged(planPurge(state(), CURRENT, NOW, { ...DEFAULT_PURGE, keep: 2 }))).toEqual([`staging/${OLDER}/`]);
+    expect(purged(planPurge(state(), CURRENT, NOW, { ...DEFAULT_PURGE, minAgeDays: 70 }))).toEqual([`staging/${OLDER}/`]);
+    expect(purged(planPurge(state(), CURRENT, NOW, { ...DEFAULT_PURGE, keep: 0, minAgeDays: 0 }))).toEqual([
+      `staging/${OLDER}/`,
+      `staging/${OLD}/`,
+      `staging/${RECENT}/`,
+    ]);
+  });
+
+  it('never deletes the current version or the one the CDN still serves', () => {
+    const plan = planPurge(state(), OLD, NOW, { ...DEFAULT_PURGE, keep: 0, minAgeDays: 0 });
+    expect(purged(plan)).toEqual([`staging/${OLDER}/`, `staging/${RECENT}/`]);
+    expect(plan.items.find(i => i.build === OLD)?.verdict).toMatch(/served by the CDN/);
+    expect(plan.items.find(i => i.build === CURRENT)?.verdict).toBe('current version');
+  });
+
+  it('leaves folders and files that are not versions on record unless asked to', () => {
+    const listing = [...state().listing, folder('assets'), file('game.config.json'), folder('1.6.0-29a25c7416d2')];
+    expect(purged(planPurge(state({ listing }), CURRENT, NOW, DEFAULT_PURGE))).toEqual([`staging/${OLDER}/`, `staging/${OLD}/`]);
+    expect(purged(planPurge(state({ listing }), CURRENT, NOW, { ...DEFAULT_PURGE, unknown: true }))).toEqual([
+      `staging/${OLDER}/`,
+      `staging/${OLD}/`,
+      'staging/assets/',
+      'staging/game.config.json',
+      'staging/1.6.0-29a25c7416d2/',
+    ]);
+  });
+
+  it('refuses without a current version or a version record, or when they disagree', () => {
+    expect(() => planPurge(state({ current: undefined }), null, NOW, DEFAULT_PURGE)).toThrow(/latest.json is missing/);
+    expect(() => planPurge(state({ current: null }), null, NOW, DEFAULT_PURGE)).toThrow(/not readable/);
+    expect(() => planPurge(state({ versions: undefined }), null, NOW, DEFAULT_PURGE)).toThrow(/versions.json is missing/);
+    const stillOpen = [version(OLD, 90, null), version(CURRENT, 1, null)];
+    expect(() => planPurge(state({ versions: stillOpen }), null, NOW, DEFAULT_PURGE)).toThrow(/does not agree/);
+    const unlisted = [version(OLD, 90, 60)];
+    expect(() => planPurge(state({ versions: unlisted }), null, NOW, DEFAULT_PURGE)).toThrow(/does not list the current version/);
+    const missingFolder = state().listing.filter(i => !i.path.endsWith(CURRENT));
+    expect(() => planPurge(state({ listing: missingFolder }), null, NOW, DEFAULT_PURGE)).toThrow(/not on the storage/);
   });
 });

@@ -26,12 +26,15 @@ const bundled = JSON.parse(readFileSync(resolve(__dirname, "../../game.config.js
 };
 
 /**
- * Loading the game configuration from a content base URL (the CDN): the environment's one folder holds
- * game.config.json, files.json and the content files; content paths become CDN URLs with the file's checksum
- * (`?v=`). Also the startup compatibility check (content schema MAJOR only) and load failures.
+ * Loading the game configuration from a content base URL (the CDN): latest.json names the current version, its
+ * immutable folder holds game.config.json, files.json and the content files; content paths become URLs of that
+ * folder. Also the startup compatibility check (content schema MAJOR only) and load failures.
  */
 
 const BASE = "https://cdn.test/staging";
+const BUILD = "0123456789ab";
+const VERSION = `${BASE}/${BUILD}`;
+const manifest = { build: BUILD, hash: "x", schema: CONTENT_SCHEMA_VERSION, version: "1.7.2", activatedAt: "2026-10-28T00:00:00.000Z" };
 const app = parseContentSchema(CONTENT_SCHEMA_VERSION)!;
 const schema = (major: number, minor: number) => `${major}.${minor}`;
 
@@ -53,54 +56,50 @@ describe("loading the game configuration from a content base URL", () => {
     await loadGameConfiguration();
   });
 
-  it("loads the environment's folder and turns content paths into CDN URLs with the file checksum", async () => {
-    const imagePath = (getTargets(getSpreads()[0].id)[0].imageSrc as string);
+  it("follows latest.json to the version folder and turns content paths into its URLs", async () => {
+    const imagePath = getTargets(getSpreads()[0].id)[0].imageSrc as string;
     const fetch = cdn({
-      [`${BASE}/game.config.json`]: bundled,
-      [`${BASE}/files.json`]: { [imagePath]: { size: 1234, v: "0123456789ab" } },
+      [`${BASE}/latest.json`]: manifest,
+      [`${VERSION}/game.config.json`]: bundled,
+      [`${VERSION}/files.json`]: { [imagePath]: { size: 1234, v: "0123456789ab" } },
     });
     expect(await loadGameConfiguration({ baseUrl: `${BASE}/`, fetch })).toBeNull();
     expect(getConfigurationError()).toBeNull();
-    expect(getContentBaseUrl()).toBe(BASE);
+    expect(getContentBaseUrl()).toBe(VERSION);
 
     const spreads = getSpreads();
     expect(spreads.length).toBe(bundled.spreads.length);
     const imageSrc = getTargets(spreads[0].id)[0].imageSrc;
-    expect(imageSrc).toBe(`${BASE}${imagePath}?v=0123456789ab`);
-    expect(getAssets().every(a => a.src.startsWith(`${BASE}/assets/content/`))).toBe(true);
-    expect(getEntries().flatMap(e => (e.image ? [e.image] : [])).every(src => src.startsWith(`${BASE}/assets/content/`))).toBe(true);
+    expect(imageSrc).toBe(`${VERSION}${imagePath}`);
+    expect(getAssets().every(a => a.src.startsWith(`${VERSION}/assets/content/`))).toBe(true);
+    expect(getEntries().flatMap(e => (e.image ? [e.image] : [])).every(src => src.startsWith(`${VERSION}/assets/content/`))).toBe(true);
     expect(isContentUrl(imageSrc)).toBe(true);
     expect(isContentUrl("https://example.org/page")).toBe(false);
     expect(contentPathOf(imageSrc)).toBe(imagePath);
-    // A file files.json does not know: no checksum
-    expect(contentUrl("/assets/content/entries/x/y.jpg")).toBe(`${BASE}/assets/content/entries/x/y.jpg`);
     expect(getContentSizes()).toEqual({ [imageSrc]: 1234 });
 
-    // Both files are overwritten by every sync: revalidated, with a value that changes every minute
+    // latest.json is the only file that changes: revalidated, with a value that changes every minute
     const requests = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    for (const file of ["game.config.json", "files.json"]) {
-      const [url, init] = requests.find(([u]) => String(u).startsWith(`${BASE}/${file}`))!;
-      expect(String(url)).toMatch(new RegExp(`^${BASE}/${file}\\?t=\\d+$`));
-      expect((init as RequestInit).cache).toBe("no-cache");
-    }
+    const [url, init] = requests[0];
+    expect(String(url)).toMatch(new RegExp(`^${BASE}/latest\\.json\\?t=\\d+$`));
+    expect((init as RequestInit).cache).toBe("no-cache");
+    // The version folder is immutable: plain requests
+    expect(requests.slice(1).map(([u]) => String(u)).sort()).toEqual([`${VERSION}/files.json`, `${VERSION}/game.config.json`]);
   });
 
-  it("gives the .gz copy of a CDN model its own checksum", async () => {
+  it("loads the .gz copy of a CDN model from the same version folder", async () => {
     const model = "/assets/content/entities/x/model.glb";
-    const fetch = cdn({
-      [`${BASE}/game.config.json`]: bundled,
-      [`${BASE}/files.json`]: { [model]: { size: 10, v: "aaaaaaaaaaaa" }, [`${model}.gz`]: { size: 4, v: "bbbbbbbbbbbb" } },
-    });
-    await loadGameConfiguration({ baseUrl: BASE, fetch });
+    await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({ [`${BASE}/latest.json`]: manifest, [`${VERSION}/game.config.json`]: bundled }) });
     vi.stubGlobal("DecompressionStream", class {});
-    expect(compressedUrl(contentUrl(model))).toBe(`${BASE}${model}.gz?v=bbbbbbbbbbbb`);
+    expect(compressedUrl(contentUrl(model))).toBe(`${VERSION}${model}.gz`);
     vi.unstubAllGlobals();
   });
 
-  it("loads without files.json (URLs without checksum)", async () => {
+  it("loads without files.json", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({ [`${BASE}/game.config.json`]: bundled }) })).toBeNull();
-    expect(getTargets(getSpreads()[0].id)[0].imageSrc).toMatch(new RegExp(`^${BASE}/assets/content/[^?]+$`));
+    const fetch = cdn({ [`${BASE}/latest.json`]: manifest, [`${VERSION}/game.config.json`]: bundled });
+    expect(await loadGameConfiguration({ baseUrl: BASE, fetch })).toBeNull();
+    expect(getContentSizes()).toEqual({});
     vi.restoreAllMocks();
   });
 
@@ -121,7 +120,16 @@ describe("loading the game configuration from a content base URL", () => {
     expect(missing).toMatchObject({ code: ErrorCode.NETWORK_ERROR, type: "critical" });
     expect(getSpreads()).toEqual([]);
 
-    const broken = await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({ [`${BASE}/game.config.json`]: { version: {} } }) });
+    const bogus = await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({ [`${BASE}/latest.json`]: { build: "../x" } }) });
+    expect(bogus).toMatchObject({ code: ErrorCode.NETWORK_ERROR, type: "critical" });
+
+    const gone = await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({ [`${BASE}/latest.json`]: manifest }) });
+    expect(gone).toMatchObject({ code: ErrorCode.NETWORK_ERROR, type: "critical" });
+
+    const broken = await loadGameConfiguration({
+      baseUrl: BASE,
+      fetch: cdn({ [`${BASE}/latest.json`]: manifest, [`${VERSION}/game.config.json`]: { version: {} } }),
+    });
     expect(broken).toMatchObject({ code: ErrorCode.GAME_CONFIGURATION_INVALID, type: "critical" });
     vi.restoreAllMocks();
   });
@@ -154,12 +162,18 @@ describe("content compatibility", () => {
   it("refuses content of a newer MAJOR at startup and loads a newer MINOR", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "info").mockImplementation(() => {});
-    const newer = await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({ [`${BASE}/game.config.json`]: withSchema(schema(app.major + 1, 0)), [`${BASE}/files.json`]: {} }) });
+    const newer = await loadGameConfiguration({
+      baseUrl: BASE,
+      fetch: cdn({ [`${BASE}/latest.json`]: manifest, [`${VERSION}/game.config.json`]: withSchema(schema(app.major + 1, 0)) }),
+    });
     expect(newer).toMatchObject({ code: ErrorCode.NOT_SUPPORTED, type: "critical" });
     expect(newer?.msg).not.toBe("");
     expect(getSpreads()).toEqual([]);
 
-    const minor = await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({ [`${BASE}/game.config.json`]: withSchema(schema(app.major, app.minor + 1)), [`${BASE}/files.json`]: {} }) });
+    const minor = await loadGameConfiguration({
+      baseUrl: BASE,
+      fetch: cdn({ [`${BASE}/latest.json`]: manifest, [`${VERSION}/game.config.json`]: withSchema(schema(app.major, app.minor + 1)) }),
+    });
     expect(minor).toBeNull();
     expect(getSpreads().length).toBe(bundled.spreads.length);
     vi.restoreAllMocks();

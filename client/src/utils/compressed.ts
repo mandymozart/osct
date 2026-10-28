@@ -17,7 +17,7 @@ export const supportsGzip = (): boolean => typeof DecompressionStream === "funct
 const isGzipped = (src: string): boolean =>
   GZIPPED.test(src.split(/[?#]/)[0]) && (isContentUrl(src) || !/^[a-z]+:\/\//i.test(src));
 
-/** The `.gz` copy's URL: content URLs through `contentUrl` (the copy has its own `?v=` on the CDN) */
+/** The `.gz` copy's URL (content URLs through `contentUrl`) */
 const gzUrl = (src: string): string => {
   const path = contentPathOf(src);
   return path ? contentUrl(`${path}.gz`) : `${src}.gz`;

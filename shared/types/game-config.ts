@@ -29,7 +29,7 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "1.0";
+export const CONTENT_SCHEMA_VERSION = "1.1";
 
 export interface ContentSchema {
   major: number;

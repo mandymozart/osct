@@ -19,7 +19,7 @@ const readLocalGameConfig = () => (existsSync(GAME_CONFIG_FILE) ? JSON.parse(rea
 
 /**
  * Book data for the app shell (home-screen name, static splash). A CDN build takes it from the environment's
- * content on the CDN – it only shapes the first frame, the app renders the loaded content after that – and
+ * current content version on the CDN – it only shapes the first frame, the app renders the loaded content after that – and
  * falls back to a local content build, then to no book data. Without the CDN the local build is required.
  */
 async function readShellConfig(contentBaseUrl) {
@@ -29,11 +29,15 @@ async function readShellConfig(contentBaseUrl) {
     return local;
   }
   try {
-    const response = await fetch(`${contentBaseUrl}/game.config.json?t=${Date.now()}`, { signal: AbortSignal.timeout(10000) });
-    if (response.ok) return await response.json();
-    console.warn(`[osct] ${contentBaseUrl}/game.config.json: ${response.status} – app shell from the local content build or without book data`);
+    const get = async (url) => {
+      const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error(`${url}: ${response.status}`);
+      return response.json();
+    };
+    const { build } = await get(`${contentBaseUrl}/latest.json?t=${Date.now()}`);
+    return await get(`${contentBaseUrl}/${build}/game.config.json`);
   } catch (error) {
-    console.warn(`[osct] ${contentBaseUrl}/game.config.json not reachable (${error.message}) – app shell from the local content build or without book data`);
+    console.warn(`[osct] content on ${contentBaseUrl} not readable (${error.message}) – app shell from the local content build or without book data`);
   }
   return readLocalGameConfig() ?? {};
 }
@@ -237,7 +241,7 @@ export default defineConfig(async ({command,mode})=>{
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
-    // Service worker content cache: one per bundled content build; a CDN build keeps one cache and drops old file versions
+    // Service worker content cache: one per bundled content build; a CDN build keeps one cache and drops other versions
     __VITE_CONTENT_HASH__: JSON.stringify(contentBaseUrl ? 'cdn' : (shellConfig.version?.hash ?? APP_VERSION)),
     __VITE_CONTENT_BASE_URL__: JSON.stringify(contentBaseUrl), // the service worker (the app reads import.meta.env)
     __VITE_SERVER_URL__: JSON.stringify(`${https ? 'https' : 'http'}://${localIP}:${port}`),

@@ -3,17 +3,17 @@
  * (`scripts/`) generates from the authored content.
  *
  * The only module that reads it (RULES #14). `loadGameConfiguration()` loads it once before the app starts
- * (main.ts): from the content CDN when the build has a content base URL (`VITE_CONTENT_BASE_URL` – the
- * environment's one folder: `<base>/game.config.json`, `<base>/files.json`, `<base>/assets/content/…`,
+ * (main.ts): from the content CDN when the build has a content base URL (`VITE_CONTENT_BASE_URL` –
+ * `<base>/latest.json` names the current version, `<base>/<build>/` holds it and never changes,
  * docs/content-cdn.md), else the copy bundled with the app (`virtual:osct-game-config` – dev server, tests).
  * On load it checks the JSON against the contract (`assertGameConfiguration`), checks that this app can
  * read the content (content schema MAJOR – RULES #10), maps `*Data` to the app model (`Spread`, `Entry`,
  * `Target`, `Step`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the
- * loaded content (on the CDN with the file's checksum as `?v=`, so an overwritten file gets a new URL), so the
- * rest of the app never knows where the content comes from.
+ * loaded version, so the rest of the app never knows where the content comes from.
  */
 import { assertGameConfiguration, GameConfigurationError, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, parseContentSchema } from '@shared/types/game-config';
+import { ContentFiles, ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
   AssetData,
   BookData,
@@ -45,13 +45,6 @@ const EMPTY_CONFIGURATION: GameConfiguration = {
 export const CONTENT_PATH = '/assets/content/';
 /** Fetching the configuration: a slow CDN must not keep the splash forever */
 const LOAD_TIMEOUT_MS = 20000;
-
-/** Content files on the CDN by path (`files.json`, written by the CDN sync): size and short checksum */
-export type ContentFiles = Record<string, { size: number; v: string }>;
-
-const isContentFiles = (value: unknown): value is ContentFiles =>
-  typeof value === 'object' && value !== null && !Array.isArray(value) &&
-  Object.values(value).every(f => typeof f === 'object' && f !== null && typeof f.size === 'number' && typeof f.v === 'string');
 
 /**
  * Runtime error handling: the guard's `GameConfigurationError` (every problem with its path, same
@@ -99,22 +92,30 @@ const fetchWithTimeout = async (fetchFn: typeof fetch, url: string, init: Reques
 };
 
 /**
- * The environment's content on the CDN. Both files are overwritten by every sync: revalidated by the browser,
- * and asked for with a value that changes once a minute (`?t=`), so a CDN edge that varies its cache by query
- * string asks the storage at most once a minute. files.json is optional – without it the URLs carry no `?v=`.
+ * The current content version on the CDN. latest.json is the only file that changes: revalidated by the browser
+ * and asked for with a value that changes once a minute (`?t=`, for edges that vary their cache by query string).
+ * The version folder never changes – its files are cached like any immutable file. files.json (sizes for the
+ * whole-book download) is optional.
  */
-const fetchFromContentBase = async (baseUrl: string, fetchFn: typeof fetch): Promise<{ raw: unknown; files: ContentFiles }> => {
-  const minute = Math.floor(Date.now() / 60000);
+const fetchFromContentBase = async (
+  baseUrl: string,
+  fetchFn: typeof fetch,
+): Promise<{ raw: unknown; files: ContentFiles; versionUrl: string; manifest: ContentManifest }> => {
+  const manifest: unknown = await (
+    await fetchWithTimeout(fetchFn, `${baseUrl}/latest.json?t=${Math.floor(Date.now() / 60000)}`, { cache: 'no-cache' })
+  ).json();
+  if (!isContentManifest(manifest)) throw new Error(`${baseUrl}/latest.json does not name a content version`);
+  const versionUrl = `${baseUrl}/${manifest.build}`;
   const [raw, files] = await Promise.all([
-    fetchWithTimeout(fetchFn, `${baseUrl}/game.config.json?t=${minute}`, { cache: 'no-cache' }).then(r => r.json() as Promise<unknown>),
-    fetchWithTimeout(fetchFn, `${baseUrl}/files.json?t=${minute}`, { cache: 'no-cache' })
+    fetchWithTimeout(fetchFn, `${versionUrl}/game.config.json`).then(r => r.json() as Promise<unknown>),
+    fetchWithTimeout(fetchFn, `${versionUrl}/files.json`)
       .then(r => r.json() as Promise<unknown>)
       .catch(error => {
-        console.warn(`[game-config] ${baseUrl}/files.json not loaded (${error instanceof Error ? error.message : error}) – content URLs without checksum`);
+        console.warn(`[game-config] ${versionUrl}/files.json not loaded (${error instanceof Error ? error.message : error})`);
         return null;
       }),
   ]);
-  return { raw, files: isContentFiles(files) ? files : {} };
+  return { raw, files: isContentFiles(files) ? files : {}, versionUrl, manifest };
 };
 
 export interface LoadOptions {
@@ -133,21 +134,22 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
   try {
     let raw: unknown;
     let files: ContentFiles = {};
+    let versionUrl = '';
     if (baseUrl) {
-      ({ raw, files } = await fetchFromContentBase(baseUrl, options.fetch ?? fetch));
+      ({ raw, files, versionUrl } = await fetchFromContentBase(baseUrl, options.fetch ?? fetch));
     } else {
       raw = (await import('virtual:osct-game-config')).default;
       if (raw === null) throw new Error('This build loads its content from the CDN but has no content base URL');
     }
     assertGameConfiguration(raw);
     const { version } = raw;
-    console.info(`[game-config] Content ${(version.hash ?? '').slice(0, 12)} (schema ${version.schema}, built with app ${version.version}) from ${baseUrl || 'the app'}.`);
+    console.info(`[game-config] Content ${(version.hash ?? '').slice(0, 12)} (schema ${version.schema}, built with app ${version.version}) from ${versionUrl || 'the app'}.`);
     configurationError = checkContentCompatibility(version);
     if (configurationError) {
       console.error(`[game-config] ${configurationError.details?.[0]}`);
       apply(EMPTY_CONFIGURATION, '', {});
     } else {
-      apply(raw, baseUrl, files);
+      apply(raw, versionUrl, files);
     }
   } catch (error) {
     const invalid = error instanceof GameConfigurationError;
@@ -168,7 +170,7 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
 export const getConfigurationError = (): ErrorInfo | null => configurationError;
 
 let config: GameConfiguration = EMPTY_CONFIGURATION;
-/** Base URL of the content on the CDN ('' when the content is served with the app) */
+/** URL of the loaded content version on the CDN (`<base>/<build>`; '' when the content is served with the app) */
 let contentBase = '';
 /** files.json of the loaded content (empty for content served with the app) */
 let contentFiles: ContentFiles = {};
@@ -179,15 +181,8 @@ let entryById = new Map<string, Entry>();
 let targetById = new Map<string, Target>();
 let tutorial: Step[] = [];
 
-/**
- * URL of a content file given its path in the configuration (`/assets/content/…`): on the CDN with the file's
- * checksum (`?v=`, from files.json) – files are overwritten in place, the URL changes with the file
- */
-export const contentUrl = (path: string): string => {
-  if (!path.startsWith(CONTENT_PATH) || !contentBase) return path;
-  const v = contentFiles[path]?.v;
-  return `${contentBase}${path}${v ? `?v=${v}` : ''}`;
-};
+/** URL of a content file given its path in the configuration (`/assets/content/…`) */
+export const contentUrl = (path: string): string => (path.startsWith(CONTENT_PATH) && contentBase ? `${contentBase}${path}` : path);
 
 /** A URL of the loaded content (same origin or the content CDN) – as opposed to external links */
 export const isContentUrl = (src?: string): src is string =>
@@ -200,7 +195,7 @@ export const contentPathOf = (src: string): string | null => {
   return path.split(/[?#]/)[0];
 };
 
-/** Where the content files come from: the environment's folder on the CDN, '' when served with the app */
+/** Where the content files come from: the loaded version's folder on the CDN, '' when served with the app */
 export const getContentBaseUrl = (): string => contentBase;
 
 /** Sizes in bytes by content URL from files.json (CDN content), null for content served with the app */
