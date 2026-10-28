@@ -1,0 +1,19 @@
+# Showcase entry for the editor and the tests (spread studio-b).
+category: video
+title: "Studio: luma key"
+page: 30
+body: "A video keyed on black (luma), enlarged and lifted a hair above the page."
+target:
+  image: target.jpg
+  entity:
+    type: video
+    src: edge.mp4
+    params:
+      position: [0, 0.1, 0.01]
+      scale: 1.3
+    filters:
+      - type: chromaKey
+        color: "#000000"
+        mode: luma
+        threshold: 0.06
+        softness: 0.1
