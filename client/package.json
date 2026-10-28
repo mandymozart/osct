@@ -1,6 +1,6 @@
 {
   "name": "osct-book-game",
-  "version": "1.7.5",
+  "version": "1.7.6",
   "engines": {
     "node": ">=22.12"
   },
@@ -15,7 +15,7 @@
     "i18n:watch": "i18next-cli extract --watch --with-types",
     "i18n:build": "npm run i18n && npm run i18n:status",
     "content": "npm --prefix ../scripts install --no-audit --no-fund && npm --prefix ../scripts start",
-    "prebuild": "npm run content && npm run i18n:build",
+    "prebuild": "node content-prebuild.mjs && npm run i18n:build",
     "build": "vite build && tsc --noEmit && tsc -p sw",
     "preview": "vite preview",
     "prepublishOnly": "npm run build",

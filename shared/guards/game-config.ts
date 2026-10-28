@@ -11,6 +11,7 @@ import {
   EntityRefData,
   EntityType,
   GameConfiguration,
+  parseContentSchema,
   STEP_ACTIONS,
   StepAction,
 } from "../types/game-config";
@@ -96,6 +97,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     str(version, "version", "version");
     str(version, "timestamp", "version");
     str(version, "hash", "version", true);
+    if (!parseContentSchema(version.schema)) fail("version.schema", 'expected "MAJOR.MINOR", e.g. "1.0"');
   }
 
   const book = obj(root.book, "book");

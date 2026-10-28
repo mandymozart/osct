@@ -6,15 +6,25 @@
  * cache hit.
  */
 
+import { contentPathOf, contentUrl, isContentUrl } from "./game-config";
+
 /** File types the content build writes a `.gz` copy for (scripts/src/lib/optimize-media.ts) */
 const GZIPPED = /\.glb$/i;
 
 export const supportsGzip = (): boolean => typeof DecompressionStream === "function";
 
-const isGzipped = (src: string): boolean => GZIPPED.test(src) && !/^[a-z]+:\/\//i.test(src);
+/** Same-origin paths and the content CDN have the `.gz` copies; external URLs do not */
+const isGzipped = (src: string): boolean =>
+  GZIPPED.test(src.split(/[?#]/)[0]) && (isContentUrl(src) || !/^[a-z]+:\/\//i.test(src));
+
+/** The `.gz` copy's URL (content URLs through `contentUrl`) */
+const gzUrl = (src: string): string => {
+  const path = contentPathOf(src);
+  return path ? contentUrl(`${path}.gz`) : `${src}.gz`;
+};
 
 /** The URL to download for a content file (its `.gz` copy where there is one and the browser can unpack it) */
-export const compressedUrl = (src: string): string => (isGzipped(src) && supportsGzip() ? `${src}.gz` : src);
+export const compressedUrl = (src: string): string => (isGzipped(src) && supportsGzip() ? gzUrl(src) : src);
 
 const fetchBuffer = async (url: string): Promise<ArrayBuffer> => {
   const response = await fetch(url);
@@ -32,7 +42,7 @@ const isGzip = (bytes: Uint8Array): boolean => bytes[0] === 0x1f && bytes[1] ===
 export const loadCompressed = async (src: string): Promise<ArrayBuffer> => {
   if (compressedUrl(src) !== src) {
     try {
-      const response = await fetch(`${src}.gz`);
+      const response = await fetch(compressedUrl(src));
       if (response.ok) {
         const bytes = new Uint8Array(await response.arrayBuffer());
         if (!isGzip(bytes)) return bytes.buffer; // already unpacked by the browser

@@ -4,7 +4,6 @@ import { IGame, ITutorialNavigation, Step } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 
-const tutorial = getTutorial();
 
 /**
  * Onboarding step button. The step's `action` decides what a tap does: `next` (default) → next step,
@@ -44,7 +43,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
   }
 
   private get step(): Step | undefined {
-    return tutorial.find(s => s.index === this.currentStep);
+    return getTutorial().find(s => s.index === this.currentStep);
   }
 
   private render() {
@@ -86,7 +85,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
 
 /** Navigates to the given onboarding step, or to scan mode after the last one */
 export const goToStep = (game: Readonly<IGame>, index: number) => {
-  if (index >= tutorial.length) goToScan(game);
+  if (index >= getTutorial().length) goToScan(game);
   else game.router.navigate("/tutorial", { key: "step", value: index.toString() });
 };
 

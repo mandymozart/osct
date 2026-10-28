@@ -8,7 +8,7 @@ import {
 } from "@shared/guards/game-config";
 
 const valid = () => ({
-  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc" },
+  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "1.0" },
   book: { id: "osct", title: "Onion Skin & Crocodile Tears", author: "Kévin Bray" },
   initialSpreadId: "spread1",
   spreads: [{ id: "spread1", title: "The Beginning", firstPage: 1, lastPage: 2 }],

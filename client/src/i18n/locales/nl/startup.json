@@ -1,5 +1,6 @@
 {
-  "contentOtherVersion": "De inhoud van het boek is gemaakt voor een andere versie van de app.",
+  "contentOlder": "De inhoud van het boek is ouder dan deze app. Probeer het later opnieuw.",
+  "contentNewer": "De inhoud van het boek is nieuwer dan deze app. Werk de app bij.",
   "contentNotLoaded": "De inhoud van het boek kon niet worden geladen.",
   "unknownError": "Er is een onbekende fout opgetreden."
 }
