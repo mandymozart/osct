@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.7.7 – 2026-10-28
+
+### Fixed
+- The error page unsubscribes from the store when it leaves the DOM (#20): it subscribed to the whole store on every
+  connect and "unsubscribed" a different function, so each reconnect left a listener behind. It now subscribes to
+  `currentError` only (typed `ErrorInfo | null`) and keeps the cleanup it gets back, like the other pages.
+
 ## 1.7.6 – 2026-10-28
 
 ### Added

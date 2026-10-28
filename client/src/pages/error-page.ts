@@ -1,6 +1,6 @@
 import { MEDIA_QUERY } from "@/constants";
 import { GameStoreService } from "@/services";
-import { IGame } from "@/types";
+import { ErrorInfo, IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 import { Page } from "./page";
@@ -27,7 +27,8 @@ class ErrorPage extends Page implements IErrorPage {
   private errorCode: string = '';
   private actionButton: { text: string; callback: () => void } | null = null;
   protected game: Readonly<IGame>;
-  private currentError: any = null;
+  /** Cleanup of the `currentError` subscription while connected */
+  private unsubscribe: (() => void) | null = null;
 
   constructor() {
     super();
@@ -37,29 +38,24 @@ class ErrorPage extends Page implements IErrorPage {
 
   connectedCallback() {
     super.connectedCallback();
-    this.game.subscribe(this.handleStateChange.bind(this));
+    // The store only notifies when the error actually changed (BaseStore compares by value)
+    this.unsubscribe = this.game.subscribeToProperty("currentError", error => this.handleErrorChange(error));
   }
 
   disconnectedCallback() {
-    this.game.unsubscribe(this.handleStateChange.bind(this));
+    this.unsubscribe?.();
+    this.unsubscribe = null;
     super.disconnectedCallback();
   }
 
-  protected handleStateChange(state: any): void {
-    if (state.currentError !== undefined &&
-      JSON.stringify(state.currentError) !== JSON.stringify(this.currentError)) {
-
-      this.currentError = state.currentError;
-
-      if (state.currentError === null) {
-        this.active = false;
-      } else {
-        const error = state.currentError;
-        this.showError(error.msg, {
-          code: error.code,
-          action: error.action
-        });
-      }
+  protected handleErrorChange(error: ErrorInfo | null): void {
+    if (error === null) {
+      this.active = false;
+    } else {
+      this.showError(error.msg, {
+        code: error.code,
+        action: error.action
+      });
     }
   }
 
