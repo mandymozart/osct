@@ -31,9 +31,10 @@ Done in this repository (1.7.6, #5): the fixture, CI and the tests on the fixtur
 `OSCT_CONTENT_DIR` (no fallback), `osct content sync` refuses the fixture, the workflow "Content" has no sync,
 `content-demo/` replaced by the fixture.
 
-1. **Deploys without content.** The app image and the FTPS staging deploy build with
-   `VITE_CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}`, and the `Dockerfile` drops `COPY content content` (Kamal
-   session: `Dockerfile`, `.github/workflows/deploy*.yml`). Until then removing `content/` breaks every deploy.
+1. **Deploys without content.** Done 1.7.9 (#6): the app image (`Dockerfile` build arg, `config/deploy.yml`
+   `builder.args`, `deploy.yml`) and the FTPS staging deploy build with `VITE_CONTENT_BASE_URL` =
+   `CONTENT_BASE_URL` of the GitHub environment. Still to do with step 3: the `Dockerfile` drops `COPY content content`
+   and `.dockerignore` its `!content/` line – until then an image without `CONTENT_BASE_URL` still bundles the content.
 2. **A home for the source that is backed up.** Decide where `osct-content` is kept safe – a private repository
    of its own, or a `source/` folder on the storage zone – before the history that holds the only other copy is
    rewritten.

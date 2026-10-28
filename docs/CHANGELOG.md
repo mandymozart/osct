@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.7.8 – 2026-10-28
+## 1.7.10 – 2026-10-28
 
 ### Changed
 - Code base review (#19): comments explain the code, not its history – names, dates, test references, design frame
@@ -35,6 +35,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ### Fixed
 - `scripts/test/` is type-checked, and the build test builds the test fixture instead of the book content
   (RULES #8). The API schema split no longer relies on a literal line break inside a regex.
+
+## 1.7.9 – 2026-10-28
+
+### Changed
+- The deploys build the app against the environment's content CDN: `CONTENT_BASE_URL` of the GitHub environment
+  reaches the Docker build (`config/deploy.yml` → `builder.args` → `Dockerfile` `VITE_CONTENT_BASE_URL`) and the
+  temporary FTPS staging build. Such an image holds no content; the app loads the current version from the CDN at
+  startup ([content-cdn](content-cdn.md)). Without the variable the commit's content is still bundled (#6, #5).
 
 ## 1.7.7 – 2026-10-28
 
