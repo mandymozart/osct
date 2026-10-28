@@ -7,11 +7,11 @@ import { getSpreads, getTargets } from "@/utils/game-config";
  * (`PreloaderService.preloadSpreads()`). Nearest spreads first (the next before the previous).
  *
  * Setting (debug overlay, this device only):
- * - **grow** (default: holding every target of the book costs no frame rate or detection speed, only the
- *   one-time work per target): the current spread first, then the nearest spreads are
- *   added in idle time, a few targets at a time, until the whole book is held (`IImageTracker.growTargets()`).
- *   Nothing is dropped on a switch. Content is preloaded for ±1.
  * - ±n spreads (0, 1, 2) or all: a fixed window that slides with the current spread (`prepareTargets()`).
+ *   **±1 is the default**: the next and the previous spread switch by themselves.
+ * - **grow**: the current spread first, then the nearest spreads are added in idle time, a few targets at a time,
+ *   until the whole book is held (`IImageTracker.growTargets()`). Nothing is dropped on a switch. Content is
+ *   preloaded for ±1. Not the default: with the whole book held, pages of a printout were no longer found.
  * The engine load test sets a **target budget** instead (the nearest spreads until their targets reach it) while
  * it runs; the window follows every change at once.
  * The trigger trial overrides the setting with ±0 while its panel is open (`setWindowOverride()`, not stored): only
@@ -21,6 +21,7 @@ import { getSpreads, getTargets } from "@/utils/game-config";
 export type PreparedWindowSetting = "grow" | number;
 export const PREPARED_WINDOW_SETTINGS: readonly PreparedWindowSetting[] = ["grow", 0, 1, 2, Infinity];
 const RANGE_KEY = "osct-ar-prepared-spreads";
+const DEFAULT_WINDOW: PreparedWindowSetting = 1;
 /** Content preload in grow mode: the neighbours (their media add up – the whole book stays a separate step) */
 const GROW_CONTENT_RANGE = 1;
 
@@ -33,13 +34,14 @@ export const getPreparedWindowSetting = (): PreparedWindowSetting => windowOverr
 export const getStoredWindowSetting = (): PreparedWindowSetting => {
   try {
     const stored = localStorage.getItem(RANGE_KEY);
-    if (stored === "grow" || stored === null) return "grow";
+    if (stored === "grow") return "grow";
+    if (stored === null) return DEFAULT_WINDOW;
     const range = stored === "all" ? Infinity : Number(stored);
     if (PREPARED_WINDOW_SETTINGS.includes(range)) return range;
   } catch {
     // storage blocked: default
   }
-  return "grow";
+  return DEFAULT_WINDOW;
 };
 
 /** The window as ±n spreads: the setting's range, or the neighbours in grow mode (content preload) */

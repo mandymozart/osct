@@ -8,11 +8,12 @@ how a spread switch works, and how to measure how many targets a phone can hold.
 1. **Current spread** – `ArScene.changeSpread()` swaps anchors, entities and assets (it waits for the new spread's
    models and videos), then `ImageTracker.loadTargets()` makes the spread's targets the ones reported to the app.
 2. **Window** – once the spread is tracked, `ArScene` gives the tracker the other spreads, nearest first
-   (`prepared-spreads.ts`). **Grow** (default since 1.7.0): `growTargets()` adds them in idle time, three targets per
-   batch, each batch after the previous one is extracted, until the whole book is held; a switch only re-orders what
-   is still to add, nothing is dropped. **Fixed** (±0 / ±1 / ±2 / all in the debug overlay, or the load test's target
+   (`prepared-spreads.ts`). **Fixed** (±1 by default; ±0 / ±2 / all in the debug overlay, or the load test's target
    budget): `prepareTargets()` holds exactly that window and **slides** with the current spread – spreads that fall
-   out of it are unloaded (their files stay in the browser cache). The bridge preloads the content of the ±n window
+   out of it are unloaded (their files stay in the browser cache). **Grow** (debug overlay; the default from 1.7.0
+   to 1.8.1, see issue #38): `growTargets()` adds them in idle time, three targets per batch, each batch after the
+   previous one is extracted, until the whole book is held; a switch only re-orders what is still to add, nothing is
+   dropped. The bridge preloads the content of the ±n window
    (±1 in grow mode; `PreloaderService.preloadSpreads()`: target images, then one spread at a time).
 3. **Preparing** (the app, main thread) – each target image becomes a grey 480×640 frame (`makeImageTarget()`,
    `xr8.ts`): decode, draw, greyscale, JPEG. S22: 150–260 ms per image, cached per session.
@@ -134,9 +135,10 @@ comes back sharp later.
 
 - **A target budget instead of ±n.** Hold the current spread plus the nearest spreads until a target budget (from the
   load test) is reached. With small spreads that reaches much further than ±1 for the same engine load.
-- **Grow instead of slide** (done, 1.7.0 – the default): keep what is extracted and add the next-nearest spreads in
-  idle time until the whole book is held. The first load test (2026-10-27) found no cost in frame rate or detection
-  for 131 held targets, so there is no budget or eviction; add one if a slower phone needs it.
+- **Grow instead of slide** (1.7.0, no longer the default since 1.8.2): keep what is extracted and add the
+  next-nearest spreads in idle time until the whole book is held. The first load test (2026-10-27) found no cost in
+  frame rate or detection for 131 held targets, but on the S22 pages of the printout were no longer found once the
+  whole book was held – ±1 is the default again until issue #38 decides between grow and a sliding target budget.
 - **Nearest first** (done, 1.7.0): the window is passed nearest first, so the engine queues the spreads the reader is
   most likely to turn to before the farther ones (the engine extracts in the order its queue gets them).
 - **Fewer configures.** A spread switch configures twice (current, then the new window); the second cancels and
