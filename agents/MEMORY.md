@@ -71,8 +71,8 @@ outcome in the line (or move it into a dated decision block).
   GitHub – Actions email off, or failures-only plus a mail rule.
 - Nadeos pattern for a local runner: `nadeos-cli/runner/` (Docker Desktop; develop/PR local, main GitHub-hosted,
   GitHub fallback when offline). A personal account registers runners per repository; never on a public repo.
-- Decided: RULES #27 – push bundled, agents watch their runs. Open (Tilman, #42): repository private? Actions email
-  off entirely or failures-only? Then B: Checks `push` only on develop/main, fold the jobs, drop the FTPS deploy
+- Decided: RULES #27 – push bundled, agents watch their runs. Actions email is off entirely (Tilman, 2026-10-28). Open
+  (Tilman, #42): repository private? Then B: Checks `push` only on develop/main, fold the jobs, drop the FTPS deploy
   with the staging VM, no runner boot while SSH_HOST is missing; C only if B is not enough.
 
 ## 2026-10-28 – Trigger test S22: size, texture, camera readout (#14, Tilman, 1.8.0)
