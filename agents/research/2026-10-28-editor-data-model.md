@@ -13,6 +13,13 @@ not a full CMS, but the **placement and media toy** plus the data behind it.
   snapshot, the content build turns it into `game.config.json` + media exactly as today, the CDN sync ships it
   (RULES #8, #24 untouched). The app never reads tables; the editor's live preview reads the **draft as a game
   configuration** from the API, through the same loader the CDN content uses (`VITE_CONTENT_BASE_URL` → `contentUrl`).
+  Why still a file (Tilman asked whether the PWA could load progressively instead): the file is not about caching
+  but about **immutability and offline** – a published build is one checksum-named folder on the CDN edge that the
+  service worker caches whole, works without network and without a database on the readers' hot path, and can be
+  rolled back by pointing `latest.json` elsewhere. What *is* progressive today is the media: spreads load their
+  targets and assets per spread (`PreloaderService`, ±1 window). A per-spread configuration API would add little
+  (the configuration is a few hundred kB) and would put the database in front of every reader. For editing, the
+  draft endpoint is exactly that progressive, uncached path – for the editor only.
 - **Ids are slugs and stay immutable after the first publish** – readers' progress references entry and target
   ids (RULES #10), so the table keys are `(book_id, id)` with `id = slug`, not surrogate UUIDs.
 - **Schema-driven values stay JSON**: `params` (placement), `filters`, `tags` – the contract in `shared/` validates
@@ -35,7 +42,6 @@ erDiagram
   books ||--o{ entries : "has"
   books ||--o{ entities : "has"
   books ||--o{ assets : "has"
-  books ||--o{ steps : "onboarding"
   books ||--o{ book_versions : "published as"
   entries ||--o| targets : "may have"
   targets }o--o| entities : "shows"
@@ -93,9 +99,7 @@ erDiagram
     char id PK "uuid"
     varchar book_id FK
     varchar ref "slug when shared, else null"
-    varchar type "model video image"
-    text params "JSON placement"
-    text filters "JSON list"
+    mediumtext scene "JSON: the node tree (type, params, children, components)"
     datetime updated_at
   }
   entity_assets {
@@ -117,20 +121,6 @@ erDiagram
     varchar storage_key "path on the storage zone"
     char uploaded_by FK
     datetime created_at
-  }
-  steps {
-    varchar book_id PK,FK
-    varchar id PK
-    int position
-    varchar title
-    text description
-    varchar footer
-    char illustration_asset_id FK
-    varchar button
-    varchar action "next camera scan"
-    int fade_in
-    int stagger
-    int advance
   }
   book_versions {
     char id PK
@@ -165,14 +155,19 @@ Notes per table:
 
 - **books** – `BookData` plus the page format (the geometry issue: from the designed PDF) and the initial spread.
   One row today; the model is per book from the start (STRATEGY: instances per brand, several titles later).
-- **spreads / entries / targets / steps** – the content folders as rows, same fields as the YAML (`docs/content.md`),
+- **spreads / entries / targets** – the content folders as rows, same fields as the YAML (`docs/content.md`),
   same checks (page inside one spread, ≤ 10 targets per spread – `MAX_TARGETS_PER_SPREAD` – run by the API on save
   and by the build on publish, from `shared/`).
 - **targets** – `printed_*` carries the geometry from the PDF (mm from the page's top left corner), which the mock
   stage places exactly and the trial protocol reports. Nullable until the layout import runs.
 - **entities** – inline (one target) or shared (`ref` set, several targets point at it – today
-  `content/entities/<ref>/entity.yaml`). `params` and `filters` are the JSON the tune panel already produces
-  ("Copy YAML" becomes "Save").
+  `content/entities/<ref>/entity.yaml`). `scene` is **one JSON document: the node tree** (type, placement
+  `params`, type fields, `children`, `components` – the concept in `2026-10-28-entity-components.md`); today's
+  one-node entity with `params` and `filters` is its simplest form, and it is the JSON the tune panel already
+  produces ("Copy YAML" becomes "Save"). Not a row per node: the tree is edited, validated (by the specs in
+  `shared/`) and versioned as a whole.
+- **Onboarding steps stay out of the database** (Tilman, 2026-10-28: "müssen nicht in die Datenbank, auch
+  zukünftig nicht") – they remain app content in the repository / content folder as today.
 - **assets** – one row per uploaded file; the same file used twice is one row (`sha256`). What the editor shows:
   size against the mobile-data budget, dimensions, duration, a "used by" list through `entity_assets`, `entries.image`
   and `targets.image_asset_id`.
@@ -225,7 +220,7 @@ The smallest useful toy, in order:
    editor** (type, asset upload, placement = the tune panel, filters). Save to the database. ~3–4 days.
 3. **Draft preview on the phone** (`?content=draft`) and **publish to staging**. ~1–2 days (the build's `--db`
    input and the dispatch).
-4. Later: onboarding steps, the page map, the layout import, asset budget warnings, the look-around values.
+4. Later: the node-tree inspector (content schema 2.0), the page map, the layout import, asset budget warnings, the look-around values.
 
 What it does not do: 3D modelling (Blender), video cutting, several objects per target (a content-model change,
 with Kévin), self-service for strangers (STRATEGY: contracted model).
