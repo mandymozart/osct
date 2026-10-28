@@ -12,7 +12,7 @@
  * overlay may sit slightly off while zoomed.
  */
 
-import { getAskZoom } from "./camera-request";
+import { getAskZoom, tapToFramePoint } from "./camera-request";
 
 export interface CameraRange {
   min: number;
@@ -170,21 +170,6 @@ export const cycleZoom = (): Promise<string> => {
   const current = info?.zoom ?? steps[0];
   const next = steps.find(step => step > current + 0.01) ?? steps[0];
   return setZoom(next);
-};
-
-/**
- * Maps a tap on the screen to the camera frame: the picture fills the screen and is cropped like `object-fit:
- * cover`; the frame is turned to the screen's orientation (a 960 × 720 frame is shown 720 × 960 in portrait).
- */
-export const tapToFramePoint = (
-  tapX: number, tapY: number, viewWidth: number, viewHeight: number, frameWidth: number, frameHeight: number,
-): { x: number; y: number } => {
-  const portraitView = viewHeight > viewWidth;
-  const [shownWidth, shownHeight] = portraitView === frameHeight > frameWidth ? [frameWidth, frameHeight] : [frameHeight, frameWidth];
-  const scale = Math.max(viewWidth / shownWidth, viewHeight / shownHeight);
-  const x = (tapX - (viewWidth - shownWidth * scale) / 2) / (shownWidth * scale);
-  const y = (tapY - (viewHeight - shownHeight * scale) / 2) / (shownHeight * scale);
-  return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
 };
 
 /** Taps on these are UI, not the camera picture */

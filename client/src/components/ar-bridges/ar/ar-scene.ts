@@ -1,6 +1,7 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneState, Target } from "@/types";
 import { getAssets, getSpread, getTargets } from "@/utils/game-config";
+import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
 import { AssetStore } from "./assets";
@@ -316,12 +317,16 @@ export class ArScene implements IArScene {
   /**
    * A tap on the screen: the canvas lies under the app's pages, so taps are read from the document. Taps on
    * app UI are ignored; otherwise the nearest found entity whose on-screen bounds (+ margin) contain the
-   * tap is reported (`targetTapped`).
+   * tap is reported (`targetTapped`). A tap that hits no entity focuses the camera there (`focusAtTap()`).
    */
   private onTap = (event: MouseEvent): void => {
-    if (!this.running || !this.view || !this.content) return;
+    if (!this.running || !this.view) return;
     const onUi = event.composedPath().some(el => el instanceof Element && el.matches(UI_SELECTOR));
     if (onUi) return;
+    if (!this.content) {
+      void focusAtTap(event.clientX, event.clientY);
+      return;
+    }
     const rect = this.container.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -348,6 +353,7 @@ export class ArScene implements IArScene {
       if (!hit || distance < hit.distance) hit = { id: anchor.target.id, distance };
     }
     if (hit) this.emitter.emit("targetTapped", hit.id);
+    else void focusAtTap(event.clientX, event.clientY);
   };
 
   private teardown(): void {

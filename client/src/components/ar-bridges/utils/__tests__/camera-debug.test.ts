@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyContinuousFocus, armTapToFocus, cameraLine, cameraSummary, cycleZoom, getCameraInfo, setCameraTrack, subscribeCamera,
-  tapToFramePoint, zoomSteps,
+  zoomSteps,
 } from "../camera-debug";
 
 /** A camera track like Chrome on Android reports it (Image Capture constraints) */
@@ -86,13 +86,5 @@ describe("camera debug", () => {
     await vi.waitFor(() => expect(applyConstraints).toHaveBeenCalled());
     expect(applyConstraints).toHaveBeenCalledWith({ advanced: [{ pointsOfInterest: [{ x: 0.5, y: 0.5 }], focusMode: "single-shot" }] });
     expect(getCameraInfo()?.tapArmed).toBe(false);
-  });
-
-  it("maps a tap through the cover crop, with the frame turned to the screen", () => {
-    // 960 × 720 frame shown 720 × 960 on a 360 × 800 portrait screen: scaled by 0.833 to 600 × 800, 120 px cut off left and right
-    expect(tapToFramePoint(180, 400, 360, 800, 960, 720)).toEqual({ x: 0.5, y: 0.5 });
-    const left = tapToFramePoint(0, 0, 360, 800, 960, 720);
-    expect(left.x).toBeCloseTo(120 / 600);
-    expect(left.y).toBe(0);
   });
 });
