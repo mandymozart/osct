@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.9.6 – 2026-10-28
+
+### Changed
+- The AR entity's animations are shorter (#57): the unlock (first find) takes 3 s instead of 4.2 s and the reveal
+  (every later find) 0.6 s instead of 1 s, so a video or a 3D object is readable before the reader drifts off the
+  page. The "New entry unlocked" label follows the unlock. The outro stays 0.7 s.
+
 ## 1.9.5 – 2026-10-28
 
 ### Changed
