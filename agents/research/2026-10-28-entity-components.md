@@ -349,6 +349,56 @@ because of the compiler? No – the compiler splits into two unequal halves:
   refactor → the code panel with browser transpile. Roughly 2–3 days for the last step on top of the barebone. Not
   too far; just not first.
 
+## Studio C – events and variables between entities (the acceptance scenario for 2.0)
+
+Tilman (2026-10-29): "auch ein paar Event- und Variablen-Austausch zwischen Entities ist interessant mit
+einzubauen." Today's model has no behaviours, so the scenario is written down as the test the 2.0 implementation has
+to pass – a third studio spread of the fixture once the schema exists (`studio-a` / `studio-b` cover today's model):
+
+```yaml
+# spread studio-c (pages 32–33): a key, a door and a lamp talk to each other
+variables:
+  hasKey:   { scope: book,   type: boolean, default: false, write: [actions] }
+  doorOpen: { scope: spread, type: boolean, default: false, write: [actions] }
+
+# target studio-key – finding the key sets a book variable (it survives the session)
+entity:
+  type: model
+  src: key.glb
+  components:
+    - { type: behaviour, on: found, do: setVar, var: hasKey, value: true }
+    - { type: spin, axis: y, degreesPerSecond: 30 }
+
+# target studio-door – reacts to the key: with it the door opens and tells the stage, without it a hint shows
+entity:
+  type: group
+  children:
+    - { id: door, type: model, src: door.glb, components: [{ type: animation, clip: Open, loop: false, autoplay: false }] }
+    - { id: hint, type: text, text: "Find the key on page 32", params: { position: [0, -0.4, 0] }, components: [{ type: visibility, visible: false }] }
+  components:
+    - { type: behaviour, on: found, when: { hasKey: true },  do: play,   target: door }
+    - { type: behaviour, on: found, when: { hasKey: true },  do: setVar, var: doorOpen, value: true }
+    - { type: behaviour, on: found, when: { hasKey: false }, do: show,   target: hint }
+    - { type: behaviour, on: found, when: { hasKey: false }, do: emit,   event: doorLocked }   # a scene event, bubbles to the stage
+
+# target studio-lamp – listens on the stage: the door's state lights the lamp, a tap opens the entry
+entity:
+  type: video
+  src: lamp.mp4
+  components:
+    - { type: material, layers: [{ type: chromaKey, color: "#000000" }] }
+    - { type: behaviour, on: varChanged, var: doorOpen, when: { doorOpen: true }, do: play }
+    - { type: behaviour, on: stageEvent, event: doorLocked, do: setState, state: flicker }
+    - { type: behaviour, on: tap, do: openEntry }
+  states:
+    flicker: { components: [{ type: material, layers: [{ type: chromaKey, color: "#000000" }, { type: tint, color: "#ff3b1f", opacity: 0.4 }] }] }
+```
+
+What it exercises: a `book` variable written by one entity and read by another on a later page; a `spread` variable
+and `varChanged` across two targets on the stage; a scene event emitted by one entity and heard by another through
+the stage scope; conditions (`when`); children with ids as action targets; a state that swaps a layer. The editor
+shows the variables with their scopes in the inspector and the events in a log while the stage runs.
+
 ## Recommendation
 
 1. Editor barebone first with **today's** entity model (one node, placement, filters) – the route, the scene, the
