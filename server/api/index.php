@@ -24,7 +24,7 @@ foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Aut
     require __DIR__ . "/src/$class.php";
 }
 
-// Errors go to our own log file (db/ is never served; read it over FTP) – LOG_PATH, empty = the host's log
+// Errors go to our own log file (db/ is never served; read it on the server) – LOG_PATH, empty = the host's log
 $logPath = Config::get('LOG_PATH');
 if ($logPath !== '') {
     ini_set('log_errors', '1');

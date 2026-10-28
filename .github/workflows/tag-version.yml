@@ -1,7 +1,7 @@
 # Tags versions on `main` (agents/RULES.md #23): every version with a section in docs/CHANGELOG.md gets the
 # tag vX.Y.Z on the last first-parent commit of `main` that carries it (client/package.json). Tags are made
 # here with the repository token, so nobody has to push tags. Tags made this way start no other workflow –
-# production is deployed only by publishing a release on a tag (release.yml).
+# production is deployed by the push to `main` itself (deploy-production.yml).
 name: Tag version
 
 on:
@@ -44,7 +44,7 @@ jobs:
 
           # Newest first: the first commit seen with a version is the last one that carries it. Commits without
           # a readable version (early history) are skipped. A version that was never main's own – merged into
-          # main together with a later one (1.2.3 came to main inside 1.3.0) – is not found and gets no tag.
+          # main together with a later one – is not found and gets no tag.
           is_missing() { case " $missing " in *" $1 "*) return 0 ;; esac; return 1; }
           for c in $(git rev-list --first-parent HEAD); do
             [ -n "$missing" ] || break

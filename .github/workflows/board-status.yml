@@ -6,7 +6,7 @@
 # GitHub starts workflow_run workflows only from the default branch: this one works once it is on `main`.
 #
 # Needs the repo secret PROJECT_TOKEN: a classic personal access token with the scope "project" (the workflow token
-# cannot reach a user-owned project – same as Nadeos). Without it the workflow says so and ends green.
+# cannot reach a user-owned project). Without it the workflow says so and ends green.
 name: Board status after deploys
 
 on:

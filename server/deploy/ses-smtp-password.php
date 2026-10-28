@@ -3,7 +3,7 @@
  * Turns an AWS IAM secret access key into the SMTP password for Amazon SES (docs/deploy.md "Mail"). SES does not
  * accept the secret key itself: the SMTP password is a signature derived from it per region (AWS, "Obtaining
  * Amazon SES SMTP credentials by converting existing AWS credentials"). The SMTP user name is the access key ID.
- * Use it when the colleague hands over an IAM access key instead of ready SMTP credentials from the SES console.
+ * Use it when an IAM access key is handed over instead of ready SMTP credentials from the SES console.
  *
  *   php server/deploy/ses-smtp-password.php                 reads the secret key from the prompt (not in the shell history)
  *   php server/deploy/ses-smtp-password.php eu-west-1       the region, default eu-west-1 (the SES endpoint used)

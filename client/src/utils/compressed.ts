@@ -1,6 +1,6 @@
 /**
  * Gzip copies of binary content: the content build writes `<file>.gz` next to every `.glb` (models) – hosts
- * serve this type uncompressed (Netlify: application/octet-stream).
+ * serve this type uncompressed.
  * Browsers with DecompressionStream (Chrome 80+, Safari 16.4+) load the `.gz` and unpack it; others – or a
  * missing `.gz` – load the original. The preloader and the AR scene use the same URL, so a preload is a
  * cache hit.

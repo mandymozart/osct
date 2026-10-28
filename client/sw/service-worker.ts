@@ -97,7 +97,7 @@ registerRoute(
   }),
 );
 
-// Offline page load: the precached app shell (the app routes itself, like Netlify's `/* /index.html 200`)
+// Offline page load: the precached app shell (the app routes itself, like the server's SPA fallback)
 setCatchHandler(async ({ request }) => {
   if (request.mode === "navigate") return (await matchPrecache("/index.html")) ?? Response.error();
   return Response.error();

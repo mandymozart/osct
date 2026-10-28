@@ -1,7 +1,6 @@
 import { GameStoreService } from "@/services";
 import { IGame } from "@/types";
 
-// TODO: Fix protected properties in the abstract class def
 export interface IPage extends HTMLElement {
     active: boolean;
     readonly styles: string;

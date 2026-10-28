@@ -130,7 +130,7 @@ module.exports = async ({ github, context, core, getOctokit }) => {
       ? `Deployed to staging (${site.url})${version ? ` in **${version}**` : ''} – ${sha}, [deploy](${runUrl}). ` +
         `Status → **Review on staging**: check it there.`
       : `Live on production (${site.url})${version ? ` in **${version}**` : ''} – ${sha}, [deploy](${runUrl}). ` +
-        `Status → **Deployed**; Done is Tilman's once he has checked it.`;
+        `Status → **Deployed**; Done follows once it has been checked.`;
     await github.rest.issues.createComment({ owner, repo, issue_number: n, body });
     moved.push(`#${n} ${current || 'no status'} → ${site.status}`);
   }

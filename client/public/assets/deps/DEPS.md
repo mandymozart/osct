@@ -1,15 +1,4 @@
-# Dependencies
+# Dependencies served as files
 
-Dependencies get injected straight into index.html to avoid bundling.
-
-## Known issues
-
-The use of open source libraries causes a serious of issues that limit the usage of the application. 
-
-### Supported devices
-
-Image tracking: the 8th Wall engine (since 1.3.0; MindAR before).
-* Samsung S22 Chrome [ok – 8th Wall, 2026-09-28]
-* Apple iPhone Safari [not yet tested with 8th Wall]
-
-
+Scripts in this folder are loaded by `index.html` as they are, not bundled: `qrcode.js` for the dev overlay's QR
+generator. The image tracking engine lives in `assets/xr8/` with its LICENSE (`docs/tracking.md`).
