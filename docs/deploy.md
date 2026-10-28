@@ -23,9 +23,13 @@ uploading `develop` there over FTPS in the meantime (the old way: `server/deploy
 
 `Dockerfile` (two stages):
 
-1. **Build** (Node 22): `npm ci` in `client/` and `scripts/`, then `npm run build` in `client/` – the content
-   build of this commit, the translation check, Vite, the type checks. Build flags: `VITE_API_URL=/api` always,
-   `VITE_DEBUG=true` only for staging (`config/deploy.staging.yml` → `builder.args`).
+1. **Build** (Node 22): `npm ci` in `client/` and `scripts/`, then `npm run build` in `client/` – the translation
+   check, Vite, the type checks, and the content build of this commit unless the content comes from the CDN. Build
+   flags: `VITE_API_URL=/api` always, `VITE_DEBUG=true` only for staging (`config/deploy.staging.yml` →
+   `builder.args`), `VITE_CONTENT_BASE_URL` = the environment's `CONTENT_BASE_URL` (`config/deploy.yml`): the app
+   then loads the current content version from the CDN at startup and the image holds no content
+   ([content-cdn](content-cdn.md)). Without it the commit's content is built into the image – only while `content/`
+   is still in git ([content-out-of-git](content-out-of-git.md)).
 2. **Serve** (PHP 8.3 + Apache): `client/dist` at the document root, `server/api` as `/api`. The two `.htaccess`
    files do what they do on a shared host (SPA fallback, API routing); `server/docker/apache.conf` adds the cache
    headers (`assets/app/*` immutable, `index.html` / service worker / manifest `no-cache`), the MIME types the
@@ -40,7 +44,7 @@ previous container.
 Local check of the image, without a MariaDB (the API falls back to SQLite):
 
 ```bash
-docker build -t osct --build-arg VITE_DEBUG=true .
+docker build -t osct --build-arg VITE_DEBUG=true --build-arg VITE_CONTENT_BASE_URL=https://buildingfictions.b-cdn.net/staging .
 docker run --rm -p 8080:80 -e OSCT_DB_SQLITE_PATH=/data/osct.sqlite -e OSCT_SECRET=$(openssl rand -hex 32) osct
 ```
 
@@ -62,6 +66,7 @@ The files are ERB: the server and the mail settings come from environment variab
 |---|---|---|
 | variable | `SSH_HOST` | the server (host name or IP) – both destinations may use the same server |
 | variable | `SSH_USER` | SSH user with Docker access, default `root` |
+| variable | `CONTENT_BASE_URL` | the environment's content CDN (`https://buildingfictions.b-cdn.net/staging` / `…/production`, [content-cdn](content-cdn.md)); the same variable feeds `content.yml`. Empty: the commit's content is built into the image |
 | variable | `ALLOWED_ORIGINS` | other origins allowed to call the API (comma separated; staging default `https://localhost:5173`) |
 | variable | `MAIL_TRANSPORT` | `smtp` (default) or `log` – the container has no `mail()`; with `smtp` the workflow refuses to deploy while `SMTP_USER` / `SMTP_PASS` are missing |
 | variable | `MAIL_FROM` | sender of the sign-in mails, default `no-reply@buildingfictions.com` – any address at the domain verified in SES ([Mail](#mail-aws-ses)) |

@@ -16,9 +16,13 @@ registry:
   password:
     - KAMAL_REGISTRY_PASSWORD
 
-# Built on the deploying machine from a clean clone of the commit – uncommitted changes never reach a server
+# Built on the deploying machine from a clean clone of the commit – uncommitted changes never reach a server.
+# CONTENT_BASE_URL (GitHub environment variable, docs/content-cdn.md): the app loads its content from that CDN;
+# empty = the content of the commit is built into the image. The destination adds VITE_DEBUG.
 builder:
   arch: amd64
+  args:
+    VITE_CONTENT_BASE_URL: <%= ENV.fetch("CONTENT_BASE_URL", "") %>
 
 ssh:
   user: <%= ENV.fetch("SSH_USER", "root") %>
