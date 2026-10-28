@@ -20,7 +20,7 @@ const PHOTO_MAX_PX = 1600;
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
 const REPLAY_GAP_MS = 900;
 const OPEN_KEY = "osct-editor-tab";
-/** Day or night for the editor's palette, stored on the device; unset = the system's */
+/** Day or night for the editor's palette – a flag on the device (no UI for it: the system decides; a setting may come later) */
 const SCHEME_KEY = "osct-editor-scheme";
 
 /**
@@ -130,7 +130,6 @@ export class EditorSheet extends HTMLElement {
           <button type="button" class="icon-button" data-action="next" aria-label="Next spread" title="Next spread">${ICONS.next}</button>
           <span class="spread"><span class="muted">p.</span>${spread ? escapeHtml(spread.title) : "–"}</span>
           ${TABS.map(tab => `<button type="button" class="pill tab ${this.tab === tab.id ? "on" : ""}" data-tab="${tab.id}" aria-pressed="${this.tab === tab.id}"><span class="label">${tab.label}</span></button>`).join("")}
-          <button type="button" class="icon-button" data-action="scheme" aria-label="Day or night" title="Day or night">${this.isDark() ? ICONS.sun : ICONS.moon}</button>
           <button type="button" class="icon-button" data-action="exit" aria-label="Leave the editor" title="Leave the editor">${ICONS.close}</button>
         </div>
         <div class="body design" data-panel="stage" ${this.tab === "stage" ? "" : "hidden"}>
@@ -161,22 +160,10 @@ export class EditorSheet extends HTMLElement {
     }
   }
 
-  /** The palette's day / night: forced by the author, else the system's */
+  /** The palette's day / night: the stored flag forces one, else the system's */
   private applyScheme(scheme: "light" | "dark" | null) {
     if (scheme) this.dataset.scheme = scheme;
     else delete this.dataset.scheme;
-    try {
-      if (scheme) localStorage.setItem(SCHEME_KEY, scheme);
-      else localStorage.removeItem(SCHEME_KEY);
-    } catch {
-      // storage blocked: the choice holds for this session
-    }
-    const button = this.shadow.querySelector<HTMLElement>("button[data-action=scheme]");
-    if (button) button.innerHTML = this.isDark() ? ICONS.sun : ICONS.moon;
-  }
-
-  private isDark(): boolean {
-    return this.dataset.scheme ? this.dataset.scheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
 
   /** Closed = the head row only; open = the dragged height */
@@ -289,8 +276,6 @@ export class EditorSheet extends HTMLElement {
         return this.step(1);
       case "exit":
         return this.game.router.navigate("/spread");
-      case "scheme":
-        return this.applyScheme(this.isDark() ? "light" : "dark");
       case "unlock":
         return this.replayUnlock();
       case "choose-photo":
