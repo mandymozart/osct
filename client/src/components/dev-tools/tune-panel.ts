@@ -1,3 +1,4 @@
+import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 import { EntityData, FILTER_TYPES, FilterType, IGame, Target, TUNE_ENTITY_EVENT, TuneEntityDetail } from "@/types";
 import { GameStoreService } from "@/services";
 import { getEntityRef, getTarget, getTargets, getTargetsUsingEntity } from "@/utils/game-config";
@@ -35,17 +36,19 @@ export class TunePanel extends HTMLElement {
   private uniformScale = true;
   private rows: TuneRow[] = [];
   private frame = 0;
+  private sheet: BottomSheet;
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
     this.shadow = this.attachShadow({ mode: "open" });
+    this.sheet = new BottomSheet(this, this.shadow, {
+      label: "Tune entity", heightKey: "osct-sheet-tune-height", defaultHeight: () => window.innerHeight * 0.45,
+    });
   }
 
   connectedCallback() {
-    // Taps on the panel are UI, not taps on the AR scene (ArScene ignores dialogs)
-    this.setAttribute("role", "dialog");
-    this.setAttribute("aria-label", "Tune entity");
+    this.sheet.connect();
     this.cleanups.push(
       this.game.subscribeToProperty("currentSpread", () => this.selectTarget(null)),
       this.game.subscribeToProperty("trackedTargets", () => {
@@ -61,6 +64,7 @@ export class TunePanel extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.sheet.disconnect();
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
     cancelAnimationFrame(this.frame);
@@ -88,7 +92,12 @@ export class TunePanel extends HTMLElement {
     this.render();
   }
 
+  /** Re-rendering replaces the bar that holds a drag's pointer capture: the sheet waits until the drag ends */
   private render() {
+    this.sheet.render(() => this.draw());
+  }
+
+  private draw() {
     const entity = this.entity;
     const target = this.targetId ? getTarget(this.targetId) : undefined;
     this.rows = entity ? tuneRows(entity, this.uniformScale) : [];
@@ -110,25 +119,10 @@ export class TunePanel extends HTMLElement {
 
     this.shadow.innerHTML = `
       <style>
-        :host {
-          position: fixed;
-          left: .25rem;
-          right: .25rem;
-          bottom: calc(env(safe-area-inset-bottom) + .25rem);
-          max-height: 45vh;
-          overflow-y: auto;
-          z-index: 10000;
-          box-sizing: border-box;
-          padding: .25rem .5rem .5rem;
-          border-radius: .5rem;
-          background: rgba(0, 0, 0, .8);
-          color: #0f0;
-          font: .75rem/1.25rem monospace;
-          cursor: default;
-          user-select: none;
-        }
-        .head, .section, .actions { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
-        .head { position: sticky; top: -.25rem; background: #000; padding: .25rem 0; z-index: 1; }
+        ${SHEET_CSS}
+        :host { font: .75rem/1.25rem monospace; }
+        .section, .actions { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+        .bar { justify-content: space-between; gap: .5rem; flex-wrap: nowrap; padding-left: .5rem; padding-right: .5rem; }
         .section { color: #fff; border-top: .0625rem solid #0f0; margin-top: .25rem; padding-top: .25rem; }
         .row { display: grid; grid-template-columns: 7.5rem 1fr 4.5rem 1.5rem; gap: .375rem; align-items: center; min-height: 1.75rem; }
         .row label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #9c9; }
@@ -140,8 +134,9 @@ export class TunePanel extends HTMLElement {
         input.field.bad { border-color: #f33; color: #f33; }
         input[type=color] { width: 100%; height: 1.5rem; border: none; padding: 0; background: none; }
         .choices { display: flex; gap: .25rem; grid-column: span 2; }
-        button, select { font: inherit; color: inherit; background: none; border: .0625rem solid #0f0;
-          border-radius: .25rem; padding: 0 .375rem; cursor: pointer; }
+        select { font: inherit; color: inherit; background: none; border: .0625rem solid #0f0;
+          border-radius: .25rem; padding: 0 .375rem; cursor: pointer; height: 1.5rem; }
+        .body button { height: auto; min-width: 0; }
         button.on { background: #0f0; color: #000; }
         button.reset { border: none; padding: 0; opacity: .4; }
         .row.default button.reset { visibility: hidden; }
@@ -152,19 +147,21 @@ export class TunePanel extends HTMLElement {
           color: #cfc; white-space: pre-wrap; user-select: text; }
         .empty { padding: .5rem 0; color: #9c9; }
       </style>
-      <div class="head">
+      <div class="bar">
         <select data-action="target" aria-label="Target">${this.targets().map(t => `<option value="${escapeHtml(t.id)}"
           ${t.id === this.targetId ? "selected" : ""}>${this.game.state.trackedTargets.includes(t.id) ? "◉ " : ""}${escapeHtml(t.id)}
           · ${escapeHtml(t.entity!.type)}${tuned.has(t.id) ? " *" : ""}</option>`).join("")}</select>
         <span class="small">${target ? escapeHtml(this.sourceLabel(target)) : ""}</span>
-        <button data-action="close" aria-label="Close">×</button>
+        <button class="close" data-action="close" aria-label="Close">×</button>
       </div>
+      <div class="body">
       ${entity ? sections.join("") : `<div class="empty">No target with AR content on this spread.</div>`}
       ${entity ? `<pre id="yaml"></pre>
       <div class="actions">
         <button data-action="revert">Back to content</button>
         <button data-action="copy" id="copy">Copy YAML</button>
       </div>` : ""}
+      </div>
     `;
     this.rows.forEach(row => this.updateRow(row));
     this.updateYaml();

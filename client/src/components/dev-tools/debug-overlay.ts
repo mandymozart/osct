@@ -3,7 +3,7 @@ import { waitForDOMReady } from "@/utils";
 import { getConfigVersion, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
 import {
-  cameraSummary, cyclePreparedSpreadRange, getArError, getEngineState, getStoredWindowSetting, getWindowOverride, subscribeCamera,
+  cyclePreparedSpreadRange, getArError, getEngineState, getStoredWindowSetting, getWindowOverride, subscribeCamera,
   subscribeEngineState,
 } from "@/components/ar-bridges";
 
@@ -17,7 +17,8 @@ const escapeHtml = (text: string) =>
 const formatTime = (time: number) => new Date(time).toLocaleString();
 
 /**
- * Development overlay: a one-line status summary (AR, spread, targets, assets, progress, found counts)
+ * Development overlay: a one-line status summary – AR status dot, T<targets on the spread>, E<ready>/<held> in the
+ * engine; the rest is in the expanded view (Tilman, 2026-10-28: the line stays one line)
  * that expands on tap into spread, target and progress details, and opens the tune panel (`<tune-panel>`), the
  * camera test panel (`<camera-panel>`), the trigger trial panel (`<trial-panel>`) or the engine load test (`<load-test-panel>`).
  * Sets `--debug-offset` so app chrome moves below the collapsed line.
@@ -69,7 +70,7 @@ export class DebugOverlay extends HTMLElement {
       this.game.subscribeToProperty('cameraPermission', () => this.updateContent()),
       this.game.subscribeToProperty('progress', () => this.updateContent()),
       this.game.subscribeToProperty('arStatus', () => this.updateContent()),
-      this.game.subscribeToProperty('trackedTargets', tracked => this.countFound(tracked)),
+      this.game.subscribeToProperty('trackedTargets', () => this.updateContent()),
       subscribeEngineState(() => this.updateContent()),
       subscribeCamera(() => this.updateContent()),
     );
@@ -245,17 +246,6 @@ export class DebugOverlay extends HTMLElement {
     contentEl.innerHTML = html;
   }
 
-  /** Found events per target – a high count means tracking keeps breaking off */
-  private foundCount = new Map<string, number>();
-  private previouslyTracked: readonly string[] = [];
-
-  private countFound(tracked: readonly string[]) {
-    tracked.filter(target => !this.previouslyTracked.includes(target))
-      .forEach(target => this.foundCount.set(target, (this.foundCount.get(target) ?? 0) + 1));
-    this.previouslyTracked = tracked;
-    this.updateContent();
-  }
-
   private generateSpreadSummary(id: string): string {
     const spread = getSpread(id);
     
@@ -270,11 +260,8 @@ export class DebugOverlay extends HTMLElement {
     const arStatus = this.game.state.arStatus;
     const sceneStatus = getStatusDot(arStatus === "running", arStatus === "error");
 
-    // Tracked targets with how often each was found
-    const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
-
     return `
-      <div>${sceneStatus} ${spread?.id} T${getTargets(spread?.id || '').length} ${this.engineSummary()} F[${found}] ${this.seenSummary(spread?.id)} ${escapeHtml(cameraSummary())}</div>
+      <div>${sceneStatus} T${getTargets(spread?.id || '').length} ${this.engineSummary()}</div>
     `;
   }
 
@@ -431,19 +418,6 @@ export class DebugOverlay extends HTMLElement {
       ${engine.preparing.length ? `<div class="small">preparing: ${engine.preparing.map(escapeHtml).join(" · ")}</div>` : ""}
       <div>Engine sees: ${engine.seen.length ? engine.seen.map(escapeHtml).join(" · ") : '<span class="small">nothing</span>'}</div>
       ${engine.lastSwitch ? `<div class="small">Last auto switch: ${escapeHtml(engine.lastSwitch.spreadId)} via ${escapeHtml(engine.lastSwitch.targetId)}, ${Math.round((Date.now() - engine.lastSwitch.at) / 1000)} s ago</div>` : ""}`;
-  }
-
-  /**
-   * S[…]: every target the engine finds right now – the current spread's in green, other spreads' in orange (on a
-   * dense printout these compete with the page aimed at). ↪ the last automatic switch, for 10 s.
-   */
-  private seenSummary(currentSpread?: string): string {
-    const engine = getEngineState();
-    const own = new Set(getTargets(currentSpread ?? "").map(target => target.id));
-    const seen = engine.seen.map(id => `<span class="${own.has(id) ? "loaded" : "loading"}">${escapeHtml(id)}</span>`).join(" ");
-    const recent = engine.lastSwitch && Date.now() - engine.lastSwitch.at < 10000
-      ? ` <span class="loading">↪${escapeHtml(engine.lastSwitch.spreadId)}</span>` : "";
-    return `S[${seen}]${recent}`;
   }
 
   /** E<ready>/<held>: targets the engine can find / holds (orange while it extracts) */

@@ -1,4 +1,5 @@
 import { IGame } from "@/types";
+import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 import { GameStoreService } from "@/services";
 import {
   applyContinuousFocus, armTapToFocus, CAMERA_RESOLUTIONS, getArError, getAskZoom, getCameraResolution, setCameraResolution, getCameraInfo, getLensChoice, setAskZoom, setLensChoice, setWindowOverride,
@@ -31,7 +32,7 @@ const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /**
- * Debug camera panel (a strip at the bottom, opened and closed with *camera* in the debug overlay): the camera test
+ * Debug camera panel (a bottom sheet, debug-sheet.ts, opened and closed with *camera* in the debug overlay): the camera test
  * with the printed book. Shows what the browser reports for the engine's camera (lens, resolution, focus mode /
  * distance / range, zoom – camera-debug.ts) and the current spread's targets: yellow while in view, ✓ once found
  * since the panel opened. ‹ › step through the spreads. A retest list (`osct-camera-retest` in local storage, or a link with `?retest=`: target
@@ -46,17 +47,17 @@ export class CameraPanel extends HTMLElement {
   private game: Readonly<IGame>;
   private cleanups: Array<() => void> = [];
   private found = new Set<string>();
+  private sheet: BottomSheet;
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
     this.shadow = this.attachShadow({ mode: "open" });
+    this.sheet = new BottomSheet(this, this.shadow, { label: "Camera test", heightKey: "osct-sheet-camera-height", defaultHeight: () => 200 });
   }
 
   connectedCallback() {
-    // Taps on the panel are UI, not taps on the AR scene or the picture (tap to focus)
-    this.setAttribute("role", "dialog");
-    this.setAttribute("aria-label", "Camera test");
+    this.sheet.connect();
     setWindowOverride(0);
     this.cleanups.push(() => setWindowOverride(null));
     this.cleanups.push(
@@ -72,6 +73,7 @@ export class CameraPanel extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.sheet.disconnect();
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
   }
@@ -79,18 +81,10 @@ export class CameraPanel extends HTMLElement {
   private render() {
     this.shadow.innerHTML = `
       <style>
-        :host {
-          position: fixed; left: .25rem; right: .25rem; bottom: calc(env(safe-area-inset-bottom) + .25rem);
-          z-index: 10000; box-sizing: border-box; display: flex; flex-direction: column; gap: .25rem; padding: .25rem;
-          border-radius: .5rem; background: rgba(0, 0, 0, .8); color: #0f0; font: .6875rem/1rem monospace;
-          cursor: default; user-select: none;
-        }
+        ${SHEET_CSS}
+        .body { display: flex; flex-direction: column; gap: .25rem; padding: .25rem; }
         .row { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
         .spread { margin-right: auto; color: #fff; white-space: nowrap; }
-        button { font: inherit; color: inherit; background: none; border: .0625rem solid #0f0; border-radius: .25rem;
-          min-width: 1.75rem; height: 1.5rem; padding: 0 .375rem; cursor: pointer; touch-action: manipulation; }
-        button.on { background: #0f0; color: #000; }
-        .close { font-size: 1rem; }
         .target { border: .0625rem solid #555; border-radius: .25rem; padding: 0 .25rem; color: #ccc; }
         .target.found { border-color: #0f0; color: #0f0; }
         .target.seen { border-color: #ff0; background: #ff0; color: #000; }
@@ -99,15 +93,17 @@ export class CameraPanel extends HTMLElement {
         .small { color: #9c9; overflow-wrap: anywhere; }
         .action { color: #ff0; overflow-wrap: anywhere; }
       </style>
-      <div class="row">
+      <div class="bar">
         <button data-action="previous" aria-label="Previous spread">‹</button>
         <button data-action="next" aria-label="Next spread">›</button>
         <span class="spread"></span>
         <button class="close" data-action="close" aria-label="Close">×</button>
       </div>
-      <div class="row targets"></div>
-      <div class="row retest"></div>
-      <div class="camera"></div>
+      <div class="body">
+        <div class="row targets"></div>
+        <div class="row retest"></div>
+        <div class="camera"></div>
+      </div>
     `;
     this.renderTargets();
     this.renderCamera(getCameraInfo());

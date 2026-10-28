@@ -1,3 +1,4 @@
+import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 import {
   DEFAULT_LOAD_TEST, getEngineState, getLoadTest, LoadTestControl, LoadTestOptions, LoadTestProgress,
   subscribeEngineState, subscribeLoadTest,
@@ -30,15 +31,18 @@ const running = () => !!progress && !["idle", "done", "stopped", "error"].includ
 export class LoadTestPanel extends HTMLElement {
   private shadow: ShadowRoot;
   private cleanups: Array<() => void> = [];
+  private sheet: BottomSheet;
 
   constructor() {
     super();
     this.shadow = this.attachShadow({ mode: "open" });
+    this.sheet = new BottomSheet(this, this.shadow, {
+      label: "Engine load test", heightKey: "osct-sheet-load-height", defaultHeight: () => window.innerHeight * 0.5,
+    });
   }
 
   connectedCallback() {
-    this.setAttribute("role", "dialog");
-    this.setAttribute("aria-label", "Engine load test");
+    this.sheet.connect();
     const render = () => this.render();
     listeners.add(render);
     this.cleanups.push(() => listeners.delete(render), subscribeEngineState(render), subscribeLoadTest(render));
@@ -47,6 +51,7 @@ export class LoadTestPanel extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.sheet.disconnect();
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
   }
@@ -65,7 +70,12 @@ export class LoadTestPanel extends HTMLElement {
     });
   }
 
+  /** Re-rendering replaces the bar that holds a drag's pointer capture: the sheet waits until the drag ends */
   private render() {
+    this.sheet.render(() => this.draw());
+  }
+
+  private draw() {
     const engine = getEngineState();
     const canRun = !!getLoadTest();
     const busy = running();
@@ -78,14 +88,10 @@ export class LoadTestPanel extends HTMLElement {
 
     this.shadow.innerHTML = `
       <style>
-        :host {
-          position: fixed; left: .25rem; right: .25rem; bottom: calc(env(safe-area-inset-bottom) + .25rem);
-          max-height: 50vh; overflow-y: auto; z-index: 10000; box-sizing: border-box; padding: .25rem .5rem .5rem;
-          border-radius: .5rem; background: rgba(0, 0, 0, .8); color: #0f0; font: .75rem/1.25rem monospace;
-          cursor: default; user-select: none;
-        }
-        .head, .actions { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
-        .head { position: sticky; top: -.25rem; background: #000; padding: .25rem 0; z-index: 1; }
+        ${SHEET_CSS}
+        :host { font: .75rem/1.25rem monospace; }
+        .bar { justify-content: space-between; gap: .5rem; padding-left: .5rem; padding-right: .5rem; }
+        .actions { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
         .message { color: #ff0; font-size: .9375rem; line-height: 1.375rem; padding: .375rem 0; }
         .message.error { color: #f66; }
         .small { font-size: .6875rem; color: #9c9; }
@@ -93,20 +99,19 @@ export class LoadTestPanel extends HTMLElement {
         th, td { border-top: .0625rem solid #030; padding: 0 .25rem; text-align: right; white-space: nowrap; }
         th { color: #9c9; font-weight: normal; font-size: .625rem; line-height: .875rem; vertical-align: bottom; white-space: normal; }
         .scroll { overflow-x: auto; }
-        button { font: inherit; color: inherit; background: none; border: .0625rem solid #0f0;
-          border-radius: .25rem; padding: 0 .375rem; cursor: pointer; }
         button:disabled { opacity: .4; cursor: default; }
         button.primary { background: #0f0; color: #000; }
         .actions { margin-top: .5rem; }
       </style>
-      <div class="head">
+      <div class="bar">
         <span>load test · <span class="small">${escapeHtml(p?.spreadId ?? engine.current?.spreadId ?? "no spread")} · engine ${engine.ready}/${engine.targets} targets${engine.extractingSince !== null ? " · extracting" : ""}${p && busy ? ` · step ${p.step}/${p.steps}` : ""}</span></span>
         <span>
           <button data-action="covers" ${busy ? "disabled" : ""}>covers ${options.covers}</button>
           <button data-action="steady" ${busy ? "disabled" : ""}>hold ${options.steadyMs / 1000} s</button>
-          <button data-action="close" aria-label="Close">×</button>
+          <button class="close" data-action="close" aria-label="Close">×</button>
         </span>
       </div>
+      <div class="body">
       <div class="message ${p?.phase === "error" ? "error" : ""}">${escapeHtml(message)}</div>
       ${rows ? `<div class="scroll"><table><tr>${LOAD_TEST_COLUMNS.map(column => `<th>${escapeHtml(column)}</th>`).join("")}</tr>${rows}</table></div>` : ""}
       <div class="actions">
@@ -121,6 +126,7 @@ export class LoadTestPanel extends HTMLElement {
         </span>
       </div>
       <div class="small">Steps: the window next to the scanned page grows to 0, 5, 10, 20, 40, 80, all other targets (nearest spreads first); their content is preloaded too. Use the app as usual – pages switch.</div>
+      </div>
     `;
   }
 

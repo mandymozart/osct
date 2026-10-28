@@ -57,13 +57,14 @@ shows `E<ready>/<held>`.
 
 ### A page is not found although its targets are held
 
-The collapsed overlay line shows `S[…]`: every target the engine finds right now, of any held spread (current
-spread green, others orange), and `↪<spread>` for 10 s after an automatic switch. With the phone on the page that is
-not found:
+The expanded overlay (tap the line) shows under *Engine sees* every target the engine finds right now, of any held
+spread, and under *Last auto switch* the spread it switched to by itself, the target that caused it and how long ago
+(since 1.9.5 the collapsed line is one line only: the status dot, `T<targets on the spread>`, `E<ready>/<held>`).
+With the phone on the page that is not found:
 
-- **Orange ids or ↪ appear** – the engine finds *other* triggers in view (neighbours on a printout sheet) and may switch
+- **Ids of other spreads appear, or a recent auto switch** – the engine finds *other* triggers in view (neighbours on a printout sheet) and may switch
   the spread away. Cover the neighbouring images: if the page is found now, the crowd is the cause, not the count.
-- **`S[]` stays empty**, neighbours covered – the engine finds nothing. Tap *Change* until ±0 (applies at once, the
+- **Engine sees nothing**, neighbours covered – the engine finds nothing. Tap *Change* until ±0 (applies at once, the
   engine then holds only this spread): found now → too many held targets dilute the engine's matching for this
   image. Tap *Change* back to *grow* afterwards (it re-grows in idle time).
 - Empty even at ±0 → the target image itself (crop, contrast, size) – the trial's "not found" list.
