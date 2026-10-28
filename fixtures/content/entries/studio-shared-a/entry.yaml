@@ -1,0 +1,9 @@
+# Showcase entry for the editor and the tests (spread studio-a).
+category: glossary
+title: "Studio: shared tree (A)"
+page: 28
+body: "The shared showcase entity – the same tree as on Studio B, placed by the entity's own params."
+target:
+  image: target.jpg
+  entity:
+    ref: showcase-tree
