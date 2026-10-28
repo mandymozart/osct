@@ -310,14 +310,14 @@ message when something is wrong, e.g.:
 ```
 entries/old-castle: file "images-022.jpg" not found in content/entries/old-castle/
 entries/ancient-tree: Field 'category' in entry must be one of: glossary, video, text, link
-spreads/spread1 has 6 targets, max is 5.
+spreads/spread1 has 11 targets, max is 10.
 ```
 
 Then look at the result in the app – see the quick start in the [README](../README.md).
 
 ## Content build
 
-`scripts/` checks `content/` and turns it into the files the app loads.
+`scripts/` checks the content source (`OSCT_CONTENT_DIR`) and turns it into the files the app loads.
 
 ### Quick start
 
@@ -327,8 +327,8 @@ npm install     # once
 npm start       # build the tool, then the content
 ```
 
-Commit only what changed in `content/`. The output (below) is not in git: every build and deploy runs the
-content build (`npm run build` in `client/` does it first), so the app always gets the content of its commit.
+The output (below) is not in git: every app build runs the content build first (`npm run build` in `client/`),
+unless the build reads the content from the CDN ([content on the CDN](content-cdn.md)).
 
 ### Commands
 
@@ -426,12 +426,17 @@ it, then without file names and sizes.
 ```
 scripts/
 ├── src/            everything in TypeScript, bundled into dist/ by `npm run build`
-│   ├── index.ts    the content build: start
-│   ├── config.ts   all folders and limits
-│   ├── build/      content build parts: book, spreads, entities, entries, targets, tutorial
-│   ├── lib/        shared helpers: reading content, files, hash, checks, media
-│   └── sounds.ts   placeholder app sounds
-└── test/           tests (npm test)
+│   ├── index.ts            the content build: start
+│   ├── config.ts           all folders and limits
+│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial
+│   ├── lib/                shared helpers: reading content, files, hash, checks, media, storage, sync
+│   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
+│   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)
+│   ├── protocol.ts         `npm run protocol` – printed-image details for the trigger trial panel
+│   ├── schema-lock.ts      `npm run schema:lock` – locks shared/ to the content schema
+│   └── sounds.ts           placeholder app sounds
+├── import/                 one mapping file per delivery
+└── test/                   tests (npm test)
 ```
 
 The shape of `game.config.json` is defined in `shared/types/game-config.ts`.

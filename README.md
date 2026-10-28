@@ -5,6 +5,7 @@
 # Onion Skin & Crocodile Tears
 
 Web AR companion app for Kévin Bray's book (buildingfictions). Scan the pages, unlock the entries.
+Staging: https://osct.porschuetz.de (`develop`) · Production: https://osct.buildingfictions.com (`main`).
 
 ## Quick start
 
@@ -20,25 +21,51 @@ npm run dev
 the book content, use the test fixture: `OSCT_CONTENT_DIR=fixtures/content`.
 
 Open https://localhost:5173 (on a phone: `https://<your-ip>:5173`, accept the self-signed certificate once –
-the camera only works over https).
+the camera only works over https). The accounts API runs locally with `npm run dev:api` ([server](docs/server.md)).
 
-## Content
+## Repository
 
-The book's content (text files + media, see the [content guide](docs/content.md)) is leaving this repository:
-its source lives in a folder of its own, the built content is served from a CDN – see
-[content on the CDN](docs/content-cdn.md) and [content out of git](docs/content-out-of-git.md). The repository
-keeps a small test fixture (`fixtures/content/`) for CI and the tests.
-The app doesn't read the content source directly: the content build turns it into the app's configuration
-(`client/src/game.config.json`) and an optimised copy of the media (`client/public/assets/content/`).
-Neither is in git. Locally, run it after every change:
+| Folder | What |
+|---|---|
+| `client/` | The app: TypeScript, Vite, vanilla web components, three.js + the 8th Wall engine for AR |
+| `scripts/` | Content build and the `osct` CLI (content sync to the CDN), delivery import |
+| `server/` | Accounts API (plain PHP 8, PDO) and the Docker image's Apache config |
+| `shared/` | The content contract: game-configuration types and guards used by app and build |
+| `fixtures/content/` | Test fixture with the content layout – CI and the tests build it |
+| `docs/` | Documentation (below) · `agents/` – plan, rules and memory for agent sessions ([CLAUDE.md](CLAUDE.md)) |
 
-```bash
-cd client && npm run content   # or in scripts/: npm run build:content (:force rebuilds even when unchanged)
-```
+The book's content is not in the repository: its source lives in a folder of its own, the built content is served
+from a CDN. The content build turns the source into the app's configuration (`client/src/game.config.json`) and an
+optimised copy of the media (`client/public/assets/content/`); neither is in git.
 
-- It stops with a message naming the file and the problem when something is wrong.
-- The build output is ignored. The content source is not committed here.
-- The dev server picks up the new content on reload.
+## Documentation
+
+- [Content guide](docs/content.md) – writing content (spreads, entries, entities, tutorial), the content build,
+  importing a delivery
+- [Content on the CDN](docs/content-cdn.md) – versions, the `osct` CLI (status, sync, purge), loading in the app
+- [Content out of git](docs/content-out-of-git.md) – the one-time removal of the content from the repository
+- [Game store](docs/game-store.md) · [Managers](docs/managers.md) · [BaseStore](docs/base-store.md) – app state
+- [Pages](docs/pages.md) · [Components](docs/components.md) · [Error page](docs/error-page.md) – the UI
+- [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene
+- [Languages](docs/i18n.md) – UI texts and translations
+- [Server](docs/server.md) – the accounts API
+- [Deploy](docs/deploy.md) – Kamal, staging and production, the board
+- [Changelog](docs/CHANGELOG.md)
+
+Rules for the code (naming, imports, versions, comments) are in [agents/RULES.md](agents/RULES.md).
+
+## Tests
+
+One approach per layer; all three run in CI (`.github/workflows/checks.yml`) on every push.
+
+| Layer | Where | Run |
+|---|---|---|
+| App: store, managers, services, utils, components | `client/src/**/__tests__/*.test.ts` (vitest, happy-dom) | `cd client && npx tsc --noEmit && npx vitest run` |
+| Content build, CDN sync and purge planning, delivery import | `scripts/test/*.test.ts` (vitest, node) | `cd scripts && npm test` |
+| Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite) | `php server/tests/api-test.php` |
+
+The client tests need a built game configuration (`npm run content`, the fixture is enough). Test content is
+always the fixture, never the book (RULES #8).
 
 ## Image tracking
 
@@ -46,8 +73,3 @@ The app recognises the book's pages with the open source image tracking engine o
 [8th Wall](https://github.com/8thwall/8thwall) by Niantic Spatial – the former commercial 8th Wall platform,
 discontinued and released under the MIT licence (npm `@8thwall/engine`). Its licence ships with the app
 next to the engine files (`assets/xr8/LICENSE`).
-
-## More
-
-- [Documentation](docs/README.md) – content, build, deploy, architecture
-- Working on the code: [CLAUDE.md](CLAUDE.md) → `agents/`

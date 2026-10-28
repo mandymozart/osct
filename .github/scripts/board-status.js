@@ -1,5 +1,5 @@
 // Moves the issues of a finished deploy on the board OSCT (users/mandymozart/projects/5) – called by
-// board-status.yml through actions/github-script (#11, agents/RULES.md "Every session starts with its issue").
+// board-status.yml through actions/github-script (#11, agents/RULES.md #30).
 //
 // Every `Fixes #N` (or closes / resolves) in the deployed commits → Status "Review on staging" (staging deploy) or
 // "Deployed" (production deploy), plus one comment with the version. Only forward: an issue that is already as far

@@ -5,7 +5,7 @@ with the app state and one manager per concern. Components get the single instan
 `GameStoreService`.
 
 ```typescript
-import { GameStoreService } from "@/services/GameStoreService";
+import { GameStoreService } from "@/services";
 
 const game = GameStoreService.getInstance();
 game.router.navigate("/entries", { key: "category", value: "video" });
@@ -25,12 +25,12 @@ GameStore (extends BaseStore<GameState>)
 │                               last spread / category, onboarding; stored on the device
 ├── router     RouterManager    pages, routes and the game mode (idle / scan / consultation)
 ├── camera     CameraManager    camera permission
-├── startLoading() / finishLoading() / setLoadingState()
+├── startLoading() / finishLoading()
 ├── setArStatus()               reported by <ar-bridge>
-└── notifyError() / onError()   error and notice overlay
+└── notifyError() / onError()   error and notice overlay – see Error page
 ```
 
-See [Managers](managers.md).
+What each manager owns: [Managers](managers.md).
 
 ## Game configuration
 
@@ -39,81 +39,25 @@ tutorial) is read through `client/src/utils/game-config.ts` (`getBook()`, `getSp
 `getTargets(spreadId)`, `getEntries()`, `getEntry(id)`, …), the only module that imports the file.
 Its shape is defined in `shared/types/game-config.ts` – see [Content build](content.md#content-build).
 
-## Component Integration
+## In a component
 
-### Using Property Subscriptions (Recommended)
-
-Subscribe to specific property changes for efficient updates:
+Subscribe to the properties you render, keep the unsubscribe function and call it when the element leaves the
+DOM (RULES #6):
 
 ```typescript
-// In your component
-constructor() {
-  super();
-  this.game = GameStoreService.getInstance();
-  this.handleModeChange = this.handleModeChange.bind(this);
-}
+private unsubscribe: (() => void) | null = null;
 
 connectedCallback() {
-  // Subscribe to only the 'mode' property changes
-  this.unsubscribe = this.game.subscribeToProperty('mode', this.handleModeChange);
-  
-  // Check initial state
-  this.handleModeChange(this.game.state.mode);
+  this.unsubscribe = this.game.subscribeToProperty("mode", mode => this.render(mode));
+  this.render(this.game.state.mode);
 }
 
 disconnectedCallback() {
-  // Clean up subscription
-  if (this.unsubscribe) {
-    this.unsubscribe();
-    this.unsubscribe = null;
-  }
-}
-
-handleModeChange(mode, prevMode) {
-  if (prevMode !== undefined && mode === prevMode) {
-    return;
-  }
-  
-  // Handle mode changes...
+  this.unsubscribe?.();
+  this.unsubscribe = null;
 }
 ```
 
-### Using Global State Subscriptions
-
-Subscribe to all state changes when needed:
-
-```typescript
-// Subscribe to any state change
-this.unsubscribe = this.game.subscribe(state => {
-  if ('mode' in state) {
-    this.handleModeChange(state.mode);
-  }
-});
-```
-
-## Error Handling
-
-The game provides a centralized error handling system that opens an `<error-page></error-page>` overlay which displays errors and allows for a custom action to be injected as a callback function:
-
-```typescript
-this.game.notifyError({
-  msg: 'You have a previous session in spread "The Castle Gates".',
-  type: "info",
-  action: { text: "Retry", callback: () => this.game.spreads.switchSpread(spreadId) },
-});
-```
-
-Components can subscribe to error events:
-
-```typescript
-this.errorUnsubscribe = this.game.onError(error => {
-  // Handle error
-});
-```
-
-## Development Tips
-
-- Use property-level subscriptions for better performance
-- Clean up subscriptions in `disconnectedCallback` to prevent memory leaks
-- Compare previous and current values to avoid redundant UI updates
-- Use early returns to handle initial state or no-change scenarios
+`game.subscribe(listener)` reports every state change (the listener gets the changed properties); it returns an
+unsubscribe function the same way. Errors and notices go through `game.notifyError()` and open the
+[Error page](error-page.md).
