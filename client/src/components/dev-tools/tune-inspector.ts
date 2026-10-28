@@ -19,8 +19,8 @@ const tuned = new Map<string, { entity: EntityData; uniformScale: boolean }>();
  * `<scrub-number>` (press and slide, or type), choices as a segmented group, colours as a swatch with its hex. Opens
  * with the content's values; changes show live in the AR scene (TUNE_ENTITY_EVENT), the content stays unchanged.
  * "Copy YAML" copies the entity's `params` / `filters` with the file they belong in. Rows come from the definitions
- * (`PLACEMENT_PARAMS`, `FILTERS`) – a new filter or parameter needs no inspector code. Hosted by the debug tune panel
- * and the editor's sheet.
+ * (`PLACEMENT_PARAMS`, `FILTERS`) – a new filter or parameter needs no inspector code. Hosted by the editor's sheet (the
+ * app's design) and by the debug tune panel, which sets `theme="debug"` for the dev tools' green look.
  */
 export class TuneInspector extends HTMLElement {
   private shadow: ShadowRoot;
@@ -112,6 +112,17 @@ export class TuneInspector extends HTMLElement {
     this.shadow.innerHTML = /* html */ `
       <style>
         :host { display: block; --control-height: var(--tool-control, 2rem); color: var(--color-on-dark); }
+        /* The debug overlay's host: the dev tools' green terminal look – the design primitives read these tokens */
+        :host([theme="debug"]) {
+          --font-design: monospace; --tracking-design: 0; --text-size: .75rem; --text-size-small: .6875rem; --text-line: 1.25rem;
+          --color-on-dark: #0f0; --color-muted: #9c9; --color-accent: #0f0; --rule: .0625rem solid #0f0;
+          --gold-gradient: linear-gradient(90deg, #0f0, #0f0); --glass-background: rgba(0, 0, 0, .4); --glass-blur: none;
+          --shadow-bronze: none; --control-height: 1.5rem;
+        }
+        :host([theme="debug"]) .pill.on { background-color: #0f0; color: #000; box-shadow: none; }
+        :host([theme="debug"]) .pill.on .gold { background-image: none; color: #000; -webkit-text-fill-color: #000; }
+        :host([theme="debug"]) .row.changed label::before { color: #ff0; }
+        :host([theme="debug"]) pre { color: #cfc; border-color: #060; }
         .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
         select.field { height: var(--control-height); min-height: 0; max-width: 60%; color: var(--color-on-dark); background-color: rgba(0,0,0,.4); }
         select.field option { color: #000; }
