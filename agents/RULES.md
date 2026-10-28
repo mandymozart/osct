@@ -300,3 +300,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     tooltip) only where a word makes no sense, the drawn close cross, one sheet whose head is the tab row and whose
     closed state is that row alone. A control the editor needs is built once in `components/common/` or
     `components/dev-tools/` and used by both the editor and the dev tools (`<tune-inspector>`), never twice.
+    **Three token variants** (Tilman, 2026-10-29: "debugging looks like debugging, the editor neutral like Figma,
+    brand UI only in reader-facing elements"): **branded** = the reader's UI (the tokens of `main.css`, the default),
+    **editor** = a neutral tool in a design tool's default colours, day and night, no colour at all (Tilman: "Blau gar
+    nicht"), square corners, compact system type, **debug** = the dev
+    tools' green terminal. The variants live once in `styles/design-styles.ts`; a host sets `data-theme` on itself and
+    every primitive inside follows. Components carry structure only – never a colour that belongs to one variant.

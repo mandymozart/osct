@@ -61,6 +61,17 @@
   --consultation-top: calc(env(safe-area-inset-top) + 8.5rem);
   --consultation-top-counter: calc(env(safe-area-inset-top) + 10.75rem);
 
+  /* Controls (the tools' token variants switch these – styles/design-styles.ts): one height, pill corners,
+     a pressed state, a hover wash, the surfaces of sheets and panels */
+  --control-height: 2rem;
+  --control-radius: 999rem;
+  --pressed-background: rgba(255, 255, 255, 0.14);
+  --pressed-color: var(--color-on-dark);
+  --hover-background: rgba(255, 255, 255, 0.08);
+  --surface: var(--consultation-background);
+  --surface-head: rgba(0, 0, 0, 0.9);
+  --line: var(--color-muted);
+
   color-scheme: dark;              /* native scrollbars and fields */
 
   font-synthesis: none;

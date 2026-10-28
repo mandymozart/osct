@@ -89,7 +89,12 @@ Settings (view, orbit, backdrop, photo, wobble, the open tab, the sheet's height
 Checked against the Scutoons UI dogma (`scutoons/agents/DESIGN.md`: "Compact inspector", "One control height",
 "Icons", "Close cross", the phone inspector) and built from OSCT's own primitives (`styles/design-styles.ts`: `.pill`,
 `.icon-button`, `.field`, `.text-link`, the tokens of `main.css`); `@scutoons/ui` itself is Svelte and stays there.
-- **One control height** (2rem in the editor, `--control-height`): every button, chip, select and number field;
+- **Three token variants, one set of components**: *branded* (the reader's UI, the tokens of `main.css`), *editor*
+  (a design tool's defaults, day and night – white or dark grey, no colour, square corners, compact system type; the
+  sun / moon in the head forces one, else the system's) and *debug* (the dev tools' green). The sheet sets
+  `data-theme="editor"`, the debug tune panel `data-theme="debug"`; the shared
+  `<tune-inspector>` and `<scrub-number>` inherit the tokens and look right in both (`styles/design-styles.ts`).
+- **One control height** (1.75rem in the editor, `--control-height`): every button, chip, select and number field;
   no vertical padding, no small variant.
 - **Rows, not stacked fields**: a 5rem label column, the controls share the rest.
 - **Numbers scrub or type** – `<scrub-number>` (`components/common/scrub-number.ts`): the whole field is the gesture,
