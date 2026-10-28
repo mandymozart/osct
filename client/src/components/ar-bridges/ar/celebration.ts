@@ -74,7 +74,7 @@ interface AnimationPreset {
 
 export const ANIMATIONS: Record<AnimationKind, AnimationPreset> = {
   unlock: { ms: ENTITY_UNLOCK_MS, materialise: 0.72, edgeStart: 0.15, edgeEnd: 0.03, glowWidth: 0.4, sparks: true, bloomStrength: 1.0, reverse: false },
-  reveal: { ms: 1000, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: false },
+  reveal: { ms: 600, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: false },
   outro: { ms: 700, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: true },
 };
 
