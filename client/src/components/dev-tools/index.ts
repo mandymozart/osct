@@ -1,4 +1,5 @@
 export * from "./debug-overlay";
+export * from "./camera-panel";
 export * from "./qr-generator";
 export * from "./tune-panel";
 export * from "./trial-panel";

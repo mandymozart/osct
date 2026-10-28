@@ -8,5 +8,8 @@
   "continueWithout": "Ohne Kamera weiter",
   "notResponding": "Die Kamera reagiert nicht.",
   "notRespondingHelp": "Lade die Seite neu. Wenn das nicht hilft, schließe deinen Browser ganz und öffne ihn wieder – vielleicht benutzt noch eine andere App die Kamera.",
-  "reload": "Seite neu laden"
+  "reload": "Seite neu laden",
+  "unsupported": "Dieser Browser kann den Buch-Scanner nicht ausführen.",
+  "unsupportedIos": "Zum Scannen brauchst du iOS 16.4 oder neuer. Wenn dein iPhone das Update bekommt: Einstellungen → Allgemein → Softwareupdate, dann öffne die App wieder. iPhone 7, 6s und SE (1. Generation) kommen nicht so weit – auf ihnen funktioniert das Scannen nicht.",
+  "unsupportedOther": "Aktualisiere deinen Browser auf die neueste Version und öffne die App dann wieder."
 }

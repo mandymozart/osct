@@ -4,3 +4,4 @@ export * from './emitter';
 export * from './prepared-spreads';
 export * from './tracker-debug';
 export * from './camera-debug';
+export * from './camera-request';

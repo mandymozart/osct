@@ -1,0 +1,156 @@
+/**
+ * The camera request of the 8th Wall engine, changed on the way (three-free, main chunk). The engine opens the camera
+ * itself with `getUserMedia`; while the tracker runs, every camera request of the page passes through here.
+ *
+ * - **Main back lens** (Android): the engine asks for "the back camera" (`facingMode: environment`). On phones with
+ *   several back lenses the browser may then pick the ultra-wide lens, which has a fixed focus – small printed
+ *   triggers held close stay blurry and appear even smaller. The engine's own choice only knows the old label
+ *   `camera2 0, facing back`; current Chromium browsers name the lenses `camera 0, facing back`. Camera id 0 is the
+ *   main back lens on Android, so the request gets that lens's `deviceId`. Labels are only listed once the camera is
+ *   allowed: without labels the camera is opened once briefly to list them. Only on Android – elsewhere (iOS "Back
+ *   Camera", desktop) the request stays as it is.
+ * - **Continuous focus** once the camera runs (`applyCameraDefaults()`), where the camera offers it and does not use it
+ *   already – a fixed focus leaves small triggers held close blurry.
+ * - **Ask for zoom** (debug): the request gets `zoom: true` – Chrome then asks for the pan-tilt-zoom permission.
+ *
+ * - **Resolution**: the engine asks for exactly 960 × 720 first; a chosen resolution replaces that size (as `ideal`, so
+ *   a camera without it still opens). Unset = the engine's size.
+ *
+ * Debug switch "lens": `browser` leaves the lens to the browser (to compare), stored on this device.
+ */
+
+export type LensChoice = "main" | "browser";
+
+const LENS_KEY = "osct-camera-lens";
+const RESOLUTION_KEY = "osct-camera-resolution";
+const ASK_ZOOM_KEY = "osct-camera-ask-zoom";
+/** Android's main back lens, in the old and the current Chromium label */
+const MAIN_BACK_LENS = /^camera2? 0, facing back$/;
+
+const readFlag = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writeFlag = (key: string, value: string | null): void => {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    // storage blocked: the default stays
+  }
+};
+
+/** Which back lens the camera request asks for – this device, next start */
+export const getLensChoice = (): LensChoice => (readFlag(LENS_KEY) === "browser" ? "browser" : "main");
+
+export const setLensChoice = (choice: LensChoice): void => writeFlag(LENS_KEY, choice === "main" ? null : choice);
+
+/** Camera sizes to choose from (landscape, 4:3 like the engine's own request); null = the engine's size */
+export const CAMERA_RESOLUTIONS = [null, { width: 1280, height: 960 }, { width: 1920, height: 1440 }] as const;
+export type CameraResolution = (typeof CAMERA_RESOLUTIONS)[number];
+
+/** The camera size the request asks for – this device, next start */
+export const getCameraResolution = (): CameraResolution => {
+  const [width, height] = (readFlag(RESOLUTION_KEY) ?? "").split("x").map(Number);
+  return CAMERA_RESOLUTIONS.find(r => r?.width === width && r?.height === height) ?? null;
+};
+
+export const setCameraResolution = (resolution: CameraResolution): void =>
+  writeFlag(RESOLUTION_KEY, resolution ? `${resolution.width}x${resolution.height}` : null);
+
+/** Ask for the camera's zoom when it starts (Chrome: the pan-tilt-zoom permission) – this device, next start */
+export const getAskZoom = (): boolean => readFlag(ASK_ZOOM_KEY) === "true";
+
+export const setAskZoom = (ask: boolean): void => writeFlag(ASK_ZOOM_KEY, ask ? "true" : null);
+
+/** The main back lens among the cameras (Android labels), null when the labels do not name one */
+export const mainBackLens = (devices: MediaDeviceInfo[]): string | null =>
+  devices.find(device => device.kind === "videoinput" && MAIN_BACK_LENS.test(device.label))?.deviceId ?? null;
+
+/** The request asks for the back camera without naming a device */
+export const asksForBackCamera = (constraints: MediaStreamConstraints): boolean => {
+  const video = constraints.video;
+  if (!video || video === true || video.deviceId) return false;
+  const facing = video.facingMode;
+  const value = facing && typeof facing === "object" && !Array.isArray(facing) ? (facing.exact ?? facing.ideal) : facing;
+  return [value].flat().includes("environment");
+};
+
+/** The request with the lens's `deviceId` instead of the facing mode, another size, and/or `zoom: true` (a new object) */
+export const rewriteCameraRequest = (
+  constraints: MediaStreamConstraints,
+  options: { deviceId?: string | null; resolution?: CameraResolution; zoom?: boolean },
+): MediaStreamConstraints => {
+  if (!constraints.video) return constraints;
+  const video: MediaTrackConstraints & { zoom?: boolean } = constraints.video === true ? {} : { ...constraints.video };
+  if (options.deviceId) {
+    delete video.facingMode;
+    video.deviceId = { exact: options.deviceId };
+  }
+  if (options.resolution && (video.width || video.height)) {
+    video.width = { ideal: options.resolution.width };
+    video.height = { ideal: options.resolution.height };
+  }
+  if (options.zoom) video.zoom = true;
+  return { ...constraints, video };
+};
+
+/** The lens labels are Android's; elsewhere the cameras are not listed (that would open the camera an extra time) */
+const isAndroid = (): boolean => /Android/i.test(navigator.userAgent);
+
+let originalGetUserMedia: MediaDevices["getUserMedia"] | null = null;
+
+/** The main back lens's id; lists the cameras with labels (opening the camera once when they have none) */
+const findMainBackLens = async (open: MediaDevices["getUserMedia"]): Promise<string | null> => {
+  const devices = navigator.mediaDevices;
+  let list = await devices.enumerateDevices();
+  if (list.some(device => device.kind === "videoinput" && !device.label)) {
+    (await open({ video: true })).getTracks().forEach(track => track.stop());
+    list = await devices.enumerateDevices();
+  }
+  return mainBackLens(list);
+};
+
+/**
+ * Changes the page's camera requests until `releaseCameraRequest()`: the main back lens (unless the lens switch says
+ * `browser`), the chosen size and the zoom request (while "ask for zoom" is on). Call before the engine starts.
+ */
+export const wrapCameraRequest = (): void => {
+  const devices = navigator.mediaDevices;
+  if (!devices?.getUserMedia || originalGetUserMedia) return;
+  const original = devices.getUserMedia.bind(devices);
+  originalGetUserMedia = devices.getUserMedia;
+  devices.getUserMedia = async (constraints?: MediaStreamConstraints) => {
+    if (!constraints) return original(constraints);
+    const back = asksForBackCamera(constraints);
+    let deviceId: string | null = null;
+    if (getLensChoice() === "main" && isAndroid() && back) {
+      deviceId = await findMainBackLens(original).catch(() => null);
+    }
+    const resolution = back ? getCameraResolution() : null;
+    return original(rewriteCameraRequest(constraints, { deviceId, resolution, zoom: getAskZoom() }));
+  };
+};
+
+/** Defaults for the engine's running camera: continuous focus where offered and not in use (resolves either way) */
+export const applyCameraDefaults = async (track: MediaStreamTrack): Promise<void> => {
+  const capabilities = (track.getCapabilities?.() ?? {}) as { focusMode?: unknown };
+  const settings = (track.getSettings?.() ?? {}) as { focusMode?: unknown };
+  if (!Array.isArray(capabilities.focusMode) || !capabilities.focusMode.includes("continuous")) return;
+  if (settings.focusMode === "continuous") return;
+  try {
+    await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] });
+  } catch (error) {
+    console.warn("[camera] Continuous focus not applied:", error);
+  }
+};
+
+export const releaseCameraRequest = (): void => {
+  if (!originalGetUserMedia) return;
+  navigator.mediaDevices.getUserMedia = originalGetUserMedia;
+  originalGetUserMedia = null;
+};

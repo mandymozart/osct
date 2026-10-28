@@ -26,7 +26,7 @@ export class CameraPermissionPage extends Page {
 
     this.setOnboarding(this.game.state.mode === GameMode.IDLE);
     if (this.currentPermissionStatus === CameraPermissionStatus.DENIED || this.currentPermissionStatus === CameraPermissionStatus.UNAVAILABLE
-      || this.currentPermissionStatus === CameraPermissionStatus.NOT_RESPONDING) {
+      || this.currentPermissionStatus === CameraPermissionStatus.NOT_RESPONDING || this.currentPermissionStatus === CameraPermissionStatus.UNSUPPORTED) {
       this.showDeniedOverlay();
     } else if (this.currentPermissionStatus === CameraPermissionStatus.PROMPT) {
       this.showPromptOverlay();
@@ -81,6 +81,7 @@ export class CameraPermissionPage extends Page {
       case CameraPermissionStatus.DENIED:
       case CameraPermissionStatus.UNAVAILABLE:
       case CameraPermissionStatus.NOT_RESPONDING:
+      case CameraPermissionStatus.UNSUPPORTED:
         this.showDeniedOverlay();
         break;
       case CameraPermissionStatus.PROMPT:
@@ -153,6 +154,18 @@ export class CameraPermissionPage extends Page {
           <p>${t("camera:notRespondingHelp")}</p>
         </div>
         ${goldButton({ label: t("camera:reload"), shape: "button", className: "continue", attrs: { "data-action": "reload" } })}
+        ${continueButton}
+      `;
+    }
+    // The browser cannot run the image tracking: update iOS (if the phone can) or the browser
+    if (this.currentPermissionStatus === CameraPermissionStatus.UNSUPPORTED) {
+      const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+      return /* html */ `
+        ${this.getIcon()}
+        <div class="message design gold">
+          <p>${t("camera:unsupported")}</p>
+          <p>${t(ios ? "camera:unsupportedIos" : "camera:unsupportedOther")}</p>
+        </div>
         ${continueButton}
       `;
     }

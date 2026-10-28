@@ -247,6 +247,9 @@ export default defineConfig(async ({command,mode})=>{
     // The dev server's Wi-Fi address for the debug overlay's QR code; empty in builds (the page's own origin then)
     __VITE_SERVER_URL__: JSON.stringify(command === 'serve' ? `${https ? 'https' : 'http'}://${localIP}:${port}` : ''),
   },
+  // The dev server serves the TypeScript transform as is: static class fields become `static {}` blocks, which Safari
+  // before 16.4 cannot parse (iPhone 7 = iOS 15) – lowered for the dev server too, as the build does
+  ...(command === 'serve' ? { oxc: { target: 'safari15' } } : {}),
   resolve: {
     tsconfigPaths: true, // tsconfig.json "paths" (built into Vite 8)
     alias: {
