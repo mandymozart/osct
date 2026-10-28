@@ -68,7 +68,7 @@ not found:
   image. Tap *Change* back to *grow* afterwards (it re-grows in idle time).
 - Empty even at ±0 → the target image itself (crop, contrast, size) – the trial's "not found" list.
 
-The trial panel (debug overlay → *trial*) sets ±0 itself while it is open (1.7.8), so during a trial every miss is
+The trial panel (debug overlay → *trial*) set ±0 itself while open from 1.7.8 to 1.9.0, so during a trial every miss was
 already the last case.
 
 ## Camera: lens, focus, resolution
