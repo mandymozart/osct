@@ -4,6 +4,29 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-28 – Direction: scutoons-animus-ar, a white-label AR core; data sovereignty (Tilman, milestone 2)
+
+- Tilman: "game.config.json is tied to a version of the book, so current data is testing data". Goal: a bare core
+  app developed as a vendor app; branded instances (Building Fictions, Scutoons) tied into their brand's ecosystem
+  (WordPress or other, own editors), each with its own database and its own CDN; config and content load per book
+  or game. Long term SaaS, or quick resale to publishers, museums, authors.
+- Then (same day): "white-label ist ein guter Begriff" – **no platform** until there is demand, only our own
+  projects until requests come; niche **art, graphic novels and the music around them**; a **contracted** model
+  (people commissioned to make content for us or with us); hosting content and apps matters, delivered **under the
+  brand's DNS, PWA first, native app later**, or inside our own app; **data sovereignty is the selling point**
+  ("ich möchte den Tech nutzen, ohne Tracking einer anderen Firma"). Project name **scutoons-animus-ar** (the
+  bridge to animism). Competitors in Vienna: Artivive (white-label WebAR), Artificial Museum (GPS AR, framework
+  rented out).
+- Then: "das ist das Ziel": **instances initialised at a click**, on the client's servers or on selected partners'
+  (bunny, Hetzner, Amazon, Timme, whatever); the **CDN is a decisive advantage**, the audience is **products that
+  travel the world**, where access times matter.
+- Strategy draft: `agents/STRATEGY.md` (model, data sovereignty as of today, architecture, phases A–C, market).
+  Issues: umbrella #44, decisions #45–#49, phases A #50 #51 #52, B #53, C #54 (board lane Proposals).
+  GitHub milestone 2 "scutoons-animus-ar – white-label AR core" (first created as "Overprint – vendor core for AR
+  books", renamed).
+- Order (Tilman): first OSCT as the archetype – how it handles content independently from the app – then issues
+  for the core, perhaps developed over the winter.
+
 ## 2026-10-28 – Camera defaults: main lens, continuous focus, engine size; iOS below 16.4 cannot scan (#37, Tilman, 1.9.0)
 
 - **The first trigger test ran on the S22's ultra-wide lens** (fixed focus, `camera 2, facing back`, 60 fps): the
