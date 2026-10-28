@@ -1,8 +1,23 @@
-import { environments } from "@/environments";
 import { GameStoreService, VERSION_PARAM } from "@/services";
 import { IGame, IQRCode } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
+
+/**
+ * Where the phone finds this app, without a trailing slash. On the dev server: its Wi-Fi address (`serverUrl`,
+ * defined by the build) with the protocol and port of the page (a dev server may run on another port than the
+ * default). In a build `serverUrl` is empty and the QR code points at the origin the page was opened in, so it
+ * always leads to the same environment (staging, production).
+ */
+export function qrBaseUrl(serverUrl: string, page: Pick<Location, "origin" | "protocol" | "port">): string {
+  if (!serverUrl) return page.origin;
+  const url = new URL(serverUrl);
+  if (page.port) {
+    url.protocol = page.protocol;
+    url.port = page.port;
+  }
+  return url.toString().replace(/\/$/, "");
+}
 
 /**
  * Development tool: renders the scan link of the current spread as a QR code (or a link to an unknown
@@ -11,8 +26,6 @@ import { goldButton } from "@/components/buttons";
 export class QRGenerator extends HTMLElement {
   private shadow: ShadowRoot;
   private qrInstance: IQRCode | null = {} as unknown as IQRCode;
-  private serverUrl: string =
-    environments[import.meta.env.PROD ? "production" : "staging"].url;
   private game: Readonly<IGame>;
   private subscriptionCleanup: (() => void) | null = null;
 
@@ -154,24 +167,10 @@ export class QRGenerator extends HTMLElement {
     }
   }
 
-  /**
-   * Where the phone finds this app: the dev server's Wi-Fi address (from the build) with the protocol and port of
-   * the server this page came from (a dev server may run on another port than the default), else the environment.
-   */
-  private baseUrl(): string {
-    if (!__VITE_SERVER_URL__) return this.serverUrl.replace(/\/$/, "");
-    const url = new URL(__VITE_SERVER_URL__);
-    if (location.port) {
-      url.protocol = location.protocol;
-      url.port = location.port;
-    }
-    return url.toString().replace(/\/$/, "");
-  }
-
   private generateQR(spreadId: string, testType: string = "valid") {
     if (!this.qrInstance) return;
 
-    const baseUrl = this.baseUrl();
+    const baseUrl = qrBaseUrl(__VITE_SERVER_URL__, location);
     // Same link format as services/LinkService.ts: /spread/<id>?osct=<app version>
     const appVersion = this.game.version.version;
     const id = testType === "unknown-spread" ? "no-such-spread" : spreadId;
