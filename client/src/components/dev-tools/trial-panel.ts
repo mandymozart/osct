@@ -1,5 +1,8 @@
 import { IGame } from "@/types";
 import { GameStoreService } from "@/services";
+import {
+  applyContinuousFocus, armTapToFocus, cameraLine, cycleZoom, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
+} from "@/components/ar-bridges";
 import { getBook, getConfigVersion, getSpreads } from "@/utils/game-config";
 import { countResults, trialReport, trialRows, TrialRow, TriggerInfos } from "./trial-report";
 
@@ -28,6 +31,10 @@ const storedHeight = (): number => {
  * ones in view outlined), then every target not found yet, from the next pages on – tap one to go to its spread;
  * ‹ › step through the spreads. Drag the top bar to make the strip taller or lower. The bar shows how many targets
  * are not found yet; **md** downloads the report of those for the designers (trial-report.ts).
+ * While the panel is open the tracker holds the current spread only (window ±0, no grow, no preloading of other
+ * spreads) – the trial tests the engine with the printout, not the background work; closing restores the setting.
+ * A camera row under the bar shows the lens, resolution, focus and zoom (camera-debug.ts) with three test switches:
+ * **AF** continuous focus, **◎** tap the picture to focus there, **1×** the next zoom step.
  */
 export class TrialPanel extends HTMLElement {
   private shadow: ShadowRoot;
@@ -49,10 +56,13 @@ export class TrialPanel extends HTMLElement {
     this.setAttribute("role", "dialog");
     this.setAttribute("aria-label", "Trigger trial");
     this.setHeight(storedHeight());
+    setWindowOverride(0);
+    this.cleanups.push(() => setWindowOverride(null));
     this.cleanups.push(
       this.game.subscribeToProperty("currentSpread", () => this.render()),
       this.game.subscribeToProperty("progress", () => this.render()),
       this.game.subscribeToProperty("trackedTargets", () => this.render()),
+      subscribeCamera(camera => this.renderCamera(camera)),
     );
     this.shadow.addEventListener("click", this.onClick);
     this.shadow.addEventListener("pointerdown", this.onPointerDown);
@@ -89,6 +99,7 @@ export class TrialPanel extends HTMLElement {
       appVersion: __VITE_APP_VERSION__,
       contentHash: getConfigVersion().hash ?? "",
       device: navigator.userAgent,
+      camera: cameraLine(getCameraInfo()),
       date: new Date(),
     });
   }
@@ -161,6 +172,10 @@ export class TrialPanel extends HTMLElement {
         .tile.found img { opacity: .35; }
         .tile.found span { color: #0f0; }
         .tile.seen { border-color: #ff0; }
+        .cam { flex: none; display: flex; align-items: center; gap: .25rem; padding: 0 .25rem .25rem; color: #ccc; }
+        .cam .info { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cam .action { color: #ff0; }
+        .cam button.on { background: #0f0; color: #000; }
       </style>
       <div class="bar">
         <button data-action="previous" aria-label="Previous spread">‹</button>
@@ -169,10 +184,28 @@ export class TrialPanel extends HTMLElement {
         <button data-action="download">md</button>
         <button class="close" data-action="close" aria-label="Close">×</button>
       </div>
+      <div class="cam"></div>
       <div class="grid">${shown.map(tile).join("")}</div>
     `;
     const newGrid = this.shadow.querySelector(".grid");
     if (newGrid) newGrid.scrollTop = scrollTop;
+    this.renderCamera(getCameraInfo());
+  }
+
+  /** The camera row only – it changes every second while the camera focuses, the tiles stay */
+  private renderCamera(camera: CameraInfo | null) {
+    const row = this.shadow.querySelector(".cam");
+    if (!row) return;
+    if (!camera) {
+      row.innerHTML = `<span class="info">camera: –</span>`;
+      return;
+    }
+    const zoom = camera.zoom !== null ? `${Number(camera.zoom.toFixed(2))}×` : "zoom";
+    row.innerHTML = `
+      <span class="info">${escapeHtml(cameraLine(camera))}${camera.lastAction ? ` · <span class="action">${escapeHtml(camera.lastAction)}</span>` : ""}</span>
+      <button data-action="focus-continuous" aria-label="Continuous focus">AF</button>
+      <button data-action="focus-tap" class="${camera.tapArmed ? "on" : ""}" aria-label="Tap to focus">◎</button>
+      <button data-action="zoom" aria-label="Next zoom step">${zoom}</button>`;
   }
 
   private setHeight(height: number) {
@@ -238,6 +271,12 @@ export class TrialPanel extends HTMLElement {
         return this.step(1);
       case "download":
         return this.download();
+      case "focus-continuous":
+        return void applyContinuousFocus();
+      case "focus-tap":
+        return armTapToFocus();
+      case "zoom":
+        return void cycleZoom();
     }
   };
 

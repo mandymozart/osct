@@ -2,7 +2,11 @@ import { IGame, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getConfigVersion, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
-import { cyclePreparedSpreadRange, getEngineState, getPreparedWindowSetting, subscribeEngineState } from "@/components/ar-bridges";
+import {
+  applyContinuousFocus, armTapToFocus, cameraLine, cameraSummary, cycleZoom, cyclePreparedSpreadRange, getAskZoom, getCameraInfo,
+  getEngineState, getStoredWindowSetting, getWindowOverride, setAskZoom, setZoom, subscribeCamera, subscribeEngineState,
+  zoomSteps,
+} from "@/components/ar-bridges";
 
 type DebugTab = "spread" | "progress";
 
@@ -64,6 +68,7 @@ export class DebugOverlay extends HTMLElement {
       this.game.subscribeToProperty('arStatus', () => this.updateContent()),
       this.game.subscribeToProperty('trackedTargets', tracked => this.countFound(tracked)),
       subscribeEngineState(() => this.updateContent()),
+      subscribeCamera(() => this.updateContent()),
     );
   }
 
@@ -99,6 +104,19 @@ export class DebugOverlay extends HTMLElement {
       document.querySelectorAll("tune-panel, trial-panel, load-test-panel").forEach(open => open.remove());
       if (!panel) document.body.appendChild(document.createElement(name));
       this.expanded = false;
+      this.updateContent();
+      return;
+    }
+    if (control?.dataset.action?.startsWith("camera-")) {
+      // Camera test switches (camera-debug.ts) – the overlay stays open, the readout shows the outcome
+      const action = control.dataset.action;
+      if (action === "camera-focus") void applyContinuousFocus();
+      if (action === "camera-tap") armTapToFocus();
+      if (action === "camera-zoom") void (control.dataset.zoom ? setZoom(Number(control.dataset.zoom)) : cycleZoom());
+      if (action === "camera-ask-zoom") {
+        setAskZoom(!getAskZoom());
+        if (confirm("Reload now to restart the camera with the new zoom request?")) location.reload();
+      }
       this.updateContent();
       return;
     }
@@ -209,7 +227,8 @@ export class DebugOverlay extends HTMLElement {
       <div>Spreads held: ${this.preparedLabel()}
         <button data-action="cycle-prepared">Change</button></div>
       ${this.renderEngine()}
-    </div>`;
+    </div>
+    ${this.renderCamera()}`;
 
     if (currentSpread) {
       html += this.renderSpreadInfo(currentSpread);
@@ -255,7 +274,7 @@ export class DebugOverlay extends HTMLElement {
     const found = this.game.state.trackedTargets.map(target => `${target}×${this.foundCount.get(target) ?? 0}`).join(' ');
 
     return `
-      <div>${sceneStatus} ${spread?.id} T${getTargets(spread?.id || '').length} ${this.engineSummary()} F[${found}] ${this.seenSummary(spread?.id)}</div>
+      <div>${sceneStatus} ${spread?.id} T${getTargets(spread?.id || '').length} ${this.engineSummary()} F[${found}] ${this.seenSummary(spread?.id)} ${escapeHtml(cameraSummary())}</div>
     `;
   }
 
@@ -433,10 +452,43 @@ export class DebugOverlay extends HTMLElement {
     return `<span class="${engine.extractingSince !== null ? "loading" : "loaded"}">E${engine.ready}/${engine.targets}</span>`;
   }
 
+  /**
+   * The camera the engine opened: lens, resolution, focus mode / distance / range, zoom – and the test switches
+   * (continuous focus, tap to focus, zoom steps, ask for zoom on the next start)
+   */
+  private renderCamera(): string {
+    const camera = getCameraInfo();
+    if (!camera) return `<div class="section">Camera: –</div>`;
+    const value = (text: string | number | null) => (text === null || text === "" ? "–" : escapeHtml(String(text)));
+    const range = (r: { min: number; max: number; step?: number } | null, unit = "") =>
+      r ? `${r.min}–${r.max}${unit}${r.step ? ` (step ${r.step})` : ""}` : null;
+    const zoomButtons = zoomSteps(camera.zoomRange)
+      .map(step => `<button data-action="camera-zoom" data-zoom="${step}" class="${camera.zoom !== null && Math.abs(camera.zoom - step) < 0.01 ? "active" : ""}">${step}×</button>`)
+      .join(" ");
+    return `<div class="section">
+      <div>Camera: ${value(camera.label)}</div>
+      <div class="small">${value(camera.width && camera.height ? `${camera.width} × ${camera.height}` : null)}${camera.frameRate ? ` @ ${Math.round(camera.frameRate)} fps` : ""}</div>
+      <div>Focus: ${value(camera.focusMode)}${camera.focusDistance !== null ? ` · ${camera.focusDistance.toFixed(3)} m` : ""}
+        <span class="small">modes ${value(camera.focusModes.join(", ") || null)} · range ${value(range(camera.focusRange, " m"))} · tap ${camera.pointsOfInterest ? "yes" : "no"}</span></div>
+      <div>Zoom: ${value(camera.zoom)} <span class="small">range ${value(range(camera.zoomRange))} · ask on start ${getAskZoom() ? "on" : "off"}</span></div>
+      <div>
+        <button data-action="camera-focus">AF continuous</button>
+        <button data-action="camera-tap" class="${camera.tapArmed ? "active" : ""}">Tap to focus</button>
+        ${zoomButtons || '<span class="small">no zoom offered</span>'}
+        <button data-action="camera-ask-zoom">${getAskZoom() ? "Stop asking for zoom" : "Ask for zoom"}</button>
+      </div>
+      ${camera.lastAction ? `<div class="info">${escapeHtml(camera.lastAction)}</div>` : ""}
+      <div class="small">${escapeHtml(cameraLine(camera))}</div>
+    </div>`;
+  }
+
   /** ±n spreads, or the whole book (all targets loaded) */
   private preparedLabel(): string {
-    const setting = getPreparedWindowSetting();
-    return setting === "grow" ? "grow (whole book in idle time)" : setting === Infinity ? "all" : `±${setting}`;
+    const label = (setting: ReturnType<typeof getStoredWindowSetting>) =>
+      setting === "grow" ? "grow (whole book in idle time)" : setting === Infinity ? "all" : `±${setting}`;
+    const override = getWindowOverride();
+    const stored = label(getStoredWindowSetting());
+    return override === null ? stored : `${label(override)} while trial is open (then ${stored})`;
   }
 
   private arStatusLabel(): string {

@@ -12,6 +12,21 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.8.0 – 2026-10-28
+
+### Added
+- **Camera readout and focus / zoom tests** in the debug overlay (#14): the trigger test of 28 October missed small
+  printed triggers and the camera seemed not to focus, while neither the app nor the 8th Wall engine sets a focus
+  mode or zoom. The overlay's new *Camera* section shows the lens the engine opened (its label), the resolution and
+  frame rate, the focus mode, focus distance and range, the zoom and its range – and test switches: **AF continuous**,
+  **Tap to focus** (the next tap on the camera picture focuses there), the zoom steps 1× / 1.5× / 2× / 3× the lens
+  offers, and **Ask for zoom** (the next camera start requests zoom too – Chrome may only offer zoom with the
+  camera's pan-tilt-zoom permission). The collapsed line ends with `C<lens> <resolution> <focus> <distance> <zoom>`.
+  The trial panel has a camera row with **AF**, **◎** (tap to focus) and the zoom step, and its `md` report records
+  the camera. The tracker hands the engine's camera track over on its "hasStream" status
+  (`ar-bridges/utils/camera-debug.ts`); nothing in the app depends on it. Zoom changes the field of view the engine
+  assumes: finding works, the AR overlay may sit slightly off while zoomed.
+
 ## 1.7.10 – 2026-10-28
 
 ### Changed
@@ -43,6 +58,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   reaches the Docker build (`config/deploy.yml` → `builder.args` → `Dockerfile` `VITE_CONTENT_BASE_URL`) and the
   temporary FTPS staging build. Such an image holds no content; the app loads the current version from the CDN at
   startup ([content-cdn](content-cdn.md)). Without the variable the commit's content is still bundled (#6, #5).
+
+## 1.7.8 – 2026-10-28
+
+### Changed
+- **The trigger trial holds the current spread only** (#14): while the trial panel is open the tracker's window is
+  ±0 – no growing window, no other spread prepared, no content preloaded for neighbours – so a trigger that is not
+  found is down to the engine and the printout, not to work in the background. Step through the book with ‹ ›.
+  Closing the panel restores the setting chosen in the debug overlay (the override is not stored); the overlay shows
+  "±0 while trial is open (then …)".
 
 ## 1.7.7 – 2026-10-28
 

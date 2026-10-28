@@ -14,6 +14,9 @@ import { getSpreads, getTargets } from "@/utils/game-config";
  * - ±n spreads (0, 1, 2) or all: a fixed window that slides with the current spread (`prepareTargets()`).
  * The engine load test sets a **target budget** instead (the nearest spreads until their targets reach it) while
  * it runs; the window follows every change at once.
+ * The trigger trial overrides the setting with ±0 while its panel is open (`setWindowOverride()`, not stored): only
+ * the current spread is held and nothing else is prepared or preloaded, so a target that is not found is down to
+ * the engine and the printout, not to work in the background (Tilman, 2026-10-28).
  */
 export type PreparedWindowSetting = "grow" | number;
 export const PREPARED_WINDOW_SETTINGS: readonly PreparedWindowSetting[] = ["grow", 0, 1, 2, Infinity];
@@ -21,7 +24,13 @@ const RANGE_KEY = "osct-ar-prepared-spreads";
 /** Content preload in grow mode: the neighbours (their media add up – the whole book stays a separate step) */
 const GROW_CONTENT_RANGE = 1;
 
-export const getPreparedWindowSetting = (): PreparedWindowSetting => {
+let windowOverride: PreparedWindowSetting | null = null;
+
+/** The setting in force: the trial's override while it is open, else the stored one */
+export const getPreparedWindowSetting = (): PreparedWindowSetting => windowOverride ?? getStoredWindowSetting();
+
+/** The setting chosen in the debug overlay (stored on this device), regardless of an override */
+export const getStoredWindowSetting = (): PreparedWindowSetting => {
   try {
     const stored = localStorage.getItem(RANGE_KEY);
     if (stored === "grow" || stored === null) return "grow";
@@ -41,7 +50,7 @@ export const getPreparedSpreadRange = (): number => {
 
 /** The next setting in `PREPARED_WINDOW_SETTINGS`, stored – applies at once (the scene re-prepares its window) */
 export const cyclePreparedSpreadRange = (): PreparedWindowSetting => {
-  const next = PREPARED_WINDOW_SETTINGS[(PREPARED_WINDOW_SETTINGS.indexOf(getPreparedWindowSetting()) + 1) % PREPARED_WINDOW_SETTINGS.length];
+  const next = PREPARED_WINDOW_SETTINGS[(PREPARED_WINDOW_SETTINGS.indexOf(getStoredWindowSetting()) + 1) % PREPARED_WINDOW_SETTINGS.length];
   try {
     localStorage.setItem(RANGE_KEY, next === Infinity ? "all" : String(next));
   } catch {
@@ -53,6 +62,15 @@ export const cyclePreparedSpreadRange = (): PreparedWindowSetting => {
 
 let targetBudget: number | null = null;
 const windowListeners = new Set<() => void>();
+
+/** Overrides the stored setting until it is set back to null (the trial panel: ±0) – applies at once, not stored */
+export const setWindowOverride = (setting: PreparedWindowSetting | null): void => {
+  if (setting === windowOverride) return;
+  windowOverride = setting;
+  windowListeners.forEach(listener => listener());
+};
+
+export const getWindowOverride = (): PreparedWindowSetting | null => windowOverride;
 
 /** Target budget of the load test (other spreads' targets held next to the current spread), null = ±n range */
 export const getTargetBudget = (): number | null => targetBudget;

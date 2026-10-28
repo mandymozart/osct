@@ -397,12 +397,17 @@ those targets without their AR video.
 ### Trigger test protocol
 
 The checklist for a test with the printed book (or the trigger printout) is in the app: debug overlay → **trial**
-(dev server and staging; *trial* again or × closes it). A strip at the bottom shows the current spread's targets as
+(dev server and staging; *trial* again or × closes it). While it is open the engine holds the current spread only
+(±0: no growing window, nothing prepared or preloaded for other spreads), so a miss is the engine and the printout,
+not background work; closing restores the window setting. A camera row under the bar shows the lens, focus and
+zoom with three test switches – **AF**, **◎** tap to focus, the zoom step (`docs/tracking.md` "Camera"). A strip at the bottom shows the current spread's targets as
 thumbnails – found ones dimmed with ✓, the one in view outlined – followed by every target not found yet, from the
 next pages on. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to make it
 taller or lower. The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
 (debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their
 printed image, then the found ones – to forward to the designers.
+
+The runs so far, with their results per device, are in [trigger-tests/](trigger-tests/README.md).
 
 The printed-image details come from the delivery mapping:
 

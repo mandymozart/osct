@@ -2,6 +2,7 @@ import { PerspectiveCamera } from "three";
 import { CAMERA_NOT_RESPONDING } from "@/types";
 import { getTargetBudget } from "../utils/prepared-spreads";
 import { publishEngineState, EMPTY_ENGINE_STATE, registerLoadTest } from "../utils/tracker-debug";
+import { releaseZoomRequest, requestZoomOnCameraStart, setCameraTrack } from "../utils/camera-debug";
 import { runLoadTest } from "./load-test";
 import { CAMERA_START_TIMEOUT_MS, IImageTracker, ImageTrackerOptions, TrackedSpread } from "./tracker-types";
 import {
@@ -180,6 +181,8 @@ export class ImageTracker implements IImageTracker {
     });
     XR8.XrController!.configure({ disableWorldTracking: true, imageTargetData: [] });
     XR8.addCameraPipelineModules([XR8.GlTextureRenderer.pipelineModule(), XR8.XrController!.pipelineModule(), this.module()]);
+    // Debug "ask for zoom" (camera-debug.ts): the engine's own camera request asks for zoom too
+    requestZoomOnCameraStart();
     // Any device: desktop browsers (dev, tests) too – the default allows phones only
     XR8.run({ canvas, allowedDevices: XR8.XrConfig.device().ANY, cameraConfig: { direction: XR8.XrConfig.camera().BACK } });
     try {
@@ -423,6 +426,8 @@ export class ImageTracker implements IImageTracker {
 
   stop(): void {
     this.stopTracking();
+    setCameraTrack(null);
+    releaseZoomRequest();
     const XR8 = this.XR8;
     if (XR8 && this.canvas) {
       try {
@@ -582,7 +587,9 @@ export class ImageTracker implements IImageTracker {
         this.startWaiter?.resolve();
       },
       onCanvasSizeChange: ({ canvasWidth, canvasHeight }) => this.setProjectionSize(canvasWidth, canvasHeight),
-      onCameraStatusChange: ({ status, reason }) => {
+      onCameraStatusChange: ({ status, reason, stream }) => {
+        // The camera's track for the debug readout and focus / zoom tests (camera-debug.ts)
+        if (status === "hasStream" && stream) setCameraTrack(stream.getVideoTracks()[0] ?? null);
         if (status === "failed") this.startWaiter?.reject(new Error(`Camera unavailable: ${reason ?? "failed"}`));
       },
       onException: error => {
