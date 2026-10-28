@@ -283,6 +283,11 @@ at given distances). A template is a few planes and named **surfaces**; a target
 given per surface: `surface: right, x, y, width, height` in mm. The editor starts with `book` and the OSCT page
 format; the others are small builders added when a work needs them – the same registry idea as for node types.
 A spread's template with its dimensions overrides the book's default (`spreads.layout` in the data model).
+OSCT itself is a very particular instance of `book` (Tilman: "ganz special in dem Fall hier"): 230 × 320 mm pages,
+129 spreads, trigger positions and sizes from the designed PDF (#60), a cover of its own – the template is generic,
+the instance is filled from the PDF, never typed in. And the trigger trial's A3 printouts (121 triggers on sheets)
+are a second layout of the same targets: a `sheet` template per printout page, so the stage can show the test
+sheet as well as the book page.
 
 **What a scene is.** Two words for two things, to end the ambiguity: in the **content** a *scene* is the authoring
 unit – a spread's entities and, later, its world (`world:` in `spread.yaml`, PLAN Phase 10) – and an entity's
