@@ -29,6 +29,12 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   included) and every printed target's page, side, position and size in mm. With it the editor's stage shows the
   spread's real page under the entities and every target exactly where it is printed; leafing shows the next sheet.
   Without it: blank pages, targets by the trigger protocol or in a row (`docs/content.md`, "Importing the book layout").
+- **One compact sheet** for the editor, after the Scutoons UI dogma with OSCT's own primitives: the head is the tab row
+  (‹ › spreads · Stage · Entity · ×) and closed the sheet is that row alone; rows of one control height; numbers as
+  `<scrub-number>` (press and slide or tap and type, Shift ×10, Alt ×0.1, reset arrow in the field) instead of
+  sliders; segmented groups and pressed chips; Feather icons with names and tooltips where a word makes no sense. The
+  tune panel's body became the `<tune-inspector>`, shared by the debug overlay's *tune* panel and the editor's
+  Entity tab.
 
 ### Changed
 - The camera permission counts as granted while the editor's preview runs (nothing asks the browser); the trial

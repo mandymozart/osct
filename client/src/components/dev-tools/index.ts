@@ -2,6 +2,7 @@ export * from "./debug-sheet";
 export * from "./debug-overlay";
 export * from "./camera-panel";
 export * from "./qr-generator";
+export * from "./tune-inspector";
 export * from "./tune-panel";
 export * from "./trial-panel";
 export * from "./trial-report";
