@@ -25,7 +25,7 @@ OSCT_CONTENT_DIR=C:/Development/osct/osct-content/content
 
 ## Steps
 
-Done in this repository (1.7.2, #5): the fixture, CI and the tests on the fixture, the content build reads only
+Done in this repository (1.7.6, #5): the fixture, CI and the tests on the fixture, the content build reads only
 `OSCT_CONTENT_DIR` (no fallback), `osct content sync` refuses the fixture, the workflow "Content" has no sync,
 `content-demo/` replaced by the fixture.
 

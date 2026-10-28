@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.7.2 – 2026-10-28
+## 1.7.6 – 2026-10-28
 
 ### Added
 - **Content deployment apart from the app** (#5): the **osct CLI** in `scripts/` (`npm run osct -- content build |
@@ -42,6 +42,20 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   compares it).
 - The game configuration is loaded before the app element starts (`loadGameConfiguration()`), no longer imported at
   build time. The whole-book download takes the file sizes from `files.json` of the loaded version.
+
+## 1.7.4 – 2026-10-28
+
+### Fixed
+- The debug overlay removed its click listener with a freshly bound function, so nothing was removed: after a disconnect and reconnect one tap toggled it twice (#21). Add and remove now use the same function.
+
+## 1.7.2 – 2026-10-28
+
+### Fixed
+- The first push of the Kamal deploy: the staging and production workflows now grant `packages: write` to the
+  deploy they call (the repository's token is read-only by default, so the called workflow could not ask for it
+  and the run failed at startup).
+- 1.7.1 had bumped only the app's version; the content build and the API said 1.7.0, which the API test caught
+  (the FTPS staging deploy failed). All three are 1.7.2.
 
 ## 1.7.1 – 2026-10-27
 

@@ -4,7 +4,7 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
-## 2026-10-28 – Content out of git, prepared: fixture, source outside, filter-repo tried (#5, Tilman)
+## 2026-10-28 – Content out of git, prepared: fixture, source outside, filter-repo tried (#5, Tilman, 1.7.6)
 
 - Tilman: "bereite das Entfernen von content/ aus Git inklusive History vor (Fixture für CI und Tests,
   Content-Ordner außerhalb, filter-repo-Plan). Den Force-Push mache ich selbst nach Absprache."
@@ -28,7 +28,7 @@ outcome in the line (or move it into a dated decision block).
 - [ ] Open (Kamal session): deploys build with `VITE_CONTENT_BASE_URL`, `Dockerfile` without `COPY content`, the
   FTPS staging deploy too – then the removal commit, release, freeze, rewrite, force push (Tilman), GitHub Support.
 
-## 2026-10-28 – Content deployment apart from the app: versions + strict purge; content schema MAJOR.MINOR (#5, Tilman)
+## 2026-10-28 – Content deployment apart from the app: versions + strict purge; content schema MAJOR.MINOR (#5, Tilman, 1.7.6)
 
 - Tilman, in order: "i dont want to end up with multiples on the server that eat up storage", "one folder each
   environment only", "there will not be any content in git … content CDN!", "please split content deployment from
@@ -41,7 +41,7 @@ outcome in the line (or move it into a dated decision block).
 - Why versions: the pull zone caches 30 days, ignores query strings and the CLI cannot purge the edge – a file
   overwritten in place stays stale at edges (seen 2026-10-28: a deleted version's game.config.json was still a
   cache HIT). Immutable version folders never go stale; only `latest.json` moves.
-- Why not the first 1.7.2 design (`<version>-<hash>` folders, upload on every push, nothing deleted): the app
+- Why not the first design of this work (`<version>-<hash>` folders, upload on every push, nothing deleted): the app
   version was in the hash (every app bump = new 20 MB folder) and old versions piled up.
 - **Storage**: zone `osct` (Frankfurt, Singapore, New York), pull zone `buildingfictions.b-cdn.net` (→
   `cdn.buildingfictions.com` with #17). Per environment: `latest.json`, `versions.json`, `<build>/` (12-hex content
