@@ -12,6 +12,18 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.9.2 – 2026-10-28
+
+### Fixed
+- **Dependabot alerts resolved** (#55): all 13 open alerts were in the development tooling (nothing in the app
+  bundle or the server). `client/`: vite 8.3.1 → 8.3.5 (launch-editor command injection, `server.fs` bypasses,
+  cross-origin script execution), vitest 5.0.2 → 5.0.5 (`@vitest/mocker` code injection and path traversal),
+  source-map-js 1.2.2, fast-uri and serialize-javascript refreshed, happy-dom 20 → 21.0.4 (host code execution
+  through an unsanitized import alias). `scripts/`: vitest 3.2 → 4.1.12 (no patched 3.x release – also replaces
+  the vulnerable tinypool), vite 6.3 → 6.4.5, sharp 0.35.5, source-map-js 1.2.2. The remaining `npm audit` note
+  in `client/` (deepmerge, low, through vite-plugin-pwa → workbox-build) has no fix upstream and is not a
+  Dependabot alert.
+
 ## 1.9.1 – 2026-10-28
 
 ### Changed
