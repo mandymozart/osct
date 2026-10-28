@@ -27,8 +27,8 @@ const storedHeight = (): number => {
 
 /**
  * Debug trial panel (a strip at the bottom, opened and closed with *trial* in the debug overlay): the trigger
- * checklist of a test with the printed book. Shows the current spread's targets (found ones dimmed with ✓, the
- * ones in view outlined), then every target not found yet, from the next pages on – tap one to go to its spread;
+ * checklist of a test with the printed book. Shows the current spread's targets (found ones framed green with a ✓
+ * in the corner, the one in view framed yellow), then every target not found yet, from the next pages on – tap one to go to its spread;
  * ‹ › step through the spreads. Drag the top bar to make the strip taller or lower. The bar shows how many targets
  * are not found yet; **md** downloads the report of those for the designers (trial-report.ts).
  * While the panel is open the tracker holds the current spread only (window ±0, no grow, no preloading of other
@@ -139,7 +139,7 @@ export class TrialPanel extends HTMLElement {
       const label = `${row.page}·${row.targetId.split("-").pop()}`;
       return `<button class="tile ${own ? "own" : ""} ${found ? "found" : ""} ${tracked.includes(row.targetId) ? "seen" : ""}"
         data-spread="${escapeHtml(row.spreadId)}" title="${escapeHtml(`${row.targetId} · ${row.title}`)}">
-        <img src="${escapeHtml(row.imageSrc)}" alt="" loading="lazy" decoding="async"><span>${escapeHtml(found ? `✓ ${label}` : label)}</span>
+        <img src="${escapeHtml(row.imageSrc)}" alt="" loading="lazy" decoding="async">${found ? `<b class="check" aria-label="found">✓</b>` : ""}<span>${escapeHtml(label)}</span>
       </button>`;
     };
 
@@ -162,15 +162,16 @@ export class TrialPanel extends HTMLElement {
         .close { font-size: 1rem; }
         .grid { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-wrap: wrap; gap: .25rem;
           padding: 0 .25rem .25rem; align-content: flex-start; }
-        .tile { position: relative; flex: none; width: 3.5rem; height: 3.5rem; padding: 0; border: .125rem solid transparent;
-          border-radius: .25rem; background: #111; overflow: hidden; }
+        .tile { position: relative; flex: none; width: 3.5rem; height: 3.5rem; padding: 0; border: .1875rem solid transparent;
+          border-radius: 0; background: #111; overflow: hidden; }
         .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
         .tile span { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, .6); color: #fff;
           font-size: .625rem; line-height: .875rem; text-align: center; }
         .tile.own { border-color: #fff; }
         .tile.found { border-color: #0f0; }
-        .tile.found img { opacity: .35; }
-        .tile.found span { color: #0f0; }
+        .tile.found span { background: #0f0; color: #000; }
+        .tile .check { position: absolute; top: 0; right: 0; width: 1rem; height: 1rem; background: #0f0; color: #000;
+          font: 700 .75rem/1rem monospace; text-align: center; }
         .tile.seen { border-color: #ff0; }
         .cam { flex: none; display: flex; align-items: center; gap: .25rem; padding: 0 .25rem .25rem; color: #ccc; }
         .cam .info { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
