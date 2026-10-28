@@ -4,9 +4,13 @@ import path from 'path';
 import { CONTENT_DIR, OUTPUT_FILE, projectRoot, SCRIPTS_SRC_DIR } from '../config';
 import { listFiles } from './files';
 
-// Commands besides the build (sounds, the osct CLI with the CDN sync, the schema lock) don't shape the content
-// build's output – editing them must not change the content's version (a new hash = new content to sync)
-const COMMAND_FILES = ['sounds.ts', 'cli.ts', 'schema-lock.ts', 'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts'];
+// Commands besides the build (sounds, the osct CLI with the CDN sync, the schema lock, the delivery import and the
+// trigger protocol) don't shape the content build's output – editing them must not change the content's version
+// (a new hash = new content to sync)
+const COMMAND_FILES = [
+  'sounds.ts', 'cli.ts', 'schema-lock.ts', 'import-delivery.ts', 'protocol.ts',
+  'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts',
+];
 const isCommandFile = (file: string) => COMMAND_FILES.some(prefix => file.startsWith(prefix));
 
 // Text files get normalised line endings before hashing

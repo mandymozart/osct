@@ -26,6 +26,7 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
 import { CONTENT_DIR } from './config';
+import { isMainModule } from './lib/entry';
 import { toJpeg } from './lib/optimize-media';
 
 /** Target images: recognition needs detail – more than the client copy keeps (optimize-media: 1200) */
@@ -199,8 +200,7 @@ export function importDelivery(deliveryDir: string, mappingFile: string): Import
   return report;
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
-if (isMain) {
+if (isMainModule(import.meta.url)) {
   const [deliveryDir, mappingFile] = process.argv.slice(2);
   if (!deliveryDir || !mappingFile) {
     console.error('Usage: node dist/import-delivery.js <delivery folder> <mapping.yaml>');

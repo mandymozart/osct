@@ -1,4 +1,4 @@
-import type { AssetData, EntityData, EntityRefData } from '../../../shared/types/game-config';
+import { ENTITY_TYPES, type AssetData, type EntityData, type EntityRefData } from '../../../shared/types/game-config';
 import { FilterData, filterProblems } from '../../../shared/types/filters';
 import { placementProblems } from '../../../shared/types/placement';
 import fs from 'fs';
@@ -64,8 +64,8 @@ export function buildEntity(
   }
   const type = e?.type;
   // Links are entries (consultation), not AR entities
-  if (!['model', 'video', 'image'].includes(type)) {
-    buildErrors.push(`${label}: entity type "${type}" must be one of model, video, image (or use ref)`);
+  if (!(ENTITY_TYPES as readonly string[]).includes(type)) {
+    buildErrors.push(`${label}: entity type "${type}" must be one of ${ENTITY_TYPES.join(', ')} (or use ref)`);
     return undefined;
   }
   if (e.params !== undefined && (typeof e.params !== 'object' || Array.isArray(e.params))) {

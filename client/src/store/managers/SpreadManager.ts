@@ -15,10 +15,6 @@ export class SpreadManager implements ISpreadManager {
     });
   }
 
-  public getCurrentSpread(): string | null {
-    return this.game.state.currentSpread;
-  }
-
   /** Make a spread active; ids unknown to the content are ignored */
   public switchSpread(id: string): void {
     if (!getSpread(id)) {

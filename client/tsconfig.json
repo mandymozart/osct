@@ -3,9 +3,6 @@
     "target": "es2020",
     "module": "esnext",
     "lib": ["es2020", "dom"],
-    "declaration": true,
-    "declarationDir": "./dist",
-    "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -31,5 +28,5 @@
     "src/types/env.d.ts",
     "../shared/**/*.ts"
   ],
-  "exclude": ["./node_modules", "**/*.spec.ts"]
+  "exclude": ["./node_modules"]
 }

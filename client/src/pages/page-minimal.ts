@@ -22,7 +22,7 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
     
     constructor() {
       super();
-      this.game = GameStoreService.getInstance();;
+      this.game = GameStoreService.getInstance();
       this.attachShadow({ mode: "open" });
       this._active = false;
       this._template = document.createElement('template');
