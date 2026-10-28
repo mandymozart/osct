@@ -1061,6 +1061,9 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
 1. [x] `/editor` route with the mock tracker and the mock stage, the preview panel and the tune panel, lazily loaded
        (1.10.0). Open: an editor-only progress (the preview unlocks targets in the device's progress); the layout
        from the trigger protocol is coarse until #60 imports the PDF.
+1b. [ ] Where the editor lives – Svelte concept `agents/research/2026-10-29-editor-svelte.md` (recommendation: the
+       editor as an app in the Scutoons monorepo on `@scutoons/ui`, the reader exposes `/stage` + a stage protocol;
+       Tilman decides).
 2. [ ] Saving: spreads, entries, targets, entities in the database (`agents/research/2026-10-28-editor-data-model.md`),
        the draft as a game configuration for the preview and the phone (`?content=draft`), publish to staging.
 3. [ ] Plugin API: registries for node types, components and material layers with specs (`shared/`), content

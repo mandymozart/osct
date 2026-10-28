@@ -59,6 +59,10 @@ outcome in the line (or move it into a dated decision block).
   nicht" – the editor variant is white / light grey by day, dark grey by night (system, or the sun / moon in the
   head), focus and accents in the text colour, pressed segments grey; `branded` is Tilman's word for the reader's
   variant – the layer a white-label brand overrides later (one token block in `main.css`).
+- Tilman: "Svelte als Konzept klären" → `agents/research/2026-10-29-editor-svelte.md`: A Svelte in the reader's
+  chunk, B a SvelteKit app in the OSCT repo, C the editor as an app in the Scutoons monorepo on `@scutoons/ui` (a
+  private source package – no publishing), the reader exposing `/stage` + a stage protocol (postMessage cross
+  origin), the instance's API for saving. Recommendation C – "der Editor ist die Bridge". Decision pending.
 - [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
   Kévin's own phone later); comes with accounts / roles in step 2.
 - [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
