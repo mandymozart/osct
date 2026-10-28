@@ -89,7 +89,8 @@ with the last content it saw. The whole-book download takes the sizes from `file
 
 ### Pull zone settings the app depends on
 
-Checked against `buildingfictions.b-cdn.net` on 2026-10-27 (bunny.net dashboard, Tilman's team seat):
+Checked against `buildingfictions.b-cdn.net` on 2026-10-27 and 2026-10-28 (bunny.net dashboard, Tilman's team
+seat). On 2026-10-28 JSON and JPEG files sent `Access-Control-Allow-Origin: *`; query strings were still ignored.
 
 - **CORS for every file type.** The app's origin differs from the CDN, so every content file needs
   `Access-Control-Allow-Origin`. bunny.net's "CORS headers" option only covers a list of extensions – `mp4` had the

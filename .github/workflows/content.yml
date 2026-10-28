@@ -11,8 +11,6 @@
 name: Content sync
 
 on:
-  push:
-    branches: [claude/heuristic-varahamihira-4faefe] # TEMPORARY: verifying the sync for #5, removed again
   workflow_dispatch:
     inputs:
       environment:
@@ -31,14 +29,14 @@ on:
         default: false
 
 concurrency:
-  group: content-${{ inputs.environment || 'staging' }}
+  group: content-${{ inputs.environment }}
   cancel-in-progress: false
 
 jobs:
   content:
-    name: Content ${{ inputs.command || 'sync' }} (${{ inputs.environment || 'staging' }})
+    name: Content ${{ inputs.command }} (${{ inputs.environment }})
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment || 'staging' }}
+    environment: ${{ inputs.environment }}
     defaults:
       run:
         working-directory: scripts
@@ -54,12 +52,12 @@ jobs:
         run: |
           npm run build
           npm run osct -- content build
-      - name: Content ${{ inputs.command || 'sync' }}
+      - name: Content ${{ inputs.command }}
         env:
-          OSCT_CONTENT_ENV: ${{ inputs.environment || 'staging' }}
+          OSCT_CONTENT_ENV: ${{ inputs.environment }}
           BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
           BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
           BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
           # The sync checks what the CDN serves afterwards
           CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
-        run: npm run osct -- content ${{ inputs.command || 'sync' }} ${{ inputs.force && '--force' || '' }}
+        run: npm run osct -- content ${{ inputs.command }} ${{ inputs.force && '--force' || '' }}

@@ -12,7 +12,6 @@ const build: ContentBuild = {
   schema: '1.0',
   version: '1.7.2',
   config: Buffer.from('{}'),
-  configSha256: 'CONFIG',
   files: [
     { file: 'entries/one/image.jpg', size: 10, sha256: 'AAA111' },
     { file: 'entries/two/model.glb', size: 20, sha256: 'BBB222' },
@@ -77,6 +76,8 @@ describe('CDN sync plan', () => {
       ...build.files.map(f => file(`staging/assets/content/${f.file}`, f.sha256)),
     ];
     expect(isInSync(planFromListing('staging', build, remote, build.hash))).toBe(true);
+    // Another content version on the storage: the configuration is written
+    expect(planFromListing('staging', build, remote, 'other').configChanged).toBe(true);
   });
 
   it('never touches another environment', () => {

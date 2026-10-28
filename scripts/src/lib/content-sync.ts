@@ -35,7 +35,6 @@ export interface ContentBuild {
   schema: string;
   version: string;
   config: Buffer;
-  configSha256: string;
   files: LocalFile[];
 }
 
@@ -61,7 +60,7 @@ export function readContentBuild(): ContentBuild {
     const data = fs.readFileSync(path.join(CLIENT_PUBLIC_ASSETS_DIR, file));
     return { file, size: data.length, sha256: sha256(data) };
   });
-  return { hash: version.hash, schema: version.schema as string, version: version.version, config, configSha256: sha256(config), files };
+  return { hash: version.hash, schema: version.schema as string, version: version.version, config, files };
 }
 
 /** files.json of a build */
@@ -108,13 +107,14 @@ export function planFromListing(env: string, build: ContentBuild, listing: Store
       remove.push(item.isDirectory ? `${item.path}/` : item.path);
     }
   }
+  // The content version is the hash – the configuration's bytes also carry the build time
   const configStored = byPath.get(`${env}/game.config.json`);
   return {
     env,
     upload,
     unchanged: build.files.length - upload.length,
     remove,
-    configChanged: force || configStored?.checksum !== build.configSha256,
+    configChanged: force || !configStored || remoteHash !== build.hash,
     remoteHash,
   };
 }

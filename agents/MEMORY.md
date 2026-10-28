@@ -44,9 +44,16 @@ outcome in the line (or move it into a dated decision block).
   flag. Order: (1) this PR; (2) Kamal session: `VITE_CONTENT_BASE_URL` into the image build; (3) content out of git
   (`content/` → a folder or repository outside, CI and tests on a fixture configuration, `Dockerfile` without
   `COPY content`, the checks workflow without the content build). Doing (3) before (2) breaks the deploy.
-- [ ] Open (dashboard, Tilman): **CORS** for every file type on the pull zone (only `mp4` has it today) – extend the
-  CORS extension list or an edge rule `Access-Control-Allow-Origin: *`. The sync warns while it is missing.
-- [ ] Open (dashboard, Tilman): **Vary cache by query string** on the pull zone (it ignores query strings today).
+- Verified 2026-10-28 (content.yml runs on the branch): the first sync put 452 files (33.9 MB, no videos – CI
+  checkout) into `staging/` and deleted the old `staging/1.6.0-29a25c7416d2/` and `staging/latest.json`; the second
+  found 452 unchanged, 0 uploads, 0 deletions (the storage reports SHA-256 checksums). The CDN serves
+  `staging/game.config.json` (content `ec8e2c5b57dc`) and `files.json`. A CDN-mode app build ran with no content on
+  disk (no content build, no `assets/content/` in `dist/`). Not verified: the deployed app on the CDN (deploy
+  flag, Kamal session) and a phone run against the CDN.
+- [x] CORS (checked 2026-10-28): `game.config.json`, `files.json` and `.jpg` now send `Access-Control-Allow-Origin: *`
+  (changed in the dashboard since 2026-10-27). Models and videos not checked – none in the CI sync.
+- [ ] Open (dashboard, Tilman): **Vary cache by query string** on the pull zone (checked 2026-10-28: a new `?t=` is
+  still a cache HIT, so query strings are ignored).
   Files are overwritten in place: without it an edge keeps an old file or configuration for up to 30 days. With it,
   `?v=` gives every file version its own cache entry and `?t=<minute>` bounds the configuration's staleness.
 - [ ] Open (Kamal session, #6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable
