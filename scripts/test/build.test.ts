@@ -132,12 +132,11 @@ describe('content build', () => {
   describe('input hash', () => {
     it('ignores Windows line endings in text files, not content changes', async () => {
       const unix = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK }));
-      const hashUnix = unix.hash.hashBuildInputs('1.0.0');
+      const hashUnix = unix.hash.hashBuildInputs();
       const windows = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK.replace(/\n/g, '\r\n') }));
-      expect(windows.hash.hashBuildInputs('1.0.0')).toBe(hashUnix);
+      expect(windows.hash.hashBuildInputs()).toBe(hashUnix);
       const changed = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK.replace('Test', 'Other') }));
-      expect(changed.hash.hashBuildInputs('1.0.0')).not.toBe(hashUnix);
-      expect(unix.hash.hashBuildInputs('1.0.1')).not.toBe(hashUnix);
+      expect(changed.hash.hashBuildInputs()).not.toBe(hashUnix);
     });
   });
 });

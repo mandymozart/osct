@@ -19,6 +19,44 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   connect and "unsubscribed" a different function, so each reconnect left a listener behind. It now subscribes to
   `currentError` only (typed `ErrorInfo | null`) and keeps the cleanup it gets back, like the other pages.
 
+## 1.7.6 – 2026-10-28
+
+### Added
+- **Content deployment apart from the app** (#5): the **osct CLI** in `scripts/` (`npm run osct -- content build |
+  status | sync | purge --env staging|production`). `sync` uploads the content build as a new version – its own
+  folder on the bunny.net CDN, never overwritten – and points `latest.json` at it; syncing an older build again is
+  the rollback. `purge` deletes old versions strictly: never the current one, the one the CDN still serves, the
+  newest retired one or anything retired within the CDN cache time (30 days), and nothing at all when the
+  bookkeeping is inconsistent. Nothing runs on a push; the workflow "Content" is a manual button (dry run by
+  default). The app loads the current version at startup when it is built with `VITE_CONTENT_BASE_URL`; such a
+  build reads no content at all. Without the flag the content stays bundled (dev server, tests). The installed app
+  still works offline. How it works: `docs/content-cdn.md`.
+- **Test fixture** `fixtures/content/` (#5): the placeholder content, slimmed to under 1 MB (every entity type,
+  chroma key and alpha video). CI and the tests build it – the book content is leaving the repository, history
+  included (`docs/content-out-of-git.md`). `osct content sync` refuses a build of it.
+- **Content schema `MAJOR.MINOR`** (`version.schema`, `shared/types/game-config.ts`, now 1.1): the only
+  compatibility rule between content and app. Another MAJOR is refused at startup ("The book content is newer than
+  this app" / "… older than this app", en/fr/nl/de); any MINOR loads. A test fails when `shared/` changes without a
+  schema bump (`shared/content-schema.json`, `npm run schema:lock` in `scripts/`).
+
+### Changed
+- The content build reads only the content source named by `OSCT_CONTENT_DIR` (environment or `scripts/.env`,
+  relative to the repository) and stops when there is none – no fallback. `content-demo/` became the fixture; its
+  full-size copy lives next to the content source. The workflow "Content" offers status and purge – sync runs where
+  the content source is.
+- The content's version is its build checksum and no longer includes the app version – an app release does not make
+  new content. The app version a content build was made with is information only (the startup check no longer
+  compares it).
+- The game configuration is loaded before the app element starts (`loadGameConfiguration()`), no longer imported at
+  build time. The whole-book download takes the file sizes from `files.json` of the loaded version.
+
+## 1.7.5 – 2026-10-28
+
+### Fixed
+- The debug overlay's QR code on staging pointed at the build machine (#22): the build no longer bakes in a dev
+  server address, so in a build the code leads to the address the page was opened on (staging, production). On
+  the dev server it still shows the Wi-Fi address for phones. The stale environment list (Netlify) is gone.
+
 ## 1.7.4 – 2026-10-28
 
 ### Fixed

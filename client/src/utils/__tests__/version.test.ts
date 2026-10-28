@@ -1,9 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, expect, it } from "vitest";
-import { ErrorCode } from "@/types";
-import { checkConfigurationVersion, getConfigVersion } from "@/utils/game-config";
-import { compareVersions, parseVersion } from "../version";
+import { parseVersion } from "../version";
 
 const readVersion = (file: string): string =>
   JSON.parse(readFileSync(resolve(__dirname, file), "utf8")).version;
@@ -15,26 +13,10 @@ describe("version helpers", () => {
     expect(parseVersion("1.0")).toBeNull();
     expect(parseVersion("undefined")).toBeNull();
   });
-
-  it("treats MINOR/PATCH as compatible, MAJOR as incompatible", () => {
-    expect(compareVersions("1.1.0", "1.1.0")).toBe("same");
-    expect(compareVersions("1.1.0", "1.0.5")).toBe("compatible");
-    expect(compareVersions("1.1.0", "1.4.0")).toBe("compatible");
-    expect(compareVersions("1.1.0", "2.0.0")).toBe("incompatible");
-    expect(compareVersions("2.0.0", "1.9.9")).toBe("incompatible");
-    expect(compareVersions("1.1.0", "")).toBe("incompatible");
-  });
-
-  it("refuses a game configuration of another MAJOR at startup", () => {
-    expect(checkConfigurationVersion("1.1.0", "1.0.0")).toBeNull();
-    expect(checkConfigurationVersion("2.0.0", "1.1.0")).toMatchObject({
-      code: ErrorCode.NOT_SUPPORTED,
-      type: "critical",
-    });
-  });
 });
 
-// RULES.md #10 – one version for app and content build (source: client/package.json)
+// RULES.md #10 – one version for app, tooling and server (source: client/package.json); the content records the
+// version it was built with as information only (compatibility: content schema, game-config-loading.test.ts)
 describe("one version", () => {
   const appVersion = readVersion("../../../package.json");
 
@@ -49,9 +31,5 @@ describe("one version", () => {
 
   it("the app is built with the client package version", () => {
     expect(__VITE_APP_VERSION__).toBe(appVersion);
-  });
-
-  it("game.config.json was built with the app version (rebuild the content after a bump)", () => {
-    expect(getConfigVersion().version).toBe(appVersion);
   });
 });

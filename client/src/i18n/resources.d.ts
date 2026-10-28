@@ -163,8 +163,9 @@ export default interface Resources {
     "surroundingsLabel": "Scene around the book"
   },
   "startup": {
+    "contentNewer": "The book content is newer than this app. Please update the app.",
     "contentNotLoaded": "The book content could not be loaded.",
-    "contentOtherVersion": "The book content was built for another app version.",
+    "contentOlder": "The book content is older than this app. Please try again later.",
     "unknownError": "An unknown error occurred."
   },
   "tutorial": {

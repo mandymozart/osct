@@ -1,5 +1,5 @@
 import { assertGameConfiguration, GameConfigurationError } from '../../../shared/guards/game-config';
-import type { GameConfiguration } from '../../../shared/types/game-config';
+import { CONTENT_SCHEMA_VERSION, type GameConfiguration } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { copyContentToPublic } from '../lib/files';
 import { buildBook } from './book';
@@ -33,7 +33,8 @@ export function buildConfig(versionStr: string, inputHash: string): GameConfigur
     version: {
       version: versionStr,
       timestamp, // when the build inputs last changed
-      hash: inputHash
+      hash: inputHash,
+      schema: CONTENT_SCHEMA_VERSION,
     },
     book,
     initialSpreadId: spreads[0]?.id ?? '',

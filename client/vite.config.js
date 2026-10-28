@@ -1,6 +1,6 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'fs';
 import { resolve } from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
@@ -9,14 +9,57 @@ import { renderStaticSplash } from './src/utils/static-splash-html.ts';
 // One version for app and content build (RULES.md #10). Read from package.json because
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
 const APP_VERSION = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
-// The game configuration is written by the content build and is not in git (built by every `npm run build`
-// – prebuild → `npm run content`). A fresh checkout builds it once before `npm run dev` or the tests.
+// The game configuration (content build output, not in git). With a content CDN (`VITE_CONTENT_BASE_URL`) the app
+// build reads no content: the app loads it at runtime (docs/content-cdn.md). Without one it is bundled (dev
+// server, tests, hosts without the CDN) and has to be built first.
 const GAME_CONFIG_FILE = resolve(import.meta.dirname, 'src/game.config.json');
-if (!existsSync(GAME_CONFIG_FILE)) {
-  throw new Error('client/src/game.config.json is missing – build the content first: `npm run content` (in client/)');
+const MISSING_CONTENT = 'client/src/game.config.json is missing – build the content first: `npm run content` (in client/), ' +
+  'or build against the content CDN (VITE_CONTENT_BASE_URL)';
+const readLocalGameConfig = () => (existsSync(GAME_CONFIG_FILE) ? JSON.parse(readFileSync(GAME_CONFIG_FILE, 'utf8')) : null);
+
+/**
+ * Book data for the app shell (home-screen name, static splash). A CDN build takes it from the environment's
+ * current content version on the CDN – it only shapes the first frame, the app renders the loaded content after that – and
+ * falls back to a local content build, then to no book data. Without the CDN the local build is required.
+ */
+async function readShellConfig(contentBaseUrl) {
+  if (!contentBaseUrl) {
+    const local = readLocalGameConfig();
+    if (!local) throw new Error(MISSING_CONTENT);
+    return local;
+  }
+  try {
+    const get = async (url) => {
+      const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error(`${url}: ${response.status}`);
+      return response.json();
+    };
+    const { build } = await get(`${contentBaseUrl}/latest.json?t=${Date.now()}`);
+    return await get(`${contentBaseUrl}/${build}/game.config.json`);
+  } catch (error) {
+    console.warn(`[osct] content on ${contentBaseUrl} not readable (${error.message}) – app shell from the local content build or without book data`);
+  }
+  return readLocalGameConfig() ?? {};
 }
-// The content build's checksum: the service worker keeps one content cache per content build
-const GAME_CONFIG = JSON.parse(readFileSync(GAME_CONFIG_FILE, 'utf8'));
+
+/**
+ * The bundled game configuration (`virtual:osct-game-config`, imported only by utils/game-config.ts): the
+ * local content build, or `null` in a CDN build (the app loads the content at runtime).
+ */
+function gameConfigModule(contentBaseUrl) {
+  const id = 'virtual:osct-game-config';
+  return {
+    name: 'osct-game-config',
+    resolveId: (source) => (source === id ? `\0${id}` : undefined),
+    load(loaded) {
+      if (loaded !== `\0${id}`) return undefined;
+      if (contentBaseUrl) return 'export default null;';
+      if (!existsSync(GAME_CONFIG_FILE)) throw new Error(MISSING_CONTENT);
+      this.addWatchFile(GAME_CONFIG_FILE);
+      return `export default ${readFileSync(GAME_CONFIG_FILE, 'utf8')};`;
+    },
+  };
+}
 
 /**
  * PWA: web app manifest + service worker (sw/service-worker.ts, precache list injected here).
@@ -26,8 +69,8 @@ const GAME_CONFIG = JSON.parse(readFileSync(GAME_CONFIG_FILE, 'utf8'));
  * list / install dialog), the maskable one on black (Android crops it to the launcher shape and fills the
  * rest), apple-touch-icon opaque (iOS requires it).
  */
-function pwa() {
-  const title = GAME_CONFIG.book?.title ?? 'Onion Skin & Crocodile Tears';
+function pwa(shellConfig) {
+  const title = shellConfig.book?.title ?? 'Onion Skin & Crocodile Tears';
   const appTitle = {
     name: 'osct-app-title',
     transformIndexHtml: (html) => html.replace('%OSCT_APP_TITLE%', title.replace(/&/g, '&amp;')),
@@ -98,12 +141,11 @@ function getLocalIP() {
  * (book fields, step timing) so it paints before any script runs. Mark alt text and loading label are
  * English; the app translates them once it runs.
  */
-function staticSplash() {
+function staticSplash(config) {
   const read = (file) => JSON.parse(readFileSync(resolve(import.meta.dirname, file), 'utf8'));
   return {
     name: 'osct-static-splash',
     transformIndexHtml(html) {
-      const config = read('src/game.config.json');
       const common = read('src/i18n/locales/en/common.json');
       return html.replace('<!--osct:static-splash-->', renderStaticSplash({
         book: config.book ?? {},
@@ -118,9 +160,10 @@ function staticSplash() {
 
 /**
  * Content file sizes (`virtual:osct-content-sizes`): every file under public/assets/content, by URL. Lets the
- * whole-book download (PreloaderService) show the total size up front and progress in bytes.
+ * whole-book download (PreloaderService) show the total size up front and progress in bytes. Empty in a CDN
+ * build (the sizes come with the content: files.json).
  */
-function contentSizes() {
+function contentSizes(contentBaseUrl) {
   const id = 'virtual:osct-content-sizes';
   const root = resolve(import.meta.dirname, 'public/assets/content');
   const walk = (dir, prefix) => readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory()
@@ -130,8 +173,26 @@ function contentSizes() {
     name: 'osct-content-sizes',
     resolveId: (source) => (source === id ? `\0${id}` : undefined),
     load: (loaded) => (loaded === `\0${id}`
-      ? `export default ${JSON.stringify(Object.fromEntries(walk(root, '/assets/content/')))};`
+      ? `export default ${JSON.stringify(contentBaseUrl || !existsSync(root) ? {} : Object.fromEntries(walk(root, '/assets/content/')))};`
       : undefined),
+  };
+}
+
+/**
+ * Content from the CDN (`VITE_CONTENT_BASE_URL`, docs/content-cdn.md): the app loads the content at runtime, so the
+ * built site does not ship the content copy (`assets/content/`) – the server serves the app shell and the API only.
+ * Without the base URL the content stays in the build (dev server, tests, hosts without the CDN).
+ */
+function contentFromCdn(baseUrl) {
+  return {
+    name: 'osct-content-from-cdn',
+    apply: 'build',
+    closeBundle() {
+      if (!baseUrl) return;
+      rmSync(resolve(import.meta.dirname, 'dist/assets/content'), { recursive: true, force: true });
+      console.log(`
+Content served from ${baseUrl} – assets/content/ removed from the build.`);
+    },
   };
 }
 
@@ -161,8 +222,11 @@ function xr8Engine() {
   };
 }
 
-export default defineConfig(({command,mode})=>{
+export default defineConfig(async ({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
+  // Content CDN of the environment (client/.env.local or the deploy's environment); '' = bundled content
+  const contentBaseUrl = (loadEnv(mode, import.meta.dirname, 'VITE_').VITE_CONTENT_BASE_URL ?? '').replace(/\/+$/, '');
+  const shellConfig = await readShellConfig(contentBaseUrl);
   const port = 5173;
   // Dev server over https: phones only grant camera access on https (http works on localhost only).
   // Self-signed certificate, accepted once on the phone. `npm run dev:http` (mode "http") serves plain
@@ -170,12 +234,18 @@ export default defineConfig(({command,mode})=>{
   const https = command === 'serve' && mode !== 'http';
 
   return {
-  plugins: [staticSplash(), contentSizes(), xr8Engine(), ...pwa(), ...(https ? [basicSsl()] : [])],
+  plugins: [
+    staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
+    contentFromCdn(contentBaseUrl), ...(https ? [basicSsl()] : []),
+  ],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __VITE_APP_VERSION__: JSON.stringify(APP_VERSION),
-    __VITE_CONTENT_HASH__: JSON.stringify(GAME_CONFIG.version?.hash ?? APP_VERSION),
-    __VITE_SERVER_URL__: JSON.stringify(`${https ? 'https' : 'http'}://${localIP}:${port}`),
+    // Service worker content cache: one per bundled content build; a CDN build keeps one cache and drops other versions
+    __VITE_CONTENT_HASH__: JSON.stringify(contentBaseUrl ? 'cdn' : (shellConfig.version?.hash ?? APP_VERSION)),
+    __VITE_CONTENT_BASE_URL__: JSON.stringify(contentBaseUrl), // the service worker (the app reads import.meta.env)
+    // The dev server's Wi-Fi address for the debug overlay's QR code; empty in builds (the page's own origin then)
+    __VITE_SERVER_URL__: JSON.stringify(command === 'serve' ? `${https ? 'https' : 'http'}://${localIP}:${port}` : ''),
   },
   resolve: {
     tsconfigPaths: true, // tsconfig.json "paths" (built into Vite 8)
