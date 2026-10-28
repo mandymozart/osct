@@ -27,6 +27,16 @@ outcome in the line (or move it into a dated decision block).
 - Order (Tilman): first OSCT as the archetype – how it handles content independently from the app – then issues
   for the core, perhaps developed over the winter.
 
+## 2026-10-28 – Tap to focus for every reader (#37, Tilman via #14, 1.9.4)
+
+- Tilman: the camera default is continuous autofocus **and** tap to focus – a tap on the camera picture (anywhere that
+  is not UI) focuses on that point once, then continuous focus again; for everyone, not a debug switch; no zoom.
+- Built into the AR scene's tap handling: a tap that hits an entity opens its entry as before, any other tap on the
+  picture focuses. Chrome on the S22 reports no `pointsOfInterest` (both lenses) – the tap can only start a new focus
+  run on the whole picture, not on the point. Safari 15 has no focus controls at all.
+- Branch renamed to `feature/37-camera-focus` (RULES #26); the old remote `claude/camera-focus-zoom-ffbbaa` is left for
+  Tilman to delete.
+
 ## 2026-10-28 – Camera defaults: main lens, continuous focus, engine size; iOS below 16.4 cannot scan (#37, Tilman, 1.9.0)
 
 - **The first trigger test ran on the S22's ultra-wide lens** (fixed focus, `camera 2, facing back`, 60 fps): the

@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.9.4 – 2026-10-28
+
+### Added
+- **Tap to focus for every reader** (#37): a tap on the camera picture that is not on app UI and hits no AR entity
+  (those still open their entry) starts one focus run, then the camera goes back to continuous focus after 1.5 s. Where
+  the browser supports focus points (`pointsOfInterest`) it focuses on the tapped spot; Chrome on the Galaxy S22 does
+  not, so there the whole picture is refocused. Browsers without focus controls (Safari) ignore the tap. Continuous
+  focus at camera start stays; no zoom. The debug camera panel keeps its own **◎** test switch
+  (`ar-bridges/utils/camera-request.ts` → `focusAtTap()`, called from the AR scene's tap handling).
+
 ## 1.9.2 – 2026-10-28
 
 ### Fixed

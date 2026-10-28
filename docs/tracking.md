@@ -86,6 +86,11 @@ What the app sets (`ar-bridges/utils/camera-request.ts`; the tracker wraps `getU
   without them the camera is opened once briefly to list them. On iOS and desktops the request stays as it is.
 - **Focus**: continuous focus once the camera runs, where the camera offers it and does not use it already
   (`applyCameraDefaults()`). Chrome reports focus distance 0 while focusing continuously.
+- **Tap to focus** (everyone): a tap on the camera picture that is not on app UI and hits no AR entity (the AR scene's
+  tap handling decides – an entity still opens its entry) runs `focusAtTap()`: one focus run (`single-shot`), at the
+  tapped point where the browser supports `pointsOfInterest`, then continuous focus again after `TAP_FOCUS_MS`
+  (1.5 s); a newer tap takes over. Chrome on the S22 has no `pointsOfInterest` – the tap refocuses the whole picture.
+  Safari reports no focus controls and ignores the tap.
 - **Resolution**: the engine's 960 × 720. On the S22 1920 × 1440 found the smallest trigger later and held it less
   steadily, 1280 × 960 brought nothing – the engine works on its own reduced size.
 - **Zoom**: none. The engine assumes the unzoomed field of view; while zoomed the AR overlay sits off.
