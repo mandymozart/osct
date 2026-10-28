@@ -23,6 +23,8 @@ export class DebugOverlay extends HTMLElement {
   private expanded: boolean = false;
   private tab: DebugTab = "spread";
   private game: Readonly<IGame>;
+  // One reference for add and remove – `bind` would make a new function each time and nothing would be removed
+  private readonly onClick = (event: Event) => this.toggleExpanded(event);
 
   constructor() {
     super();
@@ -66,10 +68,10 @@ export class DebugOverlay extends HTMLElement {
   }
 
   private setupEventListeners() {
-    this.addEventListener("click", this.toggleExpanded.bind(this));
+    this.addEventListener("click", this.onClick);
   }
   private removeEventListeners() {
-    this.removeEventListener("click", this.toggleExpanded.bind(this));
+    this.removeEventListener("click", this.onClick);
   }
 
   private toggleExpanded(event: Event) {
