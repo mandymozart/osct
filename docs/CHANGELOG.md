@@ -12,12 +12,17 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.7.3 – 2026-10-28
+## 1.7.6 – 2026-10-28
 
 ### Fixed
 - The error page unsubscribes from the store when it leaves the DOM (#20): it subscribed to the whole store on every
   connect and "unsubscribed" a different function, so each reconnect left a listener behind. It now subscribes to
   `currentError` only (typed `ErrorInfo | null`) and keeps the cleanup it gets back, like the other pages.
+
+## 1.7.4 – 2026-10-28
+
+### Fixed
+- The debug overlay removed its click listener with a freshly bound function, so nothing was removed: after a disconnect and reconnect one tap toggled it twice (#21). Add and remove now use the same function.
 
 ## 1.7.2 – 2026-10-28
 
