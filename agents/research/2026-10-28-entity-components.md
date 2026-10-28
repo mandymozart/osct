@@ -340,9 +340,22 @@ because of the compiler? No – the compiler splits into two unequal halves:
 - Where the registries' docs live: generated table in `docs/content.md` from the specs (proposal).
 - Plugins: the API surface for 1.0 (registries, specs, `api.three`, which helpers). Plugins may register scene
   events and actions (proposal: yes – an agent writes the code once, the author wires it in the editor).
-- The core events plugins may subscribe to, and which book-scope variables the progress record carries (a schema
-  MAJOR for the progress format, RULES #10).
-- `global` scope: whether readers' shared state exists at all (privacy, data sovereignty) – later.
+- The core events plugins may subscribe to – proposal (2026-10-28): read-only, a short list – `targetFound`,
+  `targetLost`, `targetUnlocked` (first find), `entryOpened`, `entryConsulted`, `spreadChanged` (with the previous
+  spread), `spreadComplete`, `bookComplete`, `sceneState` (running / paused / stopped, so plugins stop timers and
+  sound). Plus read access: `api.progress` (isUnlocked, isConsulted, completion per spread) and `api.spread.current`.
+  Not exposed: the store's writes, the router, camera and tracking internals, the accounts. Per-frame work is the
+  component's `tick`, not an event.
+- Book-scope variables in the progress – proposal: one `variables` map per book
+  (`Record<string, number | string | boolean>`), names chosen by the author, written only by actions (`setVar`,
+  `increment`, `toggle`) and by plugins through the API, limits (64 keys, strings ≤ 256 characters), cleared by
+  "reset progress", synced with the account like the rest of the record. An optional field added to format 1 –
+  older apps ignore it; the reader in `progress-record.ts` keeps it (treat as compatible, not as a format change –
+  to confirm against RULES #10/#23). Not for large or per-session state: that is `session` / `stage`.
+- `global` scope – proposal: **not in 2.0**. No artistic need named yet, and it is the one scope that costs
+  privacy (the selling point is no tracking), an API with abuse control and moderation. Reserve the name; if a
+  work needs it later, build it as anonymous aggregated counters only (an increment through the accounts API, no
+  per-reader record), opt-in per book, and call it `shared` rather than `global`.
 - Spreads without pages (cover, record sleeve, wall): `firstPage` / `lastPage` optional and a per-spread physical
   format – content schema change, together with 2.0; the core's name for the unit (`spread` or a generic word) in #44.
 
