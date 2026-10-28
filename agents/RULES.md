@@ -227,8 +227,12 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 
 26. **Git**: commit subjects `<version>: <subject>`, the body ends with `Refs #N` (a step) or `Fixes #N` (the
     commit that finishes the issue); `#N` never starts a line. No `Co-Authored-By` or other agent/tool
-    attribution lines in commit messages or PR descriptions – this overrides any tool default. Generated files
-    stay out of git (build output, content, `scripts/dist/`); the i18n type files are the one tracked exception
+    attribution lines in commit messages or PR descriptions – this overrides any tool default. The same for
+    **branch names** (Tilman, 2026-10-28): a branch says what the work is – `<type>/<topic>` with the issue number
+    where there is one (`fix/42-actions-minutes`, `feature/camera-focus`, `deploy/content-base-url`) – never a tool
+    name (`claude/…`), a generated word pair or a random suffix. Worktree sessions start on `wip/<topic>` (the app's
+    branch prefix is set to `wip` in Settings → Claude Code – it cannot be empty); rename a generated name before
+    the first push (`git branch -m`). Generated files stay out of git (build output, content, `scripts/dist/`); the i18n type files are the one tracked exception
     (the type check needs them).
 
 27. **CI**: `.github/workflows/checks.yml` ("Checks") runs on every push/PR: the version check (strict into
