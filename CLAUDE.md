@@ -8,6 +8,7 @@ Before working, read:
 - `agents/RULES.md` – project rules (stack, naming, versions, issues, what must not be removed)
 - `agents/PLAN.md` – the restructuring plan (phases, checkboxes, open decisions)
 - `agents/MEMORY.md` – dated decisions and open items
+- `agents/STRATEGY.md` – where this goes: scutoons-animus-ar, a white-label core; data sovereignty (milestone 2)
 - `agents/DESIGN.md` – measured design spec (colors, gold gradient, sizes, buttons) – before any styling
 - `agents/reference/README.md` – design PDF, rendered frames and extracted placeholder images
 - `README.md` – the index of `docs/` (architecture, content, CDN, server, deploy, i18n, tests)
