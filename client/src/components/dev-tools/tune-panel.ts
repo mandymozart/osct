@@ -28,7 +28,7 @@ export class TunePanel extends HTMLElement {
         .body { padding: .25rem .5rem .75rem; }
       </style>
       <div class="bar"><span class="title">Tune entity</span><button class="close" data-action="close" aria-label="Close">×</button></div>
-      <div class="body"><tune-inspector></tune-inspector></div>
+      <div class="body"><tune-inspector theme="debug"></tune-inspector></div>
     `;
     this.shadow.addEventListener("click", this.onClick);
   }
