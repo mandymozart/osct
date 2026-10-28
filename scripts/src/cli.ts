@@ -11,7 +11,8 @@
  *   osct content purge  --env <env> [--dry-run] [--min-age <days>] [--keep <n>] [--unknown]
  *
  * Environment (or a scripts/.env file, never committed):
- *   OSCT_CONTENT_DIR             content folder (default: content/ in the repository)
+ *   OSCT_CONTENT_DIR             the content source (absolute or relative to the repository; fixtures/content for
+ *                                the test fixture; default: a local content/ folder)
  *   OSCT_CONTENT_ENV             environment when --env is not given: staging | production
  *   BUNNY_STORAGE_ZONE           storage zone (osct)
  *   BUNNY_STORAGE_ZONE_ENDPOINT  Storage API host (storage.bunnycdn.com)
@@ -19,7 +20,6 @@
  *   CONTENT_BASE_URL             the environment's CDN URL – sync checks what the CDN serves; purge requires it
  */
 import { spawnSync } from 'child_process';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -28,6 +28,7 @@ import {
   DEFAULT_PURGE,
   describePurge,
   describeSync,
+  isFixtureBuild,
   planPurge,
   planSync,
   readContentBuild,
@@ -37,9 +38,8 @@ import {
 } from './lib/content-sync';
 import { StorageClient } from './lib/storage';
 
+// scripts/.env is loaded by config.ts (imported through lib/content-sync)
 const here = path.dirname(fileURLToPath(import.meta.url));
-const envFile = path.resolve(here, '../.env');
-if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
 
 const args = process.argv.slice(2);
 const VALUE_OPTIONS = ['env', 'min-age', 'keep'];
@@ -52,7 +52,7 @@ const positional = args.filter((a, i) => !a.startsWith('--') && !VALUE_OPTIONS.s
 
 const USAGE = `osct – content command line
 
-  osct content build [--force]                 build the content (OSCT_CONTENT_DIR, default content/)
+  osct content build [--force]                 build the content source (OSCT_CONTENT_DIR)
   osct content status --env <env>              versions on the storage, what the CDN serves
   osct content sync --env <env> [--force] [--dry-run] [--without-videos]
                                                upload the build as a version and make it current
@@ -131,6 +131,9 @@ async function main(): Promise<void> {
     case 'sync': {
       const env = environment();
       const build = readContentBuild();
+      if (isFixtureBuild(build)) {
+        throw new Error('This build is the test fixture (fixtures/content) – build the content source first (OSCT_CONTENT_DIR)');
+      }
       const client = storage();
       const plan = await planSync(client, env, build, flag('force'));
       describeSync(plan).forEach(line => console.log(line));

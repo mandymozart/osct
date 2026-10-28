@@ -307,7 +307,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     `<build>/game.config.json`)
     or the bundled copy. Content goes to the CDN apart from the app with the osct CLI: one immutable folder
     per content version, `latest.json` names the current one, `osct content purge` removes old ones strictly –
-    `docs/content-cdn.md`. Content out of git: MEMORY 2026-10-28.
+    `docs/content-cdn.md`. Content out of git: prepared (fixture, source outside the repository, filter-repo
+    tried) – the steps in `docs/content-out-of-git.md`, MEMORY 2026-10-28.
   - Saved progress should be keyed/migrated against the **content version** (ties into the
     HistoryManager rethink above).
 

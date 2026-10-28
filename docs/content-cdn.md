@@ -48,12 +48,14 @@ npm run osct -- content sync --env staging             # upload the build as a v
 npm run osct -- content purge --env staging --dry-run  # which old versions would go, and why the others stay
 ```
 
-- **build** reads `OSCT_CONTENT_DIR` (default: `content/` in the repository).
+- **build** reads the content source `OSCT_CONTENT_DIR` (absolute, or relative to the repository; default: a
+  local `content/` folder). It stops when there is no `book.yaml` – there is no fallback to the fixture.
 - **sync** uploads the build into `<env>/<build>/` – skipped when that version is already complete on the storage
   (its `game.config.json`, written last, exists) – then records it in `versions.json` and points `latest.json` at it.
   Syncing an older content build again only moves `latest.json` back: that is the rollback. It refuses when the
   build lacks videos the current version has while their entries stay (a checkout without the git-ignored videos);
-  `--without-videos` overrides. `--dry-run` shows the plan, `--force` uploads the version again.
+  `--without-videos` overrides. `--dry-run` shows the plan, `--force` uploads the version again. It refuses a
+  build of the test fixture (`fixtures/content`, marked by `FIXTURE.md`).
 - **purge** deletes old version folders, strictly. A version stays when it is
   - the current one (`latest.json` on the storage),
   - the one the CDN's `latest.json` names (checked through the CDN – an edge may still hand out an old pointer),
@@ -67,17 +69,19 @@ npm run osct -- content purge --env staging --dry-run  # which old versions woul
 
 | Variable | Meaning |
 |---|---|
-| `OSCT_CONTENT_DIR` | the content folder to build (default `content/`) |
+| `OSCT_CONTENT_DIR` | the content source to build (absolute or relative to the repository; `fixtures/content` for the test fixture) |
 | `OSCT_CONTENT_ENV` | environment when `--env` is not given: `staging` or `production` |
 | `BUNNY_STORAGE_ZONE` | storage zone name (`osct`) |
 | `BUNNY_STORAGE_ZONE_ENDPOINT` | Storage API host (`storage.bunnycdn.com`) |
 | `BUNNY_STORAGE_PASSWORD` | the zone's access key – read/write for sync and purge, read-only is enough for status and `--dry-run`; never in the repository |
 | `CONTENT_BASE_URL` | the environment's CDN URL – sync checks what the CDN serves afterwards; purge requires it |
 
-The CLI reads them from the environment or from `scripts/.env` (untracked). Where the sync is triggered is not
-fixed yet: by hand on a machine, or the workflow "Content" (`.github/workflows/content.yml`, Actions → Content → Run
-workflow: environment, status / sync / purge, dry run on by default), which takes the variables and the secret from
-the GitHub environment. Nothing runs on a push.
+The CLI reads them from the environment or from `scripts/.env` (untracked; also read by `npm run content` in
+client/). **sync** runs where the content source is – by hand on that machine; where it is triggered in the long
+run (a content repository's workflow?) is open. The workflow "Content" (`.github/workflows/content.yml`, Actions →
+Content → Run workflow: environment, status / purge, dry run on by default) takes the variables and the secret from
+the GitHub environment; it has no sync, because a checkout of this repository has no content. Nothing runs on a
+push.
 
 ## Loading in the app
 
@@ -119,16 +123,16 @@ Checked against `buildingfictions.b-cdn.net` on 2026-10-27 and 2026-10-28 (bunny
 
 ## Content out of git
 
-The content is meant to leave the repository, history included, so the repository gets small again. Before that:
-the deployed app builds with `VITE_CONTENT_BASE_URL` (otherwise the image build, which still builds `content/`,
-breaks), CI and the client tests run on a small fixture configuration, and the content source has a home outside
-the repository that `OSCT_CONTENT_DIR` points at.
+The content leaves the repository, history included: [content out of git](content-out-of-git.md) – the steps, the
+`git filter-repo` command and what it was tried on. CI and the tests build the test fixture (`fixtures/content`).
 
 ## Local checks
 
 ```bash
 cd scripts && npm run build && npm run osct -- content build && npm run osct -- content status --env staging
 ```
+
+With `OSCT_CONTENT_DIR` in `scripts/.env` pointing at the content source.
 
 To run the app against the staging CDN locally, put `VITE_CONTENT_BASE_URL=https://buildingfictions.b-cdn.net/staging`
 into `client/.env.local` and start `npm run dev`. The console line `[game-config] Content … from …` names the content

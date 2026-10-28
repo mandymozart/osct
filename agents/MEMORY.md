@@ -4,6 +4,30 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-28 – Content out of git, prepared: fixture, source outside, filter-repo tried (#5, Tilman)
+
+- Tilman: "bereite das Entfernen von content/ aus Git inklusive History vor (Fixture für CI und Tests,
+  Content-Ordner außerhalb, filter-repo-Plan). Den Force-Push mache ich selbst nach Absprache."
+- **Fixture** `fixtures/content/` (916 KB): the former `content-demo/` slimmed (images ≤ 400 px, two-second
+  160 px videos – the alpha webm stays VP8 with alpha, models replaced by the small castle). All 44 client test
+  files pass on it as on the book (the tests were content-agnostic already); CI builds it
+  (`OSCT_CONTENT_DIR: fixtures/content`) and still builds `content/` while it is in git. `FIXTURE.md` marks it:
+  the build copies it into the output, `osct content sync` refuses such a build.
+- **Content source**: `OSCT_CONTENT_DIR` (relative paths now resolve from the repository root, not the working
+  folder), loaded from `scripts/.env` by `config.ts` for every command; no `book.yaml` there → the build stops,
+  no fallback (a fallback to the fixture could have deployed it). Copied to `C:\Development\osct\osct-content`
+  (`content/` from the main checkout with its 16 videos, `content-demo/` full size). The workflow "Content" lost
+  its sync – a checkout has no content.
+- **filter-repo tried** on a fresh mirror clone: 192.8 MiB → 28.4 MiB with the path list in
+  `docs/content-out-of-git.md` (content, content-demo and content of earlier layouts: `videos/`, `beta/`,
+  `targets/`, `.mindar/`, page images, committed build output). `main` still tracks
+  `client/public/assets/content/` (build output from before 2026-09-28) → release the content-free tree first.
+  The repository is public; GitHub keeps old objects through PR refs until GitHub Support collects them.
+- [ ] Open (Tilman): where `osct-content` is backed up (private repository or the storage zone) – before the
+  rewrite, the history is the only other copy.
+- [ ] Open (Kamal session): deploys build with `VITE_CONTENT_BASE_URL`, `Dockerfile` without `COPY content`, the
+  FTPS staging deploy too – then the removal commit, release, freeze, rewrite, force push (Tilman), GitHub Support.
+
 ## 2026-10-28 – Content deployment apart from the app: versions + strict purge; content schema MAJOR.MINOR (#5, Tilman)
 
 - Tilman, in order: "i dont want to end up with multiples on the server that eat up storage", "one folder each
@@ -52,11 +76,8 @@ outcome in the line (or move it into a dated decision block).
   `Access-Control-Allow-Origin: *`. Models and videos not checked – none in the CI sync.
 - [ ] Open (Kamal session, #6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable
   `CONTENT_BASE_URL`); later `Dockerfile` drops `COPY content` – hand-over note in the side-session notes.
-- [ ] Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
-  Repository wieder klein und handelbar wird"). Needs: the deploy building with the flag, a fixture configuration
-  for CI and client tests, a home for the content source outside the repo (`OSCT_CONTENT_DIR`), then a
-  history rewrite (`git filter-repo --path content --invert-paths`) and a force push of every branch – coordinated
-  with all open branches and worktrees.
+- [~] Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
+  Repository wieder klein und handelbar wird") – prepared, see the entry above and `docs/content-out-of-git.md`.
 - [ ] Open: #15 – trial videos go through the same sync once they are part of the content folder outside git.
 ## 2026-10-27 – Sessions start with their issue; deploys move issues on the board (Tilman, 1.7.1, #11)
 

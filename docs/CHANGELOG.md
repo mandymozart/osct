@@ -24,12 +24,19 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   default). The app loads the current version at startup when it is built with `VITE_CONTENT_BASE_URL`; such a
   build reads no content at all. Without the flag the content stays bundled (dev server, tests). The installed app
   still works offline. How it works: `docs/content-cdn.md`.
+- **Test fixture** `fixtures/content/` (#5): the placeholder content, slimmed to under 1 MB (every entity type,
+  chroma key and alpha video). CI and the tests build it – the book content is leaving the repository, history
+  included (`docs/content-out-of-git.md`). `osct content sync` refuses a build of it.
 - **Content schema `MAJOR.MINOR`** (`version.schema`, `shared/types/game-config.ts`, now 1.1): the only
   compatibility rule between content and app. Another MAJOR is refused at startup ("The book content is newer than
   this app" / "… older than this app", en/fr/nl/de); any MINOR loads. A test fails when `shared/` changes without a
   schema bump (`shared/content-schema.json`, `npm run schema:lock` in `scripts/`).
 
 ### Changed
+- The content build reads only the content source named by `OSCT_CONTENT_DIR` (environment or `scripts/.env`,
+  relative to the repository) and stops when there is none – no fallback. `content-demo/` became the fixture; its
+  full-size copy lives next to the content source. The workflow "Content" offers status and purge – sync runs where
+  the content source is.
 - The content's version is its build checksum and no longer includes the app version – an app release does not make
   new content. The app version a content build was made with is information only (the startup check no longer
   compares it).

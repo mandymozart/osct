@@ -16,7 +16,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, OUTPUT_FILE, projectRoot } from './config';
+import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, FIXTURE_MARKER, OUTPUT_FILE, projectRoot } from './config';
 import { buildConfig } from './build/game-config';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
 import { optimizeMedia } from './lib/optimize-media';
@@ -27,6 +27,15 @@ console.log('----------------------------');
 console.log('📁 Project root:', projectRoot);
 console.log('📁 Content directory:', CONTENT_DIR);
 console.log('📄 Output file:', OUTPUT_FILE);
+
+// The book content is not in this repository: no silent fallback to anything else
+if (!fs.existsSync(path.join(CONTENT_DIR, 'book.yaml'))) {
+  console.error(`❌ No content in ${CONTENT_DIR} (no book.yaml).
+   Set OSCT_CONTENT_DIR (environment or scripts/.env) to the content source,
+   or OSCT_CONTENT_DIR=fixtures/content for the test fixture (docs/content-cdn.md).`);
+  process.exit(1);
+}
+if (fs.existsSync(path.join(CONTENT_DIR, FIXTURE_MARKER))) console.log('🧪 This is the test fixture – never synced to the CDN');
 
 async function generateConfigFile(): Promise<void> {
   try {

@@ -44,13 +44,17 @@ Extend as we go: add a rule when a decision should hold for all future work.
    in `disconnectedCallback`.
 7. Taxonomy: **entries are top level**; target optional per entry; AR entity optional per
    target. Never assume an entity is video-only – keep entity types extensible.
-8. Content lives in `content/` (YAML) → built by `scripts/` into `client/src/game.config.json`
-   and `client/public/assets/content`. **The output is not in git** (Tilman, 2026-09-28): `npm run build` in
-   `client/` builds the content first (prebuild → `npm run content`), so CI and the deploys (the Docker image runs
-   `npm run build`) always build the content of their commit. Commit `content/` only.
+8. Content (YAML + media) → built by `scripts/` into `client/src/game.config.json`
+   and `client/public/assets/content`. **The output is not in git** (Tilman, 2026-09-28). **The book content
+   leaves git too** (Tilman, 2026-10-28: "there will not be any content in git", history included –
+   `docs/content-out-of-git.md`): its source is a folder of its own named by `OSCT_CONTENT_DIR` (scripts/.env);
+   the build never falls back to anything else. The repository keeps only the test fixture `fixtures/content/`
+   (marked by `FIXTURE.md`, refused by `osct content sync`): CI and the tests build it – never write tests that
+   need the book's own entries. Never add book content, its media or a build of it to the repository.
    **Deliveries** from the publisher (2026-10-27): never copied into `content/` by hand – a mapping file
    `scripts/import/<delivery>.yaml` + `npm run import` does it (docs/content.md "Importing a delivery"), so the next
-   delivery lands the same way. `content-demo/` is the placeholder content (every entity type, chroma key);
+   delivery lands the same way. `fixtures/content/` is the placeholder content as test fixture (every entity
+   type, chroma key; the full-size copy lives next to the content source);
    `npm run protocol` writes the printed-image details for the trigger trial panel (overlay → trial).
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).

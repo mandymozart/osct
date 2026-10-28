@@ -1,4 +1,7 @@
+import fs from 'fs';
+import path from 'path';
 import { describe, expect, it } from 'vitest';
+import { FIXTURE_DIR, FIXTURE_MARKER } from '../src/config';
 import { ContentVersion } from '../../shared/types/content-manifest';
 import {
   activate,
@@ -6,6 +9,7 @@ import {
   DEFAULT_PURGE,
   EnvironmentState,
   fileIndex,
+  isFixtureBuild,
   planPurge,
   videosMissing,
 } from '../src/lib/content-sync';
@@ -141,5 +145,20 @@ describe('purge', () => {
     expect(() => planPurge(state({ versions: unlisted }), null, NOW, DEFAULT_PURGE)).toThrow(/does not list the current version/);
     const missingFolder = state().listing.filter(i => !i.path.endsWith(CURRENT));
     expect(() => planPurge(state({ listing: missingFolder }), null, NOW, DEFAULT_PURGE)).toThrow(/not on the storage/);
+  });
+});
+
+// The book content is not in the repository; CI and the tests build the fixture, which must never reach the CDN
+describe('test fixture', () => {
+  it('is a content folder that marks itself', () => {
+    expect(fs.existsSync(path.join(FIXTURE_DIR, 'book.yaml'))).toBe(true);
+    expect(fs.existsSync(path.join(FIXTURE_DIR, FIXTURE_MARKER))).toBe(true);
+  });
+
+  it('is recognised in a build, so sync refuses it', () => {
+    expect(isFixtureBuild(build)).toBe(false);
+    expect(isFixtureBuild({ files: [...build.files, { file: FIXTURE_MARKER, size: 1, sha256: 'A' }] })).toBe(true);
+    // only the marker at the top of the build counts
+    expect(isFixtureBuild({ files: [{ file: `entries/x/${FIXTURE_MARKER}`, size: 1, sha256: 'A' }] })).toBe(false);
   });
 });
