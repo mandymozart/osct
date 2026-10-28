@@ -1,6 +1,6 @@
 {
   "name": "osct-book-game",
-  "version": "1.7.6",
+  "version": "1.7.9",
   "engines": {
     "node": ">=22.12"
   },
