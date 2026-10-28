@@ -12,6 +12,28 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.10.0 – 2026-10-29
+
+### Added
+- **Editor, first step** (#61, the mock stage of #59): `/editor` runs the AR scene over a simulated page instead of
+  the camera – a table, the open book in its page format, the current spread's printed images in their printed size
+  and region (from the trigger protocol) or in a row – and every target counts as found, so models, videos and
+  filters show with their reveal, unlock and outro exactly as in AR, on the desktop and on a phone, without a camera.
+  The bar steps through the spreads and opens the **preview** panel (view presets *reader / top / low / far*, drag to
+  orbit, wheel or pinch for the distance, found switch per target, *unlock ↺* to replay the first find, hand-shake
+  *wobble*, backdrop *table / paper / photo* of your own desk) and the **tune** panel (placement and filters, Copy
+  YAML). The editor's own code is a chunk that loads only when the page opens; the debug overlay's `editor` button
+  and a `P` in the debug line show the preview. Docs: `docs/editor.md`.
+- **The book as laid out on the stage**: `npm run layout` (scripts, Python with PyMuPDF) reads the designed PDFs – the
+  book preview and the trigger layout – and writes the content's `layout/` folder: every sheet as an image (covers
+  included) and every printed target's page, side, position and size in mm. With it the editor's stage shows the
+  spread's real page under the entities and every target exactly where it is printed; leafing shows the next sheet.
+  Without it: blank pages, targets by the trigger protocol or in a row (`docs/content.md`, "Importing the book layout").
+
+### Changed
+- The camera permission counts as granted while the editor's preview runs (nothing asks the browser); the trial
+  panel reads the trigger protocol through the shared `fetchTriggerInfos()`.
+
 ## 1.9.6 – 2026-10-28
 
 ### Changed

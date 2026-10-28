@@ -5,3 +5,6 @@ export * from './prepared-spreads';
 export * from './tracker-debug';
 export * from './camera-debug';
 export * from './camera-request';
+export * from './preview';
+export * from './trigger-protocol';
+export * from './stage-layout';

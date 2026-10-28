@@ -1,3 +1,4 @@
+export * from "./debug-sheet";
 export * from "./debug-overlay";
 export * from "./camera-panel";
 export * from "./qr-generator";

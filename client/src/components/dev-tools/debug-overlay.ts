@@ -3,8 +3,8 @@ import { waitForDOMReady } from "@/utils";
 import { getConfigVersion, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
 import {
-  cyclePreparedSpreadRange, getArError, getEngineState, getStoredWindowSetting, getWindowOverride, subscribeCamera,
-  subscribeEngineState,
+  cyclePreparedSpreadRange, getArError, getEngineState, getPreview, getStoredWindowSetting, getWindowOverride, subscribeCamera,
+  subscribeEngineState, subscribePreview,
 } from "@/components/ar-bridges";
 
 type DebugTab = "spread" | "progress";
@@ -18,7 +18,7 @@ const formatTime = (time: number) => new Date(time).toLocaleString();
 
 /**
  * Development overlay: a one-line status summary – AR status dot, T<targets on the spread>, E<ready>/<held> in the
- * engine; the rest is in the expanded view (Tilman, 2026-10-28: the line stays one line)
+ * engine, P while the editor's preview runs instead of the camera; the rest is in the expanded view (the line stays one line)
  * that expands on tap into spread, target and progress details, and opens the tune panel (`<tune-panel>`), the
  * camera test panel (`<camera-panel>`), the trigger trial panel (`<trial-panel>`) or the engine load test (`<load-test-panel>`).
  * Sets `--debug-offset` so app chrome moves below the collapsed line.
@@ -73,6 +73,7 @@ export class DebugOverlay extends HTMLElement {
       this.game.subscribeToProperty('trackedTargets', () => this.updateContent()),
       subscribeEngineState(() => this.updateContent()),
       subscribeCamera(() => this.updateContent()),
+      subscribePreview(() => this.updateContent()),
     );
   }
 
@@ -107,6 +108,13 @@ export class DebugOverlay extends HTMLElement {
       return;
     }
     if (control?.dataset.action === "collapse") {
+      this.expanded = false;
+      this.updateContent();
+      return;
+    }
+    if (control?.dataset.action === "editor") {
+      // The editor (preview over the mock stage) and back to the reader's scan view
+      this.game.router.navigate(getPreview().active ? "/spread" : "/editor");
       this.expanded = false;
       this.updateContent();
       return;
@@ -216,7 +224,7 @@ export class DebugOverlay extends HTMLElement {
     const { currentSpread } = this.game.state;
     let html = `<div class="tabs">${(["spread", "progress"] as DebugTab[])
       .map(tab => `<button data-tab="${tab}" class="${tab === this.tab ? "active" : ""}">${tab}</button>`)
-      .join("")}${PANELS.map(panel => `<button data-action="${panel}">${panel === "load-test" ? "load" : panel}</button>`).join("")}<button class="collapse" data-action="collapse" aria-label="Close">×</button></div>`;
+      .join("")}${PANELS.map(panel => `<button data-action="${panel}">${panel === "load-test" ? "load" : panel}</button>`).join("")}<button data-action="editor" class="${getPreview().active ? "active" : ""}">editor</button><button class="collapse" data-action="collapse" aria-label="Close">×</button></div>`;
 
     if (this.expanded && this.tab === "progress") {
       contentEl.innerHTML = html + this.renderProgress();
@@ -261,7 +269,7 @@ export class DebugOverlay extends HTMLElement {
     const sceneStatus = getStatusDot(arStatus === "running", arStatus === "error");
 
     return `
-      <div>${sceneStatus} T${getTargets(spread?.id || '').length} ${this.engineSummary()}</div>
+      <div>${sceneStatus} T${getTargets(spread?.id || '').length} ${this.engineSummary()}${getPreview().active ? ' <span class="loading">P</span>' : ""}</div>
     `;
   }
 

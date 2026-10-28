@@ -387,6 +387,28 @@ model): build it with `OSCT_CONTENT_DIR=fixtures/content npm run build:content:f
 and `osct content sync` refuses it (`FIXTURE.md` marks it). The full-size placeholder content is kept next to the
 book content source (`content-demo/` there).
 
+### Importing the book layout
+
+The editor's stage ([Editor](editor.md)) shows the book as laid out when the content carries the **layout**: every
+sheet of the book as an image and every printed target's position and size. It comes from the designed PDFs –
+the preview of the whole book (every sheet, covers as single pages) and the trigger layout (one page per double
+page, each printed trigger as an image where it is printed):
+
+```bash
+cd scripts
+npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content ../content
+```
+
+`scripts/layout/extract-layout.py` (Python 3 with PyMuPDF – an external tool like ffmpeg) renders every sheet
+to `<content>/layout/sheets/*.jpg` (1200 px wide) and writes `<content>/layout/layout.json`: the page format in mm,
+the sheets (kind `spread`, `cover-front`, `cover-back`, front and back matter; their book pages read from the page
+numbers printed at the foot), and per target its page, surface (`left` / `right`), `x`, `y`, `width`, `height` in
+mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)
+by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed (the
+trial delivery has ten targets that are not on the printout). The content build copies `layout/` with the rest of
+the content; the folder is generated and git-ignored. Run it again when the PDFs change, and rebuild the content
+with `--force` (the layout is not part of the build hash).
+
 ### Videos are not in git
 
 The imported entry videos (`content/entries/<id>/video.mp4`) are git-ignored – they are large and come to the servers

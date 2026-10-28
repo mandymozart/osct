@@ -11,9 +11,15 @@ const SIMD_PROBE = [0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1
  */
 export class CameraManager implements ICameraManager {
   private game: IGame;
+  private simulated = false;
   
   constructor(game: IGame) {
     this.game = game;
+  }
+
+  public setSimulated(simulated: boolean): void {
+    this.simulated = simulated;
+    if (simulated) this.setPermissionStatus(CameraPermissionStatus.GRANTED);
   }
   
   private setPermissionStatus(status: CameraPermissionStatus): void {
@@ -41,6 +47,10 @@ export class CameraManager implements ICameraManager {
 
   /** Resolves whether the camera may be used; requests access when the state is prompt / unknown. */
   public async checkPermission(): Promise<boolean> {
+    if (this.simulated) {
+      this.setPermissionStatus(CameraPermissionStatus.GRANTED);
+      return true;
+    }
     if (!this.cameraAvailable) {
       this.setPermissionStatus(CameraPermissionStatus.UNAVAILABLE);
       return false;
@@ -89,6 +99,10 @@ export class CameraManager implements ICameraManager {
    * Sets GRANTED or DENIED.
    */
   public async requestAccess(): Promise<boolean> {
+    if (this.simulated) {
+      this.setPermissionStatus(CameraPermissionStatus.GRANTED);
+      return true;
+    }
     if (!this.cameraAvailable) {
       console.warn('[Camera Manager] No camera API – the app needs https (or localhost) for the camera');
       this.setPermissionStatus(CameraPermissionStatus.UNAVAILABLE);

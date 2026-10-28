@@ -60,6 +60,8 @@ export const pathForRoute = (route: PageRoute | null, currentSpread: string | nu
       return "/";
     case Pages.SPREAD:
       return `/spread${segment(currentSpread ?? undefined)}`;
+    case Pages.EDITOR:
+      return `/editor${segment(currentSpread ?? undefined)}`;
     case Pages.ERROR:
     case Pages.NOT_FOUND:
       return null; // overlays keep the URL
@@ -92,11 +94,12 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
       game.router.navigate(slug);
       return true;
     case "/spread":
+    case "/editor":
       if (value !== undefined) {
         if (!getSpread(value)) return notFound();
         game.spreads.switchSpread(value);
       }
-      game.router.navigate("/spread");
+      game.router.navigate(slug);
       return true;
     case "/entries":
       if (value !== undefined && !isEntryCategory(value)) return notFound();

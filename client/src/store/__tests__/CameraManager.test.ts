@@ -24,6 +24,20 @@ describe("CameraManager", () => {
     expect(getUserMedia).not.toHaveBeenCalled();
   });
 
+  it("counts the camera as granted while simulated (the editor's preview), without asking the browser", async () => {
+    const getUserMedia = vi.fn();
+    vi.stubGlobal("navigator", { ...navigator, mediaDevices: { getUserMedia } });
+    const game = createGameStore();
+    game.camera.setSimulated(true);
+    expect(game.state.cameraPermission).toBe(CameraPermissionStatus.GRANTED);
+    expect(await game.camera.checkPermission()).toBe(true);
+    expect(await game.camera.requestAccess()).toBe(true);
+    expect(getUserMedia).not.toHaveBeenCalled();
+    game.camera.setSimulated(false);
+    await game.camera.requestAccess();
+    expect(getUserMedia).toHaveBeenCalled();
+  });
+
   it("grants access when the browser returns a stream", async () => {
     const stop = vi.fn();
     const getUserMedia = vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] });

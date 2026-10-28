@@ -46,6 +46,16 @@ describe("HistoryManager (progress)", () => {
     expect(stored().unlocked).toEqual({ [targets[0].id]: time });
   });
 
+  it("forgets a target's unlock (the editor replays the first find) and nothing else", () => {
+    game.history.unlockTarget(targets[0].id);
+    game.history.unlockTarget(targets[1].id);
+    game.history.forgetTarget(targets[0].id);
+    game.history.forgetTarget("never-unlocked");
+    expect(game.history.isUnlocked(targets[0].id)).toBe(false);
+    expect(game.history.isUnlocked(targets[1].id)).toBe(true);
+    expect(Object.keys(stored().unlocked)).toEqual([targets[1].id]);
+  });
+
   it("consults entries (second stage) independently of unlocking", () => {
     game.history.consultEntry(entryId);
     expect(game.history.isConsulted(entryId)).toBe(true);

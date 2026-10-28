@@ -10,14 +10,8 @@ import type { Spread } from "@/types";
 export type TrialResult = "found" | "untested";
 
 /** What the content build knows about a target's printed image (`/trigger-protocol.json`, optional) */
-export interface TriggerInfo {
-  source?: string;
-  width?: number;
-  height?: number;
-  position?: string;
-  note?: string;
-}
-export type TriggerInfos = Record<string, TriggerInfo>;
+import type { TriggerInfo, TriggerInfos } from "@/components/ar-bridges";
+export type { TriggerInfo, TriggerInfos };
 
 export interface TrialRow {
   targetId: string;
