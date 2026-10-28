@@ -50,7 +50,7 @@ export class ScrubNumber extends HTMLElement {
       <style>
         :host { display: inline-flex; flex-direction: column; min-width: 0; --control: var(--control-height, 2rem); }
         .frame { position: relative; display: flex; align-items: center; height: var(--control); min-width: 0;
-          border: var(--rule); border-radius: 999rem; background: var(--glass-background);
+          border: var(--rule); border-radius: var(--control-radius, 999rem); background: var(--glass-background);
           -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); touch-action: pan-y;
           cursor: ew-resize; user-select: none; }
         .frame.scrubbing { border-color: var(--color-accent); }

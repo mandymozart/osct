@@ -19,8 +19,8 @@ const tuned = new Map<string, { entity: EntityData; uniformScale: boolean }>();
  * `<scrub-number>` (press and slide, or type), choices as a segmented group, colours as a swatch with its hex. Opens
  * with the content's values; changes show live in the AR scene (TUNE_ENTITY_EVENT), the content stays unchanged.
  * "Copy YAML" copies the entity's `params` / `filters` with the file they belong in. Rows come from the definitions
- * (`PLACEMENT_PARAMS`, `FILTERS`) – a new filter or parameter needs no inspector code. Hosted by the editor's sheet (the
- * app's design) and by the debug tune panel, which sets `theme="debug"` for the dev tools' green look.
+ * (`PLACEMENT_PARAMS`, `FILTERS`) – a new filter or parameter needs no inspector code. Hosted by the editor's sheet and by
+ * the debug tune panel; the look comes from the host's token variant (`data-theme`, styles/design-styles.ts).
  */
 export class TuneInspector extends HTMLElement {
   private shadow: ShadowRoot;
@@ -111,20 +111,10 @@ export class TuneInspector extends HTMLElement {
 
     this.shadow.innerHTML = /* html */ `
       <style>
-        :host { display: block; --control-height: var(--tool-control, 2rem); color: var(--color-on-dark); }
-        /* The debug overlay's host: the dev tools' green terminal look – the design primitives read these tokens */
-        :host([theme="debug"]) {
-          --font-design: monospace; --tracking-design: 0; --text-size: .75rem; --text-size-small: .6875rem; --text-line: 1.25rem;
-          --color-on-dark: #0f0; --color-muted: #9c9; --color-accent: #0f0; --rule: .0625rem solid #0f0;
-          --gold-gradient: linear-gradient(90deg, #0f0, #0f0); --glass-background: rgba(0, 0, 0, .4); --glass-blur: none;
-          --shadow-bronze: none; --control-height: 1.5rem;
-        }
-        :host([theme="debug"]) .pill.on { background-color: #0f0; color: #000; box-shadow: none; }
-        :host([theme="debug"]) .pill.on .gold { background-image: none; color: #000; -webkit-text-fill-color: #000; }
-        :host([theme="debug"]) .row.changed label::before { color: #ff0; }
-        :host([theme="debug"]) pre { color: #cfc; border-color: #060; }
+        /* Structure only – the look comes from the host's token variant (branded, editor or debug: styles/design-styles.ts) */
+        :host { display: block; color: var(--color-on-dark); }
         .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
-        select.field { height: var(--control-height); min-height: 0; max-width: 60%; color: var(--color-on-dark); background-color: rgba(0,0,0,.4); }
+        select.field { height: var(--control-height); min-height: 0; max-width: 60%; color: var(--color-on-dark); border-radius: var(--control-radius); }
         select.field option { color: #000; }
         .small { color: var(--color-muted); font-size: var(--text-size-small); overflow-wrap: anywhere; }
         .section { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: var(--control-height);
@@ -137,17 +127,19 @@ export class TuneInspector extends HTMLElement {
         scrub-number { width: 100%; }
         .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: .25rem; min-width: 0; }
         .seg { display: inline-flex; gap: .25rem; flex-wrap: wrap; }
-        :host .pill { height: var(--control-height); min-height: 0; padding: 0 .75rem; color: var(--color-on-dark); }
-        :host .pill.on { background-color: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 .0625rem var(--color-accent); }
+        :host .pill { height: var(--control-height); min-height: 0; padding: 0 .625rem; border-radius: var(--control-radius); color: var(--color-on-dark); }
+        :host .pill:hover { background-color: var(--hover-background); }
+        :host .pill.on { background-color: var(--pressed-background); color: var(--pressed-color); box-shadow: none; }
+        :host .pill.on .gold { background-image: none; color: inherit; -webkit-text-fill-color: currentColor; }
         .color { display: grid; grid-template-columns: var(--control-height) minmax(0, 1fr); gap: .375rem; align-items: center; }
         input[type=color] { width: var(--control-height); height: var(--control-height); border: var(--rule); border-radius: 50%; padding: 0; background: none; cursor: pointer; }
         input[type=color]::-webkit-color-swatch-wrapper { padding: .2rem; }
         input[type=color]::-webkit-color-swatch { border: none; border-radius: 50%; }
-        :host input.field { height: var(--control-height); min-height: 0; padding: 0 .75rem; }
+        :host input.field { height: var(--control-height); min-height: 0; padding: 0 .75rem; border-radius: var(--control-radius); }
         input.field.bad { border-color: #f66; color: #f66; }
         .problem { color: #f66; grid-column: 2; font-size: var(--text-size-small); line-height: 1rem; }
-        pre { margin: .5rem 0 .25rem; padding: .5rem .75rem; border: var(--rule); border-radius: .5rem; color: var(--color-on-dark);
-          font-size: var(--text-size-small); line-height: 1.25; white-space: pre-wrap; user-select: text; }
+        pre { margin: .5rem 0 .25rem; padding: .5rem .75rem; border: var(--rule); border-radius: .25rem; background: var(--surface-head);
+          color: var(--color-on-dark); font-size: var(--text-size-small); line-height: 1.25; white-space: pre-wrap; user-select: text; }
         .actions { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
         .empty { padding: .5rem 0; color: var(--color-muted); }
       </style>

@@ -20,6 +20,8 @@ const PHOTO_MAX_PX = 1600;
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
 const REPLAY_GAP_MS = 900;
 const OPEN_KEY = "osct-editor-tab";
+/** Day or night for the editor's palette, stored on the device; unset = the system's */
+const SCHEME_KEY = "osct-editor-scheme";
 
 /**
  * The editor's one sheet at the bottom of the page: its head is the tab row – ‹ › through the spreads, **Stage** and
@@ -47,6 +49,8 @@ export class EditorSheet extends HTMLElement {
   }
 
   connectedCallback() {
+    this.dataset.theme = "editor"; // the editor token variant (styles/design-styles.ts)
+    this.applyScheme(this.storedScheme());
     this.sheet.connect();
     try {
       const stored = localStorage.getItem(OPEN_KEY);
@@ -87,39 +91,46 @@ export class EditorSheet extends HTMLElement {
       const spread = getSpreads().find(s => s.id === this.game.state.currentSpread);
       this.shadow.innerHTML = /* html */ `
         <style>
+          /* Structure only – the look comes from the editor token variant (data-theme="editor", styles/design-styles.ts) */
           :host {
-            --control-height: 2rem; --tool-control: 2rem;
+            --tool-control: var(--control-height);
             position: fixed; left: 0; right: 0; bottom: 0; z-index: 10000; box-sizing: border-box;
             display: flex; flex-direction: column; overflow: hidden;
             padding-bottom: env(safe-area-inset-bottom);
-            background: var(--consultation-background); color: var(--color-on-dark);
-            -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-            border-top: var(--rule); user-select: none; cursor: default; pointer-events: auto;
+            background: var(--surface); color: var(--color-on-dark);
+            border-top: .0625rem solid var(--line); user-select: none; cursor: default; pointer-events: auto;
           }
-          .bar { flex: none; display: flex; align-items: center; gap: .375rem; padding: .375rem .5rem .375rem .375rem; touch-action: none; cursor: ns-resize; }
-          .bar .spread { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-on-dark); }
+          .bar { flex: none; display: flex; align-items: center; gap: .25rem; padding: .25rem .375rem; background: var(--surface-head);
+            border-bottom: .0625rem solid var(--line); touch-action: none; cursor: ns-resize; }
+          .bar .spread { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .bar .spread .muted { margin-right: .25rem; }
-          .body { flex: 1; min-height: 0; overflow-y: auto; padding: .25rem .5rem .75rem; display: flex; flex-direction: column; gap: .25rem; }
+          .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; }
           .body[hidden] { display: none; }
-          :host .pill, :host .icon-button { height: var(--control-height); min-height: 0; color: var(--color-on-dark); }
-          :host .pill { padding: 0 .75rem; }
+          :host .pill, :host .icon-button { height: var(--control-height); min-height: 0; border-radius: var(--control-radius); color: var(--color-on-dark); }
+          :host .pill { padding: 0 .625rem; }
           :host .icon-button { width: var(--control-height); }
-          :host .pill.on, :host .icon-button.on { background-color: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 .0625rem var(--color-accent); }
-          .tab.on .label { background-image: var(--gold-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
-          .row { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: .375rem; align-items: center; min-height: calc(var(--control-height) + .25rem); }
+          :host .pill:hover, :host .icon-button:hover { background-color: var(--hover-background); }
+          :host .pill.on, :host .icon-button.on { background-color: var(--pressed-background); color: var(--pressed-color); box-shadow: none; }
+          :host .pill.on .gold { background-image: none; color: inherit; -webkit-text-fill-color: currentColor; }
+          .bar .tab { background: none; box-shadow: none; }
+          .bar .tab.on { background-color: var(--glass-background); color: var(--color-on-dark); }
+          .bar .tab .label { background-image: none; color: inherit; -webkit-text-fill-color: currentColor; }
+          .bar .icon-button { background: none; box-shadow: none; }
+          .row { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: .375rem; align-items: center; min-height: calc(var(--control-height) + .25rem); }
           .row > .label { color: var(--color-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; min-width: 0; }
-          .seg { display: inline-flex; gap: .25rem; }
+          .seg { display: inline-flex; gap: .125rem; }
           .small { color: var(--color-muted); font-size: var(--text-size-small); }
-          scrub-number { width: 6rem; }
+          scrub-number { width: 5rem; }
           input[type=file] { display: none; }
-          .hint { color: var(--color-muted); font-size: var(--text-size-small); padding: .25rem 0 0 5.375rem; }
+          .hint { color: var(--color-muted); font-size: var(--text-size-small); padding: .25rem 0 0 4.875rem; }
         </style>
         <div class="bar design">
           <button type="button" class="icon-button" data-action="previous" aria-label="Previous spread" title="Previous spread">${ICONS.previous}</button>
           <button type="button" class="icon-button" data-action="next" aria-label="Next spread" title="Next spread">${ICONS.next}</button>
           <span class="spread"><span class="muted">p.</span>${spread ? escapeHtml(spread.title) : "–"}</span>
           ${TABS.map(tab => `<button type="button" class="pill tab ${this.tab === tab.id ? "on" : ""}" data-tab="${tab.id}" aria-pressed="${this.tab === tab.id}"><span class="label">${tab.label}</span></button>`).join("")}
+          <button type="button" class="icon-button" data-action="scheme" aria-label="Day or night" title="Day or night">${this.isDark() ? ICONS.sun : ICONS.moon}</button>
           <button type="button" class="icon-button" data-action="exit" aria-label="Leave the editor" title="Leave the editor">${ICONS.close}</button>
         </div>
         <div class="body design" data-panel="stage" ${this.tab === "stage" ? "" : "hidden"}>
@@ -139,6 +150,33 @@ export class EditorSheet extends HTMLElement {
       this.renderState(state);
       this.applyHeight();
     });
+  }
+
+  private storedScheme(): "light" | "dark" | null {
+    try {
+      const scheme = localStorage.getItem(SCHEME_KEY);
+      return scheme === "light" || scheme === "dark" ? scheme : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** The palette's day / night: forced by the author, else the system's */
+  private applyScheme(scheme: "light" | "dark" | null) {
+    if (scheme) this.dataset.scheme = scheme;
+    else delete this.dataset.scheme;
+    try {
+      if (scheme) localStorage.setItem(SCHEME_KEY, scheme);
+      else localStorage.removeItem(SCHEME_KEY);
+    } catch {
+      // storage blocked: the choice holds for this session
+    }
+    const button = this.shadow.querySelector<HTMLElement>("button[data-action=scheme]");
+    if (button) button.innerHTML = this.isDark() ? ICONS.sun : ICONS.moon;
+  }
+
+  private isDark(): boolean {
+    return this.dataset.scheme ? this.dataset.scheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
 
   /** Closed = the head row only; open = the dragged height */
@@ -251,6 +289,8 @@ export class EditorSheet extends HTMLElement {
         return this.step(1);
       case "exit":
         return this.game.router.navigate("/spread");
+      case "scheme":
+        return this.applyScheme(this.isDark() ? "light" : "dark");
       case "unlock":
         return this.replayUnlock();
       case "choose-photo":

@@ -50,6 +50,15 @@ outcome in the line (or move it into a dated decision block).
   Leading zeros in ids (`s004-005`, `p004-1`): from the delivery import (`import-delivery.ts`, `padStart(3)`) so
   folders and lists sort in book order; cosmetic – the app sorts by `order` / `page`. Changing them = new ids for the
   progress (fine before release); Tilman decides.
+- Tilman (morning, after seeing the shared inspector gold in the debug panel): "I want debugging look like debugging.
+  The editor have a neutral color schema more like Figma. Focus on efficient space use and brand UI comes only in
+  real reader facing UI elements" → three token variants in `styles/design-styles.ts`: **branded** (his word for the
+  reader's, the default), **editor**, **debug** – switched by `data-theme` on the host; components carry structure
+  only. Copy YAML stays until step 2 saves to the database (then redundant in the editor, as Tilman expects). Then:
+  "I hate that blue grey. Use a color schema inspired by the default in figma. Day and night theme" and "Blau gar
+  nicht" – the editor variant is white / light grey by day, dark grey by night (system, or the sun / moon in the
+  head), focus and accents in the text colour, pressed segments grey; `branded` is Tilman's word for the reader's
+  variant – the layer a white-label brand overrides later (one token block in `main.css`).
 - [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
   Kévin's own phone later); comes with accounts / roles in step 2.
 - [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
