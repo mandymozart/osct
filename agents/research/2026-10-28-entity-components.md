@@ -289,6 +289,34 @@ the instance is filled from the PDF, never typed in. And the trigger trial's A3 
 are a second layout of the same targets: a `sheet` template per printout page, so the stage can show the test
 sheet as well as the book page.
 
+**Variables are declared, with a scope, a writer and a reader list** (Tilman: like events they sit on a level
+of the hierarchy; something like private / public with getters and setters must be definable). Proposal – a
+variable is declared where it lives (in the entity's scene, the spread's scene, the book, or by a plugin), not
+created by its first write:
+
+```yaml
+variables:
+  hasKey:        { scope: book,   type: boolean, default: false, write: [actions, plugins] }
+  doorOpen:      { scope: spread, type: boolean, default: false, write: [actions] }
+  spinSpeed:     { scope: node,   type: number,  default: 20, min: 0, max: 90, write: [plugins] }
+  foundHere:     { scope: spread, type: number,  computed: true }          # a plugin's getter, read-only
+```
+
+- **scope** = the level it lives on (`node`, `spread`, `stage`, `session`, `book`); lookup from inside outward as
+  for everything else. That is the "private / protected / public" of it: a `node` variable is private to the
+  entity, a `spread` variable is shared by the spread's entities, `stage` / `book` are public to the work.
+- **write** = who may set it: `actions` (the author's behaviours), `plugins` (through the API), `core` (the
+  app itself, e.g. `foundCount`); the empty list makes it read-only. **read** needs no list: inner scopes read
+  outer ones; a variable can be hidden from the editor's condition pickers with `expose: false`.
+- **setter rules** are the declaration's `type`, `min` / `max`, `options` (a write outside them is refused and
+  logged, never silently clamped); **getters** are `computed` variables a plugin provides (derived, read-only,
+  recalculated when their inputs change). No code-level getters / setters in content – the declaration carries
+  what they would.
+- **Persistence** follows the scope: only `book` variables go into the progress record (the `variables` map
+  above); the others live as long as their scope.
+- Readers of a variable: conditions in behaviours (`when: { hasKey: true }`), text nodes (`{{vars.hasKey}}`),
+  plugins (`api.vars.get("hasKey")`, with a subscription to changes).
+
 **What a scene is.** Two words for two things, to end the ambiguity: in the **content** a *scene* is the authoring
 unit – a spread's entities and, later, its world (`world:` in `spread.yaml`, PLAN Phase 10) – and an entity's
 node tree is a sub-scene of it. So the `spread` scope *is* the scene's instance: the spread is the natural unit of
