@@ -51,7 +51,8 @@ export interface XrPipelineModule {
   onStart?: (args: { canvasWidth: number; canvasHeight: number }) => void;
   onUpdate?: (args: { processCpuResult: { reality?: XrReality } }) => void;
   onCanvasSizeChange?: (args: { canvasWidth: number; canvasHeight: number }) => void;
-  onCameraStatusChange?: (args: { status: string; reason?: string }) => void;
+  /** "requesting", "hasStream" (with the camera `stream`), "hasVideo", "failed" (with a `reason`) */
+  onCameraStatusChange?: (args: { status: string; reason?: string; stream?: MediaStream }) => void;
   onException?: (error: unknown) => void;
   listeners?: Array<{ event: string; process: (event: { detail: any }) => void }>;
 }

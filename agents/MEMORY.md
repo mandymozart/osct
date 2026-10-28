@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-28 – Trigger test S22: size, texture, camera readout (#14, Tilman, 1.8.0)
+
+- First trigger test (Galaxy S22, printout of 121 triggers): 96 found, 25 not found, 10 not on the printout –
+  `docs/trigger-tests/`. Every miss is printed ≤ 10.8 cm²; the two flat logos (p067-1 Blender, p129-1 open source)
+  have 4–6 corner points against ≥ 25 for every found image – Tilman: the image type does matter. Repetitive
+  images (p101-1, p096-1, p176-1) suspected.
+- Tilman felt the camera did not focus. Neither the app nor the engine sets focus or zoom (engine: back main
+  camera, exactly 960 × 720 first). 1.8.0 adds the camera readout and test switches (AF continuous, tap to focus,
+  zoom steps, ask for zoom) to the overlay and the trial panel, before the iPhone 7 run.
+- Designer report (best practice for trigger images, with examples) as a PDF outside git:
+  `osct-incoming-content/trials/report-2026-10-28/`.
+
 ## 2026-10-28 – Code base review (#19)
 
 - Findings per area with paths: the comment on #19. Fixed there: editorconfig/gitattributes, dead members, duplicate
@@ -21,6 +33,14 @@ outcome in the line (or move it into a dated decision block).
 - [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` and the "while it is in git" CI step go with
   the content removal; RULES #8 says so.
 - [ ] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+
+## 2026-10-28 – The trigger trial runs at ±0 (#14, Tilman, 1.7.8)
+
+- Tilman: "the trial run should not do the grow loading window. just next next next. i want to be sure it is not
+  hitting performance limits that have nothing to do with the image tracking algo engine itself".
+- While the trial panel is open the tracker holds the current spread only (`setWindowOverride(0)`, in memory, not
+  stored): no growing window, nothing prepared or preloaded for other spreads. Closing restores the stored setting.
+  Grow vs. ±0 is diagnosed separately (`docs/tracking.md` "A page is not found…").
 
 ## 2026-10-28 – Content out of git, prepared: fixture, source outside, filter-repo tried (#5, Tilman, 1.7.6)
 
@@ -184,7 +204,7 @@ outcome in the line (or move it into a dated decision block).
 - Mapping (`scripts/import/2110.yaml`): the 121 triggers of the PDF matched against the delivered files by page and
   appearance (24 px greyscale correlation, ≥ 0.73 for 119; `p063-1` → Disney City and `p171-1` → Rutt are uncertain –
   the printed crop differs). 79 are glossary images, 42 link screenshots. 10 Print images are **not** in the PDF
-  (p. 2, 30, 34, 35, 95, 100, 106, 130, 158, 192, 222 – imported with targets, not on the printout) and the links
+  (p. 2, 30, 34, 35, 95, 100, 106, 158, 192, 222 – imported with targets, not on the printout; p. 130 was listed here in error, corrected 2026-10-28) and the links
   `Evangelion_02`, `Vonnegut_02` have no place in the book (not imported). The videos sit on the trigger of their
   page where there is exactly one (category → `video`), on a link trigger for p. 103, 132, 148 (kept `link`, video
   attached, note) and without a target for p. 99, 116, 127, 146, 191, 218, 255 – which image triggers them is a

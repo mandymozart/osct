@@ -38,6 +38,8 @@ export interface TrialMeta {
   appVersion: string;
   contentHash: string;
   device: string;
+  /** The camera at download time (lens, resolution, focus, zoom – camera-debug.ts), optional */
+  camera?: string;
   date: Date;
 }
 
@@ -88,6 +90,7 @@ export function trialReport(rows: TrialRow[], meta: TrialMeta): string {
     `- Date: ${date} (UTC)`,
     `- App ${meta.appVersion} · content ${meta.contentHash.slice(0, 12)}`,
     `- Device: ${meta.device}`,
+    ...(meta.camera ? [`- Camera: ${meta.camera}`] : []),
     `- Targets: ${rows.length} · found ${counts.found} · not found ${counts.untested}`,
     "",
     `## Not found (${notFound.length})`,

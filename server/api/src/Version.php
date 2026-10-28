@@ -7,5 +7,5 @@ declare(strict_types=1);
  */
 final class Version
 {
-    public const APP = '1.7.10';
+    public const APP = '1.8.0';
 }

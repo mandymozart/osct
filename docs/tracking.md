@@ -67,6 +67,33 @@ not found:
   image. Tap *Change* back to *grow* afterwards (it re-grows in idle time).
 - Empty even at ±0 → the target image itself (crop, contrast, size) – the trial's "not found" list.
 
+The trial panel (debug overlay → *trial*) sets ±0 itself while it is open (1.7.8), so during a trial every miss is
+already the last case.
+
+## Camera: lens, focus, zoom
+
+The 8th Wall engine opens the camera itself: the back camera (on Samsung phones with more than two cameras the one
+labelled `camera2 0, facing back`, the main camera; on iOS ≥ 16.4 "Back Camera"), exactly 960 × 720 first. It sets no
+focus mode and no zoom, so the browser's default applies. Small printed triggers need the phone close, and closer
+than the lens's minimum focus distance the picture stays blurry (trigger test 2026-10-28, `docs/trigger-tests/`).
+
+Debug overlay → *Camera* (1.8.0, `ar-bridges/utils/camera-debug.ts`) shows what the browser reports for the
+engine's camera track: lens label, resolution and frame rate, focus mode / distance / range, zoom and its range.
+The collapsed line ends with `C<lens> <resolution> <focus> <distance> <zoom>`, e.g. `C0 960×720 cont 0.15m 1×`.
+Test switches (also in the trial panel's camera row):
+
+- **AF continuous** – `focusMode: "continuous"`.
+- **Tap to focus** (◎) – the next tap on the camera picture focuses there once (`pointsOfInterest`, single-shot);
+  taps on the debug UI do not count. The tap is mapped through the picture's cover crop.
+- **Zoom** 1× / 1.5× / 2× / 3× within the lens's range – small triggers can then be scanned from further away,
+  beyond the minimum focus distance. The engine assumes the unzoomed field of view: finding works, the AR overlay
+  may sit slightly off while zoomed.
+- **Ask for zoom** – if no zoom is offered: the next camera start (reload) requests `zoom: true`; Chrome then asks
+  for the camera's pan-tilt-zoom permission.
+
+The outcome of each switch (or the browser's refusal) shows under the readout. Safari on iOS reports little or none
+of focus and zoom; the readout then shows "–".
+
 ## Load test
 
 Debug overlay → **load** (dev server or staging, camera running, scan mode).
