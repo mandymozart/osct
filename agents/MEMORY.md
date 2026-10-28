@@ -56,8 +56,9 @@ outcome in the line (or move it into a dated decision block).
   reader's, the default), **editor**, **debug** – switched by `data-theme` on the host; components carry structure
   only. Copy YAML stays until step 2 saves to the database (then redundant in the editor, as Tilman expects). Then:
   "I hate that blue grey. Use a color schema inspired by the default in figma. Day and night theme" and "Blau gar
-  nicht" – the editor variant is white / light grey by day, dark grey by night (system, or the sun / moon in the
-  head), focus and accents in the text colour, pressed segments grey; `branded` is Tilman's word for the reader's
+  nicht" – the editor variant is white / light grey by day, dark grey by night (the system; Tilman: "Nacht/Tag braucht
+  es nur als Flag, später ggf. in Settings" – the flag `osct-editor-scheme` exists, no button), focus and accents in
+  the text colour, pressed segments grey; `branded` is Tilman's word for the reader's
   variant – the layer a white-label brand overrides later (one token block in `main.css`).
 - Tilman: "Svelte als Konzept klären" → `agents/research/2026-10-29-editor-svelte.md`: A Svelte in the reader's
   chunk, B a SvelteKit app in the OSCT repo, C the editor as an app in the Scutoons monorepo on `@scutoons/ui` (a
