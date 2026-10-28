@@ -7,6 +7,12 @@ on:
     branches: [develop]
   workflow_dispatch:
 
+# The called deploy.yml pushes the image to ghcr.io and needs `packages: write`; the repository's default token is
+# read-only and a called workflow may not ask for more than its caller grants – so the caller grants it here.
+permissions:
+  contents: read
+  packages: write
+
 concurrency:
   group: deploy-staging
   cancel-in-progress: false

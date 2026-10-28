@@ -12,6 +12,15 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.7.2 – 2026-10-28
+
+### Fixed
+- The first push of the Kamal deploy: the staging and production workflows now grant `packages: write` to the
+  deploy they call (the repository's token is read-only by default, so the called workflow could not ask for it
+  and the run failed at startup).
+- 1.7.1 had bumped only the app's version; the content build and the API said 1.7.0, which the API test caught
+  (the FTPS staging deploy failed). All three are 1.7.2.
+
 ## 1.7.1 – 2026-10-27
 
 ### Added
