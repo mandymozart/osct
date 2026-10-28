@@ -1055,7 +1055,7 @@ The final content goes in and the app is tuned on it, on the devices readers wil
 
 ## Suggested order
 
-0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 (phases are numbered in execution order since 2026-09-24).
+0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 9 → 9b → 11 → 13 (built) → 14 (content, with the designers) → 7 → 8 → 10.
 Phase 5 can run in parallel at any point; it mostly restyles existing tutorial pages.
 
 ## Open decisions (summary)
@@ -1068,13 +1068,13 @@ Phase 5 can run in parallel at any point; it mostly restyles existing tutorial p
 | 4 | ~~Modes vs views split~~ → mode declared per route, set by `navigate()`; IDLE / SCAN / CONSULTATION | 2 ✓ |
 | 5 | ~~Header counter~~ → consulted / total entries | 3 ✓ |
 | 6 | ~~Found-target indicator~~ → scan: shown, tap opens entry; consultation: visible for now | 3 ✓ |
-| 7 | ~~`maxTrack`~~ → = max targets per spread (5), reduce after usability test | 0 ✓ |
+| 7 | ~~`maxTrack`~~ → max targets per spread, now 10 (RULES #3) | 0 ✓ |
 | 8 | ~~Entry ↔ target cardinality~~ → 1:1 for now | 1c ✓ |
 | 9 | ~~Design PDF in repo?~~ → yes, plus extracted images in `reference/` | ✓ |
 | 10 | ~~Role of `/spreads`~~ → dev view for now | 2 ✓ |
-| 11 | Content versioning via content builder (+ CDN) vs app version – Tilman | 2 |
+| 11 | ~~Content versioning via content builder (+ CDN) vs app version~~ → content schema MAJOR.MINOR + immutable CDN versions (#5, RULES #10, #24) | 2 ✓ |
 | 12 | ~~Deep link code prefix~~ → plain URLs `/spread/<id>?osct=<version>`, no old `?code=` links | 2 ✓ |
-| 13 | A-Frame bridges: one bridge + `ArScene` API, spread switching A/B, camera start, removals | 6 |
+| 13 | ~~AR bridge~~ → one bridge + `ArScene`, spread switching by held neighbours, camera only in scan mode | 6 ✓ |
 | 14 | ~~Content model + type naming~~ → nested target, inline/ref entities, `*Data` game-configuration contract in top-level `shared/`, app model plain names, single entry point | 1e ✓ |
 | 15 | **Review:** loading overlay concept – full-screen loader on every spread switch covers the menu (see Phase 3 page menu) – Tilman | 3 |
 | 16 | ~~**Review:** found indicator in consultation mode~~ → **hidden** (checked against frames 15, 17, 21, 33: no indicator in any consultation frame) – matches the build | 3 ✓ |

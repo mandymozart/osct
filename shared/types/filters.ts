@@ -1,5 +1,5 @@
 /**
- * Video filters (Tilman 2026-09-26): a video entity carries `filters: [{ type, ...parameters }]`,
+ * Video filters: a video entity carries `filters: [{ type, ...parameters }]`,
  * applied in order. Each filter type is defined once here – its parameters with kind, default, range
  * and a description. The client builds the shader's uniforms from it, the content build and the
  * config guard check the YAML against it, missing values get the defaults.

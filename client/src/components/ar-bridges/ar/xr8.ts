@@ -134,9 +134,9 @@ const LUMINANCE_HEIGHT = 640;
 
 /**
  * The 3:4 frame (portrait) the engine reads for an image: the **whole** image, centred, landscape images turned
- * 90° clockwise first (`isRotated`); the rest is filled with the image's edge colour. (The image-target CLI crops
- * the centred 3:4 part instead – a tall page like `shadows`, 254×650, lost its distinctive top and bottom and
- * was not found, phone test 2026-09-28.) The engine gets the frame as an uncropped image.
+ * 90° clockwise first (`isRotated`); the rest is filled with the image's edge colour. (Cropping to the centred
+ * 3:4 part instead loses the top and bottom of a tall page, which is then not recognised.) The engine gets the
+ * frame as an uncropped image.
  */
 export interface TargetFrame {
   crop: XrCrop;

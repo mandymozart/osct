@@ -93,7 +93,7 @@ export class ArView {
     Object.assign(canvas.style, { position: "absolute", left: "0", top: "0" });
     container.appendChild(canvas);
 
-    // A-Frame's default lighting, which the models were authored for: ambient #BBB, directional 0.6 from above left
+    // The lighting the models were authored for: ambient #BBB, directional 0.6 from above left
     this.scene.add(new AmbientLight(0xbbbbbb, 1));
     const sun = new DirectionalLight(0xffffff, 0.6);
     sun.position.set(-0.5, 1, 1);

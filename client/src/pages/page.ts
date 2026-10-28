@@ -1,7 +1,6 @@
 import { GameStoreService } from "@/services";
 import { IGame } from "@/types";
 
-// TODO: Fix protected properties in the abstract class def
 export interface IPage extends HTMLElement {
     active: boolean;
     readonly styles: string;
@@ -19,7 +18,7 @@ export abstract class Page extends HTMLElement implements IPage {
     
     constructor() {
       super();
-      this.game = GameStoreService.getInstance();;
+      this.game = GameStoreService.getInstance();
       this.attachShadow({ mode: "open" });
       this._active = false;
       this._template = document.createElement('template');

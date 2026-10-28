@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-28 – Code base review (#19)
+
+- Findings per area with paths: the comment on #19. Fixed there: editorconfig/gitattributes, dead members, duplicate
+  helpers, comments with names/dates/history/gone libraries, two TODOs without an issue, scripts tests type-checked,
+  the book-content test replaced by the fixture, docs streamlined (README is the index, docs/README.md gone),
+  RULES restructured. Split off: bugs #20 #21 #22 (fixed, 1.7.3–1.7.5), Proposals #26 formatter/linter, #27 naming,
+  #28 typed boundaries, #29 test gaps, #30 Claude trailers in the old history (with the #5 filter-repo run),
+  #31 cut PLAN/MEMORY history, #32 trigger-protocol.json and i18n types in git, #33 constant settings.
+- RULES numbers are stable from now on (cited in code and issues): Server is #25 (was a second #21), Git #26,
+  CI #27, Deployment #28, Issues and board #29, "Every session starts with its issue" #30, docs ownership #31.
+  New in #22: a TODO needs an issue (`TODO: … (#N)`). #13 narrowed: `*Data` for the per-entity types, the two root
+  documents keep their names. #17: file casing per folder (PascalCase in services/store, kebab-case elsewhere) until
+  #27 decides otherwise.
+- Content schema 1.1 → 1.2: only comments changed in `shared/`, but the lock covers the whole folder (RULES #10).
+- [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` and the "while it is in git" CI step go with
+  the content removal; RULES #8 says so.
+- [ ] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+
 ## 2026-10-28 – Content out of git, prepared: fixture, source outside, filter-repo tried (#5, Tilman, 1.7.6)
 
 - Tilman: "bereite das Entfernen von content/ aus Git inklusive History vor (Fixture für CI und Tests,
@@ -377,7 +395,7 @@ outcome in the line (or move it into a dated decision block).
   next real format change (Tilman: no notice when nothing changed).
 - S22 check of the 8th Wall-only build: 11 automatic switches across pages 1–27 in 90 s, ready in 0–3 ms, photo spreads found.
 - iPhone test belongs to Phase 14 "Content and refinement" (Amsterdam, with Kévin Bray – Tilman).
-- [ ] Staging: the Netlify site may still set `VITE_AR_TRACKER` – harmless now, can be deleted there.
+- [x] Staging: the Netlify site may still set `VITE_AR_TRACKER` – obsolete, Netlify is shut down (#10).
 
 ## 2026-09-28 – Demo spreads from the layout PDF for the tracker load test (Tilman)
 
@@ -478,7 +496,7 @@ outcome in the line (or move it into a dated decision block).
 - **`.mindar/`** in the root holds everything local about `.mind` files (not in git): `targets/` (was
   `mind-ar/`), `history/` (was `mind-history/`), `cache/`, `browser/`, `benchmark.json` (were in
   `scripts/.cache/`). `lib/local-folders.ts` moves the old folders on the first content build.
-  [ ] Remove `moveOldLocalFolders()` once Tilman's working copy has built once.
+  [x] Remove `moveOldLocalFolders()` once Tilman's working copy has built once – gone.
 - `.gitignore` rewritten (grouped, stale rules gone); `client/.env` is an explicit exception (comments only,
   documents the `VITE_*` flags); `scripts/.gitignore` removed (the root one covers it). Checked: nothing
   tracked is ignored, nothing untracked is missing. By design, not wrong: the content media exist twice
@@ -570,7 +588,7 @@ outcome in the line (or move it into a dated decision block).
   `.mind` and the one it replaces in `mind-history/` (gitignored, next to `mind-ar/`), same bytes once,
   newest 20 per spread + the current one. Restore refuses versions made from other target images
   (would be "stale"). Test on the dev server (service worker off there).
-  - [ ] Open: when the content moves out of the repository, move `mind-history/` (and `mind-ar/`) next
+  - [x] Open: when the content moves out of the repository, move `mind-history/` (and `mind-ar/`) next (obsolete: MindAR removed in 1.3.0)
         to it – both tools resolve the paths from the repo root today.
 - Attribution (2026-09-28, Tilman): compile tool = MindAR's own `Compiler` from the vendored build (no
   compiler code of ours; the Node CPU port from the research was never committed). MindAR's MIT `LICENSE`
@@ -601,7 +619,7 @@ outcome in the line (or move it into a dated decision block).
   carrying it (so v1.1.2 and v1.1.3 were tagged retroactively). Bot-made tags start no workflows.
 - Netlify cannot trigger on tags/releases itself → its automatic builds are stopped (Netlify UI) and the
   release workflow uploads the tagged build with the Netlify CLI.
-- [ ] Tilman: GitHub environment `production` with `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `VITE_API_URL`;
+- [x] Tilman: GitHub environment `production` with `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `VITE_API_URL`; (obsolete: Kamal deploys, #6/#10)
   Netlify site `osct` → Stop builds. Production server settings (`FTP_*`, `DB_*`, …) once the client's
   server exists – until then that job is skipped with a warning.
 
@@ -1127,7 +1145,7 @@ outcome in the line (or move it into a dated decision block).
       skeleton-style sweep injected into the SVG; gold scale `--gold-100…900` added to the tokens.
 - [x] Onboarding steps are content (5 steps, old 6 replaced); step contract extended (button, action,
       fadeIn, advance, footer; title/description optional).
-- [ ] Camera starts with the scene (MindAR autoStart) before "Grant access" – Phase 6.
+- [x] Camera starts with the scene (MindAR autoStart) before "Grant access" – obsolete, camera only in scan mode (RULES #12).
 
 ## 2026-09-25 – Phase 4 consultation mode built
 
@@ -1262,9 +1280,9 @@ outcome in the line (or move it into a dated decision block).
 - [x] Modes/routes as planned (see PLAN Phase 2). `GameMode.DEFAULT` is now `SCAN`; `CONSULTATION` is new
       (index, about → scene paused). Close / START / resume / last tutorial step all reach scan mode
       through the route, not by setting the mode.
-- [ ] The scene is still *playing* in IDLE (home) – MindAR `autoStart` starts the camera on load.
+- [x] The scene is still *playing* in IDLE (home) – obsolete with the 8th Wall engine (camera only in scan mode).
       Covered by "camera only in scan mode" (Phase 5 "Grant access" / Phase 6 `autoStart: false`).
-- [ ] TF.js warns "High memory usage in GPU" after several scene switches (1.17 MB in the pane) →
+- [x] TF.js warns "High memory usage in GPU" after several scene switches – obsolete, TF.js left with MindAR →
       check on devices in Phase 7 ("memory when switching groups").
 - [x] (user) `origin` switched to SSH (`git@github.com:mandymozart/osct.git`); the user's SSH key
       authenticates, so agents can push. HTTPS had no credential helper configured.
@@ -1488,7 +1506,7 @@ Agent decisions (reversible, flagged for review):
       **Owner: Tilman.**
 - [x] `beta/` (old prototype sandbox) removed on request (2026-09-24). Docs (`docs/docs/*`) cleaned
       of QR; the 2025 blog post stays as history.
-- [ ] Chapter → spread rename changes persisted history (`chapterId` in localStorage). Existing
+- [x] Chapter → spread rename changes persisted history (`chapterId` in localStorage) – no compatibility below 1.1.0 (RULES #10). Existing
       sessions only get the "configuration changed" warning; Phase 2 re-keys history anyway.
 
 ## 2026-09-24 – Naming, cardinality, maxTrack
@@ -1551,7 +1569,7 @@ Agent decisions (reversible, flagged for review):
 - [x] `/spreads` (was `/chapters`) → dev view for now
 - [x] Header counter → consulted / total entries
 - [x] Found-target indicator behaviour → see taxonomy block
-- [ ] Indicator visibility in consultation mode (review after trying)
+- [x] Indicator visibility in consultation mode (review after trying) – hidden (PLAN decision #16)
 - [ ] Note on PDF p.37–39 (sentence was cut off)
 - [x] `maxTrack` → 5 (= max per spread)
 - [x] `.windsurfrules` → deleted

@@ -26,7 +26,7 @@ describe("entries model", () => {
     expect(sortEntries([entry("b"), entry("A10"), entry("a2")]).map(e => e.title)).toEqual(["a2", "A10", "b"]);
   });
 
-  it("groups the glossary by first letter, entries without a letter first without header (frame 17)", () => {
+  it("groups the glossary by first letter, entries without a letter first without header", () => {
     const groups = groupEntries(
       [entry("Blender"), entry("4th wall"), entry("Animals"), entry("Écriture"), entry("archimbolde"), entry("Clip", EntryCategory.Video)],
       EntryCategory.Glossary,

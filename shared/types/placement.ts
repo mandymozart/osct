@@ -1,5 +1,5 @@
 /**
- * Placement of an AR entity on its target (Tilman 2026-09-26): `entity.params` in the content –
+ * Placement of an AR entity on its target: `entity.params` in the content –
  *
  *   entity:
  *     type: model

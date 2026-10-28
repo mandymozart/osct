@@ -7,6 +7,7 @@ import { gzipSync } from 'fflate';
 import jpeg from 'jpeg-js';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import { PNG } from 'pngjs';
+import { listFiles } from './files';
 
 /**
  * Media optimisation of the content build, on the copy in `client/public/assets/content` only –
@@ -192,27 +193,17 @@ export function gzipCopy(file: string): MediaOptimization {
   return { file: `${file}.gz`, before: data.byteLength, after: gz.byteLength };
 }
 
-const listFiles = (dir: string, pattern: RegExp): string[] => {
-  const files: string[] = [];
-  const walk = (current: string) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (pattern.test(entry.name)) files.push(full);
-    }
-  };
-  if (fs.existsSync(dir)) walk(dir);
-  return files.sort();
-};
+const matchingFiles = (dir: string, pattern: RegExp): string[] =>
+  listFiles(dir).filter(file => pattern.test(path.basename(file))).map(file => path.join(dir, file));
 
 /** Optimise the content copy: models (+ gzip copy), images; report large videos */
 export async function optimizeMedia(dir: string): Promise<MediaOptimization[]> {
   const results: MediaOptimization[] = [];
-  for (const file of listFiles(dir, /\.glb$/i)) results.push(await optimizeModel(file));
-  for (const file of listFiles(dir, /\.(jpe?g|png)$/i)) results.push(optimizeImage(file));
+  for (const file of matchingFiles(dir, /\.glb$/i)) results.push(await optimizeModel(file));
+  for (const file of matchingFiles(dir, /\.(jpe?g|png)$/i)) results.push(optimizeImage(file));
   // After the model optimisation: the .glb.gz holds the optimised model (client: utils/compressed.ts)
-  for (const file of listFiles(dir, /\.glb$/i)) results.push(gzipCopy(file));
-  for (const file of listFiles(dir, /\.(mp4|webm|mov)$/i)) {
+  for (const file of matchingFiles(dir, /\.glb$/i)) results.push(gzipCopy(file));
+  for (const file of matchingFiles(dir, /\.(mp4|webm|mov)$/i)) {
     const size = fs.statSync(file).size;
     if (size > VIDEO_WARN_BYTES) results.push({ file, before: size, after: size, note: VIDEO_ADVICE });
   }

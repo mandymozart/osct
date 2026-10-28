@@ -67,8 +67,8 @@ const sameValue = (a: unknown, b: unknown): boolean => {
 
 /**
  * Every field the stored record had comes out of the reader as it was (only its format and defaults for
- * missing fields differ) – nothing was dropped or corrected, so the reader need not be told (Tilman,
- * 2026-09-28: a new format that didn't change someone's progress shows no notice).
+ * missing fields differ) – nothing was dropped or corrected, so the reader need not be told:
+ * a new format that did not change their progress shows no notice.
  */
 const keptAsItWas = (raw: Record<string, unknown>, record: ProgressRecord): boolean =>
   Object.entries(raw).every(([key, value]) => key === "format" || sameValue(value, (record as unknown as Record<string, unknown>)[key]));

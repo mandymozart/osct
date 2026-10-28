@@ -7,8 +7,8 @@ import { getSpreads, getTargets } from "@/utils/game-config";
  * (`PreloaderService.preloadSpreads()`). Nearest spreads first (the next before the previous).
  *
  * Setting (debug overlay, this device only):
- * - **grow** (default – Tilman, 2026-10-27, after the load test: holding all 131 targets cost no frame rate or
- *   detection speed, only the one-time work per target): the current spread first, then the nearest spreads are
+ * - **grow** (default: holding every target of the book costs no frame rate or detection speed, only the
+ *   one-time work per target): the current spread first, then the nearest spreads are
  *   added in idle time, a few targets at a time, until the whole book is held (`IImageTracker.growTargets()`).
  *   Nothing is dropped on a switch. Content is preloaded for ±1.
  * - ±n spreads (0, 1, 2) or all: a fixed window that slides with the current spread (`prepareTargets()`).

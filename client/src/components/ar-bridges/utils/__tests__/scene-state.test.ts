@@ -6,7 +6,7 @@ import { getSceneState, isOverlayRoute, SCENE_STATE_BY_MODE } from "../scene-sta
 
 const route = (slug: string) => RouteResolver.createRoute(slug);
 
-describe("scene state (A-Frame bridge)", () => {
+describe("scene state", () => {
   it("has a scene state for every game mode", () => {
     for (const mode of Object.values(GameMode)) {
       expect(SCENE_STATE_BY_MODE[mode], mode).toBeDefined();

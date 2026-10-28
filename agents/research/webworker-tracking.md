@@ -1,5 +1,8 @@
 # Exploration: web worker tracking / a faster, more precise image tracker
 
+> Archived: written while the app used MindAR; the engine, folders and files named here are gone (RULES Stack).
+> Kept for the comparison of tracking approaches.
+
 Branch `claude/laughing-wright-hrt8zy` (exploration "webworker tracking", 2026-09-28). Research only – no app
 code changed. Question (Tilman): can the tracking move into a web worker, and can a tracker based on MindAR be made
 much faster and more precise (like Artivive and other C++ trackers)? Would we lose MindAR's advantages

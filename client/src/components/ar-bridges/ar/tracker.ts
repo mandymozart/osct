@@ -23,7 +23,7 @@ const SPREAD_SEEN_MS = 400;
 const SETTLE_TIMEOUT_MS = 180000;
 /**
  * Grow mode: targets added per batch. Each new target costs ~0.35 s of main-thread work (preparing ~0.16 s,
- * extracting ~0.19 s – load test 2026-10-27), so a batch stays short enough not to hold up a page switch.
+ * extracting ~0.19 s on a mid-range phone), so a batch stays short enough not to hold up a page switch.
  */
 const GROW_BATCH_TARGETS = 3;
 /** Grow mode: pause between batches, and the longest wait for idle time */
@@ -49,9 +49,7 @@ interface LoadedTarget {
 }
 
 /**
- * Camera + image tracking with the 8th Wall engine (`@8thwall/engine`, MIT – chosen over MindAR after the phone
- * comparison, Tilman 2026-09-28: less jitter, spreads switch by themselves). The camera survives a spread
- * switch, `loadTargets()` swaps the tracked image targets (made from the target images, `xr8.ts`).
+ * Camera + image tracking with the 8th Wall engine (`@8thwall/engine`, MIT). The camera survives a spread switch, `loadTargets()` swaps the tracked image targets (made from the target images, `xr8.ts`).
  *
  * Spread switches: the engine extracts each target's features on the device (one target per frame, nothing
  * precompiled). So the neighbouring spreads' targets stay loaded next to the current ones (`prepareTargets()`)

@@ -3,7 +3,6 @@ import { SpreadData } from "./game-config";
 import { Target } from "./targets";
 
 export interface ISpreadManager {
-  getCurrentSpread(): string | null;
   switchSpread(id: string): void;
 }
 

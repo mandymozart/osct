@@ -12,7 +12,30 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-<<<<<<< HEAD
+## 1.7.10 – 2026-10-28
+
+### Changed
+- Code base review (#19): comments explain the code, not its history – names, dates, test references, design frame
+  numbers and libraries the app no longer uses (A-Frame, MindAR, Netlify, FTP) are gone from code comments,
+  workflows and `.gitignore`; the two TODOs without an issue are removed.
+- `.editorconfig` and `.gitattributes` fix line endings (LF) and indentation for every editor.
+- The content build no longer treats edits to the delivery import or the trigger protocol tool as a new content
+  version (`import-delivery.ts` and `protocol.ts` are left out of the content hash like the other commands). The
+  content schema is 1.2 (comments in `shared/` changed; nothing older apps cannot read).
+- Documentation: the root `README.md` is the index of `docs/` (with the repository layout and the three test
+  layers); `agents/RULES.md` has stable rule numbers (the second "21" is #25, Git #26, CI #27, Deployment #28,
+  Issues #29, session start #30, docs ownership #31) and a rule that a TODO needs an issue; outdated statements in
+  the docs (target limit, namespaces, settings and dev tools, scripts folders) corrected.
+
+### Removed
+- Dead members: `Pages.NOTIFICATION`, `IGame.setLoadingState`, `ISpreadManager.getCurrentSpread`,
+  `StorageClient.listTree`, an unused Mark image; duplicate helpers in `scripts/` (`isMain`, `listFiles`,
+  `isObject`); `docs/README.md` (its two URLs are in the root README).
+
+### Fixed
+- `scripts/test/` is type-checked, and the build test builds the test fixture instead of the book content
+  (RULES #8). The API schema split no longer relies on a literal line break inside a regex.
+
 ## 1.7.9 – 2026-10-28
 
 ### Changed
@@ -20,14 +43,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   reaches the Docker build (`config/deploy.yml` → `builder.args` → `Dockerfile` `VITE_CONTENT_BASE_URL`) and the
   temporary FTPS staging build. Such an image holds no content; the app loads the current version from the CDN at
   startup ([content-cdn](content-cdn.md)). Without the variable the commit's content is still bundled (#6, #5).
-=======
+
 ## 1.7.7 – 2026-10-28
 
 ### Fixed
 - The error page unsubscribes from the store when it leaves the DOM (#20): it subscribed to the whole store on every
   connect and "unsubscribed" a different function, so each reconnect left a listener behind. It now subscribes to
   `currentError` only (typed `ErrorInfo | null`) and keeps the cleanup it gets back, like the other pages.
->>>>>>> origin/develop
 
 ## 1.7.6 – 2026-10-28
 

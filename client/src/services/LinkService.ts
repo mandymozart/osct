@@ -17,13 +17,13 @@ import { isEntryCategory } from "@shared/guards/game-config";
  * Incoming links only route. A link to an entry the reader hasn't consulted yet opens scan mode on the
  * spread of its access page (no shortcut past the game). An unknown route, spread, entry, category or step
  * shows the not-found page (with "Go to start"). The version in a link is informative only (stored progress
- * of another format is handled by the progress reader). Link formats from before 1.1.0 (e.g. `?code=`) are
- * not supported (RULES.md #10).
+ * of another format is handled by the progress reader). No other link format is
+ * supported (RULES.md #10).
  *
  * While the app runs, the URL follows the state (`LinkService.startSync`): a new view pushes a history entry, a
  * spread switch or tutorial step replaces it, and the browser's back button goes back through the views.
  * Overlays (error, not-found) keep the URL. The server must answer every path with `index.html`
- * (`public/.htaccess` for Apache, `public/_redirects` for Netlify; Vite does it in dev and preview).
+ * (`public/.htaccess` and `server/docker/apache.conf`; Vite does it in dev and preview).
  */
 
 export const VERSION_PARAM = "osct";

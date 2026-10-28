@@ -70,10 +70,6 @@ class Game extends BaseStore<GameState> implements IGame {
     this.set({ loading: LoadingState.LOADING });
   }
 
-  public setLoadingState(state: LoadingState): void {
-    this.set({ loading: state });
-  }
-
   public setArStatus(status: ArStatus): void {
     if (this.state.arStatus !== status) this.set({ arStatus: status });
   }

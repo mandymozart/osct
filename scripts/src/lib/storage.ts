@@ -74,13 +74,6 @@ export class StorageClient {
     }));
   }
 
-  /** Every file and folder below `folder`, depth first (folders listed before their content) */
-  async listTree(folder: string): Promise<StoredFile[]> {
-    const items = await this.list(folder);
-    const nested = await Promise.all(items.filter(i => i.isDirectory).map(i => this.listTree(i.path)));
-    return [...items, ...nested.flat()];
-  }
-
   /** Deletes a file, or a folder with everything in it (`path` ending in `/`); a missing path is fine */
   async delete(path: string): Promise<void> {
     await this.request('DELETE', path, {}, [200, 404]);

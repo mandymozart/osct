@@ -19,7 +19,6 @@ export interface IGame extends IBaseStore<GameState> {
 
   startLoading(): void;
   finishLoading(): void;
-  setLoadingState(state: LoadingState): void;
   /** Called by `<ar-bridge>` whenever the AR scene status changes */
   setArStatus(status: ArStatus): void;
   notifyError(error: ErrorInfo): void;
