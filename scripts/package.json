@@ -1,7 +1,7 @@
 {
   "name": "osct-scripts",
   "private": true,
-  "version": "1.9.6",
+  "version": "1.10.0",
   "engines": {
     "node": ">=22"
   },
@@ -19,6 +19,7 @@
     "sounds": "npm run build && node dist/sounds.js",
     "import": "npm run build && node dist/import-delivery.js",
     "protocol": "npm run build && node dist/protocol.js",
+    "layout": "python layout/extract-layout.py",
     "test": "vitest run"
   },
   "dependencies": {

@@ -65,6 +65,15 @@ describe("links: resolving", () => {
     expect(game.state.mode).toBe(GameMode.SCAN);
   });
 
+  it("opens the editor on a spread (scan mode over the mock stage)", () => {
+    expect(resolveLink(game, { slug: "/editor", value: spread, version })).toBe(true);
+    expect(game.state.currentSpread).toBe(spread);
+    expect(game.state.currentRoute?.page).toBe(Pages.EDITOR);
+    expect(game.state.mode).toBe(GameMode.SCAN);
+    expect(pathForRoute(game.state.currentRoute, spread)).toBe(`/editor/${spread}`);
+    expect(resolveLink(game, { slug: "/editor", value: "no-such-spread", version })).toBe(false);
+  });
+
   it("opens an entry, a category and a tutorial step", () => {
     resolveLink(game, { slug: "/entry", value: entry });
     expect(game.state.currentRoute).toMatchObject({ page: Pages.ENTRY, param: { value: entry } });

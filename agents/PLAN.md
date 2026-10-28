@@ -1053,6 +1053,23 @@ The final content goes in and the app is tuned on it, on the devices readers wil
 
 ---
 
+## Phase 15 – Editor  `[~]` (1.10.0, 2026-10-29 – Tilman, #61: "ich möchte 59 skippen und direkt in diesen Editor reingehen")
+
+The authors' tool for Amsterdam: the app's own scene over a simulated page, then forms and saving to the database,
+then the plugin API and code in the editor. Concept notes: `agents/research/2026-10-28-editor-data-model.md`,
+`2026-10-28-entity-components.md`; issues #61 (editor), #60 (book geometry from the PDF); #59 (mock stage) folded in.
+1. [x] `/editor` route with the mock tracker and the mock stage, the preview panel and the tune panel, lazily loaded
+       (1.10.0). Open: an editor-only progress (the preview unlocks targets in the device's progress); the layout
+       from the trigger protocol is coarse until #60 imports the PDF.
+2. [ ] Saving: spreads, entries, targets, entities in the database (`agents/research/2026-10-28-editor-data-model.md`),
+       the draft as a game configuration for the preview and the phone (`?content=draft`), publish to staging.
+3. [ ] Plugin API: registries for node types, components and material layers with specs (`shared/`), content
+       schema 2.0 (node tree), `api.three`; plugins compiled by the content build.
+4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.
+5. [~] Layout templates per spread (`book`, `sheet`, `cover`, `sleeve`, `wall`) and the geometry import (#60): the
+       import from the designed PDFs exists (`npm run layout`, 1.10.0 – sheets, covers, printed geometry into the
+       content's `layout/`); templates as spreads of their own and the geometry in the content schema are open.
+
 ## Suggested order
 
 0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 9 → 9b → 11 → 13 (built) → 14 (content, with the designers) → 7 → 8 → 10.

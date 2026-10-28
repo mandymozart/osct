@@ -4,6 +4,7 @@ import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
 import { reportArError } from "./utils/camera-debug";
 import { getPreparedWindow } from "./utils/prepared-spreads";
+import { getPreview, subscribePreview } from "./utils/preview";
 import { getSceneState } from "./utils/scene-state";
 
 /** Delay after startup before the AR chunk and the current spread are preloaded in idle time */
@@ -15,7 +16,8 @@ const WARM_UP_DELAY_MS = 1500;
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → content preload of the
  *   spreads kept ready next to the current one (the same window the tracker holds, `prepared-spreads.ts`).
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
- * tapping an entity opens its entry. TUNE_ENTITY_EVENT (debug tune panel) goes to `tuneEntity()`. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first scan,
+ * tapping an entity opens its entry. TUNE_ENTITY_EVENT (debug tune panel) goes to `tuneEntity()`. While the editor's
+ * preview is active the camera counts as granted (`camera.setSimulated`) – the scene runs without one. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first scan,
  * warmed up in idle time after startup); tests inject one via `sceneFactory`.
  */
 export class ArBridge extends HTMLElement {
@@ -63,6 +65,9 @@ export class ArBridge extends HTMLElement {
     };
     document.addEventListener(TUNE_ENTITY_EVENT, onTune);
     this.cleanups.push(() => document.removeEventListener(TUNE_ENTITY_EVENT, onTune));
+
+    game.camera.setSimulated(getPreview().active);
+    this.cleanups.push(subscribePreview(state => game.camera.setSimulated(state.active)));
 
     const spread = game.state.currentSpread;
     if (spread) void scene.load(spread);

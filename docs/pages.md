@@ -13,6 +13,7 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | `/` | `<splash-page>` | idle | start for returning readers: the splash (the onboarding steps before the first button), then scan mode |
 | `/tutorial` (`step`) | `<tutorial-page>` | idle | onboarding / tutorial steps from the content's `steps/` |
 | `/spread` (`spreadId`) | `<spread-page>` | scan | scan mode: found indicator, spread menu |
+| `/editor` (`spreadId`) | `<editor-page>` | scan | the authors' editor: the scene over the mock stage instead of the camera, bar and panels in a lazily loaded chunk – see [Editor](editor.md) |
 | `/entries` (`category`) | `<entries-page>` | consultation | entries list by category |
 | `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: meta table, text, media |
 | `/about` | `<about-page>` | consultation | Info: about text, settings (account, sound and vibration, graphics, language, home screen, download, reset book), colophon |

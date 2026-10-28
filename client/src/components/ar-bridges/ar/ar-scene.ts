@@ -4,12 +4,16 @@ import { getAssets, getSpread, getTargets } from "@/utils/game-config";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
+import { isPreviewActive, subscribePreview } from "../utils/preview";
 import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance, placeEntity } from "./entities";
+import { MockStage } from "./mock-stage";
+import { MockTracker } from "./mock-tracker";
 import { ImageTracker } from "./tracker";
-import { IImageTracker } from "./tracker-types";
+import { IImageTracker, ImageTrackerOptions } from "./tracker-types";
 import { LookAround } from "./look-around";
+import { onAppUi } from "./ui";
 import { ArView } from "./view";
 
 interface Anchor {
@@ -24,9 +28,6 @@ interface SpreadContent {
   targets: Target[];
   anchors: Anchor[];
 }
-
-/** Taps on these (and inside them) are app UI, not taps on the AR scene */
-const UI_SELECTOR = 'button, a, input, select, textarea, label, [role="button"], [role="listbox"], [role="option"], [role="dialog"]';
 
 /** A tap this close to an entity's on-screen bounds still hits it (small models) */
 const TAP_MARGIN_PX = 24;
@@ -44,6 +45,9 @@ const scanningIndicator = () => document.getElementById("osct-scanning");
  *
  * Every call only records the requested spread / state and queues one reconcile step; each step reads the
  * newest request, so fast switching never races and outdated spreads are skipped.
+ *
+ * Editor preview (`utils/preview.ts` active): the mock tracker and the mock stage replace the engine and the
+ * camera – the scene itself does not change. Opening or leaving the editor while the scene exists rebuilds it.
  */
 export class ArScene implements IArScene {
   private emitter = new Emitter<ArSceneEvents>();
@@ -55,6 +59,11 @@ export class ArScene implements IArScene {
   /** The world around the reader + its sky (3DoF, anchored to the book) (off per the reader's graphics options) */
   private lookAround: LookAround | null = null;
   private tracker: IImageTracker | null = null;
+  /** The editor's tracker while the preview is active (the stage renders every frame) */
+  private mock: MockTracker | null = null;
+  /** The preview was switched on or off: the next step tears the scene down and builds it again */
+  private wantedRebuild = false;
+  private previewCleanup: (() => void) | null = null;
   private assets = new AssetStore();
   private content: SpreadContent | null = null;
   private found = new Set<string>();
@@ -167,6 +176,10 @@ export class ArScene implements IArScene {
   }
 
   private async step(): Promise<void> {
+    if (this.wantedRebuild) {
+      this.wantedRebuild = false;
+      if (this.view) this.teardown();
+    }
     if (!this.wantedSpread) return this.teardown();
     // Lazy: the first RUNNING builds the renderer; until then only the request is kept
     if (!this.view && this.wantedState !== SceneState.RUNNING) {
@@ -190,19 +203,23 @@ export class ArScene implements IArScene {
   // ── Spreads ─────────────────────────────────────────────────────────────────────────────────
 
   /** Renderer + tracker – steps run one at a time, no race */
+  private readonly trackerOptions: ImageTrackerOptions = {
+    onUpdate: (id, matrix) => this.onTrackingUpdate(id, matrix),
+    onSpreadSeen: spreadId => {
+      if (spreadId !== this.content?.spreadId) this.emitter.emit("spreadSeen", spreadId);
+    },
+  };
+
   private async ensureView(): Promise<ArView> {
     if (!this.view) {
-      this.tracker = new ImageTracker(this.container, {
-        onUpdate: (id, matrix) => this.onTrackingUpdate(id, matrix),
-        onSpreadSeen: spreadId => {
-          if (spreadId !== this.content?.spreadId) this.emitter.emit("spreadSeen", spreadId);
-        },
-      });
+      const options = this.trackerOptions;
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
+      this.ensureTracker(options);
       this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null);
       this.view.underlay = this.lookAround;
+      // The stage is drawn every frame while the preview runs (the page is always in view)
       this.view.needsRender = () =>
-        this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
+        this.mock !== null || this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
       this.view.onFrame(delta => {
         const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
         this.lookAround?.update(delta, this.view!.camera, anchors);
@@ -227,8 +244,30 @@ export class ArScene implements IArScene {
         this.prepareWindow();
         this.emitter.emit("ready", this.content.spreadId);
       });
+      // The editor opened or closed: the other tracker is needed – rebuild on the next step
+      this.previewCleanup = subscribePreview(state => {
+        if (state.active === (this.mock !== null) || this.wantedRebuild) return;
+        this.wantedRebuild = true;
+        void this.reconcile();
+      });
     }
     return this.view;
+  }
+
+  /**
+   * The tracker for the current mode: the engine, or the mock tracker with its stage while the editor's preview is
+   * active. Chosen when the view is built and checked again before the camera starts (the editor page may become
+   * active a moment after the scene was asked to run), so the engine is never started for a preview.
+   */
+  private ensureTracker(options: ImageTrackerOptions): void {
+    const preview = isPreviewActive();
+    if (this.tracker && preview === (this.mock !== null)) return;
+    this.tracker?.stop();
+    console.info(`[ArScene] Tracker: ${preview ? "mock stage (editor preview)" : "8th Wall engine"}`);
+    this.mock = preview ? new MockTracker(this.container, options) : null;
+    this.tracker = this.mock ?? new ImageTracker(this.container, options);
+    if (this.mock && this.view) this.mock.attachStage(new MockStage(this.view.scene, this.container));
+    this.view?.resize();
   }
 
   /** Bring the scene to `spreadId`: tracking stops, content is swapped, tracking restarts if it ran */
@@ -321,8 +360,7 @@ export class ArScene implements IArScene {
    */
   private onTap = (event: MouseEvent): void => {
     if (!this.running || !this.view) return;
-    const onUi = event.composedPath().some(el => el instanceof Element && el.matches(UI_SELECTOR));
-    if (onUi) return;
+    if (onAppUi(event)) return;
     if (!this.content) {
       void focusAtTap(event.clientX, event.clientY);
       return;
@@ -360,6 +398,8 @@ export class ArScene implements IArScene {
     document.removeEventListener("click", this.onTap);
     this.windowCleanup?.();
     this.windowCleanup = null;
+    this.previewCleanup?.();
+    this.previewCleanup = null;
     this.pauseEntities();
     this.loseAll();
     this.removeContent();
@@ -369,6 +409,7 @@ export class ArScene implements IArScene {
     this.lookAround = null;
     this.view?.dispose();
     this.tracker = null;
+    this.mock = null;
     this.view = null;
     this.started = false;
     this.running = false;
@@ -413,6 +454,7 @@ export class ArScene implements IArScene {
   private async run(): Promise<void> {
     if (!this.started) {
       if (this.startFailed) return;
+      this.ensureTracker(this.trackerOptions);
       this.setStatus("starting");
       await this.startTracking();
       // A newer request arrived while starting: the next queued step applies it

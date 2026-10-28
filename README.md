@@ -47,6 +47,7 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
 - [Game store](docs/game-store.md) · [Managers](docs/managers.md) · [BaseStore](docs/base-store.md) – app state
 - [Pages](docs/pages.md) · [Components](docs/components.md) · [Error page](docs/error-page.md) – the UI
 - [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene
+- [Editor](docs/editor.md) – the authors' tool: the scene over a simulated page, no camera (`/editor`)
 - [Languages](docs/i18n.md) – UI texts and translations
 - [Server](docs/server.md) – the accounts API
 - [Deploy](docs/deploy.md) – Kamal, staging and production, the board

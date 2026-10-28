@@ -49,6 +49,13 @@ export const router: PageRouterConfiguration = {
       param: "entryId"
     },
     {
+      // The editor: scan mode over the simulated page (the preview), current spread as in /spread
+      page: Pages.EDITOR,
+      slug: "/editor",
+      mode: GameMode.SCAN,
+      param: "spreadId"
+    },
+    {
       page: Pages.ERROR,
       slug: "/error",
     },

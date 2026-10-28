@@ -4,6 +4,43 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-29 – Editor, first step: `/editor` over the mock stage (#61, overnight after Tilman's go)
+
+- Tilman (2026-10-28, late): "#59 skippen und direkt in diesen Editor reingehen" – the mock stage (#59) is the editor's
+  preview, not a reader debug panel; onboarding steps stay out of the database; entities become a node tree with
+  components and plugins (the book's own code, compiled by the content build – 8th Wall's model, verified in their
+  repository: webpack per project, schemas parsed from the AST); click UI only together with code in the editor;
+  events have owners (core = book logic, read-only for plugins; scene = content) and scopes `node ⊂ spread ⊂ stage ⊂
+  session ⊂ book ⊂ global` (lookup outward, bubbling outward); a spread is the targets seen together, pages optional
+  (record sleeve, wall, cover); the book is the first layout template, OSCT a filled instance; variables are declared
+  with scope, writers and setter rules. All of it in `agents/research/2026-10-28-entity-components.md` and
+  `2026-10-28-editor-data-model.md`; issues #60 (geometry from the PDF), #61 (editor), both Proposals → #61 In progress.
+- Built overnight (1.10.0): route `/editor` (scan mode), `editor-page` shell + lazy chunk `src/editor/` (bar, preview
+  panel), `MockTracker` behind `IImageTracker`, `MockStage` in the scene, `ArScene.ensureTracker()` picks the tracker
+  when the camera would start (the editor page may become active a moment after the scene is asked to run – a first
+  version started the engine once and asked for the camera), camera permission simulated while the preview runs,
+  `history.forgetTarget()` for *unlock ↺*. English texts (RULES #20), RULES #32.
+- Decided alone, to review: the page format is a constant (230 × 320 mm) until the content carries it (#60); the row
+  layout when the protocol is missing; targets without an image are not on the stage; the preview panel opens with
+  the editor; the editor's chunk imports the dev-tools barrel (already in the main bundle) and defines `tune-panel`
+  itself in production builds.
+- Later that night (Tilman: "use these two to create the most realistic preview mock stage you can make",
+  "beim Blättern sollte auch alles passen", "front and backside bitte auch mitdenken – für dieses Buch nicht relevant,
+  aber im Editor darf man dort Targets platzieren"): `scripts/layout/extract-layout.py` reads `All_Triggers.pdf`
+  (129 double pages, 460 × 320 mm, every trigger as an image) and `OSCT_2110_previewLOWRES.pdf` (135 sheets: cover
+  front and back as single pages, two front- and two back-matter spreads, the rest double pages with page numbers at
+  the foot) → `content/layout/` (git-ignored, copied by the content build): 135 sheet images, 121 of 131 targets placed
+  (the ten not on the printout: pages 30, 95, 222 have two targets and one printed image). Python chosen because
+  PyMuPDF gives image boxes and renders pages in a few lines; a Node port (pdfjs + canvas) is possible when the
+  import becomes part of the osct CLI (#60). The stage shows the sheet as the page texture and the targets exactly
+  where printed; the covers are sheets of the layout (`cover-front` / `cover-back`, surfaces `front` / `back`) without
+  a spread yet – spreads without pages are a content schema change (#60, #61 step 5).
+- [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
+  Kévin's own phone later); comes with accounts / roles in step 2.
+- [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
+  loop settling?) – seen once in the browser pane, not reproduced.
+- [ ] Open (Tilman): 35 cm / 30° as the reader's view, or measure; the desktop default could start closer (20 cm).
+
 ## 2026-10-28 – Entity animations shorter (#57, Tilman)
 
 - On the phone the unlock ran too long: by the time a video or a 3D object had materialised the reader had often

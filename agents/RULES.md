@@ -164,7 +164,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `src/i18n/locales/<lang>/<ns>.json`, maintained with **i18next-cli** (`npm run i18n`; the build runs it
     and warns – never fails – about missing translations, which fall back to English).
     Book content (titles, entries, steps) is not UI text. The language is stored by the i18next language
-    detector (`osct-language`), not in the progress. Dev tools may stay English.
+    detector (`osct-language`), not in the progress. Dev tools and the **editor** (`/editor`, an authors' tool, not a
+    reader's view) stay English.
 
 21. **PWA**: the service worker (`client/sw/`, own tsconfig: `npx tsc -p sw`) serves pages
     network-first and content from a cache named after the content build hash. New public files that
@@ -284,3 +285,11 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     pointer each way – never the same paragraph in both. `agents/` is for agents only (plan, rules, memory,
     design measurements, research); readers' and developers' documentation goes to `docs/`. Remove a section
     when the code it describes is gone; a temporary runbook says so in its first line.
+
+32. **Editor** (`/editor`, docs/editor.md – Tilman, 2026-10-28, #61): the authors' tool is the app itself with a different
+    front door – the same `ArScene`, entities and animations over the **mock stage** (`ar/mock-tracker.ts`,
+    `ar/mock-stage.ts`) instead of the camera; never a second renderer or a second scene model. Its own UI lives in
+    `client/src/editor/` and is loaded lazily by `pages/editor-page.ts` – nothing of it on a reader's startup path,
+    no editor code in the main chunk beyond the page shell and the three-free preview flag
+    (`ar-bridges/utils/preview.ts`). The preview is switched on by the editor route, not by a stored flag. What the
+    editor changes stays in the browser until the database step: it never writes content files.

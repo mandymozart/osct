@@ -54,6 +54,8 @@ export interface IHistoryManager {
   /** Stage 1: a target was found in scan mode */
   unlockTarget(targetId: string): void;
   isUnlocked(targetId: string): boolean;
+  /** Forget a target's unlock (the editor replays the unlock animation); nothing else changes */
+  forgetTarget(targetId: string): void;
   /** Unlocked target ids of a spread (only targets in the content) */
   getUnlockedTargets(spreadId: string): string[];
 

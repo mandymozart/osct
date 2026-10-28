@@ -9,3 +9,4 @@ export * from "./loading-page";
 export * from "./camera-permission-page";
 export * from "./entries-page";
 export * from "./entry-page";
+export * from "./editor-page";
