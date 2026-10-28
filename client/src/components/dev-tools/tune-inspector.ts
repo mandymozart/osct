@@ -94,7 +94,10 @@ export class TuneInspector extends HTMLElement {
     if (entity) {
       sections.push(`<div class="section"><span class="section-label">placement</span>
         <button type="button" class="pill ${this.uniformScale ? "on" : ""}" data-action="uniform" aria-pressed="${this.uniformScale}" title="One scale for x, y and z">uniform scale</button></div>`);
-      sections.push(...this.rows.filter(r => !r.id.startsWith("filters.")).map(r => this.rowHtml(r)));
+      (["position", "rotation", "scale"] as const).forEach(key => {
+        const rows = this.rows.filter(r => r.id === key || r.id.startsWith(`${key}.`));
+        if (rows.length) sections.push(this.placementRowHtml(key, rows));
+      });
       (entity.filters ?? []).forEach((filter, i) => {
         sections.push(`<div class="section"><span class="section-label">filters[${i}] ${escapeHtml(filter.type)}</span>
           <button type="button" class="text-link" data-action="remove-filter" data-index="${i}">remove</button></div>`);
@@ -121,6 +124,7 @@ export class TuneInspector extends HTMLElement {
         .row.changed label { color: var(--color-on-dark); }
         .row.changed label::before { content: "● "; color: var(--color-accent); }
         scrub-number { width: 100%; }
+        .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: .25rem; min-width: 0; }
         .seg { display: inline-flex; gap: .25rem; flex-wrap: wrap; }
         :host .pill { height: var(--control-height); min-height: 0; padding: 0 .75rem; color: var(--color-on-dark); }
         :host .pill.on { background-color: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 .0625rem var(--color-accent); }
@@ -171,6 +175,21 @@ export class TuneInspector extends HTMLElement {
     });
   }
 
+  /** Position, rotation or scale: the three axes side by side (one field for an even scale), as in Blender */
+  private placementRowHtml(key: string, rows: TuneRow[]): string {
+    const unit = rows[0].unit ?? "";
+    const title = escapeHtml(`${rows[0].description}${unit ? ` (${unit})` : ""} – default ${rows.map(r => r.default).join(", ")}`);
+    const fields = rows.map(row => {
+      const axis = row.id.split(".")[1];
+      return `<scrub-number data-row="${row.id}" min="${row.min}" max="${row.max}" step="${row.step}" default="${row.default}"
+        prefix="${axis ? axis.toUpperCase() : ""}" unit="${unit === "°" ? "°" : ""}" label="${escapeHtml(row.id)}"
+        ${row.id.startsWith("scale") ? "positive" : ""}></scrub-number>`;
+    });
+    const changed = rows.map(r => r.id).join(" ");
+    return `<div class="row axes" data-for="${changed}" title="${title}"><label>${key}</label>
+      <span class="fields">${fields.join("")}</span></div>`;
+  }
+
   private rowHtml(row: TuneRow): string {
     const label = row.id.replace(/^filters\.\d+\./, "");
     const title = escapeHtml(`${row.description}${row.unit ? ` (${row.unit})` : ""} – default ${row.default}`);
@@ -197,8 +216,18 @@ export class TuneInspector extends HTMLElement {
     const target = this.targetId ? getTarget(this.targetId) : undefined;
     const content = target?.entity ? getValue(target.entity, row) : value;
     const same = (a: TuneValue, b: TuneValue) => (typeof a === "number" ? +a.toFixed(4) === +Number(b).toFixed(4) : a === b);
-    const element = this.shadow.querySelector(`.row[data-for="${row.id}"]`);
-    element?.classList.toggle("changed", !same(value, content));
+    const element = this.shadow.querySelector(`.row[data-for="${row.id}"]`) ?? this.shadow.querySelector(`.row[data-for~="${row.id}"]`);
+    if (element?.classList.contains("axes")) {
+      // The row holds the three axes: it is "changed" when any of them differs from the content
+      const ids = (element.getAttribute("data-for") ?? "").split(" ");
+      const any = ids.some(id => {
+        const other = this.rows.find(r => r.id === id);
+        return other && target?.entity && !same(getValue(this.entity!, other), getValue(target.entity, other));
+      });
+      element.classList.toggle("changed", any);
+    } else {
+      element?.classList.toggle("changed", !same(value, content));
+    }
     element?.querySelectorAll<HTMLElement>(`[data-row="${row.id}"]`).forEach(control => {
       if (control === skip) return;
       if (control.tagName === "SCRUB-NUMBER") {

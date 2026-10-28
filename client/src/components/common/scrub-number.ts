@@ -22,17 +22,19 @@ const parse = (text: string): number | null => {
  * Enter commits, Escape reverts. The unit follows the number; a reset arrow inside the field shows while the value
  * differs from `default` and sets it back. No native slider: the tools' controls stay one height and one width.
  *
- * Attributes: `value`, `min`, `max`, `step`, `default`, `unit`, `label` (accessible name), `strict` (a value outside
+ * Attributes: `value`, `min`, `max`, `step`, `default`, `unit`, `prefix` (a tag before the number: X / Y / Z), `label`
+ * (accessible name), `strict` (a value outside
  * min … max is refused and shown as a problem – otherwise any finite number, `positive` = must be > 0).
  * Events (bubble): `input` with every valid change while scrubbing or typing, `change` when a value is committed
  * (scrub ended, Enter, blur, reset). Read `.value` (number).
  */
 export class ScrubNumber extends HTMLElement {
-  static observedAttributes = ["value", "min", "max", "step", "default", "unit", "label", "strict", "positive", "disabled"];
+  static observedAttributes = ["value", "min", "max", "step", "default", "unit", "label", "prefix", "strict", "positive", "disabled"];
 
   private input: HTMLInputElement;
   private reset: HTMLButtonElement;
   private unitEl: HTMLSpanElement;
+  private prefixEl: HTMLSpanElement;
   private problemEl: HTMLSpanElement;
   private _value = 0;
   private press: { pointerId: number; x: number; start: number; scrubbing: boolean } | null = null;
@@ -59,6 +61,9 @@ export class ScrubNumber extends HTMLElement {
         input::selection { background: var(--color-accent); color: #000; }
         .unit { flex: none; padding-right: .5rem; color: var(--color-muted); font-size: var(--text-size-small); }
         .unit:empty { padding-right: .4rem; }
+        .prefix { flex: none; padding-left: .6rem; color: var(--color-muted); font-size: var(--text-size-small); letter-spacing: .08em; }
+        .prefix:empty { display: none; }
+        .prefix + input { padding-left: .25rem; }
         .reset { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--control); height: 100%;
           border: none; background: none; color: var(--color-muted); cursor: pointer; font: inherit; padding: 0; }
         .reset:hover, .reset:focus-visible { color: var(--color-on-dark); outline: none; }
@@ -68,6 +73,7 @@ export class ScrubNumber extends HTMLElement {
         :host([disabled]) .frame { opacity: .5; pointer-events: none; }
       </style>
       <div class="frame design">
+        <span class="prefix"></span>
         <input type="text" inputmode="decimal" enterkeyhint="done" spellcheck="false" autocomplete="off">
         <span class="unit"></span>
         <button type="button" class="reset" hidden>${RESET_ICON}</button>
@@ -77,6 +83,7 @@ export class ScrubNumber extends HTMLElement {
     this.input = root.querySelector("input")!;
     this.reset = root.querySelector(".reset")!;
     this.unitEl = root.querySelector(".unit")!;
+    this.prefixEl = root.querySelector(".prefix")!;
     this.problemEl = root.querySelector(".problem")!;
     const frame = root.querySelector<HTMLElement>(".frame")!;
     frame.addEventListener("pointerdown", this.onPointerDown);
@@ -133,6 +140,9 @@ export class ScrubNumber extends HTMLElement {
         break;
       case "unit":
         this.unitEl.textContent = this.getAttribute("unit") ?? "";
+        break;
+      case "prefix":
+        this.prefixEl.textContent = this.getAttribute("prefix") ?? "";
         break;
       case "label":
         this.input.setAttribute("aria-label", this.getAttribute("label") ?? "");
