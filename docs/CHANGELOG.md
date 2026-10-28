@@ -12,6 +12,14 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.8.1 – 2026-10-28
+
+### Changed
+- **Trial tiles show clearly what was found** (#36): a found image gets a thick green frame and a green square with a
+  ✓ in its top right corner, and stays fully visible (it was dimmed before); the image in view is framed yellow.
+  Square tiles, no rounded corners. Testers just move on when an image is not found – there is no "did not work"
+  button.
+
 ## 1.8.0 – 2026-10-28
 
 ### Added

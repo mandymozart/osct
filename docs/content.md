@@ -401,7 +401,7 @@ The checklist for a test with the printed book (or the trigger printout) is in t
 (±0: no growing window, nothing prepared or preloaded for other spreads), so a miss is the engine and the printout,
 not background work; closing restores the window setting. A camera row under the bar shows the lens, focus and
 zoom with three test switches – **AF**, **◎** tap to focus, the zoom step (`docs/tracking.md` "Camera"). A strip at the bottom shows the current spread's targets as
-thumbnails – found ones dimmed with ✓, the one in view outlined – followed by every target not found yet, from the
+thumbnails – found ones framed green with a ✓ in the corner, the one in view framed yellow – followed by every target not found yet, from the
 next pages on. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to make it
 taller or lower. The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
 (debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their

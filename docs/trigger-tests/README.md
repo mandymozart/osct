@@ -7,6 +7,9 @@ engine, the camera and the print, not to background work.
 The marked printout photos and the app's own `md` report of each run are kept outside git, next to the delivery:
 `osct-incoming-content/trials/<date>-<device>/`.
 
+Tester package for the second trial (#36) – one PDF per paper size, how-to page + numbered sheets (`OSCT-trial-2-A4.pdf`):
+`osct-incoming-content/trials/trial-2/` (`make-printouts.py`, `make-instructions.sh`, `make-combined.py`).
+
 ## Runs
 
 | Date | Device | Browser | App | Printout | Found | Not found | Not tested | Not on printout |
@@ -52,7 +55,7 @@ The triggers on the printout that a run did not find. ✗ not found, ✓ found, 
 ## Not on the printout
 
 Delivered as print images but missing from `All_Triggers.pdf`, so the printout does not have them (open question to
-Kévin, issue #14): p002-1, p030-2, p034-1, p035-1, p095-2, p100-1, p106-1, p158-1, p192-1, p222-2.
+Rudy and Virginie, issue #36): p002-1, p030-2, p034-1, p035-1, p095-2, p100-1, p106-1, p158-1, p192-1, p222-2.
 Checked against the book previews: all ten are in the book on their page and genuinely missing from the PDF, not
 leftover data.
 
