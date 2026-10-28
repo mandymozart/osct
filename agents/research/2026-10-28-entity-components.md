@@ -263,6 +263,18 @@ handler stops it; core events are emitted at book level and delivered inward to 
 the stage is wider than the current spread (held neighbours, the world, placed objects), so it sits above the
 spread although both live in the same session.
 
+**A spread is more than a double page** (Tilman): books without double pages exist, and a "spread" may be a
+record sleeve (front, back, label), a wall with several targets on it, or the book's front and back cover. So the
+definition of the scope is physical, not typographic: **a spread is the set of targets that lie together in the
+world and are seen together** – tracked as one group, authored as one scene, with one shared state. Pages are
+metadata of a spread, not its definition: `firstPage` / `lastPage` become optional (a wall has none, the cover is
+page 0), `order` stays (the reader's path through the work), and the physical format (page size for the mock
+stage, #60) gets a per-spread override over the book's default (a wall is not 230 × 320 mm). The word stays
+`spread` in OSCT's content and code (RULES #2 – page group = spread; renaming the core's unit to something like
+`scene` or `surface` is a decision for the white-label core, #44, not for this concept). The limits stay too:
+≤ 10 targets per spread, 4 tracked at once (RULES #3) – a wall with more targets is several spreads, or the
+budget grows with the device.
+
 **What a scene is.** Two words for two things, to end the ambiguity: in the **content** a *scene* is the authoring
 unit – a spread's entities and, later, its world (`world:` in `spread.yaml`, PLAN Phase 10) – and an entity's
 node tree is a sub-scene of it. So the `spread` scope *is* the scene's instance: the spread is the natural unit of
@@ -317,6 +329,8 @@ because of the compiler? No – the compiler splits into two unequal halves:
 - The core events plugins may subscribe to, and which book-scope variables the progress record carries (a schema
   MAJOR for the progress format, RULES #10).
 - `global` scope: whether readers' shared state exists at all (privacy, data sovereignty) – later.
+- Spreads without pages (cover, record sleeve, wall): `firstPage` / `lastPage` optional and a per-spread physical
+  format – content schema change, together with 2.0; the core's name for the unit (`spread` or a generic word) in #44.
 
 Sources: github.com/8thwall/8thwall (`c8/ecs/src/shared/schema.ts`, `studio-component.ts`,
 `runtime/components/*.ts`, `runtime/scene-types.ts`); 8thwall.org/docs/studio (custom components, entities and
