@@ -4,6 +4,14 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-28 – The tracker window defaults to ±1 again, not grow (#38, Tilman, 1.8.2)
+
+- Tilman, after testers on staging (iOS among them) had trouble: the growing window "will make it really difficult for
+  people to test the image targets … Until we finish this tracker window and have like a conclusive solution, we will
+  not deploy it as a default." Default ±1 (the default before 1.7.0: the next and previous spread switch by
+  themselves); grow stays selectable in the debug overlay. A device that stored *grow* by cycling keeps it.
+- #38 goes on: diagnose grow vs ±0 on the S22, then grow or a sliding target budget.
+
 ## 2026-10-28 – Trigger test S22: size, texture, camera readout (#14, Tilman, 1.8.0)
 
 - First trigger test (Galaxy S22, printout of 121 triggers): 96 found, 25 not found, 10 not on the printout –

@@ -12,6 +12,15 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.8.2 – 2026-10-28
+
+### Changed
+- **The tracker holds the neighbouring spreads again, not the whole book** (#38): by default the engine keeps the
+  current spread and the next and previous one loaded (±1, as before 1.7.0), so turning a page still switches by
+  itself. The growing window (the whole book, added in the background) stays selectable in the debug overlay; with
+  it, pages of a printout were no longer found once every target was held. Until that is solved it is not the
+  default.
+
 ## 1.8.1 – 2026-10-28
 
 ### Changed
