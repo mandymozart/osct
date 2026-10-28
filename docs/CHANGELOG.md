@@ -12,6 +12,19 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.9.1 – 2026-10-28
+
+### Changed
+- **Trial strip in a fixed order** (#14): the strip shows every target in the order of the printout, with its running
+  number (the same numbers as the tester printouts of trial 2) and its page – nothing reorders or disappears any more
+  (before, it showed the current spread's targets and then only the ones not found yet, from the current spread on,
+  so tiles jumped and vanished). Found ones get a green frame and a ✓, the one in view a yellow frame, the current
+  spread's a white frame; the strip scrolls to the current spread when it changes. Targets not on the printout are
+  dimmed and labelled "not printed".
+- **The trial holds ±1** instead of ±0: the next and previous spreads are loaded, so scanning the sheet in order
+  switches to the next page by itself; ‹ › stay.
+- The strip sits flush with the bottom edge of the screen, full width, square corners.
+
 ## 1.9.0 – 2026-10-28
 
 ### Fixed

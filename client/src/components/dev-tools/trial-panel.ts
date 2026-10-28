@@ -25,16 +25,47 @@ const storedHeight = (): number => {
   }
 };
 
+/** While the trial is open the tracker holds the current spread and its neighbours (±1): scanning the next image on
+ * the sheet switches the spread by itself (Tilman, 2026-10-28 – was ±0 since 1.7.8) */
+export const TRIAL_WINDOW = 1;
+
+/** Book order of the printout (page, then the target's number on the page): `p038-2` → [38, 2] */
+const bookOrder = (targetId: string): [number, number] => {
+  const match = targetId.match(/^p(\d+)-(\d+)$/);
+  return match ? [Number(match[1]), Number(match[2])] : [Number.MAX_SAFE_INTEGER, 0];
+};
+
+/** A target on the test printout: the printed-image details have its size (the others are noted as not printed) */
+const isPrinted = (row: TrialRow): boolean => !!row.info?.width;
+
 /**
- * Debug trial panel (a strip at the bottom, opened and closed with *trial* in the debug overlay): the trigger
- * checklist of a test with the printed book. Shows the current spread's targets (found ones framed green with a ✓
- * in the corner, the one in view framed yellow), then every target not found yet, from the next pages on – tap one to go to its spread;
- * ‹ › step through the spreads. Drag the top bar to make the strip taller or lower. The bar shows how many targets
- * are not found yet; **md** downloads the report of those for the designers (trial-report.ts).
- * While the panel is open the tracker holds the current spread only (window ±0, no grow, no preloading of other
- * spreads) – the trial tests the engine with the printout, not the background work; closing restores the setting.
- * A camera row under the bar shows the lens, resolution, focus and zoom (camera-debug.ts) with three test switches:
- * **AF** continuous focus, **◎** tap the picture to focus there, **1×** the next zoom step.
+ * The trial's rows in the printout's order, each printed one with its running number on the sheets (1, 2, 3 …, the
+ * same numbers as the tester printouts of trial 2); targets not on the printout keep their place without a number.
+ */
+export const numberedRows = (rows: TrialRow[]): Array<TrialRow & { number: number | null }> => {
+  // Without printed-image details (no protocol file) every target counts as printed
+  const known = rows.some(row => row.info);
+  let next = 1;
+  return [...rows]
+    .sort((a, b) => {
+      const [pageA, nA] = bookOrder(a.targetId);
+      const [pageB, nB] = bookOrder(b.targetId);
+      return pageA - pageB || nA - nB;
+    })
+    .map(row => ({ ...row, number: !known || isPrinted(row) ? next++ : null }));
+};
+
+/**
+ * Debug trial panel (a strip flush with the bottom of the screen, opened and closed with *trial* in the debug
+ * overlay): the trigger checklist of a test with the printed book. Shows every target in a fixed order – the order of
+ * the printout, with its running number – so nothing moves: found ones get a green frame and a ✓, the one in view a
+ * yellow frame, the current spread's a white frame, and the strip scrolls to the current spread when it changes.
+ * Tap a tile to go to its spread; ‹ › step through the spreads. Drag the top bar to make the strip taller or lower.
+ * The bar shows how many targets are not found yet; **md** downloads the report for the designers (trial-report.ts).
+ * While the panel is open the tracker holds the current spread and its neighbours (`TRIAL_WINDOW`, no grow);
+ * closing restores the setting. A camera row under the bar shows the lens, resolution, focus and zoom
+ * (camera-debug.ts) with three test switches: **AF** continuous focus, **◎** tap the picture to focus there, **1×**
+ * the next zoom step.
  */
 export class TrialPanel extends HTMLElement {
   private shadow: ShadowRoot;
@@ -44,6 +75,8 @@ export class TrialPanel extends HTMLElement {
   private signature = "";
   private drag: { pointerId: number; startY: number; startHeight: number } | null = null;
   private renderAfterDrag = false;
+  /** The spread the strip last scrolled to – it scrolls again only when the current spread changes */
+  private scrolledTo: string | null = null;
 
   constructor() {
     super();
@@ -56,7 +89,7 @@ export class TrialPanel extends HTMLElement {
     this.setAttribute("role", "dialog");
     this.setAttribute("aria-label", "Trigger trial");
     this.setHeight(storedHeight());
-    setWindowOverride(0);
+    setWindowOverride(TRIAL_WINDOW);
     this.cleanups.push(() => setWindowOverride(null));
     this.cleanups.push(
       this.game.subscribeToProperty("currentSpread", () => this.render()),
@@ -83,7 +116,11 @@ export class TrialPanel extends HTMLElement {
       const response = await fetch(TRIGGER_INFO_URL);
       if (!response.ok) return;
       const infos = await response.json();
-      if (infos && typeof infos === "object") this.infos = infos;
+      if (infos && typeof infos === "object") {
+        this.infos = infos;
+        this.signature = ""; // the running numbers depend on which targets are printed
+        this.render();
+      }
     } catch {
       // No protocol file (not generated): the report goes without printed-image details
     }
@@ -104,17 +141,6 @@ export class TrialPanel extends HTMLElement {
     });
   }
 
-  /** The current spread's targets, then the targets not found yet of the following spreads (wrapping round) */
-  private shown(rows: TrialRow[], current: string | null): TrialRow[] {
-    const order = getSpreads().map(spread => spread.id);
-    const start = Math.max(0, order.indexOf(current ?? ""));
-    const rank = (spreadId: string) => (order.indexOf(spreadId) - start + order.length) % order.length;
-    const own = rows.filter(row => row.spreadId === current);
-    const missing = rows.filter(row => row.spreadId !== current && row.result === "untested")
-      .sort((a, b) => rank(a.spreadId) - rank(b.spreadId));
-    return [...own, ...missing];
-  }
-
   private render() {
     // Re-rendering replaces the bar that holds the drag's pointer capture: wait until the drag ends
     if (this.drag) {
@@ -124,7 +150,7 @@ export class TrialPanel extends HTMLElement {
     const rows = this.rows();
     const current = this.game.state.currentSpread;
     const tracked = this.game.state.trackedTargets;
-    const shown = this.shown(rows, current);
+    const shown = numberedRows(rows);
     const signature = [current, tracked.join(","), shown.map(row => `${row.targetId}${row.result[0]}`).join(",")].join("|");
     if (signature === this.signature) return;
     this.signature = signature;
@@ -133,22 +159,23 @@ export class TrialPanel extends HTMLElement {
     const scrollTop = grid?.scrollTop ?? 0;
     const left = countResults(rows).untested;
     const spread = getSpreads().find(s => s.id === current);
-    const tile = (row: TrialRow) => {
+    const tile = (row: TrialRow & { number: number | null }) => {
       const own = row.spreadId === current;
       const found = row.result === "found";
-      const label = `${row.page}·${row.targetId.split("-").pop()}`;
-      return `<button class="tile ${own ? "own" : ""} ${found ? "found" : ""} ${tracked.includes(row.targetId) ? "seen" : ""}"
-        data-spread="${escapeHtml(row.spreadId)}" title="${escapeHtml(`${row.targetId} · ${row.title}`)}">
-        <img src="${escapeHtml(row.imageSrc)}" alt="" loading="lazy" decoding="async">${found ? `<b class="check" aria-label="found">✓</b>` : ""}<span>${escapeHtml(label)}</span>
+      const page = `p.${row.page}·${row.targetId.split("-").pop()}`;
+      const classes = ["tile", own ? "own" : "", found ? "found" : "", tracked.includes(row.targetId) ? "seen" : "", row.number === null ? "absent" : ""];
+      return `<button class="${classes.join(" ").trim()}" data-spread="${escapeHtml(row.spreadId)}"
+        title="${escapeHtml(`${row.number ?? "not printed"} · ${row.targetId} · ${row.title}`)}">
+        <img src="${escapeHtml(row.imageSrc)}" alt="" loading="lazy" decoding="async">${row.number !== null ? `<b class="num">${row.number}</b>` : ""}${found ? `<b class="check" aria-label="found">✓</b>` : ""}<span>${escapeHtml(row.number === null ? `${page} not printed` : page)}</span>
       </button>`;
     };
 
     this.shadow.innerHTML = `
       <style>
         :host {
-          position: fixed; left: .25rem; right: .25rem; bottom: calc(env(safe-area-inset-bottom) + .25rem);
+          position: fixed; left: 0; right: 0; bottom: 0; padding-bottom: env(safe-area-inset-bottom);
           z-index: 10000; box-sizing: border-box; display: flex; flex-direction: column;
-          border-radius: .5rem; background: rgba(0, 0, 0, .8); color: #0f0; font: .6875rem/1rem monospace;
+          border-radius: 0; border-top: .125rem solid #0f0; background: rgba(0, 0, 0, .85); color: #0f0; font: .6875rem/1rem monospace;
           cursor: default; user-select: none; overflow: hidden;
         }
         .bar { flex: none; display: flex; align-items: center; gap: .25rem; height: 1.875rem; padding: 0 .25rem;
@@ -170,6 +197,9 @@ export class TrialPanel extends HTMLElement {
         .tile.own { border-color: #fff; }
         .tile.found { border-color: #0f0; }
         .tile.found span { background: #0f0; color: #000; }
+        .tile .num { position: absolute; top: 0; left: 0; min-width: 1rem; height: 1rem; padding: 0 .125rem; background: #000;
+          color: #fff; font: 700 .6875rem/1rem monospace; text-align: center; }
+        .tile.absent { opacity: .35; }
         .tile .check { position: absolute; top: 0; right: 0; width: 1rem; height: 1rem; background: #0f0; color: #000;
           font: 700 .75rem/1rem monospace; text-align: center; }
         .tile.seen { border-color: #ff0; }
@@ -188,8 +218,14 @@ export class TrialPanel extends HTMLElement {
       <div class="cam"></div>
       <div class="grid">${shown.map(tile).join("")}</div>
     `;
-    const newGrid = this.shadow.querySelector(".grid");
+    const newGrid = this.shadow.querySelector<HTMLElement>(".grid");
     if (newGrid) newGrid.scrollTop = scrollTop;
+    // A new current spread: bring its row into view (the tiles never move, the view follows the reader)
+    const ownTile = this.shadow.querySelector<HTMLElement>(".tile.own");
+    if (newGrid && ownTile && current !== this.scrolledTo) {
+      this.scrolledTo = current;
+      newGrid.scrollTop = Math.max(0, ownTile.offsetTop - newGrid.offsetTop - 4);
+    }
     this.renderCamera(getCameraInfo());
   }
 
