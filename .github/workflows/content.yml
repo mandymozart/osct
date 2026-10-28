@@ -1,16 +1,20 @@
-# Content sync to the bunny.net CDN, by hand (docs/content-cdn.md). Content has its own lifecycle, apart from the
-# app deployment: nothing here runs on a push. It runs the osct CLI (`osct content build`, then `status` or
-# `sync`) against the content in this checkout and mirrors it into the environment's one folder on the storage
-# zone. Where the sync is triggered from in the long run (this button, a local run, a content repository) is
-# open – the CLI is the same everywhere.
+# Content on the bunny.net CDN, by hand (docs/content-cdn.md). Content has its own lifecycle, apart from the app
+# deployment: nothing here runs on a push. It runs the osct CLI against the content in this checkout:
+#   status – the versions on the storage and what the CDN serves
+#   sync   – build the content and upload it as a new version (its own folder), then make it current
+#   purge  – delete old versions that are provably out of use (strict checks, see the CLI)
+# Where the sync is triggered from in the long run (this button, a local run, a content repository) is open – the
+# CLI is the same everywhere.
 #
 # GitHub → Settings → Environments → "staging" / "production":
 #   variables: BUNNY_STORAGE_ZONE (osct), BUNNY_STORAGE_ZONE_ENDPOINT (storage.bunnycdn.com),
 #              CONTENT_BASE_URL (https://buildingfictions.b-cdn.net/<env>)
 #   secrets:   BUNNY_STORAGE_PASSWORD (the storage zone's read/write access key)
-name: Content sync
+name: Content
 
 on:
+  push:
+    branches: [claude/heuristic-varahamihira-4faefe] # TEMPORARY: sync-only check of the versioned upload (#5), removed again
   workflow_dispatch:
     inputs:
       environment:
@@ -19,27 +23,49 @@ on:
         options: [staging, production]
         default: staging
       command:
-        description: "status = show what would change, sync = mirror the content"
+        description: "status, sync (new version) or purge (old versions)"
         type: choice
-        options: [status, sync]
+        options: [status, sync, purge]
         default: status
+      dry_run:
+        description: "sync / purge: only show what would happen"
+        type: boolean
+        default: true
       force:
-        description: "Upload every file again"
+        description: "sync: upload the version again even if it is on the storage"
+        type: boolean
+        default: false
+      min_age:
+        description: "purge: days a version must have been retired (default 30 = CDN cache time)"
+        type: string
+        default: "30"
+      keep:
+        description: "purge: newest retired versions that always stay"
+        type: string
+        default: "1"
+      unknown:
+        description: "purge: also delete what is not a version on record"
         type: boolean
         default: false
 
 concurrency:
-  group: content-${{ inputs.environment }}
+  group: content-${{ inputs.environment || 'staging' }}
   cancel-in-progress: false
 
 jobs:
   content:
-    name: Content ${{ inputs.command }} (${{ inputs.environment }})
+    name: Content ${{ inputs.command || 'sync' }} (${{ inputs.environment || 'staging' }})
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment || 'staging' }}
     defaults:
       run:
         working-directory: scripts
+    env:
+      OSCT_CONTENT_ENV: ${{ inputs.environment || 'staging' }}
+      BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
+      BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
+      BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+      CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -48,16 +74,14 @@ jobs:
           cache: npm
           cache-dependency-path: scripts/package-lock.json
       - run: npm ci
+      - run: npm run build
       - name: Build the content
-        run: |
-          npm run build
-          npm run osct -- content build
-      - name: Content ${{ inputs.command }}
-        env:
-          OSCT_CONTENT_ENV: ${{ inputs.environment }}
-          BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
-          BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
-          BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
-          # The sync checks what the CDN serves afterwards
-          CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
-        run: npm run osct -- content ${{ inputs.command }} ${{ inputs.force && '--force' || '' }}
+        if: inputs.command == 'sync' || github.event_name == 'push'
+        run: npm run osct -- content build
+      - name: Content ${{ inputs.command || 'sync' }}
+        run: >
+          npm run osct -- content ${{ inputs.command || 'sync' }}
+          ${{ inputs.dry_run && inputs.command != 'status' && '--dry-run' || '' }}
+          ${{ inputs.command == 'sync' && inputs.force && '--force' || '' }}
+          ${{ inputs.command == 'purge' && format('--min-age {0} --keep {1}', inputs.min_age, inputs.keep) || '' }}
+          ${{ inputs.command == 'purge' && inputs.unknown && '--unknown' || '' }}
