@@ -235,6 +235,14 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `develop`/`main`), scripts type-check + build + tests + fixture build (+ the book content while it is in
     git), the Accounts API test (PHP 8.3, SQLite), client fixture build + `tsc` (app and service worker) +
     translations status + `vitest`. All four jobs must be green before a merge.
+    **Actions minutes** (Tilman, 2026-10-28, #42): every push starts runners. Runs on this public repository are
+    free today, but the account's included compute is nearly used up by the private repositories, and OSCT may
+    become private. So **push bundled** – at the end of a round or when a stage is done, never after every commit;
+    doc-only commits ride along with the next code push (a branch with a PR runs Checks twice per push: `push` +
+    `pull_request`). Agents watch their own runs (`gh run watch`, `gh pr checks <n>`, `gh run list --branch <b>`)
+    and read a failed one (`gh run view <id> --log-failed`) – Tilman gets no Actions mails (account setting), so a
+    red run nobody looks at stays red. No self-hosted runner while the repository is public (pull requests from
+    forks would run code on the PC); trimming the workflows and a local runner for `develop` are decided in #42.
 
 28. **Deployment** (Kamal – docs/deploy.md, owned by #6): one Docker image (`Dockerfile`: content build + app +
     `server/api` as `/api`, Apache + PHP) deployed with Kamal over SSH behind kamal-proxy; MariaDB as a Kamal
