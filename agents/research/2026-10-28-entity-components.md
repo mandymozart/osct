@@ -14,12 +14,13 @@ Museum. No app code changed.
   layers, animation, audio, behaviour on found / lost / tap). Content describes the tree; the app's registries
   (`registerNodeType`, `registerComponent`) turn it into three.js objects – as `ar/entities.ts` does today for one
   node.
-- **"Anything three.js can do" = anything a registered node type or component does.** The registry is the API
-  surface of the content. A new three.js capability (a particle system, a text mesh, a fresnel layer) is a new
-  registered type with a **spec**, an afternoon of app code – never code inside the content. That is the one
-  place we differ from 8th Wall on purpose: 8th Wall let every project ship its own component code; our content
-  stays data (it is served from the CDN, read by any app version of the same schema MAJOR, and reviewed as content,
-  not as code – STRATEGY: data sovereignty, contracted model).
+- **"Anything three.js can do" = anything a registered node type, component or layer does** – built into the
+  core, or brought by the book as a **plugin**. The registry is the API surface. Tilman (2026-10-28, second round):
+  8th Wall's per-project component code was the smart part – a project extends the engine without drilling into
+  the framework, an agent can extend it the same way, and the reader stays small. So: a book's content may carry
+  **code, compiled by the content build into one plugin chunk** that the app loads lazily with the AR chunk
+  (section "Plugins" below). What never happens: code typed into the editor by anyone and run unreviewed – plugins
+  live in the content repository, go through the build's type check and a review, like the core.
 - **Specs drive everything** – the editor's inspector, the build's checks, the app's config guard, and the tune
   panel are one thing: a parameter spec per type (`kind`, `default`, `min`/`max`/`step`, `options`, `unit`,
   `description`, `group`, `condition`). `FILTERS` and `PLACEMENT_PARAMS` in `shared/types/` are already exactly
@@ -160,12 +161,44 @@ entity:                                  # the root node sits on the target (1 u
 
 ### How a new capability enters
 
-1. Write the spec and the builder in the app: `registerNodeType("particles", PARTICLES_SPEC, build)` or
-   `registerLayer("fresnel", FRESNEL_SPEC, chunk)`.
+1. Write the spec and the builder – in the core (`ar/entities.ts` and friends) when every book wants it, or in the
+   book's **plugin** when it is this book's thing: `registerNodeType("particles", PARTICLES_SPEC, build)`,
+   `registerComponent("spin", SPIN_SPEC, apply)`, `registerLayer("fresnel", FRESNEL_SPEC, chunk)`.
 2. Nothing else: the editor shows the new type with its fields, the build accepts and checks it, the tune panel
    gets its sliders, the docs table of types is generated from the specs (`docs/content.md`).
 3. Content schema: a new type is a new enum value → MINOR if the app ignores unknown types gracefully (we should
    make it so in 2.0: an unknown node type renders nothing and logs), MAJOR only when a field changes meaning.
+
+### Plugins: the book's own code, compiled by the content build
+
+8th Wall's model, adapted to "content on a CDN, app deployed apart":
+
+- **Where**: `plugins/` next to the content (`OSCT_CONTENT_DIR/plugins/*.ts`, later the content repository): small
+  TypeScript modules that export `register(api)` and call the same registries the core uses. The `api` object hands
+  them the engine: `api.three` (the app's three.js – one instance, no version clash, no second copy), the
+  registries, the helpers the core's own types use (material composition, asset loading, the celebration's
+  dissolve, chroma key), the spec types. Plugins never `import "three"` themselves.
+- **Compile step – yes, in the content build**: `osct content build` bundles `plugins/` with Vite in library mode
+  (one ES module, three and the API external, type-checked with `tsc` first – errors go to the author, RULES #16)
+  into `plugins-<hash>.js` **inside the content build output**, next to `game.config.json`, so it travels to the CDN
+  in the same immutable folder and is cached and rolled back with the content. `game.config.json` declares it
+  (`plugins: ["plugins-<hash>.js"]`) plus the **plugin API version** it was built against; the app refuses a plugin
+  of a newer API major, as it refuses content of another schema major.
+- **Loading**: the app loads the plugin chunk lazily, after the AR chunk, only when the configuration declares one
+  (`import(contentUrl(file))` – `utils/game-config.ts` makes the URL, RULES #24), and calls `register(api)` before
+  the first spread is built. A reader of a book without plugins downloads nothing extra; the core stays small.
+- **Editor and sandbox**: the editor loads the same chunk, so plugin types appear in the inspector with their specs
+  (the spec is data the plugin registers – the editor needs no plugin code of its own). Going deeper = editing
+  `plugins/*.ts` in the content repository, building, and opening the editor with the draft plus the local plugin
+  bundle (`?plugins=<url>` on staging while developing, same-origin or CORS-enabled) – a sandbox like the
+  Artificial Museum's, but inside the editor's preview. An agent extends the book the same way: a plugin file, a
+  build, the preview, a pull request – without touching the core.
+- **Trust**: a plugin runs with the page's full power, so plugins come only from the book's repository through the
+  build and a review (STRATEGY: contracted model), never from an upload or an editor text field. The build signs
+  nothing today; the immutable CDN folder plus the repository history are the provenance.
+- **What the API freezes**: the registries' signatures, the spec shape, `api.three` (the three.js major), a few
+  helpers. Everything else inside the app may change without breaking plugins – that is the point of the API.
+  Versioned like the content schema (`PLUGIN_API_VERSION` in `shared/`).
 
 ### Editor view (the inspector)
 
@@ -188,7 +221,8 @@ document on save (for "used by" and the asset budget). The data model note is up
 2. In parallel, settle this concept with Tilman and Kévin: which node types and layers the book actually needs
    (the list above is a menu, not a plan). Then content schema 2.0: specs in `shared/`, node tree + components in
    the build and the app, the up-conversion, the editor's hierarchy and inspector.
-3. Never content-side code. If an artist needs something the registry lacks, it becomes a registered type.
+3. Content-side code only as a compiled plugin (below): a registered type in the book's repository, reviewed and
+   type-checked by the build – never code typed into the editor.
 
 ## Open (decide)
 
@@ -197,6 +231,8 @@ document on save (for "used by" and the asset budget). The data model note is up
 - Behaviour actions for 2.0: `play`, `pause`, `show`, `hide`, `openEntry`, `openLink`? States (Spline) later?
 - Unknown node types tolerated by the app (MINOR for new types) – yes?
 - Where the registries' docs live: generated table in `docs/content.md` from the specs (proposal).
+- Plugins: the API surface for 1.0 (registries, specs, `api.three`, which helpers), and whether a plugin may add
+  behaviour actions and events, not only node types and layers.
 
 Sources: github.com/8thwall/8thwall (`c8/ecs/src/shared/schema.ts`, `studio-component.ts`,
 `runtime/components/*.ts`, `runtime/scene-types.ts`); 8thwall.org/docs/studio (custom components, entities and
