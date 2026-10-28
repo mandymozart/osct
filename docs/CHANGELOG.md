@@ -12,6 +12,23 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.9.5 – 2026-10-28
+
+### Changed
+- The trial strip looks like the debug bar at the top, turned upside down (#14): .25rem in from the left and right
+  edges, .5rem rounded top corners, flat on the bottom edge; no green line on top (the grab bar marks the edge).
+- The strip scrolls smoothly to the current spread when it changes, so the reader sees it move (instantly with
+  reduced motion); a re-render mid-scroll continues the scroll, touching the strip stops it.
+- The strip's camera row is a feedback line only – lens, resolution, focus and zoom, no AF / ◎ / zoom buttons: the
+  trial runs with the app's camera defaults (#37). The md report records the camera, also when the camera is already
+  off when md is tapped (the last one seen).
+- **One bottom sheet for all debug panels** (#14): trial, camera, load test and tune share `dev-tools/debug-sheet.ts`
+  – the debug bar at the top turned upside down, a top bar with the grab handle that sets the height by dragging
+  (stored per panel on the device), a scrolling body. Before, each panel drew its own frame (three different ones)
+  and only the trial could be resized.
+- **The collapsed debug line is one line again**: the status dot, `T<targets on the spread>`, `E<ready>/<held>`.
+  The spread id, `F[…]` (found counts), `S[…]` (what the engine sees), `↪` and the camera summary are gone from it –
+  what the engine sees and the last auto switch are in the expanded view, the camera in its panel.
 ## 1.9.4 – 2026-10-28
 
 ### Added

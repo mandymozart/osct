@@ -400,12 +400,13 @@ The checklist for a test with the printed book (or the trigger printout) is in t
 (dev server and staging; *trial* again or × closes it). A strip flush with the bottom of the screen shows every
 target as a thumbnail in a fixed order – the order of the printout, with its running number (the same numbers as the
 tester printouts of trial 2; targets not on the printout are dimmed, "not printed"). Nothing moves: a found one gets
-a green frame and a ✓, the one in view a yellow frame, the current spread's a white frame, and the strip scrolls to
+a green frame and a ✓, the one in view a yellow frame, the current spread's a white frame, and the strip scrolls smoothly to
 the current spread when it changes. While the trial is open the engine holds the current spread and its neighbours
 (±1, no growing window), so scanning the next image on the sheet switches the spread by itself; closing restores
 the window setting. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to
-make it taller or lower. A camera row under the bar shows the lens, focus and zoom with three test switches – **AF**,
-**◎** tap to focus, the zoom step (`docs/tracking.md` "Camera"). The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
+make it taller or lower. A camera line under the bar shows the lens, resolution, focus and zoom the trial runs with –
+feedback only, the trial uses the app's camera defaults; the md report records it (the test switches are in the
+debug overlay's camera panel, `docs/tracking.md` "Camera"). The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
 (debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their
 printed image, then the found ones – to forward to the designers.
 
