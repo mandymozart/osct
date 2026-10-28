@@ -15,8 +15,9 @@ export const CLIENT_PUBLIC_ASSETS_DIR = resolve(projectRoot, 'client/public/asse
 
 export const SOUNDS_DIR = resolve(projectRoot, 'client/public/assets/sounds');
 
-// One version for app and content build (RULES.md #10). Source: client/package.json –
-// read directly, npm_package_version is missing outside `npm run`.
+// One version for app and tooling (RULES.md #10), recorded in the content as information (`version.version`);
+// compatibility is the content schema. Source: client/package.json – read directly, npm_package_version is
+// missing outside `npm run`.
 export const APP_VERSION: string = JSON.parse(
   readFileSync(resolve(projectRoot, 'client/package.json'), 'utf8')
 ).version;

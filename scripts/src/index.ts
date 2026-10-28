@@ -31,8 +31,8 @@ console.log('📄 Output file:', OUTPUT_FILE);
 async function generateConfigFile(): Promise<void> {
   try {
     // Skip the build (and keep the timestamp) when nothing that affects the output changed
-    const versionStr = APP_VERSION;
-    const inputHash = hashBuildInputs(versionStr);
+    const versionStr = APP_VERSION; // information only: the tooling version that built the content
+    const inputHash = hashBuildInputs();
     const force = process.argv.includes('--force');
     if (!force && inputHash === readPreviousHash() && fs.existsSync(CLIENT_PUBLIC_ASSETS_DIR)) {
       console.log(`✅ Content unchanged (hash ${inputHash.slice(0, 12)}), nothing to build. Use --force to rebuild.`);

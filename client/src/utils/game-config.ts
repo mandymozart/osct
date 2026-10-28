@@ -1,19 +1,19 @@
 /**
  * Read access to the game configuration (`game.config.json`): the data the content build
- * (`scripts/`) generates from the authored content in `content/`.
+ * (`scripts/`) generates from the authored content.
  *
- * The only module that reads `game.config.json` (RULES #14). `loadGameConfiguration()` loads it once
- * before the app starts (main.ts): from the content CDN when the build has a content base URL
- * (`VITE_CONTENT_BASE_URL` – `<base>/latest.json` names the current bundle, `<base>/<build>/game.config.json`
- * is the configuration, docs/content-cdn.md), else the copy bundled with the app (dev server, tests).
+ * The only module that reads it (RULES #14). `loadGameConfiguration()` loads it once before the app starts
+ * (main.ts): from the content CDN when the build has a content base URL (`VITE_CONTENT_BASE_URL` – the
+ * environment's one folder: `<base>/game.config.json`, `<base>/files.json`, `<base>/assets/content/…`,
+ * docs/content-cdn.md), else the copy bundled with the app (`virtual:osct-game-config` – dev server, tests).
  * On load it checks the JSON against the contract (`assertGameConfiguration`), checks that this app can
- * read the bundle (content schema, version), maps `*Data` to the app model (`Spread`, `Entry`, `Target`,
- * `Step`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the
- * loaded bundle, so the rest of the app never knows where the content comes from.
+ * read the content (content schema MAJOR – RULES #10), maps `*Data` to the app model (`Spread`, `Entry`,
+ * `Target`, `Step`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the
+ * loaded content (on the CDN with the file's checksum as `?v=`, so an overwritten file gets a new URL), so the
+ * rest of the app never knows where the content comes from.
  */
 import { assertGameConfiguration, GameConfigurationError, isEntityRef } from '@shared/guards/game-config';
-import { CONTENT_SCHEMA_VERSION } from '@shared/types/game-config';
-import { ContentManifest, isContentManifest } from '@shared/types/content-manifest';
+import { CONTENT_SCHEMA_VERSION, parseContentSchema } from '@shared/types/game-config';
 import {
   AssetData,
   BookData,
@@ -28,12 +28,11 @@ import {
   Step,
   Target,
 } from '@/types';
-import { compareVersions } from './version';
 import { t } from "i18next";
 
 /** Used until the configuration is loaded, and when it is invalid, so the app can show the error */
 const EMPTY_CONFIGURATION: GameConfiguration = {
-  version: { version: '0.0.0', timestamp: '' },
+  version: { version: '0.0.0', timestamp: '', schema: CONTENT_SCHEMA_VERSION },
   book: { id: '', title: '', author: '' },
   initialSpreadId: '',
   spreads: [],
@@ -44,8 +43,15 @@ const EMPTY_CONFIGURATION: GameConfiguration = {
 
 /** Path prefix of content files in the configuration and in the app's public folder */
 export const CONTENT_PATH = '/assets/content/';
-/** Fetching the manifest and the configuration: a slow CDN must not keep the splash forever */
+/** Fetching the configuration: a slow CDN must not keep the splash forever */
 const LOAD_TIMEOUT_MS = 20000;
+
+/** Content files on the CDN by path (`files.json`, written by the CDN sync): size and short checksum */
+export type ContentFiles = Record<string, { size: number; v: string }>;
+
+const isContentFiles = (value: unknown): value is ContentFiles =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) &&
+  Object.values(value).every(f => typeof f === 'object' && f !== null && typeof f.size === 'number' && typeof f.v === 'string');
 
 /**
  * Runtime error handling: the guard's `GameConfigurationError` (every problem with its path, same
@@ -55,38 +61,29 @@ const LOAD_TIMEOUT_MS = 20000;
 let configurationError: ErrorInfo | null = null;
 
 /**
- * One version for app and content build (RULES #10): another MAJOR means the content has to be
- * rebuilt (no configuration migrations); MINOR/PATCH differences must just work.
+ * Can this app read the content? The content schema (`MAJOR.MINOR`, shared/) is the only rule (RULES #10):
+ * another MAJOR is refused – newer content needs an app update, older content a newer content sync – and any
+ * MINOR of the same MAJOR loads. The app version the content was built with is information only.
  */
-export const checkConfigurationVersion = (appVersion: string, configVersion: string): ErrorInfo | null => {
-  const compatibility = compareVersions(appVersion, configVersion);
-  if (compatibility === 'compatible') {
-    console.info(`[game-config] Content built with ${configVersion}, app is ${appVersion}.`);
+export const checkContentCompatibility = (version: ConfigurationVersion): ErrorInfo | null => {
+  const app = parseContentSchema(CONTENT_SCHEMA_VERSION);
+  const content = parseContentSchema(version.schema);
+  if (app && content && content.major === app.major) {
+    if (content.minor !== app.minor) {
+      console.info(`[game-config] Content schema ${version.schema}, this app reads ${CONTENT_SCHEMA_VERSION} – compatible.`);
+    }
+    return null;
   }
-  if (compatibility !== 'incompatible') return null;
+  const newer = !!app && !!content && content.major > app.major;
   return {
     code: ErrorCode.NOT_SUPPORTED,
-    msg: t('startup:contentOtherVersion'),
+    msg: t(newer ? 'startup:contentNewer' : 'startup:contentOlder'),
     type: 'critical',
-    details: [`App ${appVersion}, content ${configVersion}: the content needs to be rebuilt.`],
+    details: [
+      `Content schema ${version.schema} (built with app ${version.version}), this app reads schema ${CONTENT_SCHEMA_VERSION}: ` +
+        (newer ? 'update the app.' : 'the content needs a newer build.'),
+    ],
   };
-};
-
-/**
- * Can this app read the bundle? Content loaded at runtime may be newer than the installed app: a bundle
- * with a newer content schema is refused (the app has to be updated), then the version rule applies.
- */
-export const checkContentCompatibility = (appVersion: string, version: ConfigurationVersion): ErrorInfo | null => {
-  const schema = version.schema ?? 1;
-  if (schema > CONTENT_SCHEMA_VERSION) {
-    return {
-      code: ErrorCode.NOT_SUPPORTED,
-      msg: t('startup:contentNewer'),
-      type: 'critical',
-      details: [`Content schema ${schema} (content ${version.version}), app ${appVersion} reads schema ${CONTENT_SCHEMA_VERSION}: update the app.`],
-    };
-  }
-  return checkConfigurationVersion(appVersion, version.version);
 };
 
 const fetchWithTimeout = async (fetchFn: typeof fetch, url: string, init: RequestInit = {}): Promise<Response> => {
@@ -101,14 +98,23 @@ const fetchWithTimeout = async (fetchFn: typeof fetch, url: string, init: Reques
   }
 };
 
-/** The current bundle of a content base URL: the manifest names it, the bundle holds the configuration */
-const fetchFromContentBase = async (baseUrl: string, fetchFn: typeof fetch): Promise<{ raw: unknown; bundleUrl: string; manifest: ContentManifest }> => {
-  // The manifest changes with every upload: always revalidated; the bundle itself is immutable
-  const manifest: unknown = await (await fetchWithTimeout(fetchFn, `${baseUrl}/latest.json`, { cache: 'no-cache' })).json();
-  if (!isContentManifest(manifest)) throw new Error(`${baseUrl}/latest.json is not a content manifest`);
-  const bundleUrl = `${baseUrl}/${manifest.build}`;
-  const raw: unknown = await (await fetchWithTimeout(fetchFn, `${bundleUrl}/game.config.json`)).json();
-  return { raw, bundleUrl, manifest };
+/**
+ * The environment's content on the CDN. Both files are overwritten by every sync: revalidated by the browser,
+ * and asked for with a value that changes once a minute (`?t=`), so a CDN edge that varies its cache by query
+ * string asks the storage at most once a minute. files.json is optional – without it the URLs carry no `?v=`.
+ */
+const fetchFromContentBase = async (baseUrl: string, fetchFn: typeof fetch): Promise<{ raw: unknown; files: ContentFiles }> => {
+  const minute = Math.floor(Date.now() / 60000);
+  const [raw, files] = await Promise.all([
+    fetchWithTimeout(fetchFn, `${baseUrl}/game.config.json?t=${minute}`, { cache: 'no-cache' }).then(r => r.json() as Promise<unknown>),
+    fetchWithTimeout(fetchFn, `${baseUrl}/files.json?t=${minute}`, { cache: 'no-cache' })
+      .then(r => r.json() as Promise<unknown>)
+      .catch(error => {
+        console.warn(`[game-config] ${baseUrl}/files.json not loaded (${error instanceof Error ? error.message : error}) – content URLs without checksum`);
+        return null;
+      }),
+  ]);
+  return { raw, files: isContentFiles(files) ? files : {} };
 };
 
 export interface LoadOptions {
@@ -126,22 +132,22 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
   configurationError = null;
   try {
     let raw: unknown;
-    let bundle = '';
+    let files: ContentFiles = {};
     if (baseUrl) {
-      const loaded = await fetchFromContentBase(baseUrl, options.fetch ?? fetch);
-      raw = loaded.raw;
-      bundle = loaded.bundleUrl;
-      console.info(`[game-config] Content bundle ${loaded.manifest.build} from ${baseUrl} (uploaded ${loaded.manifest.uploadedAt}).`);
+      ({ raw, files } = await fetchFromContentBase(baseUrl, options.fetch ?? fetch));
     } else {
-      raw = (await import('@/game.config.json')).default;
+      raw = (await import('virtual:osct-game-config')).default;
+      if (raw === null) throw new Error('This build loads its content from the CDN but has no content base URL');
     }
     assertGameConfiguration(raw);
-    configurationError = checkContentCompatibility(__VITE_APP_VERSION__, raw.version);
+    const { version } = raw;
+    console.info(`[game-config] Content ${(version.hash ?? '').slice(0, 12)} (schema ${version.schema}, built with app ${version.version}) from ${baseUrl || 'the app'}.`);
+    configurationError = checkContentCompatibility(version);
     if (configurationError) {
       console.error(`[game-config] ${configurationError.details?.[0]}`);
-      apply(EMPTY_CONFIGURATION, '');
+      apply(EMPTY_CONFIGURATION, '', {});
     } else {
-      apply(raw, bundle);
+      apply(raw, baseUrl, files);
     }
   } catch (error) {
     const invalid = error instanceof GameConfigurationError;
@@ -153,7 +159,7 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
       type: 'critical',
       details: problems,
     };
-    apply(EMPTY_CONFIGURATION, '');
+    apply(EMPTY_CONFIGURATION, '', {});
   }
   return configurationError;
 };
@@ -162,8 +168,10 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
 export const getConfigurationError = (): ErrorInfo | null => configurationError;
 
 let config: GameConfiguration = EMPTY_CONFIGURATION;
-/** URL prefix of the loaded bundle's content files ('' when the content is served with the app) */
-let bundleBase = '';
+/** Base URL of the content on the CDN ('' when the content is served with the app) */
+let contentBase = '';
+/** files.json of the loaded content (empty for content served with the app) */
+let contentFiles: ContentFiles = {};
 let entries: Entry[] = [];
 let spreads: Spread[] = [];
 let spreadById = new Map<string, Spread>();
@@ -171,15 +179,33 @@ let entryById = new Map<string, Entry>();
 let targetById = new Map<string, Target>();
 let tutorial: Step[] = [];
 
-/** URL of a content file given its path in the configuration (`/assets/content/…`) */
-export const contentUrl = (path: string): string => (path.startsWith(CONTENT_PATH) ? `${bundleBase}${path}` : path);
+/**
+ * URL of a content file given its path in the configuration (`/assets/content/…`): on the CDN with the file's
+ * checksum (`?v=`, from files.json) – files are overwritten in place, the URL changes with the file
+ */
+export const contentUrl = (path: string): string => {
+  if (!path.startsWith(CONTENT_PATH) || !contentBase) return path;
+  const v = contentFiles[path]?.v;
+  return `${contentBase}${path}${v ? `?v=${v}` : ''}`;
+};
 
-/** A URL of the loaded content (same origin or the content bundle) – as opposed to external links */
+/** A URL of the loaded content (same origin or the content CDN) – as opposed to external links */
 export const isContentUrl = (src?: string): src is string =>
-  !!src && (src.startsWith(CONTENT_PATH) || (bundleBase !== '' && src.startsWith(`${bundleBase}${CONTENT_PATH}`)));
+  !!src && (src.startsWith(CONTENT_PATH) || (contentBase !== '' && src.startsWith(`${contentBase}${CONTENT_PATH}`)));
 
-/** Where the content files come from: the bundle's URL on the CDN, '' when served with the app */
-export const getContentBundleUrl = (): string => bundleBase;
+/** The path in the configuration (`/assets/content/…`) of a content URL, or null for other URLs */
+export const contentPathOf = (src: string): string | null => {
+  if (!isContentUrl(src)) return null;
+  const path = src.startsWith(CONTENT_PATH) ? src : src.slice(contentBase.length);
+  return path.split(/[?#]/)[0];
+};
+
+/** Where the content files come from: the environment's folder on the CDN, '' when served with the app */
+export const getContentBaseUrl = (): string => contentBase;
+
+/** Sizes in bytes by content URL from files.json (CDN content), null for content served with the app */
+export const getContentSizes = (): Record<string, number> | null =>
+  contentBase ? Object.fromEntries(Object.entries(contentFiles).map(([path, file]) => [contentUrl(path), file.size])) : null;
 
 const withContentUrls = (raw: GameConfiguration, base: string): GameConfiguration => {
   if (!base) return raw;
@@ -197,8 +223,9 @@ const withContentUrls = (raw: GameConfiguration, base: string): GameConfiguratio
   };
 };
 
-const apply = (raw: GameConfiguration, base: string): void => {
-  bundleBase = base;
+const apply = (raw: GameConfiguration, base: string, files: ContentFiles): void => {
+  contentBase = base;
+  contentFiles = files;
   config = withContentUrls(raw, base);
 
   const resolveEntity = (entity?: EntityData | EntityRefData): EntityData | undefined =>

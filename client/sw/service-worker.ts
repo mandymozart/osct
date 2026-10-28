@@ -10,9 +10,11 @@
  *   precached index.html (it matches the precached files).
  * - Content (target images, models, images, videos – from the content CDN when the build has a content base
  *   URL, else assets/content/ of the app): cached when first used (the PreloaderService's fetches fill it) and
- *   served from the cache afterwards. One cache per content build (`version.hash`), older ones are dropped
- *   when a new worker takes over. The CDN's `latest.json` (which bundle is current) is fetched network-first
- *   and kept, so the installed app starts offline with the last content it saw.
+ *   served from the cache afterwards. Bundled content: one cache per content build (`version.hash`), older ones
+ *   are dropped when a new worker takes over. CDN content: one cache; a file's URL carries its checksum
+ *   (`?v=`), and storing a new version drops the older ones of the same file. The CDN's `game.config.json` and
+ *   `files.json` are fetched network-first and kept, so the installed app starts offline with the last content
+ *   it saw.
  * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code.
  */
 import { clientsClaim } from "workbox-core";
@@ -20,6 +22,7 @@ import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from "workbox-
 import { registerRoute, setCatchHandler } from "workbox-routing";
 import { CacheFirst, NetworkFirst, NetworkOnly } from "workbox-strategies";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
+import type { WorkboxPlugin } from "workbox-core/types";
 import { RangeRequestsPlugin } from "workbox-range-requests";
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision: string | null }> };
@@ -27,12 +30,12 @@ declare const __VITE_CONTENT_HASH__: string;
 declare const __VITE_CONTENT_BASE_URL__: string;
 
 const CONTENT_CACHE_PREFIX = "osct-content-";
-const CONTENT_CACHE = `${CONTENT_CACHE_PREFIX}${__VITE_CONTENT_HASH__.slice(0, 16)}`;
+const CONTENT_CACHE = `${CONTENT_CACHE_PREFIX}${__VITE_CONTENT_HASH__.slice(0, 16)}`; // "cdn" in a CDN build
 /** Content CDN base URL of this build ("" = content served with the app) */
 const CONTENT_BASE_URL = __VITE_CONTENT_BASE_URL__.replace(/\/+$/, "");
 /** Network timeout for index.html; after it, the precached copy is served */
 const PAGE_TIMEOUT_SECONDS = 4;
-/** Network timeout for the content manifest; after it, the last one seen is served */
+/** Network timeout for the content configuration; after it, the last one seen is served */
 const MANIFEST_TIMEOUT_SECONDS = 5;
 
 self.skipWaiting();
@@ -50,11 +53,39 @@ cleanupOutdatedCaches();
 const isContent = ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }): boolean =>
   CONTENT_BASE_URL ? url.href.startsWith(`${CONTENT_BASE_URL}/`) : sameOrigin && url.pathname.startsWith("/assets/content/");
 
-// The manifest changes with every content upload: from the network, the stored copy only when offline
+/** Stored under the URL without its query (`?t=` changes every minute), so the offline copy is found */
+const withoutQuery: WorkboxPlugin = {
+  cacheKeyWillBeUsed: async ({ request }) => {
+    const url = new URL(request.url);
+    url.search = "";
+    return url.href;
+  },
+};
+
+/** A new version of a CDN file (`?v=`) replaces the older ones of the same file in the cache */
+const dropOlderVersions: WorkboxPlugin = {
+  cacheDidUpdate: async ({ cacheName, request }) => {
+    const stored = new URL(request.url);
+    const cache = await caches.open(cacheName);
+    const older = (await cache.keys()).filter(key => {
+      const url = new URL(key.url);
+      return url.origin === stored.origin && url.pathname === stored.pathname && url.search !== stored.search;
+    });
+    await Promise.all(older.map(key => cache.delete(key)));
+  },
+};
+
+// The configuration and the file list change with every content sync: from the network, the stored copy only
+// when offline
 if (CONTENT_BASE_URL) {
+  const changing = [`${CONTENT_BASE_URL}/game.config.json`, `${CONTENT_BASE_URL}/files.json`];
   registerRoute(
-    ({ url }) => url.href === `${CONTENT_BASE_URL}/latest.json`,
-    new NetworkFirst({ cacheName: CONTENT_CACHE, networkTimeoutSeconds: MANIFEST_TIMEOUT_SECONDS, plugins: [new CacheableResponsePlugin({ statuses: [200] })] }),
+    ({ url }) => changing.includes(`${url.origin}${url.pathname}`),
+    new NetworkFirst({
+      cacheName: CONTENT_CACHE,
+      networkTimeoutSeconds: MANIFEST_TIMEOUT_SECONDS,
+      plugins: [new CacheableResponsePlugin({ statuses: [200] }), withoutQuery],
+    }),
   );
 }
 
@@ -62,7 +93,7 @@ registerRoute(
   isContent,
   new CacheFirst({
     cacheName: CONTENT_CACHE,
-    plugins: [new CacheableResponsePlugin({ statuses: [200] }), new RangeRequestsPlugin()],
+    plugins: [new CacheableResponsePlugin({ statuses: [200] }), new RangeRequestsPlugin(), ...(CONTENT_BASE_URL ? [dropOlderVersions] : [])],
   }),
 );
 

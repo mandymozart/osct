@@ -12,14 +12,21 @@ interface ImportMetaEnv {
   /** Accounts API (server/): "/api" on the production host, the full URL elsewhere; unset = no accounts */
   readonly VITE_API_URL?: string;
   /**
-   * Content CDN base URL of the environment (`https://…/staging`): the app loads `latest.json` and the content
-   * bundle from there (docs/content-cdn.md); unset = the content bundled with the app (dev server, tests)
+   * Content CDN base URL of the environment (`https://…/staging`): the app loads `game.config.json`, `files.json`
+   * and the content files from there (docs/content-cdn.md) and the build reads no content; unset = the content
+   * bundled with the app (dev server, tests)
    */
   readonly VITE_CONTENT_BASE_URL?: string;
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
+}
+
+/** The bundled game configuration (vite.config.js): the local content build, null in a CDN build */
+declare module "virtual:osct-game-config" {
+  const config: unknown;
+  export default config;
 }
 
 /** Sizes of the content files in bytes by URL (`/assets/content/…`), from the build (vite.config.js) */

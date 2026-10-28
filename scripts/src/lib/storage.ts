@@ -1,7 +1,7 @@
 /**
  * Minimal client for bunny.net's Storage API (Edge Storage): files below a storage zone, addressed as
  * `https://<endpoint>/<zone>/<path>`, authenticated with the zone's access key (`AccessKey` header).
- * Only what the content upload needs: put, exists, list. Node's global fetch, no dependencies.
+ * Only what the CDN sync needs: put, get, exists, list, delete. Node's global fetch, no dependencies.
  */
 import { createHash } from 'crypto';
 
@@ -18,6 +18,8 @@ export interface StoredFile {
   path: string; // relative to the zone, `/`-separated
   size: number;
   isDirectory: boolean;
+  /** SHA-256 (upper-case hex) the server stored for the file; null for folders or when unknown */
+  checksum: string | null;
 }
 
 const RETRIES = 3;
@@ -62,13 +64,26 @@ export class StorageClient {
   async list(folder: string): Promise<StoredFile[]> {
     const response = await this.request('GET', `${folder.replace(/\/$/, '')}/`, {}, [200, 404]);
     if (response.status === 404) return [];
-    const items = (await response.json()) as Array<{ ObjectName: string; Length: number; IsDirectory: boolean; Path: string }>;
+    const items = (await response.json()) as Array<{ ObjectName: string; Length: number; IsDirectory: boolean; Path: string; Checksum?: string | null }>;
     return items.map(item => ({
       // `Path` is `/<zone>/<folder>/`
       path: `${item.Path.replace(/^\/[^/]+\//, '')}${item.ObjectName}`,
       size: item.Length,
       isDirectory: item.IsDirectory,
+      checksum: item.Checksum ? item.Checksum.toUpperCase() : null,
     }));
+  }
+
+  /** Every file and folder below `folder`, depth first (folders listed before their content) */
+  async listTree(folder: string): Promise<StoredFile[]> {
+    const items = await this.list(folder);
+    const nested = await Promise.all(items.filter(i => i.isDirectory).map(i => this.listTree(i.path)));
+    return [...items, ...nested.flat()];
+  }
+
+  /** Deletes a file, or a folder with everything in it (`path` ending in `/`); a missing path is fine */
+  async delete(path: string): Promise<void> {
+    await this.request('DELETE', path, {}, [200, 404]);
   }
 
   private async request(method: string, path: string, init: RequestInit, ok: number[]): Promise<Response> {
