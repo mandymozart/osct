@@ -231,6 +231,58 @@ One **JSON document per entity** (`entities.scene`, the node tree) – not a row
 versioned as a whole, validated by the specs on save, and joins buy nothing. `entity_assets` is derived from the
 document on save (for "used by" and the asset budget). The data model note is updated accordingly.
 
+## Events: book logic apart from scene logic, and the scopes
+
+Tilman (2026-10-28): keep the book's logic and the scenes' internal logic clearly apart; the question is scope –
+global (all readers), book, scene; and "scene" needs a definition, because grow loading keeps several targets
+active at once and placing things in the room keeps whole worlds standing.
+
+**Two owners of events.** *Core events* belong to the app and describe the book: `targetFound` / `targetLost`,
+`targetUnlocked` (first find), `entryConsulted`, `spreadChanged`, `spreadComplete`, `bookComplete`,
+`modeChanged`, `entryOpened`, later `signedIn`. Plugins and behaviours **subscribe** to them and never emit them –
+unlocking, progress, consultation and spread switching stay core, so every book behaves the same and progress
+stays compatible. *Scene events* belong to the content: a tap on a node, `videoEnded`, a timer, a state change, and
+whatever a plugin registers (`allFoundInChapter`); content and plugins emit and consume them freely.
+
+**Scopes** for events and state:
+
+| Scope | Lives | Holds | Example |
+|---|---|---|---|
+| `node` | while the entity's tree exists | a node's own state, its behaviours | the racoon's animation state |
+| `stage` | while scanning (the AR session) | everything instantiated right now: every active target's entity, the look-around world, placed objects | "when target B is found while A is on stage, A turns towards B" |
+| `book` | per reader and book, persisted with the progress | variables an author defines (`hasKey`, `chapter`), set by actions, read by conditions | "the door opens only with the key from page 12" |
+| `session` | per app start, not persisted | temporary flags | "the hint was shown once" |
+| `global` | all readers, on the server | shared state through the API (counts, collective unlocks) | "every 100th reader sees the comet" – later, a privacy decision |
+
+**What a scene is.** Two words for two things, to end the ambiguity: in the **content** a *scene* is the authoring
+unit – a spread's entities and, later, its world (`world:` in `spread.yaml`, PLAN Phase 10) – and an entity's
+node tree is a sub-scene of it. At **runtime** there is one **stage**: the set of everything instantiated now –
+with grow loading that may be targets of several spreads at once, with spatial placement also objects that stay
+in the room after their page is gone. Stage events cross entities; the stage is where "whole worlds stand". Scene
+= what the author writes, stage = what the reader sees.
+
+## Code in the editor, not only clicks
+
+Tilman: a click UI is only wanted if the editor also offers code with access to the API; is that a step too far
+because of the compiler? No – the compiler splits into two unequal halves:
+
+- **For the preview, in the browser.** The editor transpiles a plugin's TypeScript to an ES module on the fly
+  (esbuild-wasm, ~10 MB, loaded only with the code panel; or TypeScript's own `transpileModule`; no type check in
+  the browser – that is the expensive half), imports it as a blob URL, calls `register(api)`, re-registers the
+  types it replaces and rebuilds the current spread's entities. Errors show in the preview, not in a compiler log.
+  Edit → see, no local build. Needs the registries to allow replacing a type by name (small) and the plugin API
+  to exist (the real precondition).
+- **For publishing, in the content build.** The strict half – `tsc`, bundling, the API version, the immutable
+  folder – runs once per publish, as described above. The browser never produces what readers get.
+- **Where the source lives.** As content: a `plugins` table (file name, source, `updated_by`, `updated_at`; the
+  `changes` log as its history) next to the other rows, published and built like them (`--db`). Git stays the
+  export and the review channel, not a precondition for Kévin. A code panel (CodeMirror 6, lazily loaded) with the
+  API's type stubs for completion; Monaco would give full TypeScript intelligence at four times the weight – decide
+  by use.
+- **Order**: route and preview with the mock stage → save to the database → the plugin API and the registry
+  refactor → the code panel with browser transpile. Roughly 2–3 days for the last step on top of the barebone. Not
+  too far; just not first.
+
 ## Recommendation
 
 1. Editor barebone first with **today's** entity model (one node, placement, filters) – the route, the scene, the
@@ -248,8 +300,11 @@ document on save (for "used by" and the asset budget). The data model note is up
 - Behaviour actions for 2.0: `play`, `pause`, `show`, `hide`, `openEntry`, `openLink`? States (Spline) later?
 - Unknown node types tolerated by the app (MINOR for new types) – yes?
 - Where the registries' docs live: generated table in `docs/content.md` from the specs (proposal).
-- Plugins: the API surface for 1.0 (registries, specs, `api.three`, which helpers), and whether a plugin may add
-  behaviour actions and events, not only node types and layers.
+- Plugins: the API surface for 1.0 (registries, specs, `api.three`, which helpers). Plugins may register scene
+  events and actions (proposal: yes – an agent writes the code once, the author wires it in the editor).
+- The core events plugins may subscribe to, and which book-scope variables the progress record carries (a schema
+  MAJOR for the progress format, RULES #10).
+- `global` scope: whether readers' shared state exists at all (privacy, data sovereignty) – later.
 
 Sources: github.com/8thwall/8thwall (`c8/ecs/src/shared/schema.ts`, `studio-component.ts`,
 `runtime/components/*.ts`, `runtime/scene-types.ts`); 8thwall.org/docs/studio (custom components, entities and
