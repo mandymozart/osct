@@ -35,6 +35,13 @@ outcome in the line (or move it into a dated decision block).
   import becomes part of the osct CLI (#60). The stage shows the sheet as the page texture and the targets exactly
   where printed; the covers are sheets of the layout (`cover-front` / `cover-back`, surfaces `front` / `back`) without
   a spread yet – spreads without pages are a content schema change (#60, #61 step 5).
+- Morning (Tilman: "check for reference the scutoons UI dogma and libraries … reuse components as much as possible,
+  save real estate"): read `scutoons/agents/DESIGN.md` (Compact inspector, One control height, Icons, Close cross,
+  the phone inspector = a sheet whose head is its tab row) and `@scutoons/ui` (Svelte – not importable here; the
+  patterns are). Rebuilt the editor UI as one `<editor-sheet>` (head = ‹ › · Stage · Entity · ×, closed = the head
+  row), `<scrub-number>` in `components/common/` for every number (dogma: never a native slider / checkbox), the tune
+  panel split into `<tune-inspector>` (shared with the debug overlay) + a thin sheet host. Kept native for now: the
+  colour input (the dogma's colour popover is a later piece), the target `<select>`. RULES #32 "UI" paragraph.
 - [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
   Kévin's own phone later); comes with accounts / roles in step 2.
 - [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's

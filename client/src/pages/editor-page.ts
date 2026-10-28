@@ -4,16 +4,14 @@ import { setPreviewActive } from "@/components/ar-bridges";
 
 /** Routes that end the editor session (the reader's own views); consultation overlays keep the preview */
 const LEAVES_EDITOR = new Set<Pages>([Pages.SPREAD, Pages.SPLASH, Pages.TUTORIAL]);
-/** The editor's bottom sheets (the bar opens them); closed whenever the page goes */
-const PANELS_SELECTOR = "preview-panel, tune-panel";
-/** Told to the bar when the page opens again: open the preview panel unless a panel is open */
-export const EDITOR_OPENED_EVENT = "osct:editor-opened";
+/** A debug tune panel left open by the overlay is closed when the editor opens or goes (the sheet hosts the inspector) */
+const DEBUG_PANELS_SELECTOR = "tune-panel";
 
 /**
  * The editor page (`/editor`, scan mode): transparent over the AR scene like the spread page, but the scene runs
- * over the mock stage instead of the camera (the preview, `ar-bridges/utils/preview.ts`). The editor's own UI – the
- * bar with the spread switch and the panels (preview, tune) – is a chunk of its own (`src/editor/`), loaded the first
- * time the page opens, so readers never download it. Opening the page switches the preview on; the reader's scan
+ * over the mock stage instead of the camera (the preview, `ar-bridges/utils/preview.ts`). The editor's own UI – one
+ * sheet at the bottom with the spread switch and the tabs Stage / Entity – is a chunk of its own (`src/editor/`),
+ * loaded the first time the page opens, so readers never download it. Opening the page switches the preview on; the reader's scan
  * view, the start page or the tutorial switch it off (an entry opened from the editor does not).
  */
 export class EditorPage extends PageMinimal {
@@ -46,7 +44,7 @@ export class EditorPage extends PageMinimal {
   }
 
   get template(): string {
-    return this.loaded ? /* html */ `<editor-bar></editor-bar>` : /* html */ `<div class="loading">Loading the editor…</div>`;
+    return this.loaded ? /* html */ `<editor-sheet></editor-sheet>` : /* html */ `<div class="loading">Loading the editor…</div>`;
   }
 
   connectedCallback() {
@@ -68,17 +66,14 @@ export class EditorPage extends PageMinimal {
     super.attributeChangedCallback(name, oldValue, newValue);
     if (name !== "active" || !this.isConnected) return;
     if (newValue === "true") this.open();
-    else document.querySelectorAll(PANELS_SELECTOR).forEach(panel => panel.remove());
+    else document.querySelectorAll(DEBUG_PANELS_SELECTOR).forEach(panel => panel.remove());
   }
 
   /** The preview on, the editor chunk loaded once */
   private open(): void {
     setPreviewActive(true);
-    if (this.loaded) {
-      this.shadowRoot?.querySelector("editor-bar")?.dispatchEvent(new CustomEvent(EDITOR_OPENED_EVENT));
-      return;
-    }
-    if (this.loading) return;
+    document.querySelectorAll(DEBUG_PANELS_SELECTOR).forEach(panel => panel.remove());
+    if (this.loaded || this.loading) return;
     this.loading = import("@/editor")
       .then(editor => {
         editor.defineEditor();

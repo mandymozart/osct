@@ -293,3 +293,10 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     no editor code in the main chunk beyond the page shell and the three-free preview flag
     (`ar-bridges/utils/preview.ts`). The preview is switched on by the editor route, not by a stored flag. What the
     editor changes stays in the browser until the database step: it never writes content files.
+    **UI** (Tilman, 2026-10-29: "check for reference the scutoons UI dogma … reuse components as much as possible,
+    save real estate"): the editor's controls follow the Scutoons dogma (`scutoons/agents/DESIGN.md`) built from
+    OSCT's own primitives – one control height, rows with a label column, numbers as `<scrub-number>` (never a native
+    slider or checkbox), small enums as segmented pressed pills, icons (Feather, `editor/icons.ts`, with a name and a
+    tooltip) only where a word makes no sense, the drawn close cross, one sheet whose head is the tab row and whose
+    closed state is that row alone. A control the editor needs is built once in `components/common/` or
+    `components/dev-tools/` and used by both the editor and the dev tools (`<tune-inspector>`), never twice.

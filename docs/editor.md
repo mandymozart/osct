@@ -38,25 +38,47 @@ in the x/y plane), so `ArScene`, the entities, the animations (reveal, unlock, o
 an entry run unchanged. The three.js camera stays at the origin; moving the view moves the stage and the anchors
 together, which is why entity and page can never drift apart.
 
-## The bar and the preview panel
+## The sheet
 
-- **‹ ›** step through the spreads (the stage follows; `/editor/<spreadId>` in the address bar).
-- **preview** – the panel:
+One sheet at the bottom of the page; its head is the tab row, and closed it is only that row – the stage has the rest
+of the screen (the pattern of the Scutoons creator's inspector on a phone: the head is the tabs, closed = one row).
+Drag the head to set the open height; a tap on the open tab closes it.
+
+- **‹ ›** step through the spreads (the stage follows; `/editor/<spreadId>` in the address bar); **×** leaves the editor.
+- **Stage** – the simulated camera, in rows of one control height (label column + controls):
   - **view**: *reader* (35 cm above the page, tilted 30° towards the reader), *top* (straight down, 30 cm), *low*
-    (75° from the vertical – shows how flat a video plane is), *far* (70 cm). On the stage: **drag** orbits around
-    the first target, **wheel / pinch** change the distance, **double tap** returns to the reader's view. A free
-    orbit is shown in the panel and kept on the device.
-  - **found**: one switch per target – off reports the target lost (outro), on found again (reveal). **unlock ↺**
-    forgets every shown target's unlock in the progress and finds it anew: the unlock animation and the "New entry
-    unlocked" label play again. (This writes the progress of the device the editor runs on – an editor-only progress
-    comes with the accounts step of #61.)
-  - **wobble**: 0 = still, 1 = a hand holding a phone (±2 mm, ±0.5°) – to see whether a filter edge flickers.
-  - **backdrop**: *table*, *paper*, or *photo* – **photo…** takes a picture of your own desk (long side 1600 px,
+    (75° from the vertical – shows how flat a video plane is), *far* (70 cm) as a segmented group. On the stage:
+    **drag** orbits around the first target, **wheel / pinch** change the distance, **double tap** returns to the
+    reader's view. A free orbit is shown next to the presets and kept on the device.
+  - **found**: one pressed chip per target – off reports the target lost (outro), on found again (reveal). The replay
+    arrow forgets every shown target's unlock in the progress and finds it anew: the unlock animation and the "New
+    entry unlocked" label play again. (This writes the progress of the device the editor runs on – an editor-only
+    progress comes with the accounts step of #61.)
+  - **shake**: 0 = still, 1 = a hand holding a phone (±2 mm, ±0.5°) – to see whether a filter edge flickers; a
+    `<scrub-number>` (press and slide, or tap and type).
+  - **backdrop**: *table*, *paper*, or *photo*; the camera button takes a picture of your own desk (long side 1600 px,
     stored on the device); the table disappears, the book stays so the entity keeps its paper.
-- **tune** – the tune panel (`docs/content.md`): every placement value and filter
-  parameter of the spread's entities as slider and field, live on the stage, **Copy YAML** unchanged.
+- **Entity** – the `<tune-inspector>` (`components/dev-tools/tune-inspector.ts`, also the debug overlay's *tune*
+  panel): the target, then every placement value and filter parameter of its entity as a row with a `<scrub-number>`
+  (the unit after the number, a reset arrow while the value differs from the default), choices as a segmented group,
+  colours as swatch + hex, live on the stage; **Copy YAML** unchanged.
 
-Settings (view, orbit, backdrop, photo, wobble) are stored per device under `osct-preview`.
+Settings (view, orbit, backdrop, photo, wobble, the open tab, the sheet's height) are stored per device.
+
+### UI rules of the editor
+
+Checked against the Scutoons UI dogma (`scutoons/agents/DESIGN.md`: "Compact inspector", "One control height",
+"Icons", "Close cross", the phone inspector) and built from OSCT's own primitives (`styles/design-styles.ts`: `.pill`,
+`.icon-button`, `.field`, `.text-link`, the tokens of `main.css`); `@scutoons/ui` itself is Svelte and stays there.
+- **One control height** (2rem in the editor, `--control-height`): every button, chip, select and number field;
+  no vertical padding, no small variant.
+- **Rows, not stacked fields**: a 5rem label column, the controls share the rest.
+- **Numbers scrub or type** – `<scrub-number>` (`components/common/scrub-number.ts`): the whole field is the gesture,
+  Shift ×10, Alt ×0.1, ↑ ↓ step, Enter commits, Escape reverts, the reset arrow inside the field. No native sliders.
+- **Small enums are segmented groups** of pressed pills; **on / off per item is a pressed chip**.
+- **Icons where a word makes no sense** (step, replay, photo, close – Feather outlines, `editor/icons.ts`, every one
+  with an accessible name and a tooltip); words everywhere else. The close cross is two drawn lines, not a glyph.
+- **Save real estate**: the sheet closes to its head row; nothing sits over the stage but that row and the debug line.
 
 ## Where the code lives
 
@@ -69,11 +91,14 @@ Settings (view, orbit, backdrop, photo, wobble) are stored per device under `osc
 | Tracker choice | `components/ar-bridges/ar/ar-scene.ts` `ensureTracker()` | mock while the preview is active, engine otherwise; a change rebuilds the scene |
 | Camera simulated | `store/managers/CameraManager.ts` | set by `<ar-bridge>` from the preview flag |
 | Route and page | `router.ts`, `pages/editor-page.ts` | `/editor`, scan mode; the page loads the editor chunk |
-| Editor chunk | `src/editor/` | the bar, the preview panel; defines the tune panel in every build |
+| Editor chunk | `src/editor/` | the sheet (`editor-sheet.ts`) and its icons |
+| Tune inspector | `components/dev-tools/tune-inspector.ts` | hosted by the sheet's Entity tab and the debug tune panel |
+| Scrub number | `components/common/scrub-number.ts` | the number control of the inspector and the sheet |
 | Trigger protocol | `components/ar-bridges/utils/trigger-protocol.ts` | shared with the trial panel |
 
 Tests: `ar/__tests__/mock-tracker.test.ts` (layout, geometry, found / lost, pause, presets, the stage contract),
-`utils/__tests__/preview.test.ts`, the camera manager, history and link tests.
+`utils/__tests__/preview.test.ts`, `utils/__tests__/stage-layout.test.ts`, `common/__tests__/scrub-number.test.ts`,
+the camera manager, history and link tests.
 
 ## Limits of this step
 

@@ -1,12 +1,7 @@
-import { TunePanel } from "@/components/dev-tools";
-import "./editor-bar";
-import "./preview-panel";
+import "./editor-sheet";
 
 /**
- * The editor chunk (`import("@/editor")` from the editor page): the bar and the preview panel register themselves
- * on import; the tune panel is a dev tool that only debug builds define by themselves – the editor defines it in
- * every build.
+ * The editor chunk (`import("@/editor")` from the editor page): the sheet registers itself on import; it hosts the
+ * `<tune-inspector>` of the dev tools, which registers itself in every build.
  */
-export const defineEditor = (): void => {
-  if (!customElements.get("tune-panel")) customElements.define("tune-panel", TunePanel);
-};
+export const defineEditor = (): void => {};
