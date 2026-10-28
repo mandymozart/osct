@@ -17,6 +17,25 @@ issue #61 (next: saving to the database, the plugin API, a code panel); the conc
 - **exit** in the bar (or the Mark → consultation → Mark) returns to the reader's scan view with the real camera.
   Opening an entry from the editor (a tap on an entity) keeps the preview; the start page and the tutorial end it.
 
+## Try it
+
+With the book (the real pages; the repository's copy of the content has no AR videos – they live on the CDN):
+
+```bash
+cd scripts && npm run layout -- --triggers "<path>/All_Triggers.pdf" --preview "<path>/OSCT_2110_previewLOWRES.pdf" --content ../content
+cd ../client && npm run content -- --force && npm run dev:http
+```
+
+Open `http://localhost:5174/editor/s004-005`. With the fixture and its **studio spreads** (every entity type, placement
+and filter – `fixtures/content/FIXTURE.md`):
+
+```bash
+cd scripts && OSCT_CONTENT_DIR=fixtures/content npm run build:content:force
+```
+
+Open `http://localhost:5174/editor/studio-a` and `/editor/studio-b`. Desktop: drag, wheel, double tap. Phone (staging
+after the merge): touch, pinch.
+
 ## What is on the stage
 
 The **mock stage** (`client/src/components/ar-bridges/ar/mock-stage.ts`) draws, in the same three.js scene as the

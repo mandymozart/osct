@@ -42,6 +42,14 @@ outcome in the line (or move it into a dated decision block).
   row), `<scrub-number>` in `components/common/` for every number (dogma: never a native slider / checkbox), the tune
   panel split into `<tune-inspector>` (shared with the debug overlay) + a thin sheet host. Kept native for now: the
   colour input (the dogma's colour popover is a later piece), the target `<select>`. RULES #32 "UI" paragraph.
+- Tilman (morning): XYZ in one row like Blender – done (`<scrub-number prefix>`); "Beispielszenen für 3D-Entities und
+  Shader" – the fixture got `studio-a` / `studio-b` (ten entries, every entity type, placement and filter of today's
+  model, a shared entity used twice); "Event- und Variablen-Austausch zwischen Entities" – needs schema 2.0, written
+  as *Studio C* in the entity concept (the acceptance scenario). Svelte: not in the reader (RULES Stack); Tilman sees
+  the editor as the bridge to Scutoons that could profit from Svelte – open decision, options in the #61 comment.
+  Leading zeros in ids (`s004-005`, `p004-1`): from the delivery import (`import-delivery.ts`, `padStart(3)`) so
+  folders and lists sort in book order; cosmetic – the app sorts by `order` / `page`. Changing them = new ids for the
+  progress (fine before release); Tilman decides.
 - [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
   Kévin's own phone later); comes with accounts / roles in step 2.
 - [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's

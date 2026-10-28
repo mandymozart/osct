@@ -34,7 +34,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   `<scrub-number>` (press and slide or tap and type, Shift ×10, Alt ×0.1, reset arrow in the field) instead of
   sliders; segmented groups and pressed chips; Feather icons with names and tooltips where a word makes no sense. The
   tune panel's body became the `<tune-inspector>`, shared by the debug overlay's *tune* panel and the editor's
-  Entity tab.
+  Entity tab. Position, rotation and scale are one row each with X, Y, Z side by side, as in Blender.
+- **Studio spreads in the test fixture** (`fixtures/content`, pages 28–31): every entity type, placement and filter of
+  the content model on two double pages, for the editor and the tests (`FIXTURE.md`).
 
 ### Changed
 - The camera permission counts as granted while the editor's preview runs (nothing asks the browser); the trial
