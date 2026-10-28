@@ -19,6 +19,11 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   server address, so in a build the code leads to the address the page was opened on (staging, production). On
   the dev server it still shows the Wi-Fi address for phones. The stale environment list (Netlify) is gone.
 
+## 1.7.4 – 2026-10-28
+
+### Fixed
+- The debug overlay removed its click listener with a freshly bound function, so nothing was removed: after a disconnect and reconnect one tap toggled it twice (#21). Add and remove now use the same function.
+
 ## 1.7.2 – 2026-10-28
 
 ### Fixed
