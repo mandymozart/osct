@@ -215,15 +215,17 @@ Extend as we go: add a rule when a decision should hold for all future work.
       cannot). GitHub releases are optional notes; nothing deploys from them (docs/deploy.md).
 
 24. **Content deployment is apart from the app deployment** (Tilman, 2026-10-28, #5 – `docs/content-cdn.md`).
-    Content is synced with the osct CLI (`osct content sync --env <env>`, `scripts/src/cli.ts`) into ONE folder per
-    environment on the bunny.net storage zone `osct` (`staging/`, `production/`), mirrored in place: changed files
-    overwritten, removed files deleted, no version folders. The content's version is its build checksum
-    (`version.hash`, without the app version); every sync is a new content version. Where the sync is triggered
-    (by hand in `content.yml`, a local run, later a content repository) is not fixed – keep the CLI the one way.
-    Content leaves git: an app build with `VITE_CONTENT_BASE_URL` must never read content (no content build, no
-    `game.config.json`, no `assets/content/`). Every content path stays `/assets/content/…` in the configuration;
-    only `utils/game-config.ts` turns it into a URL (`contentUrl` – on the CDN with the file's checksum `?v=`).
-    Never hardcode a CDN URL. The zone's access key only in GitHub environments or an untracked `scripts/.env`.
+    Content goes to the CDN with the osct CLI (`osct content sync --env <env>`, `scripts/src/cli.ts`): every content
+    version is its own immutable folder `<env>/<build>/` on the bunny.net storage zone `osct` (`<build>` = content
+    checksum, without the app version); `<env>/latest.json` names the current one and is the only file ever
+    overwritten; `<env>/versions.json` records when each version was current. Never overwrite a file inside a
+    version folder. Old versions go only through `osct content purge`, which deletes nothing that is current, served
+    by the CDN, kept for rollback or retired within the CDN cache time, and refuses on inconsistent bookkeeping.
+    Where the sync is triggered (by hand in `content.yml`, a local run, later a content repository) is not fixed –
+    keep the CLI the one way. An app build with `VITE_CONTENT_BASE_URL` must never read content (no content build,
+    no `game.config.json`, no `assets/content/`). Every content path stays `/assets/content/…` in the
+    configuration; only `utils/game-config.ts` turns it into a URL (`contentUrl`). Never hardcode a CDN URL. The
+    zone's access key only in GitHub environments or an untracked `scripts/.env`.
 
 ## Deployment (Kamal, 2026-10-27 – docs/deploy.md)
 - One Docker image (`Dockerfile`: content build + app + `server/api` as `/api`, Apache + PHP) deployed with Kamal

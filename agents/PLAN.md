@@ -303,9 +303,11 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
     when the data access is built (runtime/CDN loading, generated API) – RULES #17. (Still in `utils/`
     after the CDN work – the move is a rename for a later cleanup.)
   - [x] (2026-10-28, #5) ~~`game.config.json` is **imported at build time**~~ → loaded at runtime
-    (`loadGameConfiguration()` in `main.ts`): from the CDN (`VITE_CONTENT_BASE_URL` → `<env>/game.config.json`)
-    or the bundled copy. Content is synced apart from the app by the osct CLI into one folder per environment
-    (`osct content sync`, in place) – `docs/content-cdn.md`. Content out of git: MEMORY 2026-10-28 stage (3).
+    (`loadGameConfiguration()` in `main.ts`): from the CDN (`VITE_CONTENT_BASE_URL` → `latest.json` →
+    `<build>/game.config.json`)
+    or the bundled copy. Content goes to the CDN apart from the app with the osct CLI: one immutable folder
+    per content version, `latest.json` names the current one, `osct content purge` removes old ones strictly –
+    `docs/content-cdn.md`. Content out of git: MEMORY 2026-10-28.
   - Saved progress should be keyed/migrated against the **content version** (ties into the
     HistoryManager rethink above).
 

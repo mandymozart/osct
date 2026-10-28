@@ -13,8 +13,6 @@
 name: Content
 
 on:
-  push:
-    branches: [claude/heuristic-varahamihira-4faefe] # TEMPORARY: sync-only check of the versioned upload (#5), removed again
   workflow_dispatch:
     inputs:
       environment:
@@ -49,19 +47,19 @@ on:
         default: false
 
 concurrency:
-  group: content-${{ inputs.environment || 'staging' }}
+  group: content-${{ inputs.environment }}
   cancel-in-progress: false
 
 jobs:
   content:
-    name: Content ${{ inputs.command || 'sync' }} (${{ inputs.environment || 'staging' }})
+    name: Content ${{ inputs.command }} (${{ inputs.environment }})
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment || 'staging' }}
+    environment: ${{ inputs.environment }}
     defaults:
       run:
         working-directory: scripts
     env:
-      OSCT_CONTENT_ENV: ${{ inputs.environment || 'staging' }}
+      OSCT_CONTENT_ENV: ${{ inputs.environment }}
       BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
       BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
       BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
@@ -76,11 +74,11 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Build the content
-        if: inputs.command == 'sync' || github.event_name == 'push'
+        if: inputs.command == 'sync'
         run: npm run osct -- content build
-      - name: Content ${{ inputs.command || 'sync' }}
+      - name: Content ${{ inputs.command }}
         run: >
-          npm run osct -- content ${{ inputs.command || 'sync' }}
+          npm run osct -- content ${{ inputs.command }}
           ${{ inputs.dry_run && inputs.command != 'status' && '--dry-run' || '' }}
           ${{ inputs.command == 'sync' && inputs.force && '--force' || '' }}
           ${{ inputs.command == 'purge' && format('--min-age {0} --keep {1}', inputs.min_age, inputs.keep) || '' }}
