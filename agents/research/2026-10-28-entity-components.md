@@ -255,6 +255,14 @@ whatever a plugin registers (`allFoundInChapter`); content and plugins emit and 
 | `session` | per app start, not persisted | temporary flags | "the hint was shown once" |
 | `global` | all readers, on the server | shared state through the API (counts, collective unlocks) | "every 100th reader sees the comet" – later, a privacy decision |
 
+**The scopes are a hierarchy** (Tilman): `node` ⊂ entity ⊂ `spread` ⊂ `stage` ⊂ `session` ⊂ `book` ⊂ `global`.
+Two things follow. *Lookup goes outward*: a condition or a variable reference resolves at the node, then the
+spread, then the stage, the session, the book, the global scope – the innermost definition wins, like lexical
+scope. *Scene events bubble outward*: a node's event is seen by its entity, its spread and the stage unless a
+handler stops it; core events are emitted at book level and delivered inward to whoever subscribed. One twist:
+the stage is wider than the current spread (held neighbours, the world, placed objects), so it sits above the
+spread although both live in the same session.
+
 **What a scene is.** Two words for two things, to end the ambiguity: in the **content** a *scene* is the authoring
 unit – a spread's entities and, later, its world (`world:` in `spread.yaml`, PLAN Phase 10) – and an entity's
 node tree is a sub-scene of it. So the `spread` scope *is* the scene's instance: the spread is the natural unit of
