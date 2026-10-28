@@ -43,6 +43,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - The game configuration is loaded before the app element starts (`loadGameConfiguration()`), no longer imported at
   build time. The whole-book download takes the file sizes from `files.json` of the loaded version.
 
+## 1.7.5 – 2026-10-28
+
+### Fixed
+- The debug overlay's QR code on staging pointed at the build machine (#22): the build no longer bakes in a dev
+  server address, so in a build the code leads to the address the page was opened on (staging, production). On
+  the dev server it still shows the Wi-Fi address for phones. The stale environment list (Netlify) is gone.
+
 ## 1.7.4 – 2026-10-28
 
 ### Fixed

@@ -244,7 +244,8 @@ export default defineConfig(async ({command,mode})=>{
     // Service worker content cache: one per bundled content build; a CDN build keeps one cache and drops other versions
     __VITE_CONTENT_HASH__: JSON.stringify(contentBaseUrl ? 'cdn' : (shellConfig.version?.hash ?? APP_VERSION)),
     __VITE_CONTENT_BASE_URL__: JSON.stringify(contentBaseUrl), // the service worker (the app reads import.meta.env)
-    __VITE_SERVER_URL__: JSON.stringify(`${https ? 'https' : 'http'}://${localIP}:${port}`),
+    // The dev server's Wi-Fi address for the debug overlay's QR code; empty in builds (the page's own origin then)
+    __VITE_SERVER_URL__: JSON.stringify(command === 'serve' ? `${https ? 'https' : 'http'}://${localIP}:${port}` : ''),
   },
   resolve: {
     tsconfigPaths: true, // tsconfig.json "paths" (built into Vite 8)
