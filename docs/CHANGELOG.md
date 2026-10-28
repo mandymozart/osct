@@ -12,21 +12,28 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.7.2 – 2026-10-27
+## 1.7.2 – 2026-10-28
 
 ### Added
-- **Content on the CDN** (bunny.net): the content build is uploaded to a storage zone (`npm run upload:content`
-  in `scripts/`, workflow "Content upload" – `staging/` from `develop`, `production/` from `main`), one immutable
-  folder per content build (`<version>-<hash>`) and a `latest.json` naming the current one. The app loads the
-  configuration and the content from there at startup when it is built with `VITE_CONTENT_BASE_URL`; without
-  the flag it keeps the content bundled with the build (dev server, tests). The installed app still works offline
-  (the last `latest.json` and everything seen is cached). How it works: `docs/content-cdn.md`.
-- **Content schema version** in the game configuration (`version.schema`): a bundle newer than the app is refused
-  at startup with "The book content is newer than this app" (en/fr/nl/de) instead of failing somewhere later.
+- **Content deployment apart from the app** (#5): the **osct CLI** in `scripts/` (`npm run osct -- content build |
+  status | sync --env staging|production`) mirrors the content build into one folder per environment on the
+  bunny.net CDN – changed files are overwritten, removed ones deleted, no version folders pile up. Nothing syncs on a
+  push; the workflow "Content sync" is a manual button for status or sync. The app loads `game.config.json` and the
+  content from there at startup when it is built with `VITE_CONTENT_BASE_URL`; such a build reads no content at all.
+  Without the flag the content stays bundled (dev server, tests). The installed app still works offline. How it
+  works: `docs/content-cdn.md`.
+- **Content schema `MAJOR.MINOR`** (`version.schema`, `shared/types/game-config.ts`): the only compatibility rule
+  between content and app. Another MAJOR is refused at startup ("The book content is newer than this app" / "… older
+  than this app", en/fr/nl/de); any MINOR loads. A test fails when `shared/` changes without a schema bump
+  (`shared/content-schema.json`, `npm run schema:lock` in `scripts/`).
 
 ### Changed
-- The game configuration is loaded before the app element starts (`loadGameConfiguration()`), no longer imported
-  at build time. The whole-book download takes the file sizes from the bundle (`files.json`) on the CDN.
+- The content's version is its build checksum and no longer includes the app version – an app release does not make
+  new content. The app version a content build was made with is information only (the startup check no longer
+  compares it).
+- The game configuration is loaded before the app element starts (`loadGameConfiguration()`), no longer imported at
+  build time. The whole-book download takes the file sizes from `files.json` on the CDN.
+
 ## 1.7.1 – 2026-10-27
 
 ### Added

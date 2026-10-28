@@ -385,8 +385,8 @@ shared entities): build it with `OSCT_CONTENT_DIR=../content-demo npm run build:
 ### Videos are not in git
 
 The imported entry videos (`content/entries/<id>/video.mp4`) are git-ignored – they are large and come to the servers
-through a CDN sync (planned: issue #15, after the bunny.net setup in #5). Keep them in the local `content/` folder: the local build uses
-them. A build on a machine without them (CI, a deploy, a fresh clone) prints a warning per missing video and builds
+through the CDN sync: `osct content sync` uploads whatever the local content build holds, videos included
+([content on the CDN](content-cdn.md); #15). Keep them in the local `content/` folder: the local build uses them. A build on a machine without them (CI, a deploy, a fresh clone) prints a warning per missing video and builds
 those targets without their AR video.
 
 ### Trigger test protocol

@@ -4,36 +4,56 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
-## 2026-10-27 – Content on the bunny.net CDN (#5, Tilman)
+## 2026-10-28 – Content deployment apart from the app; content schema MAJOR.MINOR (#5, Tilman)
 
-- Decisions (all on GitHub issue #5): one storage zone `osct` (Frankfurt main, Singapore, New York) with a folder
-  per environment (`staging/`, `production/`), pull zone `buildingfictions.b-cdn.net` (→ `cdn.buildingfictions.com`
-  once #17's CNAME exists). Storage API only (zone access key) – no account API key, no Magic Containers. GitHub
-  environments carry `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ZONE_ENDPOINT`, `CONTENT_BASE_URL` and the secrets.
-- Built in 1.7.2: `scripts/src/upload.ts` (+ `lib/storage.ts`, both excluded from the content hash) uploads the
-  bundle to `<env>/<version>-<hash12>/` and writes `<env>/latest.json` (`shared/types/content-manifest.ts`); a bundle
-  already there is skipped. Workflow `content.yml`: push to `develop` → staging, push to `main` → production
-  (before the release deploys the app), `workflow_dispatch` with an environment choice.
-- App: `loadGameConfiguration()` runs before `book-game` is defined (`main.ts`); CDN when `VITE_CONTENT_BASE_URL`
-  is set, else the bundled copy (dynamic import). Content paths become bundle URLs inside `utils/game-config.ts`
-  only. The service worker caches the CDN content (and keeps `latest.json` network-first for offline starts);
-  `vite build` drops `dist/assets/content/` in CDN mode. Content schema `version.schema` – a newer schema is refused.
-- Why a manifest and not a build-time bundle id: the app must keep working when a content upload fails or runs
-  after the app deploy (it then shows the previous bundle), and content can move without an app build later.
-- Verified 2026-10-27 (workflow run on the branch, `staging/1.6.0-29a25c7416d2`, 108 files / 20 MB in ~20 s): the
-  bundle is on the storage and served by the CDN; the app loads it (dev server behind a same-origin proxy of the
-  CDN), the failure screen and the bundled fallback work. Not yet verified: the deployed staging app – the deploy
-  workflow does not pass the flag yet (Kamal session).
-- [ ] Open (dashboard, Tilman): **CORS** – the pull zone's "CORS headers" option sends
-  `Access-Control-Allow-Origin` only for its extension list (`mp4` yes, `json`/`jpg`/`glb`/`gz` no); the app needs
-  it on every content file → extend the list or an edge rule for the whole zone. The upload's CDN check warns.
-- [ ] Open (dashboard, Tilman): **`latest.json` edge cache** – 30-day TTL, query strings ignored, no purge on
-  upload (a rewritten manifest stayed stale at the Vienna edge). Edge rule `*/latest.json` → cache time 0. Until
-  then an edge may serve the previous bundle for a while (nothing breaks – bundles are never deleted).
-- [ ] Open: the deploy workflows (Kamal session, #6) must pass `VITE_CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}`
-  to the app build; until then the deployed app keeps the bundled content.
-- [ ] Open: old bundles on the storage are never deleted; prune by hand (dashboard) when the zone grows.
-- [ ] Open: #15 – trial videos (not in git) need a sync to the CDN; the upload only knows the content build output.
+- Tilman: "i dont want to end up with multiples on the server that eat up storage", "i want one folder each environment
+  only. no multiple versions", "there will not be any content in git. this is important. content CDN!", "please split
+  content deployment from app deployment carefully", "use perhaps a osct-cli to sync cdn. where we trigger this we will
+  find out". On compatibility: "minor versions should be compatible as well as patches" → "content schema MAJOR.MINOR
+  in shared/ is the only compatibility rule, app version informational, with a test that forces a schema bump when
+  shared/ changes".
+- Replaces the first 1.7.2 design of 2026-10-27 (one immutable folder per content build + `latest.json`, upload on
+  every push): the app version was part of the content hash, so every app bump made a new 20 MB folder, and
+  nothing was ever deleted.
+- **Storage**: zone `osct` (Frankfurt, Singapore, New York), pull zone `buildingfictions.b-cdn.net`
+  (→ `cdn.buildingfictions.com` with #17). One folder per environment: `<env>/game.config.json`, `<env>/files.json`
+  (size + 12-hex checksum per file), `<env>/assets/content/…`. Storage API only (zone key), no account API key.
+- **osct CLI** (`scripts/src/cli.ts`, `npm run osct -- …`, bin `osct`): `content build` (from `OSCT_CONTENT_DIR`,
+  default `content/`), `content status --env`, `content sync --env [--force] [--dry-run]`. Sync = files whose
+  SHA-256 differs from the storage's checksum, then files.json, then game.config.json (the switch), then deletions
+  (whatever the content no longer has, incl. old folders). Credentials from the environment or `scripts/.env`.
+  `content.yml` is a manual button (status/sync per environment) – nothing runs on push. Where the sync gets
+  triggered long-term is open (Tilman).
+- **Content version** = `version.hash` (content + build logic + shared, no longer the app version). `version.version`
+  is the app version that built it – information only.
+- **Compatibility**: `CONTENT_SCHEMA_VERSION = "1.0"` (string `MAJOR.MINOR`, required in the config). The app
+  refuses another MAJOR (`contentNewer` → update the app, `contentOlder` → content needs a newer build) and loads
+  any MINOR. `shared/content-schema.json` locks the checksum of `shared/`; `scripts/test/schema.test.ts` fails when
+  `shared/` changes without a bump; `npm run schema:lock` refuses to lock a changed contract under the old number.
+  Investigation behind it: by rule only a MAJOR app-version difference refused content, in practice the guard
+  refused any contract change (required field, rename, enum value) and such changes shipped as patches (1.3.2,
+  1.5.1); the one MAJOR (2.0.0) was renumbered the same day. The guard ignores unknown fields, so MINOR = additive
+  is safe.
+- **App**: CDN builds (`VITE_CONTENT_BASE_URL`) read no content – the bundled config is `virtual:osct-game-config`
+  (null in a CDN build), `prebuild` skips the content build (`client/content-prebuild.mjs`), the splash and the
+  home-screen name take the book data from the CDN's `game.config.json` at build time (fallback: local build, then
+  none). At runtime: `game.config.json` + `files.json` with `?t=<minute>` and `cache: no-cache`, content URLs with
+  `?v=<file checksum>`. The service worker keeps one content cache in CDN builds and drops older versions of a
+  file when a new one is stored; config + file list network-first for offline starts.
+- **Staged on purpose**: content is still in git and the deployed app still bundles it until the deploy passes the
+  flag. Order: (1) this PR; (2) Kamal session: `VITE_CONTENT_BASE_URL` into the image build; (3) content out of git
+  (`content/` → a folder or repository outside, CI and tests on a fixture configuration, `Dockerfile` without
+  `COPY content`, the checks workflow without the content build). Doing (3) before (2) breaks the deploy.
+- [ ] Open (dashboard, Tilman): **CORS** for every file type on the pull zone (only `mp4` has it today) – extend the
+  CORS extension list or an edge rule `Access-Control-Allow-Origin: *`. The sync warns while it is missing.
+- [ ] Open (dashboard, Tilman): **Vary cache by query string** on the pull zone (it ignores query strings today).
+  Files are overwritten in place: without it an edge keeps an old file or configuration for up to 30 days. With it,
+  `?v=` gives every file version its own cache entry and `?t=<minute>` bounds the configuration's staleness.
+- [ ] Open (Kamal session, #6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable
+  `CONTENT_BASE_URL`); later `Dockerfile` drops `COPY content` – hand-over note in the side-session notes.
+- [ ] Open (Tilman): where the content source lives outside git (local folder or own repository) and where the sync
+  is triggered from; then stage (3) above.
+- [ ] Open: #15 – trial videos can go through the same sync once they are part of the content folder outside git.
 ## 2026-10-27 – Sessions start with their issue; deploys move issues on the board (Tilman, 1.7.1, #11)
 
 - Tilman: "every session should start with their respective issue number. look for an issue first, if one exists, and

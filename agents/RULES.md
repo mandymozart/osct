@@ -55,10 +55,16 @@ Extend as we go: add a rule when a decision should hold for all future work.
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
    Tests of removed features are not wanted – test behaviour that stays.
-10. **One version** (semver) for the app, the content build and the server: `client/package.json`,
+10. **One version** (semver) for the app, the content tooling (`scripts/`) and the server: `client/package.json`,
     `scripts/package.json` and `server/api/src/Version.php` always carry the same version (checked by tests
-    + CI); the source is `client/package.json`. Game configuration: PATCH/MINOR must just work, MAJOR = rebuild the content
-    (no config migrations). Progress storage: a new MAJOR reads the old format and tells the user
+    + CI); the source is `client/package.json`.
+    **Content compatibility = the content schema `MAJOR.MINOR`, nothing else** (Tilman, 2026-10-28, #5):
+    `CONTENT_SCHEMA_VERSION` (`shared/types/game-config.ts`) versions the contract in `shared/`. MAJOR = older apps
+    cannot read it (new required field, renamed or removed field, changed type, new enum value) – the app refuses
+    content of another MAJOR at startup. MINOR = additions older apps ignore (new optional field) – any MINOR of the
+    same MAJOR loads. Every change in `shared/` needs a bump: `shared/content-schema.json` locks the checksum of
+    `shared/` to the schema (`npm run schema:lock` in `scripts/`; a test fails otherwise). The app version recorded
+    in the content (`version.version`) is information only. No config migrations. Progress storage: a new MAJOR reads the old format and tells the user
     (add a reader in `utils/progress-record.ts`; a test fails without one). The first storage
     format is 1 – nothing from before 1.1.x is converted.
     The content *data* is identified by the build checksum (`version.hash`), not by the version.
@@ -208,15 +214,16 @@ Extend as we go: add a rule when a decision should hold for all future work.
       `deploy-production.yml` deploys, `tag-version.yml` tags `vX.Y.Z` (never push tags yourself – agent sessions
       cannot). GitHub releases are optional notes; nothing deploys from them (docs/deploy.md).
 
-24. **Content on the CDN** (Tilman, 2026-10-27, #5): the built content is uploaded to the bunny.net storage zone
-    `osct` – one folder per environment (`staging/`, `production/`), one immutable folder per content build,
-    `latest.json` names the current one (`scripts/src/upload.ts`, workflow `content.yml`, `docs/content-cdn.md`).
-    The app reads it from `VITE_CONTENT_BASE_URL` (GitHub environment variable `CONTENT_BASE_URL`); without the
-    flag it uses the bundled content – never hardcode a CDN URL. Every content path stays `/assets/content/…` in
-    the configuration; only `utils/game-config.ts` turns it into a URL (`contentUrl`, `isContentUrl`). A change of
-    the contract older apps cannot ignore bumps `CONTENT_SCHEMA_VERSION` (`shared/types/game-config.ts`).
-    Secrets (the zone's access key) only in GitHub environments. Deploy workflows pass the flag; the content
-    workflow is separate.
+24. **Content deployment is apart from the app deployment** (Tilman, 2026-10-28, #5 – `docs/content-cdn.md`).
+    Content is synced with the osct CLI (`osct content sync --env <env>`, `scripts/src/cli.ts`) into ONE folder per
+    environment on the bunny.net storage zone `osct` (`staging/`, `production/`), mirrored in place: changed files
+    overwritten, removed files deleted, no version folders. The content's version is its build checksum
+    (`version.hash`, without the app version); every sync is a new content version. Where the sync is triggered
+    (by hand in `content.yml`, a local run, later a content repository) is not fixed – keep the CLI the one way.
+    Content leaves git: an app build with `VITE_CONTENT_BASE_URL` must never read content (no content build, no
+    `game.config.json`, no `assets/content/`). Every content path stays `/assets/content/…` in the configuration;
+    only `utils/game-config.ts` turns it into a URL (`contentUrl` – on the CDN with the file's checksum `?v=`).
+    Never hardcode a CDN URL. The zone's access key only in GitHub environments or an untracked `scripts/.env`.
 
 ## Deployment (Kamal, 2026-10-27 – docs/deploy.md)
 - One Docker image (`Dockerfile`: content build + app + `server/api` as `/api`, Apache + PHP) deployed with Kamal

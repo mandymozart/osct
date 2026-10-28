@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ContentBuild, fileIndex, isInSync, planFromListing } from '../src/lib/content-sync';
+import { ContentBuild, fileIndex, isInSync, planFromListing, videosMissingLocally } from '../src/lib/content-sync';
 import { StoredFile } from '../src/lib/storage';
 
 /**
@@ -86,5 +86,16 @@ describe('CDN sync plan', () => {
 
   it('indexes every file with its size and a short checksum for the app', () => {
     expect(fileIndex(build)['/assets/content/entries/one/image.jpg']).toEqual({ size: 10, v: 'aaa111' });
+  });
+
+  it('spots videos a build without the git-ignored videos would take off the CDN', () => {
+    const remote = [
+      file('staging/assets/content/entries/one/image.jpg', 'AAA111'),
+      file('staging/assets/content/entries/one/video.mp4', 'V'),
+      folder('staging/assets/content/entries/gone'),
+      file('staging/assets/content/entries/gone/video.mp4', 'W'),
+    ];
+    const plan = planFromListing('staging', build, remote, null);
+    expect(videosMissingLocally(plan)).toEqual(['staging/assets/content/entries/one/video.mp4']);
   });
 });

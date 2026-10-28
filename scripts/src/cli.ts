@@ -6,7 +6,7 @@
  *
  *   osct content build [--force]                      content folder → client/src/game.config.json + assets
  *   osct content status --env <env>                   what a sync would change (reads the storage only)
- *   osct content sync --env <env> [--force] [--dry-run]
+ *   osct content sync --env <env> [--force] [--dry-run] [--delete-videos]
  *
  * Environment (or a scripts/.env file, never committed):
  *   OSCT_CONTENT_DIR             content folder (default: content/ in the repository)
@@ -20,7 +20,7 @@ import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { checkCdn, describePlan, isInSync, planSync, readContentBuild, runSync } from './lib/content-sync';
+import { checkCdn, describePlan, isInSync, planSync, readContentBuild, runSync, videosMissingLocally } from './lib/content-sync';
 import { StorageClient } from './lib/storage';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -38,7 +38,7 @@ const USAGE = `osct – content command line
 
   osct content build [--force]                       build the content (OSCT_CONTENT_DIR, default content/)
   osct content status --env <staging|production>     what a sync would change
-  osct content sync --env <staging|production> [--force] [--dry-run]
+  osct content sync --env <staging|production> [--force] [--dry-run] [--delete-videos]
                                                      mirror the build to the CDN folder of the environment
 
 Storage access: BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ZONE_ENDPOINT, BUNNY_STORAGE_PASSWORD
@@ -91,6 +91,13 @@ async function main(): Promise<void> {
       if (dryRun) {
         console.log('Nothing changed (status / dry run).');
         return;
+      }
+      const videos = videosMissingLocally(plan);
+      if (videos.length > 0 && !flag('delete-videos')) {
+        throw new Error(
+          `The sync would delete ${videos.length} videos whose entries still exist – this content build has no videos ` +
+            '(a checkout without the git-ignored videos?). Sync from a machine that has them, or pass --delete-videos.',
+        );
       }
       await runSync(client, plan, build);
       const baseUrl = process.env.CONTENT_BASE_URL?.replace(/\/+$/, '');

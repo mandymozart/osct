@@ -150,6 +150,14 @@ export function describePlan(plan: SyncPlan, build: ContentBuild, verbose = true
   return lines;
 }
 
+const VIDEO = /\.(mp4|webm|mov)$/i;
+
+/**
+ * Videos the sync would delete although their folder stays: the build lacked them – typically a checkout without
+ * the git-ignored videos (CI). A sync from there would take them off the CDN.
+ */
+export const videosMissingLocally = (plan: SyncPlan): string[] => plan.remove.filter(p => !p.endsWith('/') && VIDEO.test(p));
+
 export const isInSync = (plan: SyncPlan) => plan.upload.length === 0 && plan.remove.length === 0 && !plan.configChanged;
 
 /** Runs a plan: files, files.json, game.config.json, then the deletions */
