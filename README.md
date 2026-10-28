@@ -16,23 +16,28 @@ npm run content      # builds the content into the app (once, and after content 
 npm run dev
 ```
 
+`npm run content` builds the content source named by `OSCT_CONTENT_DIR` (environment or `scripts/.env`). Without
+the book content, use the test fixture: `OSCT_CONTENT_DIR=fixtures/content`.
+
 Open https://localhost:5173 (on a phone: `https://<your-ip>:5173`, accept the self-signed certificate once –
 the camera only works over https).
 
 ## Content
 
-The book's content lives in `content/` (text files + media) – see the [content guide](docs/content.md).
-The app doesn't read `content/` directly: the content build turns it into the app's configuration
+The book's content (text files + media, see the [content guide](docs/content.md)) is leaving this repository:
+its source lives in a folder of its own, the built content is served from a CDN – see
+[content on the CDN](docs/content-cdn.md) and [content out of git](docs/content-out-of-git.md). The repository
+keeps a small test fixture (`fixtures/content/`) for CI and the tests.
+The app doesn't read the content source directly: the content build turns it into the app's configuration
 (`client/src/game.config.json`) and an optimised copy of the media (`client/public/assets/content/`).
-Neither is in git – every build and deploy makes them (`npm run build` in `client/` runs the content
-build first). Locally, run it after every change:
+Neither is in git. Locally, run it after every change:
 
 ```bash
 cd client && npm run content   # or in scripts/: npm run build:content (:force rebuilds even when unchanged)
 ```
 
 - It stops with a message naming the file and the problem when something is wrong.
-- Commit only `content/` – the build output is ignored.
+- The build output is ignored. The content source is not committed here.
 - The dev server picks up the new content on reload.
 
 ## Image tracking

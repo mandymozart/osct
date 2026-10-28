@@ -4,6 +4,81 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-28 – Content out of git, prepared: fixture, source outside, filter-repo tried (#5, Tilman, 1.7.6)
+
+- Tilman: "bereite das Entfernen von content/ aus Git inklusive History vor (Fixture für CI und Tests,
+  Content-Ordner außerhalb, filter-repo-Plan). Den Force-Push mache ich selbst nach Absprache."
+- **Fixture** `fixtures/content/` (916 KB): the former `content-demo/` slimmed (images ≤ 400 px, two-second
+  160 px videos – the alpha webm stays VP8 with alpha, models replaced by the small castle). All 44 client test
+  files pass on it as on the book (the tests were content-agnostic already); CI builds it
+  (`OSCT_CONTENT_DIR: fixtures/content`) and still builds `content/` while it is in git. `FIXTURE.md` marks it:
+  the build copies it into the output, `osct content sync` refuses such a build.
+- **Content source**: `OSCT_CONTENT_DIR` (relative paths now resolve from the repository root, not the working
+  folder), loaded from `scripts/.env` by `config.ts` for every command; no `book.yaml` there → the build stops,
+  no fallback (a fallback to the fixture could have deployed it). Copied to `C:\Development\osct\osct-content`
+  (`content/` from the main checkout with its 16 videos, `content-demo/` full size). The workflow "Content" lost
+  its sync – a checkout has no content.
+- **filter-repo tried** on a fresh mirror clone: 192.8 MiB → 28.4 MiB with the path list in
+  `docs/content-out-of-git.md` (content, content-demo and content of earlier layouts: `videos/`, `beta/`,
+  `targets/`, `.mindar/`, page images, committed build output). `main` still tracks
+  `client/public/assets/content/` (build output from before 2026-09-28) → release the content-free tree first.
+  The repository is public; GitHub keeps old objects through PR refs until GitHub Support collects them.
+- [ ] Open (Tilman): where `osct-content` is backed up (private repository or the storage zone) – before the
+  rewrite, the history is the only other copy.
+- [ ] Open (Kamal session): deploys build with `VITE_CONTENT_BASE_URL`, `Dockerfile` without `COPY content`, the
+  FTPS staging deploy too – then the removal commit, release, freeze, rewrite, force push (Tilman), GitHub Support.
+
+## 2026-10-28 – Content deployment apart from the app: versions + strict purge; content schema MAJOR.MINOR (#5, Tilman, 1.7.6)
+
+- Tilman, in order: "i dont want to end up with multiples on the server that eat up storage", "one folder each
+  environment only", "there will not be any content in git … content CDN!", "please split content deployment from
+  app deployment carefully", "use perhaps a osct-cli to sync cdn. where we trigger this we will find out". Then,
+  after the in-place sync (one folder per environment, files overwritten) was built: "jetzt haben wir dasselbe
+  Problem mit dem Cache, der sich nicht updatet auf den Pullzones … Ich möchte gern, dass trotzdem die Versions
+  hochgeladen werden … und dass wir eine Option haben im CLI, dass wir alte Versionen purgen können. Und dass da
+  vorher gecheckt wird, ob die gerade in Benutzung sind oder nicht. Strikt sein." → versions back, plus purge.
+  "Wir brauchen jetzt nicht unbedingt auf Kompatibilität anpassen" (restructuring phase).
+- Why versions: the pull zone caches 30 days, ignores query strings and the CLI cannot purge the edge – a file
+  overwritten in place stays stale at edges (seen 2026-10-28: a deleted version's game.config.json was still a
+  cache HIT). Immutable version folders never go stale; only `latest.json` moves.
+- Why not the first design of this work (`<version>-<hash>` folders, upload on every push, nothing deleted): the app
+  version was in the hash (every app bump = new 20 MB folder) and old versions piled up.
+- **Storage**: zone `osct` (Frankfurt, Singapore, New York), pull zone `buildingfictions.b-cdn.net` (→
+  `cdn.buildingfictions.com` with #17). Per environment: `latest.json`, `versions.json`, `<build>/` (12-hex content
+  checksum) with `game.config.json`, `files.json`, `assets/content/…` (`shared/types/content-manifest.ts`).
+- **osct CLI** (`scripts/src/cli.ts`, `npm run osct -- …`, bin `osct`): `content build | status | sync | purge`.
+  sync skips a version that is complete on the storage (rollback = sync an older build: only `latest.json`
+  moves) and refuses when the build lacks videos the current version has (`--without-videos`). purge keeps the
+  current version, the one the CDN's `latest.json` names, the newest retired (`--keep 1`) and anything retired
+  < `--min-age 30` days; refuses on missing/inconsistent `latest.json`/`versions.json`; unknown entries only with
+  `--unknown`. `content.yml` is a manual button (status / sync / purge, dry run on by default) – nothing on push.
+- **Content version** = `version.hash` (content + build logic + shared, not the app version); `version.version` is
+  information only. **Compatibility**: `CONTENT_SCHEMA_VERSION` `MAJOR.MINOR` (1.1 since the manifest types went
+  into shared/), another MAJOR refused, any MINOR loads; `shared/content-schema.json` + test force a bump on any
+  change in `shared/`. Investigation behind it: by rule only a MAJOR app-version difference refused content, in
+  practice the guard refused any contract change and such changes shipped as patches (1.3.2, 1.5.1).
+- **App**: CDN builds read no content (`virtual:osct-game-config` null, `prebuild` skips the content build, splash
+  and home-screen name from the CDN's current version). Runtime: `latest.json?t=<minute>` (no-cache) →
+  `<build>/game.config.json` + `files.json`. Service worker: one content cache, `latest.json` network-first; a new
+  build in `latest.json` drops the other versions' files.
+- Verified 2026-10-28 on staging (content.yml runs on the branch): version `6448aacb4ab7` (452 files, 33.9 MB, no
+  videos – CI checkout) uploaded, `latest.json` + `versions.json` written, the CDN serves it; the dev app with
+  `VITE_CONTENT_BASE_URL` loads latest.json → `6448aacb4ab7/` and its images from the CDN. A CDN-mode app build
+  ran with no content on disk. purge was not run against the storage – the auto-mode classifier refused a push
+  trigger that deletes; it is unit-tested (`scripts/test/content-sync.test.ts`).
+- [ ] Open (Tilman): `staging/` still holds the leftovers of the in-place sync of the same day (`game.config.json`,
+  `files.json`, `assets/` at the environment root). `npm run osct -- content purge --env staging --unknown`
+  (or the Content button with "unknown") removes them – try `--dry-run` first.
+- [ ] Open (dashboard, Tilman): edge rule `*/latest.json` → cache time 0, or "Vary cache → URL query string"
+  (checked 2026-10-28: query strings still ignored). Until then an edge can hand out the previous version for up
+  to 30 days.
+- [x] CORS (checked 2026-10-28): `latest.json`, `game.config.json`, `files.json` and `.jpg` send
+  `Access-Control-Allow-Origin: *`. Models and videos not checked – none in the CI sync.
+- [ ] Open (Kamal session, #6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable
+  `CONTENT_BASE_URL`); later `Dockerfile` drops `COPY content` – hand-over note in the side-session notes.
+- [~] Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
+  Repository wieder klein und handelbar wird") – prepared, see the entry above and `docs/content-out-of-git.md`.
+- [ ] Open: #15 – trial videos go through the same sync once they are part of the content folder outside git.
 ## 2026-10-27 – Sessions start with their issue; deploys move issues on the board (Tilman, 1.7.1, #11)
 
 - Tilman: "every session should start with their respective issue number. look for an issue first, if one exists, and

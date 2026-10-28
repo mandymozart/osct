@@ -19,10 +19,36 @@ export type EntityType = (typeof ENTITY_TYPES)[number];
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
 export type AssetType = (typeof ASSET_TYPES)[number];
 
+/**
+ * Content schema version `MAJOR.MINOR`: the version of this contract (shared/), the only compatibility rule
+ * between content and app (RULES #10). The app version a content build was made with is information only.
+ * - MAJOR: a change an older app cannot read – a new required field, a renamed or removed field, a changed
+ *   type, a new enum value (entity type, asset type, category, step action). The app refuses content of
+ *   another MAJOR at startup.
+ * - MINOR: an addition older apps ignore – a new optional field. Any MINOR of the same MAJOR loads.
+ * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
+ * version (scripts: `npm run schema:lock`, checked by a test).
+ */
+export const CONTENT_SCHEMA_VERSION = "1.1";
+
+export interface ContentSchema {
+  major: number;
+  minor: number;
+}
+
+/** `"1.0"` → { major: 1, minor: 0 }; null when it is not `MAJOR.MINOR` */
+export const parseContentSchema = (value: unknown): ContentSchema | null => {
+  const match = typeof value === "string" ? /^(\d+)\.(\d+)$/.exec(value) : null;
+  return match ? { major: Number(match[1]), minor: Number(match[2]) } : null;
+};
+
 export interface ConfigurationVersion {
+  /** App version the content build was made with – information only, never a reason to refuse */
   version: string;
   timestamp: string; // when the content build inputs last changed
-  hash?: string; // checksum of the content build inputs
+  hash?: string; // checksum of the content build inputs (the content's own version)
+  /** Content schema `MAJOR.MINOR` the content was built with (`CONTENT_SCHEMA_VERSION`) */
+  schema: string;
 }
 
 export interface BookData {

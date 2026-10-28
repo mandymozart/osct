@@ -1,8 +1,10 @@
 # Content guide
 
 How the book's content is organised for the app – for artists, designers and editors.
-Everything the app shows comes from the `content/` folder: small text files (YAML) plus the media
-next to them. No code is involved.
+Everything the app shows comes from the content folder (`content/` below): small text files (YAML) plus the media
+next to them. No code is involved. The book's content folder is not in the app repository – it lives in a folder
+of its own that `OSCT_CONTENT_DIR` names ([content on the CDN](content-cdn.md)); the repository has a small test
+fixture with the same layout (`fixtures/content/`).
 
 ## The idea in five words
 
@@ -142,7 +144,7 @@ the defaults). Today there is one filter type:
 Tips: raise `threshold` in small steps (0.02) until the background is gone; if edges look hard, raise
 `softness`. A black key also makes very dark parts of the picture see-through – keep the subject lighter
 than the background. The content build checks every value and names the file and parameter if one is off.
-Example with all parameters: `content-demo/entries/edge/entry.yaml`.
+Example with all parameters: `fixtures/content/entries/edge/entry.yaml`.
 
 **A 3D model on a printed image:**
 
@@ -379,14 +381,17 @@ against the trigger layout PDF (`All_Triggers.pdf`) by page and appearance, the 
 page in their file names. Files the delivery contains but the book does not place are listed in a comment at
 the top of the mapping.
 
-`content-demo/` holds the placeholder content from before the first delivery (every entity type, chroma key,
-shared entities): build it with `OSCT_CONTENT_DIR=../content-demo npm run build:content:force`.
+`fixtures/content/` is the placeholder content from before the first delivery, slimmed down to a test fixture
+(every entity type, chroma key and alpha video, shared entities; small images, two-second videos, one stand-in
+model): build it with `OSCT_CONTENT_DIR=fixtures/content npm run build:content:force`. CI and the tests build it,
+and `osct content sync` refuses it (`FIXTURE.md` marks it). The full-size placeholder content is kept next to the
+book content source (`content-demo/` there).
 
 ### Videos are not in git
 
 The imported entry videos (`content/entries/<id>/video.mp4`) are git-ignored – they are large and come to the servers
-through a CDN sync (planned: issue #15, after the bunny.net setup in #5). Keep them in the local `content/` folder: the local build uses
-them. A build on a machine without them (CI, a deploy, a fresh clone) prints a warning per missing video and builds
+through the CDN sync: `osct content sync` uploads whatever the local content build holds, videos included
+([content on the CDN](content-cdn.md); #15). Keep them in the local `content/` folder: the local build uses them. A build on a machine without them (CI, a deploy, a fresh clone) prints a warning per missing video and builds
 those targets without their AR video.
 
 ### Trigger test protocol

@@ -44,21 +44,31 @@ Extend as we go: add a rule when a decision should hold for all future work.
    in `disconnectedCallback`.
 7. Taxonomy: **entries are top level**; target optional per entry; AR entity optional per
    target. Never assume an entity is video-only – keep entity types extensible.
-8. Content lives in `content/` (YAML) → built by `scripts/` into `client/src/game.config.json`
-   and `client/public/assets/content`. **The output is not in git** (Tilman, 2026-09-28): `npm run build` in
-   `client/` builds the content first (prebuild → `npm run content`), so CI and the deploys (the Docker image runs
-   `npm run build`) always build the content of their commit. Commit `content/` only.
+8. Content (YAML + media) → built by `scripts/` into `client/src/game.config.json`
+   and `client/public/assets/content`. **The output is not in git** (Tilman, 2026-09-28). **The book content
+   leaves git too** (Tilman, 2026-10-28: "there will not be any content in git", history included –
+   `docs/content-out-of-git.md`): its source is a folder of its own named by `OSCT_CONTENT_DIR` (scripts/.env);
+   the build never falls back to anything else. The repository keeps only the test fixture `fixtures/content/`
+   (marked by `FIXTURE.md`, refused by `osct content sync`): CI and the tests build it – never write tests that
+   need the book's own entries. Never add book content, its media or a build of it to the repository.
    **Deliveries** from the publisher (2026-10-27): never copied into `content/` by hand – a mapping file
    `scripts/import/<delivery>.yaml` + `npm run import` does it (docs/content.md "Importing a delivery"), so the next
-   delivery lands the same way. `content-demo/` is the placeholder content (every entity type, chroma key);
+   delivery lands the same way. `fixtures/content/` is the placeholder content as test fixture (every entity
+   type, chroma key; the full-size copy lives next to the content source);
    `npm run protocol` writes the printed-image details for the trigger trial panel (overlay → trial).
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
    Tests of removed features are not wanted – test behaviour that stays.
-10. **One version** (semver) for the app, the content build and the server: `client/package.json`,
+10. **One version** (semver) for the app, the content tooling (`scripts/`) and the server: `client/package.json`,
     `scripts/package.json` and `server/api/src/Version.php` always carry the same version (checked by tests
-    + CI); the source is `client/package.json`. Game configuration: PATCH/MINOR must just work, MAJOR = rebuild the content
-    (no config migrations). Progress storage: a new MAJOR reads the old format and tells the user
+    + CI); the source is `client/package.json`.
+    **Content compatibility = the content schema `MAJOR.MINOR`, nothing else** (Tilman, 2026-10-28, #5):
+    `CONTENT_SCHEMA_VERSION` (`shared/types/game-config.ts`) versions the contract in `shared/`. MAJOR = older apps
+    cannot read it (new required field, renamed or removed field, changed type, new enum value) – the app refuses
+    content of another MAJOR at startup. MINOR = additions older apps ignore (new optional field) – any MINOR of the
+    same MAJOR loads. Every change in `shared/` needs a bump: `shared/content-schema.json` locks the checksum of
+    `shared/` to the schema (`npm run schema:lock` in `scripts/`; a test fails otherwise). The app version recorded
+    in the content (`version.version`) is information only. No config migrations. Progress storage: a new MAJOR reads the old format and tells the user
     (add a reader in `utils/progress-record.ts`; a test fails without one). The first storage
     format is 1 – nothing from before 1.1.x is converted.
     The content *data* is identified by the build checksum (`version.hash`), not by the version.
@@ -207,6 +217,19 @@ Extend as we go: add a rule when a decision should hold for all future work.
     - **Production deploys from `main`** (2026-10-27): merge `develop` into `main` when Tilman says so →
       `deploy-production.yml` deploys, `tag-version.yml` tags `vX.Y.Z` (never push tags yourself – agent sessions
       cannot). GitHub releases are optional notes; nothing deploys from them (docs/deploy.md).
+
+24. **Content deployment is apart from the app deployment** (Tilman, 2026-10-28, #5 – `docs/content-cdn.md`).
+    Content goes to the CDN with the osct CLI (`osct content sync --env <env>`, `scripts/src/cli.ts`): every content
+    version is its own immutable folder `<env>/<build>/` on the bunny.net storage zone `osct` (`<build>` = content
+    checksum, without the app version); `<env>/latest.json` names the current one and is the only file ever
+    overwritten; `<env>/versions.json` records when each version was current. Never overwrite a file inside a
+    version folder. Old versions go only through `osct content purge`, which deletes nothing that is current, served
+    by the CDN, kept for rollback or retired within the CDN cache time, and refuses on inconsistent bookkeeping.
+    Where the sync is triggered (by hand in `content.yml`, a local run, later a content repository) is not fixed –
+    keep the CLI the one way. An app build with `VITE_CONTENT_BASE_URL` must never read content (no content build,
+    no `game.config.json`, no `assets/content/`). Every content path stays `/assets/content/…` in the
+    configuration; only `utils/game-config.ts` turns it into a URL (`contentUrl`). Never hardcode a CDN URL. The
+    zone's access key only in GitHub environments or an untracked `scripts/.env`.
 
 ## Deployment (Kamal, 2026-10-27 – docs/deploy.md)
 - One Docker image (`Dockerfile`: content build + app + `server/api` as `/api`, Apache + PHP) deployed with Kamal

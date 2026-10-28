@@ -1,15 +1,20 @@
 {
   "name": "osct-scripts",
   "private": true,
-  "version": "1.7.5",
+  "version": "1.7.6",
   "engines": {
     "node": ">=22"
   },
   "type": "module",
+  "bin": {
+    "osct": "dist/cli.js"
+  },
   "scripts": {
     "build": "tsc && vite build",
     "build:content": "node dist/index.js",
     "build:content:force": "node dist/index.js --force",
+    "osct": "node dist/cli.js",
+    "schema:lock": "npm run build && node dist/schema-lock.js",
     "start": "npm run build && npm run build:content",
     "sounds": "npm run build && node dist/sounds.js",
     "import": "npm run build && node dist/import-delivery.js",
