@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.24.2 – 2026-10-29
+
+### Changed
+- **Ready for the shared Building Fictions server** (#6): each destination's database is only on its own internal
+  network (`osct`, `osct-staging`), which the app joins next to `kamal` – staging, production and the server's other
+  apps cannot reach each other's databases. The app and database containers have fixed memory and CPU limits.
+  The networks are created once per server (docs/deploy.md "Setting up a server").
+- **The deploy checks the server's host key**: the GitHub environment variable `SSH_KNOWN_HOSTS` holds it, and the
+  deploy stops without it – instead of trusting whatever key the server answers with at deploy time.
+
 ## 1.24.1 – 2026-10-30
 
 ### Added

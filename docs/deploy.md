@@ -66,6 +66,7 @@ The files are ERB: the server and the mail settings come from environment variab
 |---|---|---|
 | variable | `SSH_HOST` | the server (host name or IP) – both destinations may use the same server |
 | variable | `SSH_USER` | SSH user with Docker access, default `root` |
+| variable | `SSH_KNOWN_HOSTS` | the server's host key as a `known_hosts` line (`<SSH_HOST> ssh-ed25519 AAAA…`) – the deploy refuses to run without it, and SSH refuses a server that answers with another key |
 | variable | `CONTENT_BASE_URL` | the environment's content CDN (`https://buildingfictions.b-cdn.net/staging` / `…/production`, [content-cdn](content-cdn.md)); the same variable feeds `content.yml`. Empty: the commit's content is built into the image |
 | variable | `ALLOWED_ORIGINS` | other origins allowed to call the API (comma separated; staging default `https://localhost:5173`) |
 | variable | `MAIL_TRANSPORT` | `smtp` (default) or `log` – the container has no `mail()`; with `smtp` the workflow refuses to deploy while `SMTP_USER` / `SMTP_PASS` are missing |
@@ -140,8 +141,11 @@ Once per server – Debian or Ubuntu with Docker (Kamal installs Docker itself w
 1. DNS: an `A` record for the domain (`osct.porschuetz.de`, `osct.buildingfictions.com`) to the server;
    ports 80 and 443 open (kamal-proxy answers both, Let's Encrypt needs 80).
 2. SSH: the deploy key's public part in `~/.ssh/authorized_keys` of `SSH_USER`.
-3. The GitHub environment's variables and secrets (table above).
-4. The first deploy from a laptop (it boots the proxy and the database, then the app):
+3. The internal Docker networks of the two destinations ([A shared server](#a-shared-server)):
+   `docker network create --internal osct` and `docker network create --internal osct-staging`.
+4. The GitHub environment's variables and secrets (table above). `SSH_KNOWN_HOSTS` comes from the server itself, so it
+   cannot be faked on the way: `ssh-keyscan -t ed25519 localhost` there, with `localhost` replaced by `SSH_HOST`.
+5. The first deploy from a laptop (it boots the proxy and the database, then the app):
    ```bash
    gem install kamal
    set -a; . server/.env; set +a
@@ -149,9 +153,19 @@ Once per server – Debian or Ubuntu with Docker (Kamal installs Docker itself w
    ```
    Every later deploy is a push to the branch – or `kamal deploy -d staging` by hand.
 
-Staging and production may share one server: the service names differ (`osct-staging`, `osct`), so the containers,
-the database accessories (`osct-staging-db`, `osct-db`) and their data folders are separate; kamal-proxy routes by
-domain.
+### A shared server
+
+Staging, production and other apps may share one server: the service names differ (`osct-staging`, `osct`), so the
+containers, the database accessories (`osct-staging-db`, `osct-db`) and their data folders are separate; kamal-proxy
+routes by domain.
+
+Every Kamal app on a server is on the network `kamal` (kamal-proxy reaches the apps through it), so anything on it
+could reach a database there. The databases are therefore only on an internal network of their destination – `osct`
+or `osct-staging` (`config/deploy.<destination>.yml`), created once per server (above) – which the app joins next to
+`kamal`. Staging and production cannot reach each other's database, other apps cannot reach either, and the
+databases have no way out to the internet. The containers have fixed limits (production 1 GB / 1 CPU and 1 GB for the
+database, staging half of that), so one app cannot starve the others. A database already running keeps its network
+until `kamal accessory reboot db -d <destination>`.
 
 ## Day to day
 
