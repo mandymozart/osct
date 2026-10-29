@@ -12,6 +12,14 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.17.3 – 2026-10-30
+
+### Fixed
+- **The Library no longer fails with "Something went wrong on the server"** (#116): since 1.17.1 the asset list also
+  lists the files of the CDN import, and it counted each file's uses with three queries over targets, entities and
+  entries – a build with hundreds of files ran over a thousand queries. The rows are now read once per request
+  (`Assets::usageRows`, `countUsages`), and a `files.json` entry that is not an object no longer breaks the list.
+
 ## 1.17.2 – 2026-10-30
 
 ### Changed
