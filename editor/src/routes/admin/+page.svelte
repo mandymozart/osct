@@ -132,14 +132,6 @@
   };
 </script>
 
-<header class="top">
-  {#if session.isEditor}<a href="{base}/" class="pill">‹ Books</a>{/if}
-  <strong>OSCT Admin</strong>
-  <span class="muted">{session.user?.email}</span>
-  <span class="grow"></span>
-  <button type="button" class="pill" onclick={() => session.signOut()}>Sign out</button>
-</header>
-
 <main>
   <h1>Users</h1>
   <div class="toolbar">
@@ -221,9 +213,6 @@
 </main>
 
 <style>
-  .top { display: flex; align-items: center; gap: .75rem; height: 2.5rem; padding: 0 .75rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
-  .top a.pill { text-decoration: none; }
-  .grow { flex: 1; }
   main { max-width: 64rem; margin: 0 auto; padding: 1rem; }
   h1, h2 { font-size: 1rem; font-weight: 600; margin: 0 0 .5rem; }
   h2 { font-size: var(--text-size); margin-top: 1.5rem; }
