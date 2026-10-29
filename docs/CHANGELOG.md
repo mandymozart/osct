@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.31.0 – 2026-10-30
 
 ### Added
 - **A video's size and duration are recorded on upload** (#91): the editor's API reads an mp4 / mov's or webm / mkv's
