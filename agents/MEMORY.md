@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Editor help in an Info view, Stage panel in sections (#102, #133)
+
+- Tilman, on the Stage panel: explanations "could be in the left side bar, a collapsible info like in Ableton – not
+  really needed for using things". The Info view sits at the bottom of the tree column (the book page: bottom left);
+  controls carry their help as `data-help` or `title` (RULES #32). The spread's format moved from the top bar into
+  the Stage panel's *spread* section, where the world of #79 is meant to join it.
+- Open: the books page's import form (`ImportForm.svelte`) still has its hint lines – the books page has no Info view
+  yet.
+
 ## 2026-10-30 – The grade's reach, content schema 2.9 (#136)
 
 - `grade` has `reach: ar | all`. The phone's camera picture is drawn by the 8th Wall engine into its own canvas (a

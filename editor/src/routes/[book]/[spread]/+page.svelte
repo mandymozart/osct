@@ -14,9 +14,10 @@
   import LibraryPanel from "$lib/panels/LibraryPanel.svelte";
   import CodePanel from "$lib/panels/CodePanel.svelte";
   import NewTargetForm from "$lib/panels/NewTargetForm.svelte";
-  import { deleteEntry, putSpread, putTarget, type Asset } from "$lib/api";
+  import { deleteEntry, putTarget, type Asset } from "$lib/api";
   import { library } from "$lib/library.svelte";
   import { nodeAt } from "$lib/values";
+  import InfoView from "$lib/components/InfoView.svelte";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -86,17 +87,6 @@
     if (!selectedTarget) return;
     await putTarget(bookId, selectedTarget, { imageSrc: asset.url });
     await reloadContent();
-  };
-  /** The spread's format (content schema 2.3): a double page, the front cover or the back cover – the stage follows */
-  const FORMATS = ["spread", "cover", "back"] as const;
-  const setFormat = async (format: (typeof FORMATS)[number]) => {
-    try {
-      await putSpread(bookId, spreadId, { format });
-      await content.load(bookId);
-      await stage?.open(spreadId);
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : String(e);
-    }
   };
   const selectedNodeType = $derived.by(() => {
     const t = selectedTarget ? stage?.treeOf(selectedTarget) : undefined;
@@ -178,6 +168,7 @@
     setTab("entity");
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("button.placement-toggle")?.click());
   };
+  const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · double tap = the reader's view · ← → = the spreads. A click picks what lies there, right click opens its menu.";
   const GIZMO_ICONS: Record<GizmoMode, "move" | "rotate" | "scale"> = { translate: "move", rotate: "rotate", scale: "scale" };
 
   const spread = $derived(content.spread(spreadId));
@@ -238,10 +229,11 @@
     </div>
     {#if treeOpen}
       <div class="body tree-body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} onaddtarget={() => { addingTarget = true; }} onremovetarget={removeTarget} /></div>
+      <InfoView />
     {/if}
   </aside>
 
-  <div class="stage" bind:this={container}>
+  <div class="stage" bind:this={container} data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
       <div class="tools" role="toolbar" data-app-ui aria-label="Transform">
         {#each GIZMO_MODES as mode (mode)}
@@ -303,12 +295,6 @@
       <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
       <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
       <span class="grow"></span>
-      {#if spread && spread.firstPage === spread.lastPage}
-        <select class="field format" aria-label="Spread format" title="What this spread is: a double page, the front cover or the back cover" value={spread.format ?? "spread"}
-          onchange={e => void setFormat((e.currentTarget as HTMLSelectElement).value as (typeof FORMATS)[number])}>
-          {#each FORMATS as f (f)}<option value={f}>{f}</option>{/each}
-        </select>
-      {/if}
       {#if narrow}
         <button type="button" class="pill tab" class:on={shown === "tree"} aria-pressed={shown === "tree"} onclick={() => setTab("tree")}>Tree</button>
       {/if}
@@ -361,7 +347,6 @@
   .panel { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--line); color: var(--text); }
   .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .bar .tab { padding: 0 .5rem; }
-  .bar .format { height: 1.5rem; padding: 0 .25rem; font-size: var(--text-small); }
   .bar .tab.on { background: var(--surface); }
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; }
   .body.code { overflow: hidden; }

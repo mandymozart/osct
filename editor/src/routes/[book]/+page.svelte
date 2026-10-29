@@ -7,6 +7,7 @@
   import { captionOf, formatLabelOf, gridCells } from "$lib/spread-grid";
   import Icon from "$lib/components/Icon.svelte";
   import EnvironmentPanel from "$lib/panels/EnvironmentPanel.svelte";
+  import InfoView from "$lib/components/InfoView.svelte";
 
   /** A book's spreads with the sheet of each as its preview (when the content carries the layout): open one to work on its stage */
   const bookId = $derived(page.params.book!);
@@ -101,6 +102,8 @@
   {/if}
 </main>
 
+<aside class="info-dock"><InfoView /></aside>
+
 <style>
   main { padding: 1rem 1.5rem; }
   /* One column is one page: 1 spread per row on a phone up to 6 at 1920 px (any even count keeps gridCells' layout) */
@@ -124,5 +127,8 @@
   .text { overflow: hidden; text-overflow: ellipsis; }
   .format { border: 1px solid var(--line); padding: 0 .25rem; font-size: .75em; text-transform: uppercase; }
   .stats { margin-left: auto; display: inline-flex; gap: .5rem; }
+  /* The page has no sidebar: the Info view sits at the bottom left, over the page */
+  .info-dock { position: fixed; left: 0; bottom: 0; z-index: 2; width: var(--tree-width); border-right: 1px solid var(--line); }
+  @media (max-width: 47.9em) { .info-dock { display: none; } }
   .stats span { display: inline-flex; align-items: center; gap: .125rem; }
 </style>
