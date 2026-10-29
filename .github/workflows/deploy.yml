@@ -106,9 +106,9 @@ jobs:
           SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
           SMTP_SECURE: ${{ vars.SMTP_SECURE || 'tls' }}
           SMTP_USER: ${{ vars.SMTP_USER }}
-          CONTENT_STORE: ${{ vars.CONTENT_STORE || 'local' }}
+          CONTENT_STORE: ${{ vars.CONTENT_STORE || (secrets.BUNNY_STORAGE_PASSWORD && 'bunny') || 'local' }}
           BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
-          BUNNY_STORAGE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ENDPOINT || 'storage.bunnycdn.com' }}
+          BUNNY_STORAGE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
           BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
         run: kamal deploy -d "${{ inputs.destination }}"
 
