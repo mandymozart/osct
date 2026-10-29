@@ -191,8 +191,12 @@ is involved.
     stage shows a translucent **ghost** of the image where it would be printed, with **handles**: drag the image to
     move it (across the spine it changes the page), drag the small square at its bottom right corner to set the
     printed width – the fields follow, Save placement writes them.
-  - **Library** – the book's uploaded files ([server](server.md) "Assets"): a grid of cards (a thumbnail for images,
-    the type's icon else; name, kind, size, dimensions, the number of uses), filter by kind, search, **Upload** (the
+  - **Library** – the book's uploaded files and the files of the import ([server](server.md) "Assets"): a grid of
+    cards (a preview with an animated skeleton until it has loaded – images, a video's first frame that plays muted
+    while hovered or after a click on ▷ –, the type's icon else; where the file belongs – the import names every file
+    `image.jpg`, `target.jpg`, `video.mp4` in a folder per entry, so a card reads `p015-1 · target` –, kind, size,
+    dimensions, the number of uses) or a plain **list** (name, place, kind, size, uses; a click on a row opens its
+    actions) – the **view** is remembered per browser; filter by kind, search by name and place (`p015 target`), **Upload** (the
     button, or files dropped on the panel); per file **Use** (the selected node takes it, when its type fits),
     **Target image** (an image becomes the selected target's printed image), **Replace…** (a new version, every use
     relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes name a file by
