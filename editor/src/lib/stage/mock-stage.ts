@@ -62,7 +62,7 @@ function coverEdgeTexture(): CanvasTexture | null {
   return texture;
 }
 /**
- * The desks (the Stage panel's choice): 1.4 × 1.0 m tops, 72 cm high – our own low-poly models, built by
+ * The desks (the Stage panel's choice): 1.8 × 0.8 m tops, 72 cm high – our own low-poly models, built by
  * `editor/tools/desk-eiermann.py` (`editor/static/models/README.md`). Each model's origin is the centre of the top's
  * upper surface; its material `top` (and the Eiermann top's `edge`) becomes the stage's own – the Eiermann top is
  * the screen-printed plywood (see below), Schöpfer's a white board – while `steel` and `drawer` stay as exported.
