@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.18.2 – 2026-10-30
+
+### Fixed
+- **Editor images from the CDN** (#122): the reader's service worker (scope `/`) also handled the requests of the
+  editor's pages at `/editor`, and its CDN rule broke some Library thumbnails in Firefox ("A ServiceWorker intercepted
+  the request and encountered an unexpected error", "Image corrupt or truncated"). The worker now leaves editor pages
+  and every request they make to the browser (`client/sw/editor-clients.ts`); a page it has not seen yet (after the
+  browser restarted the worker) is looked up and its request goes straight to the network, uncached. The reader's
+  offline behaviour is unchanged: its CDN rule still stores only complete `200` responses (no opaque or `206`).
+
 ## 1.18.1 – 2026-10-30
 
 ### Fixed
