@@ -1100,9 +1100,15 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        editor.md`): `registerComponent` and `registerLayer` (material layers – GLSL composed into a node's material)
        with the shared specs as a registry, `api.three`, the component context and hooks; plugins compiled by the
        content build (`plugins/<id>/index.ts` → type check, esbuild, recorded, declared – schema 2.4), loaded by the
-       engine with the first spread; [ ] more built-in components (`behaviour` with actions, `audio`), the node-type
-       registry (`registerNodeType`), nodes without a target on the spread (scope `spread`), events and variables
-       between entities (Studio C).
+       engine with the first spread; [x] **events and variables between entities** (#80, 1.12.0, plugin API 1.1,
+       `agents/research/2026-10-30-demo-book.md`): `api.events` (core events read-only, scene events free), `api.vars`
+       (scopes spread / stage / session / book – `book` in the reader's progress record), `api.progress`, `api.spread`,
+       the context's `children`, `onUnlocked` – Studio C made real as the **demo book** `fixtures/demo/` (six spreads,
+       six plugins, the key / door / lamp narrative, the tally, a tap that switches scenes; synced to the environment
+       `demo` by `demo.yml`, `?content=` in the staging reader); [ ] more built-in components (`behaviour` with
+       actions – the concept's events → actions without code, `audio`), declared variables, the node-type registry
+       (`registerNodeType`, #77), nodes without a target on the spread (scope `spread`), bubbling scopes (#88); the
+       content store per book (#87).
 4. [x] Code in the editor (#66, 1.11.0): the **Code** tab – plugin sources stored through the API (`plugins` table),
        a plain code editor, Run = browser transpile (sucrase) into the stage's registry, Save, Download; the editor's
        stage is the only place unchecked code runs, a publish refuses component types no declared plugin provides.

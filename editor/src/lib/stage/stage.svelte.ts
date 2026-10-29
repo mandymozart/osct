@@ -13,6 +13,7 @@ import { getPreview, subscribePreview, type ShadingMode } from "./preview";
 import { MockStage } from "./mock-stage";
 import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
+import { plugins } from "$lib/plugins.svelte";
 import { setPreviewActive, setTargetHidden } from "./preview";
 
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
@@ -114,6 +115,8 @@ export class Stage {
         if (status === "running") {
           this.ensureGizmo();
           this.shade();
+          // The book's declared plugins registered their components while the spread loaded: the panels' rows follow
+          plugins.version += 1;
         }
       }),
       subscribePreview(state => {
