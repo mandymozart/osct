@@ -5,7 +5,8 @@
   import Segmented from "$lib/components/Segmented.svelte";
 
   /**
-   * The book's library: the files uploaded in the editor (docs/server.md "Assets"). A grid of cards – a thumbnail for
+   * The book's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
+   * read-only – docs/server.md "Assets"). A grid of cards – a thumbnail for
    * images, the type's icon else – with name, kind, size, dimensions and the number of uses; filter by kind, search;
    * **Upload** (the button, or files dropped anywhere on the panel); per asset **Use** (the selected node takes the
    * file, when its type fits; an image can also become the selected target's printed image), **Replace…** (a new
@@ -123,6 +124,9 @@
             {#if asset.kind === "image" && targetId}
               <button type="button" class="pill" title="The selected target's printed image" onclick={() => void onusetarget(asset)}>Target image</button>
             {/if}
+            {#if asset.imported}
+              <span class="small muted" title="From the content import – replaced by the next import, not here">imported</span>
+            {:else}
             <button type="button" class="text-link" onclick={() => startReplace(asset)}>Replace…</button>
             {#if confirming === asset.id}
               <span class="small danger">in use –</span>
@@ -130,6 +134,7 @@
               <button type="button" class="text-link" onclick={() => (confirming = null)}>keep</button>
             {:else}
               <button type="button" class="text-link" onclick={() => void remove(asset, false)}>Delete</button>
+            {/if}
             {/if}
           </div>
         </li>
