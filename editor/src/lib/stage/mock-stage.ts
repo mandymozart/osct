@@ -1,5 +1,5 @@
 import {
-  BoxGeometry, EquirectangularReflectionMapping, Group, Light, Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Plane,
+  BoxGeometry, CanvasTexture, EquirectangularReflectionMapping, Group, Light, Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Plane,
   PlaneGeometry, Raycaster, RepeatWrapping, Scene, SphereGeometry, SRGBColorSpace, Texture, TextureLoader, UVMapping, Vector3,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -29,8 +29,37 @@ const COVER_COLOR = 0xf2efe9;
 const SHEET_THICKNESS = 0.00015;
 const BLOCK_MIN = 0.003;
 const BLOCK_MAX = 0.04;
-const COVER_THICKNESS = 0.002;
-const COVER_OVERHANG = 0.003;
+const COVER_THICKNESS = 0.001;
+const COVER_OVERHANG = 0;
+/**
+ * The cover's edge: a paper texture drawn in code (fine fibre lines, a seeded sequence so every build is the same),
+ * so no image file and no licence. Null when the browser gives no 2D canvas – the edge then keeps its flat colour.
+ */
+function coverEdgeTexture(): CanvasTexture | null {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = `#${PAGE_EDGE_COLOR.toString(16).padStart(6, "0")}`;
+  ctx.fillRect(0, 0, size, size);
+  let seed = 7;
+  const random = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  for (let y = 0; y < size; y++) {
+    ctx.globalAlpha = 0.04 + random() * 0.12;
+    ctx.fillStyle = random() < 0.5 ? "#8a8270" : "#ffffff";
+    ctx.fillRect(0, y, size, 1);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  return texture;
+}
 /**
  * The desks (the Stage panel's choice): 1.4 × 1.0 m tops, 72 cm high – our own low-poly models, built by
  * `editor/tools/desk-eiermann.py` (`editor/static/models/README.md`). Each model's origin is the centre of the top's
@@ -210,6 +239,11 @@ export class MockStage implements StageView {
     const edge = new MeshStandardMaterial({ color: PAGE_EDGE_COLOR, roughness: 1 });
     const top = new MeshStandardMaterial({ color: PAGE_COLOR, roughness: 1 });
     const board = new MeshStandardMaterial({ color: COVER_COLOR, roughness: 0.8 });
+    // The board's four sides are the hard cover's edge (BoxGeometry faces 0–3); its faces stay the board
+    const edgeTexture = coverEdgeTexture();
+    if (edgeTexture) this.textures.push(edgeTexture);
+    const boardEdge = new MeshStandardMaterial({ color: edgeTexture ? 0xffffff : PAGE_EDGE_COLOR, map: edgeTexture, roughness: 1 });
+    const boardMaterials = [boardEdge, boardEdge, boardEdge, boardEdge, board, board];
     const blockTop = -3 * LAYER;
     let bottom: number;
     let shadowWidth: number;
@@ -219,11 +253,11 @@ export class MockStage implements StageView {
       const block = Math.min(2 * BLOCK_MAX, Math.max(BLOCK_MIN, book.spreads * SHEET_THICKNESS));
       const boardW = w + 2 * COVER_OVERHANG;
       const boardH = h + 2 * COVER_OVERHANG;
-      const upper = new Mesh(new BoxGeometry(boardW, boardH, COVER_THICKNESS), board);
+      const upper = new Mesh(new BoxGeometry(boardW, boardH, COVER_THICKNESS), boardMaterials);
       upper.position.set(0, 0, blockTop - COVER_THICKNESS / 2);
       const stack = new Mesh(new BoxGeometry(w, h, block), [edge, edge, edge, edge, top, top]);
       stack.position.set(0, 0, blockTop - COVER_THICKNESS - block / 2);
-      const lower = new Mesh(new BoxGeometry(boardW, boardH, COVER_THICKNESS), board);
+      const lower = new Mesh(new BoxGeometry(boardW, boardH, COVER_THICKNESS), boardMaterials);
       lower.position.set(0, 0, blockTop - COVER_THICKNESS - block - COVER_THICKNESS / 2);
       this.book.add(upper, stack, lower);
       bottom = blockTop - 2 * COVER_THICKNESS - block;
@@ -237,7 +271,7 @@ export class MockStage implements StageView {
         stack.position.set((side * w) / 2, 0, blockTop - block / 2);
         this.book.add(stack);
       });
-      const cover = new Mesh(new BoxGeometry(2 * w + 2 * COVER_OVERHANG, h + 2 * COVER_OVERHANG, COVER_THICKNESS), board);
+      const cover = new Mesh(new BoxGeometry(2 * w + 2 * COVER_OVERHANG, h + 2 * COVER_OVERHANG, COVER_THICKNESS), boardMaterials);
       cover.position.set(0, 0, blockTop - block - COVER_THICKNESS / 2);
       this.book.add(cover);
       bottom = blockTop - block - COVER_THICKNESS;
