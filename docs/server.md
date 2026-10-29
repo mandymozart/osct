@@ -118,7 +118,9 @@ The editor's keys:
 
 The editor (`editor/`, the SvelteKit app at `/editor` – `agents/RULES.md` #32) keeps its drafts in the same
 database, under `/api/editor/*`. A user needs the role `editor` (`users.role`, default `reader`):
-`POST /admin/editors { email }` with the `X-Admin-Secret` gives it – `curl -X POST -H "X-Admin-Secret: $OSCT_SECRET"
+`POST /admin/editors { email }` with the `X-Admin-Secret` gives it – or the setting `EDITORS` (comma-separated
+addresses; the deploy writes the GitHub environment variable `EDITORS` into the config) gives it when a listed address
+signs in, the instance's first editors without the secret – `curl -X POST -H "X-Admin-Secret: $OSCT_SECRET"
 -H "Content-Type: application/json" -d '{"email":"…"}' https://…/api/admin/editors`. The editor itself signs in like
 the reader (email code) and checks `GET /user` for `role: "editor"`.
 
