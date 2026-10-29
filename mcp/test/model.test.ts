@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENTITY_TYPES } from "../../shared/types/game-config";
+import { ENTITY_TYPES, PLUGIN_API_VERSION } from "../../shared/types/game-config";
 import { checkEntity, describeContentModel, pluginTypes, unknownComponentTypes } from "../src/model.ts";
 import { RULES } from "../src/resources.ts";
 import { VIDEO_ENTITY } from "./helpers.ts";
@@ -58,7 +58,7 @@ describe("describeContentModel – the contract as an agent reads it", () => {
   it("lists the contract's enums, specs and versions", () => {
     const model = describeContentModel() as any;
     expect(model.contentSchema).toMatch(/^\d+\.\d+$/);
-    expect(model.pluginApi).toBe("1.0");
+    expect(model.pluginApi).toBe(PLUGIN_API_VERSION);
     expect(model.entity.nodeTypes).toEqual([...ENTITY_TYPES]);
     expect(model.entity.nodeTypes).toEqual(expect.arrayContaining(["group", "model", "video", "image", "text"]));
     expect(Object.keys(model.filters.types)).toEqual(["chromaKey"]);

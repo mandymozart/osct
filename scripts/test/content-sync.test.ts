@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
-import { FIXTURE_DIR, FIXTURE_MARKER } from '../src/config';
+import { DEMO_DIR, DEMO_MARKER, FIXTURE_DIR, FIXTURE_MARKER } from '../src/config';
 import { ContentVersion } from '../../shared/types/content-manifest';
 import {
   activate,
@@ -9,6 +9,7 @@ import {
   DEFAULT_PURGE,
   EnvironmentState,
   fileIndex,
+  isDemoBuild,
   isFixtureBuild,
   planPurge,
   videosMissing,
@@ -160,5 +161,20 @@ describe('test fixture', () => {
     expect(isFixtureBuild({ files: [...build.files, { file: FIXTURE_MARKER, size: 1, sha256: 'A' }] })).toBe(true);
     // only the marker at the top of the build counts
     expect(isFixtureBuild({ files: [{ file: `entries/x/${FIXTURE_MARKER}`, size: 1, sha256: 'A' }] })).toBe(false);
+  });
+});
+
+// The demo book is a content folder of its own next to the fixture; its build goes to the environment `demo` only
+describe('demo book', () => {
+  it('is a content folder that marks itself, apart from the fixture', () => {
+    expect(fs.existsSync(path.join(DEMO_DIR, 'book.yaml'))).toBe(true);
+    expect(fs.existsSync(path.join(DEMO_DIR, DEMO_MARKER))).toBe(true);
+    expect(fs.existsSync(path.join(DEMO_DIR, FIXTURE_MARKER))).toBe(false);
+  });
+
+  it('is recognised in a build (the CLI syncs it to its own environment only)', () => {
+    expect(isDemoBuild(build)).toBe(false);
+    expect(isDemoBuild({ files: [...build.files, { file: DEMO_MARKER, size: 1, sha256: 'A' }] })).toBe(true);
+    expect(isDemoBuild({ files: [{ file: `entries/x/${DEMO_MARKER}`, size: 1, sha256: 'A' }] })).toBe(false);
   });
 });

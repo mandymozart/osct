@@ -3,7 +3,7 @@ import { base } from "$app/paths";
 import { Object3D, Raycaster, Vector2 } from "three";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
-import { ArScene } from "@engine/scene";
+import { allVars, ArScene, observeEvents, resetVars, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type IArScene, type NodeTimeline, type PassData } from "@engine/types";
@@ -14,6 +14,8 @@ import { applyShading } from "./shading";
 import { getPreview, subscribePreview, type ShadingMode } from "./preview";
 import { MockStage } from "./mock-stage";
 import { MockTracker } from "./mock-tracker";
+import { StageProgress } from "./progress";
+import { plugins } from "$lib/plugins.svelte";
 import { setPreviewActive, setTargetHidden } from "./preview";
 
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
@@ -22,9 +24,20 @@ const REPLAY_GAP_MS = 900;
 /**
  * The editor's stage: the engine's `ArScene` with the mock tracker and the mock stage instead of a camera, and the
  * editor's simulation of the game around it – which spread is open, which targets the "camera" sees, which were
- * found for the first time (the unlock animation plays once per target, *replay* plays it again). The reader's
- * store does none of this here: the editor owns its state.
+ * found for the first time (the unlock animation plays once per target, *replay* plays it again), and the reader's
+ * progress for the book's plugins (`StageProgress`: unlocked targets, book variables – the engine's `api.progress`).
+ * The reader's store does none of this here: the editor owns its state. For the Stage panel it keeps the plugins'
+ * variables and the last events of the stage (`vars`, `events`).
  */
+
+/** An event of the stage as the panel lists it */
+export interface StageEvent {
+  event: string;
+  detail: string;
+}
+
+/** How many events the panel keeps */
+const EVENT_LOG_SIZE = 12;
 export type PickMode = "entity" | "node" | "target";
 
 /** A placement being edited: the image and where it would be printed (mm) */
@@ -75,7 +88,12 @@ export class Stage {
   private wantedMode: GizmoMode = "translate";
   /** The gizmo's mode (reactive: the toolbar shows it) */
   gizmoMode = $state<GizmoMode>("translate");
-  private unlocked = new Set<string>();
+  /** The simulated reader's progress: the first finds and the plugins' book variables */
+  private progress = new StageProgress();
+  /** The plugins' variables with their scopes (reactive: the Stage panel lists them) */
+  vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
+  /** The last events of the stage, newest first */
+  events = $state<StageEvent[]>([]);
   /** Entities shown with other values than the draft's, by target id (reactive: the panels mark them) */
   overrides = new SvelteMap<string, EntityData>();
   private replayTimer = 0;
@@ -91,6 +109,7 @@ export class Stage {
         this.tracker = tracker;
         return tracker;
       },
+      progress: this.progress.reader(),
     });
     this.scene = scene;
     this.cleanups.push(
@@ -100,6 +119,8 @@ export class Stage {
         if (status === "running") {
           this.ensureGizmo();
           this.shade();
+          // The book's declared plugins registered their components while the spread loaded: the panels' rows follow
+          plugins.version += 1;
         }
       }),
       subscribePreview(state => {
@@ -112,13 +133,18 @@ export class Stage {
         if (!this.found.includes(id)) this.found = [...this.found, id];
         this.shade();
         // The first find unlocks: the entity's unlock animation plays (replaces the reveal)
-        if (!this.unlocked.has(id)) {
-          this.unlocked.add(id);
-          scene.celebrate(id);
-        }
+        if (this.progress.unlock(id)) scene.celebrate(id);
       }),
       scene.on("targetLost", id => {
         this.found = this.found.filter(found => found !== id);
+      }),
+      // The plugins' events and variables for the panel
+      observeEvents((event, payload) => {
+        const detail = payload === undefined ? "" : typeof payload === "object" && payload !== null
+          ? Object.entries(payload as Record<string, unknown>).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(" · ")
+          : String(payload);
+        this.events = [{ event, detail }, ...this.events].slice(0, EVENT_LOG_SIZE);
+        if (event === "varChanged" || event === "spreadChanged") this.vars = allVars();
       }),
     );
     // Picking is the editor's own: a click (not the one that ends a gizmo drag; the tracker swallows an orbit's)
@@ -413,12 +439,19 @@ export class Stage {
     const hidden = new Set(getPreview().hidden);
     const spread = this.spreadId;
     const ids = (targetIds ?? (spread ? getTargets(spread).filter(t => t.imageSrc).map(t => t.id) : [])).filter(id => !hidden.has(id));
-    ids.forEach(id => {
-      this.unlocked.delete(id);
-      setTargetHidden(id, true);
-    });
+    this.progress.lock(ids);
+    ids.forEach(id => setTargetHidden(id, true));
     window.clearTimeout(this.replayTimer);
     this.replayTimer = window.setTimeout(() => ids.forEach(id => setTargetHidden(id, false)), REPLAY_GAP_MS);
+  }
+
+  /** A new game: every variable of every scope cleared, nothing unlocked, the spread's targets found anew */
+  resetNarrative(): void {
+    resetVars();
+    this.progress.reset();
+    this.vars = allVars();
+    this.events = [];
+    this.replayUnlock();
   }
 
   async dispose(): Promise<void> {

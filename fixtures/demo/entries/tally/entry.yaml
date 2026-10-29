@@ -1,0 +1,31 @@
+# The tally: a group whose `tally` component (plugins/tally) draws a line of text with api.three from api.progress –
+# how many pages of the book were found – and redraws it on every targetUnlocked.
+category: text
+title: The tally
+page: 2
+author: The engine
+body: "A text the book writes itself: the `tally` component builds a canvas text with `api.three` and fills it from `api.progress.counts()` – it changes with every page you find, on any spread."
+tags: [narrative, progress]
+target:
+  image: target.jpg
+  print:
+    surface: right
+    x: 70
+    y: 90
+    width: 90
+  entity:
+    type: group
+    params:
+      position: [0, 0.1, 0]
+    children:
+      - type: text
+        text: "{{entry.title}}"
+        color: "#f3cc94"
+        params:
+          position: [0, 0.3, 0.01]
+          scale: 0.8
+    components:
+      - type: tally
+        of: book
+        label: pages found
+        color: "#ffffff"
