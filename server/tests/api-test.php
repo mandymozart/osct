@@ -687,6 +687,14 @@ try {
     [$status] = call($oldApi, 'POST', '/auth/password', ['email' => 'old@example.com', 'password' => 'a new password']);
     check($status === 200, 'and sign in with it');
 
+    echo "rate limits off (0)\n";
+    $openApi = startApi(['DB_SQLITE_PATH' => "$tmp/open.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '0', 'LOGIN_MAX_PER_IP_HOUR' => '0', 'LOGIN_MAX_ATTEMPTS' => '0'] + $settings);
+    $statuses = [];
+    for ($i = 0; $i < 7; $i++) {
+        [$statuses[]] = call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com']);
+    }
+    check($statuses === array_fill(0, 7, 202), 'a limit of 0 is off: seven requests in a row pass (local testing)');
+
     echo "logout, delete\n";
     [$status] = call($api, 'POST', '/auth/logout', null, $secondSession);
     check($status === 204, 'logout → 204');
