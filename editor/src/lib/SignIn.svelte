@@ -17,7 +17,7 @@
 
 <form onsubmit={submit} class="sign-in">
   <h1>OSCT Editor</h1>
-  <p class="muted">Sign in with your account of this instance. Editors only.</p>
+  <p class="muted">Sign in with your account of this instance. Editors and admins only.</p>
   {#if session.pending}
     <label class="row"><span class="label">code</span>
       <input class="field" bind:value={code} inputmode="numeric" autocomplete="one-time-code" placeholder="6 digits from the email" required /></label>

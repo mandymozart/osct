@@ -72,7 +72,8 @@ The files are ERB: the server and the mail settings come from environment variab
 | variable | `MAIL_FROM` | sender of the sign-in mails, default `no-reply@buildingfictions.com` – any address at the domain verified in SES ([Mail](#mail-aws-ses)) |
 | variable | `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_SECURE` (tls) | default: the SES endpoint `email-smtp.eu-west-1.amazonaws.com`, STARTTLS on 587 – nothing to set for SES |
 | variable | `SMTP_USER` | the SES SMTP user name (an IAM access key ID) |
-| variable | `EDITORS` | e-mail addresses (comma-separated) that get the editor's role when they sign in – the instance's first editors; more with `POST /api/admin/editors` ([server](server.md#editor-data)) |
+| variable | `EDITORS` | e-mail addresses (comma-separated) that get the role `editor` when they sign in – the instance's first editors; more on the admin page ([admin](admin.md), [server, "Roles"](server.md#roles)) |
+| variable | `ADMINS` | e-mail addresses (comma-separated) that get the role `admin` when they sign in – the instance's first admin, who then grants roles at `/editor/admin`; set it on `staging` and `production` |
 | variable | `CONTENT_STORE` | where the editor's publishes and uploaded assets go ([server, "Editor data"](server.md#editor-data), ["Assets"](server.md#assets)): `bunny` (the content CDN's storage zone, the same the osct CLI syncs to) or `local` (the container's own directory, served at `/api/content/{env}/…`). Default: `bunny` as soon as `BUNNY_STORAGE_PASSWORD` is set, else `local` |
 | variable | `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (or `BUNNY_STORAGE_ZONE_ENDPOINT`) | the storage zone (`osct`) and its endpoint host (default `storage.bunnycdn.com`) – only read with the bunny store |
 | secret | `SSH_PRIVATE_KEY` | a deploy key whose public key is in the server user's `authorized_keys` |

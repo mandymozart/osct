@@ -83,7 +83,7 @@ export class Stage {
     const scene = new ArScene(container, {
       createTracker: ({ container, options, scene }) => {
         const tracker = new MockTracker(container, options);
-        tracker.attachStage(new MockStage(scene, container, path => `${base}/${path}`));
+        tracker.attachStage(new MockStage(scene, path => `${base}/${path}`));
         tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
         this.tracker = tracker;
         return tracker;
