@@ -13,7 +13,8 @@ export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 
 const TOKEN_KEY = "osct-editor-session";
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, public readonly code: string, message: string) {
+  /** `details` = the rest of the server's error object (e.g. `current` of a 409 other-book) */
+  constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown> = {}) {
     super(message);
   }
 }
@@ -51,9 +52,10 @@ export const api = async <T>(method: string, path: string, body?: unknown): Prom
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (response.status === 204) return undefined as T;
-  const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
+  const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } & Record<string, unknown> } | null;
   if (!response.ok) {
-    throw new ApiError(response.status, data?.error?.code ?? "unknown", data?.error?.message ?? `${response.status} ${response.statusText}`);
+    const { code, message, ...details } = data?.error ?? { code: "unknown", message: "" };
+    throw new ApiError(response.status, code ?? "unknown", message || `${response.status} ${response.statusText}`, details);
   }
   return data as T;
 };
@@ -72,6 +74,22 @@ export interface User {
   createdAt: string;
 }
 
+/** Where a book is live: an environment serving its version `build` since `since` */
+export interface LiveIn {
+  env: string;
+  build: string | null;
+  since: string | null;
+}
+
+/** What an environment serves: `book` null when it cannot be told; `error` when its store cannot be read */
+export interface EnvironmentServing {
+  env: string;
+  book?: string | null;
+  build?: string | null;
+  since?: string | null;
+  error?: string;
+}
+
 export interface BookSummary {
   id: string;
   title: string;
@@ -79,6 +97,8 @@ export interface BookSummary {
   spreads: number;
   updatedAt: string;
   lastPublish?: { env: string; build: string; at: string } | null;
+  /** The environments serving this book – empty: draft only */
+  live?: LiveIn[];
 }
 
 export interface TreeTarget {
@@ -113,6 +133,17 @@ export interface PublishResult {
   build: string;
   hash: string;
   publishedAt: string;
+  /** The book this publish replaced in the environment */
+  replaced?: { book: string | null; build: string | null } | null;
+}
+
+/** `details.current` of a 409 other-book: what the environment serves instead */
+export interface OtherBook {
+  env: string;
+  book: string | null;
+  title: string | null;
+  build: string | null;
+  since: string | null;
 }
 
 export interface Version extends PublishResult {
@@ -206,7 +237,7 @@ export const downloadUsersCsv = async (newsletter: boolean): Promise<void> => {
 
 // ── Editor ──────────────────────────────────────────────────────────────────────────────────────
 
-export const listBooks = () => api<{ books: BookSummary[] }>("GET", "/editor/books");
+export const listBooks = () => api<{ books: BookSummary[]; environments?: EnvironmentServing[] }>("GET", "/editor/books");
 
 export const getBook = (bookId: string) => api<BookTree>("GET", `/editor/books/${encodeURIComponent(bookId)}`);
 
@@ -219,8 +250,9 @@ export const putEntity = (bookId: string, ref: string, entity: EntityData) =>
 export const putTargetEntity = (bookId: string, targetId: string, entity: EntityData | EntityRefData | null) =>
   api<{ target: TreeTarget }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/targets/${encodeURIComponent(targetId)}`, { entity });
 
-export const publishBook = (bookId: string, env: string, note?: string) =>
-  api<PublishResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/publish`, { env, note });
+/** `replace` = publish although the environment serves another book (else 409 other-book) */
+export const publishBook = (bookId: string, env: string, options: { note?: string; replace?: boolean } = {}) =>
+  api<PublishResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/publish`, { env, ...options });
 
 export const listVersions = (bookId: string) => api<{ versions: Version[] }>("GET", `/editor/books/${encodeURIComponent(bookId)}/versions`);
 

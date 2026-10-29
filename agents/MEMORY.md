@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – One book per environment, made visible and guarded (#143, refs #87)
+
+- Tilman (#143): run the demo on staging once, deliberately – nothing may silently replace the real book. Built
+  (1.22.0, content schema **2.11**, MINOR): `latest.json` and each `versions.json` entry carry `book` (the editor
+  writes the book row's id, `osct content sync` the configuration's `book.id` – the same by convention). An older
+  manifest without it is resolved through its version's `game.config.json` (`book.id`) rather than assumed to be "the
+  instance's book" – exact, and only until the next publish. The API refuses a publish over another book (or one it
+  cannot tell) without `replace: true` (409 `other-book`); the editor asks naming both, production more strictly.
+  The guard applies to `local` too (same rule everywhere). The MCP server never sends `replace`. `osct content sync`
+  does not ask – it syncs whatever content source it is given; a store per book stays #87.
+
 ## 2026-10-30 – The environment on the stage, world and sky as assets, schema 2.10 (#79)
 
 - Tilman (#79 comment): the Environment block on the book page was too limited – edit it in the editor's stage with a

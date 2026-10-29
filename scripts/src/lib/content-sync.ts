@@ -46,6 +46,8 @@ export interface ContentBuild {
   hash: string;
   schema: string;
   version: string;
+  /** The book the build is of (`book.id` of its configuration) */
+  book?: string;
   config: Buffer;
   files: LocalFile[];
 }
@@ -64,14 +66,17 @@ export function readContentBuild(): ContentBuild {
     throw new Error('No content build found – run `osct content build` first');
   }
   const config = fs.readFileSync(OUTPUT_FILE);
-  const { version } = JSON.parse(config.toString('utf8')) as { version?: { version: string; hash?: string; schema?: unknown } };
+  const { version, book } = JSON.parse(config.toString('utf8')) as { version?: { version: string; hash?: string; schema?: unknown }; book?: { id?: unknown } };
   if (!version?.hash) throw new Error(`${OUTPUT_FILE} has no version.hash – rebuild the content`);
   if (!parseContentSchema(version.schema)) throw new Error(`${OUTPUT_FILE} has no content schema (MAJOR.MINOR) – rebuild the content`);
   const files = listFiles(CLIENT_PUBLIC_ASSETS_DIR).map(file => {
     const data = fs.readFileSync(path.join(CLIENT_PUBLIC_ASSETS_DIR, file));
     return { file, size: data.length, sha256: sha256(data) };
   });
-  return { build: contentBuildName(version.hash), hash: version.hash, schema: version.schema as string, version: version.version, config, files };
+  return {
+    build: contentBuildName(version.hash), hash: version.hash, schema: version.schema as string, version: version.version,
+    ...(typeof book?.id === 'string' ? { book: book.id } : {}), config, files,
+  };
 }
 
 /** files.json of a build */
@@ -182,6 +187,7 @@ export function activate(versions: ContentVersion[], build: ContentBuild, now: s
     uploadedAt: uploadedNow || !existing ? now : existing.uploadedAt,
     activatedAt: existing && existing.retiredAt === null ? existing.activatedAt : now,
     retiredAt: null,
+    ...(build.book ? { book: build.book } : {}),
   };
   return [...others, entry].sort((a, b) => a.activatedAt.localeCompare(b.activatedAt));
 }
@@ -213,7 +219,10 @@ export async function runSync(storage: StorageClient, plan: SyncPlan): Promise<v
   if (state.versions === null) throw new Error(`${env}/versions.json is not readable – fix it before switching versions`);
   const versions = activate(state.versions ?? [], build, now, !plan.uploaded);
   await storage.put(`${env}/versions.json`, JSON.stringify(versions, null, 2), 'application/json');
-  const manifest: ContentManifest = { build: build.build, hash: build.hash, schema: build.schema, version: build.version, activatedAt: now };
+  const manifest: ContentManifest = {
+    build: build.build, hash: build.hash, schema: build.schema, version: build.version, activatedAt: now,
+    ...(build.book ? { book: build.book } : {}),
+  };
   await storage.put(`${env}/latest.json`, JSON.stringify(manifest, null, 2), 'application/json');
   console.log(`✅ ${env}/latest.json → ${build.build}`);
 }

@@ -11,13 +11,40 @@ declare(strict_types=1);
  */
 final class Books
 {
-    /** GET /editor/books → { books: [{ id, title, author, book, spreads, updatedAt, lastPublish, … }] } */
+    /** What each environment serves (ContentStore::live), read once per request; false = its store cannot be read */
+    private static ?array $live = null;
+
+    /**
+     * GET /editor/books → { books: [{ id, title, author, book, spreads, updatedAt, lastPublish, live, … }],
+     * environments: [{ env, book, build, since } | { env, error }] } – only the environments that serve something
+     */
     public static function list(): never
     {
         Editor::user();
         $books = [];
         foreach (Db::run('SELECT * FROM books ORDER BY title, id')->fetchAll() as $row) $books[] = self::summary($row);
-        Http::json(200, ['books' => $books]);
+        $environments = [];
+        foreach (self::liveEnvironments() as $env => $live) {
+            if ($live === false) $environments[] = ['env' => $env, 'error' => 'content-store-failed'];
+            elseif ($live !== null) $environments[] = ['env' => $env] + $live;
+        }
+        Http::json(200, ['books' => $books, 'environments' => $environments]);
+    }
+
+    /** @return array<string, array{book: ?string, build: ?string, since: ?string}|null|false> */
+    private static function liveEnvironments(): array
+    {
+        if (self::$live === null) {
+            self::$live = [];
+            foreach (ContentStore::ENVIRONMENTS as $env) {
+                try {
+                    self::$live[$env] = ContentStore::for($env)->live();
+                } catch (ApiError) {
+                    self::$live[$env] = false;
+                }
+            }
+        }
+        return self::$live;
     }
 
     /**
@@ -452,9 +479,12 @@ final class Books
     }
 
     /**
-     * POST /editor/books/{id}/publish { env, note? } → { env, build, hash, publishedAt }: the assembled version into
-     * the content store – the version folder (unless that build is there already: a folder is never overwritten),
-     * then versions.json, then latest.json (the switch) – and a row in the publish log.
+     * POST /editor/books/{id}/publish { env, note?, replace? } → { env, build, hash, publishedAt, replaced }: the
+     * assembled version into the content store – the version folder (unless that build is there already: a folder is
+     * never overwritten), then versions.json, then latest.json (the switch) – and a row in the publish log.
+     * An environment serves one book: when it serves another one (or one that cannot be told) the publish needs
+     * `replace: true`, else 409 other-book with `current` { env, book, title, build, since }. `replaced` names the
+     * book replaced there, null when there was none.
      */
     public static function publish(string $bookId, array $body): never
     {
@@ -466,6 +496,18 @@ final class Books
         }
         $note = $body['note'] ?? null;
         if ($note !== null && !is_string($note)) throw new ApiError(400, 'invalid-note', 'note must be a string.');
+        $replace = $body['replace'] ?? false;
+        if (!is_bool($replace)) throw new ApiError(400, 'invalid-replace', 'replace must be true or false.');
+
+        $store = ContentStore::for($env);
+        $live = $store->live();
+        $replaced = $live !== null && $live['book'] !== $bookId ? $live : null;
+        if ($replaced !== null && !$replace) {
+            $title = $replaced['book'] !== null ? Db::value('SELECT title FROM books WHERE id = :id', ['id' => $replaced['book']]) : null;
+            $name = $title ?: ($replaced['book'] ?? 'a book that cannot be told');
+            throw new ApiError(409, 'other-book', "$env serves $name – publishing this book replaces it there; send replace: true to do so.",
+                ['current' => ['env' => $env, 'book' => $replaced['book'], 'title' => $title ?: null, 'build' => $replaced['build'], 'since' => $replaced['since']]]);
+        }
 
         $version = ContentVersion::assemble($bookId);
         // A component type no plugin can register would make the reader refuse the whole content: a plugin written
@@ -474,7 +516,6 @@ final class Books
         if ($unknown && empty($version['configuration']->plugins)) {
             throw new ApiError(409, 'unknown-components', 'Nodes use components no compiled plugin provides: ' . implode(', ', $unknown) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['components' => $unknown]);
         }
-        $store = ContentStore::for($env);
         $root = $version['build'];
         $uploaded = $store->exists("$root/game.config.json");
         if (!$uploaded) {
@@ -486,12 +527,13 @@ final class Books
         $current = $store->get('versions.json');
         $versions = $current === null ? [] : json_decode($current, true);
         if (!is_array($versions)) throw new ApiError(502, 'content-store-failed', "$env/versions.json is not readable – fix it before publishing.");
-        $store->put('versions.json', Editor::encode(ContentStore::activate($versions, $version, $now, !$uploaded), true));
-        $store->put('latest.json', Editor::encode(ContentVersion::manifest($version, $now), true));
+        $store->put('versions.json', Editor::encode(ContentStore::activate($versions, $version, $now, !$uploaded, $bookId), true));
+        $store->put('latest.json', Editor::encode(ContentVersion::manifest($version, $now, $bookId), true));
 
         Db::run('INSERT INTO book_versions (id, book_id, env, build, hash, published_by, published_at, note) VALUES (:id, :book, :env, :build, :hash, :by, :at, :note)',
             ['id' => Db::uuid(), 'book' => $bookId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
-        Http::json(200, ['env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now]);
+        Http::json(200, ['env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now,
+            'replaced' => $replaced !== null ? ['book' => $replaced['book'], 'build' => $replaced['build']] : null]);
     }
 
     /**
@@ -576,13 +618,17 @@ final class Books
     }
 
     /**
-     * A book for the list and the tree
+     * A book for the list and the tree; `live` = the environments serving it [{ env, build, since }], empty = draft only
      * @param array<string, mixed> $row
      * @return array<string, mixed>
      */
     private static function summary(array $row): array
     {
         $last = Db::one('SELECT env, build, published_at FROM book_versions WHERE book_id = :book ORDER BY published_at DESC, id LIMIT 1', ['book' => $row['id']]);
+        $live = [];
+        foreach (self::liveEnvironments() as $env => $serving) {
+            if (is_array($serving) && $serving['book'] === $row['id']) $live[] = ['env' => $env, 'build' => $serving['build'], 'since' => $serving['since']];
+        }
         return [
             'id' => $row['id'],
             'title' => $row['title'],
@@ -596,6 +642,7 @@ final class Books
             'createdAt' => Editor::isoOf($row['created_at']),
             'updatedAt' => Editor::isoOf($row['updated_at']),
             'lastPublish' => $last ? ['env' => $last['env'], 'build' => $last['build'], 'at' => Editor::iso((int) $last['published_at'])] : null,
+            'live' => $live,
         ];
     }
 
