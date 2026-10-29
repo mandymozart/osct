@@ -1,0 +1,14 @@
+# Showcase entry for the editor and the tests (spread studio-a).
+category: glossary
+title: "Studio: small dragon"
+page: 28
+body: "A small model off centre, facing the top edge."
+target:
+  image: target.jpg
+  entity:
+    type: model
+    src: dragon.glb
+    params:
+      rotation: [90, 180, 0]
+      position: [0.3, -0.25, 0]
+      scale: 0.35

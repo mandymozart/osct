@@ -1,4 +1,4 @@
-import { LoadTestOptions, LoadTestResult, median } from "@/components/ar-bridges/utils/tracker-debug";
+import { LoadTestOptions, LoadTestResult, median } from "@engine/utils/tracker-debug";
 
 export interface LoadTestMeta {
   bookTitle: string;

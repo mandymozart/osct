@@ -22,7 +22,7 @@ const imported = vi.fn();
 const prefetchXr8 = vi.fn(async () => {});
 vi.mock("../ar", () => {
   imported();
-  return { ArScene: FakeScene, prefetchXr8 };
+  return { createReaderScene: () => new FakeScene(), prefetchXr8 };
 });
 
 const { LazyArScene } = await import("../lazy-ar-scene");

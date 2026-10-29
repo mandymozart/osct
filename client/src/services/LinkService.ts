@@ -96,7 +96,7 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
         if (!getSpread(value)) return notFound();
         game.spreads.switchSpread(value);
       }
-      game.router.navigate("/spread");
+      game.router.navigate(slug);
       return true;
     case "/entries":
       if (value !== undefined && !isEntryCategory(value)) return notFound();

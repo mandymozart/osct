@@ -1,0 +1,512 @@
+import { Box3, Group, Matrix4, Vector3 } from "three";
+import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, SceneInspection, SceneState, Target } from "../types/index";
+import { getAssets, getSpread, getTargets } from "../content/game-config";
+import { focusAtTap } from "../utils/camera-request";
+import { Emitter } from "../utils/emitter";
+import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
+import { AssetStore } from "./assets";
+import { AnimationKind, celebrate, Celebration } from "./celebration";
+import { buildEntity, EntityInstance, placeEntity } from "./entities";
+import { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
+import { LookAround } from "./look-around";
+import { onAppUi } from "./ui";
+import { ArView } from "./view";
+
+interface Anchor {
+  target: Target;
+  group: Group;
+  /** With the entity type it was built for (an override of another type is built anew) */
+  entity: (EntityInstance & { type: string }) | null;
+}
+
+interface SpreadContent {
+  spreadId: string;
+  targets: Target[];
+  anchors: Anchor[];
+}
+
+/** What the app gives the scene: its tracker, and the graphics options the surroundings follow */
+export interface ArSceneOptions {
+  /** The reader: the 8th Wall `ImageTracker`; the editor: its mock tracker over the stage */
+  createTracker: (context: TrackerContext) => IImageTracker;
+  graphics?: GraphicsSource;
+}
+
+/** A tap this close to an entity's on-screen bounds still hits it (small models) */
+const TAP_MARGIN_PX = 24;
+
+/** Scanning indicator (index.html, styles/gold-spinner.css): shown while no target is found */
+const scanningIndicator = () => document.getElementById("osct-scanning");
+
+/**
+ * The AR scene: plain three.js + image tracking (the app's tracker, `ArSceneOptions.createTracker` – the 8th Wall
+ * engine in the reader), **one** renderer and camera stream for the session.
+ * Built lazily – nothing (no WebGL context, no assets, no camera) until AR first runs (RUNNING). A spread switch keeps the renderer and the camera stream and only
+ *   1. stops reporting the old spread's targets (the engine keeps them loaded while they are neighbours),
+ *   2. swaps the anchors, entities and assets (assets both spreads use stay),
+ *   3. starts tracking the new spread's targets on the running camera.
+ *
+ * Every call only records the requested spread / state and queues one reconcile step; each step reads the
+ * newest request, so fast switching never races and outdated spreads are skipped.
+ *
+ * The editor runs the same scene over a simulated tracker and its stage (`continuous` tracker): nothing in the
+ * scene changes – what the author sees is what the reader's engine renders.
+ */
+export class ArScene implements IArScene {
+  private emitter = new Emitter<ArSceneEvents>();
+  private queue: Promise<void> = Promise.resolve();
+  private wantedSpread: string | null = null;
+  private wantedState: SceneState = SceneState.STOPPED;
+  /** The current spread's content is stale (the editor saved): the next step builds it again */
+  private stale = false;
+
+  private view: ArView | null = null;
+  /** The world around the reader + its sky (3DoF, anchored to the book) (off per the reader's graphics options) */
+  private lookAround: LookAround | null = null;
+  private tracker: IImageTracker | null = null;
+  private assets = new AssetStore();
+  private content: SpreadContent | null = null;
+  private found = new Set<string>();
+  /** Tracking runs for `content` (camera on, its targets loaded) */
+  private started = false;
+  private running = false;
+  /**
+   * The last start failed (camera denied / unavailable): no retry until the requested state changes –
+   * otherwise every queued RUNNING would ask for the camera again.
+   */
+  private startFailed = false;
+  private _status: ArStatus = "idle";
+  /** Running appear / disappear animation per target id (unlock, reveal, outro), removed when done */
+  private animations = new Map<string, Celebration>();
+  /** Entities shown with other values than the content's, by target id (the editor's live edit) */
+  private overrides = new Map<string, EntityData>();
+  private windowCleanup: (() => void) | null = null;
+
+  constructor(private container: HTMLElement, private options: ArSceneOptions) {}
+
+  get status(): ArStatus {
+    return this._status;
+  }
+
+  get spreadId(): string | null {
+    return this.content?.spreadId ?? null;
+  }
+
+  on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]): () => void {
+    return this.emitter.on(event, listener);
+  }
+
+  load(spreadId: string): Promise<void> {
+    this.wantedSpread = spreadId;
+    return this.reconcile();
+  }
+
+  setState(state: SceneState): Promise<void> {
+    if (state !== this.wantedState) this.startFailed = false;
+    this.wantedState = state;
+    return this.reconcile();
+  }
+
+  refresh(): Promise<void> {
+    this.stale = true;
+    return this.reconcile();
+  }
+
+  /** The unlock animation (first find – called by the bridge right after `targetFound`; replaces the reveal) */
+  celebrate(targetId: string): void {
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (anchor) this.animate(anchor, "unlock");
+  }
+
+  sampleColor(x: number, y: number): string | null {
+    return this.view?.sample(x, y) ?? null;
+  }
+
+  overrideEntity(targetId: string, entity: EntityData | null): void {
+    if (entity) this.overrides.set(targetId, entity);
+    else this.overrides.delete(targetId);
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (!anchor) return;
+    const wanted = this.entityOf(anchor.target);
+    // A running animation holds the entity's materials – it ends first
+    this.animations.get(targetId)?.finish();
+    this.animations.delete(targetId);
+    if (wanted && anchor.entity && wanted.type === anchor.entity.type && (anchor.entity.tune?.(wanted) ?? true)) {
+      placeEntity(anchor.entity.object, wanted);
+      return;
+    }
+    // Filters the entity can't change in place: build it anew with the new values
+    anchor.entity?.dispose?.();
+    anchor.entity?.object.removeFromParent();
+    anchor.entity = this.createEntity(anchor.target);
+    if (anchor.entity) {
+      anchor.group.add(anchor.entity.object);
+      if (this.found.has(targetId)) anchor.entity.onFound?.();
+    }
+  }
+
+  /** The target's entity as shown: the editor's override or the content's */
+  private entityOf(target: Target): EntityData | undefined {
+    return this.overrides.get(target.id) ?? target.entity;
+  }
+
+  private createEntity(target: Target): (EntityInstance & { type: string }) | null {
+    const entity = this.entityOf(target);
+    const instance = entity ? buildEntity({ ...target, entity }, id => this.assets.get(id)) : null;
+    return instance && entity ? { ...instance, type: entity.type } : null;
+  }
+
+  /** Start an animation of an anchor's entity (a running one of the same anchor ends first) */
+  private animate(anchor: Anchor, kind: AnimationKind): void {
+    const id = anchor.target.id;
+    this.animations.get(id)?.finish();
+    this.animations.delete(id);
+    if (anchor.entity && this.view) this.animations.set(id, celebrate(anchor.group, anchor.entity.object, kind));
+  }
+
+  dispose(): Promise<void> {
+    this.wantedSpread = null;
+    this.wantedState = SceneState.STOPPED;
+    return this.reconcile();
+  }
+
+  private reconcile(): Promise<void> {
+    this.queue = this.queue.then(() => this.step()).catch(error => {
+      console.error("[ArScene]", error);
+      this.setStatus("error", error instanceof Error ? error.message : String(error));
+    });
+    return this.queue;
+  }
+
+  private setStatus(status: ArStatus, error?: string) {
+    if (status === this._status && !error) return;
+    this._status = status;
+    this.emitter.emit("status", status, error);
+  }
+
+  private async step(): Promise<void> {
+    if (!this.wantedSpread) return this.teardown();
+    // Lazy: the first RUNNING builds the renderer; until then only the request is kept
+    if (!this.view && this.wantedState !== SceneState.RUNNING) {
+      this.setStatus("idle");
+      return;
+    }
+    if (this.wantedSpread !== this.spreadId || this.stale) {
+      this.stale = false;
+      await this.changeSpread(this.wantedSpread);
+      this.startFailed = false;
+    }
+    switch (this.wantedState) {
+      case SceneState.RUNNING:
+        return this.run();
+      case SceneState.PAUSED:
+        return this.pause();
+      case SceneState.STOPPED:
+        return this.stop();
+    }
+  }
+
+  // ── Spreads ─────────────────────────────────────────────────────────────────────────────────
+
+  /** Renderer + tracker – steps run one at a time, no race */
+  private readonly trackerOptions: ImageTrackerOptions = {
+    onUpdate: (id, matrix) => this.onTrackingUpdate(id, matrix),
+    onSpreadSeen: spreadId => {
+      if (spreadId !== this.content?.spreadId) this.emitter.emit("spreadSeen", spreadId);
+    },
+  };
+
+  private async ensureView(): Promise<ArView> {
+    if (!this.view) {
+      this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
+      this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: this.view.scene });
+      this.view.resize();
+      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics);
+      this.view.underlay = this.lookAround;
+      // A simulated tracker's stage is drawn every frame (the page is always in view)
+      this.view.needsRender = () =>
+        !!this.tracker?.continuous || this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
+      this.view.onFrame(delta => {
+        const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
+        this.lookAround?.update(delta, this.view!.camera, anchors);
+        this.content?.anchors.forEach(a => a.entity?.update?.(delta));
+        let bloom = 0;
+        this.animations.forEach((animation, id) => {
+          if (animation.update(delta)) {
+            bloom = Math.max(bloom, animation.bloom);
+            return;
+          }
+          this.animations.delete(id);
+          // Outro done: the entity has dissolved – hide the anchor (unless found again meanwhile)
+          const anchor = animation.kind === "outro" && !this.found.has(id) && this.content?.anchors.find(a => a.target.id === id);
+          if (anchor) anchor.group.visible = false;
+        });
+        this.view!.bloomStrength = bloom;
+      });
+      document.addEventListener("click", this.onTap);
+      // The window's size changed (load test budget): the tracker and the preload follow at once
+      this.windowCleanup = subscribePreparedWindow(() => {
+        if (!this.started || !this.content) return;
+        this.prepareWindow();
+        this.emitter.emit("ready", this.content.spreadId);
+      });
+    }
+    return this.view;
+  }
+
+  /** Bring the scene to `spreadId`: tracking stops, content is swapped, tracking restarts if it ran */
+  private async changeSpread(spreadId: string): Promise<void> {
+    if (!getSpread(spreadId)) throw new Error(`Unknown spread ${spreadId}`);
+    const view = await this.ensureView();
+    const tracker = this.tracker!;
+    const cameraOn = tracker.hasCamera;
+    this.setStatus(cameraOn ? "starting" : "loading");
+
+    // 1. Stop tracking – the camera stream stays
+    this.pauseEntities();
+    this.loseAll();
+    tracker.stopTracking();
+    this.started = false;
+    this.running = false;
+
+    // 2. Swap the content (assets both spreads use stay loaded)
+    this.removeContent();
+    const assets = getAssets(spreadId);
+    this.assets.release(new Set(assets.map(a => a.id)));
+    await this.assets.load(assets);
+    const targets = getTargets(spreadId);
+    const anchors = targets.map(target => this.buildAnchor(target));
+    anchors.forEach(anchor => view.scene.add(anchor.group));
+    this.content = { spreadId, targets, anchors };
+
+    // 3. Tracking restarts in run() (camera kept); paused / stopped it waits for the next start
+    if (this.wantedState !== SceneState.RUNNING) this.setStatus("ready");
+  }
+
+  private buildAnchor(target: Target): Anchor {
+    const group = new Group();
+    group.name = target.id;
+    group.visible = false;
+    group.matrixAutoUpdate = false;
+    const entity = this.createEntity(target);
+    if (entity) group.add(entity.object);
+    return { target, group, entity };
+  }
+
+  private removeContent(): void {
+    this.finishAnimations();
+    this.content?.anchors.forEach(anchor => {
+      anchor.entity?.onPause?.();
+      anchor.entity?.dispose?.();
+      anchor.group.removeFromParent();
+    });
+    this.content = null;
+  }
+
+  /** End running animations now (they clean up after themselves) */
+  private finishAnimations(): void {
+    this.animations.forEach(animation => animation.finish());
+    this.animations.clear();
+    if (this.view) this.view.bloomStrength = 0;
+  }
+
+  /** Tracker update of one target: move its anchor, report found / lost */
+  private onTrackingUpdate(targetId: string, matrix: Matrix4 | null): void {
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (!anchor || !this.running) return;
+    const id = anchor.target.id;
+    if (matrix) {
+      anchor.group.matrix.copy(matrix);
+      anchor.group.matrixWorldNeedsUpdate = true;
+      anchor.group.visible = true;
+    }
+    if (matrix && !this.found.has(id)) {
+      // Found: the entity appears (reveal); the first find becomes the unlock (the bridge calls celebrate)
+      this.found.add(id);
+      this.animate(anchor, "reveal");
+      anchor.entity?.onFound?.();
+      this.emitter.emit("targetFound", id);
+    } else if (!matrix && this.found.has(id)) {
+      // Lost: the entity dissolves away at its last position (outro), then the anchor hides
+      this.found.delete(id);
+      if (anchor.entity) this.animate(anchor, "outro");
+      else anchor.group.visible = false;
+      anchor.entity?.onLost?.();
+      this.emitter.emit("targetLost", id);
+    }
+    scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
+  }
+
+  /**
+   * A tap on the screen: the canvas lies under the app's pages, so taps are read from the document. Taps on
+   * app UI are ignored; otherwise the nearest found entity whose on-screen bounds (+ margin) contain the
+   * tap is reported (`targetTapped`). A tap that hits no entity focuses the camera there (`focusAtTap()`).
+   */
+  private onTap = (event: MouseEvent): void => {
+    if (!this.running || !this.view) return;
+    if (onAppUi(event)) return;
+    if (!this.content) {
+      void focusAtTap(event.clientX, event.clientY);
+      return;
+    }
+    const hit = this.hitTest(event.clientX, event.clientY);
+    if (hit) this.emitter.emit("targetTapped", hit);
+    else void focusAtTap(event.clientX, event.clientY);
+  };
+
+  /** The nearest found entity whose on-screen bounds (+ margin) contain the point (client px), or null */
+  private hitTest(clientX: number, clientY: number): string | null {
+    if (!this.view || !this.content) return null;
+    const rect = this.container.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const camera = this.view.camera;
+    const box = new Box3();
+    const corner = new Vector3();
+    let hit: { id: string; distance: number } | null = null;
+    for (const anchor of this.content.anchors) {
+      if (!anchor.group.visible || !anchor.entity || !this.found.has(anchor.target.id)) continue;
+      box.setFromObject(anchor.entity.object);
+      if (box.isEmpty()) continue;
+      let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+      for (let i = 0; i < 8; i++) {
+        corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
+        corner.project(camera);
+        const sx = ((corner.x + 1) / 2) * rect.width;
+        const sy = ((1 - corner.y) / 2) * rect.height;
+        left = Math.min(left, sx); right = Math.max(right, sx);
+        top = Math.min(top, sy); bottom = Math.max(bottom, sy);
+      }
+      const inside = x >= left - TAP_MARGIN_PX && x <= right + TAP_MARGIN_PX && y >= top - TAP_MARGIN_PX && y <= bottom + TAP_MARGIN_PX;
+      if (!inside) continue;
+      const distance = box.getCenter(corner).distanceTo(camera.position);
+      if (!hit || distance < hit.distance) hit = { id: anchor.target.id, distance };
+    }
+    return hit?.id ?? null;
+  }
+
+  inspect(): SceneInspection | null {
+    const view = this.view;
+    if (!view) return null;
+    return {
+      scene: view.scene,
+      camera: view.camera,
+      domElement: view.domElement,
+      onFrame: listener => view.onFrame(listener),
+      nodeObject: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.nodes?.[path.join(".")] ?? null,
+      hitTest: (clientX, clientY) => this.hitTest(clientX, clientY),
+    };
+  }
+
+  private teardown(): void {
+    document.removeEventListener("click", this.onTap);
+    this.windowCleanup?.();
+    this.windowCleanup = null;
+    this.pauseEntities();
+    this.loseAll();
+    this.removeContent();
+    this.assets.release();
+    this.tracker?.stop();
+    this.lookAround?.dispose();
+    this.lookAround = null;
+    this.view?.dispose();
+    this.tracker = null;
+    this.view = null;
+    this.started = false;
+    this.running = false;
+    scanningIndicator()?.classList.add("hidden");
+    this.setStatus("idle");
+  }
+
+  // ── Start / pause / stop ────────────────────────────────────────────────────────────────────
+
+  /** Camera (if off) + tracking of the current spread's targets */
+  private async startTracking(): Promise<void> {
+    const tracker = this.tracker!;
+    const content = this.content!;
+    try {
+      await tracker.startCamera();
+      await tracker.loadTargets(content);
+    } catch (error) {
+      tracker.stop();
+      this.started = false;
+      this.running = false;
+      this.startFailed = true;
+      throw new Error(`AR could not start: ${(error as Error)?.message ?? error}`);
+    }
+    this.view!.resize(); // field of view from the engine's projection
+    this.started = true;
+    // The spreads around this one: their targets get ready ahead (instant switch, found pages switch by themselves)
+    this.prepareWindow();
+    this.emitter.emit("ready", content.spreadId);
+  }
+
+  /**
+   * The tracker holds the spreads next to the current one (`prepared-spreads.ts`, nearest first): in grow mode it
+   * adds every other spread in idle time, nearest first; otherwise it holds the fixed ±n window (or the load test's).
+   */
+  private prepareWindow(): void {
+    if (!this.tracker || !this.content) return;
+    const tracked = (spreads: ReturnType<typeof spreadsByDistance>) => spreads.map(spread => ({ spreadId: spread.id, targets: getTargets(spread.id) }));
+    if (isGrowingWindow()) this.tracker.growTargets(tracked(spreadsByDistance(this.content.spreadId)));
+    else this.tracker.prepareTargets(tracked(getPreparedWindow(this.content.spreadId)));
+  }
+
+  private async run(): Promise<void> {
+    if (!this.started) {
+      if (this.startFailed) return;
+      this.setStatus("starting");
+      await this.startTracking();
+      // A newer request arrived while starting: the next queued step applies it
+      if (this.wantedState !== SceneState.RUNNING || this.wantedSpread !== this.spreadId) return;
+    } else if (!this.running) {
+      // Tracking starts afresh: targets are found again (all were lost at the pause)
+      this.tracker!.resume();
+    }
+    this.running = true;
+    this.lookAround?.start();
+    this.view!.start();
+    scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
+    this.setStatus("running");
+  }
+
+  private pause(): void {
+    if (this.started && this.running) {
+      this.tracker!.pause();
+      this.view!.stop();
+      this.running = false;
+    }
+    this.lookAround?.pause();
+    this.pauseEntities();
+    // Nothing stays where it was: the tracker drops its poses at a pause without reporting the targets lost –
+    // their anchors would stay visible at the old position ("stuck in space")
+    this.finishAnimations();
+    this.loseAll();
+    scanningIndicator()?.classList.add("hidden");
+    this.setStatus(this.started ? "paused" : "ready");
+  }
+
+  private stop(): void {
+    this.pauseEntities();
+    this.tracker?.stop();
+    this.lookAround?.pause();
+    this.view?.stop();
+    this.loseAll();
+    this.started = false;
+    this.running = false;
+    scanningIndicator()?.classList.add("hidden");
+    this.setStatus("ready");
+  }
+
+  private pauseEntities(): void {
+    this.content?.anchors.forEach(a => a.entity?.onPause?.());
+  }
+
+  /** Report every found target as lost (tracking stops or the targets go away) */
+  private loseAll(): void {
+    this.finishAnimations();
+    this.content?.anchors.forEach(a => (a.group.visible = false));
+    this.found.forEach(id => this.emitter.emit("targetLost", id));
+    this.found.clear();
+  }
+}

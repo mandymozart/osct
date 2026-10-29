@@ -31,4 +31,5 @@ export interface ICameraManager {
 
   /** Sets NOT_RESPONDING after the camera start timed out */
   reportNotResponding(): void;
+
 }

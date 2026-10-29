@@ -1,0 +1,13 @@
+# Showcase entry for the editor and the tests (spread studio-b).
+category: video
+title: "Studio: alpha video"
+page: 31
+body: "A video with its own alpha channel (WebM), smaller and tilted."
+target:
+  image: target.jpg
+  entity:
+    type: video
+    src: sploosh.webm
+    params:
+      rotation: [0, 0, 15]
+      scale: 0.8

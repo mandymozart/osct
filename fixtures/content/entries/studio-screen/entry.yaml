@@ -1,0 +1,14 @@
+# Showcase entry for the editor and the tests (spread studio-b).
+category: video
+title: "Studio: standing video"
+page: 31
+body: "A video standing upright on the page like a screen, lifted so its bottom edge touches the paper."
+target:
+  image: target.jpg
+  entity:
+    type: video
+    src: bunny.mp4
+    params:
+      rotation: [90, 0, 0]
+      position: [0, 0, 0.28]
+      scale: 0.9

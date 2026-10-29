@@ -1,7 +1,7 @@
 import { IGame } from "@/types";
 import { GameStoreService } from "@/services";
 import {
-  cameraLine, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
+  cameraLine, fetchTriggerInfos, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
 } from "@/components/ar-bridges";
 import { getBook, getConfigVersion, getSpreads } from "@/utils/game-config";
 import { countResults, trialReport, trialRows, TrialRow, TriggerInfos } from "./trial-report";
@@ -10,8 +10,6 @@ import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** Printed-image details per target, written by the content build's protocol command (optional) */
-const TRIGGER_INFO_URL = "/trigger-protocol.json";
 /** While the trial is open the tracker holds the current spread and its neighbours (±1): scanning the next image on
  * the sheet switches the spread by itself (Tilman, 2026-10-28 – was ±0 since 1.7.8) */
 export const TRIAL_WINDOW = 1;
@@ -97,19 +95,13 @@ export class TrialPanel extends HTMLElement {
     this.cleanups = [];
   }
 
+  /** Printed-image details (optional – without the protocol file the report goes without them) */
   private async loadInfos() {
-    try {
-      const response = await fetch(TRIGGER_INFO_URL);
-      if (!response.ok) return;
-      const infos = await response.json();
-      if (infos && typeof infos === "object") {
-        this.infos = infos;
-        this.signature = ""; // the running numbers depend on which targets are printed
-        this.render();
-      }
-    } catch {
-      // No protocol file (not generated): the report goes without printed-image details
-    }
+    const infos = await fetchTriggerInfos();
+    if (!Object.keys(infos).length) return;
+    this.infos = infos;
+    this.signature = ""; // the running numbers depend on which targets are printed
+    this.render();
   }
 
   rows(): TrialRow[] {

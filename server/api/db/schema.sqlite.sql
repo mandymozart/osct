@@ -59,3 +59,124 @@ CREATE INDEX IF NOT EXISTS password_attempts_ip ON password_attempts (ip_hash, c
 
 ALTER TABLE users ADD COLUMN password_hash TEXT NULL DEFAULT NULL;
 ALTER TABLE sessions ADD COLUMN method TEXT NOT NULL DEFAULT 'email';
+ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'reader';
+
+-- The editor's data (schema.mysql.sql has the column notes)
+CREATE TABLE IF NOT EXISTS books (
+  id TEXT NOT NULL PRIMARY KEY,
+  title TEXT NOT NULL,
+  author TEXT NOT NULL,
+  book_json TEXT NOT NULL,
+  tutorial_json TEXT NOT NULL,
+  initial_spread_id TEXT NOT NULL,
+  assets_base TEXT NOT NULL DEFAULT '',
+  files_json TEXT NOT NULL,
+  content_schema TEXT NOT NULL,
+  imported_hash TEXT NULL DEFAULT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS spreads (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  first_page INTEGER NOT NULL,
+  last_page INTEGER NOT NULL,
+  data_json TEXT NOT NULL,
+  PRIMARY KEY (book_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS entries (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  spread_id TEXT NULL DEFAULT NULL,
+  position INTEGER NOT NULL,
+  category TEXT NOT NULL,
+  title TEXT NOT NULL,
+  page INTEGER NOT NULL,
+  data_json TEXT NOT NULL,
+  PRIMARY KEY (book_id, id)
+);
+CREATE INDEX IF NOT EXISTS entries_spread ON entries (book_id, spread_id);
+
+CREATE TABLE IF NOT EXISTS targets (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  entry_id TEXT NOT NULL,
+  image_src TEXT NOT NULL,
+  entity_ref TEXT NULL DEFAULT NULL,
+  data_json TEXT NOT NULL,
+  PRIMARY KEY (book_id, id)
+);
+CREATE INDEX IF NOT EXISTS targets_entry ON targets (book_id, entry_id);
+
+CREATE TABLE IF NOT EXISTS entities (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  ref TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  data_json TEXT NOT NULL,
+  PRIMARY KEY (book_id, ref)
+);
+
+CREATE TABLE IF NOT EXISTS book_versions (
+  id TEXT NOT NULL PRIMARY KEY,
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  env TEXT NOT NULL,
+  build TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  published_by TEXT NULL DEFAULT NULL,
+  published_at INTEGER NOT NULL,
+  note TEXT NULL
+);
+CREATE INDEX IF NOT EXISTS book_versions_book ON book_versions (book_id, published_at);
+
+CREATE TABLE IF NOT EXISTS changes (
+  id TEXT NOT NULL PRIMARY KEY,
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  user_id TEXT NULL DEFAULT NULL,
+  kind TEXT NOT NULL,
+  ref TEXT NOT NULL,
+  before_json TEXT NULL,
+  after_json TEXT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS changes_book ON changes (book_id, created_at);
+
+-- The editor's assets (Assets.php): uploaded files, one row per upload in asset_versions
+CREATE TABLE IF NOT EXISTS assets (
+  id TEXT NOT NULL PRIMARY KEY,
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  width INTEGER NULL DEFAULT NULL,
+  height INTEGER NULL DEFAULT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  path TEXT NOT NULL,
+  url TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_by TEXT NULL DEFAULT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS assets_book ON assets (book_id, status, updated_at);
+
+CREATE TABLE IF NOT EXISTS asset_versions (
+  id TEXT NOT NULL PRIMARY KEY,
+  asset_id TEXT NOT NULL REFERENCES assets (id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  url TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  note TEXT NULL DEFAULT NULL,
+  created_by TEXT NULL DEFAULT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS asset_versions_asset ON asset_versions (asset_id, version);

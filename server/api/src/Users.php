@@ -56,6 +56,8 @@ final class Users
             'language' => $row['language'],
             'options' => $options,
             'hasPassword' => ($row['password_hash'] ?? null) !== null,
+            // reader (default) or editor – the editor API (/editor/*) needs editor
+            'role' => (string) ($row['role'] ?? 'reader'),
             'createdAt' => gmdate('c', strtotime($row['created_at'] . ' UTC')),
         ];
     }

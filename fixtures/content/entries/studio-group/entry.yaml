@@ -1,0 +1,24 @@
+# Showcase entry for the editor and the tests (spread studio-a): an entity as a tree of nodes (content schema 2.0).
+category: glossary
+title: "Studio: tree of nodes"
+page: 29
+body: "A group with two children: the tree, lifted and turned, and a line of text under it."
+target:
+  image: target.jpg
+  entity:
+    type: group
+    params:
+      position: [0, 0.1, 0]
+    children:
+      - type: model
+        src: tree.glb
+        params:
+          rotation: [90, 45, 0]
+          position: [0, 0, 0.1]
+          scale: 0.7
+      - type: text
+        text: "{{entry.title}}"
+        color: "#f3cc94"
+        params:
+          position: [0, -0.45, 0.01]
+          scale: 0.8

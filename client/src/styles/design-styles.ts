@@ -18,10 +18,39 @@
  *   .rule-table     meta table with 1 px rules, muted labels, white values
  *   .section-title  muted title between two rules
  *   .gold-spinner   gold loader ring (from styles/gold-spinner.css, shared with the startup loader)
+ *
+ * Token variants (Tilman, 2026-10-29: "debugging looks like debugging … brand UI only in reader-facing elements"):
+ * **branded** = the reader's UI, the tokens of main.css (the default, no attribute); **debug** = the dev tools' green
+ * terminal. A host sets `data-theme="debug"` on itself; the tokens cascade into its shadow tree and every primitive
+ * inside follows – one set of components, two looks. (The editor's neutral day/night palette lives in the editor app.)
  */
 import goldSpinnerCss from "./gold-spinner.css?inline";
 
 export const DESIGN_CSS = goldSpinnerCss + /* css */ `
+  :host([data-theme="debug"]) {
+    --font-design: monospace;
+    --tracking-design: 0;
+    --text-size: .75rem;
+    --text-size-small: .6875rem;
+    --text-line: 1.25rem;
+    --color-on-dark: #0f0;
+    --color-muted: #9c9;
+    --color-accent: #0f0;
+    --rule: .0625rem solid #0f0;
+    --gold-gradient: linear-gradient(90deg, #0f0, #0f0);
+    --glass-background: rgba(0, 0, 0, .4);
+    --glass-blur: none;
+    --shadow-bronze: none;
+    --control-height: 1.5rem;
+    --control-radius: .25rem;
+    --pressed-background: #0f0;
+    --pressed-color: #000;
+    --hover-background: rgba(0, 255, 0, .15);
+    --surface: rgba(0, 0, 0, .85);
+    --surface-head: rgba(0, 0, 0, .85);
+    --line: #0f0;
+  }
+
   .design {
     font-family: var(--font-design);
     letter-spacing: var(--tracking-design);

@@ -178,14 +178,11 @@ half the image's width; videos and images lie flat on the image, as wide as it.
 
 Each value you leave out keeps its default, so `rotation` alone is enough to turn a model.
 
-**Tuning placement and filters on the phone:** on staging (or the dev server) open the debug line at the top →
-**tune**. The panel lists the spread's targets with AR content (◉ = in view now; the last found one is selected) and
-has a slider and a number field for every placement value and every filter parameter – the names are three.js's
-(`position.x`, `rotation.y`, `scale`; rotation in degrees). Type an exact value and press Enter (a comma works
-too); a value out of range turns red. ↺ sets a value back to its default, ● marks values changed from the content.
-Changes show on the page at once but are **not saved**: "Copy YAML" copies the block to paste into `entry.yaml`
-(or the shared `entity.yaml` – the first line names the file), e.g. into a Claude session on the same phone.
-"Back to content" drops the changes. Tuned values stay until the app is reloaded.
+**Tuning placement and filters:** the [editor](editor.md) (`/editor`) shows the spread on a simulated page and has a
+field for every placement value and every filter parameter – the names are three.js's (`position.x`, `rotation.y`,
+`scale`; rotation in degrees). Changes show on the stage at once; **Save** writes them to the instance's database and
+**Publish** makes a content version of the draft. The content source in git is imported into the editor, not written
+by it: carry a saved value back into `entry.yaml` (or the shared `entity.yaml`) when the source should keep it.
 
 **Unlock and consult:** finding a target for the first time unlocks its entry – "New entry unlocked"
 appears, AR content (model, video, image) pops, turns once and sparkles on the page. Tapping the found
@@ -212,11 +209,44 @@ body: Light plays a role in architecture.
 media: https://www.youtube.com/watch?v=…
 ```
 
+**Where a target is printed** (`print`, optional, content schema 2.1): targets made in the editor carry their
+printed place – `surface: left | right`, `x`, `y`, `width` in mm from the page's top left corner, optional `height`
+and `page` – so the editor's stage lays them out without the book's layout. The content build does not need it.
+
 **Several targets on the same page:** one entry each – there is no order to keep and nothing to
 compile (max 10 targets per spread). An older `order:` under `target` is ignored.
 
-**AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` and refer to
-it with `ref`:
+**An entity is a tree of nodes** (content schema 2.0): the node under `entity:` is the **root**, it sits on the
+target (1 unit = the target's width); every node may hold `children`, each placed by its own `params` **relative
+to its parent**, as deep as you like (8 levels at most). Node types: `model`, `video`, `image` (a file, `src`),
+`text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced) and `group` (nothing
+of its own, it only holds children – move or scale the whole tree by its params). One node, as above, is the
+default; the editor's tree shows and edits the whole tree (+ node, remove node).
+
+```yaml
+target:
+  image: images-029.jpg
+  entity:
+    type: group
+    params:
+      position: [0, 0.1, 0]       # the whole tree, a little towards the top
+    children:
+      - type: model
+        src: tree.glb
+        params:
+          rotation: [90, 45, 0]
+          position: [0, 0, 0.1]  # relative to the group
+          scale: 0.7
+      - type: text
+        text: "{{entry.title}}"
+        color: "#f3cc94"
+        params:
+          position: [0, -0.45, 0.01]
+          scale: 0.8
+```
+
+**AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` (the root node; its
+`children` as above, files next to it) and refer to it with `ref`:
 
 ```yaml
 # content/entities/castle/entity.yaml
@@ -386,6 +416,28 @@ the top of the mapping.
 model): build it with `OSCT_CONTENT_DIR=fixtures/content npm run build:content:force`. CI and the tests build it,
 and `osct content sync` refuses it (`FIXTURE.md` marks it). The full-size placeholder content is kept next to the
 book content source (`content-demo/` there).
+
+### Importing the book layout
+
+The editor's stage ([Editor](editor.md)) shows the book as laid out when the content carries the **layout**: every
+sheet of the book as an image and every printed target's position and size. It comes from the designed PDFs –
+the preview of the whole book (every sheet, covers as single pages) and the trigger layout (one page per double
+page, each printed trigger as an image where it is printed):
+
+```bash
+cd scripts
+npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content ../content
+```
+
+`scripts/layout/extract-layout.py` (Python 3 with PyMuPDF – an external tool like ffmpeg) renders every sheet
+to `<content>/layout/sheets/*.jpg` (1200 px wide) and writes `<content>/layout/layout.json`: the page format in mm,
+the sheets (kind `spread`, `cover-front`, `cover-back`, front and back matter; their book pages read from the page
+numbers printed at the foot), and per target its page, surface (`left` / `right`), `x`, `y`, `width`, `height` in
+mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)
+by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed (the
+trial delivery has ten targets that are not on the printout). The content build copies `layout/` with the rest of
+the content; the folder is generated and git-ignored. Run it again when the PDFs change, and rebuild the content
+with `--force` (the layout is not part of the build hash).
 
 ### Videos are not in git
 

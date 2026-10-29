@@ -4,6 +4,131 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
+
+- Tilman: "Das ist die Frage des Routings – wer für was verantwortlich ist." "Der Editor hat eine Sonderstellung:
+  er braucht die Engine nur für ein Preview, der Rest ist simuliert. Daher muss da eine Grenze her." "Wieso muss
+  Stage dann im Reader sein – das ist doch ein Editor." "Ich möchte eine klare Trennung. Und wenn das heißt, Tune ist
+  raus, dann bitte. Es geht im Debug-Overlay nicht um Einstellungen. Das ist Legacy." Decided: **the engine becomes a
+  package of its own (`engine/`: content runtime + AR scene), the reader uses it with the real tracker and carries no
+  editor trace, the editor is a SvelteKit app in this repository at `/editor` that uses the engine with the mock
+  tracker and owns the stage** – no `/stage` route, no stage protocol, no iframe (B with the stage in process).
+  Tune leaves the debug overlay (legacy); `TUNE_ENTITY_EVENT` becomes `scene.overrideEntity()`. Design:
+  `agents/research/2026-10-29-editor-architecture.md`. RULES #32 rewritten.
+- Tilman: "So weit wie möglich selbstständig … bis Ende aller Pakete: Datenbank, Editor, Compilieren, Ausliefern."
+  "Ich möchte die Demo-Szene am Morgen ausprobieren zu bearbeiten" – the studio spreads of the fixture must be
+  editable in the editor in the morning (import from the reader dev server, edit, save, publish to the local store).
+- Compile = the publish assembles the content version from the database rows (the server, PHP); the plugin compile
+  (schema 2.0, code in the editor) stays phase 15 steps 3–4.
+- Earlier the same day: an OSCT instance user signs in (the instance is **Building Fictions**, the brand; "OSCT wird
+  das nie"), independent of Scutoons for now, "der Editor erstmal im OSCT-Repo".
+- [x] The reader's vanilla editor sheet and `<scrub-number>` went with this (Tilman: clear separation) – the editor
+  app replaces them; `docs/editor.md` rewritten for the app.
+- Built that night (1.10.0, decided alone – to review): the editor mirrors the Scutoons apps' toolchain (SvelteKit 2.55,
+  Svelte 5.55, adapter-static with `fallback: index.html`, `paths.base=/editor`, vite-plugin-svelte 7) but with the
+  reader's three 0.174 so the engine compiles once; `tsconfig` overrides `verbatimModuleSyntax` (the engine has no
+  type-only imports) and maps `three` to `@types/three`, Vite dedupes `three` for the engine's files. The import's
+  `assetsBase` is where a book's `/assets/content/…` paths resolve (the reader dev server in dev, the CDN's version
+  folder on staging) – the engine's loader got the same option so layout and trigger protocol resolve there too.
+  The editor's own users are the accounts table with `users.role` (`POST /admin/editors`). Publish `local` writes to
+  the API's `db/content/`, served at `/api/content/local/…`. The dev setup for the morning: `server/api/config.local.php`
+  (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
+- [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
+  tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
+- 2026-10-29 (Tilman, "Ja, bau den Asset-Upload nach dem Scutoons-Modell"): built as **the content store as the
+  storage** (no second driver layer: `ContentStore` learned binary files, delete and serving assets), a registry of
+  assets + versions, usages computed from the rows (no usage table – the book is small), absolute URLs in the content
+  (publish and engine leave them alone), replace = new path + relink (no CDN purge). Targets made in the editor carry
+  `print` (schema 2.1, MINOR); their tracking data for the real reader is open (the content build's target set).
+  Asked the same day, parked for steps 3–4: spread-level nodes without a target, a timeline for glb clips with
+  start / stop events, the script part. The sky became a sphere in the stage group after three's background
+  rotation mirrored axes.
+- 2026-10-29 (Tilman, "ja bauen"): **content schema 2.0 = the node tree**, structure first, components later: an
+  entity's node has `children` (placed relative to the parent), types `group` and `text` joined model / video /
+  image, one node stays the default. Decided alone: the app reads 1.x content as it is (a one-node tree), so the
+  schema MAJOR costs no content rebuild and no app MAJOR; unknown node types render nothing but keep their children
+  (a later type is MINOR); the placement stays flat in `params` (the concept's `params` object is what we have);
+  text nodes draw a canvas line in a system serif (the brand font and real typography are open); a new node in the
+  editor takes a file the book already has (upload = the asset layer, open). The Blender-style tree (outliner at
+  the left, chain icon for uniform scale), pan (Shift / middle / two fingers), the colour popover with the stage
+  eyedropper (`IArScene.sampleColor`), the book as an object and the sheet previews landed the same day.
+- 2026-10-29 morning (Tilman): the tree (outliner) at the left and the chain icon for uniform scale landed. Open
+  questions he raised, to decide: how targets are placed in the editor (upload / replace a target image), asset
+  resolutions (images 1x / 2x / 3x, videos 480p / 720p / 1080p) and whether Scutoons' asset layer (`scutoons/agents/ASSETS.md`:
+  PHP registry + storage drivers incl. bunny, `@scutoons/media` picker and media standard) is copied for it. The local
+  editor DB now holds the real book (imported from the reader dev server with the layout from the 2110 PDFs); the
+  fixture's studio spreads come back by rebuilding the fixture content and importing again (same book id `osct`).
+
+## 2026-10-29 – Editor, first step: `/editor` over the mock stage (#61, overnight after Tilman's go)
+
+- Tilman (2026-10-28, late): "#59 skippen und direkt in diesen Editor reingehen" – the mock stage (#59) is the editor's
+  preview, not a reader debug panel; onboarding steps stay out of the database; entities become a node tree with
+  components and plugins (the book's own code, compiled by the content build – 8th Wall's model, verified in their
+  repository: webpack per project, schemas parsed from the AST); click UI only together with code in the editor;
+  events have owners (core = book logic, read-only for plugins; scene = content) and scopes `node ⊂ spread ⊂ stage ⊂
+  session ⊂ book ⊂ global` (lookup outward, bubbling outward); a spread is the targets seen together, pages optional
+  (record sleeve, wall, cover); the book is the first layout template, OSCT a filled instance; variables are declared
+  with scope, writers and setter rules. All of it in `agents/research/2026-10-28-entity-components.md` and
+  `2026-10-28-editor-data-model.md`; issues #60 (geometry from the PDF), #61 (editor), both Proposals → #61 In progress.
+- Built overnight (1.10.0): route `/editor` (scan mode), `editor-page` shell + lazy chunk `src/editor/` (bar, preview
+  panel), `MockTracker` behind `IImageTracker`, `MockStage` in the scene, `ArScene.ensureTracker()` picks the tracker
+  when the camera would start (the editor page may become active a moment after the scene is asked to run – a first
+  version started the engine once and asked for the camera), camera permission simulated while the preview runs,
+  `history.forgetTarget()` for *unlock ↺*. English texts (RULES #20), RULES #32.
+- Decided alone, to review: the page format is a constant (230 × 320 mm) until the content carries it (#60); the row
+  layout when the protocol is missing; targets without an image are not on the stage; the preview panel opens with
+  the editor; the editor's chunk imports the dev-tools barrel (already in the main bundle) and defines `tune-panel`
+  itself in production builds.
+- Later that night (Tilman: "use these two to create the most realistic preview mock stage you can make",
+  "beim Blättern sollte auch alles passen", "front and backside bitte auch mitdenken – für dieses Buch nicht relevant,
+  aber im Editor darf man dort Targets platzieren"): `scripts/layout/extract-layout.py` reads `All_Triggers.pdf`
+  (129 double pages, 460 × 320 mm, every trigger as an image) and `OSCT_2110_previewLOWRES.pdf` (135 sheets: cover
+  front and back as single pages, two front- and two back-matter spreads, the rest double pages with page numbers at
+  the foot) → `content/layout/` (git-ignored, copied by the content build): 135 sheet images, 121 of 131 targets placed
+  (the ten not on the printout: pages 30, 95, 222 have two targets and one printed image). Python chosen because
+  PyMuPDF gives image boxes and renders pages in a few lines; a Node port (pdfjs + canvas) is possible when the
+  import becomes part of the osct CLI (#60). The stage shows the sheet as the page texture and the targets exactly
+  where printed; the covers are sheets of the layout (`cover-front` / `cover-back`, surfaces `front` / `back`) without
+  a spread yet – spreads without pages are a content schema change (#60, #61 step 5).
+- Morning (Tilman: "check for reference the scutoons UI dogma and libraries … reuse components as much as possible,
+  save real estate"): read `scutoons/agents/DESIGN.md` (Compact inspector, One control height, Icons, Close cross,
+  the phone inspector = a sheet whose head is its tab row) and `@scutoons/ui` (Svelte – not importable here; the
+  patterns are). Rebuilt the editor UI as one `<editor-sheet>` (head = ‹ › · Stage · Entity · ×, closed = the head
+  row), `<scrub-number>` in `components/common/` for every number (dogma: never a native slider / checkbox), the tune
+  panel split into `<tune-inspector>` (shared with the debug overlay) + a thin sheet host. Kept native for now: the
+  colour input (the dogma's colour popover is a later piece), the target `<select>`. RULES #32 "UI" paragraph.
+- Tilman (morning): XYZ in one row like Blender – done (`<scrub-number prefix>`); "Beispielszenen für 3D-Entities und
+  Shader" – the fixture got `studio-a` / `studio-b` (ten entries, every entity type, placement and filter of today's
+  model, a shared entity used twice); "Event- und Variablen-Austausch zwischen Entities" – needs schema 2.0, written
+  as *Studio C* in the entity concept (the acceptance scenario). Svelte: not in the reader (RULES Stack); Tilman sees
+  the editor as the bridge to Scutoons that could profit from Svelte – open decision, options in the #61 comment.
+  Leading zeros in ids (`s004-005`, `p004-1`): from the delivery import (`import-delivery.ts`, `padStart(3)`) so
+  folders and lists sort in book order; cosmetic – the app sorts by `order` / `page`. Changing them = new ids for the
+  progress (fine before release); Tilman decides.
+- Tilman (morning, after seeing the shared inspector gold in the debug panel): "I want debugging look like debugging.
+  The editor have a neutral color schema more like Figma. Focus on efficient space use and brand UI comes only in
+  real reader facing UI elements" → three token variants in `styles/design-styles.ts`: **branded** (his word for the
+  reader's, the default), **editor**, **debug** – switched by `data-theme` on the host; components carry structure
+  only. Copy YAML stays until step 2 saves to the database (then redundant in the editor, as Tilman expects). Then:
+  "I hate that blue grey. Use a color schema inspired by the default in figma. Day and night theme" and "Blau gar
+  nicht" – the editor variant is white / light grey by day, dark grey by night (the system; Tilman: "Nacht/Tag braucht
+  es nur als Flag, später ggf. in Settings" – the flag `osct-editor-scheme` exists, no button), focus and accents in
+  the text colour, pressed segments grey; `branded` is Tilman's word for the reader's
+  variant – the layer a white-label brand overrides later (one token block in `main.css`).
+- Tilman: "Svelte als Konzept klären" → `agents/research/2026-10-29-editor-svelte.md`: A Svelte in the reader's
+  chunk, B a SvelteKit app in the OSCT repo, C the editor as an app in the Scutoons monorepo on `@scutoons/ui` (a
+  private source package – no publishing), the reader exposing `/stage` + a stage protocol (postMessage cross
+  origin), the instance's API for saving. Recommendation was C; Tilman: "also ein OSCT-Instanzen-User" and "das Ding
+  ist Scutoons-unabhängig im Moment" → sign-in with an OSCT user (editor role), not C. Open: A (Svelte in the lazy
+  chunk, recommended now) or B (a SvelteKit app in the OSCT repo under /editor). Then: "OSCT wird das nie. Das ist für
+  Building Fictions im Moment" (the instance is the brand, the editor belongs to it, not to the title) and "Der Editor
+  erstmal im OSCT-Repo". Ids without leading zeros: #63 (Backlog). Day / night of the editor: only the flag, no button.
+- [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
+  Kévin's own phone later); comes with accounts / roles in step 2.
+- [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
+  loop settling?) – seen once in the browser pane, not reproduced.
+- [ ] Open (Tilman): 35 cm / 30° as the reader's view, or measure; the desktop default could start closer (20 cm).
+
 ## 2026-10-28 – Entity animations shorter (#57, Tilman)
 
 - On the phone the unlock ran too long: by the time a video or a 3D object had materialised the reader had often

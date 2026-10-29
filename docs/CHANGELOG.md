@@ -12,6 +12,98 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.10.0 – 2026-10-29
+
+### Added
+- **Content schema 2.0 – the entity as a tree of nodes** (#61, Tilman: "es können tiefere Hierarchien entstehen, das
+  ist die ganze Idee; bei default erstmal eins"): an entity's node may hold `children`, each placed by its own
+  `params` relative to its parent (8 levels at most); new node types `group` (holds children) and `text` (a line
+  drawn on a plane, `text` + `color`, `{{entry.title}}` / `{{book.title}}` replaced); optional `id` per node. The
+  engine builds the tree recursively (found / lost / pause / update / dispose and the live edit's `tune` reach every
+  node; a type without a builder renders nothing but keeps its children), the content build reads `children` in
+  `entry.yaml` and `entity.yaml` (`npm run schema:lock` → 2.0), the guard and the API check nodes recursively. The app
+  reads schema **1.x content as it is** (a tree of one node), so nothing has to be rebuilt; the fixture's Studio A
+  gained *Studio: tree of nodes*. In the editor the tree shows every node, the Entity panel edits the selected node,
+  **+ node** adds a child (or a target's first node) from the book's files, **remove node** drops one. Components
+  and plugins (the registries, code in the editor) stay phase 15 steps 3–4.
+- **Sky, light and desk of the editor's stage** (#61, Tilman: "HDRI and sky sphere … as default"): six studio HDRIs
+  from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (backdrop *hdri*, the
+  default, with the choice; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
+  plywood texture, tinted), the cover a white 3 mm hardcover board.
+- **Assets, the library and new targets** (#61, Tilman: "Asset-Upload nach dem Scutoons-Modell … in the tree I want to
+  be able to add a target"): uploaded files in the content store (`assets/<book>/<asset>/v<n>.<ext>`, local or bunny)
+  with a registry (`assets`, `asset_versions`), `GET / POST /editor/books/{id}/assets`, replace with a new version and
+  every use relinked, delete guarded by the usages, the same bytes once; the editor's **Library** tab (upload, drop,
+  use for the selected node, as a target's image, replace, delete), the node's **file** row, the target's **image**
+  and **print placement** (content schema 2.1 `print`: surface, x, y, width in mm – the stage lays a target there
+  before the book's layout), **+ target** in the tree (an entry with its printed image and place –
+  `POST /editor/books/{id}/entries`, `DELETE …/entries/{id}`), *Remove target* in the tree's menu; the new-target
+  form takes the AR content too (a node of a type with its file, or a text). **Picking** on the stage by a pick mode
+  (entity / node / printed target – Blender's select mode) with a right-click menu (add node, remove, placement,
+  library, remove target; + target on the page), and a translucent **ghost** of the image while a placement is edited,
+  with handles (drag to move, the corner for the width). **ScrubNumber follows the quadrant rule** (Tilman: up or
+  right raises, down or left lowers, the directions add up); the panel is 22rem wide and the three axes of a placement
+  row stay on one line.
+  The sky of the stage is a sphere inside the stage group (three's background rotation mirrored axes).
+- **Removing nodes** (#61, Tilman: "Wie lösche ich Knoten?"): Delete / Backspace on the selected node (tree or
+  workspace), a right-click menu on the tree's node rows, *remove node* / *remove entity* in the Entity panel – all
+  through the stage, so tree, panel and stage show one state; a removed root marks the target as without AR content
+  until Save.
+- **The gizmo** (#61, Tilman: "das Anklicken von Items auf der Bühne, wir brauchen dann die Achsen"): three.js
+  `TransformControls` on the selected node of the editor's stage – move / rotate / scale (toolbar, W / E / R), handles
+  in the node's own space so a drag edits the placement relative to the parent, Ctrl snaps (0.05 widths, 15°, 0.1),
+  the Entity panel's rows follow live; hover draws a box around the entity under the pointer. The engine opens the
+  running scene to editor tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its
+  path, the tap's hit test); the entity builder records every node's placement group by its path.
+- **Editor API** (#61): the accounts API carries the editor's data under `/api/editor/*` for users with the new role
+  `editor` (`POST /admin/editors { email }` with the admin secret gives it; `GET /user` shows it). A game configuration is
+  imported into rows (books, spreads, entries, targets, entities – every field kept), read as a tree, edited entity by
+  entity with a change log, served as a draft the engine loads like the CDN (`…/draft/latest.json`), and published as a
+  content version – to the container's own content store (`GET /api/content/{env}/…`, environment `local`) or to the
+  CDN's storage zone with the osct CLI's bookkeeping (`OSCT_CONTENT_STORE=bunny`), with a publish log. `docs/server.md`
+  "Editor data".
+- **The editor** (#61, the mock stage of #59): a SvelteKit app of its own at `/editor` (`editor/`, built into the image
+  next to the reader) for an instance user with the role `editor`. It runs the engine over a simulated page instead of
+  the camera – a table, the open book as an object (paper blocks whose thickness follows the number of spreads on a
+  cover board with an overhang; every plane a hair under the one above it, so nothing flickers), the current spread's
+  printed images where they are printed (the book's layout), by the trigger protocol or in a row – and every target
+  counts as found, so models, videos and
+  filters show with their reveal, unlock and outro exactly as in AR, on the desktop and on a phone, without a camera.
+  Books are imported from a game configuration (the CDN's current version, a URL or a file); the spreads list shows
+  each spread's sheet as its preview; the workspace has the
+  **tree** of the spread at the left in the style of Blender's outliner (entries → targets → entities with type icons,
+  guide lines, the eye column for found, keyboard navigation, a tap selects; collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, Shift-drag, middle button or two fingers
+  to pan, wheel or pinch for the distance, found chips per target, replay of the first find, hand shake, backdrop *table / paper /
+  photo* of your own desk) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
+  linking the scale axes, filters, colours through the editor's colour popover – palette, recent colours, area + hue,
+  hex, and an eyedropper that picks the colour under the pointer from the stage (`IArScene.sampleColor()`) – live on
+  the stage, **Save** to the database, **Back to the draft**), and
+  **Publish** makes a content version. Docs: `docs/editor.md`.
+- **The engine as a package** (`engine/`): the content runtime (`loadGameConfiguration`, the accessors, `contentUrl`)
+  and the AR scene (`ArScene`, entities, animations, trackers behind `IImageTracker`) moved out of the reader into a
+  source folder both apps compile (`@engine/*`). The app passes what differs: its tracker (the reader the 8th Wall
+  engine, the editor its mock tracker), the graphics options, the bundled content, the startup texts; the scene gained
+  `overrideEntity()` (the editor's live edit) and `refresh()` (rebuild the spread after a save).
+- **The book as laid out on the stage**: `npm run layout` (scripts, Python with PyMuPDF) reads the designed PDFs – the
+  book preview and the trigger layout – and writes the content's `layout/` folder: every sheet as an image (covers
+  included) and every printed target's page, side, position and size in mm. With it the editor's stage shows the
+  spread's real page under the entities and every target exactly where it is printed; leafing shows the next sheet.
+  Without it: blank pages, targets by the trigger protocol or in a row (`docs/content.md`, "Importing the book layout").
+- **Studio spreads in the test fixture** (`fixtures/content`, pages 28–31): every entity type, placement and filter of
+  the content model on two double pages, for the editor and the tests (`FIXTURE.md`).
+
+### Changed
+- The reader carries nothing of the editor (RULES #32): no `/editor` route or page, no preview flag, no mock
+  tracker, no simulated camera permission, no forgetting of an unlock. The trial panel reads the trigger protocol
+  through the engine's `fetchTriggerInfos()`.
+- The image serves the editor at `/editor` (`.htaccess` fallback to its `index.html`, a year's cache for its hashed
+  files); CI checks, tests and builds it (`checks.yml`, job *Editor*).
+
+### Removed
+- The debug overlay's **tune** panel, `<tune-inspector>`, `tune-values.ts` and `<scrub-number>` (Tilman: "es geht im
+  Debug-Overlay nicht um Einstellungen – das ist Legacy"): the overlay debugs, the editor edits. The `editor` button
+  and the `P` marker of the debug line went with the preview.
+
 ## 1.9.6 – 2026-10-28
 
 ### Changed

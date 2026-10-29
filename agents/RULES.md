@@ -164,7 +164,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `src/i18n/locales/<lang>/<ns>.json`, maintained with **i18next-cli** (`npm run i18n`; the build runs it
     and warns – never fails – about missing translations, which fall back to English).
     Book content (titles, entries, steps) is not UI text. The language is stored by the i18next language
-    detector (`osct-language`), not in the progress. Dev tools may stay English.
+    detector (`osct-language`), not in the progress. Dev tools and the **editor** (`/editor`, an authors' tool, not a
+    reader's view) stay English.
 
 21. **PWA**: the service worker (`client/sw/`, own tsconfig: `npx tsc -p sw`) serves pages
     network-first and content from a cache named after the content build hash. New public files that
@@ -284,3 +285,28 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     pointer each way – never the same paragraph in both. `agents/` is for agents only (plan, rules, memory,
     design measurements, research); readers' and developers' documentation goes to `docs/`. Remove a section
     when the code it describes is gone; a temporary runbook says so in its first line.
+
+32. **Engine, reader, editor** (Tilman, 2026-10-29, #61 – `agents/research/2026-10-29-editor-architecture.md`):
+    a clear separation. **`engine/`** is the base – the content runtime (`loadGameConfiguration`, the accessors,
+    `contentUrl`) and the AR scene (`ArScene`, entities, animations, trackers behind `IImageTracker`); it knows no
+    routes, accounts, stores, `import.meta.env` or i18n – the app passes what differs (tracker factory, graphics
+    source, bundled content, texts). **The reader** (`client/`) uses the engine with the real tracker and carries
+    **no editor trace**: no editor route or chunk, no preview flag, no mock tracker, no tune panel ("es geht im
+    Debug-Overlay nicht um Einstellungen" – the overlay debugs, it never edits). **The editor** (`editor/`, a SvelteKit
+    app at `/editor`, same image) uses the same engine with the mock tracker and the mock stage in process, simulates
+    the game (spread, found targets, replay) in its own state, and owns the stage, the panels, saving (`/api/editor/*`)
+    and publishing. Never a second renderer or scene model: what the author sees is the engine the reader runs,
+    built from the same commit. The editor never imports the reader; the reader never imports the editor.
+    **UI** (Tilman, 2026-10-29: "check for reference the scutoons UI dogma … reuse components as much as possible,
+    save real estate"): the editor's controls follow the Scutoons dogma (`scutoons/agents/DESIGN.md`) built from
+    OSCT's own primitives – one control height, rows with a label column, numbers as `<scrub-number>` (never a native
+    slider or checkbox), small enums as segmented pressed pills, icons (Feather, `editor/icons.ts`, with a name and a
+    tooltip) only where a word makes no sense, the drawn close cross, one sheet whose head is the tab row and whose
+    closed state is that row alone. A control the editor needs is built once in `components/common/` or
+    `components/dev-tools/` and used by both the editor and the dev tools (`<tune-inspector>`), never twice.
+    **Three token variants** (Tilman, 2026-10-29: "debugging looks like debugging, the editor neutral like Figma,
+    brand UI only in reader-facing elements"): **branded** = the reader's UI (the tokens of `main.css`, the default),
+    **editor** = a neutral tool in a design tool's default colours, day and night, no colour at all (Tilman: "Blau gar
+    nicht"), square corners, compact system type, **debug** = the dev
+    tools' green terminal. The variants live once in `styles/design-styles.ts`; a host sets `data-theme` on itself and
+    every primitive inside follows. Components carry structure only – never a colour that belongs to one variant.
