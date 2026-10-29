@@ -1061,12 +1061,16 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
 1. [x] `/editor` route with the mock tracker and the mock stage, the preview panel and the tune panel, lazily loaded
        (1.10.0). Open: an editor-only progress (the preview unlocks targets in the device's progress); the layout
        from the trigger protocol is coarse until #60 imports the PDF.
-1b. [~] Where the editor lives – Svelte concept `agents/research/2026-10-29-editor-svelte.md`. Decided: an OSCT
-       instance user signs in, independent of Scutoons for now (not the Scutoons monorepo); open: Svelte in the
-       reader's lazy chunk (A, recommended now) or a SvelteKit app in the OSCT repo (B). Either way the reader exposes
-       `/stage` + a stage protocol first.
-2. [ ] Saving: spreads, entries, targets, entities in the database (`agents/research/2026-10-28-editor-data-model.md`),
-       the draft as a game configuration for the preview and the phone (`?content=draft`), publish to staging.
+1b. [~] Where the editor lives – decided (evening, `agents/research/2026-10-29-editor-architecture.md`): the
+       engine (content runtime + AR scene) becomes `engine/`, the reader uses it with the real tracker and loses every
+       editor trace (route, chunk, preview, mock tracker, tune panel), the editor is a SvelteKit app `editor/` at
+       `/editor` with the engine + mock tracker in process; an OSCT instance user (Building Fictions) signs in,
+       independent of Scutoons. Work: [~] engine package, [ ] reader stripped, [ ] editor app (sign-in, books, stage,
+       Stage / Entity panels, save), [ ] image + CI + staging.
+2. [~] Saving: books, spreads, entries, targets, entities in the database (`/api/editor/*`, import from a game
+       configuration, entity edits with a change log), the draft as a content version the engine loads
+       (`…/draft/latest.json`), publish = the version assembled from the rows into the content store (local dir or
+       bunny) – the "compile" of this step; staging reads it from the CDN.
 3. [ ] Plugin API: registries for node types, components and material layers with specs (`shared/`), content
        schema 2.0 (node tree), `api.three`; plugins compiled by the content build.
 4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.
