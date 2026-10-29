@@ -71,7 +71,11 @@ export interface XR8Api {
   stop(): void;
   addCameraPipelineModules(modules: unknown[]): void;
   clearCameraPipelineModules(): void;
-  GlTextureRenderer: { pipelineModule(): unknown };
+  GlTextureRenderer: {
+    pipelineModule(): unknown;
+    /** A shader of one's own for the camera picture (`texUv`, `sampler`); the program is built again */
+    configure(config: { fragmentSource?: string }): void;
+  };
   XrController: {
     pipelineModule(): unknown;
     configure(config: { disableWorldTracking?: boolean; imageTargetData?: XrImageTargetData[] }): void;

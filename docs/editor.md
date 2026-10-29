@@ -179,8 +179,9 @@ is involved.
     the spread (`PUT …/spreads/{id} { passes }`), *Back to the draft* undoes, *Use the book's* drops the spread's own
     list so the book's passes apply. The stage shows the passes under **rendered** only (like the HDRI's sky): the
     mock stage's table, book, printed images and sky lie on the engine's **backdrop layer** and stand in for the
-    camera picture: bloom and vignette run over them as they run over the camera picture in the reader, the grade
-    stays on the AR layer (it gets the layer's coverage as a mask).
+    camera picture: bloom and vignette run over them as they run over the camera picture in the reader; the grade's
+    **reach** row (*AR layer / whole picture*) keeps it on the AR layer (it gets the layer's coverage as a mask) or
+    grades the desk too, as the reader grades the camera picture.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
     a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by

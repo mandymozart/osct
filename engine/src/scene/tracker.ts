@@ -17,6 +17,8 @@ import {
   XrReality,
 } from "./xr8";
 
+/** The engine's own shader for the camera picture (8th Wall `GlTextureRenderer`'s default) – restored when no grade reaches it */
+const CAMERA_SHADER = "precision lowp float;\nvarying vec2 texUv;\nuniform sampler2D sampler;\nvoid main() {\n  gl_FragColor = texture2D(sampler, texUv);\n}\n";
 /** Loading the targets into the engine may take this long before tracking starts anyway */
 const TARGETS_LOAD_TIMEOUT_MS = 15000;
 /** A neighbouring spread's target seen this long (and none of the current spread's) switches the spread */
@@ -67,6 +69,8 @@ interface LoadedTarget {
 export class ImageTracker implements IImageTracker {
   private XR8: XR8Api | null = null;
   private canvas: HTMLCanvasElement | null = null;
+  /** The camera picture's shader (a grade with `reach: all`), null = the engine's own */
+  private cameraShader: string | null = null;
   private camera: PerspectiveCamera | null = null;
   private intrinsics: number[] | null = null;
   private started = false;
@@ -182,6 +186,7 @@ export class ImageTracker implements IImageTracker {
     });
     XR8.XrController!.configure({ disableWorldTracking: true, imageTargetData: [] });
     XR8.addCameraPipelineModules([XR8.GlTextureRenderer.pipelineModule(), XR8.XrController!.pipelineModule(), this.module()]);
+    if (this.cameraShader) XR8.GlTextureRenderer.configure({ fragmentSource: this.cameraShader });
     // The engine's camera request gets the main back lens (and the debug zoom request) – camera-request.ts
     wrapCameraRequest();
     // Any device: desktop browsers (dev, tests) too – the default allows phones only
@@ -423,6 +428,13 @@ export class ImageTracker implements IImageTracker {
     this.scanningWaiter = null;
     this.seenSince.clear();
     // The engine keeps its targets (a switch back or to a neighbour needs no new extraction)
+  }
+
+  gradeCamera(fragmentShader: string | null): void {
+    if (fragmentShader === this.cameraShader) return;
+    this.cameraShader = fragmentShader;
+    // The engine keeps a shader it was given: none = its own again (`configure` ignores an empty source)
+    if (this.XR8 && this.canvas) this.XR8.GlTextureRenderer.configure({ fragmentSource: fragmentShader ?? CAMERA_SHADER });
   }
 
   stop(): void {

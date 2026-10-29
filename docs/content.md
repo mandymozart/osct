@@ -291,7 +291,17 @@ nothing – the scene renders straight to the canvas as before.
 |---|---|---|
 | `bloom` | Bright parts glow: the part of the image above `threshold` is blurred and added back as light – over the camera picture too. | `strength` 0–3 (1), `radius` 0–1 (0.4), `threshold` 0–1 (0.85; 1 = only brighter than white) |
 | `vignette` | The edges fade to a colour – the AR layer and the camera picture alike. | `strength` 0–1 (0.6), `radius` 0–1.5 (0.6, 1 = the sides), `softness` (0.6), `color` (#000000) |
-| `grade` | Colour grading of the AR layer only (the camera picture lies under the canvas and keeps its colours). | `exposure` −2…2 EV (0), `contrast` 0–2 (1), `saturation` 0–2 (1), `tint` (#ffffff = none) |
+| `grade` | Colour grading. `reach: ar` grades the AR layer alone (the camera picture keeps its colours); `reach: all` (schema 2.9) the whole picture – on the phone the camera picture too, in the editor the desk. | `reach` `ar` \| `all` (`ar`), `exposure` −2…2 EV (0), `contrast` 0–2 (1), `saturation` 0–2 (1), `tint` (#ffffff = none) |
+
+**How a grade reaches the camera picture** (`reach: all`): on the phone the camera picture is not part of the
+three.js image – the 8th Wall engine draws it into a canvas of its own (a second WebGL context) under the AR canvas,
+so no pass of the chain can read it. The engine's camera renderer (`GlTextureRenderer`) takes a fragment shader of
+its own, though: the scene gives the tracker one that decodes the picture to linear, applies the same exposure ×
+tint, contrast and saturation as the AR layer's grade and encodes it again (`cameraGradeShader`,
+`engine/src/scene/post/grade.ts`). So the camera picture is graded *before* the AR layer lies over it, and the passes
+before a grade (a vignette, a bloom) are not graded on the camera picture the way they are on the AR layer; a grade
+also does not reach the look-around world (drawn under the chain). Several `all` grades apply in order. The guard
+ignores a pass parameter it does not know (since 2.9), the build and the API refuse it – a 2.8 app refuses `reach`.
 
 ```yaml
 # content/spreads/studio-b/spread.yaml
@@ -504,6 +514,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.6 | 1.13.0 | in develop | light nodes: point, spot and directional lights as a node type |
 | 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
 | 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
+| 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
