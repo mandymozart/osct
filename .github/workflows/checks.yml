@@ -47,10 +47,6 @@ jobs:
         run: npm run build:content
         env:
           OSCT_CONTENT_DIR: fixtures/content
-      # Until content/ has left the repository: every problem in it still fails here with the file and the reason
-      - name: Build the book content (while it is in git)
-        if: hashFiles('content/book.yaml') != ''
-        run: npm run build:content:force
 
   server:
     name: Accounts API

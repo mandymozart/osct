@@ -1,9 +1,0 @@
-# Imported from 2110.yaml (links/OSCT_Ref_DisneyCity.png).
-# Placeholder title and body – the texts follow.
-# Note: match with the delivered file is uncertain (the printed crop differs) - check against the printout
-category: link
-title: "Disney City"
-page: 63
-body: "Placeholder – the text follows."
-target:
-  image: target.jpg
