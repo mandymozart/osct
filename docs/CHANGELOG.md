@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Editor 1.10.1 – 2026-10-29
+
+### Changed
+- **The mock stage's book cover is 1 mm thick and ends where the page block ends** (#106): the cover board was 2 mm with a
+  3 mm overhang that framed the pages; now `COVER_THICKNESS` is 1 mm and `COVER_OVERHANG` 0, so the board lies flush under
+  the block. The page-edge texture for the cover's hard-cover edge is still open on #106.
+
 ## 1.16.1 – 2026-10-30
 
 ### Fixed
