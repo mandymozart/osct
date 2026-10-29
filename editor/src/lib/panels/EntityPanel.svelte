@@ -4,7 +4,8 @@
   import { ENTITY_TYPES, FILTER_TYPES, type AssetData, type EntityData, type EntityType, type FilterType, type Target } from "@engine/types";
   import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "$lib/api";
   import { content } from "$lib/content.svelte";
-  import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
+  import { library, NODE_ASSET_KINDS } from "$lib/library.svelte";
+  import { pickAccept, type LibraryPick } from "$lib/library-pick";
   import { plugins } from "$lib/plugins.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
   import { fromOrigin, toOrigin } from "$lib/stage/origin";
@@ -18,6 +19,8 @@
   import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
+  import FileField from "$lib/components/FileField.svelte";
+  import LibraryPanel from "./LibraryPanel.svelte";
 
   /**
    * The selected **node** of a target's entity (content schema 2.0: the entity is a tree; the tree panel or a tap
@@ -29,12 +32,10 @@
    * light – files from the book's assets), **remove node** drops the selected node and its children. Rows come from
    * the content contract's definitions (one `specRow` snippet draws a parameter of any kind).
    */
-  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, onlibrary, ontargetchanged }: {
+  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, ontargetchanged }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
     pickColour?: () => Promise<string | null>;
-    /** Open the library (to choose a file for the selected node) */
-    onlibrary?: () => void;
     /** The target's image or print placement changed in the draft: reload the content and the stage */
     ontargetchanged?: () => Promise<void>;
   } = $props();
@@ -161,9 +162,35 @@
     }
   };
 
+  // ── the Library as the picker of a file (#164): opened for one field – the target's image, the node's file, the
+  // new node's file – it fills only that one; the panel keeps its state underneath ──
+  let picking = $state<LibraryPick | null>(null);
+  const pickFor = (pick: Omit<LibraryPick, "oncancel">) => {
+    picking = { ...pick, onpick: asset => { picking = null; return pick.onpick(asset); }, oncancel: () => (picking = null) };
+  };
+  // Another target or node selected (the tree, the stage) while picking: the field it was opened for is gone
+  const pickContext = $derived(`${target?.id}|${node.join(".")}`);
+  $effect(() => {
+    void pickContext;
+    untrack(() => (picking = null));
+  });
+  const pickTargetImage = () => {
+    const t = target;
+    if (t) pickFor({ subject: { for: "target-image" }, label: `the printed image of ${t.id}`, current: t.imageSrc, onpick: asset => setTargetImage(t.id, asset.url) });
+  };
+  const pickNodeFile = () => {
+    const t = target;
+    const type = current?.type;
+    if (!t || !type) return;
+    pickFor({ subject: { for: "node", nodeType: type }, label: `the ${type} of node ${pathLabel}`, current: current?.assets[0]?.src,
+      onpick: asset => useAsset(asset.kind, asset.url, asset.id) });
+  };
+  const pickNewNodeFile = () => {
+    const type = addType;
+    if (type) pickFor({ subject: { for: "node", nodeType: type }, label: `the new ${type} node`, current: addAsset, onpick: asset => { addAsset = asset.url; } });
+  };
+
   // ── the target: its printed image and placement ──
-  let targetImageInput = $state<HTMLInputElement>();
-  let nodeFileInput = $state<HTMLInputElement>();
   let printOpen = $state(false);
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
@@ -211,13 +238,13 @@
     stage.onGhostChange = place => { print = { ...print, ...place }; };
     return () => { if (stage) stage.onGhostChange = null; };
   });
-  const replaceTargetImage = async (file: File) => {
-    if (!target) return;
+  /** The target's printed image becomes a library file (picked) or a new upload */
+  const setTargetImage = async (targetId: string, src: string | File) => {
     targetBusy = true;
     targetError = null;
     try {
-      const asset = await library.upload(bookId, file);
-      await putTarget(bookId, target.id, { imageSrc: asset.url });
+      const url = typeof src === "string" ? src : (await library.upload(bookId, src)).url;
+      await putTarget(bookId, targetId, { imageSrc: url });
       await ontargetchanged?.();
     } catch (e) {
       targetError = e instanceof ApiError ? e.message : String(e);
@@ -350,7 +377,9 @@
   {/if}
 {/snippet}
 
-{#if !target}
+{#if picking}
+  <LibraryPanel {bookId} pick={picking} />
+{:else if !target}
   <p class="muted">No target on this spread.</p>
 {:else}
   <div class="head">
@@ -364,16 +393,11 @@
 
   <div class="section"><span class="section-label">target · {target.id}</span>
     <span class="controls">
-      <button type="button" class="text-link" onclick={() => targetImageInput?.click()} title="Upload another printed image for this target">Replace image…</button>
       <button type="button" class="text-link placement-toggle" class:on={printOpen} onclick={togglePlacement}>{printOpen ? "hide placement" : "placement"}</button>
     </span></div>
   <div class="row"><span class="label">image</span>
-    <span class="controls file">
-      <img class="target-thumb" src={target.imageSrc} alt="" />
-      <span class="small muted name" title={target.imageSrc}>{fileLabel(target.imageSrc)}</span>
-      <input bind:this={targetImageInput} type="file" accept=".jpg,.jpeg,.png,.webp" hidden
-        onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void replaceTargetImage(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
-    </span></div>
+    <FileField src={target.imageSrc} picture accept={pickAccept({ for: "target-image" })} label="the printed image of {target.id}"
+      onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
   {#if printOpen}
     <div class="row"><span class="label">surface</span>
       <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => (print = { ...print, surface: s })} /></span></div>
@@ -402,10 +426,7 @@
         {#each ENTITY_TYPES as type (type)}<option value={type}>{type}</option>{/each}
       </select>
       {#if addType && ASSET_KINDS[addType]}
-        <select class="field grow" aria-label="File" value={addAsset} onchange={e => (addAsset = (e.currentTarget as HTMLSelectElement).value)}>
-          <option value="">{assetChoices.length ? "file…" : "no file of this kind in the book"}</option>
-          {#each assetChoices as a (a.src)}<option value={a.src}>{fileLabel(a.src)}</option>{/each}
-        </select>
+        <button type="button" class="pill framed grow file-pick" title="Choose the new node's file in the Library" onclick={pickNewNodeFile}>{addAsset ? fileLabel(addAsset) : "file…"}</button>
       {/if}
       <button type="button" class="icon-button framed" title={entity ? "Add as a child of the selected node" : "Add as the target's root node"} aria-label="Add node" disabled={!canAdd} onclick={add}><Icon name="plus" /></button>
     </span></div>
@@ -449,15 +470,10 @@
     {/each}
 
     {#if ASSET_KINDS[current.type]}
-      <div class="section"><span class="section-label">file</span>
-        <span class="controls">
-          <button type="button" class="text-link" onclick={() => nodeFileInput?.click()} title="Upload a file for this node">Upload…</button>
-          {#if onlibrary}<button type="button" class="text-link" onclick={onlibrary} title="Choose a file from the library (Use)">Library…</button>{/if}
-          <input bind:this={nodeFileInput} type="file" accept={ACCEPT} hidden
-            onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void uploadForNode(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
-        </span></div>
-      <div class="row"><span class="label">{current.type === "model" ? "model" : current.type}</span>
-        <span class="small muted name" title={current.assets[0]?.src ?? ""}>{current.assets[0] ? fileLabel(current.assets[0].src) : "no file"}</span></div>
+      <div class="section"><span class="section-label">file</span></div>
+      <div class="row"><span class="label">{current.type}</span>
+        <FileField src={current.assets[0]?.src} picture={current.type === "image"} accept={pickAccept({ for: "node", nodeType: current.type })}
+          label="the {current.type} file of this node" onlibrary={pickNodeFile} onupload={f => void uploadForNode(f)} /></div>
     {/if}
     {#if current.type === "text"}
       <div class="section"><span class="section-label">text</span></div>
@@ -559,7 +575,7 @@
   }
   .add .controls { flex-wrap: nowrap; }
   .add .field { min-width: 0; max-width: 7rem; }
-  .add .field.grow { flex: 1; max-width: none; }
+  .add .file-pick { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; justify-content: flex-start; }
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .fields :global(.scrub) { width: 100%; }
@@ -569,9 +585,6 @@
   .row > .field { width: 100%; }
   .tabular { font-variant-numeric: tabular-nums; }
   .time { width: 100%; margin: 0; accent-color: var(--text); }
-  .file { flex-wrap: nowrap; }
-  .target-thumb { width: 2.5rem; height: 1.875rem; object-fit: contain; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface-head); }
-  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .text-link.on { color: var(--text); }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
