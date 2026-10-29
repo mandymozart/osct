@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "osct": {
+      "command": "node",
+      "args": ["mcp/bin/osct-mcp.mjs"],
+      "env": {
+        "OSCT_API_URL": "${OSCT_API_URL:-http://127.0.0.1:8080/api}",
+        "OSCT_EDITOR_URL": "${OSCT_EDITOR_URL:-http://localhost:5175/editor}",
+        "OSCT_EDITOR_TOKEN": "${OSCT_EDITOR_TOKEN:-}"
+      }
+    }
+  }
+}
