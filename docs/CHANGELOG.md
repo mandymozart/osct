@@ -21,6 +21,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   table and book. Now every pass shows at once: bloom and vignette run over the whole picture, the desk counting as
   the camera picture, and the grade stays on the AR layer (the desk keeps its colours, as the camera picture does).
 
+## 1.17.4 – 2026-10-30
+
+### Changed
+- **The editor's spread cards** (#115): no border, and the page uses the full width instead of a centred column. One
+  grid cell is one printed page: the cover is a single right-hand page (no taller or wider than one page of a spread)
+  and the first cell of the first row stays empty, so 2–3, 4–5 … line up as spreads. The caption is one line (pages and
+  title, the cover's name no longer shows twice), the counts are small icons with the numbers (entries, targets, with
+  AR; titles for screen readers), and the format shows as a small label only when it is not a double page.
+
 ## 1.17.3 – 2026-10-30
 
 ### Fixed
