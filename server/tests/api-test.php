@@ -651,7 +651,7 @@ try {
     [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Seal', 'page' => 0, 'target' => ['imageSrc' => 'https://cdn.example/seal.jpg', 'print' => ['surface' => 'front', 'x' => 60, 'y' => 100, 'width' => 100]]], $editor);
     check($status === 201 && $data['spreadId'] === 'cover' && $data['entry']['target']['print']['surface'] === 'front', 'an entry on page 0 lands on the cover, printed on its front');
 
-    echo "editor: the book's environment (content schema 2.7)\n";
+    echo "editor: the book's environment (content schema 2.8)\n";
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => false]], $editor);
     check($status === 200 && $data['environment'] === ['world' => 'cafe', 'onionSky' => false], 'PUT environment');
     [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=3', null, $editor);

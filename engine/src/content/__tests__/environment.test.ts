@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_ENVIRONMENT, environmentOf, environmentProblems } from "@shared/types/environment";
 import { effectiveGraphics } from "../../scene/look-around/look-around";
 
-// The book's environment (content schema 2.7): the content says what is drawn, the reader's switches apply on top
-describe("book environment (content schema 2.7)", () => {
+// The book's environment (content schema 2.8): the content says what is drawn, the reader's switches apply on top
+describe("book environment (content schema 2.8)", () => {
   it("a book without one keeps today's look", () => {
     expect(environmentOf({})).toEqual(DEFAULT_ENVIRONMENT);
     expect(environmentOf(undefined)).toEqual({ world: "cafe", onionSky: true });

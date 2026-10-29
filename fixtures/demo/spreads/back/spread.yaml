@@ -1,0 +1,6 @@
+# The back cover (format back, the page after the last): the colophon and the tally of the whole book.
+title: Back cover
+order: 4
+firstPage: 9
+lastPage: 9
+format: back

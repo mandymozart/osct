@@ -3,7 +3,7 @@
   import { putEnvironment } from "$lib/api";
 
   /**
-   * The book's **environment** (content schema 2.7): the world around the reader while scanning and the onion sky –
+   * The book's **environment** (content schema 2.8): the world around the reader while scanning and the onion sky –
    * book-level only. The reader's Graphics switches (Info → Settings) still apply on top. *Save* writes it to the book's
    * draft through the editor API; *Use the default* removes it, and the café with the onion sky applies again.
    */

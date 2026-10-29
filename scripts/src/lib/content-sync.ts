@@ -25,7 +25,7 @@ import {
   isContentVersions,
 } from '../../../shared/types/content-manifest';
 import { parseContentSchema } from '../../../shared/types/game-config';
-import { CLIENT_PUBLIC_ASSETS_DIR, FIXTURE_MARKER, OUTPUT_FILE } from '../config';
+import { CLIENT_PUBLIC_ASSETS_DIR, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE } from '../config';
 import { listFiles } from './files';
 import { contentTypeOf, StorageClient, StoredFile } from './storage';
 
@@ -52,6 +52,9 @@ export interface ContentBuild {
 
 /** A build of the test fixture (fixtures/content) – its marker file is part of the build output */
 export const isFixtureBuild = (build: Pick<ContentBuild, 'files'>): boolean => build.files.some(f => f.file === FIXTURE_MARKER);
+
+/** A build of the demo book (fixtures/demo) – synced to its own environment only */
+export const isDemoBuild = (build: Pick<ContentBuild, 'files'>): boolean => build.files.some(f => f.file === DEMO_MARKER);
 
 const sha256 = (data: Buffer | string) => createHash('sha256').update(data).digest('hex').toUpperCase();
 

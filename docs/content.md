@@ -244,9 +244,16 @@ api }]`); the reader loads it with the AR scene. What a plugin registers is used
   plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
   `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
   in the spec's order (`number` / `boolean` → `float`, `color` → `vec3`, `choice` → `int`, the index in its options).
+- **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
+  `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
+  book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
+  persisted with the reader's progress), `api.progress` (read-only: `unlocked`, `consulted`, `completion`, `counts`),
+  `api.spread` (the current spread); the component context's `children` and the hook `onUnlocked`. The reader hands
+  the engine its progress through `ArSceneOptions.progress`, the editor its simulation.
 - The editor's **Code** tab ([editor](editor.md)) runs a plugin on its stage without a build; readers get only what
   the build compiled. The fixture's `plugins/tint` is the template; [plugins](plugins.md) is the guide for writing
-  one. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
+  one, the **demo book** `fixtures/demo/` (built with `OSCT_CONTENT_DIR=fixtures/demo`) the sandbox that uses all of
+  it. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
   above 256 KB.
 
 ```yaml
@@ -268,7 +275,7 @@ back spread the page after the last printed one; an entry on that page belongs t
 surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
 any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
 
-**Environment** (content schema 2.7): `book.yaml` may set `environment: { world: cafe, onionSky: true }` – the world
+**Environment** (content schema 2.8): `book.yaml` may set `environment: { world: cafe, onionSky: true }` – the world
 around the reader while scanning and the onion sky (docs/look-around.md). Book-level only; without it the café with
 the onion sky applies. The reader's Graphics switches still apply on top, so the content never turns on what the reader
 has off. The editor saves it on the book page (`PUT /editor/books/{id}/environment`).
@@ -302,7 +309,8 @@ A pass of the book's own – a shader Kévin writes – registers with the engin
 three.js and `ShaderPass`, and returns a three `Pass` over the composer's buffers. The buffer holds the AR layer as
 premultiplied colour over alpha, in linear RGB, nothing of the camera picture: a pass keeps a texel's alpha unless it
 means to shade the camera picture too. The plugin API of the code editor ([editor](editor.md)) exposes the registry
-as `api.registerPass`; until then the built-ins are the passes the content can name.
+as `api.registerPass(type, spec, factory)`: the plugin's pass runs in the engine and leaves with the plugin. The content
+build and the guard still accept only the built-in pass types, so a spread cannot name a plugin's pass yet (#97).
 
 ```yaml
 # content/spreads/cover/spread.yaml
@@ -491,10 +499,11 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.1 | 1.10.0 | unreleased | print placement of targets (`print`) |
 | 2.2 | 1.10.0 | unreleased | components (animation) |
 | 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
-| 2.4 | 1.11.0 | in develop | plugin API 1.1: events, variables, progress, the spread |
+| 2.4 | 1.11.0 | in develop | plugins – the book's own code, compiled by the content build (plugin API 1.0) |
 | 2.5 | 1.12.0 | in develop | post-processing passes |
-| 2.6 | 1.13.0 | in develop | light nodes (point, spot, directional) |
-| 2.7 | 1.14.0 | in develop | the book's environment: the world and the onion sky |
+| 2.6 | 1.13.0 | in develop | light nodes: point, spot and directional lights as a node type |
+| 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
+| 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

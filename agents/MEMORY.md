@@ -4,10 +4,10 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
-## 2026-10-29 – The book's environment, content schema 2.7 (#79)
+## 2026-10-30 – The book's environment, content schema 2.8 (#79)
 
-- Tilman confirmed the draft's two open decisions: the environment is a MINOR step after the light nodes' 2.6, so
-  **2.7** (not 3.1 as the ticket first assumed, since #81 landed as 2.6); the reader's Graphics switches **apply on top**
+- Tilman confirmed the draft's two open decisions: the environment is a MINOR step after the light nodes' 2.6. It was
+  first numbered 2.7, but #80 (demo book) took 2.7 on develop, so it is **2.8** (the rebase takes the next free number; the reader's Graphics switches **apply on top**
   of the content (the content cannot turn on what the reader has off). Built: `environment: { world, onionSky }` in
   `book.yaml` (`shared/types/environment.ts`, one world `cafe`), `effectiveGraphics` in the engine's `LookAround`, the
   guard and the build check it, `PUT /editor/books/{id}/environment` (draft path), an Environment block on the book page.
@@ -16,6 +16,59 @@ outcome in the line (or move it into a dated decision block).
   editor, the stage preview of the look-around pass. The café is the only world, so `surroundings` follows `world`
   through a single check in `effectiveGraphics`; a second world needs its own branch there.
 - The editor's package check (`svelte-check`) could not run here: the editor's `node_modules` is not installed.
+## 2026-10-30 – `api.registerPass` wired (#97, 1.16.1) – the pass names are open
+
+- The plugin API's `registerPass(type, spec, factory)` now reaches the engine's pass registry with the plugin as owner;
+  uninstalling the plugin unregisters its passes (`removeRegistrations` → `unregisterPassesOf`). Patch: no schema change.
+- **Open (Tilman decides, #97):** a spread or book cannot name a plugin's pass yet. The reader's guard
+  (`shared/guards/game-config.ts`, `passProblems` without `unknownTypes: "allow"`) and the build's final
+  `assertGameConfiguration` refuse it; the editor's API (`server/api/src/Books.php` `PASS_TYPES`) refuses it too.
+  The fix in `shared/` is one option each – every `shared/` change needs a schema bump and a re-lock (RULES #10).
+- Also open: `PLUGIN_API_VERSION` stays `1.1` (in `shared/types/plugins.ts`); `registerPass` is additive, so a bump
+  would be a choice, not a need.
+
+## 2026-10-30 – An MCP server over the editor's API, after SCUTOONS' model (#75)
+
+- Tilman (2026-10-29, #66): "wir brauchen eine MCP-Schnittstelle, dass wir dann beim Bauen in Amsterdam genügend schnell
+  auch mit Claude Sachen bauen können"; at this session's start: **"how it is done, do it like in scutoons. important this
+  will one day merge."** Decided (`agents/research/2026-10-30-mcp-server.md`): a package **`mcp/`** at the root (Node 22,
+  the v2 SDK `@modelcontextprotocol/server` + zod 4 like SCUTOONS' `tools/mcp`, the same file shapes: `main` / `config` /
+  `services` / `user` (their `member`) / `prompts` / `resources`), **a client of the API over HTTP with the editor's session
+  token – never a second path into the database**; `OSCT_EDITOR_TOKEN` or the pair `sign_in_request` / `sign_in_verify`
+  (the code by mail, the token kept in the process, never shown); the tools listed per role (`editor`); every entity through
+  the shared guard before it is sent; every write answers with the editor's link – **the person checks the draft on the
+  stage; `publish` refuses `production`** (SCUTOONS' MCP has no publish tool at all – whether `staging` should go too is
+  Tilman's call). The start bundles `src/` + `shared/` with esbuild (`shared/` imports without extensions and OSCT has no
+  root `package.json`, so Node's own type stripping – SCUTOONS' way – cannot run it). `.mcp.json` at the root gives every
+  Claude Code session here the server. RULES #10 / #23: `mcp/package.json` carries the one version too.
+- [ ] Open: personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
+  connects; a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
+- [x] Tilman, 2026-10-30: **"publish soll beim Menschen bleiben … so lassen wie in PR #92"** – the MCP may publish to
+  `local` and `staging` (a check), production is the editor's Publish button; the one step more than SCUTOONS is the
+  content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
+  over the MCP, he checks on the stage and clicks Publish – nothing by hand, nothing on GitHub.
+## 2026-10-30 – The demo book and the plugin API 1.1 (#80, decided alone – to review)
+
+- Tilman (2026-10-29): a sandbox book that uses everything the editor can do, with game narratives, the book API
+  (progress) and inter-spread interactions – "call it demo", on staging when done. Decided
+  (`agents/research/2026-10-30-demo-book.md`): **`fixtures/demo/`** next to the test fixture (the fixture stays the
+  tests'; `DEMO.md` marks the demo, the CLI syncs it to the environment **`demo`** only), the narrative key → door →
+  lamp + a tally + a tap that switches scenes, six plugins as the examples to copy from. **Plugin API 1.1** (the
+  smallest additions the narrative needed, the concept's shapes): `api.events` with two owners (core events are the
+  engine's, scene events the book's; one flat bus, no bubbling yet), `api.vars` with the scopes spread / stage /
+  session / book (a `get` without scope looks outward, innermost wins; `set` defaults to `spread`; the `node` scope is a
+  component's closure), `api.progress` read-only from the app (`ArSceneOptions.progress` – the reader's history behind
+  an adapter, the editor's `StageProgress`; RULES #32), `api.spread`, the context's `children`, `onUnlocked`. The
+  **book variables are persisted** in the progress record as an optional `variables` map – additive within format 1
+  like `onboarded`, so a MINOR. Content schema **2.7** (PLUGIN_API_VERSION lives in shared/, so the lock moves; 2.5 are the passes, 2.6 the light nodes).
+- **The way to staging**: no second destination, no store change – the workflow `demo.yml` builds `fixtures/demo` and
+  syncs it with the osct CLI to `<zone>/demo/`; the staging reader (a debug build) takes `?content=<base url>`; the
+  staging editor imports a content base URL. Found on the way: **a publish is per environment, not per book** – a
+  second book published to `staging` would replace the book's current version once the store is bunny → #87
+  (Proposals, decide). Until then the demo's Publish stays `local`.
+- [ ] Open: #88 (an animated GLB for the key, a tap button and editable variables in the Stage panel, the
+  `behaviour` component and declared variables, bubbling scopes, two spreads on one stage); the Entity panel's rows
+  now follow the engine's plugin load (`plugins.version` bumped when the scene runs) – a small fix found by the demo.
 
 ## 2026-10-29 (night) – Light nodes, content schema 2.6 (#71)
 

@@ -291,7 +291,7 @@ export const addEntry = (bookId: string, body: { id?: string; title: string; pag
   api<{ entry: { id: string; target: { id: string } }; spreadId: string | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
 
 /** `passes`: the spread's post-processing (schema 2.5); `null` removes the list (the book's applies), `[]` turns it off */
-/** The book's world and onion sky (content schema 2.7); `null` removes them – the default applies */
+/** The book's world and onion sky (content schema 2.8); `null` removes them – the default applies */
 export const putEnvironment = (bookId: string, environment: EnvironmentData | null) =>
   api<{ environment: EnvironmentData | null }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/environment`, { environment });
 
