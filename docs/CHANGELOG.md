@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.24.3 – 2026-10-30
+## 1.25.1 – 2026-10-30
 
 ### Changed
 - **Ready for the shared Building Fictions server** (#6): each destination's database is only on its own internal
@@ -21,6 +21,21 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   The networks are created once per server (docs/deploy.md "Setting up a server").
 - **The deploy checks the server's host key**: the GitHub environment variable `SSH_KNOWN_HOSTS` holds it, and the
   deploy stops without it – instead of trusting whatever key the server answers with at deploy time.
+
+## 1.25.0 – 2026-10-30
+
+### Added
+- **The demo book has pages** (#153): `scripts/layout/render-layout.py` draws a book's sheets from its content – white
+  paper, the spread's title in the gold gradient, the entries' text, page numbers, the covers with title and author –
+  for a book without designed PDFs. The demo's sheets are in `fixtures/demo/layout/`, so its spread cards and the stage
+  show real pages instead of blank ones.
+
+### Changed
+- **The editor's books page is split in two** (#153): the books on the left as their covers, large; the import form
+  always open on the right, its explanations in the Info view. A book shows its title, author and where it is live –
+  no more build ids and dates. A book without a layout gets a typographic cover.
+- **Spread cards show each target where it is printed**: a target's own `print` is laid over the sheet, so a print
+  moved in the editor shows on the book page at once.
 
 ## 1.24.2 – 2026-10-30
 

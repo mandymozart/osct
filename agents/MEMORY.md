@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The books page as covers, the demo's pages rendered (#153)
+
+- Tilman: "a clean dashboard with the books cover as image … bigger preview pictures, less useless info … left the
+  books, right half import". Built (1.25.0). The demo has no designed PDFs, so its sheets are **rendered from the
+  content** (`render-layout.py`, Pillow) and committed in `fixtures/demo/layout/` (~1.2 MB, small JPEGs) – unlike the
+  real book's `layout/`, which stays out of git. The rendered sheets leave the **targets out**: cards and the stage lay
+  each `print` over the sheet, so nothing goes stale when a print moves. Run the script again when the demo's spreads
+  or texts change.
+- Open: the books page fetches every book's tree for its cover's prints – fine for a few books; a cover field in
+  `GET /editor/books` when there are many.
+
 ## 2026-10-30 – Monaco in the Code tab (#76)
 
 - Tilman (#76, after the textarea on staging: "I thought we use the code completion editor?"): **Monaco**, not
