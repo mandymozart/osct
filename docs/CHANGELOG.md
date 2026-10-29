@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.20.4 – 2026-10-30
+## 1.20.7 – 2026-10-30
 
 ### Added
 - **The grade reaches the whole picture** (#136, content schema 2.9): the built-in `grade` pass has a parameter
@@ -21,6 +21,32 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   engine's camera renderer draws it with a shader of the same grade (`cameraGradeShader`). The editor's pass rows
   show a choice parameter as a segmented control (*AR layer / whole picture*). The guard ignores a pass parameter it
   does not know from now on (a newer MINOR's); the build and the API still refuse it.
+
+## 1.20.6 – 2026-10-30
+
+### Fixed
+- **The editor's panels no longer move the stage** (#131): clicks, drags and the mouse wheel in the top bar, the right panel
+  (Stage, Entity, Library, Code), the spread list on the left, the stage's toolbar and its menus orbited or zoomed the
+  3D stage. A drag or wheel now moves the stage only when it starts on the stage itself; a drag that starts there keeps
+  orbiting when the pointer leaves it. The reader is unchanged.
+
+## 1.20.5 – 2026-10-30
+
+### Fixed
+- **Wireframe and solid shading reach the stage's book and desk** (#137): the viewport's modes only changed the
+  spread's entities, so the book and the desk stayed textured. They now switch too (not the ghost, the grid or the sky),
+  everything the stage builds later gets the current mode, and the sheet and print images that arrive meanwhile go into
+  the meshes' own materials (`ownMaterial`), never into the shared grey or wire one.
+
+## 1.20.1 – 2026-10-30
+
+### Changed
+- **One top bar across the editor** (#129): the books list, a book's spreads, the spread view and the admin page
+  share one bar – a breadcrumb `Books › book › spread` to move between them, the environment and Publish while a
+  book is open, Admin, the e-mail and Sign out. In the spread view Publish moved from the foot of the panel into it,
+  and the spread's name (`p. 12–13`, `Cover`) is shown there in full instead of squeezed between the panel's buttons.
+- **A book's spreads use the full width** (#129): the grid fills the window instead of a centred column – one spread
+  per row on a phone, up to six at 1920 px; the environment box above it has the same width.
 
 ## 1.19.4 – 2026-10-30
 
