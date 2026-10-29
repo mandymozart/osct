@@ -1,3 +1,5 @@
+import { isObject } from "@shared/guards/game-config";
+
 /**
  * Audio and haptic feedback: each named event plays a short sound and a vibration.
  *
@@ -100,8 +102,8 @@ export class FeedbackService {
 
   private loadSettings(): FeedbackSettings {
     try {
-      const raw = JSON.parse(localStorage.getItem(FEEDBACK_STORAGE_KEY) ?? "null");
-      if (raw && typeof raw === "object") {
+      const raw: unknown = JSON.parse(localStorage.getItem(FEEDBACK_STORAGE_KEY) ?? "null");
+      if (isObject(raw)) {
         return {
           sound: typeof raw.sound === "boolean" ? raw.sound : DEFAULT_SETTINGS.sound,
           haptics: typeof raw.haptics === "boolean" ? raw.haptics : DEFAULT_SETTINGS.haptics,
