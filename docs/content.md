@@ -522,6 +522,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
 | 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know |
 | 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) |
+| 2.11 | 1.22.0 | in develop | the content manifest names its book (`latest.json` / `versions.json` `book`) |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
