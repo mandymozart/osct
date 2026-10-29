@@ -55,6 +55,8 @@ export interface IArScene {
   setState(state: SceneState): Promise<void>;
   /** Play the discovery animation on a found target's entity (first find = unlock) */
   celebrate(targetId: string): void;
+  /** The content changed under the current spread (the editor saved): build the spread again from it */
+  refresh(): Promise<void>;
   /**
    * Show a target's entity with these values instead of the content's (the editor's live edit) – kept across
    * spread switches until `null` restores the content

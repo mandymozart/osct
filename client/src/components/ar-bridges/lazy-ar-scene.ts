@@ -93,6 +93,10 @@ export class LazyArScene implements IArScene {
     this.scene?.celebrate(targetId);
   }
 
+  async refresh(): Promise<void> {
+    await this.scene?.refresh();
+  }
+
   overrideEntity(targetId: string, entity: EntityData | null): void {
     this.scene?.overrideEntity(targetId, entity);
   }

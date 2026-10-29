@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { getTargets } from "@engine/content/game-config";
+  import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import {
     getPreview, PREVIEW_BACKDROPS, PREVIEW_VIEWS, setTargetHidden, subscribePreview, updatePreview, type PreviewState,
@@ -22,7 +22,8 @@
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
-  const targets = $derived(getTargets(spreadId).filter(target => target.imageSrc));
+  // From the reactive content (a reload after a save or a spread switch recomputes it)
+  const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
   let fileInput = $state<HTMLInputElement>();
 
   const choosePhoto = async (file: File) => {
