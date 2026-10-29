@@ -12,6 +12,14 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.16.2 – 2026-10-29
+
+### Fixed
+- **Placement starts where the target is printed** (#101): opening "placement" on a target without a saved place moved the
+  ghost to a fixed default (right page, x 40, y 60, 80 mm wide). It now starts at the target's place in the book's layout
+  (`content/layout/`, the designed PDFs). Without a place in the layout the ghost stays where it is until the first
+  change. The label says where the place comes from: the book's layout, or "not in the book's layout" when there is none.
+
 ## 1.16.1 – 2026-10-30
 
 ### Fixed
