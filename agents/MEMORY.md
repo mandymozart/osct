@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – An MCP server over the editor's API, after SCUTOONS' model (#75)
+
+- Tilman (2026-10-29, #66): "wir brauchen eine MCP-Schnittstelle, dass wir dann beim Bauen in Amsterdam genügend schnell
+  auch mit Claude Sachen bauen können"; at this session's start: **"how it is done, do it like in scutoons. important this
+  will one day merge."** Decided (`agents/research/2026-10-30-mcp-server.md`): a package **`mcp/`** at the root (Node 22,
+  the v2 SDK `@modelcontextprotocol/server` + zod 4 like SCUTOONS' `tools/mcp`, the same file shapes: `main` / `config` /
+  `services` / `user` (their `member`) / `prompts` / `resources`), **a client of the API over HTTP with the editor's session
+  token – never a second path into the database**; `OSCT_EDITOR_TOKEN` or the pair `sign_in_request` / `sign_in_verify`
+  (the code by mail, the token kept in the process, never shown); the tools listed per role (`editor`); every entity through
+  the shared guard before it is sent; every write answers with the editor's link – **the person checks the draft on the
+  stage; `publish` refuses `production`** (SCUTOONS' MCP has no publish tool at all – whether `staging` should go too is
+  Tilman's call). The start bundles `src/` + `shared/` with esbuild (`shared/` imports without extensions and OSCT has no
+  root `package.json`, so Node's own type stripping – SCUTOONS' way – cannot run it). `.mcp.json` at the root gives every
+  Claude Code session here the server. RULES #10 / #23: `mcp/package.json` carries the one version too.
+- [ ] Open: personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
+  connects; a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
+- [ ] Open (Tilman): should `publish` to `staging` also stay with a person (then the tool publishes to `local` only)?
+
 ## 2026-10-29 (night) – Code in the editor: plugins (#66, decided alone from the concept – to review)
 
 - Tilman (on staging): own JS scripts and shaders in the editor, "wie hatte das Niantic Studio gemacht? Das war mega.
