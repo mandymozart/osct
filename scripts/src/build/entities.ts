@@ -76,6 +76,7 @@ export function buildNode(
     return null;
   }
   if (type === 'text' && typeof raw.text !== 'string') buildErrors.push(`${label}: a text node needs a text`);
+  if (raw.name !== undefined && typeof raw.name !== 'string') buildErrors.push(`${label}: name must be a string`);
   if (raw.color !== undefined && !(typeof raw.color === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color))) {
     buildErrors.push(`${label}: color must be #rrggbb`);
   }
@@ -105,6 +106,7 @@ export function buildNode(
   }
   return {
     ...(typeof raw.id === 'string' ? { id: raw.id } : {}),
+    ...(typeof raw.name === 'string' && raw.name.trim() ? { name: raw.name.trim() } : {}),
     type,
     assets,
     ...(raw.params ? { params: raw.params } : {}),

@@ -10,9 +10,12 @@
   import { fromOrigin, toOrigin } from "$lib/stage/origin";
   import { getPreview, subscribePreview } from "$lib/stage/preview";
   import {
-    addChild, addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
+    addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
     sameValue, setValue, valueRows, withNode, type ValueRow,
   } from "$lib/values";
+  import { selection } from "$lib/selection.svelte";
+  import { breadcrumb } from "$lib/selection";
+  import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "$lib/tree";
   import type { NodeTimeline } from "@engine/types";
   import ColourField from "$lib/components/ColourField.svelte";
   import Icon from "$lib/components/Icon.svelte";
@@ -25,9 +28,11 @@
    * placement (three.js names, the three axes in one row as in Blender), a text node's text and colour, a light
    * node's values, each filter's and component's parameters. Changes show live on the stage (`stage.override` with
    * the whole tree), the draft stays unchanged until **Save** writes the entity to the API (the shared entity when
-   * the target refers to one, else the target's own). **+ node** appends a child (group, model, video, image, text,
-   * light – files from the book's assets), **remove node** drops the selected node and its children. Rows come from
-   * the content contract's definitions (one `specRow` snippet draws a parameter of any kind).
+   * the target refers to one, else the target's own). **+ node** adds a node (group, model, video, image, text,
+   * light – files from the book's assets) next to the selected one or inside it (#163), **remove node** drops the
+   * selected node and its children. Rows come from the content contract's definitions (one `specRow` snippet draws a
+   * parameter of any kind). It opens at the level of the workspace's selection (#162): a selected target shows its
+   * target fields, its entity or a node that node's rows; the breadcrumb in the head steps up.
    */
   let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, onlibrary, ontargetchanged }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
@@ -78,6 +83,9 @@
 
   /** The selected node; a path the tree no longer has falls back to the root */
   const current = $derived<EntityData | null>(entity ? (nodeAt(entity, node) ?? entity) : null);
+  /** The level of the selection (#162): the target's fields, or its entity / a node of it (a target without a tree: the target) */
+  const atTarget = $derived(selection.onTarget || !entity);
+  const crumbs = $derived(target ? breadcrumb({ target: target.id, node, onTarget: atTarget }, entity ?? undefined) : []);
   $effect(() => {
     if (entity && !nodeAt(entity, node)) node = [];
   });
@@ -302,19 +310,22 @@
     if (!target || !canAdd) return;
     const chosen = assetChoices.find(a => a.src === addAsset);
     const child = newNode(addType as EntityType, chosen ? { id: `${target.id}-${Date.now().toString(36)}`, assetType: chosen.assetType, src: chosen.src } : undefined);
-    if (!entity) {
-      // The target's first node is the root
-      apply(child);
-      node = [];
-    } else {
-      const parent = nodeAt(entity, node) ? node : [];
-      const index = nodeAt(entity, parent)?.children?.length ?? 0;
-      apply(addChild(entity, parent, child));
-      node = [...parent, index];
-    }
+    // The target's first node is the root; else next to the selected node or inside it
+    const placed = addNode(entity, node, child, addPlace);
+    apply(placed.tree);
+    selection.selectNode(target.id, placed.path);
     addType = "";
     addAsset = "";
   };
+  // Where "+ node" puts the new node (#163): chosen, else the default for the selected node (next to a file node)
+  let addPlaceChosen = $state<AddPlace | null>(null);
+  const addPlace = $derived<AddPlace>(addPlaceChosen ?? defaultAddPlace(current ?? undefined));
+  const ADD_PLACE_LABELS: Record<AddPlace, string> = { next: "next to it", inside: "inside it" };
+  $effect(() => {
+    void node.join(".");
+    void target?.id;
+    untrack(() => (addPlaceChosen = null));
+  });
   const remove = () => {
     if (!entity || !target || !stage) return;
     // Through the stage (the tree's menu and the Delete key do the same): the override is the shared source
@@ -322,6 +333,16 @@
     saved = null;
   };
 </script>
+
+{#snippet actions()}
+  <div class="actions">
+    <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
+    <span class="grow"></span>
+    {#if saved}<span class="small muted">{saved}</span>{/if}
+    {#if error}<span class="small danger">{error}</span>{/if}
+    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
+  </div>
+{/snippet}
 
 {#snippet specRow(row: ValueRow, name: string)}
   <!-- A parameter of a spec (a component's, the light's) by its kind: choice, on / off, string, colour, number -->
@@ -354,14 +375,28 @@
   <p class="muted">No target on this spread.</p>
 {:else}
   <div class="head">
-    <select class="field" aria-label="Target" value={target.id} onchange={e => { selected = (e.currentTarget as HTMLSelectElement).value; node = []; }}>
-      {#each targets as t (t.id)}
-        <option value={t.id}>{stage?.found.includes(t.id) ? "◉ " : ""}{t.id}{t.entity ? ` · ${t.entity.type}` : " · no AR"}{stage?.overrideOf(t.id) ? " *" : ""}</option>
+    <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->
+    <nav class="crumbs" aria-label="Selected level">
+      {#each crumbs as crumb, i (i)}
+        {#if i}<span class="crumb-sep" aria-hidden="true">›</span>{/if}
+        {#if crumb.current}
+          <span class="crumb current" aria-current="true" title="Selected: the {crumb.level}">{crumb.label}</span>
+        {:else}
+          <button type="button" class="crumb" onclick={() => selection.set(crumb.selection)} title="Select the {crumb.level}">{crumb.label}</button>
+        {/if}
+        {#if !i}
+          <select class="crumb-switch" aria-label="Target" title="Another target on this spread" value={target.id} onchange={e => selection.selectTarget((e.currentTarget as HTMLSelectElement).value)}>
+            {#each targets as t (t.id)}
+              <option value={t.id}>{stage?.found.includes(t.id) ? "◉ " : ""}{t.id}{t.entity ? ` · ${t.entity.type}` : " · no AR"}{stage?.overrideOf(t.id) ? " *" : ""}</option>
+            {/each}
+          </select>
+        {/if}
       {/each}
-    </select>
+    </nav>
     <span class="small muted">{source}</span>
   </div>
 
+  {#if atTarget}
   <div class="section"><span class="section-label">target · {target.id}</span>
     <span class="controls">
       <button type="button" class="text-link" onclick={() => targetImageInput?.click()} title="Upload another printed image for this target">Replace image…</button>
@@ -390,12 +425,23 @@
       </span></div>
   {/if}
   {#if targetError}<p class="small danger">{targetError}</p>{/if}
+  {/if}
 
-  <div class="section"><span class="section-label">node · {pathLabel}{current ? ` · ${current.type}` : ""}</span>
+  {#if !atTarget}
+  <div class="section"><span class="section-label">{node.length ? "node" : "entity"}{current ? ` · ${current.type}` : ""}</span>
     <span class="controls">
       {#if entity}<button type="button" class="text-link" onclick={remove} title="Delete removes the selected node too">{node.length ? "remove node" : "remove entity"}</button>{/if}
     </span></div>
-  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several), else a child of the selected node."><span class="label">+ node</span>
+  {#if current}
+    <div class="row" class:changed={(draftNode?.name ?? "") !== (current.name ?? "")} data-help-name="Name" data-help="The node's name in the tree – for the people who make the book; the reader does not show it. Empty: the tree shows the node's type.">
+      <span class="label">name</span>
+      <input class="field" value={current.name ?? ""} placeholder={typeLabel(current)} spellcheck="false" aria-label="Node name"
+        oninput={e => current && applyNode(withName(current, (e.currentTarget as HTMLInputElement).value))} />
+    </div>
+  {/if}
+  {/if}
+  {#if !atTarget || !entity}
+  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several), else next to the selected node or inside it (add as)."><span class="label">+ node</span>
     <span class="controls">
       <select class="field" aria-label="New node type" value={addType} onchange={e => { addType = (e.currentTarget as HTMLSelectElement).value as EntityType | ""; addAsset = ""; }}>
         <option value="">type…</option>
@@ -407,8 +453,13 @@
           {#each assetChoices as a (a.src)}<option value={a.src}>{fileLabel(a.src)}</option>{/each}
         </select>
       {/if}
-      <button type="button" class="icon-button framed" title={entity ? "Add as a child of the selected node" : "Add as the target's root node"} aria-label="Add node" disabled={!canAdd} onclick={add}><Icon name="plus" /></button>
+      <button type="button" class="icon-button framed" title={!entity ? "Add as the target's root node" : addPlace === "next" ? "Add next to the selected node" : "Add inside the selected node"} aria-label="Add node" disabled={!canAdd} onclick={add}><Icon name="plus" /></button>
     </span></div>
+    {#if entity}
+      <div class="row" data-help-name="Add as" data-help="Where + node puts the new node: next to the selected node (the same parent, right after it) or inside it (its last child). Next to it is the default for a model, video or image, which rarely hold children; next to the root, both go into a new group."><span class="label">add as</span>
+        <span class="controls"><Segmented options={ADD_PLACES} value={addPlace} labels={ADD_PLACE_LABELS} onchange={place => (addPlaceChosen = place)} /></span></div>
+    {/if}
+  {/if}
 
   {#if !entity || !current}
     <p class="muted small">No AR content on this target yet.</p>
@@ -419,6 +470,11 @@
       {#if error}<span class="small danger">{error}</span>{/if}
       <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
     </div>
+  {:else if atTarget}
+    <!-- The target is selected: its entity is one step down -->
+    <div class="row"><span class="label">AR content</span>
+      <span class="controls"><button type="button" class="text-link" onclick={() => target && selection.selectNode(target.id, [])} title="Select the entity (its root node)">{nodeLabel(entity)}</button></span></div>
+    {@render actions()}
   {:else}
     <div class="section"><span class="section-label">placement</span></div>
     {#each ["position", "rotation", "scale"] as key (key)}
@@ -550,12 +606,23 @@
 
 <style>
   .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
-  .head .field { max-width: 60%; }
   .head .small { overflow-wrap: anywhere; }
-  /* A narrow panel (#159): the target picker takes the whole line, its source below */
+  /* The breadcrumb: the crumbs as quiet buttons, the selected level marked as in the tree; ▾ picks another target */
+  .crumbs { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0 .125rem; }
+  .crumb { max-width: 10rem; height: var(--control-height); padding: 0 .375rem; border: none; border-radius: var(--control-radius); background: none; color: var(--muted);
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  button.crumb:hover { background: var(--hover-background); color: var(--text); }
+  .crumb.current { display: inline-flex; align-items: center; background: var(--selected-background); color: var(--pressed-color); cursor: default; }
+  .crumb-sep { color: var(--muted); }
+  /* Only the select's arrow shows (its options name the targets) */
+  .crumb-switch { width: 1.25rem; height: var(--control-height); padding: 0; border: none; border-radius: var(--control-radius); color: transparent; cursor: pointer; appearance: none;
+    background: linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(50% - 2px) 55% / 4px 4px no-repeat,
+      linear-gradient(135deg, var(--muted) 50%, transparent 50%) calc(50% + 2px) 55% / 4px 4px no-repeat; }
+  .crumb-switch:hover { background-color: var(--hover-background); }
+  .crumb-switch option { color: var(--text); background: var(--surface); }
+  /* A narrow panel (#159): the source goes below the breadcrumb */
   @container panel (max-width: 20rem) {
     .head { flex-wrap: wrap; gap: 0 .5rem; }
-    .head .field { flex: 1 1 100%; max-width: 100%; }
   }
   .add .controls { flex-wrap: nowrap; }
   .add .field { min-width: 0; max-width: 7rem; }

@@ -258,6 +258,10 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
     params.scale = uniformScale && isUniform(placement.scale) ? round(placement.scale[0]) : placement.scale.map(round);
   }
   const result: EntityData = { ...entity };
+  // The name (schema 2.12) trimmed, none when empty
+  const name = entity.name?.trim();
+  if (name) result.name = name;
+  else delete result.name;
   if (Object.keys(params).length) result.params = params;
   else delete result.params;
   if (entity.components) {

@@ -169,11 +169,28 @@ is involved.
     title, page, category, the printed image from the library (or uploaded there), and where it is printed (surface,
     x / y, width in mm) – the API makes entry and target, the stage shows it at once (and the reader tracks it after
     a publish: the engine makes the image-target data from the image at runtime); the target row's right-click
-    menu has **Remove target** (entry and target go). ↑ ↓ walk the targets, ← → fold and unfold, Enter selects, **Delete** (or Backspace)
+    menu has **Remove target** (entry and target go). **Delete** (or Backspace)
     removes the selected node – its children with it, the root leaves the target without AR content – and a
-    **right click** on a node row opens the menu with *Remove node* / *Remove entity*. Removing is live on the stage;
+    **right click** on a node row opens the menu with *Move up / down*, *Into the node above*, *Out of its parent*
+    and *Remove node* / *Remove entity*. Removing is live on the stage;
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device).
+  - **Selection** (#162) – one selection for the tree, the stage and the Entity panel
+    (`editor/src/lib/selection.svelte.ts`, the rules in `selection.ts`): a **target** (a tap on its row or its entry's,
+    a pick of its printed image), its **entity** (the root node) or a **node**; selecting in one selects in the
+    others. The tree highlights the selected row over its whole width (its own grey and a bar at its start), the
+    rows above a selected node lighter, the hovered row lighter still; the stage outlines a selected target's print
+    and puts the gizmo on a selected entity or node; the Entity panel opens at that level (below). Keys in the tree:
+    ↑ ↓ walk every row, ← → fold and unfold (← on a folded or childless node steps up a level), Enter opens the
+    Entity panel.
+  - **Hierarchy** (#163) – a node row is **dragged** onto another row of the same entity (it becomes that node's last
+    child; the row shows a frame) or between two rows (a sibling there, the order set; a line shows where) – a mouse
+    drags the whole row, a finger the row's type icon. **Alt + ↑ ↓** move the selected node among its siblings,
+    **Tab / Shift + Tab** indent it (into the node above) and outdent it (right after its parent). A node placed
+    next to the root wraps the root in a new group, so both are siblings under the target. Only parent and order
+    change: a moved node keeps its placement values, now relative to its new parent. Live on the stage, Save writes
+    it (`editor/src/lib/tree.ts`). Every row shows the node's **name** (content schema 2.12, the Entity panel's
+    *name* row) and its type as the icon; without a name the type.
   - **Column edges** – the tree's right edge and the panel's left edge are dragged to resize the columns (#144; the
     panel 16rem to 70% of the window, the tree 10rem to 40%, the stage keeps at least 16rem, so a 768 px tablet in
     portrait still shows a stage; a focused edge also moves with ← →; with a finger (`pointer: coarse`) the edge's hit
@@ -212,8 +229,8 @@ is involved.
     **reach** row (*AR layer / whole picture*) keeps it on the AR layer (it gets the layer's coverage as a mask) or
     grades the desk too, as the reader grades the camera picture.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
-    through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
-    a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
+    through everything, in the object's own space – a video plane outlines as a plane), a selected target the same
+    orange around its printed image, the entity under the pointer a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
     side: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
     materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
     icons only, every button's label is its tooltip. The stage and the gizmo keep their own look.
@@ -267,13 +284,16 @@ is involved.
     plugins' own), newest first – the narrative of a book like the demo ([plugins](plugins.md) "Across nodes and
     pages") is driven from the tree's eyes and read here; **reset** starts a new game (every variable cleared, nothing
     unlocked, the spread found anew).
-  - **Entity** – first the **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
+  - **Entity** – opens at the selected level (#162): its head is the **breadcrumb** *target › entity › group › node*
+    (a crumb selects that level, ▾ after the target picks another target of the spread). A selected target shows the
+    **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;
     **Save placement** writes it; until then a target made in the editor lies where its form put it, an imported one
-    where the book's layout says). Then the selected **node** of its entity (the head says `node · root › 1 › 0 ·
-    model`), its **file** (name; **Upload…** or **Library…**),
+    where the book's layout says), and its AR content as a link one level down. A selected entity or node shows
+    that **node**: its **name** (empty = the tree shows the type), its **file** (name; **Upload…** or **Library…**),
     **+ node** (type – group, model, video, image, text or light – and for model / video / image a file from the
-    book's assets – appended as a child of the selected node, or as the root of a target without AR content),
+    book's assets – the root of a target without AR content, else placed by **add as**: *next to it* (the same parent,
+    right after the selected node – the default for a model, video or image) or *inside it* (its last child)),
     **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
     text and colour, a light node's **light** rows (kind as a segmented group, colour, intensity, distance and decay
     for a point or spot, angle and penumbra for a spot), and every filter parameter of the

@@ -11,7 +11,7 @@ import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type Pas
 import { nodeAt, removeNode, withNode } from "$lib/values";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
 import { LightHelpers } from "./light-helper";
-import { applyShading } from "./shading";
+import { applyShading, outline, SELECTION_COLOR, type Outline } from "./shading";
 import { getPreview, subscribePreview, type ShadingMode } from "./preview";
 import { MockStage } from "./mock-stage";
 import { MockTracker } from "./mock-tracker";
@@ -318,6 +318,8 @@ export class Stage {
       });
     });
     this.lightHelpers.selection = this.visibleSelection();
+    // The selected target's outline follows its print (the layout builds the prints anew)
+    this.cleanups.push(inspection.onFrame(() => this.syncTargetOutline()));
   }
 
   /** A model node's timeline (the animation component), null for other nodes */
@@ -331,6 +333,28 @@ export class Stage {
     this.ensureGizmo();
     this.gizmo?.select(this.visibleSelection());
     if (this.lightHelpers) this.lightHelpers.selection = this.visibleSelection();
+  }
+
+  /**
+   * The selected target (#162): its printed image wears the selection's outline, as a selected node does; null =
+   * none (a node is selected, or nothing). The gizmo stays with `selectNode`.
+   */
+  selectTarget(targetId: string | null): void {
+    this.outlinedTarget = targetId;
+    this.ensureGizmo();
+    this.syncTargetOutline();
+  }
+
+  private outlinedTarget: string | null = null;
+  private targetOutline: { plane: Object3D; outline: Outline } | null = null;
+
+  /** Outline the selected target's print – again when the layout built it anew */
+  private syncTargetOutline(): void {
+    const id = this.outlinedTarget;
+    const plane = id ? (this.tracker?.printedPlanes().find(p => p.userData.targetId === id) ?? null) : null;
+    if (plane === (this.targetOutline?.plane ?? null)) return;
+    this.targetOutline?.outline.remove();
+    this.targetOutline = plane ? { plane, outline: outline(plane, SELECTION_COLOR) } : null;
   }
 
   setGizmoMode(mode: GizmoMode): void {
@@ -353,6 +377,15 @@ export class Stage {
     const override = this.overrides.get(targetId);
     if (override === Stage.REMOVED) return undefined;
     return override ?? getTarget(targetId)?.entity;
+  }
+
+  /** Change a target's tree (live; Save writes it): the tree's moves, indent, outdent (#163) */
+  editTree(targetId: string, edit: (tree: EntityData) => EntityData | null): boolean {
+    const base = this.treeOf(targetId);
+    const next = base ? edit(base) : null;
+    if (!next) return false;
+    this.override(targetId, next);
+    return true;
   }
 
   /**
@@ -499,6 +532,8 @@ export class Stage {
   async dispose(): Promise<void> {
     window.clearTimeout(this.replayTimer);
     this.gizmo?.dispose();
+    this.targetOutline?.outline.remove();
+    this.targetOutline = null;
     this.gizmo = null;
     this.lightHelpers?.dispose();
     this.lightHelpers = null;

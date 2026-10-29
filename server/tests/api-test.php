@@ -586,6 +586,15 @@ try {
     $bad['children'][1]['color'] = 'gold';
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $bad, $editor);
     check($status === 400 && str_contains($data['error']['message'] ?? '', 'children[1].color'), 'a bad child → 400 with its path');
+    // Content schema 2.12: every node may carry a name (the editor's tree shows it)
+    $named = $tree;
+    $named['name'] = 'Castle and title';
+    $named['children'][1]['name'] = 'Title';
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $named, $editor);
+    check($status === 200 && $data['entity']['name'] === 'Castle and title' && $data['entity']['children'][1]['name'] === 'Title', 'PUT entity with node names → kept');
+    $named['children'][0]['name'] = 7;
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $named, $editor);
+    check($status === 400 && str_contains($data['error']['message'] ?? '', 'children[0].name'), 'a name that is no string → 400 with its path');
     $deep = ['type' => 'group', 'assets' => []];
     for ($i = 0; $i < 9; $i++) $deep = ['type' => 'group', 'assets' => [], 'children' => [$deep]];
     [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $deep, $editor);
