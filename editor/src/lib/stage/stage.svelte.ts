@@ -1,5 +1,8 @@
 import { SvelteMap } from "svelte/reactivity";
 import { base } from "$app/paths";
+import { Object3D, Raycaster, Vector2 } from "three";
+import { entityNodes } from "@engine/content/game-config";
+import { onAppUi } from "@engine/scene/ui";
 import { ArScene } from "@engine/scene";
 import { getTarget, getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type IArScene } from "@engine/types";
@@ -18,6 +21,16 @@ const REPLAY_GAP_MS = 900;
  * found for the first time (the unlock animation plays once per target, *replay* plays it again). The reader's
  * store does none of this here: the editor owns its state.
  */
+export type PickMode = "entity" | "node" | "target";
+
+/** What a click on the stage hit: a target (its printed image, or its entity's node at `path`) */
+export interface StagePick {
+  targetId: string;
+  path: number[];
+  /** The printed image was hit, not an entity */
+  printed?: boolean;
+}
+
 export class Stage {
   /**
    * The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Entity panel
@@ -30,8 +43,12 @@ export class Stage {
   spreadId = $state<string | null>(null);
   /** Targets the tracker reports found right now */
   found = $state<string[]>([]);
-  /** A tap on an entity on the stage (the Entity panel selects it) */
-  onTap: ((targetId: string) => void) | null = null;
+  /** A tap on the stage picked something (the Entity panel selects it) – or nothing (null) */
+  onPick: ((hit: StagePick | null) => void) | null = null;
+  /** A right click on the stage: what lies there (null = the page or the table) and where */
+  onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
+  /** What a click picks (Blender's select mode): the entity (its root), the node under the pointer, or the printed target */
+  pickMode = $state<PickMode>("entity");
 
   private scene: IArScene;
   private tracker: MockTracker | null = null;
@@ -75,11 +92,65 @@ export class Stage {
       scene.on("targetLost", id => {
         this.found = this.found.filter(found => found !== id);
       }),
-      scene.on("targetTapped", id => {
-        // The click that ends a gizmo drag is no tap
-        if (!this.gizmo?.recentlyDragged()) this.onTap?.(id);
-      }),
     );
+    // Picking is the editor's own: a click (not the one that ends a gizmo drag; the tracker swallows an orbit's)
+    // picks by the mode, a right click asks for the menu
+    const onClick = (event: MouseEvent) => {
+      if (onAppUi(event) || this.gizmo?.recentlyDragged() || !container.contains(event.target as Node)) return;
+      this.onPick?.(this.pick(event.clientX, event.clientY));
+    };
+    const onContext = (event: MouseEvent) => {
+      if (onAppUi(event) || !container.contains(event.target as Node)) return;
+      event.preventDefault();
+      this.onContextMenu?.(this.pick(event.clientX, event.clientY), event.clientX, event.clientY);
+    };
+    container.addEventListener("click", onClick);
+    container.addEventListener("contextmenu", onContext);
+    this.cleanups.push(() => container.removeEventListener("click", onClick), () => container.removeEventListener("contextmenu", onContext));
+    this.container = container;
+  }
+
+  private container: HTMLElement;
+  private raycaster = new Raycaster();
+
+  /** What lies under a point of the stage (client px) by the pick mode, null for the page or the table */
+  pick(clientX: number, clientY: number): StagePick | null {
+    const inspection = this.scene.inspect();
+    const spread = this.spreadId;
+    if (!inspection || !spread) return null;
+    const rect = this.container.getBoundingClientRect();
+    const point = new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(point, inspection.camera);
+    // The entities' nodes: every placement group by its object, for the climb from a hit mesh
+    const byObject = new Map<Object3D, StagePick>();
+    const roots: Object3D[] = [];
+    if (this.pickMode !== "target") {
+      for (const target of getTargets(spread)) {
+        const tree = this.treeOf(target.id);
+        if (!tree) continue;
+        for (const { path } of entityNodes(tree)) {
+          const object = inspection.nodeObject(target.id, path);
+          if (object) byObject.set(object, { targetId: target.id, path });
+          if (object && !path.length) roots.push(object);
+        }
+      }
+      const hit = this.raycaster.intersectObjects(roots, true).find(h => h.object.visible);
+      if (hit) {
+        for (let object: Object3D | null = hit.object; object; object = object.parent) {
+          const pick = byObject.get(object);
+          if (pick) return this.pickMode === "node" ? pick : { targetId: pick.targetId, path: [] };
+        }
+      }
+    }
+    // The printed images: the target itself
+    const planes = this.tracker?.printedPlanes() ?? [];
+    const printed = this.raycaster.intersectObjects(planes, false)[0];
+    const targetId = printed?.object.userData.targetId as string | undefined;
+    return targetId ? { targetId, path: [], printed: true } : null;
+  }
+
+  setPickMode(mode: PickMode): void {
+    this.pickMode = mode;
   }
 
   /** Show a spread on the stage (the scene runs as soon as it is asked to) */
@@ -167,6 +238,11 @@ export class Stage {
   /** The colour under a point of the stage (CSS px from the container's top left), `#rrggbb` or null */
   sampleColor(x: number, y: number): string | null {
     return this.scene.sampleColor(x, y);
+  }
+
+  /** Show where a target would be printed (a translucent image on the page); null = none */
+  ghost(target: { imageSrc: string; surface: "left" | "right"; x: number; y: number; width: number; height?: number } | null): void {
+    this.tracker?.setGhost(target ? { id: "ghost", imageSrc: target.imageSrc, surface: target.surface, x: target.x, y: target.y, width: target.width, height: target.height ?? target.width * 0.75 } : null);
   }
 
   /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */

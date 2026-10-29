@@ -62,6 +62,10 @@ export class MockStage implements StageView {
   private loader = new TextureLoader();
   private layoutRun = 0;
   private desk: { map: Texture; roughnessMap: Texture } | null = null;
+  /** The page format of the last layout (the ghost is placed on it) */
+  private page: PageFormat = { width: 230, height: 320 };
+  private ghostGroup = new Group();
+  private ghostTextures = new Map<string, Texture>();
   private hdris = new Map<string, Texture>();
   private wantedHdri: string | null = null;
   /** The sky: the HDRI on a sphere inside the stage's group, so it turns with the stage by construction */
@@ -75,7 +79,8 @@ export class MockStage implements StageView {
     this.group.matrixAutoUpdate = false;
     this.table = new Mesh(new PlaneGeometry(TABLE_WIDTH, TABLE_DEPTH), new MeshStandardMaterial({ color: DESK_TINT, roughness: 0.5 }));
     this.table.position.z = -BLOCK_MIN - COVER_THICKNESS - 6 * LAYER;
-    this.group.add(this.table, this.book, this.pages);
+    this.ghostGroup.name = "mock-ghost";
+    this.group.add(this.table, this.book, this.pages, this.ghostGroup);
     scene.add(this.group);
   }
 
@@ -86,6 +91,7 @@ export class MockStage implements StageView {
     this.textures.forEach(texture => texture.dispose());
     this.textures = [];
 
+    this.page = page;
     const w = page.width / 1000;
     const h = page.height / 1000;
     // The open book: two blocks of paper (half the sheets each) on a cover board that overhangs the pages, the
@@ -135,6 +141,7 @@ export class MockStage implements StageView {
 
     targets.forEach(target => {
       const plane = new Mesh(new PlaneGeometry(target.width / 1000, target.height / 1000), new MeshBasicMaterial({ color: 0xffffff }));
+      plane.userData.targetId = target.id;
       const pageLeft = target.surface === "left" ? -page.width : 0;
       // One layer under the target's own plane: the entities sit at z = 0 of the target, the print just below
       plane.position.set(
@@ -205,6 +212,44 @@ export class MockStage implements StageView {
     }, undefined, error => console.warn(`[mock-stage] HDRI "${id}" could not be loaded:`, error));
   }
 
+  /** The printed images on the page (each knows its `userData.targetId`) – for picking a target by its print */
+  printedPlanes(): Mesh[] {
+    return this.pages.children.filter((child): child is Mesh => child instanceof Mesh);
+  }
+
+  /** A translucent print of `ghost` where it would lie (above the print, below the entities) */
+  setGhost(ghost: StageTarget | null): void {
+    this.clear(this.ghostGroup);
+    if (!ghost) return;
+    const page = this.page;
+    const material = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false });
+    const height = ghost.height || ghost.width * 0.75;
+    const plane = new Mesh(new PlaneGeometry(ghost.width / 1000, height / 1000), material);
+    const pageLeft = ghost.surface === "left" ? -page.width : 0;
+    plane.position.set((pageLeft + ghost.x + ghost.width / 2) / 1000, (page.height / 2 - ghost.y - height / 2) / 1000, -LAYER / 2);
+    this.ghostGroup.add(plane);
+    const apply = (texture: Texture) => {
+      if (!plane.parent) return;
+      const aspect = texture.image.height / texture.image.width;
+      plane.geometry.dispose();
+      plane.geometry = new PlaneGeometry(ghost.width / 1000, (ghost.width * aspect) / 1000);
+      plane.position.y = (page.height / 2 - ghost.y - (ghost.width * aspect) / 2) / 1000;
+      material.map = texture;
+      material.needsUpdate = true;
+    };
+    const cached = this.ghostTextures.get(ghost.imageSrc);
+    if (cached) {
+      apply(cached);
+      return;
+    }
+    this.loader.setCrossOrigin("anonymous");
+    this.loader.load(ghost.imageSrc, texture => {
+      texture.colorSpace = SRGBColorSpace;
+      this.ghostTextures.set(ghost.imageSrc, texture);
+      apply(texture);
+    });
+  }
+
   private applyHdri(texture: Texture): void {
     const exposure = HDRI_EXPOSURE[this.wantedHdri ?? ""] ?? HDRI_EXPOSURE_DEFAULT;
     // The light: the equirectangular map as the scene's environment (its direction does not follow the orbit – the
@@ -270,6 +315,9 @@ export class MockStage implements StageView {
     this.layoutRun++;
     this.clear(this.book);
     this.clear(this.pages);
+    this.clear(this.ghostGroup);
+    this.ghostTextures.forEach(texture => texture.dispose());
+    this.ghostTextures.clear();
     this.table.geometry.dispose();
     this.table.material.dispose();
     this.textures.forEach(texture => texture.dispose());

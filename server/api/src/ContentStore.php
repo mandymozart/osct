@@ -19,6 +19,8 @@ final class ContentStore
 
     /** The files below an environment that the local store serves (nothing else, no other folders) */
     private const SERVED = '#^(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files)\.json)$#';
+    /** The assets' files (Assets.php): `<book>/<asset>/v<n>.<ext>` under the `assets` environment */
+    private const SERVED_ASSET = '#^[a-z0-9][a-z0-9-]{0,63}/[0-9a-f-]{36}/v\d+\.([a-z0-9]{2,5})$#';
 
     private function __construct(private readonly string $kind, private readonly string $env)
     {
@@ -35,10 +37,10 @@ final class ContentStore
     }
 
     /** Writes a file below the environment (folders are created; a write is complete or absent, never half) */
-    public function put(string $path, string $data): void
+    public function put(string $path, string $data, string $mime = 'application/json'): void
     {
         if ($this->kind === 'bunny') {
-            $this->request('PUT', $path, $data, [201]);
+            $this->request('PUT', $path, $data, [201], [], $mime);
             return;
         }
         $file = self::dir() . "/{$this->env}/$path";
@@ -64,6 +66,17 @@ final class ContentStore
         return is_file($file) ? (string) file_get_contents($file) : null;
     }
 
+    /** Removes a file below the environment (none = fine) */
+    public function delete(string $path): void
+    {
+        if ($this->kind === 'bunny') {
+            $this->request('DELETE', $path, null, [200, 404]);
+            return;
+        }
+        $file = self::dir() . "/{$this->env}/$path";
+        if (is_file($file)) @unlink($file);
+    }
+
     public function exists(string $path): bool
     {
         if ($this->kind === 'bunny') {
@@ -80,12 +93,16 @@ final class ContentStore
      */
     public static function serve(string $env, string $path): never
     {
-        if (!preg_match(self::SERVED, $path)) throw new ApiError(404, 'not-found', 'Unknown endpoint.');
+        $asset = $env === Assets::STORE_ENV && preg_match(self::SERVED_ASSET, $path, $match) ? strtolower($match[1]) : null;
+        if ($asset === null && !preg_match(self::SERVED, $path)) throw new ApiError(404, 'not-found', 'Unknown endpoint.');
         $file = self::dir() . "/$env/$path";
         if (!is_file($file)) throw new ApiError(404, 'not-found', 'No such content file.');
         http_response_code(200);
-        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Type: ' . ($asset !== null ? (Assets::MIMES[$asset] ?? 'application/octet-stream') : 'application/json; charset=utf-8'));
         header('Cache-Control: ' . (str_contains($path, '/') ? 'public, max-age=31536000, immutable' : 'no-cache'));
+        header('Content-Length: ' . (string) filesize($file));
+        // Media are loaded cross-origin by the reader's engine (video textures, models): any origin may read them
+        if ($asset !== null) header('Access-Control-Allow-Origin: *');
         readfile($file);
         exit;
     }
@@ -139,12 +156,12 @@ final class ContentStore
      * @param string[] $headers
      * @return array{0: int, 1: string}
      */
-    private function request(string $method, string $path, ?string $body, array $ok, array $headers = []): array
+    private function request(string $method, string $path, ?string $body, array $ok, array $headers = [], string $mime = 'application/json'): array
     {
         $url = $this->url($path);
         $headers[] = 'AccessKey: ' . Config::get('BUNNY_STORAGE_PASSWORD');
         if ($body !== null) {
-            $headers[] = 'Content-Type: application/json';
+            $headers[] = "Content-Type: $mime";
             $headers[] = 'Checksum: ' . strtoupper(hash('sha256', $body));
         }
         $context = stream_context_create(['http' => [

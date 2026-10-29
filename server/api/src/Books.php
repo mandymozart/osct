@@ -165,29 +165,124 @@ final class Books
         self::book($bookId);
         $body = Editor::body();
         $params = ['book' => $bookId, 'id' => $targetId];
-        $row = Db::one('SELECT data_json FROM targets WHERE book_id = :book AND id = :id', $params);
+        $row = Db::one('SELECT data_json, entity_ref FROM targets WHERE book_id = :book AND id = :id', $params);
         if (!$row) throw new ApiError(404, 'not-found', 'No such target.');
         $target = Editor::decode($row['data_json']);
-        $ref = null;
+        $ref = $row['entity_ref'];
+        $touched = false;
         if (property_exists($body, 'ref')) {
             $ref = Editor::id($body->ref, 'ref');
             if (Db::value('SELECT ref FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]) === null) {
                 throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this book.");
             }
             $target->entity = (object) ['ref' => $ref];
+            $touched = true;
         } elseif (property_exists($body, 'entity')) {
+            $ref = null;
             if ($body->entity === null) unset($target->entity);
             else $target->entity = Editor::entity($body->entity);
-        } else {
-            throw new ApiError(400, 'invalid-entity', 'Send { entity } or { ref }.');
+            $touched = true;
         }
+        // The printed image and where it is printed (docs/server.md "Targets")
+        if (property_exists($body, 'imageSrc')) {
+            if (!is_string($body->imageSrc) || $body->imageSrc === '') throw new ApiError(400, 'invalid-target', 'imageSrc must be a non-empty string.');
+            $target->imageSrc = $body->imageSrc;
+            $touched = true;
+        }
+        if (property_exists($body, 'print')) {
+            if ($body->print === null) unset($target->print);
+            else $target->print = Editor::print($body->print);
+            $touched = true;
+        }
+        if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc } or { print }.');
         $json = Editor::encode($target);
-        Db::transaction(function () use ($bookId, $targetId, $params, $ref, $json, $row, $user) {
-            Db::run('UPDATE targets SET entity_ref = :ref, data_json = :data WHERE book_id = :book AND id = :id', $params + ['ref' => $ref, 'data' => $json]);
+        Db::transaction(function () use ($bookId, $targetId, $params, $ref, $json, $row, $user, $target) {
+            Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE book_id = :book AND id = :id', $params + ['ref' => $ref, 'image' => $target->imageSrc, 'data' => $json]);
             self::touch($bookId);
             self::change($bookId, $user, 'target', $targetId, $row['data_json'], $json);
         });
         Http::json(200, ['target' => $target]);
+    }
+
+    /**
+     * POST /editor/books/{id}/entries { id?, category, title, page, body?, target: { id?, imageSrc, print?, entity? } }
+     * → 201 { entry, target }: a new entry on the spread its page belongs to, with its target (made in the editor –
+     * docs/server.md "Targets"). 400 `invalid-entry`, 409 `duplicate-id`.
+     */
+    public static function addEntry(string $bookId): never
+    {
+        $user = Editor::user();
+        self::book($bookId);
+        $body = Editor::body();
+        $title = $body->title ?? null;
+        $page = $body->page ?? null;
+        $category = $body->category ?? 'glossary';
+        if (!is_string($title) || trim($title) === '') throw new ApiError(400, 'invalid-entry', 'title must be a non-empty string.');
+        if (!is_int($page) && !(is_float($page) && floor($page) === $page)) throw new ApiError(400, 'invalid-entry', 'page must be a whole number.');
+        if (!is_string($category) || !in_array($category, Editor::ENTRY_CATEGORIES, true)) throw new ApiError(400, 'invalid-entry', 'category must be one of ' . implode(', ', Editor::ENTRY_CATEGORIES) . '.');
+        $page = (int) $page;
+        $id = Editor::id($body->id ?? self::slug($title, $page), 'id');
+        if (Db::one('SELECT id FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $id])) throw new ApiError(409, 'duplicate-id', "An entry \"$id\" exists.");
+        $targetIn = $body->target ?? null;
+        if (!$targetIn instanceof stdClass || !is_string($targetIn->imageSrc ?? null) || $targetIn->imageSrc === '') throw new ApiError(400, 'invalid-entry', 'target.imageSrc is needed.');
+        $targetId = Editor::id($targetIn->id ?? $id, 'target.id');
+        if (Db::one('SELECT id FROM targets WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $targetId])) throw new ApiError(409, 'duplicate-id', "A target \"$targetId\" exists.");
+        $target = (object) ['id' => $targetId, 'imageSrc' => $targetIn->imageSrc];
+        if (isset($targetIn->print)) $target->print = Editor::print($targetIn->print);
+        $ref = null;
+        if (isset($targetIn->entity)) {
+            if ($targetIn->entity instanceof stdClass && property_exists($targetIn->entity, 'ref')) {
+                $ref = Editor::id($targetIn->entity->ref, 'target.entity.ref');
+                if (Db::value('SELECT ref FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]) === null) throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this book.");
+                $target->entity = (object) ['ref' => $ref];
+            } else {
+                $target->entity = Editor::entity($targetIn->entity, 'target.entity');
+            }
+        }
+        $spreadId = Db::value('SELECT id FROM spreads WHERE book_id = :book AND first_page <= :page AND last_page >= :page ORDER BY position LIMIT 1', ['book' => $bookId, 'page' => $page]);
+        $entry = (object) ['id' => $id, 'category' => $category, 'title' => trim($title), 'page' => $page, 'body' => is_string($body->body ?? null) ? $body->body : '', 'tags' => []];
+        $position = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM entries WHERE book_id = :book', ['book' => $bookId]);
+        $entryJson = Editor::encode($entry);
+        $targetJson = Editor::encode($target);
+        Db::transaction(function () use ($bookId, $id, $spreadId, $position, $category, $entry, $page, $entryJson, $targetId, $target, $ref, $targetJson, $user) {
+            Db::run('INSERT INTO entries (book_id, id, spread_id, position, category, title, page, data_json) VALUES (:book, :id, :spread, :position, :category, :title, :page, :data)',
+                ['book' => $bookId, 'id' => $id, 'spread' => $spreadId, 'position' => $position, 'category' => $category, 'title' => $entry->title, 'page' => $page, 'data' => $entryJson]);
+            Db::run('INSERT INTO targets (book_id, id, entry_id, image_src, entity_ref, data_json) VALUES (:book, :id, :entry, :image, :ref, :data)',
+                ['book' => $bookId, 'id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => $ref, 'data' => $targetJson]);
+            self::touch($bookId);
+            self::change($bookId, $user, 'entry', $id, null, $entryJson);
+            self::change($bookId, $user, 'target', $targetId, null, $targetJson);
+        });
+        $entry->target = $target;
+        Http::json(201, ['entry' => $entry, 'spreadId' => $spreadId]);
+    }
+
+    /** DELETE /editor/books/{id}/entries/{entryId} → 204: the entry and its target go (changes recorded) */
+    public static function deleteEntry(string $bookId, string $entryId): never
+    {
+        $user = Editor::user();
+        self::book($bookId);
+        $entry = Db::one('SELECT data_json FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
+        if (!$entry) throw new ApiError(404, 'not-found', 'No such entry.');
+        $targets = Db::run('SELECT id, data_json FROM targets WHERE book_id = :book AND entry_id = :entry', ['book' => $bookId, 'entry' => $entryId])->fetchAll();
+        Db::transaction(function () use ($bookId, $entryId, $entry, $targets, $user) {
+            foreach ($targets as $target) {
+                Db::run('DELETE FROM targets WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $target['id']]);
+                self::change($bookId, $user, 'target', $target['id'], $target['data_json'], 'null');
+            }
+            Db::run('DELETE FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
+            self::touch($bookId);
+            self::change($bookId, $user, 'entry', $entryId, $entry['data_json'], 'null');
+        });
+        http_response_code(204);
+        exit;
+    }
+
+    /** An id from a title and a page: `p102-shadows` – lower case, letters, digits and dashes */
+    private static function slug(string $title, int $page): string
+    {
+        $words = strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '-', iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $title) ?: $title), '-'));
+        return 'p' . $page . '-' . (substr($words, 0, 40) ?: 'target');
     }
 
     /**
@@ -265,6 +360,22 @@ final class Books
         $row = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such book – import a configuration first.');
         return $row;
+    }
+
+    /** 404 unless the book exists (Assets) */
+    public static function exists(string $bookId): void
+    {
+        self::book($bookId);
+    }
+
+    public static function touchBook(string $bookId): void
+    {
+        self::touch($bookId);
+    }
+
+    public static function recordChange(string $bookId, array $user, string $kind, string $ref, ?string $before, string $after): void
+    {
+        self::change($bookId, $user, $kind, $ref, $before, $after);
     }
 
     /**

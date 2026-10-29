@@ -60,6 +60,16 @@ function call(string $base, string $method, string $path, ?array $body = null, ?
     return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
 }
 
+/** A file upload: the bytes as the body, the name in X-File-Name */
+function upload(string $base, string $method, string $path, string $bytes, string $name, string $token): array
+{
+    $headers = ['Origin: http://localhost:5173', 'Content-Type: application/octet-stream', "X-File-Name: $name", "Authorization: Bearer $token"];
+    $context = stream_context_create(['http' => ['method' => $method, 'header' => implode("\r\n", $headers), 'ignore_errors' => true, 'content' => $bytes]]);
+    $response = file_get_contents($base . $path, false, $context);
+    $status = (int) explode(' ', $http_response_header[0])[1];
+    return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
+}
+
 function lastMail(string $log): array
 {
     $mails = explode('=== ', (string) @file_get_contents($log));
@@ -412,6 +422,73 @@ try {
     check($status === 400, 'nodes deeper than 8 levels → 400');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     check($status === 200 && !isset($data['entity']['children']), 'back to one node');
+
+    echo "editor: assets\n";
+    // A 1×1 PNG and a tiny glb-like file (the API checks the type by the name, not the bytes)
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'Dot.png', $editor);
+    $asset = $data['asset'] ?? null;
+    check($status === 201 && $asset && $asset['kind'] === 'image' && $asset['width'] === 1 && $asset['height'] === 1 && $asset['version'] === 1 && str_ends_with($asset['url'], '/v1.png'), 'upload → 201 image asset with its size');
+    check(str_starts_with($asset['url'], "$api/content/assets/osct/"), 'the local store\'s URL is this API\'s content route');
+    [$status, $same] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'again.png', $editor);
+    check($status === 200 && $same['asset']['id'] === $asset['id'], 'the same bytes again → the same asset');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', 'not a model', 'thing.exe', $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-file', 'an unsupported type → 400 invalid-file');
+    [$status] = upload($api, 'POST', '/editor/books/osct/assets', '', 'empty.png', $editor);
+    check($status === 400, 'an empty file → 400');
+    $file = file_get_contents($asset['url']);
+    check($file === $png, 'the file is served by the content route');
+    check(in_array('Content-Type: image/png', $http_response_header, true) && in_array('Access-Control-Allow-Origin: *', $http_response_header, true), 'with its type and open CORS');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    check($status === 200 && count($data['assets']) === 1 && $data['assets'][0]['usages'] === 0, 'the list: one asset, unused');
+    // Used by a node: the usages know, delete refuses, replace relinks
+    $image = ['type' => 'image', 'assets' => [['id' => 'castle-img', 'assetType' => 'image', 'src' => $asset['url']]]];
+    [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $image, $editor);
+    check($status === 200, 'a node takes the asset\'s URL');
+    [$status, $data] = call($api, 'GET', "/editor/books/osct/assets/{$asset['id']}/usages", null, $editor);
+    check($status === 200 && $data['usages'] === [['kind' => 'entity', 'ref' => 'castle']], 'usages: the entity');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$asset['id']}", null, $editor);
+    check($status === 409 && $data['error']['code'] === 'asset-in-use' && $data['error']['usages'][0]['ref'] === 'castle', 'delete while used → 409 with the usages');
+    $png2 = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR42mNk+M9Qz4AEGHEJAAB3AgT/0hQgCwAAAABJRU5ErkJggg==');
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$asset['id']}/file", $png2, 'dot2.png', $editor);
+    check($status === 200 && $data['asset']['version'] === 2 && str_ends_with($data['asset']['url'], '/v2.png') && $data['relinked'] === 1, 'replace → version 2 at a new path, one row relinked');
+    $v2 = $data['asset']['url'];
+    [, $data] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($data['entities']['castle']['assets'][0]['src'] === $v2, 'the node names the new version');
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$asset['id']}/file", 'glb bytes', 'tree.glb', $editor);
+    check($status === 400, 'a replace of another kind → 400');
+    [$status] = call($api, 'DELETE', "/editor/books/osct/assets/{$asset['id']}?force=1", null, $editor);
+    check($status === 204, 'forced delete → 204');
+    [$status] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    check($data['assets'] === [], 'gone from the list');
+    $gone = @file_get_contents($v2);
+    check($gone === false, 'and from the store');
+
+    echo "editor: targets and entries\n";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v2.jpg', 'print' => ['surface' => 'right', 'x' => 20, 'y' => 30, 'width' => 80]], $editor);
+    check($status === 200 && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg' && $data['target']['print']['width'] == 80, 'PUT target: image and print placement');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['print' => ['surface' => 'top', 'x' => 1, 'y' => 1, 'width' => 1]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-target', 'a bad surface → 400 invalid-target');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    $racoonEntry = $tree['spreads'][0]['entries'][0];
+    check($racoonEntry['target']['print']['surface'] === 'right', 'the tree carries the print placement');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'page' => 1, 'target' => ['imageSrc' => 'https://cdn.example/shadows.jpg', 'print' => ['surface' => 'left', 'x' => 10, 'y' => 10, 'width' => 60]]], $editor);
+    check($status === 201 && $data['entry']['id'] === 'p1-shadows-light' && $data['entry']['target']['id'] === 'p1-shadows-light' && $data['spreadId'] === $tree['spreads'][0]['id'], 'POST entry → 201 with a slug id, on the page\'s spread');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'page' => 1, 'target' => ['imageSrc' => 'x.jpg']], $editor);
+    check($status === 409 && $data['error']['code'] === 'duplicate-id', 'the same id again → 409');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'No target', 'page' => 1], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'without a target → 400');
+    [, $manifest2] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    $draft2 = json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$manifest2['build']}/game.config.json", false, $withToken), true);
+    $added = array_values(array_filter($draft2['entries'], fn($e) => $e['id'] === 'p1-shadows-light'));
+    check(count($added) === 1 && $added[0]['target']['print']['surface'] === 'left' && $added[0]['tags'] === [], 'the draft has the new entry with its target');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/p1-shadows-light', null, $editor);
+    check($status === 204, 'DELETE entry → 204');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/p1-shadows-light', null, $editor);
+    check($status === 404, 'again → 404');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check(!in_array('p1-shadows-light', array_column($tree['spreads'][0]['entries'], 'id'), true), 'gone from the tree');
 
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();

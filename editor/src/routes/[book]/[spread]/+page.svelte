@@ -4,12 +4,17 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { content } from "$lib/content.svelte";
-  import { Stage } from "$lib/stage/stage.svelte";
+  import { Stage, type PickMode, type StagePick } from "$lib/stage/stage.svelte";
   import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode } from "$lib/stage/gizmo";
   import Icon from "$lib/components/Icon.svelte";
   import StagePanel from "$lib/panels/StagePanel.svelte";
   import EntityPanel from "$lib/panels/EntityPanel.svelte";
   import TreePanel from "$lib/panels/TreePanel.svelte";
+  import LibraryPanel from "$lib/panels/LibraryPanel.svelte";
+  import NewTargetForm from "$lib/panels/NewTargetForm.svelte";
+  import { deleteEntry, putTarget, type Asset } from "$lib/api";
+  import { library } from "$lib/library.svelte";
+  import { nodeAt } from "$lib/values";
   import PublishButton from "$lib/PublishButton.svelte";
 
   /**
@@ -19,7 +24,7 @@
    */
   const bookId = $derived(page.params.book!);
   const spreadId = $derived(page.params.spread!);
-  const TABS = ["tree", "stage", "entity"] as const;
+  const TABS = ["tree", "stage", "entity", "library"] as const;
   type Tab = (typeof TABS)[number];
   const TAB_KEY = "osct-editor-tab";
   const TREE_KEY = "osct-editor-tree";
@@ -49,6 +54,43 @@
   const shown = $derived<Tab | null>(tab === "tree" && !narrow ? "stage" : tab);
   const select = () => { if (shown !== "entity") setTab("entity"); };
 
+  // ── targets: the form, removal, a changed image or placement ──
+  let addingTarget = $state(false);
+  let entityPanel = $state<{ useAsset: (kind: Asset["kind"], src: string, assetId: string) => void }>();
+  /** The content changed under the stage (a target's image or placement, a relink): reload it and build the spread again */
+  const reloadContent = async () => {
+    await content.load(bookId);
+    await stage?.refresh();
+    void library.refresh();
+  };
+  const targetCreated = async (targetId: string) => {
+    addingTarget = false;
+    await reloadContent();
+    selectedTarget = targetId;
+    selectedNode = [];
+    setTab("entity");
+  };
+  const removeTarget = async (target: { id: string; entryId: string }) => {
+    if (!window.confirm(`Remove the target ${target.id} and its entry? The draft loses both (Publish makes it final).`)) return;
+    await deleteEntry(bookId, target.entryId);
+    if (selectedTarget === target.id) { selectedTarget = null; selectedNode = []; }
+    await reloadContent();
+  };
+  /** The library's Use: the selected node takes the file */
+  const useAsset = (asset: Asset) => {
+    entityPanel?.useAsset(asset.kind, asset.url, asset.id);
+    if (shown !== "entity") setTab("entity");
+  };
+  const useAsTargetImage = async (asset: Asset) => {
+    if (!selectedTarget) return;
+    await putTarget(bookId, selectedTarget, { imageSrc: asset.url });
+    await reloadContent();
+  };
+  const selectedNodeType = $derived.by(() => {
+    const t = selectedTarget ? stage?.treeOf(selectedTarget) : undefined;
+    return t ? (nodeAt(t, selectedNode) ?? t).type : null;
+  });
+
   onMount(() => {
     let disposed = false;
     const media = window.matchMedia(NARROW);
@@ -65,10 +107,19 @@
       }
       if (disposed || !container) return;
       stage = new Stage(container);
-      stage.onTap = id => {
-        selectedTarget = id;
-        selectedNode = [];
+      stage.onPick = hit => {
+        stageMenu = null;
+        if (!hit) return;
+        selectedTarget = hit.targetId;
+        selectedNode = hit.path;
         select();
+      };
+      stage.onContextMenu = (hit, x, y) => {
+        if (hit) {
+          selectedTarget = hit.targetId;
+          selectedNode = hit.path;
+        }
+        stageMenu = { hit, x: Math.min(x, window.innerWidth - 200), y: Math.min(y, window.innerHeight - 160) };
       };
       await stage.open(spreadId);
     })();
@@ -92,6 +143,26 @@
     stage?.selectNode(id, path);
   });
   const GIZMO_LABELS: Record<GizmoMode, string> = { translate: "Move (W)", rotate: "Rotate (E)", scale: "Scale (R)" };
+  const PICK_MODES: readonly PickMode[] = ["entity", "node", "target"];
+  const PICK_LABELS: Record<PickMode, string> = { entity: "Click picks the entity (its root)", node: "Click picks the node under the pointer", target: "Click picks the printed target" };
+
+  // ── the stage's menu (right click): what lies there decides the actions ──
+  let stageMenu = $state<{ hit: StagePick | null; x: number; y: number } | null>(null);
+  const menuRemoveNode = () => {
+    if (!stage || !selectedTarget) return;
+    selectedNode = stage.removeNode(selectedTarget, selectedNode);
+    stageMenu = null;
+  };
+  const menuAddNode = () => {
+    stageMenu = null;
+    setTab("entity");
+    requestAnimationFrame(() => document.querySelector<HTMLSelectElement>('select[aria-label="New node type"]')?.focus());
+  };
+  const menuPlacement = () => {
+    stageMenu = null;
+    setTab("entity");
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("button.placement-toggle")?.click());
+  };
   const GIZMO_ICONS: Record<GizmoMode, "move" | "rotate" | "scale"> = { translate: "move", rotate: "rotate", scale: "scale" };
 
   const spread = $derived(content.spread(spreadId));
@@ -151,7 +222,7 @@
       </button>
     </div>
     {#if treeOpen}
-      <div class="body tree-body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} /></div>
+      <div class="body tree-body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} onaddtarget={() => { addingTarget = true; }} onremovetarget={removeTarget} /></div>
     {/if}
   </aside>
 
@@ -162,7 +233,30 @@
           <button type="button" class="icon-button" class:on={stage.gizmoMode === mode} aria-pressed={stage.gizmoMode === mode} title="{GIZMO_LABELS[mode]} – Ctrl snaps" aria-label={GIZMO_LABELS[mode]}
             onclick={() => stage?.setGizmoMode(mode)}><Icon name={GIZMO_ICONS[mode]} stroke={2} /></button>
         {/each}
+        <span class="tools-gap"></span>
+        {#each PICK_MODES as mode (mode)}
+          <button type="button" class="pill pick" class:on={stage.pickMode === mode} aria-pressed={stage.pickMode === mode} title={PICK_LABELS[mode]} onclick={() => stage?.setPickMode(mode)}>{mode}</button>
+        {/each}
       </div>
+      {#if stageMenu}
+        <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={() => (stageMenu = null)} oncontextmenu={e => { e.preventDefault(); stageMenu = null; }}></button>
+        <div class="menu" role="menu" style:left="{stageMenu.x}px" style:top="{stageMenu.y}px">
+          {#if stageMenu.hit}
+            {@const hit = stageMenu.hit}
+            {@const hasTree = !!stage.treeOf(hit.targetId)}
+            <span class="menu-head small muted">{hit.targetId}{hit.path.length ? ` › ${hit.path.join(" › ")}` : ""}</span>
+            <button type="button" role="menuitem" class="menu-item" onclick={menuAddNode}>{hasTree ? "Add node…" : "Add AR content…"}</button>
+            {#if hasTree}<button type="button" role="menuitem" class="menu-item" onclick={menuRemoveNode}>{hit.path.length ? "Remove node" : "Remove entity"}</button>{/if}
+            <button type="button" role="menuitem" class="menu-item" onclick={menuPlacement}>Placement on the page…</button>
+            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; setTab("library"); }}>Library…</button>
+            <button type="button" role="menuitem" class="menu-item danger" onclick={() => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); stageMenu = null; if (t) void removeTarget(t); }}>Remove target</button>
+          {:else}
+            <span class="menu-head small muted">{spread?.title ?? spreadId}</span>
+            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; addingTarget = true; }}>+ target…</button>
+            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; setTab("stage"); }}>Stage settings…</button>
+          {/if}
+        </div>
+      {/if}
     {/if}
     {#if loadError}
       <p class="notice danger">{loadError}</p>
@@ -191,13 +285,18 @@
       {/if}
       <button type="button" class="pill tab" class:on={shown === "stage"} aria-pressed={shown === "stage"} onclick={() => setTab("stage")}>Stage</button>
       <button type="button" class="pill tab" class:on={shown === "entity"} aria-pressed={shown === "entity"} onclick={() => setTab("entity")}>Entity</button>
+      <button type="button" class="pill tab" class:on={shown === "library"} aria-pressed={shown === "library"} onclick={() => setTab("library")}>Library</button>
     </div>
-    {#if shown === "tree"}
-      <div class="body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} /></div>
+    {#if addingTarget && spread}
+      <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
+    {:else if shown === "tree"}
+      <div class="body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} onaddtarget={() => (addingTarget = true)} onremovetarget={removeTarget} /></div>
     {:else if shown === "stage"}
       <div class="body"><StagePanel {stage} {spreadId} /></div>
     {:else if shown === "entity"}
-      <div class="body"><EntityPanel {stage} {bookId} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} {pickColour} /></div>
+      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} {pickColour} onlibrary={() => setTab("library")} ontargetchanged={reloadContent} /></div>
+    {:else if shown === "library"}
+      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selectedTarget} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} /></div>
     {/if}
     <div class="foot">
       <PublishButton {bookId} />
@@ -216,7 +315,15 @@
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   .stage :global(canvas) { display: block; width: 100%; height: 100%; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
-  .tools { position: absolute; left: .5rem; top: .5rem; z-index: 1; display: flex; gap: .125rem; padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  .tools { position: absolute; left: .5rem; top: .5rem; z-index: 1; display: flex; align-items: center; gap: .125rem; padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  .tools-gap { width: 1px; height: 1.25rem; margin: 0 .25rem; background: var(--line); }
+  .tools .pick { height: 1.5rem; padding: 0 .5rem; font-size: var(--text-small); }
+  .menu-backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }
+  .menu { position: fixed; z-index: 10; display: flex; flex-direction: column; min-width: 11rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  .menu-head { padding: .25rem .625rem; }
+  .menu-item { height: var(--control-height); padding: 0 .625rem; border: none; border-radius: var(--control-radius); background: none; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
+  .menu-item:hover { background: var(--hover-background); }
+  .menu-item.danger { color: var(--danger); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font-size: var(--text-small); font-family: ui-monospace, Consolas, monospace; }

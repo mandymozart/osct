@@ -144,3 +144,39 @@ CREATE TABLE IF NOT EXISTS changes (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS changes_book ON changes (book_id, created_at);
+
+-- The editor's assets (Assets.php): uploaded files, one row per upload in asset_versions
+CREATE TABLE IF NOT EXISTS assets (
+  id TEXT NOT NULL PRIMARY KEY,
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  width INTEGER NULL DEFAULT NULL,
+  height INTEGER NULL DEFAULT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  path TEXT NOT NULL,
+  url TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_by TEXT NULL DEFAULT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS assets_book ON assets (book_id, status, updated_at);
+
+CREATE TABLE IF NOT EXISTS asset_versions (
+  id TEXT NOT NULL PRIMARY KEY,
+  asset_id TEXT NOT NULL REFERENCES assets (id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  url TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  note TEXT NULL DEFAULT NULL,
+  created_by TEXT NULL DEFAULT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS asset_versions_asset ON asset_versions (asset_id, version);

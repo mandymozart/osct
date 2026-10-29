@@ -32,7 +32,7 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.0";
+export const CONTENT_SCHEMA_VERSION = "2.1";
 
 export interface ContentSchema {
   major: number;
@@ -101,10 +101,26 @@ export interface EntityRefData {
   ref: string;
 }
 
+/**
+ * Where a target is printed: on which page and surface, and its box in mm from the surface's top left corner – the
+ * editor's stage lays the target there (before the book's layout from the designed PDFs, which the content build
+ * knows); the reader does not need it.
+ */
+export interface PrintPlacement {
+  page?: number;
+  surface: "left" | "right";
+  x: number;
+  y: number;
+  width: number;
+  height?: number;
+}
+
 export interface TargetData {
   id: string; // defaults to the entry id
   imageSrc: string;
   entity?: EntityData | EntityRefData;
+  /** Where it is printed (optional, schema 2.1 – targets made in the editor carry it) */
+  print?: PrintPlacement;
 }
 
 export interface EntryData {

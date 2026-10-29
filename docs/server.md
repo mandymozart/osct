@@ -159,6 +159,42 @@ Locally: `OSCT_CONTENT_STORE=local` (the default) with `npm run dev:api`, publis
 with `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` to see what the editor published (its origin
 must be in `ALLOWED_ORIGINS`, as for any other call).
 
+## Assets
+
+The files an editor uploads (`Assets.php`, after Scutoons' asset layer – `scutoons/agents/ASSETS.md` – sized for
+OSCT): models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp) and sounds (mp3, m4a, ogg, wav), at most
+`ASSET_MAX_BYTES` (64 MB). They live in the content store under the pseudo environment `assets`:
+`assets/<book>/<asset id>/v<n>.<ext>` – in `CONTENT_STORE_DIR` for the local store, served by
+`GET /content/assets/…` with the file's type, a year's cache and `Access-Control-Allow-Origin: *` (the reader's
+engine loads them cross-origin), or in the CDN's storage zone (`CONTENT_STORE=bunny`, reached at
+`CONTENT_BASE_URL/assets/…`). `ASSET_BASE_URL` overrides where their URLs point.
+
+A node's `src` and a target's `imageSrc` hold the asset's **absolute URL** – the publish leaves absolute URLs as
+they are, so draft and every version point at the same file. Tables: `assets` (one per file: name, kind, mime,
+size, sha256, width / height, the current version's path and URL) and `asset_versions` (one per upload). The same
+bytes uploaded twice are one asset.
+
+| Endpoint | Body | Answer |
+|---|---|---|
+| `GET /editor/books/{id}/assets[?kind=]` | | `{ assets: [{ id, name, kind, mime, size, width, height, version, url, usages, createdAt, updatedAt }] }` – `usages` = rows of the book naming the URL |
+| `POST /editor/books/{id}/assets` | the file; `X-File-Name: name.ext` | 201 `{ asset }`, or 200 with the asset that already holds these bytes. 400 `invalid-file` (no name, unsupported type, empty), 413 `body-too-large` |
+| `PUT /editor/books/{id}/assets/{aid}/file` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked }` – a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one (a change each) |
+| `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: target | entity | entry, ref }] }` |
+| `DELETE /editor/books/{id}/assets/{aid}[?force=1]` | | 204; 409 `asset-in-use` with `usages` unless forced (the files of every version go) |
+
+Renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build (PLAN 2b).
+
+### Targets and entries made in the editor
+
+`PUT /editor/books/{id}/targets/{tid}` also takes `{ imageSrc }` (the printed image – an asset's URL) and
+`{ print }` (`PrintPlacement`, content schema 2.1: `surface` left / right, `x`, `y`, `width` in mm from the surface's
+top left corner, optional `height` and `page`) – the editor's stage lays the target there; `null` removes it. 400
+`invalid-target`. `POST /editor/books/{id}/entries` `{ title, page, category?, body?, target: { id?, imageSrc, print?,
+entity? } }` → 201 `{ entry, spreadId }` makes an entry (id from title and page, `p102-shadows`, or the given one;
+409 `duplicate-id`) with its target on the spread its page belongs to; `DELETE /editor/books/{id}/entries/{eid}` →
+204 removes entry and target (changes recorded). The image's tracking data for the real reader comes with the
+content build – in the editor it is the stage's printed image.
+
 ## Logs
 
 The API writes its errors (with the reason, e.g. a failed mail or a database error) to `LOG_PATH` – locally

@@ -48,6 +48,10 @@ final class Config
         'PROGRESS_MAX_BYTES' => '262144',
         // Editor (docs/server.md "Editor data"): largest request body (the import of a game configuration)
         'EDITOR_MAX_BYTES' => '8388608',
+        // Assets uploaded in the editor (docs/server.md "Assets"): the largest file; where their URLs point
+        // (empty = the CDN's CONTENT_BASE_URL + /assets for the bunny store, this API's /content/assets for the local one)
+        'ASSET_MAX_BYTES' => '67108864',
+        'ASSET_BASE_URL' => '',
         // Where published content versions go: local = CONTENT_STORE_DIR (served by GET /content/{env}/…), bunny =
         // the storage zone the osct CLI syncs to (staging / production; the environment local always stays local)
         'CONTENT_STORE' => 'local',

@@ -30,6 +30,18 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (backdrop *hdri*, the
   default, with the choice; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
   plywood texture, tinted), the cover a white 3 mm hardcover board.
+- **Assets, the library and new targets** (#61, Tilman: "Asset-Upload nach dem Scutoons-Modell … in the tree I want to
+  be able to add a target"): uploaded files in the content store (`assets/<book>/<asset>/v<n>.<ext>`, local or bunny)
+  with a registry (`assets`, `asset_versions`), `GET / POST /editor/books/{id}/assets`, replace with a new version and
+  every use relinked, delete guarded by the usages, the same bytes once; the editor's **Library** tab (upload, drop,
+  use for the selected node, as a target's image, replace, delete), the node's **file** row, the target's **image**
+  and **print placement** (content schema 2.1 `print`: surface, x, y, width in mm – the stage lays a target there
+  before the book's layout), **+ target** in the tree (an entry with its printed image and place –
+  `POST /editor/books/{id}/entries`, `DELETE …/entries/{id}`), *Remove target* in the tree's menu; the new-target
+  form takes the AR content too (a node of a type with its file, or a text). **Picking** on the stage by a pick mode
+  (entity / node / printed target – Blender's select mode) with a right-click menu (add node, remove, placement,
+  library, remove target; + target on the page), and a translucent **ghost** of the image while a placement is edited.
+  The sky of the stage is a sphere inside the stage group (three's background rotation mirrored axes).
 - **Removing nodes** (#61, Tilman: "Wie lösche ich Knoten?"): Delete / Backspace on the selected node (tree or
   workspace), a right-click menu on the tree's node rows, *remove node* / *remove entity* in the Entity panel – all
   through the stage, so tree, panel and stage show one state; a removed root marks the target as without AR content

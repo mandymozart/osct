@@ -16,11 +16,15 @@
    * the stage selects the root); ↑ ↓ walk the targets, ← → fold and unfold the entry, Enter selects. Folding is per
    * entry and per node and not stored. ● after a name: the stage shows it with other values than the draft's.
    */
-  let { stage, spreadId, selected = $bindable(), node = $bindable([]), onselect }: {
+  let { stage, spreadId, selected = $bindable(), node = $bindable([]), onselect, onaddtarget, onremovetarget }: {
     stage: Stage | null; spreadId: string; selected: string | null;
     /** The selected node's path in its entity (`[]` = the root) */
     node: number[];
     onselect?: (targetId: string) => void;
+    /** "+ target": the workspace opens the form */
+    onaddtarget?: () => void;
+    /** The menu's "Remove target": entry and target go (the workspace asks the API) */
+    onremovetarget?: (target: Target) => Promise<void>;
   } = $props();
 
   const spread = $derived(content.spread(spreadId));
@@ -56,11 +60,11 @@
   };
 
   // ── the context menu of a node row (right click, or the ⋯ of a long press): remove ──
-  let menu = $state<{ x: number; y: number; target: Target; path: number[] } | null>(null);
-  const openMenu = (event: MouseEvent, target: Target, path: number[]) => {
+  let menu = $state<{ x: number; y: number; target: Target; path: number[]; kind: "node" | "target" } | null>(null);
+  const openMenu = (event: MouseEvent, target: Target, path: number[], kind: "node" | "target" = "node") => {
     event.preventDefault();
     pick(target, path);
-    menu = { x: Math.min(event.clientX, window.innerWidth - 180), y: Math.min(event.clientY, window.innerHeight - 80), target, path };
+    menu = { x: Math.min(event.clientX, window.innerWidth - 200), y: Math.min(event.clientY, window.innerHeight - 80), target, path, kind };
   };
   const closeMenu = () => (menu = null);
   /** Remove the selected node (the tree's menu, Delete / Backspace): the parent is selected next */
@@ -160,7 +164,7 @@
           {@render guides(2)}
           <span class="chevron"></span>
           <span class="type"><Icon name="target" size="1em" stroke={2} /></span>
-          <button type="button" class="pick" class:muted={!shown} onclick={() => pick(target)} title={tree ? "Select the target (its root node)" : "No AR content yet – add a node in the Entity panel"}>
+          <button type="button" class="pick" class:muted={!shown} onclick={() => pick(target)} oncontextmenu={e => openMenu(e, target, [], "target")} title={tree ? "Select the target (its root node)" : "No AR content yet – add a node in the Entity panel"}>
             <span class="name">{target.id}</span>
             {#if stage?.found.includes(target.id)}<span class="small muted" title="In view now">in view</span>{/if}
           </button>
@@ -171,14 +175,26 @@
         {/if}
       {/if}
     {/each}
+    {#if onaddtarget}
+      <div class="node add-target">
+        <span class="chevron"></span>
+        <span class="type"><Icon name="plus" size="1em" /></span>
+        <button type="button" class="pick" onclick={onaddtarget} title="A new entry with a printed image on this spread"><span class="name">+ target</span></button>
+      </div>
+    {/if}
   </div>
 {/if}
 
 {#if menu}
   <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={closeMenu} oncontextmenu={e => { e.preventDefault(); closeMenu(); }}></button>
   <div class="menu" role="menu" style:left="{menu.x}px" style:top="{menu.y}px">
-    <button type="button" role="menuitem" class="menu-item" onclick={removeSelected}>{menu.path.length ? "Remove node" : "Remove entity"}</button>
-    <span class="menu-hint small muted">Delete</span>
+    {#if menu.kind === "target"}
+      <button type="button" role="menuitem" class="menu-item" onclick={() => { const t = menu!.target; menu = null; void onremovetarget?.(t); }}>Remove target</button>
+      <span class="menu-hint small muted">entry and target</span>
+    {:else}
+      <button type="button" role="menuitem" class="menu-item" onclick={removeSelected}>{menu.path.length ? "Remove node" : "Remove entity"}</button>
+      <span class="menu-hint small muted">Delete</span>
+    {/if}
   </div>
 {/if}
 
@@ -208,4 +224,6 @@
   .pick.muted { color: var(--muted); }
   .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dot { font-size: .6em; }
+  .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); }
+  .add-target:hover { color: var(--text); }
 </style>

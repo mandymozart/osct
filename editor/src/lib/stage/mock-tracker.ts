@@ -1,4 +1,4 @@
-import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
+import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { Target } from "@engine/types";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
@@ -89,10 +89,21 @@ const degrees = (value: number) => (value * Math.PI) / 180;
  */
 export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = {}, page: PageFormat = BOOK_PAGE_MM, layout: StageLayout | null = null): StageTarget[] => {
   const withImage = targets.filter(target => target.imageSrc);
-  if (layout && withImage.length && withImage.every(target => layout.targets[target.id])) {
-    return withImage.map(target => {
-      const printed = layout.targets[target.id];
-      return { id: target.id, imageSrc: target.imageSrc, surface: printed.surface, x: printed.x, y: printed.y, width: printed.width, height: printed.height };
+  // A target's own `print` (made in the editor) or the book's layout: every target has a printed place
+  const placed = (target: Target): StageTarget | null => {
+    const own = target.print;
+    if (own) return { id: target.id, imageSrc: target.imageSrc, surface: own.surface, x: own.x, y: own.y, width: own.width, height: own.height ?? own.width * 0.75 };
+    const printed = layout?.targets[target.id];
+    return printed ? { id: target.id, imageSrc: target.imageSrc, surface: printed.surface, x: printed.x, y: printed.y, width: printed.width, height: printed.height } : null;
+  };
+  const placedTargets = withImage.map(placed);
+  if (withImage.length && placedTargets.every(target => target !== null)) return placedTargets as StageTarget[];
+  if (placedTargets.some(target => target !== null)) {
+    // A mix: the placed ones where they are, the rest in a row across the right page's lower half
+    const rest = withImage.filter((_, i) => placedTargets[i] === null);
+    const width = Math.min(60, (page.width - 20) / Math.max(1, rest.length) - 10);
+    return withImage.map((target, i) => placedTargets[i] ?? {
+      id: target.id, imageSrc: target.imageSrc, surface: "right", x: 10 + rest.indexOf(target) * (width + 10), y: page.height * 0.6, width, height: width * 0.75,
     });
   }
   const known = withImage.filter(target => infos[target.id]?.width);
@@ -177,6 +188,10 @@ export interface StageView {
   /** The spread's targets on the page format, over the sheet's image when the book's layout has one */
   setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null, book: StageBook): void;
   setBackdrop(backdrop: PreviewState["backdrop"], photo: string | null, hdri: PreviewState["hdri"]): void;
+  /** A translucent image where a target is about to be printed (the new-target form, the placement rows); null = none */
+  setGhost?(ghost: StageTarget | null): void;
+  /** The printed images on the page, each with `userData.targetId` (picking a target by its print) */
+  printedPlanes?(): Object3D[];
   /** Every frame: the stage's frame relative to the camera (the camera stays at the origin) */
   update(cameraInverse: Matrix4): void;
   dispose(): void;
@@ -216,6 +231,18 @@ export class MockTracker implements IImageTracker {
   private lastMid: { x: number; y: number } | null = null;
   /** A pointer gesture that belongs to an editor tool (the gizmo's handle under the pointer): not an orbit */
   ignorePointer: ((event: PointerEvent) => boolean) | null = null;
+  private ghost: StageTarget | null = null;
+
+  /** The stage's printed images (for picking) */
+  printedPlanes(): Object3D[] {
+    return this.stage?.printedPlanes?.() ?? [];
+  }
+
+  /** Show where a target would be printed (the form's placement) */
+  setGhost(ghost: StageTarget | null): void {
+    this.ghost = ghost;
+    this.stage?.setGhost?.(ghost);
+  }
   private dragging = false;
   private lastPinch = 0;
   private cameraWorld = new Matrix4();
@@ -253,6 +280,7 @@ export class MockTracker implements IImageTracker {
     this.stage = stage;
     if (this.targets.length) stage.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
     stage.setBackdrop(this.preview.backdrop, this.preview.photo, this.preview.hdri);
+    stage.setGhost?.(this.ghost);
   }
 
   /** The page format: the book's layout, else this book's constant */

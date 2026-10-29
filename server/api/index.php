@@ -24,18 +24,24 @@ declare(strict_types=1);
  *   GET    /editor/books/{id}                   the tree: book, spreads with entries, each entry's target
  *   GET    /editor/books/{id}/entities          the shared entities { ref: EntityData }
  *   PUT    /editor/books/{id}/entities/{ref}    body EntityData → saves it, records a change
- *   PUT    /editor/books/{id}/targets/{id}      { entity } or { ref } → the target's entity, records a change
+ *   PUT    /editor/books/{id}/targets/{id}      { entity } | { ref } | { imageSrc } | { print } → the target, records a change
+ *   POST   /editor/books/{id}/entries           { title, page, category?, target: { imageSrc, print?, entity? } } → 201 a new entry with its target
+ *   DELETE /editor/books/{id}/entries/{id}      the entry and its target go
  *   GET    /editor/books/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
  *                                               the draft as a content version (the engine's loader reads it like the CDN)
  *   POST   /editor/books/{id}/publish           { env, note? } → writes the version to the content store
  *   GET    /editor/books/{id}/versions          the publish log
  *   GET    /editor/books/{id}/changes?limit=    the change log, newest first
- *   GET    /content/{env}/{path}                the local content store (json files only; public)
+ *   GET    /editor/books/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
+ *   POST   /editor/books/{id}/assets            the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
+ *   PUT    /editor/books/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
+ *   GET    /editor/books/{id}/assets/{aid}/usages · DELETE /editor/books/{id}/assets/{aid}[?force=1]
+ *   GET    /content/{env}/{path}                the local content store (json files, and the assets' files; public)
  *
  * Signed-in requests send `Authorization: Bearer <session token>`.
  */
 
-foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Editor', 'Books', 'ContentVersion', 'ContentStore'] as $class) {
+foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -57,7 +63,10 @@ $base = $root !== '' && str_starts_with($here, $root . '/')
     : rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 if ($base !== '' && str_starts_with($path, $base . '/')) $path = substr($path, strlen($base));
 $path = '/' . trim($path, '/');
+$GLOBALS['osctApiBase'] = $base !== '' ? $base : '/api';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+// Ids in the editor's paths (books, entities, targets); assets have uuids
+$uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 // Ids in the editor's paths (books, entities, targets)
 $id = Editor::ID;
 
@@ -106,11 +115,18 @@ try {
         (bool) preg_match("#^GET /editor/books/($id)/entities$#", $route, $match) => Books::entities($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/entities/($id)$#", $route, $match) => Books::putEntity($match[1], $match[2]),
         (bool) preg_match("#^PUT /editor/books/($id)/targets/($id)$#", $route, $match) => Books::putTarget($match[1], $match[2]),
+        (bool) preg_match("#^POST /editor/books/($id)/entries$#", $route, $match) => Books::addEntry($match[1]),
+        (bool) preg_match("#^DELETE /editor/books/($id)/entries/($id)$#", $route, $match) => Books::deleteEntry($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/books/($id)/publish$#", $route, $match) => Books::publish($match[1], Http::body()),
         (bool) preg_match("#^GET /editor/books/($id)/versions$#", $route, $match) => Books::versions($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/changes$#", $route, $match) => Books::changes($match[1]),
+        (bool) preg_match("#^GET /editor/books/($id)/assets$#", $route, $match) => Assets::list($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/assets$#", $route, $match) => Assets::upload($match[1]),
+        (bool) preg_match("#^PUT /editor/books/($id)/assets/($uuid)/file$#", $route, $match) => Assets::replace($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/books/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
+        (bool) preg_match("#^DELETE /editor/books/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),
         // The local content store, public like the CDN (the environment name as the osct CLI accepts it)
         (bool) preg_match('#^GET /content/([a-z][a-z0-9-]{0,31})/(.+)$#', $route, $match) => ContentStore::serve($match[1], $match[2]),
         default => throw new ApiError(404, 'not-found', 'Unknown endpoint.'),

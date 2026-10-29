@@ -57,8 +57,13 @@ describe("mock stage layout", () => {
     expect(a).toMatchObject({ surface: "left", x: 38.7, y: 9.5, width: 30.9 });
     expect(b).toMatchObject({ surface: "right", x: 184.8, width: 37.1 });
     expect(targetCentre(a, layout.page).x).toBeCloseTo((-230 + 38.7 + 30.9 / 2) / 1000, 6);
-    // A target the layout does not know: the whole spread falls back to the protocol / the row
-    expect(layoutTargets([target("a"), target("c")], {}, layout.page, layout)[0].surface).toBe("right");
+    // A target the layout does not know: the known one stays where it is printed, the other lies in a row on the right page
+    const mixed = layoutTargets([target("a"), target("c")], {}, layout.page, layout);
+    expect(mixed[0]).toMatchObject({ surface: "left", x: 38.7 });
+    expect(mixed[1]).toMatchObject({ surface: "right", y: layout.page.height * 0.6 });
+    // A target made in the editor carries its own place, which wins over the layout
+    const own = layoutTargets([{ ...target("a"), print: { surface: "right", x: 100, y: 50, width: 40 } }], {}, layout.page, layout)[0];
+    expect(own).toMatchObject({ surface: "right", x: 100, y: 50, width: 40, height: 30 });
   });
 
   it("uses exact positions when the layout was imported", () => {

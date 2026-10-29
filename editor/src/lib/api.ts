@@ -150,3 +150,69 @@ export const listVersions = (bookId: string) => api<{ versions: Version[] }>("GE
 
 /** The draft as a content version – the engine's `loadGameConfiguration({ baseUrl, fetch: authFetch })` reads it */
 export const draftBaseUrl = (bookId: string): string => `${API_URL}/editor/books/${encodeURIComponent(bookId)}/draft`;
+
+// ── Assets (docs/server.md "Assets") ─────────────────────────────────────────────────────────────
+
+export interface Asset {
+  id: string;
+  name: string;
+  kind: "glb" | "gltf" | "video" | "image" | "audio";
+  mime: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  version: number;
+  /** The absolute URL nodes and targets name */
+  url: string;
+  usages: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const listAssets = (bookId: string, kind?: string) =>
+  api<{ assets: Asset[] }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`);
+
+/** The file as the body, its name in a header (no multipart) */
+const sendFile = async <T>(method: string, path: string, file: File): Promise<T> => {
+  const response = await authFetch(`${API_URL}${path}`, {
+    method,
+    headers: { "Content-Type": file.type || "application/octet-stream", "X-File-Name": encodeURIComponent(file.name) },
+    body: file,
+  });
+  const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
+  if (!response.ok) throw new ApiError(response.status, data?.error?.code ?? "unknown", data?.error?.message ?? `${response.status} ${response.statusText}`);
+  return data as T;
+};
+
+export const uploadAsset = async (bookId: string, file: File): Promise<Asset> =>
+  (await sendFile<{ asset: Asset }>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets`, file)).asset;
+
+export const replaceAsset = (bookId: string, assetId: string, file: File) =>
+  sendFile<{ asset: Asset; relinked: number }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/file`, file);
+
+export const assetUsages = (bookId: string, assetId: string) =>
+  api<{ usages: Array<{ kind: string; ref: string }> }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/usages`);
+
+export const deleteAsset = (bookId: string, assetId: string, force = false) =>
+  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}${force ? "?force=1" : ""}`);
+
+// ── Targets and entries made in the editor ───────────────────────────────────────────────────────
+
+export interface PrintPlacement {
+  page?: number;
+  surface: "left" | "right";
+  x: number;
+  y: number;
+  width: number;
+  height?: number;
+}
+
+/** The target's printed image and / or where it is printed */
+export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: string; print?: PrintPlacement | null }) =>
+  api<{ target: unknown }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/targets/${encodeURIComponent(targetId)}`, body);
+
+export const addEntry = (bookId: string, body: { id?: string; title: string; page: number; category?: string; body?: string; target: { id?: string; imageSrc: string; print?: PrintPlacement; entity?: EntityData | EntityRefData } }) =>
+  api<{ entry: { id: string; target: { id: string } }; spreadId: string | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
+
+export const deleteEntry = (bookId: string, entryId: string) =>
+  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`);
