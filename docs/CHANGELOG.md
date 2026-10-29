@@ -12,6 +12,14 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.2 – 2026-10-30
+
+### Fixed
+- **The editor's Code tab no longer ships a DOMPurify with critical XSS advisories** (#158): Monaco carries its own copy
+  of DOMPurify 3.4.15 and imports it by a relative path. An npm override lifts the package to 3.4.17, and a Vite alias
+  sends Monaco's import to that package, so the fixed version is what lands in the editor build (checked in the built
+  chunks). `npm audit` in `editor/` has no critical or high left.
+
 ## 1.26.1 – 2026-10-30
 
 ### Fixed
