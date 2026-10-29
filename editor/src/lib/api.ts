@@ -59,10 +59,16 @@ export const api = async <T>(method: string, path: string, body?: unknown): Prom
 
 // ── Shapes ───────────────────────────────────────────────────────────────────────────────────────
 
+/** The account (docs/server.md): `roles` has `reader` for everyone, `editor` (the editor), `admin` (the admin page) */
 export interface User {
   email: string;
   language: string;
+  options: Record<string, boolean>;
+  hasPassword: boolean;
+  roles: string[];
+  /** `editor` when the roles hold it, else `reader` – older field, prefer `roles` */
   role?: string;
+  createdAt: string;
 }
 
 export interface BookSummary {
@@ -127,6 +133,75 @@ export const signInWithPassword = (email: string, password: string) =>
 export const me = () => api<{ user: User }>("GET", "/user");
 
 export const logout = () => api<void>("POST", "/auth/logout");
+
+// ── Admin (docs/server.md "Admin API", docs/admin.md) ───────────────────────────────────────────
+
+export interface Role {
+  id: number;
+  name: string;
+  description: string;
+}
+
+/** One role of a user: when and by whom it was granted (`grantedBy`: signup, migration, config, secret or an admin's id) */
+export interface RoleGrant {
+  role: string;
+  grantedAt: string;
+  grantedBy: string | null;
+  grantedByEmail: string | null;
+}
+
+export interface AdminUser extends User {
+  id: string;
+  grants: RoleGrant[];
+  lastSeenAt: string | null;
+}
+
+export interface UsersQuery {
+  /** A part of the e-mail address */
+  q?: string;
+  /** Only users with this role */
+  role?: string;
+  /** Only users with an update option on */
+  newsletter?: boolean;
+}
+
+const usersParams = (query: UsersQuery): string => {
+  const params = new URLSearchParams();
+  if (query.q) params.set("q", query.q);
+  if (query.role) params.set("role", query.role);
+  if (query.newsletter) params.set("newsletter", "1");
+  const s = params.toString();
+  return s ? `?${s}` : "";
+};
+
+export const listRoles = () => api<{ roles: Role[] }>("GET", "/admin/roles");
+
+export const listUsers = (query: UsersQuery = {}) => api<{ users: AdminUser[]; total: number }>("GET", `/admin/users${usersParams(query)}`);
+
+export const grantRole = (userId: string, role: string) =>
+  api<{ changed: boolean; user: AdminUser }>("PUT", `/admin/users/${encodeURIComponent(userId)}/roles/${encodeURIComponent(role)}`);
+
+export const revokeRole = (userId: string, role: string) =>
+  api<{ changed: boolean; user: AdminUser }>("DELETE", `/admin/users/${encodeURIComponent(userId)}/roles/${encodeURIComponent(role)}`);
+
+/** Makes (or creates) an editor by e-mail address */
+export const inviteEditor = (email: string) => api<{ user: AdminUser; created: boolean; changed: boolean }>("POST", "/admin/editors", { email });
+
+/** The users as CSV (`newsletter` keeps those with an update option on), as a file the browser saves */
+export const downloadUsersCsv = async (newsletter: boolean): Promise<void> => {
+  const response = await authFetch(`${API_URL}/admin/users.csv${newsletter ? "?newsletter=1" : ""}`);
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
+    throw new ApiError(response.status, data?.error?.code ?? "unknown", data?.error?.message ?? `${response.status} ${response.statusText}`);
+  }
+  const name = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "users.csv";
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+};
 
 // ── Editor ──────────────────────────────────────────────────────────────────────────────────────
 

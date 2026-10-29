@@ -16,16 +16,17 @@ server/   the instance's API: /api/editor/* (docs/server.md "Editor data")
 ## Who may use it
 
 An **instance user** of the accounts API with the role `editor` (the instance is Building Fictions; the reader's
-accounts are the same table). An admin gives the role:
+accounts are the same table – [server, "Roles"](server.md#roles)). An admin gives the role on the **admin page**
+`/editor/admin` ([admin](admin.md)), or from the shell with the admin secret:
 
 ```bash
 curl -X POST -H "X-Admin-Secret: $OSCT_SECRET" -H "Content-Type: application/json" -d '{"email":"name@example.com"}' https://osct.porschuetz.de/api/admin/editors
 ```
 
 The editor signs in like the reader (a code by email, or a password the account set) and refuses everyone without the
-role. The **first editors** of an instance need no secret: the addresses in the API's `EDITORS` setting (a GitHub
-environment variable `EDITORS`, comma-separated, written into the server's config by the deploy) get the role when
-they sign in.
+role. The **first editors and admins** of an instance need no secret: the addresses in the API's `EDITORS` / `ADMINS`
+settings (GitHub environment variables of the same names, comma-separated, written into the server's config by the
+deploys) get the role when they sign in.
 
 ## Try it (the morning test with the demo scene)
 

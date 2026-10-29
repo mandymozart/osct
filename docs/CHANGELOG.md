@@ -15,6 +15,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.10.0 – 2026-10-29
 
 ### Added
+- **Roles and the admin page** (#65, Tilman: "wir werden ein kleines Admin-UI brauchen", modelled on SCUTOONS' roles for the
+  white-label core): the tables `roles` (reader / editor / admin, fixed ids) and `user_roles` (granted when, by whom);
+  every account has `reader`, existing editors keep `editor` (the schema backfills on the next deploy), `GET /user`
+  answers `roles`. The admin API (`/api/admin/*` – a signed-in admin, or the admin secret as the break-glass path):
+  the users searched by e-mail with their roles, options and language, grant / revoke a role (`PUT` / `DELETE
+  /admin/users/{id}/roles/{role}`), the newsletter list as CSV (`/admin/users.csv?newsletter=1` – the users with an
+  update option on). The **admin page** at `/editor/admin` (docs/admin.md): search, the roles as toggles with their
+  grant on hover, the editors and admins as filters, the Newsletter CSV button, an editor invited by e-mail. The
+  first admins come from the deployment's `ADMINS` list (GitHub environment variable, both deploys), like `EDITORS`.
 - **Content schema 2.0 – the entity as a tree of nodes** (#61, Tilman: "es können tiefere Hierarchien entstehen, das
   ist die ganze Idee; bei default erstmal eins"): an entity's node may hold `children`, each placed by its own
   `params` relative to its parent (8 levels at most); new node types `group` (holds children) and `text` (a line
