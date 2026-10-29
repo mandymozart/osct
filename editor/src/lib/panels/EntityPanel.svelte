@@ -190,7 +190,9 @@
     const t = target;
     const type = current?.type;
     if (!t || !type) return;
-    pickFor({ subject: { for: "node", nodeType: type }, label: `the ${type} of node ${pathLabel}`, current: current?.assets[0]?.src,
+    // The picker's head names the node as the tree does: its name, else where it sits (#170 – was "of node root")
+    const which = current?.name ? `“${current.name}”` : node.length ? `node ${pathLabel}` : "the root node";
+    pickFor({ subject: { for: "node", nodeType: type }, label: `the ${type} of ${which}`, current: current?.assets[0]?.src,
       onpick: asset => useAsset(asset.kind, asset.url, asset.id) });
   };
   const pickNewNodeFile = () => {
@@ -474,7 +476,7 @@
       {#if addType && ASSET_KINDS[addType]}
         <button type="button" class="pill framed grow file-pick" title="Choose the new node's file in the Library" onclick={pickNewNodeFile}>{addAsset ? fileLabel(addAsset) : "file…"}</button>
       {/if}
-      <button type="button" class="icon-button framed" title={!entity ? "Add as the target's root node" : addPlace === "next" ? "Add next to the selected node" : "Add inside the selected node"} aria-label="Add node" disabled={!canAdd} onclick={add}><Icon name="plus" /></button>
+      <button type="button" class="pill framed" title={!entity ? "Add as the target's root node" : addPlace === "next" ? "Add next to the selected node" : "Add inside the selected node"} disabled={!canAdd} onclick={add}>add</button>
     </span></div>
     {#if entity}
       <div class="row" data-help-name="Add as" data-help="Where + node puts the new node: next to the selected node (the same parent, right after it) or inside it (its last child). Next to it is the default for a model, video or image, which rarely hold children; next to the root, both go into a new group."><span class="label">add as</span>
@@ -555,7 +557,7 @@
     {/if}
 
     {#each current.filters ?? [] as filter, i (i)}
-      <div class="section"><span class="section-label">filters[{i}] {filter.type}</span>
+      <div class="section"><span class="section-label">filter {i + 1} · {filter.type}</span>
         <button type="button" class="text-link" onclick={() => current && applyNode(removeFilter(current, i))}>remove</button></div>
       {#each rows.filter(r => r.id.startsWith(`filters.${i}.`)) as row (row.id)}
         <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default}">
@@ -572,7 +574,7 @@
       {/each}
     {/each}
     {#each current.components ?? [] as component, i (i)}
-      <div class="section"><span class="section-label">components[{i}] {component.type}</span>
+      <div class="section"><span class="section-label">component · {component.type}</span>
         <button type="button" class="text-link" onclick={() => current && applyNode(removeComponent(current, i))}>remove</button></div>
       {#if component.type === "animation" && timeline}
         <!-- The timeline: the model's clips, play / pause, the time – it drives the same clip the component plays -->

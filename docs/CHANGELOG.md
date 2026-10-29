@@ -12,6 +12,20 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Fixed
+- **The editor's UI review** (#170, every page at 360, 768 and 1280 px against RULES #32): square corners
+  (`--control-radius: 0`); muted text readable (5.3:1 on white, was 3.9:1); one focus ring in the text colour for every
+  control instead of the browser's; the panel's tab row on one line at 1280 px (default panel width 25rem); rows in the
+  phone's sheet no longer squeezed (the origin square overlapped the desk row); three-digit values beside the reset
+  arrow in the X / Y / Z fields (`180°` showed as `1`); words instead of a plus icon for *add* (node) and *new*
+  (plugin); section heads `component · spin` / `filter 1 · chroma` instead of `components[0] spin`; the Library
+  picker names *the root node*; explanations moved from panel text to help (new target's placement, the Code tab's
+  notice); the books page shows two covers a row on a phone and square badges; the admin page labels each value on a
+  phone and its filter is a segmented group; a disabled tree menu item has the not-allowed cursor. Larger findings:
+  #171 (phone tap targets), #172 (768 px tablet layout), #173 (words as parameter labels).
+
 ## 1.29.1 – 2026-10-30
 
 ### Fixed

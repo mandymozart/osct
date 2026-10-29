@@ -574,7 +574,7 @@
   .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .panel .bar { flex-wrap: wrap; }
   .head { flex: none; }
-  .bar .tab { padding: 0 .5rem; }
+  .bar .tab { padding: 0 .375rem; }
   .bar .tab.on { background: var(--surface); }
   /* A size container: the panels answer their own width (#159), narrow on a phone and when dragged small (#144) */
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; container: panel / inline-size; }

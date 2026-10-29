@@ -208,7 +208,7 @@ is involved.
     it (`editor/src/lib/tree.ts`). Every row shows the node's **name** (content schema 2.12, the Entity panel's
     *name* row) and its type as the icon; without a name the type.
   - **Column edges** – the tree's right edge and the panel's left edge are dragged to resize the columns (#144; the
-    panel 16rem to 70% of the window, the tree 10rem to 40%, the stage keeps at least 16rem, so a 768 px tablet in
+    panel 16rem to 70% of the window – 25rem by default, so its tab row fits one line (#170) –, the tree 10rem to 40%, the stage keeps at least 16rem, so a 768 px tablet in
     portrait still shows a stage; a focused edge also moves with ← →; with a finger (`pointer: coarse`) the edge's hit
     area is wider). The stage's view follows live. The widths are kept on the device (`editor/src/lib/widths.svelte.ts`);
     the Code tab has its own, wider width; a double-click on an edge restores the default.
@@ -361,7 +361,9 @@ is involved.
 The editor follows the Scutoons UI dogma (`scutoons/agents/DESIGN.md`) in its own CSS (`editor/src/app.css`), not
 the reader's design tokens: a design tool's default palette – day (white, light greys, near-black text) and night
 (dark greys, white text), following the system, forced with `data-scheme` on `<html>` – and **no colour** but the
-danger red; one control height (`--control-height`, 1.75rem), square corners, compact system type; rows with a label
+danger red; one control height (`--control-height`, 1.75rem), square corners (`--control-radius: 0`), compact system
+type, muted text at least 4.5:1 against its background, one focus ring for every control (2px in the text colour – a
+field marks its focus by its border); rows with a label
 column; numbers as `ScrubNumber` (the whole field is the gesture: press and slide – **up or right raises, down or left
 lowers** the value, the two directions add up (the quadrant rule, Tilman 2026-10-29; Scutoons' fields should follow) –
 Shift ×10, Alt ×0.1, tap to type,

@@ -88,6 +88,8 @@
   h1 { font-size: 1.125rem; font-weight: 600; margin: 0 0 1.5rem; }
   .empty { font-size: .875rem; }
   .covers { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: 2.25rem 1.75rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
+  /* A phone shows two covers a row, not one cover as wide as the screen (#170) */
+  @media (max-width: 47.9rem) { .covers { gap: 1.5rem 1rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); } }
   .book { display: grid; gap: .1875rem; text-decoration: none; }
   .cover-box { display: block; aspect-ratio: 230 / 320; margin-bottom: .5rem; border-radius: 2px; overflow: hidden; background: var(--surface-head);
     box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / .06), 0 8px 20px -8px rgb(0 0 0 / .18); transition: transform .2s, box-shadow .2s; }
@@ -97,7 +99,7 @@
   .title { font-size: .875rem; font-weight: 600; line-height: 1.25; }
   .author { font-size: var(--text-size); }
   .live { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }
-  .badge { font-size: var(--text-small); line-height: 1; padding: .1875rem .375rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .badge { font-size: var(--text-small); line-height: 1; padding: .1875rem .375rem; border: 1px solid var(--line); color: var(--muted); }
   .badge.on { color: var(--text); border-color: var(--text); }
   .badge.on::before { content: "● "; font-size: .75em; vertical-align: .1em; }
 

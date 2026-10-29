@@ -28,7 +28,8 @@ interface Limits {
 
 export const LIMITS: Record<Column, Limits> = {
   tree: { initial: 15 * REM, min: 10 * REM, maxShare: 0.4 },
-  panel: { initial: 22 * REM, min: 16 * REM, maxShare: 0.7 },
+  /* 25rem: the tab row (× ‹ › and the five words) fits on one line (#170) */
+  panel: { initial: 25 * REM, min: 16 * REM, maxShare: 0.7 },
   code: { initial: 36 * REM, min: 16 * REM, maxShare: 0.7 },
 };
 
