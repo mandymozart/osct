@@ -5,6 +5,7 @@
   import { page } from "$app/state";
   import { session } from "$lib/session.svelte";
   import SignIn from "$lib/SignIn.svelte";
+  import TopBar from "$lib/TopBar.svelte";
 
   let { children } = $props();
 
@@ -39,6 +40,7 @@
     <p><button type="button" class="pill framed" onclick={() => session.signOut()}>Sign out</button></p>
   </main>
 {:else}
+  <TopBar />
   {@render children()}
 {/if}
 

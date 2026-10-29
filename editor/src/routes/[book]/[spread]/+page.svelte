@@ -17,7 +17,6 @@
   import { deleteEntry, putSpread, putTarget, type Asset } from "$lib/api";
   import { library } from "$lib/library.svelte";
   import { nodeAt } from "$lib/values";
-  import PublishButton from "$lib/PublishButton.svelte";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -303,7 +302,7 @@
       <a href="{base}/{bookId}/" class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
       <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
       <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
-      <span class="spread-title"><span class="muted">{spread?.format === "cover" || spread?.format === "back" ? "" : "p."}</span> {spread?.title ?? spreadId}</span>
+      <span class="grow"></span>
       {#if spread && spread.firstPage === spread.lastPage}
         <select class="field format" aria-label="Spread format" title="What this spread is: a double page, the front cover or the back cover" value={spread.format ?? "spread"}
           onchange={e => void setFormat((e.currentTarget as HTMLSelectElement).value as (typeof FORMATS)[number])}>
@@ -331,14 +330,11 @@
     {:else if shown === "code"}
       <div class="body code"><CodePanel {bookId} {stage} /></div>
     {/if}
-    <div class="foot">
-      <PublishButton {bookId} />
-    </div>
   </aside>
 </div>
 
 <style>
-  .workspace { position: fixed; inset: 0; display: grid; grid-template-columns: var(--tree-width) minmax(0, 1fr) var(--panel-width); background: var(--stage-background); }
+  .workspace { position: fixed; inset: var(--top-height) 0 0; display: grid; grid-template-columns: var(--tree-width) minmax(0, 1fr) var(--panel-width); background: var(--stage-background); }
   .workspace.tree-closed { --tree-width: auto; }
   .tree { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--line); color: var(--text); }
   .tree .bar { padding-left: .5rem; }
@@ -364,13 +360,11 @@
   .pick-chip::before { content: ""; width: .875rem; height: .875rem; border-radius: 50%; border: 1px solid var(--line); background: var(--c); }
   .panel { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--line); color: var(--text); }
   .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
-  .bar .spread-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 .25rem; }
   .bar .tab { padding: 0 .5rem; }
   .bar .format { height: 1.5rem; padding: 0 .25rem; font-size: var(--text-small); }
   .bar .tab.on { background: var(--surface); }
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; }
   .body.code { overflow: hidden; }
-  .foot { flex: none; display: flex; justify-content: flex-end; padding: .375rem .5rem; border-top: 1px solid var(--line); }
   .icon-button { text-decoration: none; }
 
   /* A phone: the stage fills the screen, the panel is a sheet at the bottom (closed = the bar only) */
@@ -378,7 +372,6 @@
     .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
     .tree { display: none; }
     .panel { max-height: 55vh; border-left: none; border-top: 1px solid var(--line); }
-    .closed .panel .foot { display: none; }
     .body { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
   }
 </style>
