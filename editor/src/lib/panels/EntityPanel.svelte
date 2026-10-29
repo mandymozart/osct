@@ -5,8 +5,9 @@
   import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import {
-    addFilter, contentEntity, getValue, hasUniformScale, removeFilter, sameValue, setValue, valueProblem, valueRows, type ValueRow,
+    addFilter, contentEntity, getValue, hasUniformScale, removeFilter, sameValue, setValue, valueRows, type ValueRow,
   } from "$lib/values";
+  import ColourField from "$lib/components/ColourField.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
@@ -17,7 +18,11 @@
    * (`stage.override`), the draft stays unchanged until **Save** writes the entity to the API (the shared entity when
    * the target refers to one, else the target's own). Rows come from the content contract's definitions.
    */
-  let { stage, bookId, spreadId, selected = $bindable() }: { stage: Stage | null; bookId: string; spreadId: string; selected: string | null } = $props();
+  let { stage, bookId, spreadId, selected = $bindable(), pickColour }: {
+    stage: Stage | null; bookId: string; spreadId: string; selected: string | null;
+    /** Pick a colour from the stage (the workspace owns the picking overlay) */
+    pickColour?: () => Promise<string | null>;
+  } = $props();
 
   const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.entity));
   const target = $derived<Target | undefined>(targets.find(t => t.id === selected) ?? targets.find(t => stage?.found.includes(t.id)) ?? targets[0]);
@@ -27,7 +32,6 @@
   let saving = $state(false);
   let saved = $state<string | null>(null);
   let error = $state<string | null>(null);
-  let hexProblem = $state<Record<string, string>>({});
   let editingTarget = $state<string | null>(null);
 
   // A new target (or a reload of the draft): start from the stage's override, else the content
@@ -100,11 +104,6 @@
     }
   };
 
-  const commitHex = (row: ValueRow, text: string) => {
-    const problem = valueProblem(row, text);
-    hexProblem = { ...hexProblem, [row.id]: problem ?? "" };
-    if (!problem) set(row, text.trim().toLowerCase());
-  };
 </script>
 
 {#if !entity || !target}
@@ -154,12 +153,7 @@
       <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default}">
         <span class="label">{row.id.replace(/^filters\.\d+\./, "")}</span>
         {#if row.kind === "color"}
-          <span class="color">
-            <input type="color" value={String(getValue(entity, row))} aria-label="{row.id} picker" oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
-            <input class="field" value={String(getValue(entity, row))} spellcheck="false" aria-label={row.id}
-              onchange={e => commitHex(row, (e.currentTarget as HTMLInputElement).value)} />
-            {#if hexProblem[row.id]}<span class="small danger">{hexProblem[row.id]}</span>{/if}
-          </span>
+          <ColourField value={String(getValue(entity, row))} label={row.id} onchange={hex => set(row, hex)} onpick={pickColour} />
         {:else if row.kind === "choice"}
           <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(entity, row))} onchange={v => set(row, v)} /></span>
         {:else}
@@ -191,11 +185,6 @@
   .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
   .head .field { max-width: 60%; }
   .head .small { overflow-wrap: anywhere; }
-  .color { display: grid; grid-template-columns: var(--control-height) minmax(0, 1fr); gap: .375rem; align-items: center; }
-  input[type=color] { width: var(--control-height); height: var(--control-height); border: 1px solid var(--line); border-radius: 50%; padding: 0; background: none; cursor: pointer; }
-  input[type=color]::-webkit-color-swatch-wrapper { padding: .2rem; }
-  input[type=color]::-webkit-color-swatch { border: none; border-radius: 50%; }
-  .color .field { width: 100%; }
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .fields :global(.scrub) { width: 100%; }

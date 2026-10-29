@@ -101,6 +101,10 @@ export class LazyArScene implements IArScene {
     this.scene?.overrideEntity(targetId, entity);
   }
 
+  sampleColor(x: number, y: number): string | null {
+    return this.scene?.sampleColor(x, y) ?? null;
+  }
+
   async dispose(): Promise<void> {
     this.disposed = true;
     await this.scene?.dispose();

@@ -35,7 +35,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   guide lines, the eye column for found, keyboard navigation, a tap selects; collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, Shift-drag, middle button or two fingers
   to pan, wheel or pinch for the distance, found chips per target, replay of the first find, hand shake, backdrop *table / paper /
   photo* of your own desk) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
-  linking the scale axes, filters, colours – live on the stage, **Save** to the database, **Back to the draft**), and
+  linking the scale axes, filters, colours through the editor's colour popover – palette, recent colours, area + hue,
+  hex, and an eyedropper that picks the colour under the pointer from the stage (`IArScene.sampleColor()`) – live on
+  the stage, **Save** to the database, **Back to the draft**), and
   **Publish** makes a content version. Docs: `docs/editor.md`.
 - **The engine as a package** (`engine/`): the content runtime (`loadGameConfiguration`, the accessors, `contentUrl`)
   and the AR scene (`ArScene`, entities, animations, trackers behind `IImageTracker`) moved out of the reader into a

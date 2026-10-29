@@ -118,6 +118,10 @@ export class ArScene implements IArScene {
     if (anchor) this.animate(anchor, "unlock");
   }
 
+  sampleColor(x: number, y: number): string | null {
+    return this.view?.sample(x, y) ?? null;
+  }
+
   overrideEntity(targetId: string, entity: EntityData | null): void {
     if (entity) this.overrides.set(targetId, entity);
     else this.overrides.delete(targetId);
