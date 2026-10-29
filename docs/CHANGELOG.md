@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.20.1 – 2026-10-30
+
+### Changed
+- **One top bar across the editor** (#129): the books list, a book's spreads, the spread view and the admin page
+  share one bar – a breadcrumb `Books › book › spread` to move between them, the environment and Publish while a
+  book is open, Admin, the e-mail and Sign out. In the spread view Publish moved from the foot of the panel into it,
+  and the spread's name (`p. 12–13`, `Cover`) is shown there in full instead of squeezed between the panel's buttons.
+- **A book's spreads use the full width** (#129): the grid fills the window instead of a centred column – one spread
+  per row on a phone, up to six at 1920 px; the environment box above it has the same width.
+
 ## 1.19.4 – 2026-10-30
 
 ### Fixed
