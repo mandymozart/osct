@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { putSpread } from "$lib/api";
+  import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import { clampGrid } from "$lib/stage/preview";
-  import { isOriginId, ORIGIN_LABELS, ORIGINS } from "$lib/stage/origin";
+  import { isOriginId, ORIGIN_LABELS, ORIGINS, type OriginId } from "$lib/stage/origin";
   import Segmented from "$lib/components/Segmented.svelte";
+  import Section from "$lib/components/Section.svelte";
   import {
     DESKS, getPreview, HDRIS, isDeskId, isHdriId, subscribePreview, updatePreview, type PreviewState,
   } from "$lib/stage/preview";
@@ -11,83 +14,129 @@
   import PassesPanel from "./PassesPanel.svelte";
 
   /**
-   * The stage's settings: hand shake, the desk and the sky (an HDRI). The camera is moved on the stage itself (drag
-   * orbits, wheel / pinch the distance, double tap = the reader's view), found / lost per target is the tree's eye,
-   * the first find is replayed from the stage's menu – the panel no longer doubles them (Tilman, 2026-10-29). And the
-   * **narrative** of the book's plugins: their variables with scopes, the last events of the stage, and *reset* for a
-   * new game (nothing unlocked, no variable). The **grid** over the page (spacing in mm) and the **origin** the grid
-   * and every position of the editor are counted from: a corner of the base format, or the book's centre.
+   * The stage's settings in collapsible sections (open state kept per section): the **spread** (its format), the
+   * **stage** (hand shake, the grid over the page, the origin every position is counted from, the desk and the sky),
+   * the spread's **post-processing**, and the **narrative** of the book's plugins (their variables with scopes, the
+   * last events of the stage, *reset* for a new game) – closed by default. The camera is moved on the stage itself;
+   * found / lost per target is the tree's eye, the first find is replayed from the stage's menu. Explanations are the
+   * controls' help in the Info view.
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
+  const spread = $derived(content.spread(spreadId));
+  /** The spread's format (content schema 2.3): a double page, the front cover or the back cover – the stage follows */
+  const FORMATS = ["spread", "cover", "back"] as const;
+  const singlePage = $derived(!!spread && spread.firstPage === spread.lastPage);
+  let formatError = $state<string | null>(null);
+  const setFormat = async (format: (typeof FORMATS)[number]) => {
+    formatError = null;
+    try {
+      await putSpread(bookId, spreadId, { format });
+      await content.load(bookId);
+      await stage?.open(spreadId);
+    } catch (e) {
+      formatError = e instanceof Error ? e.message : String(e);
+    }
+  };
+
+  /** The origin picker: the four page corners and the book's centre, where they lie on a page */
+  const ORIGIN_SPOTS: Record<OriginId, { col: number; row: number }> = {
+    "top-left": { col: 1, row: 1 }, "top-right": { col: 3, row: 1 }, "bottom-left": { col: 1, row: 3 }, "bottom-right": { col: 3, row: 3 }, centre: { col: 2, row: 2 },
+  };
 </script>
 
-<div class="row"><span class="label">vars</span>
-  <span class="controls">
-    {#if stage?.vars.length}
-      {#each stage.vars as v (v.scope + ":" + v.name)}
-        <span class="pill framed var" title="{v.scope} scope"><span class="muted">{v.scope} ·</span> {v.name} = {JSON.stringify(v.value)}</span>
-      {/each}
-    {:else}
-      <span class="small muted">no variable set – the plugins' api.vars show here with their scope</span>
-    {/if}
-    <button type="button" class="pill" title="A new game: every variable cleared, nothing unlocked, the spread found anew" onclick={() => stage?.resetNarrative()}>reset</button>
-  </span></div>
+<Section id="stage.spread" label="spread" help="The spread's own settings, saved to the draft.">
+  <div class="row" data-help="What this spread is: a double page, the front cover or the back cover. Only a one-page spread can be a cover; the stage shows the closed book for one.">
+    <span class="label">format</span>
+    <span class="controls">
+      <select class="field" aria-label="Spread format" value={spread?.format ?? "spread"} disabled={!singlePage}
+        onchange={e => void setFormat((e.currentTarget as HTMLSelectElement).value as (typeof FORMATS)[number])}>
+        {#each FORMATS as f (f)}<option value={f}>{f}</option>{/each}
+      </select>
+      {#if formatError}<span class="small danger">{formatError}</span>{/if}
+    </span></div>
+</Section>
 
-<div class="row"><span class="label">events</span>
-  <span class="controls events">
-    {#if stage?.events.length}
-      {#each stage.events as e, i (i)}
-        <span class="small"><strong>{e.event}</strong>{#if e.detail} <span class="muted">{e.detail}</span>{/if}</span>
-      {/each}
-    {:else}
-      <span class="small muted">the stage's events – found, lost, unlocked, spreadChanged, the plugins' own – newest first</span>
-    {/if}
-  </span></div>
+<Section id="stage.stage" label="stage" help="How the editor shows the spread – stored in this browser, not in the content.">
+  <div class="row" data-help="Hand shake: 0 = still, 1 = a hand holding the phone. The stage wobbles like a reader's camera.">
+    <span class="label">shake</span>
+    <span class="controls"><span class="w"><ScrubNumber value={preview.wobble} min={0} max={1} step={0.05} fallback={0} strict label="Hand shake" oninput={wobble => updatePreview({ wobble })} /></span></span></div>
 
-<div class="row"><span class="label">shake</span>
-  <span class="controls">
-    <span class="w"><ScrubNumber value={preview.wobble} min={0} max={1} step={0.05} fallback={0} strict label="Hand shake" oninput={wobble => updatePreview({ wobble })} /></span>
-    <span class="small muted">0 = still, 1 = a hand holding the phone</span>
-  </span></div>
+  <div class="row" data-help="A grid over the page: on / off and its spacing in mm. Its lines run through the origin, which is drawn red.">
+    <span class="label">grid</span>
+    <span class="controls">
+      <Segmented options={["off", "on"] as const} value={preview.grid ? "on" : "off"} onchange={v => updatePreview({ grid: v === "on" })} />
+      <span class="w"><ScrubNumber value={preview.gridMm} min={1} max={500} step={1} fallback={10} strict unit="mm" label="Grid spacing" oninput={gridMm => updatePreview({ gridMm: clampGrid(gridMm) })} /></span>
+    </span></div>
 
-<div class="row"><span class="label">grid</span>
-  <span class="controls">
-    <Segmented options={["off", "on"] as const} value={preview.grid ? "on" : "off"} onchange={v => updatePreview({ grid: v === "on" })} />
-    <span class="w"><ScrubNumber value={preview.gridMm} min={1} max={500} step={1} fallback={10} strict unit="mm" label="Grid spacing" oninput={gridMm => updatePreview({ gridMm: clampGrid(gridMm) })} /></span>
-  </span></div>
+  <div class="row" data-help="Where the grid and every x / y in the editor count from: a corner of the page (on the page a position lies on) or the book's centre – the spine's middle. x runs to the right, y downwards; left of or above the origin is negative. Saved positions stay mm from the page's top left.">
+    <span class="label">origin</span>
+    <span class="controls">
+      <span class="origin" role="radiogroup" aria-label="Origin">
+        {#each ORIGINS as origin (origin)}
+          <button type="button" role="radio" class="spot" class:on={preview.origin === origin} aria-checked={preview.origin === origin} aria-label={ORIGIN_LABELS[origin]}
+            style:grid-column={ORIGIN_SPOTS[origin].col} style:grid-row={ORIGIN_SPOTS[origin].row}
+            onclick={() => { if (isOriginId(origin)) updatePreview({ origin }); }}></button>
+        {/each}
+      </span>
+      <span class="small">{ORIGIN_LABELS[preview.origin]}</span>
+    </span></div>
 
-<div class="row"><span class="label">origin</span>
-  <span class="controls">
-    <Segmented options={ORIGINS} value={preview.origin} labels={ORIGIN_LABELS} titles={{ centre: "The spine's middle; x to the right, y downwards" }}
-      onchange={origin => { if (isOriginId(origin)) updatePreview({ origin }); }} />
-  </span></div>
+  <div class="row" data-help="The desk the book lies on: Eiermann's steel frame with a plywood top, or Schöpfer's white desk.">
+    <span class="label">desk</span>
+    <span class="controls">
+      <select class="field wide" aria-label="Desk" value={preview.desk} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isDeskId(id)) updatePreview({ desk: id }); }}>
+        {#each DESKS as desk (desk.id)}<option value={desk.id}>{desk.name}</option>{/each}
+      </select>
+    </span></div>
 
-<div class="row"><span class="label">desk</span>
-  <span class="controls">
-    <select class="field" aria-label="Desk" value={preview.desk} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isDeskId(id)) updatePreview({ desk: id }); }}>
-      {#each DESKS as desk (desk.id)}<option value={desk.id}>{desk.name}</option>{/each}
-    </select>
-  </span></div>
-
-<div class="row"><span class="label">sky</span>
-  <span class="controls">
-    <select class="field" aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
-      {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
-    </select>
-  </span></div>
-
-<p class="hint small muted">drag = orbit · shift-drag / middle button / two fingers = pan · wheel / pinch = distance · double tap = reader · ← → spreads</p>
+  <div class="row" data-help="The sky and its light: a studio HDRI, shown while the shading is rendered.">
+    <span class="label">sky</span>
+    <span class="controls">
+      <select class="field wide" aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
+        {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
+      </select>
+    </span></div>
+</Section>
 
 <PassesPanel {stage} {bookId} {spreadId} />
 
+<Section id="stage.narrative" label="vars and events" open={false} help="The narrative of the book's plugins on the stage: their variables and the stage's latest events.">
+  <div class="row" data-help="The plugins' api.vars with their scope (book, stage, …). Reset starts a new game: every variable cleared, nothing unlocked, the spread found anew.">
+    <span class="label">vars</span>
+    <span class="controls">
+      {#each stage?.vars ?? [] as v (v.scope + ":" + v.name)}
+        <span class="pill framed var" title="{v.scope} scope"><span class="muted">{v.scope} ·</span> {v.name} = {JSON.stringify(v.value)}</span>
+      {:else}
+        <span class="small muted">none</span>
+      {/each}
+      <button type="button" class="pill" onclick={() => stage?.resetNarrative()}>reset</button>
+    </span></div>
+
+  <div class="row" data-help="The stage's events, newest first: found, lost, unlocked, spreadChanged and the plugins' own.">
+    <span class="label">events</span>
+    <span class="controls events">
+      {#each stage?.events ?? [] as e, i (i)}
+        <span class="small"><strong>{e.event}</strong>{#if e.detail} <span class="muted">{e.detail}</span>{/if}</span>
+      {:else}
+        <span class="small muted">none</span>
+      {/each}
+    </span></div>
+</Section>
+
 <style>
   .w { width: 5rem; display: inline-flex; }
+  .w :global(.scrub) { width: 100%; }
+  .wide { width: 100%; }
   .var { font-variant-numeric: tabular-nums; }
   .events { flex-direction: column; align-items: flex-start; gap: .125rem; max-height: 9rem; overflow: auto; }
-  .w :global(.scrub) { width: 100%; }
-  .hint { margin: .25rem 0 0; padding-left: 5.125rem; }
+  .events strong { margin-right: .25rem; }
+  .origin { display: inline-grid; grid-template-columns: repeat(3, .75rem); grid-template-rows: repeat(3, .75rem); gap: .125rem; padding: .125rem;
+    border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); }
+  .spot { width: .75rem; height: .75rem; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: none; cursor: pointer; }
+  .spot:hover { border-color: var(--text); }
+  .spot.on { border-color: var(--text); background: var(--text); }
 </style>

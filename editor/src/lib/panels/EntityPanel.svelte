@@ -386,7 +386,7 @@
       <span class="controls">
         <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => (print = { ...print, width: v })} /></span>
         <button type="button" class="pill" disabled={targetBusy} onclick={savePrint}>{targetBusy ? "Saving…" : "Save placement"}</button>
-        {#if !target.print}<span class="small muted">{placeFromLayout ? "from the book's layout until saved" : "not in the book's layout – set by hand until saved"}</span>{/if}
+        {#if !target.print}<span class="small muted" data-help-name="Placement" data-help={placeFromLayout ? "Taken from the book's layout until you save a placement of this target's own." : "The target is not in the book's layout: its placement is set by hand and kept once saved."}>{placeFromLayout ? "from the layout" : "by hand"}</span>{/if}
       </span></div>
   {/if}
   {#if targetError}<p class="small danger">{targetError}</p>{/if}
@@ -395,7 +395,7 @@
     <span class="controls">
       {#if entity}<button type="button" class="text-link" onclick={remove} title="Delete removes the selected node too">{node.length ? "remove node" : "remove entity"}</button>{/if}
     </span></div>
-  <div class="row add"><span class="label">+ node</span>
+  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several), else a child of the selected node."><span class="label">+ node</span>
     <span class="controls">
       <select class="field" aria-label="New node type" value={addType} onchange={e => { addType = (e.currentTarget as HTMLSelectElement).value as EntityType | ""; addAsset = ""; }}>
         <option value="">type…</option>
@@ -411,7 +411,7 @@
     </span></div>
 
   {#if !entity || !current}
-    <p class="muted small">No AR content on this target yet: add a root node above (a model, video, image, text or light, or a group to hold several).</p>
+    <p class="muted small">No AR content on this target yet.</p>
     <div class="actions">
       <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
       <span class="grow"></span>

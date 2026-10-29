@@ -319,3 +319,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     nicht"), square corners, compact system type, **debug** = the dev
     tools' green terminal. The variants live once in `styles/design-styles.ts`; a host sets `data-theme` on itself and
     every primitive inside follows. Components carry structure only – never a colour that belongs to one variant.
+    **Explanations are help, not panel text** (Tilman, 2026-10-30, #133): what a control does is its help in the
+    **Info view** (`data-help` / `data-help-name`, or its `title` – `editor/src/lib/help.svelte.ts`), never a hint line
+    in a panel; panels show values, states and errors only. Long panels are collapsible sections (`Section.svelte`,
+    open state per section).

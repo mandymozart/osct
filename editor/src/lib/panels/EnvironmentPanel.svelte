@@ -42,17 +42,17 @@
 <section class="environment">
   <div class="head">
     <span class="section-label">environment</span>
-    <span class="small muted">{saved ? "this book's" : "the default"} · the reader's Graphics switches still apply</span>
+    <span class="small muted" data-help-name="Environment" data-help="The book's world around the reader while scanning, and the onion sky. The reader's Graphics switches (Info → Settings) still apply on top.">{saved ? "this book's" : "the default"}</span>
   </div>
-  <div class="row">
+  <div class="row" data-help="The world around the reader while scanning.">
     <span class="label">world</span>
     <select bind:value={world} aria-label="world">
       {#each ENVIRONMENT_WORLDS as name (name)}<option value={name}>{WORLD_LABELS[name] ?? name}</option>{/each}
     </select>
   </div>
-  <div class="row">
+  <div class="row" data-help="Looking up, the reader sees the world's onion sky.">
     <span class="label">onion sky</span>
-    <label class="check"><input type="checkbox" bind:checked={onionSky} /> looking up, the world's sky</label>
+    <label class="check"><input type="checkbox" bind:checked={onionSky} /> on</label>
   </div>
   <div class="actions">
     {#if saved}<button type="button" class="text-link" disabled={busy} onclick={() => save(null)}>Use the default</button>{/if}

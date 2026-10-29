@@ -134,7 +134,7 @@ is involved.
   at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
   the last) when the book has none; **Publish** with the environment (`local`, `staging`, `production` – production
-  asks). In the workspace's bar a one-page spread has a **format** select (spread, cover, back).
+  asks). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section.
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
@@ -154,6 +154,16 @@ is involved.
     **right click** on a node row opens the menu with *Remove node* / *Remove entity*. Removing is live on the stage;
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device).
+  - **Info** – at the bottom of the tree column (on the book page at the bottom left), after Ableton's Info View: the
+    name and description of the control under the pointer or in focus; collapsible, the state kept on the device. The
+    panels carry no explanatory text of their own – it is the controls' help (`editor/src/lib/help.svelte.ts`): an
+    element with `data-help="…"` (named by `data-help-name`, else its `aria-label` or its row's label), or its `title`;
+    the innermost one wins. New explanations go there, never as a hint line in a panel. On a phone (no tree column, no
+    pointer) there is no Info view.
+  - **Stage panel** – collapsible sections, each with a header, the open state kept per section on the device
+    (`editor/src/lib/sections.svelte.ts`, `components/Section.svelte`): *spread* (the format), *stage* (shake, grid,
+    origin – a reference-point picker of the four page corners and the book's centre –, desk, sky), *post-processing*
+    and *vars and events* (closed by default). Every row is the panel's label / control grid (`.row` in `app.css`).
   - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
     selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own
     space, so a drag changes the node's placement **relative to its parent** – the Entity panel's rows follow live,
@@ -162,7 +172,7 @@ is involved.
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
-  - **Post-processing** – the Stage panel's last section lists the spread's `passes` (content schema 2.5,
+  - **Post-processing** – the Stage panel's *post-processing* section lists the spread's `passes` (content schema 2.5,
     [content guide](content.md) "Post-processing") with a row per parameter from the contract's specs; **+ bloom /
     + vignette / + grade** adds one, *remove* drops one, changes show live on the stage, **Save** writes the list to
     the spread (`PUT …/spreads/{id} { passes }`), *Back to the draft* undoes, *Use the book's* drops the spread's own
