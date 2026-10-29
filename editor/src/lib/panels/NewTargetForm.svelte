@@ -11,8 +11,8 @@
    * A new target on the spread (the tree's "+ target"): an entry (title, page, category) with its printed image from
    * the library (or uploaded here) and where it is printed – surface, x / y from the page's top left corner and the
    * printed width in mm (`print`, content schema 2.1). The API makes entry and target (`POST …/entries`); the
-   * caller reloads the content and selects the new target. The image's tracking data for the real reader comes
-   * with the content build – here it is the stage's printed image.
+   * caller reloads the content and selects the new target. The reader tracks it after a publish: the 8th Wall
+   * engine makes the image-target data from the image at runtime.
    */
   let { bookId, spread, stage = null, oncreated, oncancel }: {
     bookId: string;

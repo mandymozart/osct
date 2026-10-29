@@ -1071,8 +1071,9 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        versions, usages computed), the content store as storage (local + bunny), upload, replace with relink, guarded
        delete, the editor's Library, a node's file, a target's image; [x] targets made in the editor (`print`
        placement, `POST /entries`, `DELETE /entries/{id}`, "+ target" in the tree); [ ] renditions (1x / 2x / 3x,
-       480p / 720p / 1080p) and transcoding – the content build or a job; [ ] a target made in the editor gets its
-       tracking data (the content build's target set from the uploaded image); [ ] the media standard's density suffixes.
+       480p / 720p / 1080p) and transcoding – the content build or a job; [x] a target made in the editor tracks in
+       the reader: the 8th Wall engine makes the image-target data from the image at runtime (`xr8.ts`), nothing to
+       compile; [ ] the media standard's density suffixes.
 2c. [ ] **Asked on 2026-10-29, for steps 3–4** (Tilman): nodes without a target on the spread (scenery, listeners on
        events – an anchor for the spread's scene, scope `spread`), a **timeline** for a model's animation clips with
        start / stop on found / lost / tap (the `animation` component and `behaviour` of the concept), and the

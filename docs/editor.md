@@ -100,7 +100,8 @@ again). Nothing of the reader's store, progress or routes is involved.
     its children, as deep as the content nests them. A tap on a node selects it and opens the Entity panel; a tap on
     the stage selects the root. **+ target** at the end of the tree opens the form for a new target on the spread:
     title, page, category, the printed image from the library (or uploaded there), and where it is printed (surface,
-    x / y, width in mm) – the API makes entry and target, the stage shows it at once; the target row's right-click
+    x / y, width in mm) – the API makes entry and target, the stage shows it at once (and the reader tracks it after
+    a publish: the engine makes the image-target data from the image at runtime); the target row's right-click
     menu has **Remove target** (entry and target go). ↑ ↓ walk the targets, ← → fold and unfold, Enter selects, **Delete** (or Backspace)
     removes the selected node – its children with it, the root leaves the target without AR content – and a
     **right click** on a node row opens the menu with *Remove node* / *Remove entity*. Removing is live on the stage;
@@ -196,8 +197,9 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
 
 - Entities as node trees, files from the library (uploaded in the editor) or the content, targets with their printed
   image and placement: texts and the entries' own fields are still edited in the content source and imported again
-  (the import keeps the logs). Renditions and transcoding stay with the content build; a target made in the editor
-  has no tracking data until the content build knows its image. Components, events, a timeline for a model's
+  (the import keeps the logs). Renditions and transcoding stay with the content build. A target made in the editor
+  tracks in the reader after a publish: the 8th Wall engine makes its image-target data from the printed image at
+  runtime (`engine/src/scene/xr8.ts`), nothing has to be compiled. Components, events, a timeline for a model's
   animation clips, nodes without a target and the book's own code (plugins) are phase 15 steps 3–4.
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
