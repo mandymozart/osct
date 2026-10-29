@@ -39,6 +39,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (the Stage panel's
   *sky*; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
   plywood texture, tinted), the cover a white 2 mm hardcover board.
+- **Stage panel trimmed** (Tilman: "this whole section is doable in our current interface, but not needed – we have
+  more intuitive options"): the view presets and the found chips are gone – orbit, pan, wheel and double tap move the
+  camera, the tree's eye finds and loses a target; **Replay the first find** moved to the stage's right-click menu.
+- **The sign-in limit says when** (Tilman: "das Stundenfenster aufheben – lokal sollte das nicht sein, und sonst
+  muss der Cooldown in der UI stehen"): over the hourly limit the API answers with `retryAfter` and the minutes, the
+  reader's account page and the editor's sign-in show "try again in N minutes" instead of "in an hour";
+  a limit of -1 turns it off (`LOGIN_MAX_PER_*_HOUR`, `LOGIN_MAX_ATTEMPTS`, `PASSWORD_MAX_FAILS_PER_*` – the local
+  example config; 0 allows nothing, #83).
 - **The stage's toolbar as icons** (#61, Tilman: "replace the top editor bar with the icons for each, and for the
   four view types we can just use Blender's circles"): the pick modes are a parcel (entity), a point on the graph
   (node) and the crosshair (target); viewport shading is Blender's four spheres – wire, solid, textured, rendered –

@@ -269,11 +269,13 @@
             <button type="button" role="menuitem" class="menu-item" onclick={menuAddNode}>{hasTree ? "Add node…" : "Add AR content…"}</button>
             {#if hasTree}<button type="button" role="menuitem" class="menu-item" onclick={menuRemoveNode}>{hit.path.length ? "Remove node" : "Remove entity"}</button>{/if}
             <button type="button" role="menuitem" class="menu-item" onclick={menuPlacement}>Placement on the page…</button>
+            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; stage?.replayUnlock(); }}>Replay the first find</button>
             <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; setTab("library"); }}>Library…</button>
             <button type="button" role="menuitem" class="menu-item danger" onclick={() => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); stageMenu = null; if (t) void removeTarget(t); }}>Remove target</button>
           {:else}
             <span class="menu-head small muted">{spread?.title ?? spreadId}</span>
             <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; addingTarget = true; }}>+ target…</button>
+            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; stage?.replayUnlock(); }}>Replay the first find</button>
             <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; setTab("stage"); }}>Stage settings…</button>
           {/if}
         </div>
