@@ -29,7 +29,7 @@
 
   const spread = $derived(content.spread(spreadId));
   /** "28–29"; a spread title that only repeats it (the import's default) is not shown twice */
-  const pages = $derived(spread ? `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}` : "");
+  const pages = $derived(spread ? (spread.format === "cover" ? "cover" : spread.format === "back" ? "back" : `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}`) : "");
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 

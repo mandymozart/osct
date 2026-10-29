@@ -59,7 +59,10 @@ The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same thr
 stage every frame so the room stays put while the camera orbits – a desk of **screen-printed plywood** (Poly Haven's
 plywood texture tinted to the phenolic brown), the open book as an object – two blocks of paper on a white hardcover board (3 mm) that overhangs the pages by 3 mm, the block's
 thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) – and the current
-spread's printed images. Every plane lies a hair (0.5 mm) under the one above it: the entities sit at the target's
+spread's printed images. A spread of the format `cover` or `back` shows the **closed book** instead – the printed
+cover board on top (the layout's `cover-front` / `cover-back` sheet as its texture), the whole block of paper under
+it, centred on the origin, one page wide – and its targets lie on the surface `front` or `back`. Every plane lies a
+hair (0.5 mm) under the one above it: the entities sit at the target's
 own plane (z = 0, as the tracker reports it), the printed image one layer below, the sheet's image below that, so
 nothing flickers. The printed images:
 
@@ -88,8 +91,10 @@ again). Nothing of the reader's store, progress or routes is involved.
   URL or file; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
   media is copied).
 - **Spreads** (`/editor/<book>/`): the spreads as cards with the sheet of each as its preview (from the book's layout
-  at *assets at*; without a layout the cards are text), their entries, targets and AR count; **Publish** with the
-  environment (`local`, `staging`, `production` – production asks).
+  at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ cover** / **+ back
+  cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
+  the last) when the book has none; **Publish** with the environment (`local`, `staging`, `production` – production
+  asks). In the workspace's bar a one-page spread has a **format** select (spread, cover, back).
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the

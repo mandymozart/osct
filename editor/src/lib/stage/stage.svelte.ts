@@ -4,7 +4,7 @@ import { Object3D, Raycaster, Vector2 } from "three";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
 import { ArScene } from "@engine/scene";
-import { getTarget, getTargets } from "@engine/content/game-config";
+import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type IArScene, type NodeTimeline } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "$lib/values";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
@@ -28,7 +28,7 @@ export type PickMode = "entity" | "node" | "target";
 /** A placement being edited: the image and where it would be printed (mm) */
 export interface GhostPlace {
   imageSrc: string;
-  surface: "left" | "right";
+  surface: "left" | "right" | "front" | "back";
   x: number;
   y: number;
   width: number;
@@ -298,12 +298,17 @@ export class Stage {
   /** A drag of the ghost: the image (move) or its corner (width) */
   private ghostDrag: { kind: "move" | "width"; grabX: number; grabY: number } | null = null;
   /** The form or the panel editing the placement listens: a handle moved it */
-  onGhostChange: ((place: { surface: "left" | "right"; x: number; y: number; width: number }) => void) | null = null;
+  onGhostChange: ((place: { surface: "left" | "right" | "front" | "back"; x: number; y: number; width: number }) => void) | null = null;
 
   /** Show where a target would be printed (a translucent image on the page with handles); null = none */
   ghost(target: GhostPlace | null): void {
     this.ghostPlace = target;
     this.tracker?.setGhost(target ? { id: "ghost", imageSrc: target.imageSrc, surface: target.surface, x: target.x, y: target.y, width: target.width, height: target.height ?? target.width * 0.75 } : null);
+  }
+
+  /** The current spread's format (the form and the panel offer the right surfaces) */
+  format(): "spread" | "cover" | "back" {
+    return (this.spreadId ? getSpread(this.spreadId)?.format : undefined) ?? "spread";
   }
 
   /** The ghost's handle under the pointer: "move" over the image, "width" over its corner, null elsewhere */
@@ -349,7 +354,7 @@ export class Stage {
       next = { ...place, surface: hit.surface, x: Math.round(hit.x - this.ghostDrag.grabX), y: Math.round(hit.y - this.ghostDrag.grabY) };
     } else {
       // The corner sets the width from the image's left edge (on the image's own page)
-      const pageX = hit.surface === place.surface ? hit.x : hit.surface === "right" ? hit.x + 230 : hit.x - 230;
+      const pageX = hit.surface === place.surface ? hit.x : hit.surface === "right" ? hit.x + 230 : hit.surface === "left" ? hit.x - 230 : hit.x;
       next = { ...place, width: Math.max(10, Math.round(pageX - place.x)) };
     }
     this.ghostPlace = next;
@@ -365,7 +370,7 @@ export class Stage {
   };
 
   /** Where a point of the screen meets the page (mm from the page's top left corner) */
-  private pageAt(clientX: number, clientY: number): { surface: "left" | "right"; x: number; y: number } | null {
+  private pageAt(clientX: number, clientY: number): { surface: "left" | "right" | "front" | "back"; x: number; y: number } | null {
     const inspection = this.scene.inspect();
     if (!inspection) return null;
     const rect = this.container.getBoundingClientRect();

@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { base } from "$app/paths";
   import { page } from "$app/state";
-  import { ApiError, getBook, type BookTree } from "$lib/api";
+  import { addSpread, ApiError, getBook, type BookTree } from "$lib/api";
   import { session } from "$lib/session.svelte";
   import { sheetForSpread, type StageLayout } from "$lib/stage/stage-layout";
   import PublishButton from "$lib/PublishButton.svelte";
@@ -14,6 +14,20 @@
   let error = $state<string | null>(null);
 
   const LAYOUT_PATH = "/assets/content/layout/";
+  const hasFormat = (format: string) => !!tree?.spreads.some(s => (s as { format?: string }).format === format);
+  let adding = $state(false);
+  /** The front or the back cover as a spread of its own (format cover / back, content schema 2.3) */
+  const addCover = async (format: "cover" | "back") => {
+    adding = true;
+    try {
+      await addSpread(bookId, { format });
+      tree = await getBook(bookId);
+    } catch (e) {
+      error = e instanceof ApiError ? e.message : String(e);
+    } finally {
+      adding = false;
+    }
+  };
   const assetsBase = $derived((tree?.book.assetsBase ?? "").replace(/\/+$/, ""));
 
   onMount(async () => {
@@ -35,7 +49,8 @@
   });
 
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
-  const pagesOf = (spread: { firstPage: number; lastPage: number }) => `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}`;
+  const pagesOf = (spread: { firstPage: number; lastPage: number; format?: string }) =>
+    spread.format === "cover" ? "cover" : spread.format === "back" ? "back" : `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}`;
   /** A title that only repeats the pages (the import's default) is not shown twice */
   const titleOf = (spread: BookTree["spreads"][number]) => (spread.title.replace(/[-–—]/g, "–") === pagesOf(spread) ? "" : spread.title);
 </script>
@@ -51,7 +66,10 @@
 <main>
   {#if error}<p class="danger">{error}</p>{/if}
   {#if tree}
-    <p class="muted small">{tree.book.author} · {tree.spreads.length} spreads · assets at {tree.book.assetsBase || "the draft's origin"}</p>
+    <p class="muted small">{tree.book.author} · {tree.spreads.length} spreads · assets at {tree.book.assetsBase || "the draft's origin"}
+      {#if !hasFormat("cover")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("cover")}>+ cover</button>{/if}
+      {#if !hasFormat("back")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("back")}>+ back cover</button>{/if}
+    </p>
     <ul class="spreads">
       {#each tree.spreads as spread (spread.id)}
         {@const sheet = sheetForSpread(layout, spread)}
