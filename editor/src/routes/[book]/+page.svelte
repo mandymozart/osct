@@ -4,18 +4,22 @@
   import { page } from "$app/state";
   import { addSpread, ApiError, getBook, type BookTree } from "$lib/api";
   import { sheetForSpread, type StageLayout } from "$lib/stage/stage-layout";
+  import { fetchBookLayout, printBoxes, sheetUrl } from "$lib/sheet-preview";
+  import SheetPreview from "$lib/components/SheetPreview.svelte";
   import { captionOf, formatLabelOf, gridCells } from "$lib/spread-grid";
   import Icon from "$lib/components/Icon.svelte";
   import { environmentOf } from "@shared/types/environment";
   import InfoView from "$lib/components/InfoView.svelte";
 
-  /** A book's spreads with the sheet of each as its preview (when the content carries the layout): open one to work on its stage */
+  /**
+   * A book's spreads, each as its picture: the layout's sheet (when the content carries one) with the targets' prints
+   * over it (#153). Open one to work on its stage.
+   */
   const bookId = $derived(page.params.book!);
   let tree = $state<BookTree | null>(null);
   let layout = $state<StageLayout | null>(null);
   let error = $state<string | null>(null);
 
-  const LAYOUT_PATH = "/assets/content/layout/";
   const hasFormat = (format: string) => !!tree?.spreads.some(s => (s as { format?: string }).format === format);
   let adding = $state(false);
   /** The front or the back cover as a spread of its own (format cover / back, content schema 2.3) */
@@ -39,21 +43,15 @@
       error = e instanceof ApiError ? e.message : String(e);
       return;
     }
-    // The layout lives with the book's assets; without it (or without an assets base) the list has no previews
-    if (!assetsBase) return;
-    try {
-      const response = await fetch(`${assetsBase}${LAYOUT_PATH}layout.json`);
-      const data = response.ok ? await response.json() : null;
-      layout = data && Array.isArray(data.sheets) && data.targets ? (data as StageLayout) : null;
-    } catch {
-      layout = null;
-    }
+    // The layout lives with the book's assets; without it (or without an assets base) the cards are blank pages with their prints
+    layout = await fetchBookLayout(assetsBase);
   });
 
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
   const cells = $derived(gridCells(tree?.spreads ?? []));
   /** One page's proportions: a double page is twice as wide, so every card has the cover's height */
   const pageRatio = $derived(layout ? layout.page.width / layout.page.height : 230 / 320);
+  const pageMm = $derived(layout?.page ?? { width: 230, height: 320 });
 </script>
 
 <main>
@@ -81,8 +79,10 @@
           {@const format = formatLabelOf(spread)}
           <li style:grid-column="span {cell.span}" class:right={cell.side === "right"} class:left={cell.side === "left"}>
             <a href="{base}/{bookId}/{spread.id}/" class="spread">
-              <span class="sheet" style:aspect-ratio={cell.span * pageRatio}>
-                {#if sheet}<img src="{assetsBase}{LAYOUT_PATH}{sheet.image}" alt="" loading="lazy" decoding="async" class:single={cell.span === 1 && !!layout && sheet.widthMm > layout.page.width * 1.5} />{/if}
+              <span class="frame">
+                <SheetPreview ratio={cell.span * pageRatio} image={sheet ? sheetUrl(assetsBase, sheet) : null}
+                  single={cell.span === 1 && !!sheet && !!layout && sheet.widthMm > layout.page.width * 1.5}
+                  prints={printBoxes(targets.map(e => e.target!), cell.span, pageMm, assetsBase)} />
               </span>
               <span class="caption muted small">
                 {#if caption}<span class="text">{caption}</span>{/if}
@@ -120,10 +120,8 @@
   .spreads > li { padding: 0 .5rem; min-width: 0; }
   .spreads > li.right { padding-left: 0; }
   .spreads > li.left { padding-right: 0; }
-  .spread:hover .sheet, .spread:focus-visible .sheet { border-color: var(--text); }
-  .sheet { display: block; width: 100%; box-sizing: border-box; background: var(--surface-head); border: 1px solid var(--line); overflow: hidden; transition: border-color .15s; }
-  .sheet img { display: block; width: 100%; height: 100%; object-fit: cover; }
-  .sheet img.single { width: 200%; max-width: none; margin-left: -100%; }
+  .spread:hover .frame, .spread:focus-visible .frame { border-color: var(--text); }
+  .frame { display: block; border: 1px solid var(--line); transition: border-color .15s; }
   .caption { display: flex; align-items: center; gap: .5rem; padding: .25rem 0; white-space: nowrap; overflow: hidden; }
   .text { overflow: hidden; text-overflow: ellipsis; }
   .format { border: 1px solid var(--line); padding: 0 .25rem; font-size: .75em; text-transform: uppercase; }

@@ -1,5 +1,6 @@
 import type { EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
+import type { SpreadFormat } from "@shared/types/game-config";
 
 /**
  * The instance's API (server/api, docs/server.md): the accounts endpoints the sign-in uses and the editor's own
@@ -99,12 +100,16 @@ export interface BookSummary {
   lastPublish?: { env: string; build: string; at: string } | null;
   /** The environments serving this book – empty: draft only */
   live?: LiveIn[];
+  /** Where the content's `/assets/content/…` paths resolve (the layout, the cover); empty: the draft's origin */
+  assetsBase?: string | null;
 }
 
 export interface TreeTarget {
   id: string;
   imageSrc: string;
   entity?: EntityData | EntityRefData;
+  /** Where it is printed (a target made in the editor, or content that carries it); else the book's layout knows */
+  print?: PrintPlacement | null;
 }
 
 export interface TreeEntry {
@@ -120,11 +125,13 @@ export interface TreeSpread {
   title: string;
   firstPage: number;
   lastPage: number;
+  /** `spread` (default), `cover`, `back` (content schema 2.3) */
+  format?: SpreadFormat;
   entries: TreeEntry[];
 }
 
 export interface BookTree {
-  book: BookSummary & { assetsBase?: string | null; schema?: string; book?: { environment?: EnvironmentData } };
+  book: BookSummary & { schema?: string; book?: { environment?: EnvironmentData } };
   spreads: TreeSpread[];
 }
 
