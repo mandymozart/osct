@@ -43,6 +43,11 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.10.0 – 2026-10-29
 
 ### Added
+- **Tutorial: the content workflow** (#61, Tilman: "eine Visualisierung, wie der Workflow Speichern, Sync, Publish ist,
+  zum schnelleren Einstieg – auf einer Seite unter /docs/tutorials"): a static page shipped with the app at
+  `/docs/tutorials/` – the three places (content folder, CDN, editor database) and the arrows between them (sync,
+  import, save, publish, the reader), the seven steps to bring a book onto an instance, and the things to know
+  (import replaces the draft, sync and publish both make versions).
 - **Roles and the admin page** (#65, Tilman: "wir werden ein kleines Admin-UI brauchen", modelled on SCUTOONS' roles for the
   white-label core): the tables `roles` (reader / editor / admin, fixed ids) and `user_roles` (granted when, by whom);
   every account has `reader`, existing editors keep `editor` (the schema backfills on the next deploy), `GET /user`
