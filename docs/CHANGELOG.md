@@ -12,6 +12,18 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.23.0 – 2026-10-30
+
+### Added
+- **The workspace's columns can be resized** (#144): drag the edge between the stage and the panel, or between the tree
+  and the stage, to make the column wider or narrower (the panel from 18rem to 70% of the window, the tree from 10rem
+  to 40%; the stage always keeps room). The stage follows live. Each width is remembered in this browser; the Code tab
+  has its own, wider width. A double-click on an edge restores the default; a focused edge also moves with ← →. The
+  phone layout is unchanged.
+
+### Changed
+- The stage's view follows its container's size, not only the window's.
+
 ## 1.21.0 – 2026-10-30
 
 ### Added

@@ -20,12 +20,15 @@
   import { library } from "$lib/library.svelte";
   import { nodeAt } from "$lib/values";
   import InfoView from "$lib/components/InfoView.svelte";
+  import { clampWidth, LIMITS, maxWidth, widths, type Column } from "$lib/widths.svelte";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
    * (the engine over the mock stage) and the panels **Stage**, **Entity**, **Environment**, **Library** and **Code** in a column at the right. On a phone the
    * panel is a sheet at the bottom whose head is the tab row (closed = the row only) and the tree is its first tab.
-   * `?tab=environment` opens a tab (the book page links the Environment so).
+   * `?tab=environment` opens a tab (the book page links the Environment so). On a desktop the tree's right edge and
+   * the panel's left edge are dragged to resize the columns (`widths`; the Code tab has its own, wider width), a
+   * double-click on an edge restores the default; the stage's view follows its container.
    */
   const bookId = $derived(page.params.book!);
   const spreadId = $derived(page.params.spread!);
@@ -66,6 +69,48 @@
   /** The tab the panel shows: on a desktop the tree has its own column, so a stored "tree" shows the stage */
   const shown = $derived<Tab | null>(tab === "tree" && !narrow ? "stage" : tab);
   const select = () => { if (shown !== "entity") setTab("entity"); };
+
+  // ── the columns' widths: the edges are dragged (pointer or arrow keys), a double-click restores the default ──
+  let workspace = $state<HTMLDivElement>();
+  let viewport = $state(window.innerWidth);
+  let dragging = $state<Column | null>(null);
+  const panelColumn = $derived<Column>(shown === "code" ? "code" : "panel");
+  const treeShown = $derived(treeOpen && !narrow);
+  /** The panel's width leaves room for the tree's own (clamped alone); the tree's then fits next to the panel */
+  const panelWidth = $derived(widths.width(panelColumn, viewport, treeShown ? widths.width("tree", viewport) : 0));
+  const treeWidth = $derived(widths.width("tree", viewport, panelWidth));
+  const widthOf = (column: Column) => (column === "tree" ? treeWidth : panelWidth);
+  /** The other column's width: the stage keeps its room between both */
+  const otherOf = (column: Column) => (column === "tree" ? panelWidth : treeShown ? treeWidth : 0);
+  const resizeTo = (column: Column, width: number) => widths.set(column, clampWidth(column, width, viewport, otherOf(column)));
+  const startDrag = (column: Column, event: PointerEvent) => {
+    if (event.button !== 0) return;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    dragging = column;
+    event.preventDefault();
+  };
+  const drag = (event: PointerEvent) => {
+    if (!dragging || !workspace) return;
+    const rect = workspace.getBoundingClientRect();
+    resizeTo(dragging, dragging === "tree" ? event.clientX - rect.left : rect.right - event.clientX);
+  };
+  const endDrag = () => {
+    if (!dragging) return;
+    widths.save();
+    dragging = null;
+  };
+  /** ← → move the focused edge (Shift: further); the tree's edge grows to the right, the panel's to the left */
+  const edgeKey = (column: Column, event: KeyboardEvent) => {
+    const step = event.shiftKey ? 64 : 16;
+    const grow = column === "tree" ? 1 : -1;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      resizeTo(column, widthOf(column) + (event.key === "ArrowRight" ? grow : -grow) * step);
+      widths.save();
+      event.preventDefault();
+      event.stopPropagation(); // not the spreads' ← →
+    }
+  };
+  const EDGE_HELP = "Drag to make the column wider or narrower (← → when focused, Shift for larger steps); the width is remembered in this browser. A double-click restores the default width.";
 
   // ── targets: the form, removal, a changed image or placement ──
   let addingTarget = $state(false);
@@ -245,9 +290,20 @@
   };
 </script>
 
-<svelte:window onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnap(false)} />
+<svelte:window bind:innerWidth={viewport} onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnap(false)} />
 
-<div class="workspace" class:closed={shown === null} class:tree-closed={!treeOpen}>
+{#snippet edge(column: Column, name: string)}
+  <!-- A focusable separator is a control (a window splitter): it takes the pointer, a double-click and the arrow keys -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+  <div class="edge {column === 'tree' ? 'edge-right' : 'edge-left'}" class:on={dragging === column}
+    role="separator" aria-orientation="vertical" aria-label={name} tabindex="0" data-app-ui data-help-name={name} data-help={EDGE_HELP}
+    aria-valuenow={widthOf(column)} aria-valuemin={LIMITS[column].min} aria-valuemax={maxWidth(column, viewport, otherOf(column))}
+    onpointerdown={e => startDrag(column, e)} onpointermove={drag} onpointerup={endDrag} onpointercancel={endDrag} onlostpointercapture={endDrag}
+    ondblclick={() => widths.reset(column)} onkeydown={e => edgeKey(column, e)}></div>
+{/snippet}
+
+<div class="workspace" class:closed={shown === null} class:tree-closed={!treeOpen} class:dragging bind:this={workspace}
+  style:--panel-width="{panelWidth}px" style:--tree-width={treeShown ? `${treeWidth}px` : undefined}>
   <aside class="tree" data-app-ui>
     <div class="bar">
       {#if treeOpen}<span class="section-label grow">tree</span>{/if}
@@ -258,6 +314,7 @@
     {#if treeOpen}
       <div class="body tree-body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} onaddtarget={() => { addingTarget = true; }} onremovetarget={removeTarget} /></div>
       <InfoView />
+      {#if treeShown}{@render edge("tree", "Tree edge")}{/if}
     {/if}
   </aside>
 
@@ -318,6 +375,7 @@
   </div>
 
   <aside class="panel" data-app-ui>
+    {#if !narrow}{@render edge(panelColumn, "Panel edge")}{/if}
     <div class="bar">
       <a href="{base}/{bookId}/" class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
       <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
@@ -354,7 +412,8 @@
 <style>
   .workspace { position: fixed; inset: var(--top-height) 0 0; display: grid; grid-template-columns: var(--tree-width) minmax(0, 1fr) var(--panel-width); background: var(--stage-background); }
   .workspace.tree-closed { --tree-width: auto; }
-  .tree { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--line); color: var(--text); }
+  .workspace.dragging { cursor: col-resize; user-select: none; }
+  .tree { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--line); color: var(--text); }
   .tree .bar { padding-left: .5rem; }
   .tree-closed .tree .bar { padding-left: .375rem; }
   .tree-body { padding: .25rem .375rem .75rem; }
@@ -376,13 +435,21 @@
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font-size: var(--text-small); font-family: ui-monospace, Consolas, monospace; }
   .pick-chip::before { content: ""; width: .875rem; height: .875rem; border-radius: 50%; border: 1px solid var(--line); background: var(--c); }
-  .panel { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--line); color: var(--text); }
+  .panel { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--line); color: var(--text); }
   .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .bar .tab { padding: 0 .5rem; }
   .bar .tab.on { background: var(--surface); }
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; }
   .body.code { overflow: hidden; }
   .icon-button { text-decoration: none; }
+  /* A column's edge: a strip over the border with a grip in its middle; the border shows while it is hovered or dragged */
+  .edge { position: absolute; top: 0; bottom: 0; z-index: 3; width: .5rem; cursor: col-resize; touch-action: none; outline: none; }
+  .edge-right { right: -.25rem; }
+  .edge-left { left: -.25rem; }
+  .edge::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--muted); opacity: 0; transition: opacity .1s; }
+  .edge::after { content: ""; position: absolute; top: calc(50% - .75rem); left: calc(50% - 2px); width: 4px; height: 1.5rem; border-radius: 2px; background: var(--muted); opacity: .6; }
+  .edge:hover::before, .edge:focus-visible::before, .edge.on::before { opacity: 1; }
+  .edge:hover::after, .edge:focus-visible::after, .edge.on::after { opacity: 1; background: var(--text); }
 
   /* A phone: the stage fills the screen, the panel is a sheet at the bottom (closed = the bar only) */
   @media (max-width: 47.9rem) {
