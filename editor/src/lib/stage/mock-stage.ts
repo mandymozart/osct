@@ -434,8 +434,8 @@ export class MockStage implements StageView {
   }
 
   /**
-   * Everything of the stage stands in for the camera picture: on the engine's backdrop layer it is drawn under the
-   * spread's post-processing passes, which never see it (as they never see the camera picture in the reader)
+   * Everything of the stage stands in for the camera picture: on the engine's backdrop layer the spread's
+   * post-processing passes shade it as the camera picture (bloom, vignette; the grade stays on the AR layer)
    */
   private toBackdropLayer(): void {
     this.group.traverse(object => object.layers.set(BACKDROP_LAYER));
