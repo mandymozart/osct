@@ -69,13 +69,17 @@ export const schemas: Record<string, Schema> = {
     },
   },
 
-  // content/entities/<id>/entity.yaml
+  // content/entities/<id>/entity.yaml – the root node of a shared entity (content schema 2.0: a tree)
   entity: {
     fields: {
+      id: { type: "String", required: false },
       type: { type: "String", required: true, enum: [...ENTITY_TYPES] },
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts
+      children: { type: "Array", required: false }, // nodes: { type, src?, params?, filters?, children?, text?, color? }
+      text: { type: "String", required: false }, // text nodes
+      color: { type: "String", required: false }, // text nodes, #rrggbb
     },
   },
 

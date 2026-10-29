@@ -12,8 +12,11 @@ import { FilterData } from "./filters";
 export * from "./filters";
 export * from "./placement";
 
-/** Entity types the app can render in AR (extensible, RULES #7). */
-export const ENTITY_TYPES = ["model", "video", "image"] as const; // links are entries, not entities
+/**
+ * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text –
+ * or a `group` that only holds children. Links are entries, not entities.
+ */
+export const ENTITY_TYPES = ["group", "model", "video", "image", "text"] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
@@ -29,7 +32,7 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "1.2";
+export const CONTENT_SCHEMA_VERSION = "2.0";
 
 export interface ContentSchema {
   major: number;
@@ -72,12 +75,25 @@ export interface AssetData {
   src: string;
 }
 
-/** Description of an AR entity projected on a found target. */
+/**
+ * An AR entity projected on a found target: a **tree of nodes** (content schema 2.0). The root node sits on the
+ * target (1 unit = the target's width, origin in its centre); every node has a placement (`params`) relative to
+ * its parent and may hold `children`. A 1.x entity is a tree of one node, so the app reads both.
+ */
 export interface EntityData {
+  /** Optional, unique within the tree: the editor's selection, a later behaviour's target */
+  id?: string;
   type: EntityType;
+  /** The node's own files (a model, a video, an image); empty for `group` and `text` */
   assets: AssetData[];
   params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
+  /** Child nodes, placed relative to this one */
+  children?: EntityData[];
+  /** `text` nodes: the line shown; `{{entry.title}}` and `{{book.title}}` are replaced */
+  text?: string;
+  /** `text` nodes: the colour, `#rrggbb` (default white) */
+  color?: string;
 }
 
 /** Reference to a shared entity in `GameConfiguration.entities`. */

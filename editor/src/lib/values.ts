@@ -1,4 +1,5 @@
 import {
+  AssetData,
   EntityData,
   FilterData,
   FILTERS,
@@ -174,3 +175,47 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
   }
   return result;
 };
+
+// ── The entity as a tree of nodes (content schema 2.0) ──────────────────────────────────────────
+
+/** The node at `path` (`[]` = the root, `[1, 0]` = the second child's first), undefined when the tree has none there */
+export const nodeAt = (root: EntityData | undefined, path: number[]): EntityData | undefined =>
+  path.reduce<EntityData | undefined>((node, index) => node?.children?.[index], root);
+
+/** A copy of the tree with the node at `path` replaced */
+export const withNode = (root: EntityData, path: number[], node: EntityData): EntityData =>
+  path.length
+    ? { ...root, children: (root.children ?? []).map((child, i) => (i === path[0] ? withNode(child, path.slice(1), node) : child)) }
+    : node;
+
+/** A copy of the tree with `child` appended to the node at `path` */
+export const addChild = (root: EntityData, path: number[], child: EntityData): EntityData => {
+  const parent = nodeAt(root, path) ?? root;
+  return withNode(root, path, { ...parent, children: [...(parent.children ?? []), child] });
+};
+
+/** A copy of the tree without the node at `path` (never the root) */
+export const removeNode = (root: EntityData, path: number[]): EntityData => {
+  if (!path.length) return root;
+  const parentPath = path.slice(0, -1);
+  const parent = nodeAt(root, parentPath) ?? root;
+  const children = (parent.children ?? []).filter((_, i) => i !== path[path.length - 1]);
+  const next: EntityData = { ...parent };
+  if (children.length) next.children = children;
+  else delete next.children;
+  return withNode(root, parentPath, next);
+};
+
+/** The whole tree as the content stores it (`contentEntity` on every node; an even scale as one number) */
+export const contentTree = (root: EntityData): EntityData => {
+  const node = contentEntity(root, hasUniformScale(root));
+  if (node.children) node.children = node.children.map(contentTree);
+  return node;
+};
+
+/** A new node of a type: fileless types at once, model / video / image with the asset chosen from the book */
+export const newNode = (type: EntityData["type"], asset?: { id: string; assetType: AssetData["assetType"]; src: string }): EntityData => ({
+  type,
+  assets: asset ? [asset] : [],
+  ...(type === "text" ? { text: "{{entry.title}}", color: "#ffffff" } : {}),
+});

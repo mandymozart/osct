@@ -90,20 +90,24 @@ again). Nothing of the reader's store, progress or routes is involved.
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
   spreads, the spread's title, the tabs.
   - **Tree** – the spread in the style of Blender's outliner: a chevron column, a type icon before every name (book,
-    entry, target, model / video / image), guide lines per depth, zebra rows, and the **eye** in a column at the
-    right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its entries in page
-    order, each entry's target ("in view" while the camera sees it, ● while the stage shows it with other values than
-    the draft's) and the target's entity (type, the shared ref). A tap on a target or its entity selects it and opens
-    the Entity panel; a tap on the stage selects here. ↑ ↓ walk the targets, ← → fold and unfold, Enter selects.
-    Entries fold; the column collapses to its bar (‹ ›, kept on the device).
+    entry, target, group / model / video / image / text), guide lines per depth, zebra rows, and the **eye** in a
+    column at the right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its
+    entries in page order, each entry's target ("in view" while the camera sees it) and the target's entity as its
+    **node tree** – the root node (● while the stage shows it with other values than the draft's; the shared ref) and
+    its children, as deep as the content nests them. A tap on a node selects it and opens the Entity panel; a tap on
+    the stage selects the root. ↑ ↓ walk the targets, ← → fold and unfold, Enter selects. Entries and nodes fold;
+    the column collapses to its bar (‹ ›, kept on the device).
   - **Stage** – the simulated camera: **view** *reader* (35 cm above the page, tilted 30°), *top*, *low* (75° – shows
     how flat a video plane is), *far*; on the stage **drag** orbits, **Shift + drag**, the **middle button** or **two fingers** pan (the looked-at
     point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
     one pressed chip per target (◉ = in view) – off reports it lost (outro), on found again (reveal); the replay arrow
     plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **backdrop**: *table*, *paper*,
     *photo* of your own desk (the camera button; long side 1600 px, stored on the device).
-  - **Entity** – the target (a tap on an entity on the stage or in the tree selects it), then every placement value
-    and filter parameter of its entity as rows of one control height: position, rotation and scale with X, Y, Z side
+  - **Entity** – the target and the selected **node** of its entity (the head says `node · root › 1 › 0 · model`),
+    **+ node** (type, and for model / video / image a file from the book's assets – appended as a child of the
+    selected node, or as the root of a target without AR content), **remove node** / **remove entity**; then every
+    placement value (relative to the parent node), a text node's text and colour, and every filter parameter of the
+    node as rows of one control height: position, rotation and scale with X, Y, Z side
     by side as in Blender (the chain icon at the end of the scale row links the axes: pressed = one `scale` field, as
     Blender's lock), choices as a segmented group, colours as a
     swatch + hex whose swatch opens the editor's **colour popover** (after Scutoons': a palette of the usual keys and
@@ -112,8 +116,8 @@ again). Nothing of the reader's store, progress or routes is involved.
     cancels; the sampled pixel is the rendered one, lit and tone-mapped), a reset arrow while a value differs from the type's default, ● on rows that differ from the draft.
     Changes show live on the stage; **Save** writes the entity to the API – the shared entity when the target refers
     to one (the head says `shared: <ref> (n×)`), else the target's own – and the stage rebuilds from the draft;
-    **Back to the draft** drops them. Rows come from the content contract's definitions (`PLACEMENT_PARAMS`,
-    `FILTERS`): a new filter or parameter needs no panel code.
+    **Back to the draft** drops them. Save writes the **whole tree**. Rows come from the content contract's
+    definitions (`PLACEMENT_PARAMS`, `FILTERS`): a new filter or parameter needs no panel code.
 - Settings (view, orbit, backdrop, photo, shake, the open tab, the tree open or collapsed) are stored per device; the
   session token too.
 
@@ -151,8 +155,9 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
 
 ## Limits of this step
 
-- Entities only: texts, entries, targets and new media are edited in the content source and imported again (the
-  import keeps the logs). Uploading media and transcoding stay with the content build.
+- Entities only (as node trees – new nodes take files the book already has): texts, entries, targets and new media
+  are edited in the content source and imported again (the import keeps the logs). Uploading media and transcoding
+  stay with the content build. Components and the book's own code (plugins) are phase 15 steps 3–4.
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
 - The plugin API (content schema 2.0, code in the editor) is phase 15 steps 3–4 (`agents/PLAN.md`).

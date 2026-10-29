@@ -212,8 +212,37 @@ media: https://www.youtube.com/watch?v=…
 **Several targets on the same page:** one entry each – there is no order to keep and nothing to
 compile (max 10 targets per spread). An older `order:` under `target` is ignored.
 
-**AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` and refer to
-it with `ref`:
+**An entity is a tree of nodes** (content schema 2.0): the node under `entity:` is the **root**, it sits on the
+target (1 unit = the target's width); every node may hold `children`, each placed by its own `params` **relative
+to its parent**, as deep as you like (8 levels at most). Node types: `model`, `video`, `image` (a file, `src`),
+`text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced) and `group` (nothing
+of its own, it only holds children – move or scale the whole tree by its params). One node, as above, is the
+default; the editor's tree shows and edits the whole tree (+ node, remove node).
+
+```yaml
+target:
+  image: images-029.jpg
+  entity:
+    type: group
+    params:
+      position: [0, 0.1, 0]       # the whole tree, a little towards the top
+    children:
+      - type: model
+        src: tree.glb
+        params:
+          rotation: [90, 45, 0]
+          position: [0, 0, 0.1]  # relative to the group
+          scale: 0.7
+      - type: text
+        text: "{{entry.title}}"
+        color: "#f3cc94"
+        params:
+          position: [0, -0.45, 0.01]
+          scale: 0.8
+```
+
+**AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` (the root node; its
+`children` as above, files next to it) and refer to it with `ref`:
 
 ```yaml
 # content/entities/castle/entity.yaml
