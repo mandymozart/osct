@@ -1115,6 +1115,9 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        actions – the concept's events → actions without code, `audio`), declared variables, the node-type registry
        (`registerNodeType`, #77), nodes without a target on the spread (scope `spread`), bubbling scopes (#88); the
        content store per book (#87).
+4b. [x] **The books page and page previews** (#153, 1.25.0): the books as covers beside the import; sheets rendered from
+       the content for a book without PDFs (`scripts/layout/render-layout.py`, the demo's `fixtures/demo/layout/`);
+       prints laid over the spread cards.
 4. [x] Code in the editor (#66, 1.11.0): the **Code** tab – plugin sources stored through the API (`plugins` table),
        a plain code editor, Run = browser transpile (sucrase) into the stage's registry, Save, Download; the editor's
        stage is the only place unchecked code runs, a publish refuses component types no declared plugin provides.
