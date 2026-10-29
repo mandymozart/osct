@@ -1,5 +1,6 @@
 import { Matrix4, PerspectiveCamera, ShaderMaterial, Vector2, Vector3, WebGLRenderer } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
+import { DEFAULT_ENVIRONMENT, EnvironmentData } from "@shared/types/environment";
 import { GraphicsSettings, GraphicsSource, NO_GRAPHICS } from "../../types/index";
 import { BookAnchor, yawTowards } from "./book-anchor";
 import { DeviceOrientation } from "./orientation";
@@ -9,6 +10,16 @@ import { SkySample } from "./sky-sample";
 const DEG = Math.PI / 180;
 /** Seconds the world takes to fade out (book forgotten, option turned off) */
 const FADE_OUT = 3;
+
+/**
+ * What is drawn: the book's environment (content schema 2.7) says which world and whether the onion sky, the reader's
+ * Graphics switches apply on top – either can turn a part off, neither turns on what the book leaves out. The café is
+ * the only world, so `surroundings` follows the world; a new world adds its own check here. Pure, for the tests.
+ */
+export const effectiveGraphics = (reader: GraphicsSettings, environment: EnvironmentData): GraphicsSettings => ({
+  onionSky: reader.onionSky && environment.onionSky,
+  surroundings: reader.surroundings && environment.world === "cafe",
+});
 
 /** Tuning – the running instance's copy is `window.osctLookAround` (try values on the phone over USB debugging) */
 export interface LookAroundSettings {
@@ -49,6 +60,8 @@ export const DEFAULT_LOOK_AROUND: LookAroundSettings = {
  */
 export class LookAround {
   readonly settings: LookAroundSettings = { ...DEFAULT_LOOK_AROUND };
+  /** The reader's switches, and what is drawn of them (`effectiveGraphics`, the book's environment applied) */
+  private reader: GraphicsSettings;
   private options: GraphicsSettings;
   private unsubscribe: () => void;
   private orientation = new DeviceOrientation();
@@ -68,11 +81,18 @@ export class LookAround {
   /** Some of the view is above the horizon (only there the sky can be keyed) */
   private skyInView = false;
 
-  constructor(private renderer: WebGLRenderer, cameraVideo: () => HTMLVideoElement | null, graphics: GraphicsSource = NO_GRAPHICS) {
+  constructor(
+    private renderer: WebGLRenderer,
+    cameraVideo: () => HTMLVideoElement | null,
+    graphics: GraphicsSource = NO_GRAPHICS,
+    private environment: EnvironmentData = DEFAULT_ENVIRONMENT,
+  ) {
     this.sky = new SkySample(cameraVideo);
-    this.options = graphics.getSettings();
-    this.unsubscribe = graphics.subscribe(options => {
-      this.options = options;
+    this.reader = graphics.getSettings();
+    this.options = effectiveGraphics(this.reader, this.environment);
+    this.unsubscribe = graphics.subscribe(reader => {
+      this.reader = reader;
+      this.options = effectiveGraphics(reader, this.environment);
       this.followOptions();
     });
   }
