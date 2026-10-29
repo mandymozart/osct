@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.26.8 – 2026-10-30
+## Unreleased
 
 ### Added
 - **A local MariaDB for the API** (#168): `docker compose up -d db` starts MariaDB 10.11 (the version of staging's host)
@@ -30,6 +30,38 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   unterminated string (a 500 on every search with text). The same pattern broke an asset's usages in the editor (the
   usage list, deleting and replacing an asset). Both now escape with `!`, which works on MySQL and SQLite; the first
   MariaDB run of the API test found it, and the test now also scans for it.
+
+## 1.27.0 – 2026-10-30
+
+### Added
+- **One selection in the editor, at its level** (#162): a target, its entity or a node, shared by the tree, the stage
+  and the Entity panel. The tree's selected row has its own grey and a bar at its start, the rows above a selected
+  node are marked, the hovered row is lighter; a selected target is outlined on the stage (the orange of a selected
+  node, around its printed image). The Entity panel opens at the selected level – a target shows its target fields,
+  an entity or node that node – and its head is a breadcrumb (*target › entity › group › node*) that steps up.
+- **The tree's hierarchy can be changed** (#163): drag a node onto a row (its child) or between two rows (its
+  sibling, the order set); with a finger by its icon. Keys: Alt + ↑ ↓ move, Tab / Shift + Tab indent / outdent; the
+  row's menu has the same. **+ node** places the new node *next to* the selected one (the default for a model, video
+  or image) or *inside* it; next to the root both go into a new group.
+- **Nodes have names** (content schema 2.12, optional `name`): the Entity panel's *name* row, the tree shows the name
+  and keeps the type as its icon. The content build, the guard and the editor API accept it; old content stays valid.
+
+### Changed
+- The tree's ↑ ↓ walk every row (targets and nodes), not only the targets; ← on a node steps up a level.
+
+## 1.26.8 – 2026-10-30
+
+### Added
+- **The tutorial page walks through the demo book** (#148): `/docs/tutorials/` has a second chapter, *The demo book*,
+  with ten screenshots from the editor (WebP, under `/docs/tutorials/demo/`, 433 KB together). It covers getting the
+  demo in (import by URL, the staging reader with `?content=`, publishing only to `local`), the six spreads with
+  their node types and components, the story across the pages played in the editor (*Replay the first find*, the
+  variables and events), how a component's `params` become Entity panel rows (the `door` component in the Code
+  tab, Run vs Save), a pitfall (`lamp` on the door, *Back to the draft*), post-processing, the environment and sky,
+  the shading modes and the editor on a phone. A table of contents at the top links both chapters.
+
+### Fixed
+- **The tutorial page no longer scrolls sideways on a phone**: long URLs in code and table cells wrap.
 
 ## 1.26.7 – 2026-10-30
 

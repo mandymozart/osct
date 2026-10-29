@@ -52,7 +52,7 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
 - [Pages](docs/pages.md) · [Components](docs/components.md) · [Error page](docs/error-page.md) – the UI
 - [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene
 - [Editor](docs/editor.md) – the authors' tool at `/editor`: engine, mock stage, saving to the database, publishing
-- [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish), shipped at `/docs/tutorials/`
+- [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish) and a walk through the demo book with screenshots, shipped at `/docs/tutorials/`
 - [Plugins](docs/plugins.md) – writing the book's own code: a layer, a component, the Code tab, the content build
 - [Admin](docs/admin.md) – the instance's users and roles at `/editor/admin`, the newsletter CSV
 - [MCP server](docs/mcp.md) – a Claude session as an editor over the API (`mcp/`): signing in, the tools, an example

@@ -64,6 +64,15 @@ describe("an entity as a tree of nodes", () => {
     warn.mockRestore();
   });
 
+  it("the guard accepts a node's name (schema 2.12) and refuses one that is no string", () => {
+    const named = JSON.parse(JSON.stringify(tree)) as EntityData;
+    named.name = "Tree and title";
+    named.children![1].name = "Title";
+    expect(problemsOf(config(named))).toEqual([]);
+    (named.children![0] as { name: unknown }).name = 7;
+    expect(problemsOf(config(named))).toEqual(["entries[0].target.entity.children[0].name: expected a string"]);
+  });
+
   it("the guard refuses nodes nested deeper than 8 levels", () => {
     let deep: EntityData = { type: "group", assets: [] };
     for (let i = 0; i < 9; i++) deep = { type: "group", assets: [], children: [deep] };

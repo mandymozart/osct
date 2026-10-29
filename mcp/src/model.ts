@@ -103,7 +103,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     pluginApi: PLUGIN_API_VERSION,
     entity: {
       description:
-        "An AR entity is a tree of nodes (EntityData): { id?, type, assets, params?, filters?, components?, children?, text?, color? }. " +
+        "An AR entity is a tree of nodes (EntityData): { id?, name?, type, assets, params?, filters?, components?, children?, text?, color? } – name (schema 2.12) is what the editor's tree shows. " +
         "The root sits on the target (1 unit = the target image's width, origin in its centre); every node's params place it relative to its parent. " +
         `At most ${MAX_NODE_DEPTH} levels. Shared entities live under a ref and are used by targets as { ref }.`,
       nodeTypes: ENTITY_TYPES,

@@ -66,6 +66,7 @@ final class Editor
             }
         }
         if (property_exists($value, 'id') && !is_string($value->id)) throw new ApiError(400, 'invalid-entity', "$path.id must be a string.");
+        if (property_exists($value, 'name') && !is_string($value->name)) throw new ApiError(400, 'invalid-entity', "$path.name must be a string.");
         if (property_exists($value, 'text') && !is_string($value->text)) throw new ApiError(400, 'invalid-entity', "$path.text must be a string.");
         if (property_exists($value, 'color') && !(is_string($value->color) && preg_match('/^#[0-9a-f]{6}$/i', $value->color))) {
             throw new ApiError(400, 'invalid-entity', "$path.color must be #rrggbb.");
