@@ -445,6 +445,28 @@ spreads/spread1 has 11 targets, max is 10.
 
 Then look at the result in the app – see the quick start in the [README](../README.md).
 
+## Schema and app versions
+
+The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
+(`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
+every MINOR of its schema MAJOR; a content file of another MAJOR is refused at startup. This table names, per schema,
+the app version that first ships it. The last row is the current schema (a test checks that it matches
+`CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
+
+| Schema | First app version | Status | What the schema adds |
+|---|---|---|---|
+| 1.1 | 1.7.6 | released | content on the CDN |
+| 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 |
+| 2.0 | 1.10.0 | unreleased | the entity as a tree of nodes |
+| 2.1 | 1.10.0 | unreleased | print placement of targets (`print`) |
+| 2.2 | 1.10.0 | unreleased | components (animation) |
+| 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
+| 2.4 | 1.11.0 | in develop | plugin API 1.1: events, variables, progress, the spread |
+| 2.5 | 1.12.0 | in develop | post-processing passes |
+
+Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
+bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
+
 ## Content build
 
 `scripts/` checks the content source (`OSCT_CONTENT_DIR`) and turns it into the files the app loads.
