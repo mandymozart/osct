@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.24.2 – 2026-10-29
+## 1.24.3 – 2026-10-30
 
 ### Changed
 - **Ready for the shared Building Fictions server** (#6): each destination's database is only on its own internal
@@ -21,6 +21,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   The networks are created once per server (docs/deploy.md "Setting up a server").
 - **The deploy checks the server's host key**: the GitHub environment variable `SSH_KNOWN_HOSTS` holds it, and the
   deploy stops without it – instead of trusting whatever key the server answers with at deploy time.
+
+## 1.24.2 – 2026-10-30
+
+### Fixed
+- **The reader's service worker never shows its own page at `/editor`** (follow-up to #122): on a slow mobile network a
+  page load that timed out fell through to the worker's offline fallback, the reader's app shell – under `/editor` an
+  empty dark page (Tilman's phone on LTE). Editor pages are now excluded from the worker's page route, and its offline
+  fallback answers an editor page with the network's own response instead of the reader's shell.
 
 ## 1.24.1 – 2026-10-30
 
