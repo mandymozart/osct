@@ -268,6 +268,37 @@ back spread the page after the last printed one; an entry on that page belongs t
 surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
 any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
 
+**Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
+whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
+`passes` too: they apply to every spread without a list of its own (`passes: []` on a spread turns them off there).
+Every built-in type is defined once in `shared/types/passes.ts` with its parameters, so the editor's Stage panel,
+the build and the guard read one definition; missing parameters take the defaults. A spread without passes costs
+nothing – the scene renders straight to the canvas as before.
+
+| Type | What it does | Parameters |
+|---|---|---|
+| `bloom` | Bright parts glow: the part of the image above `threshold` is blurred and added back as light – over the camera picture too. | `strength` 0–3 (1), `radius` 0–1 (0.4), `threshold` 0–1 (0.85; 1 = only brighter than white) |
+| `vignette` | The edges fade to a colour – the AR layer and the camera picture alike. | `strength` 0–1 (0.6), `radius` 0–1.5 (0.6, 1 = the sides), `softness` (0.6), `color` (#000000) |
+| `grade` | Colour grading of the AR layer only (the camera picture lies under the canvas and keeps its colours). | `exposure` −2…2 EV (0), `contrast` 0–2 (1), `saturation` 0–2 (1), `tint` (#ffffff = none) |
+
+```yaml
+# content/spreads/studio-b/spread.yaml
+title: Studio B – videos
+firstPage: 30
+lastPage: 31
+passes:
+  - type: bloom
+    strength: 0.8
+    threshold: 0.7
+```
+
+A pass of the book's own – a shader Kévin writes – registers with the engine's pass registry
+(`registerPass(type, spec, factory)`, `engine/src/scene/post/registry.ts`): the factory gets the resolved parameters,
+three.js and `ShaderPass`, and returns a three `Pass` over the composer's buffers. The buffer holds the AR layer as
+premultiplied colour over alpha, in linear RGB, nothing of the camera picture: a pass keeps a texel's alpha unless it
+means to shade the camera picture too. The plugin API of the code editor ([editor](editor.md)) exposes the registry
+as `api.registerPass`; until then the built-ins are the passes the content can name.
+
 ```yaml
 # content/spreads/cover/spread.yaml
 title: Cover

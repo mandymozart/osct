@@ -132,6 +132,13 @@ again). Nothing of the reader's store, progress or routes is involved.
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
+  - **Post-processing** – the Stage panel's last section lists the spread's `passes` (content schema 2.5,
+    [content guide](content.md) "Post-processing") with a row per parameter from the contract's specs; **+ bloom /
+    + vignette / + grade** adds one, *remove* drops one, changes show live on the stage, **Save** writes the list to
+    the spread (`PUT …/spreads/{id} { passes }`), *Back to the draft* undoes, *Use the book's* drops the spread's own
+    list so the book's passes apply. The stage shows the passes under **rendered** only (like the HDRI's sky): the
+    mock stage's table, book, printed images and sky lie on the engine's **backdrop layer** and are drawn under the
+    passes, as the camera picture lies under the canvas in the reader – a pass never sees them.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
     a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
@@ -260,5 +267,8 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   types are #77, events beyond a node's own, variables and scopes come when a work needs them. The Code tab has no
   completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind the
   publish (#78).
+- The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with an owner, and
+  `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade) and a plugin's
+  passes reach the build and the guard with `unknownTypes: "allow"` where plugins are declared.
 - The phone layout of the workspace (the sheet) is built but was checked on the desktop only; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

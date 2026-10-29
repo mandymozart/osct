@@ -86,6 +86,28 @@ export interface ComponentData {
   [param: string]: unknown;
 }
 
+/** Problems of the parameters set for a spec (a component, a pass): unknown names, wrong kinds, numbers out of range */
+export const paramProblems = (specs: Record<string, ComponentParamSpec>, params: Record<string, unknown>, at: string, type: string): string[] => {
+  const problems: string[] = [];
+  for (const [name, value] of Object.entries(params)) {
+    const param = specs[name];
+    if (!param) {
+      problems.push(`${at}.${name}: unknown parameter of ${type} (${Object.keys(specs).join(", ")})`);
+    } else if (param.kind === "color" && !(typeof value === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value))) {
+      problems.push(`${at}.${name}: expected a color "#rrggbb", got ${JSON.stringify(value)}`);
+    } else if (param.kind === "choice" && !param.options.includes(value as string)) {
+      problems.push(`${at}.${name}: expected one of ${param.options.join(", ")}, got ${JSON.stringify(value)}`);
+    } else if (param.kind === "number" && !(typeof value === "number" && value >= param.min && value <= param.max)) {
+      problems.push(`${at}.${name}: expected a number from ${param.min} to ${param.max}, got ${JSON.stringify(value)}`);
+    } else if (param.kind === "boolean" && typeof value !== "boolean") {
+      problems.push(`${at}.${name}: expected true or false, got ${JSON.stringify(value)}`);
+    } else if (param.kind === "string" && typeof value !== "string") {
+      problems.push(`${at}.${name}: expected a string, got ${JSON.stringify(value)}`);
+    }
+  }
+  return problems;
+};
+
 const isColor = (value: unknown) => typeof value === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
 
 /**
