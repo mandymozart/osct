@@ -35,6 +35,7 @@ the camera only works over https). The accounts API runs locally with `npm run d
 | `mcp/` | The MCP server: a Claude session works on a book as a signed-in editor over the API (stdio, Node 22) |
 | `shared/` | The content contract: game-configuration types and guards used by app and build |
 | `fixtures/content/` | Test fixture with the content layout – CI and the tests build it |
+| `fixtures/demo/` | The demo book: a sandbox that uses everything the editor and the engine can do – [plugins](docs/plugins.md) "The demo book" |
 | `docs/` | Documentation (below) · `agents/` – plan, rules and memory for agent sessions ([CLAUDE.md](CLAUDE.md)) |
 
 The book's content is not in the repository: its source lives in a folder of its own, the built content is served

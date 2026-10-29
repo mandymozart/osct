@@ -1,0 +1,6 @@
+# A link entry: the fourth category.
+category: link
+title: The repository
+page: 5
+body: "Where the demo book and the plugin API live."
+media: https://github.com/mandymozart/osct

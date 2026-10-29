@@ -24,6 +24,28 @@ outcome in the line (or move it into a dated decision block).
   `local` and `staging` (a check), production is the editor's Publish button; the one step more than SCUTOONS is the
   content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
   over the MCP, he checks on the stage and clicks Publish – nothing by hand, nothing on GitHub.
+## 2026-10-30 – The demo book and the plugin API 1.1 (#80, decided alone – to review)
+
+- Tilman (2026-10-29): a sandbox book that uses everything the editor can do, with game narratives, the book API
+  (progress) and inter-spread interactions – "call it demo", on staging when done. Decided
+  (`agents/research/2026-10-30-demo-book.md`): **`fixtures/demo/`** next to the test fixture (the fixture stays the
+  tests'; `DEMO.md` marks the demo, the CLI syncs it to the environment **`demo`** only), the narrative key → door →
+  lamp + a tally + a tap that switches scenes, six plugins as the examples to copy from. **Plugin API 1.1** (the
+  smallest additions the narrative needed, the concept's shapes): `api.events` with two owners (core events are the
+  engine's, scene events the book's; one flat bus, no bubbling yet), `api.vars` with the scopes spread / stage /
+  session / book (a `get` without scope looks outward, innermost wins; `set` defaults to `spread`; the `node` scope is a
+  component's closure), `api.progress` read-only from the app (`ArSceneOptions.progress` – the reader's history behind
+  an adapter, the editor's `StageProgress`; RULES #32), `api.spread`, the context's `children`, `onUnlocked`. The
+  **book variables are persisted** in the progress record as an optional `variables` map – additive within format 1
+  like `onboarded`, so a MINOR. Content schema **2.7** (PLUGIN_API_VERSION lives in shared/, so the lock moves; 2.5 are the passes, 2.6 the light nodes).
+- **The way to staging**: no second destination, no store change – the workflow `demo.yml` builds `fixtures/demo` and
+  syncs it with the osct CLI to `<zone>/demo/`; the staging reader (a debug build) takes `?content=<base url>`; the
+  staging editor imports a content base URL. Found on the way: **a publish is per environment, not per book** – a
+  second book published to `staging` would replace the book's current version once the store is bunny → #87
+  (Proposals, decide). Until then the demo's Publish stays `local`.
+- [ ] Open: #88 (an animated GLB for the key, a tap button and editable variables in the Stage panel, the
+  `behaviour` component and declared variables, bubbling scopes, two spreads on one stage); the Entity panel's rows
+  now follow the engine's plugin load (`plugins.version` bumped when the scene runs) – a small fix found by the demo.
 
 ## 2026-10-29 (night) – Light nodes, content schema 2.6 (#71)
 

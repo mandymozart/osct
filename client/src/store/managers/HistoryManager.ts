@@ -5,6 +5,7 @@ import {
   IHistoryManager,
   IProgressStorage,
   ProgressRecord,
+  ProgressVariable,
 } from '@/types';
 import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
 import { ProgressReadStatus, createProgressRecord, mergeProgress, readProgress } from '@/utils';
@@ -132,6 +133,23 @@ export class HistoryManager implements IHistoryManager {
   public setOnboarded(): void {
     if (this.progress.onboarded) return;
     this.change(draft => { draft.onboarded = true; });
+  }
+
+  public getVariable(name: string): ProgressVariable | undefined {
+    return this.progress.variables[name];
+  }
+
+  /** The plugins' `book` scope: a scalar per name, saved like every other change; `null` deletes */
+  public setVariable(name: string, value: ProgressVariable | null): void {
+    if (this.progress.variables[name] === (value ?? undefined)) return;
+    this.change(draft => {
+      if (value === null) delete draft.variables[name];
+      else draft.variables[name] = value;
+    });
+  }
+
+  public getVariables(): Record<string, ProgressVariable> {
+    return { ...this.progress.variables };
   }
 
   /** Ids in the record that no longer exist in the content */
