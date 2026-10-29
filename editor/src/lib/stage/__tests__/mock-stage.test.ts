@@ -58,3 +58,29 @@ describe("mock stage: the sharper sheet image", () => {
     expect(requested).toEqual(["/s.jpg", "/s@sharp.jpg"]);
   });
 });
+
+describe("mock stage: the viewport's shading (#137)", () => {
+  it("puts the book and the desk in wireframe and solid, and gives their materials back", async () => {
+    const { Mesh: MeshClass } = await import("three");
+    const { stage } = newStage();
+    stage.setLayout([], page, { image: "/s.jpg", widthMm: 460, heightMm: 320 }, book);
+    const paper = (stage as unknown as { sheetPaper: InstanceType<typeof MeshClass> }).sheetPaper;
+    const own = paper.material;
+    stage.setShading("solid");
+    expect(paper.material).not.toBe(own);
+    stage.setShading("wireframe");
+    expect((paper.material as { wireframe?: boolean }).wireframe).toBe(true);
+    stage.setShading("textured");
+    expect(paper.material).toBe(own);
+  });
+
+  it("builds a new layout in the current shading", () => {
+    const { stage } = newStage();
+    stage.setShading("solid");
+    stage.setLayout([], page, { image: "/s.jpg", widthMm: 460, heightMm: 320 }, book);
+    const paper = (stage as unknown as { sheetPaper: { material: { color: { getHex(): number } } } }).sheetPaper;
+    expect(paper.material.color.getHex()).toBe(0xb4b4b4);
+    stage.setShading("textured");
+    expect(paper.material.color.getHex()).not.toBe(0xb4b4b4);
+  });
+});

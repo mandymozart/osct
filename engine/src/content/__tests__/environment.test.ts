@@ -52,7 +52,7 @@ describe("environment assets (content schema 2.9)", () => {
     expect(environmentProblems({ ...base, tint: 1 })).toEqual(["environment.tint is not a field of the environment."]);
     expect(environmentProblems({ ...base, tint: 1 }, "book.environment", false)).toEqual([]);
     const config = (environment: unknown) => ({
-      version: { version: "1.20.0", timestamp: "t", schema: "2.9" },
+      version: { version: "1.21.0", timestamp: "t", schema: "2.9" },
       book: { id: "b", title: "B", author: "A", environment },
       initialSpreadId: "s",
       spreads: [{ id: "s", title: "S", firstPage: 1, lastPage: 2 }],

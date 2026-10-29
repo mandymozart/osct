@@ -7,7 +7,7 @@ outcome in the line (or move it into a dated decision block).
 ## 2026-10-30 – The environment on the stage, world and sky as assets, schema 2.9 (#79)
 
 - Tilman (#79 comment): the Environment block on the book page was too limited – edit it in the editor's stage with a
-  preview, the world and the sky as assets from the Library or uploaded, the café one choice. Built (1.20.0): an
+  preview, the world and the sky as assets from the Library or uploaded, the café one choice. Built (1.21.0): an
   **Environment** tab in the workspace; `worldSrc` (glTF) and `skySrc` (equirectangular jpg / png / webp) in
   `environment` (schema **2.9**, MINOR); the engine draws them in the same single pass – the model is **baked once into a
   cube** from the reader's eye (3DoF makes the cube exact; RULES #4 amended), so the phone pays one texture lookup, not a
