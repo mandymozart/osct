@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.20.3 – 2026-10-30
+## 1.20.6 – 2026-10-30
 
 ### Added
 - **Info view in the editor** (#133): a collapsible box at the bottom of the tree column (on the book page at the
@@ -34,6 +34,31 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ### Fixed
 - **Stage panel layout** (#133): the shake hint no longer overlaps the grid row, and the origin's choices no longer
   wrap over the desk row.
+
+## 1.20.5 – 2026-10-30
+
+### Fixed
+- **Wireframe and solid shading reach the stage's book and desk** (#137): the viewport's modes only changed the
+  spread's entities, so the book and the desk stayed textured. They now switch too (not the ghost, the grid or the sky),
+  everything the stage builds later gets the current mode, and the sheet and print images that arrive meanwhile go into
+  the meshes' own materials (`ownMaterial`), never into the shared grey or wire one.
+
+## 1.20.1 – 2026-10-30
+
+### Changed
+- **One top bar across the editor** (#129): the books list, a book's spreads, the spread view and the admin page
+  share one bar – a breadcrumb `Books › book › spread` to move between them, the environment and Publish while a
+  book is open, Admin, the e-mail and Sign out. In the spread view Publish moved from the foot of the panel into it,
+  and the spread's name (`p. 12–13`, `Cover`) is shown there in full instead of squeezed between the panel's buttons.
+- **A book's spreads use the full width** (#129): the grid fills the window instead of a centred column – one spread
+  per row on a phone, up to six at 1920 px; the environment box above it has the same width.
+
+## 1.19.4 – 2026-10-30
+
+### Fixed
+- **The board moves deployed issues again** (`board-status.yml`): the first run on `main` failed with
+  `getOctokit is not defined` – `actions/github-script@v7` does not provide it. The project client is now built from the
+  action's own Octokit class with `PROJECT_TOKEN`.
 
 ## 1.19.3 – 2026-10-30
 

@@ -3,11 +3,9 @@
   import { base } from "$app/paths";
   import { page } from "$app/state";
   import { addSpread, ApiError, getBook, type BookTree } from "$lib/api";
-  import { session } from "$lib/session.svelte";
   import { sheetForSpread, type StageLayout } from "$lib/stage/stage-layout";
-  import { captionOf, formatLabelOf, gridCells, GRID_COLUMNS } from "$lib/spread-grid";
+  import { captionOf, formatLabelOf, gridCells } from "$lib/spread-grid";
   import Icon from "$lib/components/Icon.svelte";
-  import PublishButton from "$lib/PublishButton.svelte";
   import EnvironmentPanel from "$lib/panels/EnvironmentPanel.svelte";
   import InfoView from "$lib/components/InfoView.svelte";
 
@@ -62,14 +60,6 @@
   const pageRatio = $derived(layout ? layout.page.width / layout.page.height : 230 / 320);
 </script>
 
-<header class="top">
-  <a href="{base}/" class="pill">‹ Books</a>
-  <strong>{tree?.book.title ?? bookId}</strong>
-  <span class="grow"></span>
-  <PublishButton {bookId} />
-  <span class="muted small">{session.user?.email}</span>
-</header>
-
 <main>
   {#if error}<p class="danger">{error}</p>{/if}
   {#if tree}
@@ -78,7 +68,7 @@
       {#if !hasFormat("back")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("back")}>+ back cover</button>{/if}
     </p>
     <EnvironmentPanel bookId={bookId} saved={tree.book.book?.environment} onsaved={reload} />
-    <ul class="spreads" style:--columns={GRID_COLUMNS} style:--page-ratio={pageRatio}>
+    <ul class="spreads" style:--page-ratio={pageRatio}>
       {#each cells as cell, i (cell.spacer ? `spacer-${i}` : cell.spread.id)}
         {#if cell.spacer}
           <li class="spacer" aria-hidden="true"></li>
@@ -115,11 +105,14 @@
 <aside class="info-dock"><InfoView /></aside>
 
 <style>
-  .top { display: flex; align-items: center; gap: .75rem; height: 2.5rem; padding: 0 .75rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
-  .top a { text-decoration: none; }
-  .grow { flex: 1; }
-  main { max-width: 80rem; margin: 0 auto; padding: 1rem; }
-  .spreads { list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); }
+  main { padding: 1rem 1.5rem; }
+  /* One column is one page: 1 spread per row on a phone up to 6 at 1920 px (any even count keeps gridCells' layout) */
+  .spreads { --columns: 2; list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); }
+  @media (min-width: 36rem) { .spreads { --columns: 4; } }
+  @media (min-width: 56rem) { .spreads { --columns: 6; } }
+  @media (min-width: 76rem) { .spreads { --columns: 8; } }
+  @media (min-width: 96rem) { .spreads { --columns: 10; } }
+  @media (min-width: 112rem) { .spreads { --columns: 12; } }
   .spread { display: block; text-decoration: none; border-radius: var(--control-radius); }
   /* No column gap: half a gap on each side of a card, none on a single page's gutter side – so a single page is
      exactly half a double page and every sheet has the same height (#115) */
