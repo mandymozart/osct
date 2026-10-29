@@ -12,6 +12,14 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.20.6 – 2026-10-30
+
+### Fixed
+- **The editor's panels no longer move the stage** (#131): clicks, drags and the mouse wheel in the top bar, the right panel
+  (Stage, Entity, Library, Code), the spread list on the left, the stage's toolbar and its menus orbited or zoomed the
+  3D stage. A drag or wheel now moves the stage only when it starts on the stage itself; a drag that starts there keeps
+  orbiting when the pointer leaves it. The reader is unchanged.
+
 ## 1.20.5 – 2026-10-30
 
 ### Fixed
