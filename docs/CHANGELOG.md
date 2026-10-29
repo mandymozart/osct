@@ -22,6 +22,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **A book's spreads use the full width** (#129): the grid fills the window instead of a centred column – one spread
   per row on a phone, up to six at 1920 px; the environment box above it has the same width.
 
+## 1.19.4 – 2026-10-30
+
+### Fixed
+- **The board moves deployed issues again** (`board-status.yml`): the first run on `main` failed with
+  `getOctokit is not defined` – `actions/github-script@v7` does not provide it. The project client is now built from the
+  action's own Octokit class with `PROJECT_TOKEN`.
+
 ## 1.19.3 – 2026-10-30
 
 ### Fixed
