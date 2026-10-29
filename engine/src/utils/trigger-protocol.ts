@@ -22,13 +22,38 @@ export type TriggerInfos = Record<string, TriggerInfo>;
 
 export const TRIGGER_INFO_URL = "/trigger-protocol.json";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const TEXT_FIELDS = ["source", "position", "note"] as const;
+const NUMBER_FIELDS = ["width", "height", "x", "y"] as const;
+
+/** The protocol file's targets with the fields of the right type; anything else in it is left out */
+export const readTriggerInfos = (raw: unknown): TriggerInfos => {
+  const infos: TriggerInfos = {};
+  if (!isRecord(raw)) return infos;
+  for (const [targetId, value] of Object.entries(raw)) {
+    if (!isRecord(value)) continue;
+    const info: TriggerInfo = {};
+    for (const field of TEXT_FIELDS) {
+      const text = value[field];
+      if (typeof text === "string") info[field] = text;
+    }
+    for (const field of NUMBER_FIELDS) {
+      const number = value[field];
+      if (typeof number === "number" && Number.isFinite(number)) info[field] = number;
+    }
+    infos[targetId] = info;
+  }
+  return infos;
+};
+
 /** The protocol, or an empty record when the file was not generated (never throws) */
 export const fetchTriggerInfos = async (): Promise<TriggerInfos> => {
   try {
     const response = await fetch(TRIGGER_INFO_URL);
     if (!response.ok) return {};
-    const infos = await response.json();
-    return infos && typeof infos === "object" ? (infos as TriggerInfos) : {};
+    return readTriggerInfos(await response.json());
   } catch {
     return {};
   }

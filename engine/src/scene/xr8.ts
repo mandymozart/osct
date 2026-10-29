@@ -86,6 +86,11 @@ export interface XR8Api {
   XrConfig: { device(): { ANY: string }; camera(): { BACK: string } };
 }
 
+/** The engine with its image tracking chunk loaded – what `loadXr8` gives */
+export type XR8Tracking = XR8Api & { XrController: NonNullable<XR8Api["XrController"]> };
+
+const hasTracking = (xr8: XR8Api): xr8 is XR8Tracking => xr8.XrController != null;
+
 declare global {
   interface Window {
     XR8?: XR8Api;
@@ -95,14 +100,18 @@ declare global {
 const XR8_BASE = `${import.meta.env.BASE_URL}assets/xr8/`;
 const ENGINE_FILES = ["xr.js", "xr-tracking.js"];
 
-let loading: Promise<XR8Api> | null = null;
+let loading: Promise<XR8Tracking> | null = null;
 
 /** Load the engine (script tag – it is not a module) and its image tracking chunk; retried after a failure */
-export const loadXr8 = (): Promise<XR8Api> => {
+export const loadXr8 = (): Promise<XR8Tracking> => {
   if (!loading) {
     loading = new Promise<XR8Api>((resolve, reject) => {
       if (window.XR8) return resolve(window.XR8);
-      window.addEventListener("xrloaded", () => resolve(window.XR8!), { once: true });
+      window.addEventListener(
+        "xrloaded",
+        () => (window.XR8 ? resolve(window.XR8) : reject(new Error("The 8th Wall engine could not be loaded"))),
+        { once: true },
+      );
       const script = document.createElement("script");
       script.src = `${XR8_BASE}xr.js`;
       script.async = true;
@@ -115,7 +124,7 @@ export const loadXr8 = (): Promise<XR8Api> => {
     })
       .then(async XR8 => {
         await XR8.loadChunk({ name: "slam", url: new URL(`${XR8_BASE}xr-tracking.js`, location.href).href });
-        if (!XR8.XrController) throw new Error("The 8th Wall engine has no image tracking (XrController)");
+        if (!hasTracking(XR8)) throw new Error("The 8th Wall engine has no image tracking (XrController)");
         return XR8;
       })
       .catch(error => {
