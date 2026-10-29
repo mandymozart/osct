@@ -4,6 +4,20 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Monaco in the Code tab (#76)
+
+- Tilman (#76, after the textarea on staging: "I thought we use the code completion editor?"): **Monaco**, not
+  CodeMirror – its TypeScript worker gives completion and type errors without a worker of our own. Built (1.24.0):
+  `editor/src/lib/plugins/monaco.ts`, a lazy chunk of the Code tab; the compiler options are the content build's, the
+  declarations `plugin-api.d.ts` (generated from the engine by `dts-bundle-generator`, checked in, drift checked in CI)
+  and three's own `@types/three` (the core, ~250 files; WebGPU / node material parts left out – a plugin never sees
+  them). Syntax colours are Monaco's own `vs` / `vs-dark` token colours on the editor's grey surface – the one place
+  with colour in the editor; say so if they should be greys.
+- Open: the Monaco package also builds its CSS / HTML / JSON workers (~2 MB in the image, never fetched – only
+  TypeScript is used); trimming means importing Monaco's editor core piece by piece instead of `monaco-editor`.
+- Open: a Run's error line comes from sucrase's position and can point at the enclosing statement rather than the
+  token; the TypeScript marker underneath is exact.
+
 ## 2026-10-30 – One book per environment, made visible and guarded (#143, refs #87)
 
 - Tilman (#143): run the demo on staging once, deliberately – nothing may silently replace the real book. Built

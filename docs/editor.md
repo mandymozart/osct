@@ -288,12 +288,15 @@ is involved.
     **plugin** registers shows the same way, with **+ type** after a Run in the Code tab.
   - **Code** – the book's own code ([the decision](../agents/research/2026-10-29-code-in-the-editor.md)): the
     plugins stored for the book and the ones the content declares (compiled by the content build – opening one reads
-    its `index.ts` next to the compiled module; Save keeps a copy), one open in a plain code editor (a textarea with
-    a line gutter: Tab indents, Ctrl+Enter runs, Ctrl+S saves). **Run** transpiles the TypeScript in the browser
+    its `index.ts` next to the compiled module; Save keeps a copy), one open in **Monaco** (loaded with the tab only – the
+    reader and the other tabs carry nothing of it): TypeScript with the content build's compiler options against
+    `plugin-api.d.ts` (the module `osct-plugin-api`) and three's own types, so completion, hover documentation and type
+    errors inline are the build's; Tab indents, Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day /
+    night tokens. **Download** gives the plugin's folder as a zip (`index.ts`, `plugin-api.d.ts`, a `tsconfig.json`). **Run** transpiles the TypeScript in the browser
     (sucrase, types erased – no type check, that is the build's half), imports the module and installs it in the
     stage's registry under the plugin's id (a second Run replaces the first), then builds the spread again: a
     material layer tints the video at once, a component shows under *add component* in the Entity panel. Errors
-    show under the editor with their line (a transpile error, a plugin that imports a module – plugins import
+    show under the editor and as a marker on their line (a transpile error, a plugin that imports a module – plugins import
     nothing, three.js is `api.three` – an invalid spec, an exception in `register`); the previous registration stays.
     **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it.
     **Nothing run here reaches readers**: a plugin gets there through the content build – today as a folder
@@ -330,6 +333,7 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
+| The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |
 | The API | `server/api/src/Books.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php` | [server](server.md) "Editor data", "Plugin sources" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |

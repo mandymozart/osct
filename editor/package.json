@@ -9,13 +9,15 @@
   },
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "npm run plugin-api && vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "plugin-api": "node tools/plugin-api/generate.mjs"
   },
   "dependencies": {
+    "monaco-editor": "^0.57.0",
     "sucrase": "^3.35.1",
     "three": "^0.174.0"
   },
@@ -25,6 +27,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@types/node": "^22.13.9",
     "@types/three": "^0.174.0",
+    "dts-bundle-generator": "^9.5.1",
     "happy-dom": "^21.0.4",
     "svelte": "^5.55.0",
     "svelte-check": "^4.1.0",

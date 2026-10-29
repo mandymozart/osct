@@ -1,17 +1,22 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { content } from "$lib/content.svelte";
   import { plugins } from "$lib/plugins.svelte";
   import { NEW_PLUGIN_SOURCE } from "$lib/plugins/compile";
+  import { downloadFiles, zipFiles } from "$lib/plugins/code-editor";
+  import type { CodeEditor } from "$lib/plugins/monaco";
   import type { Stage } from "$lib/stage/stage.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
   /**
    * The **Code** tab: the book's own code (agents/research/2026-10-29-code-in-the-editor.md). The plugins stored for
-   * the book and the ones the content declares (compiled by the content build), one open in a plain code editor (a
-   * textarea with a line gutter – Tab indents, Ctrl+Enter runs, Ctrl+S saves). **Run** transpiles the TypeScript in
+   * the book and the ones the content declares (compiled by the content build), one open in Monaco (`plugins/monaco.ts`,
+   * loaded with this tab only): TypeScript against the plugin API's types – completion and type errors inline as the
+   * content build reports them; Tab indents, Ctrl+Enter runs, Ctrl+S saves. **Run** transpiles the TypeScript in
    * the browser and installs the module in the stage's registry, so a layer or component shows on the stage and in
-   * the Entity panel at once; **Save** stores the source; errors show under the editor with their line. Nothing run
+   * the Entity panel at once; **Save** stores the source; a Run's error shows under the editor and as a marker on its
+   * line; **Download** gives the source with `plugin-api.d.ts` and a tsconfig, so it type-checks the same way
+   * elsewhere. Nothing run
    * here reaches readers: a publish compiles the stored plugins with the content build (#78); until then only the
    * plugins of the content source are compiled.
    */
@@ -29,8 +34,9 @@
   let newId = $state("");
   let adding = $state(false);
   let confirmingDelete = $state(false);
-  let textarea = $state<HTMLTextAreaElement>();
-  let gutter = $state<HTMLElement>();
+  let host = $state<HTMLElement>();
+  let code = $state<CodeEditor | null>(null);
+  let codeError = $state<string | null>(null);
 
   $effect(() => {
     if (plugins.bookId !== bookId) void plugins.load(bookId);
@@ -45,7 +51,6 @@
     ...declared.filter(d => !storedIds.includes(d.id)).map(d => ({ id: d.id, stored: false, declared: true, size: 0 })),
   ]);
   const dirty = $derived(source !== saved);
-  const lines = $derived(Math.max(1, source.split("\n").length));
   const current = $derived(shown.find(p => p.id === open));
 
   // The first plugin opens by itself
@@ -66,10 +71,12 @@
       const text = stored ? await plugins.source(bookId, id) : await plugins.declaredSource(declared.find(d => d.id === id)!.src);
       source = text;
       saved = stored ? text : "";
+      code?.open(id, text);
       if (!stored) notice = "compiled by the content build – Save keeps a copy of its source here";
     } catch (e) {
       source = "";
       saved = "";
+      code?.open(id, "");
       notice = `The source could not be read: ${e instanceof Error ? e.message : String(e)}`;
     } finally {
       loadingSource = false;
@@ -84,6 +91,7 @@
     source = NEW_PLUGIN_SOURCE;
     saved = "";
     notice = null;
+    code?.open("", NEW_PLUGIN_SOURCE);
   };
   const newIdOk = $derived(PLUGIN_ID.test(newId) && !shown.some(p => p.id === newId));
 
@@ -122,29 +130,53 @@
       open = null;
       source = "";
       saved = "";
+      code?.open("", "");
     } catch (e) {
       plugins.error = e instanceof Error ? e.message : String(e);
     }
   };
 
-  const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Tab") {
-      event.preventDefault();
-      const el = event.currentTarget as HTMLTextAreaElement;
-      const { selectionStart, selectionEnd } = el;
-      source = `${source.slice(0, selectionStart)}  ${source.slice(selectionEnd)}`;
-      requestAnimationFrame(() => el.setSelectionRange(selectionStart + 2, selectionStart + 2));
-    } else if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-      event.preventDefault();
-      void run();
-    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-      event.preventDefault();
-      void save();
-    }
+  const download = async () => {
+    const id = adding ? newId || "plugin" : open;
+    if (!id) return;
+    const { default: pluginApi } = await import("$lib/plugins/plugin-api.d.ts?raw");
+    const zip = zipFiles(downloadFiles(id, source, pluginApi));
+    const url = URL.createObjectURL(new Blob([zip as BlobPart], { type: "application/zip" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${id}.zip`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const syncScroll = () => {
-    if (gutter && textarea) gutter.scrollTop = textarea.scrollTop;
-  };
+
+  const readOnly = $derived(loadingSource || (!open && !adding));
+
+  // Monaco comes with this tab (its own chunk); the panel works on `source`, the editor mirrors it
+  onMount(() => {
+    let disposed = false;
+    let editor: CodeEditor | null = null;
+    import("$lib/plugins/monaco").then(({ createCodeEditor }) => {
+      if (disposed || !host) return;
+      editor = createCodeEditor(host, {
+        value: untrack(() => source),
+        modelId: untrack(() => (adding ? "" : open ?? "")),
+        readOnly: untrack(() => readOnly),
+        onChange: value => {
+          source = value;
+          if (plugins.runError) plugins.runError = null;
+        },
+        onAction: action => void (action === "run" ? run() : save()),
+      });
+      code = editor;
+    }).catch(e => { codeError = `The code editor could not be loaded: ${e instanceof Error ? e.message : String(e)}`; });
+    return () => {
+      disposed = true;
+      editor?.dispose();
+      code = null;
+    };
+  });
+  $effect(() => { code?.setReadOnly(readOnly); });
+  $effect(() => { code?.setRunError(plugins.runError); });
   const errorLine = $derived(plugins.runError?.line ?? null);
 </script>
 
@@ -166,10 +198,9 @@
     </span></div>
 {/if}
 
-<div class="editor" class:has-error={errorLine !== null} data-help-name="Plugin source" data-help="The plugin's TypeScript. Run (Ctrl+Enter) shows it on the stage; Save (Ctrl+S) stores the source. Readers get a plugin with a publish once it compiles them (#78) – today only the content source's plugins are compiled.">
-  <pre class="gutter" bind:this={gutter} aria-hidden="true">{#each { length: lines } as _, i (i)}<span class="ln" class:error={errorLine === i + 1}>{i + 1}</span>{/each}</pre>
-  <textarea bind:this={textarea} class="source" bind:value={source} spellcheck="false" wrap="off" aria-label="Plugin source (TypeScript)" disabled={loadingSource || (!open && !adding)}
-    onkeydown={onKey} onscroll={syncScroll} oninput={() => { if (plugins.runError) plugins.runError = null; }}></textarea>
+<div class="editor" class:has-error={errorLine !== null} data-help-name="Plugin source" data-help="The plugin's TypeScript, checked against the plugin API as the content build checks it: completion with Ctrl+Space, type errors underlined. Run (Ctrl+Enter) shows it on the stage; Save (Ctrl+S) stores the source. Readers get a plugin with a publish once it compiles them (#78) – today only the content source's plugins are compiled.">
+  <div class="monaco" bind:this={host}></div>
+  {#if !code}<p class="small muted loading">{codeError ?? "loading the code editor…"}</p>{/if}
 </div>
 
 {#if plugins.runError}
@@ -190,20 +221,18 @@
     {/if}
   {/if}
   <span class="grow"></span>
+  <button type="button" class="text-link" onclick={download} disabled={!source || (!open && !adding)} title="The source as a zip: index.ts with plugin-api.d.ts and a tsconfig.json, so it type-checks the same way in another editor">Download</button>
   <button type="button" class="pill framed" onclick={run} disabled={plugins.running || !source || (!open && !adding)} title="Transpile in the browser and run it on the stage (Ctrl+Enter)">{plugins.running ? "Running…" : "Run"}</button>
   <button type="button" class="pill primary" onclick={save} disabled={saving || !dirty || (adding && !newIdOk)} title="Store the source (Ctrl+S)">{saving ? "Saving…" : "Save"}</button>
 </div>
 
 <style>
   .controls .grow { flex: 1; min-width: 6rem; }
-  /* The editor takes the panel's remaining height; its lines scroll inside it (the actions stay in reach) */
-  .editor { flex: 1 1 0; min-height: 10rem; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); margin-top: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); overflow: hidden; }
+  /* The editor takes the panel's remaining height; Monaco fills it and follows its size */
+  .editor { position: relative; flex: 1 1 0; min-height: 10rem; margin-top: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); overflow: hidden; }
   .editor.has-error { border-color: var(--danger); }
-  .gutter, .source { min-height: 0; margin: 0; padding: .375rem 0; font: var(--text-small)/1.5 ui-monospace, Consolas, "SF Mono", monospace; tab-size: 2; }
-  .gutter { display: flex; flex-direction: column; padding-left: .5rem; padding-right: .5rem; border-right: 1px solid var(--line); color: var(--muted); text-align: right; user-select: none; overflow: hidden; }
-  .ln.error { color: var(--danger); font-weight: 600; }
-  .source { padding-left: .5rem; padding-right: .5rem; border: none; outline: none; resize: none; background: none; color: var(--text); white-space: pre; overflow: auto; }
-  .source:disabled { color: var(--muted); }
+  .monaco { position: absolute; inset: 0; }
+  .loading { position: absolute; inset: 0; margin: 0; padding: .375rem .5rem; }
   .message { margin: .25rem 0 0; overflow-wrap: anywhere; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .375rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }

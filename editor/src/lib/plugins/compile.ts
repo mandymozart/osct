@@ -51,9 +51,11 @@ export const importPluginCode = async (code: string, importer: (url: string) => 
 };
 
 /** What a new plugin starts with */
-export const NEW_PLUGIN_SOURCE = `// A plugin of this book: register(api) runs when the plugin loads.
+export const NEW_PLUGIN_SOURCE = `import type { PluginApi } from "osct-plugin-api";
+
+// A plugin of this book: register(api) runs when the plugin loads.
 // api.three is the app's three.js (never import three yourself); types with \`import type\`.
-export const register = (api) => {
+export const register = (api: PluginApi): void => {
   // A material layer: GLSL on every pixel of a video or image, after its own shading, in linear RGB.
   // The parameters arrive as function arguments (number → float, color → vec3); rgba is the pixel so far.
   api.registerLayer("tint", {
@@ -76,8 +78,8 @@ export const register = (api) => {
   }, ({ object, params }) => {
     let speed = Number(params.degreesPerSecond);
     return {
-      update: (delta) => { object.rotation.y += (speed * Math.PI / 180) * delta; },
-      tune: (next) => { speed = Number(next.degreesPerSecond); return true; },
+      update: delta => { object.rotation.y += (speed * Math.PI / 180) * delta; },
+      tune: next => { speed = Number(next.degreesPerSecond); return true; },
     };
   });
 };

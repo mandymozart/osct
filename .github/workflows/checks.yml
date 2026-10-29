@@ -76,6 +76,9 @@ jobs:
       # svelte-check covers the editor and the engine files it imports
       - name: Type-check
         run: npm run check
+      # plugin-api.d.ts is checked in: it must be what the engine's plugin API gives (before the build rewrites it)
+      - name: Plugin API types up to date
+        run: npm run plugin-api -- --check
       - name: Tests
         run: npm test
       - name: Build
