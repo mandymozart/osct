@@ -362,6 +362,11 @@ export class Stage {
     this.tracker?.setGhost(target ? { id: "ghost", imageSrc: target.imageSrc, surface: target.surface, x: target.x, y: target.y, width: target.width, height: target.height ?? target.width * 0.75 } : null);
   }
 
+  /** The base format (one page, mm) the positions and the grid are counted in */
+  pageFormat(): { width: number; height: number } {
+    return this.tracker?.pageFormat() ?? { width: 230, height: 320 };
+  }
+
   /** The current spread's format (the form and the panel offer the right surfaces) */
   format(): "spread" | "cover" | "back" {
     return (this.spreadId ? getSpread(this.spreadId)?.format : undefined) ?? "spread";

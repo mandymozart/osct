@@ -105,6 +105,13 @@ nothing flickers. The printed images:
   names (`top left` …) on the right page, several in one region stacked;
 - without either (the fixture): the images in a row across the middle of the right page, 60 mm wide.
 
+The stage's **sheet image is sharpened on demand**: the layout carries a second, much sharper image per sheet
+(`imageSharp`, `sheets/<sheet>@sharp.jpg`); the stage fetches it once, when the camera comes within 50 cm of the page.
+The Stage panel sets a **grid** (on / off, spacing in mm; its lines run through the origin, which is red) and the
+**origin** (`stage/origin.ts`): a corner of the base format (per page) or the book's centre. The x / y rows of a
+target's placement and of a new target are shown and entered from that origin (x to the right, y downwards, so values
+left of or above it are negative); what is saved stays mm from the page's top left corner.
+
 Every target lies flat on the page and counts as **found**: the **mock tracker** (`stage/mock-tracker.ts`) implements
 the engine's `IImageTracker` and reports each pose every frame exactly as the 8th Wall engine would (1 unit = the
 printed width, origin in the image's centre, the image in the x/y plane), so `ArScene`, the entities, the animations

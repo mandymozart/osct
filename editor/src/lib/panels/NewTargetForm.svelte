@@ -4,6 +4,8 @@
   import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
   import { newNode } from "$lib/values";
   import type { Stage } from "$lib/stage/stage.svelte";
+  import { fromOrigin, toOrigin } from "$lib/stage/origin";
+  import { getPreview, subscribePreview } from "$lib/stage/preview";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
 
@@ -37,6 +39,12 @@
   let surface = $state<"left" | "right" | "front" | "back">("right");
   let x = $state(40);
   let y = $state(60);
+  // The x / y rows are read and entered from the stage's origin (Stage panel); x / y keep the content's frame
+  let origin = $state(getPreview().origin);
+  $effect(() => subscribePreview(state => (origin = state.origin)));
+  const frame = $derived({ page: stage?.pageFormat() ?? { width: 230, height: 320 }, format });
+  const shown = $derived(toOrigin(origin, frame, surface, x, y));
+  const setShown = (nx: number, ny: number) => ({ x, y } = fromOrigin(origin, frame, surface, nx, ny));
   let width = $state(80);
   let busy = $state(false);
   let error = $state<string | null>(null);
@@ -141,13 +149,13 @@
         onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void upload(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
     </span></div>
   {#if imageUrl}<div class="row"><span class="label"></span><img class="preview" src={imageUrl} alt="" /></div>{/if}
-  <div class="section"><span class="section-label">printed on the page (mm)</span></div>
+  <div class="section"><span class="section-label">printed on the page (mm from the origin set in the Stage panel)</span></div>
   <div class="row"><span class="label">surface</span>
     <span class="controls"><Segmented options={surfaces} value={surface} onchange={s => (surface = s)} /></span></div>
   <div class="row"><span class="label">x · y</span>
     <span class="fields">
-      <ScrubNumber value={x} min={0} max={230} step={1} fallback={40} prefix="X" unit="mm" label="x from the left" oninput={v => (x = v)} />
-      <ScrubNumber value={y} min={0} max={320} step={1} fallback={60} prefix="Y" unit="mm" label="y from the top" oninput={v => (y = v)} />
+      <ScrubNumber value={shown.x} step={1} fallback={0} prefix="X" unit="mm" label="x from the origin" oninput={v => setShown(v, shown.y)} />
+      <ScrubNumber value={shown.y} step={1} fallback={0} prefix="Y" unit="mm" label="y from the origin" oninput={v => setShown(shown.x, v)} />
     </span></div>
   <div class="row"><span class="label">width</span>
     <span class="w"><ScrubNumber value={width} min={10} max={230} step={1} fallback={80} unit="mm" label="printed width" positive oninput={v => (width = v)} /></span></div>
