@@ -300,21 +300,23 @@ export class ArScene implements IArScene {
     },
   };
 
-  private async ensureView(): Promise<ArView> {
+  /** The one view and its tracker, created on the first call */
+  private async ensureView(): Promise<{ view: ArView; tracker: IImageTracker }> {
     if (!this.view) {
-      this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
-      this.view.setPostProcessing(this.postProcessing);
-      this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: this.view.scene });
-      this.view.resize();
-      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
+      const view = new ArView(this.container, camera => this.tracker?.fit(camera));
+      this.view = view;
+      view.setPostProcessing(this.postProcessing);
+      this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: view.scene });
+      view.resize();
+      this.lookAround = new LookAround(view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
       if (this.environmentPreview) this.lookAround.setPreview({ orientation: this.environmentPreview.orientation });
-      this.view.underlay = this.lookAround;
+      view.underlay = this.lookAround;
       // A simulated tracker's stage is drawn every frame (the page is always in view)
-      this.view.needsRender = () =>
+      view.needsRender = () =>
         !!this.tracker?.continuous || this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
-      this.view.onFrame(delta => {
+      view.onFrame(delta => {
         const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
-        this.lookAround?.update(delta, this.view!.camera, anchors);
+        this.lookAround?.update(delta, view.camera, anchors);
         this.content?.anchors.forEach(a => a.entity?.update?.(delta));
         let bloom = 0;
         this.animations.forEach((animation, id) => {
@@ -327,7 +329,7 @@ export class ArScene implements IArScene {
           const anchor = animation.kind === "outro" && !this.found.has(id) && this.content?.anchors.find(a => a.target.id === id);
           if (anchor) anchor.group.visible = false;
         });
-        this.view!.bloomStrength = bloom;
+        view.bloomStrength = bloom;
       });
       document.addEventListener("click", this.onTap);
       // The window's size changed (load test budget): the tracker and the preload follow at once
@@ -337,14 +339,15 @@ export class ArScene implements IArScene {
         this.emitter.emit("ready", this.content.spreadId);
       });
     }
-    return this.view;
+    // Created with the view: missing only when creating it failed – never a second view
+    if (!this.tracker) throw new Error("AR could not start: no image tracker");
+    return { view: this.view, tracker: this.tracker };
   }
 
   /** Bring the scene to `spreadId`: tracking stops, content is swapped, tracking restarts if it ran */
   private async changeSpread(spreadId: string): Promise<void> {
     if (!getSpread(spreadId)) throw new Error(`Unknown spread ${spreadId}`);
-    const view = await this.ensureView();
-    const tracker = this.tracker!;
+    const { view, tracker } = await this.ensureView();
     const cameraOn = tracker.hasCamera;
     this.setStatus(cameraOn ? "starting" : "loading");
 
@@ -521,8 +524,8 @@ export class ArScene implements IArScene {
 
   /** Camera (if off) + tracking of the current spread's targets */
   private async startTracking(): Promise<void> {
-    const tracker = this.tracker!;
-    const content = this.content!;
+    const { view, tracker, content } = this;
+    if (!view || !tracker || !content) throw new Error("AR could not start: no spread loaded");
     try {
       await tracker.startCamera();
       await tracker.loadTargets(content);
@@ -533,7 +536,7 @@ export class ArScene implements IArScene {
       this.startFailed = true;
       throw new Error(`AR could not start: ${(error as Error)?.message ?? error}`);
     }
-    this.view!.resize(); // field of view from the engine's projection
+    view.resize(); // field of view from the engine's projection
     this.started = true;
     // The spreads around this one: their targets get ready ahead (instant switch, found pages switch by themselves)
     this.prepareWindow();
@@ -560,11 +563,11 @@ export class ArScene implements IArScene {
       if (this.wantedState !== SceneState.RUNNING || this.wantedSpread !== this.spreadId) return;
     } else if (!this.running) {
       // Tracking starts afresh: targets are found again (all were lost at the pause)
-      this.tracker!.resume();
+      this.tracker?.resume();
     }
     this.running = true;
     this.lookAround?.start();
-    this.view!.start();
+    this.view?.start();
     scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
     this.setStatus("running");
     emitCoreEvent("sceneState", { state: "running" });
@@ -572,8 +575,8 @@ export class ArScene implements IArScene {
 
   private pause(): void {
     if (this.started && this.running) {
-      this.tracker!.pause();
-      this.view!.stop();
+      this.tracker?.pause();
+      this.view?.stop();
       this.running = false;
     }
     this.lookAround?.pause();

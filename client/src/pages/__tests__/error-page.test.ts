@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GameStoreService } from "@/services";
 import { BaseStore } from "@/store/BaseStore";
-import { ErrorCode, GameState } from "@/types";
+import { ErrorCode, GameState, LoadingState } from "@/types";
 import "../error-page";
 
 const game = GameStoreService.getInstance();
@@ -50,5 +50,38 @@ describe("error page", () => {
     page.remove();
     game.router.showError({ code: ErrorCode.NOT_FOUND, msg: "Unseen" });
     expect(page.getAttribute("active")).not.toBe("true");
+  });
+
+  /** The buttons get their listeners after the render (next task) */
+  const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  it("the action button runs the error's callback", async () => {
+    const page = mount();
+    const callback = vi.fn();
+    game.router.showError({ code: ErrorCode.NOT_FOUND, msg: "Nothing here", action: { text: "Retry", callback } });
+    await settle();
+    page.shadowRoot!.querySelector<HTMLElement>("#action-button")!.click();
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("dismiss clears the error and returns to the view underneath", async () => {
+    const page = mount();
+    game.router.navigate("/about");
+    game.router.showError({ code: ErrorCode.NOT_FOUND, msg: "Nothing here" });
+    expect(page.shadowRoot!.querySelector("#action-button")).toBeNull();
+    await settle();
+    page.shadowRoot!.querySelector<HTMLElement>("#dismiss-error")!.click();
+    expect(game.state.currentError).toBeNull();
+    expect(game.state.currentRoute?.page).toBe("about");
+    expect(page.getAttribute("active")).toBe("false");
+  });
+
+  it("shows a message given directly and ends the loading state", () => {
+    const page = mount() as HTMLElement & { showError(msg: string, options?: { code?: string }): void };
+    game.startLoading();
+    page.showError("Direct message", { code: "x" });
+    expect(page.getAttribute("active")).toBe("true");
+    expect(page.shadowRoot!.querySelector(".message")!.textContent).toContain("Direct message");
+    expect(game.state.loading).toBe(LoadingState.LOADED);
   });
 });

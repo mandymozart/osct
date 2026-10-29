@@ -10,6 +10,7 @@
 export const GRAPHICS_STORAGE_KEY = "osct-graphics";
 
 import type { GraphicsSettings, GraphicsSource } from "@engine/types/graphics";
+import { isObject } from "@shared/guards/game-config";
 export type { GraphicsSettings };
 
 /** Off until the reader turns them on (prototypes until the content's world arrives) */
@@ -48,8 +49,8 @@ export class GraphicsService implements GraphicsSource {
 
   private loadSettings(): GraphicsSettings {
     try {
-      const raw = JSON.parse(localStorage.getItem(GRAPHICS_STORAGE_KEY) ?? "null");
-      if (raw && typeof raw === "object") {
+      const raw: unknown = JSON.parse(localStorage.getItem(GRAPHICS_STORAGE_KEY) ?? "null");
+      if (isObject(raw)) {
         return {
           onionSky: typeof raw.onionSky === "boolean" ? raw.onionSky : DEFAULT_SETTINGS.onionSky,
           surroundings: typeof raw.surroundings === "boolean" ? raw.surroundings : DEFAULT_SETTINGS.surroundings,

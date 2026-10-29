@@ -12,6 +12,34 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.29.1 – 2026-10-30
+
+### Fixed
+- **The page router no longer leaks a store listener** (#28): it subscribed with one function and unsubscribed with
+  another, so every disconnect left a whole-store listener behind. It now follows the route only, and a route set
+  before it connected is shown at once.
+- **`osct content` refuses options it does not know**: a misspelt `--dry-run` (`--dryrun`) was ignored, so a purge or
+  sync ran for real. An option that needs a value and has none (`--keep`, `--env` at the end) is an error too, and so is
+  an empty number (`--keep ""` meant keep 0).
+- **The delivery import**: an entry whose `page` is not a number made every spread id `s008-NaN`; it is reported and
+  left out now. A title that YAML reads as a number (`title: 2026`) no longer crashes the import.
+- **The dev overlay's QR generator** no longer throws on the first spread when its QR library is not loaded.
+
+### Changed
+- **Data from outside is checked, not assumed** (#28): the account API's answers (`ApiService.requestAs`; a wrong shape
+  is a `server-error`), the stored session, pending sign-in and sync state, the trigger protocol file, the CDN storage
+  listing, the delivery mapping, the schema lock and the game configuration the sync uploads. The content build reads
+  YAML as `unknown` and types each file from the authoring schema (no `any`); a `List` field must hold texts. Non-null
+  assertions and `as unknown as` gave way to checks in the AR scene, the tracker, the tutorial and the router. The
+  fixture and demo books build the same configuration as before.
+
+### Added
+- **Tests** (#29): `GameStore`, `SpreadManager`, `ApiService` (offline, 204, error codes, unreadable bodies),
+  `pages-router`, more of `error-page`, `GraphicsService`, the trigger protocol reader; in `scripts/` the
+  `StorageClient` (retry on 5xx and lost connections, never on 4xx), the CLI arguments, the content validator, the
+  mapping reader, the schema lock, and the sync and purge against a storage zone in memory. The scripts tests remove
+  their temp folders.
+
 ## 1.29.0 – 2026-10-30
 
 ### Added

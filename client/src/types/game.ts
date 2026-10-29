@@ -22,7 +22,8 @@ export interface IGame extends IBaseStore<GameState> {
   /** Called by `<ar-bridge>` whenever the AR scene status changes */
   setArStatus(status: ArStatus): void;
   notifyError(error: ErrorInfo): void;
-  onError(listener: ErrorListener): void;
+  /** Registers an error listener; returns the function that removes it */
+  onError(listener: ErrorListener): () => void;
 }
 
 export interface GameState

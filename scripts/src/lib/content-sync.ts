@@ -24,6 +24,7 @@ import {
   isContentManifest,
   isContentVersions,
 } from '../../../shared/types/content-manifest';
+import { assertGameConfiguration, GameConfigurationError } from '../../../shared/guards/game-config';
 import { parseContentSchema } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE } from '../config';
 import { listFiles } from './files';
@@ -66,16 +67,24 @@ export function readContentBuild(): ContentBuild {
     throw new Error('No content build found – run `osct content build` first');
   }
   const config = fs.readFileSync(OUTPUT_FILE);
-  const { version, book } = JSON.parse(config.toString('utf8')) as { version?: { version: string; hash?: string; schema?: unknown }; book?: { id?: unknown } };
-  if (!version?.hash) throw new Error(`${OUTPUT_FILE} has no version.hash – rebuild the content`);
+  const raw: unknown = JSON.parse(config.toString('utf8'));
+  // The contract check the build and the app run: only a configuration the app can read is uploaded
+  try {
+    assertGameConfiguration(raw);
+  } catch (error) {
+    if (!(error instanceof GameConfigurationError)) throw error;
+    throw new Error(`${OUTPUT_FILE} is not a valid game configuration – rebuild the content\n  - ${error.problems.join('\n  - ')}`);
+  }
+  const { version, book } = raw;
+  if (!version.hash) throw new Error(`${OUTPUT_FILE} has no version.hash – rebuild the content`);
   if (!parseContentSchema(version.schema)) throw new Error(`${OUTPUT_FILE} has no content schema (MAJOR.MINOR) – rebuild the content`);
   const files = listFiles(CLIENT_PUBLIC_ASSETS_DIR).map(file => {
     const data = fs.readFileSync(path.join(CLIENT_PUBLIC_ASSETS_DIR, file));
     return { file, size: data.length, sha256: sha256(data) };
   });
   return {
-    build: contentBuildName(version.hash), hash: version.hash, schema: version.schema as string, version: version.version,
-    ...(typeof book?.id === 'string' ? { book: book.id } : {}), config, files,
+    build: contentBuildName(version.hash), hash: version.hash, schema: version.schema, version: version.version,
+    book: book.id, config, files,
   };
 }
 
@@ -313,8 +322,8 @@ export function planPurge(state: EnvironmentState, cdnBuild: string | null, now:
 
   const kept = new Set(
     state.versions
-      .filter(v => v.retiredAt !== null && folders.includes(v.build))
-      .sort((a, b) => b.retiredAt!.localeCompare(a.retiredAt!))
+      .flatMap(v => (v.retiredAt !== null && folders.includes(v.build) ? [{ build: v.build, retiredAt: v.retiredAt }] : []))
+      .sort((a, b) => b.retiredAt.localeCompare(a.retiredAt))
       .slice(0, options.keep)
       .map(v => v.build),
   );
@@ -343,7 +352,7 @@ export function planPurge(state: EnvironmentState, cdnBuild: string | null, now:
               : 'purge';
     items.push({ target, build: name, verdict, purge: verdict === 'purge' });
   }
-  const purged = new Set(items.filter(i => i.purge && i.build).map(i => i.build!));
+  const purged = new Set(items.flatMap(i => (i.purge && i.build ? [i.build] : [])));
   return { env, items, versions: state.versions.filter(v => !purged.has(v.build)) };
 }
 

@@ -11,7 +11,7 @@ import {
   loadXr8,
   makeImageTarget,
   PreparedImageTarget,
-  XR8Api,
+  XR8Tracking,
   XrImageDetail,
   XrPipelineModule,
   XrReality,
@@ -67,7 +67,7 @@ interface LoadedTarget {
  * the origin and gets the engine's projection, as in the engine's own three.js module.
  */
 export class ImageTracker implements IImageTracker {
-  private XR8: XR8Api | null = null;
+  private XR8: XR8Tracking | null = null;
   private canvas: HTMLCanvasElement | null = null;
   /** The camera picture's shader (a grade with `reach: all`), null = the engine's own */
   private cameraShader: string | null = null;
@@ -184,8 +184,8 @@ export class ImageTracker implements IImageTracker {
         reject: error => { window.clearTimeout(timer); reject(error); },
       };
     });
-    XR8.XrController!.configure({ disableWorldTracking: true, imageTargetData: [] });
-    XR8.addCameraPipelineModules([XR8.GlTextureRenderer.pipelineModule(), XR8.XrController!.pipelineModule(), this.module()]);
+    XR8.XrController.configure({ disableWorldTracking: true, imageTargetData: [] });
+    XR8.addCameraPipelineModules([XR8.GlTextureRenderer.pipelineModule(), XR8.XrController.pipelineModule(), this.module()]);
     if (this.cameraShader) XR8.GlTextureRenderer.configure({ fragmentSource: this.cameraShader });
     // The engine's camera request gets the main back lens (and the debug zoom request) – camera-request.ts
     wrapCameraRequest();
@@ -262,7 +262,7 @@ export class ImageTracker implements IImageTracker {
         const now = performance.now();
         this.windowTimes = { configuredAt: now, prepareMs: now - requested, extractMs: 0 };
         this.configureEngine();
-        console.info(`[8th Wall] ${this.ready.size} of ${this.current!.targets.length + upcoming.reduce((n, spread) => n + spread.targets.length, 0)} targets extracted so far – next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
+        console.info(`[8th Wall] ${this.ready.size} of ${(this.current?.targets.length ?? 0) + upcoming.reduce((n, spread) => n + spread.targets.length, 0)} targets extracted so far – next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
       },
       error => {
         if (run === this.prepareRun) this.preparing = [];
@@ -373,7 +373,7 @@ export class ImageTracker implements IImageTracker {
     // New targets: the engine extracts them now (the queue restarts with every configure)
     const extracting = [...byName.keys()].some(name => !this.ready.has(name));
     this.extractingSince = extracting ? (this.extractingSince ?? performance.now()) : null;
-    XR8.XrController!.configure({ imageTargetData: [...byName.values()] });
+    XR8.XrController.configure({ imageTargetData: [...byName.values()] });
     this.publishState();
   }
 

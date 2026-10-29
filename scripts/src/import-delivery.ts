@@ -66,12 +66,50 @@ export interface ImportReport {
   warnings: string[];
 }
 
-export function readMapping(file: string): Mapping {
-  const data = yaml.load(fs.readFileSync(file, 'utf8')) as Mapping;
-  if (!data || typeof data !== 'object' || !data.entries || typeof data.entries !== 'object') {
-    throw new Error(`${file}: expected a mapping with "entries"`);
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const OPTIONAL_TEXTS = ['author', 'body', 'media', 'target', 'image', 'video', 'note'] as const;
+
+/** One entry of the mapping, read field by field; null (and why in `problems`) when it cannot be imported */
+function readMappedEntry(id: string, value: unknown, problems: string[]): MappedEntry | null {
+  const required = `${id}: category, title and page are required`;
+  if (!isRecord(value)) {
+    problems.push(required);
+    return null;
   }
-  return data;
+  const { category, title, page, printed } = value;
+  if (typeof category !== 'string' || !category || typeof title !== 'string' || !title || typeof page !== 'number' || !Number.isFinite(page)) {
+    problems.push(required);
+    return null;
+  }
+  const entry: MappedEntry = { category, title, page };
+  for (const key of OPTIONAL_TEXTS) {
+    const text = value[key];
+    if (typeof text === 'string') entry[key] = text;
+    else if (text !== undefined && text !== null) problems.push(`${id}.${key}: expected a text`);
+  }
+  if (isRecord(printed) && typeof printed.width === 'number' && typeof printed.height === 'number' && typeof printed.position === 'string') {
+    entry.printed = { ...printed, width: printed.width, height: printed.height, position: printed.position };
+  } else if (printed !== undefined && printed !== null) {
+    problems.push(`${id}.printed: expected { width, height, position } (mm and the place on the page)`);
+  }
+  return entry;
+}
+
+/**
+ * The mapping file: its entries that can be imported. Every entry that cannot (or a field of the wrong type, which
+ * is left out) is reported in `problems`; a file without `entries` is refused.
+ */
+export function readMapping(file: string, problems: string[] = []): Mapping {
+  const data: unknown = yaml.load(fs.readFileSync(file, 'utf8'));
+  if (!isRecord(data) || !isRecord(data.entries)) throw new Error(`${file}: expected a mapping with "entries"`);
+  const entries: Record<string, MappedEntry> = {};
+  for (const [id, value] of Object.entries(data.entries)) {
+    const entry = readMappedEntry(id, value, problems);
+    if (entry) entries[id] = entry;
+  }
+  return { ...(typeof data.book === 'string' ? { book: data.book } : {}), entries };
 }
 
 /** The pair of facing pages a page belongs to: 1 | 2–3 | 4–5 | … | last (alone when even) */
@@ -155,7 +193,7 @@ function entryYaml(e: MappedEntry, files: { target: boolean; image: boolean; vid
 /** Import one mapping into CONTENT_DIR */
 export function importDelivery(deliveryDir: string, mappingFile: string): ImportReport {
   const report: ImportReport = { entriesWritten: [], spreadsWritten: [], mediaWritten: [], problems: [], warnings: [] };
-  const mapping = readMapping(mappingFile);
+  const mapping = readMapping(mappingFile, report.problems);
   const mappingName = path.basename(mappingFile);
   const ids = Object.keys(mapping.entries);
   const lastPage = Math.max(...ids.map(id => mapping.entries[id].page));
@@ -164,10 +202,6 @@ export function importDelivery(deliveryDir: string, mappingFile: string): Import
     const e = mapping.entries[id];
     if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) {
       report.problems.push(`${id}: entry ids are lowercase letters, digits and dashes`);
-      continue;
-    }
-    if (!e.category || !e.title || typeof e.page !== 'number') {
-      report.problems.push(`${id}: category, title and page are required`);
       continue;
     }
     const dir = path.join(CONTENT_DIR, 'entries', id);
@@ -185,7 +219,7 @@ export function importDelivery(deliveryDir: string, mappingFile: string): Import
     }
   }
 
-  const pages = new Set(ids.map(id => mapping.entries[id].page).filter(page => typeof page === 'number'));
+  const pages = new Set(ids.map(id => mapping.entries[id].page));
   for (const page of [...pages].sort((a, b) => a - b)) {
     const range = spreadPages(page, lastPage);
     const id = spreadId(range);

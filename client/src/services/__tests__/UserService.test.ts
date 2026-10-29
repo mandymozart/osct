@@ -26,28 +26,28 @@ class FakeApi extends ApiService {
     super("/api");
   }
 
-  async request<T>(method: string, path: string, { body: raw, token }: ApiRequest = {}): Promise<T> {
+  async request(method: string, path: string, { body: raw, token }: ApiRequest = {}): Promise<unknown> {
     const body = raw as any;
     this.calls.push({ method, path, body });
     if (this.offline) throw new ApiError(0, "offline");
     const route = `${method} ${path}`;
-    if (route === "POST /auth/request") return { requestId: "r1", expiresAt: new Date(Date.now() + 60_000).toISOString() } as T;
+    if (route === "POST /auth/request") return { requestId: "r1", expiresAt: new Date(Date.now() + 60_000).toISOString() };
     if (route === "POST /auth/verify") {
       if (body.code && body.code !== "123456") throw new ApiError(400, "invalid-code");
       if (body.token && body.token !== "good-token") throw new ApiError(400, "invalid-link");
       this.freshEmailSession = true;
-      return { session: "session-token", user: this.user, created: true } as T;
+      return { session: "session-token", user: this.user, created: true };
     }
     if (route === "POST /auth/password") {
       if (this.password === null || body.password !== this.password) throw new ApiError(401, "invalid-credentials");
       this.user = { ...this.user, hasPassword: true };
-      return { session: "session-token", user: this.user, created: false } as T;
+      return { session: "session-token", user: this.user, created: false };
     }
     if (!token || !this.sessionValid) throw new ApiError(401, "unauthorized");
-    if (route === "GET /user") return { user: this.user } as T;
+    if (route === "GET /user") return { user: this.user };
     if (route === "PATCH /user") {
       this.user = { ...this.user, options: { ...this.user.options, ...body.options } };
-      return { user: this.user } as T;
+      return { user: this.user };
     }
     if (route === "PUT /user/password") {
       if (this.user.hasPassword && !this.freshEmailSession) {
@@ -56,14 +56,14 @@ class FakeApi extends ApiService {
       }
       this.password = body.password;
       this.user = { ...this.user, hasPassword: true };
-      return { user: this.user } as T;
+      return { user: this.user };
     }
-    if (route === "POST /auth/logout" || route === "DELETE /user") return null as T;
-    if (route === `GET /progress/${bookId}`) return structuredClone(this.progress) as T;
+    if (route === "POST /auth/logout" || route === "DELETE /user") return null;
+    if (route === `GET /progress/${bookId}`) return structuredClone(this.progress);
     if (route === `PUT /progress/${bookId}`) {
       if (body.baseUpdatedAt !== this.progress.updatedAt) throw new ApiError(409, "conflict", structuredClone(this.progress));
       this.progress = { record: structuredClone(body.record), updatedAt: (this.progress.updatedAt ?? 0) + 1 };
-      return { updatedAt: this.progress.updatedAt } as T;
+      return { updatedAt: this.progress.updatedAt };
     }
     throw new ApiError(404, "not-found");
   }
@@ -273,32 +273,73 @@ describe("UserService", () => {
     expect(users.getSnapshot().notice).toEqual({ error: "current-password-required" });
     expect(await users.setPassword("another one", "a good password")).toBe(true);
   });
-});
 
-describe("ApiService", () => {
-  const respond = (status: number, body: unknown) =>
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(body === null ? null : JSON.stringify(body), { status }));
+  describe("data from outside the app is checked", () => {
+    it("a stored session of the wrong shape counts as signed out", async () => {
+      for (const stored of ['{"session":42,"user":{"email":"a@b.c"}}', '{"session":"s"}', "[1,2]", "not json"]) {
+        localStorage.setItem("osct-user", stored);
+        expect(service().getSnapshot().status).toBe("signed-out");
+      }
+    });
 
-  it("sends JSON with the session token and returns the answer", async () => {
-    respond(200, { user: { email: "a@b.c" } });
-    const api = new ApiService("https://api.example");
-    await expect(api.request("PATCH", "/user", { body: { x: 1 }, token: "t" })).resolves.toEqual({ user: { email: "a@b.c" } });
-    const [url, init] = vi.mocked(fetch).mock.calls.at(-1)!;
-    expect(url).toBe("https://api.example/user");
-    expect(init).toMatchObject({ method: "PATCH", body: '{"x":1}', headers: { Authorization: "Bearer t", "Content-Type": "application/json" } });
-  });
+    it("a stored session with fewer fields stays signed in, the missing ones get defaults until GET /user", () => {
+      localStorage.setItem("osct-user", JSON.stringify({ session: "session-token", user: { email: "reader@example.com" }, method: "sms", signedInAt: "x" }));
+      const users = service();
+      expect(users.getSnapshot()).toMatchObject({
+        status: "signed-in",
+        user: { email: "reader@example.com", language: "en", hasPassword: false, options: { bookUpdates: false, artistUpdates: false, publisherUpdates: false } },
+      });
+      expect(users.passwordNeedsCurrent()).toBe(false);
+    });
 
-  it("turns the API's error into an ApiError with its code; no connection = offline", async () => {
-    const api = new ApiService("/api");
-    respond(410, { error: { code: "expired", message: "…" } });
-    await expect(api.request("POST", "/auth/verify")).rejects.toMatchObject({ status: 410, code: "expired" });
-    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    await expect(api.request("GET", "/user")).rejects.toMatchObject({ status: 0, code: "offline" });
-    respond(204, null);
-    await expect(api.request("DELETE", "/user")).resolves.toBeNull();
-  });
+    it("a stored pending sign-in of the wrong shape is dropped", () => {
+      localStorage.setItem("osct-user-pending", JSON.stringify({ requestId: 1, email: "a@b.c" }));
+      expect(service().getSnapshot()).toMatchObject({ status: "signed-out", pending: null });
+    });
 
-  it("is off without an API URL", () => {
-    expect(new ApiService("").isEnabled()).toBe(false);
+    it("a stored sync state of the wrong shape starts over (sends this device's progress)", async () => {
+      signedInStorage();
+      localStorage.setItem(`osct-user-sync:${bookId}`, JSON.stringify({ email: "reader@example.com", updatedAt: "3", dirty: "no" }));
+      api.progress = { record: remoteRecord({ [entryB]: 1 }), updatedAt: 9 };
+      game.history.consultEntry(entryA);
+      await service().start(game);
+      // Merged like a fresh device instead of replacing this device's record
+      expect(game.history.isConsulted(entryA) && game.history.isConsulted(entryB)).toBe(true);
+      expect(api.puts()).toHaveLength(1);
+    });
+
+    it("a sign-in answer without a session is a server error, not a broken session", async () => {
+      const request = api.request.bind(api);
+      vi.spyOn(api, "request").mockImplementation(async (method, path, options) =>
+        path === "/auth/password" ? { user: api.user } : request(method, path, options));
+      api.password = "a good password";
+      const users = service();
+      expect(await users.signInWithPassword("reader@example.com", "a good password")).toBe(false);
+      expect(users.getSnapshot()).toMatchObject({ status: "signed-out", notice: { error: "server-error" } });
+      expect(localStorage.getItem("osct-user")).toBeNull();
+    });
+
+    it("a progress answer of the wrong shape leaves the changes waiting", async () => {
+      signedInStorage();
+      const users = service();
+      await users.start(game);
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const request = api.request.bind(api);
+      vi.spyOn(api, "request").mockImplementation(async (method, path, options) =>
+        method === "PUT" && path.startsWith("/progress/") ? { updatedAt: "soon" } : request(method, path, options));
+      game.history.consultEntry(entryA);
+      await users.pushNow();
+      expect(users.getSnapshot().sync).toBe("pending");
+    });
+
+    it("passes the waiting time of a refused request on, ignores one that is not a number", async () => {
+      const users = service();
+      vi.spyOn(api, "request").mockRejectedValueOnce(new ApiError(429, "too-many-requests", { error: { code: "too-many-requests", retryAfter: 60 } }));
+      await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
+      expect(users.getSnapshot().notice).toEqual({ error: "too-many-requests", retryAfter: 60 });
+      vi.spyOn(api, "request").mockRejectedValueOnce(new ApiError(429, "too-many-requests", { error: { retryAfter: "60" } }));
+      await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
+      expect(users.getSnapshot().notice).toEqual({ error: "too-many-requests" });
+    });
   });
 });

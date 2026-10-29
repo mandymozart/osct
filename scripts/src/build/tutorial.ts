@@ -8,7 +8,7 @@ export const BOOK_PLACEHOLDERS = ['title', 'author', 'publisher'] as const;
 export function buildTutorial(book: BookData): StepData[] {
   return readSection('steps', 'step.yaml')
     .map(({ id, data }) => {
-      const s = validate<any>(data, 'step', `steps/${id}`);
+      const s = validate(data, 'step', `steps/${id}`);
       if (!s) return null;
       for (const field of ['title', 'description', 'footer'] as const) {
         for (const [, name] of String(s[field] ?? '').matchAll(/\{\{(\w+)\}\}/g)) {

@@ -10,6 +10,7 @@ import {
   PendingLogin,
   ProgressRecord,
 } from "@/types";
+import { isObject } from "@shared/guards/game-config";
 import { ApiError, ApiService } from "./ApiService";
 
 /** Query parameter of the link in the confirmation email: `/about?login=<token>` (server: Auth.php) */
@@ -57,10 +58,81 @@ interface ProgressResponse {
   updatedAt: number | null;
 }
 
-const read = <T>(key: string): T | null => {
+interface SessionResponse {
+  session: string;
+  user: UserData;
+}
+
+// --- Checks of what the API answers and what localStorage holds: both are data from outside the app ---
+
+const isString = (value: unknown): value is string => typeof value === "string";
+const isTime = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+const isUserOptions = (value: unknown): value is UserOptions =>
+  isObject(value) && typeof value.bookUpdates === "boolean" && typeof value.artistUpdates === "boolean" &&
+  typeof value.publisherUpdates === "boolean";
+
+const isUserData = (value: unknown): value is UserData =>
+  isObject(value) && isString(value.email) && isString(value.language) && isUserOptions(value.options) &&
+  typeof value.hasPassword === "boolean" && isString(value.createdAt);
+
+const isUserResponse = (data: unknown): data is { user: UserData } => isObject(data) && isUserData(data.user);
+const isSessionResponse = (data: unknown): data is SessionResponse =>
+  isObject(data) && isString(data.session) && isUserData(data.user);
+const isPendingResponse = (data: unknown): data is { requestId: string; expiresAt: string } =>
+  isObject(data) && isString(data.requestId) && isString(data.expiresAt);
+const isProgressResponse = (data: unknown): data is ProgressResponse =>
+  isObject(data) && data.record !== undefined && (data.updatedAt === null || isTime(data.updatedAt));
+const isSavedResponse = (data: unknown): data is { updatedAt: number } => isObject(data) && isTime(data.updatedAt);
+
+/** Seconds until a refused request may be sent again (429: `{ error: { code, retryAfter } }`) */
+const retryAfterOf = (data: unknown): number | undefined =>
+  isObject(data) && isObject(data.error) && isTime(data.error.retryAfter) ? data.error.retryAfter : undefined;
+
+/**
+ * The stored user, fields this app version does not find filled with their defaults: a session stays signed in
+ * when an older app stored it with fewer fields (`GET /user` replaces it at startup). Only the email is required.
+ */
+const storedUser = (value: unknown): UserData | null => {
+  if (!isObject(value) || !isString(value.email)) return null;
+  const options = isObject(value.options) ? value.options : {};
+  return {
+    email: value.email,
+    language: isString(value.language) ? value.language : "en",
+    options: {
+      bookUpdates: options.bookUpdates === true,
+      artistUpdates: options.artistUpdates === true,
+      publisherUpdates: options.publisherUpdates === true,
+    },
+    hasPassword: value.hasPassword === true,
+    createdAt: isString(value.createdAt) ? value.createdAt : "",
+  };
+};
+
+const readSession = (raw: unknown): StoredSession | null => {
+  const user = isObject(raw) ? storedUser(raw.user) : null;
+  if (!isObject(raw) || !isString(raw.session) || !user) return null;
+  const stored: StoredSession = { session: raw.session, user };
+  if (raw.method === "email" || raw.method === "password") stored.method = raw.method;
+  if (isTime(raw.signedInAt)) stored.signedInAt = raw.signedInAt;
+  return stored;
+};
+
+const readPending = (raw: unknown): PendingLogin | null =>
+  isObject(raw) && isString(raw.requestId) && isString(raw.email) && isString(raw.expiresAt)
+    ? { requestId: raw.requestId, email: raw.email, expiresAt: raw.expiresAt }
+    : null;
+
+const readSyncState = (raw: unknown): SyncState | null =>
+  isObject(raw) && isString(raw.email) && (raw.updatedAt === null || isTime(raw.updatedAt)) && typeof raw.dirty === "boolean"
+    ? { email: raw.email, updatedAt: raw.updatedAt, dirty: raw.dirty }
+    : null;
+
+/** A stored value through its reader; missing, unparsable or of the wrong shape = null */
+const read = <T>(key: string, reader: (raw: unknown) => T | null): T | null => {
   try {
     const text = localStorage.getItem(key);
-    return text === null ? null : (JSON.parse(text) as T);
+    return text === null ? null : reader(JSON.parse(text));
   } catch {
     return null;
   }
@@ -90,8 +162,8 @@ export class UserService implements IUserService {
   private static instance: UserService | null = null;
 
   private game: IGame | null = null;
-  private stored: StoredSession | null = read<StoredSession>(SESSION_KEY);
-  private pending: PendingLogin | null = read<PendingLogin>(PENDING_KEY);
+  private stored: StoredSession | null = read(SESSION_KEY, readSession);
+  private pending: PendingLogin | null = read(PENDING_KEY, readPending);
   private snapshot: UserSnapshot;
   private listeners = new Set<(snapshot: UserSnapshot) => void>();
   private pushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -151,7 +223,7 @@ export class UserService implements IUserService {
 
   async requestLogin(email: string, options: UserOptions): Promise<boolean> {
     return this.run(async () => {
-      const result = await this.api.request<{ requestId: string; expiresAt: string }>("POST", "/auth/request", {
+      const result = await this.api.requestAs(isPendingResponse, "POST", "/auth/request", {
         body: { email: email.trim(), options, language: i18next.resolvedLanguage },
       });
       this.setPending({ requestId: result.requestId, email: email.trim(), expiresAt: result.expiresAt });
@@ -163,14 +235,14 @@ export class UserService implements IUserService {
     const pending = this.pending;
     if (!pending) return false;
     return this.run(async () => {
-      await this.signedIn(await this.api.request("POST", "/auth/verify", { body: { requestId: pending.requestId, code } }), null);
+      await this.signedIn(await this.api.requestAs(isSessionResponse, "POST", "/auth/verify", { body: { requestId: pending.requestId, code } }), null);
       return true;
     }, false);
   }
 
   async signInWithPassword(email: string, password: string): Promise<boolean> {
     return this.run(async () => {
-      const result = await this.api.request<{ session: string; user: UserData }>("POST", "/auth/password", {
+      const result = await this.api.requestAs(isSessionResponse, "POST", "/auth/password", {
         body: { email: email.trim(), password },
       });
       await this.signedIn(result, "signed-in", "password");
@@ -182,7 +254,7 @@ export class UserService implements IUserService {
   async setPassword(password: string, currentPassword?: string): Promise<boolean> {
     return this.run(async () => {
       try {
-        const { user } = await this.api.request<{ user: UserData }>("PUT", "/user/password", {
+        const { user } = await this.api.requestAs(isUserResponse, "PUT", "/user/password", {
           body: currentPassword ? { password, currentPassword } : { password },
           token: this.stored?.session,
         });
@@ -213,7 +285,7 @@ export class UserService implements IUserService {
 
   async setOption(option: UserOption, on: boolean): Promise<void> {
     await this.run(async () => {
-      const { user } = await this.api.request<{ user: UserData }>("PATCH", "/user", {
+      const { user } = await this.api.requestAs(isUserResponse, "PATCH", "/user", {
         body: { options: { [option]: on } },
         token: this.stored?.session,
       });
@@ -250,7 +322,7 @@ export class UserService implements IUserService {
     const state = link ? this.freshSyncState() : this.syncState();
     this.update({ sync: "syncing" });
     try {
-      const remote = await this.api.request<ProgressResponse>("GET", `/progress/${encodeURIComponent(game.state.progress.bookId)}`, {
+      const remote = await this.api.requestAs(isProgressResponse, "GET", `/progress/${encodeURIComponent(game.state.progress.bookId)}`, {
         token: this.stored?.session,
       });
       if (remote.record !== null && remote.updatedAt !== state.updatedAt) {
@@ -309,7 +381,7 @@ export class UserService implements IUserService {
       const state = this.syncState();
       this.update({ sync: "syncing" });
       try {
-        const result = await this.api.request<{ updatedAt: number }>("PUT", `/progress/${encodeURIComponent(record.bookId)}`, {
+        const result = await this.api.requestAs(isSavedResponse, "PUT", `/progress/${encodeURIComponent(record.bookId)}`, {
           body: { record: game.state.progress, baseUpdatedAt: state.updatedAt },
           token: this.stored?.session,
         });
@@ -317,8 +389,8 @@ export class UserService implements IUserService {
         this.update({ sync: this.changedDuringPush ? "pending" : "synced" });
         return;
       } catch (error) {
-        if (error instanceof ApiError && error.status === 409 && error.code === "conflict") {
-          const remote = error.data as ProgressResponse;
+        if (error instanceof ApiError && error.status === 409 && error.code === "conflict" && isProgressResponse(error.data)) {
+          const remote = error.data;
           this.apply(remote.record, "merge");
           this.setSyncState({ ...state, updatedAt: remote.updatedAt, dirty: true });
           continue;
@@ -353,7 +425,7 @@ export class UserService implements IUserService {
   /** Validates the stored session, takes over the account's current options, then syncs */
   private async refresh(): Promise<void> {
     try {
-      const { user } = await this.api.request<{ user: UserData }>("GET", "/user", { token: this.stored?.session });
+      const { user } = await this.api.requestAs(isUserResponse, "GET", "/user", { token: this.stored?.session });
       this.setSession(this.stored && { ...this.stored, user });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -368,7 +440,7 @@ export class UserService implements IUserService {
   private async confirmLink(token: string): Promise<void> {
     this.update({ busy: true, notice: null });
     try {
-      await this.signedIn(await this.api.request("POST", "/auth/verify", { body: { token } }), "confirmed");
+      await this.signedIn(await this.api.requestAs(isSessionResponse, "POST", "/auth/verify", { body: { token } }), "confirmed");
     } catch (error) {
       this.update({ notice: { error: error instanceof ApiError ? error.code : "server-error" } });
       // Invalid link (e.g. from an older email) while already signed in: stay signed in
@@ -378,7 +450,7 @@ export class UserService implements IUserService {
     }
   }
 
-  private async signedIn(result: { session: string; user: UserData }, notice: UserNotice | null, method: "email" | "password" = "email"): Promise<void> {
+  private async signedIn(result: SessionResponse, notice: UserNotice | null, method: "email" | "password" = "email"): Promise<void> {
     this.needsCurrentPassword = false;
     this.setSession({ session: result.session, user: result.user, method, signedInAt: Date.now() });
     this.setPending(null);
@@ -402,9 +474,9 @@ export class UserService implements IUserService {
       return await action();
     } catch (error) {
       const code = error instanceof ApiError ? error.code : "server-error";
-      const retryAfter = error instanceof ApiError ? (error.data as { error?: { retryAfter?: number } } | undefined)?.error?.retryAfter : undefined;
+      const retryAfter = error instanceof ApiError ? retryAfterOf(error.data) : undefined;
       if (error instanceof ApiError && error.status === 401) this.signedOutLocally({ error: code });
-      else this.update({ notice: typeof retryAfter === "number" && retryAfter > 0 ? { error: code, retryAfter } : { error: code } });
+      else this.update({ notice: retryAfter !== undefined && retryAfter > 0 ? { error: code, retryAfter } : { error: code } });
       return onError;
     } finally {
       this.update({ busy: false });
@@ -421,7 +493,7 @@ export class UserService implements IUserService {
 
   private syncState(): SyncState {
     const bookId = this.game?.state.progress.bookId ?? "";
-    const stored = read<SyncState>(syncKey(bookId));
+    const stored = read(syncKey(bookId), readSyncState);
     return stored && stored.email === this.stored?.user.email ? stored : this.freshSyncState();
   }
 

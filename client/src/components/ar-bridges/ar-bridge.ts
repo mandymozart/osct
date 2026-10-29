@@ -33,8 +33,9 @@ export class ArBridge extends HTMLElement {
 
   connectedCallback() {
     const container = document.getElementById("scene-container") ?? this.createContainer();
-    const lazy = ArBridge.sceneFactory ? null : new LazyArScene(container);
-    this.scene = ArBridge.sceneFactory ? ArBridge.sceneFactory(container) : lazy!;
+    let lazy: LazyArScene | null = null;
+    if (ArBridge.sceneFactory) this.scene = ArBridge.sceneFactory(container);
+    else this.scene = lazy = new LazyArScene(container);
     const scene = this.scene;
     const game = this.game;
 

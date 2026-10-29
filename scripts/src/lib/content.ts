@@ -5,6 +5,7 @@ import path from 'path';
 import { CONTENT_DIR } from '../config';
 import type { AssetType } from '../../../shared/types/game-config';
 import { buildErrors } from './errors';
+import type { Authored, ContentType } from './schema';
 import { validateContent } from './validation';
 
 export const ASSET_TYPE_BY_EXTENSION: Record<string, AssetType> = {
@@ -25,16 +26,19 @@ export const ASSET_TYPE_BY_EXTENSION: Record<string, AssetType> = {
 export interface SourceItem {
   id: string; // folder name
   file: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
+
+const isMapping = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * Read a YAML file; records an error and returns null if it can't be read
  */
-export function readYaml(file: string): Record<string, any> | null {
+export function readYaml(file: string): Record<string, unknown> | null {
   try {
-    const data = yaml.load(fs.readFileSync(file, 'utf8'));
-    if (data && typeof data === 'object' && !Array.isArray(data)) return data as Record<string, any>;
+    const data: unknown = yaml.load(fs.readFileSync(file, 'utf8'));
+    if (isMapping(data)) return data;
     buildErrors.push(`${path.relative(CONTENT_DIR, file)}: expected a YAML mapping`);
   } catch (error) {
     buildErrors.push(`${path.relative(CONTENT_DIR, file)}: ${(error as Error).message}`);
@@ -64,13 +68,23 @@ export function readSection(section: string, fileName: string): SourceItem[] {
 /**
  * Validate against the authoring schema; records an error and returns null if invalid
  */
-export function validate<T>(data: unknown, type: string, label: string): T | null {
+export function validate<T extends ContentType>(data: unknown, type: T, label: string): Authored<T> | null {
   try {
-    return validateContent(data, type) as T;
+    return validateContent(data, type);
   } catch (error) {
     buildErrors.push(`${label}: ${(error as Error).message}`);
     return null;
   }
+}
+
+/**
+ * A nested part of a content file (passes, an environment …) as its contract type, checked by the contract's own
+ * check (`problems`, from `passProblems` & co.): its problems are recorded for the author – the build fails then,
+ * and the whole configuration is checked again before it is written (`assertGameConfiguration`).
+ */
+export function contractPart<T>(value: unknown, problems: string[], label: string): T {
+  problems.forEach(problem => buildErrors.push(`${label}: ${problem}`));
+  return value as T;
 }
 
 /**

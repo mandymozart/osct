@@ -12,33 +12,29 @@ import path from 'path';
 import { CONTENT_DIR, projectRoot } from './config';
 import { isMainModule } from './lib/entry';
 import { readMapping } from './import-delivery';
+// The engine reads the file (the trial panel): one definition of its shape
+import type { TriggerInfo, TriggerInfos } from '../../engine/src/utils/trigger-protocol';
 
 export const DEFAULT_OUTPUT = path.resolve(projectRoot, 'client/public/trigger-protocol.json');
 
-export interface TriggerInfo {
-  source?: string;
-  width?: number;
-  height?: number;
-  position?: string;
-  note?: string;
-}
-
 /** Per target id (the entry id unless `target.id` overrides it) of every entry in `content/` with a target */
-export function protocolInfos(mappingFile: string): Record<string, TriggerInfo> {
+export function protocolInfos(mappingFile: string): TriggerInfos {
   const mapping = readMapping(mappingFile);
   const dir = path.join(CONTENT_DIR, 'entries');
-  const infos: Record<string, TriggerInfo> = {};
+  const infos: TriggerInfos = {};
   for (const id of fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []) {
     const file = path.join(dir, id, 'entry.yaml');
     if (!fs.existsSync(file)) continue;
-    const e = yaml.load(fs.readFileSync(file, 'utf8')) as Record<string, any>;
+    const e: unknown = yaml.load(fs.readFileSync(file, 'utf8'));
+    const target = typeof e === 'object' && e !== null && 'target' in e ? e.target : undefined;
     const mapped = mapping.entries[id];
-    if (!e?.target || !mapped) continue;
+    if (!target || !mapped) continue;
     const info: TriggerInfo = {};
     if (mapped.target) info.source = path.basename(mapped.target);
     if (mapped.printed) Object.assign(info, mapped.printed);
     if (mapped.note) info.note = mapped.note;
-    infos[e.target.id ?? id] = info;
+    const targetId = typeof target === 'object' && 'id' in target && typeof target.id === 'string' ? target.id : id;
+    infos[targetId] = info;
   }
   return infos;
 }

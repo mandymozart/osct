@@ -1,6 +1,9 @@
+import fs from 'fs';
+import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { CONTENT_SCHEMA_VERSION, parseContentSchema } from '../../shared/types/game-config';
 import { hashContract, readSchemaLock, schemaLockProblem } from '../src/lib/contract';
+import { tempDir } from './helpers';
 
 // RULES #10 – the content schema (MAJOR.MINOR) is the only compatibility rule between content and app; every
 // change of the contract (shared/) needs a schema bump
@@ -27,5 +30,20 @@ describe('content schema', () => {
     expect(schemaLockProblem(lock, '2.0', 'new')).toBeNull();
     expect(schemaLockProblem(lock, '1.1', 'new')).toMatch(/not newer/);
     expect(schemaLockProblem(null, '1.0', 'new')).toBeNull();
+  });
+
+  it('reads the lock only when it is { schema, checksum }', () => {
+    const dir = tempDir('osct-lock-');
+    const file = path.join(dir, 'content-schema.json');
+    const read = (text: string) => {
+      fs.writeFileSync(file, text);
+      return readSchemaLock(file);
+    };
+    expect(read('{"schema":"2.11","checksum":"abc","extra":1}')).toEqual({ schema: '2.11', checksum: 'abc' });
+    expect(read('{"schema":2.11,"checksum":"abc"}')).toBeNull();
+    expect(read('{"schema":"2.11"}')).toBeNull();
+    expect(read('null')).toBeNull();
+    expect(read('not json')).toBeNull();
+    expect(readSchemaLock(path.join(dir, 'missing.json'))).toBeNull();
   });
 });

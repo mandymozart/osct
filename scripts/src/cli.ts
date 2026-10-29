@@ -37,20 +37,14 @@ import {
   runPurge,
   runSync,
 } from './lib/content-sync';
+import { CliArgs, parseArgs } from './lib/cli-args';
 import { StorageClient } from './lib/storage';
 import { DEMO_ENV } from './config';
 
 // scripts/.env is loaded by config.ts (imported through lib/content-sync)
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-const args = process.argv.slice(2);
-const VALUE_OPTIONS = ['env', 'min-age', 'keep'];
-const option = (name: string): string | undefined => {
-  const index = args.indexOf(`--${name}`);
-  return index === -1 ? undefined : args[index + 1];
-};
-const flag = (name: string): boolean => args.includes(`--${name}`);
-const positional = args.filter((a, i) => !a.startsWith('--') && !VALUE_OPTIONS.some(o => args[i - 1] === `--${o}`));
+const OPTIONS = { flags: ['force', 'dry-run', 'without-videos', 'unknown', 'help'], values: ['env', 'min-age', 'keep'] };
 
 const USAGE = `osct – content command line
 
@@ -71,18 +65,10 @@ const required = (name: string): string => {
   return value;
 };
 
-const environment = (): string => {
-  const env = option('env') ?? process.env.OSCT_CONTENT_ENV;
+const environment = (cli: CliArgs): string => {
+  const env = cli.option('env') ?? process.env.OSCT_CONTENT_ENV;
   if (!env || !/^[a-z][a-z0-9-]*$/.test(env)) throw new Error('Name the environment: --env staging | production');
   return env;
-};
-
-const number = (name: string, fallback: number): number => {
-  const value = option(name);
-  if (value === undefined) return fallback;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`--${name} needs a number ≥ 0`);
-  return parsed;
 };
 
 const storage = () =>
@@ -116,8 +102,10 @@ async function status(env: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const [group, command] = positional;
-  if (group !== 'content' || !command) {
+  const cli = parseArgs(process.argv.slice(2), OPTIONS);
+  const { flag } = cli;
+  const [group, command] = cli.positional;
+  if (group !== 'content' || !command || flag('help')) {
     console.log(USAGE);
     if (group && group !== 'help') process.exitCode = 1;
     return;
@@ -129,9 +117,9 @@ async function main(): Promise<void> {
       return;
     }
     case 'status':
-      return status(environment());
+      return status(environment(cli));
     case 'sync': {
-      const env = environment();
+      const env = environment(cli);
       const build = readContentBuild();
       if (isFixtureBuild(build)) {
         throw new Error('This build is the test fixture (fixtures/content) – build the content source first (OSCT_CONTENT_DIR)');
@@ -162,7 +150,7 @@ async function main(): Promise<void> {
       return;
     }
     case 'purge': {
-      const env = environment();
+      const env = environment(cli);
       const url = baseUrl();
       // Strict: what the CDN serves counts as in use, so the check needs the CDN URL
       if (!url) throw new Error('CONTENT_BASE_URL is not set – purge checks which version the CDN serves');
@@ -172,8 +160,8 @@ async function main(): Promise<void> {
         throw new Error(`The CDN's latest.json could not be read (${seen.status}) – nothing is purged without knowing what it serves`);
       }
       const plan = planPurge(state, seen.manifest?.build ?? null, Date.now(), {
-        minAgeDays: number('min-age', DEFAULT_PURGE.minAgeDays),
-        keep: number('keep', DEFAULT_PURGE.keep),
+        minAgeDays: cli.number('min-age', DEFAULT_PURGE.minAgeDays),
+        keep: cli.number('keep', DEFAULT_PURGE.keep),
         unknown: flag('unknown'),
       });
       console.log(`🌐 CDN latest.json: ${seen.manifest?.build ?? seen.status}`);

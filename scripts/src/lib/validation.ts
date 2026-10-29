@@ -2,31 +2,30 @@
  * Field-level validation of authored YAML against `schemas`: required fields, defaults, type coercion.
  * Cross-file checks (references, targets, page ranges) live in the build script.
  */
-import { schemas } from './schema.js';
+import { Authored, ContentType, SchemaField, schemas } from './schema.js';
 
-interface FieldDefinition {
-  type: string;
-  required: boolean;
-  default?: any;
-  enum?: string[];
-  rel?: string;
-}
+const isContentType = (type: string): type is ContentType => Object.hasOwn(schemas, type);
 
 /**
  * Validates a content object against its schema
- * @param content - The content object to validate
+ * @param content - The content object to validate (a YAML mapping)
  * @param type - The content type to validate against
  * @returns Validated and normalized content object
  */
-export function validateContent(content: any, type: string): any {
-  if (!schemas[type]) {
+export function validateContent<T extends ContentType>(content: unknown, type: T): Authored<T>;
+export function validateContent(content: unknown, type: string): Record<string, unknown>;
+export function validateContent(content: unknown, type: string): Record<string, unknown> {
+  if (!isContentType(type)) {
     throw new Error(`Unknown content type: ${type}`);
   }
+  if (typeof content !== "object" || content === null || Array.isArray(content)) {
+    throw new Error(`Expected the fields of a ${type}`);
+  }
 
-  const schema = schemas[type];
-  const result = { ...content };
+  const fields: Record<string, SchemaField> = schemas[type].fields;
+  const result: Record<string, unknown> = { ...content };
 
-  for (const [fieldName, fieldDef] of Object.entries(schema.fields)) {
+  for (const [fieldName, fieldDef] of Object.entries(fields)) {
     if (fieldDef.required && result[fieldName] === undefined) {
       throw new Error(`Required field '${fieldName}' missing for ${type}`);
     }
@@ -51,7 +50,7 @@ export function validateContent(content: any, type: string): any {
  * @param type - The content type
  * @returns The validated and potentially transformed value
  */
-export function validateField(value: any, fieldDef: FieldDefinition, fieldName: string, type: string): any {
+export function validateField(value: unknown, fieldDef: SchemaField, fieldName: string, type: string): unknown {
   switch (fieldDef.type) {
     case "String":
       if (typeof value !== "string") {
@@ -83,12 +82,12 @@ export function validateField(value: any, fieldDef: FieldDefinition, fieldName: 
       return value;
 
     case "List":
-      // Lists can be arrays or comma-separated strings
+      // Lists can be arrays of strings or comma-separated strings
       if (typeof value === "string") {
         return value.split(",").map((item) => item.trim()).filter(Boolean);
-      } else if (!Array.isArray(value)) {
+      } else if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
         throw new Error(
-          `Field '${fieldName}' in ${type} must be an array or comma-separated string`
+          `Field '${fieldName}' in ${type} must be an array of strings or comma-separated string`
         );
       }
       return value;

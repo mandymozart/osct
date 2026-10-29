@@ -89,10 +89,10 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
     }
   
     public render() {
-      while (this.shadowRoot!.firstChild) {
-        this.shadowRoot!.removeChild(this.shadowRoot!.firstChild);
-      }
-      
+      const root = this.shadowRoot;
+      if (!root) return;
+      root.replaceChildren();
+
       this._template.innerHTML = /* html */ `
         <style>
           ${this.baseStyles}
@@ -101,7 +101,7 @@ export abstract class PageMinimal extends HTMLElement implements IPageMinimal {
         ${this.template}
       `;
       
-      this.shadowRoot!.appendChild(this._template.content.cloneNode(true));
+      root.appendChild(this._template.content.cloneNode(true));
     }
 
     public setupEventListeners(): void {}

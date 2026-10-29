@@ -64,7 +64,8 @@ export class StorageClient {
   async list(folder: string): Promise<StoredFile[]> {
     const response = await this.request('GET', `${folder.replace(/\/$/, '')}/`, {}, [200, 404]);
     if (response.status === 404) return [];
-    const items = (await response.json()) as Array<{ ObjectName: string; Length: number; IsDirectory: boolean; Path: string; Checksum?: string | null }>;
+    const items: unknown = await response.json();
+    if (!Array.isArray(items) || !items.every(isListedObject)) throw new StorageError(`GET ${folder}: unexpected listing`);
     return items.map(item => ({
       // `Path` is `/<zone>/<folder>/`
       path: `${item.Path.replace(/^\/[^/]+\//, '')}${item.ObjectName}`,
@@ -104,6 +105,23 @@ export class StorageClient {
     throw lastError instanceof Error ? lastError : new StorageError(String(lastError));
   }
 }
+
+/** One entry of a Storage API folder listing (the fields the sync reads) */
+interface ListedObject {
+  ObjectName: string;
+  Length: number;
+  IsDirectory: boolean;
+  /** `/<zone>/<folder>/` */
+  Path: string;
+  Checksum?: string | null;
+}
+
+const isListedObject = (item: unknown): item is ListedObject => {
+  if (typeof item !== 'object' || item === null) return false;
+  const { ObjectName, Length, IsDirectory, Path, Checksum } = item as Record<string, unknown>;
+  return typeof ObjectName === 'string' && typeof Length === 'number' && typeof IsDirectory === 'boolean' &&
+    typeof Path === 'string' && (Checksum === undefined || Checksum === null || typeof Checksum === 'string');
+};
 
 /** Percent-encodes each path segment (file names may contain spaces or non-ASCII characters) */
 const encodePath = (path: string): string => path.split('/').map(segment => encodeURIComponent(segment)).join('/');

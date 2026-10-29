@@ -25,7 +25,8 @@ export function qrBaseUrl(serverUrl: string, page: Pick<Location, "origin" | "pr
  */
 export class QRGenerator extends HTMLElement {
   private shadow: ShadowRoot;
-  private qrInstance: IQRCode | null = {} as unknown as IQRCode;
+  /** null until the QR library is loaded (it may fail to load: then no code is drawn) */
+  private qrInstance: IQRCode | null = null;
   private game: Readonly<IGame>;
   private subscriptionCleanup: (() => void) | null = null;
 

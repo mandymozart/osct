@@ -1,14 +1,13 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadBuild, BOOK } from './helpers';
+import { loadBuild, BOOK, tempDir } from './helpers';
 
 /** A delivery folder with a JPEG, a PNG with transparency and a mapping file */
 function makeDelivery() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'osct-delivery-'));
+  const root = tempDir('osct-delivery-');
   const delivery = path.join(root, 'delivery');
   fs.mkdirSync(path.join(delivery, 'glossary'), { recursive: true });
   const jpg = jpeg.encode({ width: 2000, height: 1000, data: Buffer.alloc(2000 * 1000 * 4, 128) }, 80);
@@ -111,5 +110,47 @@ describe('delivery import', () => {
     expect(spreadPages(3, 256)).toEqual([2, 3]);
     expect(spreadPages(255, 256)).toEqual([254, 255]);
     expect(spreadPages(256, 256)).toEqual([256, 256]);
+  });
+
+  it('reads the mapping field by field: entries that cannot be imported are reported and left out', async () => {
+    const root = tempDir('osct-mapping-');
+    const file = path.join(root, 'mapping.yaml');
+    fs.writeFileSync(file, [
+      'book: test',
+      'entries:',
+      '  p002-1: { category: glossary, title: Two, page: 2, note: 7, printed: { width: 30, height: 20, position: top left, x: 5 } }',
+      '  p003-1: { category: glossary, title: 2026, page: 3 }',
+      '  p004-1: { category: glossary, title: Four, page: "4" }',
+      '  p005-1: just a text',
+      '  p006-1: { category: link, title: Six, page: 6, printed: [30, 20] }',
+      '',
+    ].join('\n'));
+    const { readMapping } = await import('../src/import-delivery');
+    const problems: string[] = [];
+    const mapping = readMapping(file, problems);
+    expect(mapping.book).toBe('test');
+    expect(Object.keys(mapping.entries)).toEqual(['p002-1', 'p006-1']);
+    // Unknown fields of `printed` pass on to the trigger protocol (e.g. the exact position)
+    expect(mapping.entries['p002-1']).toEqual({ category: 'glossary', title: 'Two', page: 2, printed: { width: 30, height: 20, position: 'top left', x: 5 } });
+    expect(mapping.entries['p006-1']).toEqual({ category: 'link', title: 'Six', page: 6 });
+    expect(problems).toEqual([
+      'p002-1.note: expected a text',
+      'p003-1: category, title and page are required',
+      'p004-1: category, title and page are required',
+      'p005-1: category, title and page are required',
+      'p006-1.printed: expected { width, height, position } (mm and the place on the page)',
+    ]);
+
+    fs.writeFileSync(file, 'book: test\n');
+    expect(() => readMapping(file)).toThrow(`${file}: expected a mapping with "entries"`);
+  });
+
+  it('an entry with a page that is no number does not spoil the other spreads', async () => {
+    const { delivery, mapping, content } = makeDelivery();
+    fs.appendFileSync(mapping, '  p010-1:\n    category: glossary\n    title: Ten\n    page: ten\n');
+    const importer = await loadImporter(content);
+    const report = importer.importDelivery(delivery, mapping);
+    expect(report.spreadsWritten).toEqual(['s001', 's008-009']);
+    expect(report.problems).toContain('p010-1: category, title and page are required');
   });
 });

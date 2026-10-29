@@ -70,10 +70,10 @@ export const renderStaticSplash = ({ book, steps, markSrc, markAlt, loadingLabel
     ` data-step="${step.index}" data-advance="${step.advance ?? DEFAULT_ADVANCE_MS}" style="--fade-duration: ${duration}ms">`,
     `<div class="content"><div class="head">`,
     `<img ${next()} src="${escapeHtml(markSrc)}" alt="${escapeHtml(markAlt)}" width="99" height="96">`,
-    title ? `<h1 ${next()}><span class="gold">${inline(step.title!, book)}</span></h1>` : "",
-    text ? `<div ${next()}>${paragraphs(step.description!).map(p => `<p class="gold">${inline(p, book)}</p>`).join("")}</div>` : "",
+    step.title && title ? `<h1 ${next()}><span class="gold">${inline(step.title, book)}</span></h1>` : "",
+    step.description && text ? `<div ${next()}>${paragraphs(step.description).map(p => `<p class="gold">${inline(p, book)}</p>`).join("")}</div>` : "",
     `</div>`,
-    footer ? `<div ${next().replace('class="fade"', 'class="fade footer"')}><span class="gold">${inline(step.footer!, book)}</span></div>` : "",
+    step.footer && footer ? `<div ${next().replace('class="fade"', 'class="fade footer"')}><span class="gold">${inline(step.footer, book)}</span></div>` : "",
     `</div></div>${stamp}`,
   ].join("");
 };

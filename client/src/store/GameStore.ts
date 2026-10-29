@@ -95,4 +95,4 @@ class Game extends BaseStore<GameState> implements IGame {
   }
 }
 
-export const createGameStore = () => new Game() as unknown as IGame;
+export const createGameStore = (): IGame => new Game();

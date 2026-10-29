@@ -1,4 +1,4 @@
-import type { EntityData, EntryData, SpreadData, TargetData } from '../../../shared/types/game-config';
+import { PRINT_SURFACES, type EntityData, type EntryData, type SpreadData, type TargetData } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { contentFile, readSection, validate } from '../lib/content';
 import { buildEntity } from './entities';
@@ -12,7 +12,7 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
   const builds: EntryBuild[] = [];
   for (const { id, data } of readSection('entries', 'entry.yaml')) {
     const label = `entries/${id}`;
-    const e = validate<any>(data, 'entry', label);
+    const e = validate(data, 'entry', label);
     if (!e) continue;
 
     // The access page decides the spread
@@ -32,7 +32,7 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
     };
 
     if (e.target !== undefined) {
-      const t = validate<any>(e.target, 'target', `${label} target`);
+      const t = validate(e.target, 'target', `${label} target`);
       if (t) {
         const targetId: string = t.id ?? id;
         const target: TargetData = {
@@ -42,11 +42,13 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
         const entity = buildEntity(t.entity, id, targetId, entities, `${label} target`);
         if (entity) target.entity = entity;
         if (t.print !== undefined) {
-          const p = t.print as Record<string, unknown>;
-          const ok = p && typeof p === 'object' && ['left', 'right', 'front', 'back'].includes(String(p.surface))
-            && ['x', 'y', 'width'].every(key => typeof p[key] === 'number');
-          if (ok) target.print = { surface: p.surface as 'left', x: p.x as number, y: p.y as number, width: p.width as number, ...(typeof p.height === 'number' ? { height: p.height } : {}), ...(typeof p.page === 'number' ? { page: p.page } : {}) };
-          else buildErrors.push(`${label} target: print needs surface (left, right, front, back) and x, y, width in mm`);
+          const p = t.print;
+          const surface = PRINT_SURFACES.find(s => s === p.surface);
+          if (surface && typeof p.x === 'number' && typeof p.y === 'number' && typeof p.width === 'number') {
+            target.print = { surface, x: p.x, y: p.y, width: p.width, ...(typeof p.height === 'number' ? { height: p.height } : {}), ...(typeof p.page === 'number' ? { page: p.page } : {}) };
+          } else {
+            buildErrors.push(`${label} target: print needs surface (${PRINT_SURFACES.join(', ')}) and x, y, width in mm`);
+          }
         }
         entry.target = target;
       }

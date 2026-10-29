@@ -73,8 +73,10 @@ export class SettingsDownload extends SettingsSection {
       return;
     }
     bar.setAttribute("aria-valuenow", String(percent(download)));
-    bar.querySelector("span")!.style.width = `${percent(download)}%`;
-    this.shadowRoot!.querySelector(".amount")!.textContent = amount(download);
+    const fill = bar.querySelector<HTMLElement>("span");
+    if (fill) fill.style.width = `${percent(download)}%`;
+    const label = this.shadowRoot?.querySelector(".amount");
+    if (label) label.textContent = amount(download);
   }
 }
 
