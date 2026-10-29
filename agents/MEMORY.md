@@ -35,6 +35,12 @@ outcome in the line (or move it into a dated decision block).
   (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
 - [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
   tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
+- 2026-10-29 morning (Tilman): the tree (outliner) at the left and the chain icon for uniform scale landed. Open
+  questions he raised, to decide: how targets are placed in the editor (upload / replace a target image), asset
+  resolutions (images 1x / 2x / 3x, videos 480p / 720p / 1080p) and whether Scutoons' asset layer (`scutoons/agents/ASSETS.md`:
+  PHP registry + storage drivers incl. bunny, `@scutoons/media` picker and media standard) is copied for it. The local
+  editor DB now holds the real book (imported from the reader dev server with the layout from the 2110 PDFs); the
+  fixture's studio spreads come back by rebuilding the fixture content and importing again (same book id `osct`).
 
 ## 2026-10-29 – Editor, first step: `/editor` over the mock stage (#61, overnight after Tilman's go)
 
