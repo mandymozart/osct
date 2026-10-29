@@ -276,8 +276,11 @@ export interface Asset {
   kind: "glb" | "gltf" | "video" | "image" | "audio";
   mime: string;
   size: number;
+  /** The picture's size in pixels (images, videos), null when the file does not tell */
   width: number | null;
   height: number | null;
+  /** A video's duration in ms, null for other kinds or when the file does not tell */
+  durationMs: number | null;
   version: number;
   /** The absolute URL nodes and targets name */
   url: string;
@@ -310,7 +313,7 @@ export const replaceAsset = (bookId: string, assetId: string, file: File) =>
   sendFile<{ asset: Asset; relinked: number }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/file`, file);
 
 export const assetUsages = (bookId: string, assetId: string) =>
-  api<{ usages: Array<{ kind: string; ref: string }> }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/usages`);
+  api<{ usages: Array<{ kind: string; ref: string }>; asset: Asset }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/usages`);
 
 export const deleteAsset = (bookId: string, assetId: string, force = false) =>
   api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}${force ? "?force=1" : ""}`);

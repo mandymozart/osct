@@ -342,8 +342,32 @@ export const contentTree = (root: EntityData): EntityData => {
 };
 
 /** A new node of a type: fileless types (group, text, light) at once, model / video / image with the asset chosen from the book */
-export const newNode = (type: EntityData["type"], asset?: { id: string; assetType: AssetData["assetType"]; src: string }): EntityData => ({
-  type,
-  assets: asset ? [asset] : [],
-  ...(type === "text" ? { text: "{{entry.title}}", color: "#ffffff" } : {}),
-});
+/** A file's picture size in pixels as the library knows it (null: not known) */
+export interface FileSize {
+  width: number | null;
+  height: number | null;
+}
+
+/**
+ * The uniform scale a new video node starts with. The engine's video plane is one target width wide and as high as the
+ * file's proportions, so a portrait file would stand taller than the target is wide: its node is scaled so the plane
+ * stays within one target width both ways. Undefined – the default size – for a landscape or square file and when the
+ * file's size is not known.
+ */
+export const videoNodeScale = (size?: FileSize | null): number | undefined => {
+  const width = size?.width ?? 0;
+  const height = size?.height ?? 0;
+  if (!(width > 0) || !(height > 0) || width >= height) return undefined;
+  return Math.round((width / height) * 10000) / 10000;
+};
+
+/** A new node of the type with its file; a video sized to its file when the library knows the file's size (`size`) */
+export const newNode = (type: EntityData["type"], asset?: { id: string; assetType: AssetData["assetType"]; src: string }, size?: FileSize | null): EntityData => {
+  const scale = type === "video" && asset ? videoNodeScale(size) : undefined;
+  return {
+    type,
+    assets: asset ? [asset] : [],
+    ...(scale !== undefined ? { params: { scale } } : {}),
+    ...(type === "text" ? { text: "{{entry.title}}", color: "#ffffff" } : {}),
+  };
+};

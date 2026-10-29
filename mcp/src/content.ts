@@ -321,7 +321,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_assets",
-    { description: "The book's uploaded files: id, name, kind (model | video | image | audio), mime, size, width / height, version, url (what nodes and targets name), usages.", inputSchema: z.object({ book: BOOK, kind: z.enum(["model", "video", "image", "audio"]).optional() }), annotations: read },
+    { description: "The book's uploaded files: id, name, kind (model | video | image | audio), mime, size, width / height (pixels, images and videos), durationMs (videos), version, url (what nodes and targets name), usages. width / height / durationMs are read from the file on upload – null when unknown (an imported file, an older upload). A video plane is one target width wide and as high as the file's proportions; scale a portrait video's node by width / height to keep it within the target's width, and time an animation by durationMs.", inputSchema: z.object({ book: BOOK, kind: z.enum(["model", "video", "image", "audio"]).optional() }), annotations: read },
     guard(async ({ book, kind }) => text(await api.call<Json>("GET", `/editor/books/${encodeURIComponent(book)}/assets${kind ? `?kind=${kind}` : ""}`))),
   );
 
@@ -329,7 +329,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "upload_asset",
     {
       description:
-        "Uploads a file from this computer into the book's library: models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp), sounds (mp3, m4a, ogg, wav), at most 64 MB. Answers the asset with its `url` – put it into a node's assets[].src or a target's imageSrc. The same bytes twice are one asset.",
+        "Uploads a file from this computer into the book's library: models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp), sounds (mp3, m4a, ogg, wav), at most 64 MB. Answers the asset with its `url` – put it into a node's assets[].src or a target's imageSrc – and the file's width / height (images, videos) and durationMs (videos), null when the file does not tell. The same bytes twice are one asset.",
       inputSchema: z.object({ book: BOOK, file: z.string().describe("a local file path"), name: z.string().optional().describe("the file name to store (default: the path's base name)") }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },

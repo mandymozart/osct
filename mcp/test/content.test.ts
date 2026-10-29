@@ -174,6 +174,11 @@ describe("the content tools", () => {
     expect(result.data).toEqual({ deleted: "castle", open: "http://localhost:5175/editor/osct/" });
   });
 
+  it("describes the files' own numbers an agent sizes and times a node by (#91)", () => {
+    expect(rec.tools.get("list_assets")?.config.description).toMatch(/width \/ height.*durationMs/);
+    expect(rec.tools.get("upload_asset")?.config.description).toContain("durationMs");
+  });
+
   it("assets: list by kind, upload a local file with its name, delete refused while in use unless forced", async () => {
     expect((await rec.call("list_assets", { book: "osct", kind: "image" })).data.query).toBe("/editor/books/osct/assets?kind=image");
     const dir = mkdtempSync(join(tmpdir(), "osct-mcp-"));

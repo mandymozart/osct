@@ -2,7 +2,7 @@
   import { ApiError, type Asset } from "$lib/api";
   import { content } from "$lib/content.svelte";
   import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
-  import { assetPlace, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "$lib/library-place";
+  import { assetPlace, formatDuration, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "$lib/library-place";
   import {
     FILTER_LABELS, LIBRARY_FILTERS, matchesFilter, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryPick,
   } from "$lib/library-pick";
@@ -13,7 +13,7 @@
   /**
    * The book's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
    * read-only – docs/server.md "Assets"). A grid of cards – a preview (`AssetThumb`: images, a video's poster that
-   * plays) – with where the file belongs (`p015-1 · target`, `assetPlace`), kind, size, dimensions and the number of
+   * plays) – with where the file belongs (`p015-1 · target`, `assetPlace`), kind, size, dimensions, a video's duration and the number of
    * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter
    * by kind – target images apart from the other images –, search name and place; **Upload** (the button, or files
    * dropped anywhere on the panel). Opened from the tab: per asset **Use** (the selected node takes the file, when its
@@ -210,7 +210,7 @@
           onclick={pick ? e => pickFrom(e, asset) : undefined}>
           {#key asset.url}<AssetThumb {asset} />{/key}
           <div class="name" title={asset.url}>{place.label}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</div>
-          <div class="small muted">{asset.kind} · {size(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}</div>
+          <div class="small muted">{asset.kind} · {size(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if}{#if asset.durationMs} · {formatDuration(asset.durationMs)}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}</div>
           <div class="actions">{@render actions(asset)}</div>
         </li>
       {/each}

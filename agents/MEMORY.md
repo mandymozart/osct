@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – A video's size and duration on upload (#91)
+
+- Read in plain PHP (`server/api/src/VideoInfo.php`): mp4 / mov boxes (`mvhd`, the `vide` track's `tkhd`, a quarter-turn
+  matrix swaps width and height like a browser's `videoWidth`), webm / mkv EBML (`Info`, the video `TrackEntry`). One new
+  column `assets.duration_ms` (ms, like the content's other durations); width / height reuse the image columns.
+- No backfill: older rows would need their whole file fetched from the store (the CDN) – they stay null until replaced.
+- `+ node` does **not** write `scale: [1, h/w, 1]` for a video: the engine's video plane already takes the file's
+  proportions at load (`entities.ts` `fit`), so that would square the aspect. The known size only starts a portrait
+  video at a uniform scale of w/h, so it stays within one target width (`videoNodeScale`, `editor/src/lib/values.ts`).
+- [ ] Image nodes are 1 × 1 planes and the library knows an image's size too – `+ node` could start them at
+  `[1, h/w, 1]` the same way; not done here (not asked in #91).
+
 ## 2026-10-30 – Typed boundaries and test gaps (#28, #29)
 
 - Option C, then A (hand-written checks, no schema library): `ApiService.requestAs(isResponse, …)` checks an answer's

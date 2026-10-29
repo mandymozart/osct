@@ -43,6 +43,15 @@ export function matchesSearch(asset: Pick<Asset, "name" | "url">, query: string)
   return words.every(word => text.includes(word));
 }
 
+/** A video's duration as the library shows it: `0:04`, `12:30`, `1:02:03` (whole seconds, rounded) */
+export function formatDuration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = String(total % 60).padStart(2, "0");
+  return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}` : `${minutes}:${seconds}`;
+}
+
 /** The library's two views, remembered per browser */
 export const LIBRARY_VIEWS = ["cards", "list"] as const;
 export type LibraryView = (typeof LIBRARY_VIEWS)[number];

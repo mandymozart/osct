@@ -14,6 +14,8 @@ declare(strict_types=1);
  *   in the book's rows to it, recording the changes;
  * - **delete** is refused while the asset is used (409 `asset-in-use`, the usages listed) unless `?force=1`;
  * - the same bytes uploaded twice are one asset (sha256);
+ * - an image's width and height and a video's width, height and duration are read from the file on upload and replace
+ *   (`VideoInfo` for the video containers) – null when the file does not tell;
  * - renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build – open (PLAN 2b).
  */
 final class Assets
@@ -75,7 +77,7 @@ final class Assets
             $result[] = [
                 'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
                 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) (is_object($file) ? ($file->size ?? 0) : 0),
-                'width' => null, 'height' => null, 'version' => 1, 'url' => $url, 'usages' => self::countUsages($rows, $path),
+                'width' => null, 'height' => null, 'durationMs' => null, 'version' => 1, 'url' => $url, 'usages' => self::countUsages($rows, $path),
                 'createdAt' => $at, 'updatedAt' => $at, 'imported' => true,
             ];
         }
@@ -128,16 +130,16 @@ final class Assets
         $path = self::path($bookId, $id, 1, $extension);
         $store = ContentStore::for(self::STORE_ENV);
         $store->put($path, $data, self::MIMES[$extension]);
-        [$width, $height] = self::dimensions($data, $extension);
+        [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
         $row = [
             'id' => $id, 'book_id' => $bookId, 'name' => $name, 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension],
-            'size' => strlen($data), 'sha256' => $sha, 'width' => $width, 'height' => $height, 'version' => 1,
+            'size' => strlen($data), 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_ms' => $duration, 'version' => 1,
             'path' => $path, 'url' => self::url($store, $path), 'status' => 'active', 'created_by' => $user['id'], 'created_at' => $now, 'updated_at' => $now,
         ];
         Db::transaction(function () use ($row, $user, $now) {
-            Db::run('INSERT INTO assets (id, book_id, name, kind, mime, size, sha256, width, height, version, path, url, status, created_by, created_at, updated_at)
-                     VALUES (:id, :book_id, :name, :kind, :mime, :size, :sha256, :width, :height, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
+            Db::run('INSERT INTO assets (id, book_id, name, kind, mime, size, sha256, width, height, duration_ms, version, path, url, status, created_by, created_at, updated_at)
+                     VALUES (:id, :book_id, :name, :kind, :mime, :size, :sha256, :width, :height, :duration_ms, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
             Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, 1, :path, :url, :size, :sha, :mime, :by, :at)',
                 ['id' => Db::uuid(), 'asset' => $row['id'], 'path' => $row['path'], 'url' => $row['url'], 'size' => $row['size'], 'sha' => $row['sha256'], 'mime' => $row['mime'], 'by' => $user['id'], 'at' => $now]);
         });
@@ -161,12 +163,12 @@ final class Assets
         $store = ContentStore::for(self::STORE_ENV);
         $store->put($path, $data, self::MIMES[$extension]);
         $url = self::url($store, $path);
-        [$width, $height] = self::dimensions($data, $extension);
+        [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
         $relinked = 0;
-        Db::transaction(function () use ($bookId, $asset, $assetId, $name, $extension, $data, $version, $path, $url, $width, $height, $now, $user, &$relinked) {
-            Db::run('UPDATE assets SET name = :name, mime = :mime, size = :size, sha256 = :sha, width = :width, height = :height, version = :version, path = :path, url = :url, updated_at = :now WHERE id = :id',
-                ['name' => $name, 'mime' => self::MIMES[$extension], 'size' => strlen($data), 'sha' => hash('sha256', $data), 'width' => $width, 'height' => $height,
+        Db::transaction(function () use ($bookId, $asset, $assetId, $name, $extension, $data, $version, $path, $url, $width, $height, $duration, $now, $user, &$relinked) {
+            Db::run('UPDATE assets SET name = :name, mime = :mime, size = :size, sha256 = :sha, width = :width, height = :height, duration_ms = :duration, version = :version, path = :path, url = :url, updated_at = :now WHERE id = :id',
+                ['name' => $name, 'mime' => self::MIMES[$extension], 'size' => strlen($data), 'sha' => hash('sha256', $data), 'width' => $width, 'height' => $height, 'duration' => $duration,
                  'version' => $version, 'path' => $path, 'url' => $url, 'now' => $now, 'id' => $assetId]);
             Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, :version, :path, :url, :size, :sha, :mime, :by, :at)',
                 ['id' => Db::uuid(), 'asset' => $assetId, 'version' => $version, 'path' => $path, 'url' => $url, 'size' => strlen($data), 'sha' => hash('sha256', $data), 'mime' => self::MIMES[$extension], 'by' => $user['id'], 'at' => $now]);
@@ -175,11 +177,13 @@ final class Assets
         Http::json(200, ['asset' => self::summary(self::row($bookId, $assetId), count(self::usagesOf($bookId, ['url' => $url, 'id' => $assetId]))), 'relinked' => $relinked]);
     }
 
-    /** GET /editor/books/{id}/assets/{assetId}/usages → { usages: [{ kind, ref }] } */
+    /** GET /editor/books/{id}/assets/{assetId}/usages → { usages: [{ kind, ref }], asset } (the asset as the list has it) */
     public static function usages(string $bookId, string $assetId): never
     {
         Editor::user();
-        Http::json(200, ['usages' => self::usagesOf($bookId, self::row($bookId, $assetId))]);
+        $asset = self::row($bookId, $assetId);
+        $usages = self::usagesOf($bookId, $asset);
+        Http::json(200, ['usages' => $usages, 'asset' => self::summary($asset, count($usages))]);
     }
 
     /** DELETE /editor/books/{id}/assets/{assetId}[?force=1] → 204; 409 `asset-in-use` with the usages unless forced */
@@ -236,12 +240,16 @@ final class Assets
         return Http::apiUrl() . '/content/' . self::STORE_ENV . "/$path";
     }
 
-    /** @return array{0: ?int, 1: ?int} */
+    /** @return array{0: ?int, 1: ?int, 2: ?int} width, height (images, videos), duration in ms (videos) */
     private static function dimensions(string $data, string $extension): array
     {
-        if (self::KINDS[$extension] !== 'image') return [null, null];
+        if (self::KINDS[$extension] === 'video') {
+            $video = VideoInfo::read($data, $extension);
+            return [$video['width'], $video['height'], $video['durationMs']];
+        }
+        if (self::KINDS[$extension] !== 'image') return [null, null, null];
         $info = @getimagesizefromstring($data);
-        return $info ? [(int) $info[0], (int) $info[1]] : [null, null];
+        return $info ? [(int) $info[0], (int) $info[1], null] : [null, null, null];
     }
 
     /** @return array<string, mixed> */
@@ -336,6 +344,7 @@ final class Assets
         return [
             'id' => $row['id'], 'name' => $row['name'], 'kind' => $row['kind'], 'mime' => $row['mime'], 'size' => (int) $row['size'],
             'width' => $row['width'] === null ? null : (int) $row['width'], 'height' => $row['height'] === null ? null : (int) $row['height'],
+            'durationMs' => ($row['duration_ms'] ?? null) === null ? null : (int) $row['duration_ms'],
             'version' => (int) $row['version'], 'url' => $row['url'], 'usages' => $usages, 'imported' => false,
             'createdAt' => Editor::iso((int) $row['created_at']), 'updatedAt' => Editor::iso((int) $row['updated_at']),
         ];

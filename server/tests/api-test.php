@@ -139,6 +139,53 @@ function upload(string $base, string $method, string $path, string $bytes, strin
     return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
 }
 
+// ── Video containers built as bytes (no binaries in the repository): the headers VideoInfo reads, filler as media ──
+
+/** An mp4 box: size, type, body (`$large`: the 64-bit size form, as a big mdat has it) */
+function mp4Box(string $type, string $body, bool $large = false): string
+{
+    return $large ? pack('N', 1) . $type . pack('J', 16 + strlen($body)) . $body : pack('N', 8 + strlen($body)) . $type . $body;
+}
+
+/** A minimal mp4 / mov: ftyp, the media data, then moov with mvhd and one trak per [width, height, handler] */
+function mp4File(int $timescale, int $duration, array $tracks, bool $version1 = false, bool $rotated = false, bool $largeMdat = false): string
+{
+    $mvhd = $version1
+        ? "\x01\0\0\0" . pack('J', 0) . pack('J', 0) . pack('N', $timescale) . pack('J', $duration)
+        : "\0\0\0\0" . pack('N4', 0, 0, $timescale, $duration);
+    $mvhd .= str_repeat("\0", 80); // rate, volume, matrix, next track id: not read
+    $matrix = $rotated ? pack('N9', 0, 0x00010000, 0, 0xFFFF0000, 0, 0, 0, 0, 0x40000000) : pack('N9', 0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000);
+    $traks = '';
+    foreach ($tracks as $i => [$width, $height, $handler]) {
+        $tkhd = "\0\0\0\x03" . pack('N5', 0, 0, $i + 1, 0, $duration) . str_repeat("\0", 16) . $matrix . pack('N2', $width << 16, $height << 16);
+        $hdlr = "\0\0\0\0" . pack('N', 0) . $handler . str_repeat("\0", 12) . "Handler\0";
+        $traks .= mp4Box('trak', mp4Box('tkhd', $tkhd) . mp4Box('mdia', mp4Box('mdhd', str_repeat("\0", 24)) . mp4Box('hdlr', $hdlr)));
+    }
+    return mp4Box('ftyp', 'isom' . pack('N', 512) . 'isomiso2mp41') . mp4Box('mdat', random_bytes(4096), $largeMdat)
+        . mp4Box('moov', mp4Box('mvhd', $mvhd) . $traks);
+}
+
+/** An EBML element: id, size, body (`$unknown`: the size of all ones, as a recorder writes a live Segment) */
+function ebmlElement(string $id, string $body, bool $unknown = false): string
+{
+    $length = strlen($body);
+    $size = $unknown ? "\x01\xFF\xFF\xFF\xFF\xFF\xFF\xFF" : ($length < 0x7F ? chr(0x80 | $length) : pack('n', 0x4000 | $length));
+    return $id . $size . $body;
+}
+
+/** A minimal webm: the EBML header, a Segment with a Void, Info (scale, duration), Tracks (a sound and a video track), a Cluster */
+function webmFile(int $width, int $height, float $duration, int $timecodeScale = 1000000, bool $unknownSegment = true): string
+{
+    $info = ebmlElement("\x2A\xD7\xB1", substr(pack('J', $timecodeScale), -3)) . ebmlElement("\x44\x89", pack('E', $duration));
+    $audio = ebmlElement("\xAE", ebmlElement("\xD7", "\x01") . ebmlElement("\x83", "\x02"));
+    $video = ebmlElement("\xAE", ebmlElement("\xD7", "\x02") . ebmlElement("\x83", "\x01")
+        . ebmlElement("\xE0", ebmlElement("\xB0", pack('n', $width)) . ebmlElement("\xBA", pack('n', $height))));
+    $segment = ebmlElement("\xEC", str_repeat("\0", 20)) . ebmlElement("\x15\x49\xA9\x66", $info)
+        . ebmlElement("\x16\x54\xAE\x6B", $audio . $video) . ebmlElement("\x1F\x43\xB6\x75", random_bytes(1000));
+    return ebmlElement("\x1A\x45\xDF\xA3", ebmlElement("\x42\x86", "\x01") . ebmlElement("\x42\x82", 'webm'))
+        . ebmlElement("\x18\x53\x80\x67", $segment, $unknownSegment);
+}
+
 function lastMail(string $log): array
 {
     $mails = explode('=== ', (string) @file_get_contents($log));
@@ -751,6 +798,35 @@ try {
     $gone = @file_get_contents($v2);
     check($gone === false, 'and from the store');
 
+    echo "editor: a video's width, height and duration (#91)\n";
+    require_once "$root/api/src/VideoInfo.php";
+    $mp4 = mp4File(1000, 2500, [[0, 0, 'soun'], [640, 360, 'vide']]);
+    check(VideoInfo::read($mp4, 'mp4') === ['width' => 640, 'height' => 360, 'durationMs' => 2500], 'mp4: the video track\'s size (not the sound track\'s), mvhd\'s duration');
+    $mov = mp4File(600, 2700, [[1920, 1080, 'vide']], true, true, true);
+    check(VideoInfo::read($mov, 'mov') === ['width' => 1080, 'height' => 1920, 'durationMs' => 4500], 'mov: version 1 mvhd, a 64-bit mdat, a quarter-turned track reads portrait');
+    $webm = webmFile(1080, 1920, 4200.0);
+    check(VideoInfo::read($webm, 'webm') === ['width' => 1080, 'height' => 1920, 'durationMs' => 4200], 'webm: Info\'s duration, the video TrackEntry\'s pixels (unknown-size Segment)');
+    check(VideoInfo::read(webmFile(320, 240, 150.0, 10000000, false), 'mkv') === ['width' => 320, 'height' => 240, 'durationMs' => 1500], 'mkv: the duration in TimecodeScale units');
+    check(VideoInfo::read(substr($mp4, 0, 200), 'mp4') === ['width' => null, 'height' => null, 'durationMs' => null]
+        && VideoInfo::read('not a video at all', 'webm') === ['width' => null, 'height' => null, 'durationMs' => null], 'a truncated or foreign file: nulls, no error');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $mp4, 'Clip.mp4', $editor);
+    $video = $data['asset'] ?? null;
+    check($status === 201 && $video['kind'] === 'video' && $video['width'] === 640 && $video['height'] === 360 && $video['durationMs'] === 2500, 'upload of an mp4 → its width, height and duration');
+    [, $data] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'still', 'still.png', $editor);
+    $still = $data['asset'];
+    check($still['width'] === 1 && $still['durationMs'] === null, 'an image has no duration');
+    [, $data] = upload($api, 'POST', '/editor/books/osct/assets', 'no header here', 'broken.mp4', $editor);
+    $broken = $data['asset'];
+    check($broken['width'] === null && $broken['height'] === null && $broken['durationMs'] === null, 'a video whose header cannot be read uploads with nulls');
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets?kind=video', null, $editor);
+    $listed = array_values(array_filter($data['assets'], fn($a) => $a['id'] === $video['id']))[0] ?? null;
+    check($listed && $listed['width'] === 640 && $listed['height'] === 360 && $listed['durationMs'] === 2500, 'the list answers them');
+    [$status, $data] = call($api, 'GET', "/editor/books/osct/assets/{$video['id']}/usages", null, $editor);
+    check($status === 200 && $data['usages'] === [] && $data['asset']['durationMs'] === 2500 && $data['asset']['width'] === 640, 'the usages answer the asset with them');
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$video['id']}/file", $webm, 'clip.webm', $editor);
+    check($status === 200 && $data['asset']['width'] === 1080 && $data['asset']['height'] === 1920 && $data['asset']['durationMs'] === 4200, 'a replace (a webm) records the new file\'s numbers');
+    foreach ([$video, $still, $broken] as $uploaded) call($api, 'DELETE', "/editor/books/osct/assets/{$uploaded['id']}?force=1", null, $editor);
+
     echo "editor: targets and entries\n";
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v2.jpg', 'print' => ['surface' => 'right', 'x' => 20, 'y' => 30, 'width' => 80]], $editor);
     check($status === 200 && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg' && $data['target']['print']['width'] == 80, 'PUT target: image and print placement');
@@ -970,6 +1046,10 @@ try {
     file_get_contents("$oldApi/admin/migrate", false, $context);
     [$status, $data] = call($oldApi, 'GET', '/user', null, $oldToken);
     check($status === 200 && $data['user']['email'] === 'old@example.com' && $data['user']['hasPassword'] === false, 'migrated twice: columns added once, the old user and session kept');
+    $oldDb = connect('old');
+    $assetColumns = array_map(fn($c) => $c['name'] ?? $c['Field'], $oldDb->query($mysql ? 'SHOW COLUMNS FROM assets' : 'PRAGMA table_info(assets)')->fetchAll(PDO::FETCH_ASSOC));
+    $oldDb = null;
+    check(in_array('duration_ms', $assetColumns, true), 'an assets table from before gets duration_ms (#91)');
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);
     check($status === 200, 'the old user can set a password');
     [$status] = call($oldApi, 'POST', '/auth/password', ['email' => 'old@example.com', 'password' => 'a new password']);

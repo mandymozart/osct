@@ -89,7 +89,7 @@
   const entityData = (): EntityData | undefined => {
     if (!entityType) return undefined;
     const asset = library.byUrl(entityFile);
-    const node = newNode(entityType, asset ? { id: `new-${asset.id.slice(0, 8)}`, assetType: asset.kind, src: asset.url } : undefined);
+    const node = newNode(entityType, asset ? { id: `new-${asset.id.slice(0, 8)}`, assetType: asset.kind, src: asset.url } : undefined, asset);
     if (entityType === "text") node.text = entityText;
     return node;
   };
