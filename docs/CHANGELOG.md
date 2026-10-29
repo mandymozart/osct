@@ -27,6 +27,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
     and to the x / y rows of a target's placement and of a new target; the axes keep running right and down, so a value
     left of or above the origin is negative. Saved positions stay as before (mm from the page's top left corner).
 
+## 1.17.4 – 2026-10-30
+
+### Changed
+- **The editor's spread cards** (#115): no border, and the page uses the full width instead of a centred column. One
+  grid cell is one printed page: the cover is a single right-hand page (no taller or wider than one page of a spread)
+  and the first cell of the first row stays empty, so 2–3, 4–5 … line up as spreads. The caption is one line (pages and
+  title, the cover's name no longer shows twice), the counts are small icons with the numbers (entries, targets, with
+  AR; titles for screen readers), and the format shows as a small label only when it is not a double page.
+
 ## 1.17.3 – 2026-10-30
 
 ### Fixed
