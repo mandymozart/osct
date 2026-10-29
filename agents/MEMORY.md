@@ -35,6 +35,11 @@ outcome in the line (or move it into a dated decision block).
   (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
 - [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
   tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
+- 2026-10-29 (Tilman, on staging): the first editors come from the config list `EDITORS` (GitHub environment
+  variable, written by the deploys) because the admin secret is not readable after it is set; a **minimal admin UI**
+  at `/admin` follows (editors, later newsletter lists) – own and small, a feature set of the white-label core, not
+  a copy of Scutoons' admin (PLAN 2d). Also decided: the editor's viewport follows Blender (orange selection outline,
+  shading wire / solid / textured / rendered), components start with `animation` and the timeline (schema 2.2).
 - 2026-10-29 (Tilman, "Ja, bau den Asset-Upload nach dem Scutoons-Modell"): built as **the content store as the
   storage** (no second driver layer: `ContentStore` learned binary files, delete and serving assets), a registry of
   assets + versions, usages computed from the rows (no usage table – the book is small), absolute URLs in the content

@@ -227,22 +227,23 @@
   };
 
   // ── the timeline of a model node (the animation component drives the same clip) ──
-  const timeline = $derived.by<NodeTimeline | null>(() => {
-    const t = target;
-    const path = node;
-    void current;
-    return t && stage ? stage.timeline(t.id, path) : null;
-  });
+  // The scene builds a node once its model is loaded: the panel looks every frame until the timeline is there, then
+  // reads its state every frame (the time runs)
+  let timeline = $state<NodeTimeline | null>(null);
   let timelineState = $state<{ clip: string; time: number; playing: boolean; duration: number } | null>(null);
   $effect(() => {
-    const tl = timeline;
-    if (!tl) {
-      timelineState = null;
-      return;
-    }
+    const t = target;
+    const path = node;
+    const s = stage;
+    const wantsTimeline = current?.type === "model";
+    timeline = null;
+    timelineState = null;
+    if (!t || !s || !wantsTimeline) return;
     let frame = 0;
     const tick = () => {
-      timelineState = tl.state();
+      const tl = s.timeline(t.id, path);
+      if (tl !== timeline) timeline = tl;
+      timelineState = tl ? tl.state() : null;
       frame = requestAnimationFrame(tick);
     };
     tick();

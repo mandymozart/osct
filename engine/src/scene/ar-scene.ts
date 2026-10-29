@@ -1,6 +1,6 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, SceneInspection, SceneState, Target } from "../types/index";
-import { getAssets, getSpread, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getSpread, getTargets } from "../content/game-config";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
@@ -127,6 +127,19 @@ export class ArScene implements IArScene {
     else this.overrides.delete(targetId);
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (!anchor) return;
+    // A file the spread's content does not have (the editor's library, a new node): loaded first, built after
+    const missing = entityAssets(entity ?? undefined).filter(asset => !this.assets.get(asset.id));
+    if (missing.length) {
+      void this.assets.load(missing).then(() => {
+        if (this.overrides.get(targetId) === entity) this.rebuildOverride(anchor, targetId);
+      });
+      return;
+    }
+    this.rebuildOverride(anchor, targetId);
+  }
+
+  /** The anchor shows its entity as overridden: tuned in place when it can, built anew otherwise */
+  private rebuildOverride(anchor: Anchor, targetId: string): void {
     const wanted = this.entityOf(anchor.target);
     // A running animation holds the entity's materials – it ends first
     this.animations.get(targetId)?.finish();

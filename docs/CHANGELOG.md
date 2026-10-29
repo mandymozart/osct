@@ -30,6 +30,8 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (backdrop *hdri*, the
   default, with the choice; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
   plywood texture, tinted), the cover a white 3 mm hardcover board.
+- **A live edit with a new file** (the library's *Use*, *+ node* with an uploaded model): the scene loads the files
+  the spread's content does not have before it builds the node (before, such a node stayed invisible until Save).
 - **Selection outline and viewport shading** (#61, Tilman: "selected targets aren't visible … something like in
   Blender"): the selected node wears an orange outline of its meshes' edges in its own space (a plane outlines as a
   plane – the axis-aligned box of before tilted), hover a white one; the toolbar's shading modes *wire / solid /
