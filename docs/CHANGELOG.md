@@ -12,6 +12,14 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.20.5 – 2026-10-30
+
+### Fixed
+- **Wireframe and solid shading reach the stage's book and desk** (#137): the viewport's modes only changed the
+  spread's entities, so the book and the desk stayed textured. They now switch too (not the ghost, the grid or the sky),
+  everything the stage builds later gets the current mode, and the sheet and print images that arrive meanwhile go into
+  the meshes' own materials (`ownMaterial`), never into the shared grey or wire one.
+
 ## 1.20.1 – 2026-10-30
 
 ### Changed

@@ -15,6 +15,12 @@ const SOLID = new MeshStandardMaterial({ color: 0xb4b4b4, roughness: 0.85, metal
 
 const originals = new WeakMap<Mesh, Material | Material[]>();
 
+/**
+ * The mesh's own material, also while wireframe or solid shows a stand-in: a texture that arrives later (the stage's
+ * sheet and print images) goes there, never into the shared stand-in
+ */
+export const ownMaterial = <M extends Material = Material>(mesh: Mesh): M => (originals.get(mesh) ?? mesh.material) as M;
+
 /** Apply a mode to every mesh below `roots` (the entities); textured and rendered restore the content's materials */
 export const applyShading = (roots: readonly Object3D[], mode: ShadingMode): void => {
   roots.forEach(root => root.traverse(object => {
