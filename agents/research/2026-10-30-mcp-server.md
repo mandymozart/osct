@@ -59,8 +59,10 @@ decides). Resources `osct://rules/content-model` and `osct://guides/plugins` (do
   render of the mock stage (the editor's three.js scene without a browser, or a screenshot endpoint of the editor dev
   server) is a follow-up – proposal below.
 - **Publishing to production stays with a person**: `publish` refuses `production` with a message and the editor's
-  link (SCUTOONS' MCP has no publish tool at all; `local` and `staging` are a check, not readers – Tilman decides whether
-  `staging` should go too).
+  link (SCUTOONS' MCP has no publish tool at all; `local` and `staging` are a check, not readers). Tilman, 2026-10-30:
+  keep it so – "publish soll beim Menschen bleiben", the MCP may publish to `local` / `staging`, production is the
+  editor's button; the step more than SCUTOONS is the content build behind that button, on the server (#78). His flow:
+  Claude builds the draft, he checks it on the stage and clicks Publish – nothing by hand, nothing on GitHub.
 - No admin tools (the admin page is small and a person's), no entries' texts, spreads or tutorial (imported, as in the
   editor), no renditions / transcoding (the content build's).
 - No personal access tokens, no one-file build, no Desktop extension (above).
