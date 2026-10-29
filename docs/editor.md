@@ -81,7 +81,7 @@ The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same thr
 **sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's *sky*,
 shown while the shading is rendered), the equirectangular image as `scene.background` and `scene.environment`, turned with the
 stage every frame so the room stays put while the camera orbits – the **desk**, the Stage panel's choice of two
-(Tilman: the tool is for designers, they should feel at home): a 1.4 × 1.0 m screen-printed plywood top (18 mm; Poly
+(Tilman: the tool is for designers, they should feel at home): a 1.8 × 0.8 m screen-printed plywood top (18 mm; Poly
 Haven's plywood texture tinted to the phenolic brown on the faces, the plies showing untinted on the cut edges) on a
 steel tube frame after Egon Eiermann's table frame (1953, the default), or Philipp Camille Schöpfer's white desk (a
 thick top with three drawer cutouts in its front edge on four slender legs splayed outward), both 72 cm high and our

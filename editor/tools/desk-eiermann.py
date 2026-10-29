@@ -33,7 +33,7 @@ import bmesh
 from mathutils import Matrix, Vector
 
 # ── Both tables (mm) ──────────────────────────────────────────────────────────────────────────────────────────────
-TOP_WIDTH, TOP_DEPTH = 1400.0, 1000.0                        # the stage's table
+TOP_WIDTH, TOP_DEPTH = 1800.0, 800.0                         # the stage's desks: 180 × 80 cm
 HEIGHT = 720.0                                               # floor to the top's surface
 FLOOR = -HEIGHT
 SEGMENTS = 8
