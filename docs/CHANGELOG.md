@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.18.1 – 2026-10-30
+## 1.18.2 – 2026-10-30
 
 ### Fixed
 - **Editor images from the CDN** (#122): the reader's service worker (scope `/`) also handled the requests of the
