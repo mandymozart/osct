@@ -13,9 +13,12 @@
    */
   let { ondone, oncancel }: { ondone: (bookId: string) => void; oncancel?: () => void } = $props();
 
-  const readerGuess = typeof location === "undefined" ? "" : `${location.protocol}//${location.hostname}:5174`;
-  let mode = $state<"cdn" | "url" | "file">("url");
-  let url = $state(`${readerGuess}/src/game.config.json`);
+  // Only on a developer's machine is the reader's dev server next door (port 5174, serving its bundled configuration at
+  // /src/game.config.json). On an instance the fields start empty and the instance's published content is the default
+  const local = typeof location !== "undefined" && ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+  const readerGuess = local ? `${location.protocol}//${location.hostname}:5174` : "";
+  let mode = $state<"cdn" | "url" | "file">(local ? "url" : "cdn");
+  let url = $state(local ? `${readerGuess}/src/game.config.json` : "");
   let assetsBase = $state(readerGuess);
   let file = $state<File | null>(null);
   let busy = $state(false);
@@ -88,7 +91,7 @@
   {/if}
   {#if mode !== "cdn"}
     <label class="stack"><span class="label">assets at</span>
-      <input class="field" bind:value={assetsBase} placeholder="https://localhost:5174"
+      <input class="field" bind:value={assetsBase} placeholder="https://…/content/<version>"
         data-help-name="Assets at" data-help="Where /assets/content/… is served – the reader's origin, or the CDN's version folder. A content base URL fills it in itself." /></label>
   {/if}
   {#if error}<p class="danger small">{error}</p>{/if}

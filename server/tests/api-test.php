@@ -21,6 +21,23 @@ function check(bool $ok, string $what): void
     if (!$ok) $failures++;
 }
 
+// MySQL (staging, production) runs PDO without emulated prepares: a named parameter used twice in one query fails there
+// (HY093, a 500) while the SQLite of this test passes it – so every query in the API is checked for it here
+(function (): void {
+    global $root;
+    $found = [];
+    foreach (array_merge(glob("$root/api/src/*.php"), ["$root/api/index.php"]) as $file) {
+        $source = file_get_contents($file);
+        preg_match_all('/([\'"])((?:SELECT|INSERT|UPDATE|DELETE|WITH)\b(?:(?!\1).)*)\1/si', $source, $queries, PREG_OFFSET_CAPTURE);
+        foreach ($queries[2] as [$query, $offset]) {
+            preg_match_all('/(?<!:):([a-z_][a-z0-9_]*)/i', $query, $names);
+            $twice = array_keys(array_filter(array_count_values($names[1]), fn ($n) => $n > 1));
+            if ($twice) $found[] = basename($file) . ':' . (substr_count(substr($source, 0, $offset), "\n") + 1) . ' :' . implode(', :', $twice);
+        }
+    }
+    check($found === [], 'no query uses a named parameter twice (MySQL native prepares)' . ($found ? ' – ' . implode('; ', $found) : ''));
+})();
+
 function freePort(): int
 {
     $socket = stream_socket_server('tcp://127.0.0.1:0');
