@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Vector2 } from "three";
+import { Color, PerspectiveCamera, Scene, Vector2 } from "three";
+import { PostChain } from "../post/chain";
 import { passContext, passRegistration, registeredPassTypes, registerPass, unregisterPassesOf } from "../post/registry";
 import "../post/index";
 
@@ -40,5 +41,67 @@ describe("the pass registry", () => {
   it("resolves the content's values over the spec's defaults", () => {
     const registration = passRegistration("vignette")!;
     expect(passContext(registration, { type: "vignette", strength: 0.2 }, new Vector2(1, 1), 1).params).toEqual({ strength: 0.2, radius: 0.6, softness: 0.6, color: "#000000" });
+  });
+});
+
+describe("the chain over a stage with a backdrop", () => {
+  const renderer = {
+    getSize: () => new Vector2(300, 200),
+    getPixelRatio: () => 1,
+    capabilities: { maxSamples: 0 },
+    getClearColor: (color: Color) => color,
+    getClearAlpha: () => 1,
+    setClearColor: vi.fn(),
+    setRenderTarget: vi.fn(),
+    clear: vi.fn(),
+    render: vi.fn(),
+  };
+
+  const build = () => {
+    const scene = new Scene();
+    scene.background = new Color(0x123456);
+    const camera = new PerspectiveCamera();
+    camera.layers.enable(1);
+    const chain = new PostChain(renderer as never, scene, camera);
+    const composer = vi.spyOn((chain as unknown as { composer: { render(): void } }).composer, "render").mockImplementation(() => {});
+    chain.set([{ type: "grade", exposure: -1.8, contrast: 2 }, { type: "vignette", color: "#00ff00" }]);
+    const grade = (chain as unknown as { instances: { pass: { setMask(mask: unknown): void; uniforms?: never; material: { uniforms: Record<string, { value: unknown }> } } }[] }).instances[0].pass;
+    return { chain, scene, camera, composer, grade };
+  };
+
+  it("draws the AR layer alone into the mask and hands it to the grade, with everything in one image", () => {
+    const { chain, scene, camera, composer, grade } = build();
+    const seen: unknown[] = [];
+    renderer.render.mockImplementation(() => seen.push({ background: scene.background, mask: camera.layers.mask }));
+    chain.render({ arLayers: 1 });
+    expect(seen).toEqual([{ background: null, mask: 1 }]);
+    expect(scene.background).toBeInstanceOf(Color);
+    expect(camera.layers.mask).toBe(0b11);
+    expect(grade.material.uniforms.uMasked.value).toBe(1);
+    expect(grade.material.uniforms.tMask.value).not.toBeNull();
+    expect(composer).toHaveBeenCalledOnce();
+    chain.dispose();
+  });
+
+  it("grades everything again once the image is the AR layer alone", () => {
+    const { chain, grade } = build();
+    chain.render({ arLayers: 1 });
+    chain.render(null);
+    expect(grade.material.uniforms.uMasked.value).toBe(0);
+    expect(grade.material.uniforms.tMask.value).toBeNull();
+    chain.dispose();
+  });
+});
+
+describe("a live edit of a pass", () => {
+  it("changes the uniforms the pass draws with (grade and vignette)", () => {
+    const chain = new PostChain({ getSize: () => new Vector2(300, 200), getPixelRatio: () => 1, capabilities: { maxSamples: 0 } } as never, new Scene(), new PerspectiveCamera());
+    chain.set([{ type: "grade" }, { type: "vignette" }]);
+    chain.set([{ type: "grade", exposure: -1.8, contrast: 2 }, { type: "vignette", color: "#00ff00" }]);
+    const [grade, vignette] = (chain as unknown as { instances: { pass: { uniforms: Record<string, { value: unknown }> } }[] }).instances.map(i => i.pass.uniforms);
+    expect(grade.uContrast.value).toBe(2);
+    expect(grade.uExposure.value).toBeCloseTo(Math.pow(2, -1.8));
+    expect((vignette.uColor.value as Color).getHexString()).toBe("00ff00");
+    chain.dispose();
   });
 });

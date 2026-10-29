@@ -1,4 +1,4 @@
-import { Camera, CustomBlending, HalfFloatType, OneFactor, OneMinusSrcAlphaFactor, Scene, Vector2, WebGLRenderer, WebGLRenderTarget } from "three";
+import { Camera, Color, CustomBlending, HalfFloatType, OneFactor, OneMinusSrcAlphaFactor, Scene, Vector2, WebGLRenderer, WebGLRenderTarget } from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
@@ -55,6 +55,8 @@ export class PostChain {
   private output: ShaderPass;
   private instances: Instance[] = [];
   private size = new Vector2();
+  /** The AR layer's coverage alone – what a pass that reaches only the AR layer (the grade) is masked with */
+  private mask: WebGLRenderTarget;
   enabled = true;
 
   constructor(private renderer: WebGLRenderer, private scene: Scene, private camera: Camera) {
@@ -65,6 +67,7 @@ export class PostChain {
       samples: Math.min(SAMPLES, renderer.capabilities.maxSamples),
     });
     target.texture.name = "PostChain.rt1";
+    this.mask = new WebGLRenderTarget(size.x * pixelRatio, size.y * pixelRatio, { samples: Math.min(SAMPLES, renderer.capabilities.maxSamples) });
     this.composer = new EffectComposer(renderer, target);
     this.composer.setPixelRatio(pixelRatio);
     this.composer.setSize(size.x, size.y);
@@ -133,17 +136,47 @@ export class PostChain {
     this.size.set(width, height);
     this.composer.setPixelRatio(this.renderer.getPixelRatio());
     this.composer.setSize(width, height);
+    const pixelRatio = this.renderer.getPixelRatio();
+    this.mask.setSize(width * pixelRatio, height * pixelRatio);
   }
 
-  /** Render the scene through the chain onto the canvas (the caller cleared the screen or drew the underlay) */
-  render(): void {
+  /**
+   * Render the scene through the chain onto the canvas (the caller cleared the screen or drew the underlay).
+   * `backdrop`: the scene holds objects standing in for the camera picture, next to the AR layer (`arLayers` is the
+   * camera's layer mask for the AR layer alone). The passes then see both, and a pass that reaches the AR layer
+   * only is given its coverage as a mask.
+   */
+  render(backdrop: { arLayers: number } | null = null): void {
+    if (backdrop) this.drawMask(backdrop.arLayers);
+    const mask = backdrop ? this.mask.texture : null;
+    this.instances.forEach(i => i.pass.setMask?.(mask));
     this.composer.render();
+  }
+
+  /** The AR layer alone into the mask target: its alpha is the coverage (the scene's background stays out) */
+  private drawMask(arLayers: number): void {
+    const { renderer, scene, camera } = this;
+    const layers = camera.layers.mask;
+    const background = scene.background;
+    const color = renderer.getClearColor(new Color());
+    const alpha = renderer.getClearAlpha();
+    camera.layers.mask = arLayers;
+    scene.background = null;
+    renderer.setRenderTarget(this.mask);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+    renderer.setClearColor(color, alpha);
+    scene.background = background;
+    camera.layers.mask = layers;
   }
 
   dispose(): void {
     this.instances.forEach(instance => instance.pass.dispose());
     this.instances = [];
     this.renderPass.dispose();
+    this.mask.dispose();
     this.output.dispose();
     this.composer.dispose();
   }
