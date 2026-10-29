@@ -3,6 +3,7 @@ import {
   ComponentData,
   componentSpec,
   componentTypes,
+  ComponentSpec,
   EntityData,
   FilterData,
   FILTERS,
