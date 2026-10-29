@@ -56,7 +56,9 @@ The reader runs what the content build compiled, type-checked and the reviewer m
 author's own session, on the mock stage, installed per plugin id so a second Run replaces the first; a transpile
 error or an exception in `register` shows inline under the editor and leaves the stage with the previous
 registration. The guard accepts a component type it does not know only when the configuration declares plugins
-(the plugin registers it at load; a node with a type nobody registered renders without it and logs). A plugin runs
+(the plugin registers it at load; a node with a type nobody registered renders without it and logs) – and in the
+editor, whose stage is the sandbox (`unknownComponentTypes: "allow"`); a publish whose nodes use a type no declared
+plugin can provide is refused (409), so the sandbox's types never reach a reader's guard. A plugin runs
 with the page's full power – it is the book's own code, in the book's repository, reviewed like the core
 (STRATEGY: the contracted model).
 

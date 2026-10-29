@@ -13,6 +13,8 @@ final class Editor
 
     /** The entity types of the content contract: shared/types/game-config.ts `ENTITY_TYPES` – keep in step */
     public const ENTITY_TYPES = ['group', 'model', 'video', 'image', 'text'];
+    /** The built-in component types (shared/types/components.ts `COMPONENTS`) – every other type is a plugin's */
+    public const COMPONENT_TYPES = ['animation'];
     /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */

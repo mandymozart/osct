@@ -216,3 +216,27 @@ export const addEntry = (bookId: string, body: { id?: string; title: string; pag
 
 export const deleteEntry = (bookId: string, entryId: string) =>
   api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`);
+
+// ── Plugin sources (docs/server.md "Plugin sources") – the Code tab ─────────────────────────────
+
+export interface PluginSummary {
+  id: string;
+  size: number;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+export interface PluginSource extends PluginSummary {
+  source: string;
+}
+
+export const listPlugins = (bookId: string) => api<{ plugins: PluginSummary[] }>("GET", `/editor/books/${encodeURIComponent(bookId)}/plugins`);
+
+export const getPlugin = (bookId: string, pluginId: string) =>
+  api<{ plugin: PluginSource }>("GET", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}`);
+
+export const putPlugin = (bookId: string, pluginId: string, source: string) =>
+  api<{ plugin: PluginSource }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}`, { source });
+
+export const deletePlugin = (bookId: string, pluginId: string) =>
+  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}`);

@@ -7,7 +7,8 @@ declare(strict_types=1);
  * serve it straight from the rows and a publish writes it to the content store: one assembly, so what the editor
  * previews is what readers get.
  *
- * `version` = { version: this server's app version, timestamp: now, hash, schema: the imported schema }. The hash
+ * `version` = { version: this server's app version, timestamp: now, hash, schema: the imported schema }; `plugins`
+ * (the compiled plugins the import declared) follows `tutorial` when the book has any, as the build writes it. The hash
  * is the sha256 of the configuration JSON without timestamp and hash – the same rows give the same hash, and the
  * build name is its first 12 hex digits. With an assets base every content path (`/assets/content/…` under src,
  * imageSrc, image, illustration, and the keys of files.json) becomes a URL below it: a published version points at
@@ -58,6 +59,8 @@ final class ContentVersion
             'entities' => $entities,
             'tutorial' => Editor::decode($book['tutorial_json']) ?? [],
         ];
+        $plugins = Editor::decode($book['plugins_json'] ?? '[]');
+        if (is_array($plugins) && $plugins) $configuration->plugins = $plugins;
         $files = Editor::decode($book['files_json']);
         if (!$files instanceof stdClass) $files = new stdClass();
 
