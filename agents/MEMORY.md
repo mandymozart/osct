@@ -4,6 +4,20 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Typed boundaries and test gaps (#28, #29)
+
+- Option C, then A (hand-written checks, no schema library): `ApiService.requestAs(isResponse, …)` checks an answer's
+  shape (a wrong one is `ApiError` `server-error`, status 502); `UserService` reads localStorage through readers that
+  keep a session with fewer fields signed in. The content build's types come from `lib/schema.ts` (`Authored<T>`);
+  nested parts get their contract type through `contractPart` after the shared `*Problems` check.
+- `shared/` was left alone on purpose: every change there needs a content schema bump (RULES #10), and none of this is
+  a content change. So `TriggerInfo` lives in the engine (it reads the file) and `scripts/src/protocol.ts` imports the
+  type from there.
+- The osct CLI accepts only its known options (`lib/cli-args.ts`): a misspelt safety flag must never run for real.
+- [ ] Still open from #28: `PlacementData` unused (needs a schema bump, see the #19 block); `BaseStore`'s
+  `propertyListeners` cast. From #29: `loadBuild` still re-implements the pipeline, the server matrix (PHP 8.1, MySQL),
+  `service-worker.ts` and the AR scene lifecycle.
+
 ## 2026-10-30 – The phone sheet: icon tabs, a frozen stage while dragging, the camera on the spread's root (#155, #105)
 
 - Tilman on the S22 after 1.26.0: the sheet drag "glitches and competes with the scene drag", the stage still jumps on
