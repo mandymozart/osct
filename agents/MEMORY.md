@@ -4,6 +4,26 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – An MCP server over the editor's API, after SCUTOONS' model (#75)
+
+- Tilman (2026-10-29, #66): "wir brauchen eine MCP-Schnittstelle, dass wir dann beim Bauen in Amsterdam genügend schnell
+  auch mit Claude Sachen bauen können"; at this session's start: **"how it is done, do it like in scutoons. important this
+  will one day merge."** Decided (`agents/research/2026-10-30-mcp-server.md`): a package **`mcp/`** at the root (Node 22,
+  the v2 SDK `@modelcontextprotocol/server` + zod 4 like SCUTOONS' `tools/mcp`, the same file shapes: `main` / `config` /
+  `services` / `user` (their `member`) / `prompts` / `resources`), **a client of the API over HTTP with the editor's session
+  token – never a second path into the database**; `OSCT_EDITOR_TOKEN` or the pair `sign_in_request` / `sign_in_verify`
+  (the code by mail, the token kept in the process, never shown); the tools listed per role (`editor`); every entity through
+  the shared guard before it is sent; every write answers with the editor's link – **the person checks the draft on the
+  stage; `publish` refuses `production`** (SCUTOONS' MCP has no publish tool at all – whether `staging` should go too is
+  Tilman's call). The start bundles `src/` + `shared/` with esbuild (`shared/` imports without extensions and OSCT has no
+  root `package.json`, so Node's own type stripping – SCUTOONS' way – cannot run it). `.mcp.json` at the root gives every
+  Claude Code session here the server. RULES #10 / #23: `mcp/package.json` carries the one version too.
+- [ ] Open: personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
+  connects; a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
+- [x] Tilman, 2026-10-30: **"publish soll beim Menschen bleiben … so lassen wie in PR #92"** – the MCP may publish to
+  `local` and `staging` (a check), production is the editor's Publish button; the one step more than SCUTOONS is the
+  content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
+  over the MCP, he checks on the stage and clicks Publish – nothing by hand, nothing on GitHub.
 ## 2026-10-30 – The demo book and the plugin API 1.1 (#80, decided alone – to review)
 
 - Tilman (2026-10-29): a sandbox book that uses everything the editor can do, with game narratives, the book API
