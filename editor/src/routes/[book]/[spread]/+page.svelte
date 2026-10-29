@@ -230,7 +230,7 @@
 <svelte:window onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnap(false)} />
 
 <div class="workspace" class:closed={shown === null} class:tree-closed={!treeOpen}>
-  <aside class="tree">
+  <aside class="tree" data-app-ui>
     <div class="bar">
       {#if treeOpen}<span class="section-label grow">tree</span>{/if}
       <button type="button" class="icon-button" onclick={() => setTreeOpen(!treeOpen)} title={treeOpen ? "Hide the tree" : "Show the tree"} aria-label={treeOpen ? "Hide the tree" : "Show the tree"} aria-expanded={treeOpen}>
@@ -244,7 +244,7 @@
 
   <div class="stage" bind:this={container}>
     {#if stage && stage.status === "running"}
-      <div class="tools" role="toolbar" aria-label="Transform">
+      <div class="tools" role="toolbar" data-app-ui aria-label="Transform">
         {#each GIZMO_MODES as mode (mode)}
           <button type="button" class="icon-button" class:on={stage.gizmoMode === mode} aria-pressed={stage.gizmoMode === mode} title="{GIZMO_LABELS[mode]} – Ctrl snaps" aria-label={GIZMO_LABELS[mode]}
             onclick={() => stage?.setGizmoMode(mode)}><Icon name={GIZMO_ICONS[mode]} stroke={2} /></button>
@@ -262,7 +262,7 @@
       </div>
       {#if stageMenu}
         <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={() => (stageMenu = null)} oncontextmenu={e => { e.preventDefault(); stageMenu = null; }}></button>
-        <div class="menu" role="menu" style:left="{stageMenu.x}px" style:top="{stageMenu.y}px">
+        <div class="menu" role="menu" data-app-ui style:left="{stageMenu.x}px" style:top="{stageMenu.y}px">
           {#if stageMenu.hit}
             {@const hit = stageMenu.hit}
             {@const hasTree = !!stage.treeOf(hit.targetId)}
@@ -298,7 +298,7 @@
     {/if}
   </div>
 
-  <aside class="panel">
+  <aside class="panel" data-app-ui>
     <div class="bar">
       <a href="{base}/{bookId}/" class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
       <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>

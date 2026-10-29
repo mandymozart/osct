@@ -517,7 +517,12 @@ export class MockTracker implements IImageTracker {
     this.orbitChanged();
   }
 
-  // ── Input: the whole document, except the app's UI (the panels are dialogs) ──────────────────────
+  // ── Input: from the document (a drag goes on outside the stage), started only on the stage, never on the app's UI ──
+
+  /** A gesture starts on the stage: inside the container and not on a panel, bar, menu or control (#131) */
+  private onStage(event: Event): boolean {
+    return !onAppUi(event) && event.target instanceof Node && this.container.contains(event.target);
+  }
 
   private listen(on: boolean): void {
     const capture: AddEventListenerOptions = { capture: true };
@@ -535,7 +540,7 @@ export class MockTracker implements IImageTracker {
   }
 
   private onPointerDown = (event: PointerEvent): void => {
-    if (this.paused || onAppUi(event) || this.ignorePointer?.(event)) return;
+    if (this.paused || !this.onStage(event) || this.ignorePointer?.(event)) return;
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, button: event.button });
     if (this.pointers.size === 1) this.dragging = false;
     this.lastPinch = 0;
@@ -598,12 +603,12 @@ export class MockTracker implements IImageTracker {
   };
 
   private onDoubleClick = (event: MouseEvent): void => {
-    if (this.paused || onAppUi(event)) return;
+    if (this.paused || !this.onStage(event)) return;
     updatePreview({ view: "reader", orbit: null });
   };
 
   private onWheel = (event: WheelEvent): void => {
-    if (this.paused || onAppUi(event)) return;
+    if (this.paused || !this.onStage(event)) return;
     event.preventDefault();
     this.zoom(1 + Math.sign(event.deltaY) * WHEEL_STEP);
   };
