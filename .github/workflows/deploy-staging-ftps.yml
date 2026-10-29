@@ -4,7 +4,7 @@
 #
 # GitHub → Settings → Environments → "staging" (each may be a secret or a variable):
 #   secrets:   FTP_USER, FTP_PASS, DB_USER, DB_PASS, SECRET (SMTP_HOST, SMTP_USER, SMTP_PASS once smtp)
-#   variables: FTP_HOST, FTP_ROOT, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM
+#   variables: FTP_HOST, FTP_ROOT, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM, EDITORS, ADMINS
 #              (optional: SMTP_PORT, SMTP_SECURE)
 # Like qr.scutoons.com (config written in the build), but uploaded over FTPS with lftp.
 name: Deploy staging over FTPS (temporary)
@@ -82,8 +82,9 @@ jobs:
           OSCT_BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
           OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
           OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
-          # The first editors (docs/server.md "Editor data"): these addresses get the role when they sign in
+          # The first editors and admins (docs/server.md "Roles"): these addresses get the role when they sign in
           OSCT_EDITORS: ${{ vars.EDITORS }}
+          OSCT_ADMINS: ${{ vars.ADMINS }}
         run: php server/deploy/write-config.php server/api/config.local.php
 
       - name: Assemble the site

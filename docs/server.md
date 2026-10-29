@@ -30,7 +30,8 @@ server/api/
   config.local.php        settings for local development (not committed) – from config.local.php.example; the
                           container has none, it gets OSCT_* environment variables
   src/                    Version, Config, Db, Http, Auth, Passwords, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de);
-                          the editor: Editor (access, admin endpoint, checks), Books (import, tree, entities, targets, publish, logs),
+                          Roles (reader / editor / admin, the tables roles + user_roles), Admin (the admin endpoints, who may call them);
+                          the editor: Editor (access, checks), Books (import, tree, entities, targets, publish, logs),
                           ContentVersion (rows → a content version), ContentStore (local directory / bunny.net storage)
   db/schema.mysql.sql     tables (CREATE TABLE IF NOT EXISTS, later columns as ALTER TABLE … ADD COLUMN – POST /admin/migrate runs it)
   db/schema.sqlite.sql    the same for local development / tests
@@ -51,18 +52,17 @@ server/tests/api-test.php        the whole flow against php -S + SQLite, SMTP ag
 | `POST /auth/verify` | `{ token }` or `{ requestId, code }` | `{ session, user, created }` |
 | `POST /auth/password` | `{ email, password }` | `{ session, user, created: false }`; 401 `invalid-credentials` (also for unknown addresses and users without a password) |
 | `POST /auth/logout` | | 204 – this device only |
-| `GET /user` | | `{ user }` – with `role`: `reader` (default) or `editor` |
+| `GET /user` | | `{ user }` – `{ email, language, options, hasPassword, roles, role, createdAt }`; `roles` holds `reader` for everyone, `editor`, `admin` ([Roles](#roles)) |
 | `PATCH /user` | `{ options?, language? }` | `{ user }` |
 | `DELETE /user` | | 204 – user, sessions, progress, open requests |
 | `PUT /user/password` | `{ password, currentPassword? }` | `{ user }` – sets or changes the password (`user.hasPassword`) |
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
 | `GET /health` | | `{ status, version, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10) |
-| `POST /admin/migrate` | header `X-Admin-Secret: SECRET` | creates missing tables and columns (the container does this at every start) |
-| `POST /admin/editors` | header `X-Admin-Secret: SECRET`, `{ email }` | `{ user, created }` – gives the user the role `editor`, creating the user (confirmed, `en`, no options) when the address is new |
+| `/admin/*` | | the [Admin API](#admin-api): roles, users, the newsletter CSV, migrate |
 
-The editor's endpoints ([Editor data](#editor-data)) need a signed-in user with role `editor` – 401 without a
-token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs are `[A-Za-z0-9_-]{1,64}`:
+The editor's endpoints ([Editor data](#editor-data)) need a signed-in user with the role `editor` ([Roles](#roles)) – 401
+without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs are `[A-Za-z0-9_-]{1,64}`:
 
 | | | |
 |---|---|---|
@@ -94,6 +94,51 @@ Security notes:
 - Changing an existing password needs the current one, unless the device signed in by email in the last
   15 minutes (`PASSWORD_RESET_MINUTES`) – the "forgot password" path. A password can be changed, not removed.
 
+## Roles
+
+After SCUTOONS' roles (`scutoons/agents/ITEMS.md` "Roles", `Domain\Roles\Roles`) so the two can be unified in the
+white-label core (`agents/STRATEGY.md`): the tables **`roles`** (`id`, `name`, `description` – fixed ids, seeded by the
+schema) and **`user_roles`** (`user_id`, `role_id`, `granted_at` UTC, `granted_by`). `Roles.php` grants, revokes and
+checks; `Roles::require($user, $role)` is the route guard (401 without a session from `Auth::user()`, 403 `forbidden`
+`{ role }` without the role) – SCUTOONS' `RequireRole` middleware as a static call.
+
+| role | id | who | grants |
+|---|---|---|---|
+| `reader` | 1 | every account (SCUTOONS' `member`) | at sign-up (`granted_by` `signup`); the schema's backfill for existing users (`migration`) |
+| `editor` | 2 | may use `/editor` and `/api/editor/*` | the admin page, `POST /admin/editors`, or the config list `EDITORS` at sign-in (`config`) |
+| `admin` | 3 | may use `/editor/admin` and `/api/admin/*` | the admin page, or the config list `ADMINS` at sign-in (`config`) – the instance's first admin |
+
+`granted_by` is `signup`, `migration`, `config`, `secret` (a grant with `X-Admin-Secret`) or the granting admin's
+user id (the admin API resolves it to the address). `reader` cannot be revoked (400 `invalid-role`); the last admin
+keeps the role (409 `last-admin`). `GET /user` answers `roles: ["reader", …]`; the older field `role` stays and is
+`editor` when the roles hold it, else `reader`. The column `users.role` mirrors the editor role for that field and
+the backfill – checks go through the tables.
+
+**Differences to SCUTOONS**, kept to what OSCT needs: the role names (`reader` / `editor` / `admin` for `member` /
+`creator` / `admin`; no `developer` – migrations run from the deploy), no `/me` object (the user is `GET /user`, the
+roles a field of it), no CLI (`php scripts/roles.php`) – the admin page and the secret cover it; `granted_by` holds the
+admin's user id, not `admin:<email>`; `editor` does not include `admin` (SCUTOONS' `CONTENT_EDITORS` lets admins
+edit content – here an admin who edits is also made an editor); the admin API answers `{ changed, user }` without
+SCUTOONS' `status: "success"` envelope and has no paging (a search, up to 200 rows). The config lists `EDITORS` /
+`ADMINS` have no SCUTOONS counterpart (their first admin was made with a CLI).
+
+## Admin API
+
+The endpoints under `/admin/*` need a **signed-in admin** (Bearer token, the role `admin`) **or** the admin secret
+in `X-Admin-Secret` – the break-glass path for the deploy and the shell (`Admin::actor()`). Neither → 401; a wrong
+secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` takes the secret only. The admin page
+([admin](admin.md)) is their UI.
+
+| | | |
+|---|---|---|
+| `GET /admin/roles` | | `{ roles: [{ id, name, description }] }` |
+| `GET /admin/users?q=&role=&newsletter=1&limit=` | | `{ users: [{ …user, id, grants: [{ role, grantedAt, grantedBy, grantedByEmail }], lastSeenAt }], total }` – newest first, 50 (at most 200); `q` = a part of the e-mail address, `role` = only users with that role, `newsletter=1` = only users with an update option on. `user` is the shape of `GET /user` (email, language, options, hasPassword, roles, createdAt) |
+| `GET /admin/users.csv?newsletter=1&option=` | | the same users as CSV (`email, language, bookUpdates, artistUpdates, publisherUpdates, createdAt`), `Content-Disposition: attachment` – the newsletter list for the mailing tool; `option=bookUpdates` narrows to one option |
+| `PUT /admin/users/{id}/roles/{role}` | | `{ changed, user }` – grants the role (`changed: false` when the user had it); 404 `not-found` / `unknown-role`, 400 `invalid-role` for `reader` |
+| `DELETE /admin/users/{id}/roles/{role}` | | `{ changed, user }` – revokes it; 409 `last-admin` when the last admin would go |
+| `POST /admin/editors` | `{ email }` | `{ user, created, changed }` – gives the user the role `editor`, creating the user (confirmed, `en`, no options) when the address is new |
+| `POST /admin/migrate` | header `X-Admin-Secret: SECRET` only | `{ statements }` – creates missing tables and columns (the container does this at every start) |
+
 ## Configuration
 
 `src/Config.php` lists every key and its default. An environment variable `OSCT_<KEY>` wins, then
@@ -101,6 +146,9 @@ Security notes:
 - `log` writes mails to a file (development).
 - `mail` uses PHP `mail()` (testing).
 - `smtp` sends through the `SMTP_*` account (production). It uses its own small client, so no library is needed.
+
+The roles' keys ([Roles](#roles)): `EDITORS` and `ADMINS` – comma-separated e-mail addresses that get the role `editor` /
+`admin` when they sign in (the GitHub environment variables of the same names, written into the config by the deploys).
 
 The editor's keys:
 - `EDITOR_MAX_BYTES` (8 MB): the largest request body of the editor endpoints – the import of a game configuration.
@@ -117,12 +165,11 @@ The editor's keys:
 ## Editor data
 
 The editor (`editor/`, the SvelteKit app at `/editor` – `agents/RULES.md` #32) keeps its drafts in the same
-database, under `/api/editor/*`. A user needs the role `editor` (`users.role`, default `reader`):
-`POST /admin/editors { email }` with the `X-Admin-Secret` gives it – or the setting `EDITORS` (comma-separated
-addresses; the deploy writes the GitHub environment variable `EDITORS` into the config) gives it when a listed address
-signs in, the instance's first editors without the secret – `curl -X POST -H "X-Admin-Secret: $OSCT_SECRET"
--H "Content-Type: application/json" -d '{"email":"…"}' https://…/api/admin/editors`. The editor itself signs in like
-the reader (email code) and checks `GET /user` for `role: "editor"`.
+database, under `/api/editor/*`. A user needs the role `editor` ([Roles](#roles)): an admin grants it on the admin page
+([admin](admin.md)), `POST /admin/editors { email }` with the `X-Admin-Secret` gives it from the shell – `curl -X POST
+-H "X-Admin-Secret: $OSCT_SECRET" -H "Content-Type: application/json" -d '{"email":"…"}' https://…/api/admin/editors`
+– or the setting `EDITORS` gives it when a listed address signs in, the instance's first editors. The editor itself
+signs in like the reader (email code) and checks `GET /user` for `editor` in `roles`.
 
 **Tables** (both schema files, additive): `books` (the book row: `BookData` as `book_json`, the tutorial, the initial
 spread, the imported `files.json`, the content schema, the imported hash, `assets_base`), `spreads`, `entries`,

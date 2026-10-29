@@ -181,6 +181,31 @@ CREATE TABLE IF NOT EXISTS asset_versions (
 );
 CREATE INDEX IF NOT EXISTS asset_versions_asset ON asset_versions (asset_id, version);
 
+-- Roles (schema.mysql.sql has the notes)
+CREATE TABLE IF NOT EXISTS roles (
+  id INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL DEFAULT ''
+);
+INSERT OR IGNORE INTO roles (id, name, description) VALUES
+  (1, 'reader', 'Every account'),
+  (2, 'editor', 'May use the editor (/editor) and the editor API'),
+  (3, 'admin', 'May use the admin page (/editor/admin) and the admin API');
+
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  role_id INTEGER NOT NULL REFERENCES roles (id) ON DELETE CASCADE,
+  granted_at TEXT NOT NULL,
+  granted_by TEXT NULL DEFAULT NULL,
+  PRIMARY KEY (user_id, role_id)
+);
+CREATE INDEX IF NOT EXISTS user_roles_role ON user_roles (role_id);
+
+INSERT OR IGNORE INTO user_roles (user_id, role_id, granted_at, granted_by)
+  SELECT id, 1, strftime('%Y-%m-%d %H:%M:%S', 'now'), 'migration' FROM users;
+INSERT OR IGNORE INTO user_roles (user_id, role_id, granted_at, granted_by)
+  SELECT id, 2, strftime('%Y-%m-%d %H:%M:%S', 'now'), 'migration' FROM users WHERE role = 'editor';
+
 -- The editor's plugin sources (Plugins.php): the Code tab's TypeScript per plugin id; the compiled plugins a book
 -- declares come with the import (books.plugins_json)
 CREATE TABLE IF NOT EXISTS plugins (
