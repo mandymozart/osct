@@ -188,7 +188,7 @@
 
 {#if menu}
   <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={closeMenu} oncontextmenu={e => { e.preventDefault(); closeMenu(); }}></button>
-  <div class="menu" role="menu" style:left="{menu.x}px" style:top="{menu.y}px">
+  <div class="menu" role="menu" data-app-ui style:left="{menu.x}px" style:top="{menu.y}px">
     {#if menu.kind === "target"}
       <button type="button" role="menuitem" class="menu-item" onclick={() => { const t = menu!.target; menu = null; void onremovetarget?.(t); }}>Remove target</button>
       <span class="menu-hint small muted">entry and target</span>
