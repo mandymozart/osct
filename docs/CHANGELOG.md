@@ -12,6 +12,15 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.15.1 – 2026-10-30
+
+### Fixed
+- **The plugin API's `registerPass` is wired** (#97): a plugin registers its own post-processing pass with
+  `api.registerPass(type, spec, factory)`, as the editor's docs and 1.12.0 already said. The pass belongs to the plugin
+  and leaves the pass registry when the plugin is uninstalled; a type another plugin or the engine holds is refused.
+  Not yet: the content build and the reader's guard accept only the built-in pass types, so a spread cannot name a
+  plugin's pass until that is decided (#97).
+
 ## 1.15.0 – 2026-10-30
 
 ### Added
