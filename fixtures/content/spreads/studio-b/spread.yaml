@@ -1,5 +1,10 @@
-# Showcase for the editor and the tests: videos and filters – luma and chroma key, an alpha video, a standing video.
+# Showcase for the editor and the tests: videos and filters – luma and chroma key, an alpha video, a standing video –
+# and post-processing: a bloom over the rendered image (schema 2.5).
 title: Studio B – videos
 order: 15
 firstPage: 30
 lastPage: 31
+passes:
+  - type: bloom
+    strength: 0.8
+    threshold: 0.7

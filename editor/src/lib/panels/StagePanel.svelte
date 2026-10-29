@@ -8,13 +8,14 @@
   import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
+  import PassesPanel from "./PassesPanel.svelte";
 
   /**
    * The simulated camera: view presets (drag on the stage orbits, wheel / pinch the distance, double tap = reader),
    * found per target (off = lost → outro, on = found → reveal), replay of the first find, hand shake, backdrop
    * table / paper / a photo of the desk.
    */
-  let { stage, spreadId }: { stage: Stage | null; spreadId: string } = $props();
+  let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
   /** The photo behind the stage is stored on the device: long side at most this many pixels */
   const PHOTO_MAX_PX = 1600;
@@ -84,6 +85,8 @@
   </span></div>
 
 <p class="hint small muted">drag = orbit · shift-drag / middle button / two fingers = pan · wheel / pinch = distance · double tap = reader · ← → spreads</p>
+
+<PassesPanel {stage} {bookId} {spreadId} />
 
 <style>
   .w { width: 5rem; display: inline-flex; }

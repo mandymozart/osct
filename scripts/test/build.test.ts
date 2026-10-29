@@ -94,6 +94,22 @@ describe('content build', () => {
       expect(errors).toContainEqual('entries/first target: entity ref "nothing" not found in content/entities/');
     });
 
+    it('passes of a spread and the book are checked against their specs', async () => {
+      const { content } = makeContent({
+        'book.yaml': BOOK + 'passes:\n  - type: vignette\n    strength: 0.3\n',
+        'spreads/a/spread.yaml': spread(1, 2) + 'passes:\n  - type: bloom\n    strength: 0.8\n',
+        'spreads/b/spread.yaml': spread(3, 4, 1) + 'passes:\n  - type: glow\n  - type: bloom\n    radius: 7\n',
+      });
+      const build = await loadBuild({ content });
+      const { book, spreads } = build.buildAll();
+      expect(book.passes).toEqual([{ type: 'vignette', strength: 0.3 }]);
+      expect(spreads.find(s => s.id === 'a')?.passes).toEqual([{ type: 'bloom', strength: 0.8 }]);
+      expect(build.errors).toEqual([
+        'spreads/b: passes[0].type: "glow" is not one of bloom, vignette, grade',
+        'spreads/b: passes[1].radius: expected a number from 0 to 1, got 7',
+      ]);
+    });
+
     it('a missing book.yaml', async () => {
       const { 'book.yaml': _, ...files } = valid();
       expect(await errorsFor(files)).toContainEqual('book.yaml is missing');

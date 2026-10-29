@@ -1,4 +1,4 @@
-import type { EntityData, EntityRefData, GameConfiguration } from "@engine/types";
+import type { EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 
 /**
  * The instance's API (server/api, docs/server.md): the accounts endpoints the sign-in uses and the editor's own
@@ -214,7 +214,8 @@ export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: s
 export const addEntry = (bookId: string, body: { id?: string; title: string; page: number; category?: string; body?: string; target: { id?: string; imageSrc: string; print?: PrintPlacement; entity?: EntityData | EntityRefData } }) =>
   api<{ entry: { id: string; target: { id: string } }; spreadId: string | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
 
-export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: "spread" | "cover" | "back" }) =>
+/** `passes`: the spread's post-processing (schema 2.5); `null` removes the list (the book's applies), `[]` turns it off */
+export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: "spread" | "cover" | "back"; passes?: PassData[] | null }) =>
   api<{ spread: unknown }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, body);
 
 export const addSpread = (bookId: string, body: { format: "cover" | "back"; title?: string }) =>

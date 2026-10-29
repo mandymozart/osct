@@ -1093,7 +1093,10 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        guard, API, editor's tree with + node / remove node; the app reads 1.x as one-node trees – 2026-10-29);
        [x] components with specs (schema 2.2, `shared/types/components.ts`): the first is `animation` on a model
        (clip, playOn found / tap / never, stopOn, loop, speed) with the editor's timeline; the entity instance got
-       `onTap` and a `NodeTimeline`; [ ] more components (`behaviour` with actions, `spin` / `float`, `audio`,
+       `onTap` and a `NodeTimeline`; [x] post-processing passes (schema 2.5, #72): the engine's pass registry
+       (`scene/post/`, built-ins bloom / vignette / grade), `passes` per spread or book, the chain over the one
+       renderer with the AR layer's alpha kept, the editor's Stage panel rows – `api.registerPass` is the plugin
+       API's one-line hook into it (S22 budget still to measure); [ ] more components (`behaviour` with actions, `spin` / `float`, `audio`,
        material layers), the node-type registry with specs, nodes without a target on the spread (scope `spread`),
        `api.three`; plugins compiled by the content build.
 4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.

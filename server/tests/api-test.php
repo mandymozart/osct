@@ -510,6 +510,16 @@ try {
     check($status === 200 && $data['spread']['title'] === 'First pages' && !isset($data['spread']['format']), 'PUT spread title');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['format' => 'cover'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a double page cannot become the cover');
+    echo "editor: spread passes (content schema 2.5)\n";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']]], $editor);
+    check($status === 200 && $data['spread']['passes'] === [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']], 'PUT spread passes');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=2', null, $editor);
+    [, $draftNow] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check(($draftNow['spreads'][1]['passes'] ?? null) === [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']], 'the draft carries the passes');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => [['type' => 'glow']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'an unknown pass type is refused');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => null], $editor);
+    check($status === 200 && !isset($data['spread']['passes']), 'passes: null removes the list');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Seal', 'page' => 0, 'target' => ['imageSrc' => 'https://cdn.example/seal.jpg', 'print' => ['surface' => 'front', 'x' => 60, 'y' => 100, 'width' => 100]]], $editor);
     check($status === 201 && $data['spreadId'] === 'cover' && $data['entry']['target']['print']['surface'] === 'front', 'an entry on page 0 lands on the cover, printed on its front');
 

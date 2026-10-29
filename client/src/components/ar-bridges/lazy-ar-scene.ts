@@ -1,4 +1,4 @@
-import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneInspection, SceneState } from "@/types";
+import { ArSceneEvents, ArStatus, EntityData, IArScene, PassData, SceneInspection, SceneState } from "@/types";
 import { Emitter } from "@engine/utils/emitter";
 
 type ArModule = typeof import("./ar");
@@ -99,6 +99,14 @@ export class LazyArScene implements IArScene {
 
   overrideEntity(targetId: string, entity: EntityData | null): void {
     this.scene?.overrideEntity(targetId, entity);
+  }
+
+  overridePasses(passes: PassData[] | null): void {
+    this.scene?.overridePasses(passes);
+  }
+
+  setPostProcessing(enabled: boolean): void {
+    this.scene?.setPostProcessing(enabled);
   }
 
   sampleColor(x: number, y: number): string | null {

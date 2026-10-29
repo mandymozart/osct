@@ -1,0 +1,93 @@
+import * as THREE from "three";
+import type { Vector2 } from "three";
+import type { Pass } from "three/examples/jsm/postprocessing/Pass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { PassData, PassSpec, resolvePass } from "../../types/index";
+
+/**
+ * The pass registry: every post-processing type the engine can run – the built-in ones (`./bloom`, `./vignette`,
+ * `./grade`, registered by `./index`) and a plugin's own, registered through the plugin API's `registerPass` with
+ * the plugin as the owner. The content names passes by type (`passes: [{ type, …params }]`, `shared/types/passes.ts`);
+ * `PostChain` builds them from here.
+ *
+ * A pass is a three.js `Pass` (`render(renderer, writeBuffer, readBuffer)` over the composer's buffers): the read
+ * buffer holds the AR layer as the scene rendered it – premultiplied colour over alpha, in linear RGB, nothing of
+ * the camera picture, which lies under the canvas. A pass that writes alpha 1 everywhere would cover the camera
+ * picture with black: a pass keeps the texel's alpha unless it means to shade the camera picture too (a vignette
+ * raises the alpha where it darkens – the picture below shows through less).
+ */
+
+/** What a pass factory gets */
+export interface PassContext {
+  /** The pass's parameters with the spec's defaults filled in */
+  params: Record<string, unknown>;
+  /** The app's three.js (one instance – a plugin never imports three itself) */
+  three: typeof THREE;
+  /** three's `ShaderPass` (`new ShaderPass({ uniforms, vertexShader, fragmentShader })`) */
+  ShaderPass: typeof ShaderPass;
+  /** The canvas size in CSS px and the renderer's pixel ratio */
+  size: Vector2;
+  pixelRatio: number;
+  /**
+   * A full-screen shader pass from a fragment shader: `tDiffuse` (the image so far) and `vUv` are defined, the
+   * vertex shader is the standard one; `uniforms` are added to it
+   */
+  shaderPass(fragmentShader: string, uniforms?: Record<string, { value: unknown }>): ShaderPass;
+}
+
+/** A registered pass: three's `Pass`, optionally with `update` for new parameter values in place (the editor's live edit) */
+export interface PostPass extends Pass {
+  update?(params: Record<string, unknown>): void;
+}
+
+export type PassFactory = (context: PassContext) => PostPass;
+
+export interface PassRegistration {
+  owner: string;
+  spec: PassSpec;
+  factory: PassFactory;
+}
+
+const registry = new Map<string, PassRegistration>();
+
+export const ENGINE_OWNER = "engine";
+
+/**
+ * Register a pass type: its spec (parameters with kind, default and range, the same shape as a component's) and the
+ * factory that builds it. A type registered by another owner is refused; the same owner replaces its own.
+ */
+export const registerPass = (type: string, spec: PassSpec, factory: PassFactory, owner = ENGINE_OWNER): void => {
+  const existing = registry.get(type);
+  if (existing && existing.owner !== owner) throw new Error(`The pass type "${type}" is registered by ${existing.owner}`);
+  registry.set(type, { owner, spec, factory });
+};
+
+/** Every pass type an owner registered leaves the registry (a plugin is uninstalled) */
+export const unregisterPassesOf = (owner: string): void => {
+  registry.forEach((registration, type) => {
+    if (registration.owner === owner) registry.delete(type);
+  });
+};
+
+export const passRegistration = (type: string): PassRegistration | undefined => registry.get(type);
+
+export const registeredPassTypes = (): string[] => [...registry.keys()];
+
+const VERTEX_SHADER = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+/** The context a factory gets for a pass of the content, with the parameters resolved against the spec */
+export const passContext = (registration: PassRegistration, data: PassData, size: Vector2, pixelRatio: number): PassContext => ({
+  params: resolvePass(registration.spec, data),
+  three: THREE,
+  ShaderPass,
+  size,
+  pixelRatio,
+  shaderPass: (fragmentShader, uniforms = {}) =>
+    new ShaderPass({ uniforms: { tDiffuse: { value: null }, ...uniforms }, vertexShader: VERTEX_SHADER, fragmentShader }),
+});

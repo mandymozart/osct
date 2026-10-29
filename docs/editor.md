@@ -122,6 +122,13 @@ again). Nothing of the reader's store, progress or routes is involved.
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
+  - **Post-processing** – the Stage panel's last section lists the spread's `passes` (content schema 2.5,
+    [content guide](content.md) "Post-processing") with a row per parameter from the contract's specs; **+ bloom /
+    + vignette / + grade** adds one, *remove* drops one, changes show live on the stage, **Save** writes the list to
+    the spread (`PUT …/spreads/{id} { passes }`), *Back to the draft* undoes, *Use the book's* drops the spread's own
+    list so the book's passes apply. The stage shows the passes under **rendered** only (like the HDRI's sky): the
+    mock stage's table, book, printed images and sky lie on the engine's **backdrop layer** and are drawn under the
+    passes, as the camera picture lies under the canvas in the reader – a pass never sees them.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
     a white one. The toolbar's last group is the viewport's **shading**, after Blender's: *wire* (the entities as
@@ -218,6 +225,8 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   animation clips, nodes without a target and the book's own code (plugins) are phase 15 steps 3–4.
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
-- The plugin API (content schema 2.0, code in the editor) is phase 15 steps 3–4 (`agents/PLAN.md`).
+- The plugin API (content schema 2.0, code in the editor) is phase 15 steps 3–4 (`agents/PLAN.md`). The pass
+  registry (`engine/src/scene/post/`) is ready for it: `registerPass` with an owner is what `api.registerPass` will
+  call; the content names only the built-in passes until a plugin's reach the build and the guard.
 - The phone layout of the workspace (the sheet) is built but was checked on the desktop only; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

@@ -9,6 +9,9 @@ import {
   FILTERS,
   FilterType,
   keyMode,
+  PassData,
+  PASSES,
+  PassSpec,
   PLACEMENT_DEFAULTS,
   PLACEMENT_PARAMS,
   PlacementKey,
@@ -82,12 +85,10 @@ export const filterRows = (filter: FilterData, index: number): ValueRow[] => {
   });
 };
 
-/** The rows of a component (`components.{i}.{name}`), from its spec */
-export const componentRows = (component: ComponentData, index: number): ValueRow[] => {
-  const spec: ComponentSpec | undefined = COMPONENTS[component.type];
-  if (!spec) return [];
-  return Object.entries(spec.params).map(([name, param]): ValueRow => {
-    const id = `components.${index}.${name}`;
+/** The rows of a spec's parameters (a component's, a pass's), ids `{prefix}.{name}` */
+const specRows = (prefix: string, spec: { params: ComponentSpec["params"] }): ValueRow[] =>
+  Object.entries(spec.params).map(([name, param]): ValueRow => {
+    const id = `${prefix}.${name}`;
     switch (param.kind) {
       case "color": return { id, kind: "color", default: param.default, description: param.description };
       case "choice": return { id, kind: "choice", default: param.default, options: param.options, description: param.description };
@@ -99,6 +100,33 @@ export const componentRows = (component: ComponentData, index: number): ValueRow
       };
     }
   });
+
+/** The rows of a component (`components.{i}.{name}`), from its spec */
+export const componentRows = (component: ComponentData, index: number): ValueRow[] => {
+  const spec: ComponentSpec | undefined = COMPONENTS[component.type];
+  return spec ? specRows(`components.${index}`, spec) : [];
+};
+
+/** The rows of a post-processing pass (`passes.{i}.{name}`), from its spec; a type the editor does not know has none */
+export const passRows = (pass: PassData, index: number): ValueRow[] => {
+  const spec: PassSpec | undefined = (PASSES as Record<string, PassSpec>)[pass.type];
+  return spec ? specRows(`passes.${index}`, spec) : [];
+};
+
+/** The value a pass shows for a row: the value set, else the spec's default */
+export const passValue = (pass: PassData, row: ValueRow): RowValue => {
+  const name = row.id.split(".")[2];
+  const value = pass[name];
+  return value === undefined ? row.default : (value as RowValue);
+};
+
+/** A pass with one value changed (a row's); a value equal to the default is dropped from the data */
+export const setPassValue = (pass: PassData, row: ValueRow, value: RowValue): PassData => {
+  const name = row.id.split(".")[2];
+  const next = { ...pass };
+  if (sameValue(value, row.default)) delete next[name];
+  else next[name] = value;
+  return next;
 };
 
 /** The component types a node of `type` may take */
