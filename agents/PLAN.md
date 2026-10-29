@@ -1118,8 +1118,8 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
 4. [x] Code in the editor (#66, 1.11.0): the **Code** tab – plugin sources stored through the API (`plugins` table),
        a plain code editor, Run = browser transpile (sucrase) into the stage's registry, Save, Download; the editor's
        stage is the only place unchecked code runs, a publish refuses component types no declared plugin provides.
-       Open: [ ] the content build in the image, run by the API on publish (#78, Tilman: option 2), [ ] the API's type stubs with
-       completion and type errors in the Code tab (#76, Monaco), [ ] `registerNodeType` (#77), [x] an MCP server
+       Open: [ ] the content build in the image, run by the API on publish (#78, Tilman: option 2), [x] the API's type stubs with
+       completion and type errors in the Code tab (#76, Monaco – 1.24.0), [ ] `registerNodeType` (#77), [x] an MCP server
        over the editor's API for building with Claude in Amsterdam (#75, 1.16.0: `mcp/` after SCUTOONS' model – whoami,
        the sign-in pair, the book's tree / spreads / entities / targets / entries / assets / plugin sources / draft /
        publish to local and staging / logs, `describe_content_model`, the shared guard before every write; the stage

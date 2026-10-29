@@ -157,9 +157,16 @@ eye switches a target off and on (lost, found again). **reset** starts a new gam
 ## Trying it: the Code tab
 
 Open a spread in the editor, **Code**, **+** for a new plugin (it starts with the two examples above) or pick one
-of the book's. **Run** (Ctrl+Enter) shows it on the stage at once – a layer tints the video, a component appears
-under *add component* in the Entity panel. Errors show under the editor with their line. **Save** (Ctrl+S) keeps
-the source in the editor's database for the next session.
+of the book's. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
+`api.` and `api.three.` know every member), type errors underlined as the content build would report them, a hover
+shows a member's documentation. **Run** (Ctrl+Enter) shows it on the stage at once – a layer tints the video, a
+component appears under *add component* in the Entity panel. A Run's errors show under the editor and on their line.
+**Save** (Ctrl+S) keeps the source in the editor's database for the next session.
+
+**Download** gives a zip with the plugin's folder: `index.ts`, `plugin-api.d.ts` (the module `osct-plugin-api`) and a
+`tsconfig.json` that joins them – open the folder in any TypeScript editor and it type-checks the same way
+(`npm install --save-dev @types/three typescript` there for three's types and `npx tsc`). `plugin-api.d.ts` is
+generated from the engine (`editor/src/lib/plugins/plugin-api.d.ts`, `npm run plugin-api` in `editor/`).
 
 ## Shipping it: the content build
 
