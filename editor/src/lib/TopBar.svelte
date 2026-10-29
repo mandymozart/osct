@@ -5,7 +5,7 @@
   import { getBook } from "$lib/api";
   import { content } from "$lib/content.svelte";
   import { session } from "$lib/session.svelte";
-  import { captionOf, formatLabelOf } from "$lib/spread-grid";
+  import { captionOf, formatLabelOf, pagesOf } from "$lib/spread-grid";
   import PublishButton from "$lib/PublishButton.svelte";
 
   /**
@@ -26,7 +26,8 @@
   });
 
   const spread = $derived(spreadId && content.bookId === bookId ? content.spread(spreadId) : undefined);
-  const spreadLabel = $derived(spread ? captionOf(spread) || formatLabelOf(spread) || spread.id : spreadId);
+  /** The spread's full name, never cut: `p. 12–13 · title`, a cover by its title (else its format) */
+  const spreadLabel = $derived(!spread ? spreadId : formatLabelOf(spread) ? spread.title || formatLabelOf(spread) : `p. ${captionOf(spread) || pagesOf(spread)}`);
 </script>
 
 <header class="top">
@@ -41,7 +42,7 @@
       <a href="{base}/{bookId}/" class="crumb" aria-current={spreadId ? undefined : "page"}>{titles[bookId] ?? bookId}</a>
       {#if spreadId}
         <span class="sep" aria-hidden="true">›</span>
-        <span class="crumb current" aria-current="page">{spreadLabel}</span>
+        <span class="crumb current spread" aria-current="page" title={spreadLabel}>{spreadLabel}</span>
       {/if}
     {:else if isAdminRoute}
       <span class="sep" aria-hidden="true">›</span>
@@ -65,6 +66,7 @@
   a.crumb:hover, a.crumb[aria-current="page"], .crumb.current { color: var(--text); }
   .crumb[aria-current="page"] { font-weight: 600; }
   .sep { flex: none; color: var(--muted); }
+  .crumb.spread { flex: none; }
   @media (max-width: 47.9rem) {
     .top { gap: .375rem; padding: 0 .5rem; }
     .crumbs { min-width: 6rem; }
