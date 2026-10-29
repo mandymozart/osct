@@ -25,6 +25,7 @@ import {
   ErrorCode,
   ErrorInfo,
   GameConfiguration,
+  PassData,
   PluginData,
   Spread,
   Step,
@@ -295,6 +296,9 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles): void 
 export const getConfigVersion = (): ConfigurationVersion => config.version;
 
 export const getBook = (): BookData => config.book;
+
+/** The post-processing passes over a spread's rendered image: the spread's own list, else the book's, else none */
+export const getPasses = (spreadId: string): PassData[] => spreadById.get(spreadId)?.passes ?? config.book.passes ?? [];
 
 
 export const getInitialSpreadId = (): string => config.initialSpreadId;

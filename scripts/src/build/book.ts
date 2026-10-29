@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { CONTENT_DIR } from '../config';
 import type { BookData } from '../../../shared/types/game-config';
+import { passProblems } from '../../../shared/types/passes';
 import { buildErrors } from '../lib/errors';
 import { readYaml, validate } from '../lib/content';
 
@@ -12,5 +13,6 @@ export function buildBook(): BookData {
     return { id: '', title: '', author: '' };
   }
   const book = validate<BookData>(readYaml(file), 'book', 'book.yaml');
+  if (book?.passes !== undefined) passProblems(book.passes, 'passes').forEach(problem => buildErrors.push(`book.yaml: ${problem}`));
   return book ?? { id: '', title: '', author: '' };
 }

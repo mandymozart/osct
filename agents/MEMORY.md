@@ -25,6 +25,35 @@ outcome in the line (or move it into a dated decision block).
   content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
   over the MCP, he checks on the stage and clicks Publish – nothing by hand, nothing on GitHub.
 
+## 2026-10-29 (night) – Post-processing lives in the engine's pass registry, the code editor hooks into it (#72)
+
+- Tilman (testing the stage, #68): "post processing, which we could just delegate to code editor, since it can handle
+  stuff like that also by code right?" Decided (recommendation (c) of #72, built alone – to review): **one mechanism
+  for Kévin's own passes and the ready ones** – a pass registry in the engine (`engine/src/scene/post/registry.ts`:
+  `registerPass(type, spec, factory, owner)`, specs in the component spec shape) with the built-in `bloom`,
+  `vignette` and `grade` registered by the engine itself; the content names passes per spread or per book
+  (`passes: [{ type, …params }]`, content schema **2.5** – 2.4 is #66's plugins, its hand-over asked the next bump to
+  start at 2.5); the code editor's plugin API (#66, PR #73, not merged when this was built) gets `api.registerPass`
+  as a one-line delegation to the registry with the plugin as the owner (`unregisterPassesOf(id)` on uninstall),
+  and the guard's `passProblems(…, { unknownTypes: "allow" })` where plugins are declared. Built on `develop`, not
+  on #66's branch, so the PR stays reviewable. Agreed with the #66 session: **pass specs stay out of the component
+  spec registry** (`registerComponentSpec` feeds the Entity panel's *+ component* row and the node check – a pass there
+  would show on every node); passes have their own lookup, `passSpec(type)` in `shared/types/passes.ts` (the built-ins
+  plus a registered spec), which the Stage panel's rows read.
+- The chain keeps the AR layer's alpha (RULES #4): the scene renders into a half-float buffer (MSAA as the canvas),
+  the passes run over premultiplied colour, the last pass converts to the output colour space with the alpha
+  un-premultiplied and multiplied again, drawn over the screen with premultiplied blending (the look-around world
+  stays under it). three's UnrealBloomPass blends with alpha 1 – the built-in bloom replaces its blend factors so
+  the glow is light over the camera picture, not a black screen.
+- The editor's stage: the mock stage's objects (table, book, printed images, sky) lie on the engine's
+  **backdrop layer** (`BACKDROP_LAYER`, view.ts) and are drawn under the chain – the first try ran the HDRI sky
+  through the bloom and the whole stage glowed white. The passes show under *rendered* only.
+- Budget: a chain costs one full-screen render-to-texture plus one full-screen shader per pass; the bloom works at
+  half resolution (five blur levels). Guideline: one bloom plus one or two single-shader passes per spread. **The
+  S22 measurement is still open** – no phone was connected when this was built (adb: no devices); measure on the
+  reader with Studio B (`adb reverse`, Chrome's performance panel) before the book names passes on many spreads.
+- Open: the celebration bloom (`view.ts`, the unlock animation) is not a pass of the chain – it keeps its own
+  half-size composer as before; folding it into the registry's bloom is a later cleanup.
 ## 2026-10-29 (night) – Code in the editor: plugins (#66, decided alone from the concept – to review)
 
 - Tilman (on staging): own JS scripts and shaders in the editor, "wie hatte das Niantic Studio gemacht? Das war mega.
