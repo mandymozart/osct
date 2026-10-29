@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { DEMO_DIR, DEMO_MARKER, FIXTURE_DIR, FIXTURE_MARKER } from '../src/config';
-import { ContentVersion } from '../../shared/types/content-manifest';
+import { ContentVersion, isContentManifest } from '../../shared/types/content-manifest';
 import {
   activate,
   ContentBuild,
@@ -82,6 +82,19 @@ describe('content versions', () => {
     expect(entry.retiredAt).toBeNull();
     expect(entry.uploadedAt).toBe(before[0].uploadedAt);
     expect(entry.activatedAt).toBe('2026-12-31T00:00:00.000Z');
+  });
+
+  it('records which book a version is of', () => {
+    const after = activate([], { ...build, book: 'osct' }, '2026-12-31T00:00:00.000Z', true);
+    expect(after[0].book).toBe('osct');
+    expect(activate([], build, '2026-12-31T00:00:00.000Z', true)[0]).not.toHaveProperty('book');
+  });
+
+  it('reads manifests with and without the book', () => {
+    const manifest = { build: CURRENT, hash: CURRENT, schema: '2.11', version: '1.22.0', activatedAt: daysAgo(1) };
+    expect(isContentManifest(manifest)).toBe(true);
+    expect(isContentManifest({ ...manifest, book: 'demo' })).toBe(true);
+    expect(isContentManifest({ ...manifest, book: 7 })).toBe(false);
   });
 
   it('spots videos a build without the git-ignored videos would drop', () => {
