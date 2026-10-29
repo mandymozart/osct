@@ -34,6 +34,7 @@ declare(strict_types=1);
  *   POST   /editor/books/{id}/entries           { title, page, category?, target: { imageSrc, print?, entity? } } → 201 a new entry with its target
  *   PUT    /editor/books/{id}/spreads/{id}      { title?, format? } → a spread's title and format (spread | cover | back)
  *   POST   /editor/books/{id}/spreads           { format: cover | back, title? } → 201 the front or the back cover
+ *   PUT    /editor/books/{id}/environment       { environment: { world, onionSky } | null } → the book's world and onion sky
  *   DELETE /editor/books/{id}/entries/{id}      the entry and its target go
  *   GET    /editor/books/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
  *                                               the draft as a content version (the engine's loader reads it like the CDN)
@@ -125,6 +126,7 @@ try {
         (bool) preg_match("#^POST /editor/books/($id)/entries$#", $route, $match) => Books::addEntry($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/spreads/($id)$#", $route, $match) => Books::putSpread($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/books/($id)/spreads$#", $route, $match) => Books::addSpread($match[1]),
+        (bool) preg_match("#^PUT /editor/books/($id)/environment$#", $route, $match) => Books::putEnvironment($match[1]),
         (bool) preg_match("#^DELETE /editor/books/($id)/entries/($id)$#", $route, $match) => Books::deleteEntry($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
