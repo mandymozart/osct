@@ -27,6 +27,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
     and to the x / y rows of a target's placement and of a new target; the axes keep running right and down, so a value
     left of or above the origin is negative. Saved positions stay as before (mm from the page's top left corner).
 
+## 1.17.5 – 2026-10-30
+
+### Fixed
+- **The post-processing in the editor shows on the stage** (#114): changing a grade, a bloom or a vignette in the
+  spread's panel changed nothing. The grade's and the vignette's live edit wrote to values the pass no longer drew with
+  (three.js copies a shader's values when it builds a pass), and the bloom and vignette never reached the stage's desk,
+  table and book. Now every pass shows at once: bloom and vignette run over the whole picture, the desk counting as
+  the camera picture, and the grade stays on the AR layer (the desk keeps its colours, as the camera picture does).
+
 ## 1.17.4 – 2026-10-30
 
 ### Changed

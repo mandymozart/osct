@@ -12,8 +12,9 @@ import { PassData, PassSpec, resolvePass } from "../../types/index";
  *
  * A pass is a three.js `Pass` (`render(renderer, writeBuffer, readBuffer)` over the composer's buffers): the read
  * buffer holds the AR layer as the scene rendered it – premultiplied colour over alpha, in linear RGB, nothing of
- * the camera picture, which lies under the canvas. A pass that writes alpha 1 everywhere would cover the camera
- * picture with black: a pass keeps the texel's alpha unless it means to shade the camera picture too (a vignette
+ * the camera picture, which lies under the canvas (in the editor the stage's desk stands in for it and is part of
+ * the buffer: the passes shade it like the camera picture, the grade is limited to the AR layer by `setMask`).
+ * A pass that writes alpha 1 everywhere would cover the camera picture with black: a pass keeps the texel's alpha unless it means to shade the camera picture too (a vignette
  * raises the alpha where it darkens – the picture below shows through less).
  */
 
@@ -38,6 +39,12 @@ export interface PassContext {
 /** A registered pass: three's `Pass`, optionally with `update` for new parameter values in place (the editor's live edit) */
 export interface PostPass extends Pass {
   update?(params: Record<string, unknown>): void;
+  /**
+   * The AR layer's coverage (its alpha) while the image holds more than the AR layer – the editor's stage, where the
+   * desk stands in for the camera picture; `null` while the image is the AR layer alone. A pass that reaches the AR
+   * layer only (the grade) limits itself to it with this.
+   */
+  setMask?(mask: THREE.Texture | null): void;
 }
 
 export type PassFactory = (context: PassContext) => PostPass;
@@ -89,5 +96,7 @@ export const passContext = (registration: PassRegistration, data: PassData, size
   size,
   pixelRatio,
   shaderPass: (fragmentShader, uniforms = {}) =>
-    new ShaderPass({ uniforms: { tDiffuse: { value: null }, ...uniforms }, vertexShader: VERTEX_SHADER, fragmentShader }),
+    // A material, not a shader object: the pass then keeps the caller's `uniforms` (a plain shader object is cloned,
+    // and a later `update` writing to its own uniforms would change nothing on screen)
+    new ShaderPass(new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: null }, ...uniforms }, vertexShader: VERTEX_SHADER, fragmentShader })),
 });

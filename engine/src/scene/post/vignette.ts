@@ -23,13 +23,15 @@ const FRAGMENT = /* glsl */ `
 `;
 
 export const vignettePass: PassFactory = ({ params, shaderPass }) => {
-  const uniforms = {
+  const initial = {
     uStrength: { value: params.strength as number },
     uRadius: { value: params.radius as number },
     uSoftness: { value: params.softness as number },
     uColor: { value: new Color(params.color as string) },
   };
-  const pass = shaderPass(FRAGMENT, uniforms) as PostPass;
+  const pass = shaderPass(FRAGMENT, initial) as PostPass;
+  // The pass's own uniforms (three clones a shader object's): the live edit writes to these
+  const uniforms = (pass as unknown as { uniforms: typeof initial }).uniforms;
   pass.update = next => {
     uniforms.uStrength.value = next.strength as number;
     uniforms.uRadius.value = next.radius as number;
