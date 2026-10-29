@@ -29,9 +29,13 @@ export function hashContract(dir = SHARED_DIR): string {
   return hash.digest('hex');
 }
 
-export function readSchemaLock(): SchemaLock | null {
+/** The lock, or null when the file is missing, unreadable or not `{ schema, checksum }` */
+export function readSchemaLock(file = SCHEMA_LOCK_FILE): SchemaLock | null {
   try {
-    return JSON.parse(fs.readFileSync(SCHEMA_LOCK_FILE, 'utf8')) as SchemaLock;
+    const lock: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (typeof lock !== 'object' || lock === null || !('schema' in lock) || !('checksum' in lock)) return null;
+    const { schema, checksum } = lock;
+    return typeof schema === 'string' && typeof checksum === 'string' ? { schema, checksum } : null;
   } catch {
     return null;
   }

@@ -112,4 +112,47 @@ describe('delivery import', () => {
     expect(spreadPages(255, 256)).toEqual([254, 255]);
     expect(spreadPages(256, 256)).toEqual([256, 256]);
   });
+
+  it('reads the mapping field by field: entries that cannot be imported are reported and left out', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'osct-mapping-'));
+    const file = path.join(root, 'mapping.yaml');
+    fs.writeFileSync(file, [
+      'book: test',
+      'entries:',
+      '  p002-1: { category: glossary, title: Two, page: 2, note: 7, printed: { width: 30, height: 20, position: top left, x: 5 } }',
+      '  p003-1: { category: glossary, title: 2026, page: 3 }',
+      '  p004-1: { category: glossary, title: Four, page: "4" }',
+      '  p005-1: just a text',
+      '  p006-1: { category: link, title: Six, page: 6, printed: [30, 20] }',
+      '',
+    ].join('\n'));
+    const { readMapping } = await import('../src/import-delivery');
+    const problems: string[] = [];
+    const mapping = readMapping(file, problems);
+    expect(mapping.book).toBe('test');
+    expect(Object.keys(mapping.entries)).toEqual(['p002-1', 'p006-1']);
+    // Unknown fields of `printed` pass on to the trigger protocol (e.g. the exact position)
+    expect(mapping.entries['p002-1']).toEqual({ category: 'glossary', title: 'Two', page: 2, printed: { width: 30, height: 20, position: 'top left', x: 5 } });
+    expect(mapping.entries['p006-1']).toEqual({ category: 'link', title: 'Six', page: 6 });
+    expect(problems).toEqual([
+      'p002-1.note: expected a text',
+      'p003-1: category, title and page are required',
+      'p004-1: category, title and page are required',
+      'p005-1: category, title and page are required',
+      'p006-1.printed: expected { width, height, position } (mm and the place on the page)',
+    ]);
+
+    fs.writeFileSync(file, 'book: test\n');
+    expect(() => readMapping(file)).toThrow(`${file}: expected a mapping with "entries"`);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('an entry with a page that is no number does not spoil the other spreads', async () => {
+    const { delivery, mapping, content } = makeDelivery();
+    fs.appendFileSync(mapping, '  p010-1:\n    category: glossary\n    title: Ten\n    page: ten\n');
+    const importer = await loadImporter(content);
+    const report = importer.importDelivery(delivery, mapping);
+    expect(report.spreadsWritten).toEqual(['s001', 's008-009']);
+    expect(report.problems).toContain('p010-1: category, title and page are required');
+  });
 });
