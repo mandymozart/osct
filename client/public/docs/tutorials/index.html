@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Content workflow – OSCT tutorials</title>
+  <meta name="description" content="How the book's content moves between the content folder, the CDN and the editor: sync, import, save, publish – and the steps to bring a book onto an instance.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    :root {
+      --bg: #000; --surface: #141414; --line: #2a2a2a; --text: #fff; --muted: #8b8d8c; --inactive: #d6d8d8;
+      --accent: #d2ae5a; --bronze: #957149;
+      --gold-gradient: linear-gradient(90deg, #f5e7c8 0%, #f5e7c8 3.8%, #7f6032 31.5%, #d2ae5a 57%, #f3cc94 73.6%, #f3cc94 100%);
+      --font: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); letter-spacing: .02em; }
+    body { padding-block: max(2rem, env(safe-area-inset-top, 0px)) max(3rem, env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+    main { max-width: 46rem; margin: 0 auto; }
+    h1, h2, h3 { font-weight: 500; letter-spacing: .02em; text-wrap: balance; }
+    h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 .5rem; }
+    h2 { font-size: 1.1rem; margin: 2.5rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+    h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
+    .gold { background: var(--gold-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .kicker { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .12em; margin: 0 0 1rem; }
+    p { margin: 0 0 1rem; max-width: 62ch; }
+    .muted { color: var(--muted); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, kbd { font-family: ui-monospace, Consolas, "SF Mono", Menlo, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: .05em .35em; }
+    pre { margin: .5rem 0 1rem; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; }
+    pre code { background: none; border: none; padding: 0; font-size: .85rem; }
+    /* The diagram */
+    figure { margin: 1.5rem 0 0; }
+    figure svg { display: block; width: 100%; height: auto; max-width: 100%; }
+    figcaption { color: var(--muted); font-size: .85rem; margin-top: .5rem; }
+    .places { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1.5rem 0; }
+    .place { min-width: 0; padding: .875rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+    .place b { display: block; font-weight: 500; margin-bottom: .25rem; }
+    .place span { color: var(--muted); font-size: .9rem; }
+    /* The steps */
+    ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0; }
+    ol.steps > li { counter-increment: step; position: relative; padding: 0 0 1.5rem 3rem; border-left: 1px solid var(--line); margin-left: 1rem; }
+    ol.steps > li::before { content: counter(step); position: absolute; left: -1rem; top: -.1rem; width: 2rem; height: 2rem; border-radius: 50%; background: var(--surface); border: 1px solid var(--bronze); color: var(--accent); display: grid; place-items: center; font-size: .9rem; }
+    ol.steps > li:last-child { padding-bottom: .25rem; }
+    ol.steps h3 { margin: 0 0 .25rem; }
+    .who { display: inline-block; margin-left: .5rem; padding: .05em .5em; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; vertical-align: middle; }
+    .note { padding: .75rem 1rem; border-left: 2px solid var(--bronze); background: var(--surface); border-radius: 0 6px 6px 0; margin: 1rem 0; }
+    .note p:last-child { margin: 0; }
+    table { border-collapse: collapse; width: 100%; font-size: .9rem; margin: 0 0 1rem; }
+    th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; }
+    footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+    @media (max-width: 40rem) {
+      .places { grid-template-columns: 1fr; }
+      h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <p class="kicker">OSCT tutorials</p>
+  <h1><span class="gold">Content workflow</span></h1>
+  <p>The book's content lives in three places. Knowing which one you are looking at explains every button in the editor: <b>sync</b>, <b>import</b>, <b>save</b> and <b>publish</b> each move content from one place to the next.</p>
+
+  <figure>
+    <svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="diagram-title">
+      <title id="diagram-title">Source folder → sync → CDN → import → editor database → save → publish → CDN → reader</title>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#d2ae5a"></path>
+        </marker>
+        <linearGradient id="gold" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stop-color="#f5e7c8"></stop><stop offset=".315" stop-color="#7f6032"></stop><stop offset=".57" stop-color="#d2ae5a"></stop><stop offset=".736" stop-color="#f3cc94"></stop><stop offset="1" stop-color="#f3cc94"></stop>
+        </linearGradient>
+      </defs>
+      <g font-family="Inter, system-ui, Helvetica, Arial, sans-serif" font-size="13" fill="#fff">
+        <!-- 1 the source folder -->
+        <rect x="20" y="110" width="190" height="90" rx="8" fill="#141414" stroke="#2a2a2a"></rect>
+        <text x="115" y="140" text-anchor="middle" font-size="14" font-weight="500">Content folder</text>
+        <text x="115" y="160" text-anchor="middle" fill="#8b8d8c" font-size="12">YAML · images · videos</text>
+        <text x="115" y="178" text-anchor="middle" fill="#8b8d8c" font-size="12">layout from the PDFs</text>
+        <text x="115" y="96" text-anchor="middle" fill="#8b8d8c" font-size="11" letter-spacing="1.2">1 · THE SOURCE</text>
+
+        <!-- 2 the CDN -->
+        <rect x="285" y="110" width="190" height="90" rx="8" fill="#141414" stroke="url(#gold)"></rect>
+        <text x="380" y="140" text-anchor="middle" font-size="14" font-weight="500">CDN</text>
+        <text x="380" y="160" text-anchor="middle" fill="#8b8d8c" font-size="12">content versions</text>
+        <text x="380" y="178" text-anchor="middle" fill="#8b8d8c" font-size="12">latest.json names the current one</text>
+        <text x="380" y="96" text-anchor="middle" fill="#8b8d8c" font-size="11" letter-spacing="1.2">2 · WHAT IS LIVE</text>
+
+        <!-- 3 the editor's database -->
+        <rect x="550" y="110" width="190" height="90" rx="8" fill="#141414" stroke="#2a2a2a"></rect>
+        <text x="645" y="140" text-anchor="middle" font-size="14" font-weight="500">Editor database</text>
+        <text x="645" y="160" text-anchor="middle" fill="#8b8d8c" font-size="12">the book as a draft</text>
+        <text x="645" y="178" text-anchor="middle" fill="#8b8d8c" font-size="12">placements · nodes · uploads</text>
+        <text x="645" y="96" text-anchor="middle" fill="#8b8d8c" font-size="11" letter-spacing="1.2">3 · THE DRAFT</text>
+
+        <!-- sync: 1 → 2 -->
+        <line x1="212" y1="140" x2="283" y2="140" stroke="#d2ae5a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="247" y="131" text-anchor="middle" fill="#d2ae5a" font-size="12">sync</text>
+        <text x="247" y="158" text-anchor="middle" fill="#8b8d8c" font-size="10">osct CLI, on the</text>
+        <text x="247" y="170" text-anchor="middle" fill="#8b8d8c" font-size="10">machine with the folder</text>
+
+        <!-- import: 2 → 3 -->
+        <line x1="477" y1="130" x2="548" y2="130" stroke="#d2ae5a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="512" y="121" text-anchor="middle" fill="#d2ae5a" font-size="12">import</text>
+        <!-- publish: 3 → 2 -->
+        <line x1="548" y1="180" x2="477" y2="180" stroke="#d2ae5a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+        <text x="512" y="198" text-anchor="middle" fill="#d2ae5a" font-size="12">publish</text>
+        <text x="512" y="160" text-anchor="middle" fill="#8b8d8c" font-size="10">in the editor</text>
+
+        <!-- save: a loop on 3 -->
+        <path d="M 690 200 C 690 240, 600 240, 600 200" fill="none" stroke="#d2ae5a" stroke-width="1.5" marker-end="url(#arrow)"></path>
+        <text x="645" y="246" text-anchor="middle" fill="#d2ae5a" font-size="12">save</text>
+        <text x="645" y="261" text-anchor="middle" fill="#8b8d8c" font-size="10">stays a draft until published</text>
+
+        <!-- the reader reads the CDN -->
+        <rect x="305" y="260" width="150" height="46" rx="23" fill="#000" stroke="#2a2a2a"></rect>
+        <text x="380" y="279" text-anchor="middle" font-size="13" font-weight="500">Reader (the app)</text>
+        <text x="380" y="295" text-anchor="middle" fill="#8b8d8c" font-size="10">reads the current version only</text>
+        <line x1="380" y1="258" x2="380" y2="203" stroke="#d2ae5a" stroke-width="1.5" marker-end="url(#arrow)"></line>
+
+        <!-- the PDFs feed the folder -->
+        <text x="115" y="235" text-anchor="middle" fill="#8b8d8c" font-size="10">the designed PDFs → layout</text>
+        <text x="115" y="248" text-anchor="middle" fill="#8b8d8c" font-size="10">deliveries → entries</text>
+        <line x1="115" y1="222" x2="115" y2="203" stroke="#8b8d8c" stroke-width="1" marker-end="url(#arrow)"></line>
+      </g>
+    </svg>
+    <figcaption>Sync moves the folder onto the CDN, import moves the CDN into the editor, publish moves the editor back onto the CDN. The reader never talks to the editor.</figcaption>
+  </figure>
+
+  <div class="places">
+    <div class="place"><b>1 · Content folder</b><span>The source: <code>book.yaml</code>, spreads, entries with their images and videos, and the <code>layout/</code> rendered from the designed PDFs. It is not in the app's repository and the editor never writes into it.</span></div>
+    <div class="place"><b>2 · CDN</b><span>Versions of the built content on bunny.net, one folder per build. <code>latest.json</code> names the one the reader loads. A version comes from a sync or from a publish.</span></div>
+    <div class="place"><b>3 · Editor database</b><span>The draft of a book on this instance: imported from a version, then edited – placements, AR nodes, uploads. Save writes here. Publish turns the draft into a new version.</span></div>
+  </div>
+
+  <h2>Bringing a book onto an instance</h2>
+  <p>Staging and production each have their own CDN folder and their own editor database. The first four steps happen once on the machine that holds the content folder; from step five on, everything happens in the browser.</p>
+
+  <ol class="steps">
+    <li>
+      <h3>Render the layout from the PDFs <span class="who">once · content machine</span></h3>
+      <p>The editor's stage shows the book as designed when the folder carries <code>layout/</code>: every sheet as an image and every printed target's place in millimetres. Run it again only when the PDFs change.</p>
+      <pre><code>cd scripts
+npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content ../content</code></pre>
+    </li>
+    <li>
+      <h3>Build the content <span class="who">content machine</span></h3>
+      <p><code>scripts/.env</code> names the folder (<code>OSCT_CONTENT_DIR</code>) and the storage access. The layout is not part of the build hash, so build with <code>--force</code> after rendering it.</p>
+      <pre><code>cd scripts
+npm run build
+npm run osct -- content build --force</code></pre>
+    </li>
+    <li>
+      <h3>Sync to the CDN <span class="who">content machine</span></h3>
+      <p>The dry run says which version would be uploaded. The real run uploads the build as a new version – images, videos, layout – and switches <code>latest.json</code> to it.</p>
+      <pre><code>npm run osct -- content sync --env staging --dry-run
+npm run osct -- content sync --env staging</code></pre>
+    </li>
+    <li>
+      <h3>Check the reader <span class="who">browser</span></h3>
+      <p>The app loads the new version on its next start. Nothing else changes yet: the editor still has no book.</p>
+    </li>
+    <li>
+      <h3>Import the book <span class="who">editor</span></h3>
+      <p>Open the editor, sign in, <b>Import a book…</b>, source <b>the CDN</b>, <b>Import</b>. The current version becomes the draft: its spreads, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the spread cards show their sheets.</p>
+    </li>
+    <li>
+      <h3>Edit and save <span class="who">editor</span></h3>
+      <p>Add the covers (<b>+ cover</b>, <b>+ back cover</b>), place targets on the page, add AR nodes, upload files to the library. <b>Save</b> writes the draft. Readers see nothing of it yet.</p>
+    </li>
+    <li>
+      <h3>Publish <span class="who">editor</span></h3>
+      <p><b>Publish</b> with the environment makes a new content version from the draft and switches <code>latest.json</code>. The reader picks it up on its next start. Every publish is kept as a version; the versions list shows who published what, and an older version can be made current again.</p>
+    </li>
+  </ol>
+
+  <h2>Things to know</h2>
+  <div class="note">
+    <p><b>Import replaces the draft.</b> Importing again swaps the book's rows for the version imported – edits that were not published are gone (the change log stays). Publish first, or do not import again.</p>
+  </div>
+  <div class="note">
+    <p><b>Sync and publish both make versions.</b> A sync from the folder after editor work puts a version <em>without</em> the editor's changes on the CDN. Once the editor is where the book is edited, sync from the folder only when the YAML changed, and import again afterwards – placements saved in the draft survive that import only if they were carried back into the YAML first.</p>
+  </div>
+  <div class="note">
+    <p><b>Nothing is deleted by itself.</b> Old versions stay on the storage until <code>osct content purge</code> removes the ones provably out of use. A publish never touches the folder.</p>
+  </div>
+
+  <h2>Where things are</h2>
+  <table>
+    <tr><th>Instance</th><th>Reader</th><th>Editor</th><th>CDN folder</th></tr>
+    <tr><td>staging</td><td><a href="https://osct.porschuetz.de/">osct.porschuetz.de</a></td><td><a href="https://osct.porschuetz.de/editor/">/editor</a></td><td><code>buildingfictions.b-cdn.net/staging</code></td></tr>
+    <tr><td>production</td><td>osct.buildingfictions.com</td><td>/editor</td><td><code>buildingfictions.b-cdn.net/production</code></td></tr>
+    <tr><td>local</td><td>localhost:5174</td><td>localhost:5175/editor</td><td>the API's local store</td></tr>
+  </table>
+  <p class="muted">The reference for every detail: the repository's <code>docs/content.md</code> (writing content, the layout import), <code>docs/content-cdn.md</code> (versions, the osct CLI), <code>docs/editor.md</code> (the editor).</p>
+
+  <footer>OSCT · Onion Skin &amp; Crocodile Tears · Building Fictions</footer>
+</main>
+</body>
+</html>
