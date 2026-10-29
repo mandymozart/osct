@@ -6,9 +6,9 @@
 
   /**
    * The admin page (docs/admin.md): the instance's users found by e-mail, each one's roles as toggles (granted when and
-   * by whom on hover), their language and update options read-only; the editors as a shortcut; the newsletter list
-   * (the users with an update option on) as a CSV download; an editor invited by e-mail. Only admins get here
-   * (+layout.svelte); the API is docs/server.md "Admin API".
+   * by whom on hover), their language and the update options they opted into (plain text, read-only); the editors as
+   * a shortcut; the newsletter list (the users with an update option on) as a CSV download; an editor invited by
+   * e-mail. Only admins get here (+layout.svelte); the API is docs/server.md "Admin API".
    */
   type Filter = "all" | "editor" | "admin" | "newsletter";
   const FILTERS: { id: Filter; label: string }[] = [
@@ -81,7 +81,10 @@
       const result = on ? await grantRole(user.id, role) : await revokeRole(user.id, role);
       users = users?.map(u => (u.id === user.id ? result.user : u)) ?? null;
       if (self) await session.restore(true);
-      notice = `${on ? "Granted" : "Revoked"} ${role} ${on ? "to" : "from"} ${user.email}.`;
+      // Only a real change is reported – the row shows the roles the API answered with (#99)
+      notice = result.changed
+        ? `${on ? "Granted" : "Revoked"} ${role} ${on ? "to" : "from"} ${user.email}.`
+        : `${user.email} ${on ? "had" : "did not have"} ${role} already.`;
     } catch (e) {
       fail(e);
     } finally {
@@ -196,9 +199,8 @@
             </td>
             <td>{user.language}</td>
             <td class="options">
-              {#each OPTIONS as option (option.key)}
-                <span class:muted={!user.options[option.key]} title={`${option.label} updates: ${user.options[option.key] ? "yes" : "no"}`}>{user.options[option.key] ? "●" : "○"} {option.label}</span>
-              {/each}
+              <!-- Plain text, not controls: the options the user opted into, read-only (#99) -->
+              {#each OPTIONS.filter(option => user.options[option.key]) as option, i (option.key)}{i ? ", " : ""}<span title={`${option.label} updates: yes`}>{option.label}</span>{:else}<span class="muted" title="No update options">–</span>{/each}
             </td>
             <td class="muted" title={when(user.createdAt)}>{new Date(user.createdAt).toLocaleDateString()}</td>
             <td class="muted" title={when(user.lastSeenAt)}>{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleDateString() : "–"}</td>
@@ -235,7 +237,6 @@
   .users .email { font-weight: 500; }
   .pill.fixed { cursor: default; padding: 0 .375rem; }
   .pill.fixed:hover { background: none; }
-  .options span + span { margin-left: .5rem; }
   .invite .search { margin-top: .25rem; }
   @media (max-width: 40rem) {
     .users thead { display: none; }

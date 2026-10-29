@@ -4,6 +4,12 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The editor is not part of the PWA (#122)
+
+- Tilman: "the editor shouldn't be part of the PWA". The reader's service worker (scope `/`) leaves the editor's pages
+  (`/editor`) and all their requests to the browser (`client/sw/editor-clients.ts`): no precache, no content cache, no
+  offline fallback for them. The editor has no worker of its own (`serviceWorker.register: false`).
+
 ## 2026-10-30 – The book's environment, content schema 2.8 (#79)
 
 - Tilman confirmed the draft's two open decisions: the environment is a MINOR step after the light nodes' 2.6. It was

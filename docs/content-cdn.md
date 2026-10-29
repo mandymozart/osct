@@ -106,7 +106,8 @@ and the content from its own `assets/content/` – the dev server, the tests and
 
 The service worker keeps one content cache in CDN builds. `latest.json` is fetched network-first and kept, so the
 installed app starts offline with the last content it saw; when it names another version, the cached files of the
-other versions are dropped.
+other versions are dropped. The editor's pages (`/editor`, inside the worker's scope `/`) are left alone: their CDN
+requests go to the network as without a worker and never touch the reader's cache (#122).
 
 ### Pull zone settings the app depends on
 
