@@ -133,7 +133,7 @@ is involved.
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
   spreads, the spread's title, the tabs.
   - **Tree** – the spread in the style of Blender's outliner: a chevron column, a type icon before every name (book,
-    entry, target, group / model / video / image / text), guide lines per depth, zebra rows, and the **eye** in a
+    entry, target, group / model / video / image / text / light), guide lines per depth, zebra rows, and the **eye** in a
     column at the right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its
     entries in page order, each entry's target ("in view" while the camera sees it) and the target's entity as its
     **node tree** – the root node (● while the stage shows it with other values than the draft's; the shared ref) and
@@ -155,12 +155,25 @@ is involved.
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
+  - **Post-processing** – the Stage panel's last section lists the spread's `passes` (content schema 2.5,
+    [content guide](content.md) "Post-processing") with a row per parameter from the contract's specs; **+ bloom /
+    + vignette / + grade** adds one, *remove* drops one, changes show live on the stage, **Save** writes the list to
+    the spread (`PUT …/spreads/{id} { passes }`), *Back to the draft* undoes, *Use the book's* drops the spread's own
+    list so the book's passes apply. The stage shows the passes under **rendered** only (like the HDRI's sky): the
+    mock stage's table, book, printed images and sky lie on the engine's **backdrop layer** and are drawn under the
+    passes, as the camera picture lies under the canvas in the reader – a pass never sees them.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
     a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
     side: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
     materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
     icons only, every button's label is its tooltip. The stage and the gizmo keep their own look.
+    **Light nodes** (content schema 2.6) have no mesh: the stage draws a **helper** for each, after Blender's – a
+    small bulb at the node's origin and lines for what the light does (short rays for a point light, the cone of a
+    spot, parallel rays for a directional light), in the node's own space so the gizmo moves and turns it (−z is where
+    a spot or the sun points); dark grey, orange while selected, drawn through everything, never in the reader
+    (`editor/src/lib/stage/light-helper.ts`). A click on the bulb picks the light. The HDRI dims only the scene's own
+    lights; a light node keeps the author's intensity in every shading.
   - **Picking** – a click on the stage selects what lies under the pointer by the **pick mode** next to the gizmo's
     tools (Blender's select mode): *entity* (a parcel – the root of the entity hit), *node* (a point on the graph –
     the node under the pointer, as deep as the tree goes) or *target* (the crosshair – the printed image). A printed image without AR content is always picked as its
@@ -193,9 +206,11 @@ is involved.
     **Save placement** writes it; until then a target made in the editor lies where its form put it, an imported one
     where the book's layout says). Then the selected **node** of its entity (the head says `node · root › 1 › 0 ·
     model`), its **file** (name; **Upload…** or **Library…**),
-    **+ node** (type, and for model / video / image a file from the book's assets – appended as a child of the
-    selected node, or as the root of a target without AR content), **remove node** / **remove entity**; then every
-    placement value (relative to the parent node), a text node's text and colour, and every filter parameter of the
+    **+ node** (type – group, model, video, image, text or light – and for model / video / image a file from the
+    book's assets – appended as a child of the selected node, or as the root of a target without AR content),
+    **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
+    text and colour, a light node's **light** rows (kind as a segmented group, colour, intensity, distance and decay
+    for a point or spot, angle and penumbra for a spot), and every filter parameter of the
     node as rows of one control height: position, rotation and scale with X, Y, Z side
     by side as in Blender (the chain icon at the end of the scale row links the axes: pressed = one `scale` field, as
     Blender's lock), choices as a segmented group, colours as a
@@ -209,8 +224,9 @@ is involved.
     each with its rows and *remove*, **+ animation** on a model; the animation component shows the model's
     **timeline** – its clips, play / pause, the time in the clip as a slider – and drives the same clip the reader
     plays (`playOn` found / tap / never, `stopOn`, loop, speed). Rows come from the content contract's definitions
-    (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`): a new filter, component or parameter needs no panel code – a
-    component or material layer a **plugin** registers shows the same way, with **+ type** after a Run in the Code tab.
+    (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`, `LIGHT_PARAMS`): a new filter, component, light parameter or
+    parameter needs no panel code (one snippet draws a parameter of any kind) – a component or material layer a
+    **plugin** registers shows the same way, with **+ type** after a Run in the Code tab.
   - **Code** – the book's own code ([the decision](../agents/research/2026-10-29-code-in-the-editor.md)): the
     plugins stored for the book and the ones the content declares (compiled by the content build – opening one reads
     its `index.ts` next to the compiled module; Save keeps a copy), one open in a plain code editor (a textarea with
@@ -275,13 +291,16 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
 - The plugin API 1.1 has components, material layers, events, variables in scopes, the progress and the spread
-  (`registerComponent`, `registerLayer`, `api.three`, `api.events`, `api.vars`, `api.progress`, `api.spread`); node
-  types are #77, declared variables and a `behaviour` component without code come when a work needs them. The Code
+  (`registerComponent`, `registerLayer`, `registerPass`, `api.three`, `api.events`, `api.vars`, `api.progress`,
+  `api.spread`); node types are #77, declared variables and a `behaviour` component without code come when a work needs them. The Code
   tab has no completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind
   the publish (#78).
 - What the stage cannot simulate of a reader's game: consulted entries (no entry view), a reader's stored progress
   (the stage's progress lives while the workspace is open – leaving to the spread list starts a new game), two
   spreads on one stage (the mock tracker reports the current spread's targets only; a `stage` variable survives the
   switch, a `spread` variable does not), the reader's UI around the scene.
+- The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with an owner, and
+  `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade) and a plugin's
+  passes reach the build and the guard with `unknownTypes: "allow"` where plugins are declared.
 - The phone layout of the workspace (the sheet) is built but was checked on the desktop only; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

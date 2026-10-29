@@ -42,7 +42,7 @@
   let error = $state<string | null>(null);
   let fileInput = $state<HTMLInputElement>();
   // The AR content the target shows (optional): a node of a type, its file from the library, a text's line
-  const ENTITY_TYPES: readonly (EntityType | "")[] = ["", "model", "video", "image", "text", "group"];
+  const ENTITY_TYPES: readonly (EntityType | "")[] = ["", "model", "video", "image", "text", "group", "light"];
   let entityType = $state<EntityType | "">("");
   let entityFile = $state("");
   let entityText = $state("{{entry.title}}");

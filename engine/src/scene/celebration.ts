@@ -4,6 +4,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
+  Light,
   Material,
   Matrix4,
   Mesh,
@@ -339,6 +340,15 @@ export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKi
     swapped.push({ mesh, original, clones });
   });
 
+  // Lights (light nodes) fade with the entity: `userData.fade` is their share of the intensity, applied by the
+  // light node every frame (entities.ts); 1 again at the end
+  const lights: Light[] = [];
+  root.traverse(object => {
+    if ((object as Light).isLight) lights.push(object as Light);
+  });
+  const dim = (visible: number) => lights.forEach(light => (light.userData.fade = visible));
+  dim(preset.reverse ? 1 : 0);
+
   // Sparks (unlock only) in the entity's space – children of its own object: they follow tracking and placement
   const sparkGeometry = preset.sparks ? sampleSparks(meshes) : null;
   const sparkMaterial = sparkGeometry && new ShaderMaterial({
@@ -372,6 +382,7 @@ export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKi
       mesh.material = original;
       clones.forEach(clone => clone.dispose());
     });
+    dim(1);
     sparks?.removeFromParent();
     sparkGeometry?.dispose();
     sparkMaterial?.dispose();
@@ -394,6 +405,7 @@ export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKi
         uniforms.uProgress.value = from + (to - from) * m;
         uniforms.uEdge.value = preset.edgeStart + (preset.edgeEnd - preset.edgeStart) * m;
         bloom = preset.bloomStrength * smoothstep(t / (preset.materialise * 0.15)); // rises fast, then holds
+        dim(preset.reverse ? 1 - m : m);
       } else {
         // Unlock only: past the materialisation the last sparks fly out, glow and bloom fade
         const f = (t - preset.materialise) / (1 - preset.materialise);
@@ -401,6 +413,7 @@ export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKi
         uniforms.uEdge.value = preset.edgeEnd;
         uniforms.uGlow.value = 1 - smoothstep(f);
         bloom = preset.bloomStrength * (1 - smoothstep(f));
+        dim(1);
       }
       if (t < 1) return true;
       finish();

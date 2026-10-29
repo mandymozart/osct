@@ -5,6 +5,7 @@
     DESKS, getPreview, HDRIS, isDeskId, isHdriId, subscribePreview, updatePreview, type PreviewState,
   } from "$lib/stage/preview";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
+  import PassesPanel from "./PassesPanel.svelte";
 
   /**
    * The stage's settings: hand shake, the desk and the sky (an HDRI). The camera is moved on the stage itself (drag
@@ -13,7 +14,7 @@
    * **narrative** of the book's plugins: their variables with scopes, the last events of the stage, and *reset* for a
    * new game (nothing unlocked, no variable).
    */
-  let { stage, spreadId }: { stage: Stage | null; spreadId: string } = $props();
+  let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
@@ -64,6 +65,8 @@
   </span></div>
 
 <p class="hint small muted">drag = orbit · shift-drag / middle button / two fingers = pan · wheel / pinch = distance · double tap = reader · ← → spreads</p>
+
+<PassesPanel {stage} {bookId} {spreadId} />
 
 <style>
   .w { width: 5rem; display: inline-flex; }

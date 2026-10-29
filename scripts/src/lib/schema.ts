@@ -27,6 +27,7 @@ export const schemas: Record<string, Schema> = {
       title: { type: "String", required: true },
       author: { type: "String", required: true },
       publisher: { type: "String", required: false },
+      passes: { type: "Array", required: false }, // post-processing of every spread without its own: [{ type, ...parameters }], see shared/types/passes.ts
     },
   },
 
@@ -39,6 +40,7 @@ export const schemas: Record<string, Schema> = {
       firstPage: { type: "Number", required: true },
       lastPage: { type: "Number", required: true },
       format: { type: "String", required: false, enum: ["spread", "cover", "back"] }, // the covers: page 0, and the page after the last
+      passes: { type: "Array", required: false }, // post-processing over the rendered image: [{ type, ...parameters }], see shared/types/passes.ts
     },
   },
 
@@ -79,10 +81,11 @@ export const schemas: Record<string, Schema> = {
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts
-      children: { type: "Array", required: false }, // nodes: { type, src?, params?, filters?, children?, text?, color? }
+      children: { type: "Array", required: false }, // nodes: { type, src?, params?, filters?, children?, text?, color?, light? }
       components: { type: "Array", required: false }, // [{ type, ...parameters }], see shared/types/components.ts
       text: { type: "String", required: false }, // text nodes
       color: { type: "String", required: false }, // text nodes, #rrggbb
+      light: { type: "Object", required: false }, // light nodes: { kind, color, intensity, … }, see shared/types/lights.ts
     },
   },
 

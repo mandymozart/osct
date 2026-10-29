@@ -20,11 +20,12 @@
   /**
    * The selected **node** of a target's entity (content schema 2.0: the entity is a tree; the tree panel or a tap
    * on the stage selects, `node` is the path from the root) – every adjustable value as rows of one control height:
-   * placement (three.js names, the three axes in one row as in Blender), a text node's text and colour, each
-   * filter's parameters. Changes show live on the stage (`stage.override` with the whole tree), the draft stays
-   * unchanged until **Save** writes the entity to the API (the shared entity when the target refers to one, else the
-   * target's own). **+ node** appends a child (group, model, video, image, text – files from the book's assets),
-   * **remove node** drops the selected node and its children. Rows come from the content contract's definitions.
+   * placement (three.js names, the three axes in one row as in Blender), a text node's text and colour, a light
+   * node's values, each filter's and component's parameters. Changes show live on the stage (`stage.override` with
+   * the whole tree), the draft stays unchanged until **Save** writes the entity to the API (the shared entity when
+   * the target refers to one, else the target's own). **+ node** appends a child (group, model, video, image, text,
+   * light – files from the book's assets), **remove node** drops the selected node and its children. Rows come from
+   * the content contract's definitions (one `specRow` snippet draws a parameter of any kind).
    */
   let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, onlibrary, ontargetchanged }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
@@ -302,6 +303,33 @@
   };
 </script>
 
+{#snippet specRow(row: ValueRow, name: string)}
+  <!-- A parameter of a spec (a component's, the light's) by its kind: choice, on / off, string, colour, number -->
+  {#if current}
+    <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default || (name === 'clip' ? '(first clip)' : row.default)}">
+      <span class="label">{name}</span>
+      {#if row.kind === "choice"}
+        <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
+      {:else if row.kind === "boolean"}
+        <span class="controls"><button type="button" class="pill" class:on={getValue(current, row) === "true"} aria-pressed={getValue(current, row) === "true"}
+          onclick={() => set(row, getValue(current!, row) === "true" ? "false" : "true")}>{getValue(current, row) === "true" ? "on" : "off"}</button></span>
+      {:else if row.kind === "string" && name === "clip" && clipNames.length}
+        <select class="field" aria-label="Clip" value={String(getValue(current, row))} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
+          <option value="">first clip ({clipNames[0]})</option>
+          {#each clipNames as clip (clip)}<option value={clip}>{clip}</option>{/each}
+        </select>
+      {:else if row.kind === "string"}
+        <input class="field" value={String(getValue(current, row))} aria-label={name} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
+      {:else if row.kind === "color"}
+        <ColourField value={String(getValue(current, row))} label={row.id} onchange={hex => set(row, hex)} onpick={pickColour} />
+      {:else}
+        <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
+          unit={row.unit ?? ""} label={row.id} strict={row.strict} oninput={v => set(row, v)} /></span>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
 {#if !target}
   <p class="muted">No target on this spread.</p>
 {:else}
@@ -363,7 +391,7 @@
     </span></div>
 
   {#if !entity || !current}
-    <p class="muted small">No AR content on this target yet: add a root node above (a model, video, image or text, or a group to hold several).</p>
+    <p class="muted small">No AR content on this target yet: add a root node above (a model, video, image, text or light, or a group to hold several).</p>
     <div class="actions">
       <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
       <span class="grow"></span>
@@ -422,6 +450,17 @@
         <ColourField value={current.color ?? "#ffffff"} label="Text colour" onchange={hex => current && applyNode({ ...current, color: hex })} onpick={pickColour} />
       </div>
     {/if}
+    {#if current.type === "light"}
+      <div class="section"><span class="section-label">light</span></div>
+      {#each rows.filter(r => r.id.startsWith("light.")) as row (row.id)}
+        {@const name = row.id.split(".")[1]}
+        {@const spotOnly = (name === "angle" || name === "penumbra") && getValue(current, { ...row, id: "light.kind" }) !== "spot"}
+        {@const noReach = (name === "distance" || name === "decay") && getValue(current, { ...row, id: "light.kind" }) === "directional"}
+        {#if !spotOnly && !noReach}
+          {@render specRow(row, name)}
+        {/if}
+      {/each}
+    {/if}
 
     {#each current.filters ?? [] as filter, i (i)}
       <div class="section"><span class="section-label">filters[{i}] {filter.type}</span>
@@ -459,28 +498,7 @@
         </div>
       {/if}
       {#each rows.filter(r => r.id.startsWith(`components.${i}.`)) as row (row.id)}
-        {@const name = row.id.split(".")[2]}
-        <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default || '(first clip)'}">
-          <span class="label">{name}</span>
-          {#if row.kind === "choice"}
-            <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
-          {:else if row.kind === "boolean"}
-            <span class="controls"><button type="button" class="pill" class:on={getValue(current, row) === "true"} aria-pressed={getValue(current, row) === "true"}
-              onclick={() => set(row, getValue(current!, row) === "true" ? "false" : "true")}>{getValue(current, row) === "true" ? "on" : "off"}</button></span>
-          {:else if row.kind === "string" && name === "clip" && clipNames.length}
-            <select class="field" aria-label="Clip" value={String(getValue(current, row))} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
-              <option value="">first clip ({clipNames[0]})</option>
-              {#each clipNames as clip (clip)}<option value={clip}>{clip}</option>{/each}
-            </select>
-          {:else if row.kind === "string"}
-            <input class="field" value={String(getValue(current, row))} aria-label={name} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
-          {:else if row.kind === "color"}
-            <ColourField value={String(getValue(current, row))} label={row.id} onchange={hex => set(row, hex)} onpick={pickColour} />
-          {:else}
-            <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-              unit={row.unit ?? ""} label={row.id} strict={row.strict} oninput={v => set(row, v)} /></span>
-          {/if}
-        </div>
+        {@render specRow(row, row.id.split(".")[2])}
       {/each}
     {/each}
     {#if addable.length}

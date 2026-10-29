@@ -3,6 +3,7 @@
 // app without it never loads it), the editor its mock tracker.
 export * from "./ar-scene";
 export * from "./entities";
+export * from "./post/index";
 export * from "./tracker-types";
 export { onAppUi, UI_SELECTOR } from "./ui";
 export * from "./plugin-runtime";
