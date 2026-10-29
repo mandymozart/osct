@@ -23,6 +23,16 @@ const REPLAY_GAP_MS = 900;
  */
 export type PickMode = "entity" | "node" | "target";
 
+/** A placement being edited: the image and where it would be printed (mm) */
+export interface GhostPlace {
+  imageSrc: string;
+  surface: "left" | "right";
+  x: number;
+  y: number;
+  width: number;
+  height?: number;
+}
+
 /** What a click on the stage hit: a target (its printed image, or its entity's node at `path`) */
 export interface StagePick {
   targetId: string;
@@ -69,7 +79,7 @@ export class Stage {
       createTracker: ({ container, options, scene }) => {
         const tracker = new MockTracker(container, options);
         tracker.attachStage(new MockStage(scene, container, path => `${base}/${path}`));
-        tracker.ignorePointer = () => !!this.gizmo?.busy;
+        tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
         this.tracker = tracker;
         return tracker;
       },
@@ -96,7 +106,7 @@ export class Stage {
     // Picking is the editor's own: a click (not the one that ends a gizmo drag; the tracker swallows an orbit's)
     // picks by the mode, a right click asks for the menu
     const onClick = (event: MouseEvent) => {
-      if (onAppUi(event) || this.gizmo?.recentlyDragged() || !container.contains(event.target as Node)) return;
+      if (onAppUi(event) || this.gizmo?.recentlyDragged() || this.ghostHandleAt(event.clientX, event.clientY) || !container.contains(event.target as Node)) return;
       this.onPick?.(this.pick(event.clientX, event.clientY));
     };
     const onContext = (event: MouseEvent) => {
@@ -106,7 +116,19 @@ export class Stage {
     };
     container.addEventListener("click", onClick);
     container.addEventListener("contextmenu", onContext);
-    this.cleanups.push(() => container.removeEventListener("click", onClick), () => container.removeEventListener("contextmenu", onContext));
+    // The placement handles: before the tracker sees the pointer (capture), only while a ghost is shown
+    container.addEventListener("pointerdown", this.onGhostPointerDown, true);
+    container.addEventListener("pointermove", this.onGhostPointerMove, true);
+    container.addEventListener("pointerup", this.onGhostPointerUp, true);
+    container.addEventListener("pointercancel", this.onGhostPointerUp, true);
+    this.cleanups.push(
+      () => container.removeEventListener("click", onClick),
+      () => container.removeEventListener("contextmenu", onContext),
+      () => container.removeEventListener("pointerdown", this.onGhostPointerDown, true),
+      () => container.removeEventListener("pointermove", this.onGhostPointerMove, true),
+      () => container.removeEventListener("pointerup", this.onGhostPointerUp, true),
+      () => container.removeEventListener("pointercancel", this.onGhostPointerUp, true),
+    );
     this.container = container;
   }
 
@@ -240,9 +262,84 @@ export class Stage {
     return this.scene.sampleColor(x, y);
   }
 
-  /** Show where a target would be printed (a translucent image on the page); null = none */
-  ghost(target: { imageSrc: string; surface: "left" | "right"; x: number; y: number; width: number; height?: number } | null): void {
+  /** The ghost shown (the placement being edited) and who follows its handles */
+  private ghostPlace: GhostPlace | null = null;
+  /** A drag of the ghost: the image (move) or its corner (width) */
+  private ghostDrag: { kind: "move" | "width"; grabX: number; grabY: number } | null = null;
+  /** The form or the panel editing the placement listens: a handle moved it */
+  onGhostChange: ((place: { surface: "left" | "right"; x: number; y: number; width: number }) => void) | null = null;
+
+  /** Show where a target would be printed (a translucent image on the page with handles); null = none */
+  ghost(target: GhostPlace | null): void {
+    this.ghostPlace = target;
     this.tracker?.setGhost(target ? { id: "ghost", imageSrc: target.imageSrc, surface: target.surface, x: target.x, y: target.y, width: target.width, height: target.height ?? target.width * 0.75 } : null);
+  }
+
+  /** The ghost's handle under the pointer: "move" over the image, "width" over its corner, null elsewhere */
+  private ghostHandleAt(clientX: number, clientY: number): "move" | "width" | null {
+    const inspection = this.scene.inspect();
+    const parts = this.tracker?.ghostParts();
+    if (!inspection || !parts || !this.ghostPlace) return null;
+    const rect = this.container.getBoundingClientRect();
+    this.raycaster.setFromCamera(new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), inspection.camera);
+    if (parts.corner && this.raycaster.intersectObject(parts.corner, false).length) return "width";
+    if (parts.image && this.raycaster.intersectObject(parts.image, false).length) return "move";
+    return null;
+  }
+
+  private onGhostPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || !this.ghostPlace) return;
+    const kind = this.ghostHandleAt(event.clientX, event.clientY);
+    if (!kind) return;
+    const hit = this.pageAt(event.clientX, event.clientY);
+    if (!hit) return;
+    const place = this.ghostPlace;
+    // The grab point inside the image (mm), so the image does not jump to the pointer
+    const grabX = hit.surface === place.surface ? hit.x - place.x : 0;
+    const grabY = hit.y - place.y;
+    this.ghostDrag = { kind, grabX, grabY };
+    this.container.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  private onGhostPointerMove = (event: PointerEvent): void => {
+    if (!this.ghostPlace) return;
+    if (!this.ghostDrag) {
+      const kind = this.ghostHandleAt(event.clientX, event.clientY);
+      this.container.style.cursor = kind === "width" ? "nwse-resize" : kind === "move" ? "grab" : "";
+      return;
+    }
+    const hit = this.pageAt(event.clientX, event.clientY);
+    if (!hit) return;
+    const place = this.ghostPlace;
+    let next: GhostPlace;
+    if (this.ghostDrag.kind === "move") {
+      next = { ...place, surface: hit.surface, x: Math.round(hit.x - this.ghostDrag.grabX), y: Math.round(hit.y - this.ghostDrag.grabY) };
+    } else {
+      // The corner sets the width from the image's left edge (on the image's own page)
+      const pageX = hit.surface === place.surface ? hit.x : hit.surface === "right" ? hit.x + 230 : hit.x - 230;
+      next = { ...place, width: Math.max(10, Math.round(pageX - place.x)) };
+    }
+    this.ghostPlace = next;
+    this.ghost(next);
+    this.onGhostChange?.({ surface: next.surface, x: next.x, y: next.y, width: next.width });
+    event.preventDefault();
+  };
+
+  private onGhostPointerUp = (): void => {
+    if (!this.ghostDrag) return;
+    this.ghostDrag = null;
+    this.container.style.cursor = "";
+  };
+
+  /** Where a point of the screen meets the page (mm from the page's top left corner) */
+  private pageAt(clientX: number, clientY: number): { surface: "left" | "right"; x: number; y: number } | null {
+    const inspection = this.scene.inspect();
+    if (!inspection) return null;
+    const rect = this.container.getBoundingClientRect();
+    this.raycaster.setFromCamera(new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), inspection.camera);
+    return this.tracker?.pageHit(this.raycaster) ?? null;
   }
 
   /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */

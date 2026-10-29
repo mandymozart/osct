@@ -79,6 +79,12 @@
     stage?.ghost(url ? { imageSrc: url, ...where } : null);
   });
   $effect(() => () => stage?.ghost(null));
+  // The handles on the stage move the ghost: the fields follow
+  $effect(() => {
+    if (!stage) return;
+    stage.onGhostChange = place => { surface = place.surface; x = place.x; y = place.y; width = place.width; };
+    return () => { if (stage) stage.onGhostChange = null; };
+  });
 
   const upload = async (file: File) => {
     error = null;

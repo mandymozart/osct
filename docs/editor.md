@@ -120,7 +120,9 @@ again). Nothing of the reader's store, progress or routes is involved.
     target. A **right click** on the stage opens the menu for what lies there: on a target *Add node… / Add AR
     content…*, *Remove node / entity*, *Placement on the page…*, *Library…*, *Remove target*; on the page or the table
     *+ target…* and *Stage settings…*. While a target's placement is edited (the form, the Entity panel's rows) the
-    stage shows a translucent **ghost** of the image where it would be printed.
+    stage shows a translucent **ghost** of the image where it would be printed, with **handles**: drag the image to
+    move it (across the spine it changes the page), drag the small square at its bottom right corner to set the
+    printed width – the fields follow, Save placement writes them.
   - **Library** – the book's uploaded files ([server](server.md) "Assets"): a grid of cards (a thumbnail for images,
     the type's icon else; name, kind, size, dimensions, the number of uses), filter by kind, search, **Upload** (the
     button, or files dropped on the panel); per file **Use** (the selected node takes it, when its type fits),
@@ -162,7 +164,9 @@ The editor follows the Scutoons UI dogma (`scutoons/agents/DESIGN.md`) in its ow
 the reader's design tokens: a design tool's default palette – day (white, light greys, near-black text) and night
 (dark greys, white text), following the system, forced with `data-scheme` on `<html>` – and **no colour** but the
 danger red; one control height (`--control-height`, 1.75rem), square corners, compact system type; rows with a label
-column; numbers as `ScrubNumber` (the whole field is the gesture: press and slide, Shift ×10, Alt ×0.1, tap to type,
+column; numbers as `ScrubNumber` (the whole field is the gesture: press and slide – **up or right raises, down or left
+lowers** the value, the two directions add up (the quadrant rule, Tilman 2026-10-29; Scutoons' fields should follow) –
+Shift ×10, Alt ×0.1, tap to type,
 ↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders, no native colour picker: the colour popover
 in the top layer); small enums as segmented pressed pills;
 on / off per item as a pressed chip; Feather icons only where a word makes no sense (step, replay, photo, close, the

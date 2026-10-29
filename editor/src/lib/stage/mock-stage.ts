@@ -1,6 +1,6 @@
 import {
-  BoxGeometry, EquirectangularReflectionMapping, Group, Light, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
-  RepeatWrapping, Scene, SphereGeometry, SRGBColorSpace, Texture, TextureLoader, UVMapping,
+  BoxGeometry, EquirectangularReflectionMapping, Group, Light, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Plane,
+  PlaneGeometry, Raycaster, RepeatWrapping, Scene, SphereGeometry, SRGBColorSpace, Texture, TextureLoader, UVMapping, Vector3,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import type { PageFormat, StageBook, StageSheet, StageTarget, StageView } from "./mock-tracker";
@@ -41,6 +41,8 @@ const HDRI_EXPOSURE_DEFAULT = 0.4;
 const LIGHTS_WITH_HDRI = 0.35;
 /** The sky sphere's radius (metres) – far beyond the table, near enough for the depth buffer */
 const SKY_RADIUS = 30;
+/** The ghost's corner handle (mm) */
+const GHOST_HANDLE = 8;
 /** The table around the book (metres) */
 const TABLE_WIDTH = 1.4;
 const TABLE_DEPTH = 1.0;
@@ -212,12 +214,37 @@ export class MockStage implements StageView {
     }, undefined, error => console.warn(`[mock-stage] HDRI "${id}" could not be loaded:`, error));
   }
 
+  /** The ghost's parts for the handles: the image and its corner (none while no ghost is shown) */
+  ghostParts(): { image: Object3D | null; corner: Object3D | null } {
+    return {
+      image: this.ghostGroup.getObjectByName("ghost") ?? null,
+      corner: this.ghostGroup.getObjectByName("ghost-corner") ?? null,
+    };
+  }
+
+  /** The page's frame: a world ray meets the page plane (z = 0 of the stage) at this point in mm from the spine, page top */
+  pageHit(raycaster: Raycaster): { surface: "left" | "right"; x: number; y: number } | null {
+    this.group.updateMatrixWorld(true);
+    const normal = new Vector3(0, 0, 1).transformDirection(this.group.matrixWorld);
+    const origin = new Vector3().setFromMatrixPosition(this.group.matrixWorld);
+    const plane = new Plane().setFromNormalAndCoplanarPoint(normal, origin);
+    const world = raycaster.ray.intersectPlane(plane, new Vector3());
+    if (!world) return null;
+    const local = this.group.worldToLocal(world);
+    const mmX = local.x * 1000;
+    const mmY = this.page.height / 2 - local.y * 1000;
+    return mmX < 0 ? { surface: "left", x: mmX + this.page.width, y: mmY } : { surface: "right", x: mmX, y: mmY };
+  }
+
   /** The printed images on the page (each knows its `userData.targetId`) – for picking a target by its print */
   printedPlanes(): Mesh[] {
     return this.pages.children.filter((child): child is Mesh => child instanceof Mesh);
   }
 
-  /** A translucent print of `ghost` where it would lie (above the print, below the entities) */
+  /**
+   * A translucent print of `ghost` where it would lie (above the print, below the entities), with a small square at
+   * its bottom right corner – the handles: drag the image to move it, the corner to set its printed width
+   */
   setGhost(ghost: StageTarget | null): void {
     this.clear(this.ghostGroup);
     if (!ghost) return;
@@ -225,15 +252,21 @@ export class MockStage implements StageView {
     const material = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false });
     const height = ghost.height || ghost.width * 0.75;
     const plane = new Mesh(new PlaneGeometry(ghost.width / 1000, height / 1000), material);
+    plane.name = "ghost";
     const pageLeft = ghost.surface === "left" ? -page.width : 0;
     plane.position.set((pageLeft + ghost.x + ghost.width / 2) / 1000, (page.height / 2 - ghost.y - height / 2) / 1000, -LAYER / 2);
-    this.ghostGroup.add(plane);
+    const corner = new Mesh(new PlaneGeometry(GHOST_HANDLE / 1000, GHOST_HANDLE / 1000), new MeshBasicMaterial({ color: 0x1e1e1e, transparent: true, opacity: 0.9, depthWrite: false }));
+    corner.name = "ghost-corner";
+    const placeCorner = (h: number) => corner.position.set((pageLeft + ghost.x + ghost.width) / 1000, (page.height / 2 - ghost.y - h) / 1000, 0);
+    placeCorner(height);
+    this.ghostGroup.add(plane, corner);
     const apply = (texture: Texture) => {
       if (!plane.parent) return;
       const aspect = texture.image.height / texture.image.width;
       plane.geometry.dispose();
       plane.geometry = new PlaneGeometry(ghost.width / 1000, (ghost.width * aspect) / 1000);
       plane.position.y = (page.height / 2 - ghost.y - (ghost.width * aspect) / 2) / 1000;
+      placeCorner(ghost.width * aspect);
       material.map = texture;
       material.needsUpdate = true;
     };

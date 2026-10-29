@@ -1,4 +1,4 @@
-import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three";
+import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from "three";
 import type { Target } from "@engine/types";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
@@ -192,6 +192,10 @@ export interface StageView {
   setGhost?(ghost: StageTarget | null): void;
   /** The printed images on the page, each with `userData.targetId` (picking a target by its print) */
   printedPlanes?(): Object3D[];
+  /** The ghost's image and corner (the placement handles) */
+  ghostParts?(): { image: Object3D | null; corner: Object3D | null };
+  /** Where a ray meets the page, in mm from the page's top left corner, and on which page */
+  pageHit?(raycaster: Raycaster): { surface: "left" | "right"; x: number; y: number } | null;
   /** Every frame: the stage's frame relative to the camera (the camera stays at the origin) */
   update(cameraInverse: Matrix4): void;
   dispose(): void;
@@ -236,6 +240,14 @@ export class MockTracker implements IImageTracker {
   /** The stage's printed images (for picking) */
   printedPlanes(): Object3D[] {
     return this.stage?.printedPlanes?.() ?? [];
+  }
+
+  ghostParts(): { image: Object3D | null; corner: Object3D | null } {
+    return this.stage?.ghostParts?.() ?? { image: null, corner: null };
+  }
+
+  pageHit(raycaster: Raycaster): { surface: "left" | "right"; x: number; y: number } | null {
+    return this.stage?.pageHit?.(raycaster) ?? null;
   }
 
   /** Show where a target would be printed (the form's placement) */
