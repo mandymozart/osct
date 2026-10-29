@@ -12,6 +12,22 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.24.0 – 2026-10-30
+
+### Added
+- **The Code tab is a real code editor** (#76): Monaco, with syntax highlighting, completion as you type and type
+  errors underlined – checked against the plugin API and three.js the way the content build checks a plugin. A hover
+  shows a member's documentation; the colours follow the editor's day and night. It loads with the Code tab only.
+- **Download** in the Code tab: the plugin's folder as a zip – `index.ts`, `plugin-api.d.ts` and a `tsconfig.json` – so
+  a plugin type-checks the same way in any other editor (`import type { PluginApi } from "osct-plugin-api"`).
+- `plugin-api.d.ts` is generated from the engine's plugin API by the editor build (`npm run plugin-api` in `editor/`);
+  Checks fails when the checked-in file no longer matches the engine.
+
+### Changed
+- A Run's error is also marked on its line in the editor; Tab, Ctrl+Enter (Run) and Ctrl+S (Save) work as before.
+- A new plugin starts typed (`import type { PluginApi } from "osct-plugin-api"`), so it passes the build's type check
+  as it is.
+
 ## 1.21.0 – 2026-10-30
 
 ### Added
