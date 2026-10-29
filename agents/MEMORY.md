@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-29 – The stage's desk is our own Eiermann model (#68)
+
+- Tilman: "the table should be an Eiermann"; he supplied a 3ds Max model of the frame (`01_E1_1100x660-exzentrisch`,
+  17 000 triangles, kept outside the repository) and asked for an effective poly reduction, an 18 mm Siebdruckplatte
+  top with the plywood's plies visible on the cut edges. Decided: **no decimation of the supplied model** – the frame's
+  tube axes were measured from it and `editor/tools/desk-eiermann.py` rebuilds the table from primitives (8-segment
+  tubes, 236 triangles, materials `top` / `edge` / `steel`, origin at the top's surface, metres, Y up), so the GLB is
+  ours and regenerable without the source file. The desk keeps its own materials under every shading mode (like the
+  gizmo and the outlines); the plies are the untinted plywood texture with its grain along the edge.
+- [ ] Open: the frame's finish (dark metallic steel today; chrome or white would be a material change in the script).
+
 ## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
 
 - Tilman: "Das ist die Frage des Routings – wer für was verantwortlich ist." "Der Editor hat eine Sonderstellung:
