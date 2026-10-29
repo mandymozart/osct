@@ -11,7 +11,7 @@ import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings } from '../lib/errors';
 
 /**
- * The book's own code (content schema 2.3, agents/research/2026-10-29-code-in-the-editor.md): every folder
+ * The book's own code (content schema 2.4, agents/research/2026-10-29-code-in-the-editor.md): every folder
  * `content/plugins/<id>/` with an `index.ts` is a plugin. The build
  *   1. type-checks it against the plugin API (`engine/src/scene/plugins.ts`, imported as `osct-plugin-api`) –
  *      every error with its file and line, like any other content error;

@@ -1,0 +1,12 @@
+# A target on the front cover (spread `cover`, page 0) with its printed place on the cover's surface.
+category: glossary
+title: "Cover: seal"
+page: 0
+body: "The seal on the front cover – found before the book is opened."
+target:
+  image: target.jpg
+  print:
+    surface: front
+    x: 65
+    y: 110
+    width: 100

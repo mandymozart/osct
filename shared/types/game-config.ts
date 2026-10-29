@@ -36,7 +36,7 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.3";
+export const CONTENT_SCHEMA_VERSION = "2.4";
 
 export interface ContentSchema {
   major: number;
@@ -66,11 +66,20 @@ export interface BookData {
   publisher?: string;
 }
 
+/**
+ * What a spread is in the book: a double page (`spread`, the default), the front **cover** or the **back** cover – the
+ * covers have no page number: the cover spread is page 0, the back spread the page after the last printed one.
+ */
+export const SPREAD_FORMATS = ["spread", "cover", "back"] as const;
+export type SpreadFormat = (typeof SPREAD_FORMATS)[number];
+
 export interface SpreadData {
   id: string;
   title: string;
   firstPage: number;
   lastPage: number;
+  /** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
+  format?: SpreadFormat;
 }
 
 export interface AssetData {
@@ -92,7 +101,7 @@ export interface EntityData {
   assets: AssetData[];
   params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
-  /** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.3) */
+  /** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.4) */
   components?: ComponentData[];
   /** Child nodes, placed relative to this one */
   children?: EntityData[];
@@ -112,9 +121,13 @@ export interface EntityRefData {
  * editor's stage lays the target there (before the book's layout from the designed PDFs, which the content build
  * knows); the reader does not need it.
  */
+/** The surfaces a target can be printed on: a page of a double page, the front or the back cover */
+export const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
+export type PrintSurface = (typeof PRINT_SURFACES)[number];
+
 export interface PrintPlacement {
   page?: number;
-  surface: "left" | "right";
+  surface: PrintSurface;
   x: number;
   y: number;
   width: number;
@@ -178,6 +191,6 @@ export interface GameConfiguration {
   entries: readonly EntryData[];
   entities: Readonly<Record<string, EntityData>>; // shared entities, referenced by `EntityRefData`
   tutorial: readonly StepData[];
-  /** The book's own code (schema 2.3, optional): compiled plugins the engine loads before the first spread */
+  /** The book's own code (schema 2.4, optional): compiled plugins the engine loads before the first spread */
   plugins?: readonly PluginData[];
 }

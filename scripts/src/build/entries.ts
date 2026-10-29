@@ -41,6 +41,13 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
         };
         const entity = buildEntity(t.entity, id, targetId, entities, `${label} target`);
         if (entity) target.entity = entity;
+        if (t.print !== undefined) {
+          const p = t.print as Record<string, unknown>;
+          const ok = p && typeof p === 'object' && ['left', 'right', 'front', 'back'].includes(String(p.surface))
+            && ['x', 'y', 'width'].every(key => typeof p[key] === 'number');
+          if (ok) target.print = { surface: p.surface as 'left', x: p.x as number, y: p.y as number, width: p.width as number, ...(typeof p.height === 'number' ? { height: p.height } : {}), ...(typeof p.page === 'number' ? { page: p.page } : {}) };
+          else buildErrors.push(`${label} target: print needs surface (left, right, front, back) and x, y, width in mm`);
+        }
         entry.target = target;
       }
     }

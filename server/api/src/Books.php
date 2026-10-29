@@ -258,6 +258,77 @@ final class Books
         Http::json(201, ['entry' => $entry, 'spreadId' => $spreadId]);
     }
 
+    /**
+     * PUT /editor/books/{id}/spreads/{spreadId} { title?, format? } → { spread }: a spread's title and format
+     * (`spread` | `cover` | `back`, content schema 2.3). The pages stay – a cover is page 0, the back the page after
+     * the last; `format: cover` on a spread with other pages is refused.
+     */
+    public static function putSpread(string $bookId, string $spreadId): never
+    {
+        $user = Editor::user();
+        self::book($bookId);
+        $body = Editor::body();
+        $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
+        if (!$row) throw new ApiError(404, 'not-found', 'No such spread.');
+        $spread = Editor::decode($row['data_json']);
+        $touched = false;
+        if (property_exists($body, 'title')) {
+            if (!is_string($body->title) || trim($body->title) === '') throw new ApiError(400, 'invalid-spread', 'title must be a non-empty string.');
+            $spread->title = trim($body->title);
+            $touched = true;
+        }
+        if (property_exists($body, 'format')) {
+            $format = $body->format ?? 'spread';
+            if (!in_array($format, self::FORMATS, true)) throw new ApiError(400, 'invalid-spread', 'format must be one of ' . implode(', ', self::FORMATS) . '.');
+            if ($format === 'cover' && ((int) $row['first_page'] !== 0 || (int) $row['last_page'] !== 0)) throw new ApiError(400, 'invalid-spread', 'A cover is page 0 – add it with POST …/spreads { format: "cover" }.');
+            if ($format === 'spread') unset($spread->format);
+            else $spread->format = $format;
+            $touched = true;
+        }
+        if (!$touched) throw new ApiError(400, 'invalid-spread', 'Send { title } and / or { format }.');
+        $json = Editor::encode($spread);
+        Db::transaction(function () use ($bookId, $spreadId, $spread, $json, $row, $user) {
+            Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', ['title' => $spread->title, 'data' => $json, 'book' => $bookId, 'id' => $spreadId]);
+            self::touch($bookId);
+            self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], $json);
+        });
+        Http::json(200, ['spread' => $spread]);
+    }
+
+    /**
+     * POST /editor/books/{id}/spreads { format: "cover" | "back", title? } → 201 { spread }: the front cover (page 0,
+     * first in order) or the back cover (the page after the last, last in order). 409 `duplicate-id` when the book
+     * has one.
+     */
+    public static function addSpread(string $bookId): never
+    {
+        $user = Editor::user();
+        self::book($bookId);
+        $body = Editor::body();
+        $format = $body->format ?? null;
+        if (!in_array($format, ['cover', 'back'], true)) throw new ApiError(400, 'invalid-spread', 'format must be cover or back.');
+        $id = $format;
+        if (Db::one('SELECT id FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $id])) throw new ApiError(409, 'duplicate-id', "The book has a $format spread.");
+        $title = is_string($body->title ?? null) && trim($body->title) !== '' ? trim($body->title) : ($format === 'cover' ? 'Cover' : 'Back cover');
+        $last = (int) Db::value('SELECT COALESCE(MAX(last_page), 0) FROM spreads WHERE book_id = :book', ['book' => $bookId]);
+        $page = $format === 'cover' ? 0 : $last + 1;
+        $position = $format === 'cover'
+            ? (int) Db::value('SELECT COALESCE(MIN(position), 0) - 1 FROM spreads WHERE book_id = :book', ['book' => $bookId])
+            : (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM spreads WHERE book_id = :book', ['book' => $bookId]);
+        $spread = (object) ['id' => $id, 'title' => $title, 'firstPage' => $page, 'lastPage' => $page, 'format' => $format];
+        $json = Editor::encode($spread);
+        Db::transaction(function () use ($bookId, $id, $position, $title, $page, $json, $user) {
+            Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
+                ['book' => $bookId, 'id' => $id, 'position' => $position, 'title' => $title, 'first' => $page, 'last' => $page, 'data' => $json]);
+            self::touch($bookId);
+            self::change($bookId, $user, 'spread', $id, null, $json);
+        });
+        Http::json(201, ['spread' => $spread]);
+    }
+
+    /** The spread formats of the content contract (shared/types/game-config.ts `SPREAD_FORMATS`) */
+    public const FORMATS = ['spread', 'cover', 'back'];
+
     /** DELETE /editor/books/{id}/entries/{entryId} → 204: the entry and its target go (changes recorded) */
     public static function deleteEntry(string $bookId, string $entryId): never
     {
@@ -452,7 +523,7 @@ final class Books
         if (!$entitiesIn instanceof stdClass) $fail('entities must be an object.');
         $tutorial = $c->tutorial ?? [];
         if (!is_array($tutorial)) $fail('tutorial must be an array.');
-        // The book's compiled plugins (content schema 2.3): kept as declared – the content build is their one writer
+        // The book's compiled plugins (content schema 2.4): kept as declared – the content build is their one writer
         $plugins = $c->plugins ?? [];
         if (!is_array($plugins)) $fail('plugins must be an array.');
         foreach ($plugins as $i => $plugin) {

@@ -229,7 +229,7 @@ target:
         loop: false
 ```
 
-**Plugins – the book's own code** (content schema 2.3, `agents/research/2026-10-29-code-in-the-editor.md`): a
+**Plugins – the book's own code** (content schema 2.4, `agents/research/2026-10-29-code-in-the-editor.md`): a
 folder `content/plugins/<id>/` with an `index.ts` that exports `register(api)`. The content build type-checks it
 against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin imports nothing but types – three.js is
 `api.three`), runs it once to learn what it registers, and declares it in the configuration (`plugins: [{ id, src,
@@ -260,9 +260,25 @@ target:
         opacity: 0.35
 ```
 
+**The covers** (content schema 2.3): a spread has a **format** – `spread` (a double page, the default), `cover`
+(the front cover) or `back` (the back cover). The covers have no page number: the cover spread is **page 0**, the
+back spread the page after the last printed one; an entry on that page belongs to it. Its targets are printed on the
+surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
+any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
+
+```yaml
+# content/spreads/cover/spread.yaml
+title: Cover
+order: -1
+firstPage: 0
+lastPage: 0
+format: cover
+```
+
 **Where a target is printed** (`print`, optional, content schema 2.1): targets made in the editor carry their
-printed place – `surface: left | right`, `x`, `y`, `width` in mm from the page's top left corner, optional `height`
-and `page` – so the editor's stage lays them out without the book's layout. The content build does not need it.
+printed place – `surface: left | right` (the pages of a double page) or `front | back` (the covers), `x`, `y`, `width` in mm from the
+surface's top left corner, optional `height` and `page` – so the editor's stage lays them out without the book's
+layout. The content build does not need it.
 
 **Several targets on the same page:** one entry each – there is no order to keep and nothing to
 compile (max 10 targets per spread). An older `order:` under `target` is ignored.

@@ -1,5 +1,5 @@
 /**
- * Plugins: the book's own code as content (content schema 2.3, agents/research/2026-10-29-code-in-the-editor.md).
+ * Plugins: the book's own code as content (content schema 2.4, agents/research/2026-10-29-code-in-the-editor.md).
  * A plugin is a folder `plugins/<id>/` of the content source with an `index.ts` that exports `register(api)`; the
  * content build type-checks and bundles it into `plugins/<id>/plugin.js` of the build output and declares it here.
  * The engine loads every declared plugin before it builds the first spread and hands it the plugin API

@@ -13,7 +13,7 @@ build` type-checks every plugin against the plugin API (`tsc`, the engine's `plu
 like every other content error), bundles it with esbuild into `plugins/<id>/plugin.js` in the build output (the
 immutable version folder, cached and rolled back with the content), runs the compiled module once with a recording
 API to learn the components and layers it registers – so the build checks the nodes that use them, as it checks
-`animation` – and declares it in `game.config.json`: `plugins: [{ id, src }]` (content schema 2.3, an optional
+`animation` – and declares it in `game.config.json`: `plugins: [{ id, src }]` (content schema 2.4, an optional
 field). The engine loads the declared plugins before it builds the first spread and calls `register(api)`; a book
 without plugins downloads nothing. The import into the editor keeps the list as imported, so a publish carries the
 same compiled plugins the content build made.

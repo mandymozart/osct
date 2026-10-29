@@ -38,6 +38,7 @@ export const schemas: Record<string, Schema> = {
       order: { type: "Number", required: false, default: 0 },
       firstPage: { type: "Number", required: true },
       lastPage: { type: "Number", required: true },
+      format: { type: "String", required: false, enum: ["spread", "cover", "back"] }, // the covers: page 0, and the page after the last
     },
   },
 
@@ -66,6 +67,7 @@ export const schemas: Record<string, Schema> = {
       id: { type: "String", required: false }, // defaults to the entry id
       image: { type: "String", required: true },
       entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
+      print: { type: "Object", required: false }, // where it is printed: { surface, x, y, width, height? } in mm (schema 2.1)
     },
   },
 
