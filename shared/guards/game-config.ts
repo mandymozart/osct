@@ -21,6 +21,7 @@ import { passProblems } from "../types/passes";
 import { pluginProblems } from "../types/plugins";
 import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
+import { lightProblems } from "../types/lights";
 import { placementProblems } from "../types/placement";
 
 const oneOf = <T extends string>(values: readonly T[]) =>
@@ -98,7 +99,14 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       else if (depth >= MAX_NODE_DEPTH) fail(`${path}.children`, `nested deeper than ${MAX_NODE_DEPTH} levels`);
       else e.children.forEach((child, i) => entity(child, `${path}.children[${i}]`, depth + 1));
     }
-    if (!isEntityType(e.type)) fail(`${path}.type`, `"${e.type}" is not one of ${ENTITY_TYPES.join(", ")}`);
+    // A node type this contract does not know is a later MINOR's: the engine renders nothing for it and keeps its
+    // children (the content build and the editor's API refuse it – an author's typo never gets this far)
+    if (typeof e.type !== "string" || e.type === "") fail(`${path}.type`, `expected a node type (${ENTITY_TYPES.join(", ")})`);
+    else if (!isEntityType(e.type)) console.warn(`[game-config] ${path}.type: "${e.type}" is not a node type this app knows (${ENTITY_TYPES.join(", ")}) – it renders nothing, its children stay`);
+    if (e.light !== undefined) {
+      if (e.type !== "light") fail(`${path}.light`, "only light nodes have a light");
+      lightProblems(e.light, `${path}.light`).forEach(problem => problems.push(problem));
+    }
     arr(e, "assets", path).forEach((a, i) => {
       const asset = obj(a, `${path}.assets[${i}]`);
       if (!asset) return;

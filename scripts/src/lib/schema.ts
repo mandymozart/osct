@@ -81,10 +81,11 @@ export const schemas: Record<string, Schema> = {
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts
-      children: { type: "Array", required: false }, // nodes: { type, src?, params?, filters?, children?, text?, color? }
+      children: { type: "Array", required: false }, // nodes: { type, src?, params?, filters?, children?, text?, color?, light? }
       components: { type: "Array", required: false }, // [{ type, ...parameters }], see shared/types/components.ts
       text: { type: "String", required: false }, // text nodes
       color: { type: "String", required: false }, // text nodes, #rrggbb
+      light: { type: "Object", required: false }, // light nodes: { kind, color, intensity, … }, see shared/types/lights.ts
     },
   },
 

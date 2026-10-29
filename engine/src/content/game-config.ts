@@ -13,7 +13,7 @@
  * loaded version, so the rest of the app never knows where the content comes from.
  */
 import { assertGameConfiguration, GameConfigurationError, GuardOptions, isEntityRef } from '@shared/guards/game-config';
-import { CONTENT_SCHEMA_VERSION, parseContentSchema } from '@shared/types/game-config';
+import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
 import { ContentFiles, ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
   AssetData,
@@ -76,8 +76,9 @@ const DEFAULT_TEXTS: LoadTexts = {
 export const checkContentCompatibility = (version: ConfigurationVersion, texts: LoadTexts = DEFAULT_TEXTS): ErrorInfo | null => {
   const app = parseContentSchema(CONTENT_SCHEMA_VERSION);
   const content = parseContentSchema(version.schema);
-  // Schema 1.x content is a 2.0 tree of one node per entity: this app reads it as it is
-  if (app && content && (content.major === app.major || (app.major === 2 && content.major === 1))) {
+  // Every MAJOR so far only added (the node tree, the light node): this app reads older content as it is, down to
+  // the oldest MAJOR the contract still knows
+  if (app && content && content.major <= app.major && content.major >= OLDEST_READABLE_SCHEMA_MAJOR) {
     if (content.major !== app.major || content.minor !== app.minor) {
       console.info(`[game-config] Content schema ${version.schema}, this app reads ${CONTENT_SCHEMA_VERSION} – compatible.`);
     }

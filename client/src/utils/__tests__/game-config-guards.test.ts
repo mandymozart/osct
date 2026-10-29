@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   assertGameConfiguration,
   GameConfigurationError,
@@ -59,15 +59,38 @@ describe("game configuration guards", () => {
   it("report every problem with its path", () => {
     const config = valid() as any;
     config.entries[0].category = "poems";
-    config.entries[1].target.entity.type = "hologram";
+    config.entries[1].target.entity.type = 42;
     config.entries[1].target.entity.assets[0].assetType = "pdf";
     delete config.spreads[0].title;
 
     expect(problemsOf(config)).toEqual([
       'spreads[0].title: expected a non-empty string',
       'entries[0].category: "poems" is not one of glossary, video, text, link',
-      'entries[1].target.entity.type: "hologram" is not one of group, model, video, image, text',
+      'entries[1].target.entity.type: expected a node type (group, model, video, image, text, light)',
       'entries[1].target.entity.assets[0].assetType: "pdf" is not one of glb, gltf, video, image, audio',
+    ]);
+  });
+
+  it("lets a node type of a later schema pass (the engine renders nothing for it, keeps its children)", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const config = valid() as any;
+    config.entries[1].target.entity.type = "hologram";
+    expect(problemsOf(config)).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"hologram" is not a node type this app knows'));
+    warn.mockRestore();
+  });
+
+  it("check a light node's values against their definitions", () => {
+    const config = valid() as any;
+    config.entries[1].target.entity = { type: "light", assets: [], light: { kind: "spot", color: "#ff8800", angle: 25 } };
+    expect(problemsOf(config)).toEqual([]);
+    config.entries[1].target.entity.light = { kind: "laser", intensity: -1, size: 3 };
+    config.entities.castle.light = { kind: "point" };
+    expect(problemsOf(config)).toEqual([
+      'entities.castle.light: only light nodes have a light',
+      'entries[1].target.entity.light.kind: expected one of point, spot, directional, got "laser"',
+      'entries[1].target.entity.light.intensity: expected a number from 0 to 10, got -1',
+      'entries[1].target.entity.light.size: unknown light parameter (kind, color, intensity, distance, decay, angle, penumbra)',
     ]);
   });
 
