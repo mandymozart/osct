@@ -495,7 +495,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
 | 2.4 | 1.11.0 | in develop | plugins – the book's own code, compiled by the content build (plugin API 1.0) |
 | 2.5 | 1.12.0 | in develop | post-processing passes |
-| 2.6 | 1.13.0 | in develop | light nodes; an unknown node type passes the guard |
+| 2.6 | 1.13.0 | in develop | light nodes: point, spot and directional lights as a node type |
 | 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
