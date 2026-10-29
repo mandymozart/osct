@@ -6,7 +6,7 @@ book layout"). An external tool like ffmpeg for the videos: Python 3 with PyMuPD
 
 Reads
   - the preview PDF (every sheet of the book as laid out: covers as single pages, the rest as double pages)
-    → one JPEG per sheet in <content>/layout/sheets/ (long side --width px, 1400 by default),
+    → one JPEG per sheet in <content>/layout/sheets/ (--width px wide) and a sharper `<sheet>@sharp.jpg` (--sharp-width),
   - the trigger PDF (one page per double page, every printed trigger as an image at its printed position and size)
     → the printed geometry of every target in mm from the top left corner of its page,
 and matches both to the content: sheets by the page numbers printed on them, trigger images to the targets of that
@@ -87,10 +87,10 @@ def page_numbers(page) -> dict:
     return numbers
 
 
-def render(page, path: str, width_px: int) -> tuple[int, int]:
+def render(page, path: str, width_px: int, quality: int = 78) -> tuple[int, int]:
     zoom = width_px / page.rect.width
     pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
-    pix.save(path, jpg_quality=78)
+    pix.save(path, jpg_quality=quality)
     return pix.width, pix.height
 
 
@@ -100,6 +100,9 @@ def main() -> int:
     parser.add_argument("--preview", required=True, help="the book preview PDF (every sheet)")
     parser.add_argument("--content", required=True, help="the content source folder (OSCT_CONTENT_DIR)")
     parser.add_argument("--width", type=int, default=1200, help="pixel width of a rendered double page")
+    parser.add_argument("--sharp-width", type=int, default=4096,
+                        help="pixel width of the sharper image of a double page (0 = none); the editor fetches it only "
+                             "when the camera is close to the page. Kept at 4096 so every GPU can hold it")
     args = parser.parse_args()
 
     spreads, targets = read_content(args.content)
@@ -128,8 +131,13 @@ def main() -> int:
             name = f"{kind}-{index + 1:03d}"
         file = f"sheets/{name}.jpg"
         width_px, height_px = render(page, os.path.join(out_dir, file), args.width if not single else args.width // 2)
+        sharp = {}
+        if args.sharp_width:
+            sharp_file = f"sheets/{name}@sharp.jpg"
+            sharp_px, sharp_height = render(page, os.path.join(out_dir, sharp_file), args.sharp_width if not single else args.sharp_width // 2, 82)
+            sharp = {"imageSharp": sharp_file, "widthPxSharp": sharp_px, "heightPxSharp": sharp_height}
         sheets.append({
-            "id": name, "kind": kind, "pages": pages, "image": file,
+            "id": name, "kind": kind, "pages": pages, "image": file, **sharp,
             "widthMm": width_mm, "heightMm": height_mm, "widthPx": width_px, "heightPx": height_px,
             "surfaces": ["front"] if kind == "cover-front" else ["back"] if kind == "cover-back" else ["left", "right"],
             "pdfPage": index + 1,

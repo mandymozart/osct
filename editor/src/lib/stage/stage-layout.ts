@@ -21,6 +21,8 @@ export interface LayoutSheet {
   pages: number[];
   /** Image path inside `layout/` */
   image: string;
+  /** A much sharper image of the same sheet (`sheets/<id>@sharp.jpg`), fetched by the stage only when the camera is close */
+  imageSharp?: string;
   widthMm: number;
   heightMm: number;
   widthPx: number;
@@ -69,6 +71,9 @@ export const printedPlaceOf = (layout: StageLayout | null, targetId: string): Pr
 
 /** URL of a sheet's image */
 export const sheetImageUrl = (sheet: LayoutSheet): string => contentUrl(`${LAYOUT_PATH}${sheet.image}`);
+
+/** URL of a sheet's sharper image, undefined when the layout has none */
+export const sheetSharpImageUrl = (sheet: LayoutSheet): string | undefined => (sheet.imageSharp ? contentUrl(`${LAYOUT_PATH}${sheet.imageSharp}`) : undefined);
 
 /** The sheet that shows a spread's pages (the one with its first page, else its last), null when there is none */
 export const sheetForSpread = (layout: StageLayout | null, spread: Pick<Spread, "firstPage" | "lastPage" | "format"> | undefined): LayoutSheet | null => {
