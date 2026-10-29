@@ -302,7 +302,7 @@
       <a href="{base}/{bookId}/" class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
       <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
       <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
-      <span class="spread-title"><span class="muted">{spread?.format === "cover" || spread?.format === "back" ? "" : "p."}</span> {spread?.title ?? spreadId}</span>
+      <span class="grow"></span>
       {#if spread && spread.firstPage === spread.lastPage}
         <select class="field format" aria-label="Spread format" title="What this spread is: a double page, the front cover or the back cover" value={spread.format ?? "spread"}
           onchange={e => void setFormat((e.currentTarget as HTMLSelectElement).value as (typeof FORMATS)[number])}>
@@ -360,7 +360,6 @@
   .pick-chip::before { content: ""; width: .875rem; height: .875rem; border-radius: 50%; border: 1px solid var(--line); background: var(--c); }
   .panel { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--line); color: var(--text); }
   .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
-  .bar .spread-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 .25rem; }
   .bar .tab { padding: 0 .5rem; }
   .bar .format { height: 1.5rem; padding: 0 .25rem; font-size: var(--text-small); }
   .bar .tab.on { background: var(--surface); }
