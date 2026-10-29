@@ -303,23 +303,28 @@ final class Books
     }
 
     /**
-     * PUT /editor/books/{id}/environment { environment: { world, onionSky } | null } → 200 { environment }: the world
-     * around the reader and the onion sky (content schema 2.8, shared/types/environment.ts). `null` removes it – the
-     * default applies. Book-level only; the reader's Graphics switches still apply on top.
+     * PUT /editor/books/{id}/environment { environment: { world, onionSky, worldSrc?, skySrc? } | null } → 200
+     * { environment }: the world around the reader and the onion sky (content schema 2.8; the world model and the sky
+     * image as asset references 2.9, shared/types/environment.ts). `null` removes it – the default applies. Book-level
+     * only; the reader's Graphics switches still apply on top.
      */
     public static function putEnvironment(string $bookId): never
     {
         $user = Editor::user();
         $row = self::book($bookId);
         $body = Editor::body();
-        if (!property_exists($body, 'environment')) throw new ApiError(400, 'invalid-environment', 'Send { environment: { world, onionSky } } or { environment: null }.');
+        if (!property_exists($body, 'environment')) throw new ApiError(400, 'invalid-environment', 'Send { environment: { world, onionSky, worldSrc?, skySrc? } } or { environment: null }.');
         $book = Editor::decode($row['book_json']);
         if ($body->environment === null) {
             unset($book->environment);
         } else {
             $problems = self::environmentProblems($body->environment);
             if ($problems) throw new ApiError(400, 'invalid-environment', $problems[0]);
-            $book->environment = (object) ['world' => $body->environment->world, 'onionSky' => $body->environment->onionSky];
+            $environment = ['world' => $body->environment->world, 'onionSky' => $body->environment->onionSky];
+            foreach (['worldSrc', 'skySrc'] as $key) {
+                if (isset($body->environment->{$key})) $environment[$key] = $body->environment->{$key};
+            }
+            $book->environment = (object) $environment;
         }
         $json = Editor::encode($book);
         Db::transaction(function () use ($bookId, $json, $row, $user) {
@@ -330,15 +335,28 @@ final class Books
         Http::json(200, ['environment' => $book->environment ?? null]);
     }
 
-    /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`); [] when valid */
+    /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`, strict); [] when valid */
     public static function environmentProblems(mixed $value): array
     {
         if (!$value instanceof stdClass) return ['environment must be an object { world, onionSky }.'];
         $problems = [];
         if (!in_array($value->world ?? null, self::WORLDS, true)) $problems[] = 'environment.world must be one of ' . implode(', ', self::WORLDS) . '.';
         if (!is_bool($value->onionSky ?? null)) $problems[] = 'environment.onionSky must be true or false.';
+        $references = ['worldSrc' => ['a glTF model', self::WORLD_MODEL_EXTENSIONS], 'skySrc' => ['an equirectangular image', self::SKY_IMAGE_EXTENSIONS]];
+        foreach ($references as $key => [$what, $extensions]) {
+            if (!property_exists($value, $key)) continue;
+            $reference = $value->{$key};
+            if (!is_string($reference) || !(str_starts_with($reference, '/assets/content/') || preg_match('#^https?://[^/]+/#', $reference))) {
+                $problems[] = "environment.$key must be a content path (/assets/content/…) or an absolute URL of $what.";
+                continue;
+            }
+            $path = preg_split('/[?#]/', $reference)[0];
+            $dot = strrpos($path, '.');
+            $extension = $dot !== false && $dot > (int) strrpos($path, '/') ? strtolower(substr($path, $dot)) : '';
+            if (!in_array($extension, $extensions, true)) $problems[] = "environment.$key must be $what (" . implode(', ', $extensions) . ').';
+        }
         foreach (array_keys(get_object_vars($value)) as $key) {
-            if (!in_array($key, ['world', 'onionSky'], true)) $problems[] = "environment.$key is not a field of the environment.";
+            if (!in_array($key, ['world', 'onionSky', 'worldSrc', 'skySrc'], true)) $problems[] = "environment.$key is not a field of the environment.";
         }
         return $problems;
     }
@@ -381,6 +399,9 @@ final class Books
     public const PASS_TYPES = ['bloom', 'vignette', 'grade'];
     /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
     public const WORLDS = ['cafe'];
+    /** The files a world model and a sky may be (shared/types/environment.ts WORLD_MODEL_EXTENSIONS, SKY_IMAGE_EXTENSIONS) */
+    public const WORLD_MODEL_EXTENSIONS = ['.glb', '.gltf'];
+    public const SKY_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
     /**
      * A `passes` list as the content holds it: every pass an object with a built-in `type` and scalar parameters (the

@@ -1,7 +1,7 @@
-import { Box3, Group, Matrix4, Vector3 } from "three";
+import { Box3, Group, Matrix4, Quaternion, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, PassData, SceneInspection, SceneState, Target } from "../types/index";
 import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
-import { environmentOf } from "@shared/types/environment";
+import { EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
@@ -40,6 +40,15 @@ export interface ArSceneOptions {
   progress?: ProgressReader;
 }
 
+/**
+ * The editor's preview of the book's environment (`ArScene.previewEnvironment`): the values being edited, and the
+ * camera's orientation in the world (y up) that turns the world instead of the gyroscope
+ */
+export interface EnvironmentPreview {
+  environment: EnvironmentData;
+  orientation: () => Quaternion;
+}
+
 /** A tap this close to an entity's on-screen bounds still hits it (small models) */
 const TAP_MARGIN_PX = 24;
 
@@ -71,6 +80,7 @@ export class ArScene implements IArScene {
   private view: ArView | null = null;
   /** The world around the reader + its sky (3DoF, anchored to the book) (off per the reader's graphics options) */
   private lookAround: LookAround | null = null;
+  private environmentPreview: EnvironmentPreview | null = null;
   private tracker: IImageTracker | null = null;
   private assets = new AssetStore();
   private content: SpreadContent | null = null;
@@ -123,7 +133,24 @@ export class ArScene implements IArScene {
 
   refresh(): Promise<void> {
     this.stale = true;
+    this.lookAround?.setEnvironment(this.environment());
     return this.reconcile();
+  }
+
+  /**
+   * The editor's environment preview (not part of `IArScene` – the reader never previews): the look-around world drawn
+   * with these values instead of the book's, whatever the graphics switches say, turned by the preview's orientation;
+   * `null` ends it (the book's environment and the switches again)
+   */
+  previewEnvironment(preview: EnvironmentPreview | null): void {
+    this.environmentPreview = preview;
+    this.lookAround?.setPreview(preview ? { orientation: preview.orientation } : null);
+    this.lookAround?.setEnvironment(this.environment());
+  }
+
+  /** The environment the look-around draws: the editor's preview, else the book's */
+  private environment(): EnvironmentData {
+    return this.environmentPreview?.environment ?? environmentOf(getBook());
   }
 
   /** The unlock animation (first find – called by the bridge right after `targetFound`; replaces the reveal) */
@@ -267,7 +294,8 @@ export class ArScene implements IArScene {
       this.view.setPostProcessing(this.postProcessing);
       this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: this.view.scene });
       this.view.resize();
-      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, environmentOf(getBook()));
+      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
+      if (this.environmentPreview) this.lookAround.setPreview({ orientation: this.environmentPreview.orientation });
       this.view.underlay = this.lookAround;
       // A simulated tracker's stage is drawn every frame (the page is always in view)
       this.view.needsRender = () =>

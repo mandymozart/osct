@@ -5,6 +5,7 @@
   import Icon from "$lib/components/Icon.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
   import AssetThumb from "./AssetThumb.svelte";
+  import { fitsSlot, type EnvironmentSlot } from "$lib/environment.svelte";
 
   /**
    * The book's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
@@ -13,9 +14,10 @@
    * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter by kind, search name and place;
    * **Upload** (the button, or files dropped anywhere on the panel); per asset **Use** (the selected node takes the
    * file, when its type fits; an image can also become the selected target's printed image), **Replace…** (a new
-   * version, every use relinked) and **Delete** (refused while used – *Delete anyway* forces it).
+   * version, every use relinked) and **Delete** (refused while used – *Delete anyway* forces it). While the Environment
+   * tab picks a file (`environmentSlot`), a fitting asset has a **World** / **Sky** button and the kind filter starts there.
    */
-  let { bookId, nodeType, targetId, onuse, onusetarget, onchanged }: {
+  let { bookId, nodeType, targetId, onuse, onusetarget, onchanged, environmentSlot = null, onuseenvironment }: {
     bookId: string;
     /** The selected node's type (its file kind) – null without a node */
     nodeType: string | null;
@@ -27,11 +29,19 @@
     onusetarget: (asset: Asset) => Promise<void>;
     /** A replace changed the draft (uses relinked): the content should reload */
     onchanged: () => Promise<void>;
+    /** The environment's file being picked (the Environment tab's *Library…*), null = none */
+    environmentSlot?: EnvironmentSlot | null;
+    /** The environment takes this asset for the slot */
+    onuseenvironment?: (slot: EnvironmentSlot, asset: Asset) => void;
   } = $props();
 
   const KINDS = ["all", "model", "video", "image", "audio"] as const;
   type KindFilter = (typeof KINDS)[number];
   let kind = $state<KindFilter>("all");
+  // Picking for the environment: the kind that fits first
+  $effect(() => {
+    if (environmentSlot) kind = environmentSlot === "world" ? "model" : "image";
+  });
   let search = $state("");
   let fileInput = $state<HTMLInputElement>();
   let replaceInput = $state<HTMLInputElement>();
@@ -101,6 +111,10 @@
 </script>
 
 {#snippet actions(asset: Asset)}
+  {#if environmentSlot && fitsSlot(asset, environmentSlot)}
+    <button type="button" class="pill primary" title={environmentSlot === "world" ? "The world around the reader" : "The sky of the world around the reader"}
+      onclick={() => onuseenvironment?.(environmentSlot, asset)}>{environmentSlot === "world" ? "World" : "Sky"}</button>
+  {/if}
   <button type="button" class="pill" disabled={!fits(asset)} title={fits(asset) ? "The selected node takes this file" : nodeType ? `A ${nodeType} node takes no ${asset.kind}` : "Select a node first"} onclick={() => onuse(asset)}>Use</button>
   {#if asset.kind === "image" && targetId}
     <button type="button" class="pill" title="The selected target's printed image" onclick={() => void onusetarget(asset)}>Target image</button>
@@ -121,6 +135,9 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="library" class:dragging ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop}>
+  {#if environmentSlot}
+    <div class="row"><span class="small muted">Picking the environment's {environmentSlot === "world" ? "world – a glTF model" : "sky – an equirectangular jpg, png or webp"}: its <b>{environmentSlot === "world" ? "World" : "Sky"}</b> button takes it.</span></div>
+  {/if}
   <div class="row"><span class="label">kind</span>
     <span class="controls"><Segmented options={KINDS} value={kind} onchange={k => (kind = k)} /></span></div>
   <div class="row"><span class="label">search</span>

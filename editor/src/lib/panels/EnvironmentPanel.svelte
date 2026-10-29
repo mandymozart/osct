@@ -1,75 +1,127 @@
 <script lang="ts">
-  import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, environmentOf, type EnvironmentData } from "@shared/types/environment";
-  import { putEnvironment } from "$lib/api";
+  import { environmentEdit, fitsSlot, type EnvironmentSlot } from "$lib/environment.svelte";
+  import { library } from "$lib/library.svelte";
+  import { content } from "$lib/content.svelte";
+  import type { Stage } from "$lib/stage/stage.svelte";
+  import ScrubNumber from "$lib/components/ScrubNumber.svelte";
+  import Segmented from "$lib/components/Segmented.svelte";
 
   /**
-   * The book's **environment** (content schema 2.8): the world around the reader while scanning and the onion sky –
-   * book-level only. The reader's Graphics switches (Info → Settings) still apply on top. *Save* writes it to the book's
-   * draft through the editor API; *Use the default* removes it, and the café with the onion sky applies again.
+   * The book's **environment** on the stage (content schema 2.8 / 2.9): the world around the reader while scanning, its
+   * sky and the onion sky. While this tab is open the stage shows the engine's look-around world with the values being
+   * edited, under the desk and the book, turned by the view (*look up* raises the camera from the book to the horizon).
+   * **World**: the built-in café, or a glTF model from the Library (or uploaded here); **sky**: the world's own, or an
+   * equirectangular image. *Library…* opens the Library to pick one (its *World* / *Sky* button); **Save** writes the
+   * environment to the draft, *Back to the draft* undoes, *Use the default* removes it (the café with the onion sky).
+   * Book-level only; the reader's Graphics switches (Info → Settings) still apply on top.
    */
-  let { bookId, saved, onsaved }: { bookId: string; saved: EnvironmentData | undefined; onsaved: () => Promise<void> } = $props();
+  let { stage, bookId, onlibrary }: { stage: Stage | null; bookId: string; onlibrary: (slot: EnvironmentSlot) => void } = $props();
 
-  const WORLD_LABELS: Record<string, string> = { cafe: "café" };
-  const current = $derived(environmentOf({ environment: saved }));
+  const edit = environmentEdit;
+  const ACCEPT: Record<EnvironmentSlot, string> = { world: ".glb,.gltf", sky: ".jpg,.jpeg,.png,.webp" };
+  const BUILT_IN: Record<EnvironmentSlot, string> = { world: "café (built-in)", sky: "the world's" };
+  const SOURCE: Record<EnvironmentSlot, "worldSrc" | "skySrc"> = { world: "worldSrc", sky: "skySrc" };
 
-  let world = $state<string>(DEFAULT_ENVIRONMENT.world);
-  let onionSky = $state(DEFAULT_ENVIRONMENT.onionSky);
-  let busy = $state(false);
-  let error = $state<string | null>(null);
+  let lookUp = $state(0);
+  let notice = $state<string | null>(null);
+  let inputs = $state<Partial<Record<EnvironmentSlot, HTMLInputElement>>>({});
 
-  // The saved values, also after a reload from the server (the draft's book, not the edits in progress)
   $effect(() => {
-    world = current.world;
-    onionSky = current.onionSky;
+    void edit.load(bookId);
+    if (library.bookId !== bookId) void library.load(bookId);
   });
+  $effect(() => stage?.setLookUp(lookUp));
 
-  const dirty = $derived(world !== current.world || onionSky !== current.onionSky);
+  /** A slot's file as a name: the library's, else the URL's last part */
+  const nameOf = (url: string): string => library.byUrl(url)?.name ?? decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() ?? url);
 
-  const save = async (environment: EnvironmentData | null) => {
-    busy = true;
-    error = null;
+  const upload = async (slot: EnvironmentSlot, files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    notice = null;
     try {
-      await putEnvironment(bookId, environment);
-      await onsaved();
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      const asset = await library.upload(bookId, file);
+      if (!fitsSlot(asset, slot)) {
+        notice = `${asset.name} is no ${slot === "world" ? "glTF model" : "jpg, png or webp image"} – it stays in the Library`;
+        return;
+      }
+      edit.use(slot, asset.url);
+    } catch {
+      // the library shows the error
     } finally {
-      busy = false;
+      const input = inputs[slot];
+      if (input) input.value = "";
     }
+  };
+
+  const afterSave = async (ok: boolean) => {
+    if (!ok) return;
+    notice = "Saved";
+    // The draft carries it now: the stage builds from it (the preview keeps showing the same values)
+    await content.load(bookId);
+    await stage?.refresh();
+    void library.refresh();
   };
 </script>
 
-<section class="environment">
-  <div class="head">
-    <span class="section-label">environment</span>
-    <span class="small muted">{saved ? "this book's" : "the default"} · the reader's Graphics switches still apply</span>
+<div class="section"><span class="section-label">environment</span>
+  <span class="small muted">{edit.saved ? "this book's" : "the default"} · the reader's Graphics switches still apply</span></div>
+
+{#snippet slotRow(slot: EnvironmentSlot)}
+  {@const src = edit.edited[SOURCE[slot]]}
+  <div class="row" class:changed={(src ?? null) !== (edit.saved?.[SOURCE[slot]] ?? null)}>
+    <span class="label">{slot}</span>
+    <span class="controls">
+      <span class="file" class:muted={!src} title={src ?? ""}>{src ? nameOf(src) : BUILT_IN[slot]}</span>
+      <button type="button" class="pill" class:on={edit.picking === slot} aria-pressed={edit.picking === slot}
+        title={slot === "world" ? "Pick a glTF model in the Library (its World button)" : "Pick an equirectangular image in the Library (its Sky button)"}
+        onclick={() => onlibrary(slot)}>Library…</button>
+      <button type="button" class="pill" onclick={() => inputs[slot]?.click()}>Upload</button>
+      <input bind:this={inputs[slot]} type="file" accept={ACCEPT[slot]} hidden onchange={e => void upload(slot, (e.currentTarget as HTMLInputElement).files)} />
+      {#if src}<button type="button" class="text-link" title="Back to the {BUILT_IN[slot]}" onclick={() => edit.use(slot, null)}>remove</button>{/if}
+    </span>
   </div>
-  <div class="row">
-    <span class="label">world</span>
-    <select bind:value={world} aria-label="world">
-      {#each ENVIRONMENT_WORLDS as name (name)}<option value={name}>{WORLD_LABELS[name] ?? name}</option>{/each}
-    </select>
-  </div>
-  <div class="row">
-    <span class="label">onion sky</span>
-    <label class="check"><input type="checkbox" bind:checked={onionSky} /> looking up, the world's sky</label>
-  </div>
+{/snippet}
+
+{@render slotRow("world")}
+{@render slotRow("sky")}
+<div class="row" class:changed={edit.edited.onionSky !== (edit.saved?.onionSky ?? true)}>
+  <span class="label">onion sky</span>
+  <span class="controls">
+    <Segmented options={["on", "off"] as const} value={edit.edited.onionSky ? "on" : "off"}
+      titles={{ on: "Looking up, sky-like parts of the camera picture show the world's sky", off: "The camera picture's sky stays" }}
+      onchange={value => edit.set({ onionSky: value === "on" })} />
+  </span>
+</div>
+{#if library.error}<div class="row"><span class="small danger">{library.error}</span></div>{/if}
+{#if library.uploading.length}<div class="row"><span class="small muted">Uploading {library.uploading.join(", ")}…</span></div>{/if}
+
+<div class="section"><span class="section-label">preview</span></div>
+<div class="row" title="Raise the camera from the book towards the horizon and the sky">
+  <span class="label">look up</span>
+  <span class="w"><ScrubNumber value={lookUp} min={-30} max={90} step={1} fallback={0} unit="°" label="look up" strict oninput={v => (lookUp = v)} /></span>
+</div>
+<p class="small muted note">The stage shows the reader's look-around pass – the world anchored to the book, the window around it and the clear floor –
+  turned by the view. The onion sky needs a camera picture: only the reader shows it.</p>
+
+{#if edit.dirty || edit.saved || notice || edit.error}
   <div class="actions">
-    {#if saved}<button type="button" class="text-link" disabled={busy} onclick={() => save(null)}>Use the default</button>{/if}
+    <button type="button" class="text-link" onclick={() => { edit.revert(); notice = null; }} disabled={!edit.dirty}>Back to the draft</button>
+    {#if edit.saved}<button type="button" class="text-link" disabled={edit.saving} onclick={async () => afterSave(await edit.save(null))}>Use the default</button>{/if}
     <span class="grow"></span>
-    {#if error}<span class="small danger">{error}</span>{/if}
-    <button type="button" class="pill primary" disabled={!dirty || busy} onclick={() => save({ world: world as EnvironmentData["world"], onionSky })}>
-      {busy ? "Saving…" : "Save"}
+    {#if notice}<span class="small muted">{notice}</span>{/if}
+    {#if edit.error}<span class="small danger">{edit.error}</span>{/if}
+    <button type="button" class="pill primary" disabled={!edit.dirty || edit.saving} onclick={async () => afterSave(await edit.save())}>
+      {edit.saving ? "Saving…" : "Save"}
     </button>
   </div>
-</section>
+{/if}
 
 <style>
-  .environment { margin: .5rem 0 1rem; padding: .5rem .625rem; border: 1px solid var(--line); border-radius: var(--control-radius); }
-  .head { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .375rem; }
-  .row { display: flex; align-items: center; gap: .75rem; padding: .25rem 0; }
-  .label { width: 6rem; color: var(--muted); }
-  .check { display: inline-flex; align-items: center; gap: .375rem; }
+  .file { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .w { width: 6rem; display: inline-flex; }
+  .w :global(.scrub) { width: 100%; }
+  .note { margin: .25rem 0 .5rem; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
 </style>
