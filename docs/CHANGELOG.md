@@ -28,12 +28,19 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   section's state is remembered. The settings sit in one label / control grid, so the rows line up.
 - **The spread's format** (spread, cover, back) is chosen in the Stage panel's *spread* section instead of the
   workspace's top bar (#133).
-- The origin is chosen with a small reference-point picker (four page corners and the book's centre) instead of a row
-  of five buttons.
+- **Nine origins** (#133): the origin is chosen with a 3 × 3 alignment square, like a design tool's anchor picker,
+  instead of a row of five buttons – the four corners, the four edge centres and the centre (the book's centre on the
+  open book, the page's centre on a cover). Positions and the grid count from all nine; the Info view says what the
+  chosen point is.
 
 ### Fixed
 - **Stage panel layout** (#133): the shake hint no longer overlaps the grid row, and the origin's choices no longer
   wrap over the desk row.
+- **A new format shows at once** (#133): switching a spread between spread, cover and back left the book in its old
+  shape on the stage until a reload. The stage now lays the book out again right away (`MockTracker.relayout`), and
+  unplaced targets on a cover lie on the cover instead of a right page that is not there.
+- **The events list** logs a scene state once per change instead of repeating `sceneState: "running"`, and long
+  events wrap instead of scrolling sideways.
 
 ## 1.20.6 – 2026-10-30
 
