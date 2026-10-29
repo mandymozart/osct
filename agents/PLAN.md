@@ -1105,9 +1105,15 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        renderer with the AR layer's alpha kept, the editor's Stage panel rows – `api.registerPass` is the plugin
        API's one-line hook into it (S22 budget still to measure); [x] the node type `light` (schema 2.6, #71: point /
        spot / directional with the editor's rows, tree icon and stage helper; an unknown node type passes the guard
-       from 2.6 on, so the next type is MINOR); [ ] more built-in components (`behaviour` with actions, `audio`), the
-       node-type registry (`registerNodeType`), nodes without a target on the spread (scope `spread`), events and
-       variables between entities (Studio C).
+       from 2.6 on, so the next type is MINOR); [x] **events and variables between entities** (#80, 1.15.0, plugin API 1.1,
+       `agents/research/2026-10-30-demo-book.md`): `api.events` (core events read-only, scene events free), `api.vars`
+       (scopes spread / stage / session / book – `book` in the reader's progress record), `api.progress`, `api.spread`,
+       the context's `children`, `onUnlocked` – Studio C made real as the **demo book** `fixtures/demo/` (six spreads,
+       six plugins, the key / door / lamp narrative, the tally, a tap that switches scenes; synced to the environment
+       `demo` by `demo.yml`, `?content=` in the staging reader); [ ] more built-in components (`behaviour` with
+       actions – the concept's events → actions without code, `audio`), declared variables, the node-type registry
+       (`registerNodeType`, #77), nodes without a target on the spread (scope `spread`), bubbling scopes (#88); the
+       content store per book (#87).
 4. [x] Code in the editor (#66, 1.11.0): the **Code** tab – plugin sources stored through the API (`plugins` table),
        a plain code editor, Run = browser transpile (sucrase) into the stage's registry, Save, Download; the editor's
        stage is the only place unchecked code runs, a publish refuses component types no declared plugin provides.

@@ -10,7 +10,9 @@
   /**
    * The stage's settings: hand shake, the desk and the sky (an HDRI). The camera is moved on the stage itself (drag
    * orbits, wheel / pinch the distance, double tap = the reader's view), found / lost per target is the tree's eye,
-   * the first find is replayed from the stage's menu – the panel no longer doubles them (Tilman, 2026-10-29).
+   * the first find is replayed from the stage's menu – the panel no longer doubles them (Tilman, 2026-10-29). And the
+   * **narrative** of the book's plugins: their variables with scopes, the last events of the stage, and *reset* for a
+   * new game (nothing unlocked, no variable).
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
@@ -18,6 +20,29 @@
   onMount(() => subscribePreview(state => (preview = state)));
 
 </script>
+
+<div class="row"><span class="label">vars</span>
+  <span class="controls">
+    {#if stage?.vars.length}
+      {#each stage.vars as v (v.scope + ":" + v.name)}
+        <span class="pill framed var" title="{v.scope} scope"><span class="muted">{v.scope} ·</span> {v.name} = {JSON.stringify(v.value)}</span>
+      {/each}
+    {:else}
+      <span class="small muted">no variable set – the plugins' api.vars show here with their scope</span>
+    {/if}
+    <button type="button" class="pill" title="A new game: every variable cleared, nothing unlocked, the spread found anew" onclick={() => stage?.resetNarrative()}>reset</button>
+  </span></div>
+
+<div class="row"><span class="label">events</span>
+  <span class="controls events">
+    {#if stage?.events.length}
+      {#each stage.events as e, i (i)}
+        <span class="small"><strong>{e.event}</strong>{#if e.detail} <span class="muted">{e.detail}</span>{/if}</span>
+      {/each}
+    {:else}
+      <span class="small muted">the stage's events – found, lost, unlocked, spreadChanged, the plugins' own – newest first</span>
+    {/if}
+  </span></div>
 
 <div class="row"><span class="label">shake</span>
   <span class="controls">
@@ -45,6 +70,8 @@
 
 <style>
   .w { width: 5rem; display: inline-flex; }
+  .var { font-variant-numeric: tabular-nums; }
+  .events { flex-direction: column; align-items: flex-start; gap: .125rem; max-height: 9rem; overflow: auto; }
   .w :global(.scrub) { width: 100%; }
   .hint { margin: .25rem 0 0; padding-left: 5.125rem; }
 </style>

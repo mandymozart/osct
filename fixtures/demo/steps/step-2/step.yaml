@@ -1,0 +1,7 @@
+# Onboarding: what the demo is
+type: step
+description: >-
+  *{{title}}* is a sandbox: find the key, open the door, light the lamp – and read in the editor how it is made.
+button: Continue
+illustration: /assets/illustrations/tutorial-step-1.svg
+index: 1

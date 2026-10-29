@@ -1,0 +1,27 @@
+# The screen: a video standing upright on the page like a screen, tinted (plugins/tint) and slowly turning
+# (plugins/spin) – the fixture's standing video with a component on top.
+category: video
+title: The screen
+page: 6
+body: "A video standing upright, its bottom edge on the paper, tinted gold and turning slowly around its own axis – a layer and a component on one node."
+tags: [placement, layer]
+target:
+  image: target.jpg
+  print:
+    surface: right
+    x: 70
+    y: 100
+    width: 90
+  entity:
+    type: video
+    src: screen.mp4
+    params:
+      rotation: [90, 0, 0]
+      position: [0, 0, 0.28]
+      scale: 0.9
+    components:
+      - type: tint
+        color: "#f3cc94"
+        opacity: 0.35
+      - type: spin
+        degreesPerSecond: 15

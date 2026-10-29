@@ -1,0 +1,31 @@
+# The lamp: a chroma-keyed video that stays dark (hidden) until doorOpen – the `lamp` component (plugins/narrative)
+# listens with api.vars.on; the `pulse` layer makes it breathe once it shows.
+category: video
+title: The lamp
+page: 4
+body: "Dark until the door opened: the `lamp` component hides the video until `doorOpen` is set – on this stage, now or earlier – and listens for the change. A chroma key removes the green, the `pulse` layer breathes."
+tags: [narrative, lamp]
+target:
+  image: target.jpg
+  print:
+    surface: right
+    x: 70
+    y: 110
+    width: 90
+  entity:
+    type: video
+    src: lamp.mp4
+    params:
+      rotation: [90, 0, 0]
+      position: [0, 0, 0.28]
+    filters:
+      - type: chromaKey
+        color: "#00ff00"
+        threshold: 0.35
+        softness: 0.12
+    components:
+      - type: lamp
+      - type: pulse
+        color: "#ffd27a"
+        amount: 0.5
+        speed: 1.5

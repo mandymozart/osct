@@ -1,0 +1,62 @@
+# The demo book (fixtures/demo, agents/research/2026-10-30-demo-book.md) on the CDN: built like the book's content
+# and synced to its own environment `demo` on the storage zone – never to staging or production, whose current version
+# is the book's (the CLI refuses a demo build there). The staging reader shows it with
+# ?content=https://buildingfictions.b-cdn.net/demo (a debug build), the staging editor imports it from that base URL
+# (docs/editor.md "Try it"). Runs by hand, and on a push to develop that touches the demo or what it is built with.
+#
+# Storage access comes from the GitHub environment "staging" (docs/content-cdn.md): BUNNY_STORAGE_ZONE,
+# BUNNY_STORAGE_ZONE_ENDPOINT, BUNNY_STORAGE_PASSWORD; the sync checks the CDN at CONTENT_BASE_URL's parent + /demo.
+name: Demo book
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "fixtures/demo/**"
+      - "engine/**"
+      - "shared/**"
+      - "scripts/**"
+      - ".github/workflows/demo.yml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only show what the sync would upload"
+        type: boolean
+        default: false
+
+concurrency:
+  group: content-demo
+  cancel-in-progress: false
+
+jobs:
+  demo:
+    name: Build and sync the demo book
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: scripts
+    env:
+      OSCT_CONTENT_DIR: fixtures/demo
+      OSCT_CONTENT_ENV: demo
+      BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
+      BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
+      BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      # The demo's CDN folder sits next to the book's environments: <zone>/demo
+      - name: The demo's content base URL
+        run: echo "CONTENT_BASE_URL=${CONTENT_BASE_URL%/*}/demo" >> "$GITHUB_ENV"
+        env:
+          CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
+      - name: Build the demo book
+        run: npm run build:content:force
+      - name: Sync it to the environment demo
+        run: npm run osct -- content sync --env demo ${{ inputs.dry_run && '--dry-run' || '' }}

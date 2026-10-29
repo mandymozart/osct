@@ -13,6 +13,7 @@ import {
   Target,
   unregisterComponentSpec,
 } from "../types/index";
+import { dropPluginListeners, nextRun, PluginEvents, PluginProgress, PluginSpread, PluginVars, runtimeApi } from "./plugin-runtime";
 
 /**
  * The plugin API (version `PLUGIN_API_VERSION`, agents/research/2026-10-29-code-in-the-editor.md): a book's own code
@@ -25,6 +26,9 @@ import {
  * read a plugin's component like the built-in `animation`. A **component** runs code on a node (`applyComponents`,
  * called by the entity registry when a node is built); a **material layer** is a piece of GLSL the engine composes
  * into the node's material (`utils/layers.ts`). Both are used in the content as `components: [{ type, … }]`.
+ * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`, API 1.1): `api.events` (core events of the
+ * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
+ * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread).
  *
  * Registrations are kept per plugin id: installing a plugin again (the editor's Run) replaces what it registered
  * before; an exception in `register` leaves the previous registration in place. The reader loads the plugins the
@@ -41,6 +45,8 @@ export interface ComponentContext {
   object: Object3D;
   /** The placement group around the node (its position / rotation / scale relative to the parent) */
   placed: Object3D;
+  /** The placement groups of the node's children, in content order (empty for a leaf) */
+  children: Object3D[];
   target: Target;
   /** The app's three.js (one instance – plugins never import three themselves) */
   three: typeof THREE;
@@ -52,6 +58,8 @@ export interface ComponentInstance {
   update?(delta: number): void;
   onFound?(): void;
   onLost?(): void;
+  /** The target's first find (the app's progress decides; the scene is told through `celebrate`) */
+  onUnlocked?(): void;
   /** A tap on the entity */
   onTap?(): void;
   /** The scene paused (consultation, overlays) */
@@ -80,6 +88,14 @@ export interface PluginApi {
   readonly three: typeof THREE;
   registerComponent(type: string, spec: ComponentSpec, apply: ComponentApply): void;
   registerLayer(type: string, spec: ComponentSpec, layer: LayerDefinition): void;
+  /** Core events of the scene (read-only) and scene events of the content */
+  readonly events: PluginEvents;
+  /** Variables in the scopes spread, stage, session and book */
+  readonly vars: PluginVars;
+  /** The reader's progress: unlocked, consulted, completion (read-only) */
+  readonly progress: PluginProgress;
+  /** The current spread */
+  readonly spread: PluginSpread;
   /** To the console, prefixed with the plugin's id */
   log(...args: unknown[]): void;
 }
@@ -107,8 +123,13 @@ export class PluginError extends Error {
   }
 }
 
-/** Every component and layer type this plugin registered leaves the registries */
+/** Every component and layer type this plugin registered leaves the registries, its listeners with them */
 export const uninstallPlugin = (id: string): void => {
+  dropPluginListeners(id);
+  removeRegistrations(id);
+};
+
+const removeRegistrations = (id: string): void => {
   (installed.get(id) ?? []).forEach(type => {
     if (components.get(type)?.plugin === id) components.delete(type);
     if (layers.get(type)?.plugin === id) layers.delete(type);
@@ -126,6 +147,8 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   const register = module.register ?? module.default;
   if (typeof register !== "function") throw new PluginError(id, `${id}: the module exports no register(api) function`);
   const staged: { components: Map<string, ComponentRegistration>; layers: Map<string, LayerRegistration> } = { components: new Map(), layers: new Map() };
+  // The listeners this run subscribes replace the previous run's once register succeeded
+  const run = nextRun();
   const check = (type: string, spec: ComponentSpec) => {
     const problems = componentSpecProblems(type, spec);
     const owner = components.get(type)?.plugin ?? layers.get(type)?.plugin;
@@ -136,6 +159,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   const api: PluginApi = {
     version: PLUGIN_API_VERSION,
     three: THREE,
+    ...runtimeApi(id, run),
     registerComponent: (type, spec, apply) => {
       check(type, spec);
       if (typeof apply !== "function") throw new PluginError(id, `${id}: ${type} needs an apply(context) function`);
@@ -151,10 +175,12 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   try {
     register(api);
   } catch (error) {
+    dropPluginListeners(id, { onlyRun: run });
     if (error instanceof PluginError) throw error;
     throw new PluginError(id, `${id}: register failed – ${error instanceof Error ? error.message : String(error)}`);
   }
-  uninstallPlugin(id);
+  dropPluginListeners(id, { keepRun: run });
+  removeRegistrations(id);
   staged.components.forEach((registration, type) => {
     components.set(type, registration);
     registerComponentSpec(type, registration.spec);
