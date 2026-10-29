@@ -369,7 +369,7 @@
   .menu { position: fixed; z-index: 10; display: flex; flex-direction: column; min-width: 12rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
   .menu-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; height: var(--control-height); padding: 0 .625rem; border: none; border-radius: var(--control-radius); background: none; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
   .menu-item:hover:not(:disabled) { background: var(--hover-background); }
-  .menu-item:disabled { opacity: .45; cursor: default; }
+  .menu-item:disabled { opacity: .45; cursor: not-allowed; }
   .menu-item.danger { color: var(--danger); }
   .node { position: relative; display: flex; align-items: center; gap: .25rem; height: 1.5rem; padding: 0 .25rem; }
   .node:nth-child(even) { background: var(--surface-head); }

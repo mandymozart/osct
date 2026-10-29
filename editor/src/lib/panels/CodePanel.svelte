@@ -6,7 +6,6 @@
   import { downloadFiles, zipFiles } from "$lib/plugins/code-editor";
   import type { CodeEditor } from "$lib/plugins/monaco";
   import type { Stage } from "$lib/stage/stage.svelte";
-  import Icon from "$lib/components/Icon.svelte";
 
   /**
    * The **Code** tab: the book's own code (agents/research/2026-10-29-code-in-the-editor.md). The plugins stored for
@@ -72,7 +71,8 @@
       source = text;
       saved = stored ? text : "";
       code?.open(id, text);
-      if (!stored) notice = "compiled by the content build – Save keeps a copy of its source here";
+      // A state, not an explanation – that Save keeps a copy is the Save button's help (RULES #32 – #170)
+      if (!stored) notice = "compiled by the content build";
     } catch (e) {
       source = "";
       saved = "";
@@ -189,7 +189,7 @@
         <option value={p.id}>{p.id}{p.declared ? " · in the content" : ""}{p.stored ? "" : " · not stored"}</option>
       {/each}
     </select>
-    <button type="button" class="icon-button framed" title="New plugin" aria-label="New plugin" onclick={startNew}><Icon name="plus" /></button>
+    <button type="button" class="pill framed" title="New plugin" onclick={startNew}>new</button>
   </span></div>
 {#if adding}
   <div class="row" data-help-name="Plugin id" data-help="The new plugin's folder name: letters, digits and -."><span class="label">id</span>
@@ -223,7 +223,7 @@
   <span class="grow"></span>
   <button type="button" class="text-link" onclick={download} disabled={!source || (!open && !adding)} title="The source as a zip: index.ts with plugin-api.d.ts and a tsconfig.json, so it type-checks the same way in another editor">Download</button>
   <button type="button" class="pill framed" onclick={run} disabled={plugins.running || !source || (!open && !adding)} title="Transpile in the browser and run it on the stage (Ctrl+Enter)">{plugins.running ? "Running…" : "Run"}</button>
-  <button type="button" class="pill primary" onclick={save} disabled={saving || !dirty || (adding && !newIdOk)} title="Store the source (Ctrl+S)">{saving ? "Saving…" : "Save"}</button>
+  <button type="button" class="pill primary" onclick={save} disabled={saving || !dirty || (adding && !newIdOk)} title="Store the source (Ctrl+S) – a plugin compiled by the content build gets a copy of its source here">{saving ? "Saving…" : "Save"}</button>
 </div>
 
 <style>

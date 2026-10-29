@@ -141,7 +141,8 @@
     </form>
     <div class="segments" role="group" aria-label="Filter">
       {#each FILTERS as f (f.id)}
-        <button type="button" class="pill framed" class:on={filter === f.id} onclick={() => setFilter(f.id)}>{f.label}</button>
+        <!-- A small enum: segmented pressed pills, as Segmented draws them in the panels (#170) -->
+        <button type="button" class="pill" class:on={filter === f.id} aria-pressed={filter === f.id} onclick={() => setFilter(f.id)}>{f.label}</button>
       {/each}
     </div>
     <span class="grow"></span>
@@ -174,7 +175,7 @@
         {#each users as user (user.id)}
           <tr>
             <td class="email">{user.email}{#if user.hasPassword}<span class="muted small" title="Has a password"> ·&nbsp;pw</span>{/if}</td>
-            <td>
+            <td data-label="roles">
               <span class="controls">
                 <span class="pill fixed muted" title={grantTitle(user, "reader")}>reader</span>
                 {#each toggleable as role (role.id)}
@@ -189,13 +190,13 @@
                 {/each}
               </span>
             </td>
-            <td>{user.language}</td>
-            <td class="options">
+            <td data-label="language">{user.language}</td>
+            <td class="options" data-label="options">
               <!-- Plain text, not controls: the options the user opted into, read-only (#99) -->
-              {#each OPTIONS.filter(option => user.options[option.key]) as option, i (option.key)}{i ? ", " : ""}<span title={`${option.label} updates: yes`}>{option.label}</span>{:else}<span class="muted" title="No update options">–</span>{/each}
+              <span>{#each OPTIONS.filter(option => user.options[option.key]) as option, i (option.key)}{i ? ", " : ""}<span title={`${option.label} updates: yes`}>{option.label}</span>{:else}<span class="muted" title="No update options">–</span>{/each}</span>
             </td>
-            <td class="muted" title={when(user.createdAt)}>{new Date(user.createdAt).toLocaleDateString()}</td>
-            <td class="muted" title={when(user.lastSeenAt)}>{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleDateString() : "–"}</td>
+            <td class="muted" data-label="signed up" title={when(user.createdAt)}>{new Date(user.createdAt).toLocaleDateString()}</td>
+            <td class="muted" data-label="last seen" title={when(user.lastSeenAt)}>{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleDateString() : "–"}</td>
           </tr>
         {/each}
       </tbody>
@@ -231,5 +232,8 @@
     .users thead { display: none; }
     .users tr { display: grid; grid-template-columns: 1fr; padding: .375rem 0; border-bottom: 1px solid var(--line); }
     .users td { border: none; padding: .125rem 0; white-space: normal; }
+    /* Without the head row each value says what it is, in the panels' label column (#170) */
+    .users td[data-label] { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr); gap: .375rem; align-items: center; }
+    .users td[data-label]::before { content: attr(data-label); color: var(--muted); }
   }
 </style>

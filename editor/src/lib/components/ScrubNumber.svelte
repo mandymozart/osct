@@ -180,14 +180,16 @@
     touch-action: none; cursor: all-scroll; user-select: none; }
   .frame.scrubbing { border-color: var(--text); }
   .frame.typing { cursor: text; }
-  input { flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0 .25rem 0 .6rem; border: none; background: none; font: inherit;
+  input { flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0 .125rem 0 .6rem; border: none; background: none; font: inherit;
     color: var(--text); text-align: right; outline: none; cursor: inherit; font-variant-numeric: tabular-nums; }
   input::selection { background: var(--text); color: var(--surface); }
   .unit { flex: none; padding-right: .5rem; color: var(--muted); font-size: var(--text-small); }
   .unit:empty { padding-right: .4rem; }
   .prefix { flex: none; padding-left: .5rem; color: var(--muted); font-size: var(--text-small); letter-spacing: .08em; }
   .prefix + input { padding-left: .25rem; }
-  .reset { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--control-height); height: 100%;
+  /* Narrow, with the unit moved up to it: an axis field (X / Y / Z side by side) still shows three digits (#170) */
+  .unit:has(+ .reset) { padding-right: .125rem; }
+  .reset { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 100%;
     border: none; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0; }
   .reset:hover, .reset:focus-visible { color: var(--text); outline: none; }
   .problem { color: var(--danger); font-size: var(--text-small); line-height: 1rem; padding: 0 .6rem; }

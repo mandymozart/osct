@@ -9,13 +9,15 @@
   --text-size: .75rem;
   --text-small: .6875rem;
   --control-height: 1.75rem;
-  --control-radius: .25rem;
-  --panel-width: 22rem;
+  /* Square corners (RULES #32, the Scutoons dogma's radius-none) – #170 */
+  --control-radius: 0;
+  --panel-width: 25rem;
   --tree-width: 15rem;
   --top-height: 2.5rem;
 
   --text: #1e1e1e;
-  --muted: #7f7f7f;
+  /* 5.3:1 on white, 4.9:1 on the heads' grey – small muted text stays readable (#170; was #7f7f7f, 3.9:1) */
+  --muted: #6b6b6b;
   --line: #e6e6e6;
   --surface: #ffffff;
   --surface-head: #f5f5f5;
@@ -75,8 +77,11 @@ body {
 a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
 ::selection { background: var(--text); color: var(--surface); }
+/* One focus ring for every control, in the text colour and square – not the browser's own (blue in Firefox and
+   Safari); fields mark their focus by the border instead (#170) */
+:where(button, a, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 
-/* ── Controls: one height, square-ish corners ───────────────────────────────────────────────── */
+/* ── Controls: one height, square corners ───────────────────────────────────────────────── */
 .pill, .icon-button, .field {
   height: var(--control-height);
   border: 1px solid transparent;
@@ -115,6 +120,9 @@ select:disabled { appearance: none; }
 
 /* ── Rows: a label column and the controls ─────────────────────────────────────────────────── */
 .row { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr); gap: .375rem; align-items: center; min-height: calc(var(--control-height) + .25rem); }
+/* A panel's body is a scrolling flex column: its rows keep their height instead of being squeezed to the minimum
+   (the origin square overlapped the desk row in the phone's sheet – #170) */
+.row, .section { flex-shrink: 0; }
 .row > .label { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row.changed > .label { color: var(--text); }
 .row.changed > .label::before { content: "● "; }

@@ -181,7 +181,8 @@
     <span class="label">listed in</span>
     <span class="controls"><Segmented options={CATEGORIES} value={category} onchange={c => (chosenCategory = c)} /></span></div>
 
-  <div class="section"><span class="section-label">printed on the page (mm from the origin set in the Stage panel)</span></div>
+  <!-- The explanation is the section's help, not its title (RULES #32 – #170) -->
+  <div class="section" data-help-name="Printed on the page" data-help="Where the image is printed: the surface, x / y in mm from the origin set in the Stage panel, and the printed width."><span class="section-label">printed on the page</span></div>
   <div class="row"><span class="label">surface</span>
     <span class="controls"><Segmented options={surfaces} value={surface} onchange={s => (surface = s)} /></span></div>
   <div class="row"><span class="label">x · y</span>
