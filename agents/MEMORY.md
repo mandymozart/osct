@@ -17,6 +17,82 @@ outcome in the line (or move it into a dated decision block).
 - [ ] Still open from #28: `PlacementData` unused (needs a schema bump, see the #19 block); `BaseStore`'s
   `propertyListeners` cast. From #29: `loadBuild` still re-implements the pipeline, the server matrix (PHP 8.1, MySQL),
   `service-worker.ts` and the AR scene lifecycle.
+## 2026-10-30 – Spreads added and removed on the book page (#166)
+
+- Tilman on the disabled format select: "no hint next to it, the disabled state just has to be clearer" – disabled
+  controls are dimmed, get a not-allowed cursor and a select loses its arrow, editor-wide (`app.css`); the reason stays
+  in the Info view (RULES #32).
+- A new double page **renumbers the pages after it** (Tilman: "the pages are numbered on") – later spreads, entries and
+  `print.page` move by two, and removing a double page reverses it. The layout's sheets are matched by page and do
+  not move, so later cards show the sheets of their new numbers until a layout with the new pages is imported.
+- **Removing a spread with entries is refused** (409 `spread-not-empty`), not "ask and remove them too": the entries
+  carry targets and AR (work), a bulk delete is not undone by anything but the change log, and deleting entries one by
+  one already exists in the tree. The spread the book opens on cannot be removed either (`initial-spread`).
+- The hint "New spreads come in with an import for now" shows only where adding is impossible: the API refuses a
+  double page (an older server) – then the book page offers no double pages.
+- [ ] The MCP server has no tool for adding or removing spreads yet (RULES #32: a new endpoint is a new tool there).
+
+## 2026-10-30 – The Library as the picker; entry category vs what appears (#164, #165)
+
+- Tilman on staging: file dropdowns of identical names ("Target Image, …"), and the Library opened from a video node
+  changed the **target's image** (its *Target image* button sat next to *Use* on every image card). Built: every file
+  field (`components/FileField.svelte`) opens the **Library in place as a picker** (`LibraryPanel` with `pick`,
+  `library-pick.ts`) – the filter preselected, only fitting files pickable, the pick fills the one field it was opened
+  for. In place (not the Library tab) because the tab replaces the panel that asked: the new-target form lost its
+  values and the Entity panel was unmounted (the tab's *Use* reached no node – fixed too, the Entity tab opens first).
+  The Environment tab's pick moved in place as well, so there is one picker; the tab stays the browser of the files.
+- **Target images** = images a target of the draft uses, or the import's `target.*`. There is no "marked as a target"
+  flag in the API; [ ] add one if uploads meant as targets should show there before a target uses them.
+- **#165**: develop, which staging deploys, has offered `model` in the new-target form since 1.10.0. The likely cause
+  was the form: an unlabelled category select (glossary, video, text, link) on the *page* row read as "the type", and
+  the AR content select sat below the placement under "AR content (optional)". The category and the content stay
+  **two choices** – the category is where the reader's consultation menu lists the entry (a glossary term may show a
+  model), not what appears – but the category **follows** what appears (video → Videos, else Glossary) until set by
+  hand, and both are labelled ("What appears on the page" as pills, then "Entry category"). [ ] Staging itself could
+  not be opened from the agent's container – check the form there by hand.
+- [ ] iOS Safari may grey out `.glb` files in a file picker (no system type for glTF); the model upload names the
+  media types next to the extensions. Check on an iPhone / iPad.
+## 2026-10-30 – Local MariaDB in Docker, staging's data, the API test on MariaDB (#168)
+
+- Tilman after #161: *"in future, for testing locally, start a MariaDB in a Docker container, as in SCUTOONS"*, plus a
+  dump of staging. Built in 1.26.8: `docker-compose.yml` in the repository root (service `db`, MariaDB **10.11** – the
+  version of the all-inkl host could not be read from here, so the LTS the task named; `OSCT_MARIADB_VERSION=11.4`
+  matches the Kamal accessory), `scripts/db/pull-staging.sh`, `OSCT_TEST_DB=mysql` for the API test, the CI job
+  "Accounts API (MariaDB)". Local development against MariaDB is the recommended setup now; SQLite stays for quick
+  tests (docs/server.md).
+- **Personal data in a staging dump**: pseudonymised on load by default (addresses → `user-<id>@example.invalid`,
+  passwords, sessions, sign-in requests and failed sign-ins gone; `KEEP_EMAILS` exempts your own), the dump deleted
+  after loading unless `--keep`. Credentials in `server/.env`, dumps in `server/db-dumps/` – both outside the Docker
+  build context and git. One bash script (Git Bash on Windows) rather than a PowerShell twin: the repo's tooling
+  scripts are bash, and the dump runs inside the container (no MySQL client needed).
+- The first MariaDB run found a second MySQL-only bug: `LIKE … ESCAPE '\'` (admin user search, asset usages) is an
+  unterminated string literal on MySQL. `Db::contains` escapes with `!`; the API test scans for the backslash form.
+- [ ] Open: once staging is on the Kamal VM, check the SSH route of `pull-staging.sh` against the accessory
+  (`STAGING_DUMP_COMMAND="docker exec -i -e MYSQL_PWD osct-staging-db mariadb-dump"`, docs/server.md "Staging's data").
+- [ ] Open: the real staging pull is untested here (no credentials in this session) – the script was checked against
+  a second database in the local container, directly and over a stand-in for ssh.
+## 2026-10-30 – The editor's selection levels and the tree's hierarchy (#162, #163)
+
+- From Tilman's walkthrough on staging: no feedback on a click in the tree, target and entity always shown together,
+  a second video added with the first selected became its child, nothing could be moved or named afterwards.
+- **One selection** (`editor/src/lib/selection.svelte.ts`): target, entity (the root) or node – the tree, the stage
+  and the Entity panel read and write it. A target without AR content is always selected as the target. The Entity
+  panel shows the target fields only at the target level and the node rows only at the entity / node level; its head
+  is a breadcrumb. The target picker of the panel's head is kept, shrunk to a ▾ after the breadcrumb's target crumb
+  (RULES #1: restructured, not removed).
+- **Next to the root wraps the root in a group** (adding, dropping before / after the root, outdenting a child of
+  the root): the only way to get two siblings under one target, which is what Tilman expected. A group's placement
+  defaults to none, so nothing moves on the stage.
+- **A moved node keeps its placement values** (relative to its new parent, so it may move on the stage) – no "keep
+  transform"; the issue asks for parent and order only.
+- **Keys**: Alt + ↑ ↓ to move, Tab / Shift + Tab to indent / outdent (Tab falls through when nothing moves, so the
+  focus can leave the tree). Not Alt + ← →: that is the browser's Back on Windows. A finger drags a row by its type
+  icon (`touch-action: none` there only), so the tree still scrolls on a phone.
+- Content schema **2.12**: a node's optional `name`; its row in docs/content.md says *next* for the app version – the
+  version is set at the merge.
+- [ ] Not checked in a browser or on the S22 (this session ran no dev server): the drag with a mouse and a finger,
+  the selected row's contrast in day and night, the target outline on the stage.
+- [ ] Open: renaming in the tree itself (double click / F2), moving a node to another target's entity.
 
 ## 2026-10-30 – The phone sheet: icon tabs, a frozen stage while dragging, the camera on the spread's root (#155, #105)
 

@@ -23,6 +23,9 @@
   --pressed-background: #e0e0e0;
   --pressed-color: #1e1e1e;
   --hover-background: #ebebeb;
+  /* The tree's selected row and the rows above it (#162) */
+  --selected-background: #d2d2d2;
+  --within-background: #efefef;
   --danger: #c0392b;
   --stage-background: #0c0c0c;
   color-scheme: light;
@@ -38,6 +41,8 @@
     --pressed-background: #4f4f4f;
     --pressed-color: #ffffff;
     --hover-background: #3f3f3f;
+    --selected-background: #5e5e5e;
+    --within-background: #363636;
     --danger: #ff6b5b;
     color-scheme: dark;
   }
@@ -52,6 +57,8 @@
   --pressed-background: #4f4f4f;
   --pressed-color: #ffffff;
   --hover-background: #3f3f3f;
+  --selected-background: #5e5e5e;
+  --within-background: #363636;
   --danger: #ff6b5b;
   color-scheme: dark;
 }
@@ -83,7 +90,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pill:hover, .icon-button:hover { background: var(--hover-background); }
 .pill.on, .icon-button.on { background: var(--pressed-background); color: var(--pressed-color); }
 .pill.primary { border-color: var(--text); }
-.pill:disabled, .icon-button:disabled { opacity: .45; cursor: default; background: none; }
+.pill:disabled, .icon-button:disabled { background: none; }
 .pill.framed, .icon-button.framed { border-color: var(--line); background: var(--control-background); }
 /* a framed toggle that is on: after .framed, which would otherwise win and hide the state (#99) */
 .pill.framed.on, .icon-button.framed.on { background: var(--pressed-background); color: var(--pressed-color); }
@@ -98,6 +105,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 select.field { cursor: pointer; }
 .text-link { background: none; border: none; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; }
 .text-link:hover { color: var(--text); }
+/* Disabled at a glance (#166): dimmed, a not-allowed cursor, a select without its arrow – the reason is the control's help */
+.pill:disabled, .icon-button:disabled, .field:disabled, .text-link:disabled, select:disabled, textarea:disabled, input[type="range"]:disabled { opacity: .45; cursor: not-allowed; }
+select:disabled { appearance: none; }
+.text-link:disabled:hover { color: var(--muted); }
 .muted { color: var(--muted); }
 .small { font-size: var(--text-small); }
 .danger { color: var(--danger); }

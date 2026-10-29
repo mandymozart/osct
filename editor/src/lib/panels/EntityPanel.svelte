@@ -4,20 +4,26 @@
   import { ENTITY_TYPES, FILTER_TYPES, type AssetData, type EntityData, type EntityType, type FilterType, type Target } from "@engine/types";
   import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "$lib/api";
   import { content } from "$lib/content.svelte";
-  import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
+  import { library, NODE_ASSET_KINDS } from "$lib/library.svelte";
+  import { pickAccept, type LibraryPick } from "$lib/library-pick";
   import { plugins } from "$lib/plugins.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
   import { fromOrigin, toOrigin } from "$lib/stage/origin";
   import { getPreview, subscribePreview } from "$lib/stage/preview";
   import {
-    addChild, addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
+    addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
     sameValue, setValue, valueRows, withNode, type ValueRow,
   } from "$lib/values";
+  import { selection } from "$lib/selection.svelte";
+  import { breadcrumb } from "$lib/selection";
+  import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "$lib/tree";
   import type { NodeTimeline } from "@engine/types";
   import ColourField from "$lib/components/ColourField.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
+  import FileField from "$lib/components/FileField.svelte";
+  import LibraryPanel from "./LibraryPanel.svelte";
 
   /**
    * The selected **node** of a target's entity (content schema 2.0: the entity is a tree; the tree panel or a tap
@@ -25,16 +31,16 @@
    * placement (three.js names, the three axes in one row as in Blender), a text node's text and colour, a light
    * node's values, each filter's and component's parameters. Changes show live on the stage (`stage.override` with
    * the whole tree), the draft stays unchanged until **Save** writes the entity to the API (the shared entity when
-   * the target refers to one, else the target's own). **+ node** appends a child (group, model, video, image, text,
-   * light – files from the book's assets), **remove node** drops the selected node and its children. Rows come from
-   * the content contract's definitions (one `specRow` snippet draws a parameter of any kind).
+   * the target refers to one, else the target's own). **+ node** adds a node (group, model, video, image, text,
+   * light – files from the book's assets) next to the selected one or inside it (#163), **remove node** drops the
+   * selected node and its children. Rows come from the content contract's definitions (one `specRow` snippet draws a
+   * parameter of any kind). It opens at the level of the workspace's selection (#162): a selected target shows its
+   * target fields, its entity or a node that node's rows; the breadcrumb in the head steps up.
    */
-  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, onlibrary, ontargetchanged }: {
+  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, ontargetchanged }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
     pickColour?: () => Promise<string | null>;
-    /** Open the library (to choose a file for the selected node) */
-    onlibrary?: () => void;
     /** The target's image or print placement changed in the draft: reload the content and the stage */
     ontargetchanged?: () => Promise<void>;
   } = $props();
@@ -78,6 +84,9 @@
 
   /** The selected node; a path the tree no longer has falls back to the root */
   const current = $derived<EntityData | null>(entity ? (nodeAt(entity, node) ?? entity) : null);
+  /** The level of the selection (#162): the target's fields, or its entity / a node of it (a target without a tree: the target) */
+  const atTarget = $derived(selection.onTarget || !entity);
+  const crumbs = $derived(target ? breadcrumb({ target: target.id, node, onTarget: atTarget }, entity ?? undefined) : []);
   $effect(() => {
     if (entity && !nodeAt(entity, node)) node = [];
   });
@@ -161,9 +170,35 @@
     }
   };
 
+  // ── the Library as the picker of a file (#164): opened for one field – the target's image, the node's file, the
+  // new node's file – it fills only that one; the panel keeps its state underneath ──
+  let picking = $state<LibraryPick | null>(null);
+  const pickFor = (pick: Omit<LibraryPick, "oncancel">) => {
+    picking = { ...pick, onpick: asset => { picking = null; return pick.onpick(asset); }, oncancel: () => (picking = null) };
+  };
+  // Another target or node selected (the tree, the stage) while picking: the field it was opened for is gone
+  const pickContext = $derived(`${target?.id}|${node.join(".")}`);
+  $effect(() => {
+    void pickContext;
+    untrack(() => (picking = null));
+  });
+  const pickTargetImage = () => {
+    const t = target;
+    if (t) pickFor({ subject: { for: "target-image" }, label: `the printed image of ${t.id}`, current: t.imageSrc, onpick: asset => setTargetImage(t.id, asset.url) });
+  };
+  const pickNodeFile = () => {
+    const t = target;
+    const type = current?.type;
+    if (!t || !type) return;
+    pickFor({ subject: { for: "node", nodeType: type }, label: `the ${type} of node ${pathLabel}`, current: current?.assets[0]?.src,
+      onpick: asset => useAsset(asset.kind, asset.url, asset.id) });
+  };
+  const pickNewNodeFile = () => {
+    const type = addType;
+    if (type) pickFor({ subject: { for: "node", nodeType: type }, label: `the new ${type} node`, current: addAsset, onpick: asset => { addAsset = asset.url; } });
+  };
+
   // ── the target: its printed image and placement ──
-  let targetImageInput = $state<HTMLInputElement>();
-  let nodeFileInput = $state<HTMLInputElement>();
   let printOpen = $state(false);
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
@@ -211,13 +246,13 @@
     stage.onGhostChange = place => { print = { ...print, ...place }; };
     return () => { if (stage) stage.onGhostChange = null; };
   });
-  const replaceTargetImage = async (file: File) => {
-    if (!target) return;
+  /** The target's printed image becomes a library file (picked) or a new upload */
+  const setTargetImage = async (targetId: string, src: string | File) => {
     targetBusy = true;
     targetError = null;
     try {
-      const asset = await library.upload(bookId, file);
-      await putTarget(bookId, target.id, { imageSrc: asset.url });
+      const url = typeof src === "string" ? src : (await library.upload(bookId, src)).url;
+      await putTarget(bookId, targetId, { imageSrc: url });
       await ontargetchanged?.();
     } catch (e) {
       targetError = e instanceof ApiError ? e.message : String(e);
@@ -302,19 +337,22 @@
     if (!target || !canAdd) return;
     const chosen = assetChoices.find(a => a.src === addAsset);
     const child = newNode(addType as EntityType, chosen ? { id: `${target.id}-${Date.now().toString(36)}`, assetType: chosen.assetType, src: chosen.src } : undefined);
-    if (!entity) {
-      // The target's first node is the root
-      apply(child);
-      node = [];
-    } else {
-      const parent = nodeAt(entity, node) ? node : [];
-      const index = nodeAt(entity, parent)?.children?.length ?? 0;
-      apply(addChild(entity, parent, child));
-      node = [...parent, index];
-    }
+    // The target's first node is the root; else next to the selected node or inside it
+    const placed = addNode(entity, node, child, addPlace);
+    apply(placed.tree);
+    selection.selectNode(target.id, placed.path);
     addType = "";
     addAsset = "";
   };
+  // Where "+ node" puts the new node (#163): chosen, else the default for the selected node (next to a file node)
+  let addPlaceChosen = $state<AddPlace | null>(null);
+  const addPlace = $derived<AddPlace>(addPlaceChosen ?? defaultAddPlace(current ?? undefined));
+  const ADD_PLACE_LABELS: Record<AddPlace, string> = { next: "next to it", inside: "inside it" };
+  $effect(() => {
+    void node.join(".");
+    void target?.id;
+    untrack(() => (addPlaceChosen = null));
+  });
   const remove = () => {
     if (!entity || !target || !stage) return;
     // Through the stage (the tree's menu and the Delete key do the same): the override is the shared source
@@ -322,6 +360,16 @@
     saved = null;
   };
 </script>
+
+{#snippet actions()}
+  <div class="actions">
+    <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
+    <span class="grow"></span>
+    {#if saved}<span class="small muted">{saved}</span>{/if}
+    {#if error}<span class="small danger">{error}</span>{/if}
+    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
+  </div>
+{/snippet}
 
 {#snippet specRow(row: ValueRow, name: string)}
   <!-- A parameter of a spec (a component's, the light's) by its kind: choice, on / off, string, colour, number -->
@@ -350,30 +398,41 @@
   {/if}
 {/snippet}
 
-{#if !target}
+{#if picking}
+  <LibraryPanel {bookId} pick={picking} />
+{:else if !target}
   <p class="muted">No target on this spread.</p>
 {:else}
   <div class="head">
-    <select class="field" aria-label="Target" value={target.id} onchange={e => { selected = (e.currentTarget as HTMLSelectElement).value; node = []; }}>
-      {#each targets as t (t.id)}
-        <option value={t.id}>{stage?.found.includes(t.id) ? "◉ " : ""}{t.id}{t.entity ? ` · ${t.entity.type}` : " · no AR"}{stage?.overrideOf(t.id) ? " *" : ""}</option>
+    <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->
+    <nav class="crumbs" aria-label="Selected level">
+      {#each crumbs as crumb, i (i)}
+        {#if i}<span class="crumb-sep" aria-hidden="true">›</span>{/if}
+        {#if crumb.current}
+          <span class="crumb current" aria-current="true" title="Selected: the {crumb.level}">{crumb.label}</span>
+        {:else}
+          <button type="button" class="crumb" onclick={() => selection.set(crumb.selection)} title="Select the {crumb.level}">{crumb.label}</button>
+        {/if}
+        {#if !i}
+          <select class="crumb-switch" aria-label="Target" title="Another target on this spread" value={target.id} onchange={e => selection.selectTarget((e.currentTarget as HTMLSelectElement).value)}>
+            {#each targets as t (t.id)}
+              <option value={t.id}>{stage?.found.includes(t.id) ? "◉ " : ""}{t.id}{t.entity ? ` · ${t.entity.type}` : " · no AR"}{stage?.overrideOf(t.id) ? " *" : ""}</option>
+            {/each}
+          </select>
+        {/if}
       {/each}
-    </select>
+    </nav>
     <span class="small muted">{source}</span>
   </div>
 
+  {#if atTarget}
   <div class="section"><span class="section-label">target · {target.id}</span>
     <span class="controls">
-      <button type="button" class="text-link" onclick={() => targetImageInput?.click()} title="Upload another printed image for this target">Replace image…</button>
       <button type="button" class="text-link placement-toggle" class:on={printOpen} onclick={togglePlacement}>{printOpen ? "hide placement" : "placement"}</button>
     </span></div>
   <div class="row"><span class="label">image</span>
-    <span class="controls file">
-      <img class="target-thumb" src={target.imageSrc} alt="" />
-      <span class="small muted name" title={target.imageSrc}>{fileLabel(target.imageSrc)}</span>
-      <input bind:this={targetImageInput} type="file" accept=".jpg,.jpeg,.png,.webp" hidden
-        onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void replaceTargetImage(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
-    </span></div>
+    <FileField src={target.imageSrc} picture accept={pickAccept({ for: "target-image" })} label="the printed image of {target.id}"
+      onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
   {#if printOpen}
     <div class="row"><span class="label">surface</span>
       <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => (print = { ...print, surface: s })} /></span></div>
@@ -390,25 +449,38 @@
       </span></div>
   {/if}
   {#if targetError}<p class="small danger">{targetError}</p>{/if}
+  {/if}
 
-  <div class="section"><span class="section-label">node · {pathLabel}{current ? ` · ${current.type}` : ""}</span>
+  {#if !atTarget}
+  <div class="section"><span class="section-label">{node.length ? "node" : "entity"}{current ? ` · ${current.type}` : ""}</span>
     <span class="controls">
       {#if entity}<button type="button" class="text-link" onclick={remove} title="Delete removes the selected node too">{node.length ? "remove node" : "remove entity"}</button>{/if}
     </span></div>
-  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several), else a child of the selected node."><span class="label">+ node</span>
+  {#if current}
+    <div class="row" class:changed={(draftNode?.name ?? "") !== (current.name ?? "")} data-help-name="Name" data-help="The node's name in the tree – for the people who make the book; the reader does not show it. Empty: the tree shows the node's type.">
+      <span class="label">name</span>
+      <input class="field" value={current.name ?? ""} placeholder={typeLabel(current)} spellcheck="false" aria-label="Node name"
+        oninput={e => current && applyNode(withName(current, (e.currentTarget as HTMLInputElement).value))} />
+    </div>
+  {/if}
+  {/if}
+  {#if !atTarget || !entity}
+  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several), else next to the selected node or inside it (add as)."><span class="label">+ node</span>
     <span class="controls">
       <select class="field" aria-label="New node type" value={addType} onchange={e => { addType = (e.currentTarget as HTMLSelectElement).value as EntityType | ""; addAsset = ""; }}>
         <option value="">type…</option>
         {#each ENTITY_TYPES as type (type)}<option value={type}>{type}</option>{/each}
       </select>
       {#if addType && ASSET_KINDS[addType]}
-        <select class="field grow" aria-label="File" value={addAsset} onchange={e => (addAsset = (e.currentTarget as HTMLSelectElement).value)}>
-          <option value="">{assetChoices.length ? "file…" : "no file of this kind in the book"}</option>
-          {#each assetChoices as a (a.src)}<option value={a.src}>{fileLabel(a.src)}</option>{/each}
-        </select>
+        <button type="button" class="pill framed grow file-pick" title="Choose the new node's file in the Library" onclick={pickNewNodeFile}>{addAsset ? fileLabel(addAsset) : "file…"}</button>
       {/if}
-      <button type="button" class="icon-button framed" title={entity ? "Add as a child of the selected node" : "Add as the target's root node"} aria-label="Add node" disabled={!canAdd} onclick={add}><Icon name="plus" /></button>
+      <button type="button" class="icon-button framed" title={!entity ? "Add as the target's root node" : addPlace === "next" ? "Add next to the selected node" : "Add inside the selected node"} aria-label="Add node" disabled={!canAdd} onclick={add}><Icon name="plus" /></button>
     </span></div>
+    {#if entity}
+      <div class="row" data-help-name="Add as" data-help="Where + node puts the new node: next to the selected node (the same parent, right after it) or inside it (its last child). Next to it is the default for a model, video or image, which rarely hold children; next to the root, both go into a new group."><span class="label">add as</span>
+        <span class="controls"><Segmented options={ADD_PLACES} value={addPlace} labels={ADD_PLACE_LABELS} onchange={place => (addPlaceChosen = place)} /></span></div>
+    {/if}
+  {/if}
 
   {#if !entity || !current}
     <p class="muted small">No AR content on this target yet.</p>
@@ -419,6 +491,11 @@
       {#if error}<span class="small danger">{error}</span>{/if}
       <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
     </div>
+  {:else if atTarget}
+    <!-- The target is selected: its entity is one step down -->
+    <div class="row"><span class="label">AR content</span>
+      <span class="controls"><button type="button" class="text-link" onclick={() => target && selection.selectNode(target.id, [])} title="Select the entity (its root node)">{nodeLabel(entity)}</button></span></div>
+    {@render actions()}
   {:else}
     <div class="section"><span class="section-label">placement</span></div>
     {#each ["position", "rotation", "scale"] as key (key)}
@@ -449,15 +526,10 @@
     {/each}
 
     {#if ASSET_KINDS[current.type]}
-      <div class="section"><span class="section-label">file</span>
-        <span class="controls">
-          <button type="button" class="text-link" onclick={() => nodeFileInput?.click()} title="Upload a file for this node">Upload…</button>
-          {#if onlibrary}<button type="button" class="text-link" onclick={onlibrary} title="Choose a file from the library (Use)">Library…</button>{/if}
-          <input bind:this={nodeFileInput} type="file" accept={ACCEPT} hidden
-            onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void uploadForNode(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
-        </span></div>
-      <div class="row"><span class="label">{current.type === "model" ? "model" : current.type}</span>
-        <span class="small muted name" title={current.assets[0]?.src ?? ""}>{current.assets[0] ? fileLabel(current.assets[0].src) : "no file"}</span></div>
+      <div class="section"><span class="section-label">file</span></div>
+      <div class="row"><span class="label">{current.type}</span>
+        <FileField src={current.assets[0]?.src} picture={current.type === "image"} accept={pickAccept({ for: "node", nodeType: current.type })}
+          label="the {current.type} file of this node" onlibrary={pickNodeFile} onupload={f => void uploadForNode(f)} /></div>
     {/if}
     {#if current.type === "text"}
       <div class="section"><span class="section-label">text</span></div>
@@ -550,16 +622,27 @@
 
 <style>
   .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
-  .head .field { max-width: 60%; }
   .head .small { overflow-wrap: anywhere; }
-  /* A narrow panel (#159): the target picker takes the whole line, its source below */
+  /* The breadcrumb: the crumbs as quiet buttons, the selected level marked as in the tree; ▾ picks another target */
+  .crumbs { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0 .125rem; }
+  .crumb { max-width: 10rem; height: var(--control-height); padding: 0 .375rem; border: none; border-radius: var(--control-radius); background: none; color: var(--muted);
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  button.crumb:hover { background: var(--hover-background); color: var(--text); }
+  .crumb.current { display: inline-flex; align-items: center; background: var(--selected-background); color: var(--pressed-color); cursor: default; }
+  .crumb-sep { color: var(--muted); }
+  /* Only the select's arrow shows (its options name the targets) */
+  .crumb-switch { width: 1.25rem; height: var(--control-height); padding: 0; border: none; border-radius: var(--control-radius); color: transparent; cursor: pointer; appearance: none;
+    background: linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(50% - 2px) 55% / 4px 4px no-repeat,
+      linear-gradient(135deg, var(--muted) 50%, transparent 50%) calc(50% + 2px) 55% / 4px 4px no-repeat; }
+  .crumb-switch:hover { background-color: var(--hover-background); }
+  .crumb-switch option { color: var(--text); background: var(--surface); }
+  /* A narrow panel (#159): the source goes below the breadcrumb */
   @container panel (max-width: 20rem) {
     .head { flex-wrap: wrap; gap: 0 .5rem; }
-    .head .field { flex: 1 1 100%; max-width: 100%; }
   }
   .add .controls { flex-wrap: nowrap; }
   .add .field { min-width: 0; max-width: 7rem; }
-  .add .field.grow { flex: 1; max-width: none; }
+  .add .file-pick { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; justify-content: flex-start; }
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .fields :global(.scrub) { width: 100%; }
@@ -569,9 +652,6 @@
   .row > .field { width: 100%; }
   .tabular { font-variant-numeric: tabular-nums; }
   .time { width: 100%; margin: 0; accent-color: var(--text); }
-  .file { flex-wrap: nowrap; }
-  .target-thumb { width: 2.5rem; height: 1.875rem; object-fit: contain; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface-head); }
-  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .text-link.on { color: var(--text); }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }

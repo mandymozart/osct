@@ -59,6 +59,35 @@ jobs:
           extensions: pdo_sqlite
       - run: php server/tests/api-test.php
 
+  # The same test against MariaDB, the engine of staging and production: SQLite lets MySQL-only failures through
+  # (native prepares, string literals). The version is docker-compose.yml's.
+  server-mariadb:
+    name: Accounts API (MariaDB)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: osct-root
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=3s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_mysql
+      - run: php server/tests/api-test.php
+        env:
+          OSCT_TEST_DB: mysql
+          OSCT_TEST_DB_HOST: 127.0.0.1
+          OSCT_TEST_DB_PORT: ${{ job.services.mariadb.ports['3306'] }}
+          OSCT_TEST_DB_USER: root
+          OSCT_TEST_DB_PASS: osct-root
+
   editor:
     name: Editor
     runs-on: ubuntu-latest

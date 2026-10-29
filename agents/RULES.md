@@ -223,7 +223,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     Composer), served as `/api` next to the app from the site's Docker image (docs/deploy.md).
     Secrets never in the repository: locally `server/.env` / `server/api/config.local.php` (ignored), in CI GitHub
     environment secrets – the container gets them as `OSCT_*` environment variables. Queries must run
-    on MySQL and SQLite (tests); schema changes go into `api/db/schema.*.sql` (idempotent). The app talks to it
+    on MySQL and SQLite (tests – the API test runs on both, locally against the MariaDB of `docker-compose.yml`:
+    no named parameter twice, `LIKE` patterns through `Db::contains`); schema changes go into `api/db/schema.*.sql` (idempotent). The app talks to it
     only through `ApiService` (`VITE_API_URL`); `php server/tests/api-test.php` must pass.
     Naming: the signed-in person is the **user** in code, API and database; "Account" is only the UI label.
     Update options are **opt-in** – never on by default.
@@ -244,7 +245,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 
 27. **CI**: `.github/workflows/checks.yml` ("Checks") runs on every push/PR: the version check (strict into
     `develop`/`main`), scripts type-check + build + tests + fixture build (+ the book content while it is in
-    git), the Accounts API test (PHP 8.3, SQLite), client fixture build + `tsc` (app and service worker) +
+    git), the Accounts API test (PHP 8.3, SQLite and MariaDB), client fixture build + `tsc` (app and service worker) +
     translations status + `vitest`, the editor, the MCP server (`mcp/`: `tsc` + vitest with the end-to-end test against
     the PHP API). All jobs must be green before a merge.
     **Actions minutes** (Tilman, 2026-10-28, #42): every push starts runners. Runs on this public repository are

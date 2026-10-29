@@ -81,11 +81,12 @@ export const schemas = {
   entity: {
     fields: {
       id: { type: "String", required: false },
+      name: { type: "String", required: false }, // the node's name in the editor's tree (schema 2.12)
       type: { type: "String", required: true, enum: ENTITY_TYPES },
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts
-      children: { type: "Array", required: false }, // nodes: { type, src?, params?, filters?, children?, text?, color?, light? }
+      children: { type: "Array", required: false }, // nodes: { type, name?, src?, params?, filters?, children?, text?, color?, light? }
       components: { type: "Array", required: false }, // [{ type, ...parameters }], see shared/types/components.ts
       text: { type: "String", required: false }, // text nodes
       color: { type: "String", required: false }, // text nodes, #rrggbb

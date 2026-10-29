@@ -3,12 +3,15 @@
 // Every key can also come from an environment variable with the prefix OSCT_ (OSCT_DB_PASS …),
 // which wins over this file. All keys and defaults: src/Config.php.
 return [
-    // MySQL on the server
-    'DB_HOST' => 'localhost',
+    // MySQL / MariaDB. These values are the local MariaDB of docker-compose.yml (`docker compose up -d db` in the
+    // repository root – the recommended setup, docs/server.md "Local development"); 127.0.0.1, not localhost, so PDO
+    // takes TCP to the container instead of a socket. On a server: its host, database and account.
+    'DB_HOST' => '127.0.0.1',
+    'DB_PORT' => '3306',
     'DB_NAME' => 'osct',
     'DB_USER' => 'osct',
-    'DB_PASS' => '',
-    // Local development instead of MySQL: an SQLite file, created with the schema on first use
+    'DB_PASS' => 'osct',
+    // Quick tests without Docker instead: an SQLite file, created with the schema on first use (wins over DB_*)
     // 'DB_SQLITE_PATH' => __DIR__ . '/db/local.sqlite',
 
     // At least 32 random characters: openssl rand -hex 32

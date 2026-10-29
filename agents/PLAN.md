@@ -1070,7 +1070,9 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
 2b. [~] **Asset upload** (Tilman 2026-10-29): [x] the asset layer after Scutoons' in OSCT size – registry (assets,
        versions, usages computed), the content store as storage (local + bunny), upload, replace with relink, guarded
        delete, the editor's Library, a node's file, a target's image; [x] the Library and the picker also list the
-       imported files of `files.json`, read-only (1.16.2, #111); [x] targets made in the editor (`print`
+       imported files of `files.json`, read-only (1.16.2, #111); [x] the Library as the picker of every file – the filter
+       preselected, a target-image filter, it fills only the field it was opened for (#164); the new target's two
+       choices labelled, the category following what appears (#165); [x] targets made in the editor (`print`
        placement, `POST /entries`, `DELETE /entries/{id}`, "+ target" in the tree); [ ] renditions (1x / 2x / 3x,
        480p / 720p / 1080p) and transcoding – the content build or a job; [x] a target made in the editor tracks in
        the reader: the 8th Wall engine makes the image-target data from the image at runtime (`xr8.ts`), nothing to

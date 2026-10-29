@@ -40,6 +40,81 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   mapping reader, the schema lock, and the sync and purge against a storage zone in memory. The scripts tests remove
   their temp folders.
 
+## 1.29.0 – 2026-10-30
+
+### Added
+- **Add and remove spreads in the editor** (#166): the book page has **+ double page** (after the last one, before the
+  back cover) and, on each card, **+ after** and **remove**. A new double page takes the two pages after the spread
+  before it and numbers every later page on by two – the later spreads, the entries on those pages and their targets'
+  printed page move with them. Removing an empty spread numbers the later pages back; a spread with entries, or the
+  one the book opens on, is not removed (the button is disabled and says why). The API: `POST …/spreads { format:
+  "spread", after? }` and `DELETE …/spreads/{id}` (docs/server.md "Spreads made in the editor").
+
+### Changed
+- **Disabled controls look disabled** in the whole editor: dimmed, a not-allowed cursor, a select without its arrow –
+  the spread format select on a double page no longer looks broken. The reason stays in the Info view.
+
+## 1.28.0 – 2026-10-30
+
+### Added
+- **The Library is the picker of every file** (#164): a target's printed image, a node's file (video, image, model),
+  a new node's file, the new-target form's files and the environment's world and sky each have *Library…* next to
+  *Upload…*. It opens the Library in place as a picker: the filter starts at the kind being picked, a click on a card
+  (or *Pick*) takes the file for that one field and returns, an upload that fits is taken at once, *cancel* or Esc
+  return without one. The panel underneath keeps its values (a half-filled new target, the selected node).
+- **A "target image" filter** next to images: the pictures printed in the book (a target's image in the draft, or the
+  import's `target.*` of an entry); "image" lists the other images.
+
+### Changed
+- **The new target form tells its two choices apart** (#165): *What appears on the page* (none, model, video, image,
+  text, group, light – pills, so the 3D model is in sight) with its file, then the *Entry category* (where the reader's
+  consultation menu lists the entry). The category follows what appears – a video makes a Videos entry, everything
+  else a glossary term – until it is set by hand.
+- The file fields show the file by where it belongs (`p015-1 · target`), pictures with a preview; the dropdowns of
+  file names ("Target Image, Target Image, …") are gone from the new-target form and the Entity panel's *+ node*.
+- File uploads offer only the kinds the field takes (a model: `.glb`, `.gltf` and their media types).
+
+### Fixed
+- **The Library opened from a node changed the target's image** (#164): it fills only the field it was opened for.
+- The Library tab's *Use* reached no node: the Entity panel was closed while the Library showed. It opens first now.
+
+## 1.27.1 – 2026-10-30
+
+### Added
+- **A local MariaDB for the API** (#168): `docker compose up -d db` starts MariaDB 10.11 (the version of staging's host)
+  with the schema; `config.local.php.example` carries its settings. This is now the recommended local setup – SQLite
+  stays for quick tests (docs/server.md "Local development").
+- **Staging's data locally**: `scripts/db/pull-staging.sh` dumps staging's database (credentials in the git-ignored
+  `server/.env`, directly or over SSH), loads it into the local MariaDB, replaces the readers' addresses with
+  placeholders, removes passwords and sessions, and migrates it to the checkout's schema. The dump is deleted unless
+  kept with `--keep` (then in the git-ignored `server/db-dumps/`).
+- **The API test runs against MariaDB too**: `OSCT_TEST_DB=mysql php server/tests/api-test.php` gives every API of the
+  test a new database and drops them at the end; CI runs it as "Accounts API (MariaDB)" next to the SQLite run.
+
+### Fixed
+- **The admin page's user search works on staging**: the search wrote `LIKE … ESCAPE '\'`, which MySQL reads as an
+  unterminated string (a 500 on every search with text). The same pattern broke an asset's usages in the editor (the
+  usage list, deleting and replacing an asset). Both now escape with `!`, which works on MySQL and SQLite; the first
+  MariaDB run of the API test found it, and the test now also scans for it.
+
+## 1.27.0 – 2026-10-30
+
+### Added
+- **One selection in the editor, at its level** (#162): a target, its entity or a node, shared by the tree, the stage
+  and the Entity panel. The tree's selected row has its own grey and a bar at its start, the rows above a selected
+  node are marked, the hovered row is lighter; a selected target is outlined on the stage (the orange of a selected
+  node, around its printed image). The Entity panel opens at the selected level – a target shows its target fields,
+  an entity or node that node – and its head is a breadcrumb (*target › entity › group › node*) that steps up.
+- **The tree's hierarchy can be changed** (#163): drag a node onto a row (its child) or between two rows (its
+  sibling, the order set); with a finger by its icon. Keys: Alt + ↑ ↓ move, Tab / Shift + Tab indent / outdent; the
+  row's menu has the same. **+ node** places the new node *next to* the selected one (the default for a model, video
+  or image) or *inside* it; next to the root both go into a new group.
+- **Nodes have names** (content schema 2.12, optional `name`): the Entity panel's *name* row, the tree shows the name
+  and keeps the type as its icon. The content build, the guard and the editor API accept it; old content stays valid.
+
+### Changed
+- The tree's ↑ ↓ walk every row (targets and nodes), not only the targets; ← on a node steps up a level.
+
 ## 1.26.8 – 2026-10-30
 
 ### Added

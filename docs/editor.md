@@ -151,10 +151,24 @@ is involved.
   taken; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
   media is copied; for a content base it is the version's folder).
 - **Spreads** (`/editor/<book>/`): the spreads as cards with the sheet of each as its preview (from the book's layout
-  at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ cover** / **+ back
+  at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ double page** adds a
+  double page after the last one (before the back cover), a card's **+ after** (on hover, over its sheet) one right
+  after that spread – a cover included, the back cover not. A new double page is empty (*New spread*, id `spread-<n>`)
+  and takes the two pages after the spread before it: **every later page is numbered on by two**, and the entries on
+  those pages (their `page`) and their targets' printed page (`print.page`) move with them, so each entry stays on its
+  spread. The book's layout does not move – a laid-out sheet is matched by its pages, so after an insertion every card
+  from the new spread on shows the sheet of its new page numbers (the new one the sheet the next spread had) until a
+  layout with the new pages is imported.
+  A card's **remove** takes out a spread **without entries** (it asks first): a double page's later pages are numbered
+  back by its pages, a cover moves nothing. A spread with entries is not removed with them – their targets and AR are
+  work – so *remove* is disabled until they are deleted (in the workspace's tree); the spread the book opens on
+  (`initialSpreadId`) cannot go either; the reason is the button's tooltip and help. Should the API know only the
+  covers (an older server), the page says *New spreads come in with an import for now* instead of offering double
+  pages. **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
   the last) when the book has none; **Publish** with the environment (`local`, `staging`, `production` – production
-  asks), and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section.
+  asks), and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section; on a double page
+  the select is disabled (only a one-page spread can be a cover) – the reason is its help in the Info view.
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
@@ -166,14 +180,33 @@ is involved.
     **node tree** – the root node (● while the stage shows it with other values than the draft's; the shared ref) and
     its children, as deep as the content nests them. A tap on a node selects it and opens the Entity panel; a tap on
     the stage selects the root. **+ target** at the end of the tree opens the form for a new target on the spread:
-    title, page, category, the printed image from the library (or uploaded there), and where it is printed (surface,
-    x / y, width in mm) – the API makes entry and target, the stage shows it at once (and the reader tracks it after
+    title, page, the printed image (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image,
+    text, group or light, with its file or line), the **entry category** (where the reader's consultation menu lists
+    it – it follows what appears, a video makes a Videos entry, until set by hand; #165), and where it is printed
+    (surface, x / y, width in mm) – the API makes entry and target, the stage shows it at once (and the reader tracks it after
     a publish: the engine makes the image-target data from the image at runtime); the target row's right-click
-    menu has **Remove target** (entry and target go). ↑ ↓ walk the targets, ← → fold and unfold, Enter selects, **Delete** (or Backspace)
+    menu has **Remove target** (entry and target go). **Delete** (or Backspace)
     removes the selected node – its children with it, the root leaves the target without AR content – and a
-    **right click** on a node row opens the menu with *Remove node* / *Remove entity*. Removing is live on the stage;
+    **right click** on a node row opens the menu with *Move up / down*, *Into the node above*, *Out of its parent*
+    and *Remove node* / *Remove entity*. Removing is live on the stage;
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device).
+  - **Selection** (#162) – one selection for the tree, the stage and the Entity panel
+    (`editor/src/lib/selection.svelte.ts`, the rules in `selection.ts`): a **target** (a tap on its row or its entry's,
+    a pick of its printed image), its **entity** (the root node) or a **node**; selecting in one selects in the
+    others. The tree highlights the selected row over its whole width (its own grey and a bar at its start), the
+    rows above a selected node lighter, the hovered row lighter still; the stage outlines a selected target's print
+    and puts the gizmo on a selected entity or node; the Entity panel opens at that level (below). Keys in the tree:
+    ↑ ↓ walk every row, ← → fold and unfold (← on a folded or childless node steps up a level), Enter opens the
+    Entity panel.
+  - **Hierarchy** (#163) – a node row is **dragged** onto another row of the same entity (it becomes that node's last
+    child; the row shows a frame) or between two rows (a sibling there, the order set; a line shows where) – a mouse
+    drags the whole row, a finger the row's type icon. **Alt + ↑ ↓** move the selected node among its siblings,
+    **Tab / Shift + Tab** indent it (into the node above) and outdent it (right after its parent). A node placed
+    next to the root wraps the root in a new group, so both are siblings under the target. Only parent and order
+    change: a moved node keeps its placement values, now relative to its new parent. Live on the stage, Save writes
+    it (`editor/src/lib/tree.ts`). Every row shows the node's **name** (content schema 2.12, the Entity panel's
+    *name* row) and its type as the icon; without a name the type.
   - **Column edges** – the tree's right edge and the panel's left edge are dragged to resize the columns (#144; the
     panel 16rem to 70% of the window, the tree 10rem to 40%, the stage keeps at least 16rem, so a 768 px tablet in
     portrait still shows a stage; a focused edge also moves with ← →; with a finger (`pointer: coarse`) the edge's hit
@@ -212,8 +245,8 @@ is involved.
     **reach** row (*AR layer / whole picture*) keeps it on the AR layer (it gets the layer's coverage as a mask) or
     grades the desk too, as the reader grades the camera picture.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
-    through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
-    a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
+    through everything, in the object's own space – a video plane outlines as a plane), a selected target the same
+    orange around its printed image, the entity under the pointer a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
     side: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
     materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
     icons only, every button's label is its tooltip. The stage and the gizmo keep their own look.
@@ -237,12 +270,18 @@ is involved.
     while hovered or after a click on ▷ –, the type's icon else; where the file belongs – the import names every file
     `image.jpg`, `target.jpg`, `video.mp4` in a folder per entry, so a card reads `p015-1 · target` –, kind, size,
     dimensions, the number of uses) or a plain **list** (name, place, kind, size, uses; a click on a row opens its
-    actions) – the **view** is remembered per browser; filter by kind, search by name and place (`p015 target`), **Upload** (the
-    button, or files dropped on the panel); per file **Use** (the selected node takes it, when its type fits),
-    **Target image** (an image becomes the selected target's printed image), **Replace…** (a new version, every use
-    relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes name a file by
-    its absolute URL, so draft and every publish point at the same file. While the Environment tab picks a file, a
-    fitting card has a **World** (a glTF model) or **Sky** button (a jpg, png or webp) and the kind filter starts there.
+    actions) – the **view** is remembered per browser; filter by kind (**target image** – a target's image in the
+    draft, or the import's `target.*` – apart from the other images, video, model, audio), search by name and place
+    (`p015 target`), **Upload** (the button, or files dropped on the panel); per file **Use** (the selected node takes
+    it, when its type fits), **Target image** (an image becomes the selected target's printed image), **Replace…** (a
+    new version, every use relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces
+    it). Nodes name a file by its absolute URL, so draft and every publish point at the same file.
+    **The Library as the picker** (#164): every file field – a target's printed image, a node's file, a new node's
+    file, the new target's files, the environment's world and sky – shows the file (a picture as a preview, every file
+    by its place) with **Library…** and **Upload…**. *Library…* opens the Library in place of the panel as a picker
+    (`LibraryPanel` with `pick`, `editor/src/lib/library-pick.ts`): the filter starts at the kind being picked, a
+    click on a fitting card picks it for that one field and returns, an upload that fits is picked at once, *cancel* or
+    Esc returns without one; the panel underneath keeps its values. Selecting another target or node closes it.
   - **Environment** – the book's world around the reader and its sky (content schema 2.8 / 2.10,
     [content guide](content.md) "Environment", [look-around](look-around.md)). While the tab is open the stage shows the
     **engine's own look-around pass** with the values being edited – the world anchored to the book, the window around
@@ -250,7 +289,7 @@ is involved.
     the view as a phone's gyroscope would turn it (`MockTracker.worldOrientation`, `ArScene.previewEnvironment` – an
     editor-only method, not part of `IArScene`). **look up** raises the camera from the book towards the horizon and the
     sky (the targets stay found, as the reader's world stays for 45 s). Rows: **world** – the built-in *café*, or a glTF
-    model; **sky** – *the world's*, or an equirectangular image; each with *Library…* (the Library picks it, see above),
+    model; **sky** – *the world's*, or an equirectangular image; each with *Library…* (the Library as the picker, see above),
     *Upload* (into the Library and taken at once) and *remove* (back to the built-in part); **onion sky** on / off (it
     needs a camera picture, so only the reader shows it). Changes show at once; **Save** writes the environment to the
     draft (`PUT /editor/books/{id}/environment`), *Back to the draft* undoes, *Use the default* removes it. The book page
@@ -267,13 +306,16 @@ is involved.
     plugins' own), newest first – the narrative of a book like the demo ([plugins](plugins.md) "Across nodes and
     pages") is driven from the tree's eyes and read here; **reset** starts a new game (every variable cleared, nothing
     unlocked, the spread found anew).
-  - **Entity** – first the **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
+  - **Entity** – opens at the selected level (#162): its head is the **breadcrumb** *target › entity › group › node*
+    (a crumb selects that level, ▾ after the target picks another target of the spread). A selected target shows the
+    **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;
     **Save placement** writes it; until then a target made in the editor lies where its form put it, an imported one
-    where the book's layout says). Then the selected **node** of its entity (the head says `node · root › 1 › 0 ·
-    model`), its **file** (name; **Upload…** or **Library…**),
-    **+ node** (type – group, model, video, image, text or light – and for model / video / image a file from the
-    book's assets – appended as a child of the selected node, or as the root of a target without AR content),
+    where the book's layout says), and its AR content as a link one level down. A selected entity or node shows
+    that **node**: its **name** (empty = the tree shows the type), its **file** (the file field: **Library…** – the Library as the picker, with the filter set – or **Upload…**),
+    **+ node** (type – group, model, video, image, text or light – and for model / video / image a file chosen in
+    the Library as the picker – the root of a target without AR content, else placed by **add as**: *next to it* (the same parent,
+    right after the selected node – the default for a model, video or image) or *inside it* (its last child)),
     **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
     text and colour, a light node's **light** rows (kind as a segmented group, colour, intensity, distance and decay
     for a point or spot, angle and penumbra for a spot), and every filter parameter of the
@@ -325,7 +367,8 @@ lowers** the value, the two directions add up (the quadrant rule, Tilman 2026-10
 Shift ×10, Alt ×0.1, tap to type,
 ↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders, no native colour picker: the colour popover
 in the top layer); small enums as segmented pressed pills;
-on / off per item as a pressed chip; Feather icons only where a word makes no sense (step, replay, photo, close, the
+on / off per item as a pressed chip; a **disabled** control looks it at a glance – dimmed, a not-allowed cursor, a
+select without its arrow (`app.css`) – and says why in its help, never in a hint beside it; Feather icons only where a word makes no sense (step, replay, photo, close, the
 chain that links the scale axes) – and in the tree, where type icons and the eye are every outliner's convention
 (Blender, Unity, Figma); each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
 itself renders the reader's content unchanged. Texts are English (RULES #20).
@@ -338,7 +381,7 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`) and the reader's graphics options |
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts` |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the Library's filters and picks in `library-pick.ts`, the new target's choices in `new-target.ts` |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |

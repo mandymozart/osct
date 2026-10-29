@@ -1,11 +1,10 @@
-import type { AssetData } from "@engine/types";
 import { ApiError, deleteAsset, listAssets, replaceAsset, uploadAsset, type Asset } from "./api";
+import { acceptOf, KIND_EXTENSIONS, type AssetKind } from "./library-pick";
 
-/** The file kinds a node type takes */
-export const NODE_ASSET_KINDS: Record<string, readonly AssetData["assetType"][]> = { model: ["glb", "gltf"], video: ["video"], image: ["image"] };
+export { NODE_ASSET_KINDS } from "./library-pick";
 
-/** The file extensions the library accepts (the API's `Assets::KINDS`) */
-export const ACCEPT = ".glb,.gltf,.mp4,.webm,.mov,.jpg,.jpeg,.png,.webp,.mp3,.m4a,.ogg,.wav";
+/** The files the library accepts (the API's `Assets::KINDS`) */
+export const ACCEPT = acceptOf(Object.keys(KIND_EXTENSIONS) as AssetKind[]);
 
 /**
  * The book's library: the files uploaded in the editor (the API's assets – docs/server.md "Assets"), loaded per book,
