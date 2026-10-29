@@ -3,7 +3,7 @@
   import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import {
-    getPreview, HDRIS, isHdriId, PREVIEW_BACKDROPS, PREVIEW_VIEWS, setTargetHidden, subscribePreview, updatePreview, type PreviewState,
+    DESKS, getPreview, HDRIS, isDeskId, isHdriId, PREVIEW_VIEWS, setTargetHidden, subscribePreview, updatePreview, type PreviewState,
   } from "$lib/stage/preview";
   import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
@@ -12,35 +12,16 @@
 
   /**
    * The simulated camera: view presets (drag on the stage orbits, wheel / pinch the distance, double tap = reader),
-   * found per target (off = lost → outro, on = found → reveal), replay of the first find, hand shake, backdrop
-   * table / paper / a photo of the desk.
+   * found per target (off = lost → outro, on = found → reveal), replay of the first find, hand shake, the desk and
+   * the sky (an HDRI).
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
-
-  /** The photo behind the stage is stored on the device: long side at most this many pixels */
-  const PHOTO_MAX_PX = 1600;
 
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
   // From the reactive content (a reload after a save or a spread switch recomputes it)
   const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
-  let fileInput = $state<HTMLInputElement>();
-
-  const choosePhoto = async (file: File) => {
-    try {
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, PHOTO_MAX_PX / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(bitmap.width * scale);
-      canvas.height = Math.round(bitmap.height * scale);
-      canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      bitmap.close();
-      updatePreview({ photo: canvas.toDataURL("image/jpeg", 0.85), backdrop: "photo" });
-    } catch (error) {
-      console.warn("[editor] The photo could not be read:", error);
-    }
-  };
 </script>
 
 <div class="row"><span class="label">view</span>
@@ -71,17 +52,18 @@
     <span class="small muted">0 = still, 1 = a hand holding the phone</span>
   </span></div>
 
-<div class="row"><span class="label">backdrop</span>
+<div class="row"><span class="label">desk</span>
   <span class="controls">
-    <Segmented options={PREVIEW_BACKDROPS} value={preview.backdrop} onchange={backdrop => updatePreview({ backdrop })} />
-    {#if preview.backdrop === "hdri"}
-      <select class="field" aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
-        {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
-      </select>
-    {/if}
-    <button type="button" class="icon-button" title="Choose a photo of your desk" aria-label="Choose a photo of your desk" onclick={() => fileInput?.click()}><Icon name="camera" /></button>
-    <input bind:this={fileInput} type="file" accept="image/*" hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void choosePhoto(f); }} />
-    {#if preview.backdrop === "photo" && !preview.photo}<span class="small muted">choose a photo first</span>{/if}
+    <select class="field" aria-label="Desk" value={preview.desk} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isDeskId(id)) updatePreview({ desk: id }); }}>
+      {#each DESKS as desk (desk.id)}<option value={desk.id}>{desk.name}</option>{/each}
+    </select>
+  </span></div>
+
+<div class="row"><span class="label">sky</span>
+  <span class="controls">
+    <select class="field" aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
+      {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
+    </select>
   </span></div>
 
 <p class="hint small muted">drag = orbit · shift-drag / middle button / two fingers = pan · wheel / pinch = distance · double tap = reader · ← → spreads</p>
