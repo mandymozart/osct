@@ -7,7 +7,7 @@
   import Segmented from "$lib/components/Segmented.svelte";
 
   /**
-   * The book's **environment** on the stage (content schema 2.8 / 2.9): the world around the reader while scanning, its
+   * The book's **environment** on the stage (content schema 2.8 / 2.10): the world around the reader while scanning, its
    * sky and the onion sky. While this tab is open the stage shows the engine's look-around world with the values being
    * edited, under the desk and the book, turned by the view (*look up* raises the camera from the book to the horizon).
    * **World**: the built-in café, or a glTF model from the Library (or uploaded here); **sky**: the world's own, or an
@@ -65,11 +65,14 @@
 </script>
 
 <div class="section"><span class="section-label">environment</span>
-  <span class="small muted">{edit.saved ? "this book's" : "the default"} · the reader's Graphics switches still apply</span></div>
+  <span class="small muted" data-help-name="Environment" data-help="The book's world around the reader while scanning, its sky and the onion sky – shown on the stage while this tab is open: the reader's own look-around pass, anchored to the book, turned by the view. The reader's Graphics switches (Info → Settings) still apply on top.">{edit.saved ? "this book's" : "the default"}</span></div>
 
 {#snippet slotRow(slot: EnvironmentSlot)}
   {@const src = edit.edited[SOURCE[slot]]}
-  <div class="row" class:changed={(src ?? null) !== (edit.saved?.[SOURCE[slot]] ?? null)}>
+  <div class="row" class:changed={(src ?? null) !== (edit.saved?.[SOURCE[slot]] ?? null)}
+    data-help={slot === "world"
+      ? "The scenery around the reader: the built-in café, or a glTF model (its origin the floor under the reader, −z towards the book). Library… picks one there (its World button), Upload adds one, remove goes back to the café."
+      : "The sky: the world's own, or an equirectangular image (2:1, its centre towards the book). Library… picks one there (its Sky button), Upload adds one, remove goes back to the world's."}>
     <span class="label">{slot}</span>
     <span class="controls">
       <span class="file" class:muted={!src} title={src ?? ""}>{src ? nameOf(src) : BUILT_IN[slot]}</span>
@@ -85,7 +88,8 @@
 
 {@render slotRow("world")}
 {@render slotRow("sky")}
-<div class="row" class:changed={edit.edited.onionSky !== (edit.saved?.onionSky ?? true)}>
+<div class="row" class:changed={edit.edited.onionSky !== (edit.saved?.onionSky ?? true)}
+  data-help="Looking up, sky-like parts of the camera picture show the world's sky. It needs a camera picture, so only the reader shows it.">
   <span class="label">onion sky</span>
   <span class="controls">
     <Segmented options={["on", "off"] as const} value={edit.edited.onionSky ? "on" : "off"}
@@ -97,12 +101,10 @@
 {#if library.uploading.length}<div class="row"><span class="small muted">Uploading {library.uploading.join(", ")}…</span></div>{/if}
 
 <div class="section"><span class="section-label">preview</span></div>
-<div class="row" title="Raise the camera from the book towards the horizon and the sky">
+<div class="row" data-help="Raise the stage's camera from the book towards the horizon and the sky (the book stays found, as the reader's world stays).">
   <span class="label">look up</span>
   <span class="w"><ScrubNumber value={lookUp} min={-30} max={90} step={1} fallback={0} unit="°" label="look up" strict oninput={v => (lookUp = v)} /></span>
 </div>
-<p class="small muted note">The stage shows the reader's look-around pass – the world anchored to the book, the window around it and the clear floor –
-  turned by the view. The onion sky needs a camera picture: only the reader shows it.</p>
 
 {#if edit.dirty || edit.saved || notice || edit.error}
   <div class="actions">
@@ -121,7 +123,6 @@
   .file { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
-  .note { margin: .25rem 0 .5rem; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
 </style>

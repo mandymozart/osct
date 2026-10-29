@@ -160,14 +160,13 @@
     <button type="button" class="icon-button framed" title="New plugin" aria-label="New plugin" onclick={startNew}><Icon name="plus" /></button>
   </span></div>
 {#if adding}
-  <div class="row"><span class="label">id</span>
+  <div class="row" data-help-name="Plugin id" data-help="The new plugin's folder name: letters, digits and -."><span class="label">id</span>
     <span class="controls">
       <input class="field grow" placeholder="tint" spellcheck="false" bind:value={newId} aria-label="Plugin id" />
-      <span class="small muted">a folder name: letters, digits, -</span>
     </span></div>
 {/if}
 
-<div class="editor" class:has-error={errorLine !== null}>
+<div class="editor" class:has-error={errorLine !== null} data-help-name="Plugin source" data-help="The plugin's TypeScript. Run (Ctrl+Enter) shows it on the stage; Save (Ctrl+S) stores the source. Readers get a plugin with a publish once it compiles them (#78) – today only the content source's plugins are compiled.">
   <pre class="gutter" bind:this={gutter} aria-hidden="true">{#each { length: lines } as _, i (i)}<span class="ln" class:error={errorLine === i + 1}>{i + 1}</span>{/each}</pre>
   <textarea bind:this={textarea} class="source" bind:value={source} spellcheck="false" wrap="off" aria-label="Plugin source (TypeScript)" disabled={loadingSource || (!open && !adding)}
     onkeydown={onKey} onscroll={syncScroll} oninput={() => { if (plugins.runError) plugins.runError = null; }}></textarea>
@@ -179,8 +178,6 @@
   <p class="small danger message">{plugins.error}</p>
 {:else if notice}
   <p class="small muted message">{notice}</p>
-{:else}
-  <p class="small muted message">Run shows it on the stage (Ctrl+Enter); Save stores the source (Ctrl+S). Readers get a plugin with a publish, once it compiles them (#78) – today only the content source's plugins are compiled.</p>
 {/if}
 
 <div class="actions">

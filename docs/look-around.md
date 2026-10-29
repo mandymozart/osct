@@ -10,7 +10,7 @@ Two optional effects in scan mode, **off by default** – readers turn them on i
 The built-in world is an alien café drawn in the shader; a book can bring its own world and sky as files.
 
 **The book's environment** (content schema 2.8, `environment` in `book.yaml`, `shared/types/environment.ts`): `world`
-(`cafe` – the only built-in one) and `onionSky` (on/off); since 2.9 `worldSrc` (a glTF model – the scenery) and
+(`cafe` – the only built-in one) and `onionSky` (on/off); since 2.10 `worldSrc` (a glTF model – the scenery) and
 `skySrc` (an equirectangular image – the sky), see the [content guide](content.md) "Environment" for their conventions.
 The sky image replaces the café's sky, the model the café's scenery; while they load, or when one fails (logged), the
 café's part is drawn. The reader's switches apply on top (`effectiveGraphics` in `look-around.ts`): either can turn a

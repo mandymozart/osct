@@ -15,7 +15,7 @@ const FADE_OUT = 3;
 /**
  * What is drawn: the book's environment (content schema 2.8) says which world and whether the onion sky, the reader's
  * Graphics switches apply on top – either can turn a part off, neither turns on what the book leaves out. The café is
- * the only built-in world (a world model or sky image of 2.9 is drawn over it), so `surroundings` follows the world; a
+ * the only built-in world (a world model or sky image of 2.10 is drawn over it), so `surroundings` follows the world; a
  * new built-in world adds its own check here. Pure, for the tests.
  */
 export const effectiveGraphics = (reader: GraphicsSettings, environment: EnvironmentData): GraphicsSettings => ({
@@ -75,7 +75,7 @@ export class LookAround {
   private reader: GraphicsSettings;
   private options: GraphicsSettings;
   private preview: LookAroundPreview | null = null;
-  /** The environment's sky image and world model (content schema 2.9), loaded while something is drawn */
+  /** The environment's sky image and world model (content schema 2.10), loaded while something is drawn */
   private assets: EnvironmentAssets;
   private unsubscribe: () => void;
   private orientation = new DeviceOrientation();

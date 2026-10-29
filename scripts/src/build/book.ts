@@ -8,7 +8,7 @@ import { buildErrors } from '../lib/errors';
 import { readYaml, validate } from '../lib/content';
 
 /**
- * The environment's asset references (content schema 2.9) as the configuration holds them: a path below the content
+ * The environment's asset references (content schema 2.10) as the configuration holds them: a path below the content
  * folder (`environment/sky.jpg`) must exist and becomes its content path (`/assets/content/environment/sky.jpg` – the
  * build copies the whole folder); an absolute URL (an uploaded asset) stays as it is.
  */

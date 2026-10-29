@@ -55,7 +55,7 @@ export class PostChain {
   private output: ShaderPass;
   private instances: Instance[] = [];
   private size = new Vector2();
-  /** The AR layer's coverage alone – what a pass that reaches only the AR layer (the grade) is masked with */
+  /** The AR layer's coverage alone – what a pass that reaches only the AR layer (the grade with `reach: ar`) is masked with */
   private mask: WebGLRenderTarget;
   enabled = true;
 

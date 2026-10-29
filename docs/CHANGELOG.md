@@ -19,7 +19,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   While it is open the stage shows the reader's own look-around pass – the world around the book, the window around it
   and the clear floor – under the desk and the book, turned by the view as a phone would turn it; *look up* raises the
   camera from the book to the horizon and the sky. Changes show at once; **Save** writes them to the draft.
-- **The world and the sky are assets** (content schema 2.9): a glTF model (`worldSrc` – the scenery around the reader)
+- **The world and the sky are assets** (content schema 2.10): a glTF model (`worldSrc` – the scenery around the reader)
   and an equirectangular image (`skySrc` – the sky), picked in the Library (its new *World* / *Sky* buttons while the tab
   picks) or uploaded from the tab; the built-in café stays a choice and the fallback. In `book.yaml` they are paths below
   the content folder – the content build checks the file. The reader loads them only when a Graphics switch is on and
@@ -33,6 +33,46 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 
 ### Fixed
 - The world around the reader faded only on a pause: turning both Graphics switches off while scanning left it drawn.
+
+## 1.20.8 – 2026-10-30
+
+### Added
+- **Info view in the editor** (#133): a collapsible box at the bottom of the tree column (on the book page at the
+  bottom left), like Ableton's Info View – it shows the name and description of the control under the pointer or in
+  focus, and remembers whether it is open. The explanations that filled the panels moved into it: the passes'
+  descriptions, the stage's navigation (point at the stage), shake, grid, origin, desk and sky, the vars and events
+  notes, the plugin editor's Run / Save note and the id rule, the placement note, the library's upload hint, the
+  environment's note. Every control's tooltip shows there too.
+
+### Changed
+- **The Stage panel in collapsible sections** (#102): *spread*, *stage* (shake, grid, origin, desk, sky),
+  *post-processing* and *vars and events* (closed by default) each have a header that opens and closes them; each
+  section's state is remembered. The settings sit in one label / control grid, so the rows line up.
+- **The spread's format** (spread, cover, back) is chosen in the Stage panel's *spread* section instead of the
+  workspace's top bar (#133).
+- **Nine origins** (#133): the origin is chosen with a 3 × 3 alignment square, like a design tool's anchor picker,
+  instead of a row of five buttons – the four corners, the four edge centres and the centre (the book's centre on the
+  open book, the page's centre on a cover). Positions and the grid count from all nine; the Info view says what the
+  chosen point is.
+
+### Fixed
+- **Stage panel layout** (#133): the shake hint no longer overlaps the grid row, and the origin's choices no longer
+  wrap over the desk row.
+- **A new format shows at once** (#133): switching a spread between spread, cover and back left the book in its old
+  shape on the stage until a reload. The stage now lays the book out again right away (`MockTracker.relayout`), and
+  unplaced targets on a cover lie on the cover instead of a right page that is not there.
+- **The events list** logs a scene state once per change instead of repeating `sceneState: "running"`, and long
+  events wrap instead of scrolling sideways.
+
+## 1.20.7 – 2026-10-30
+
+### Added
+- **The grade reaches the whole picture** (#136, content schema 2.9): the built-in `grade` pass has a parameter
+  `reach` – `ar` (the default, as before: the AR layer alone) or `all`: in the editor the desk is graded too, on the
+  phone the camera picture. The camera picture lies in the 8th Wall engine's own canvas under the AR canvas, so the
+  engine's camera renderer draws it with a shader of the same grade (`cameraGradeShader`). The editor's pass rows
+  show a choice parameter as a segmented control (*AR layer / whole picture*). The guard ignores a pass parameter it
+  does not know from now on (a newer MINOR's); the build and the API still refuse it.
 
 ## 1.20.6 – 2026-10-30
 

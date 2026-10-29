@@ -143,7 +143,7 @@
   <div class="row"><span class="label">search</span>
     <span class="controls">
       <input class="field grow" placeholder="name or entry" bind:value={search} aria-label="Search the library" />
-      <button type="button" class="pill framed" onclick={() => fileInput?.click()}><Icon name="plus" /> Upload</button>
+      <button type="button" class="pill framed" data-help-name="Upload" data-help="Upload a model (glb), a video, an image or a sound – or drop files on the library." onclick={() => fileInput?.click()}><Icon name="plus" /> Upload</button>
       <input bind:this={fileInput} type="file" accept={ACCEPT} multiple hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files; if (f?.length) void uploadFiles(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
       <input bind:this={replaceInput} type="file" accept={ACCEPT} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void doReplace(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
     </span></div>
@@ -156,7 +156,7 @@
   {#if library.loading && !library.assets.length}
     <p class="muted small">Loading…</p>
   {:else if !shown.length}
-    <p class="muted small">{library.assets.length ? "Nothing matches." : "No files yet – upload a model (glb), a video, an image or a sound, or drop it here."}</p>
+    <p class="muted small">{library.assets.length ? "Nothing matches." : "No files yet."}</p>
   {:else if view === "list"}
     <table class="list">
       <thead><tr><th>name</th><th>place</th><th>kind</th><th class="num">size</th><th class="num">uses</th></tr></thead>

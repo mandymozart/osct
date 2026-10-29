@@ -23,7 +23,7 @@ export const sameEnvironment = (a: EnvironmentData, b: EnvironmentData): boolean
   a.world === b.world && a.onionSky === b.onionSky && (a.worldSrc ?? null) === (b.worldSrc ?? null) && (a.skySrc ?? null) === (b.skySrc ?? null);
 
 /**
- * The book's environment as the workspace edits it (content schema 2.8 / 2.9): the draft's (`saved`, undefined = the
+ * The book's environment as the workspace edits it (content schema 2.8 / 2.10): the draft's (`saved`, undefined = the
  * book has none, the default applies), the values being edited (`edited` – the stage previews them live) and the slot
  * the Library is choosing a file for (`picking`). Kept across the workspace's tabs, so a pick in the Library comes back
  * to the Environment tab; **Save** writes it to the draft (`PUT /editor/books/{id}/environment`).

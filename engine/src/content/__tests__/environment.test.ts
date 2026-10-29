@@ -30,8 +30,8 @@ describe("book environment (content schema 2.8)", () => {
   });
 });
 
-// The world and the sky as assets (content schema 2.9): a content path or an absolute URL, by file type
-describe("environment assets (content schema 2.9)", () => {
+// The world and the sky as assets (content schema 2.10): a content path or an absolute URL, by file type
+describe("environment assets (content schema 2.10)", () => {
   const base = { world: "cafe", onionSky: true } as const;
 
   it("accepts a world model and a sky image as content paths or absolute URLs", () => {
@@ -52,7 +52,7 @@ describe("environment assets (content schema 2.9)", () => {
     expect(environmentProblems({ ...base, tint: 1 })).toEqual(["environment.tint is not a field of the environment."]);
     expect(environmentProblems({ ...base, tint: 1 }, "book.environment", false)).toEqual([]);
     const config = (environment: unknown) => ({
-      version: { version: "1.21.0", timestamp: "t", schema: "2.9" },
+      version: { version: "1.21.0", timestamp: "t", schema: "2.10" },
       book: { id: "b", title: "B", author: "A", environment },
       initialSpreadId: "s",
       spreads: [{ id: "s", title: "S", firstPage: 1, lastPage: 2 }],

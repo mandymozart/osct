@@ -305,7 +305,7 @@ final class Books
     /**
      * PUT /editor/books/{id}/environment { environment: { world, onionSky, worldSrc?, skySrc? } | null } → 200
      * { environment }: the world around the reader and the onion sky (content schema 2.8; the world model and the sky
-     * image as asset references 2.9, shared/types/environment.ts). `null` removes it – the default applies. Book-level
+     * image as asset references 2.10, shared/types/environment.ts). `null` removes it – the default applies. Book-level
      * only; the reader's Graphics switches still apply on top.
      */
     public static function putEnvironment(string $bookId): never
