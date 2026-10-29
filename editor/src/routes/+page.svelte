@@ -3,7 +3,6 @@
   import { base } from "$app/paths";
   import { goto } from "$app/navigation";
   import { ApiError, listBooks, type BookSummary } from "$lib/api";
-  import { session } from "$lib/session.svelte";
   import ImportForm from "$lib/ImportForm.svelte";
 
   /** The books of this instance; a new one is made by importing a game configuration */
@@ -21,14 +20,6 @@
   };
   onMount(() => void load());
 </script>
-
-<header class="top">
-  <strong>OSCT Editor</strong>
-  <span class="muted">{session.user?.email}</span>
-  <span class="grow"></span>
-  {#if session.isAdmin}<a href="{base}/admin/" class="pill">Admin</a>{/if}
-  <button type="button" class="pill" onclick={() => session.signOut()}>Sign out</button>
-</header>
 
 <main>
   <h1>Books</h1>
@@ -61,9 +52,6 @@
 </main>
 
 <style>
-  .top a.pill { text-decoration: none; }
-  .top { display: flex; align-items: center; gap: .75rem; height: 2.5rem; padding: 0 .75rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
-  .grow { flex: 1; }
   main { max-width: 40rem; margin: 0 auto; padding: 1rem; }
   h1 { font-size: 1rem; font-weight: 600; margin: 0 0 .5rem; }
   .books { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: .375rem; }

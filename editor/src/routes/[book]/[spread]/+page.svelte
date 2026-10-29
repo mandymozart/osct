@@ -17,7 +17,6 @@
   import { deleteEntry, putSpread, putTarget, type Asset } from "$lib/api";
   import { library } from "$lib/library.svelte";
   import { nodeAt } from "$lib/values";
-  import PublishButton from "$lib/PublishButton.svelte";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -331,14 +330,11 @@
     {:else if shown === "code"}
       <div class="body code"><CodePanel {bookId} {stage} /></div>
     {/if}
-    <div class="foot">
-      <PublishButton {bookId} />
-    </div>
   </aside>
 </div>
 
 <style>
-  .workspace { position: fixed; inset: 0; display: grid; grid-template-columns: var(--tree-width) minmax(0, 1fr) var(--panel-width); background: var(--stage-background); }
+  .workspace { position: fixed; inset: var(--top-height) 0 0; display: grid; grid-template-columns: var(--tree-width) minmax(0, 1fr) var(--panel-width); background: var(--stage-background); }
   .workspace.tree-closed { --tree-width: auto; }
   .tree { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--line); color: var(--text); }
   .tree .bar { padding-left: .5rem; }
@@ -370,7 +366,6 @@
   .bar .tab.on { background: var(--surface); }
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; }
   .body.code { overflow: hidden; }
-  .foot { flex: none; display: flex; justify-content: flex-end; padding: .375rem .5rem; border-top: 1px solid var(--line); }
   .icon-button { text-decoration: none; }
 
   /* A phone: the stage fills the screen, the panel is a sheet at the bottom (closed = the bar only) */
@@ -378,7 +373,6 @@
     .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
     .tree { display: none; }
     .panel { max-height: 55vh; border-left: none; border-top: 1px solid var(--line); }
-    .closed .panel .foot { display: none; }
     .body { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
   }
 </style>
