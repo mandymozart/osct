@@ -10,12 +10,14 @@ import { EntryCategory } from "./entry";
 import { FilterData } from "./filters";
 import type { ComponentData } from "./components";
 import type { LightData } from "./lights";
+import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
 
 export * from "./filters";
 export * from "./placement";
 export * from "./components";
 export * from "./lights";
+export * from "./passes";
 export * from "./plugins";
 
 /**
@@ -72,6 +74,8 @@ export interface BookData {
   author: string;
   /** Shown on the home page above "Start" (optional) */
   publisher?: string;
+  /** Optional (schema 2.5): the post-processing passes of every spread without a list of its own (`./passes.ts`) */
+  passes?: PassData[];
 }
 
 /**
@@ -88,6 +92,8 @@ export interface SpreadData {
   lastPage: number;
   /** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
   format?: SpreadFormat;
+  /** Optional (schema 2.5): the post-processing passes over this spread's rendered image, in order; replaces the book's (`[]` = none) */
+  passes?: PassData[];
 }
 
 export interface AssetData {

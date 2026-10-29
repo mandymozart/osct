@@ -5,13 +5,14 @@
     DESKS, getPreview, HDRIS, isDeskId, isHdriId, subscribePreview, updatePreview, type PreviewState,
   } from "$lib/stage/preview";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
+  import PassesPanel from "./PassesPanel.svelte";
 
   /**
    * The stage's settings: hand shake, the desk and the sky (an HDRI). The camera is moved on the stage itself (drag
    * orbits, wheel / pinch the distance, double tap = the reader's view), found / lost per target is the tree's eye,
    * the first find is replayed from the stage's menu – the panel no longer doubles them (Tilman, 2026-10-29).
    */
-  let { stage, spreadId }: { stage: Stage | null; spreadId: string } = $props();
+  let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
@@ -39,6 +40,8 @@
   </span></div>
 
 <p class="hint small muted">drag = orbit · shift-drag / middle button / two fingers = pan · wheel / pinch = distance · double tap = reader · ← → spreads</p>
+
+<PassesPanel {stage} {bookId} {spreadId} />
 
 <style>
   .w { width: 5rem; display: inline-flex; }

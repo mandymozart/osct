@@ -4,8 +4,9 @@ import { Object3D, Raycaster, Vector2 } from "three";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
 import { ArScene } from "@engine/scene";
+import { BACKDROP_LAYER } from "@engine/scene/view";
 import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
-import { SceneState, type ArStatus, type EntityData, type IArScene, type NodeTimeline } from "@engine/types";
+import { SceneState, type ArStatus, type EntityData, type IArScene, type NodeTimeline, type PassData } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "$lib/values";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
 import { LightHelpers } from "./light-helper";
@@ -147,9 +148,11 @@ export class Stage {
       () => container.removeEventListener("pointercancel", this.onGhostPointerUp, true),
     );
     this.container = container;
+    this.raycaster.layers.enable(BACKDROP_LAYER);
   }
 
   private container: HTMLElement;
+  /** Reaches the entities and the stage's own objects (the printed images, the page lie on the backdrop layer) */
   private raycaster = new Raycaster();
 
   /** What lies under a point of the stage (client px) by the pick mode, null for the page or the table */
@@ -211,6 +214,11 @@ export class Stage {
     if (this.lightHelpers) this.lightHelpers.selection = this.visibleSelection();
   }
 
+  /** Show the spread with these post-processing passes instead of the draft's (live edit), `null` = the draft's again */
+  overridePasses(passes: PassData[] | null): void {
+    this.scene.overridePasses(passes);
+  }
+
   /** The viewport's shading on every entity of the spread (the engine builds fresh meshes: applied again after) */
   private shade(): void {
     const inspection = this.scene.inspect();
@@ -218,6 +226,8 @@ export class Stage {
     if (!inspection || !spread) return;
     const roots = getTargets(spread).map(target => inspection.nodeObject(target.id, [])).filter((o): o is NonNullable<typeof o> => !!o);
     applyShading(roots, this.shading);
+    // The spread's post-processing belongs to rendered only, like the HDRI's sky
+    this.scene.setPostProcessing(this.shading === "rendered");
     this.gizmo?.refreshOutline();
   }
 

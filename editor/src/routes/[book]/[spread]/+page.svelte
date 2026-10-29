@@ -323,7 +323,7 @@
     {:else if shown === "tree"}
       <div class="body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} onaddtarget={() => (addingTarget = true)} onremovetarget={removeTarget} /></div>
     {:else if shown === "stage"}
-      <div class="body"><StagePanel {stage} {spreadId} /></div>
+      <div class="body"><StagePanel {stage} {bookId} {spreadId} /></div>
     {:else if shown === "entity"}
       <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} {pickColour} onlibrary={() => setTab("library")} ontargetchanged={reloadContent} /></div>
     {:else if shown === "library"}

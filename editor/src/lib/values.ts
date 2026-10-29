@@ -2,7 +2,6 @@ import {
   AssetData,
   ComponentData,
   ComponentParamSpec,
-  componentSpec,
   componentTypes,
   EntityData,
   FilterData,
@@ -11,6 +10,9 @@ import {
   keyMode,
   LIGHT_PARAMS,
   LightData,
+  PassData,
+  PASSES,
+  PassSpec,
   PLACEMENT_DEFAULTS,
   PLACEMENT_PARAMS,
   PlacementKey,
@@ -94,7 +96,7 @@ export const componentRows = (component: ComponentData, index: number): ValueRow
 /** The rows of a light node (`light.{name}`), from `LIGHT_PARAMS` */
 export const lightRows = (): ValueRow[] => specRows("light", LIGHT_PARAMS);
 
-/** One row per parameter of a spec (a component's – built-in or a plugin's – or the light's), ids `{prefix}.{name}` */
+/** One row per parameter of a spec (a component's – built-in or a plugin's –, a pass's or the light's), ids `{prefix}.{name}` */
 const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): ValueRow[] =>
   Object.entries(params).map(([name, param]): ValueRow => {
     const id = `${prefix}.${name}`;
@@ -109,6 +111,29 @@ const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): V
       };
     }
   });
+  });
+
+/** The rows of a post-processing pass (`passes.{i}.{name}`), from its spec; a type the editor does not know has none */
+export const passRows = (pass: PassData, index: number): ValueRow[] => {
+  const spec: PassSpec | undefined = (PASSES as Record<string, PassSpec>)[pass.type];
+  return spec ? specRows(`passes.${index}`, spec.params) : [];
+};
+
+/** The value a pass shows for a row: the value set, else the spec's default */
+export const passValue = (pass: PassData, row: ValueRow): RowValue => {
+  const name = row.id.split(".")[2];
+  const value = pass[name];
+  return value === undefined ? row.default : (value as RowValue);
+};
+
+/** A pass with one value changed (a row's); a value equal to the default is dropped from the data */
+export const setPassValue = (pass: PassData, row: ValueRow, value: RowValue): PassData => {
+  const name = row.id.split(".")[2];
+  const next = { ...pass };
+  if (sameValue(value, row.default)) delete next[name];
+  else next[name] = value;
+  return next;
+};
 
 /** The component types a node of `type` may take */
 export const componentTypesFor = (type: EntityData["type"]): string[] =>

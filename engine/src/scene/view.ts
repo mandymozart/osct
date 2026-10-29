@@ -16,6 +16,8 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { PassData } from "../types/index";
+import { PostChain } from "./post/index";
 
 /** Bloom: only what is brighter than white glows; rendered at half resolution */
 const BLOOM_THRESHOLD = 1.0;
@@ -55,6 +57,14 @@ const bloomOverlayMaterial = () => new ShaderMaterial({
   blendDstAlpha: OneFactor,
 });
 
+/**
+ * The layer of objects that stand in for the camera picture (the editor's stage: table, book, printed images, sky).
+ * They are drawn straight to the canvas, under the content's passes, as the camera picture lies under the canvas
+ * in the reader – a pass never sees them, as it never sees the camera picture. Without passes they render with
+ * everything else in one pass.
+ */
+export const BACKDROP_LAYER = 1;
+
 /** Something drawn under the scene each frame (the look-around pass) – into the cleared screen, while active */
 export interface Underlay {
   readonly active: boolean;
@@ -83,6 +93,9 @@ export class ArView {
   /** Bloom strength (0 = off – no post-processing cost); set every frame by the scene's animations */
   bloomStrength = 0;
   underlay: Underlay | null = null;
+  /** The content's post-processing over the rendered scene – built only while a spread names passes */
+  private post: PostChain | null = null;
+  private postProcessing = true;
   private bloom: { composer: EffectComposer; pass: UnrealBloomPass; quad: FullScreenQuad; material: ShaderMaterial } | null = null;
 
   constructor(private container: HTMLElement, private onResize: (camera: PerspectiveCamera) => void) {
@@ -94,10 +107,14 @@ export class ArView {
     container.appendChild(canvas);
 
     // The lighting the models were authored for: ambient #BBB, directional 0.6 from above left
-    this.scene.add(new AmbientLight(0xbbbbbb, 1));
+    const ambient = new AmbientLight(0xbbbbbb, 1);
     const sun = new DirectionalLight(0xffffff, 0.6);
     sun.position.set(-0.5, 1, 1);
-    this.scene.add(sun);
+    this.scene.add(ambient, sun);
+    // The lights reach the backdrop layer too; the camera sees both layers
+    ambient.layers.enable(BACKDROP_LAYER);
+    sun.layers.enable(BACKDROP_LAYER);
+    this.camera.layers.enable(BACKDROP_LAYER);
 
     window.addEventListener("resize", this.resize);
     this.resize();
@@ -147,13 +164,36 @@ export class ArView {
     return `#${[pixel[0], pixel[1], pixel[2]].map(v => v.toString(16).padStart(2, "0")).join("")}`;
   }
 
+  /**
+   * The passes over the rendered scene (`passes` of the spread or the book), in order; an empty list frees the chain
+   * and the scene renders straight to the canvas again
+   */
+  setPasses(passes: readonly PassData[]): void {
+    if (!passes.length) {
+      this.post?.dispose();
+      this.post = null;
+    } else {
+      this.post ??= new PostChain(this.renderer, this.scene, this.camera);
+      this.post.enabled = this.postProcessing;
+      this.post.set(passes);
+    }
+    this.cleared = false;
+  }
+
+  /** Post-processing on or off (the passes stay set) */
+  setPostProcessing(enabled: boolean): void {
+    this.postProcessing = enabled;
+    if (this.post) this.post.enabled = enabled;
+    this.cleared = false;
+  }
+
   /** Stop rendering – the canvas keeps the last frame */
   stop(): void {
     this.looping = false;
     this.renderer.setAnimationLoop(null);
   }
 
-  /** The scene, plus the bloom over it while an animation wants it */
+  /** The scene (through the content's passes while a spread names them), plus the bloom over it while an animation wants it */
   private draw(): void {
     const bloom = this.bloomStrength > 0 ? this.ensureBloom() : null;
     bloom?.composer.render(); // scene → half-size target → bloom (only the part brighter than white)
@@ -166,7 +206,17 @@ export class ArView {
       this.renderer.clearDepth();
       this.renderer.autoClear = false;
     }
-    this.renderer.render(this.scene, this.camera);
+    if (this.post?.active) {
+      // The backdrop (the camera picture's stand-ins) straight to the canvas, then the AR layer through the passes
+      this.camera.layers.set(BACKDROP_LAYER);
+      this.renderer.render(this.scene, this.camera);
+      this.renderer.autoClear = false;
+      this.camera.layers.set(0);
+      this.post.render();
+      this.camera.layers.enable(BACKDROP_LAYER);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
     if (bloom) {
       bloom.material.uniforms.tBloom.value = bloom.pass.renderTargetsHorizontal[0].texture;
       bloom.material.uniforms.uStrength.value = this.bloomStrength;
@@ -198,6 +248,7 @@ export class ArView {
     if (!width || !height) return;
     this.renderer.setSize(width, height);
     this.bloom?.composer.setSize(width, height);
+    this.post?.setSize(width, height);
     this.camera.aspect = width / height;
     this.onResize(this.camera); // the tracker fits video + field of view
     this.camera.updateProjectionMatrix();
@@ -209,6 +260,8 @@ export class ArView {
     this.stop();
     window.removeEventListener("resize", this.resize);
     this.frameListeners.clear();
+    this.post?.dispose();
+    this.post = null;
     if (this.bloom) {
       this.bloom.composer.dispose();
       this.bloom.pass.dispose();
