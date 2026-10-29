@@ -7,9 +7,10 @@
   import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
   import {
-    addChild, addFilter, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeFilter, sameValue, setValue, valueRows, withNode,
-    type ValueRow,
+    addChild, addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
+    sameValue, setValue, valueRows, withNode, type ValueRow,
   } from "$lib/values";
+  import type { NodeTimeline } from "@engine/types";
   import ColourField from "$lib/components/ColourField.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
@@ -225,6 +226,32 @@
     applyNode({ ...current, assets: [{ id: `${target.id}-${assetId.slice(0, 8)}`, assetType: kind, src }] });
   };
 
+  // ── the timeline of a model node (the animation component drives the same clip) ──
+  // The scene builds a node once its model is loaded: the panel looks every frame until the timeline is there, then
+  // reads its state every frame (the time runs)
+  let timeline = $state<NodeTimeline | null>(null);
+  let timelineState = $state<{ clip: string; time: number; playing: boolean; duration: number } | null>(null);
+  $effect(() => {
+    const t = target;
+    const path = node;
+    const s = stage;
+    const wantsTimeline = current?.type === "model";
+    timeline = null;
+    timelineState = null;
+    if (!t || !s || !wantsTimeline) return;
+    let frame = 0;
+    const tick = () => {
+      const tl = s.timeline(t.id, path);
+      if (tl !== timeline) timeline = tl;
+      timelineState = tl ? tl.state() : null;
+      frame = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(frame);
+  });
+  const clipNames = $derived(timeline?.clips.map(c => c.name) ?? []);
+  const fmt = (seconds: number) => `${seconds.toFixed(2)} s`;
+
   // ── + node ──
   let addType = $state<EntityType | "">("");
   let addAsset = $state("");
@@ -404,6 +431,57 @@
         </div>
       {/each}
     {/each}
+    {#each current.components ?? [] as component, i (i)}
+      <div class="section"><span class="section-label">components[{i}] {component.type}</span>
+        <button type="button" class="text-link" onclick={() => current && applyNode(removeComponent(current, i))}>remove</button></div>
+      {#if component.type === "animation" && timeline}
+        <!-- The timeline: the model's clips, play / pause, the time – it drives the same clip the component plays -->
+        <div class="row" title="The model's animation clips (glTF)">
+          <span class="label">timeline</span>
+          <span class="controls">
+            <button type="button" class="icon-button framed" title={timelineState?.playing ? "Pause" : "Play"} aria-label={timelineState?.playing ? "Pause" : "Play"}
+              onclick={() => (timelineState?.playing ? timeline?.pause() : timeline?.play())}><Icon name={timelineState?.playing ? "pause" : "play"} /></button>
+            <span class="small muted tabular">{fmt(timelineState?.time ?? 0)} / {fmt(timelineState?.duration ?? 0)}</span>
+          </span>
+        </div>
+        <div class="row"><span class="label"></span>
+          <input class="time" type="range" min="0" max={timelineState?.duration ?? 0} step="0.01" value={timelineState?.time ?? 0} aria-label="Time in the clip"
+            oninput={e => timeline?.seek(Number((e.currentTarget as HTMLInputElement).value))} />
+        </div>
+      {/if}
+      {#each rows.filter(r => r.id.startsWith(`components.${i}.`)) as row (row.id)}
+        {@const name = row.id.split(".")[2]}
+        <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default || '(first clip)'}">
+          <span class="label">{name}</span>
+          {#if row.kind === "choice"}
+            <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
+          {:else if row.kind === "boolean"}
+            <span class="controls"><button type="button" class="pill" class:on={getValue(current, row) === "true"} aria-pressed={getValue(current, row) === "true"}
+              onclick={() => set(row, getValue(current!, row) === "true" ? "false" : "true")}>{getValue(current, row) === "true" ? "on" : "off"}</button></span>
+          {:else if row.kind === "string" && name === "clip" && clipNames.length}
+            <select class="field" aria-label="Clip" value={String(getValue(current, row))} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
+              <option value="">first clip ({clipNames[0]})</option>
+              {#each clipNames as clip (clip)}<option value={clip}>{clip}</option>{/each}
+            </select>
+          {:else if row.kind === "string"}
+            <input class="field" value={String(getValue(current, row))} aria-label={name} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
+          {:else if row.kind === "color"}
+            <ColourField value={String(getValue(current, row))} label={row.id} onchange={hex => set(row, hex)} onpick={pickColour} />
+          {:else}
+            <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
+              unit={row.unit ?? ""} label={row.id} strict={row.strict} oninput={v => set(row, v)} /></span>
+          {/if}
+        </div>
+      {/each}
+    {/each}
+    {#if componentTypesFor(current.type).length}
+      <div class="section"><span class="section-label">add component</span>
+        <span class="controls">
+          {#each componentTypesFor(current.type) as type (type)}
+            <button type="button" class="pill" disabled={!!current.components?.some(c => c.type === type)} onclick={() => current && applyNode(addComponent(current, type))}>+ {type}</button>
+          {/each}
+        </span></div>
+    {/if}
     {#if current.type === "video"}
       <div class="section"><span class="section-label">add filter</span>
         <span class="controls">
@@ -437,6 +515,8 @@
   .axes .fields { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .link-slot { flex: none; width: var(--control-height); }
   .row > .field { width: 100%; }
+  .tabular { font-variant-numeric: tabular-nums; }
+  .time { width: 100%; margin: 0; accent-color: var(--text); }
   .file { flex-wrap: nowrap; }
   .target-thumb { width: 2.5rem; height: 1.875rem; object-fit: contain; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface-head); }
   .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,6 +1,7 @@
-import { BoxHelper, MathUtils, Object3D } from "three";
+import { MathUtils, Object3D } from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import type { SceneInspection, Vector3Data } from "@engine/types";
+import { HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
 
 /**
  * The transform gizmo of the editor's stage: three.js `TransformControls` on the selected node's object (the
@@ -47,7 +48,8 @@ export interface GizmoSelection {
 export class Gizmo {
   private controls: TransformControls;
   private helper: Object3D;
-  private hoverBox: BoxHelper | null = null;
+  private hoverOutline: Outline | null = null;
+  private selectionOutline: Outline | null = null;
   private hovered: string | null = null;
   private selection: GizmoSelection | null = null;
   private attached: Object3D | null = null;
@@ -80,9 +82,8 @@ export class Gizmo {
     domElement.addEventListener("pointermove", onMove);
     domElement.addEventListener("pointerleave", onLeave);
     this.cleanups.push(() => domElement.removeEventListener("pointermove", onMove), () => domElement.removeEventListener("pointerleave", onLeave));
-    // The stage moves every frame (the tracker's camera): the hover box follows, a rebuilt node is attached again
+    // A rebuilt node (the scene built the spread again) is attached and outlined again
     this.offFrame = inspection.onFrame(() => {
-      this.hoverBox?.update();
       if (this.selection && this.attached && !this.attached.parent) this.sync();
     });
   }
@@ -117,13 +118,21 @@ export class Gizmo {
     this.sync();
   }
 
-  /** Attach the selected node's current object (the scene may have rebuilt it) */
+  /** Attach the selected node's current object (the scene may have rebuilt it) and outline it */
   sync(): void {
     const object = this.selection ? this.inspection.nodeObject(this.selection.targetId, this.selection.path) : null;
     if (object === this.attached && (object ? this.controls.object === object : true)) return;
     this.attached = object;
+    this.selectionOutline?.remove();
+    this.selectionOutline = object ? outline(object, SELECTION_COLOR) : null;
     if (object) this.controls.attach(object);
     else this.controls.detach();
+  }
+
+  /** The selection's outline drawn again (a node's meshes changed, the shading swapped materials) */
+  refreshOutline(): void {
+    this.selectionOutline?.remove();
+    this.selectionOutline = this.attached ? outline(this.attached, SELECTION_COLOR) : null;
   }
 
   private hoverAt(clientX: number, clientY: number): void {
@@ -138,16 +147,12 @@ export class Gizmo {
     if (targetId === this.hovered) return;
     this.hovered = targetId;
     this.inspection.domElement.style.cursor = targetId ? "pointer" : "";
-    if (this.hoverBox) {
-      this.hoverBox.removeFromParent();
-      this.hoverBox.dispose();
-      this.hoverBox = null;
-    }
+    this.hoverOutline?.remove();
+    this.hoverOutline = null;
+    // The selected entity is outlined already
+    if (targetId && targetId === this.selection?.targetId) return;
     const object = targetId ? this.inspection.nodeObject(targetId, []) : null;
-    if (!object) return;
-    this.hoverBox = new BoxHelper(object, 0xffffff);
-    this.hoverBox.name = "editor-hover";
-    this.inspection.scene.add(this.hoverBox);
+    if (object) this.hoverOutline = outline(object, HOVER_COLOR);
   }
 
   dispose(): void {
@@ -155,6 +160,8 @@ export class Gizmo {
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
     this.hover(null);
+    this.selectionOutline?.remove();
+    this.selectionOutline = null;
     this.controls.detach();
     this.helper.removeFromParent();
     this.controls.dispose();

@@ -6,6 +6,7 @@
   import { content } from "$lib/content.svelte";
   import { Stage, type PickMode, type StagePick } from "$lib/stage/stage.svelte";
   import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode } from "$lib/stage/gizmo";
+  import { SHADING_MODES, updatePreview, type ShadingMode } from "$lib/stage/preview";
   import Icon from "$lib/components/Icon.svelte";
   import StagePanel from "$lib/panels/StagePanel.svelte";
   import EntityPanel from "$lib/panels/EntityPanel.svelte";
@@ -145,6 +146,8 @@
   const GIZMO_LABELS: Record<GizmoMode, string> = { translate: "Move (W)", rotate: "Rotate (E)", scale: "Scale (R)" };
   const PICK_MODES: readonly PickMode[] = ["entity", "node", "target"];
   const PICK_LABELS: Record<PickMode, string> = { entity: "Click picks the entity (its root)", node: "Click picks the node under the pointer", target: "Click picks the printed target" };
+  const SHADING_LABELS: Record<ShadingMode, string> = { wireframe: "Wireframe – the entities as lines", solid: "Solid – one grey, the scene's lights", textured: "Textured – the content's materials, no sky", rendered: "Rendered – the HDRI's sky and light" };
+  const SHADING_SHORT: Record<ShadingMode, string> = { wireframe: "wire", solid: "solid", textured: "textured", rendered: "rendered" };
 
   // ── the stage's menu (right click): what lies there decides the actions ──
   let stageMenu = $state<{ hit: StagePick | null; x: number; y: number } | null>(null);
@@ -237,6 +240,10 @@
         {#each PICK_MODES as mode (mode)}
           <button type="button" class="pill pick" class:on={stage.pickMode === mode} aria-pressed={stage.pickMode === mode} title={PICK_LABELS[mode]} onclick={() => stage?.setPickMode(mode)}>{mode}</button>
         {/each}
+        <span class="tools-gap"></span>
+        {#each SHADING_MODES as mode (mode)}
+          <button type="button" class="pill pick" class:on={stage.shading === mode} aria-pressed={stage.shading === mode} title={SHADING_LABELS[mode]} onclick={() => updatePreview({ shading: mode })}>{SHADING_SHORT[mode]}</button>
+        {/each}
       </div>
       {#if stageMenu}
         <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={() => (stageMenu = null)} oncontextmenu={e => { e.preventDefault(); stageMenu = null; }}></button>
@@ -315,7 +322,7 @@
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   .stage :global(canvas) { display: block; width: 100%; height: 100%; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
-  .tools { position: absolute; left: .5rem; top: .5rem; z-index: 1; display: flex; align-items: center; gap: .125rem; padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  .tools { position: absolute; left: .5rem; top: .5rem; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
   .tools-gap { width: 1px; height: 1.25rem; margin: 0 .25rem; background: var(--line); }
   .tools .pick { height: 1.5rem; padding: 0 .5rem; font-size: var(--text-small); }
   .menu-backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }

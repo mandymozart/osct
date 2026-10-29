@@ -10,6 +10,22 @@ final class Users
         Http::json(200, ['user' => self::toJson(Auth::user())]);
     }
 
+    /**
+     * An address listed in EDITORS (config, docs/server.md "Editor data") is an editor: the role is given when the
+     * user signs in or is looked up – the instance's first editors, without the admin secret.
+     * @param array<string, mixed> $user
+     * @return array<string, mixed>
+     */
+    public static function grantConfiguredEditor(array $user): array
+    {
+        if (($user['role'] ?? 'reader') === 'editor') return $user;
+        $listed = array_map(static fn(string $email) => strtolower(trim($email)), Config::list('EDITORS'));
+        if (!in_array(strtolower((string) ($user['email'] ?? '')), $listed, true)) return $user;
+        Db::run('UPDATE users SET role = :role WHERE id = :id', ['role' => 'editor', 'id' => $user['id']]);
+        $user['role'] = 'editor';
+        return $user;
+    }
+
     /** PATCH /user { options?, language? } → { user } */
     public static function update(array $body): never
     {

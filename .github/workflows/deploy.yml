@@ -110,6 +110,7 @@ jobs:
           BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
           BUNNY_STORAGE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
           BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          EDITORS: ${{ vars.EDITORS }}
         run: kamal deploy -d "${{ inputs.destination }}"
 
       # The container ran the migration before Apache started; this confirms the site answers through the proxy
