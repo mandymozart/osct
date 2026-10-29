@@ -4,6 +4,29 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The editor's selection levels and the tree's hierarchy (#162, #163)
+
+- From Tilman's walkthrough on staging: no feedback on a click in the tree, target and entity always shown together,
+  a second video added with the first selected became its child, nothing could be moved or named afterwards.
+- **One selection** (`editor/src/lib/selection.svelte.ts`): target, entity (the root) or node – the tree, the stage
+  and the Entity panel read and write it. A target without AR content is always selected as the target. The Entity
+  panel shows the target fields only at the target level and the node rows only at the entity / node level; its head
+  is a breadcrumb. The target picker of the panel's head is kept, shrunk to a ▾ after the breadcrumb's target crumb
+  (RULES #1: restructured, not removed).
+- **Next to the root wraps the root in a group** (adding, dropping before / after the root, outdenting a child of
+  the root): the only way to get two siblings under one target, which is what Tilman expected. A group's placement
+  defaults to none, so nothing moves on the stage.
+- **A moved node keeps its placement values** (relative to its new parent, so it may move on the stage) – no "keep
+  transform"; the issue asks for parent and order only.
+- **Keys**: Alt + ↑ ↓ to move, Tab / Shift + Tab to indent / outdent (Tab falls through when nothing moves, so the
+  focus can leave the tree). Not Alt + ← →: that is the browser's Back on Windows. A finger drags a row by its type
+  icon (`touch-action: none` there only), so the tree still scrolls on a phone.
+- Content schema **2.12**: a node's optional `name`; its row in docs/content.md says *next* for the app version – the
+  version is set at the merge.
+- [ ] Not checked in a browser or on the S22 (this session ran no dev server): the drag with a mouse and a finger,
+  the selected row's contrast in day and night, the target outline on the stage.
+- [ ] Open: renaming in the tree itself (double click / F2), moving a node to another target's entity.
+
 ## 2026-10-30 – The phone sheet: icon tabs, a frozen stage while dragging, the camera on the spread's root (#155, #105)
 
 - Tilman on the S22 after 1.26.0: the sheet drag "glitches and competes with the scene drag", the stage still jumps on

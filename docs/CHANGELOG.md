@@ -12,6 +12,24 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **One selection in the editor, at its level** (#162): a target, its entity or a node, shared by the tree, the stage
+  and the Entity panel. The tree's selected row has its own grey and a bar at its start, the rows above a selected
+  node are marked, the hovered row is lighter; a selected target is outlined on the stage (the orange of a selected
+  node, around its printed image). The Entity panel opens at the selected level – a target shows its target fields,
+  an entity or node that node – and its head is a breadcrumb (*target › entity › group › node*) that steps up.
+- **The tree's hierarchy can be changed** (#163): drag a node onto a row (its child) or between two rows (its
+  sibling, the order set); with a finger by its icon. Keys: Alt + ↑ ↓ move, Tab / Shift + Tab indent / outdent; the
+  row's menu has the same. **+ node** places the new node *next to* the selected one (the default for a model, video
+  or image) or *inside* it; next to the root both go into a new group.
+- **Nodes have names** (content schema 2.12, optional `name`): the Entity panel's *name* row, the tree shows the name
+  and keeps the type as its icon. The content build, the guard and the editor API accept it; old content stays valid.
+
+### Changed
+- The tree's ↑ ↓ walk every row (targets and nodes), not only the targets; ← on a node steps up a level.
+
 ## 1.26.8 – 2026-10-30
 
 ### Added
