@@ -6,10 +6,13 @@
   import { session } from "$lib/session.svelte";
   import SignIn from "$lib/SignIn.svelte";
   import TopBar from "$lib/TopBar.svelte";
+  import { reloadOnStaleChunks } from "$lib/reload-on-stale";
 
   let { children } = $props();
 
   onMount(() => void session.restore());
+  // A deploy replaced the code files under this tab: a chunk that fails to load reloads the page once (#160)
+  onMount(() => reloadOnStaleChunks());
 
   /** The admin page (docs/admin.md) is for admins, everything else for editors – an account may be both */
   const isAdminRoute = $derived(page.url.pathname === `${base}/admin` || page.url.pathname.startsWith(`${base}/admin/`));

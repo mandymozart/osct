@@ -97,7 +97,8 @@ jobs:
           find site -name '*.map' -delete
 
       # lftp, not FTP-Deploy-Action: its Node FTP client loses the TLS data connection on all-inkl (ECONNRESET).
-      # Files are uploaded; nothing on the server is deleted.
+      # Files are uploaded; nothing on the server is deleted. The HTML pages and the reader's service worker go last, so
+      # a page loaded during the upload never names code files that are not there yet (#160).
       - name: Upload (FTPS)
         env:
           FTP_HOST: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
@@ -110,7 +111,8 @@ jobs:
             set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate true;
             set net:timeout 30; set net:max-retries 3; set net:reconnect-interval-base 5;
             open --env-password -u \"$FTP_USER\" \"$FTP_HOST\";
-            mirror --reverse --parallel=4 --no-perms --verbose=1 site/ \"$FTP_ROOT\"
+            mirror --reverse --parallel=4 --no-perms --verbose=1 --exclude-glob '*.html' --exclude-glob sw.js site/ \"$FTP_ROOT\";
+            mirror --reverse --parallel=4 --no-perms --verbose=1 --include-glob '*.html' --include-glob sw.js --include-glob '*/' site/ \"$FTP_ROOT\"
           "
 
       - name: Create missing tables, check the API
