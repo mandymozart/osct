@@ -90,11 +90,11 @@ final class Config
         return (int) self::get($key);
     }
 
-    /** A rate limit (requests, attempts per hour): 0 switches it off – local testing with the codes in the mail log */
+    /** A rate limit (requests, attempts per hour): -1 switches it off – local testing with the codes in the mail log; 0 allows nothing */
     public static function limit(string $key): int
     {
         $limit = self::int($key);
-        return $limit > 0 ? $limit : PHP_INT_MAX;
+        return $limit < 0 ? PHP_INT_MAX : $limit;
     }
 
     /** @return string[] */
