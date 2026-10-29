@@ -1,14 +1,13 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadBuild, BOOK } from './helpers';
+import { loadBuild, BOOK, tempDir } from './helpers';
 
 /** A delivery folder with a JPEG, a PNG with transparency and a mapping file */
 function makeDelivery() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'osct-delivery-'));
+  const root = tempDir('osct-delivery-');
   const delivery = path.join(root, 'delivery');
   fs.mkdirSync(path.join(delivery, 'glossary'), { recursive: true });
   const jpg = jpeg.encode({ width: 2000, height: 1000, data: Buffer.alloc(2000 * 1000 * 4, 128) }, 80);
@@ -114,7 +113,7 @@ describe('delivery import', () => {
   });
 
   it('reads the mapping field by field: entries that cannot be imported are reported and left out', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'osct-mapping-'));
+    const root = tempDir('osct-mapping-');
     const file = path.join(root, 'mapping.yaml');
     fs.writeFileSync(file, [
       'book: test',
@@ -144,7 +143,6 @@ describe('delivery import', () => {
 
     fs.writeFileSync(file, 'book: test\n');
     expect(() => readMapping(file)).toThrow(`${file}: expected a mapping with "entries"`);
-    fs.rmSync(root, { recursive: true, force: true });
   });
 
   it('an entry with a page that is no number does not spoil the other spreads', async () => {

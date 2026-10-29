@@ -1,7 +1,20 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { vi } from 'vitest';
+import { afterAll, vi } from 'vitest';
+
+const tempDirs: string[] = [];
+
+/** A fresh temp folder, removed after the test file */
+export function tempDir(prefix: string): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+
+afterAll(() => {
+  tempDirs.splice(0).forEach(dir => fs.rmSync(dir, { recursive: true, force: true }));
+});
 
 export const BOOK = 'id: test\ntitle: Test Book\nauthor: Someone\n';
 export const spread = (first: number, last: number, order = 0) =>
@@ -11,7 +24,7 @@ export const entry = (page: number, target?: string, extra = '') =>
 
 /** Write a content folder into a temp dir: { 'spreads/a/spread.yaml': '…', … } */
 export function makeContent(files: Record<string, string | Buffer>): { root: string; content: string } {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'osct-scripts-'));
+  const root = tempDir('osct-scripts-');
   const content = path.join(root, 'content');
   for (const [file, data] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(content, file)), { recursive: true });

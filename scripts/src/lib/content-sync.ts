@@ -322,8 +322,8 @@ export function planPurge(state: EnvironmentState, cdnBuild: string | null, now:
 
   const kept = new Set(
     state.versions
-      .filter(v => v.retiredAt !== null && folders.includes(v.build))
-      .sort((a, b) => b.retiredAt!.localeCompare(a.retiredAt!))
+      .flatMap(v => (v.retiredAt !== null && folders.includes(v.build) ? [{ build: v.build, retiredAt: v.retiredAt }] : []))
+      .sort((a, b) => b.retiredAt.localeCompare(a.retiredAt))
       .slice(0, options.keep)
       .map(v => v.build),
   );
@@ -352,7 +352,7 @@ export function planPurge(state: EnvironmentState, cdnBuild: string | null, now:
               : 'purge';
     items.push({ target, build: name, verdict, purge: verdict === 'purge' });
   }
-  const purged = new Set(items.filter(i => i.purge && i.build).map(i => i.build!));
+  const purged = new Set(items.flatMap(i => (i.purge && i.build ? [i.build] : [])));
   return { env, items, versions: state.versions.filter(v => !purged.has(v.build)) };
 }
 
