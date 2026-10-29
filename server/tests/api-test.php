@@ -344,6 +344,25 @@ try {
     check(count(array_filter(explode("\n", trim($csv)))) === 7, 'without a filter: every user');
     [$status] = call($api, 'GET', '/admin/users.csv', null, $editor);
     check($status === 403, 'the CSV needs an admin');
+    // #99: the admin page grants editor to a reader-only account and shows the row the API answers with
+    call($api, 'POST', '/auth/request', ['email' => 'reader99@example.com']);
+    call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    [, $data] = call($api, 'GET', '/admin/users?q=reader99', null, $chief);
+    $readerId = $data['users'][0]['id'];
+    check($data['users'][0]['roles'] === ['reader'] && $data['users'][0]['role'] === 'reader', '#99: a new account is a reader only');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$readerId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === true && $data['user']['id'] === $readerId && $data['user']['roles'] === ['reader', 'editor'] && $data['user']['role'] === 'editor', '#99: grant editor answers the row with editor on');
+    check(array_column($data['user']['grants'], 'role') === ['reader', 'editor'] && $data['user']['grants'][1]['grantedByEmail'] === 'chief@example.com', '#99: and its grant, by the admin');
+    [$status, $data] = call($api, 'GET', '/admin/users?role=editor&q=reader99', null, $chief);
+    check($status === 200 && $data['total'] === 1 && $data['users'][0]['roles'] === ['reader', 'editor'], '#99: the Editors filter lists the new editor');
+    [$status, $data] = call($api, 'GET', '/admin/users?role=editor', null, $chief);
+    check($status === 200 && $data['total'] === count($data['users']) && in_array($readerId, array_column($data['users'], 'id'), true), '#99: the Editors filter without a search (count and list agree)');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$readerId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === false && $data['user']['roles'] === ['reader', 'editor'], '#99: granting again is no change (the page says so instead of "Granted")');
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$readerId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === true && $data['user']['roles'] === ['reader'], '#99: revoke answers the row with editor off');
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$readerId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === false, '#99: revoking again is no change');
 
     echo "editor: import\n";
     $configuration = [

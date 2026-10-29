@@ -27,6 +27,27 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **Imported files no longer show 0 uses** (#121): below an assets base the list names a file by its CDN URL, but the
   book's rows name the content path (`/assets/content/…`) – `Assets::imported` now counts with that path.
 
+## 1.18.2 – 2026-10-30
+
+### Fixed
+- **Editor images from the CDN** (#122): the reader's service worker (scope `/`) also handled the requests of the
+  editor's pages at `/editor`, and its CDN rule broke some Library thumbnails in Firefox ("A ServiceWorker intercepted
+  the request and encountered an unexpected error", "Image corrupt or truncated"). The worker now leaves editor pages
+  and every request they make to the browser (`client/sw/editor-clients.ts`); a page it has not seen yet (after the
+  browser restarted the worker) is looked up and its request goes straight to the network, uncached. The reader's
+  offline behaviour is unchanged: its CDN rule still stores only complete `200` responses (no opaque or `206`).
+
+## 1.18.1 – 2026-10-30
+
+### Fixed
+- **The admin page shows a granted role** (#99): a role that is on (and the active filter) never looked pressed –
+  `.pill.framed` came after `.pill.on` in the editor's stylesheet and won with the same specificity, so a grant
+  seemed to do nothing. A framed toggle that is on now shows pressed (`.pill.framed.on`, `.icon-button.framed.on`).
+  The notice reports *Granted* / *Revoked* only when the role really changed (the API's `changed`), else that the
+  user had the role already.
+- **The update options on the admin page are plain text** (#99): the ones the user opted into (book, artist,
+  publisher, else `–`) instead of `●` / `○` marks that looked like radio buttons.
+
 ## 1.18.0 – 2026-10-30
 
 ### Added
