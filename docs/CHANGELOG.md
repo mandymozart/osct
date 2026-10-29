@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.30.0 – 2026-10-30
 
 ### Fixed
 - **The editor's UI review** (#170, every page at 360, 768 and 1280 px against RULES #32): square corners
