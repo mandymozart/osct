@@ -27,6 +27,30 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **Imported files no longer show 0 uses** (#121): below an assets base the list names a file by its CDN URL, but the
   book's rows name the content path (`/assets/content/…`) – `Assets::imported` now counts with that path.
 
+## 1.18.0 – 2026-10-30
+
+### Added
+- **The editor's stage: sharp sheets, a grid and a settable origin** (#113): the designed pages were too soft close up.
+  - `npm run layout` now also renders every sheet a second time, much sharper (`sheets/<sheet>@sharp.jpg`, 4096 px for a
+    double page, `--sharp-width`, 0 = none). The stage shows the normal image at once and fetches the sharp one only when
+    the camera comes within 50 cm of the page – a far view, the spread cards and spreads never looked at cost nothing.
+    Run the layout import again to get the sharp images; without them nothing changes.
+  - **Grid** (Stage panel): a grid over the page that is switched on and off, with its spacing in mm. Its lines run
+    through the origin, which is drawn in red.
+  - **Origin** (Stage panel): positions are read and entered from a corner of the base format (the page's top left, top
+    right, bottom left or bottom right – per page) or from the book's centre (the spine's middle). It applies to the grid
+    and to the x / y rows of a target's placement and of a new target; the axes keep running right and down, so a value
+    left of or above the origin is negative. Saved positions stay as before (mm from the page's top left corner).
+
+## 1.17.5 – 2026-10-30
+
+### Fixed
+- **The post-processing in the editor shows on the stage** (#114): changing a grade, a bloom or a vignette in the
+  spread's panel changed nothing. The grade's and the vignette's live edit wrote to values the pass no longer drew with
+  (three.js copies a shader's values when it builds a pass), and the bloom and vignette never reached the stage's desk,
+  table and book. Now every pass shows at once: bloom and vignette run over the whole picture, the desk counting as
+  the camera picture, and the grade stays on the AR layer (the desk keeps its colours, as the camera picture does).
+
 ## 1.17.4 – 2026-10-30
 
 ### Changed
