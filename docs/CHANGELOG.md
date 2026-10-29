@@ -12,6 +12,15 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.1 – 2026-10-30
+
+### Fixed
+- **Dependabot: `cookie` 0.7 in the editor** (#156): an npm `overrides` entry lifts SvelteKit's `cookie` from 0.6.0 to
+  0.7.2 (out-of-bounds characters in cookie name, path and domain). Build tooling only – the editor is a static SPA
+  and ships no SvelteKit server code. SvelteKit 3.0 (the fix for the two SvelteKit alerts) needs a migration of its
+  own: the config moves out of `svelte.config.js`, `base` leaves `$app/paths`, TypeScript 6 and Node 22.17. deepmerge
+  (editor via vite-plugin-svelte, client via vite-plugin-pwa → workbox-build) has no fixed version and stays.
+
 ## 1.26.0 – 2026-10-30
 
 ### Added
