@@ -20,7 +20,10 @@ outcome in the line (or move it into a dated decision block).
   Claude Code session here the server. RULES #10 / #23: `mcp/package.json` carries the one version too.
 - [ ] Open: personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
   connects; a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
-- [ ] Open (Tilman): should `publish` to `staging` also stay with a person (then the tool publishes to `local` only)?
+- [x] Tilman, 2026-10-30: **"publish soll beim Menschen bleiben … so lassen wie in PR #92"** – the MCP may publish to
+  `local` and `staging` (a check), production is the editor's Publish button; the one step more than SCUTOONS is the
+  content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
+  over the MCP, he checks on the stage and clicks Publish – nothing by hand, nothing on GitHub.
 
 ## 2026-10-29 (night) – Code in the editor: plugins (#66, decided alone from the concept – to review)
 
