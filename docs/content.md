@@ -488,6 +488,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
 | 2.4 | 1.11.0 | in develop | plugin API 1.1: events, variables, progress, the spread |
 | 2.5 | 1.12.0 | in develop | post-processing passes |
+| 2.6 | 1.13.0 | in develop | light nodes (point, spot, directional) |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
