@@ -219,3 +219,36 @@ CREATE TABLE IF NOT EXISTS asset_versions (
   INDEX asset_versions_asset (asset_id, version),
   CONSTRAINT asset_versions_asset_fk FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Roles (docs/server.md "Roles", after SCUTOONS' roles tables): fixed ids; every account has reader, editor may use
+-- the editor, admin the admin API. user_roles: who has which role, granted when (UTC) and by whom (granted_by:
+-- signup | migration | config | secret | the granting admin's user id). users.role mirrors the editor role.
+CREATE TABLE IF NOT EXISTS `roles` (
+  `id` INT NOT NULL,
+  `name` VARCHAR(32) NOT NULL,
+  `description` VARCHAR(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `roles_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO `roles` (`id`, `name`, `description`) VALUES
+  (1, 'reader', 'Every account'),
+  (2, 'editor', 'May use the editor (/editor) and the editor API'),
+  (3, 'admin', 'May use the admin page (/editor/admin) and the admin API');
+
+CREATE TABLE IF NOT EXISTS `user_roles` (
+  `user_id` CHAR(36) NOT NULL,
+  `role_id` INT NOT NULL,
+  `granted_at` DATETIME NOT NULL,
+  `granted_by` VARCHAR(64) NULL DEFAULT NULL,
+  PRIMARY KEY (`user_id`, `role_id`),
+  KEY `user_roles_role` (`role_id`),
+  CONSTRAINT `user_roles_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `user_roles_role_fk` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Backfill (runs on every deploy, adds only what is missing): every account is a reader, users.role = editor stays editor
+INSERT IGNORE INTO `user_roles` (`user_id`, `role_id`, `granted_at`, `granted_by`)
+  SELECT `id`, 1, UTC_TIMESTAMP(), 'migration' FROM `users`;
+INSERT IGNORE INTO `user_roles` (`user_id`, `role_id`, `granted_at`, `granted_by`)
+  SELECT `id`, 2, UTC_TIMESTAMP(), 'migration' FROM `users` WHERE `role` = 'editor';

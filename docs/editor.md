@@ -16,16 +16,17 @@ server/   the instance's API: /api/editor/* (docs/server.md "Editor data")
 ## Who may use it
 
 An **instance user** of the accounts API with the role `editor` (the instance is Building Fictions; the reader's
-accounts are the same table). An admin gives the role:
+accounts are the same table – [server, "Roles"](server.md#roles)). An admin gives the role on the **admin page**
+`/editor/admin` ([admin](admin.md)), or from the shell with the admin secret:
 
 ```bash
 curl -X POST -H "X-Admin-Secret: $OSCT_SECRET" -H "Content-Type: application/json" -d '{"email":"name@example.com"}' https://osct.porschuetz.de/api/admin/editors
 ```
 
 The editor signs in like the reader (a code by email, or a password the account set) and refuses everyone without the
-role. The **first editors** of an instance need no secret: the addresses in the API's `EDITORS` setting (a GitHub
-environment variable `EDITORS`, comma-separated, written into the server's config by the deploy) get the role when
-they sign in.
+role. The **first editors and admins** of an instance need no secret: the addresses in the API's `EDITORS` / `ADMINS`
+settings (GitHub environment variables of the same names, comma-separated, written into the server's config by the
+deploys) get the role when they sign in.
 
 ## Try it (the morning test with the demo scene)
 
@@ -54,10 +55,16 @@ writes a new one, and the staging reader sees it on its next start.
 ## What is on the stage
 
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: the
-**sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's backdrop
-*hdri* and its choice), the equirectangular image as `scene.background` and `scene.environment`, turned with the
-stage every frame so the room stays put while the camera orbits – a desk of **screen-printed plywood** (Poly Haven's
-plywood texture tinted to the phenolic brown), the open book as an object – two blocks of paper on a white hardcover board (3 mm) that overhangs the pages by 3 mm, the block's
+**sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's *sky*,
+shown while the shading is rendered), the equirectangular image as `scene.background` and `scene.environment`, turned with the
+stage every frame so the room stays put while the camera orbits – the **desk**, the Stage panel's choice of two
+(Tilman: the tool is for designers, they should feel at home): a 1.4 × 1.0 m screen-printed plywood top (18 mm; Poly
+Haven's plywood texture tinted to the phenolic brown on the faces, the plies showing untinted on the cut edges) on a
+steel tube frame after Egon Eiermann's table frame (1953, the default), or Philipp Camille Schöpfer's white desk (a
+thick top with three drawer cutouts in its front edge on four slender legs splayed outward), both 72 cm high and our
+own low-poly models (`editor/static/models/`, 236 and 124 triangles, built by `editor/tools/desk-eiermann.py` in
+Blender – `editor/static/models/README.md`), loaded once each with the origin at the top's surface, so the book lies
+on it – the open book as an object – two blocks of paper on a white hardcover board (2 mm) that overhangs the pages by 3 mm, the block's
 thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) – and the current
 spread's printed images. A spread of the format `cover` or `back` shows the **closed book** instead – the printed
 cover board on top (the layout's `cover-front` / `cover-back` sheet as its texture), the whole block of paper under
@@ -152,9 +159,8 @@ again). Nothing of the reader's store, progress or routes is involved.
     how flat a video plane is), *far*; on the stage **drag** orbits, **Shift + drag**, the **middle button** or **two fingers** pan (the looked-at
     point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
     one pressed chip per target (◉ = in view) – off reports it lost (outro), on found again (reveal); the replay arrow
-    plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **backdrop**: *hdri* (sky and light from one
-    of six Poly Haven studios, the default), *table* (the desk under the scene's own lights), *paper*, *photo* of your
-    own desk (the camera button; long side 1600 px, stored on the device).
+    plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the default) or *Schöpfer*. **sky**: one of six
+    Poly Haven studios (the HDRI – sky and light while the shading is rendered). Both stored on the device.
   - **Entity** – first the **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;
     **Save placement** writes it; until then a target made in the editor lies where its form put it, an imported one
@@ -180,7 +186,7 @@ again). Nothing of the reader's store, progress or routes is involved.
     plays (`playOn` found / tap / never, `stopOn`, loop, speed). Rows come from the content contract's definitions
     (`PLACEMENT_PARAMS`, `FILTERS`, `COMPONENTS`, `LIGHT_PARAMS`): a new filter, component, light parameter or
     parameter needs no panel code (one snippet draws a parameter of any kind).
-- Settings (view, orbit, backdrop, photo, shake, the open tab, the tree open or collapsed) are stored per device; the
+- Settings (view, orbit, sky, desk, shake, the open tab, the tree open or collapsed) are stored per device; the
   session token too.
 
 ### UI rules
@@ -205,7 +211,7 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`) and the reader's graphics options |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, backdrop, hidden targets), `stage-layout.ts` |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts` |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |

@@ -1074,12 +1074,15 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        480p / 720p / 1080p) and transcoding – the content build or a job; [x] a target made in the editor tracks in
        the reader: the 8th Wall engine makes the image-target data from the image at runtime (`xr8.ts`), nothing to
        compile; [ ] the media standard's density suffixes.
-2d. [ ] **A minimal admin UI** at `/admin` in the editor app (Tilman 2026-10-29: "wir werden ein kleines Admin-UI
+2d. [~] **A minimal admin UI** at `/editor/admin` in the editor app (Tilman 2026-10-29: "wir werden ein kleines Admin-UI
        brauchen … Newsletter-Listen … wichtig, dass wir nicht zu viel von Scutoons kopieren; eventuell wird das alles
-       dieselbe White-Label-Software, gewisse Dinge sind Feature-Sets"): editors (invite by e-mail, roles, remove),
-       later newsletter lists and other instance settings; the first editors come from `EDITORS` (done, 1.10.0) or
-       the admin secret. Small and own – a feature set of the white-label core (STRATEGY.md), not a copy of
-       Scutoons' admin.
+       dieselbe White-Label-Software, gewisse Dinge sind Feature-Sets"): [x] roles after SCUTOONS' model (`roles` +
+       `user_roles`, reader / editor / admin, `GET /user` roles, `Roles::require`), [x] the admin API (admin by session
+       or the secret, users by e-mail with options and language, grant / revoke, `POST /admin/editors`), [x] the page
+       (search, role toggles with their grant, editors / admins filters, invite an editor), [x] the newsletter list as
+       CSV, [x] `ADMINS` next to `EDITORS` in both deploys (#65, 1.10.0 – docs/admin.md); [ ] later other instance
+       settings (content store, assets) as they stop being environment variables. Small and own – a feature set of the
+       white-label core (STRATEGY.md), not a copy of Scutoons' admin.
 2c. [ ] **Asked on 2026-10-29, for steps 3–4** (Tilman): nodes without a target on the spread (scenery, listeners on
        events – an anchor for the spread's scene, scope `spread`), a **timeline** for a model's animation clips with
        start / stop on found / lost / tap (the `animation` component and `behaviour` of the concept), and the
