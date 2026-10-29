@@ -105,7 +105,7 @@ const degrees = (value: number) => (value * Math.PI) / 180;
  * lies exactly where it is printed. Else, with printed-image details (the trigger protocol), each target gets its
  * printed size and position: exact `x` / `y` when given, else the region named by `position` ("top left" …) on the
  * right page, several in one region stacked downwards. Without details the targets lie in a row across the middle
- * of the right page.
+ * of the right page. "The right page" is a cover's own surface (`front` / `back`) on a cover.
  */
 export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = {}, page: PageFormat = BOOK_PAGE_MM, layout: StageLayout | null = null, format: SpreadFormat | undefined = undefined): StageTarget[] => {
   const withImage = targets.filter(target => target.imageSrc);
@@ -144,7 +144,7 @@ export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = 
       used.set(words, stacked + 1);
       const x = column === 0 ? PAGE_MARGIN_MM : column === 2 ? page.width - PAGE_MARGIN_MM - width : (page.width - width) / 2;
       const rowTop = row === 0 ? PAGE_MARGIN_MM : row === 2 ? page.height - PAGE_MARGIN_MM - height : (page.height - height) / 2;
-      return { id: target.id, imageSrc: target.imageSrc, surface: "right", x, y: rowTop + stacked * (height + 10), width, height };
+      return { id: target.id, imageSrc: target.imageSrc, surface: fallback, x, y: rowTop + stacked * (height + 10), width, height };
     });
   }
   // A row across the middle of the right page, shrunk to fit when there are many
@@ -156,7 +156,7 @@ export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = 
   return withImage.map((target, i) => ({
     id: target.id,
     imageSrc: target.imageSrc,
-    surface: "right",
+    surface: fallback,
     x: left + i * (width + ROW_GAP_MM),
     y: (page.height - width * 0.75) / 2,
     width,
@@ -245,6 +245,8 @@ export class MockTracker implements IImageTracker {
   private started = false;
   private paused = false;
   private targets: StageTarget[] = [];
+  /** The current spread's targets as the engine handed them over (laid out again by `relayout`) */
+  private tracked: readonly Target[] = [];
   private spreadId: string | null = null;
   private held: TrackedSpread[] = [];
   /** Targets reported found right now */
@@ -364,9 +366,19 @@ export class MockTracker implements IImageTracker {
     if (!this.started) throw new Error("loadTargets() needs the camera");
     this.stopTracking();
     this.spreadId = spreadId;
-    const spread = getSpread(spreadId);
+    this.tracked = targets;
+    this.relayout();
+  }
+
+  /**
+   * Lay the current spread out again from the content as it is now – its format (open book or closed cover), its
+   * sheet – without loading its targets anew: the engine does not reload a spread that is already tracked.
+   */
+  relayout(): void {
+    if (!this.spreadId) return;
+    const spread = getSpread(this.spreadId);
     this.sheet = sheetForSpread(this.layout, spread);
-    this.targets = layoutTargets(targets, this.infos, this.pageFormat(), this.layout, spread?.format);
+    this.targets = layoutTargets(this.tracked, this.infos, this.pageFormat(), this.layout, spread?.format);
     this.stage?.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
     this.publishState();
   }

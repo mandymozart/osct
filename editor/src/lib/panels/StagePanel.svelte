@@ -4,7 +4,7 @@
   import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import { clampGrid } from "$lib/stage/preview";
-  import { isOriginId, ORIGIN_LABELS, ORIGINS, type OriginId } from "$lib/stage/origin";
+  import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel } from "$lib/stage/origin";
   import Segmented from "$lib/components/Segmented.svelte";
   import Section from "$lib/components/Section.svelte";
   import {
@@ -36,16 +36,13 @@
     try {
       await putSpread(bookId, spreadId, { format });
       await content.load(bookId);
-      await stage?.open(spreadId);
+      await stage?.refresh();
+      stage?.relayout();
     } catch (e) {
       formatError = e instanceof Error ? e.message : String(e);
     }
   };
-
-  /** The origin picker: the four page corners and the book's centre, where they lie on a page */
-  const ORIGIN_SPOTS: Record<OriginId, { col: number; row: number }> = {
-    "top-left": { col: 1, row: 1 }, "top-right": { col: 3, row: 1 }, "bottom-left": { col: 1, row: 3 }, "bottom-right": { col: 3, row: 3 }, centre: { col: 2, row: 2 },
-  };
+  const format = $derived(spread?.format ?? "spread");
 </script>
 
 <Section id="stage.spread" label="spread" help="The spread's own settings, saved to the draft.">
@@ -72,17 +69,17 @@
       <span class="w"><ScrubNumber value={preview.gridMm} min={1} max={500} step={1} fallback={10} strict unit="mm" label="Grid spacing" oninput={gridMm => updatePreview({ gridMm: clampGrid(gridMm) })} /></span>
     </span></div>
 
-  <div class="row" data-help="Where the grid and every x / y in the editor count from: a corner of the page (on the page a position lies on) or the book's centre – the spine's middle. x runs to the right, y downwards; left of or above the origin is negative. Saved positions stay mm from the page's top left.">
+  <div class="row" data-help="Where the grid and every x / y in the editor count from – a point of the alignment square: a corner or an edge's centre of the page a position lies on, or the centre (the book's centre, the spine's middle, on the open book; the page's centre on a cover). x runs to the right, y downwards; left of or above the origin is negative. Saved positions stay mm from the page's top left. Now: {originHelp(preview.origin, format)}">
     <span class="label">origin</span>
     <span class="controls">
       <span class="origin" role="radiogroup" aria-label="Origin">
         {#each ORIGINS as origin (origin)}
-          <button type="button" role="radio" class="spot" class:on={preview.origin === origin} aria-checked={preview.origin === origin} aria-label={ORIGIN_LABELS[origin]}
-            style:grid-column={ORIGIN_SPOTS[origin].col} style:grid-row={ORIGIN_SPOTS[origin].row}
+          <button type="button" role="radio" class="spot" class:on={preview.origin === origin} aria-checked={preview.origin === origin} aria-label={originLabel(origin, format)}
+            data-help={originHelp(origin, format)} style:grid-column={ORIGIN_SPOTS[origin].col + 1} style:grid-row={ORIGIN_SPOTS[origin].row + 1}
             onclick={() => { if (isOriginId(origin)) updatePreview({ origin }); }}></button>
         {/each}
       </span>
-      <span class="small">{ORIGIN_LABELS[preview.origin]}</span>
+      <span class="small">{originLabel(preview.origin, format)}</span>
     </span></div>
 
   <div class="row" data-help="The desk the book lies on: Eiermann's steel frame with a plywood top, or Schöpfer's white desk.">
@@ -134,6 +131,8 @@
   .var { font-variant-numeric: tabular-nums; }
   .events { flex-direction: column; align-items: flex-start; gap: .125rem; max-height: 9rem; overflow: auto; }
   .events strong { margin-right: .25rem; }
+  .events { overflow-x: hidden; }
+  .events > span { max-width: 100%; overflow-wrap: anywhere; }
   .origin { display: inline-grid; grid-template-columns: repeat(3, .75rem); grid-template-rows: repeat(3, .75rem); gap: .125rem; padding: .125rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); }
   .spot { width: .75rem; height: .75rem; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: none; cursor: pointer; }

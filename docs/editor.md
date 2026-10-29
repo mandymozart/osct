@@ -108,7 +108,8 @@ nothing flickers. The printed images:
 The stage's **sheet image is sharpened on demand**: the layout carries a second, much sharper image per sheet
 (`imageSharp`, `sheets/<sheet>@sharp.jpg`); the stage fetches it once, when the camera comes within 50 cm of the page.
 The Stage panel sets a **grid** (on / off, spacing in mm; its lines run through the origin, which is red) and the
-**origin** (`stage/origin.ts`): a corner of the base format (per page) or the book's centre. The x / y rows of a
+**origin** (`stage/origin.ts`): one of the nine points of an alignment square – a corner or an edge's centre of the base
+format (per page), or the centre (the book's centre, the spine's middle, on the open book; the page's centre on a cover). The x / y rows of a
 target's placement and of a new target are shown and entered from that origin (x to the right, y downwards, so values
 left of or above it are negative); what is saved stays mm from the page's top left corner.
 
@@ -162,7 +163,7 @@ is involved.
     pointer) there is no Info view.
   - **Stage panel** – collapsible sections, each with a header, the open state kept per section on the device
     (`editor/src/lib/sections.svelte.ts`, `components/Section.svelte`): *spread* (the format), *stage* (shake, grid,
-    origin – a reference-point picker of the four page corners and the book's centre –, desk, sky), *post-processing*
+    origin – a 3 × 3 alignment square –, desk, sky), *post-processing*
     and *vars and events* (closed by default). Every row is the panel's label / control grid (`.row` in `app.css`).
   - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
     selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own

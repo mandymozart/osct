@@ -15,6 +15,7 @@ import { getPreview, subscribePreview, type ShadingMode } from "./preview";
 import { MockStage } from "./mock-stage";
 import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
+import { logEvent, type StageEvent } from "./event-log";
 import { plugins } from "$lib/plugins.svelte";
 import { setPreviewActive, setTargetHidden } from "./preview";
 import type { PrintPlacement } from "$lib/api";
@@ -31,14 +32,7 @@ const REPLAY_GAP_MS = 900;
  * variables and the last events of the stage (`vars`, `events`).
  */
 
-/** An event of the stage as the panel lists it */
-export interface StageEvent {
-  event: string;
-  detail: string;
-}
-
-/** How many events the panel keeps */
-const EVENT_LOG_SIZE = 12;
+export type { StageEvent } from "./event-log";
 export type PickMode = "entity" | "node" | "target";
 
 /** A placement being edited: the image and where it would be printed (mm) */
@@ -144,7 +138,7 @@ export class Stage {
         const detail = payload === undefined ? "" : typeof payload === "object" && payload !== null
           ? Object.entries(payload as Record<string, unknown>).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(" · ")
           : String(payload);
-        this.events = [{ event, detail }, ...this.events].slice(0, EVENT_LOG_SIZE);
+        this.events = logEvent(this.events, { event, detail });
         if (event === "varChanged" || event === "spreadChanged") this.vars = allVars();
       }),
     );
@@ -229,6 +223,11 @@ export class Stage {
     await this.scene.load(spreadId);
     await this.scene.setState(SceneState.RUNNING);
     this.shade();
+  }
+
+  /** The current spread's format changed in the draft: the book takes its new shape on the stage at once */
+  relayout(): void {
+    this.tracker?.relayout();
   }
 
   /** Show a target's entity with other values than the content's (live edit), `null` = the content's again */

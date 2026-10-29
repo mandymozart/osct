@@ -10,7 +10,7 @@
   onMount(() => help.listen(document));
 </script>
 
-<section class="info" class:closed={!help.open} aria-label="Info">
+<section class="info" class:closed={!help.open} aria-label="Info" data-app-ui>
   <button type="button" class="head" aria-expanded={help.open} onclick={() => help.setOpen(!help.open)}
     data-help="The name and description of the control under the pointer or in focus. Click to show or hide it.">
     <Icon name={help.open ? "down" : "up"} size=".875rem" />
