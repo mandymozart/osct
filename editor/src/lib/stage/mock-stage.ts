@@ -29,8 +29,8 @@ const COVER_COLOR = 0xf2efe9;
 const SHEET_THICKNESS = 0.00015;
 const BLOCK_MIN = 0.003;
 const BLOCK_MAX = 0.04;
-const COVER_THICKNESS = 0.002;
-const COVER_OVERHANG = 0.003;
+const COVER_THICKNESS = 0.001;
+const COVER_OVERHANG = 0;
 /**
  * The desks (the Stage panel's choice): 1.4 × 1.0 m tops, 72 cm high – our own low-poly models, built by
  * `editor/tools/desk-eiermann.py` (`editor/static/models/README.md`). Each model's origin is the centre of the top's
