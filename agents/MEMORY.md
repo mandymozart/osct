@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The environment on the stage, world and sky as assets, schema 2.10 (#79)
+
+- Tilman (#79 comment): the Environment block on the book page was too limited – edit it in the editor's stage with a
+  preview, the world and the sky as assets from the Library or uploaded, the café one choice. Built (1.21.0): an
+  **Environment** tab in the workspace; `worldSrc` (glTF) and `skySrc` (equirectangular jpg / png / webp) in
+  `environment` (schema **2.10**, MINOR); the engine draws them in the same single pass – the model is **baked once into a
+  cube** from the reader's eye (3DoF makes the cube exact; RULES #4 amended), so the phone pays one texture lookup, not a
+  scene per frame. The stage previews the **reader's own pass** (`ArScene.previewEnvironment`, orientation from the view)
+  instead of a stand-in world (RULES #32: the author sees the engine the reader runs).
+- **Compatibility caveat:** the 2.8 and 2.9 guards (apps 1.17.0–1.20.x) refuse unknown environment fields, so such an app refuses
+  a book whose environment names `worldSrc` / `skySrc` (books without them load). From 2.10 on the reader's guard lets
+  unknown environment fields pass (the build and the API stay strict), so the next additions are real MINOR steps. Kept
+  MINOR instead of a MAJOR: nothing deployed to readers uses an environment yet.
+- Open (#79): per-spread overrides; tuning values (window, floor, fade) as content; `.hdr` skies (the Library has no HDR
+  kind – a new upload kind and the RGBE loader); the onion sky's preview on the stage (needs a synthetic camera picture);
+  animated world models (the cube is static); lighting the AR scene from the sky (#71).
+
 ## 2026-10-30 – Editor help in an Info view, Stage panel in sections (#102, #133)
 
 - Tilman, on the Stage panel: explanations "could be in the left side bar, a collapsible info like in Ableton – not

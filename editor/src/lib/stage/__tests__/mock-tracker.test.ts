@@ -225,6 +225,26 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     expect(camera.aspect).toBe(0.5);
   });
 
+  // The environment's preview: the engine's look-around world is turned by this, as by a phone's gyroscope
+  it("reports the camera's orientation in a world with y up, and looks up from the book on request", async () => {
+    await tracker.startCamera();
+    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    updatePreview({ orbit: { distance: 350, tilt: 90, yaw: 0 } });
+    tracker.tick(now);
+    // The reader's eye level, at the book: the view is level, ahead (−z), the book on the stage's +y
+    const ahead = new Vector3(0, 0, -1).applyQuaternion(tracker.worldOrientation());
+    expect(ahead.y).toBeCloseTo(0, 3);
+    expect(ahead.z).toBeCloseTo(-1, 3);
+    updatePreview({ orbit: { distance: 350, tilt: 0, yaw: 0 } });
+    tracker.tick(now + 16);
+    expect(new Vector3(0, 0, -1).applyQuaternion(tracker.worldOrientation()).y).toBeCloseTo(-1, 3); // from above: down
+    tracker.setLookUp(90);
+    tracker.tick(now + 32);
+    expect(new Vector3(0, 0, -1).applyQuaternion(tracker.worldOrientation()).y).toBeCloseTo(0, 3); // raised to the horizon
+    // The targets stay found: the book anchors the world while the camera looks away
+    expect(decompose(updates[updates.length - 1][1]!).position.y).toBeLessThan(0);
+  });
+
   it("feeds the stage the layout, the sky and every frame's camera", async () => {
     const view = stage();
     tracker.attachStage(view);

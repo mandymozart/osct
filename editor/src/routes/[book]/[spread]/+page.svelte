@@ -13,6 +13,8 @@
   import TreePanel from "$lib/panels/TreePanel.svelte";
   import LibraryPanel from "$lib/panels/LibraryPanel.svelte";
   import CodePanel from "$lib/panels/CodePanel.svelte";
+  import EnvironmentPanel from "$lib/panels/EnvironmentPanel.svelte";
+  import { environmentEdit, type EnvironmentSlot } from "$lib/environment.svelte";
   import NewTargetForm from "$lib/panels/NewTargetForm.svelte";
   import { deleteEntry, putTarget, type Asset } from "$lib/api";
   import { library } from "$lib/library.svelte";
@@ -21,12 +23,13 @@
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
-   * (the engine over the mock stage) and the panels **Stage**, **Entity**, **Library** and **Code** in a column at the right. On a phone the
+   * (the engine over the mock stage) and the panels **Stage**, **Entity**, **Environment**, **Library** and **Code** in a column at the right. On a phone the
    * panel is a sheet at the bottom whose head is the tab row (closed = the row only) and the tree is its first tab.
+   * `?tab=environment` opens a tab (the book page links the Environment so).
    */
   const bookId = $derived(page.params.book!);
   const spreadId = $derived(page.params.spread!);
-  const TABS = ["tree", "stage", "entity", "library", "code"] as const;
+  const TABS = ["tree", "stage", "entity", "environment", "library", "code"] as const;
   type Tab = (typeof TABS)[number];
   const TAB_KEY = "osct-editor-tab";
   const TREE_KEY = "osct-editor-tree";
@@ -34,7 +37,11 @@
 
   let container = $state<HTMLDivElement>();
   let stage = $state<Stage | null>(null);
-  let tab = $state<Tab | null>((() => { try { const t = localStorage.getItem(TAB_KEY) as Tab | null; return t && TABS.includes(t) ? t : "stage"; } catch { return "stage"; } })());
+  let tab = $state<Tab | null>((() => {
+    const asked = page.url.searchParams.get("tab") as Tab | null;
+    if (asked && TABS.includes(asked)) return asked;
+    try { const t = localStorage.getItem(TAB_KEY) as Tab | null; return t && TABS.includes(t) ? t : "stage"; } catch { return "stage"; }
+  })());
   /** The tree column is open (desktop; stored) */
   let treeOpen = $state((() => { try { return localStorage.getItem(TREE_KEY) !== "closed"; } catch { return true; } })());
   /** A phone: the tree is a tab of the sheet instead of a column */
@@ -47,6 +54,10 @@
   const setTab = (next: Tab) => {
     tab = tab === next ? null : next;
     try { if (tab) localStorage.setItem(TAB_KEY, tab); else localStorage.removeItem(TAB_KEY); } catch { /* storage blocked */ }
+  };
+  /** Show a tab (no toggle – a panel's link to another) */
+  const openTab = (next: Tab) => {
+    if (tab !== next) setTab(next);
   };
   const setTreeOpen = (open: boolean) => {
     treeOpen = open;
@@ -78,6 +89,23 @@
     if (selectedTarget === target.id) { selectedTarget = null; selectedNode = []; }
     await reloadContent();
   };
+  // ── the environment: previewed on the stage while its tab is open or the Library picks a file for it ──
+  $effect(() => {
+    const previewing = shown === "environment" || (shown === "library" && !!environmentEdit.picking);
+    stage?.previewEnvironment(previewing ? $state.snapshot(environmentEdit.edited) : null);
+  });
+  $effect(() => {
+    if (shown !== "library" && shown !== "environment") environmentEdit.picking = null;
+  });
+  const pickForEnvironment = (slot: EnvironmentSlot) => {
+    environmentEdit.picking = slot;
+    openTab("library");
+  };
+  const useForEnvironment = (slot: EnvironmentSlot, asset: Asset) => {
+    environmentEdit.use(slot, asset.url);
+    openTab("environment");
+  };
+
   /** The library's Use: the selected node takes the file */
   const useAsset = (asset: Asset) => {
     entityPanel?.useAsset(asset.kind, asset.url, asset.id);
@@ -300,6 +328,7 @@
       {/if}
       <button type="button" class="pill tab" class:on={shown === "stage"} aria-pressed={shown === "stage"} onclick={() => setTab("stage")}>Stage</button>
       <button type="button" class="pill tab" class:on={shown === "entity"} aria-pressed={shown === "entity"} onclick={() => setTab("entity")}>Entity</button>
+      <button type="button" class="pill tab" class:on={shown === "environment"} aria-pressed={shown === "environment"} title="The world around the reader and its sky, previewed on the stage" onclick={() => setTab("environment")}>Environment</button>
       <button type="button" class="pill tab" class:on={shown === "library"} aria-pressed={shown === "library"} onclick={() => setTab("library")}>Library</button>
       <button type="button" class="pill tab" class:on={shown === "code"} aria-pressed={shown === "code"} onclick={() => setTab("code")}>Code</button>
     </div>
@@ -311,8 +340,11 @@
       <div class="body"><StagePanel {stage} {bookId} {spreadId} /></div>
     {:else if shown === "entity"}
       <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} {pickColour} onlibrary={() => setTab("library")} ontargetchanged={reloadContent} /></div>
+    {:else if shown === "environment"}
+      <div class="body"><EnvironmentPanel {stage} {bookId} onlibrary={pickForEnvironment} /></div>
     {:else if shown === "library"}
-      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selectedTarget} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} /></div>
+      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selectedTarget} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent}
+        environmentSlot={environmentEdit.picking} onuseenvironment={useForEnvironment} /></div>
     {:else if shown === "code"}
       <div class="body code"><CodePanel {bookId} {stage} /></div>
     {/if}

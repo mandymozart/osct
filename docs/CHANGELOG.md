@@ -12,6 +12,28 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.21.0 – 2026-10-30
+
+### Added
+- **The environment is edited on the stage** (#79): the workspace has an **Environment** tab next to Stage and Entity.
+  While it is open the stage shows the reader's own look-around pass – the world around the book, the window around it
+  and the clear floor – under the desk and the book, turned by the view as a phone would turn it; *look up* raises the
+  camera from the book to the horizon and the sky. Changes show at once; **Save** writes them to the draft.
+- **The world and the sky are assets** (content schema 2.10): a glTF model (`worldSrc` – the scenery around the reader)
+  and an equirectangular image (`skySrc` – the sky), picked in the Library (its new *World* / *Sky* buttons while the tab
+  picks) or uploaded from the tab; the built-in café stays a choice and the fallback. In `book.yaml` they are paths below
+  the content folder – the content build checks the file. The reader loads them only when a Graphics switch is on and
+  draws them in the same single pass (the model is rendered once into a cube from the reader's eye).
+- The Library counts a file the environment uses, refuses to delete it while it is used and relinks it on *Replace*.
+
+### Changed
+- The book page shows the environment as one line with a link to the stage instead of its own form.
+- The reader's content check lets environment fields of later schema versions pass (the build and the editor's API stay
+  strict), so the next additions load in this app.
+
+### Fixed
+- The world around the reader faded only on a pause: turning both Graphics switches off while scanning left it drawn.
+
 ## 1.20.8 – 2026-10-30
 
 ### Added

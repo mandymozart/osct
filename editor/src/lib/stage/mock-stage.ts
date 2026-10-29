@@ -142,6 +142,14 @@ export class MockStage implements StageView {
   private sky: Mesh<SphereGeometry, MeshBasicMaterial> | null = null;
   private shading: ShadingMode = "rendered";
   private hdri: HdriId | null = null;
+  /** The studio's sky is shown (off while the environment is previewed: the book's world lies under the stage) */
+  private studioSky = true;
+
+  /** Show the studio's sky (the HDRI on its sphere) or not – its light stays either way */
+  setStudioSky(visible: boolean): void {
+    this.studioSky = visible;
+    if (this.sky) this.sky.visible = visible && !!this.wantedHdri && !!this.sky.material.map;
+  }
 
   /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only; wireframe and solid reach the book and the desk too (#137) */
   setShading(mode: ShadingMode): void {
@@ -576,7 +584,7 @@ export class MockStage implements StageView {
     this.sky.material.map = map;
     this.sky.material.color.setScalar(exposure);
     this.sky.material.needsUpdate = true;
-    this.sky.visible = true;
+    this.sky.visible = this.studioSky;
     this.dimLights(true);
   }
 

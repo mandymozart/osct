@@ -32,7 +32,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
    whole-book download (Info) goes through the same `preload()` – no second download path. Never modify the AR
    scene before a spread is actually activated. No second scene / WebGL context – except the engine's own
    camera canvas under the three.js canvas. (The look-around world is one full-screen pass of the same renderer
-   under the AR scene, `ar/look-around/` – no scene of its own.) The tracker keeps the neighbouring spreads'
+   under the AR scene, `ar/look-around/` – no scene of its own; a book's world model is rendered once into a cube
+   when it loads, `look-around/environment-assets.ts`, never per frame.) The tracker keeps the neighbouring spreads'
    image targets loaded (`prepareTargets()`, ±1 by default – `components/ar-bridges/utils/prepared-spreads.ts`);
    that is the engine's state, not the scene's. The AR code (three.js, the 8th Wall engine) is only imported
    lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may import `ar-bridges/ar/` statically;
