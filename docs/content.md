@@ -229,24 +229,37 @@ target:
         loop: false
 ```
 
-**Components** (content schema 2.2, the first piece of the plugin API): a node may carry
-`components: [{ type, ...parameters }]`, each applied to it by the engine; every type is defined once in
-`shared/types/components.ts` with its parameters, so the editor's panel, the build and the guard read one
-definition. The first type is **`animation`** on a model: which glTF clip plays (`clip`, empty = the first), when it
-starts (`playOn: found | tap | never`), when it stops (`stopOn: lost | never`), whether it loops (`loop`) and its
-`speed`. Without the component every clip of the model plays in a loop, as before.
+**Plugins – the book's own code** (content schema 2.4, `agents/research/2026-10-29-code-in-the-editor.md`): a
+folder `content/plugins/<id>/` with an `index.ts` that exports `register(api)`. The content build type-checks it
+against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin imports nothing but types – three.js is
+`api.three`), runs it once to learn what it registers, and declares it in the configuration (`plugins: [{ id, src,
+api }]`); the reader loads it with the AR scene. What a plugin registers is used in the content like `animation`:
+
+- `api.registerComponent(type, spec, apply)` – code on a node. `spec` = `{ description, nodeTypes?, params }` with
+  every parameter's `kind` (`number` with `min` / `max`, `color`, `choice` with `options`, `boolean`, `string`),
+  `default` and `description` – the editor's Entity panel shows the rows from it. `apply({ node, params, object,
+  placed, target, three })` runs when the node is built and returns hooks: `update(delta)` every frame, `onFound`,
+  `onLost`, `onTap`, `onPause`, `dispose`, `tune(params)` (new values in place; `false` = build the node anew).
+- `api.registerLayer(type, spec, { glsl })` – a **material layer**: GLSL on every pixel of a video, image or text
+  plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
+  `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
+  in the spec's order (`number` / `boolean` → `float`, `color` → `vec3`, `choice` → `int`, the index in its options).
+- The editor's **Code** tab ([editor](editor.md)) runs a plugin on its stage without a build; readers get only what
+  the build compiled. The fixture's `plugins/tint` is the template; [plugins](plugins.md) is the guide for writing
+  one. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
+  above 256 KB.
 
 ```yaml
+# content/plugins/tint/index.ts registers the layer "tint" (color, opacity, blend) – used like a component:
 target:
-  image: images-040.jpg
+  image: images-031.jpg
   entity:
-    type: model
-    src: fox.glb
+    type: video
+    src: screen.mp4
     components:
-      - type: animation
-        clip: Run
-        playOn: tap        # the reader taps the fox and it runs
-        loop: false
+      - type: tint
+        color: "#f3cc94"
+        opacity: 0.35
 ```
 
 **The covers** (content schema 2.3): a spread has a **format** – `spread` (a double page, the default), `cover`
@@ -560,7 +573,7 @@ it, then without file names and sizes.
 | Where | What |
 |---|---|
 | `client/src/game.config.json` | Everything the app needs to know about the book (not in git) |
-| `client/public/assets/content/` | The content media, optimised (not in git) |
+| `client/public/assets/content/` | The content media, optimised, and every plugin's compiled `plugin.js` next to its source (not in git) |
 
 ### Folders
 
@@ -569,7 +582,7 @@ scripts/
 ├── src/            everything in TypeScript, bundled into dist/ by `npm run build`
 │   ├── index.ts            the content build: start
 │   ├── config.ts           all folders and limits
-│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial
+│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial, plugins
 │   ├── lib/                shared helpers: reading content, files, hash, checks, media, storage, sync
 │   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
 │   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)

@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.10.0 – 2026-10-29
+## 1.12.0 – 2026-10-29
 
 ### Added
 - **Light nodes – content schema 3.0** (#71, Tilman: "one entity type is missing in the editor – lights"): the node
@@ -29,6 +29,43 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   guard refuses a node type it does not know; from 3.0 on the guard lets an unknown node type pass (the engine
   renders nothing for it, keeps its children), so the next node type is a MINOR step – and the app reads every older
   MAJOR as it is (`OLDEST_READABLE_SCHEMA_MAJOR`), nothing has to be rebuilt.
+
+## 1.11.0 – 2026-10-29
+
+### Added
+- **Code in the editor – the book's own code as plugins** (#66, Tilman: "wo kann ich meine eigenen JS-Skripte im
+  Editor ansetzen, also Shader hinzufügen? … wie hatte das Niantic Studio gemacht? Das war mega"; the decision:
+  `agents/research/2026-10-29-code-in-the-editor.md`). A plugin is a folder `plugins/<id>/index.ts` of the content
+  source that exports `register(api)`: the **content build** type-checks it against the plugin API (the engine's own
+  types), bundles it with esbuild into `plugin.js` next to its source, runs it once to learn the components and
+  layers it registers (so the nodes that use them are checked like `animation`) and declares it in the configuration
+  (`plugins: [{ id, src, api }]`, **content schema 2.4**); the reader loads the declared plugins with the first spread.
+  The **plugin API 1.0** (`engine/src/scene/plugins.ts`): `api.three` (the app's three.js), `registerComponent(type,
+  spec, apply)` – code on a node with the context `{ node, params, object, placed, target, three }` and the hooks
+  update / onFound / onLost / onTap / onPause / dispose / tune – and `registerLayer(type, spec, { glsl })` – a
+  **material layer**, GLSL composed into the node's material after its own shading (plain planes through
+  `onBeforeCompile`, the chroma key's shader patched; a model's materials as patched clones; kept under the unlock
+  animation's dissolve). Both use the component specs of `shared/types/components.ts`, which became a registry
+  (`componentSpec`, `componentTypes`): a plugin's component or layer shows in the Entity panel with its rows and
+  **+ type** without panel code, and is used in the content like a component. The **Code** tab of the editor (the 5th
+  tab): the plugins stored for the book (`plugins` table, `GET / PUT / DELETE /editor/books/{id}/plugins/{pid}`) and
+  the ones the content declares (opening one reads its `index.ts` next to the compiled module), a plain code editor
+  with a line gutter (Tab indents, Ctrl+Enter runs, Ctrl+S saves), **Run** transpiles in the browser (sucrase) and
+  installs the module in the stage's registry so the effect shows at once, **Save** stores the source, errors
+  inline with their line. Nothing run in the editor reaches readers: the configuration's `plugins` list has one
+  writer (the content build), the import keeps it, and a publish whose nodes use a component no compiled plugin
+  can provide is refused (409 `unknown-components`) – the build behind the publish is #78. The content build warns
+  about a node with more than three layers. The fixture's `plugins/tint` (a tint layer with colour, opacity and
+  blend on Studio B's standing video) is the template; [plugins](plugins.md) is the guide for writing one.
+
+## 1.10.0 – 2026-10-29
+
+### Added
+- **Tutorial: the content workflow** (#61, Tilman: "eine Visualisierung, wie der Workflow Speichern, Sync, Publish ist,
+  zum schnelleren Einstieg – auf einer Seite unter /docs/tutorials"): a static page shipped with the app at
+  `/docs/tutorials/` – the three places (content folder, CDN, editor database) and the arrows between them (sync,
+  import, save, publish, the reader), the seven steps to bring a book onto an instance, and the things to know
+  (import replaces the draft, sync and publish both make versions).
 - **Roles and the admin page** (#65, Tilman: "wir werden ein kleines Admin-UI brauchen", modelled on SCUTOONS' roles for the
   white-label core): the tables `roles` (reader / editor / admin, fixed ids) and `user_roles` (granted when, by whom);
   every account has `reader`, existing editors keep `editor` (the schema backfills on the next deploy), `GET /user`

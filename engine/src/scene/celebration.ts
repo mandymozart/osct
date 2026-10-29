@@ -327,7 +327,12 @@ export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKi
       if (material instanceof ShaderMaterial && clone instanceof ShaderMaterial) {
         clone.uniforms = { ...material.uniforms }; // keep the same textures (clone() would copy them)
       }
-      clone.onBeforeCompile = shader => injectDissolve(shader, uniforms, toEntity);
+      // A material with its own injection (a plugin's layers) keeps it under the dissolve
+      const previous = material.onBeforeCompile;
+      clone.onBeforeCompile = (shader, renderer) => {
+        previous.call(material, shader, renderer);
+        injectDissolve(shader, uniforms, toEntity);
+      };
       clone.customProgramCacheKey = () => `dissolve-${material.customProgramCacheKey()}`;
       return clone;
     });
