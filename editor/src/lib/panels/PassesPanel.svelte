@@ -5,8 +5,9 @@
   import { putSpread } from "$lib/api";
   import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
-  import { passRows, passValue, setPassValue, type ValueRow } from "$lib/values";
+  import { passOptionLabels, passRows, passValue, setPassValue, type ValueRow } from "$lib/values";
   import ColourField from "$lib/components/ColourField.svelte";
+  import Segmented from "$lib/components/Segmented.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
   import Section from "$lib/components/Section.svelte";
 
@@ -99,7 +100,9 @@
     {@const name = row.id.split(".")[2]}
     <div class="row" class:changed={passValue(pass, row) !== (draft?.[i] ? passValue(draft[i], row) : row.default)} data-help-name="{pass.type} · {name}" data-help="{row.description} – default {row.default}">
       <span class="label sub">{name}</span>
-      {#if row.kind === "color"}
+      {#if row.kind === "choice"}
+        <span class="controls"><Segmented options={row.options ?? []} value={String(passValue(pass, row))} labels={passOptionLabels(pass, row)} onchange={v => set(i, row, v)} /></span>
+      {:else if row.kind === "color"}
         <ColourField value={String(passValue(pass, row))} label={row.id} onchange={hex => set(i, row, hex)} />
       {:else}
         <span class="w"><ScrubNumber value={Number(passValue(pass, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}

@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.20.7 – 2026-10-30
+## 1.20.8 – 2026-10-30
 
 ### Added
 - **Info view in the editor** (#133): a collapsible box at the bottom of the tree column (on the book page at the
@@ -41,6 +41,16 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   unplaced targets on a cover lie on the cover instead of a right page that is not there.
 - **The events list** logs a scene state once per change instead of repeating `sceneState: "running"`, and long
   events wrap instead of scrolling sideways.
+
+## 1.20.7 – 2026-10-30
+
+### Added
+- **The grade reaches the whole picture** (#136, content schema 2.9): the built-in `grade` pass has a parameter
+  `reach` – `ar` (the default, as before: the AR layer alone) or `all`: in the editor the desk is graded too, on the
+  phone the camera picture. The camera picture lies in the 8th Wall engine's own canvas under the AR canvas, so the
+  engine's camera renderer draws it with a shader of the same grade (`cameraGradeShader`). The editor's pass rows
+  show a choice parameter as a segmented control (*AR layer / whole picture*). The guard ignores a pass parameter it
+  does not know from now on (a newer MINOR's); the build and the API still refuse it.
 
 ## 1.20.6 – 2026-10-30
 

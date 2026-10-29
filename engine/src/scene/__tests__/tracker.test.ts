@@ -11,6 +11,8 @@ const engine = vi.hoisted(() => ({
   loaded: new Set<string>(),
   extracted: [] as string[],
   modules: [] as XrPipelineModule[],
+  /** The fragment shaders the camera renderer was configured with */
+  shaders: [] as (string | undefined)[],
 }));
 
 vi.mock("../xr8", async importOriginal => {
@@ -31,7 +33,7 @@ vi.mock("../xr8", async importOriginal => {
       },
       updateCameraProjectionMatrix: () => {},
     },
-    GlTextureRenderer: { pipelineModule: () => ({}) },
+    GlTextureRenderer: { pipelineModule: () => ({}), configure: ({ fragmentSource }: { fragmentSource?: string }) => engine.shaders.push(fragmentSource) },
     XrConfig: { device: () => ({ ANY: "any" }), camera: () => ({ BACK: "back" }) },
     addCameraPipelineModules: (modules: XrPipelineModule[]) => engine.modules.push(...modules.filter(m => m.name)),
     run: () => engine.modules.forEach(module => module.onStart?.({ canvasWidth: 1, canvasHeight: 1 })),
@@ -201,5 +203,22 @@ describe("ImageTracker spread switches", () => {
       expect([...engine.loaded].sort()).toEqual(all(["s1", "s2"]));
       tracker.stop();
     });
+  });
+});
+
+describe("ImageTracker camera grade", () => {
+  it("draws the camera picture with the grade's shader – given before the start, while it runs, and back to the engine's", async () => {
+    engine.shaders = [];
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+    tracker.gradeCamera("graded");
+    expect(engine.shaders).toEqual([]);
+    await tracker.startCamera();
+    expect(engine.shaders).toEqual(["graded"]);
+    tracker.gradeCamera("graded");
+    tracker.gradeCamera("other");
+    expect(engine.shaders).toEqual(["graded", "other"]);
+    tracker.gradeCamera(null);
+    expect(engine.shaders[2]).toMatch(/gl_FragColor = texture2D\(sampler, texUv\)/);
+    tracker.stop();
   });
 });
