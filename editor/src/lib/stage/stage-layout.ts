@@ -1,5 +1,5 @@
-import type { Spread } from "../../../../engine/src/types/index";
-import { contentUrl } from "../../../../engine/src/content/game-config";
+import type { Spread } from "@engine/types";
+import { contentUrl } from "@engine/content/game-config";
 
 /**
  * The book's layout for the editor's mock stage (three-free): every sheet of the book as laid out (the covers as

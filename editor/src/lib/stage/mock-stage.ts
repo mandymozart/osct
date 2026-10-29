@@ -1,7 +1,7 @@
 import {
   Group, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Scene, SRGBColorSpace, Texture, TextureLoader,
 } from "three";
-import type { PreviewBackdrop } from "../utils/preview";
+import type { PreviewBackdrop } from "./preview";
 import type { PageFormat, StageSheet, StageTarget, StageView } from "./mock-tracker";
 
 /** A paper plane sits a hair above the one below it, so nothing flickers */

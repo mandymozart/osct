@@ -1,6 +1,7 @@
-# One image for the whole site: the app (static files from `npm run build` in client/, including the content
-# build of this commit) and the user API (server/api, PHP) under /api – Apache + PHP on port 80. TLS and the
-# public port belong to kamal-proxy in front of it (config/deploy.yml, docs/deploy.md).
+# One image for the whole site: the reader (static files from `npm run build` in client/, including the content
+# build of this commit), the editor (editor/, served at /editor) and the user API (server/api, PHP) under /api –
+# Apache + PHP on port 80. TLS and the public port belong to kamal-proxy in front of it (config/deploy.yml,
+# docs/deploy.md).
 #
 #   docker build -t osct .                      (--build-arg VITE_DEBUG=true for the debug bar: staging;
 #                                                --build-arg VITE_CONTENT_BASE_URL=<CDN> for content from the CDN)
@@ -13,13 +14,17 @@ WORKDIR /src
 # Dependencies first (cached while the lock files do not change)
 COPY client/package.json client/package-lock.json client/
 COPY scripts/package.json scripts/package-lock.json scripts/
-RUN cd client && npm ci --no-audit --no-fund && cd ../scripts && npm ci --no-audit --no-fund
+COPY editor/package.json editor/package-lock.json editor/
+RUN cd client && npm ci --no-audit --no-fund && cd ../scripts && npm ci --no-audit --no-fund \
+    && cd ../editor && npm ci --no-audit --no-fund --ignore-scripts
 
-# Everything the build reads: the content, the shared types, the content build and the app
+# Everything the build reads: the content, the shared types, the engine, the content build, the reader and the editor
 COPY shared shared
+COPY engine engine
 COPY content content
 COPY scripts scripts
 COPY client client
+COPY editor editor
 
 # Build flags (client/.env lists them): the API lives next to the app, the debug bar only where asked for.
 # VITE_CONTENT_BASE_URL (the environment's content CDN, docs/content-cdn.md): with it the app loads its content from
@@ -32,6 +37,8 @@ ENV VITE_API_URL=/api VITE_DEBUG=$VITE_DEBUG VITE_SHOW_LOCKED_ENTRIES=$VITE_SHOW
 # prebuild runs the content build (unless the content comes from the CDN) and the translation check, then vite +
 # the type checks
 RUN cd client && npm run build && find dist -name '*.map' -delete
+# The editor: a SvelteKit single-page app at /editor (its API is the same /api)
+RUN cd editor && npx svelte-kit sync && npm run build
 
 # ---- 2. Serve it ------------------------------------------------------------------------------------------
 FROM php:8.3-apache-bookworm
@@ -51,8 +58,9 @@ COPY server/api /var/www/html/api
 RUN rm -f /var/www/html/api/config.local.php /var/www/html/api/config.local.php.example \
           /var/www/html/api/db/*.sqlite /var/www/html/api/db/*.log
 
-# The app (index.html, assets/, the service worker, .htaccess with the SPA fallback)
+# The reader (index.html, assets/, the service worker, .htaccess with the SPA fallbacks) and the editor
 COPY --from=build /src/client/dist /var/www/html
+COPY --from=build /src/editor/build /var/www/html/editor
 COPY client/public/.htaccess /var/www/html/.htaccess
 
 ENV OSCT_API_DIR=/var/www/html/api
