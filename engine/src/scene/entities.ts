@@ -30,6 +30,8 @@ export interface EntityInstance {
    * Placement is applied by the scene (`placeEntity`).
    */
   tune?(entity: EntityData): boolean;
+  /** The placement group of every node of the tree by its path (`""` = the root, `"1.0"` = the second child's first) – editor tools */
+  nodes?: Record<string, Object3D>;
 }
 
 export interface EntityContext {
@@ -66,8 +68,11 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
   if (own) placed.add(own.object);
   children.forEach(child => placed.add(child.object));
   const all = own ? [own, ...children] : children;
+  const nodes: Record<string, Object3D> = { "": placed };
+  children.forEach((child, i) => Object.entries(child.nodes ?? {}).forEach(([key, object]) => (nodes[key === "" ? `${i}` : `${i}.${key}`] = object)));
   return {
     object: placed,
+    nodes,
     onFound: () => all.forEach(part => part.onFound?.()),
     onLost: () => all.forEach(part => part.onLost?.()),
     onPause: () => all.forEach(part => part.onPause?.()),

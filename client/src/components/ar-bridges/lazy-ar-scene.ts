@@ -1,4 +1,4 @@
-import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneState } from "@/types";
+import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneInspection, SceneState } from "@/types";
 import { Emitter } from "@engine/utils/emitter";
 
 type ArModule = typeof import("./ar");
@@ -103,6 +103,10 @@ export class LazyArScene implements IArScene {
 
   sampleColor(x: number, y: number): string | null {
     return this.scene?.sampleColor(x, y) ?? null;
+  }
+
+  inspect(): SceneInspection | null {
+    return this.scene?.inspect() ?? null;
   }
 
   async dispose(): Promise<void> {

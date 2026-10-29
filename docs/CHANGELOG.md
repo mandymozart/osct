@@ -26,6 +26,12 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   gained *Studio: tree of nodes*. In the editor the tree shows every node, the Entity panel edits the selected node,
   **+ node** adds a child (or a target's first node) from the book's files, **remove node** drops one. Components
   and plugins (the registries, code in the editor) stay phase 15 steps 3–4.
+- **The gizmo** (#61, Tilman: "das Anklicken von Items auf der Bühne, wir brauchen dann die Achsen"): three.js
+  `TransformControls` on the selected node of the editor's stage – move / rotate / scale (toolbar, W / E / R), handles
+  in the node's own space so a drag edits the placement relative to the parent, Ctrl snaps (0.05 widths, 15°, 0.1),
+  the Entity panel's rows follow live; hover draws a box around the entity under the pointer. The engine opens the
+  running scene to editor tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its
+  path, the tap's hit test); the entity builder records every node's placement group by its path.
 - **Editor API** (#61): the accounts API carries the editor's data under `/api/editor/*` for users with the new role
   `editor` (`POST /admin/editors { email }` with the admin secret gives it; `GET /user` shows it). A game configuration is
   imported into rows (books, spreads, entries, targets, entities – every field kept), read as a tree, edited entity by
