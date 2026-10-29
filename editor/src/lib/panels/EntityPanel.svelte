@@ -552,6 +552,11 @@
   .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
   .head .field { max-width: 60%; }
   .head .small { overflow-wrap: anywhere; }
+  /* A narrow panel (#159): the target picker takes the whole line, its source below */
+  @container panel (max-width: 20rem) {
+    .head { flex-wrap: wrap; gap: 0 .5rem; }
+    .head .field { flex: 1 1 100%; max-width: 100%; }
+  }
   .add .controls { flex-wrap: nowrap; }
   .add .field { min-width: 0; max-width: 7rem; }
   .add .field.grow { flex: 1; max-width: none; }

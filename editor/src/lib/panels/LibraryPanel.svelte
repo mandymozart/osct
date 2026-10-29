@@ -165,10 +165,10 @@
           {@const place = assetPlace(asset)}
           <tr class:on={opened === asset.id} onclick={() => (opened = opened === asset.id ? null : asset.id)}>
             <td class="name" title={asset.url}><button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</td>
-            <td class="name" title={place.place ?? ""}>{place.place ?? "upload"}</td>
-            <td class="muted">{asset.kind}</td>
-            <td class="num muted">{size(asset.size)}</td>
-            <td class="num muted">{asset.usages}</td>
+            <td class="name place" title={place.place ?? ""}>{place.place ?? "upload"}</td>
+            <td class="muted kind">{asset.kind}</td>
+            <td class="num muted size">{size(asset.size)}</td>
+            <td class="num muted uses">{asset.usages}<span class="unit"> use{asset.usages === 1 ? "" : "s"}</span></td>
           </tr>
           {#if opened === asset.id}
             <tr class="more"><td colspan="5"><div class="actions">{@render actions(asset)}</div></td></tr>
@@ -192,7 +192,8 @@
 </div>
 
 <style>
-  .library { display: flex; flex-direction: column; gap: .125rem; min-height: 100%; }
+  /* The library answers its own width (#159): the panel is narrow on a phone and when dragged small on a desktop (#144) */
+  .library { display: flex; flex-direction: column; gap: .125rem; min-height: 100%; container: library / inline-size; }
   .library.dragging { outline: 1px dashed var(--text); outline-offset: -2px; }
   .controls .grow { flex: 1; min-width: 6rem; }
   .grid { list-style: none; margin: .375rem 0 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
@@ -216,4 +217,27 @@
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; margin-top: .125rem; }
   .actions .pill { padding: 0 .5rem; height: 1.5rem; border-color: var(--line); }
   .text-link.danger { color: var(--danger); }
+  .list .unit { display: none; }
+  /* Narrow: the table becomes stacked rows – name and kind on one line, place, size and uses on the next; a tap opens
+     the actions below (#159) */
+  @container library (max-width: 26rem) {
+    .list, .list tbody { display: block; }
+    .list thead { display: none; }
+    .list tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "name name kind" "place size uses";
+      column-gap: .75rem; row-gap: .125rem; align-items: baseline; min-height: 2.5rem; padding: .3rem .25rem; border-bottom: 1px solid var(--line); box-sizing: border-box; }
+    .list tbody tr.on { border-bottom-color: transparent; }
+    .list tbody tr.more { display: block; min-height: 0; padding: 0 .25rem .375rem; }
+    .list th, .list td { padding: 0; border-bottom: none; }
+    .list td { display: block; min-width: 0; }
+    .list td:nth-child(1) { grid-area: name; }
+    .list td.place { grid-area: place; font-size: var(--text-small); color: var(--muted); }
+    .list td.kind { grid-area: kind; text-align: right; }
+    .list td.size { grid-area: size; font-size: var(--text-small); }
+    .list td.uses { grid-area: uses; font-size: var(--text-small); }
+    .list .unit { display: inline; }
+  }
+  /* The controls' search field and Upload share a line down to the narrowest panel */
+  @container library (max-width: 20rem) {
+    .controls .grow { min-width: 0; flex-basis: 5rem; }
+  }
 </style>

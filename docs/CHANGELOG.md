@@ -12,6 +12,18 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.3 – 2026-10-30
+
+### Changed
+- **The editor's Library and book page follow the width, from a phone up** (#159): the Library's list turns into stacked
+  rows when its panel is narrow (name and kind on one line, place, size and uses below, a tap opens the actions), and it
+  answers the panel's own width, so this also holds when the panel is dragged small on a desktop. On the book page the
+  spreads grid adds or drops a pair of pages as the window widens instead of jumping between fixed column counts; a
+  double page never splits. The cards' captions wrap (the title up to two lines, the whole of it in its tooltip), and
+  the page leaves room below the last row for the Info dock.
+- The panels on the spread page answer their own width: section heads wrap their controls, and the Entity tab's target
+  picker takes the whole line in a narrow panel.
+
 ## 1.26.2 – 2026-10-30
 
 ### Fixed

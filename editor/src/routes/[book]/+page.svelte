@@ -85,7 +85,7 @@
                   prints={printBoxes(targets.map(e => e.target!), cell.span, pageMm, assetsBase)} />
               </span>
               <span class="caption muted small">
-                {#if caption}<span class="text">{caption}</span>{/if}
+                {#if caption}<span class="text" title={caption}>{caption}</span>{/if}
                 {#if format}<span class="format">{format}</span>{/if}
                 <span class="stats">
                   <span title="{spread.entries.length} entries" aria-label="{spread.entries.length} entries"><Icon name="entry" size="1em" stroke={2} />{spread.entries.length}</span>
@@ -107,13 +107,12 @@
 
 <style>
   main { padding: 1rem 1.5rem; }
-  /* One column is one page: 1 spread per row on a phone up to 6 at 1920 px (any even count keeps gridCells' layout) */
-  .spreads { --columns: 2; list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); }
-  @media (min-width: 36rem) { .spreads { --columns: 4; } }
-  @media (min-width: 56rem) { .spreads { --columns: 6; } }
-  @media (min-width: 76rem) { .spreads { --columns: 8; } }
-  @media (min-width: 96rem) { .spreads { --columns: 10; } }
-  @media (min-width: 112rem) { .spreads { --columns: 12; } }
+  /* One column is one page. The columns follow the width (#159): the repeated track is a *pair* of pages, so the
+     count is always even and a double page never wraps (gridCells' layout holds for any even count); a page is at
+     least --page-min wide (but a pair never wider than the grid), the rest is shared out */
+  .spreads { --page-min: 9rem; list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0;
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--page-min), 50%), 1fr) minmax(min(var(--page-min), 50%), 1fr)); }
+  @media (min-width: 96rem) { .spreads { --page-min: 10rem; } }
   .spread { display: block; text-decoration: none; border-radius: var(--control-radius); }
   /* No column gap: half a gap on each side of a card, none on a single page's gutter side – so a single page is
      exactly half a double page and every sheet has the same height (#115) */
@@ -122,12 +121,17 @@
   .spreads > li.left { padding-right: 0; }
   .spread:hover .frame, .spread:focus-visible .frame { border-color: var(--text); }
   .frame { display: block; border: 1px solid var(--line); transition: border-color .15s; }
-  .caption { display: flex; align-items: center; gap: .5rem; padding: .25rem 0; white-space: nowrap; overflow: hidden; }
-  .text { overflow: hidden; text-overflow: ellipsis; }
-  .format { border: 1px solid var(--line); padding: 0 .25rem; font-size: .75em; text-transform: uppercase; }
-  .stats { margin-left: auto; display: inline-flex; gap: .5rem; }
+  /* The caption wraps instead of cutting off (#159): the title takes up to two lines (the whole of it in its tooltip),
+     the format and the stats keep together and move to the next line when the card is narrow */
+  .caption { display: flex; flex-wrap: wrap; align-items: center; gap: .125rem .5rem; padding: .25rem 0; }
+  .text { flex: 1 1 6rem; min-width: 0; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+  .format { border: 1px solid var(--line); padding: 0 .25rem; font-size: .75em; text-transform: uppercase; white-space: nowrap; }
+  .stats { margin-left: auto; display: inline-flex; gap: .5rem; white-space: nowrap; }
   /* The page has no sidebar: the Info view sits at the bottom left, over the page */
   .info-dock { position: fixed; left: 0; bottom: 0; z-index: 2; width: var(--tree-width); border-right: 1px solid var(--line); }
-  @media (max-width: 47.9em) { .info-dock { display: none; } }
+  /* The dock covers the bottom left: room below the last row so its caption can be scrolled clear of it */
+  @media (min-width: 48rem) { main { padding-bottom: 13rem; } }
+  /* A phone has no pointer to describe controls for, and the dock would cover a third of the screen */
+  @media (max-width: 47.9rem) { .info-dock { display: none; } main { padding: .75rem 1rem; } }
   .stats span { display: inline-flex; align-items: center; gap: .125rem; }
 </style>

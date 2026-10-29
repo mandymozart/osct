@@ -15,7 +15,7 @@ export interface GridSpread {
 /** `side`: a single page's side of the gutter (a right-hand page on an odd column) – its padding there is dropped */
 export type GridCell<T extends GridSpread> = { spacer: true } | { spacer: false; spread: T; span: 1 | 2; side: "left" | "right" | null };
 
-/** Columns of the widest grid (an even number, so a double page never wraps); the cells hold for any even count, the page picks it per width */
+/** An even column count for the walk (only the parity matters): the cells hold for any even count, the page's grid repeats pairs of pages to follow the width (#159) */
 export const GRID_COLUMNS = 12;
 
 const isDoublePage = (spread: GridSpread) => !spread.format || spread.format === "spread" ? spread.lastPage > spread.firstPage : false;
