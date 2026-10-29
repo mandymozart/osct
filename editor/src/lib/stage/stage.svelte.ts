@@ -1,4 +1,5 @@
 import { SvelteMap } from "svelte/reactivity";
+import { base } from "$app/paths";
 import { ArScene } from "@engine/scene";
 import { getTarget, getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type IArScene } from "@engine/types";
@@ -44,7 +45,7 @@ export class Stage {
     const scene = new ArScene(container, {
       createTracker: ({ container, options, scene }) => {
         const tracker = new MockTracker(container, options);
-        tracker.attachStage(new MockStage(scene, container));
+        tracker.attachStage(new MockStage(scene, container, path => `${base}/${path}`));
         tracker.ignorePointer = () => !!this.gizmo?.busy;
         this.tracker = tracker;
         return tracker;

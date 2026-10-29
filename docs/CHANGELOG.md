@@ -26,6 +26,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   gained *Studio: tree of nodes*. In the editor the tree shows every node, the Entity panel edits the selected node,
   **+ node** adds a child (or a target's first node) from the book's files, **remove node** drops one. Components
   and plugins (the registries, code in the editor) stay phase 15 steps 3–4.
+- **Sky, light and desk of the editor's stage** (#61, Tilman: "HDRI and sky sphere … as default"): six studio HDRIs
+  from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (backdrop *hdri*, the
+  default, with the choice; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
+  plywood texture, tinted), the cover a white 3 mm hardcover board.
 - **The gizmo** (#61, Tilman: "das Anklicken von Items auf der Bühne, wir brauchen dann die Achsen"): three.js
   `TransformControls` on the selected node of the editor's stage – move / rotate / scale (toolbar, W / E / R), handles
   in the node's own space so a drag edits the placement relative to the parent, Ctrl snaps (0.05 widths, 15°, 0.1),

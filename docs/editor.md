@@ -51,8 +51,11 @@ writes a new one, and the staging reader sees it on its next start.
 
 ## What is on the stage
 
-The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: a table,
-the open book as an object – two blocks of paper on a dark cover board that overhangs the pages by 3 mm, the block's
+The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: the
+**sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's backdrop
+*hdri* and its choice), the equirectangular image as `scene.background` and `scene.environment`, turned with the
+stage every frame so the room stays put while the camera orbits – a desk of **screen-printed plywood** (Poly Haven's
+plywood texture tinted to the phenolic brown), the open book as an object – two blocks of paper on a white hardcover board (3 mm) that overhangs the pages by 3 mm, the block's
 thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) – and the current
 spread's printed images. Every plane lies a hair (0.5 mm) under the one above it: the entities sit at the target's
 own plane (z = 0, as the tracker reports it), the printed image one layer below, the sheet's image below that, so
@@ -109,8 +112,9 @@ again). Nothing of the reader's store, progress or routes is involved.
     how flat a video plane is), *far*; on the stage **drag** orbits, **Shift + drag**, the **middle button** or **two fingers** pan (the looked-at
     point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
     one pressed chip per target (◉ = in view) – off reports it lost (outro), on found again (reveal); the replay arrow
-    plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **backdrop**: *table*, *paper*,
-    *photo* of your own desk (the camera button; long side 1600 px, stored on the device).
+    plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **backdrop**: *hdri* (sky and light from one
+    of six Poly Haven studios, the default), *table* (the desk under the scene's own lights), *paper*, *photo* of your
+    own desk (the camera button; long side 1600 px, stored on the device).
   - **Entity** – the target and the selected **node** of its entity (the head says `node · root › 1 › 0 · model`),
     **+ node** (type, and for model / video / image a file from the book's assets – appended as a child of the
     selected node, or as the root of a target without AR content), **remove node** / **remove entity**; then every

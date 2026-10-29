@@ -1,9 +1,10 @@
 import {
-  Group, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Scene, SRGBColorSpace, Texture, TextureLoader,
+  BoxGeometry, EquirectangularReflectionMapping, Euler, Group, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
+  RepeatWrapping, Scene, SRGBColorSpace, Texture, TextureLoader,
 } from "three";
-import type { PreviewBackdrop } from "./preview";
-import { BoxGeometry } from "three";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import type { PageFormat, StageBook, StageSheet, StageTarget, StageView } from "./mock-tracker";
+import type { HdriId, PreviewBackdrop } from "./preview";
 
 /**
  * A plane sits a hair below the one above it, so nothing flickers: the entities' plane is the target's (z = 0, as
@@ -11,19 +12,26 @@ import type { PageFormat, StageBook, StageSheet, StageTarget, StageView } from "
  * under that. Half a millimetre is invisible at a reading distance and enough for the depth buffer.
  */
 const LAYER = 0.0005;
-/** Backdrop colours */
-const TABLE_COLOR = 0x6e5a44;
+/**
+ * Backdrop colours. The desk is a screen-printed plywood board (Siebdruckplatte): Poly Haven's plywood texture
+ * tinted to the dark phenolic brown, roughness from its map. The cover is a white hardcover board.
+ */
+const DESK_TINT = 0x3b2416;
 const PAPER_BACKDROP_COLOR = 0xdedbd2;
 const PAGE_COLOR = 0xf3efe6;
 const PAGE_EDGE_COLOR = 0xe6e1d6;
 const SPINE_COLOR = 0xd8d2c4;
-const COVER_COLOR = 0x2b2724;
+const COVER_COLOR = 0xf2efe9;
 /** The book as an object (metres): a sheet's thickness, the block's bounds, the cover's board and its overhang */
 const SHEET_THICKNESS = 0.00015;
 const BLOCK_MIN = 0.003;
 const BLOCK_MAX = 0.04;
-const COVER_THICKNESS = 0.002;
+const COVER_THICKNESS = 0.003;
 const COVER_OVERHANG = 0.003;
+/** The desk texture's files and how often it repeats across the table */
+const DESK_DIFFUSE = "textures/plywood_diff_1k.jpg";
+const DESK_ROUGHNESS = "textures/plywood_rough_1k.jpg";
+const DESK_REPEAT = [3, 2] as const;
 /** The table around the book (metres) */
 const TABLE_WIDTH = 1.4;
 const TABLE_DEPTH = 1.0;
@@ -44,11 +52,16 @@ export class MockStage implements StageView {
   private textures: Texture[] = [];
   private loader = new TextureLoader();
   private layoutRun = 0;
+  private desk: { map: Texture; roughnessMap: Texture } | null = null;
+  private hdris = new Map<string, Texture>();
+  private wantedHdri: string | null = null;
+  private rotation = new Euler();
 
-  constructor(private scene: Scene, private container: HTMLElement) {
+  /** `assetUrl`: where the editor's static files live (`hdri/…`, `textures/…`) */
+  constructor(private scene: Scene, private container: HTMLElement, private assetUrl: (path: string) => string = path => `/${path}`) {
     this.group.name = "mock-stage";
     this.group.matrixAutoUpdate = false;
-    this.table = new Mesh(new PlaneGeometry(TABLE_WIDTH, TABLE_DEPTH), new MeshStandardMaterial({ color: TABLE_COLOR, roughness: 0.9 }));
+    this.table = new Mesh(new PlaneGeometry(TABLE_WIDTH, TABLE_DEPTH), new MeshStandardMaterial({ color: DESK_TINT, roughness: 0.5 }));
     this.table.position.z = -BLOCK_MIN - COVER_THICKNESS - 6 * LAYER;
     this.group.add(this.table, this.book, this.pages);
     scene.add(this.group);
@@ -137,18 +150,74 @@ export class MockStage implements StageView {
     });
   }
 
-  setBackdrop(backdrop: PreviewBackdrop, photo: string | null): void {
+  setBackdrop(backdrop: PreviewBackdrop, photo: string | null, hdri: HdriId | null = null): void {
     const usePhoto = backdrop === "photo" && !!photo;
     this.table.visible = !usePhoto;
-    this.table.material.color.setHex(backdrop === "paper" ? PAPER_BACKDROP_COLOR : TABLE_COLOR);
     this.container.style.backgroundImage = usePhoto ? `url(${photo})` : "";
     this.container.style.backgroundSize = usePhoto ? "cover" : "";
     this.container.style.backgroundPosition = usePhoto ? "center" : "";
+    // The desk: plain paper, or the screen-printed board
+    const material = this.table.material;
+    if (backdrop === "paper") {
+      material.map = null;
+      material.roughnessMap = null;
+      material.color.setHex(PAPER_BACKDROP_COLOR);
+      material.roughness = 1;
+    } else {
+      const desk = this.ensureDesk();
+      material.map = desk.map;
+      material.roughnessMap = desk.roughnessMap;
+      material.color.setHex(DESK_TINT);
+      material.roughness = 0.5;
+    }
+    material.needsUpdate = true;
+    // The sky and the light: the HDRI, else the scene's own lights over the editor's dark ground
+    this.wantedHdri = backdrop === "hdri" && hdri ? hdri : null;
+    if (!this.wantedHdri) {
+      this.scene.background = null;
+      this.scene.environment = null;
+      return;
+    }
+    const loaded = this.hdris.get(this.wantedHdri);
+    if (loaded) {
+      this.applyHdri(loaded);
+      return;
+    }
+    const id = this.wantedHdri;
+    new RGBELoader().load(this.assetUrl(`hdri/${id}_1k.hdr`), texture => {
+      texture.mapping = EquirectangularReflectionMapping;
+      this.hdris.set(id, texture);
+      if (this.wantedHdri === id) this.applyHdri(texture);
+    }, undefined, error => console.warn(`[mock-stage] HDRI "${id}" could not be loaded:`, error));
+  }
+
+  private applyHdri(texture: Texture): void {
+    this.scene.background = texture;
+    this.scene.environment = texture;
+  }
+
+  private ensureDesk(): { map: Texture; roughnessMap: Texture } {
+    if (this.desk) return this.desk;
+    const load = (path: string, srgb: boolean) => {
+      const texture = this.loader.load(this.assetUrl(path));
+      texture.wrapS = texture.wrapT = RepeatWrapping;
+      texture.repeat.set(DESK_REPEAT[0], DESK_REPEAT[1]);
+      if (srgb) texture.colorSpace = SRGBColorSpace;
+      return texture;
+    };
+    this.desk = { map: load(DESK_DIFFUSE, true), roughnessMap: load(DESK_ROUGHNESS, false) };
+    return this.desk;
   }
 
   update(cameraInverse: Matrix4): void {
     this.group.matrix.copy(cameraInverse);
     this.group.matrixWorldNeedsUpdate = true;
+    // The sky turns with the stage (the camera stays at the origin, the stage moves around it)
+    if (this.scene.background) {
+      this.rotation.setFromRotationMatrix(cameraInverse);
+      this.scene.backgroundRotation.copy(this.rotation);
+      this.scene.environmentRotation.copy(this.rotation);
+    }
   }
 
   dispose(): void {
@@ -159,6 +228,13 @@ export class MockStage implements StageView {
     this.table.material.dispose();
     this.textures.forEach(texture => texture.dispose());
     this.textures = [];
+    this.desk?.map.dispose();
+    this.desk?.roughnessMap.dispose();
+    this.desk = null;
+    this.hdris.forEach(texture => texture.dispose());
+    this.hdris.clear();
+    this.scene.background = null;
+    this.scene.environment = null;
     this.group.removeFromParent();
     this.container.style.backgroundImage = "";
     this.container.style.backgroundSize = "";

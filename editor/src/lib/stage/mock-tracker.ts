@@ -176,7 +176,7 @@ export const wobbled = (orbit: Orbit, wobble: number, t: number): { orbit: Orbit
 export interface StageView {
   /** The spread's targets on the page format, over the sheet's image when the book's layout has one */
   setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null, book: StageBook): void;
-  setBackdrop(backdrop: PreviewState["backdrop"], photo: string | null): void;
+  setBackdrop(backdrop: PreviewState["backdrop"], photo: string | null, hdri: PreviewState["hdri"]): void;
   /** Every frame: the stage's frame relative to the camera (the camera stays at the origin) */
   update(cameraInverse: Matrix4): void;
   dispose(): void;
@@ -252,7 +252,7 @@ export class MockTracker implements IImageTracker {
     this.stage?.dispose();
     this.stage = stage;
     if (this.targets.length) stage.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
-    stage.setBackdrop(this.preview.backdrop, this.preview.photo);
+    stage.setBackdrop(this.preview.backdrop, this.preview.photo, this.preview.hdri);
   }
 
   /** The page format: the book's layout, else this book's constant */
@@ -402,8 +402,8 @@ export class MockTracker implements IImageTracker {
     } else if (state.orbit && !sameOrbit(state.orbit, this.orbit)) {
       this.orbit = { ...state.orbit };
     }
-    if (initial || state.backdrop !== previous.backdrop || state.photo !== previous.photo) {
-      this.stage?.setBackdrop(state.backdrop, state.photo);
+    if (initial || state.backdrop !== previous.backdrop || state.photo !== previous.photo || state.hdri !== previous.hdri) {
+      this.stage?.setBackdrop(state.backdrop, state.photo, state.hdri);
     }
     if (state.hidden !== previous.hidden) this.publishState();
   }

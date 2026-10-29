@@ -13,8 +13,20 @@
 export const PREVIEW_VIEWS = ["reader", "top", "low", "far"] as const;
 export type PreviewView = (typeof PREVIEW_VIEWS)[number];
 
-export const PREVIEW_BACKDROPS = ["table", "paper", "photo"] as const;
+export const PREVIEW_BACKDROPS = ["hdri", "table", "paper", "photo"] as const;
 export type PreviewBackdrop = (typeof PREVIEW_BACKDROPS)[number];
+
+/** The HDRIs the stage offers as sky and light (Poly Haven, CC0 – `editor/static/hdri/README.md`) */
+export const HDRIS = [
+  { id: "ferndale_studio_04", name: "Ferndale Studio 04" },
+  { id: "wooden_studio_07", name: "Wooden Studio 07" },
+  { id: "wooden_studio_13", name: "Wooden Studio 13" },
+  { id: "wooden_studio_14", name: "Wooden Studio 14" },
+  { id: "wooden_studio_17", name: "Wooden Studio 17" },
+  { id: "wooden_studio_19", name: "Wooden Studio 19" },
+] as const;
+export type HdriId = (typeof HDRIS)[number]["id"];
+export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.id === value);
 
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
 export interface PreviewOrbit {
@@ -30,6 +42,8 @@ export interface PreviewSettings {
   /** A free orbit (dragged, zoomed) replaces the preset until the next preset is chosen */
   orbit: PreviewOrbit | null;
   backdrop: PreviewBackdrop;
+  /** The HDRI shown as sky and used as light while the backdrop is `hdri` */
+  hdri: HdriId;
   /** The reader's photo behind the stage (data URL), null = none chosen yet */
   photo: string | null;
   /** 0 = still, 1 = a hand holding a phone */
@@ -43,7 +57,7 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", orbit: null, backdrop: "table", photo: null, wobble: 0 };
+const DEFAULTS: PreviewSettings = { view: "reader", orbit: null, backdrop: "hdri", hdri: "ferndale_studio_04", photo: null, wobble: 0 };
 
 const readSettings = (): PreviewSettings => {
   try {
@@ -54,6 +68,7 @@ const readSettings = (): PreviewSettings => {
       view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
       orbit: isOrbit(stored.orbit) ? stored.orbit : null,
       backdrop: PREVIEW_BACKDROPS.includes(stored.backdrop as PreviewBackdrop) ? (stored.backdrop as PreviewBackdrop) : DEFAULTS.backdrop,
+      hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
       photo: typeof stored.photo === "string" && stored.photo.startsWith("data:image/") ? stored.photo : null,
       wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
     };
