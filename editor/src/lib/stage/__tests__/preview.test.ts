@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getPreview, setPreviewActive, setTargetHidden, subscribePreview, updatePreview } from "../preview";
+import { clampGrid, getPreview, setPreviewActive, setTargetHidden, subscribePreview, updatePreview } from "../preview";
 
 describe("editor preview settings", () => {
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe("editor preview settings", () => {
     setTargetHidden("a", true);
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
-    expect(stored).toEqual({ view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", desk: "eiermann", wobble: 0.4 });
+    expect(stored).toEqual({ view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", desk: "eiermann", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left" });
     expect(getPreview().hidden).toEqual(["a"]);
   });
 
@@ -51,10 +51,17 @@ describe("editor preview settings", () => {
     expect(getPreview().hidden).toEqual([]);
   });
 
+  it("keeps the grid, its spacing and the origin, and clamps the spacing", () => {
+    updatePreview({ grid: true, gridMm: 5, origin: "centre" });
+    expect(JSON.parse(localStorage.getItem("osct-preview")!)).toMatchObject({ grid: true, gridMm: 5, origin: "centre" });
+    expect(clampGrid(0)).toBe(1);
+    expect(clampGrid(9000)).toBe(500);
+  });
+
   it("ignores broken stored values when it loads", async () => {
-    localStorage.setItem("osct-preview", JSON.stringify({ view: "sideways", wobble: 7, hdri: "lava", desk: "ikea", orbit: { distance: "far" } }));
+    localStorage.setItem("osct-preview", JSON.stringify({ view: "sideways", wobble: 7, hdri: "lava", desk: "ikea", orbit: { distance: "far" }, grid: "yes", gridMm: "x", origin: "middle" }));
     vi.resetModules();
     const fresh = await import("../preview");
-    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, hdri: "ferndale_studio_04", desk: "eiermann", orbit: null, active: false });
+    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, hdri: "ferndale_studio_04", desk: "eiermann", orbit: null, active: false, grid: false, gridMm: 10, origin: "top-left" });
   });
 });

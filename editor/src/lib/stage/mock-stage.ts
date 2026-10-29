@@ -1,11 +1,12 @@
 import {
-  BoxGeometry, CanvasTexture, EquirectangularReflectionMapping, Group, Light, Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Plane,
+  BoxGeometry, CanvasTexture, EquirectangularReflectionMapping, Group, Light, LineBasicMaterial, LineSegments, BufferGeometry, Float32BufferAttribute, Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Plane,
   PlaneGeometry, Raycaster, RepeatWrapping, Scene, SphereGeometry, SRGBColorSpace, Texture, TextureLoader, UVMapping, Vector3,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
+import { gridAreas, gridLines, type OriginId } from "./origin";
 import type { DeskId, HdriId, ShadingMode } from "./preview";
 
 /**
@@ -84,6 +85,10 @@ const LIGHTS_WITH_HDRI = 0.35;
 const SKY_RADIUS = 30;
 /** The ghost's corner handle (mm) */
 const GHOST_HANDLE = 8;
+/** The sharper sheet image is fetched once the camera is this close to the page (mm) */
+const SHARP_DISTANCE_MM = 500;
+const GRID_COLOR = 0x2d7ff9;
+const GRID_ZERO_COLOR = 0xe5484d;
 
 /** The plywood: repeated over the top, and once more as the edges' (their own repeat is in the model's UVs) */
 interface DeskTextures {
@@ -123,6 +128,12 @@ export class MockStage implements StageView {
   /** What the current spread is: the open book, or the closed book seen from the front or the back */
   private format: StageBook["format"] = "spread";
   private ghostGroup = new Group();
+  private gridGroup = new Group();
+  private grid = { on: false, mm: 10, origin: "top-left" as OriginId };
+  /** The current sheet's page plane and its sharper image, fetched on demand (see `setDetail`) */
+  private sheetPaper: Mesh<PlaneGeometry, MeshBasicMaterial> | null = null;
+  private sharpSource: string | null = null;
+  private sharpRequested = false;
   private ghostTextures = new Map<string, Texture>();
   private hdris = new Map<string, Texture>();
   private wantedHdri: string | null = null;
@@ -147,7 +158,8 @@ export class MockStage implements StageView {
     this.table.name = "mock-desk";
     this.table.position.z = -BLOCK_MIN - COVER_THICKNESS - 6 * LAYER;
     this.ghostGroup.name = "mock-ghost";
-    this.group.add(this.table, this.book, this.pages, this.ghostGroup);
+    this.gridGroup.name = "mock-grid";
+    this.group.add(this.table, this.book, this.pages, this.gridGroup, this.ghostGroup);
     scene.add(this.group);
     this.showDesk();
   }
@@ -230,6 +242,9 @@ export class MockStage implements StageView {
     this.clear(this.pages);
     this.textures.forEach(texture => texture.dispose());
     this.textures = [];
+    this.sheetPaper = null;
+    this.sharpSource = sheet?.imageSharp ?? null;
+    this.sharpRequested = false;
 
     this.page = page;
     this.format = book.format;
@@ -288,6 +303,7 @@ export class MockStage implements StageView {
       const paper = new Mesh(new PlaneGeometry(sheet.widthMm / 1000, sheet.heightMm / 1000), new MeshBasicMaterial({ color: PAGE_COLOR }));
       paper.position.set(0, 0, -2 * LAYER);
       this.book.add(paper);
+      this.sheetPaper = paper;
       this.loader.setCrossOrigin("anonymous");
       this.loader.load(sheet.image, texture => {
         if (run !== this.layoutRun) {
@@ -298,6 +314,7 @@ export class MockStage implements StageView {
         this.textures.push(texture);
         paper.material.map = texture;
         paper.material.needsUpdate = true;
+        this.setDetail(this.distance);
       });
     } else if (!closed) {
       const spine = new Mesh(new PlaneGeometry(0.002, h), new MeshBasicMaterial({ color: SPINE_COLOR }));
@@ -333,7 +350,87 @@ export class MockStage implements StageView {
         plane.material.needsUpdate = true;
       });
     });
+    this.drawGrid();
     this.toBackdropLayer();
+  }
+
+  /** The camera's distance from the page (mm) as last reported */
+  private distance = Infinity;
+
+  /**
+   * The sheet's sharper image replaces the base one once the camera is close to the page – fetched only then, once
+   * per layout, so a far view or a spread never looked at costs nothing. The base image stays until it has loaded.
+   */
+  setDetail(distanceMm: number): void {
+    this.distance = distanceMm;
+    const paper = this.sheetPaper;
+    if (!paper || !this.sharpSource || this.sharpRequested || distanceMm > SHARP_DISTANCE_MM) return;
+    // The base image first: the sharper one only replaces a picture that is already there
+    if (!paper.material.map) return;
+    this.sharpRequested = true;
+    const run = this.layoutRun;
+    this.loader.load(this.sharpSource, texture => {
+      if (run !== this.layoutRun) {
+        texture.dispose();
+        return;
+      }
+      texture.colorSpace = SRGBColorSpace;
+      texture.anisotropy = 8;
+      this.textures.push(texture);
+      paper.material.map = texture;
+      paper.material.needsUpdate = true;
+    }, undefined, error => console.warn("[mock-stage] the sharper sheet image could not be loaded:", error));
+  }
+
+  /** The grid over the page, counted from the chosen origin; off = none */
+  setGrid(grid: { on: boolean; mm: number; origin: OriginId }): void {
+    this.grid = grid;
+    this.drawGrid();
+    this.toBackdropLayer();
+  }
+
+  /**
+   * Lines every `mm` from the origin's zero (per page for a corner origin, over both pages for the book's centre),
+   * the zero lines in another colour; they lie just above the prints and below the entities
+   */
+  private drawGrid(): void {
+    this.gridGroup.children.forEach(child => {
+      if (child instanceof LineSegments) {
+        child.geometry.dispose();
+        (child.material as Material).dispose();
+      }
+    });
+    this.gridGroup.clear();
+    if (!this.grid.on) return;
+    const page = this.page;
+    const spread = { page, format: this.format };
+    const spreadWidth = this.format === "spread" ? 2 * page.width : page.width;
+    const left = -spreadWidth / 2;
+    const top = page.height / 2;
+    const lines: number[] = [];
+    const zeros: number[] = [];
+    // spread frame (mm, top left, y down) -> stage metres
+    const point = (target: number[], x: number, y: number) => target.push((left + x) / 1000, (top - y) / 1000, -LAYER / 2);
+    for (const area of gridAreas(this.grid.origin, spread)) {
+      for (const x of gridLines(area.zeroX, area.left, area.width, this.grid.mm)) {
+        const target = Math.abs(x - area.zeroX) < 1e-6 ? zeros : lines;
+        point(target, x, area.top);
+        point(target, x, area.top + area.height);
+      }
+      for (const y of gridLines(area.zeroY, area.top, area.height, this.grid.mm)) {
+        const target = Math.abs(y - area.zeroY) < 1e-6 ? zeros : lines;
+        point(target, area.left, y);
+        point(target, area.left + area.width, y);
+      }
+    }
+    const add = (positions: number[], color: number, opacity: number) => {
+      if (!positions.length) return;
+      const geometry = new BufferGeometry();
+      geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+      this.gridGroup.add(new LineSegments(geometry, new LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false })));
+    };
+    add(lines, GRID_COLOR, 0.45);
+    add(zeros, GRID_ZERO_COLOR, 0.9);
   }
 
   /**
@@ -518,6 +615,8 @@ export class MockStage implements StageView {
     this.clear(this.book);
     this.clear(this.pages);
     this.clear(this.ghostGroup);
+    this.grid = { ...this.grid, on: false };
+    this.drawGrid();
     this.ghostTextures.forEach(texture => texture.dispose());
     this.ghostTextures.clear();
     this.clear(this.table);
