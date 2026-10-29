@@ -18,6 +18,10 @@ outcome in the line (or move it into a dated decision block).
   home". `desk` is a stored preview setting; the stage keeps each loaded model for a switch back and decides the
   top's look by id (plywood / white). The supplied archive carries no licence or readme, so nothing of it is
   committed – it served as the measurement reference only.
+- Tilman, on seeing the panel: "there is overhead, we won't need anymore – we got the HDRI and we got the table as
+  default; more basic". **The backdrops *table*, *paper* and *photo* are removed** (never shipped – 1.10.0): the stage
+  has the desk always and the HDRI as its sky while rendered (the scene's lights in wire / solid / textured); the
+  Stage panel keeps *desk* and *sky*.
 - [ ] Open: the frames' finishes (dark metallic steel, Schöpfer's white; chrome would be a material change in the
   script) and Schöpfer's leg geometry (four straight splayed legs read from one photograph).
 

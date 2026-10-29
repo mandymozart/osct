@@ -27,9 +27,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   **+ node** adds a child (or a target's first node) from the book's files, **remove node** drops one. Components
   and plugins (the registries, code in the editor) stay phase 15 steps 3–4.
 - **Sky, light and desk of the editor's stage** (#61, Tilman: "HDRI and sky sphere … as default"): six studio HDRIs
-  from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (backdrop *hdri*, the
-  default, with the choice; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
-  plywood texture, tinted), the cover a white 3 mm hardcover board.
+  from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (the Stage panel's
+  *sky*; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
+  plywood texture, tinted), the cover a white 2 mm hardcover board.
 - **Covers as spreads, the spread's format** (#61, #60, Tilman: "wie gehen wir mit Cover und Rückseite um? … es ist
   eh ein Spread, nur in einem anderen Format"): content schema 2.3 – a spread has a `format` (`spread`, `cover`,
   `back`; the covers are page 0 and the page after the last), a target's `print` takes the surfaces `front` / `back`,
@@ -47,7 +47,8 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   (`editor/static/models/`, 236 and 124 triangles, no textures in the files) built from primitives by
   `editor/tools/desk-eiermann.py` in Blender, the Eiermann frame measured from a model Tilman supplied. The book, the
   printed images, the ghost and the page hits lie on the top as before; the desk keeps its own look under every
-  shading mode and the backdrops *paper* (the top as paper) and *photo* (no desk).
+  shading mode. The backdrops *table*, *paper* and *photo* of the first editor build went with this (Tilman:
+  "overhead, we won't need anymore – we got the HDRI and we got the table as default").
 - **A live edit with a new file** (the library's *Use*, *+ node* with an uploaded model): the scene loads the files
   the spread's content does not have before it builds the node (before, such a node stayed invisible until Save).
 - **Selection outline and viewport shading** (#61, Tilman: "selected targets aren't visible … something like in
@@ -107,8 +108,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   each spread's sheet as its preview; the workspace has the
   **tree** of the spread at the left in the style of Blender's outliner (entries → targets → entities with type icons,
   guide lines, the eye column for found, keyboard navigation, a tap selects; collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, Shift-drag, middle button or two fingers
-  to pan, wheel or pinch for the distance, found chips per target, replay of the first find, hand shake, backdrop *table / paper /
-  photo* of your own desk) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
+  to pan, wheel or pinch for the distance, found chips per target, replay of the first find, hand shake) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
   linking the scale axes, filters, colours through the editor's colour popover – palette, recent colours, area + hue,
   hex, and an eyedropper that picks the colour under the pointer from the stage (`IArScene.sampleColor()`) – live on
   the stage, **Save** to the database, **Back to the draft**), and

@@ -204,7 +204,8 @@ export const wobbled = (orbit: Orbit, wobble: number, t: number): { orbit: Orbit
 export interface StageView {
   /** The spread's targets on the page format, over the sheet's image when the book's layout has one */
   setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null, book: StageBook): void;
-  setBackdrop(backdrop: PreviewState["backdrop"], photo: string | null, hdri: PreviewState["hdri"]): void;
+  /** The sky and the light: an HDRI (shown while the shading is rendered) */
+  setHdri(hdri: PreviewState["hdri"]): void;
   /** The desk under the book */
   setDesk?(desk: PreviewState["desk"]): void;
   /** A translucent image where a target is about to be printed (the new-target form, the placement rows); null = none */
@@ -313,7 +314,7 @@ export class MockTracker implements IImageTracker {
     this.stage = stage;
     if (this.targets.length) stage.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
     stage.setShading?.(this.preview.shading);
-    stage.setBackdrop(this.preview.backdrop, this.preview.photo, this.preview.hdri);
+    stage.setHdri(this.preview.hdri);
     stage.setDesk?.(this.preview.desk);
     stage.setGhost?.(this.ghost);
   }
@@ -468,9 +469,7 @@ export class MockTracker implements IImageTracker {
       this.orbit = { ...state.orbit };
     }
     if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
-    if (initial || state.backdrop !== previous.backdrop || state.photo !== previous.photo || state.hdri !== previous.hdri) {
-      this.stage?.setBackdrop(state.backdrop, state.photo, state.hdri);
-    }
+    if (initial || state.hdri !== previous.hdri) this.stage?.setHdri(state.hdri);
     if (initial || state.desk !== previous.desk) this.stage?.setDesk?.(state.desk);
     if (state.hidden !== previous.hidden) this.publishState();
   }
