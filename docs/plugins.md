@@ -151,8 +151,8 @@ export const register = (api: PluginApi): void => {
 ```
 
 Try it in the editor: find the key (the first find sets `hasKey` – the Stage panel's **vars** row shows `book ·
-hasKey = true`), walk to the door's spread with ›, switch the door off and on in **found** – the door opens, the
-**events** row shows `doorOpened`. **reset** starts a new game.
+hasKey = true`), walk to the door's spread with › – the door opens, the **events** row shows `doorOpened`; the tree's
+eye switches a target off and on (lost, found again). **reset** starts a new game.
 
 ## Trying it: the Code tab
 
