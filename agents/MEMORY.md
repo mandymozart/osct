@@ -6,6 +6,17 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
 
+- 2026-10-29 (#65, Tilman: "bitte stark an Scutoons' Modellierung orientieren, wir werden das fürs White Label später
+  vereinen"): **roles after SCUTOONS** – tables `roles` (fixed ids 1 reader, 2 editor, 3 admin) + `user_roles`
+  (`granted_at`, `granted_by`: signup / migration / config / secret / the admin's id), `Roles::require()` as the guard,
+  `GET /user` `roles`; `users.role` stays as a mirror of the editor role (older readers, the schema's backfill). The
+  admin page lives at **`/editor/admin`** (the editor's build and `.htaccess` fallback serve it in both deploys; a root
+  `/admin` would need a rewrite per deploy) – an admin who is no editor sees only that page. The admin API takes an
+  admin session **or** `X-Admin-Secret` (break-glass; `admin/migrate` secret only). `ADMINS` next to `EDITORS` is the
+  bootstrap (Tilman sets the GitHub variables on `staging` / `production`). The newsletter list = the users with any
+  update option on (no new opt-in column – the three options are the opt-in); the reader's preferences untouched.
+  Differences to SCUTOONS listed in docs/server.md "Roles".
+
 - Tilman: "Das ist die Frage des Routings – wer für was verantwortlich ist." "Der Editor hat eine Sonderstellung:
   er braucht die Engine nur für ein Preview, der Rest ist simuliert. Daher muss da eine Grenze her." "Wieso muss
   Stage dann im Reader sein – das ist doch ein Editor." "Ich möchte eine klare Trennung. Und wenn das heißt, Tune ist
