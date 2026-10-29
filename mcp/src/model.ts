@@ -50,7 +50,19 @@ export function checkEntity(entity: unknown, path = "entity"): EntityCheck {
     if (!(error instanceof GameConfigurationError)) throw error;
     problems = error.problems.map(problem => problem.replace(/^entities\.entity/, path));
   }
-  return { problems, unknownComponents: unknownComponentTypes(entity) };
+  return { problems: [...problems, ...unknownNodeTypes(entity, path)], unknownComponents: unknownComponentTypes(entity) };
+}
+
+/**
+ * A node type the contract does not know: the guard only warns (a newer content's node renders nothing in an older app),
+ * but an agent writing content gets it refused here – the API refuses it too
+ */
+export function unknownNodeTypes(entity: unknown, path: string): string[] {
+  if (typeof entity !== "object" || entity === null) return [];
+  const node = entity as { type?: unknown; children?: unknown };
+  const problems = (ENTITY_TYPES as readonly string[]).includes(node.type as string) ? [] : [`${path}.type: "${String(node.type)}" is not one of ${ENTITY_TYPES.join(", ")}`];
+  if (Array.isArray(node.children)) node.children.forEach((child, i) => problems.push(...unknownNodeTypes(child, `${path}.children[${i}]`)));
+  return problems;
 }
 
 /** Every component type in the tree the shared registry does not know (built-in: `COMPONENTS`) */

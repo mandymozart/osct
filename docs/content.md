@@ -319,9 +319,25 @@ compile (max 10 targets per spread). An older `order:` under `target` is ignored
 **An entity is a tree of nodes** (content schema 2.0): the node under `entity:` is the **root**, it sits on the
 target (1 unit = the target's width); every node may hold `children`, each placed by its own `params` **relative
 to its parent**, as deep as you like (8 levels at most). Node types: `model`, `video`, `image` (a file, `src`),
-`text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced) and `group` (nothing
-of its own, it only holds children – move or scale the whole tree by its params). One node, as above, is the
-default; the editor's tree shows and edits the whole tree (+ node, remove node).
+`text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced), `light` (a light,
+below) and `group` (nothing of its own, it only holds children – move or scale the whole tree by its params). One
+node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node).
+
+**A light** (`type: light`, content schema 2.6) lights the entity it belongs to – under a group or a model it moves
+with it; the scene's own ambient light and sun stay. Its values are under `light:` (every one optional):
+
+| `light` value | Values | Default | What it does |
+|---|---|---|---|
+| `kind` | `point`, `spot`, `directional` | `point` | A point light shines in every direction from the node; a spot in a cone, a directional light as parallel rays (the sun) – both along the node's own **−z**, so turn the node (`rotation`) to aim them. By default a light sits half a unit along its parent's +z (`position: [0, 0, 0.5]`: above the page for a root or a group, in front of a model, whose +z points towards the reader), pointing back at it |
+| `color` | `#rrggbb` | `#ffffff` | The light's colour |
+| `intensity` | 0 … 10 | `0.25` | How bright, in the node's units – whatever the target's printed size (the engine scales it to the world): a point or spot light of 1 lights a surface one target width away fully (a white page turns white; more clips, the reader has no tone mapping), half as far away four times as much; a directional light of 1 lights every surface fully |
+| `distance` | 0 … 5 target widths | `0` | How far a point or spot light reaches; 0 = no limit |
+| `decay` | 0 … 4 | `2` | How fast a point or spot light dims with the distance (2 = physical) |
+| `angle` | 1 … 90° | `30` | The spot's cone: half the opening angle |
+| `penumbra` | 0 … 1 | `0.1` | The spot's soft edge: 0 = hard, 1 = the whole cone fades |
+
+Lights cast no shadows. They appear and disappear with the entity (the reveal and the outro fade them). The editor
+draws a small helper for every light (a bulb, the cone or the rays – Blender's); the reader shows only the light.
 
 ```yaml
 target:
@@ -343,6 +359,15 @@ target:
         params:
           position: [0, -0.45, 0.01]
           scale: 0.8
+      - type: light                # an orange spot from the right, aimed at the tree (−z turned 45° about y)
+        light:
+          kind: spot
+          color: "#ff9a3c"
+          intensity: 0.3
+          angle: 35
+        params:
+          position: [0.4, 0, 0.6]
+          rotation: [0, 45, 0]
 ```
 
 **AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` (the root node; its
@@ -444,6 +469,28 @@ spreads/spread1 has 11 targets, max is 10.
 ```
 
 Then look at the result in the app – see the quick start in the [README](../README.md).
+
+## Schema and app versions
+
+The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
+(`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
+every MINOR of its schema MAJOR; a content file of another MAJOR is refused at startup. This table names, per schema,
+the app version that first ships it. The last row is the current schema (a test checks that it matches
+`CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
+
+| Schema | First app version | Status | What the schema adds |
+|---|---|---|---|
+| 1.1 | 1.7.6 | released | content on the CDN |
+| 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 |
+| 2.0 | 1.10.0 | unreleased | the entity as a tree of nodes |
+| 2.1 | 1.10.0 | unreleased | print placement of targets (`print`) |
+| 2.2 | 1.10.0 | unreleased | components (animation) |
+| 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
+| 2.4 | 1.11.0 | in develop | plugin API 1.1: events, variables, progress, the spread |
+| 2.5 | 1.12.0 | in develop | post-processing passes |
+
+Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
+bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
 
 ## Content build
 

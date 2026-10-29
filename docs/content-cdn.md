@@ -32,8 +32,10 @@ cache, browser cache or service worker can serve a stale copy of it – only `la
   the only compatibility rule (RULES #10). The app refuses content of another MAJOR at startup – newer content:
   "update the app", older content: "the content needs a newer build". Any MINOR of the same MAJOR loads.
   - MAJOR: a change older apps cannot read – a new required field, a renamed or removed field, a changed type, a
-    new enum value (entity type, asset type, category, step action).
-  - MINOR: an addition older apps ignore – a new optional field (the guard ignores unknown fields).
+    new enum value (asset type, category, step action, spread format). The app reads every older MAJOR down to
+    `OLDEST_READABLE_SCHEMA_MAJOR` as it is (so far every MAJOR only added).
+  - MINOR: an addition older apps ignore – a new optional field (the guard ignores unknown fields), a new node type
+    (since 2.6 the guard lets an unknown node type pass; the engine renders nothing for it and keeps its children).
   - Every change in `shared/` needs a bump: `shared/content-schema.json` locks the checksum of `shared/` to the
     schema. After the bump, run `npm run schema:lock` in `scripts/`; `scripts/test/schema.test.ts` fails until
     then, and the lock command refuses a changed contract under the old number.

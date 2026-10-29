@@ -180,9 +180,31 @@ export const componentProblems = (raw: unknown, path: string, nodeType?: string,
     if (nodeType && spec.nodeTypes && !(spec.nodeTypes as readonly string[]).includes(nodeType)) {
       problems.push(`${at}: ${type} applies to ${spec.nodeTypes.join(", ")} nodes, not to a ${nodeType}`);
     }
-    problems.push(...paramProblems(spec.params, params, at, type as string));
+    for (const [name, value] of Object.entries(params)) {
+      const param = spec.params[name];
+      if (!param) {
+        problems.push(`${at}.${name}: unknown parameter of ${type} (${Object.keys(spec.params).join(", ")})`);
+        continue;
+      }
+      const problem = paramProblem(param, value);
+      if (problem) problems.push(`${at}.${name}: ${problem}`);
+    }
   });
   return problems;
+};
+
+/** Why a value does not fit a parameter's spec (a component's, a light's), or null when it does */
+export const paramProblem = (param: ComponentParamSpec, value: unknown): string | null => {
+  if (param.kind === "color" && !isColor(value)) return `expected a color "#rrggbb", got ${JSON.stringify(value)}`;
+  if (param.kind === "choice" && !param.options.includes(value as string)) {
+    return `expected one of ${param.options.join(", ")}, got ${JSON.stringify(value)}`;
+  }
+  if (param.kind === "number" && !(typeof value === "number" && value >= param.min && value <= param.max)) {
+    return `expected a number from ${param.min} to ${param.max}, got ${JSON.stringify(value)}`;
+  }
+  if (param.kind === "boolean" && typeof value !== "boolean") return `expected true or false, got ${JSON.stringify(value)}`;
+  if (param.kind === "string" && typeof value !== "string") return `expected a string, got ${JSON.stringify(value)}`;
+  return null;
 };
 
 /** A component's parameters with every one resolved to its value or the spec's default */

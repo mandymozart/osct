@@ -25,6 +25,28 @@ outcome in the line (or move it into a dated decision block).
   content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
   over the MCP, he checks on the stage and clicks Publish – nothing by hand, nothing on GitHub.
 
+## 2026-10-29 (night) – Light nodes, content schema 2.6 (#71)
+
+- Tilman (testing the desks on the stage): "one entity type is missing in the editor – lights" → issue #71, its own
+  session. Built: node type `light` (point / spot / directional, values under `light:` from `shared/types/lights.ts`,
+  spot and sun along the node's −z, default half a target width above the parent), engine builder with fade in reveal
+  and outro, editor rows from the definition, tree icon, Blender-style helper on the stage, fixture lights in Studio A.
+- First built as **schema 3.0** (the 2.x guard refuses a node type it does not know – the engine would have kept the
+  children, but the guard throws first – so an older app cannot read content with a light: RULES #10's MAJOR); the
+  #61 editor session then asked for **2.6** on top of the passes' 2.5 (a MINOR step), so it is 2.6 – the cost: a 2.5
+  app shows "invalid configuration" on a book with a light instead of "update the app" (no deployed reader is on
+  2.x; production is on 1.x). From 2.6 on the guard lets an unknown node type pass with a warning (the content build
+  and the editor's API still refuse one); RULES #10 says so. The app reads every older MAJOR as it is
+  (`OLDEST_READABLE_SCHEMA_MAJOR = 1` – every MAJOR so far only added) instead of the hard-coded "2 reads 1".
+  **Units**: three.js attenuates point and spot lights in world units – metres, on a target a few centimetres wide
+  a 1 cd light at 5 cm gives 400 lux, pure white – so `intensity` and `distance` are in the node's units (target
+  widths) and the engine scales them by the light's world scale every frame (`scaleLight` in entities.ts); the
+  reader has no tone mapping, so a lit white page clips above ~1 – the default intensity is 0.25, the fixture's
+  lights 0.3 / 0.1. The fade of reveal / outro is a factor (`userData.fade`) the light node applies, not an absolute
+  value the animation writes (the two would fight per frame).
+  The HDRI dims only the scene's own lights (children of the scene), not the content's. Merged after #66 (2.4) and #72 (2.5).
+- Open: the publish writes the imported book's schema (`books.content_schema`), not the server's – a 2.3 book
+  published with a light says 2.3; the reader of the same build reads it anyway, an older reader fails on the node.
 ## 2026-10-29 (night) – Post-processing lives in the engine's pass registry, the code editor hooks into it (#72)
 
 - Tilman (testing the stage, #68): "post processing, which we could just delegate to code editor, since it can handle

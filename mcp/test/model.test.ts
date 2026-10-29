@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ENTITY_TYPES } from "../../shared/types/game-config";
 import { checkEntity, describeContentModel, pluginTypes, unknownComponentTypes } from "../src/model.ts";
 import { RULES } from "../src/resources.ts";
 import { VIDEO_ENTITY } from "./helpers.ts";
@@ -21,6 +22,7 @@ describe("checkEntity – the shared guard over one entity", () => {
       ]),
     );
     expect(problems.some(p => p.startsWith("entities."))).toBe(false);
+    expect(checkEntity({ type: "group", assets: [], children: [{ type: "hologram", assets: [] }] }, "target.entity").problems).toEqual([expect.stringMatching(/^target\.entity\.children\[0\]\.type: "hologram"/)]);
   });
 
   it("refuses filters on a model, a wrong component parameter and a tree deeper than 8 levels", () => {
@@ -57,7 +59,8 @@ describe("describeContentModel – the contract as an agent reads it", () => {
     const model = describeContentModel() as any;
     expect(model.contentSchema).toMatch(/^\d+\.\d+$/);
     expect(model.pluginApi).toBe("1.0");
-    expect(model.entity.nodeTypes).toEqual(["group", "model", "video", "image", "text"]);
+    expect(model.entity.nodeTypes).toEqual([...ENTITY_TYPES]);
+    expect(model.entity.nodeTypes).toEqual(expect.arrayContaining(["group", "model", "video", "image", "text"]));
     expect(Object.keys(model.filters.types)).toEqual(["chromaKey"]);
     expect(Object.keys(model.components.builtIn)).toEqual(["animation"]);
     expect(model.placement.params.position.unit).toBe("target widths");
