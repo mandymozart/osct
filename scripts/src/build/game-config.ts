@@ -1,5 +1,5 @@
 import { assertGameConfiguration, GameConfigurationError } from '../../../shared/guards/game-config';
-import { CONTENT_SCHEMA_VERSION, type GameConfiguration } from '../../../shared/types/game-config';
+import { CONTENT_SCHEMA_VERSION, type GameConfiguration, type PluginData } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { copyContentToPublic } from '../lib/files';
 import { buildBook } from './book';
@@ -10,9 +10,9 @@ import { checkTargetsPerSpread } from './targets';
 import { buildTutorial } from './tutorial';
 
 /**
- * Build the final config object
+ * Build the final config object; `plugins` = the compiled plugins (build/plugins.ts), declared when there are any
  */
-export function buildConfig(versionStr: string, inputHash: string): GameConfiguration {
+export function buildConfig(versionStr: string, inputHash: string, plugins: PluginData[] = []): GameConfiguration {
   const book = buildBook();
   const spreads = buildSpreads();
   const entities = buildEntities();
@@ -24,7 +24,7 @@ export function buildConfig(versionStr: string, inputHash: string): GameConfigur
     .map(b => b.entry)
     .sort((a, b) => a.page - b.page || a.title.localeCompare(b.title));
 
-  console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities, ${tutorial.length} steps`);
+  console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities, ${tutorial.length} steps${plugins.length ? `, ${plugins.length} plugins` : ''}`);
 
   const timestamp = new Date().toISOString();
   console.log(`📊 Building config version: ${versionStr} (${timestamp}, hash ${inputHash.slice(0, 12)})`);
@@ -42,6 +42,7 @@ export function buildConfig(versionStr: string, inputHash: string): GameConfigur
     entries,
     entities,
     tutorial,
+    ...(plugins.length ? { plugins } : {}),
   };
 
   // The same contract check the app runs on load
