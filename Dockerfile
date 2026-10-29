@@ -18,17 +18,17 @@ COPY editor/package.json editor/package-lock.json editor/
 RUN cd client && npm ci --no-audit --no-fund && cd ../scripts && npm ci --no-audit --no-fund \
     && cd ../editor && npm ci --no-audit --no-fund --ignore-scripts
 
-# Everything the build reads: the content, the shared types, the engine, the content build, the reader and the editor
+# Everything the build reads: the shared types, the engine, the content build, the reader and the editor (the book
+# content is not in git – it comes from the CDN, VITE_CONTENT_BASE_URL)
 COPY shared shared
 COPY engine engine
-COPY content content
 COPY scripts scripts
 COPY client client
 COPY editor editor
 
 # Build flags (client/.env lists them): the API lives next to the app, the debug bar only where asked for.
 # VITE_CONTENT_BASE_URL (the environment's content CDN, docs/content-cdn.md): with it the app loads its content from
-# the CDN at runtime and the build reads no content; without it the content of this commit is built and bundled.
+# the CDN at runtime and the build reads no content. It is required: the repository holds no book content (#5).
 ARG VITE_DEBUG=
 ARG VITE_SHOW_LOCKED_ENTRIES=
 ARG VITE_CONTENT_BASE_URL=
