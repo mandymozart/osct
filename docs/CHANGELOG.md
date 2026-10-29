@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.16.2 – 2026-10-30
+
+### Fixed
+- **The Library and the picker list the imported files** (#111, split from #95): the Library showed only the book's
+  uploads, so the images, videos, models and sounds that came from the CDN import (`files.json`) were invisible there
+  and in the asset picker (a node's file, a new target's content), although the stage uses them. `GET
+  /editor/books/{id}/assets` now lists the imported files after the uploads (`imported: true`, id `import-<hash>`,
+  their size from `files.json`, the number of uses; the `kind` filter applies to both). They are read-only: the Library
+  card shows *imported* instead of Replace / Delete.
+
 ## 1.16.1 – 2026-10-30
 
 ### Fixed
