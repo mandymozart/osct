@@ -3,7 +3,7 @@ import { base } from "$app/paths";
 import { ArScene } from "@engine/scene";
 import { getTarget, getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type IArScene } from "@engine/types";
-import { nodeAt, withNode } from "$lib/values";
+import { nodeAt, removeNode, withNode } from "$lib/values";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
 import { MockStage } from "./mock-stage";
 import { MockTracker } from "./mock-tracker";
@@ -19,6 +19,12 @@ const REPLAY_GAP_MS = 900;
  * store does none of this here: the editor owns its state.
  */
 export class Stage {
+  /**
+   * The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Entity panel
+   * shows no node, Save writes no entity. Compared by reference.
+   */
+  static readonly REMOVED: EntityData = Object.freeze({ type: "group", assets: [] }) as EntityData;
+
   status = $state<ArStatus>("idle");
   error = $state<string | null>(null);
   spreadId = $state<string | null>(null);
@@ -129,6 +135,28 @@ export class Stage {
 
   overrideOf(targetId: string): EntityData | undefined {
     return this.overrides.get(targetId);
+  }
+
+  /** The tree shown for a target: the live override, the draft's, or undefined when removed / none */
+  treeOf(targetId: string): EntityData | undefined {
+    const override = this.overrides.get(targetId);
+    if (override === Stage.REMOVED) return undefined;
+    return override ?? getTarget(targetId)?.entity;
+  }
+
+  /**
+   * Remove a node of a target's entity (live; Save writes it): a child goes with its children, the root leaves the
+   * target without AR content (`REMOVED`). Returns the path to select next – the parent, or the root.
+   */
+  removeNode(targetId: string, path: number[]): number[] {
+    const base = this.treeOf(targetId);
+    if (!base) return [];
+    if (!path.length) {
+      this.override(targetId, Stage.REMOVED);
+      return [];
+    }
+    this.override(targetId, removeNode(base, path));
+    return path.slice(0, -1);
   }
 
   /** The colour under a point of the stage (CSS px from the container's top left), `#rrggbb` or null */

@@ -3,7 +3,7 @@
   import { getEntityRef } from "@engine/content/game-config";
   import type { EntityData, Entry, Target } from "@engine/types";
   import { content } from "$lib/content.svelte";
-  import type { Stage } from "$lib/stage/stage.svelte";
+  import { Stage } from "$lib/stage/stage.svelte";
   import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "$lib/stage/preview";
   import Icon, { type IconName } from "$lib/components/Icon.svelte";
 
@@ -48,8 +48,28 @@
     if (n.type === "text") return `“${(n.text ?? "").slice(0, 40)}”`;
     return `${n.type}${n.id ? ` ${n.id}` : ""}${ref ? ` · ${ref}` : ""}`;
   };
-  /** The entity shown for a target: the stage's override (a live edit) or the draft's */
-  const treeOf = (target: Target): EntityData | undefined => stage?.overrideOf(target.id) ?? target.entity;
+  /** The entity shown for a target: the stage's override (a live edit, or removed) or the draft's */
+  const treeOf = (target: Target): EntityData | undefined => {
+    const override = stage?.overrideOf(target.id);
+    if (override === Stage.REMOVED) return undefined;
+    return override ?? target.entity;
+  };
+
+  // ── the context menu of a node row (right click, or the ⋯ of a long press): remove ──
+  let menu = $state<{ x: number; y: number; target: Target; path: number[] } | null>(null);
+  const openMenu = (event: MouseEvent, target: Target, path: number[]) => {
+    event.preventDefault();
+    pick(target, path);
+    menu = { x: Math.min(event.clientX, window.innerWidth - 180), y: Math.min(event.clientY, window.innerHeight - 80), target, path };
+  };
+  const closeMenu = () => (menu = null);
+  /** Remove the selected node (the tree's menu, Delete / Backspace): the parent is selected next */
+  const removeSelected = () => {
+    const target = selected ? selectable.find(t => t.id === selected) : undefined;
+    if (!target || !stage || !treeOf(target)) return;
+    node = stage.removeNode(target.id, node);
+    menu = null;
+  };
   const entryOf = (targetId: string): Entry | undefined => spread?.entries.find(entry => entry.target?.id === targetId);
 
   const onKey = (event: KeyboardEvent) => {
@@ -61,9 +81,12 @@
       case "ArrowLeft": if (entry) fold(entry.id, true); break;
       case "ArrowRight": if (entry) fold(entry.id, false); break;
       case "Enter": case " ": if (index >= 0) onselect?.(selected!); break;
+      case "Delete": case "Backspace": removeSelected(); break;
+      case "Escape": if (menu) menu = null; else return; break;
       default: return;
     }
     event.preventDefault();
+    event.stopPropagation();
   };
 </script>
 
@@ -84,7 +107,7 @@
       <span class="chevron"></span>
     {/if}
     <span class="type"><Icon name={nodeIcon(n)} size="1em" stroke={2} /></span>
-    <button type="button" class="pick" class:muted={!shown} onclick={() => pick(target, path)} title={path.length ? "Edit this node" : "Edit the entity's root node"}>
+    <button type="button" class="pick" class:muted={!shown} onclick={() => pick(target, path)} oncontextmenu={e => openMenu(e, target, path)} title={path.length ? "Edit this node" : "Edit the entity's root node"}>
       <span class="name">{nodeName(n, target, path)}</span>
       {#if !path.length && stage?.overrideOf(target.id)}<span class="dot" title="Shown with other values than the draft's">●</span>{/if}
     </button>
@@ -151,8 +174,21 @@
   </div>
 {/if}
 
+{#if menu}
+  <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={closeMenu} oncontextmenu={e => { e.preventDefault(); closeMenu(); }}></button>
+  <div class="menu" role="menu" style:left="{menu.x}px" style:top="{menu.y}px">
+    <button type="button" role="menuitem" class="menu-item" onclick={removeSelected}>{menu.path.length ? "Remove node" : "Remove entity"}</button>
+    <span class="menu-hint small muted">Delete</span>
+  </div>
+{/if}
+
 <style>
   .tree { display: flex; flex-direction: column; --indent: 1.125rem; --cell: 1.125rem; outline: none; }
+  .menu-backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }
+  .menu { position: fixed; z-index: 10; display: flex; align-items: center; gap: .5rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  .menu-item { height: var(--control-height); padding: 0 .625rem; border: none; border-radius: var(--control-radius); background: none; color: var(--danger); cursor: pointer; white-space: nowrap; }
+  .menu-item:hover { background: var(--hover-background); }
+  .menu-hint { padding-right: .375rem; }
   .tree:focus-visible .node.on { box-shadow: inset 0 0 0 1px var(--text); }
   .node { position: relative; display: flex; align-items: center; gap: .25rem; height: 1.5rem; padding: 0 .25rem; }
   .node:nth-child(even) { background: var(--surface-head); }
