@@ -96,6 +96,8 @@ export class ArView {
   /** The content's post-processing over the rendered scene – built only while a spread names passes */
   private post: PostChain | null = null;
   private postProcessing = true;
+  /** Follows the container's size */
+  private observer: ResizeObserver | null;
   private bloom: { composer: EffectComposer; pass: UnrealBloomPass; quad: FullScreenQuad; material: ShaderMaterial } | null = null;
 
   constructor(private container: HTMLElement, private onResize: (camera: PerspectiveCamera) => void) {
@@ -117,6 +119,9 @@ export class ArView {
     this.camera.layers.enable(BACKDROP_LAYER);
 
     window.addEventListener("resize", this.resize);
+    // The container can change size without the window (the editor's columns are dragged, #144)
+    this.observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => this.resize());
+    this.observer?.observe(container);
     this.resize();
   }
 
@@ -262,6 +267,8 @@ export class ArView {
   dispose(): void {
     this.stop();
     window.removeEventListener("resize", this.resize);
+    this.observer?.disconnect();
+    this.observer = null;
     this.frameListeners.clear();
     this.post?.dispose();
     this.post = null;

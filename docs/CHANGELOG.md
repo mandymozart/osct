@@ -28,6 +28,31 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - A new plugin starts typed (`import type { PluginApi } from "osct-plugin-api"`), so it passes the build's type check
   as it is.
 
+## 1.23.0 – 2026-10-30
+
+### Added
+- **The workspace's columns can be resized** (#144): drag the edge between the stage and the panel, or between the tree
+  and the stage, to make the column wider or narrower (the panel from 18rem to 70% of the window, the tree from 10rem
+  to 40%; the stage always keeps room). The stage follows live. Each width is remembered in this browser; the Code tab
+  has its own, wider width. A double-click on an edge restores the default; a focused edge also moves with ← →. The
+  phone layout is unchanged.
+
+### Changed
+- The stage's view follows its container's size, not only the window's.
+
+## 1.22.0 – 2026-10-30
+
+### Added
+- **Which book is live where** (#143): each environment (local, staging, production) serves exactly one book – the
+  last one published there. The Books overview now shows under each book *live on staging · build … · since …* or
+  *draft only*, and the book page shows it next to Publish.
+- **Publishing over another book asks first**: publishing a book to an environment that serves another one names
+  both and asks (production more strictly); the API refuses it without an explicit `replace: true`. Publishing the
+  book an environment already serves stays one click. Switching back is publishing the real book again – its last
+  version is re-activated without a new upload when the draft is unchanged.
+- `latest.json` and `versions.json` name their book (`book`, content schema 2.11) – written by the editor's publish
+  and by `osct content sync`; older manifests are read through their version's configuration.
+
 ## 1.21.0 – 2026-10-30
 
 ### Added
