@@ -115,6 +115,11 @@ again). Nothing of the reader's store, progress or routes is involved.
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
+  - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
+    through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
+    a white one. The toolbar's last group is the viewport's **shading**, after Blender's: *wire* (the entities as
+    lines), *solid* (one grey under the scene's lights), *textured* (the content's materials, no sky) and *rendered*
+    (the HDRI's sky and light, the default); stored on the device. The stage and the gizmo keep their own look.
   - **Picking** – a click on the stage selects what lies under the pointer by the **pick mode** next to the gizmo's
     tools (Blender's select mode): *entity* (the root of the entity hit), *node* (the node under the pointer, as deep
     as the tree goes) or *target* (the printed image). A printed image without AR content is always picked as its
@@ -154,8 +159,11 @@ again). Nothing of the reader's store, progress or routes is involved.
     cancels; the sampled pixel is the rendered one, lit and tone-mapped), a reset arrow while a value differs from the type's default, ● on rows that differ from the draft.
     Changes show live on the stage; **Save** writes the entity to the API – the shared entity when the target refers
     to one (the head says `shared: <ref> (n×)`), else the target's own – and the stage rebuilds from the draft;
-    **Back to the draft** drops them. Save writes the **whole tree**. Rows come from the content contract's
-    definitions (`PLACEMENT_PARAMS`, `FILTERS`): a new filter or parameter needs no panel code.
+    **Back to the draft** drops them. Save writes the **whole tree**. **Components** (schema 2.2) follow:
+    each with its rows and *remove*, **+ animation** on a model; the animation component shows the model's
+    **timeline** – its clips, play / pause, the time in the clip as a slider – and drives the same clip the reader
+    plays (`playOn` found / tap / never, `stopOn`, loop, speed). Rows come from the content contract's definitions
+    (`PLACEMENT_PARAMS`, `FILTERS`, `COMPONENTS`): a new filter, component or parameter needs no panel code.
 - Settings (view, orbit, backdrop, photo, shake, the open tab, the tree open or collapsed) are stored per device; the
   session token too.
 

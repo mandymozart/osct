@@ -30,6 +30,20 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (backdrop *hdri*, the
   default, with the choice; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
   plywood texture, tinted), the cover a white 3 mm hardcover board.
+- **Selection outline and viewport shading** (#61, Tilman: "selected targets aren't visible … something like in
+  Blender"): the selected node wears an orange outline of its meshes' edges in its own space (a plane outlines as a
+  plane – the axis-aligned box of before tilted), hover a white one; the toolbar's shading modes *wire / solid /
+  textured / rendered* after Blender's, applied to the entities (the stage, gizmo and outlines keep their own
+  materials), the HDRI's sky and light only while rendered.
+- **Components and the timeline** (#61, phase 15 step 3, Tilman: "glb import should also show somehow a simple
+  timeline, we do have start stop etc events"): content schema 2.2 – a node carries `components: [{ type, … }]`,
+  defined once in `shared/types/components.ts` (specs with kind, default, range, the node types they apply to; the
+  guard, the build and the editor read them). The first component is **`animation`** on a model: the clip, `playOn`
+  found / tap / never, `stopOn` lost / never, loop, speed; without it every clip loops as before. The engine's entity
+  instances gained `onTap` (the tap reaches the entity) and a `NodeTimeline` per model node (`IArScene.inspect()
+  .nodeTimeline`); the Entity panel shows the component's rows, **+ animation**, and the **timeline** (clips, play /
+  pause, a time slider that scrubs the model). The FTPS staging deploy ships the editor at `/editor`; both deploys
+  use the CDN store as soon as the zone's key is set.
 - **Assets, the library and new targets** (#61, Tilman: "Asset-Upload nach dem Scutoons-Modell … in the tree I want to
   be able to add a target"): uploaded files in the content store (`assets/<book>/<asset>/v<n>.<ext>`, local or bunny)
   with a registry (`assets`, `asset_versions`), `GET / POST /editor/books/{id}/assets`, replace with a new version and

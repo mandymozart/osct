@@ -1,5 +1,9 @@
 import {
   AssetData,
+  COMPONENTS,
+  ComponentData,
+  ComponentSpec,
+  ComponentType,
   EntityData,
   FilterData,
   FILTERS,
@@ -23,7 +27,7 @@ export type RowValue = number | string;
 
 export interface ValueRow {
   id: string;
-  kind: "number" | "color" | "choice";
+  kind: "number" | "color" | "choice" | "boolean" | "string";
   default: RowValue;
   /** Scrub range (number rows) */
   min?: number;
@@ -78,9 +82,36 @@ export const filterRows = (filter: FilterData, index: number): ValueRow[] => {
   });
 };
 
+/** The rows of a component (`components.{i}.{name}`), from its spec */
+export const componentRows = (component: ComponentData, index: number): ValueRow[] => {
+  const spec: ComponentSpec | undefined = COMPONENTS[component.type];
+  if (!spec) return [];
+  return Object.entries(spec.params).map(([name, param]): ValueRow => {
+    const id = `components.${index}.${name}`;
+    switch (param.kind) {
+      case "color": return { id, kind: "color", default: param.default, description: param.description };
+      case "choice": return { id, kind: "choice", default: param.default, options: param.options, description: param.description };
+      case "boolean": return { id, kind: "boolean", default: param.default ? "true" : "false", description: param.description };
+      case "string": return { id, kind: "string", default: param.default, description: param.description };
+      default: return {
+        id, kind: "number", default: param.default, min: param.min, max: param.max, step: param.step ?? (param.max - param.min <= 1 ? 0.001 : 0.01),
+        unit: param.unit, strict: true, description: param.description,
+      };
+    }
+  });
+};
+
+/** The component types a node of `type` may take */
+export const componentTypesFor = (type: EntityData["type"]): ComponentType[] =>
+  (Object.keys(COMPONENTS) as ComponentType[]).filter(key => {
+    const nodeTypes = (COMPONENTS[key] as { nodeTypes?: readonly string[] }).nodeTypes;
+    return !nodeTypes || nodeTypes.includes(type);
+  });
+
 export const valueRows = (entity: EntityData, uniformScale: boolean): ValueRow[] => [
   ...placementRows(entity, uniformScale),
   ...(entity.filters ?? []).flatMap(filterRows),
+  ...(entity.components ?? []).flatMap(componentRows),
 ];
 
 /** The value the entity shows for a row (placement: params or the type's default; filters: value or default) */
@@ -89,6 +120,11 @@ export const getValue = (entity: EntityData, row: ValueRow): RowValue => {
   if (head === "filters") {
     const value = entity.filters?.[Number(second)]?.[third];
     return (value as RowValue | undefined) ?? row.default;
+  }
+  if (head === "components") {
+    const value = entity.components?.[Number(second)]?.[third];
+    if (value === undefined) return row.default;
+    return row.kind === "boolean" ? (value ? "true" : "false") : (value as RowValue);
   }
   const placement = resolvePlacement(entity.type, entity.params);
   return placement[head as PlacementKey][second ? AXES.indexOf(second as "x") : 0];
@@ -101,6 +137,11 @@ export const setValue = (entity: EntityData, row: ValueRow, value: RowValue): En
     const filters = (entity.filters ?? []).map((filter, i) =>
       i === Number(second) ? { ...filter, [third]: value } : filter);
     return { ...entity, filters };
+  }
+  if (head === "components") {
+    const components = (entity.components ?? []).map((component, i) =>
+      i === Number(second) ? { ...component, [third]: row.kind === "boolean" ? value === "true" : value } : component);
+    return { ...entity, components };
   }
   const placement = resolvePlacement(entity.type, entity.params);
   const key = head as PlacementKey;
@@ -136,6 +177,16 @@ export const addFilter = (entity: EntityData, type: FilterType): EntityData =>
 export const removeFilter = (entity: EntityData, index: number): EntityData =>
   ({ ...entity, filters: (entity.filters ?? []).filter((_, i) => i !== index) });
 
+export const addComponent = (entity: EntityData, type: ComponentType): EntityData =>
+  ({ ...entity, components: [...(entity.components ?? []), { type }] });
+
+export const removeComponent = (entity: EntityData, index: number): EntityData => {
+  const components = (entity.components ?? []).filter((_, i) => i !== index);
+  const next: EntityData = { ...entity, components };
+  if (!components.length) delete next.components;
+  return next;
+};
+
 /** Up to 4 decimals – no floating point noise like 0.30000000000000004 */
 export const round = (value: number) => +value.toFixed(4);
 
@@ -161,6 +212,18 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
   const result: EntityData = { ...entity };
   if (Object.keys(params).length) result.params = params;
   else delete result.params;
+  if (entity.components) {
+    result.components = entity.components.map((component, i) => {
+      const kept: Record<string, unknown> = { type: component.type };
+      componentRows(component, i).forEach(row => {
+        const name = row.id.split(".")[2];
+        const value = getValue(entity, row);
+        if (!sameValue(value, row.default)) kept[name] = row.kind === "boolean" ? value === "true" : typeof value === "number" ? round(value) : value;
+      });
+      return kept as ComponentData;
+    });
+    if (!result.components.length) delete result.components;
+  }
   if (entity.filters) {
     result.filters = entity.filters.map((filter, i) => {
       const kept: Record<string, unknown> = { type: filter.type };
