@@ -12,6 +12,17 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.17.7 – 2026-10-30
+
+### Fixed
+- **The admin page shows a granted role** (#99): a role that is on (and the active filter) never looked pressed –
+  `.pill.framed` came after `.pill.on` in the editor's stylesheet and won with the same specificity, so a grant
+  seemed to do nothing. A framed toggle that is on now shows pressed (`.pill.framed.on`, `.icon-button.framed.on`).
+  The notice reports *Granted* / *Revoked* only when the role really changed (the API's `changed`), else that the
+  user had the role already.
+- **The update options on the admin page are plain text** (#99): the ones the user opted into (book, artist,
+  publisher, else `–`) instead of `●` / `○` marks that looked like radio buttons.
+
 ## 1.17.3 – 2026-10-30
 
 ### Fixed
