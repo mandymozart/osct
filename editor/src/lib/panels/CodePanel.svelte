@@ -210,9 +210,10 @@
 
 <style>
   .controls .grow { flex: 1; min-width: 6rem; }
-  .editor { flex: 1; min-height: 10rem; display: grid; grid-template-columns: auto minmax(0, 1fr); margin-top: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); overflow: hidden; }
+  /* The editor takes the panel's remaining height; its lines scroll inside it (the actions stay in reach) */
+  .editor { flex: 1 1 0; min-height: 10rem; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); margin-top: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); overflow: hidden; }
   .editor.has-error { border-color: var(--danger); }
-  .gutter, .source { margin: 0; padding: .375rem 0; font: var(--text-small)/1.5 ui-monospace, Consolas, "SF Mono", monospace; tab-size: 2; }
+  .gutter, .source { min-height: 0; margin: 0; padding: .375rem 0; font: var(--text-small)/1.5 ui-monospace, Consolas, "SF Mono", monospace; tab-size: 2; }
   .gutter { display: flex; flex-direction: column; padding-left: .5rem; padding-right: .5rem; border-right: 1px solid var(--line); color: var(--muted); text-align: right; user-select: none; overflow: hidden; }
   .ln.error { color: var(--danger); font-weight: 600; }
   .source { padding-left: .5rem; padding-right: .5rem; border: none; outline: none; resize: none; background: none; color: var(--text); white-space: pre; overflow: auto; }
