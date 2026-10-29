@@ -174,9 +174,15 @@ is involved.
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device).
   - **Column edges** – the tree's right edge and the panel's left edge are dragged to resize the columns (#144; the
-    panel 18rem to 70% of the window, the tree 10rem to 40%, the stage keeps at least 12rem; a focused edge also moves
-    with ← →). The stage's view follows live. The widths are kept on the device (`editor/src/lib/widths.svelte.ts`);
-    the Code tab has its own, wider width; a double-click on an edge restores the default. Not on a phone.
+    panel 16rem to 70% of the window, the tree 10rem to 40%, the stage keeps at least 16rem, so a 768 px tablet in
+    portrait still shows a stage; a focused edge also moves with ← →; with a finger (`pointer: coarse`) the edge's hit
+    area is wider). The stage's view follows live. The widths are kept on the device (`editor/src/lib/widths.svelte.ts`);
+    the Code tab has its own, wider width; a double-click on an edge restores the default.
+  - **Sheet height (phone)** – the panel is a sheet at the bottom; its head (a grip and the tab row) is dragged up or
+    down to any height, from the tab row alone to 85% of the screen, and snaps when let go to closed, a third, half or
+    almost full (a flick carries it on); a movement under 8 px is a tap, so a tab still opens or closes it (#155). The
+    height is kept next to the widths (`sheet`, a share of the screen); a double tap on the grip restores half. The
+    grip is a separator (↑ ↓ when focused). Only the head takes the drag – the panel's content still scrolls.
   - **Info** – at the bottom of the tree column (on the book page at the bottom left), after Ableton's Info View: the
     name and description of the control under the pointer or in focus; collapsible, the state kept on the device. The
     panels carry no explanatory text of their own – it is the controls' help (`editor/src/lib/help.svelte.ts`): an

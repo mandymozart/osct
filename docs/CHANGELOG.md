@@ -12,6 +12,20 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.0 – 2026-10-30
+
+### Added
+- **The editor's panel sheet is dragged on a phone** (#155): drag the tab row (or the grip above it) up or down to make
+  the panel any height, from the tab row alone to almost the full screen; let go, it snaps to closed, a third, half or
+  almost full, and a flick carries it on. The stage resizes with it. A tap on a tab still opens or closes the panel.
+  The height is remembered in this browser; a double tap on the grip restores half. The grip also moves with ↑ ↓.
+
+### Changed
+- **The columns on a tablet**: with a finger the edges between the columns are easier to catch, and the panel can be
+  narrower (16rem instead of 18rem) while the stage keeps at least 16rem – a 768 px tablet in portrait still shows a
+  usable stage next to the tree and the panel.
+- **The panel's tab row wraps** instead of running off the side on a narrow screen.
+
 ## 1.25.1 – 2026-10-30
 
 ### Changed
