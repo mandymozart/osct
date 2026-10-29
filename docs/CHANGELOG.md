@@ -20,6 +20,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   page's gutter side – every sheet has the same height. On hover the page image's border is highlighted instead of the
   card's background.
 
+## 1.19.2 – 2026-10-30
+
+### Removed
+- **The book content is no longer in the repository's tree** (#5, step 3 of `docs/content-out-of-git.md`): `content/` is
+  untracked and ignored, the image no longer copies it (`Dockerfile`, `.dockerignore`), and CI no longer builds it (the
+  test fixture stays). Every build needs `VITE_CONTENT_BASE_URL` (the environment's `CONTENT_BASE_URL`); the content source
+  is `OSCT_CONTENT_DIR`. Prepares the history rewrite that removes the content and the old Claude attribution (#30).
+
 ## 1.19.1 – 2026-10-30
 
 ### Fixed
