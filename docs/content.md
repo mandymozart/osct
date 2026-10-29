@@ -514,7 +514,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.6 | 1.13.0 | in develop | light nodes: point, spot and directional lights as a node type |
 | 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
 | 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
-| 2.9 | 1.20.4 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know |
+| 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
