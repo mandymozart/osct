@@ -13,7 +13,13 @@ outcome in the line (or move it into a dated decision block).
   tubes, 236 triangles, materials `top` / `edge` / `steel`, origin at the top's surface, metres, Y up), so the GLB is
   ours and regenerable without the source file. The desk keeps its own materials under every shading mode (like the
   gizmo and the outlines); the plies are the untinted plywood texture with its grain along the edge.
-- [ ] Open: the frame's finish (dark metallic steel today; chrome or white would be a material change in the script).
+- Tilman, later the same day: **both desks as options, like the HDRI picker** – the Eiermann (default) and Philipp
+  Camille Schöpfer's white desk (modelled after a photograph) – "the tool is for designers and they should feel at
+  home". `desk` is a stored preview setting; the stage keeps each loaded model for a switch back and decides the
+  top's look by id (plywood / white). The supplied archive carries no licence or readme, so nothing of it is
+  committed – it served as the measurement reference only.
+- [ ] Open: the frames' finishes (dark metallic steel, Schöpfer's white; chrome would be a material change in the
+  script) and Schöpfer's leg geometry (four straight splayed legs read from one photograph).
 
 ## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
 

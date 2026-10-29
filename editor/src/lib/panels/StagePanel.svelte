@@ -3,7 +3,7 @@
   import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import {
-    getPreview, HDRIS, isHdriId, PREVIEW_BACKDROPS, PREVIEW_VIEWS, setTargetHidden, subscribePreview, updatePreview, type PreviewState,
+    DESKS, getPreview, HDRIS, isDeskId, isHdriId, PREVIEW_BACKDROPS, PREVIEW_VIEWS, setTargetHidden, subscribePreview, updatePreview, type PreviewState,
   } from "$lib/stage/preview";
   import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
@@ -68,6 +68,13 @@
   <span class="controls">
     <span class="w"><ScrubNumber value={preview.wobble} min={0} max={1} step={0.05} fallback={0} strict label="Hand shake" oninput={wobble => updatePreview({ wobble })} /></span>
     <span class="small muted">0 = still, 1 = a hand holding the phone</span>
+  </span></div>
+
+<div class="row"><span class="label">desk</span>
+  <span class="controls">
+    <select class="field" aria-label="Desk" value={preview.desk} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isDeskId(id)) updatePreview({ desk: id }); }}>
+      {#each DESKS as desk (desk.id)}<option value={desk.id}>{desk.name}</option>{/each}
+    </select>
   </span></div>
 
 <div class="row"><span class="label">backdrop</span>

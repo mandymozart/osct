@@ -38,13 +38,16 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   one-page spread's format; the new-target form and the placement rows offer the cover's surface; the reader's
   spread menu names the covers by their title. API: `POST …/spreads { format }`, `PUT …/spreads/{id} { title?,
   format? }`. Fixture: the spread `cover` with *Cover: seal*.
-- **The stage's desk is an Eiermann table** (#68, Tilman: "the table should be an Eiermann … create a low-poly version
-  we can use"): a 1.4 × 1.0 m screen-printed plywood top, 18 mm thick with the plies showing on its cut edges, on a
-  steel tube frame after Egon Eiermann's table frame (two end frames, cross tubes, two crossed diagonal struts), 72 cm
-  high – our own low-poly model (`editor/static/models/desk-eiermann.glb`, 236 triangles, no textures in the file)
-  built from primitives by `editor/tools/desk-eiermann.py` in Blender, the frame measured from a model Tilman
-  supplied. The book, the printed images, the ghost and the page hits lie on the top as before; the desk keeps its
-  own look under every shading mode and the backdrops *paper* (the top as paper) and *photo* (no desk).
+- **The stage's desk: an Eiermann table or Schöpfer's desk** (#68, Tilman: "the table should be an Eiermann … create a
+  low-poly version we can use", both as options "like the HDRI picker" – the tool is for designers, they should feel
+  at home): the Stage panel's *desk* chooses between a 1.4 × 1.0 m screen-printed plywood top, 18 mm thick with the
+  plies showing on its cut edges, on a steel tube frame after Egon Eiermann's table frame (two end frames, cross
+  tubes, two crossed diagonal struts; the default) and Philipp Camille Schöpfer's white desk (a thick top with three
+  drawer cutouts in its front edge on four slender legs splayed outward), both 72 cm high – our own low-poly models
+  (`editor/static/models/`, 236 and 124 triangles, no textures in the files) built from primitives by
+  `editor/tools/desk-eiermann.py` in Blender, the Eiermann frame measured from a model Tilman supplied. The book, the
+  printed images, the ghost and the page hits lie on the top as before; the desk keeps its own look under every
+  shading mode and the backdrops *paper* (the top as paper) and *photo* (no desk).
 - **A live edit with a new file** (the library's *Use*, *+ node* with an uploaded model): the scene loads the files
   the spread's content does not have before it builds the node (before, such a node stayed invisible until Save).
 - **Selection outline and viewport shading** (#61, Tilman: "selected targets aren't visible … something like in

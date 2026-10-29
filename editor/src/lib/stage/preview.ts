@@ -28,6 +28,18 @@ export const HDRIS = [
 export type HdriId = (typeof HDRIS)[number]["id"];
 export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.id === value);
 
+/**
+ * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; Tilman: the tool is for
+ * designers, they should feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
+ * Schöpfer's white desk
+ */
+export const DESKS = [
+  { id: "eiermann", name: "Eiermann" },
+  { id: "schoepfer", name: "Schöpfer" },
+] as const;
+export type DeskId = (typeof DESKS)[number]["id"];
+export const isDeskId = (value: unknown): value is DeskId => DESKS.some(d => d.id === value);
+
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
 export interface PreviewOrbit {
   distance: number;
@@ -49,6 +61,8 @@ export interface PreviewSettings {
   backdrop: PreviewBackdrop;
   /** The HDRI shown as sky and used as light while the backdrop is `hdri` */
   hdri: HdriId;
+  /** The desk under the book (hidden while the backdrop is a photo) */
+  desk: DeskId;
   /** The reader's photo behind the stage (data URL), null = none chosen yet */
   photo: string | null;
   /** 0 = still, 1 = a hand holding a phone */
@@ -62,7 +76,7 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, backdrop: "hdri", hdri: "ferndale_studio_04", photo: null, wobble: 0 };
+const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, backdrop: "hdri", hdri: "ferndale_studio_04", desk: "eiermann", photo: null, wobble: 0 };
 
 const readSettings = (): PreviewSettings => {
   try {
@@ -75,6 +89,7 @@ const readSettings = (): PreviewSettings => {
       orbit: isOrbit(stored.orbit) ? stored.orbit : null,
       backdrop: PREVIEW_BACKDROPS.includes(stored.backdrop as PreviewBackdrop) ? (stored.backdrop as PreviewBackdrop) : DEFAULTS.backdrop,
       hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
+      desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
       photo: typeof stored.photo === "string" && stored.photo.startsWith("data:image/") ? stored.photo : null,
       wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
     };

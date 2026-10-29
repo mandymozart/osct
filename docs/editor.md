@@ -56,12 +56,14 @@ writes a new one, and the staging reader sees it on its next start.
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: the
 **sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's backdrop
 *hdri* and its choice), the equirectangular image as `scene.background` and `scene.environment`, turned with the
-stage every frame so the room stays put while the camera orbits – the **desk**, a 1.4 × 1.0 m screen-printed plywood
-top (18 mm; Poly Haven's plywood texture tinted to the phenolic brown on the faces, the plies showing untinted on the
-cut edges) on a steel tube frame after Egon Eiermann's table frame (1953), 72 cm high: our own low-poly model
-(`editor/static/models/desk-eiermann.glb`, 236 triangles, built by `editor/tools/desk-eiermann.py` in Blender –
-`editor/static/models/README.md`), loaded with its origin at the top's surface, so the book lies on it; the backdrop
-*paper* turns the top into plain paper, *photo* hides the desk – the open book as an object – two blocks of paper on a white hardcover board (3 mm) that overhangs the pages by 3 mm, the block's
+stage every frame so the room stays put while the camera orbits – the **desk**, the Stage panel's choice of two
+(Tilman: the tool is for designers, they should feel at home): a 1.4 × 1.0 m screen-printed plywood top (18 mm; Poly
+Haven's plywood texture tinted to the phenolic brown on the faces, the plies showing untinted on the cut edges) on a
+steel tube frame after Egon Eiermann's table frame (1953, the default), or Philipp Camille Schöpfer's white desk (a
+thick top with three drawer cutouts in its front edge on four slender legs splayed outward), both 72 cm high and our
+own low-poly models (`editor/static/models/`, 236 and 124 triangles, built by `editor/tools/desk-eiermann.py` in
+Blender – `editor/static/models/README.md`), loaded once each with the origin at the top's surface, so the book lies
+on it; the backdrop *paper* turns the top into plain paper, *photo* hides the desk – the open book as an object – two blocks of paper on a white hardcover board (3 mm) that overhangs the pages by 3 mm, the block's
 thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) – and the current
 spread's printed images. A spread of the format `cover` or `back` shows the **closed book** instead – the printed
 cover board on top (the layout's `cover-front` / `cover-back` sheet as its texture), the whole block of paper under
@@ -150,7 +152,8 @@ again). Nothing of the reader's store, progress or routes is involved.
     how flat a video plane is), *far*; on the stage **drag** orbits, **Shift + drag**, the **middle button** or **two fingers** pan (the looked-at
     point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
     one pressed chip per target (◉ = in view) – off reports it lost (outro), on found again (reveal); the replay arrow
-    plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **backdrop**: *hdri* (sky and light from one
+    plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the default) or *Schöpfer*, stored on
+    the device. **backdrop**: *hdri* (sky and light from one
     of six Poly Haven studios, the default), *table* (the desk under the scene's own lights), *paper*, *photo* of your
     own desk (the camera button; long side 1600 px, stored on the device).
   - **Entity** – first the **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
