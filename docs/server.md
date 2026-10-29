@@ -192,7 +192,7 @@ The editor's **Code** tab ([editor](editor.md)) keeps the TypeScript of a book's
 (`Plugins.php`): one row per plugin id (`book_id`, `id`, `source`, who, when), at most 256 KB each, every save a
 change (`kind: plugin`, the source before and after). They are the editor's sandbox: the editor transpiles and runs
 them on its own stage, and nothing of them reaches a publish. The compiled plugins a book has come in with the
-import – the configuration's `plugins` list (content schema 2.3: `{ id, src, api }`, written by the content build
+import – the configuration's `plugins` list (content schema 2.4: `{ id, src, api }`, written by the content build
 only) is kept in `books.plugins_json` and assembled back after `tutorial`, its `src` below the assets base like
 every other content path. A publish whose nodes use a component type that is neither built in
 (`Editor::COMPONENT_TYPES`) nor possibly a declared plugin's (no `plugins` at all) answers 409 `unknown-components`

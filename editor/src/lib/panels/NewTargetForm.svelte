@@ -30,7 +30,11 @@
   let page = $state(spread.firstPage);
   let category = $state<(typeof CATEGORIES)[number]>("glossary");
   let imageUrl = $state("");
-  let surface = $state<"left" | "right">("right");
+  const format = $derived(spread.format ?? "spread");
+  const closed = $derived(format === "cover" || format === "back");
+  const surfaces = $derived<readonly ("left" | "right" | "front" | "back")[]>(closed ? [format === "cover" ? "front" : "back"] : ["left", "right"]);
+  const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : String(p));
+  let surface = $state<"left" | "right" | "front" | "back">("right");
   let x = $state(40);
   let y = $state(60);
   let width = $state(80);
@@ -69,7 +73,7 @@
   const images = $derived(library.ofKinds(["image"]));
   // The first page of a double page is the left one
   $effect(() => {
-    surface = pages.length > 1 && page === spread.firstPage ? "left" : "right";
+    surface = closed ? surfaces[0] : pages.length > 1 && page === spread.firstPage ? "left" : "right";
   });
 
   // The stage shows where the target would lie while the form is open
@@ -121,7 +125,7 @@
     <input class="field" bind:value={title} placeholder="what the entry is about" aria-label="Title" /></div>
   <div class="row"><span class="label">page</span>
     <span class="controls">
-      <Segmented options={pages.map(String)} value={String(page)} onchange={p => (page = Number(p))} />
+      <Segmented options={pages.map(String)} value={String(page)} labels={Object.fromEntries(pages.map(p => [String(p), pageLabel(p)]))} onchange={p => (page = Number(p))} />
       <select class="field" aria-label="Category" value={category} onchange={e => (category = (e.currentTarget as HTMLSelectElement).value as typeof category)}>
         {#each CATEGORIES as c (c)}<option value={c}>{c}</option>{/each}
       </select>
@@ -139,7 +143,7 @@
   {#if imageUrl}<div class="row"><span class="label"></span><img class="preview" src={imageUrl} alt="" /></div>{/if}
   <div class="section"><span class="section-label">printed on the page (mm)</span></div>
   <div class="row"><span class="label">surface</span>
-    <span class="controls"><Segmented options={["left", "right"] as const} value={surface} onchange={s => (surface = s)} /></span></div>
+    <span class="controls"><Segmented options={surfaces} value={surface} onchange={s => (surface = s)} /></span></div>
   <div class="row"><span class="label">x · y</span>
     <span class="fields">
       <ScrubNumber value={x} min={0} max={230} step={1} fallback={40} prefix="X" unit="mm" label="x from the left" oninput={v => (x = v)} />

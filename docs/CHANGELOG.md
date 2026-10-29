@@ -30,6 +30,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (backdrop *hdri*, the
   default, with the choice; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
   plywood texture, tinted), the cover a white 3 mm hardcover board.
+- **Covers as spreads, the spread's format** (#61, #60, Tilman: "wie gehen wir mit Cover und Rückseite um? … es ist
+  eh ein Spread, nur in einem anderen Format"): content schema 2.3 – a spread has a `format` (`spread`, `cover`,
+  `back`; the covers are page 0 and the page after the last), a target's `print` takes the surfaces `front` / `back`,
+  `print` is read from `entry.yaml`. The editor's stage draws the closed book for a cover spread (the layout's cover
+  sheet on top, the block under it); the overview adds **+ cover** / **+ back cover**, the workspace bar sets a
+  one-page spread's format; the new-target form and the placement rows offer the cover's surface; the reader's
+  spread menu names the covers by their title. API: `POST …/spreads { format }`, `PUT …/spreads/{id} { title?,
+  format? }`. Fixture: the spread `cover` with *Cover: seal*.
 - **A live edit with a new file** (the library's *Use*, *+ node* with an uploaded model): the scene loads the files
   the spread's content does not have before it builds the node (before, such a node stayed invisible until Save).
 - **Selection outline and viewport shading** (#61, Tilman: "selected targets aren't visible … something like in

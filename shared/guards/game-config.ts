@@ -18,6 +18,7 @@ import {
 import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
 import { pluginProblems } from "../types/plugins";
+import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { placementProblems } from "../types/placement";
 
@@ -146,6 +147,9 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (!spread) return;
     ["id", "title"].forEach(key => str(spread, key, path));
     ["firstPage", "lastPage"].forEach(key => num(spread, key, path));
+    if (spread.format !== undefined && !(SPREAD_FORMATS as readonly unknown[]).includes(spread.format)) {
+      fail(`${path}.format`, `"${spread.format}" is not one of ${SPREAD_FORMATS.join(", ")}`);
+    }
     if (typeof spread.id === "string") {
       if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);
       spreadIds.add(spread.id);
@@ -194,7 +198,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (target.print !== undefined) {
       const print = obj(target.print, `${tPath}.print`);
       if (print) {
-        if (print.surface !== "left" && print.surface !== "right") fail(`${tPath}.print.surface`, 'expected "left" or "right"');
+        if (!(PRINT_SURFACES as readonly unknown[]).includes(print.surface)) fail(`${tPath}.print.surface`, `expected one of ${PRINT_SURFACES.join(", ")}`);
         (["x", "y", "width"] as const).forEach(key => {
           if (typeof print[key] !== "number" || !Number.isFinite(print[key])) fail(`${tPath}.print.${key}`, "expected a number (mm)");
         });

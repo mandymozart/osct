@@ -14,7 +14,7 @@
   import LibraryPanel from "$lib/panels/LibraryPanel.svelte";
   import CodePanel from "$lib/panels/CodePanel.svelte";
   import NewTargetForm from "$lib/panels/NewTargetForm.svelte";
-  import { deleteEntry, putTarget, type Asset } from "$lib/api";
+  import { deleteEntry, putSpread, putTarget, type Asset } from "$lib/api";
   import { library } from "$lib/library.svelte";
   import { nodeAt } from "$lib/values";
   import PublishButton from "$lib/PublishButton.svelte";
@@ -87,6 +87,17 @@
     if (!selectedTarget) return;
     await putTarget(bookId, selectedTarget, { imageSrc: asset.url });
     await reloadContent();
+  };
+  /** The spread's format (content schema 2.3): a double page, the front cover or the back cover – the stage follows */
+  const FORMATS = ["spread", "cover", "back"] as const;
+  const setFormat = async (format: (typeof FORMATS)[number]) => {
+    try {
+      await putSpread(bookId, spreadId, { format });
+      await content.load(bookId);
+      await stage?.open(spreadId);
+    } catch (e) {
+      loadError = e instanceof Error ? e.message : String(e);
+    }
   };
   const selectedNodeType = $derived.by(() => {
     const t = selectedTarget ? stage?.treeOf(selectedTarget) : undefined;
@@ -287,7 +298,13 @@
       <a href="{base}/{bookId}/" class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
       <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
       <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
-      <span class="spread-title"><span class="muted">p.</span> {spread?.title ?? spreadId}</span>
+      <span class="spread-title"><span class="muted">{spread?.format === "cover" || spread?.format === "back" ? "" : "p."}</span> {spread?.title ?? spreadId}</span>
+      {#if spread && spread.firstPage === spread.lastPage}
+        <select class="field format" aria-label="Spread format" title="What this spread is: a double page, the front cover or the back cover" value={spread.format ?? "spread"}
+          onchange={e => void setFormat((e.currentTarget as HTMLSelectElement).value as (typeof FORMATS)[number])}>
+          {#each FORMATS as f (f)}<option value={f}>{f}</option>{/each}
+        </select>
+      {/if}
       {#if narrow}
         <button type="button" class="pill tab" class:on={shown === "tree"} aria-pressed={shown === "tree"} onclick={() => setTab("tree")}>Tree</button>
       {/if}
@@ -343,6 +360,7 @@
   .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .bar .spread-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 .25rem; }
   .bar .tab { padding: 0 .5rem; }
+  .bar .format { height: 1.5rem; padding: 0 .25rem; font-size: var(--text-small); }
   .bar .tab.on { background: var(--surface); }
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; }
   .body.code { overflow: hidden; }

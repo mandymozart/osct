@@ -537,6 +537,23 @@ try {
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check(!in_array('p1-shadows-light', array_column($tree['spreads'][0]['entries'], 'id'), true), 'gone from the tree');
 
+    echo "editor: spread formats (content schema 2.3)\n";
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
+    check($status === 201 && $data['spread'] === ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'], 'POST spreads cover → page 0, first');
+    [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
+    check($status === 409, 'a second cover → 409');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'back', 'title' => 'Rückseite'], $editor);
+    $lastPage = max(array_map(fn($s) => $s['lastPage'], $tree['spreads']));
+    check($status === 201 && $data['spread']['firstPage'] === $lastPage + 1 && $data['spread']['title'] === 'Rückseite', 'POST spreads back → the page after the last');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($tree['spreads'][0]['id'] === 'cover' && end($tree['spreads'])['id'] === 'back', 'the tree: cover first, back last');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['title' => 'First pages'], $editor);
+    check($status === 200 && $data['spread']['title'] === 'First pages' && !isset($data['spread']['format']), 'PUT spread title');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['format' => 'cover'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a double page cannot become the cover');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Seal', 'page' => 0, 'target' => ['imageSrc' => 'https://cdn.example/seal.jpg', 'print' => ['surface' => 'front', 'x' => 60, 'y' => 100, 'width' => 100]]], $editor);
+    check($status === 201 && $data['spreadId'] === 'cover' && $data['entry']['target']['print']['surface'] === 'front', 'an entry on page 0 lands on the cover, printed on its front');
+
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();
     $bunnyDir = "$tmp/bunny";
@@ -569,7 +586,7 @@ try {
     [, $data] = call($api, 'GET', '/progress/osct', null, $session);
     check(($data['record']['consulted']['e1'] ?? null) === 5, 'migrate again: progress still there');
     [$status, $data] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($status === 200 && count($data['spreads']) === 2, "migrate again: the editor's book still there");
+    check($status === 200 && count($data['spreads']) === 4, "migrate again: the editor's book still there (its two spreads and the covers)");
 
     [$status] = call($api, 'POST', '/auth/password', ['email' => 'reader@example.com', 'password' => 'final password']);
     check($status === 200, 'migrate again: the password still signs in');

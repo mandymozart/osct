@@ -106,7 +106,7 @@ final class Editor
     public static function print(mixed $value, string $path = 'print'): stdClass
     {
         if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-target', "$path must be an object.");
-        if (!in_array($value->surface ?? null, ['left', 'right'], true)) throw new ApiError(400, 'invalid-target', "$path.surface must be left or right.");
+        if (!in_array($value->surface ?? null, ['left', 'right', 'front', 'back'], true)) throw new ApiError(400, 'invalid-target', "$path.surface must be left, right, front or back.");
         foreach (['x', 'y', 'width'] as $key) {
             if (!is_numeric($value->$key ?? null)) throw new ApiError(400, 'invalid-target', "$path.$key must be a number (mm).");
         }

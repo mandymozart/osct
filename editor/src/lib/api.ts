@@ -200,7 +200,7 @@ export const deleteAsset = (bookId: string, assetId: string, force = false) =>
 
 export interface PrintPlacement {
   page?: number;
-  surface: "left" | "right";
+  surface: "left" | "right" | "front" | "back";
   x: number;
   y: number;
   width: number;
@@ -213,6 +213,12 @@ export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: s
 
 export const addEntry = (bookId: string, body: { id?: string; title: string; page: number; category?: string; body?: string; target: { id?: string; imageSrc: string; print?: PrintPlacement; entity?: EntityData | EntityRefData } }) =>
   api<{ entry: { id: string; target: { id: string } }; spreadId: string | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
+
+export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: "spread" | "cover" | "back" }) =>
+  api<{ spread: unknown }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, body);
+
+export const addSpread = (bookId: string, body: { format: "cover" | "back"; title?: string }) =>
+  api<{ spread: { id: string } }>("POST", `/editor/books/${encodeURIComponent(bookId)}/spreads`, body);
 
 export const deleteEntry = (bookId: string, entryId: string) =>
   api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`);
