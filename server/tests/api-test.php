@@ -1,10 +1,15 @@
 <?php
 /**
- * API test: runs the real API with PHP's built-in server on a fresh SQLite database and goes through the
+ * API test: runs the real API with PHP's built-in server on a fresh database and goes through the
  * whole flow (request → email → verify by code and by link → user → progress → delete), plus one mail
- * over SMTP to a fake SMTP server. Exits 1 on the first failure.
+ * over SMTP to a fake SMTP server. Exits 1 if anything failed.
  *
- *   php server/tests/api-test.php
+ *   php server/tests/api-test.php                              SQLite files in a temporary folder
+ *   OSCT_TEST_DB=mysql php server/tests/api-test.php           MySQL / MariaDB (docker compose up -d db): every API of
+ *                                                              the test gets a new database from schema.mysql.sql,
+ *                                                              dropped at the end. OSCT_TEST_DB_HOST (127.0.0.1),
+ *                                                              _PORT (3306), _USER (root), _PASS (osct-root, the
+ *                                                              compose file's) – an account that may create databases
  */
 declare(strict_types=1);
 
@@ -13,6 +18,11 @@ $tmp = sys_get_temp_dir() . '/osct-api-test-' . bin2hex(random_bytes(4));
 mkdir($tmp);
 $processes = [];
 $failures = 0;
+$mysql = getenv('OSCT_TEST_DB') === 'mysql' ? [
+    'host' => getenv('OSCT_TEST_DB_HOST') ?: '127.0.0.1', 'port' => getenv('OSCT_TEST_DB_PORT') ?: '3306',
+    'user' => getenv('OSCT_TEST_DB_USER') ?: 'root', 'pass' => getenv('OSCT_TEST_DB_PASS') ?: 'osct-root',
+    'prefix' => 'osct_test_' . bin2hex(random_bytes(3)) . '_', 'created' => [],
+] : null;
 
 function check(bool $ok, string $what): void
 {
@@ -36,7 +46,49 @@ function check(bool $ok, string $what): void
         }
     }
     check($found === [], 'no query uses a named parameter twice (MySQL native prepares)' . ($found ? ' – ' . implode('; ', $found) : ''));
+    // A backslash escapes inside a MySQL string literal: ESCAPE '\' does not end there (a syntax error, a 500) – Db::contains
+    $escapes = [];
+    foreach (array_merge(glob("$root/api/src/*.php"), ["$root/api/index.php"]) as $file) {
+        if (preg_match('/ESCAPE\s+\'\\\\/i', (string) file_get_contents($file))) $escapes[] = basename($file);
+    }
+    check($escapes === [], "no LIKE … ESCAPE '\\' (MySQL string literals)" . ($escapes ? ' – ' . implode(', ', $escapes) : ''));
 })();
+
+/** Runs a schema file's statements one by one (the split of Db::migrate) */
+function loadSchema(PDO $pdo, string $sql): void
+{
+    $sql = preg_replace('/^\s*--.*$/m', '', $sql);
+    foreach (array_filter(array_map('trim', preg_split('/;\s*(\n|$)/', (string) $sql))) as $statement) $pdo->exec($statement);
+}
+
+/** A PDO on the test database $name (null: the MySQL server without a database) */
+function connect(?string $name): PDO
+{
+    global $mysql, $tmp;
+    $options = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION];
+    if (!$mysql) return new PDO("sqlite:$tmp/$name.sqlite", null, null, $options);
+    $dsn = "mysql:host={$mysql['host']};port={$mysql['port']};charset=utf8mb4" . ($name === null ? '' : ";dbname={$mysql['prefix']}$name");
+    return new PDO($dsn, $mysql['user'], $mysql['pass'], $options);
+}
+
+/**
+ * The API settings for a new test database $name. SQLite: a file the API creates with its schema on first use, or
+ * now from $schema. MySQL: a new database made from $schema, by default schema.mysql.sql (what a deploy's migration
+ * finds on a new server).
+ */
+function database(string $name, ?string $schema = null): array
+{
+    global $mysql, $tmp, $root;
+    if (!$mysql) {
+        if ($schema !== null) loadSchema(connect($name), $schema);
+        return ['DB_SQLITE_PATH' => "$tmp/$name.sqlite"];
+    }
+    connect(null)->exec("CREATE DATABASE `{$mysql['prefix']}$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    $mysql['created'][] = $mysql['prefix'] . $name;
+    loadSchema(connect($name), $schema ?? (string) file_get_contents("$root/api/db/schema.mysql.sql"));
+    return ['DB_HOST' => $mysql['host'], 'DB_PORT' => $mysql['port'], 'DB_NAME' => $mysql['prefix'] . $name,
+        'DB_USER' => $mysql['user'], 'DB_PASS' => $mysql['pass']];
+}
 
 function freePort(): int
 {
@@ -98,8 +150,9 @@ function lastMail(string $log): array
 
 try {
     $mailLog = "$tmp/mail.log";
-    $settings = [
-        'DB_SQLITE_PATH' => "$tmp/test.sqlite", 'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'EDITORS' => 'Listed@example.com, other@example.com', 'ADMINS' => 'Chief@example.com',
+    echo $mysql ? "database: MySQL on {$mysql['host']}:{$mysql['port']} (" . connect(null)->query('SELECT VERSION()')->fetchColumn() . ")\n" : "database: SQLite\n";
+    $settings = database('test') + [
+        'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'EDITORS' => 'Listed@example.com, other@example.com', 'ADMINS' => 'Chief@example.com',
         'MAIL_LOG_PATH' => $mailLog, 'APP_URL' => 'https://app.example', 'ALLOWED_ORIGINS' => 'http://localhost:5173, https://*--staging.example',
         'LOGIN_MAX_PER_EMAIL_HOUR' => '4', 'CONTENT_STORE_DIR' => "$tmp/content",
     ];
@@ -176,11 +229,11 @@ try {
     check(($data['error']['retryAfter'] ?? 0) > 0 && $data['error']['retryAfter'] <= 3600 && str_contains($data['error']['message'], 'minute'), 'the 429 says when the next email is allowed (retryAfter, seconds)');
 
     echo "rate limits off (-1)\n";
-    $openApi = startApi(['DB_SQLITE_PATH' => "$tmp/open.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '-1', 'LOGIN_MAX_PER_IP_HOUR' => '-1'] + $settings);
+    $openApi = startApi(database('open') + ['LOGIN_MAX_PER_EMAIL_HOUR' => '-1', 'LOGIN_MAX_PER_IP_HOUR' => '-1'] + $settings);
     $statuses = [];
     for ($i = 0; $i < 7; $i++) [$statuses[]] = call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com']);
     check($statuses === array_fill(0, 7, 202), 'a limit of -1 is off: seven requests in a row pass (local testing)');
-    $zeroApi = startApi(['DB_SQLITE_PATH' => "$tmp/zero.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '0'] + $settings);
+    $zeroApi = startApi(database('zero') + ['LOGIN_MAX_PER_EMAIL_HOUR' => '0'] + $settings);
     [$status, $data] = call($zeroApi, 'POST', '/auth/request', ['email' => 'zero@example.com']);
     check($status === 429 && $data['error']['code'] === 'too-many-requests', 'a limit of 0 allows nothing (#83)');
 
@@ -207,7 +260,7 @@ try {
     check($status === 400 && $data['error']['code'] === 'password-too-long', 'more than 72 bytes → 400 (bcrypt would cut it)');
     [$status, $data] = call($api, 'PUT', '/user/password', ['password' => 'first password'], $session);
     check($status === 200 && $data['user']['hasPassword'] === true, 'set from an email session → hasPassword');
-    $pdo = new PDO("sqlite:$tmp/test.sqlite");
+    $pdo = connect('test');
     $hash = (string) $pdo->query("SELECT password_hash FROM users WHERE email = 'reader@example.com'")->fetchColumn();
     check(str_starts_with($hash, '$2y$12$') && !str_contains($hash, 'first password') && password_verify('first password', $hash), 'stored as a bcrypt hash (cost 12), not the password');
     [$status, $data] = call($api, 'POST', '/auth/password', ['email' => 'reader@example.com', 'password' => 'wrong password']);
@@ -324,7 +377,7 @@ try {
     check($status === 200 && $data['changed'] === true && $data['user']['roles'] === ['reader', 'admin'] && $data['user']['role'] === 'reader', 'revoke editor → the user is a reader again');
     [$status] = call($api, 'GET', '/editor/books', null, $editor);
     check($status === 403, 'and may not use the editor API any more');
-    $pdo = new PDO("sqlite:$tmp/test.sqlite");
+    $pdo = connect('test');
     check($pdo->query("SELECT role FROM users WHERE id = '$authorId'")->fetchColumn() === 'reader', 'users.role mirrors the editor role');
     $pdo = null;
     [$status, $data] = call($api, 'DELETE', "/admin/users/$authorId/roles/reader", null, $chief);
@@ -586,6 +639,15 @@ try {
     $bad['children'][1]['color'] = 'gold';
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $bad, $editor);
     check($status === 400 && str_contains($data['error']['message'] ?? '', 'children[1].color'), 'a bad child → 400 with its path');
+    // Content schema 2.12: every node may carry a name (the editor's tree shows it)
+    $named = $tree;
+    $named['name'] = 'Castle and title';
+    $named['children'][1]['name'] = 'Title';
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $named, $editor);
+    check($status === 200 && $data['entity']['name'] === 'Castle and title' && $data['entity']['children'][1]['name'] === 'Title', 'PUT entity with node names → kept');
+    $named['children'][0]['name'] = 7;
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $named, $editor);
+    check($status === 400 && str_contains($data['error']['message'] ?? '', 'children[0].name'), 'a name that is no string → 400 with its path');
     $deep = ['type' => 'group', 'assets' => []];
     for ($i = 0; $i < 9; $i++) $deep = ['type' => 'group', 'assets' => [], 'children' => [$deep]];
     [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $deep, $editor);
@@ -828,14 +890,15 @@ try {
     check($status === 200, 'migrate again: the password still signs in');
 
     echo "migrate an older database (before passwords)\n";
-    $oldSchema = preg_replace('/\nCREATE TABLE IF NOT EXISTS password_attempts.*$/s', '', (string) file_get_contents("$root/api/db/schema.sqlite.sql"));
+    $schemaFile = "$root/api/db/schema." . ($mysql ? 'mysql' : 'sqlite') . '.sql';
+    $oldSchema = preg_replace('/\nCREATE TABLE IF NOT EXISTS `?password_attempts.*$/s', '', (string) file_get_contents($schemaFile));
     $oldToken = str_repeat('o', 43);
-    $oldDb = new PDO("sqlite:$tmp/old.sqlite");
-    $oldDb->exec($oldSchema);
+    $oldSettings = database('old', $oldSchema);
+    $oldDb = connect('old');
     $oldDb->exec("INSERT INTO users (id, email, created_at, confirmed_at, updated_at) VALUES ('u1', 'old@example.com', '2026-01-01 00:00:00', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
     $oldDb->exec("INSERT INTO sessions (id, user_id, token_hash, created_at, last_used_at) VALUES ('s1', 'u1', '" . hash('sha256', $oldToken) . "', '2026-01-01 00:00:00', '2099-01-01 00:00:00')");
     $oldDb = null;
-    $oldApi = startApi(['DB_SQLITE_PATH' => "$tmp/old.sqlite"] + $settings);
+    $oldApi = startApi($oldSettings + $settings);
     $context = stream_context_create(['http' => ['method' => 'POST', 'header' => 'X-Admin-Secret: ' . str_repeat('s', 40), 'ignore_errors' => true]]);
     file_get_contents("$oldApi/admin/migrate", false, $context);
     file_get_contents("$oldApi/admin/migrate", false, $context);
@@ -857,7 +920,7 @@ try {
     check($status === 204, 'delete → 204');
     [$status] = call($api, 'GET', '/user', null, $session);
     check($status === 401, 'deleted user: session gone');
-    $pdo = new PDO("sqlite:$tmp/test.sqlite");
+    $pdo = connect('test');
     check((int) $pdo->query("SELECT COUNT(*) FROM users WHERE email = 'reader@example.com'")->fetchColumn() === 0
         && (int) $pdo->query("SELECT COUNT(*) FROM login_requests WHERE email = 'reader@example.com'")->fetchColumn() === 0, 'user and its requests are gone');
     $pdo = null;
@@ -868,7 +931,7 @@ try {
     $processes[] = proc_open([PHP_BINARY, __DIR__ . '/fake-smtp.php', (string) $smtpPort, $smtpOut], [], $pipes);
     for ($i = 0; $i < 50 && !is_file("$smtpOut.ready"); $i++) usleep(100000);
     $smtpApi = startApi(['MAIL_TRANSPORT' => 'smtp', 'SMTP_HOST' => '127.0.0.1', 'SMTP_PORT' => (string) $smtpPort, 'SMTP_SECURE' => 'none',
-        'SMTP_USER' => 'user', 'SMTP_PASS' => 'pass', 'MAIL_FROM' => 'app@example.com', 'DB_SQLITE_PATH' => "$tmp/smtp.sqlite"] + $settings);
+        'SMTP_USER' => 'user', 'SMTP_PASS' => 'pass', 'MAIL_FROM' => 'app@example.com'] + database('smtp') + $settings);
     [$status, $data] = call($smtpApi, 'POST', '/auth/request', ['email' => 'smtp@example.com', 'language' => 'de']);
     check($status === 202, 'request over SMTP → 202');
     for ($i = 0; $i < 30 && !is_file($smtpOut); $i++) usleep(100000);
@@ -882,6 +945,13 @@ try {
     check(false, 'unexpected: ' . $error->getMessage());
 } finally {
     foreach ($processes as $process) { proc_terminate($process); proc_close($process); }
+    if ($mysql) {
+        try {
+            foreach ($mysql['created'] as $name) connect(null)->exec("DROP DATABASE IF EXISTS `$name`");
+        } catch (Throwable $error) {
+            check(false, 'dropping the test databases: ' . $error->getMessage());
+        }
+    }
 }
 
 echo $failures ? "\n$failures failed\n" : "\nall passed\n";

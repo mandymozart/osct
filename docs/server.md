@@ -40,8 +40,11 @@ server/deploy/migrate.php        deploy: the migration from the command line (th
 server/deploy/mail-test.php      one test mail with the current mail settings (in the image as /opt/osct/mail-test.php)
 server/deploy/ses-smtp-password.php   SES SMTP password from an IAM secret key (docs/deploy.md "Mail")
 server/docker/                   Apache configuration and entrypoint of the image (docs/deploy.md)
-server/tests/api-test.php        the whole flow against php -S + SQLite, SMTP against tests/fake-smtp.php, the editor's
-                                 publish to bunny against tests/fake-storage.php
+server/tests/api-test.php        the whole flow against php -S + SQLite (or MariaDB: OSCT_TEST_DB=mysql), SMTP against
+                                 tests/fake-smtp.php, the editor's publish to bunny against tests/fake-storage.php
+docker-compose.yml               (repository root) the local MariaDB – [Local development](#local-development)
+scripts/db/pull-staging.sh       staging's database into the local MariaDB – [Staging's data](#stagings-data)
+server/db-dumps/                 the dumps it keeps (not committed)
 ```
 
 ## Endpoints
@@ -280,14 +283,79 @@ only see "Something went wrong".
 
 ## Local development
 
+**Against MariaDB – the recommended setup.** Staging and production run MariaDB / MySQL, and some queries that SQLite
+accepts fail there (#161: a named parameter used twice; `LIKE … ESCAPE` with a backslash, which opens an escape inside
+a MySQL string literal – `Db::contains` builds the pattern with `!`). `docker-compose.yml` in the repository root runs
+MariaDB 10.11, the version of staging's host (`OSCT_MARIADB_VERSION=11.4` for the version of the Kamal accessory in
+`config/deploy.yml`). Its first start creates the database `osct` from `schema.mysql.sql`; the data stays in the
+Docker volume `osct_db` until `docker compose down -v`.
+
 ```bash
-cp server/api/config.local.php.example server/api/config.local.php   # set DB_SQLITE_PATH, MAIL_TRANSPORT=log, SECRET
+docker compose up -d --wait db                                        # MariaDB on 127.0.0.1:3306
+cp server/api/config.local.php.example server/api/config.local.php   # its DB_* are the compose database; set SECRET, MAIL_TRANSPORT=log
 cd client && npm run dev:api     # PHP on 127.0.0.1:8080
 cd client && npm run dev         # vite passes /api on to it
-php server/tests/api-test.php    # API tests (CI runs them too)
 ```
 
+The compose database: host `127.0.0.1` (TCP – `localhost` would make PDO look for a socket), port `3306`
+(`OSCT_DB_PORT` moves it, for the compose file and the API alike), database `osct`, user `osct`, password `osct`, root
+password `osct-root`. These are for this machine only; the port listens on 127.0.0.1. A schema change in a checkout
+reaches an existing database with `php server/deploy/migrate.php` (or `POST /admin/migrate`), as on a deploy.
+
+**SQLite for quick tests** – nothing to install: set `DB_SQLITE_PATH` instead (the file is created with the schema on
+first use and wins over `DB_*`).
+
 The mails (with link and code) land in `MAIL_LOG_PATH`.
+
+### Tests
+
+```bash
+php server/tests/api-test.php                       # SQLite (temporary files)
+OSCT_TEST_DB=mysql php server/tests/api-test.php    # MariaDB of docker-compose.yml
+```
+
+With `OSCT_TEST_DB=mysql` every API the test starts gets a new database `osct_test_<random>_<name>`, made from
+`schema.mysql.sql` (the older-database case from a cut copy of it), and the test drops them at the end. It signs in
+with `OSCT_TEST_DB_HOST` (`127.0.0.1`), `OSCT_TEST_DB_PORT` (`3306`), `OSCT_TEST_DB_USER` (`root`) and
+`OSCT_TEST_DB_PASS` (`osct-root`) – an account that may create and drop databases, never staging's. CI runs both:
+"Accounts API" on SQLite, "Accounts API (MariaDB)" against a `mariadb:10.11` service container
+(`.github/workflows/checks.yml`). Both also scan the API's source for the two MySQL traps above.
+
+### Staging's data
+
+`scripts/db/pull-staging.sh` (bash; Git Bash on Windows) dumps staging's database and loads it as the local database
+`osct` – the local one is **replaced**. Staging's credentials go into `server/.env` (git-ignored, RULES #25) or the
+environment, never into a committed file:
+
+```bash
+STAGING_DB_HOST=…        # the database host as seen from where the dump runs
+STAGING_DB_PORT=3306
+STAGING_DB_NAME=…
+STAGING_DB_USER=…        # read access is enough (SELECT, SHOW VIEW, LOCK TABLES)
+STAGING_DB_PASS=…
+STAGING_SSH=user@host    # optional: run the dump on that host over SSH, for a database that only accepts its own machine
+STAGING_DUMP_COMMAND=…   # optional, with STAGING_SSH: the dump program there (mysqldump)
+KEEP_EMAILS=you@example.com   # optional: addresses that stay as they are (to sign in as yourself)
+```
+
+Without `STAGING_SSH` the dump runs in the local MariaDB container (its `mariadb-dump`, no client to install), so
+staging's database must accept connections from this machine. Once staging runs on the Kamal VM, its database is the
+accessory container `osct-staging-db`: `STAGING_SSH=<the server>`, `STAGING_DB_HOST=127.0.0.1` and
+`STAGING_DUMP_COMMAND="docker exec -i -e MYSQL_PWD osct-staging-db mariadb-dump"`. After the load the script
+migrates the database to this checkout's schema. `--keep` keeps the dump, `--load FILE` loads a kept one again,
+`--real` skips the pseudonymisation; `--help` lists it all.
+
+**Personal data.** Staging holds real readers: e-mail addresses, password hashes, sign-in requests and sessions
+(token and IP hashes), reading progress. So the script, unless `--real`:
+- replaces every address by `user-<id>@example.invalid` and removes its password – except `KEEP_EMAILS`;
+- deletes the sessions, the sign-in requests and the failed sign-ins;
+- keeps ids, roles, update options, progress and the editor's rows, so the data behaves like staging's;
+- deletes the dump once it is loaded. A dump kept with `--keep` lands in `server/db-dumps/` (git-ignored, outside the
+  Docker build context, readable by you only) with the real data – delete it when you are done.
+
+Never commit a dump, attach it to an issue or send it anywhere; `--real` only to debug one account, and pull again
+without it afterwards. The local MariaDB is reachable from this machine only (127.0.0.1); `docker compose down -v`
+removes it with its data.
 
 ## Deploy
 

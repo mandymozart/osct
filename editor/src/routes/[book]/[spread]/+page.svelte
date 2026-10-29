@@ -19,6 +19,7 @@
   import { deleteEntry, putTarget, type Asset } from "$lib/api";
   import { library } from "$lib/library.svelte";
   import { nodeAt } from "$lib/values";
+  import { selection } from "$lib/selection.svelte";
   import InfoView from "$lib/components/InfoView.svelte";
   import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, widths, type Column } from "$lib/widths.svelte";
 
@@ -61,9 +62,8 @@
   let treeOpen = $state((() => { try { return localStorage.getItem(TREE_KEY) !== "closed"; } catch { return true; } })());
   /** A phone: the tree is a tab of the sheet instead of a column */
   let narrow = $state(false);
-  let selectedTarget = $state<string | null>(null);
-  /** The selected node's path in the target's entity (`[]` = the root) */
-  let selectedNode = $state<number[]>([]);
+  // The one selection of the tree, the stage and the Entity panel – a target, its entity or a node (#162)
+  selection.reset();
   let loadError = $state<string | null>(null);
 
   /** The tab the sheet opens with when it is dragged open (the last one shown) */
@@ -240,14 +240,13 @@
   const targetCreated = async (targetId: string) => {
     addingTarget = false;
     await reloadContent();
-    selectedTarget = targetId;
-    selectedNode = [];
+    selection.selectTarget(targetId);
     setTab("entity");
   };
   const removeTarget = async (target: { id: string; entryId: string }) => {
     if (!window.confirm(`Remove the target ${target.id} and its entry? The draft loses both (Publish makes it final).`)) return;
     await deleteEntry(bookId, target.entryId);
-    if (selectedTarget === target.id) { selectedTarget = null; selectedNode = []; }
+    if (selection.target === target.id) selection.reset();
     await reloadContent();
   };
   // ── the environment: previewed on the stage while its tab is open (its Library picker included) ──
@@ -265,13 +264,13 @@
     entityPanel?.useAsset(asset.kind, asset.url, asset.id);
   };
   const useAsTargetImage = async (asset: Asset) => {
-    if (!selectedTarget) return;
-    await putTarget(bookId, selectedTarget, { imageSrc: asset.url });
+    if (!selection.target) return;
+    await putTarget(bookId, selection.target, { imageSrc: asset.url });
     await reloadContent();
   };
   const selectedNodeType = $derived.by(() => {
-    const t = selectedTarget ? stage?.treeOf(selectedTarget) : undefined;
-    return t ? (nodeAt(t, selectedNode) ?? t).type : null;
+    const t = selection.target && !selection.onTarget ? stage?.treeOf(selection.target) : undefined;
+    return t ? (nodeAt(t, selection.node) ?? t).type : null;
   });
 
   onMount(() => {
@@ -293,15 +292,11 @@
       stage.onPick = hit => {
         stageMenu = null;
         if (!hit) return;
-        selectedTarget = hit.targetId;
-        selectedNode = hit.path;
+        selectHit(hit);
         select();
       };
       stage.onContextMenu = (hit, x, y) => {
-        if (hit) {
-          selectedTarget = hit.targetId;
-          selectedNode = hit.path;
-        }
+        if (hit) selectHit(hit);
         stageMenu = { hit, x: Math.min(x, window.innerWidth - 200), y: Math.min(y, window.innerHeight - 160) };
       };
       await stage.open(spreadId);
@@ -319,11 +314,18 @@
     const id = spreadId;
     if (stage && stage.spreadId !== id) void stage.open(id);
   });
-  // The gizmo sits on the selected node
+  /** A pick on the stage: the printed image selects the target, an entity's node the node (the pick mode decides which) */
+  const selectHit = (hit: StagePick) => {
+    if (hit.printed) selection.selectTarget(hit.targetId);
+    else selection.selectNode(hit.targetId, hit.path);
+  };
+  // The gizmo sits on the selected node; a selected target's print is outlined instead
   $effect(() => {
-    const id = selectedTarget;
-    const path = selectedNode;
-    stage?.selectNode(id, path);
+    const id = selection.target;
+    const path = selection.node;
+    const level = stage && stage.status === "running" ? selection.level(!!(id && stage.treeOf(id))) : "none";
+    stage?.selectNode(level === "entity" || level === "node" ? id : null, path);
+    stage?.selectTarget(level === "target" ? id : null);
   });
   const GIZMO_LABELS: Record<GizmoMode, string> = { translate: "Move (W)", rotate: "Rotate (E)", scale: "Scale (R)" };
   const PICK_MODES: readonly PickMode[] = ["entity", "node", "target"];
@@ -335,17 +337,33 @@
   // ── the stage's menu (right click): what lies there decides the actions ──
   let stageMenu = $state<{ hit: StagePick | null; x: number; y: number } | null>(null);
   const menuRemoveNode = () => {
-    if (!stage || !selectedTarget) return;
-    selectedNode = stage.removeNode(selectedTarget, selectedNode);
     stageMenu = null;
+    // A picked print: its entity goes (the menu says "Remove entity")
+    const id = selection.target;
+    if (id && selection.onTarget) selection.selectNode(id, []);
+    removeSelectedNode();
+  };
+  /** Remove the selected node (the stage's menu, Delete): its parent is selected next, the target after the root */
+  const removeSelectedNode = () => {
+    const id = selection.target;
+    if (!stage || !id || selection.onTarget || !stage.treeOf(id)) return false;
+    const next = stage.removeNode(id, selection.node);
+    if (selection.node.length) selection.selectNode(id, next);
+    else selection.selectTarget(id);
+    return true;
   };
   const menuAddNode = () => {
     stageMenu = null;
+    // A target with AR content adds to its entity: the root is selected (the Entity panel's "+ node" shows)
+    const id = selection.target;
+    if (id && selection.onTarget && stage?.treeOf(id)) selection.selectNode(id, []);
     setTab("entity");
     requestAnimationFrame(() => document.querySelector<HTMLSelectElement>('select[aria-label="New node type"]')?.focus());
   };
   const menuPlacement = () => {
     stageMenu = null;
+    // The placement is the target's: its level opens
+    if (selection.target) selection.selectTarget(selection.target);
     setTab("entity");
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("button.placement-toggle")?.click());
   };
@@ -365,10 +383,7 @@
     const mode = GIZMO_KEYS[event.key.toLowerCase()];
     if (mode && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setGizmoMode(mode);
     // Delete removes the selected node (the tree does the same when it has the focus and stops the event)
-    if ((event.key === "Delete" || event.key === "Backspace") && stage && selectedTarget && stage.treeOf(selectedTarget)) {
-      selectedNode = stage.removeNode(selectedTarget, selectedNode);
-      event.preventDefault();
-    }
+    if ((event.key === "Delete" || event.key === "Backspace") && removeSelectedNode()) event.preventDefault();
   };
   const onKeyUp = (event: KeyboardEvent) => {
     if (event.key === "Control") stage?.setSnap(false);
@@ -421,7 +436,7 @@
       </button>
     </div>
     {#if treeOpen}
-      <div class="body tree-body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} onaddtarget={() => { addingTarget = true; }} onremovetarget={removeTarget} /></div>
+      <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingTarget = true; }} onremovetarget={removeTarget} /></div>
       <InfoView />
       {#if treeShown}{@render edge("tree", "Tree edge")}{/if}
     {/if}
@@ -514,15 +529,15 @@
     {#if addingTarget && spread}
       <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
     {:else if shown === "tree"}
-      <div class="body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} onaddtarget={() => (addingTarget = true)} onremovetarget={removeTarget} /></div>
+      <div class="body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => (addingTarget = true)} onremovetarget={removeTarget} /></div>
     {:else if shown === "stage"}
       <div class="body"><StagePanel {stage} {bookId} {spreadId} /></div>
     {:else if shown === "entity"}
-      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} {pickColour} ontargetchanged={reloadContent} /></div>
+      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} /></div>
     {:else if shown === "environment"}
       <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
     {:else if shown === "library"}
-      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selectedTarget} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} /></div>
+      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} /></div>
     {:else if shown === "code"}
       <div class="body code"><CodePanel {bookId} {stage} /></div>
     {/if}

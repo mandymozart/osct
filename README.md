@@ -52,7 +52,7 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
 - [Pages](docs/pages.md) · [Components](docs/components.md) · [Error page](docs/error-page.md) – the UI
 - [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene
 - [Editor](docs/editor.md) – the authors' tool at `/editor`: engine, mock stage, saving to the database, publishing
-- [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish), shipped at `/docs/tutorials/`
+- [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish) and a walk through the demo book with screenshots, shipped at `/docs/tutorials/`
 - [Plugins](docs/plugins.md) – writing the book's own code: a layer, a component, the Code tab, the content build
 - [Admin](docs/admin.md) – the instance's users and roles at `/editor/admin`, the newsletter CSV
 - [MCP server](docs/mcp.md) – a Claude session as an editor over the API (`mcp/`): signing in, the tools, an example
@@ -71,7 +71,7 @@ One approach per layer; all of them run in CI (`.github/workflows/checks.yml`) o
 |---|---|---|
 | App: store, managers, services, utils, components | `client/src/**/__tests__/*.test.ts` (vitest, happy-dom) | `cd client && npx tsc --noEmit && npx vitest run` |
 | Content build, CDN sync and purge planning, delivery import | `scripts/test/*.test.ts` (vitest, node) | `cd scripts && npm test` |
-| Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite) | `php server/tests/api-test.php` |
+| Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite, or MariaDB – docs/server.md "Tests") | `php server/tests/api-test.php` · `OSCT_TEST_DB=mysql php server/tests/api-test.php` (after `docker compose up -d db`) |
 | MCP server | `mcp/test/*.test.ts` (vitest: a mocked fetch per tool; end to end over stdio against the PHP API) | `cd mcp && npx tsc --noEmit && npm test` |
 
 The client tests need a built game configuration (`npm run content`, the fixture is enough). Test content is

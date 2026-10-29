@@ -20,6 +20,8 @@ server/api/db/*.sqlite
 server/api/db/*.log
 # The local content store (what the editor publishes on this machine)
 server/api/db/content/
+# Dumps of staging's database (scripts/db/pull-staging.sh) – personal data, never committed
+server/db-dumps/
 
 # Logs
 logs

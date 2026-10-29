@@ -94,6 +94,16 @@ final class Db
         return $value === false ? null : $value;
     }
 
+    /**
+     * A LIKE pattern that finds $text anywhere, for `LIKE :param ESCAPE '!'`. The escape is `!` because a backslash
+     * starts an escape sequence inside a MySQL string literal (not in SQLite): a backslash as the escape character is a
+     * syntax error on MySQL.
+     */
+    public static function contains(string $text): string
+    {
+        return '%' . strtr($text, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+    }
+
     public static function transaction(callable $work): mixed
     {
         $pdo = self::pdo();

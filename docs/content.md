@@ -350,7 +350,9 @@ target (1 unit = the target's width); every node may hold `children`, each place
 to its parent**, as deep as you like (8 levels at most). Node types: `model`, `video`, `image` (a file, `src`),
 `text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced), `light` (a light,
 below) and `group` (nothing of its own, it only holds children – move or scale the whole tree by its params). One
-node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node).
+node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node, drag to
+reparent). Any node may carry a `name` (content schema 2.12, optional) – the editor's tree shows it instead of the
+type, so a tree of several groups and videos stays readable; the reader ignores it.
 
 **A light** (`type: light`, content schema 2.6) lights the entity it belongs to – under a group or a model it moves
 with it; the scene's own ambient light and sun stay. Its values are under `light:` (every one optional):
@@ -523,6 +525,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know |
 | 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) |
 | 2.11 | 1.22.0 | in develop | the content manifest names its book (`latest.json` / `versions.json` `book`) |
+| 2.12 | 1.27.0 | in develop | a node's optional `name` (the editor's tree shows it; the reader ignores it) |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
