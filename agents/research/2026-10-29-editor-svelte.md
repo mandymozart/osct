@@ -98,9 +98,18 @@ Svelte editor and recommends one.
    token, the draft as a game configuration, publish to staging.
 4. Retire the reader's `/editor` sheet (ask), keep `/stage`.
 
-## Open for Tilman
+## Decided (Tilman, 2026-10-29, right after reading)
 
-- C (Scutoons monorepo, editor.scutoons.com), or B (a Svelte app inside the OSCT repo and image)?
-- Who signs in: a Scutoons member with an instance token (the bridge), or an OSCT editor account?
-- Does the reader's vanilla `/editor` stay as the on-device quick tool after the Svelte editor exists, or go?
-- The name: `editor` in the monorepo, or something that says AR (`stage`, `animus`)?
+- **Who signs in: an OSCT instance user** ("also ein OSCT-Instanzen-User") – the accounts API's users with an editor
+  role (`book_editors` in the data model), no Scutoons member, no instance token.
+- **Independent of Scutoons for now** ("das Ding ist Scutoons-unabhängig im Moment") – so not C. The editor stays in
+  the OSCT repository; the Scutoons dogma is followed, its kit is not a dependency (it is unpublished anyway). The
+  bridge to Scutoons stays a direction, not a build step.
+- Still open: **A** (Svelte inside the reader's lazily loaded editor chunk – one build, one deploy, the stage in
+  process) or **B** (a SvelteKit app in the OSCT repo, served at `/editor` from the same image – a second build, the
+  stage through an iframe on the same origin). With the kit out of the picture the difference is tooling, not UI:
+  A adds `@sveltejs/vite-plugin-svelte` to the reader's build but nothing to the reader's start path; B keeps the
+  reader's build Svelte-free and gives the editor its own routes and page frame. Recommendation now: **A** – the stage
+  protocol is built in both cases, and A reaches parity with today's sheet in about a day; B when the editor outgrows
+  a chunk (forms for every entry, history, the database step).
+- Whether the vanilla `/editor` sheet stays as the on-device quick tool, and the name, stay open.
