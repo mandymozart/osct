@@ -29,8 +29,8 @@ final class Passwords
 
         Db::run('DELETE FROM password_attempts WHERE created_at < :before', ['before' => Db::now(-86400)]);
         $hourAgo = Db::now(-3600);
-        if ((int) Db::value('SELECT COUNT(*) FROM password_attempts WHERE email = :email AND created_at > :since', ['email' => $email, 'since' => $hourAgo]) >= Config::limit('PASSWORD_MAX_FAILS_PER_EMAIL_HOUR')
-            || (int) Db::value('SELECT COUNT(*) FROM password_attempts WHERE ip_hash = :ip AND created_at > :since', ['ip' => $ipHash, 'since' => $hourAgo]) >= Config::limit('PASSWORD_MAX_FAILS_PER_IP_HOUR')) {
+        if ((int) Db::value('SELECT COUNT(*) FROM password_attempts WHERE email = :email AND created_at > :since', ['email' => $email, 'since' => $hourAgo]) >= Config::int('PASSWORD_MAX_FAILS_PER_EMAIL_HOUR')
+            || (int) Db::value('SELECT COUNT(*) FROM password_attempts WHERE ip_hash = :ip AND created_at > :since', ['ip' => $ipHash, 'since' => $hourAgo]) >= Config::int('PASSWORD_MAX_FAILS_PER_IP_HOUR')) {
             throw new ApiError(429, 'too-many-password-attempts', 'Too many wrong passwords – try again later or sign in with the email.');
         }
 
