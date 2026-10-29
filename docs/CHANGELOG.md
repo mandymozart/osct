@@ -12,6 +12,12 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.19.1 – 2026-10-30
+
+### Fixed
+- **The spread cards keep a thin border around the page image** (#115): 1.17.4 removed it with the card's border;
+  the card stays borderless, the image is framed again, and the grid's gap is 1rem in both directions.
+
 ## 1.19.0 – 2026-10-30
 
 ### Added

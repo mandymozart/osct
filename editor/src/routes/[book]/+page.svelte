@@ -116,10 +116,10 @@
   .top a { text-decoration: none; }
   .grow { flex: 1; }
   main { max-width: 80rem; margin: 0 auto; padding: 1rem; }
-  .spreads { list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: .75rem .25rem; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); }
+  .spreads { list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); }
   .spread { display: block; text-decoration: none; border-radius: var(--control-radius); }
   .spread:hover { background: var(--hover-background); }
-  .sheet { display: block; width: 100%; background: var(--surface-head); overflow: hidden; }
+  .sheet { display: block; width: 100%; box-sizing: border-box; background: var(--surface-head); border: 1px solid var(--line); overflow: hidden; }
   .sheet img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .sheet img.single { width: 200%; max-width: none; margin-left: -100%; }
   .caption { display: flex; align-items: center; gap: .5rem; padding: .25rem 0; white-space: nowrap; overflow: hidden; }
