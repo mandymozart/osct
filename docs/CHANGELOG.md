@@ -31,6 +31,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - The reader's content check lets environment fields of later schema versions pass (the build and the editor's API stay
   strict), so the next additions load in this app.
 
+### Fixed
+- The world around the reader faded only on a pause: turning both Graphics switches off while scanning left it drawn.
+
 ## 1.19.4 – 2026-10-30
 
 ### Fixed
