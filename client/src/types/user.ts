@@ -46,7 +46,8 @@ export type UserStatus = "signed-out" | "pending" | "signed-in";
 export type ProgressSyncStatus = "off" | "syncing" | "synced" | "pending";
 
 /** Something the account section tells the reader once (after a link or password sign-in, sign-out, deletion, a password change) */
-export type UserNotice = "confirmed" | "signed-in" | "signed-out" | "deleted" | "password-saved" | { error: string };
+/** An error notice carries the API's code; `retryAfter` = seconds until a refused request is allowed again (429) */
+export type UserNotice = "confirmed" | "signed-in" | "signed-out" | "deleted" | "password-saved" | { error: string; retryAfter?: number };
 
 export interface UserSnapshot {
   status: UserStatus;

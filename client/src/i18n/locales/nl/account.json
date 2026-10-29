@@ -43,6 +43,8 @@
     "already-used": "Deze link of code is al gebruikt. Vraag een nieuwe e-mail aan om op dit apparaat in te loggen.",
     "too-many-attempts": "Te veel verkeerde codes. Vraag een nieuwe e-mail aan.",
     "too-many-requests": "Te veel e-mails in korte tijd. Probeer het over een uur opnieuw.",
+    "too-many-requests-wait_one": "Te veel e-mails in korte tijd. Probeer het over {{count}} minuut opnieuw.",
+    "too-many-requests-wait_other": "Te veel e-mails in korte tijd. Probeer het over {{count}} minuten opnieuw.",
     "mail-failed": "De e-mail kon niet worden verstuurd. Probeer het later opnieuw.",
     "offline": "Geen verbinding met de server. Controleer je internetverbinding.",
     "unauthorized": "Je bent uitgelogd. Log opnieuw in.",
