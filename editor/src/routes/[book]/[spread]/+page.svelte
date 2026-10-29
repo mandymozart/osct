@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { base } from "$app/paths";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
@@ -14,7 +14,7 @@
   import LibraryPanel from "$lib/panels/LibraryPanel.svelte";
   import CodePanel from "$lib/panels/CodePanel.svelte";
   import EnvironmentPanel from "$lib/panels/EnvironmentPanel.svelte";
-  import { environmentEdit, type EnvironmentSlot } from "$lib/environment.svelte";
+  import { environmentEdit } from "$lib/environment.svelte";
   import NewTargetForm from "$lib/panels/NewTargetForm.svelte";
   import { deleteEntry, putTarget, type Asset } from "$lib/api";
   import { library } from "$lib/library.svelte";
@@ -249,27 +249,19 @@
     if (selection.target === target.id) selection.reset();
     await reloadContent();
   };
-  // ── the environment: previewed on the stage while its tab is open or the Library picks a file for it ──
+  // ── the environment: previewed on the stage while its tab is open (its Library picker included) ──
   $effect(() => {
-    const previewing = shown === "environment" || (shown === "library" && !!environmentEdit.picking);
-    stage?.previewEnvironment(previewing ? $state.snapshot(environmentEdit.edited) : null);
+    stage?.previewEnvironment(shown === "environment" ? $state.snapshot(environmentEdit.edited) : null);
   });
   $effect(() => {
-    if (shown !== "library" && shown !== "environment") environmentEdit.picking = null;
+    if (shown !== "environment") environmentEdit.picking = null;
   });
-  const pickForEnvironment = (slot: EnvironmentSlot) => {
-    environmentEdit.picking = slot;
-    openTab("library");
-  };
-  const useForEnvironment = (slot: EnvironmentSlot, asset: Asset) => {
-    environmentEdit.use(slot, asset.url);
-    openTab("environment");
-  };
 
-  /** The library's Use: the selected node takes the file */
-  const useAsset = (asset: Asset) => {
+  /** The library's Use: the selected node takes the file (the Entity panel shows first – the Library tab replaced it) */
+  const useAsset = async (asset: Asset) => {
+    openTab("entity");
+    await tick();
     entityPanel?.useAsset(asset.kind, asset.url, asset.id);
-    if (shown !== "entity") setTab("entity");
   };
   const useAsTargetImage = async (asset: Asset) => {
     if (!selection.target) return;
@@ -541,12 +533,11 @@
     {:else if shown === "stage"}
       <div class="body"><StagePanel {stage} {bookId} {spreadId} /></div>
     {:else if shown === "entity"}
-      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selection.target} bind:node={selection.node} {pickColour} onlibrary={() => setTab("library")} ontargetchanged={reloadContent} /></div>
+      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} /></div>
     {:else if shown === "environment"}
-      <div class="body"><EnvironmentPanel {stage} {bookId} onlibrary={pickForEnvironment} /></div>
+      <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
     {:else if shown === "library"}
-      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent}
-        environmentSlot={environmentEdit.picking} onuseenvironment={useForEnvironment} /></div>
+      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} /></div>
     {:else if shown === "code"}
       <div class="body code"><CodePanel {bookId} {stage} /></div>
     {/if}

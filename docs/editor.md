@@ -166,8 +166,10 @@ is involved.
     **node tree** – the root node (● while the stage shows it with other values than the draft's; the shared ref) and
     its children, as deep as the content nests them. A tap on a node selects it and opens the Entity panel; a tap on
     the stage selects the root. **+ target** at the end of the tree opens the form for a new target on the spread:
-    title, page, category, the printed image from the library (or uploaded there), and where it is printed (surface,
-    x / y, width in mm) – the API makes entry and target, the stage shows it at once (and the reader tracks it after
+    title, page, the printed image (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image,
+    text, group or light, with its file or line), the **entry category** (where the reader's consultation menu lists
+    it – it follows what appears, a video makes a Videos entry, until set by hand; #165), and where it is printed
+    (surface, x / y, width in mm) – the API makes entry and target, the stage shows it at once (and the reader tracks it after
     a publish: the engine makes the image-target data from the image at runtime); the target row's right-click
     menu has **Remove target** (entry and target go). **Delete** (or Backspace)
     removes the selected node – its children with it, the root leaves the target without AR content – and a
@@ -254,12 +256,18 @@ is involved.
     while hovered or after a click on ▷ –, the type's icon else; where the file belongs – the import names every file
     `image.jpg`, `target.jpg`, `video.mp4` in a folder per entry, so a card reads `p015-1 · target` –, kind, size,
     dimensions, the number of uses) or a plain **list** (name, place, kind, size, uses; a click on a row opens its
-    actions) – the **view** is remembered per browser; filter by kind, search by name and place (`p015 target`), **Upload** (the
-    button, or files dropped on the panel); per file **Use** (the selected node takes it, when its type fits),
-    **Target image** (an image becomes the selected target's printed image), **Replace…** (a new version, every use
-    relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes name a file by
-    its absolute URL, so draft and every publish point at the same file. While the Environment tab picks a file, a
-    fitting card has a **World** (a glTF model) or **Sky** button (a jpg, png or webp) and the kind filter starts there.
+    actions) – the **view** is remembered per browser; filter by kind (**target image** – a target's image in the
+    draft, or the import's `target.*` – apart from the other images, video, model, audio), search by name and place
+    (`p015 target`), **Upload** (the button, or files dropped on the panel); per file **Use** (the selected node takes
+    it, when its type fits), **Target image** (an image becomes the selected target's printed image), **Replace…** (a
+    new version, every use relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces
+    it). Nodes name a file by its absolute URL, so draft and every publish point at the same file.
+    **The Library as the picker** (#164): every file field – a target's printed image, a node's file, a new node's
+    file, the new target's files, the environment's world and sky – shows the file (a picture as a preview, every file
+    by its place) with **Library…** and **Upload…**. *Library…* opens the Library in place of the panel as a picker
+    (`LibraryPanel` with `pick`, `editor/src/lib/library-pick.ts`): the filter starts at the kind being picked, a
+    click on a fitting card picks it for that one field and returns, an upload that fits is picked at once, *cancel* or
+    Esc returns without one; the panel underneath keeps its values. Selecting another target or node closes it.
   - **Environment** – the book's world around the reader and its sky (content schema 2.8 / 2.10,
     [content guide](content.md) "Environment", [look-around](look-around.md)). While the tab is open the stage shows the
     **engine's own look-around pass** with the values being edited – the world anchored to the book, the window around
@@ -267,7 +275,7 @@ is involved.
     the view as a phone's gyroscope would turn it (`MockTracker.worldOrientation`, `ArScene.previewEnvironment` – an
     editor-only method, not part of `IArScene`). **look up** raises the camera from the book towards the horizon and the
     sky (the targets stay found, as the reader's world stays for 45 s). Rows: **world** – the built-in *café*, or a glTF
-    model; **sky** – *the world's*, or an equirectangular image; each with *Library…* (the Library picks it, see above),
+    model; **sky** – *the world's*, or an equirectangular image; each with *Library…* (the Library as the picker, see above),
     *Upload* (into the Library and taken at once) and *remove* (back to the built-in part); **onion sky** on / off (it
     needs a camera picture, so only the reader shows it). Changes show at once; **Save** writes the environment to the
     draft (`PUT /editor/books/{id}/environment`), *Back to the draft* undoes, *Use the default* removes it. The book page
@@ -290,9 +298,9 @@ is involved.
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;
     **Save placement** writes it; until then a target made in the editor lies where its form put it, an imported one
     where the book's layout says), and its AR content as a link one level down. A selected entity or node shows
-    that **node**: its **name** (empty = the tree shows the type), its **file** (name; **Upload…** or **Library…**),
-    **+ node** (type – group, model, video, image, text or light – and for model / video / image a file from the
-    book's assets – the root of a target without AR content, else placed by **add as**: *next to it* (the same parent,
+    that **node**: its **name** (empty = the tree shows the type), its **file** (the file field: **Library…** – the Library as the picker, with the filter set – or **Upload…**),
+    **+ node** (type – group, model, video, image, text or light – and for model / video / image a file chosen in
+    the Library as the picker – the root of a target without AR content, else placed by **add as**: *next to it* (the same parent,
     right after the selected node – the default for a model, video or image) or *inside it* (its last child)),
     **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
     text and colour, a light node's **light** rows (kind as a segmented group, colour, intensity, distance and decay
@@ -358,7 +366,7 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`) and the reader's graphics options |
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts` |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the Library's filters and picks in `library-pick.ts`, the new target's choices in `new-target.ts` |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |

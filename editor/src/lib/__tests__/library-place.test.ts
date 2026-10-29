@@ -5,7 +5,7 @@ const file = (url: string, name = url.split("/").pop() ?? url) => ({ name, url }
 
 describe("where a library file belongs", () => {
   it("names an imported file by its entry and its role", () => {
-    expect(assetPlace(file("/assets/content/entries/p015-1/target.jpg"))).toEqual({ collection: "entries", place: "p015-1", label: "p015-1 · target" });
+    expect(assetPlace(file("/assets/content/entries/p015-1/target.jpg"))).toEqual({ collection: "entries", place: "p015-1", role: "target", label: "p015-1 · target" });
   });
 
   it("reads the place below an assets base (a CDN URL with a query)", () => {
@@ -18,7 +18,7 @@ describe("where a library file belongs", () => {
   });
 
   it("an upload has no place: its label is its name", () => {
-    expect(assetPlace(file("https://api.example/content/assets/osct/1f2e/v1.png", "Dot.png"))).toEqual({ collection: null, place: null, label: "Dot.png" });
+    expect(assetPlace(file("https://api.example/content/assets/osct/1f2e/v1.png", "Dot.png"))).toEqual({ collection: null, place: null, role: null, label: "Dot.png" });
     expect(assetPlace(file("/assets/content/logo.png")).place).toBeNull();
   });
 });

@@ -1,47 +1,45 @@
 <script lang="ts">
   import { ApiError, type Asset } from "$lib/api";
+  import { content } from "$lib/content.svelte";
   import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
   import { assetPlace, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "$lib/library-place";
+  import {
+    FILTER_LABELS, LIBRARY_FILTERS, matchesFilter, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryPick,
+  } from "$lib/library-pick";
   import Icon from "$lib/components/Icon.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
   import AssetThumb from "./AssetThumb.svelte";
-  import { fitsSlot, type EnvironmentSlot } from "$lib/environment.svelte";
 
   /**
    * The book's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
    * read-only – docs/server.md "Assets"). A grid of cards – a preview (`AssetThumb`: images, a video's poster that
    * plays) – with where the file belongs (`p015-1 · target`, `assetPlace`), kind, size, dimensions and the number of
-   * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter by kind, search name and place;
-   * **Upload** (the button, or files dropped anywhere on the panel); per asset **Use** (the selected node takes the
-   * file, when its type fits; an image can also become the selected target's printed image), **Replace…** (a new
-   * version, every use relinked) and **Delete** (refused while used – *Delete anyway* forces it). While the Environment
-   * tab picks a file (`environmentSlot`), a fitting asset has a **World** / **Sky** button and the kind filter starts there.
+   * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter
+   * by kind – target images apart from the other images –, search name and place; **Upload** (the button, or files
+   * dropped anywhere on the panel). Opened from the tab: per asset **Use** (the selected node takes the file, when its
+   * type fits), **Target image** (the selected target's printed image), **Replace…** (a new version, every use
+   * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
+   * field's *Library…* – #164): the filter starts at the kind being picked, a click on a fitting file picks it for that
+   * one field and returns, an upload that fits is picked at once; *cancel* or Esc returns without one.
    */
-  let { bookId, nodeType, targetId, onuse, onusetarget, onchanged, environmentSlot = null, onuseenvironment }: {
+  let { bookId, pick = null, nodeType = null, targetId = null, onuse, onusetarget, onchanged }: {
     bookId: string;
+    /** Opened as a picker for one field */
+    pick?: LibraryPick | null;
     /** The selected node's type (its file kind) – null without a node */
-    nodeType: string | null;
+    nodeType?: string | null;
     /** The selected target (an image may become its printed image) */
-    targetId: string | null;
+    targetId?: string | null;
     /** The selected node takes this asset */
-    onuse: (asset: Asset) => void;
+    onuse?: (asset: Asset) => void;
     /** The selected target's printed image becomes this asset */
-    onusetarget: (asset: Asset) => Promise<void>;
+    onusetarget?: (asset: Asset) => Promise<void>;
     /** A replace changed the draft (uses relinked): the content should reload */
-    onchanged: () => Promise<void>;
-    /** The environment's file being picked (the Environment tab's *Library…*), null = none */
-    environmentSlot?: EnvironmentSlot | null;
-    /** The environment takes this asset for the slot */
-    onuseenvironment?: (slot: EnvironmentSlot, asset: Asset) => void;
+    onchanged?: () => Promise<void>;
   } = $props();
 
-  const KINDS = ["all", "model", "video", "image", "audio"] as const;
-  type KindFilter = (typeof KINDS)[number];
-  let kind = $state<KindFilter>("all");
-  // Picking for the environment: the kind that fits first
-  $effect(() => {
-    if (environmentSlot) kind = environmentSlot === "world" ? "model" : "image";
-  });
+  // svelte-ignore state_referenced_locally
+  let filter = $state<LibraryFilter>(pick ? pickFilter(pick.subject) : "all");
   let search = $state("");
   let fileInput = $state<HTMLInputElement>();
   let replaceInput = $state<HTMLInputElement>();
@@ -61,17 +59,30 @@
     if (library.bookId !== bookId) void library.load(bookId);
   });
 
-  const KIND_OF: Record<string, readonly string[]> = { model: ["glb", "gltf"], video: ["video"], image: ["image"], audio: ["audio"] };
-  const shown = $derived(library.assets.filter(asset =>
-    (kind === "all" || KIND_OF[kind]?.includes(asset.kind)) && matchesSearch(asset, search)));
+  const targetImages = $derived(targetImagesOf(content.spreads));
+  const shown = $derived(library.assets.filter(asset => matchesFilter(asset, filter, targetImages) && matchesSearch(asset, search)));
   const fits = (asset: Asset) => !!nodeType && (NODE_ASSET_KINDS[nodeType] ?? []).includes(asset.kind);
+  const pickable = (asset: Asset) => !!pick && pickFits(pick.subject, asset);
   const size = (bytes: number) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`);
+
+  const choose = (asset: Asset) => {
+    if (pick && pickFits(pick.subject, asset)) void pick.onpick(asset);
+  };
+  /** A click on a card or a row while picking: a fitting file is picked (its own buttons – a video's play – stay theirs) */
+  const pickFrom = (event: MouseEvent, asset: Asset) => {
+    if (!(event.target as Element).closest("button, a, video")) choose(asset);
+  };
 
   const uploadFiles = async (files: FileList | File[]) => {
     notice = null;
     for (const file of Array.from(files)) {
       try {
-        await library.upload(bookId, file);
+        const asset = await library.upload(bookId, file);
+        // Picking: the first upload that fits is the pick
+        if (pick) {
+          if (pickFits(pick.subject, asset)) return choose(asset);
+          notice = `${asset.name} does not fit ${pick.label} – it stays in the Library`;
+        }
       } catch {
         // library.error says
       }
@@ -93,7 +104,7 @@
     try {
       const next = await library.replace(bookId, asset.id, file);
       notice = `${next.name} is version ${next.version}; ${next.usages} use${next.usages === 1 ? "" : "s"} relinked`;
-      await onchanged();
+      await onchanged?.();
     } catch {
       // library.error says
     }
@@ -108,43 +119,56 @@
       else library.error = e instanceof ApiError ? e.message : String(e);
     }
   };
+  const onKey = (event: KeyboardEvent) => {
+    if (pick && event.key === "Escape" && !event.defaultPrevented) pick.oncancel();
+  };
 </script>
 
 {#snippet actions(asset: Asset)}
-  {#if environmentSlot && fitsSlot(asset, environmentSlot)}
-    <button type="button" class="pill primary" title={environmentSlot === "world" ? "The world around the reader" : "The sky of the world around the reader"}
-      onclick={() => onuseenvironment?.(environmentSlot, asset)}>{environmentSlot === "world" ? "World" : "Sky"}</button>
-  {/if}
-  <button type="button" class="pill" disabled={!fits(asset)} title={fits(asset) ? "The selected node takes this file" : nodeType ? `A ${nodeType} node takes no ${asset.kind}` : "Select a node first"} onclick={() => onuse(asset)}>Use</button>
-  {#if asset.kind === "image" && targetId}
-    <button type="button" class="pill" title="The selected target's printed image" onclick={() => void onusetarget(asset)}>Target image</button>
-  {/if}
-  {#if asset.imported}
-    <span class="small muted" title="From the content import – replaced by the next import, not here">imported</span>
-  {:else}
-    <button type="button" class="text-link" onclick={() => startReplace(asset)}>Replace…</button>
-    {#if confirming === asset.id}
-      <span class="small danger">in use –</span>
-      <button type="button" class="text-link danger" onclick={() => void remove(asset, true)}>Delete anyway</button>
-      <button type="button" class="text-link" onclick={() => (confirming = null)}>keep</button>
+  {#if pick}
+    {#if pickable(asset)}
+      <button type="button" class="pill" class:primary={pick.current !== asset.url} class:on={pick.current === asset.url}
+        title={pick.current === asset.url ? `Chosen now for ${pick.label}` : `Take this file for ${pick.label}`} onclick={() => choose(asset)}>{pick.current === asset.url ? "Chosen" : "Pick"}</button>
     {:else}
-      <button type="button" class="text-link" onclick={() => void remove(asset, false)}>Delete</button>
+      <span class="small muted">does not fit</span>
+    {/if}
+  {:else}
+    <button type="button" class="pill" disabled={!fits(asset)} title={fits(asset) ? `The selected ${nodeType} node takes this file` : nodeType ? `A ${nodeType} node takes no ${asset.kind}` : "Select a node first"} onclick={() => onuse?.(asset)}>Use</button>
+    {#if asset.kind === "image" && targetId && onusetarget}
+      <button type="button" class="pill" title="Becomes the printed image of the target {targetId}" onclick={() => void onusetarget(asset)}>Target image</button>
+    {/if}
+    {#if asset.imported}
+      <span class="small muted" title="From the content import – replaced by the next import, not here">imported</span>
+    {:else}
+      <button type="button" class="text-link" onclick={() => startReplace(asset)}>Replace…</button>
+      {#if confirming === asset.id}
+        <span class="small danger">in use –</span>
+        <button type="button" class="text-link danger" onclick={() => void remove(asset, true)}>Delete anyway</button>
+        <button type="button" class="text-link" onclick={() => (confirming = null)}>keep</button>
+      {:else}
+        <button type="button" class="text-link" onclick={() => void remove(asset, false)}>Delete</button>
+      {/if}
     {/if}
   {/if}
 {/snippet}
 
+<svelte:window onkeydown={onKey} />
+
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="library" class:dragging ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop}>
-  {#if environmentSlot}
-    <div class="row"><span class="small muted">Picking the environment's {environmentSlot === "world" ? "world – a glTF model" : "sky – an equirectangular jpg, png or webp"}: its <b>{environmentSlot === "world" ? "World" : "Sky"}</b> button takes it.</span></div>
+  {#if pick}
+    <div class="section picking"><span class="section-label">library · {pick.label}</span>
+      <button type="button" class="text-link" title="Back without a file (Esc)" onclick={pick.oncancel}>cancel</button></div>
   {/if}
   <div class="row"><span class="label">kind</span>
-    <span class="controls"><Segmented options={KINDS} value={kind} onchange={k => (kind = k)} /></span></div>
+    <span class="controls"><Segmented options={LIBRARY_FILTERS} value={filter} labels={FILTER_LABELS}
+      titles={{ target: "Pictures printed in the book: used as a target's image, or the import's target of an entry", image: "Images that are no target image" }}
+      onchange={f => (filter = f)} /></span></div>
   <div class="row"><span class="label">search</span>
     <span class="controls">
       <input class="field grow" placeholder="name or entry" bind:value={search} aria-label="Search the library" />
-      <button type="button" class="pill framed" data-help-name="Upload" data-help="Upload a model (glb), a video, an image or a sound – or drop files on the library." onclick={() => fileInput?.click()}><Icon name="plus" /> Upload</button>
-      <input bind:this={fileInput} type="file" accept={ACCEPT} multiple hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files; if (f?.length) void uploadFiles(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
+      <button type="button" class="pill framed" data-help-name="Upload" data-help="Upload a model (glb), a video, an image or a sound – or drop files on the library. While picking, an upload that fits is the pick." onclick={() => fileInput?.click()}><Icon name="plus" /> Upload</button>
+      <input bind:this={fileInput} type="file" accept={pick ? pickAccept(pick.subject) : ACCEPT} multiple={!pick} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files; if (f?.length) void uploadFiles(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
       <input bind:this={replaceInput} type="file" accept={ACCEPT} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void doReplace(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
     </span></div>
   <div class="row"><span class="label">view</span>
@@ -163,14 +187,15 @@
       <tbody>
         {#each shown as asset (asset.id)}
           {@const place = assetPlace(asset)}
-          <tr class:on={opened === asset.id} onclick={() => (opened = opened === asset.id ? null : asset.id)}>
-            <td class="name" title={asset.url}><button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</td>
+          <tr class:on={opened === asset.id || (!!pick && pick.current === asset.url)} class:unfit={!!pick && !pickable(asset)}
+            onclick={e => (pick ? pickFrom(e, asset) : (opened = opened === asset.id ? null : asset.id))}>
+            <td class="name" title={asset.url}>{#if pick}<button type="button" class="open" disabled={!pickable(asset)} onclick={() => choose(asset)}>{asset.name}</button>{:else}<button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{/if}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</td>
             <td class="name place" title={place.place ?? ""}>{place.place ?? "upload"}</td>
             <td class="muted kind">{asset.kind}</td>
             <td class="num muted size">{size(asset.size)}</td>
             <td class="num muted uses">{asset.usages}<span class="unit"> use{asset.usages === 1 ? "" : "s"}</span></td>
           </tr>
-          {#if opened === asset.id}
+          {#if opened === asset.id && !pick}
             <tr class="more"><td colspan="5"><div class="actions">{@render actions(asset)}</div></td></tr>
           {/if}
         {/each}
@@ -180,7 +205,9 @@
     <ul class="grid">
       {#each shown as asset (asset.id)}
         {@const place = assetPlace(asset)}
-        <li class="card">
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (the Pick button is the keyboard's way) -->
+        <li class="card" class:picking={!!pick} class:current={!!pick && pick.current === asset.url} class:unfit={!!pick && !pickable(asset)}
+          onclick={pick ? e => pickFrom(e, asset) : undefined}>
           {#key asset.url}<AssetThumb {asset} />{/key}
           <div class="name" title={asset.url}>{place.label}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</div>
           <div class="small muted">{asset.kind} · {size(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}</div>
@@ -198,6 +225,13 @@
   .controls .grow { flex: 1; min-width: 6rem; }
   .grid { list-style: none; margin: .375rem 0 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
   .card { display: flex; flex-direction: column; gap: .2rem; padding: .375rem; border: 1px solid var(--line); border-radius: var(--control-radius); min-width: 0; }
+  /* Picking: a fitting card is one click; the chosen file is framed, what does not fit fades */
+  .card.picking:not(.unfit) { cursor: pointer; }
+  .card.picking:not(.unfit):hover { background: var(--hover-background); }
+  .card.current { border-color: var(--text); }
+  .unfit { opacity: .45; }
+  .list tbody tr.unfit { cursor: default; }
+  .section.picking { margin-top: 0; border-top: none; padding-top: 0; }
   .list { width: 100%; margin-top: .375rem; border-collapse: collapse; table-layout: fixed; }
   .list th { text-align: left; font-weight: normal; color: var(--muted); font-size: var(--text-small); }
   .list th, .list td { padding: .2rem .25rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
