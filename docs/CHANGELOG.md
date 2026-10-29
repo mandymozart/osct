@@ -39,6 +39,19 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   `StorageClient` (retry on 5xx and lost connections, never on 4xx), the CLI arguments, the content validator, the
   mapping reader, the schema lock, and the sync and purge against a storage zone in memory. The scripts tests remove
   their temp folders.
+## 1.26.8 – 2026-10-30
+
+### Added
+- **The tutorial page walks through the demo book** (#148): `/docs/tutorials/` has a second chapter, *The demo book*,
+  with ten screenshots from the editor (WebP, under `/docs/tutorials/demo/`, 433 KB together). It covers getting the
+  demo in (import by URL, the staging reader with `?content=`, publishing only to `local`), the six spreads with
+  their node types and components, the story across the pages played in the editor (*Replay the first find*, the
+  variables and events), how a component's `params` become Entity panel rows (the `door` component in the Code
+  tab, Run vs Save), a pitfall (`lamp` on the door, *Back to the draft*), post-processing, the environment and sky,
+  the shading modes and the editor on a phone. A table of contents at the top links both chapters.
+
+### Fixed
+- **The tutorial page no longer scrolls sideways on a phone**: long URLs in code and table cells wrap.
 
 ## 1.26.7 – 2026-10-30
 
