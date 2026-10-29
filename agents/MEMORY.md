@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The book's environment, content schema 2.8 (#79)
+
+- Tilman confirmed the draft's two open decisions: the environment is a MINOR step after the light nodes' 2.6. It was
+  first numbered 2.7, but #80 (demo book) took 2.7 on develop, so it is **2.8** (the rebase takes the next free number; the reader's Graphics switches **apply on top**
+  of the content (the content cannot turn on what the reader has off). Built: `environment: { world, onionSky }` in
+  `book.yaml` (`shared/types/environment.ts`, one world `cafe`), `effectiveGraphics` in the engine's `LookAround`, the
+  guard and the build check it, `PUT /editor/books/{id}/environment` (draft path), an Environment block on the book page.
+  A book without it keeps today's look (`DEFAULT_ENVIRONMENT`).
+- Open (#79 "not in this step"): world assets (an equirectangular dome), per-spread overrides, tuning values in the
+  editor, the stage preview of the look-around pass. The café is the only world, so `surroundings` follows `world`
+  through a single check in `effectiveGraphics`; a second world needs its own branch there.
+- The editor's package check (`svelte-check`) could not run here: the editor's `node_modules` is not installed.
 ## 2026-10-30 – `api.registerPass` wired (#97, 1.16.1) – the pass names are open
 
 - The plugin API's `registerPass(type, spec, factory)` now reaches the engine's pass registry with the plugin as owner;
