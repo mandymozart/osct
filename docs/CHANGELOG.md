@@ -30,6 +30,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - The book page shows the environment as one line with a link to the stage instead of its own form.
 - The reader's content check lets environment fields of later schema versions pass (the build and the editor's API stay
   strict), so the next additions load in this app.
+
 ## 1.19.4 – 2026-10-30
 
 ### Fixed

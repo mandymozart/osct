@@ -200,7 +200,20 @@ is involved.
     button, or files dropped on the panel); per file **Use** (the selected node takes it, when its type fits),
     **Target image** (an image becomes the selected target's printed image), **Replace…** (a new version, every use
     relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes name a file by
-    its absolute URL, so draft and every publish point at the same file.
+    its absolute URL, so draft and every publish point at the same file. While the Environment tab picks a file, a
+    fitting card has a **World** (a glTF model) or **Sky** button (a jpg, png or webp) and the kind filter starts there.
+  - **Environment** – the book's world around the reader and its sky (content schema 2.8 / 2.9,
+    [content guide](content.md) "Environment", [look-around](look-around.md)). While the tab is open the stage shows the
+    **engine's own look-around pass** with the values being edited – the world anchored to the book, the window around
+    it and the clear floor – under the desk and the book (the studio's HDRI sky steps aside, its light stays), turned by
+    the view as a phone's gyroscope would turn it (`MockTracker.worldOrientation`, `ArScene.previewEnvironment` – an
+    editor-only method, not part of `IArScene`). **look up** raises the camera from the book towards the horizon and the
+    sky (the targets stay found, as the reader's world stays for 45 s). Rows: **world** – the built-in *café*, or a glTF
+    model; **sky** – *the world's*, or an equirectangular image; each with *Library…* (the Library picks it, see above),
+    *Upload* (into the Library and taken at once) and *remove* (back to the built-in part); **onion sky** on / off (it
+    needs a camera picture, so only the reader shows it). Changes show at once; **Save** writes the environment to the
+    draft (`PUT /editor/books/{id}/environment`), *Back to the draft* undoes, *Use the default* removes it. The book page
+    shows the environment as one line with *Edit on the stage* (the first spread, `?tab=environment`).
   - **Stage** – the stage's settings: **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the
     default) or *Schöpfer*. **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is
     rendered). All stored on the device. The camera is moved on the stage itself: **drag** orbits, **Shift + drag**,
