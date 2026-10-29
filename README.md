@@ -32,6 +32,7 @@ the camera only works over https). The accounts API runs locally with `npm run d
 | `editor/` | The authors' editor: a SvelteKit app at `/editor` – the engine over the mock stage, saving and publishing through the API |
 | `scripts/` | Content build and the `osct` CLI (content sync to the CDN), delivery import |
 | `server/` | Accounts API (plain PHP 8, PDO) and the Docker image's Apache config |
+| `mcp/` | The MCP server: a Claude session works on a book as a signed-in editor over the API (stdio, Node 22) |
 | `shared/` | The content contract: game-configuration types and guards used by app and build |
 | `fixtures/content/` | Test fixture with the content layout – CI and the tests build it |
 | `fixtures/demo/` | The demo book: a sandbox that uses everything the editor and the engine can do – [plugins](docs/plugins.md) "The demo book" |
@@ -54,6 +55,7 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
 - [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish), shipped at `/docs/tutorials/`
 - [Plugins](docs/plugins.md) – writing the book's own code: a layer, a component, the Code tab, the content build
 - [Admin](docs/admin.md) – the instance's users and roles at `/editor/admin`, the newsletter CSV
+- [MCP server](docs/mcp.md) – a Claude session as an editor over the API (`mcp/`): signing in, the tools, an example
 - [Languages](docs/i18n.md) – UI texts and translations
 - [Server](docs/server.md) – the accounts API
 - [Deploy](docs/deploy.md) – Kamal, staging and production, the board
@@ -63,13 +65,14 @@ Rules for the code (naming, imports, versions, comments) are in [agents/RULES.md
 
 ## Tests
 
-One approach per layer; all three run in CI (`.github/workflows/checks.yml`) on every push.
+One approach per layer; all of them run in CI (`.github/workflows/checks.yml`) on every push.
 
 | Layer | Where | Run |
 |---|---|---|
 | App: store, managers, services, utils, components | `client/src/**/__tests__/*.test.ts` (vitest, happy-dom) | `cd client && npx tsc --noEmit && npx vitest run` |
 | Content build, CDN sync and purge planning, delivery import | `scripts/test/*.test.ts` (vitest, node) | `cd scripts && npm test` |
 | Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite) | `php server/tests/api-test.php` |
+| MCP server | `mcp/test/*.test.ts` (vitest: a mocked fetch per tool; end to end over stdio against the PHP API) | `cd mcp && npx tsc --noEmit && npm test` |
 
 The client tests need a built game configuration (`npm run content`, the fixture is enough). Test content is
 always the fixture, never the book (RULES #8).

@@ -1118,8 +1118,11 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        a plain code editor, Run = browser transpile (sucrase) into the stage's registry, Save, Download; the editor's
        stage is the only place unchecked code runs, a publish refuses component types no declared plugin provides.
        Open: [ ] the content build in the image, run by the API on publish (#78, Tilman: option 2), [ ] the API's type stubs with
-       completion and type errors in the Code tab (#76, Monaco), [ ] `registerNodeType` (#77), [ ] an MCP server
-       over the editor's API for building with Claude in Amsterdam (#75).
+       completion and type errors in the Code tab (#76, Monaco), [ ] `registerNodeType` (#77), [x] an MCP server
+       over the editor's API for building with Claude in Amsterdam (#75, 1.16.0: `mcp/` after SCUTOONS' model – whoami,
+       the sign-in pair, the book's tree / spreads / entities / targets / entries / assets / plugin sources / draft /
+       publish to local and staging / logs, `describe_content_model`, the shared guard before every write; the stage
+       itself stays unseen – `agents/research/2026-10-30-mcp-server.md`).
 5. [~] Spread **formats** (Tilman 2026-10-29: "Format als assignable ins Modell … default Spread, special Front und
        Back, Bonus Museumswand") and the geometry import (#60): [x] the import from the designed PDFs (`npm run
        layout`, 1.10.0); [x] `format` on a spread (schema 2.3): `spread`, `cover`, `back` – the covers as spreads of
