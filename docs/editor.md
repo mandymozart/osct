@@ -84,11 +84,13 @@ again). Nothing of the reader's store, progress or routes is involved.
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
   spreads, the spread's title, the tabs.
-  - **Tree** – the spread as a 3D tool's outliner: the spread, its entries in page order (category, title, page),
-    each entry's target (◉ in view / ○ not – the mark is the found toggle, as the Stage panel's chips; ● while the
-    stage shows it with other values than the draft's) and the target's entity (type; `shared <ref>` or `own`). A tap on
-    a target or its entity selects it and opens the Entity panel; a tap on the stage selects it here. Entries fold;
-    the column collapses to its bar (‹ ›, kept on the device).
+  - **Tree** – the spread in the style of Blender's outliner: a chevron column, a type icon before every name (book,
+    entry, target, model / video / image), guide lines per depth, zebra rows, and the **eye** in a column at the
+    right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its entries in page
+    order, each entry's target ("in view" while the camera sees it, ● while the stage shows it with other values than
+    the draft's) and the target's entity (type, the shared ref). A tap on a target or its entity selects it and opens
+    the Entity panel; a tap on the stage selects here. ↑ ↓ walk the targets, ← → fold and unfold, Enter selects.
+    Entries fold; the column collapses to its bar (‹ ›, kept on the device).
   - **Stage** – the simulated camera: **view** *reader* (35 cm above the page, tilted 30°), *top*, *low* (75° – shows
     how flat a video plane is), *far*; on the stage **drag** orbits, **wheel / pinch** change the distance, **double
     tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
@@ -116,7 +118,8 @@ danger red; one control height (`--control-height`, 1.75rem), square corners, co
 column; numbers as `ScrubNumber` (the whole field is the gesture: press and slide, Shift ×10, Alt ×0.1, tap to type,
 ↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders); small enums as segmented pressed pills;
 on / off per item as a pressed chip; Feather icons only where a word makes no sense (step, replay, photo, close, the
-chain that links the scale axes, the tree's folds), each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
+chain that links the scale axes) – and in the tree, where type icons and the eye are every outliner's convention
+(Blender, Unity, Figma); each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
 itself renders the reader's content unchanged. Texts are English (RULES #20).
 
 ## Where the code lives
