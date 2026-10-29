@@ -1,0 +1,47 @@
+import { getConfigVersion, getSpreads, loadGameConfiguration } from "@engine/content/game-config";
+import type { ErrorInfo, Spread } from "@engine/types";
+import { authFetch, draftBaseUrl, getBook } from "./api";
+
+/**
+ * The book's draft as the engine sees it: `loadGameConfiguration` reads the draft endpoint like the CDN
+ * (`latest.json` → `<build>/game.config.json`), so the stage renders exactly what the reader would after a publish.
+ * One configuration at a time (the engine's content runtime is a singleton): opening another book reloads.
+ */
+class Content {
+  bookId = $state<string | null>(null);
+  spreads = $state<Spread[]>([]);
+  hash = $state<string | null>(null);
+  error = $state<ErrorInfo | null>(null);
+  loading = $state(false);
+
+  /** Where the book's content files live (the import's `assetsBase`), read once per book */
+  assetsBase = $state<string | null>(null);
+
+  /** Load (or reload after a save) the book's draft; resolves with the startup error, if any */
+  async load(bookId: string): Promise<ErrorInfo | null> {
+    this.loading = true;
+    try {
+      if (this.bookId !== bookId || this.assetsBase === null) this.assetsBase = (await getBook(bookId)).book.assetsBase ?? "";
+      const error = await loadGameConfiguration({ baseUrl: draftBaseUrl(bookId), fetch: authFetch, assetsBase: this.assetsBase || undefined });
+      this.bookId = bookId;
+      this.error = error;
+      this.spreads = error ? [] : getSpreads();
+      this.hash = error ? null : getConfigVersion().hash ?? null;
+      return error;
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  spread(id: string): Spread | undefined {
+    return this.spreads.find(spread => spread.id === id);
+  }
+
+  neighbour(id: string, direction: 1 | -1): Spread | undefined {
+    const index = this.spreads.findIndex(spread => spread.id === id);
+    if (index < 0 || !this.spreads.length) return undefined;
+    return this.spreads[(index + direction + this.spreads.length) % this.spreads.length];
+  }
+}
+
+export const content = new Content();

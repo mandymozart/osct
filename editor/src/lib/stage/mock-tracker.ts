@@ -1,12 +1,12 @@
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
-import type { Target } from "../../../../engine/src/types/index";
-import { getSpread } from "../../../../engine/src/content/game-config";
-import { EMPTY_ENGINE_STATE, publishEngineState } from "../utils/tracker-debug";
-import { fetchTriggerInfos, TriggerInfos } from "../utils/trigger-protocol";
-import { fetchStageLayout, LayoutSheet, sheetForSpread, sheetImageUrl, StageLayout } from "../utils/stage-layout";
-import { getPreview, PreviewOrbit, PreviewState, PreviewView, subscribePreview, updatePreview } from "../utils/preview";
-import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "./tracker-types";
-import { onAppUi } from "./ui";
+import type { Target } from "@engine/types";
+import { getSpread } from "@engine/content/game-config";
+import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
+import { fetchTriggerInfos, TriggerInfos } from "@engine/utils/trigger-protocol";
+import { fetchStageLayout, LayoutSheet, sheetForSpread, sheetImageUrl, StageLayout } from "./stage-layout";
+import { getPreview, PreviewOrbit, PreviewState, PreviewView, subscribePreview, updatePreview } from "./preview";
+import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
+import { onAppUi } from "@engine/scene/ui";
 
 /** The simulated camera's vertical field of view – about what the engine reports on a phone at 960 × 720 */
 export const PREVIEW_FOV = 60;
@@ -184,6 +184,8 @@ export interface StageView {
  * centre, the image in the x/y plane.
  */
 export class MockTracker implements IImageTracker {
+  /** The stage is always in view: the scene renders every frame */
+  readonly continuous = true;
   private started = false;
   private paused = false;
   private targets: StageTarget[] = [];

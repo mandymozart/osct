@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
-import type { Target } from "../../../../../engine/src/types/index";
-import type { TriggerInfos } from "../../utils/trigger-protocol";
-import { setPreviewActive, setTargetHidden, updatePreview } from "../../utils/preview";
-import { getEngineState } from "../../utils/tracker-debug";
+import type { Target } from "@engine/types";
+import type { TriggerInfos } from "@engine/utils/trigger-protocol";
+import { setPreviewActive, setTargetHidden, updatePreview } from "../preview";
+import { getEngineState } from "@engine/utils/tracker-debug";
 import {
   BOOK_PAGE_MM, cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, StageView, targetCentre, VIEW_PRESETS, wobbled,
 } from "../mock-tracker";

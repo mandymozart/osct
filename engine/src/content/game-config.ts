@@ -138,6 +138,11 @@ export interface LoadOptions {
   bundled?: () => Promise<unknown>;
   /** For the requests to the base URL (a token, a proxy); default `fetch` */
   fetch?: typeof fetch;
+  /**
+   * Where the configuration's `/assets/content/…` paths resolve when it is not the version folder itself – the
+   * editor's draft points at the files of the version it was imported from
+   */
+  assetsBase?: string;
   texts?: LoadTexts;
 }
 
@@ -168,7 +173,7 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
       console.error(`[game-config] ${configurationError.details?.[0]}`);
       apply(EMPTY_CONFIGURATION, '', {});
     } else {
-      apply(raw, versionUrl, files);
+      apply(raw, (options.assetsBase ?? '').replace(/\/+$/, '') || versionUrl, files);
     }
   } catch (error) {
     const invalid = error instanceof GameConfigurationError;
