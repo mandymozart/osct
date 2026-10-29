@@ -57,13 +57,17 @@ export const PLACEMENT_PARAMS: Record<PlacementKey, PlacementParamSpec> = {
 
 const FLAT: Placement = { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] };
 
-/** Defaults by node type (other types lie flat, size 1); a text lies a hair above its parent so it never flickers on a plane */
+/**
+ * Defaults by node type (other types lie flat, size 1); a text lies a hair above its parent so it never flickers on
+ * a plane; a light hangs half a target width above its parent, its −z (the spot's and the sun's direction) down onto it
+ */
 export const PLACEMENT_DEFAULTS: Record<string, Placement> = {
   model: { position: [0, 0, 0], rotation: [90, 0, 0], scale: [0.5, 0.5, 0.5] },
   video: FLAT,
   image: FLAT,
   group: FLAT,
   text: { position: [0, 0, 0.01], rotation: [0, 0, 0], scale: [1, 1, 1] },
+  light: { position: [0, 0, 0.5], rotation: [0, 0, 0], scale: [1, 1, 1] },
 };
 
 const isVector = (value: unknown): value is Vector3Data =>
