@@ -119,6 +119,14 @@ export const passRows = (pass: PassData, index: number): ValueRow[] => {
   return spec ? specRows(`passes.${index}`, spec.params) : [];
 };
 
+/** The words a pass's choice row shows for its options (`{type}.{name}`); an option without one shows its value */
+const PASS_OPTION_LABELS: Record<string, Record<string, string>> = {
+  "grade.reach": { ar: "AR layer", all: "whole picture" },
+};
+
+export const passOptionLabels = (pass: PassData, row: ValueRow): Record<string, string> =>
+  PASS_OPTION_LABELS[`${pass.type}.${row.id.split(".")[2]}`] ?? {};
+
 /** The value a pass shows for a row: the value set, else the spec's default */
 export const passValue = (pass: PassData, row: ValueRow): RowValue => {
   const name = row.id.split(".")[2];

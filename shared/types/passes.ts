@@ -38,10 +38,17 @@ export const PASSES = {
       color: { kind: "color", default: "#000000", description: "The colour the edges fade to." },
     },
   },
-  /** Colour grading of the AR layer (the camera picture is not reachable: it lies under the canvas) */
+  /**
+   * Colour grading – of the AR layer alone (`reach: ar`) or of the whole picture (`reach: all`, schema 2.9): in the
+   * editor the desk too, on the phone the camera picture (the engine's camera renderer draws it with the same grade)
+   */
   grade: {
-    description: "Colour grading of the AR layer – exposure, contrast, saturation and a tint. The camera picture keeps its colours.",
+    description: "Colour grading – exposure, contrast, saturation and a tint. Of the AR layer alone, or of the whole picture with the camera picture.",
     params: {
+      reach: {
+        kind: "choice", options: ["ar", "all"], default: "ar",
+        description: "What is graded: ar = the AR layer alone (the camera picture keeps its colours), all = the whole picture, the camera picture included.",
+      },
       exposure: { kind: "number", default: 0, min: -2, max: 2, step: 0.05, unit: "EV", description: "Brighter (+) or darker (−) in stops." },
       contrast: { kind: "number", default: 1, min: 0, max: 2, step: 0.05, description: "1 = as rendered, 0 = flat grey, 2 = hard." },
       saturation: { kind: "number", default: 1, min: 0, max: 2, step: 0.05, description: "1 = as rendered, 0 = black and white." },
@@ -65,6 +72,11 @@ export interface PassCheckOptions {
   spec?: (type: string) => PassSpec | undefined;
   /** What an unknown type is: refused (the default – nothing would render it) or allowed (a plugin registers it at load) */
   unknownTypes?: "refuse" | "allow";
+  /**
+   * What a parameter the spec does not have is: refused (the default – the build, the API) or ignored (the app's
+   * guard since 2.9: a parameter a newer MINOR adds is left to the newer app)
+   */
+  unknownParams?: "refuse" | "ignore";
 }
 
 /** The spec of a pass type: built in, or from `options.spec` */
@@ -91,7 +103,8 @@ export const passProblems = (raw: unknown, path: string, options: PassCheckOptio
       if (options.unknownTypes !== "allow") problems.push(`${at}.type: "${type}" is not one of ${PASS_TYPES.join(", ")}`);
       return;
     }
-    problems.push(...paramProblems(spec.params, params, at, type));
+    const known = options.unknownParams === "ignore" ? Object.fromEntries(Object.entries(params).filter(([name]) => name in spec.params)) : params;
+    problems.push(...paramProblems(spec.params, known, at, type));
   });
   return problems;
 };
