@@ -39,6 +39,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (the Stage panel's
   *sky*; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
   plywood texture, tinted), the cover a white 2 mm hardcover board.
+- **The stage's toolbar as icons** (#61, Tilman: "replace the top editor bar with the icons for each, and for the
+  four view types we can just use Blender's circles"): the pick modes are a parcel (entity), a point on the graph
+  (node) and the crosshair (target); viewport shading is Blender's four spheres – wire, solid, textured, rendered –
+  side by side; every button keeps its label as the tooltip.
 - **Covers as spreads, the spread's format** (#61, #60, Tilman: "wie gehen wir mit Cover und Rückseite um? … es ist
   eh ein Spread, nur in einem anderen Format"): content schema 2.3 – a spread has a `format` (`spread`, `cover`,
   `back`; the covers are page 0 and the page after the last), a target's `print` takes the surfaces `front` / `back`,

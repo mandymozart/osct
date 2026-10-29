@@ -131,12 +131,13 @@ again). Nothing of the reader's store, progress or routes is involved.
     hit test) – the reader never calls it.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
-    a white one. The toolbar's last group is the viewport's **shading**, after Blender's: *wire* (the entities as
-    lines), *solid* (one grey under the scene's lights), *textured* (the content's materials, no sky) and *rendered*
-    (the HDRI's sky and light, the default); stored on the device. The stage and the gizmo keep their own look.
+    a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
+    side: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
+    materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
+    icons only, every button's label is its tooltip. The stage and the gizmo keep their own look.
   - **Picking** – a click on the stage selects what lies under the pointer by the **pick mode** next to the gizmo's
-    tools (Blender's select mode): *entity* (the root of the entity hit), *node* (the node under the pointer, as deep
-    as the tree goes) or *target* (the printed image). A printed image without AR content is always picked as its
+    tools (Blender's select mode): *entity* (a parcel – the root of the entity hit), *node* (a point on the graph –
+    the node under the pointer, as deep as the tree goes) or *target* (the crosshair – the printed image). A printed image without AR content is always picked as its
     target. A **right click** on the stage opens the menu for what lies there: on a target *Add node… / Add AR
     content…*, *Remove node / entity*, *Placement on the page…*, *Library…*, *Remove target*; on the page or the table
     *+ target…* and *Stage settings…*. While a target's placement is edited (the form, the Entity panel's rows) the
