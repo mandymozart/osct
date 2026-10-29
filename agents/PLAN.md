@@ -1093,7 +1093,9 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        guard, API, editor's tree with + node / remove node; the app reads 1.x as one-node trees – 2026-10-29);
        [x] components with specs (schema 2.2, `shared/types/components.ts`): the first is `animation` on a model
        (clip, playOn found / tap / never, stopOn, loop, speed) with the editor's timeline; the entity instance got
-       `onTap` and a `NodeTimeline`; [ ] more components (`behaviour` with actions, `spin` / `float`, `audio`,
+       `onTap` and a `NodeTimeline`; [x] the node type `light` (schema 3.0, #71: point / spot / directional with
+       the editor's rows, tree icon and stage helper; an unknown node type passes the guard from 3.0 on, so the next
+       type is MINOR); [ ] more components (`behaviour` with actions, `spin` / `float`, `audio`,
        material layers), the node-type registry with specs, nodes without a target on the spread (scope `spread`),
        `api.three`; plugins compiled by the content build.
 4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.

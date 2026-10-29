@@ -9,16 +9,20 @@
 import { EntryCategory } from "./entry";
 import { FilterData } from "./filters";
 import type { ComponentData } from "./components";
+import type { LightData } from "./lights";
 
 export * from "./filters";
 export * from "./placement";
 export * from "./components";
+export * from "./lights";
 
 /**
- * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text –
- * or a `group` that only holds children. Links are entries, not entities.
+ * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text,
+ * a light – or a `group` that only holds children. Links are entries, not entities.
+ * The guard lets a node type it does not know pass (the engine renders nothing for it but keeps its children), so
+ * a later type is a MINOR addition; the content build and the editor's API still refuse one.
  */
-export const ENTITY_TYPES = ["group", "model", "video", "image", "text"] as const;
+export const ENTITY_TYPES = ["group", "model", "video", "image", "text", "light"] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
@@ -28,13 +32,17 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Content schema version `MAJOR.MINOR`: the version of this contract (shared/), the only compatibility rule
  * between content and app (RULES #10). The app version a content build was made with is information only.
  * - MAJOR: a change an older app cannot read – a new required field, a renamed or removed field, a changed
- *   type, a new enum value (entity type, asset type, category, step action). The app refuses content of
- *   another MAJOR at startup.
- * - MINOR: an addition older apps ignore – a new optional field. Any MINOR of the same MAJOR loads.
+ *   type, a new enum value (asset type, category, step action, spread format). The app refuses content of a
+ *   newer MAJOR at startup; it reads every MAJOR from `OLDEST_READABLE_SCHEMA_MAJOR` on as it is (so far every
+ *   MAJOR only added: the node tree, the light node).
+ * - MINOR: an addition older apps ignore – a new optional field, a new node type (the guard lets it pass). Any
+ *   MINOR of the same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.3";
+export const CONTENT_SCHEMA_VERSION = "3.0";
+/** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
+export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
 export interface ContentSchema {
   major: number;
@@ -95,7 +103,7 @@ export interface EntityData {
   /** Optional, unique within the tree: the editor's selection, a later behaviour's target */
   id?: string;
   type: EntityType;
-  /** The node's own files (a model, a video, an image); empty for `group` and `text` */
+  /** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` */
   assets: AssetData[];
   params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
@@ -107,6 +115,8 @@ export interface EntityData {
   text?: string;
   /** `text` nodes: the colour, `#rrggbb` (default white) */
   color?: string;
+  /** `light` nodes (schema 3.0 – `LIGHT_PARAMS`): kind, colour, intensity, …; every value optional */
+  light?: LightData;
 }
 
 /** Reference to a shared entity in `GameConfiguration.entities`. */

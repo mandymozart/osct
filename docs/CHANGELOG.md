@@ -15,6 +15,20 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.10.0 – 2026-10-29
 
 ### Added
+- **Light nodes – content schema 3.0** (#71, Tilman: "one entity type is missing in the editor – lights"): the node
+  type `light` – a point, spot or directional light an author places like any node (own `params`, children allowed;
+  under a group or a model it moves with it), its values under `light:` (`kind`, `color`, `intensity`, `distance`,
+  `decay`, the spot's `angle` and `penumbra`), defined once in `shared/types/lights.ts`; spot and sun aim along the
+  node's −z, by default a light sits half a unit along its parent's +z pointing back at it. Intensity and distance
+  are in the node's units, whatever the target's printed size (the engine scales them to the world every frame).
+  The engine builds and disposes it (no shadows), the reveal and the outro fade it with the entity. In the editor **+ node** offers `light`,
+  the Entity panel shows its rows from the definition (no panel code per field), the tree shows a light icon and the
+  kind, the gizmo moves it and the stage draws a Blender-style helper (bulb, cone or rays; orange while selected;
+  never in the reader). The content build, the guard and the editor's API check the values; the fixture's Studio A
+  has a spot aimed at the tree of nodes and a point light under the tall tree. **Schema 3.0** because a 2.x app's
+  guard refuses a node type it does not know; from 3.0 on the guard lets an unknown node type pass (the engine
+  renders nothing for it, keeps its children), so the next node type is a MINOR step – and the app reads every older
+  MAJOR as it is (`OLDEST_READABLE_SCHEMA_MAJOR`), nothing has to be rebuilt.
 - **Content schema 2.0 – the entity as a tree of nodes** (#61, Tilman: "es können tiefere Hierarchien entstehen, das
   ist die ganze Idee; bei default erstmal eins"): an entity's node may hold `children`, each placed by its own
   `params` relative to its parent (8 levels at most); new node types `group` (holds children) and `text` (a line

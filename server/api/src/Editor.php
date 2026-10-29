@@ -12,7 +12,7 @@ final class Editor
     public const ID = '[A-Za-z0-9_-]{1,64}';
 
     /** The entity types of the content contract: shared/types/game-config.ts `ENTITY_TYPES` – keep in step */
-    public const ENTITY_TYPES = ['group', 'model', 'video', 'image', 'text'];
+    public const ENTITY_TYPES = ['group', 'model', 'video', 'image', 'text', 'light'];
     /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
@@ -91,6 +91,10 @@ final class Editor
         if (property_exists($value, 'text') && !is_string($value->text)) throw new ApiError(400, 'invalid-entity', "$path.text must be a string.");
         if (property_exists($value, 'color') && !(is_string($value->color) && preg_match('/^#[0-9a-f]{6}$/i', $value->color))) {
             throw new ApiError(400, 'invalid-entity', "$path.color must be #rrggbb.");
+        }
+        if (property_exists($value, 'light')) {
+            if ($value->type !== 'light') throw new ApiError(400, 'invalid-entity', "$path.light: only a light node has a light.");
+            if (!$value->light instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path.light must be an object.");
         }
         if (property_exists($value, 'children')) {
             if (!is_array($value->children)) throw new ApiError(400, 'invalid-entity', "$path.children must be an array.");
