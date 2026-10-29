@@ -4,6 +4,12 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – content out of git, one rewrite with the Claude cleanup (#5, #30)
+
+- Tilman: the old Claude attribution leaves the history in the **same** filter-repo run as the content (one force push,
+  issue #30 option A). The content source is **kept locally** (`osct-content/content`) – with the mirror backup the only
+  copies. `content/` left the tree in 1.19.2; next: develop → main release (production with asgerb), freeze, rewrite, push.
+
 ## 2026-10-30 – The editor is not part of the PWA (#122)
 
 - Tilman: "the editor shouldn't be part of the PWA". The reader's service worker (scope `/`) leaves the editor's pages
