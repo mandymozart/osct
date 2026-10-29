@@ -1,5 +1,5 @@
 import {
-  BoxGeometry, EquirectangularReflectionMapping, Euler, Group, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
+  BoxGeometry, EquirectangularReflectionMapping, Euler, Group, Light, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
   RepeatWrapping, Scene, SRGBColorSpace, Texture, TextureLoader,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
@@ -32,6 +32,13 @@ const COVER_OVERHANG = 0.003;
 const DESK_DIFFUSE = "textures/plywood_diff_1k.jpg";
 const DESK_ROUGHNESS = "textures/plywood_rough_1k.jpg";
 const DESK_REPEAT = [3, 2] as const;
+/**
+ * The HDRIs are not tone mapped (the reader's videos and images must keep their colours), so each is shown and used
+ * as light at an exposure that keeps the page white, not blown out; the scene's own lights step back meanwhile.
+ */
+const HDRI_EXPOSURE: Record<string, number> = { ferndale_studio_04: 0.9 };
+const HDRI_EXPOSURE_DEFAULT = 0.4;
+const LIGHTS_WITH_HDRI = 0.35;
 /** The table around the book (metres) */
 const TABLE_WIDTH = 1.4;
 const TABLE_DEPTH = 1.0;
@@ -56,6 +63,8 @@ export class MockStage implements StageView {
   private hdris = new Map<string, Texture>();
   private wantedHdri: string | null = null;
   private rotation = new Euler();
+  /** The scene's own lights at their intensity before the HDRI dimmed them */
+  private dimmed = new Map<Light, number>();
 
   /** `assetUrl`: where the editor's static files live (`hdri/…`, `textures/…`) */
   constructor(private scene: Scene, private container: HTMLElement, private assetUrl: (path: string) => string = path => `/${path}`) {
@@ -176,6 +185,7 @@ export class MockStage implements StageView {
     if (!this.wantedHdri) {
       this.scene.background = null;
       this.scene.environment = null;
+      this.dimLights(false);
       return;
     }
     const loaded = this.hdris.get(this.wantedHdri);
@@ -192,8 +202,27 @@ export class MockStage implements StageView {
   }
 
   private applyHdri(texture: Texture): void {
+    const exposure = HDRI_EXPOSURE[this.wantedHdri ?? ""] ?? HDRI_EXPOSURE_DEFAULT;
     this.scene.background = texture;
     this.scene.environment = texture;
+    this.scene.backgroundIntensity = exposure;
+    this.scene.environmentIntensity = exposure;
+    this.dimLights(true);
+  }
+
+  /** The scene's own lights (the engine's ambient and sun) step back while the HDRI lights the stage */
+  private dimLights(on: boolean): void {
+    if (on) {
+      this.scene.traverse(object => {
+        if (object instanceof Light && !this.dimmed.has(object)) {
+          this.dimmed.set(object, object.intensity);
+          object.intensity *= LIGHTS_WITH_HDRI;
+        }
+      });
+    } else {
+      this.dimmed.forEach((intensity, light) => (light.intensity = intensity));
+      this.dimmed.clear();
+    }
   }
 
   private ensureDesk(): { map: Texture; roughnessMap: Texture } {
@@ -235,6 +264,7 @@ export class MockStage implements StageView {
     this.hdris.clear();
     this.scene.background = null;
     this.scene.environment = null;
+    this.dimLights(false);
     this.group.removeFromParent();
     this.container.style.backgroundImage = "";
     this.container.style.backgroundSize = "";
