@@ -23,7 +23,9 @@ curl -X POST -H "X-Admin-Secret: $OSCT_SECRET" -H "Content-Type: application/jso
 ```
 
 The editor signs in like the reader (a code by email, or a password the account set) and refuses everyone without the
-role.
+role. The **first editors** of an instance need no secret: the addresses in the API's `EDITORS` setting (a GitHub
+environment variable `EDITORS`, comma-separated, written into the server's config by the deploy) get the role when
+they sign in.
 
 ## Try it (the morning test with the demo scene)
 

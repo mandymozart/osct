@@ -108,7 +108,7 @@ final class Auth
             return [$user, $created, self::createSession($user['id'], 'email')];
         });
 
-        Http::json(200, ['session' => $session, 'user' => Users::toJson($user), 'created' => $created]);
+        Http::json(200, ['session' => $session, 'user' => Users::toJson(Users::grantConfiguredEditor($user)), 'created' => $created]);
     }
 
     /** POST /auth/logout → 204 (this device only) */
@@ -162,7 +162,7 @@ final class Auth
         }
         $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $session['user_id']]);
         if (!$user) throw new ApiError(401, 'unauthorized', 'Not signed in.');
-        return [$user, $session];
+        return [Users::grantConfiguredEditor($user), $session];
     }
 
     /**

@@ -55,6 +55,7 @@ env:
     # production to the storage zone the osct CLI syncs to; local (default) keeps them on the host under /api/content.
     # CONTENT_BASE_URL (the same variable as the build flag) lets the editor import the CDN's current version.
     OSCT_CONTENT_STORE: <%= ENV.fetch("CONTENT_STORE", "local") %>
+    OSCT_EDITORS: <%= ENV.fetch("EDITORS", "") %>
     OSCT_CONTENT_BASE_URL: <%= ENV.fetch("CONTENT_BASE_URL", "") %>
     OSCT_BUNNY_STORAGE_ZONE: <%= ENV.fetch("BUNNY_STORAGE_ZONE", "") %>
     OSCT_BUNNY_STORAGE_ENDPOINT: <%= ENV.fetch("BUNNY_STORAGE_ENDPOINT", "storage.bunnycdn.com") %>
