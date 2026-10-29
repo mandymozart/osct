@@ -4,6 +4,27 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
+
+- Tilman: "Das ist die Frage des Routings – wer für was verantwortlich ist." "Der Editor hat eine Sonderstellung:
+  er braucht die Engine nur für ein Preview, der Rest ist simuliert. Daher muss da eine Grenze her." "Wieso muss
+  Stage dann im Reader sein – das ist doch ein Editor." "Ich möchte eine klare Trennung. Und wenn das heißt, Tune ist
+  raus, dann bitte. Es geht im Debug-Overlay nicht um Einstellungen. Das ist Legacy." Decided: **the engine becomes a
+  package of its own (`engine/`: content runtime + AR scene), the reader uses it with the real tracker and carries no
+  editor trace, the editor is a SvelteKit app in this repository at `/editor` that uses the engine with the mock
+  tracker and owns the stage** – no `/stage` route, no stage protocol, no iframe (B with the stage in process).
+  Tune leaves the debug overlay (legacy); `TUNE_ENTITY_EVENT` becomes `scene.overrideEntity()`. Design:
+  `agents/research/2026-10-29-editor-architecture.md`. RULES #32 rewritten.
+- Tilman: "So weit wie möglich selbstständig … bis Ende aller Pakete: Datenbank, Editor, Compilieren, Ausliefern."
+  "Ich möchte die Demo-Szene am Morgen ausprobieren zu bearbeiten" – the studio spreads of the fixture must be
+  editable in the editor in the morning (import from the reader dev server, edit, save, publish to the local store).
+- Compile = the publish assembles the content version from the database rows (the server, PHP); the plugin compile
+  (schema 2.0, code in the editor) stays phase 15 steps 3–4.
+- Earlier the same day: an OSCT instance user signs in (the instance is **Building Fictions**, the brand; "OSCT wird
+  das nie"), independent of Scutoons for now, "der Editor erstmal im OSCT-Repo".
+- [ ] The reader's vanilla editor sheet and `<scrub-number>` go with this (Tilman: clear separation) – the editor app
+  replaces them; `docs/editor.md` is rewritten for the app.
+
 ## 2026-10-29 – Editor, first step: `/editor` over the mock stage (#61, overnight after Tilman's go)
 
 - Tilman (2026-10-28, late): "#59 skippen und direkt in diesen Editor reingehen" – the mock stage (#59) is the editor's

@@ -286,13 +286,17 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     design measurements, research); readers' and developers' documentation goes to `docs/`. Remove a section
     when the code it describes is gone; a temporary runbook says so in its first line.
 
-32. **Editor** (`/editor`, docs/editor.md – Tilman, 2026-10-28, #61): the authors' tool is the app itself with a different
-    front door – the same `ArScene`, entities and animations over the **mock stage** (`ar/mock-tracker.ts`,
-    `ar/mock-stage.ts`) instead of the camera; never a second renderer or a second scene model. Its own UI lives in
-    `client/src/editor/` and is loaded lazily by `pages/editor-page.ts` – nothing of it on a reader's startup path,
-    no editor code in the main chunk beyond the page shell and the three-free preview flag
-    (`ar-bridges/utils/preview.ts`). The preview is switched on by the editor route, not by a stored flag. What the
-    editor changes stays in the browser until the database step: it never writes content files.
+32. **Engine, reader, editor** (Tilman, 2026-10-29, #61 – `agents/research/2026-10-29-editor-architecture.md`):
+    a clear separation. **`engine/`** is the base – the content runtime (`loadGameConfiguration`, the accessors,
+    `contentUrl`) and the AR scene (`ArScene`, entities, animations, trackers behind `IImageTracker`); it knows no
+    routes, accounts, stores, `import.meta.env` or i18n – the app passes what differs (tracker factory, graphics
+    source, bundled content, texts). **The reader** (`client/`) uses the engine with the real tracker and carries
+    **no editor trace**: no editor route or chunk, no preview flag, no mock tracker, no tune panel ("es geht im
+    Debug-Overlay nicht um Einstellungen" – the overlay debugs, it never edits). **The editor** (`editor/`, a SvelteKit
+    app at `/editor`, same image) uses the same engine with the mock tracker and the mock stage in process, simulates
+    the game (spread, found targets, replay) in its own state, and owns the stage, the panels, saving (`/api/editor/*`)
+    and publishing. Never a second renderer or scene model: what the author sees is the engine the reader runs,
+    built from the same commit. The editor never imports the reader; the reader never imports the editor.
     **UI** (Tilman, 2026-10-29: "check for reference the scutoons UI dogma … reuse components as much as possible,
     save real estate"): the editor's controls follow the Scutoons dogma (`scutoons/agents/DESIGN.md`) built from
     OSCT's own primitives – one control height, rows with a label column, numbers as `<scrub-number>` (never a native
