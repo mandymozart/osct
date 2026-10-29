@@ -39,7 +39,7 @@
   let problem = $state("");
   let text = $state("");
   let typingStart = 0;
-  let press: { pointerId: number; x: number; start: number; scrubbing: boolean } | null = null;
+  let press: { pointerId: number; x: number; y: number; start: number; scrubbing: boolean } | null = null;
 
   const decimals = $derived(String(step).split(".")[1]?.length ?? 0);
   const shown = $derived((+value.toFixed(Math.max(decimals, 0))).toString());
@@ -74,13 +74,17 @@
 
   const onPointerDown = (event: PointerEvent) => {
     if (event.button !== 0 || disabled) return;
-    press = { pointerId: event.pointerId, x: event.clientX, start: value, scrubbing: false };
+    press = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, start: value, scrubbing: false };
   };
   const onPointerMove = (event: PointerEvent) => {
     if (!press || press.pointerId !== event.pointerId) return;
+    // The quadrant rule (dogma, Tilman 2026-10-29): sliding up or right raises the value, down or left lowers it –
+    // the two directions add up, so a diagonal towards the top right is the fastest way up
     const dx = event.clientX - press.x;
+    const dy = press.y - event.clientY;
+    const distance = dx + dy;
     if (!press.scrubbing) {
-      if (Math.abs(dx) < SCRUB_START_PX) return;
+      if (Math.hypot(dx, dy) < SCRUB_START_PX) return;
       press.scrubbing = true;
       typing = false;
       input?.blur();
@@ -89,7 +93,7 @@
       event.preventDefault();
     }
     const factor = event.shiftKey ? 10 : event.altKey ? 0.1 : 1;
-    const steps = Math.round(dx / PX_PER_STEP);
+    const steps = Math.round(distance / PX_PER_STEP);
     apply(clamp(press.start + steps * step * factor), false);
   };
   const onPointerUp = (event: PointerEvent) => {
@@ -173,7 +177,7 @@
   .scrub { display: inline-flex; flex-direction: column; min-width: 0; }
   .frame { position: relative; display: flex; align-items: center; height: var(--control-height); min-width: 0;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background);
-    touch-action: pan-y; cursor: ew-resize; user-select: none; }
+    touch-action: none; cursor: all-scroll; user-select: none; }
   .frame.scrubbing { border-color: var(--text); }
   .frame.typing { cursor: text; }
   input { flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0 .25rem 0 .6rem; border: none; background: none; font: inherit;

@@ -174,6 +174,12 @@
     stage?.ghost(open && t ? { imageSrc: t.imageSrc, ...where } : null);
   });
   $effect(() => () => stage?.ghost(null));
+  // The handles on the stage move the ghost: the placement rows follow
+  $effect(() => {
+    if (!stage || !printOpen) return;
+    stage.onGhostChange = place => { print = { ...print, ...place }; };
+    return () => { if (stage) stage.onGhostChange = null; };
+  });
   const replaceTargetImage = async (file: File) => {
     if (!target) return;
     targetBusy = true;
@@ -428,7 +434,7 @@
   .w :global(.scrub) { width: 100%; }
   .fields :global(.scrub) { width: 100%; }
   .axes { display: flex; align-items: center; gap: .25rem; min-width: 0; }
-  .axes .fields { flex: 1; }
+  .axes .fields { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .link-slot { flex: none; width: var(--control-height); }
   .row > .field { width: 100%; }
   .file { flex-wrap: nowrap; }

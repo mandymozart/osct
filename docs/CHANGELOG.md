@@ -40,7 +40,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   `POST /editor/books/{id}/entries`, `DELETE …/entries/{id}`), *Remove target* in the tree's menu; the new-target
   form takes the AR content too (a node of a type with its file, or a text). **Picking** on the stage by a pick mode
   (entity / node / printed target – Blender's select mode) with a right-click menu (add node, remove, placement,
-  library, remove target; + target on the page), and a translucent **ghost** of the image while a placement is edited.
+  library, remove target; + target on the page), and a translucent **ghost** of the image while a placement is edited,
+  with handles (drag to move, the corner for the width). **ScrubNumber follows the quadrant rule** (Tilman: up or
+  right raises, down or left lowers, the directions add up); the panel is 22rem wide and the three axes of a placement
+  row stay on one line.
   The sky of the stage is a sphere inside the stage group (three's background rotation mirrored axes).
 - **Removing nodes** (#61, Tilman: "Wie lösche ich Knoten?"): Delete / Backspace on the selected node (tree or
   workspace), a right-click menu on the tree's node rows, *remove node* / *remove entity* in the Entity panel – all
