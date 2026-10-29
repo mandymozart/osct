@@ -35,6 +35,9 @@
   });
 
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
+  const pagesOf = (spread: { firstPage: number; lastPage: number }) => `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}`;
+  /** A title that only repeats the pages (the import's default) is not shown twice */
+  const titleOf = (spread: BookTree["spreads"][number]) => (spread.title.replace(/[-–—]/g, "–") === pagesOf(spread) ? "" : spread.title);
 </script>
 
 <header class="top">
@@ -59,8 +62,8 @@
                 {#if sheet}<img src="{assetsBase}{LAYOUT_PATH}{sheet.image}" alt="" loading="lazy" decoding="async" />{/if}
               </span>
             {/if}
-            <span class="pages">{spread.firstPage}{spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}</span>
-            <span class="title">{spread.title}</span>
+            <span class="pages">{pagesOf(spread)}</span>
+            <span class="title">{titleOf(spread)}</span>
             <span class="muted small">{spread.entries.length} entries · {withTarget(spread).length} targets · {withTarget(spread).filter(e => e.target?.entity).length} with AR</span>
           </a>
         </li>

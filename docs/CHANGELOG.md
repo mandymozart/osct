@@ -32,8 +32,8 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   Books are imported from a game configuration (the CDN's current version, a URL or a file); the spreads list shows
   each spread's sheet as its preview; the workspace has the
   **tree** of the spread at the left in the style of Blender's outliner (entries → targets → entities with type icons,
-  guide lines, the eye column for found, keyboard navigation, a tap selects; collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, wheel or
-  pinch for the distance, found chips per target, replay of the first find, hand shake, backdrop *table / paper /
+  guide lines, the eye column for found, keyboard navigation, a tap selects; collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, Shift-drag, middle button or two fingers
+  to pan, wheel or pinch for the distance, found chips per target, replay of the first find, hand shake, backdrop *table / paper /
   photo* of your own desk) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
   linking the scale axes, filters, colours – live on the stage, **Save** to the database, **Back to the draft**), and
   **Publish** makes a content version. Docs: `docs/editor.md`.

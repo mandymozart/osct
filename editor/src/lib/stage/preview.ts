@@ -21,6 +21,8 @@ export interface PreviewOrbit {
   distance: number;
   tilt: number;
   yaw: number;
+  /** The looked-at point moved from the spread's own: mm in the page plane (a pan) */
+  pan?: { x: number; y: number };
 }
 
 export interface PreviewSettings {
@@ -60,8 +62,13 @@ const readSettings = (): PreviewSettings => {
   }
 };
 
-const isOrbit = (value: unknown): value is PreviewOrbit =>
-  !!value && typeof value === "object" && ["distance", "tilt", "yaw"].every(key => Number.isFinite((value as Record<string, unknown>)[key]));
+const isOrbit = (value: unknown): value is PreviewOrbit => {
+  if (!value || typeof value !== "object") return false;
+  const orbit = value as Record<string, unknown>;
+  if (!["distance", "tilt", "yaw"].every(key => Number.isFinite(orbit[key]))) return false;
+  const pan = orbit.pan as Record<string, unknown> | undefined;
+  return pan === undefined || (!!pan && typeof pan === "object" && Number.isFinite(pan.x) && Number.isFinite(pan.y));
+};
 
 const writeSettings = (settings: PreviewSettings): void => {
   try {

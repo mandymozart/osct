@@ -20,6 +20,8 @@
   } = $props();
 
   const spread = $derived(content.spread(spreadId));
+  /** "28–29"; a spread title that only repeats it (the import's default) is not shown twice */
+  const pages = $derived(spread ? `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}` : "");
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
@@ -65,7 +67,7 @@
       <span class="chevron"><Icon name="down" size="1em" /></span>
       <span class="type"><Icon name="book" size="1em" stroke={2} /></span>
       <span class="name">{spread.title}</span>
-      <span class="small muted">{spread.firstPage}{spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}</span>
+      {#if spread.title.replace(/[-–—]/g, "–") !== pages}<span class="small muted">{pages}</span>{/if}
       <span class="eye"></span>
     </div>
     {#each spread.entries as entry (entry.id)}

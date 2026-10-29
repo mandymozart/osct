@@ -97,8 +97,8 @@ again). Nothing of the reader's store, progress or routes is involved.
     the Entity panel; a tap on the stage selects here. ↑ ↓ walk the targets, ← → fold and unfold, Enter selects.
     Entries fold; the column collapses to its bar (‹ ›, kept on the device).
   - **Stage** – the simulated camera: **view** *reader* (35 cm above the page, tilted 30°), *top*, *low* (75° – shows
-    how flat a video plane is), *far*; on the stage **drag** orbits, **wheel / pinch** change the distance, **double
-    tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
+    how flat a video plane is), *far*; on the stage **drag** orbits, **Shift + drag**, the **middle button** or **two fingers** pan (the looked-at
+    point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
     one pressed chip per target (◉ = in view) – off reports it lost (outro), on found again (reveal); the replay arrow
     plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **backdrop**: *table*, *paper*,
     *photo* of your own desk (the camera button; long side 1600 px, stored on the device).

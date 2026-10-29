@@ -45,7 +45,7 @@
 <div class="row"><span class="label">view</span>
   <span class="controls">
     <Segmented options={PREVIEW_VIEWS} value={preview.orbit ? null : preview.view} onchange={view => updatePreview({ view, orbit: null })} />
-    {#if preview.orbit}<span class="small muted">free · {Math.round(preview.orbit.distance)} mm · {Math.round(preview.orbit.tilt)}° · {Math.round(preview.orbit.yaw)}°</span>{/if}
+    {#if preview.orbit}<span class="small muted">free · {Math.round(preview.orbit.distance)} mm · {Math.round(preview.orbit.tilt)}° · {Math.round(preview.orbit.yaw)}°{#if preview.orbit.pan} · pan {Math.round(preview.orbit.pan.x)} / {Math.round(preview.orbit.pan.y)} mm{/if}</span>{/if}
   </span></div>
 
 <div class="row"><span class="label">found</span>
@@ -78,7 +78,7 @@
     {#if preview.backdrop === "photo" && !preview.photo}<span class="small muted">choose a photo first</span>{/if}
   </span></div>
 
-<p class="hint small muted">drag = orbit · wheel / pinch = distance · double tap = reader · ← → spreads</p>
+<p class="hint small muted">drag = orbit · shift-drag / middle button / two fingers = pan · wheel / pinch = distance · double tap = reader · ← → spreads</p>
 
 <style>
   .w { width: 5rem; display: inline-flex; }
