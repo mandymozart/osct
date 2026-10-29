@@ -28,6 +28,7 @@ export const schemas: Record<string, Schema> = {
       author: { type: "String", required: true },
       publisher: { type: "String", required: false },
       passes: { type: "Array", required: false }, // post-processing of every spread without its own: [{ type, ...parameters }], see shared/types/passes.ts
+      environment: { type: "Object", required: false }, // the world around the reader and the onion sky: { world, onionSky }, see shared/types/environment.ts
     },
   },
 

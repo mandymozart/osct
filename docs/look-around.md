@@ -10,6 +10,12 @@ Two optional effects in scan mode, **off by default** – readers turn them on i
 Today the world is a **placeholder** (an alien café drawn in the shader). The real world comes with the content
 (PLAN Phase 10 / 14).
 
+**The book's environment** (content schema 2.8, `environment` in `book.yaml`, `shared/types/environment.ts`): `world`
+(`cafe` – the only one today) and `onionSky` (on/off). The reader's switches apply on top (`effectiveGraphics` in
+`look-around.ts`): either can turn a part off, the content cannot turn on what the reader has off. A book without an
+`environment` keeps today's look. Not yet in the content: world assets, per-spread overrides, tuning values – the editor's
+Environment block (book page) sets the two switches only.
+
 ## How it works
 
 - **Rotation only (3DoF).** The 8th Wall engine the app uses (MIT) tracks images, not the room. The phone's

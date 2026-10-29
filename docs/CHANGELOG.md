@@ -12,6 +12,20 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.17.0 – 2026-10-30
+
+### Added
+- **The book's environment – content schema 2.8** (#79, Tilman: "Wir hatten im Reader das Environment und diese Himmel-Effekte.
+  Dafür brauchen wir eine eigene UI"): `book.yaml` takes an optional `environment: { world, onionSky }` – the world around
+  the reader while scanning (`cafe`, the only one) and the onion sky on or off. The engine reads it (`LookAround`); the
+  reader's Graphics switches still apply on top, so the content cannot turn on what the reader has off. A book without
+  it keeps today's look. The config guard and the build check it (`environmentProblems`), the server refuses an unknown
+  world (`PUT /editor/books/{id}/environment`; `null` removes it), and the book page has an *Environment* block to set it.
+  Not in this step: world assets, per-spread overrides, tuning values in the editor.
+
+### Changed
+- The schema lock is at 2.8 (a MINOR step over the plugin API 1.1's 2.7): older apps ignore the new field.
+
 ## 1.16.2 – 2026-10-29
 
 ### Fixed
