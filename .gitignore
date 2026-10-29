@@ -45,3 +45,6 @@ logs
 content/entries/*/video.mp4
 # The book's layout for the editor's stage – generated from the designed PDFs (scripts/layout/extract-layout.py)
 content/layout/
+
+# The book content lives outside the repository (OSCT_CONTENT_DIR, docs/content-out-of-git.md, #5)
+/content/
