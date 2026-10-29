@@ -12,6 +12,7 @@
   import EntityPanel from "$lib/panels/EntityPanel.svelte";
   import TreePanel from "$lib/panels/TreePanel.svelte";
   import LibraryPanel from "$lib/panels/LibraryPanel.svelte";
+  import CodePanel from "$lib/panels/CodePanel.svelte";
   import NewTargetForm from "$lib/panels/NewTargetForm.svelte";
   import { deleteEntry, putTarget, type Asset } from "$lib/api";
   import { library } from "$lib/library.svelte";
@@ -20,12 +21,12 @@
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
-   * (the engine over the mock stage) and the panels **Stage** and **Entity** in a column at the right. On a phone the
+   * (the engine over the mock stage) and the panels **Stage**, **Entity**, **Library** and **Code** in a column at the right. On a phone the
    * panel is a sheet at the bottom whose head is the tab row (closed = the row only) and the tree is its first tab.
    */
   const bookId = $derived(page.params.book!);
   const spreadId = $derived(page.params.spread!);
-  const TABS = ["tree", "stage", "entity", "library"] as const;
+  const TABS = ["tree", "stage", "entity", "library", "code"] as const;
   type Tab = (typeof TABS)[number];
   const TAB_KEY = "osct-editor-tab";
   const TREE_KEY = "osct-editor-tree";
@@ -293,6 +294,7 @@
       <button type="button" class="pill tab" class:on={shown === "stage"} aria-pressed={shown === "stage"} onclick={() => setTab("stage")}>Stage</button>
       <button type="button" class="pill tab" class:on={shown === "entity"} aria-pressed={shown === "entity"} onclick={() => setTab("entity")}>Entity</button>
       <button type="button" class="pill tab" class:on={shown === "library"} aria-pressed={shown === "library"} onclick={() => setTab("library")}>Library</button>
+      <button type="button" class="pill tab" class:on={shown === "code"} aria-pressed={shown === "code"} onclick={() => setTab("code")}>Code</button>
     </div>
     {#if addingTarget && spread}
       <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
@@ -304,6 +306,8 @@
       <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} {pickColour} onlibrary={() => setTab("library")} ontargetchanged={reloadContent} /></div>
     {:else if shown === "library"}
       <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selectedTarget} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} /></div>
+    {:else if shown === "code"}
+      <div class="body code"><CodePanel {bookId} {stage} /></div>
     {/if}
     <div class="foot">
       <PublishButton {bookId} />
@@ -341,6 +345,7 @@
   .bar .tab { padding: 0 .5rem; }
   .bar .tab.on { background: var(--surface); }
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; }
+  .body.code { overflow: hidden; }
   .foot { flex: none; display: flex; justify-content: flex-end; padding: .375rem .5rem; border-top: 1px solid var(--line); }
   .icon-button { text-decoration: none; }
 

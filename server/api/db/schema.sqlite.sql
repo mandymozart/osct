@@ -180,3 +180,17 @@ CREATE TABLE IF NOT EXISTS asset_versions (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS asset_versions_asset ON asset_versions (asset_id, version);
+
+-- The editor's plugin sources (Plugins.php): the Code tab's TypeScript per plugin id; the compiled plugins a book
+-- declares come with the import (books.plugins_json)
+CREATE TABLE IF NOT EXISTS plugins (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  source TEXT NOT NULL,
+  created_by TEXT NULL DEFAULT NULL,
+  updated_by TEXT NULL DEFAULT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (book_id, id)
+);
+ALTER TABLE books ADD COLUMN plugins_json TEXT NOT NULL DEFAULT '[]';

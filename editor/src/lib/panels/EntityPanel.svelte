@@ -5,6 +5,7 @@
   import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "$lib/api";
   import { content } from "$lib/content.svelte";
   import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
+  import { plugins } from "$lib/plugins.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
   import {
     addChild, addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
@@ -98,7 +99,9 @@
   /** The same node in the draft (undefined for a node the draft does not have yet) */
   const draftNode = $derived(target?.entity ? nodeAt(target.entity, node) : undefined);
 
-  const rows = $derived(current ? valueRows(current, uniformScale) : []);
+  // The rows and the addable components follow the registry: a plugin's Run registers new types
+  const rows = $derived.by(() => { void plugins.version; return current ? valueRows(current, uniformScale) : []; });
+  const addable = $derived.by(() => { void plugins.version; return current ? componentTypesFor(current.type) : []; });
   const ref = $derived(target ? getEntityRef(target.id) : undefined);
   const source = $derived(ref ? `shared: ${ref} (${getTargetsUsingEntity(ref).length}×)` : target ? `entry: ${target.entryId}` : "");
   const dirty = $derived(!!target && JSON.stringify(entity ? contentTree(entity) : null) !== JSON.stringify(target.entity ? contentTree(target.entity) : null));
@@ -474,10 +477,10 @@
         </div>
       {/each}
     {/each}
-    {#if componentTypesFor(current.type).length}
+    {#if addable.length}
       <div class="section"><span class="section-label">add component</span>
         <span class="controls">
-          {#each componentTypesFor(current.type) as type (type)}
+          {#each addable as type (type)}
             <button type="button" class="pill" disabled={!!current.components?.some(c => c.type === type)} onclick={() => current && applyNode(addComponent(current, type))}>+ {type}</button>
           {/each}
         </span></div>

@@ -45,11 +45,19 @@ export class GameConfigurationError extends Error {
   }
 }
 
+export interface GuardOptions {
+  /**
+   * Component types the registry does not know: refused unless the configuration declares plugins (the default) –
+   * or always allowed (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run)
+   */
+  unknownComponentTypes?: "declared" | "allow";
+}
+
 /**
  * Throws a `GameConfigurationError` listing every problem (with its path) unless `raw` matches
  * the `GameConfiguration` contract. Also checks references: entity refs exist, ids are unique.
  */
-export function assertGameConfiguration(raw: unknown): asserts raw is GameConfiguration {
+export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}): asserts raw is GameConfiguration {
   const problems: string[] = [];
   const fail = (path: string, message: string) => problems.push(`${path}: ${message}`);
 
@@ -75,7 +83,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
 
   // With plugins declared, a component type the registry does not know yet is the plugin's (it registers it at load)
   const root0 = isObject(raw) ? raw : {};
-  const hasPlugins = Array.isArray(root0.plugins) && root0.plugins.length > 0;
+  const hasPlugins = options.unknownComponentTypes === "allow" || (Array.isArray(root0.plugins) && root0.plugins.length > 0);
 
   const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
