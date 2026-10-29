@@ -1,5 +1,5 @@
 import type { Camera, Object3D, Scene } from "three";
-import { EntityData } from "./content";
+import { EntityData, PassData } from "./content";
 
 /**
  * What the AR scene (three.js / 8th Wall) should be doing. Derived from the game mode and the current
@@ -92,6 +92,10 @@ export interface IArScene {
    * spread switches until `null` restores the content
    */
   overrideEntity(targetId: string, entity: EntityData | null): void;
+  /** Show the current spread with these post-processing passes instead of the content's (the editor's live edit); `null` restores the content's */
+  overridePasses(passes: PassData[] | null): void;
+  /** Post-processing on (the default) or off – the editor's viewport shows passes under *rendered* only; nothing is rendered twice while off */
+  setPostProcessing(enabled: boolean): void;
   /** Tear everything down (camera released, scene removed) */
   dispose(): Promise<void>;
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]): () => void;

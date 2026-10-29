@@ -1100,9 +1100,12 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        editor.md`): `registerComponent` and `registerLayer` (material layers – GLSL composed into a node's material)
        with the shared specs as a registry, `api.three`, the component context and hooks; plugins compiled by the
        content build (`plugins/<id>/index.ts` → type check, esbuild, recorded, declared – schema 2.4), loaded by the
-       engine with the first spread; [ ] more built-in components (`behaviour` with actions, `audio`), the node-type
-       registry (`registerNodeType`), nodes without a target on the spread (scope `spread`), events and variables
-       between entities (Studio C).
+       engine with the first spread; [x] post-processing passes (schema 2.5, #72): the engine's pass registry
+       (`scene/post/`, built-ins bloom / vignette / grade), `passes` per spread or book, the chain over the one
+       renderer with the AR layer's alpha kept, the editor's Stage panel rows – `api.registerPass` is the plugin
+       API's one-line hook into it (S22 budget still to measure); [ ] more built-in components (`behaviour` with
+       actions, `audio`), the node-type registry (`registerNodeType`), nodes without a target on the spread (scope
+       `spread`), events and variables between entities (Studio C).
 4. [x] Code in the editor (#66, 1.11.0): the **Code** tab – plugin sources stored through the API (`plugins` table),
        a plain code editor, Run = browser transpile (sucrase) into the stage's registry, Save, Download; the editor's
        stage is the only place unchecked code runs, a publish refuses component types no declared plugin provides.
