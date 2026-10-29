@@ -35,6 +35,10 @@ outcome in the line (or move it into a dated decision block).
   (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
 - [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
   tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
+- 2026-10-29 (Tilman): the covers are spreads of another **format** – `format` on a spread (`spread` default,
+  `cover`, `back`; later `wall`, objects, facades: "damit kann die App auch verschiedene Medien bespielen"), with a
+  UI to set it; the covers are page 0 and the page after the last so the page → spread rule holds everywhere. Scripts
+  and shaders in the editor (Niantic Studio's model) are issue #66 with their own session.
 - 2026-10-29 (Tilman, on staging): the first editors come from the config list `EDITORS` (GitHub environment
   variable, written by the deploys) because the admin secret is not readable after it is set; a **minimal admin UI**
   at `/admin` follows (editors, later newsletter lists) – own and small, a feature set of the white-label core, not

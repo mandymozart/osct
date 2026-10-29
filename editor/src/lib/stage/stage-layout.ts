@@ -61,8 +61,12 @@ export const fetchStageLayout = async (): Promise<StageLayout | null> => {
 export const sheetImageUrl = (sheet: LayoutSheet): string => contentUrl(`${LAYOUT_PATH}${sheet.image}`);
 
 /** The sheet that shows a spread's pages (the one with its first page, else its last), null when there is none */
-export const sheetForSpread = (layout: StageLayout | null, spread: Pick<Spread, "firstPage" | "lastPage"> | undefined): LayoutSheet | null => {
+export const sheetForSpread = (layout: StageLayout | null, spread: Pick<Spread, "firstPage" | "lastPage" | "format"> | undefined): LayoutSheet | null => {
   if (!layout || !spread) return null;
+  // The covers have no page: their sheets are the layout's cover-front / cover-back
+  if (spread.format === "cover" || spread.format === "back") {
+    return layout.sheets.find(sheet => sheet.kind === (spread.format === "cover" ? "cover-front" : "cover-back")) ?? null;
+  }
   return layout.sheets.find(sheet => sheet.pages.includes(spread.firstPage))
     ?? layout.sheets.find(sheet => sheet.pages.includes(spread.lastPage))
     ?? null;

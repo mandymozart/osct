@@ -16,6 +16,7 @@ export function buildSpreads(): SpreadData[] {
           title: s.title,
           firstPage: s.firstPage,
           lastPage: s.lastPage,
+          ...(s.format && s.format !== 'spread' ? { format: s.format } : {}),
         } satisfies SpreadData,
       };
     })
