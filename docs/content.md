@@ -278,7 +278,13 @@ any spread. More formats (a museum wall, an object) come with the layout templat
 **Environment** (content schema 2.8): `book.yaml` may set `environment: { world: cafe, onionSky: true }` – the world
 around the reader while scanning and the onion sky (docs/look-around.md). Book-level only; without it the café with
 the onion sky applies. The reader's Graphics switches still apply on top, so the content never turns on what the reader
-has off. The editor saves it on the book page (`PUT /editor/books/{id}/environment`).
+has off. Since 2.10 the world and the sky can be files: `worldSrc` a glTF model (`.glb` / `.gltf` – the scenery around
+the reader: its origin the floor under the reader, +y up, −z towards the book, the eye 1.6 m above the origin) and
+`skySrc` an equirectangular image (`.jpg` / `.png` / `.webp`, 2:1 – its centre towards the book, its top edge straight
+up). In `book.yaml` they are paths below the content folder (`environment/sky.jpg` – the build checks the file and writes
+`/assets/content/environment/sky.jpg`); the editor writes the absolute URL of a library asset. The sky replaces the café's
+sky, the model the café's scenery; the café stays the fallback while they load or when one fails. The editor edits
+all of it on the stage, in the workspace's **Environment** tab (`PUT /editor/books/{id}/environment`).
 
 **Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
 whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
@@ -515,6 +521,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
 | 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
 | 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know |
+| 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

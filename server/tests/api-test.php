@@ -699,6 +699,37 @@ try {
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => null], $editor);
     check($status === 200 && !isset($data['environment']), 'environment: null removes it – the default applies');
 
+    echo "editor: the environment's world and sky as assets (content schema 2.10)
+";
+    [, $sky] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'sky', 'sky.png', $editor);
+    [, $world] = upload($api, 'POST', '/editor/books/osct/assets', 'glTF world', 'world.glb', $editor);
+    $environment = ['world' => 'cafe', 'onionSky' => true, 'worldSrc' => $world['asset']['url'], 'skySrc' => $sky['asset']['url']];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => $environment], $editor);
+    check($status === 200 && $data['environment'] === $environment, 'PUT environment with a world model and a sky');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=4', null, $editor);
+    [, $draftNow] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check(($draftNow['book']['environment'] ?? null) === $environment, 'the draft carries the asset references');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => true, 'worldSrc' => $sky['asset']['url']]], $editor);
+    check($status === 400 && $data['error']['message'] === 'environment.worldSrc must be a glTF model (.glb, .gltf).', 'an image as the world is refused');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => true, 'skySrc' => 'sky.jpg']], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-environment', 'a relative path is refused');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => true, 'skySrc' => '/assets/content/environment/sky.webp']], $editor);
+    check($status === 200, 'a content path is taken');
+    [$status] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => $environment], $editor);
+    [, $data] = call($api, 'GET', "/editor/books/osct/assets/{$sky['asset']['id']}/usages", null, $editor);
+    check($data['usages'] === [['kind' => 'environment', 'ref' => 'osct']], 'the sky usages: the book environment');
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    $listed = array_values(array_filter($data['assets'], fn($a) => $a['id'] === $world['asset']['id']));
+    check(($listed[0]['usages'] ?? null) === 1, 'the list counts the world model use');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$world['asset']['id']}", null, $editor);
+    check($status === 409 && $data['error']['usages'][0]['kind'] === 'environment', 'delete while the environment uses it → 409');
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$sky['asset']['id']}/file", $png . 'sky 2', 'sky.png', $editor);
+    check($status === 200 && $data['relinked'] === 1, 'replace the sky → the environment relinked');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check(($tree['book']['book']['environment']['skySrc'] ?? null) === $data['asset']['url'] && $tree['book']['book']['environment']['worldSrc'] === $world['asset']['url'], 'the book names the new version, the world stays');
+    [$status] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => null], $editor);
+    check($status === 200, 'environment removed again');
+
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();
     $bunnyDir = "$tmp/bunny";

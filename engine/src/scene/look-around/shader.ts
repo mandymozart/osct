@@ -32,11 +32,11 @@ const SKY_KEY = /* glsl */ `
 `;
 
 /**
- * The placeholder world: `vec3 worldColour(vec3 dir)` for a view direction in the world's own frame (y up, front
- * −z = towards the book, reader at the origin, floor at y = −1.6). An open-air café under an alien sky from simple
- * shapes (ray against sphere / disc / box) – no assets. The content's real world replaces this block.
+ * The built-in world (`cafe`) for a view direction in the world's own frame (y up, front −z = towards the book, reader
+ * at the origin, floor at y = −1.6): `cafeSky(dir)` – an alien sky – and `cafeScenery(dir, sky)` – an open-air café
+ * over it, from simple shapes (ray against sphere / disc / box) – no assets.
  */
-const PLACEHOLDER_WORLD = /* glsl */ `
+const CAFE_WORLD = /* glsl */ `
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
   const vec3 LIGHT = vec3(-0.37, 0.74, 0.56);
@@ -85,7 +85,7 @@ const PLACEHOLDER_WORLD = /* glsl */ `
     colour = tint * (0.4 + 0.6 * max(dot(spin * n, LIGHT), 0.0)) + edge * vec3(0.6, 1.0, 0.95);
   }
 
-  vec3 worldColour(vec3 dir) {
+  vec3 cafeSky(vec3 dir) {
     float h = dir.y;
     // Sky: gradient, round twinkling stars, a moon, a ringed planet
     vec3 colour = mix(vec3(0.95, 0.45, 0.4), vec3(0.35, 0.08, 0.45), smoothstep(0.0, 0.3, h));
@@ -108,8 +108,13 @@ const PLACEHOLDER_WORLD = /* glsl */ `
       float band = smoothstep(12.0, 12.5, r) * (1.0 - smoothstep(17.5, 18.0, r)) * (0.55 + 0.45 * sin(r * 5.0));
       colour = mix(colour, vec3(0.95, 0.85, 0.7), band * 0.85);
     }
-    glow = vec3(0.0);
-    nearest = 1e9;
+    return colour;
+  }
+
+  vec3 cafeScenery(vec3 dir, vec3 colour) {
+    float h = dir.y;
+    float nearest = 1e9;
+    vec3 glow = vec3(0.0);
 
     // Floor: a glowing grid fading into the haze
     if (h < -0.001) {
@@ -135,6 +140,27 @@ const PLACEHOLDER_WORLD = /* glsl */ `
     cube(dir, vec3(3.2, 0.3, 0.3), 0.3, uTime * 0.4, vec3(0.9, 0.25, 0.6), colour, nearest);
     cube(dir, vec3(-3.4, 0.6, -0.4), 0.24, -uTime * 0.5 + 1.0, vec3(0.3, 0.6, 1.0), colour, nearest);
     return colour + glow;
+  }
+`;
+
+/**
+ * The book's world (content schema 2.10): the sky is the sky image where the environment names one (equirectangular,
+ * its centre towards the book, its top edge straight up), else the café's; over it the world model's cube (baked once
+ * from the reader's eye, transparent where the model has nothing) where there is one, else the café's scenery.
+ */
+const WORLD = /* glsl */ `
+  const float PI = 3.141592653589793;
+
+  vec3 skyImage(vec3 dir) {
+    vec2 uv = vec2(atan(dir.x, -dir.z) / (2.0 * PI) + 0.5, asin(clamp(dir.y, -1.0, 1.0)) / PI + 0.5);
+    return texture2D(tSky, uv).rgb;
+  }
+
+  vec3 worldColour(vec3 dir) {
+    vec3 sky = uSkyImage > 0.5 ? skyImage(dir) : cafeSky(dir);
+    if (uWorldModel < 0.5) return cafeScenery(dir, sky);
+    vec4 world = textureCube(tWorld, dir);
+    return mix(sky, world.rgb / max(world.a, 1e-4), world.a);
   }
 `;
 
@@ -186,6 +212,10 @@ export const lookAroundMaterial = (): ShaderMaterial => new ShaderMaterial({
     uPresence: { value: 0 },
     uOpacity: { value: 1 },
     uSky: { value: 0 },
+    tSky: { value: null },
+    uSkyImage: { value: 0 },
+    tWorld: { value: null },
+    uWorldModel: { value: 0 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -208,9 +238,14 @@ export const lookAroundMaterial = (): ShaderMaterial => new ShaderMaterial({
     uniform float uPresence;
     uniform float uOpacity;
     uniform float uSky;
+    uniform sampler2D tSky;
+    uniform float uSkyImage;
+    uniform samplerCube tWorld;
+    uniform float uWorldModel;
     varying vec2 vUv;
     ${SKY_KEY}
-    ${PLACEHOLDER_WORLD}
+    ${CAFE_WORLD}
+    ${WORLD}
     ${COMPOSITE}
   `,
   blending: NoBlending,

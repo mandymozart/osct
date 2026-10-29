@@ -37,6 +37,47 @@ describe('content build', () => {
     expect(build.spreads.buildSpreads().map(s => s.id)).toEqual(['b', 'a']);
   });
 
+  // The world and the sky as assets (content schema 2.10): paths below the content folder become content paths
+  describe('environment assets', () => {
+    const withEnvironment = (environment: string, files: Record<string, string> = {}) => ({
+      ...valid(),
+      'book.yaml': `${BOOK}environment:
+${environment}`,
+      ...files,
+    });
+
+    it('resolves the world model and the sky below the content folder', async () => {
+      const build = await loadBuild(makeContent(withEnvironment(
+        '  world: cafe\n  onionSky: true\n  worldSrc: environment/world.glb\n  skySrc: /assets/content/environment/sky.jpg\n',
+        { 'environment/world.glb': 'glb', 'environment/sky.jpg': 'jpg' },
+      )));
+      const { book } = build.buildAll();
+      expect(build.errors).toEqual([]);
+      expect(book.environment).toEqual({ world: 'cafe', onionSky: true, worldSrc: '/assets/content/environment/world.glb', skySrc: '/assets/content/environment/sky.jpg' });
+    });
+
+    it('keeps an absolute URL (an uploaded asset)', async () => {
+      const build = await loadBuild(makeContent(withEnvironment('  world: cafe\n  onionSky: false\n  skySrc: https://cdn.example.com/assets/b/a/v1.webp\n')));
+      const { book } = build.buildAll();
+      expect(build.errors).toEqual([]);
+      expect(book.environment?.skySrc).toBe('https://cdn.example.com/assets/b/a/v1.webp');
+    });
+
+    it('reports a missing file, a wrong type and a path out of the folder', async () => {
+      const build = await loadBuild(makeContent(withEnvironment(
+        '  world: cafe\n  onionSky: true\n  worldSrc: environment/sky.jpg\n  skySrc: ../sky.jpg\n',
+        { 'environment/sky.jpg': 'jpg' },
+      )));
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      build.buildAll();
+      vi.restoreAllMocks();
+      expect(build.errors).toEqual(['book.yaml: environment.skySrc: file "../sky.jpg" not found in the content folder']);
+      const typed = await loadBuild(makeContent(withEnvironment('  world: cafe\n  onionSky: true\n  worldSrc: environment/sky.jpg\n', { 'environment/sky.jpg': 'jpg' })));
+      typed.buildAll();
+      expect(typed.errors).toEqual(['book.yaml: environment.worldSrc must be a glTF model (.glb, .gltf).']);
+    });
+  });
+
   describe('errors', () => {
     const errorsFor = async (files: Record<string, string>) => {
       const build = await loadBuild(makeContent(files));

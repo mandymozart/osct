@@ -83,12 +83,13 @@ final class Assets
     }
 
     /**
-     * The texts `usagesOf` searches, one per row: targets (data and image), entities, entries
+     * The texts `usagesOf` searches, one per row: the book (its environment's world and sky), targets (data and image),
+     * entities, entries
      * @return array<int, string>
      */
     private static function usageRows(string $bookId): array
     {
-        $rows = [];
+        $rows = [['text' => self::environmentText($bookId), 'exact' => null]];
         foreach (Db::run('SELECT image_src, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $rows[] = ['text' => (string) $row['data_json'], 'exact' => (string) $row['image_src']];
         }
@@ -252,7 +253,8 @@ final class Assets
     }
 
     /**
-     * Where the asset's current URL appears in the book: targets (`imageSrc`, the inline entity), shared entities, entries.
+     * Where the asset's current URL appears in the book: the book's environment (its world model or sky), targets
+     * (`imageSrc`, the inline entity), shared entities, entries.
      * @param array<string, mixed> $asset
      * @return array<int, array{kind: string, ref: string}>
      */
@@ -260,6 +262,7 @@ final class Assets
     {
         $needle = '%' . str_replace(['%', '_'], ['\%', '\_'], $asset['url']) . '%';
         $usages = [];
+        if (str_contains(self::environmentText($bookId), Editor::encode($asset['url']))) $usages[] = ['kind' => 'environment', 'ref' => $bookId];
         foreach (Db::run("SELECT id FROM targets WHERE book_id = :book AND (data_json LIKE :needle ESCAPE '\\' OR image_src = :url) ORDER BY id", ['book' => $bookId, 'needle' => $needle, 'url' => $asset['url']])->fetchAll() as $row) {
             $usages[] = ['kind' => 'target', 'ref' => $row['id']];
         }
@@ -277,6 +280,23 @@ final class Assets
     {
         $count = 0;
         $swap = static fn(string $json): string => str_replace(Editor::encode($from), Editor::encode($to), $json);
+        // The book's environment (its world model or sky): only that field of the book's JSON, nothing else of the book
+        $book = Db::one('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $decoded = Editor::decode($book['book_json'] ?? null);
+        if ($decoded instanceof stdClass && ($decoded->environment ?? null) instanceof stdClass) {
+            $changed = false;
+            foreach (['worldSrc', 'skySrc'] as $key) {
+                if (($decoded->environment->{$key} ?? null) !== $from) continue;
+                $decoded->environment->{$key} = $to;
+                $changed = true;
+            }
+            if ($changed) {
+                $json = Editor::encode($decoded);
+                Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
+                Books::recordChange($bookId, $user, 'environment', $bookId, $book['book_json'], $json);
+                $count++;
+            }
+        }
         foreach (Db::run('SELECT id, image_src, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $json = $swap($row['data_json']);
             $image = $row['image_src'] === $from ? $to : $row['image_src'];
@@ -301,6 +321,13 @@ final class Assets
         }
         if ($count) Books::touchBook($bookId);
         return $count;
+    }
+
+    /** The book's environment as JSON ("" without one): the text a world model's or a sky's URL is searched in */
+    private static function environmentText(string $bookId): string
+    {
+        $book = Editor::decode(Db::value('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId]));
+        return $book instanceof stdClass && isset($book->environment) ? Editor::encode($book->environment) : '';
     }
 
     /** @param array<string, mixed> $row */

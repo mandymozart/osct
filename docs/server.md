@@ -233,8 +233,8 @@ bytes uploaded twice are one asset.
 |---|---|---|
 | `GET /editor/books/{id}/assets[?kind=]` | | `{ assets: [{ id, name, kind, mime, size, width, height, version, url, usages, imported, createdAt, updatedAt }] }` – `usages` = rows of the book naming the URL; the uploads first, then the files of the import's `files.json` (`imported: true`, id `import-<hash>`, read-only: no replace, usages or delete; `url` below the assets base, `usages` counted with the content path `/assets/content/…` the rows name) |
 | `POST /editor/books/{id}/assets` | the file; `X-File-Name: name.ext` | 201 `{ asset }`, or 200 with the asset that already holds these bytes. 400 `invalid-file` (no name, unsupported type, empty), 413 `body-too-large` |
-| `PUT /editor/books/{id}/assets/{aid}/file` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked }` – a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one (a change each) |
-| `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: target | entity | entry, ref }] }` |
+| `PUT /editor/books/{id}/assets/{aid}/file` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked }` – a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one, and the book's environment (`worldSrc`, `skySrc`) (a change each) |
+| `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: environment | target | entity | entry, ref }] }` (`environment`: the book's world model or sky, `ref` = the book) |
 | `DELETE /editor/books/{id}/assets/{aid}[?force=1]` | | 204; 409 `asset-in-use` with `usages` unless forced (the files of every version go) |
 
 Renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build (PLAN 2b).
