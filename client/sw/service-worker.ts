@@ -15,15 +15,19 @@
  *   immutable folder (`<base>/<build>/`), and when `latest.json` names another version the entries of the other
  *   versions are dropped. `latest.json` is fetched network-first and kept, so the installed app starts offline
  *   with the last content it saw.
+ * - Editor pages (/editor, inside this scope): not handled, their requests go to the network as without a worker
+ *   (sw/editor-clients.ts).
  * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code.
  */
 import { clientsClaim } from "workbox-core";
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from "workbox-precaching";
 import { registerRoute, setCatchHandler } from "workbox-routing";
-import { CacheFirst, NetworkFirst, NetworkOnly } from "workbox-strategies";
+import { CacheFirst, NetworkFirst, NetworkOnly, type Strategy } from "workbox-strategies";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import type { WorkboxPlugin } from "workbox-core/types";
+import type { RouteHandlerCallback } from "workbox-core/types";
 import { RangeRequestsPlugin } from "workbox-range-requests";
+import { EditorClients } from "./editor-clients";
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision: string | null }> };
 declare const __VITE_CONTENT_HASH__: string;
@@ -40,6 +44,19 @@ const MANIFEST_TIMEOUT_SECONDS = 5;
 
 self.skipWaiting();
 clientsClaim();
+
+// Must be the first fetch listener (before every route): the editor's pages and their requests are left to the browser
+const editorClients = new EditorClients(self.clients);
+void editorClients.refresh();
+self.addEventListener("fetch", event => {
+  if (editorClients.bypasses(event)) event.stopImmediatePropagation();
+});
+
+/** A route's strategy for the reader's requests; a request of an editor page the listener did not know yet goes to the network */
+const readerOnly = (strategy: Strategy): RouteHandlerCallback => async options => {
+  const { clientId } = options.event as FetchEvent;
+  return (await editorClients.isEditor(clientId)) ? fetch(options.request) : strategy.handle(options);
+};
 
 // Must be registered before the precache route: "/" and "/index.html" are precached, but pages come from the network first
 registerRoute(({ request }) => request.mode === "navigate", new NetworkOnly({ networkTimeoutSeconds: PAGE_TIMEOUT_SECONDS }));
@@ -81,20 +98,20 @@ const dropOtherVersions: WorkboxPlugin = {
 if (CONTENT_BASE_URL) {
   registerRoute(
     ({ url }) => `${url.origin}${url.pathname}` === `${CONTENT_BASE_URL}/latest.json`,
-    new NetworkFirst({
+    readerOnly(new NetworkFirst({
       cacheName: CONTENT_CACHE,
       networkTimeoutSeconds: MANIFEST_TIMEOUT_SECONDS,
       plugins: [new CacheableResponsePlugin({ statuses: [200] }), withoutQuery, dropOtherVersions],
-    }),
+    })),
   );
 }
 
 registerRoute(
   isContent,
-  new CacheFirst({
+  readerOnly(new CacheFirst({
     cacheName: CONTENT_CACHE,
     plugins: [new CacheableResponsePlugin({ statuses: [200] }), new RangeRequestsPlugin()],
-  }),
+  })),
 );
 
 // Offline page load: the precached app shell (the app routes itself, like the server's SPA fallback)
