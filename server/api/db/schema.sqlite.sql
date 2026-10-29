@@ -219,3 +219,6 @@ CREATE TABLE IF NOT EXISTS plugins (
   PRIMARY KEY (book_id, id)
 );
 ALTER TABLE books ADD COLUMN plugins_json TEXT NOT NULL DEFAULT '[]';
+
+-- A video's duration (schema.mysql.sql has the notes)
+ALTER TABLE assets ADD COLUMN duration_ms INTEGER NULL DEFAULT NULL;

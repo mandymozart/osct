@@ -269,7 +269,7 @@ is involved.
     cards (a preview with an animated skeleton until it has loaded – images, a video's first frame that plays muted
     while hovered or after a click on ▷ –, the type's icon else; where the file belongs – the import names every file
     `image.jpg`, `target.jpg`, `video.mp4` in a folder per entry, so a card reads `p015-1 · target` –, kind, size,
-    dimensions, the number of uses) or a plain **list** (name, place, kind, size, uses; a click on a row opens its
+    dimensions, a video's duration, the number of uses) or a plain **list** (name, place, kind, size, uses; a click on a row opens its
     actions) – the **view** is remembered per browser; filter by kind (**target image** – a target's image in the
     draft, or the import's `target.*` – apart from the other images, video, model, audio), search by name and place
     (`p015 target`), **Upload** (the button, or files dropped on the panel); per file **Use** (the selected node takes
@@ -315,7 +315,9 @@ is involved.
     that **node**: its **name** (empty = the tree shows the type), its **file** (the file field: **Library…** – the Library as the picker, with the filter set – or **Upload…**),
     **+ node** (type – group, model, video, image, text or light – and for model / video / image a file chosen in
     the Library as the picker – the root of a target without AR content, else placed by **add as**: *next to it* (the same parent,
-    right after the selected node – the default for a model, video or image) or *inside it* (its last child)),
+    right after the selected node – the default for a model, video or image) or *inside it* (its last child); a video
+    whose size the Library knows starts scaled so a portrait file stays within one target width – the plane itself
+    always takes the file's proportions),
     **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
     text and colour, a light node's **light** rows (kind as a segmented group, colour, intensity, distance and decay
     for a point or spot, angle and penumbra for a spot), and every filter parameter of the

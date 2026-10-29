@@ -54,7 +54,7 @@ declare(strict_types=1);
  * Signed-in requests send `Authorization: Bearer <session token>`.
  */
 
-foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'Plugins'] as $class) {
+foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 

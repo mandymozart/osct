@@ -338,7 +338,9 @@
   const add = () => {
     if (!target || !canAdd) return;
     const chosen = assetChoices.find(a => a.src === addAsset);
-    const child = newNode(addType as EntityType, chosen ? { id: `${target.id}-${Date.now().toString(36)}`, assetType: chosen.assetType, src: chosen.src } : undefined);
+    // a file of the library (picked there or chosen here) brings its size: a video node is sized to it
+    const child = newNode(addType as EntityType, chosen ? { id: `${target.id}-${Date.now().toString(36)}`, assetType: chosen.assetType, src: chosen.src } : undefined,
+      chosen ? library.byUrl(chosen.src) : null);
     // The target's first node is the root; else next to the selected node or inside it
     const placed = addNode(entity, node, child, addPlace);
     apply(placed.tree);

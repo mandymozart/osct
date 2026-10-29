@@ -191,7 +191,7 @@ CREATE TABLE IF NOT EXISTS assets (
   mime VARCHAR(64) NOT NULL,
   size BIGINT NOT NULL,
   sha256 CHAR(64) NOT NULL,
-  width INT NULL DEFAULT NULL,         -- images
+  width INT NULL DEFAULT NULL,         -- images and videos (duration_ms: videos – added at the end of the file)
   height INT NULL DEFAULT NULL,
   version INT NOT NULL DEFAULT 1,      -- the current version
   path VARCHAR(255) NOT NULL,          -- in the store: <book>/<asset>/v<n>.<ext>
@@ -267,3 +267,6 @@ CREATE TABLE IF NOT EXISTS plugins (
   CONSTRAINT plugins_book_fk FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ALTER TABLE `books` ADD COLUMN `plugins_json` TEXT NOT NULL DEFAULT '[]';
+
+-- A video's duration as its file states it (Assets.php, VideoInfo.php); width / height hold its picture's size
+ALTER TABLE `assets` ADD COLUMN `duration_ms` BIGINT NULL DEFAULT NULL;

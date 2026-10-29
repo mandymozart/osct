@@ -12,6 +12,18 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.31.0 – 2026-10-30
+
+### Added
+- **A video's size and duration are recorded on upload** (#91): the editor's API reads an mp4 / mov's or webm / mkv's
+  header – no ffmpeg, only the few bytes that hold them – and keeps the picture's width and height and the duration
+  with the asset, as it already did for an image's size. The asset list and an asset's usages answer them
+  (`durationMs`); files uploaded before stay without until they are replaced.
+- **The Library shows a video's duration** on its card, and **+ node** starts a portrait video scaled so it stays
+  within the target's width.
+- **The MCP server's** asset tools tell an agent about the new numbers, so it can size a video plane and time an
+  animation without opening the file.
+
 ## 1.30.0 – 2026-10-30
 
 ### Fixed
