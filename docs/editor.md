@@ -98,7 +98,10 @@ again). Nothing of the reader's store, progress or routes is involved.
     entries in page order, each entry's target ("in view" while the camera sees it) and the target's entity as its
     **node tree** – the root node (● while the stage shows it with other values than the draft's; the shared ref) and
     its children, as deep as the content nests them. A tap on a node selects it and opens the Entity panel; a tap on
-    the stage selects the root. ↑ ↓ walk the targets, ← → fold and unfold, Enter selects. Entries and nodes fold;
+    the stage selects the root. ↑ ↓ walk the targets, ← → fold and unfold, Enter selects, **Delete** (or Backspace)
+    removes the selected node – its children with it, the root leaves the target without AR content – and a
+    **right click** on a node row opens the menu with *Remove node* / *Remove entity*. Removing is live on the stage;
+    Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device).
   - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
     selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own

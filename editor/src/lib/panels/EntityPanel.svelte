@@ -4,9 +4,9 @@
   import { ENTITY_TYPES, FILTER_TYPES, type AssetData, type EntityData, type EntityType, type FilterType, type Target } from "@engine/types";
   import { ApiError, putEntity, putTargetEntity } from "$lib/api";
   import { content } from "$lib/content.svelte";
-  import type { Stage } from "$lib/stage/stage.svelte";
+  import { Stage } from "$lib/stage/stage.svelte";
   import {
-    addChild, addFilter, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeFilter, removeNode, sameValue, setValue, valueRows, withNode,
+    addChild, addFilter, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeFilter, sameValue, setValue, valueRows, withNode,
     type ValueRow,
   } from "$lib/values";
   import ColourField from "$lib/components/ColourField.svelte";
@@ -54,7 +54,7 @@
     // The tree and the stage follow the target shown here (a fallback when nothing is selected yet)
     if (selected !== t.id) selected = t.id;
     const override = stage?.overrideOf(t.id);
-    entity = override ?? t.entity ?? null;
+    entity = override === Stage.REMOVED ? null : override ?? t.entity ?? null;
     if (other) {
       node = [];
       saved = null;
@@ -80,7 +80,10 @@
   $effect(() => {
     const t = target;
     const live = t ? stage?.overrides.get(t.id) : undefined;
-    if (t && live && untrack(() => editingTarget === t.id && entity !== live)) entity = live;
+    if (!t || !live || !untrack(() => editingTarget === t.id)) return;
+    if (live === Stage.REMOVED) {
+      if (untrack(() => entity !== null)) entity = null;
+    } else if (untrack(() => entity !== live)) entity = live;
   });
   /** The same node in the draft (undefined for a node the draft does not have yet) */
   const draftNode = $derived(target?.entity ? nodeAt(target.entity, node) : undefined);
@@ -174,17 +177,10 @@
     addAsset = "";
   };
   const remove = () => {
-    if (!entity || !target) return;
-    if (!node.length) {
-      // The root goes: the target shows no AR content until Save (or Back to the draft)
-      entity = null;
-      stage?.override(target.id, null);
-      saved = null;
-      return;
-    }
-    const parent = node.slice(0, -1);
-    apply(removeNode(entity, node));
-    node = parent;
+    if (!entity || !target || !stage) return;
+    // Through the stage (the tree's menu and the Delete key do the same): the override is the shared source
+    node = stage.removeNode(target.id, node);
+    saved = null;
   };
 </script>
 
@@ -202,7 +198,7 @@
 
   <div class="section"><span class="section-label">node · {pathLabel}{current ? ` · ${current.type}` : ""}</span>
     <span class="controls">
-      {#if entity}<button type="button" class="text-link" onclick={remove}>{node.length ? "remove node" : "remove entity"}</button>{/if}
+      {#if entity}<button type="button" class="text-link" onclick={remove} title="Delete removes the selected node too">{node.length ? "remove node" : "remove entity"}</button>{/if}
     </span></div>
   <div class="row add"><span class="label">+ node</span>
     <span class="controls">

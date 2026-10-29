@@ -106,6 +106,11 @@
     if (event.key === "ArrowRight") step(1);
     const mode = GIZMO_KEYS[event.key.toLowerCase()];
     if (mode && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setGizmoMode(mode);
+    // Delete removes the selected node (the tree does the same when it has the focus and stops the event)
+    if ((event.key === "Delete" || event.key === "Backspace") && stage && selectedTarget && stage.treeOf(selectedTarget)) {
+      selectedNode = stage.removeNode(selectedTarget, selectedNode);
+      event.preventDefault();
+    }
   };
   const onKeyUp = (event: KeyboardEvent) => {
     if (event.key === "Control") stage?.setSnap(false);
