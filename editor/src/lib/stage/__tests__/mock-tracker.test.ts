@@ -260,3 +260,69 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     expect(view.disposed).toBe(true);
   });
 });
+
+describe("MockTracker input (#131: the panels are no stage)", () => {
+  let container: HTMLElement;
+  let canvas: HTMLElement;
+  let field: HTMLElement;
+  let toolbarGap: HTMLElement;
+  let tracker: MockTracker;
+
+  const pointer = (type: string, target: EventTarget, x: number) =>
+    target.dispatchEvent(new PointerEvent(type, { bubbles: true, composed: true, pointerId: 1, button: 0, clientX: x, clientY: 100 }));
+  const wheel = (target: EventTarget) =>
+    target.dispatchEvent(new WheelEvent("wheel", { bubbles: true, composed: true, cancelable: true, deltaY: 100 }));
+
+  beforeEach(async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    localStorage.clear();
+    setPreviewActive(true);
+    updatePreview({ view: "reader", orbit: null, hidden: [] });
+    // The editor's layout: the stage between the side panels, its toolbar inside it
+    document.body.innerHTML = `
+      <header class="top" data-app-ui><span class="crumb">book</span></header>
+      <aside class="tree" data-app-ui><div class="spread-row">spread</div></aside>
+      <div class="stage"><canvas></canvas><div class="tools" role="toolbar" data-app-ui><span class="gap"></span></div></div>
+      <aside class="panel" data-app-ui><div class="body"><span class="field">value</span></div></aside>`;
+    container = document.querySelector(".stage")!;
+    canvas = container.querySelector("canvas")!;
+    field = document.querySelector(".field")!;
+    toolbarGap = document.querySelector(".gap")!;
+    tracker = new MockTracker(container, { onUpdate: () => {} }, async () => ({}), () => 1000);
+    await tracker.startCamera();
+  });
+
+  afterEach(() => {
+    tracker.stop();
+    setPreviewActive(false);
+    document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+  });
+
+  it("orbits on a drag that starts on the stage, also once the pointer leaves it", () => {
+    const yaw = tracker.currentOrbit.yaw;
+    pointer("pointerdown", canvas, 100);
+    pointer("pointermove", canvas, 140);
+    pointer("pointermove", field, 200); // over the right panel now
+    pointer("pointerup", field, 200);
+    expect(tracker.currentOrbit.yaw).not.toBe(yaw);
+  });
+
+  it("ignores drags and the wheel in the top bar, the panels, the spread list and the toolbar", () => {
+    const orbit = { ...tracker.currentOrbit };
+    for (const target of [document.querySelector(".crumb")!, field, document.querySelector(".spread-row")!, toolbarGap]) {
+      pointer("pointerdown", target, 100);
+      pointer("pointermove", canvas, 200);
+      pointer("pointerup", canvas, 200);
+      wheel(target);
+    }
+    expect(tracker.currentOrbit).toEqual(orbit);
+  });
+
+  it("zooms with the wheel over the stage", () => {
+    const distance = tracker.currentOrbit.distance;
+    wheel(canvas);
+    expect(tracker.currentOrbit.distance).toBeGreaterThan(distance);
+  });
+});
