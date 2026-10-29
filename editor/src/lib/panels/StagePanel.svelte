@@ -3,7 +3,7 @@
   import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import {
-    getPreview, PREVIEW_BACKDROPS, PREVIEW_VIEWS, setTargetHidden, subscribePreview, updatePreview, type PreviewState,
+    getPreview, HDRIS, isHdriId, PREVIEW_BACKDROPS, PREVIEW_VIEWS, setTargetHidden, subscribePreview, updatePreview, type PreviewState,
   } from "$lib/stage/preview";
   import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
@@ -73,6 +73,11 @@
 <div class="row"><span class="label">backdrop</span>
   <span class="controls">
     <Segmented options={PREVIEW_BACKDROPS} value={preview.backdrop} onchange={backdrop => updatePreview({ backdrop })} />
+    {#if preview.backdrop === "hdri"}
+      <select class="field" aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
+        {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
+      </select>
+    {/if}
     <button type="button" class="icon-button" title="Choose a photo of your desk" aria-label="Choose a photo of your desk" onclick={() => fileInput?.click()}><Icon name="camera" /></button>
     <input bind:this={fileInput} type="file" accept="image/*" hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void choosePhoto(f); }} />
     {#if preview.backdrop === "photo" && !preview.photo}<span class="small muted">choose a photo first</span>{/if}

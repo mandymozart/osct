@@ -1067,6 +1067,11 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        `/editor` with the engine + mock tracker in process; an OSCT instance user (Building Fictions) signs in,
        independent of Scutoons. Done (1.10.0): [x] engine package, [x] reader stripped, [x] editor app (sign-in, books,
        import, stage, Stage / Entity panels, save, publish), [x] image + CI; staging = the PR into develop.
+2b. [ ] **Asset upload** (Tilman 2026-10-29: "hoffe der Asset-Upload ist auch schon in Planung"): the asset layer
+       after Scutoons' (`scutoons/agents/ASSETS.md`: registry of assets / versions / renditions / usages, storage
+       drivers local + bunny with opt-in writes, the media standard 1x / 2x / 3x and 480p / 720p / 1080p, the asset
+       picker) in the API and the editor – upload and replace a node's file and a target's image, pick from the
+       library; transcoding stays with the content build or a job. Next after the stage's sky and gizmo.
 2. [x] Saving (1.10.0): books, spreads, entries, targets, entities in the database (`/api/editor/*`, import from a
        game configuration, entity edits with a change log), the draft as a content version the engine loads
        (`…/draft/latest.json`), publish = the version assembled from the rows into the content store (local dir or
