@@ -1,0 +1,7 @@
+# The front cover (content schema 2.3): a spread of the format `cover` – page 0, no page numbers. The stage shows the
+# closed book; targets lie on its surface `front`.
+title: Cover
+order: -1
+firstPage: 0
+lastPage: 0
+format: cover

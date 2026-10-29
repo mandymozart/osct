@@ -1,5 +1,5 @@
 import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from "three";
-import type { Target } from "@engine/types";
+import type { SpreadFormat, Target } from "@engine/types";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, TriggerInfos } from "@engine/utils/trigger-protocol";
@@ -18,6 +18,20 @@ const FAR = 100;
  * the double page, the spread is two of them side by side. This book's print format.
  */
 export const BOOK_PAGE_MM = { width: 230, height: 320 } as const;
+
+/** The surfaces a target lies on: the pages of the open book, or the closed book's front / back cover */
+export type StageSurface = "left" | "right" | "front" | "back";
+
+/**
+ * Where a surface's left edge lies in the stage's frame (mm): the open book has its spine at x = 0 – the left page
+ * to the left, the right page to the right; the closed book (a cover) is centred on the origin
+ */
+export const surfaceLeft = (surface: string, page: PageFormat): number =>
+  surface === "left" ? -page.width : surface === "front" || surface === "back" ? -page.width / 2 : 0;
+
+/** The surface a target falls back to on a spread: the right page of the open book, the cover's own face */
+export const defaultSurface = (format: SpreadFormat | undefined): StageSurface =>
+  format === "cover" ? "front" : format === "back" ? "back" : "right";
 
 export interface PageFormat {
   width: number;
@@ -42,9 +56,11 @@ export interface StageSheet {
   heightMm: number;
 }
 
-/** The book as an object: how many spreads it has (the stage's block thickness follows) */
+/** The book as an object: how many spreads it has (the stage's block thickness follows), and what the spread is */
 export interface StageBook {
   spreads: number;
+  /** A double page (`book`), the front cover or the back cover: the stage draws the open or the closed book */
+  format: SpreadFormat;
 }
 
 export interface Orbit extends PreviewOrbit {}
@@ -87,8 +103,9 @@ const degrees = (value: number) => (value * Math.PI) / 180;
  * right page, several in one region stacked downwards. Without details the targets lie in a row across the middle
  * of the right page.
  */
-export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = {}, page: PageFormat = BOOK_PAGE_MM, layout: StageLayout | null = null): StageTarget[] => {
+export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = {}, page: PageFormat = BOOK_PAGE_MM, layout: StageLayout | null = null, format: SpreadFormat | undefined = undefined): StageTarget[] => {
   const withImage = targets.filter(target => target.imageSrc);
+  const fallback = defaultSurface(format);
   // A target's own `print` (made in the editor) or the book's layout: every target has a printed place
   const placed = (target: Target): StageTarget | null => {
     const own = target.print;
@@ -103,7 +120,7 @@ export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = 
     const rest = withImage.filter((_, i) => placedTargets[i] === null);
     const width = Math.min(60, (page.width - 20) / Math.max(1, rest.length) - 10);
     return withImage.map((target, i) => placedTargets[i] ?? {
-      id: target.id, imageSrc: target.imageSrc, surface: "right", x: 10 + rest.indexOf(target) * (width + 10), y: page.height * 0.6, width, height: width * 0.75,
+      id: target.id, imageSrc: target.imageSrc, surface: fallback, x: 10 + rest.indexOf(target) * (width + 10), y: page.height * 0.6, width, height: width * 0.75,
     });
   }
   const known = withImage.filter(target => infos[target.id]?.width);
@@ -114,7 +131,7 @@ export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = 
       const width = info.width!;
       const height = info.height ?? width * 0.75;
       if (info.x !== undefined && info.y !== undefined) {
-        return { id: target.id, imageSrc: target.imageSrc, surface: "right", x: info.x, y: info.y, width, height };
+        return { id: target.id, imageSrc: target.imageSrc, surface: fallback, x: info.x, y: info.y, width, height };
       }
       const words = (info.position ?? "middle centre").toLowerCase();
       const column = words.includes("left") ? 0 : words.includes("right") ? 2 : 1;
@@ -148,7 +165,7 @@ export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = 
  * top of the page, z out of the page. A target's centre in that frame.
  */
 export const targetCentre = (target: StageTarget, page: PageFormat = BOOK_PAGE_MM): Vector3 => {
-  const pageLeft = target.surface === "left" ? -page.width : 0;
+  const pageLeft = surfaceLeft(target.surface, page);
   return new Vector3(
     (pageLeft + target.x + target.width / 2) / 1000,
     (page.height / 2 - target.y - target.height / 2) / 1000,
@@ -197,7 +214,7 @@ export interface StageView {
   /** The ghost's image and corner (the placement handles) */
   ghostParts?(): { image: Object3D | null; corner: Object3D | null };
   /** Where a ray meets the page, in mm from the page's top left corner, and on which page */
-  pageHit?(raycaster: Raycaster): { surface: "left" | "right"; x: number; y: number } | null;
+  pageHit?(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null;
   /** Every frame: the stage's frame relative to the camera (the camera stays at the origin) */
   update(cameraInverse: Matrix4): void;
   dispose(): void;
@@ -248,7 +265,7 @@ export class MockTracker implements IImageTracker {
     return this.stage?.ghostParts?.() ?? { image: null, corner: null };
   }
 
-  pageHit(raycaster: Raycaster): { surface: "left" | "right"; x: number; y: number } | null {
+  pageHit(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null {
     return this.stage?.pageHit?.(raycaster) ?? null;
   }
 
@@ -304,7 +321,8 @@ export class MockTracker implements IImageTracker {
   }
 
   private stageBook(): StageBook {
-    return { spreads: Math.max(1, getSpreads().length) };
+    const spread = this.spreadId ? getSpread(this.spreadId) : undefined;
+    return { spreads: Math.max(1, getSpreads().filter(s => !s.format || s.format === "spread").length), format: spread?.format ?? "spread" };
   }
 
   private stageSheet(): StageSheet | null {
@@ -328,8 +346,9 @@ export class MockTracker implements IImageTracker {
     if (!this.started) throw new Error("loadTargets() needs the camera");
     this.stopTracking();
     this.spreadId = spreadId;
-    this.sheet = sheetForSpread(this.layout, getSpread(spreadId));
-    this.targets = layoutTargets(targets, this.infos, this.pageFormat(), this.layout);
+    const spread = getSpread(spreadId);
+    this.sheet = sheetForSpread(this.layout, spread);
+    this.targets = layoutTargets(targets, this.infos, this.pageFormat(), this.layout, spread?.format);
     this.stage?.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
     this.publishState();
   }

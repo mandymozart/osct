@@ -10,8 +10,8 @@ describe("spread menu loop", () => {
   });
 
   it("formats the page range with an en dash", () => {
-    expect(formatPages({ firstPage: 20, lastPage: 21 })).toBe("20–21");
-    expect(formatPages({ firstPage: 1, lastPage: 1 })).toBe("1");
+    expect(formatPages({ title: "", firstPage: 20, lastPage: 21 })).toBe("20–21");
+    expect(formatPages({ title: "", firstPage: 1, lastPage: 1 })).toBe("1");
   });
 
   it("renders an odd number of copies, enough to fill the viewport on both sides", () => {

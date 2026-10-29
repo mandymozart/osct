@@ -3,7 +3,7 @@ import {
   PlaneGeometry, Raycaster, RepeatWrapping, Scene, SphereGeometry, SRGBColorSpace, Texture, TextureLoader, UVMapping, Vector3,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import type { PageFormat, StageBook, StageSheet, StageTarget, StageView } from "./mock-tracker";
+import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
 import type { HdriId, PreviewBackdrop, ShadingMode } from "./preview";
 
 /**
@@ -66,6 +66,8 @@ export class MockStage implements StageView {
   private desk: { map: Texture; roughnessMap: Texture } | null = null;
   /** The page format of the last layout (the ghost is placed on it) */
   private page: PageFormat = { width: 230, height: 320 };
+  /** What the current spread is: the open book, or the closed book seen from the front or the back */
+  private format: StageBook["format"] = "spread";
   private ghostGroup = new Group();
   private ghostTextures = new Map<string, Texture>();
   private hdris = new Map<string, Texture>();
@@ -104,27 +106,48 @@ export class MockStage implements StageView {
     this.textures = [];
 
     this.page = page;
+    this.format = book.format;
     const w = page.width / 1000;
     const h = page.height / 1000;
-    // The open book: two blocks of paper (half the sheets each) on a cover board that overhangs the pages, the
-    // block's thickness an approximation from the number of spreads, a soft shadow under the cover on the table
-    const block = Math.min(BLOCK_MAX, Math.max(BLOCK_MIN, (book.spreads * SHEET_THICKNESS) / 2));
-    const blockTop = -3 * LAYER;
+    const closed = book.format === "cover" || book.format === "back";
     const edge = new MeshStandardMaterial({ color: PAGE_EDGE_COLOR, roughness: 1 });
     const top = new MeshStandardMaterial({ color: PAGE_COLOR, roughness: 1 });
-    [-1, 1].forEach(side => {
-      const stack = new Mesh(new BoxGeometry(w, h, block), [edge, edge, edge, edge, top, edge]);
-      stack.position.set((side * w) / 2, 0, blockTop - block / 2);
-      this.book.add(stack);
-    });
-    const cover = new Mesh(
-      new BoxGeometry(2 * w + 2 * COVER_OVERHANG, h + 2 * COVER_OVERHANG, COVER_THICKNESS),
-      new MeshStandardMaterial({ color: COVER_COLOR, roughness: 0.8 }),
-    );
-    cover.position.set(0, 0, blockTop - block - COVER_THICKNESS / 2);
-    this.book.add(cover);
-    const bottom = blockTop - block - COVER_THICKNESS;
-    const shadow = new Mesh(new PlaneGeometry(2 * w + 2 * COVER_OVERHANG + 0.012, h + 2 * COVER_OVERHANG + 0.012), new MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 }));
+    const board = new MeshStandardMaterial({ color: COVER_COLOR, roughness: 0.8 });
+    const blockTop = -3 * LAYER;
+    let bottom: number;
+    let shadowWidth: number;
+    if (closed) {
+      // The closed book, seen from the front or the back cover: the printed cover board on top, the whole block of
+      // paper under it, the other board below – centred on the origin, one page wide
+      const block = Math.min(2 * BLOCK_MAX, Math.max(BLOCK_MIN, book.spreads * SHEET_THICKNESS));
+      const boardW = w + 2 * COVER_OVERHANG;
+      const boardH = h + 2 * COVER_OVERHANG;
+      const upper = new Mesh(new BoxGeometry(boardW, boardH, COVER_THICKNESS), board);
+      upper.position.set(0, 0, blockTop - COVER_THICKNESS / 2);
+      const stack = new Mesh(new BoxGeometry(w, h, block), [edge, edge, edge, edge, top, top]);
+      stack.position.set(0, 0, blockTop - COVER_THICKNESS - block / 2);
+      const lower = new Mesh(new BoxGeometry(boardW, boardH, COVER_THICKNESS), board);
+      lower.position.set(0, 0, blockTop - COVER_THICKNESS - block - COVER_THICKNESS / 2);
+      this.book.add(upper, stack, lower);
+      bottom = blockTop - 2 * COVER_THICKNESS - block;
+      shadowWidth = boardW;
+    } else {
+      // The open book: two blocks of paper (half the sheets each) on a cover board that overhangs the pages, the
+      // block's thickness an approximation from the number of spreads
+      const block = Math.min(BLOCK_MAX, Math.max(BLOCK_MIN, (book.spreads * SHEET_THICKNESS) / 2));
+      [-1, 1].forEach(side => {
+        const stack = new Mesh(new BoxGeometry(w, h, block), [edge, edge, edge, edge, top, edge]);
+        stack.position.set((side * w) / 2, 0, blockTop - block / 2);
+        this.book.add(stack);
+      });
+      const cover = new Mesh(new BoxGeometry(2 * w + 2 * COVER_OVERHANG, h + 2 * COVER_OVERHANG, COVER_THICKNESS), board);
+      cover.position.set(0, 0, blockTop - block - COVER_THICKNESS / 2);
+      this.book.add(cover);
+      bottom = blockTop - block - COVER_THICKNESS;
+      shadowWidth = 2 * w + 2 * COVER_OVERHANG;
+    }
+    // A soft shadow under the book on the table
+    const shadow = new Mesh(new PlaneGeometry(shadowWidth + 0.012, h + 2 * COVER_OVERHANG + 0.012), new MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 }));
     shadow.position.set(0.003, -0.004, bottom - LAYER);
     this.book.add(shadow);
     this.table.position.z = bottom - 2 * LAYER;
@@ -145,7 +168,7 @@ export class MockStage implements StageView {
         paper.material.map = texture;
         paper.material.needsUpdate = true;
       });
-    } else {
+    } else if (!closed) {
       const spine = new Mesh(new PlaneGeometry(0.002, h), new MeshBasicMaterial({ color: SPINE_COLOR }));
       spine.position.z = -2 * LAYER;
       this.book.add(spine);
@@ -154,7 +177,7 @@ export class MockStage implements StageView {
     targets.forEach(target => {
       const plane = new Mesh(new PlaneGeometry(target.width / 1000, target.height / 1000), new MeshBasicMaterial({ color: 0xffffff }));
       plane.userData.targetId = target.id;
-      const pageLeft = target.surface === "left" ? -page.width : 0;
+      const pageLeft = surfaceLeft(target.surface, page);
       // One layer under the target's own plane: the entities sit at z = 0 of the target, the print just below
       plane.position.set(
         (pageLeft + target.x + target.width / 2) / 1000,
@@ -234,7 +257,7 @@ export class MockStage implements StageView {
   }
 
   /** The page's frame: a world ray meets the page plane (z = 0 of the stage) at this point in mm from the spine, page top */
-  pageHit(raycaster: Raycaster): { surface: "left" | "right"; x: number; y: number } | null {
+  pageHit(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null {
     this.group.updateMatrixWorld(true);
     const normal = new Vector3(0, 0, 1).transformDirection(this.group.matrixWorld);
     const origin = new Vector3().setFromMatrixPosition(this.group.matrixWorld);
@@ -244,6 +267,10 @@ export class MockStage implements StageView {
     const local = this.group.worldToLocal(world);
     const mmX = local.x * 1000;
     const mmY = this.page.height / 2 - local.y * 1000;
+    // The closed book has one face: the cover's, centred on the origin
+    if (this.format === "cover" || this.format === "back") {
+      return { surface: this.format === "cover" ? "front" : "back", x: mmX + this.page.width / 2, y: mmY };
+    }
     return mmX < 0 ? { surface: "left", x: mmX + this.page.width, y: mmY } : { surface: "right", x: mmX, y: mmY };
   }
 
@@ -264,7 +291,7 @@ export class MockStage implements StageView {
     const height = ghost.height || ghost.width * 0.75;
     const plane = new Mesh(new PlaneGeometry(ghost.width / 1000, height / 1000), material);
     plane.name = "ghost";
-    const pageLeft = ghost.surface === "left" ? -page.width : 0;
+    const pageLeft = surfaceLeft(ghost.surface, page);
     plane.position.set((pageLeft + ghost.x + ghost.width / 2) / 1000, (page.height / 2 - ghost.y - height / 2) / 1000, -LAYER / 2);
     const corner = new Mesh(new PlaneGeometry(GHOST_HANDLE / 1000, GHOST_HANDLE / 1000), new MeshBasicMaterial({ color: 0x1e1e1e, transparent: true, opacity: 0.9, depthWrite: false }));
     corner.name = "ghost-corner";
