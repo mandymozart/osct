@@ -85,8 +85,8 @@ Security notes:
 - The link token, the code and the session tokens are stored only as hashes.
 - A request allows 5 code attempts and is valid for 30 minutes.
 - Per hour, at most 5 emails per address and 30 per IP (the IP is stored hashed) – `LOGIN_MAX_PER_EMAIL_HOUR`,
-  `LOGIN_MAX_PER_IP_HOUR`, `LOGIN_MAX_ATTEMPTS`. A limit of **0 switches it off** (local testing with the codes in
-  the mail log) – the same for the password limits below.
+  `LOGIN_MAX_PER_IP_HOUR`, `LOGIN_MAX_ATTEMPTS`. A limit of **-1 switches it off** (local testing with the codes in
+  the mail log; 0 allows nothing) – the same for the password limits below.
 - Links point to the calling app's origin only if it is in `ALLOWED_ORIGINS`, otherwise to `APP_URL`.
 - The same `ALLOWED_ORIGINS` list controls CORS.
 - Passwords: stored only as `password_hash()` bcrypt hashes (cost 12, salted; re-hashed on sign-in when the
