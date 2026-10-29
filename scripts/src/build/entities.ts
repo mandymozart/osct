@@ -10,7 +10,9 @@ import { buildErrors, buildWarnings } from '../lib/errors';
 import { assetType, contentFile, readSection, validate } from '../lib/content';
 
 /** A node of the content's YAML: `type`, a `src` (or `assets`) for model / video / image, `text` / `color`, `light`, `children` */
-type RawNode = Record<string, any>;
+type RawNode = Record<string, unknown>;
+
+const isMapping = (value: unknown): value is RawNode => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** Node types without a file of their own */
 const FILELESS = new Set(['group', 'text', 'light']);
@@ -21,7 +23,7 @@ export function buildEntities(): Record<string, EntityData> {
   const entities: Record<string, EntityData> = {};
   for (const { id, data } of readSection('entities', 'entity.yaml')) {
     const label = `entities/${id}`;
-    const e = validate<any>(data, 'entity', label);
+    const e = validate(data, 'entity', label);
     if (!e) continue;
     const node = buildNode(e, label, id, file => contentFile('entities', id, file, label), 0, 'entities');
     if (node) entities[id] = node;
@@ -35,7 +37,7 @@ export function buildEntities(): Record<string, EntityData> {
  * `<idBase>-<n>` for a shared root, `<targetId>-media` for an inline root, `<parent id>-<index>` below.
  */
 export function buildNode(
-  raw: RawNode,
+  node: unknown,
   label: string,
   idBase: string,
   file: (src: string) => string,
@@ -43,20 +45,21 @@ export function buildNode(
   kind: 'entities' | 'entries',
   entryId?: string,
 ): EntityData | null {
-  const type = raw?.type;
-  if (!(ENTITY_TYPES as readonly string[]).includes(type)) {
-    buildErrors.push(`${label}: node type "${type}" must be one of ${ENTITY_TYPES.join(', ')}`);
+  const raw: RawNode = isMapping(node) ? node : {};
+  const type = ENTITY_TYPES.find(t => t === raw.type);
+  if (!type) {
+    buildErrors.push(`${label}: node type "${raw.type}" must be one of ${ENTITY_TYPES.join(', ')}`);
     return null;
   }
-  if (raw.params !== undefined && (typeof raw.params !== 'object' || Array.isArray(raw.params))) {
+  if (raw.params !== undefined && !isMapping(raw.params)) {
     buildErrors.push(`${label}: params must be a mapping`);
   }
   buildErrors.push(...placementProblems(raw.params, `${label}: params`));
   // The node's files
   let assets: AssetData[] = [];
   if (Array.isArray(raw.assets) && raw.assets.length) {
-    assets = (raw.assets as any[]).map((asset, i) => {
-      if (!asset || typeof asset.src !== 'string') {
+    assets = raw.assets.map((asset: unknown, i): AssetData | null => {
+      if (!isMapping(asset) || typeof asset.src !== 'string') {
         buildErrors.push(`${label}: assets[${i}] needs a src`);
         return null;
       }
@@ -98,8 +101,8 @@ export function buildNode(
     if (!Array.isArray(raw.children)) buildErrors.push(`${label}: children must be a list`);
     else if (depth >= MAX_NODE_DEPTH) buildErrors.push(`${label}: nodes nest deeper than ${MAX_NODE_DEPTH} levels`);
     else {
-      children = (raw.children as RawNode[])
-        .map((child, i) => buildNode(child, `${label} children[${i}]`, `${idBase}-${i}`, file, depth + 1, kind, entryId))
+      children = raw.children
+        .map((child: unknown, i) => buildNode(child, `${label} children[${i}]`, `${idBase}-${i}`, file, depth + 1, kind, entryId))
         .filter((child): child is EntityData => child !== null);
     }
   }
@@ -107,11 +110,11 @@ export function buildNode(
     ...(typeof raw.id === 'string' ? { id: raw.id } : {}),
     type,
     assets,
-    ...(raw.params ? { params: raw.params } : {}),
+    ...(isMapping(raw.params) ? { params: raw.params } : {}),
     ...(filters ? { filters } : {}),
     ...(components?.length ? { components } : {}),
     ...(children?.length ? { children } : {}),
-    ...(type === 'text' ? { text: String(raw.text ?? ''), ...(raw.color ? { color: raw.color } : {}) } : {}),
+    ...(type === 'text' ? { text: String(raw.text ?? ''), ...(typeof raw.color === 'string' && raw.color ? { color: raw.color } : {}) } : {}),
     ...(type === 'light' && light ? { light } : {}),
   };
 }
@@ -141,14 +144,13 @@ export function buildEntity(
   label: string
 ): EntityData | EntityRefData | undefined {
   if (raw === undefined) return undefined;
-  const e = raw as Record<string, any>;
-  if (typeof e?.ref === 'string') {
-    if (!(e.ref in entities)) buildErrors.push(`${label}: entity ref "${e.ref}" not found in content/entities/`);
-    return { ref: e.ref };
+  if (isMapping(raw) && typeof raw.ref === 'string') {
+    if (!(raw.ref in entities)) buildErrors.push(`${label}: entity ref "${raw.ref}" not found in content/entities/`);
+    return { ref: raw.ref };
   }
-  if (!e || typeof e !== 'object') {
+  if (!raw || typeof raw !== 'object') {
     buildErrors.push(`${label}: entity must be a mapping with a type (or { ref })`);
     return undefined;
   }
-  return buildNode(e, label, targetId, file => contentFile('entries', entryId, file, label), 0, 'entries', entryId) ?? undefined;
+  return buildNode(raw, label, targetId, file => contentFile('entries', entryId, file, label), 0, 'entries', entryId) ?? undefined;
 }

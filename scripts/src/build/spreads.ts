@@ -1,26 +1,26 @@
 import type { SpreadData } from '../../../shared/types/game-config';
-import { passProblems } from '../../../shared/types/passes';
+import { passProblems, type PassData } from '../../../shared/types/passes';
 import { buildErrors } from '../lib/errors';
-import { readSection, validate } from '../lib/content';
+import { contractPart, readSection, validate } from '../lib/content';
 
 export function buildSpreads(): SpreadData[] {
   const spreads = readSection('spreads', 'spread.yaml')
-    .map(({ id, data }) => {
+    .map(({ id, data }): { order: number; spread: SpreadData } | null => {
       const label = `spreads/${id}`;
-      const s = validate<any>(data, 'spread', label);
+      const s = validate(data, 'spread', label);
       if (!s) return null;
       if (s.firstPage > s.lastPage) buildErrors.push(`${label}: firstPage ${s.firstPage} > lastPage ${s.lastPage}`);
-      if (s.passes !== undefined) passProblems(s.passes, 'passes').forEach(problem => buildErrors.push(`${label}: ${problem}`));
+      const passes = s.passes === undefined ? undefined : contractPart<PassData[]>(s.passes, passProblems(s.passes, 'passes'), label);
       return {
-        order: s.order as number,
+        order: s.order,
         spread: {
           id,
           title: s.title,
           firstPage: s.firstPage,
           lastPage: s.lastPage,
           ...(s.format && s.format !== 'spread' ? { format: s.format } : {}),
-          ...(s.passes !== undefined ? { passes: s.passes } : {}),
-        } satisfies SpreadData,
+          ...(passes !== undefined ? { passes } : {}),
+        },
       };
     })
     .filter((item): item is { order: number; spread: SpreadData } => item !== null)

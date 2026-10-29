@@ -6,11 +6,14 @@
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
 import { ENTITY_TYPES } from "../../../shared/types/game-config";
 
-interface SchemaField {
-  type: string;
+/** `List`: an array of texts, or the texts in one comma-separated string */
+export type FieldType = "String" | "Number" | "Array" | "List" | "Boolean" | "Object";
+
+export interface SchemaField {
+  type: FieldType;
   required: boolean;
-  default?: any;
-  enum?: string[];
+  default?: unknown;
+  enum?: readonly string[];
   rel?: string;
 }
 
@@ -19,7 +22,7 @@ interface Schema {
   fields: Record<string, SchemaField>;
 }
 
-export const schemas: Record<string, Schema> = {
+export const schemas = {
   // content/book.yaml
   book: {
     fields: {
@@ -51,7 +54,7 @@ export const schemas: Record<string, Schema> = {
       category: {
         type: "String",
         required: true,
-        enum: [...ENTRY_CATEGORIES],
+        enum: ENTRY_CATEGORIES,
       },
       title: { type: "String", required: true },
       page: { type: "Number", required: true },
@@ -78,7 +81,7 @@ export const schemas: Record<string, Schema> = {
   entity: {
     fields: {
       id: { type: "String", required: false },
-      type: { type: "String", required: true, enum: [...ENTITY_TYPES] },
+      type: { type: "String", required: true, enum: ENTITY_TYPES },
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts
@@ -106,4 +109,29 @@ export const schemas: Record<string, Schema> = {
       advance: { type: "Number", required: false },
     },
   },
-};
+} as const satisfies Record<string, Schema>;
+
+export type ContentType = keyof typeof schemas;
+
+/** The value a field of this definition has after `validateContent` (an enum: one of its values) */
+type FieldValue<F> =
+  F extends { enum: readonly (infer E)[] } ? E
+  : F extends { type: "String" } ? string
+  : F extends { type: "Number" } ? number
+  : F extends { type: "Boolean" } ? boolean
+  : F extends { type: "List" } ? string[]
+  : F extends { type: "Object" } ? Record<string, unknown>
+  : unknown[];
+
+/** Always there after `validateContent`: required, or filled in from the default */
+type Present<F> = F extends { required: true } ? true : F extends { default: unknown } ? true : false;
+
+type Fields<T extends ContentType> = (typeof schemas)[T]["fields"];
+
+/**
+ * A content file of this type as `validateContent` returns it: the schema's fields with their types (present when
+ * required or defaulted), any other field the author wrote as it was
+ */
+export type Authored<T extends ContentType> = Record<string, unknown> &
+  { -readonly [K in keyof Fields<T> as Present<Fields<T>[K]> extends true ? K : never]: FieldValue<Fields<T>[K]> } &
+  { -readonly [K in keyof Fields<T> as Present<Fields<T>[K]> extends true ? never : K]?: FieldValue<Fields<T>[K]> };
