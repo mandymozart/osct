@@ -1100,7 +1100,12 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        editor.md`): `registerComponent` and `registerLayer` (material layers – GLSL composed into a node's material)
        with the shared specs as a registry, `api.three`, the component context and hooks; plugins compiled by the
        content build (`plugins/<id>/index.ts` → type check, esbuild, recorded, declared – schema 2.4), loaded by the
-       engine with the first spread; [x] **events and variables between entities** (#80, 1.12.0, plugin API 1.1,
+       engine with the first spread; [x] post-processing passes (schema 2.5, #72): the engine's pass registry
+       (`scene/post/`, built-ins bloom / vignette / grade), `passes` per spread or book, the chain over the one
+       renderer with the AR layer's alpha kept, the editor's Stage panel rows – `api.registerPass` is the plugin
+       API's one-line hook into it (S22 budget still to measure); [x] the node type `light` (schema 2.6, #71: point /
+       spot / directional with the editor's rows, tree icon and stage helper; an unknown node type passes the guard
+       from 2.6 on, so the next type is MINOR); [x] **events and variables between entities** (#80, 1.15.0, plugin API 1.1,
        `agents/research/2026-10-30-demo-book.md`): `api.events` (core events read-only, scene events free), `api.vars`
        (scopes spread / stage / session / book – `book` in the reader's progress record), `api.progress`, `api.spread`,
        the context's `children`, `onUnlocked` – Studio C made real as the **demo book** `fixtures/demo/` (six spreads,

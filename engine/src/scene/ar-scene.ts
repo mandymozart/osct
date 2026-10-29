@@ -1,6 +1,6 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
-import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, SceneInspection, SceneState, Target } from "../types/index";
-import { entityAssets, getAssets, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
+import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, PassData, SceneInspection, SceneState, Target } from "../types/index";
+import { entityAssets, getAssets, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
@@ -87,6 +87,9 @@ export class ArScene implements IArScene {
   private animations = new Map<string, Celebration>();
   /** Entities shown with other values than the content's, by target id (the editor's live edit) */
   private overrides = new Map<string, EntityData>();
+  /** The passes shown instead of the content's (the editor's live edit), until restored */
+  private passOverride: PassData[] | null = null;
+  private postProcessing = true;
   private windowCleanup: (() => void) | null = null;
 
   constructor(private container: HTMLElement, private options: ArSceneOptions) {
@@ -149,6 +152,21 @@ export class ArScene implements IArScene {
         if (this.overrides.get(targetId) === entity) this.rebuildOverride(anchor, targetId, true);
       });
     }
+  }
+
+  overridePasses(passes: PassData[] | null): void {
+    this.passOverride = passes;
+    if (this.view && this.content) this.view.setPasses(this.passesOf(this.content.spreadId));
+  }
+
+  setPostProcessing(enabled: boolean): void {
+    this.postProcessing = enabled;
+    this.view?.setPostProcessing(enabled);
+  }
+
+  /** The passes a spread shows: the editor's override or the content's (the spread's own, else the book's) */
+  private passesOf(spreadId: string): readonly PassData[] {
+    return this.passOverride ?? getPasses(spreadId);
   }
 
   /** The anchor shows its entity as overridden: tuned in place when it can (unless `force`), built anew otherwise */
@@ -245,6 +263,7 @@ export class ArScene implements IArScene {
   private async ensureView(): Promise<ArView> {
     if (!this.view) {
       this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
+      this.view.setPostProcessing(this.postProcessing);
       this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: this.view.scene });
       this.view.resize();
       this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics);
@@ -306,6 +325,8 @@ export class ArScene implements IArScene {
     const anchors = targets.map(target => this.buildAnchor(target));
     anchors.forEach(anchor => view.scene.add(anchor.group));
     this.content = { spreadId, targets, anchors };
+    // The spread's passes (the previous spread's are disposed; none = the scene renders straight to the canvas)
+    view.setPasses(this.passesOf(spreadId));
 
     // 3. Tracking restarts in run() (camera kept); paused / stopped it waits for the next start
     if (this.wantedState !== SceneState.RUNNING) this.setStatus("ready");

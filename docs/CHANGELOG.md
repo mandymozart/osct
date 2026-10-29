@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.12.0 – 2026-10-30
+## 1.15.0 – 2026-10-30
 
 ### Added
 - **The demo book** (#80, Tilman: "ein Beispiel, das einmal versucht, alle Möglichkeiten, die der Editor gerade kann,
@@ -33,13 +33,47 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   history through `ArSceneOptions.progress`, the editor its simulation), `api.spread` (the current spread), the
   component context's `children` and the hook `onUnlocked` (`engine/src/scene/plugin-runtime.ts`). The progress
   record keeps the book variables (`variables`, additive within format 1; merged with this device's values winning).
-  Content schema **2.6** (the API version a declared plugin carries).
+  Content schema **2.7** (the API version a declared plugin carries; 2.5 are the passes, 2.6 the light nodes).
 - **The editor**: the Stage panel's **vars** and **events** rows (the plugins' variables with their scopes, the last
   events of the stage) and **reset** (a new game); *Import a book… → URL* takes a **content base URL** (a CDN folder
   with `latest.json`, e.g. `…/demo`) and imports its current version; the Entity panel's rows follow the plugins the
   engine loads with a spread (before, a declared plugin's component showed its rows only after a Run).
 - **The reader on a debug build** takes `?content=<base url>` and keeps it for the tab: the staging reader opens the
   demo with `?content=https://buildingfictions.b-cdn.net/demo`; production builds ignore it (docs/content-cdn.md).
+## 1.13.0 – 2026-10-29
+
+### Added
+- **Light nodes – content schema 2.6** (#71, Tilman: "one entity type is missing in the editor – lights"): the node
+  type `light` – a point, spot or directional light an author places like any node (own `params`, children allowed;
+  under a group or a model it moves with it), its values under `light:` (`kind`, `color`, `intensity`, `distance`,
+  `decay`, the spot's `angle` and `penumbra`), defined once in `shared/types/lights.ts`; spot and sun aim along the
+  node's −z, by default a light sits half a unit along its parent's +z pointing back at it. Intensity and distance
+  are in the node's units, whatever the target's printed size (the engine scales them to the world every frame).
+  The engine builds and disposes it (no shadows), the reveal and the outro fade it with the entity. In the editor **+ node** offers `light`,
+  the Entity panel shows its rows from the definition (no panel code per field), the tree shows a light icon and the
+  kind, the gizmo moves it and the stage draws a Blender-style helper (bulb, cone or rays; orange while selected;
+  never in the reader). The content build, the guard and the editor's API check the values; the fixture's Studio A
+  has a spot aimed at the tree of nodes and a point light under the tall tree. **Schema 2.6** (a MINOR step, as the
+  editor session asked): a 2.5 app's guard refuses a node type it does not know, so it shows "invalid configuration"
+  on a book with a light where "update the app" would be right – no deployed reader is on 2.x. From 2.6 on the guard
+  lets an unknown node type pass (the engine renders nothing for it, keeps its children), so every later node type is
+  a MINOR step too; the app reads every older MAJOR as it is (`OLDEST_READABLE_SCHEMA_MAJOR`).
+
+## 1.12.0 – 2026-10-29
+
+### Added
+- **Post-processing passes** (#72, Tilman: "post processing, which we could just delegate to code editor"): content
+  schema 2.5 – a spread (or the book, as the default for every spread) names `passes: [{ type, …parameters }]` over
+  the rendered AR image: the built-in **bloom**, **vignette** and **grade**, each defined once with its parameters
+  (`shared/types/passes.ts`), checked by the build and the guard. The engine runs them in one chain over its single
+  renderer (the scene into a buffer, the passes, the result over the camera picture with its alpha kept – a bloom adds
+  light to the camera picture, a vignette darkens it, a grade touches the AR layer only), built only while a spread
+  names passes, disposed on a spread switch, nothing rendered twice without one. A pass of the book's own registers
+  with the engine's pass registry (`registerPass(type, spec, factory)`, `engine/src/scene/post/`), the hook the
+  code editor's plugin API (#66) exposes as `api.registerPass`. The editor's Stage panel lists the spread's passes
+  with their rows, live on the stage under *rendered* (the mock stage's table, book and sky lie on a backdrop layer
+  under the passes, as the camera picture does), Save writes them (`PUT …/spreads/{id} { passes }`). The fixture's
+  Studio B carries a bloom.
 
 ## 1.11.0 – 2026-10-29
 

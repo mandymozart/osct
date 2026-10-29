@@ -1,4 +1,5 @@
 import type { SpreadData } from '../../../shared/types/game-config';
+import { passProblems } from '../../../shared/types/passes';
 import { buildErrors } from '../lib/errors';
 import { readSection, validate } from '../lib/content';
 
@@ -9,6 +10,7 @@ export function buildSpreads(): SpreadData[] {
       const s = validate<any>(data, 'spread', label);
       if (!s) return null;
       if (s.firstPage > s.lastPage) buildErrors.push(`${label}: firstPage ${s.firstPage} > lastPage ${s.lastPage}`);
+      if (s.passes !== undefined) passProblems(s.passes, 'passes').forEach(problem => buildErrors.push(`${label}: ${problem}`));
       return {
         order: s.order as number,
         spread: {
@@ -17,6 +19,7 @@ export function buildSpreads(): SpreadData[] {
           firstPage: s.firstPage,
           lastPage: s.lastPage,
           ...(s.format && s.format !== 'spread' ? { format: s.format } : {}),
+          ...(s.passes !== undefined ? { passes: s.passes } : {}),
         } satisfies SpreadData,
       };
     })

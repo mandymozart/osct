@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { assertGameConfiguration, GameConfigurationError } from "@shared/guards/game-config";
 import type { EntityData } from "@shared/types/game-config";
 import { entityAssets, entityNodes } from "../game-config";
@@ -51,15 +51,17 @@ describe("an entity as a tree of nodes", () => {
     expect(entityAssets(undefined)).toEqual([]);
   });
 
-  it("the guard accepts a tree and names a bad child by its path", () => {
+  it("the guard accepts a tree and names a bad child by its path; a node type it does not know only warns", () => {
     expect(problemsOf(config(tree))).toEqual([]);
     const bad = JSON.parse(JSON.stringify(tree)) as EntityData;
     bad.children![1].children![0].color = "gold";
     (bad.children![0] as { type: string }).type = "hologram";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(problemsOf(config(bad))).toEqual([
-      'entries[0].target.entity.children[0].type: "hologram" is not one of group, model, video, image, text',
       "entries[0].target.entity.children[1].children[0].color: expected #rrggbb",
     ]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('entries[0].target.entity.children[0].type: "hologram"'));
+    warn.mockRestore();
   });
 
   it("the guard refuses nodes nested deeper than 8 levels", () => {

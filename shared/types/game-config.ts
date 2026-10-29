@@ -9,18 +9,24 @@
 import { EntryCategory } from "./entry";
 import { FilterData } from "./filters";
 import type { ComponentData } from "./components";
+import type { LightData } from "./lights";
+import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
 
 export * from "./filters";
 export * from "./placement";
 export * from "./components";
+export * from "./lights";
+export * from "./passes";
 export * from "./plugins";
 
 /**
- * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text –
- * or a `group` that only holds children. Links are entries, not entities.
+ * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text,
+ * a light – or a `group` that only holds children. Links are entries, not entities.
+ * The guard lets a node type it does not know pass (the engine renders nothing for it but keeps its children), so
+ * a later type is a MINOR addition; the content build and the editor's API still refuse one.
  */
-export const ENTITY_TYPES = ["group", "model", "video", "image", "text"] as const;
+export const ENTITY_TYPES = ["group", "model", "video", "image", "text", "light"] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
@@ -30,13 +36,17 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Content schema version `MAJOR.MINOR`: the version of this contract (shared/), the only compatibility rule
  * between content and app (RULES #10). The app version a content build was made with is information only.
  * - MAJOR: a change an older app cannot read – a new required field, a renamed or removed field, a changed
- *   type, a new enum value (entity type, asset type, category, step action). The app refuses content of
- *   another MAJOR at startup.
- * - MINOR: an addition older apps ignore – a new optional field. Any MINOR of the same MAJOR loads.
+ *   type, a new enum value (asset type, category, step action, spread format). The app refuses content of a
+ *   newer MAJOR at startup; it reads every MAJOR from `OLDEST_READABLE_SCHEMA_MAJOR` on as it is (so far the one
+ *   MAJOR, the node tree, only added).
+ * - MINOR: an addition older apps ignore – a new optional field, and since 2.6 a new node type (the guard lets an
+ *   unknown one pass; a 2.5 app refuses it). Any MINOR of the same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.6";
+export const CONTENT_SCHEMA_VERSION = "2.7";
+/** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
+export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
 export interface ContentSchema {
   major: number;
@@ -64,6 +74,8 @@ export interface BookData {
   author: string;
   /** Shown on the home page above "Start" (optional) */
   publisher?: string;
+  /** Optional (schema 2.5): the post-processing passes of every spread without a list of its own (`./passes.ts`) */
+  passes?: PassData[];
 }
 
 /**
@@ -80,6 +92,8 @@ export interface SpreadData {
   lastPage: number;
   /** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
   format?: SpreadFormat;
+  /** Optional (schema 2.5): the post-processing passes over this spread's rendered image, in order; replaces the book's (`[]` = none) */
+  passes?: PassData[];
 }
 
 export interface AssetData {
@@ -97,7 +111,7 @@ export interface EntityData {
   /** Optional, unique within the tree: the editor's selection, a later behaviour's target */
   id?: string;
   type: EntityType;
-  /** The node's own files (a model, a video, an image); empty for `group` and `text` */
+  /** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` */
   assets: AssetData[];
   params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
@@ -109,6 +123,8 @@ export interface EntityData {
   text?: string;
   /** `text` nodes: the colour, `#rrggbb` (default white) */
   color?: string;
+  /** `light` nodes (schema 2.6 – `LIGHT_PARAMS`): kind, colour, intensity, …; every value optional */
+  light?: LightData;
 }
 
 /** Reference to a shared entity in `GameConfiguration.entities`. */

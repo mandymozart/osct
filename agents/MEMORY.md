@@ -17,7 +17,7 @@ outcome in the line (or move it into a dated decision block).
   component's closure), `api.progress` read-only from the app (`ArSceneOptions.progress` – the reader's history behind
   an adapter, the editor's `StageProgress`; RULES #32), `api.spread`, the context's `children`, `onUnlocked`. The
   **book variables are persisted** in the progress record as an optional `variables` map – additive within format 1
-  like `onboarded`, so a MINOR. Content schema **2.6** (PLUGIN_API_VERSION lives in shared/; #72 holds 2.5).
+  like `onboarded`, so a MINOR. Content schema **2.7** (PLUGIN_API_VERSION lives in shared/, so the lock moves; 2.5 are the passes, 2.6 the light nodes).
 - **The way to staging**: no second destination, no store change – the workflow `demo.yml` builds `fixtures/demo` and
   syncs it with the osct CLI to `<zone>/demo/`; the staging reader (a debug build) takes `?content=<base url>`; the
   staging editor imports a content base URL. Found on the way: **a publish is per environment, not per book** – a
@@ -27,6 +27,57 @@ outcome in the line (or move it into a dated decision block).
   `behaviour` component and declared variables, bubbling scopes, two spreads on one stage); the Entity panel's rows
   now follow the engine's plugin load (`plugins.version` bumped when the scene runs) – a small fix found by the demo.
 
+## 2026-10-29 (night) – Light nodes, content schema 2.6 (#71)
+
+- Tilman (testing the desks on the stage): "one entity type is missing in the editor – lights" → issue #71, its own
+  session. Built: node type `light` (point / spot / directional, values under `light:` from `shared/types/lights.ts`,
+  spot and sun along the node's −z, default half a target width above the parent), engine builder with fade in reveal
+  and outro, editor rows from the definition, tree icon, Blender-style helper on the stage, fixture lights in Studio A.
+- First built as **schema 3.0** (the 2.x guard refuses a node type it does not know – the engine would have kept the
+  children, but the guard throws first – so an older app cannot read content with a light: RULES #10's MAJOR); the
+  #61 editor session then asked for **2.6** on top of the passes' 2.5 (a MINOR step), so it is 2.6 – the cost: a 2.5
+  app shows "invalid configuration" on a book with a light instead of "update the app" (no deployed reader is on
+  2.x; production is on 1.x). From 2.6 on the guard lets an unknown node type pass with a warning (the content build
+  and the editor's API still refuse one); RULES #10 says so. The app reads every older MAJOR as it is
+  (`OLDEST_READABLE_SCHEMA_MAJOR = 1` – every MAJOR so far only added) instead of the hard-coded "2 reads 1".
+  **Units**: three.js attenuates point and spot lights in world units – metres, on a target a few centimetres wide
+  a 1 cd light at 5 cm gives 400 lux, pure white – so `intensity` and `distance` are in the node's units (target
+  widths) and the engine scales them by the light's world scale every frame (`scaleLight` in entities.ts); the
+  reader has no tone mapping, so a lit white page clips above ~1 – the default intensity is 0.25, the fixture's
+  lights 0.3 / 0.1. The fade of reveal / outro is a factor (`userData.fade`) the light node applies, not an absolute
+  value the animation writes (the two would fight per frame).
+  The HDRI dims only the scene's own lights (children of the scene), not the content's. Merged after #66 (2.4) and #72 (2.5).
+- Open: the publish writes the imported book's schema (`books.content_schema`), not the server's – a 2.3 book
+  published with a light says 2.3; the reader of the same build reads it anyway, an older reader fails on the node.
+## 2026-10-29 (night) – Post-processing lives in the engine's pass registry, the code editor hooks into it (#72)
+
+- Tilman (testing the stage, #68): "post processing, which we could just delegate to code editor, since it can handle
+  stuff like that also by code right?" Decided (recommendation (c) of #72, built alone – to review): **one mechanism
+  for Kévin's own passes and the ready ones** – a pass registry in the engine (`engine/src/scene/post/registry.ts`:
+  `registerPass(type, spec, factory, owner)`, specs in the component spec shape) with the built-in `bloom`,
+  `vignette` and `grade` registered by the engine itself; the content names passes per spread or per book
+  (`passes: [{ type, …params }]`, content schema **2.5** – 2.4 is #66's plugins, its hand-over asked the next bump to
+  start at 2.5); the code editor's plugin API (#66, PR #73, not merged when this was built) gets `api.registerPass`
+  as a one-line delegation to the registry with the plugin as the owner (`unregisterPassesOf(id)` on uninstall),
+  and the guard's `passProblems(…, { unknownTypes: "allow" })` where plugins are declared. Built on `develop`, not
+  on #66's branch, so the PR stays reviewable. Agreed with the #66 session: **pass specs stay out of the component
+  spec registry** (`registerComponentSpec` feeds the Entity panel's *+ component* row and the node check – a pass there
+  would show on every node); passes have their own lookup, `passSpec(type)` in `shared/types/passes.ts` (the built-ins
+  plus a registered spec), which the Stage panel's rows read.
+- The chain keeps the AR layer's alpha (RULES #4): the scene renders into a half-float buffer (MSAA as the canvas),
+  the passes run over premultiplied colour, the last pass converts to the output colour space with the alpha
+  un-premultiplied and multiplied again, drawn over the screen with premultiplied blending (the look-around world
+  stays under it). three's UnrealBloomPass blends with alpha 1 – the built-in bloom replaces its blend factors so
+  the glow is light over the camera picture, not a black screen.
+- The editor's stage: the mock stage's objects (table, book, printed images, sky) lie on the engine's
+  **backdrop layer** (`BACKDROP_LAYER`, view.ts) and are drawn under the chain – the first try ran the HDRI sky
+  through the bloom and the whole stage glowed white. The passes show under *rendered* only.
+- Budget: a chain costs one full-screen render-to-texture plus one full-screen shader per pass; the bloom works at
+  half resolution (five blur levels). Guideline: one bloom plus one or two single-shader passes per spread. **The
+  S22 measurement is still open** – no phone was connected when this was built (adb: no devices); measure on the
+  reader with Studio B (`adb reverse`, Chrome's performance panel) before the book names passes on many spreads.
+- Open: the celebration bloom (`view.ts`, the unlock animation) is not a pass of the chain – it keeps its own
+  half-size composer as before; folding it into the registry's bloom is a later cleanup.
 ## 2026-10-29 (night) – Code in the editor: plugins (#66, decided alone from the concept – to review)
 
 - Tilman (on staging): own JS scripts and shaders in the editor, "wie hatte das Niantic Studio gemacht? Das war mega.

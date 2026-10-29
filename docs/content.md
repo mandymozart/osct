@@ -275,6 +275,37 @@ back spread the page after the last printed one; an entry on that page belongs t
 surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
 any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
 
+**Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
+whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
+`passes` too: they apply to every spread without a list of its own (`passes: []` on a spread turns them off there).
+Every built-in type is defined once in `shared/types/passes.ts` with its parameters, so the editor's Stage panel,
+the build and the guard read one definition; missing parameters take the defaults. A spread without passes costs
+nothing – the scene renders straight to the canvas as before.
+
+| Type | What it does | Parameters |
+|---|---|---|
+| `bloom` | Bright parts glow: the part of the image above `threshold` is blurred and added back as light – over the camera picture too. | `strength` 0–3 (1), `radius` 0–1 (0.4), `threshold` 0–1 (0.85; 1 = only brighter than white) |
+| `vignette` | The edges fade to a colour – the AR layer and the camera picture alike. | `strength` 0–1 (0.6), `radius` 0–1.5 (0.6, 1 = the sides), `softness` (0.6), `color` (#000000) |
+| `grade` | Colour grading of the AR layer only (the camera picture lies under the canvas and keeps its colours). | `exposure` −2…2 EV (0), `contrast` 0–2 (1), `saturation` 0–2 (1), `tint` (#ffffff = none) |
+
+```yaml
+# content/spreads/studio-b/spread.yaml
+title: Studio B – videos
+firstPage: 30
+lastPage: 31
+passes:
+  - type: bloom
+    strength: 0.8
+    threshold: 0.7
+```
+
+A pass of the book's own – a shader Kévin writes – registers with the engine's pass registry
+(`registerPass(type, spec, factory)`, `engine/src/scene/post/registry.ts`): the factory gets the resolved parameters,
+three.js and `ShaderPass`, and returns a three `Pass` over the composer's buffers. The buffer holds the AR layer as
+premultiplied colour over alpha, in linear RGB, nothing of the camera picture: a pass keeps a texel's alpha unless it
+means to shade the camera picture too. The plugin API of the code editor ([editor](editor.md)) exposes the registry
+as `api.registerPass`; until then the built-ins are the passes the content can name.
+
 ```yaml
 # content/spreads/cover/spread.yaml
 title: Cover
@@ -295,9 +326,25 @@ compile (max 10 targets per spread). An older `order:` under `target` is ignored
 **An entity is a tree of nodes** (content schema 2.0): the node under `entity:` is the **root**, it sits on the
 target (1 unit = the target's width); every node may hold `children`, each placed by its own `params` **relative
 to its parent**, as deep as you like (8 levels at most). Node types: `model`, `video`, `image` (a file, `src`),
-`text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced) and `group` (nothing
-of its own, it only holds children – move or scale the whole tree by its params). One node, as above, is the
-default; the editor's tree shows and edits the whole tree (+ node, remove node).
+`text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced), `light` (a light,
+below) and `group` (nothing of its own, it only holds children – move or scale the whole tree by its params). One
+node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node).
+
+**A light** (`type: light`, content schema 2.6) lights the entity it belongs to – under a group or a model it moves
+with it; the scene's own ambient light and sun stay. Its values are under `light:` (every one optional):
+
+| `light` value | Values | Default | What it does |
+|---|---|---|---|
+| `kind` | `point`, `spot`, `directional` | `point` | A point light shines in every direction from the node; a spot in a cone, a directional light as parallel rays (the sun) – both along the node's own **−z**, so turn the node (`rotation`) to aim them. By default a light sits half a unit along its parent's +z (`position: [0, 0, 0.5]`: above the page for a root or a group, in front of a model, whose +z points towards the reader), pointing back at it |
+| `color` | `#rrggbb` | `#ffffff` | The light's colour |
+| `intensity` | 0 … 10 | `0.25` | How bright, in the node's units – whatever the target's printed size (the engine scales it to the world): a point or spot light of 1 lights a surface one target width away fully (a white page turns white; more clips, the reader has no tone mapping), half as far away four times as much; a directional light of 1 lights every surface fully |
+| `distance` | 0 … 5 target widths | `0` | How far a point or spot light reaches; 0 = no limit |
+| `decay` | 0 … 4 | `2` | How fast a point or spot light dims with the distance (2 = physical) |
+| `angle` | 1 … 90° | `30` | The spot's cone: half the opening angle |
+| `penumbra` | 0 … 1 | `0.1` | The spot's soft edge: 0 = hard, 1 = the whole cone fades |
+
+Lights cast no shadows. They appear and disappear with the entity (the reveal and the outro fade them). The editor
+draws a small helper for every light (a bulb, the cone or the rays – Blender's); the reader shows only the light.
 
 ```yaml
 target:
@@ -319,6 +366,15 @@ target:
         params:
           position: [0, -0.45, 0.01]
           scale: 0.8
+      - type: light                # an orange spot from the right, aimed at the tree (−z turned 45° about y)
+        light:
+          kind: spot
+          color: "#ff9a3c"
+          intensity: 0.3
+          angle: 35
+        params:
+          position: [0.4, 0, 0.6]
+          rotation: [0, 45, 0]
 ```
 
 **AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` (the root node; its
@@ -420,6 +476,30 @@ spreads/spread1 has 11 targets, max is 10.
 ```
 
 Then look at the result in the app – see the quick start in the [README](../README.md).
+
+## Schema and app versions
+
+The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
+(`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
+every MINOR of its schema MAJOR; a content file of another MAJOR is refused at startup. This table names, per schema,
+the app version that first ships it. The last row is the current schema (a test checks that it matches
+`CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
+
+| Schema | First app version | Status | What the schema adds |
+|---|---|---|---|
+| 1.1 | 1.7.6 | released | content on the CDN |
+| 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 |
+| 2.0 | 1.10.0 | unreleased | the entity as a tree of nodes |
+| 2.1 | 1.10.0 | unreleased | print placement of targets (`print`) |
+| 2.2 | 1.10.0 | unreleased | components (animation) |
+| 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
+| 2.4 | 1.11.0 | in develop | plugins – the book's own code, compiled by the content build (plugin API 1.0) |
+| 2.5 | 1.12.0 | in develop | post-processing passes |
+| 2.6 | 1.13.0 | in develop | light nodes; an unknown node type passes the guard |
+| 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
+
+Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
+bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
 
 ## Content build
 
