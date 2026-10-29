@@ -577,6 +577,14 @@ try {
     check($status === 200 && count($data['assets']) === 3 && $data['assets'][0]['id'] === $asset['id'] && $data['assets'][0]['usages'] === 0 && $data['assets'][0]['imported'] === false, 'the list: the upload, unused, first');
     $imported = array_values(array_filter($data['assets'], fn($a) => $a['imported']));
     check(count($imported) === 2 && $imported[0]['name'] === 'racoon.glb' && $imported[0]['kind'] === 'glb' && $imported[0]['size'] === 1234 && $imported[0]['url'] === '/assets/content/entries/racoon/racoon.glb' && $imported[1]['kind'] === 'image', 'and the files of the import (files.json) after it');
+    check($imported[0]['usages'] === 1 && $imported[1]['usages'] === 1, 'an imported file counts its uses (the entity in the target, the target image)');
+    // Below an assets base the list shows CDN URLs, the rows still name the content paths: the uses count all the same (#121)
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => 'https://cdn.example/staging/0123456789ab/'], $flags));
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    $based = array_values(array_filter($data['assets'], fn($a) => $a['imported']));
+    check($status === 200 && $based[0]['url'] === 'https://cdn.example/staging/0123456789ab/assets/content/entries/racoon/racoon.glb' && $based[0]['usages'] === 1 && $based[1]['usages'] === 1, 'an imported file used by a target counts 1 below an assets base too');
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'import again without the base');
     [, $filtered] = call($api, 'GET', '/editor/books/osct/assets?kind=image', null, $editor);
     check(count($filtered['assets']) === 2 && array_column($filtered['assets'], 'kind') === ['image', 'image'], 'the kind filter applies to both');
     [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$imported[0]['id']}", null, $editor);

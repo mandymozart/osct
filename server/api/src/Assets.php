@@ -58,12 +58,16 @@ final class Assets
         $files = Editor::decode($book['files_json'] ?? null);
         if (!$files instanceof stdClass) return [];
         $base = rtrim((string) $book['assets_base'], '/');
-        if ($base !== '') $files = ContentVersion::rewriteFiles($files, $base);
         $at = Editor::iso((int) $book['updated_at']);
         $rows = null;
         $result = [];
-        foreach (get_object_vars($files) as $url => $file) {
-            $url = (string) $url;
+        // the list shows the URL below the assets base, the rows name the content path (`/assets/content/…`) – count with that (#121)
+        $paths = array_keys(get_object_vars($files));
+        $urls = $base !== '' ? array_keys(get_object_vars(ContentVersion::rewriteFiles($files, $base))) : $paths;
+        foreach ($paths as $i => $path) {
+            $path = (string) $path;
+            $url = (string) $urls[$i];
+            $file = $files->{$path};
             $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
             if (!isset(self::KINDS[$extension]) || ($kind !== null && self::KINDS[$extension] !== $kind)) continue;
             // the book's rows read once: a build has hundreds of files, three queries per file timed out (#116)
@@ -71,7 +75,7 @@ final class Assets
             $result[] = [
                 'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
                 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) (is_object($file) ? ($file->size ?? 0) : 0),
-                'width' => null, 'height' => null, 'version' => 1, 'url' => $url, 'usages' => self::countUsages($rows, $url),
+                'width' => null, 'height' => null, 'version' => 1, 'url' => $url, 'usages' => self::countUsages($rows, $path),
                 'createdAt' => $at, 'updatedAt' => $at, 'imported' => true,
             ];
         }
