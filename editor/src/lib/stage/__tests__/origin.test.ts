@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromOrigin, gridAreas, gridLines, originPoint, toOrigin } from "../origin";
+import { fromOrigin, gridAreas, gridLines, isOriginId, originLabel, originPoint, ORIGINS, toOrigin } from "../origin";
 
 const book = { page: { width: 230, height: 320 }, format: "spread" as const };
 const cover = { page: { width: 230, height: 320 }, format: "cover" as const };
@@ -23,8 +23,25 @@ describe("origin: reading a position from another zero", () => {
     expect(originPoint("centre", cover, "front")).toEqual({ x: 115, y: 160 });
   });
 
+  it("the edge centres lie halfway along the page's edges, per page", () => {
+    expect(originPoint("top-centre", book, "left")).toEqual({ x: 115, y: 0 });
+    expect(originPoint("centre-left", book, "right")).toEqual({ x: 0, y: 160 });
+    expect(originPoint("centre-right", book, "left")).toEqual({ x: 230, y: 160 });
+    expect(originPoint("bottom-centre", cover, "front")).toEqual({ x: 115, y: 320 });
+    expect(toOrigin("top-centre", book, "right", 100, 20)).toEqual({ x: -15, y: 20 });
+  });
+
+  it("has nine origins, the centre named for the format", () => {
+    expect(ORIGINS).toHaveLength(9);
+    expect(ORIGINS.every(isOriginId)).toBe(true);
+    expect(isOriginId("middle")).toBe(false);
+    expect(originLabel("centre", "spread")).toBe("book centre");
+    expect(originLabel("centre", "cover")).toBe("page centre");
+    expect(originLabel("top-centre", "back")).toBe("top centre");
+  });
+
   it("entering a position is the inverse of showing it", () => {
-    for (const origin of ["top-left", "top-right", "bottom-left", "bottom-right", "centre"] as const) {
+    for (const origin of ORIGINS) {
       for (const surface of ["left", "right"] as const) {
         const shown = toOrigin(origin, book, surface, 41.5, 77.25);
         expect(fromOrigin(origin, book, surface, shown.x, shown.y)).toEqual({ x: 41.5, y: 77.25 });
@@ -45,5 +62,7 @@ describe("origin: the grid", () => {
     const pages = gridAreas("top-right", book);
     expect(pages.map(area => [area.left, area.zeroX])).toEqual([[0, 230], [230, 460]]);
     expect(gridAreas("bottom-left", cover)).toEqual([{ left: 0, top: 0, width: 230, height: 320, zeroX: 0, zeroY: 320 }]);
+    expect(gridAreas("centre-right", book).map(area => [area.zeroX, area.zeroY])).toEqual([[230, 160], [460, 160]]);
+    expect(gridAreas("centre", cover)).toEqual([{ left: 0, top: 0, width: 230, height: 320, zeroX: 115, zeroY: 160 }]);
   });
 });

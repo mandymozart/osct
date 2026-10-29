@@ -1,10 +1,10 @@
 /**
- * The book's environment (content schema 2.8, asset references 2.9): the world around the reader while scanning and
+ * The book's environment (content schema 2.8, asset references 2.10): the world around the reader while scanning and
  * the onion sky (`engine/src/scene/look-around`, docs/look-around.md). Book-level only – no per-spread overrides yet.
  * The reader's Graphics switches (Info → Settings) still apply on top: the content says what is drawn, the reader can
  * turn either off. A book without `environment` keeps today's look (`DEFAULT_ENVIRONMENT`).
  *
- * The world and the sky can be **assets** (2.9): `worldSrc` names a glTF model (the scenery around the reader, in
+ * The world and the sky can be **assets** (2.10): `worldSrc` names a glTF model (the scenery around the reader, in
  * place of the built-in world's), `skySrc` an equirectangular image (the sky, in place of the built-in world's). Each
  * holds a content path (`/assets/content/…`, the content build writes it from a path below the content folder) or an
  * absolute URL (an uploaded asset of the editor's library). Without them the built-in `world` is drawn whole.
@@ -23,11 +23,11 @@ export interface EnvironmentData {
   /** Looking up, the sky in the camera picture shows the world's sky */
   onionSky: boolean;
   /**
-   * Optional (2.9): the scenery around the reader, a glTF model – its origin is the floor under the reader, its +y up,
+   * Optional (2.10): the scenery around the reader, a glTF model – its origin is the floor under the reader, its +y up,
    * its −z towards the book; the reader's eye is `WORLD_EYE_HEIGHT` above the origin. Seen from that point only (3DoF).
    */
   worldSrc?: string;
-  /** Optional (2.9): the sky, an equirectangular image (2:1, its top edge straight up, its centre towards the book) */
+  /** Optional (2.10): the sky, an equirectangular image (2:1, its top edge straight up, its centre towards the book) */
   skySrc?: string;
 }
 

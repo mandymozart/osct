@@ -108,7 +108,8 @@ nothing flickers. The printed images:
 The stage's **sheet image is sharpened on demand**: the layout carries a second, much sharper image per sheet
 (`imageSharp`, `sheets/<sheet>@sharp.jpg`); the stage fetches it once, when the camera comes within 50 cm of the page.
 The Stage panel sets a **grid** (on / off, spacing in mm; its lines run through the origin, which is red) and the
-**origin** (`stage/origin.ts`): a corner of the base format (per page) or the book's centre. The x / y rows of a
+**origin** (`stage/origin.ts`): one of the nine points of an alignment square – a corner or an edge's centre of the base
+format (per page), or the centre (the book's centre, the spine's middle, on the open book; the page's centre on a cover). The x / y rows of a
 target's placement and of a new target are shown and entered from that origin (x to the right, y downwards, so values
 left of or above it are negative); what is saved stays mm from the page's top left corner.
 
@@ -134,7 +135,7 @@ is involved.
   at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
   the last) when the book has none; **Publish** with the environment (`local`, `staging`, `production` – production
-  asks). In the workspace's bar a one-page spread has a **format** select (spread, cover, back).
+  asks). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section.
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
@@ -154,6 +155,16 @@ is involved.
     **right click** on a node row opens the menu with *Remove node* / *Remove entity*. Removing is live on the stage;
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device).
+  - **Info** – at the bottom of the tree column (on the book page at the bottom left), after Ableton's Info View: the
+    name and description of the control under the pointer or in focus; collapsible, the state kept on the device. The
+    panels carry no explanatory text of their own – it is the controls' help (`editor/src/lib/help.svelte.ts`): an
+    element with `data-help="…"` (named by `data-help-name`, else its `aria-label` or its row's label), or its `title`;
+    the innermost one wins. New explanations go there, never as a hint line in a panel. On a phone (no tree column, no
+    pointer) there is no Info view.
+  - **Stage panel** – collapsible sections, each with a header, the open state kept per section on the device
+    (`editor/src/lib/sections.svelte.ts`, `components/Section.svelte`): *spread* (the format), *stage* (shake, grid,
+    origin – a 3 × 3 alignment square –, desk, sky), *post-processing*
+    and *vars and events* (closed by default). Every row is the panel's label / control grid (`.row` in `app.css`).
   - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
     selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own
     space, so a drag changes the node's placement **relative to its parent** – the Entity panel's rows follow live,
@@ -162,14 +173,15 @@ is involved.
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
-  - **Post-processing** – the Stage panel's last section lists the spread's `passes` (content schema 2.5,
+  - **Post-processing** – the Stage panel's *post-processing* section lists the spread's `passes` (content schema 2.5,
     [content guide](content.md) "Post-processing") with a row per parameter from the contract's specs; **+ bloom /
     + vignette / + grade** adds one, *remove* drops one, changes show live on the stage, **Save** writes the list to
     the spread (`PUT …/spreads/{id} { passes }`), *Back to the draft* undoes, *Use the book's* drops the spread's own
     list so the book's passes apply. The stage shows the passes under **rendered** only (like the HDRI's sky): the
     mock stage's table, book, printed images and sky lie on the engine's **backdrop layer** and stand in for the
-    camera picture: bloom and vignette run over them as they run over the camera picture in the reader, the grade
-    stays on the AR layer (it gets the layer's coverage as a mask).
+    camera picture: bloom and vignette run over them as they run over the camera picture in the reader; the grade's
+    **reach** row (*AR layer / whole picture*) keeps it on the AR layer (it gets the layer's coverage as a mask) or
+    grades the desk too, as the reader grades the camera picture.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
     a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
@@ -202,7 +214,7 @@ is involved.
     relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes name a file by
     its absolute URL, so draft and every publish point at the same file. While the Environment tab picks a file, a
     fitting card has a **World** (a glTF model) or **Sky** button (a jpg, png or webp) and the kind filter starts there.
-  - **Environment** – the book's world around the reader and its sky (content schema 2.8 / 2.9,
+  - **Environment** – the book's world around the reader and its sky (content schema 2.8 / 2.10,
     [content guide](content.md) "Environment", [look-around](look-around.md)). While the tab is open the stage shows the
     **engine's own look-around pass** with the values being edited – the world anchored to the book, the window around
     it and the clear floor – under the desk and the book (the studio's HDRI sky steps aside, its light stays), turned by

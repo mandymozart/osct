@@ -9,6 +9,7 @@ import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
+import { cameraGrades, cameraGradeShader } from "./post/grade";
 import { emitCoreEvent, ProgressReader, setProgressReader, setSpreadSource, spreadChanged, stageEnded } from "./plugin-runtime";
 import { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
@@ -184,12 +185,23 @@ export class ArScene implements IArScene {
 
   overridePasses(passes: PassData[] | null): void {
     this.passOverride = passes;
-    if (this.view && this.content) this.view.setPasses(this.passesOf(this.content.spreadId));
+    if (this.content) this.applyPasses(this.content.spreadId);
   }
 
   setPostProcessing(enabled: boolean): void {
     this.postProcessing = enabled;
     this.view?.setPostProcessing(enabled);
+    if (this.content) this.applyPasses(this.content.spreadId);
+  }
+
+  /**
+   * A spread's passes to the view, and a grade that reaches the whole picture to the camera picture too (it lies in
+   * the engine's own canvas under the view's – the tracker draws it with the grade)
+   */
+  private applyPasses(spreadId: string): void {
+    const passes = this.passesOf(spreadId);
+    this.view?.setPasses(passes);
+    this.tracker?.gradeCamera?.(this.postProcessing ? cameraGradeShader(cameraGrades(passes)) : null);
   }
 
   /** The passes a spread shows: the editor's override or the content's (the spread's own, else the book's) */
@@ -355,7 +367,7 @@ export class ArScene implements IArScene {
     anchors.forEach(anchor => view.scene.add(anchor.group));
     this.content = { spreadId, targets, anchors };
     // The spread's passes (the previous spread's are disposed; none = the scene renders straight to the canvas)
-    view.setPasses(this.passesOf(spreadId));
+    this.applyPasses(spreadId);
 
     // 3. Tracking restarts in run() (camera kept); paused / stopped it waits for the next start
     if (this.wantedState !== SceneState.RUNNING) this.setStatus("ready");

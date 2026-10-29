@@ -17,13 +17,16 @@ import {
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
-import { passProblems } from "../types/passes";
+import { PassCheckOptions, passProblems } from "../types/passes";
 import { environmentProblems } from "../types/environment";
 import { pluginProblems } from "../types/plugins";
 import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
 import { placementProblems } from "../types/placement";
+
+/** A pass parameter a newer MINOR adds is ignored here (the newer app reads it); the build and the API refuse it */
+const GUARD_PASSES: PassCheckOptions = { unknownParams: "ignore" };
 
 const oneOf = <T extends string>(values: readonly T[]) =>
   (value: unknown): value is T => typeof value === "string" && (values as readonly string[]).includes(value);
@@ -144,7 +147,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
   if (book) {
     ["id", "title", "author"].forEach(key => str(book, key, "book"));
     str(book, "publisher", "book", true);
-    if (book.passes !== undefined) passProblems(book.passes, "book.passes").forEach(problem => problems.push(problem));
+    if (book.passes !== undefined) passProblems(book.passes, "book.passes", GUARD_PASSES).forEach(problem => problems.push(problem));
     if (book.environment !== undefined) environmentProblems(book.environment, "book.environment", false).forEach(problem => problems.push(problem));
   }
 
@@ -162,7 +165,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (spread.format !== undefined && !(SPREAD_FORMATS as readonly unknown[]).includes(spread.format)) {
       fail(`${path}.format`, `"${spread.format}" is not one of ${SPREAD_FORMATS.join(", ")}`);
     }
-    if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`).forEach(problem => problems.push(problem));
+    if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`, GUARD_PASSES).forEach(problem => problems.push(problem));
     if (typeof spread.id === "string") {
       if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);
       spreadIds.add(spread.id);

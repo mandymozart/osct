@@ -37,7 +37,7 @@ describe('content build', () => {
     expect(build.spreads.buildSpreads().map(s => s.id)).toEqual(['b', 'a']);
   });
 
-  // The world and the sky as assets (content schema 2.9): paths below the content folder become content paths
+  // The world and the sky as assets (content schema 2.10): paths below the content folder become content paths
   describe('environment assets', () => {
     const withEnvironment = (environment: string, files: Record<string, string> = {}) => ({
       ...valid(),
