@@ -1,3 +1,5 @@
+import { isObject } from "@shared/guards/game-config";
+
 /**
  * Base URL of the accounts API (`server/`, PHP + MySQL), from the build flag `VITE_API_URL` (set per deploy,
  * see RULES.md #11: `/api` on the production host, the full URL on staging). `npm run dev` defaults to `/api`,
@@ -7,7 +9,8 @@ export const API_URL: string = (import.meta.env.VITE_API_URL ?? (import.meta.env
 
 /**
  * A failed API call. `code`: the API's error code (`invalid-code`, `expired` …), `offline` when the server
- * is unreachable, `server-error` for an unreadable response. `data`: the full response body (used for 409 conflicts).
+ * is unreachable, `server-error` for an unreadable response or one of the wrong shape (`requestAs`, status 502).
+ * `data`: the full response body (used for 409 conflicts).
  */
 export class ApiError extends Error {
   constructor(public readonly status: number, public readonly code: string, public readonly data?: unknown) {
@@ -21,6 +24,10 @@ export interface ApiRequest {
   /** Session token (Authorization: Bearer) */
   token?: string | null;
 }
+
+/** The API's error code from an error body `{ error: { code, message, … } }` */
+const errorCode = (data: unknown): string | null =>
+  isObject(data) && isObject(data.error) && typeof data.error.code === "string" ? data.error.code : null;
 
 /** JSON client for the accounts API (singleton); disabled when no base URL is configured. */
 export class ApiService {
@@ -37,8 +44,8 @@ export class ApiService {
     return this.baseUrl !== "";
   }
 
-  /** Sends JSON, returns the parsed JSON response (null for 204); throws `ApiError` on any failure. */
-  async request<T>(method: string, path: string, { body, token }: ApiRequest = {}): Promise<T> {
+  /** Sends JSON, returns the parsed JSON response unchecked (null for 204); throws `ApiError` on any failure. */
+  async request(method: string, path: string, { body, token }: ApiRequest = {}): Promise<unknown> {
     const headers: Record<string, string> = {};
     if (body !== undefined) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -53,17 +60,24 @@ export class ApiService {
     } catch {
       throw new ApiError(0, "offline");
     }
-    if (response.status === 204) return null as T;
+    if (response.status === 204) return null;
     let data: unknown;
     try {
       data = await response.json();
     } catch {
       throw new ApiError(response.status, "server-error");
     }
-    if (!response.ok) {
-      const code = (data as { error?: { code?: unknown } } | null)?.error?.code;
-      throw new ApiError(response.status, typeof code === "string" ? code : "server-error", data);
-    }
-    return data as T;
+    if (!response.ok) throw new ApiError(response.status, errorCode(data) ?? "server-error", data);
+    return data;
+  }
+
+  /**
+   * `request`, then checks the response's shape: a body `isResponse` refuses is an `ApiError` `server-error`
+   * (status 502 – the server answered, but not what this app expects).
+   */
+  async requestAs<T>(isResponse: (data: unknown) => data is T, method: string, path: string, request?: ApiRequest): Promise<T> {
+    const data = await this.request(method, path, request);
+    if (!isResponse(data)) throw new ApiError(502, "server-error", data);
+    return data;
   }
 }
