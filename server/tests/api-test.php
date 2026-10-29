@@ -47,9 +47,9 @@ function startApi(array $settings): string
 }
 
 /** @return array{0: int, 1: mixed} status and decoded JSON */
-function call(string $base, string $method, string $path, ?array $body = null, ?string $token = null, string $origin = 'http://localhost:5173', ?string $rawBody = null): array
+function call(string $base, string $method, string $path, ?array $body = null, ?string $token = null, string $origin = 'http://localhost:5173', ?string $rawBody = null, array $extraHeaders = []): array
 {
-    $headers = ["Origin: $origin", 'Content-Type: application/json'];
+    $headers = [...["Origin: $origin", 'Content-Type: application/json'], ...$extraHeaders];
     if ($token) $headers[] = "Authorization: Bearer $token";
     $context = stream_context_create(['http' => [
         'method' => $method, 'header' => implode("\r\n", $headers), 'ignore_errors' => true,
@@ -82,7 +82,7 @@ function lastMail(string $log): array
 try {
     $mailLog = "$tmp/mail.log";
     $settings = [
-        'DB_SQLITE_PATH' => "$tmp/test.sqlite", 'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'EDITORS' => 'Listed@example.com, other@example.com',
+        'DB_SQLITE_PATH' => "$tmp/test.sqlite", 'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'EDITORS' => 'Listed@example.com, other@example.com', 'ADMINS' => 'Chief@example.com',
         'MAIL_LOG_PATH' => $mailLog, 'APP_URL' => 'https://app.example', 'ALLOWED_ORIGINS' => 'http://localhost:5173, https://*--staging.example',
         'LOGIN_MAX_PER_EMAIL_HOUR' => '4', 'CONTENT_STORE_DIR' => "$tmp/content",
     ];
@@ -244,7 +244,7 @@ try {
     [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
     check($status === 403 && $data['error']['code'] === 'forbidden', 'a reader → 403 forbidden');
     [$status] = call($api, 'POST', '/admin/editors', ['email' => 'author@example.com']);
-    check($status === 403, 'admin/editors without the secret → 403');
+    check($status === 401, 'admin/editors without the secret or a session → 401');
     $admin = fn(string $path, array $body): array => (array) json_decode((string) file_get_contents("$api$path", false, stream_context_create(['http' => [
         'method' => 'POST', 'header' => 'X-Admin-Secret: ' . str_repeat('s', 40) . "\r\nContent-Type: application/json", 'content' => json_encode($body), 'ignore_errors' => true]])), true);
     $data = $admin('/admin/editors', ['email' => 'Author@Example.com']);
@@ -257,6 +257,83 @@ try {
     check($status === 200 && $data['books'] === [], 'the editor sees the (empty) book list');
     [$status] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check($status === 404, 'no book before an import → 404');
+
+    echo "roles, admin (docs/server.md \"Roles\")\n";
+    [, $data] = call($api, 'GET', '/user', null, $session);
+    check($data['user']['roles'] === ['reader'], 'GET /user lists the roles: every account has reader');
+    [, $data] = call($api, 'GET', '/user', null, $editor);
+    check($data['user']['roles'] === ['reader', 'editor'] && $data['user']['role'] === 'editor', 'an editor has reader and editor (role stays editor)');
+    [$status, $data] = call($api, 'GET', '/admin/users');
+    check($status === 401, 'admin endpoints without a session or the secret → 401');
+    [$status, $data] = call($api, 'GET', '/admin/users', null, $editor);
+    check($status === 403 && $data['error']['role'] === 'admin', 'an editor is no admin → 403 forbidden { role: admin }');
+    $withSecret = fn(string $method, string $path, ?array $body = null): array => call($api, $method, $path, $body, null, 'http://localhost:5173', null, ['X-Admin-Secret: ' . str_repeat('s', 40)]);
+    [$status, $data] = call($api, 'GET', '/admin/users', null, null, 'http://localhost:5173', null, ['X-Admin-Secret: wrong']);
+    check($status === 403, 'a wrong secret → 403');
+    [$status, $data] = $withSecret('GET', '/admin/users?q=AUTHOR');
+    check($status === 200 && count($data['users']) === 1 && $data['users'][0]['email'] === 'author@example.com' && $data['total'] === 1, 'with the secret: search by e-mail (case-insensitive, a part)');
+    $authorId = $data['users'][0]['id'];
+    check($data['users'][0]['options']['bookUpdates'] === false && $data['users'][0]['language'] === 'en' && is_string($data['users'][0]['lastSeenAt']), 'a user comes with options, language and last seen');
+    [, $data] = $withSecret('GET', '/admin/roles');
+    check(array_column($data['roles'], 'name') === ['reader', 'editor', 'admin'], 'GET /admin/roles: reader, editor, admin with fixed ids');
+    // An address in ADMINS (config) is an admin from its first sign-in – the instance's first admin without the secret
+    call($api, 'POST', '/auth/request', ['email' => 'chief@example.com', 'options' => ['publisherUpdates' => true]]);
+    [, $data] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    $chief = $data['session'];
+    check($data['user']['roles'] === ['reader', 'admin'] && $data['user']['role'] === 'reader', 'an address listed in ADMINS signs in as an admin (not an editor)');
+    [$status, $data] = call($api, 'GET', '/admin/users?role=admin', null, $chief);
+    check($status === 200 && count($data['users']) === 1 && $data['users'][0]['grants'][1]['grantedBy'] === 'config', 'the admin may use the admin API; the grant says config');
+    [$status, $data] = call($api, 'GET', '/editor/books', null, $chief);
+    check($status === 403, 'but not the editor API');
+    [$status, $data] = call($api, 'GET', '/admin/users?role=editor', null, $chief);
+    check($status === 200 && count($data['users']) === 3, 'the editors: listed, author (made by the secret) and new-editor');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/admin", null, $chief);
+    check($status === 200 && $data['changed'] === true && $data['user']['roles'] === ['reader', 'editor', 'admin'], 'grant admin → changed, the user with its roles');
+    $grant = array_values(array_filter($data['user']['grants'], fn(array $g) => $g['role'] === 'admin'))[0];
+    check($grant['grantedByEmail'] === 'chief@example.com' && is_string($grant['grantedAt']), 'the grant records the granting admin');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/admin", null, $chief);
+    check($status === 200 && $data['changed'] === false, 'granting again changes nothing');
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$authorId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === true && $data['user']['roles'] === ['reader', 'admin'] && $data['user']['role'] === 'reader', 'revoke editor → the user is a reader again');
+    [$status] = call($api, 'GET', '/editor/books', null, $editor);
+    check($status === 403, 'and may not use the editor API any more');
+    $pdo = new PDO("sqlite:$tmp/test.sqlite");
+    check($pdo->query("SELECT role FROM users WHERE id = '$authorId'")->fetchColumn() === 'reader', 'users.role mirrors the editor role');
+    $pdo = null;
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$authorId/roles/reader", null, $chief);
+    check($status === 400 && $data['error']['code'] === 'invalid-role', 'reader cannot be revoked');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/wizard", null, $chief);
+    check($status === 404 && $data['error']['code'] === 'unknown-role', 'an unknown role → 404 unknown-role');
+    [$status, $data] = call($api, 'PUT', '/admin/users/00000000-0000-4000-8000-000000000000/roles/editor', null, $chief);
+    check($status === 404 && $data['error']['code'] === 'not-found', 'an unknown user → 404');
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$authorId/roles/admin", null, $editor);
+    check($status === 200 && $data['changed'] === true, 'an admin may revoke their own admin role while another admin remains');
+    [, $data] = call($api, 'GET', '/admin/users?q=chief', null, $chief);
+    $chiefId = $data['users'][0]['id'];
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$chiefId/roles/admin", null, $chief);
+    check($status === 409 && $data['error']['code'] === 'last-admin', 'the last admin keeps the role → 409 last-admin');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/editor", null, $chief);
+    check($status === 200 && $data['user']['role'] === 'editor', 'the author is an editor again');
+    [$status] = call($api, 'GET', '/editor/books', null, $editor);
+    check($status === 200, 'and the editor API opens again');
+    [$status, $data] = $withSecret('PUT', "/admin/users/$chiefId/roles/editor");
+    check($status === 200 && array_values(array_filter($data['user']['grants'], fn(array $g) => $g['role'] === 'editor'))[0]['grantedBy'] === 'secret', 'a grant with the secret says secret');
+    $withSecret('DELETE', "/admin/users/$chiefId/roles/editor");
+    [$status, $data] = call($api, 'POST', '/admin/editors', ['email' => 'invited@example.com'], $chief);
+    check($status === 200 && $data['created'] === true && $data['user']['roles'] === ['reader', 'editor'], 'an admin invites an editor by e-mail (POST /admin/editors by session)');
+    // The newsletter list: the users with an update option on, as CSV
+    $csvContext = stream_context_create(['http' => ['header' => "Authorization: Bearer $chief", 'ignore_errors' => true]]);
+    $csv = (string) file_get_contents("$api/admin/users.csv?newsletter=1", false, $csvContext);
+    $lines = array_values(array_filter(explode("\n", trim($csv))));
+    check(in_array('Content-Type: text/csv; charset=utf-8', $http_response_header, true) && (bool) preg_grep('/^Content-Disposition: attachment; filename="newsletter-/', $http_response_header), 'GET /admin/users.csv answers a CSV download');
+    check($lines[0] === 'email,language,bookUpdates,artistUpdates,publisherUpdates,createdAt', 'the CSV header names the options');
+    check(count($lines) === 2 && str_starts_with($lines[1], 'chief@example.com,en,no,no,yes,'), 'newsletter=1: only the users with an option on (the reader turned theirs off; chief: publisher updates)');
+    $csv = (string) file_get_contents("$api/admin/users.csv?option=publisherUpdates", false, $csvContext);
+    check(count(array_filter(explode("\n", trim($csv)))) === 2 && str_contains($csv, 'chief@example.com'), 'option=publisherUpdates narrows to that option');
+    $csv = (string) file_get_contents("$api/admin/users.csv", false, $csvContext);
+    check(count(array_filter(explode("\n", trim($csv)))) === 7, 'without a filter: every user');
+    [$status] = call($api, 'GET', '/admin/users.csv', null, $editor);
+    check($status === 403, 'the CSV needs an admin');
 
     echo "editor: import\n";
     $configuration = [

@@ -2,9 +2,9 @@
 declare(strict_types=1);
 
 /**
- * The editor's side of the API (/editor/*, docs/server.md "Editor data"): who may use it, the admin endpoint that
- * makes editors, and the checks the editor endpoints share (ids, entity bodies, request size, JSON). The editor is
- * an authors' tool – only users with role `editor` get past `Editor::user()`; readers get 403.
+ * The editor's side of the API (/editor/*, docs/server.md "Editor data"): who may use it and the checks the editor
+ * endpoints share (ids, entity bodies, request size, JSON). The editor is an authors' tool – only users with the role
+ * `editor` (Roles) get past `Editor::user()`; readers get 403. Admins make editors (Admin.php).
  */
 final class Editor
 {
@@ -27,31 +27,7 @@ final class Editor
     public static function user(): array
     {
         $user = Auth::user();
-        if (($user['role'] ?? 'reader') !== 'editor') throw new ApiError(403, 'forbidden', 'Only editors may use this.');
-        return $user;
-    }
-
-    /**
-     * POST /admin/editors { email } (X-Admin-Secret) → { user, created }: gives the user the role editor, creating
-     * the user (confirmed, language en, no options) when the address is new.
-     */
-    public static function makeEditor(array $body): never
-    {
-        $email = Auth::email($body['email'] ?? null);
-        $now = Db::now();
-        $user = Db::one('SELECT * FROM users WHERE email = :email', ['email' => $email]);
-        $created = $user === null;
-        if ($created) {
-            $id = Db::uuid();
-            Db::run(
-                'INSERT INTO users (id, email, language, role, created_at, confirmed_at, updated_at) VALUES (:id, :email, :language, :role, :now, :now2, :now3)',
-                ['id' => $id, 'email' => $email, 'language' => 'en', 'role' => 'editor', 'now' => $now, 'now2' => $now, 'now3' => $now]
-            );
-        } else {
-            $id = $user['id'];
-            Db::run('UPDATE users SET role = :role, updated_at = :now WHERE id = :id', ['role' => 'editor', 'now' => $now, 'id' => $id]);
-        }
-        Http::json(200, ['user' => Users::toJson(Db::one('SELECT * FROM users WHERE id = :id', ['id' => $id])), 'created' => $created]);
+        return Roles::require($user, Roles::EDITOR);
     }
 
     /** A valid id or reference, else 400 */

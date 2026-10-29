@@ -102,13 +102,14 @@ final class Auth
                     ['id' => $id, 'email' => $request['email'], 'language' => $request['language'],
                      'bu' => $request['book_updates'], 'au' => $request['artist_updates'], 'pu' => $request['publisher_updates'], 'now' => $now, 'now2' => $now, 'now3' => $now]
                 );
+                Roles::grant($id, Roles::READER, 'signup');
                 $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $id]);
                 $created = true;
             }
             return [$user, $created, self::createSession($user['id'], 'email')];
         });
 
-        Http::json(200, ['session' => $session, 'user' => Users::toJson(Users::grantConfiguredEditor($user)), 'created' => $created]);
+        Http::json(200, ['session' => $session, 'user' => Users::toJson(Roles::grantConfigured($user)), 'created' => $created]);
     }
 
     /** POST /auth/logout → 204 (this device only) */
@@ -162,7 +163,7 @@ final class Auth
         }
         $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $session['user_id']]);
         if (!$user) throw new ApiError(401, 'unauthorized', 'Not signed in.');
-        return [Users::grantConfiguredEditor($user), $session];
+        return [Roles::grantConfigured($user), $session];
     }
 
     /**

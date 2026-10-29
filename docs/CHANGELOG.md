@@ -43,6 +43,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.10.0 – 2026-10-29
 
 ### Added
+- **Roles and the admin page** (#65, Tilman: "wir werden ein kleines Admin-UI brauchen", modelled on SCUTOONS' roles for the
+  white-label core): the tables `roles` (reader / editor / admin, fixed ids) and `user_roles` (granted when, by whom);
+  every account has `reader`, existing editors keep `editor` (the schema backfills on the next deploy), `GET /user`
+  answers `roles`. The admin API (`/api/admin/*` – a signed-in admin, or the admin secret as the break-glass path):
+  the users searched by e-mail with their roles, options and language, grant / revoke a role (`PUT` / `DELETE
+  /admin/users/{id}/roles/{role}`), the newsletter list as CSV (`/admin/users.csv?newsletter=1` – the users with an
+  update option on). The **admin page** at `/editor/admin` (docs/admin.md): search, the roles as toggles with their
+  grant on hover, the editors and admins as filters, the Newsletter CSV button, an editor invited by e-mail. The
+  first admins come from the deployment's `ADMINS` list (GitHub environment variable, both deploys), like `EDITORS`.
 - **Content schema 2.0 – the entity as a tree of nodes** (#61, Tilman: "es können tiefere Hierarchien entstehen, das
   ist die ganze Idee; bei default erstmal eins"): an entity's node may hold `children`, each placed by its own
   `params` relative to its parent (8 levels at most); new node types `group` (holds children) and `text` (a line
@@ -55,9 +64,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   **+ node** adds a child (or a target's first node) from the book's files, **remove node** drops one. Components
   and plugins (the registries, code in the editor) stay phase 15 steps 3–4.
 - **Sky, light and desk of the editor's stage** (#61, Tilman: "HDRI and sky sphere … as default"): six studio HDRIs
-  from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (backdrop *hdri*, the
-  default, with the choice; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
-  plywood texture, tinted), the cover a white 3 mm hardcover board.
+  from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (the Stage panel's
+  *sky*; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
+  plywood texture, tinted), the cover a white 2 mm hardcover board.
 - **Covers as spreads, the spread's format** (#61, #60, Tilman: "wie gehen wir mit Cover und Rückseite um? … es ist
   eh ein Spread, nur in einem anderen Format"): content schema 2.3 – a spread has a `format` (`spread`, `cover`,
   `back`; the covers are page 0 and the page after the last), a target's `print` takes the surfaces `front` / `back`,
@@ -66,6 +75,17 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   one-page spread's format; the new-target form and the placement rows offer the cover's surface; the reader's
   spread menu names the covers by their title. API: `POST …/spreads { format }`, `PUT …/spreads/{id} { title?,
   format? }`. Fixture: the spread `cover` with *Cover: seal*.
+- **The stage's desk: an Eiermann table or Schöpfer's desk** (#68, Tilman: "the table should be an Eiermann … create a
+  low-poly version we can use", both as options "like the HDRI picker" – the tool is for designers, they should feel
+  at home): the Stage panel's *desk* chooses between a 1.4 × 1.0 m screen-printed plywood top, 18 mm thick with the
+  plies showing on its cut edges, on a steel tube frame after Egon Eiermann's table frame (two end frames, cross
+  tubes, two crossed diagonal struts; the default) and Philipp Camille Schöpfer's white desk (a thick top with three
+  drawer cutouts in its front edge on four slender legs splayed outward), both 72 cm high – our own low-poly models
+  (`editor/static/models/`, 236 and 124 triangles, no textures in the files) built from primitives by
+  `editor/tools/desk-eiermann.py` in Blender, the Eiermann frame measured from a model Tilman supplied. The book, the
+  printed images, the ghost and the page hits lie on the top as before; the desk keeps its own look under every
+  shading mode. The backdrops *table*, *paper* and *photo* of the first editor build went with this (Tilman:
+  "overhead, we won't need anymore – we got the HDRI and we got the table as default").
 - **A live edit with a new file** (the library's *Use*, *+ node* with an uploaded model): the scene loads the files
   the spread's content does not have before it builds the node (before, such a node stayed invisible until Save).
 - **Selection outline and viewport shading** (#61, Tilman: "selected targets aren't visible … something like in
@@ -125,8 +145,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   each spread's sheet as its preview; the workspace has the
   **tree** of the spread at the left in the style of Blender's outliner (entries → targets → entities with type icons,
   guide lines, the eye column for found, keyboard navigation, a tap selects; collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, Shift-drag, middle button or two fingers
-  to pan, wheel or pinch for the distance, found chips per target, replay of the first find, hand shake, backdrop *table / paper /
-  photo* of your own desk) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
+  to pan, wheel or pinch for the distance, found chips per target, replay of the first find, hand shake) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
   linking the scale axes, filters, colours through the editor's colour popover – palette, recent colours, area + hue,
   hex, and an eyedropper that picks the colour under the pointer from the stage (`IArScene.sampleColor()`) – live on
   the stage, **Save** to the database, **Back to the draft**), and

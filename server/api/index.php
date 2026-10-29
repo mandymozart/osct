@@ -9,14 +9,20 @@ declare(strict_types=1);
  *   POST   /auth/verify              link token or request id + code → session token
  *   POST   /auth/password            email + password → session token (users who set a password)
  *   POST   /auth/logout              end this device's session
- *   GET    /user                     the signed-in user (`role`: reader by default, or editor)
+ *   GET    /user                     the signed-in user (`roles`: reader for every account, editor, admin)
  *   PATCH  /user                     change the options / language
  *   DELETE /user                     delete the user and everything stored with it
  *   PUT    /user/password            set or change the password
  *   GET    /progress/{bookId}        stored progress record
  *   PUT    /progress/{bookId}        store the progress record
  *   POST   /admin/migrate            create missing tables (header X-Admin-Secret: SECRET) – after a deploy
- *   POST   /admin/editors            { email } → make the user an editor, creating it if new (header X-Admin-Secret: SECRET)
+ *
+ *   The admin API (docs/server.md "Admin API"; a signed-in user with role admin, or the header X-Admin-Secret: SECRET):
+ *   GET    /admin/roles                         the roles
+ *   GET    /admin/users?q=&role=&newsletter=1   the users (search by e-mail) with their roles, options, language
+ *   GET    /admin/users.csv?newsletter=1        the same as CSV – the newsletter list
+ *   PUT    /admin/users/{id}/roles/{role}       grant the role · DELETE … revoke it
+ *   POST   /admin/editors                       { email } → make the user an editor, creating it if new
  *
  *   The editor (docs/server.md "Editor data"; a signed-in user with role editor, else 403):
  *   GET    /editor/books                        the books: id, title, author, spreads, updatedAt, lastPublish
@@ -45,7 +51,7 @@ declare(strict_types=1);
  * Signed-in requests send `Authorization: Bearer <session token>`.
  */
 
-foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'Plugins'] as $class) {
+foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'Plugins'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -74,7 +80,7 @@ $uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 // Ids in the editor's paths (books, entities, targets)
 $id = Editor::ID;
 
-/** The admin endpoints (/admin/*) need the SECRET in X-Admin-Secret, else 403 */
+/** POST /admin/migrate needs the SECRET in X-Admin-Secret, else 403 (the other admin endpoints: Admin::actor()) */
 function adminOnly(): void
 {
     $secret = Config::get('SECRET');
@@ -89,20 +95,17 @@ function migrate(): never
     Http::json(200, ['statements' => Db::migrate()]);
 }
 
-/** POST /admin/editors { email } – makes (or creates) an editor */
-function makeEditor(): never
-{
-    adminOnly();
-    Editor::makeEditor(Http::body());
-}
-
 try {
     Http::cors();
     $route = "$method $path";
     match (true) {
         $route === 'GET /health' => Http::json(200, ['status' => 'ok', 'version' => Version::APP, 'db' => Db::value('SELECT 1') == 1 ? 'ok' : 'error']),
         $route === 'POST /admin/migrate' => migrate(),
-        $route === 'POST /admin/editors' => makeEditor(),
+        $route === 'POST /admin/editors' => Admin::makeEditor(Http::body()),
+        $route === 'GET /admin/roles' => Admin::roles(),
+        $route === 'GET /admin/users' => Admin::users(),
+        $route === 'GET /admin/users.csv' => Admin::usersCsv(),
+        (bool) preg_match("#^(PUT|DELETE) /admin/users/($uuid)/roles/([a-z]{1,32})$#", $route, $match) => Admin::setRole($match[2], $match[3], $match[1] === 'PUT'),
         $route === 'POST /auth/request' => Auth::request(Http::body()),
         $route === 'POST /auth/verify' => Auth::verify(Http::body()),
         $route === 'POST /auth/password' => Passwords::signIn(Http::body()),
