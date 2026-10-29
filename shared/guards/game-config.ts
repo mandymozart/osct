@@ -16,6 +16,7 @@ import {
   StepAction,
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
+import { componentProblems } from "../types/components";
 import { filterProblems } from "../types/filters";
 import { placementProblems } from "../types/placement";
 
@@ -97,6 +98,9 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     if (e.filters !== undefined) {
       if (e.type !== "video") fail(`${path}.filters`, "filters only work on video entities");
       filterProblems(e.filters, `${path}.filters`).forEach(problem => problems.push(problem));
+    }
+    if (e.components !== undefined) {
+      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined).forEach(problem => problems.push(problem));
     }
   };
 

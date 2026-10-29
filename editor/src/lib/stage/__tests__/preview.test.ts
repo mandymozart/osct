@@ -26,7 +26,7 @@ describe("editor preview settings", () => {
     setTargetHidden("a", true);
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
-    expect(stored).toEqual({ view: "top", orbit: null, backdrop: "paper", hdri: "ferndale_studio_04", photo: null, wobble: 0.4 });
+    expect(stored).toEqual({ view: "top", shading: "rendered", orbit: null, backdrop: "paper", hdri: "ferndale_studio_04", photo: null, wobble: 0.4 });
     expect(getPreview().hidden).toEqual(["a"]);
   });
 

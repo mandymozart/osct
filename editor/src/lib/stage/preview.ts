@@ -37,8 +37,13 @@ export interface PreviewOrbit {
   pan?: { x: number; y: number };
 }
 
+export const SHADING_MODES = ["wireframe", "solid", "textured", "rendered"] as const;
+export type ShadingMode = (typeof SHADING_MODES)[number];
+
 export interface PreviewSettings {
   view: PreviewView;
+  /** The viewport's shading (Blender's): wireframe, solid, textured, rendered (the HDRI's sky and light) */
+  shading: ShadingMode;
   /** A free orbit (dragged, zoomed) replaces the preset until the next preset is chosen */
   orbit: PreviewOrbit | null;
   backdrop: PreviewBackdrop;
@@ -57,7 +62,7 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", orbit: null, backdrop: "hdri", hdri: "ferndale_studio_04", photo: null, wobble: 0 };
+const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, backdrop: "hdri", hdri: "ferndale_studio_04", photo: null, wobble: 0 };
 
 const readSettings = (): PreviewSettings => {
   try {
@@ -66,6 +71,7 @@ const readSettings = (): PreviewSettings => {
     const stored = JSON.parse(raw) as Partial<PreviewSettings>;
     return {
       view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
+      shading: SHADING_MODES.includes(stored.shading as ShadingMode) ? (stored.shading as ShadingMode) : DEFAULTS.shading,
       orbit: isOrbit(stored.orbit) ? stored.orbit : null,
       backdrop: PREVIEW_BACKDROPS.includes(stored.backdrop as PreviewBackdrop) ? (stored.backdrop as PreviewBackdrop) : DEFAULTS.backdrop,
       hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,

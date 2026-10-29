@@ -350,8 +350,12 @@ export class ArScene implements IArScene {
       return;
     }
     const hit = this.hitTest(event.clientX, event.clientY);
-    if (hit) this.emitter.emit("targetTapped", hit);
-    else void focusAtTap(event.clientX, event.clientY);
+    if (hit) {
+      this.content.anchors.find(a => a.target.id === hit)?.entity?.onTap?.();
+      this.emitter.emit("targetTapped", hit);
+    } else {
+      void focusAtTap(event.clientX, event.clientY);
+    }
   };
 
   /** The nearest found entity whose on-screen bounds (+ margin) contain the point (client px), or null */
@@ -394,6 +398,7 @@ export class ArScene implements IArScene {
       domElement: view.domElement,
       onFrame: listener => view.onFrame(listener),
       nodeObject: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.nodes?.[path.join(".")] ?? null,
+      nodeTimeline: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.timelines?.[path.join(".")] ?? null,
       hitTest: (clientX, clientY) => this.hitTest(clientX, clientY),
     };
   }

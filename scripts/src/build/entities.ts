@@ -1,5 +1,6 @@
 import { ENTITY_TYPES, type AssetData, type EntityData, type EntityRefData } from '../../../shared/types/game-config';
 import { FilterData, filterProblems } from '../../../shared/types/filters';
+import { componentProblems, type ComponentData } from '../../../shared/types/components';
 import { placementProblems } from '../../../shared/types/placement';
 import fs from 'fs';
 import path from 'path';
@@ -78,6 +79,12 @@ export function buildNode(
     buildErrors.push(`${label}: color must be #rrggbb`);
   }
   const filters = buildFilters(raw.filters, type, label);
+  let components: ComponentData[] | undefined;
+  if (raw.components !== undefined) {
+    const problems = componentProblems(raw.components, 'components', type);
+    problems.forEach(problem => buildErrors.push(`${label}: ${problem}`));
+    if (!problems.length) components = raw.components as ComponentData[];
+  }
   let children: EntityData[] | undefined;
   if (raw.children !== undefined) {
     if (!Array.isArray(raw.children)) buildErrors.push(`${label}: children must be a list`);
@@ -94,6 +101,7 @@ export function buildNode(
     assets,
     ...(raw.params ? { params: raw.params } : {}),
     ...(filters ? { filters } : {}),
+    ...(components?.length ? { components } : {}),
     ...(children?.length ? { children } : {}),
     ...(type === 'text' ? { text: String(raw.text ?? ''), ...(raw.color ? { color: raw.color } : {}) } : {}),
   };
