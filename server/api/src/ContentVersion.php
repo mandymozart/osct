@@ -80,7 +80,7 @@ final class ContentVersion
     {
         Editor::user();
         $version = self::assemble($bookId);
-        Http::json(200, self::manifest($version, Editor::iso()));
+        Http::json(200, self::manifest($version, Editor::iso(), $bookId));
     }
 
     /**
@@ -95,13 +95,13 @@ final class ContentVersion
     }
 
     /**
-     * latest.json of a version (content-manifest.ts `ContentManifest`)
+     * latest.json of a version of the book (content-manifest.ts `ContentManifest`)
      * @param array{hash: string, build: string, schema: string} $version
      * @return array<string, string>
      */
-    public static function manifest(array $version, string $activatedAt): array
+    public static function manifest(array $version, string $activatedAt, string $bookId): array
     {
-        return ['build' => $version['build'], 'hash' => $version['hash'], 'schema' => $version['schema'], 'version' => Version::APP, 'activatedAt' => $activatedAt];
+        return ['build' => $version['build'], 'hash' => $version['hash'], 'schema' => $version['schema'], 'version' => Version::APP, 'activatedAt' => $activatedAt, 'book' => $bookId];
     }
 
     /** Content paths under PATH_KEYS become URLs below `$base`, everywhere in the configuration */
