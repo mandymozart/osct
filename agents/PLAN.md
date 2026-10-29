@@ -1065,12 +1065,13 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        engine (content runtime + AR scene) becomes `engine/`, the reader uses it with the real tracker and loses every
        editor trace (route, chunk, preview, mock tracker, tune panel), the editor is a SvelteKit app `editor/` at
        `/editor` with the engine + mock tracker in process; an OSCT instance user (Building Fictions) signs in,
-       independent of Scutoons. Work: [~] engine package, [ ] reader stripped, [ ] editor app (sign-in, books, stage,
-       Stage / Entity panels, save), [ ] image + CI + staging.
-2. [~] Saving: books, spreads, entries, targets, entities in the database (`/api/editor/*`, import from a game
-       configuration, entity edits with a change log), the draft as a content version the engine loads
+       independent of Scutoons. Done (1.10.0): [x] engine package, [x] reader stripped, [x] editor app (sign-in, books,
+       import, stage, Stage / Entity panels, save, publish), [x] image + CI; staging = the PR into develop.
+2. [x] Saving (1.10.0): books, spreads, entries, targets, entities in the database (`/api/editor/*`, import from a
+       game configuration, entity edits with a change log), the draft as a content version the engine loads
        (`…/draft/latest.json`), publish = the version assembled from the rows into the content store (local dir or
-       bunny) – the "compile" of this step; staging reads it from the CDN.
+       bunny) – the "compile" of this step. Open: `CONTENT_STORE=bunny` + the zone's credentials in the staging
+       environment; texts, entries, targets and media still come from the content source (import again).
 3. [ ] Plugin API: registries for node types, components and material layers with specs (`shared/`), content
        schema 2.0 (node tree), `api.three`; plugins compiled by the content build.
 4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.

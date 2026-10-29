@@ -22,8 +22,19 @@ outcome in the line (or move it into a dated decision block).
   (schema 2.0, code in the editor) stays phase 15 steps 3–4.
 - Earlier the same day: an OSCT instance user signs in (the instance is **Building Fictions**, the brand; "OSCT wird
   das nie"), independent of Scutoons for now, "der Editor erstmal im OSCT-Repo".
-- [ ] The reader's vanilla editor sheet and `<scrub-number>` go with this (Tilman: clear separation) – the editor app
-  replaces them; `docs/editor.md` is rewritten for the app.
+- [x] The reader's vanilla editor sheet and `<scrub-number>` went with this (Tilman: clear separation) – the editor
+  app replaces them; `docs/editor.md` rewritten for the app.
+- Built that night (1.10.0, decided alone – to review): the editor mirrors the Scutoons apps' toolchain (SvelteKit 2.55,
+  Svelte 5.55, adapter-static with `fallback: index.html`, `paths.base=/editor`, vite-plugin-svelte 7) but with the
+  reader's three 0.174 so the engine compiles once; `tsconfig` overrides `verbatimModuleSyntax` (the engine has no
+  type-only imports) and maps `three` to `@types/three`, Vite dedupes `three` for the engine's files. The import's
+  `assetsBase` is where a book's `/assets/content/…` paths resolve (the reader dev server in dev, the CDN's version
+  folder on staging) – the engine's loader got the same option so layout and trigger protocol resolve there too.
+  The editor's own users are the accounts table with `users.role` (`POST /admin/editors`). Publish `local` writes to
+  the API's `db/content/`, served at `/api/content/local/…`. The dev setup for the morning: `server/api/config.local.php`
+  (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
+- [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
+  tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
 
 ## 2026-10-29 – Editor, first step: `/editor` over the mock stage (#61, overnight after Tilman's go)
 
