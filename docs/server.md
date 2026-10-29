@@ -192,8 +192,8 @@ top left corner, optional `height` and `page`) – the editor's stage lays the t
 `invalid-target`. `POST /editor/books/{id}/entries` `{ title, page, category?, body?, target: { id?, imageSrc, print?,
 entity? } }` → 201 `{ entry, spreadId }` makes an entry (id from title and page, `p102-shadows`, or the given one;
 409 `duplicate-id`) with its target on the spread its page belongs to; `DELETE /editor/books/{id}/entries/{eid}` →
-204 removes entry and target (changes recorded). The image's tracking data for the real reader comes with the
-content build – in the editor it is the stage's printed image.
+204 removes entry and target (changes recorded). The reader tracks such a target after a publish: the 8th Wall
+engine makes the image-target data from `imageSrc` at runtime (`engine/src/scene/xr8.ts`).
 
 ## Logs
 
