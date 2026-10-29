@@ -39,6 +39,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   `StorageClient` (retry on 5xx and lost connections, never on 4xx), the CLI arguments, the content validator, the
   mapping reader, the schema lock, and the sync and purge against a storage zone in memory. The scripts tests remove
   their temp folders.
+
 ## 1.26.8 – 2026-10-30
 
 ### Added
