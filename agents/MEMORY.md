@@ -118,6 +118,11 @@ outcome in the line (or move it into a dated decision block).
   (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
 - [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
   tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
+- 2026-10-29 (Tilman): the Stage panel's **view presets and found chips are removed** – they doubled the stage's own
+  gestures (orbit, pan, double tap) and the tree's eye column; the replay of the first find lives in the stage's
+  right-click menu. `PREVIEW_VIEWS` and `view` stay in `preview.ts` (the reader view is the double tap's target).
+  Local sign-in has no hourly email limit (`LOGIN_MAX_PER_*_HOUR` -1 – Tilman: "-1 ist besser als Limit für aus";
+  0 allows nothing); a refused request tells the minutes.
 - 2026-10-29 (Tilman): the covers are spreads of another **format** – `format` on a spread (`spread` default,
   `cover`, `back`; later `wall`, objects, facades: "damit kann die App auch verschiedene Medien bespielen"), with a
   UI to set it; the covers are page 0 and the page after the last so the page → spread rule holds everywhere. Scripts

@@ -1,50 +1,24 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import {
-    DESKS, getPreview, HDRIS, isDeskId, isHdriId, PREVIEW_VIEWS, setTargetHidden, subscribePreview, updatePreview, type PreviewState,
+    DESKS, getPreview, HDRIS, isDeskId, isHdriId, subscribePreview, updatePreview, type PreviewState,
   } from "$lib/stage/preview";
-  import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
 
   /**
-   * The simulated camera: view presets (drag on the stage orbits, wheel / pinch the distance, double tap = reader),
-   * found per target (off = lost → outro, on = found → reveal), replay of the first find, hand shake, the desk and
-   * the sky (an HDRI) – and the **narrative** of the book's plugins: their variables with scopes, the last events of
-   * the stage, and *reset* for a new game (nothing unlocked, no variable).
+   * The stage's settings: hand shake, the desk and the sky (an HDRI). The camera is moved on the stage itself (drag
+   * orbits, wheel / pinch the distance, double tap = the reader's view), found / lost per target is the tree's eye,
+   * the first find is replayed from the stage's menu – the panel no longer doubles them (Tilman, 2026-10-29). And the
+   * **narrative** of the book's plugins: their variables with scopes, the last events of the stage, and *reset* for a
+   * new game (nothing unlocked, no variable).
    */
   let { stage, spreadId }: { stage: Stage | null; spreadId: string } = $props();
 
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
-  // From the reactive content (a reload after a save or a spread switch recomputes it)
-  const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
 </script>
-
-<div class="row"><span class="label">view</span>
-  <span class="controls">
-    <Segmented options={PREVIEW_VIEWS} value={preview.orbit ? null : preview.view} onchange={view => updatePreview({ view, orbit: null })} />
-    {#if preview.orbit}<span class="small muted">free · {Math.round(preview.orbit.distance)} mm · {Math.round(preview.orbit.tilt)}° · {Math.round(preview.orbit.yaw)}°{#if preview.orbit.pan} · pan {Math.round(preview.orbit.pan.x)} / {Math.round(preview.orbit.pan.y)} mm{/if}</span>{/if}
-  </span></div>
-
-<div class="row"><span class="label">found</span>
-  <span class="controls">
-    {#if targets.length}
-      {#each targets as target (target.id)}
-        {@const shown = !preview.hidden.includes(target.id)}
-        <button type="button" class="pill" class:on={shown} aria-pressed={shown} title={shown ? "Found – tap to lose" : "Lost – tap to find"}
-          onclick={() => setTargetHidden(target.id, shown)}>
-          {stage?.found.includes(target.id) ? "◉" : "○"} {target.id}
-        </button>
-      {/each}
-      <button type="button" class="icon-button" title="Replay the first find" aria-label="Replay the first find" onclick={() => stage?.replayUnlock()}><Icon name="replay" /></button>
-    {:else}
-      <span class="small muted">no targets with an image on this spread</span>
-    {/if}
-  </span></div>
 
 <div class="row"><span class="label">vars</span>
   <span class="controls">
