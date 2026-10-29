@@ -8,9 +8,11 @@
 
 import { EntryCategory } from "./entry";
 import { FilterData } from "./filters";
+import type { ComponentData } from "./components";
 
 export * from "./filters";
 export * from "./placement";
+export * from "./components";
 
 /**
  * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text –
@@ -32,7 +34,7 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.1";
+export const CONTENT_SCHEMA_VERSION = "2.2";
 
 export interface ContentSchema {
   major: number;
@@ -88,6 +90,8 @@ export interface EntityData {
   assets: AssetData[];
   params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
+  /** Components applied to this node (schema 2.2 – `COMPONENTS`): an `animation` on a model, … */
+  components?: ComponentData[];
   /** Child nodes, placed relative to this one */
   children?: EntityData[];
   /** `text` nodes: the line shown; `{{entry.title}}` and `{{book.title}}` are replaced */

@@ -78,6 +78,7 @@ export const schemas: Record<string, Schema> = {
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts
       children: { type: "Array", required: false }, // nodes: { type, src?, params?, filters?, children?, text?, color? }
+      components: { type: "Array", required: false }, // [{ type, ...parameters }], see shared/types/components.ts
       text: { type: "String", required: false }, // text nodes
       color: { type: "String", required: false }, // text nodes, #rrggbb
     },

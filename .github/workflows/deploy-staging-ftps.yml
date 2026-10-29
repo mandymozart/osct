@@ -82,6 +82,8 @@ jobs:
           OSCT_BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
           OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
           OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          # The first editors (docs/server.md "Editor data"): these addresses get the role when they sign in
+          OSCT_EDITORS: ${{ vars.EDITORS }}
         run: php server/deploy/write-config.php server/api/config.local.php
 
       - name: Assemble the site

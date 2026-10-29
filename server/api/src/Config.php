@@ -21,6 +21,9 @@ final class Config
         'APP_URL' => 'http://localhost:5173',
         // Other origins that may call the API (comma separated, * wildcard), e.g. the staging site
         'ALLOWED_ORIGINS' => '',
+        // Editor (docs/server.md "Editor data"): e-mail addresses that get the role editor when they sign in – the first
+        // editors of an instance without the admin secret; POST /admin/editors adds more at any time
+        'EDITORS' => '',
         // log = write the mails to MAIL_LOG_PATH (development), mail = PHP mail() (testing), smtp (production)
         'MAIL_TRANSPORT' => 'log',
         'MAIL_FROM' => 'no-reply@example.com',

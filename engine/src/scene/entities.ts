@@ -1,6 +1,6 @@
-import { AnimationMixer, CanvasTexture, DoubleSide, Group, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, SRGBColorSpace } from "three";
+import { AnimationAction, AnimationMixer, CanvasTexture, DoubleSide, Group, LoopOnce, LoopRepeat, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, SRGBColorSpace } from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { EntityData, EntityType, resolvePlacement, Target } from "../types/index";
+import { EntityData, EntityType, NodeTimeline, resolveComponent, resolvePlacement, Target } from "../types/index";
 import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma-key";
 import { LoadedAsset } from "./assets";
 import { getBook, getEntry } from "../content/game-config";
@@ -32,6 +32,12 @@ export interface EntityInstance {
   tune?(entity: EntityData): boolean;
   /** The placement group of every node of the tree by its path (`""` = the root, `"1.0"` = the second child's first) – editor tools */
   nodes?: Record<string, Object3D>;
+  /** A tap on the entity (the scene's hit test found it): a component may react (the animation's `playOn: tap`) */
+  onTap?(): void;
+  /** A model node's animation for the editor's timeline */
+  timeline?: NodeTimeline;
+  /** The timelines of every node of the tree by its path – editor tools */
+  timelines?: Record<string, NodeTimeline>;
 }
 
 export interface EntityContext {
@@ -69,10 +75,17 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
   children.forEach(child => placed.add(child.object));
   const all = own ? [own, ...children] : children;
   const nodes: Record<string, Object3D> = { "": placed };
-  children.forEach((child, i) => Object.entries(child.nodes ?? {}).forEach(([key, object]) => (nodes[key === "" ? `${i}` : `${i}.${key}`] = object)));
+  const timelines: Record<string, NodeTimeline> = {};
+  if (own?.timeline) timelines[""] = own.timeline;
+  children.forEach((child, i) => {
+    Object.entries(child.nodes ?? {}).forEach(([key, object]) => (nodes[key === "" ? `${i}` : `${i}.${key}`] = object));
+    Object.entries(child.timelines ?? {}).forEach(([key, timeline]) => (timelines[key === "" ? `${i}` : `${i}.${key}`] = timeline));
+  });
   return {
     object: placed,
     nodes,
+    timelines,
+    onTap: () => all.forEach(part => part.onTap?.()),
     onFound: () => all.forEach(part => part.onFound?.()),
     onLost: () => all.forEach(part => part.onLost?.()),
     onPause: () => all.forEach(part => part.onPause?.()),
@@ -174,18 +187,93 @@ registerEntity("video", ({ entity, asset }) => {
   };
 });
 
-/** glTF model; all of its animation clips play */
+/**
+ * glTF model. Without an `animation` component every clip plays in a loop (as before 2.2). With one, the chosen
+ * clip (or the first) plays when the component says (`playOn`: found / tap / never), stops when the page is lost
+ * (`stopOn`), loops or holds its last frame, at `speed` – and the editor's timeline drives it directly.
+ */
 registerEntity("model", ({ entity, asset }) => {
   const data = entity.assets[0];
   const loaded = data && asset(data.id);
   if (!loaded || (loaded.assetType !== "glb" && loaded.assetType !== "gltf")) return null;
   // A copy per entity (skinned meshes need SkeletonUtils) – geometries and materials stay shared
   const model = cloneSkinned(loaded.scene); // placed by `params` (default: standing on the page, half size)
-  const mixer = loaded.animations.length ? new AnimationMixer(model) : null;
-  loaded.animations.forEach(clip => mixer!.clipAction(clip).play());
+  const clips = loaded.animations;
+  const mixer = clips.length ? new AnimationMixer(model) : null;
+  let animation = resolveComponent(entity.components, "animation");
+  let action: AnimationAction | null = null;
+  let current = "";
+
+  const clipByName = (name: string) => clips.find(clip => clip.name === name) ?? clips[0];
+  /** The action of the component's clip with its loop and speed (a change of clip swaps the action) */
+  const arm = (): AnimationAction | null => {
+    if (!mixer || !clips.length) return null;
+    const clip = clipByName(String(animation?.clip ?? ""));
+    if (action && current !== clip.name) {
+      action.stop();
+      action = null;
+    }
+    current = clip.name;
+    action ??= mixer.clipAction(clip);
+    const loop = animation ? animation.loop !== false : true;
+    action.setLoop(loop ? LoopRepeat : LoopOnce, Infinity);
+    action.clampWhenFinished = !loop;
+    action.timeScale = Number(animation?.speed ?? 1);
+    return action;
+  };
+  const playing = () => !!action && action.isRunning();
+
+  if (!animation) {
+    clips.forEach(clip => mixer!.clipAction(clip).play());
+  } else {
+    arm();
+  }
+
+  const timeline: NodeTimeline | undefined = mixer
+    ? {
+        clips: clips.map(clip => ({ name: clip.name, duration: clip.duration })),
+        state: () => {
+          const a = action ?? arm();
+          return { clip: current, time: a?.time ?? 0, playing: playing(), duration: a?.getClip().duration ?? 0 };
+        },
+        play: name => {
+          if (name !== undefined) animation = { ...(animation ?? resolveComponent([{ type: "animation" }], "animation")!), clip: name };
+          const a = arm();
+          if (!a) return;
+          a.paused = false;
+          a.enabled = true;
+          if (!a.isRunning()) a.reset().play();
+        },
+        pause: () => { if (action) action.paused = true; },
+        seek: time => {
+          const a = action ?? arm();
+          if (!a) return;
+          if (!a.isRunning()) { a.play(); a.paused = true; }
+          a.time = Math.max(0, Math.min(a.getClip().duration, time));
+          mixer.update(0);
+        },
+      }
+    : undefined;
+
   return {
     object: model,
+    timeline,
     update: delta => mixer?.update(delta),
+    onFound: () => { if (animation && animation.playOn === "found") timeline?.play(); },
+    onLost: () => { if (animation && animation.stopOn === "lost" && action) { action.stop(); } },
+    onTap: () => { if (animation && animation.playOn === "tap") timeline?.play(); },
+    // Other component values apply in place: clip, loop, speed; a component added or removed rebuilds
+    tune: tuned => {
+      const next = resolveComponent(tuned.components, "animation");
+      if (!!next !== !!animation) return false;
+      const wasPlaying = playing();
+      animation = next;
+      if (animation) {
+        arm();
+        if (wasPlaying && !playing()) timeline?.play();
+      }
+      return true;
+    },
     dispose: () => mixer?.stopAllAction(),
   };
 });

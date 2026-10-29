@@ -5,12 +5,14 @@ import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
 import { ArScene } from "@engine/scene";
 import { getTarget, getTargets } from "@engine/content/game-config";
-import { SceneState, type ArStatus, type EntityData, type IArScene } from "@engine/types";
+import { SceneState, type ArStatus, type EntityData, type IArScene, type NodeTimeline } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "$lib/values";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
+import { applyShading } from "./shading";
+import { getPreview, subscribePreview, type ShadingMode } from "./preview";
 import { MockStage } from "./mock-stage";
 import { MockTracker } from "./mock-tracker";
-import { getPreview, setPreviewActive, setTargetHidden } from "./preview";
+import { setPreviewActive, setTargetHidden } from "./preview";
 
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
 const REPLAY_GAP_MS = 900;
@@ -59,6 +61,8 @@ export class Stage {
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
   /** What a click picks (Blender's select mode): the entity (its root), the node under the pointer, or the printed target */
   pickMode = $state<PickMode>("entity");
+  /** The viewport's shading (stored with the preview settings) */
+  shading = $state<ShadingMode>(getPreview().shading);
 
   private scene: IArScene;
   private tracker: MockTracker | null = null;
@@ -89,10 +93,20 @@ export class Stage {
       scene.on("status", (status, error) => {
         this.status = status;
         this.error = status === "error" ? error ?? "unknown" : null;
-        if (status === "running") this.ensureGizmo();
+        if (status === "running") {
+          this.ensureGizmo();
+          this.shade();
+        }
+      }),
+      subscribePreview(state => {
+        if (state.shading !== this.shading) {
+          this.shading = state.shading;
+          this.shade();
+        }
       }),
       scene.on("targetFound", id => {
         if (!this.found.includes(id)) this.found = [...this.found, id];
+        this.shade();
         // The first find unlocks: the entity's unlock animation plays (replaces the reveal)
         if (!this.unlocked.has(id)) {
           this.unlocked.add(id);
@@ -181,6 +195,7 @@ export class Stage {
     this.found = [];
     await this.scene.load(spreadId);
     await this.scene.setState(SceneState.RUNNING);
+    this.shade();
   }
 
   /** Show a target's entity with other values than the content's (live edit), `null` = the content's again */
@@ -188,7 +203,18 @@ export class Stage {
     if (entity) this.overrides.set(targetId, entity);
     else this.overrides.delete(targetId);
     this.scene.overrideEntity(targetId, entity);
+    this.shade();
     this.gizmo?.select(this.visibleSelection());
+  }
+
+  /** The viewport's shading on every entity of the spread (the engine builds fresh meshes: applied again after) */
+  private shade(): void {
+    const inspection = this.scene.inspect();
+    const spread = this.spreadId;
+    if (!inspection || !spread) return;
+    const roots = getTargets(spread).map(target => inspection.nodeObject(target.id, [])).filter((o): o is NonNullable<typeof o> => !!o);
+    applyShading(roots, this.shading);
+    this.gizmo?.refreshOutline();
   }
 
   /** The selection while its target shows a tree (a removed root leaves the gizmo nothing to hold) */
@@ -211,6 +237,11 @@ export class Stage {
     });
     this.gizmo.mode = this.wantedMode;
     this.gizmo.select(this.visibleSelection());
+  }
+
+  /** A model node's timeline (the animation component), null for other nodes */
+  timeline(targetId: string, path: number[]): NodeTimeline | null {
+    return this.scene.inspect()?.nodeTimeline(targetId, path) ?? null;
   }
 
   /** The gizmo follows the selection (null = none) */
@@ -343,8 +374,9 @@ export class Stage {
   }
 
   /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */
-  refresh(): Promise<void> {
-    return this.scene.refresh();
+  async refresh(): Promise<void> {
+    await this.scene.refresh();
+    this.shade();
   }
 
   /** Every shown target is locked again, hidden, and found anew: the unlock animation plays */

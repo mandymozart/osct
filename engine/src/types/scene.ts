@@ -47,6 +47,16 @@ export type ArSceneEvents = {
  * `LazyArScene`). No store access – the app connects it to its state (the reader's `<ar-bridge>`). Calls are queued and the latest request wins
  * (switching spreads while loading builds only the newest spread).
  */
+/** A model node's animation as the editor's timeline sees it (the `animation` component plays it) */
+export interface NodeTimeline {
+  clips: Array<{ name: string; duration: number }>;
+  /** The clip playing or paused, its time in seconds, whether it runs */
+  state(): { clip: string; time: number; playing: boolean; duration: number };
+  play(clip?: string): void;
+  pause(): void;
+  seek(time: number): void;
+}
+
 /** The running scene opened for editor tools: three.js objects, the canvas, a frame hook, a hit test */
 export interface SceneInspection {
   scene: Scene;
@@ -58,6 +68,8 @@ export interface SceneInspection {
   nodeObject(targetId: string, path: number[]): Object3D | null;
   /** The found entity under a point of the screen (client px), as a tap would report it */
   hitTest(clientX: number, clientY: number): string | null;
+  /** The timeline of a model node (its clips), null for other nodes or before it is built */
+  nodeTimeline(targetId: string, path: number[]): NodeTimeline | null;
 }
 
 export interface IArScene {

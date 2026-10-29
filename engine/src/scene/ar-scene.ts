@@ -1,6 +1,6 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, SceneInspection, SceneState, Target } from "../types/index";
-import { getAssets, getSpread, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getSpread, getTargets } from "../content/game-config";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
@@ -127,11 +127,24 @@ export class ArScene implements IArScene {
     else this.overrides.delete(targetId);
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (!anchor) return;
+    this.rebuildOverride(anchor, targetId);
+    // A file the spread's content does not have (the editor's library, a new node): the entity shows at once as far
+    // as it can (a placeholder for a model), the file loads, then the entity is built again with it
+    const missing = entityAssets(entity ?? undefined).filter(asset => !this.assets.knows(asset.id));
+    if (missing.length) {
+      void this.assets.load(missing).then(() => {
+        if (this.overrides.get(targetId) === entity) this.rebuildOverride(anchor, targetId, true);
+      });
+    }
+  }
+
+  /** The anchor shows its entity as overridden: tuned in place when it can (unless `force`), built anew otherwise */
+  private rebuildOverride(anchor: Anchor, targetId: string, force = false): void {
     const wanted = this.entityOf(anchor.target);
     // A running animation holds the entity's materials – it ends first
     this.animations.get(targetId)?.finish();
     this.animations.delete(targetId);
-    if (wanted && anchor.entity && wanted.type === anchor.entity.type && (anchor.entity.tune?.(wanted) ?? true)) {
+    if (!force && wanted && anchor.entity && wanted.type === anchor.entity.type && (anchor.entity.tune?.(wanted) ?? true)) {
       placeEntity(anchor.entity.object, wanted);
       return;
     }
@@ -350,8 +363,12 @@ export class ArScene implements IArScene {
       return;
     }
     const hit = this.hitTest(event.clientX, event.clientY);
-    if (hit) this.emitter.emit("targetTapped", hit);
-    else void focusAtTap(event.clientX, event.clientY);
+    if (hit) {
+      this.content.anchors.find(a => a.target.id === hit)?.entity?.onTap?.();
+      this.emitter.emit("targetTapped", hit);
+    } else {
+      void focusAtTap(event.clientX, event.clientY);
+    }
   };
 
   /** The nearest found entity whose on-screen bounds (+ margin) contain the point (client px), or null */
@@ -394,6 +411,7 @@ export class ArScene implements IArScene {
       domElement: view.domElement,
       onFrame: listener => view.onFrame(listener),
       nodeObject: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.nodes?.[path.join(".")] ?? null,
+      nodeTimeline: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.timelines?.[path.join(".")] ?? null,
       hitTest: (clientX, clientY) => this.hitTest(clientX, clientY),
     };
   }

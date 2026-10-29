@@ -4,7 +4,7 @@ import {
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import type { PageFormat, StageBook, StageSheet, StageTarget, StageView } from "./mock-tracker";
-import type { HdriId, PreviewBackdrop } from "./preview";
+import type { HdriId, PreviewBackdrop, ShadingMode } from "./preview";
 
 /**
  * A plane sits a hair below the one above it, so nothing flickers: the entities' plane is the target's (z = 0, as
@@ -72,6 +72,16 @@ export class MockStage implements StageView {
   private wantedHdri: string | null = null;
   /** The sky: the HDRI on a sphere inside the stage's group, so it turns with the stage by construction */
   private sky: Mesh<SphereGeometry, MeshBasicMaterial> | null = null;
+  private shading: ShadingMode = "rendered";
+  private lastBackdrop: { backdrop: PreviewBackdrop; photo: string | null; hdri: HdriId | null } = { backdrop: "hdri", photo: null, hdri: null };
+
+  /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only */
+  setShading(mode: ShadingMode): void {
+    if (this.shading === mode) return;
+    this.shading = mode;
+    const last = this.lastBackdrop;
+    this.setBackdrop(last.backdrop, last.photo, last.hdri);
+  }
   /** The scene's own lights at their intensity before the HDRI dimmed them */
   private dimmed = new Map<Light, number>();
 
@@ -172,6 +182,7 @@ export class MockStage implements StageView {
   }
 
   setBackdrop(backdrop: PreviewBackdrop, photo: string | null, hdri: HdriId | null = null): void {
+    this.lastBackdrop = { backdrop, photo, hdri };
     const usePhoto = backdrop === "photo" && !!photo;
     this.table.visible = !usePhoto;
     this.container.style.backgroundImage = usePhoto ? `url(${photo})` : "";
@@ -193,7 +204,7 @@ export class MockStage implements StageView {
     }
     material.needsUpdate = true;
     // The sky and the light: the HDRI, else the scene's own lights over the editor's dark ground
-    this.wantedHdri = backdrop === "hdri" && hdri ? hdri : null;
+    this.wantedHdri = backdrop === "hdri" && hdri && this.shading === "rendered" ? hdri : null;
     if (!this.wantedHdri) {
       this.scene.background = null;
       this.scene.environment = null;

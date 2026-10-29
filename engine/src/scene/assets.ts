@@ -150,6 +150,11 @@ export class AssetStore {
     return this.entries.get(id)?.loaded ?? undefined;
   }
 
+  /** The store was asked for this asset (loaded, loading or failed) – a file of the spread's content */
+  knows(id: string): boolean {
+    return this.entries.has(id);
+  }
+
   /** Dispose every asset whose id is not in `keep` */
   release(keep: Set<string> = new Set()): void {
     this.entries.forEach((entry, id) => {

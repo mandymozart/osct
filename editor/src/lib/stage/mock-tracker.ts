@@ -192,6 +192,8 @@ export interface StageView {
   setGhost?(ghost: StageTarget | null): void;
   /** The printed images on the page, each with `userData.targetId` (picking a target by its print) */
   printedPlanes?(): Object3D[];
+  /** The viewport's shading: the sky and the HDRI's light show only while rendered */
+  setShading?(mode: PreviewState["shading"]): void;
   /** The ghost's image and corner (the placement handles) */
   ghostParts?(): { image: Object3D | null; corner: Object3D | null };
   /** Where a ray meets the page, in mm from the page's top left corner, and on which page */
@@ -291,6 +293,7 @@ export class MockTracker implements IImageTracker {
     this.stage?.dispose();
     this.stage = stage;
     if (this.targets.length) stage.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
+    stage.setShading?.(this.preview.shading);
     stage.setBackdrop(this.preview.backdrop, this.preview.photo, this.preview.hdri);
     stage.setGhost?.(this.ghost);
   }
@@ -442,6 +445,7 @@ export class MockTracker implements IImageTracker {
     } else if (state.orbit && !sameOrbit(state.orbit, this.orbit)) {
       this.orbit = { ...state.orbit };
     }
+    if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
     if (initial || state.backdrop !== previous.backdrop || state.photo !== previous.photo || state.hdri !== previous.hdri) {
       this.stage?.setBackdrop(state.backdrop, state.photo, state.hdri);
     }

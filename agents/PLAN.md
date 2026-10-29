@@ -1074,6 +1074,12 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        480p / 720p / 1080p) and transcoding – the content build or a job; [x] a target made in the editor tracks in
        the reader: the 8th Wall engine makes the image-target data from the image at runtime (`xr8.ts`), nothing to
        compile; [ ] the media standard's density suffixes.
+2d. [ ] **A minimal admin UI** at `/admin` in the editor app (Tilman 2026-10-29: "wir werden ein kleines Admin-UI
+       brauchen … Newsletter-Listen … wichtig, dass wir nicht zu viel von Scutoons kopieren; eventuell wird das alles
+       dieselbe White-Label-Software, gewisse Dinge sind Feature-Sets"): editors (invite by e-mail, roles, remove),
+       later newsletter lists and other instance settings; the first editors come from `EDITORS` (done, 1.10.0) or
+       the admin secret. Small and own – a feature set of the white-label core (STRATEGY.md), not a copy of
+       Scutoons' admin.
 2c. [ ] **Asked on 2026-10-29, for steps 3–4** (Tilman): nodes without a target on the spread (scenery, listeners on
        events – an anchor for the spread's scene, scope `spread`), a **timeline** for a model's animation clips with
        start / stop on found / lost / tap (the `animation` component and `behaviour` of the concept), and the
@@ -1085,8 +1091,11 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        environment; texts, entries, targets and media still come from the content source (import again).
 3. [~] Plugin API: [x] content schema 2.0 – the node tree (`children`, `group`, `text`, recursive engine, build,
        guard, API, editor's tree with + node / remove node; the app reads 1.x as one-node trees – 2026-10-29);
-       [ ] registries for node types, components and material layers with specs (`shared/`), `api.three`; plugins
-       compiled by the content build.
+       [x] components with specs (schema 2.2, `shared/types/components.ts`): the first is `animation` on a model
+       (clip, playOn found / tap / never, stopOn, loop, speed) with the editor's timeline; the entity instance got
+       `onTap` and a `NodeTimeline`; [ ] more components (`behaviour` with actions, `spin` / `float`, `audio`,
+       material layers), the node-type registry with specs, nodes without a target on the spread (scope `spread`),
+       `api.three`; plugins compiled by the content build.
 4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.
 5. [~] Layout templates per spread (`book`, `sheet`, `cover`, `sleeve`, `wall`) and the geometry import (#60): the
        import from the designed PDFs exists (`npm run layout`, 1.10.0 – sheets, covers, printed geometry into the

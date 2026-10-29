@@ -82,7 +82,7 @@ function lastMail(string $log): array
 try {
     $mailLog = "$tmp/mail.log";
     $settings = [
-        'DB_SQLITE_PATH' => "$tmp/test.sqlite", 'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log',
+        'DB_SQLITE_PATH' => "$tmp/test.sqlite", 'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'EDITORS' => 'Listed@example.com, other@example.com',
         'MAIL_LOG_PATH' => $mailLog, 'APP_URL' => 'https://app.example', 'ALLOWED_ORIGINS' => 'http://localhost:5173, https://*--staging.example',
         'LOGIN_MAX_PER_EMAIL_HOUR' => '4', 'CONTENT_STORE_DIR' => "$tmp/content",
     ];
@@ -233,6 +233,12 @@ try {
     [, $data] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
     $editor = $data['session'];
     check($data['user']['role'] === 'reader', 'a new user is a reader');
+    // An address in EDITORS (config) is an editor from its first sign-in – the first editors without the admin secret
+    call($api, 'POST', '/auth/request', ['email' => 'listed@example.com']);
+    [, $data] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    check($data['user']['role'] === 'editor', 'an address listed in EDITORS signs in as an editor');
+    [$status] = call($api, 'GET', '/editor/books', null, $data['session']);
+    check($status === 200, 'and may use the editor');
     [$status] = call($api, 'GET', '/editor/books');
     check($status === 401, 'editor endpoints without a token → 401');
     [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
