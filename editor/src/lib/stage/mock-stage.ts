@@ -4,6 +4,7 @@ import {
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { BACKDROP_LAYER } from "@engine/scene/view";
 import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
 import type { DeskId, HdriId, ShadingMode } from "./preview";
 
@@ -136,6 +137,7 @@ export class MockStage implements StageView {
     const loaded = this.models.get(id);
     if (loaded) {
       this.table.add(loaded);
+      this.toBackdropLayer();
       return;
     }
     if (this.loadingDesks.has(id)) return;
@@ -158,7 +160,10 @@ export class MockStage implements StageView {
         object.material = own;
       });
       this.models.set(id, model);
-      if (this.deskId === id) this.table.add(model);
+      if (this.deskId === id) {
+        this.table.add(model);
+        this.toBackdropLayer();
+      }
     }, undefined, error => {
       this.loadingDesks.delete(id);
       console.warn(`[mock-stage] the desk "${id}" could not be loaded:`, error);
@@ -294,6 +299,15 @@ export class MockStage implements StageView {
         plane.material.needsUpdate = true;
       });
     });
+    this.toBackdropLayer();
+  }
+
+  /**
+   * Everything of the stage stands in for the camera picture: on the engine's backdrop layer it is drawn under the
+   * spread's post-processing passes, which never see it (as they never see the camera picture in the reader)
+   */
+  private toBackdropLayer(): void {
+    this.group.traverse(object => object.layers.set(BACKDROP_LAYER));
   }
 
   /** The sky and the light: the HDRI while rendered, else the scene's own lights over the editor's dark ground */
@@ -370,6 +384,7 @@ export class MockStage implements StageView {
     const placeCorner = (h: number) => corner.position.set((pageLeft + ghost.x + ghost.width) / 1000, (page.height / 2 - ghost.y - h) / 1000, 0);
     placeCorner(height);
     this.ghostGroup.add(plane, corner);
+    this.toBackdropLayer();
     const apply = (texture: Texture) => {
       if (!plane.parent) return;
       const aspect = texture.image.height / texture.image.width;
@@ -412,6 +427,7 @@ export class MockStage implements StageView {
       this.sky.rotation.x = Math.PI / 2;
       this.sky.renderOrder = -1;
       this.group.add(this.sky);
+      this.toBackdropLayer();
     }
     this.sky.material.map?.dispose();
     this.sky.material.map = map;
