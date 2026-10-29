@@ -5,16 +5,13 @@
  * - `active`: the editor page is open – `ArScene` builds the mock tracker instead of the engine (a change while the
  *   scene exists rebuilds it). Not stored: the route decides.
  * - The settings the preview panel changes, stored on this device (`osct-preview`): the view preset or a free orbit,
- *   the backdrop (table, paper or a photo of the reader's own desk as a data URL), the hand-shake amount.
+ *   the sky (an HDRI), the desk, the hand-shake amount.
  * - `hidden`: targets switched off in the panel – the mock reports them as lost (outro), on again as found (reveal).
  *   Not stored.
  */
 
 export const PREVIEW_VIEWS = ["reader", "top", "low", "far"] as const;
 export type PreviewView = (typeof PREVIEW_VIEWS)[number];
-
-export const PREVIEW_BACKDROPS = ["hdri", "table", "paper", "photo"] as const;
-export type PreviewBackdrop = (typeof PREVIEW_BACKDROPS)[number];
 
 /** The HDRIs the stage offers as sky and light (Poly Haven, CC0 – `editor/static/hdri/README.md`) */
 export const HDRIS = [
@@ -27,6 +24,18 @@ export const HDRIS = [
 ] as const;
 export type HdriId = (typeof HDRIS)[number]["id"];
 export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.id === value);
+
+/**
+ * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; Tilman: the tool is for
+ * designers, they should feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
+ * Schöpfer's white desk
+ */
+export const DESKS = [
+  { id: "eiermann", name: "Eiermann" },
+  { id: "schoepfer", name: "Schöpfer" },
+] as const;
+export type DeskId = (typeof DESKS)[number]["id"];
+export const isDeskId = (value: unknown): value is DeskId => DESKS.some(d => d.id === value);
 
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
 export interface PreviewOrbit {
@@ -46,11 +55,10 @@ export interface PreviewSettings {
   shading: ShadingMode;
   /** A free orbit (dragged, zoomed) replaces the preset until the next preset is chosen */
   orbit: PreviewOrbit | null;
-  backdrop: PreviewBackdrop;
-  /** The HDRI shown as sky and used as light while the backdrop is `hdri` */
+  /** The HDRI shown as sky and used as light (while the shading is rendered) */
   hdri: HdriId;
-  /** The reader's photo behind the stage (data URL), null = none chosen yet */
-  photo: string | null;
+  /** The desk under the book */
+  desk: DeskId;
   /** 0 = still, 1 = a hand holding a phone */
   wobble: number;
 }
@@ -62,7 +70,7 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, backdrop: "hdri", hdri: "ferndale_studio_04", photo: null, wobble: 0 };
+const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, hdri: "ferndale_studio_04", desk: "eiermann", wobble: 0 };
 
 const readSettings = (): PreviewSettings => {
   try {
@@ -73,9 +81,8 @@ const readSettings = (): PreviewSettings => {
       view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
       shading: SHADING_MODES.includes(stored.shading as ShadingMode) ? (stored.shading as ShadingMode) : DEFAULTS.shading,
       orbit: isOrbit(stored.orbit) ? stored.orbit : null,
-      backdrop: PREVIEW_BACKDROPS.includes(stored.backdrop as PreviewBackdrop) ? (stored.backdrop as PreviewBackdrop) : DEFAULTS.backdrop,
       hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
-      photo: typeof stored.photo === "string" && stored.photo.startsWith("data:image/") ? stored.photo : null,
+      desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
       wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
     };
   } catch {
