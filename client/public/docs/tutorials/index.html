@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Content workflow – OSCT tutorials</title>
-  <meta name="description" content="How the book's content moves between the content folder, the CDN and the editor: sync, import, save, publish – and the steps to bring a book onto an instance.">
+  <title>OSCT tutorials</title>
+  <meta name="description" content="How the book's content moves between the content folder, the CDN and the editor – and a walk through the demo book, with screenshots, that shows what the editor can do.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <style>
@@ -23,6 +23,17 @@
     h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 .5rem; }
     h2 { font-size: 1.1rem; margin: 2.5rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
     h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
+    h4 { font-size: .95rem; font-weight: 500; margin: 1.5rem 0 .4rem; }
+    /* Chapters (h2.chapter) hold sections (h3.sec) */
+    h2.chapter { font-size: 1.4rem; margin: 3.5rem 0 1rem; padding-top: 1.5rem; border-top: 1px solid var(--bronze); }
+    h3.sec { font-size: 1.1rem; margin: 2.5rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+    [id] { scroll-margin-top: 1rem; }
+    /* The table of contents */
+    nav.toc { margin: 1.5rem 0 0; padding: .875rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+    nav.toc ol { margin: 0; padding-left: 1.25rem; }
+    nav.toc ol ol { margin: .25rem 0 .5rem; padding-left: 1rem; list-style: none; color: var(--muted); font-size: .9rem; }
+    nav.toc li { margin: .15rem 0; }
+    nav.toc > ol > li::marker { color: var(--accent); }
     .gold { background: var(--gold-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
     .kicker { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .12em; margin: 0 0 1rem; }
     p { margin: 0 0 1rem; max-width: 62ch; }
@@ -31,11 +42,17 @@
     a:hover { text-decoration: underline; }
     code, kbd { font-family: ui-monospace, Consolas, "SF Mono", Menlo, monospace; font-size: .9em; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: .05em .35em; }
     pre { margin: .5rem 0 1rem; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; }
+    :not(pre) > code { overflow-wrap: anywhere; }
     pre code { background: none; border: none; padding: 0; font-size: .85rem; }
     /* The diagram */
     figure { margin: 1.5rem 0 0; }
     figure svg { display: block; width: 100%; height: auto; max-width: 100%; }
     figcaption { color: var(--muted); font-size: .85rem; margin-top: .5rem; }
+    /* The screenshots */
+    figure.shot { margin: 1.25rem 0 1.5rem; }
+    figure.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+    .with-phone { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.5rem; align-items: start; }
+    .with-phone figure.shot { margin-top: 0; }
     .places { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1.5rem 0; }
     .place { min-width: 0; padding: .875rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
     .place b { display: block; font-weight: 500; margin-bottom: .25rem; }
@@ -50,11 +67,14 @@
     .note { padding: .75rem 1rem; border-left: 2px solid var(--bronze); background: var(--surface); border-radius: 0 6px 6px 0; margin: 1rem 0; }
     .note p:last-child { margin: 0; }
     table { border-collapse: collapse; width: 100%; font-size: .9rem; margin: 0 0 1rem; }
-    th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
     th { color: var(--muted); font-weight: 500; }
     footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
     @media (max-width: 40rem) {
       .places { grid-template-columns: 1fr; }
+      .with-phone { grid-template-columns: 1fr; }
+      .with-phone figure.shot { max-width: 16rem; }
+      h2.chapter { font-size: 1.25rem; }
       h1 { font-size: 1.5rem; }
     }
   </style>
@@ -62,7 +82,35 @@
 <body>
 <main>
   <p class="kicker">OSCT tutorials</p>
-  <h1><span class="gold">Content workflow</span></h1>
+  <h1><span class="gold">The content and the editor</span></h1>
+  <p>Two chapters. The first explains where the book's content lives and how it moves. The second walks through the demo book and shows what the editor can do.</p>
+
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#content-workflow">Content workflow</a>
+        <ol>
+          <li><a href="#bringing-a-book">Bringing a book onto an instance</a></li>
+          <li><a href="#things-to-know">Things to know</a></li>
+          <li><a href="#where-things-are">Where things are</a></li>
+        </ol>
+      </li>
+      <li><a href="#demo">The demo book</a>
+        <ol>
+          <li><a href="#demo-getting-it-in">Getting it in</a></li>
+          <li><a href="#demo-spreads">A walk through the spreads</a></li>
+          <li><a href="#demo-story">The story across the pages</a></li>
+          <li><a href="#demo-component">How a component works</a></li>
+          <li><a href="#demo-pitfalls">Pitfalls</a></li>
+          <li><a href="#demo-post">Post-processing</a></li>
+          <li><a href="#demo-environment">Environment and sky</a></li>
+          <li><a href="#demo-shading">Shading</a></li>
+          <li><a href="#demo-phone">On a phone</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+
+  <h2 class="chapter" id="content-workflow"><span class="gold">1 · Content workflow</span></h2>
   <p>The book's content lives in three places. Knowing which one you are looking at explains every button in the editor: <b>sync</b>, <b>import</b>, <b>save</b> and <b>publish</b> each move content from one place to the next.</p>
 
   <figure>
@@ -138,7 +186,7 @@
     <div class="place"><b>3 · Editor database</b><span>The draft of a book on this instance: imported from a version, then edited – placements, AR nodes, uploads. Save writes here. Publish turns the draft into a new version.</span></div>
   </div>
 
-  <h2>Bringing a book onto an instance</h2>
+  <h3 class="sec" id="bringing-a-book">Bringing a book onto an instance</h3>
   <p>Staging and production each have their own CDN folder and their own editor database. The first four steps happen once on the machine that holds the content folder; from step five on, everything happens in the browser.</p>
 
   <ol class="steps">
@@ -179,7 +227,7 @@ npm run osct -- content sync --env staging</code></pre>
     </li>
   </ol>
 
-  <h2>Things to know</h2>
+  <h3 class="sec" id="things-to-know">Things to know</h3>
   <div class="note">
     <p><b>Import replaces the draft.</b> Importing again swaps the book's rows for the version imported – edits that were not published are gone (the change log stays). Publish first, or do not import again.</p>
   </div>
@@ -190,7 +238,7 @@ npm run osct -- content sync --env staging</code></pre>
     <p><b>Nothing is deleted by itself.</b> Old versions stay on the storage until <code>osct content purge</code> removes the ones provably out of use. A publish never touches the folder.</p>
   </div>
 
-  <h2>Where things are</h2>
+  <h3 class="sec" id="where-things-are">Where things are</h3>
   <table>
     <tr><th>Instance</th><th>Reader</th><th>Editor</th><th>CDN folder</th></tr>
     <tr><td>staging</td><td><a href="https://osct.porschuetz.de/">osct.porschuetz.de</a></td><td><a href="https://osct.porschuetz.de/editor/">/editor</a></td><td><code>buildingfictions.b-cdn.net/staging</code></td></tr>
@@ -198,6 +246,152 @@ npm run osct -- content sync --env staging</code></pre>
     <tr><td>local</td><td>localhost:5174</td><td>localhost:5175/editor</td><td>the API's local store</td></tr>
   </table>
   <p class="muted">The reference for every detail: the repository's <code>docs/content.md</code> (writing content, the layout import), <code>docs/content-cdn.md</code> (versions, the osct CLI), <code>docs/editor.md</code> (the editor).</p>
+
+  <h2 class="chapter" id="demo"><span class="gold">2 · The demo book</span></h2>
+  <p>The demo book is a sandbox, not the book. It uses every node type, every placement, a filter and every component the content model has. Six plugins use every part of the plugin API. And its spreads tell a small story: a key found on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.</p>
+  <p>The files are the test fixture's small stand-ins. The "key" is a dragon, the "door" is a stack of boxes. The demo shows mechanics, not art.</p>
+
+  <h3 class="sec" id="demo-getting-it-in">Getting it in</h3>
+  <p>The demo has its own folder on the CDN, <code>buildingfictions.b-cdn.net/demo</code>, apart from the book's <code>staging</code> and <code>production</code>.</p>
+  <ol class="steps">
+    <li>
+      <h3>Import it into the editor <span class="who">editor</span></h3>
+      <p><b>Import a book…</b>, source <b>URL</b>, and the base URL <code>https://buildingfictions.b-cdn.net/demo</code>. That is enough: the form reads <code>latest.json</code> and fills in <em>assets at</em> itself. <b>Import</b>, and <em>The Demo Book</em> appears next to the other books.</p>
+    </li>
+    <li>
+      <h3>Read it on a phone <span class="who">phone</span></h3>
+      <p>The staging reader takes a content address: <code>https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo</code>. It keeps it for the tab. The progress is kept apart from the book's. Production ignores the parameter.</p>
+    </li>
+    <li>
+      <h3>Publish only to local <span class="who">editor</span></h3>
+      <p>One environment holds one book. A publish of the demo to <code>staging</code> would replace the real book there, so the editor asks first and names both books. Publish the demo to <code>local</code>, or to staging only on purpose.</p>
+    </li>
+  </ol>
+
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/01-books.webp" width="1280" height="800" loading="lazy" alt="The editor's Books page: the demo book's cover on the left, marked draft, and the Import a book form on the right with the sources URL, file and the CDN.">
+    <figcaption>The Books page. The demo's cover is a real sheet from its layout. The import form is on the right.</figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/02-spreads.webp" width="1280" height="800" loading="lazy" alt="The demo book's page in the editor: six cards – cover, 1–2 The key, 3–4 The door, 5–6 The switch, 7–8 The twins and the back cover – each showing its rendered sheet and counts of entries, targets and entities.">
+    <figcaption>The book page: six spreads with their rendered sheets. The numbers under each card count entries, targets and entities. The line above names the environment.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="demo-spreads">A walk through the spreads</h3>
+  <p>Open a spread and the editor shows three things side by side: the <b>tree</b> on the left (pages, targets, nodes), the <b>stage</b> in the middle (the book on a desk, as the phone will see it) and the <b>panel</b> on the right (Stage, Entity, Environment, Library, Code).</p>
+  <p>The <b>Library</b> holds the files uploaded for a book – models, videos, images, audio – to use on any page. The demo's Library starts empty: its files come with the content. Upload one there, or with <em>Upload…</em> next to a node's file, and it is ready for every spread.</p>
+
+  <table>
+    <tr><th>Spread</th><th>Targets</th><th>What it shows</th></tr>
+    <tr><td>Cover</td><td>seal</td><td>an image with two material layers, <code>tint</code> and <code>pulse</code>, printed on the closed book</td></tr>
+    <tr><td>1–2 · The key</td><td>key, tally</td><td><code>spin</code>, <code>key</code> (sets <code>hasKey</code>), <code>animation</code>; <code>tally</code> writes "n of N pages found"</td></tr>
+    <tr><td>3–4 · The door</td><td>door, lamp</td><td><code>door</code> opens with the key; <code>lamp</code> stays dark until the door opened</td></tr>
+    <tr><td>5–6 · The switch</td><td>stage, screen</td><td><code>scenes</code>: a tap shows the next child; an upright video that spins slowly</td></tr>
+    <tr><td>7–8 · The twins</td><td>twin-a, twin-b</td><td>one shared entity, <code>beacon</code>, used by two targets</td></tr>
+    <tr><td>Back cover</td><td>colophon</td><td><code>{{book.title}}</code> as text and the whole book's <code>tally</code></td></tr>
+  </table>
+
+  <h4>Cover</h4>
+  <p>The cover is a spread of the format <em>cover</em>: the stage shows the closed book. The <em>seal</em> is an image. Its two layers come from plugins: <code>tint</code> colours it towards the book's gold, <code>pulse</code> makes it breathe.</p>
+
+  <h4>1–2 · The key</h4>
+  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>key</code> sets the book variable <code>hasKey</code> on the first find – it is kept with the reader's progress – and a tap sends the event <code>keyRattled</code>. <code>animation</code> would play a clip on a tap; the stand-in model has none, so it waits for a real one.</p>
+  <p>The <em>tally</em> is a group with a text. Its <code>tally</code> component draws "n of N pages found" and updates it on every new find, on any spread.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key spread in the editor: the key model selected on the stage with its orange outline and the move gizmo; the Entity panel lists the placement, the file key.glb and three components – spin with degrees per second and axis, key, and animation with play on tap.">
+    <figcaption>The key selected. Every component is a block in the Entity panel: <code>spin</code> with its speed and axis, <code>key</code> without settings, <code>animation</code> with <em>playOn: tap</em>.</figcaption>
+  </figure>
+
+  <h4>3–4 · The door</h4>
+  <p>The <em>door</em> is a group with two children: the door model and a hint, "Find the key on page 1". When the page is found, the <code>door</code> component reads <code>hasKey</code>. With the key, the door lifts and turns, the variable <code>doorOpen</code> is set and the event <code>doorOpened</code> goes out. Without it, the hint shows.</p>
+  <p>The <em>lamp</em> is a video with a chroma key and a <code>pulse</code> layer. Its <code>lamp</code> component keeps it hidden until <code>doorOpen</code> is set.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/04-door-entity.webp" width="1280" height="800" loading="lazy" alt="The door spread: the door group selected on the left page, closed, with the hint text under it; the Entity panel shows the group's placement and the door component with the rows lift 0.35 and seconds 1.2.">
+    <figcaption>The door, still closed: no key yet. The <code>door</code> component has two rows, <em>lift</em> and <em>seconds</em>. They come straight from the plugin (see <a href="#demo-component">How a component works</a>).</figcaption>
+  </figure>
+
+  <h4>5–6 · The switch</h4>
+  <p>The <em>stage</em> is a group of three children: an image, a video and a text. The <code>scenes</code> component shows one at a time. A tap on the entity shows the next – in the editor a click on the stage counts as a tap. The <em>screen</em> is a video standing upright, tinted, turned slowly by <code>spin</code>.</p>
+
+  <h4>7–8 · The twins</h4>
+  <p><em>twin-a</em> and <em>twin-b</em> are two targets with the same entity: <code>beacon</code>, a model with a text and <code>spin</code>. The tree marks it as <em>group · beacon</em>. Change it once and both pages change.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/08-environment.webp" width="1280" height="800" loading="lazy" alt="The twins spread seen from further away: the open book on a brown desk, a beacon on each page, the café world behind it with a purple grid sky; the Environment panel shows world café (built-in), sky the world's, onion sky on, and the preview row look up.">
+    <figcaption>The twins: the shared <code>beacon</code> on both pages. Behind the book is the environment – the built-in café and its sky – with the Environment panel open.</figcaption>
+  </figure>
+
+  <h4>Back cover</h4>
+  <p>The <em>colophon</em> is a group with the text <code>{{book.title}}</code>, filled in from the book, and a <code>tally</code> of the whole book. It says "complete" when every page was found.</p>
+
+  <h3 class="sec" id="demo-story">The story across the pages</h3>
+  <p>The editor can play the story without a phone. Try it:</p>
+  <ol>
+    <li>Open <b>1–2 · The key</b>. In the Stage tab, open <b>vars and events</b> and press <b>reset</b>: a new game.</li>
+    <li>Right-click the stage and choose <b>Replay the first find</b>. <code>hasKey</code> appears as a <em>book</em> variable.</li>
+    <li>Press <kbd>›</kbd> to go to <b>3–4 · The door</b>. The door lifts, <code>doorOpen</code> is set and the lamp lights.</li>
+  </ol>
+  <p>The tree's eye switches a target off and on (lost, found again). Variables have scopes: <em>spread</em> lives while the spread is shown, <em>stage</em> while the scene exists, <em>book</em> is kept with the reader's progress. That is why <code>hasKey</code> survives the walk from page 1 to page 3.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/05-door-open.webp" width="1280" height="800" loading="lazy" alt="The door spread after the key was found: the door model lifted and turned, the lamp video showing on the right page; the Stage panel's vars and events block lists stage · doorOpen = true, book · hasKey = true and the events targetFound, targetUnlocked and doorOpened by key.">
+    <figcaption>After the key: the door is open, the lamp video shows. <em>vars and events</em> lists <code>stage · doorOpen = true</code>, <code>book · hasKey = true</code> and the events, newest first.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="demo-component">How a component works</h3>
+  <p>A component is a few lines of TypeScript in a plugin. The <b>Code</b> tab shows the book's plugins in a real code editor, with completion and type errors. Pick <em>narrative</em>: it holds <code>key</code>, <code>door</code> and <code>lamp</code>.</p>
+  <pre><code>api.registerComponent("door", {
+  description: "Opens when the page is found and the reader has the key; …",
+  nodeTypes: ["group"],
+  params: {
+    lift:    { kind: "number", default: 0.35, min: 0, max: 2, step: 0.05, … },
+    seconds: { kind: "number", default: 1.2, min: 0.1, max: 10, step: 0.1, … },
+  },
+}, ({ children, params }) => { … });</code></pre>
+  <p>Each entry under <code>params</code> becomes a row in the Entity panel: <em>lift</em> and <em>seconds</em> in the door's figure above. <code>nodeTypes</code> says where it may go – only on a group. Point at a row and the <b>Info</b> view at the bottom left shows its <code>description</code>. Change a value and the stage shows it.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/06-code.webp" width="1280" height="800" loading="lazy" alt="The Code tab: the plugin narrative selected, in the content, not stored; the source shows api.registerComponent for key and door with their descriptions and params; under it the note compiled by the content build and the buttons Download, Run and Save.">
+    <figcaption>The Code tab with the <em>narrative</em> plugin. Line 22 starts the <code>door</code> component. <b>Run</b> and <b>Save</b> are at the bottom right.</figcaption>
+  </figure>
+  <div class="note">
+    <p><b>Run</b> tries the code on the stage at once: the plugin is replaced in place and the spread is built again. <b>Save</b> keeps the source with the book. <b>Neither reaches readers.</b> A plugin gets to the phone through the content build.</p>
+  </div>
+
+  <h3 class="sec" id="demo-pitfalls">Pitfalls</h3>
+  <p><b>Components can work against each other.</b> The Entity panel lets you put <code>lamp</code> on the door. It fits – <code>lamp</code> works on any node. But <code>lamp</code> hides its node until <code>doorOpen</code> is set, and the door is the one that sets it. Without the key, the door hides itself and the hint with it.</p>
+  <p><b>Back to the draft</b> undoes every change since the last save. Nothing is stored until you press <b>Save</b>.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/07-pitfall.webp" width="1280" height="800" loading="lazy" alt="The door group selected with a second component added: the Entity panel lists components door (lift, seconds) and lamp; the entity's name carries an asterisk, Save is active and Back to the draft is underlined below.">
+    <figcaption><code>lamp</code> added to the door. The star after <em>door · group</em> marks an unsaved change. <b>Back to the draft</b> takes it away again.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="demo-post">Post-processing</h3>
+  <p>The Stage tab's <b>post-processing</b> adds passes over the picture: <b>+ bloom</b>, <b>+ vignette</b>, <b>+ grade</b>. Each has its rows, and changes show live. The stage shows them only in the <em>rendered</em> shading. The grade has a <b>reach</b> row: <em>AR layer</em> grades only the AR content, <em>whole picture</em> grades the desk too, as the reader grades the camera picture. Save writes the passes to the spread.</p>
+
+  <h3 class="sec" id="demo-environment">Environment and sky</h3>
+  <p>The <b>Environment</b> tab sets the world around the book: <b>world</b> (the built-in café or a glTF model), <b>sky</b> (the world's own or an image) and <b>onion sky</b> on or off. The onion sky needs a camera picture, so only the reader shows it. <b>look up</b> lifts the camera from the book towards the horizon, to see the world as a reader will. The twins' figure above shows it.</p>
+  <p>The Stage tab has two more settings, stored on your device only: the <b>desk</b> under the book and the studio <b>sky</b> that lights the stage.</p>
+
+  <h3 class="sec" id="demo-shading">Shading</h3>
+  <p>The four spheres at the end of the toolbar change how the stage draws, as in Blender: <em>wire</em> (the entities as lines), <em>solid</em> (one grey), <em>textured</em> (the content's materials, no sky) and <em>rendered</em> (sky, light and post-processing – the default). Wire shows what is hidden or stacked.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/09-wireframe.webp" width="1280" height="800" loading="lazy" alt="The door spread in the wire shading: white lines on black – the boxes of the door model, the hint's plane, the lamp's video plane and the sheets of the open book.">
+    <figcaption>The door spread as wires: the door's boxes, the hint and the lamp's plane, and the book under them.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="demo-phone">On a phone</h3>
+  <div class="with-phone">
+    <div>
+      <p>The editor works on a phone too. The stage takes the top. The panel becomes a sheet at the bottom: drag its handle, and the tabs turn into icons – tree, Stage, Entity, Environment, Library, Code.</p>
+      <p>Drag to orbit, two fingers to pan, pinch to zoom. A double tap returns to the reader's view. <kbd>‹</kbd> and <kbd>›</kbd> walk through the spreads.</p>
+      <p>To see the demo as a reader, open the staging reader with <code style="white-space: nowrap">?content=</code> (see <a href="#demo-getting-it-in">Getting it in</a>) and point the camera at the printed pages.</p>
+    </div>
+    <figure class="shot">
+      <img src="/docs/tutorials/demo/10-phone.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone: the key spread on the stage at the top with the key selected; below it a sheet with icon tabs and the Entity panel for key · model – target image, placement and file.">
+      <figcaption>The key on a phone, with the Entity sheet.</figcaption>
+    </figure>
+  </div>
+
+  <p class="muted">The reference for every detail: the repository's <code>fixtures/demo/</code> (the demo itself), <code>docs/plugins.md</code> (writing a plugin) and <code>docs/editor.md</code> (the editor).</p>
 
   <footer>OSCT · Onion Skin &amp; Crocodile Tears · Building Fictions</footer>
 </main>
