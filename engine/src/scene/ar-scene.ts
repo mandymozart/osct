@@ -1,6 +1,7 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, PassData, SceneInspection, SceneState, Target } from "../types/index";
-import { entityAssets, getAssets, getPasses, getPlugins, getSpread, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getTargets } from "../content/game-config";
+import { environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
@@ -254,7 +255,7 @@ export class ArScene implements IArScene {
       this.view.setPostProcessing(this.postProcessing);
       this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: this.view.scene });
       this.view.resize();
-      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics);
+      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, environmentOf(getBook()));
       this.view.underlay = this.lookAround;
       // A simulated tracker's stage is drawn every frame (the page is always in view)
       this.view.needsRender = () =>
