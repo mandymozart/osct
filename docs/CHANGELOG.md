@@ -22,6 +22,17 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   browser restarted the worker) is looked up and its request goes straight to the network, uncached. The reader's
   offline behaviour is unchanged: its CDN rule still stores only complete `200` responses (no opaque or `206`).
 
+## 1.18.1 – 2026-10-30
+
+### Fixed
+- **The admin page shows a granted role** (#99): a role that is on (and the active filter) never looked pressed –
+  `.pill.framed` came after `.pill.on` in the editor's stylesheet and won with the same specificity, so a grant
+  seemed to do nothing. A framed toggle that is on now shows pressed (`.pill.framed.on`, `.icon-button.framed.on`).
+  The notice reports *Granted* / *Revoked* only when the role really changed (the API's `changed`), else that the
+  user had the role already.
+- **The update options on the admin page are plain text** (#99): the ones the user opted into (book, artist,
+  publisher, else `–`) instead of `●` / `○` marks that looked like radio buttons.
+
 ## 1.18.0 – 2026-10-30
 
 ### Added
