@@ -40,6 +40,7 @@ jobs:
           cache-dependency-path: |
             client/package-lock.json
             scripts/package-lock.json
+            editor/package-lock.json
       - name: Build the content and the app (prebuild runs the content build)
         working-directory: client
         env:
@@ -47,6 +48,13 @@ jobs:
           VITE_DEBUG: "true"
           # Content from the CDN (docs/content-cdn.md); empty = the commit's content is built and uploaded
           VITE_CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      # The editor (docs/editor.md): a SvelteKit app served at /editor next to the app (the .htaccess routes it)
+      - name: Build the editor
+        working-directory: editor
         run: |
           npm ci
           npm run build
@@ -67,12 +75,20 @@ jobs:
           OSCT_SMTP_SECURE: ${{ vars.SMTP_SECURE || secrets.SMTP_SECURE }}
           OSCT_SMTP_USER: ${{ secrets.SMTP_USER || vars.SMTP_USER }}
           OSCT_SMTP_PASS: ${{ secrets.SMTP_PASS || vars.SMTP_PASS }}
+          # The editor's content store and assets (docs/server.md "Editor data", "Assets"): the CDN's storage zone
+          # whenever its access key is set (CONTENT_STORE overrides), the local folder otherwise
+          OSCT_CONTENT_STORE: ${{ vars.CONTENT_STORE || (secrets.BUNNY_STORAGE_PASSWORD && 'bunny') || 'local' }}
+          OSCT_CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
+          OSCT_BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
+          OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
+          OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
         run: php server/deploy/write-config.php server/api/config.local.php
 
       - name: Assemble the site
         run: |
-          mkdir -p site/api
+          mkdir -p site/api site/editor
           cp -r client/dist/. site/
+          cp -r editor/build/. site/editor/
           cp -r server/api/. site/api/
           rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/mail.log
           find site -name '*.map' -delete
