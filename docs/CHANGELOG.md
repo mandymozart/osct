@@ -33,11 +33,12 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   tab): the plugins stored for the book (`plugins` table, `GET / PUT / DELETE /editor/books/{id}/plugins/{pid}`) and
   the ones the content declares (opening one reads its `index.ts` next to the compiled module), a plain code editor
   with a line gutter (Tab indents, Ctrl+Enter runs, Ctrl+S saves), **Run** transpiles in the browser (sucrase) and
-  installs the module in the stage's registry so the effect shows at once, **Save** stores the source, **Download**
-  gives the file for the content source, errors inline with their line. Nothing run in the editor reaches readers:
-  the configuration's `plugins` list has one writer (the content build), the import keeps it, and a publish whose
-  nodes use a component no declared plugin can provide is refused (409 `unknown-components`). The fixture's
-  `plugins/tint` (a tint layer with colour, opacity and blend on Studio B's standing video) is the template.
+  installs the module in the stage's registry so the effect shows at once, **Save** stores the source, errors
+  inline with their line. Nothing run in the editor reaches readers: the configuration's `plugins` list has one
+  writer (the content build), the import keeps it, and a publish whose nodes use a component no compiled plugin
+  can provide is refused (409 `unknown-components`) – the build behind the publish is #78. The content build warns
+  about a node with more than three layers. The fixture's `plugins/tint` (a tint layer with colour, opacity and
+  blend on Studio B's standing video) is the template; [plugins](plugins.md) is the guide for writing one.
 
 ## 1.10.0 – 2026-10-29
 

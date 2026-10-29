@@ -181,12 +181,12 @@ again). Nothing of the reader's store, progress or routes is involved.
     material layer tints the video at once, a component shows under *add component* in the Entity panel. Errors
     show under the editor with their line (a transpile error, a plugin that imports a module – plugins import
     nothing, three.js is `api.three` – an invalid spec, an exception in `register`); the previous registration stays.
-    **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it,
-    **Download** gives the file for the content source. **Nothing run here reaches readers**: a plugin gets there as a
-    folder `plugins/<id>/index.ts` of the content source, through the content build (type check, bundle, a review)
-    and the import – the configuration's `plugins` list has that one writer, and a publish whose nodes use a
-    component no declared plugin can provide is refused (409 `unknown-components`). The plugin API (`api.three`,
-    `registerComponent`, `registerLayer`, the component context) is described in [content](content.md) "Plugins".
+    **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it.
+    **Nothing run here reaches readers**: a plugin gets there through the content build – today as a folder
+    `plugins/<id>/index.ts` of the content source and the import, soon compiled by the publish itself on the server
+    (#78, Tilman 2026-10-29) – and a publish whose nodes use a component no compiled plugin can provide is refused
+    (409 `unknown-components`). The plugin API (`api.three`, `registerComponent`, `registerLayer`, the component
+    context) is described in [content](content.md) "Plugins", the guide for authors is [plugins](plugins.md).
 - Settings (view, orbit, backdrop, photo, shake, the open tab, the tree open or collapsed) are stored per device; the
   session token too.
 
@@ -236,8 +236,8 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
 - The plugin API 1.0 has components and material layers (`registerComponent`, `registerLayer`, `api.three`); node
-  types, events beyond a node's own, variables and scopes come when a work needs them. The Code tab has no
-  completion from the API's types and no type check (the content build has it); the build runs locally or in CI,
-  not yet behind the API ("compile on publish").
+  types are #77, events beyond a node's own, variables and scopes come when a work needs them. The Code tab has no
+  completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind the
+  publish (#78).
 - The phone layout of the workspace (the sheet) is built but was checked on the desktop only; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

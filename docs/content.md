@@ -245,7 +245,9 @@ api }]`); the reader loads it with the AR scene. What a plugin registers is used
   `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
   in the spec's order (`number` / `boolean` → `float`, `color` → `vec3`, `choice` → `int`, the index in its options).
 - The editor's **Code** tab ([editor](editor.md)) runs a plugin on its stage without a build; readers get only what
-  the build compiled. The fixture's `plugins/tint` is the template.
+  the build compiled. The fixture's `plugins/tint` is the template; [plugins](plugins.md) is the guide for writing
+  one. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
+  above 256 KB.
 
 ```yaml
 # content/plugins/tint/index.ts registers the layer "tint" (color, opacity, blend) – used like a component:

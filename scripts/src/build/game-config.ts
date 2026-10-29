@@ -4,6 +4,7 @@ import { buildErrors } from '../lib/errors';
 import { copyContentToPublic } from '../lib/files';
 import { buildBook } from './book';
 import { buildEntities } from './entities';
+import { warnLayerStacks } from './plugins';
 import { buildEntries } from './entries';
 import { buildSpreads } from './spreads';
 import { checkTargetsPerSpread } from './targets';
@@ -18,6 +19,10 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
   const entities = buildEntities();
   const builds = buildEntries(spreads, entities);
   checkTargetsPerSpread(spreads, builds);
+  warnLayerStacks([
+    ...Object.entries(entities).map(([ref, node]) => ({ label: `entities/${ref}`, node })),
+    ...builds.flatMap(b => (b.entry.target?.entity && !('ref' in b.entry.target.entity) ? [{ label: `entries/${b.entry.id} target`, node: b.entry.target.entity }] : [])),
+  ]);
   const tutorial = buildTutorial(book);
 
   const entries = builds

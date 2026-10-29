@@ -7,6 +7,7 @@ import ts from 'typescript';
 import * as THREE from 'three';
 import { componentSpecProblems, registerComponentSpec, type ComponentSpec } from '../../../shared/types/components';
 import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData } from '../../../shared/types/plugins';
+import type { EntityData } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings } from '../lib/errors';
 
@@ -27,6 +28,11 @@ const PLUGINS_DIR = 'plugins';
 const ENTRY = 'index.ts';
 /** A bundle above this is reported (the reader downloads it with the AR chunk) */
 const WARN_BYTES = 256 * 1024;
+/** A node with more layers than this is reported (every layer runs on every pixel of its plane) */
+export const MAX_LAYERS_UNWARNED = 3;
+
+/** The material layer types the plugins registered (a layer is a component in the content) */
+const layerTypes = new Set<string>();
 
 export interface PluginBuild {
   data: PluginData;
@@ -162,6 +168,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       registerLayer: (type: string, spec: ComponentSpec, layer: { glsl?: unknown }) => {
         if (typeof layer?.glsl !== 'string' || !layer.glsl.trim()) buildErrors.push(`plugins/${id}: the layer ${type} needs its glsl`);
         take(type, spec);
+        if (registered.includes(type)) layerTypes.add(type);
       },
       log: () => undefined,
     });
@@ -171,6 +178,21 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
     fs.rmSync(path.dirname(file), { recursive: true, force: true });
   }
   return registered;
+}
+
+/**
+ * Warn about every node that stacks more than MAX_LAYERS_UNWARNED layers: the phone runs them all on every pixel
+ * of the plane. `nodes` = the entities to walk with a label each (the build's entries and shared entities).
+ */
+export function warnLayerStacks(nodes: Array<{ label: string; node: EntityData }>): void {
+  const walk = (node: EntityData, label: string) => {
+    const layers = (node.components ?? []).filter(c => layerTypes.has(c.type)).map(c => c.type);
+    if (layers.length > MAX_LAYERS_UNWARNED) {
+      buildWarnings.push(`${label}: ${layers.length} material layers on one node (${layers.join(', ')}) – every layer runs on every pixel; bake what never changes into the video`);
+    }
+    (node.children ?? []).forEach((child, i) => walk(child, `${label} children[${i}]`));
+  };
+  nodes.forEach(({ label, node }) => walk(node, label));
 }
 
 /** Every plugin of the content: type-checked, bundled, recorded – in that order; errors in buildErrors */

@@ -378,7 +378,7 @@ final class Books
         // in the editor reaches readers through the content source, not through a publish
         $unknown = self::unknownComponentTypes($version['configuration']);
         if ($unknown && empty($version['configuration']->plugins)) {
-            throw new ApiError(409, 'unknown-components', 'Nodes use components no plugin of the content provides: ' . implode(', ', $unknown) . '. Put the plugin into the content source and import the build.', ['components' => $unknown]);
+            throw new ApiError(409, 'unknown-components', 'Nodes use components no compiled plugin provides: ' . implode(', ', $unknown) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['components' => $unknown]);
         }
         $store = ContentStore::for($env);
         $root = $version['build'];
