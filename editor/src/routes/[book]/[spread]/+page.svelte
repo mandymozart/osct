@@ -32,6 +32,8 @@
   /** A phone: the tree is a tab of the sheet instead of a column */
   let narrow = $state(false);
   let selectedTarget = $state<string | null>(null);
+  /** The selected node's path in the target's entity (`[]` = the root) */
+  let selectedNode = $state<number[]>([]);
   let loadError = $state<string | null>(null);
 
   const setTab = (next: Tab) => {
@@ -64,6 +66,7 @@
       stage = new Stage(container);
       stage.onTap = id => {
         selectedTarget = id;
+        selectedNode = [];
         select();
       };
       await stage.open(spreadId);
@@ -128,7 +131,7 @@
       </button>
     </div>
     {#if treeOpen}
-      <div class="body tree-body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} onselect={select} /></div>
+      <div class="body tree-body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} /></div>
     {/if}
   </aside>
 
@@ -162,11 +165,11 @@
       <button type="button" class="pill tab" class:on={shown === "entity"} aria-pressed={shown === "entity"} onclick={() => setTab("entity")}>Entity</button>
     </div>
     {#if shown === "tree"}
-      <div class="body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} onselect={select} /></div>
+      <div class="body"><TreePanel {stage} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} onselect={select} /></div>
     {:else if shown === "stage"}
       <div class="body"><StagePanel {stage} {spreadId} /></div>
     {:else if shown === "entity"}
-      <div class="body"><EntityPanel {stage} {bookId} {spreadId} bind:selected={selectedTarget} {pickColour} /></div>
+      <div class="body"><EntityPanel {stage} {bookId} {spreadId} bind:selected={selectedTarget} bind:node={selectedNode} {pickColour} /></div>
     {/if}
     <div class="foot">
       <PublishButton {bookId} />

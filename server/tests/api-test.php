@@ -392,6 +392,27 @@ try {
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check(count($data['changes']) === 3 && $tree['spreads'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
 
+    echo "editor: node trees (content schema 2.0)
+";
+    $castle = $configuration['entities']['castle'];
+    // Content schema 2.0: the entity as a tree of nodes
+    $tree = ['type' => 'group', 'assets' => [], 'children' => [
+        $castle,
+        ['type' => 'text', 'assets' => [], 'text' => '{{entry.title}}', 'color' => '#f3cc94', 'params' => ['position' => [0, -0.5, 0.01]]],
+    ]];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $tree, $editor);
+    check($status === 200 && count($data['entity']['children']) === 2 && $data['entity']['children'][1]['type'] === 'text', 'PUT entity with children → saved as a tree');
+    $bad = $tree;
+    $bad['children'][1]['color'] = 'gold';
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $bad, $editor);
+    check($status === 400 && str_contains($data['error']['message'] ?? '', 'children[1].color'), 'a bad child → 400 with its path');
+    $deep = ['type' => 'group', 'assets' => []];
+    for ($i = 0; $i < 9; $i++) $deep = ['type' => 'group', 'assets' => [], 'children' => [$deep]];
+    [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $deep, $editor);
+    check($status === 400, 'nodes deeper than 8 levels → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    check($status === 200 && !isset($data['entity']['children']), 'back to one node');
+
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();
     $bunnyDir = "$tmp/bunny";

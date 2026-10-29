@@ -1072,8 +1072,10 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        (`…/draft/latest.json`), publish = the version assembled from the rows into the content store (local dir or
        bunny) – the "compile" of this step. Open: `CONTENT_STORE=bunny` + the zone's credentials in the staging
        environment; texts, entries, targets and media still come from the content source (import again).
-3. [ ] Plugin API: registries for node types, components and material layers with specs (`shared/`), content
-       schema 2.0 (node tree), `api.three`; plugins compiled by the content build.
+3. [~] Plugin API: [x] content schema 2.0 – the node tree (`children`, `group`, `text`, recursive engine, build,
+       guard, API, editor's tree with + node / remove node; the app reads 1.x as one-node trees – 2026-10-29);
+       [ ] registries for node types, components and material layers with specs (`shared/`), `api.three`; plugins
+       compiled by the content build.
 4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.
 5. [~] Layout templates per spread (`book`, `sheet`, `cover`, `sleeve`, `wall`) and the geometry import (#60): the
        import from the designed PDFs exists (`npm run layout`, 1.10.0 – sheets, covers, printed geometry into the

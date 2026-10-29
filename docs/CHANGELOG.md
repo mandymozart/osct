@@ -15,6 +15,17 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.10.0 – 2026-10-29
 
 ### Added
+- **Content schema 2.0 – the entity as a tree of nodes** (#61, Tilman: "es können tiefere Hierarchien entstehen, das
+  ist die ganze Idee; bei default erstmal eins"): an entity's node may hold `children`, each placed by its own
+  `params` relative to its parent (8 levels at most); new node types `group` (holds children) and `text` (a line
+  drawn on a plane, `text` + `color`, `{{entry.title}}` / `{{book.title}}` replaced); optional `id` per node. The
+  engine builds the tree recursively (found / lost / pause / update / dispose and the live edit's `tune` reach every
+  node; a type without a builder renders nothing but keeps its children), the content build reads `children` in
+  `entry.yaml` and `entity.yaml` (`npm run schema:lock` → 2.0), the guard and the API check nodes recursively. The app
+  reads schema **1.x content as it is** (a tree of one node), so nothing has to be rebuilt; the fixture's Studio A
+  gained *Studio: tree of nodes*. In the editor the tree shows every node, the Entity panel edits the selected node,
+  **+ node** adds a child (or a target's first node) from the book's files, **remove node** drops one. Components
+  and plugins (the registries, code in the editor) stay phase 15 steps 3–4.
 - **Editor API** (#61): the accounts API carries the editor's data under `/api/editor/*` for users with the new role
   `editor` (`POST /admin/editors { email }` with the admin secret gives it; `GET /user` shows it). A game configuration is
   imported into rows (books, spreads, entries, targets, entities – every field kept), read as a tree, edited entity by

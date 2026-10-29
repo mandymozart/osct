@@ -24,6 +24,9 @@ const oneOf = <T extends string>(values: readonly T[]) =>
 
 export const isEntryCategory: (value: unknown) => value is EntryCategory = oneOf(ENTRY_CATEGORIES);
 export const isEntityType: (value: unknown) => value is EntityType = oneOf(ENTITY_TYPES);
+
+/** How deep an entity's node tree may nest (the root is level 0) */
+export const MAX_NODE_DEPTH = 8;
 export const isAssetType: (value: unknown) => value is AssetType = oneOf(ASSET_TYPES);
 export const isStepAction: (value: unknown) => value is StepAction = oneOf(STEP_ACTIONS);
 
@@ -68,9 +71,17 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     return null;
   };
 
-  const entity = (value: unknown, path: string) => {
+  const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
     if (!e) return;
+    if (e.id !== undefined && typeof e.id !== "string") fail(`${path}.id`, "expected a string");
+    if (e.text !== undefined && typeof e.text !== "string") fail(`${path}.text`, "expected a string");
+    if (e.color !== undefined && !(typeof e.color === "string" && /^#[0-9a-f]{6}$/i.test(e.color))) fail(`${path}.color`, "expected #rrggbb");
+    if (e.children !== undefined) {
+      if (!Array.isArray(e.children)) fail(`${path}.children`, "expected an array");
+      else if (depth >= MAX_NODE_DEPTH) fail(`${path}.children`, `nested deeper than ${MAX_NODE_DEPTH} levels`);
+      else e.children.forEach((child, i) => entity(child, `${path}.children[${i}]`, depth + 1));
+    }
     if (!isEntityType(e.type)) fail(`${path}.type`, `"${e.type}" is not one of ${ENTITY_TYPES.join(", ")}`);
     arr(e, "assets", path).forEach((a, i) => {
       const asset = obj(a, `${path}.assets[${i}]`);

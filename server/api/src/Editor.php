@@ -12,7 +12,9 @@ final class Editor
     public const ID = '[A-Za-z0-9_-]{1,64}';
 
     /** The entity types of the content contract: shared/types/game-config.ts `ENTITY_TYPES` – keep in step */
-    public const ENTITY_TYPES = ['model', 'video', 'image'];
+    public const ENTITY_TYPES = ['group', 'model', 'video', 'image', 'text'];
+    /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
+    public const MAX_NODE_DEPTH = 8;
 
     /**
      * The signed-in editor, else 401 (not signed in) or 403 (a reader).
@@ -71,7 +73,7 @@ final class Editor
      * and an `assets` list of objects with string `id`, `assetType` and `src`. Every other key (params, filters, …)
      * passes through untouched – the reader's guard checks the configuration in depth.
      */
-    public static function entity(mixed $value, string $path = 'entity'): stdClass
+    public static function entity(mixed $value, string $path = 'entity', int $depth = 0): stdClass
     {
         if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path must be an object.");
         if (!is_string($value->type ?? null) || !in_array($value->type, self::ENTITY_TYPES, true)) {
@@ -82,6 +84,16 @@ final class Editor
             if (!$asset instanceof stdClass || !is_string($asset->id ?? null) || !is_string($asset->assetType ?? null) || !is_string($asset->src ?? null)) {
                 throw new ApiError(400, 'invalid-entity', "$path.assets[$i] needs string id, assetType and src.");
             }
+        }
+        if (property_exists($value, 'id') && !is_string($value->id)) throw new ApiError(400, 'invalid-entity', "$path.id must be a string.");
+        if (property_exists($value, 'text') && !is_string($value->text)) throw new ApiError(400, 'invalid-entity', "$path.text must be a string.");
+        if (property_exists($value, 'color') && !(is_string($value->color) && preg_match('/^#[0-9a-f]{6}$/i', $value->color))) {
+            throw new ApiError(400, 'invalid-entity', "$path.color must be #rrggbb.");
+        }
+        if (property_exists($value, 'children')) {
+            if (!is_array($value->children)) throw new ApiError(400, 'invalid-entity', "$path.children must be an array.");
+            if ($depth >= self::MAX_NODE_DEPTH) throw new ApiError(400, 'invalid-entity', "$path.children: nodes nest deeper than " . self::MAX_NODE_DEPTH . ' levels.');
+            foreach ($value->children as $i => $child) self::entity($child, "$path.children[$i]", $depth + 1);
         }
         return $value;
     }

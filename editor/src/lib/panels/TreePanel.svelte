@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getEntityRef } from "@engine/content/game-config";
-  import type { Entry, Target } from "@engine/types";
+  import type { EntityData, Entry, Target } from "@engine/types";
   import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
   import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "$lib/stage/preview";
@@ -11,12 +11,16 @@
    * The spread as a tree in the style of Blender's outliner: a chevron column, a type icon before every name, guide
    * lines per depth, zebra rows, the eye in a column at the right (shown = found, off = reported lost – the Stage
    * panel's chips do the same), the selected row highlighted over its whole width. Rows: the spread, its entries in
-   * page order, each entry's target, the target's entity. A tap on a target or its entity selects it for the Entity
-   * panel (a tap on the stage selects here too); ↑ ↓ walk the targets, ← → fold and unfold, Enter selects. Folding
-   * is per entry and not stored. ● after a name: the stage shows it with other values than the draft's.
+   * page order, each entry's target, and the target's entity as its **node tree** (content schema 2.0: the root node
+   * and its children, as deep as the content nests them). A tap on a node selects it for the Entity panel (a tap on
+   * the stage selects the root); ↑ ↓ walk the targets, ← → fold and unfold the entry, Enter selects. Folding is per
+   * entry and per node and not stored. ● after a name: the stage shows it with other values than the draft's.
    */
-  let { stage, spreadId, selected = $bindable(), onselect }: {
-    stage: Stage | null; spreadId: string; selected: string | null; onselect?: (targetId: string) => void;
+  let { stage, spreadId, selected = $bindable(), node = $bindable([]), onselect }: {
+    stage: Stage | null; spreadId: string; selected: string | null;
+    /** The selected node's path in its entity (`[]` = the root) */
+    node: number[];
+    onselect?: (targetId: string) => void;
   } = $props();
 
   const spread = $derived(content.spread(spreadId));
@@ -26,29 +30,34 @@
   onMount(() => subscribePreview(state => (preview = state)));
 
   let folded = $state<Record<string, boolean>>({});
-  const fold = (entryId: string, to?: boolean) => (folded = { ...folded, [entryId]: to ?? !folded[entryId] });
+  const fold = (key: string, to?: boolean) => (folded = { ...folded, [key]: to ?? !folded[key] });
 
-  /** The targets that can be selected (with AR content), in tree order */
-  const selectable = $derived((spread?.entries ?? []).map(entry => entry.target).filter((t): t is Target => !!t?.entity));
+  /** The targets that can be selected (with an image), in tree order */
+  const selectable = $derived((spread?.entries ?? []).map(entry => entry.target).filter((t): t is Target => !!t?.imageSrc));
 
-  const pick = (target: Target) => {
-    if (!target.entity) return;
+  const pick = (target: Target, path: number[] = []) => {
     selected = target.id;
+    node = path;
     onselect?.(target.id);
   };
-  const entityIcon = (target: Target): IconName => (target.entity?.type === "model" ? "model" : target.entity?.type === "video" ? "video" : "image");
-  const entityName = (target: Target) => {
-    const ref = getEntityRef(target.id);
-    return `${target.entity?.type}${ref ? ` · ${ref}` : ""}`;
+  const same = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => v === b[i]);
+  const NODE_ICONS: Record<string, IconName> = { group: "layers", model: "model", video: "video", image: "image", text: "type" };
+  const nodeIcon = (n: EntityData): IconName => NODE_ICONS[n.type] ?? "layers";
+  const nodeName = (n: EntityData, target: Target, path: number[]) => {
+    const ref = path.length ? undefined : getEntityRef(target.id);
+    if (n.type === "text") return `“${(n.text ?? "").slice(0, 40)}”`;
+    return `${n.type}${n.id ? ` ${n.id}` : ""}${ref ? ` · ${ref}` : ""}`;
   };
+  /** The entity shown for a target: the stage's override (a live edit) or the draft's */
+  const treeOf = (target: Target): EntityData | undefined => stage?.overrideOf(target.id) ?? target.entity;
   const entryOf = (targetId: string): Entry | undefined => spread?.entries.find(entry => entry.target?.id === targetId);
 
   const onKey = (event: KeyboardEvent) => {
     const index = selectable.findIndex(t => t.id === selected);
     const entry = selected ? entryOf(selected) : undefined;
     switch (event.key) {
-      case "ArrowDown": pick(selectable[Math.min(selectable.length - 1, index + 1)] ?? selectable[0]); break;
-      case "ArrowUp": pick(selectable[Math.max(0, index - 1)] ?? selectable[0]); break;
+      case "ArrowDown": { const t = selectable[Math.min(selectable.length - 1, index + 1)] ?? selectable[0]; if (t) pick(t); break; }
+      case "ArrowUp": { const t = selectable[Math.max(0, index - 1)] ?? selectable[0]; if (t) pick(t); break; }
       case "ArrowLeft": if (entry) fold(entry.id, true); break;
       case "ArrowRight": if (entry) fold(entry.id, false); break;
       case "Enter": case " ": if (index >= 0) onselect?.(selected!); break;
@@ -57,6 +66,36 @@
     event.preventDefault();
   };
 </script>
+
+{#snippet guides(depth: number)}
+  {#each { length: depth } as _, i (i)}<span class="guide" style:left="calc(.25rem + {i} * var(--indent) + var(--cell) / 2)"></span>{/each}
+{/snippet}
+
+{#snippet nodeRows(target: Target, n: EntityData, path: number[], depth: number, shown: boolean)}
+  {@const key = `${target.id}:${path.join(".")}`}
+  {@const open = !folded[key]}
+  {@const children = n.children ?? []}
+  {@const on = selected === target.id && same(node, path)}
+  <div class="node" class:on role="treeitem" aria-expanded={children.length ? open : undefined} aria-selected={on} style:padding-left="calc(.25rem + {depth} * var(--indent))">
+    {@render guides(depth)}
+    {#if children.length}
+      <button type="button" class="chevron" onclick={() => fold(key)} title={open ? "Fold" : "Unfold"} aria-label={open ? "Fold" : "Unfold"}><Icon name={open ? "down" : "next"} size="1em" /></button>
+    {:else}
+      <span class="chevron"></span>
+    {/if}
+    <span class="type"><Icon name={nodeIcon(n)} size="1em" stroke={2} /></span>
+    <button type="button" class="pick" class:muted={!shown} onclick={() => pick(target, path)} title={path.length ? "Edit this node" : "Edit the entity's root node"}>
+      <span class="name">{nodeName(n, target, path)}</span>
+      {#if !path.length && stage?.overrideOf(target.id)}<span class="dot" title="Shown with other values than the draft's">●</span>{/if}
+    </button>
+    <span class="eye"></span>
+  </div>
+  {#if open}
+    {#each children as child, i (i)}
+      {@render nodeRows(target, child, [...path, i], depth + 1, shown)}
+    {/each}
+  {/if}
+{/snippet}
 
 {#if !spread}
   <p class="muted small">No spread.</p>
@@ -74,16 +113,16 @@
       {@const target = entry.target}
       {@const open = !folded[entry.id]}
       {@const shown = !!target && !preview.hidden.includes(target.id)}
-      {@const on = !!target && selected === target.id}
-      <div class="node depth-1" class:on role="treeitem" aria-expanded={target ? open : undefined} aria-selected={on}>
-        <span class="guide g1"></span>
+      {@const tree = target ? treeOf(target) : undefined}
+      <div class="node depth-1" role="treeitem" aria-expanded={target ? open : undefined} aria-selected="false">
+        {@render guides(1)}
         {#if target}
           <button type="button" class="chevron" onclick={() => fold(entry.id)} title={open ? "Fold" : "Unfold"} aria-label={open ? "Fold" : "Unfold"}><Icon name={open ? "down" : "next"} size="1em" /></button>
         {:else}
           <span class="chevron"></span>
         {/if}
         <span class="type"><Icon name="entry" size="1em" stroke={2} /></span>
-        <button type="button" class="pick" class:muted={!!target && !shown} disabled={!target?.entity} onclick={() => target && pick(target)} title="{entry.category} · p.{entry.page}{target?.entity ? '' : ' – no AR content'}">
+        <button type="button" class="pick" class:muted={!!target && !shown} disabled={!target} onclick={() => target && pick(target)} title="{entry.category} · p.{entry.page}{target ? '' : ' – no target'}">
           <span class="name">{entry.title}</span>
         </button>
         {#if target}
@@ -93,27 +132,19 @@
         {/if}
       </div>
       {#if target && open}
+        {@const on = selected === target.id && !tree}
         <div class="node depth-2" class:on role="treeitem" aria-selected={on}>
-          <span class="guide g1"></span><span class="guide g2"></span>
+          {@render guides(2)}
           <span class="chevron"></span>
           <span class="type"><Icon name="target" size="1em" stroke={2} /></span>
-          <button type="button" class="pick" class:muted={!shown} disabled={!target.entity} onclick={() => pick(target)} title={target.entity ? "Edit this target's entity" : "No AR content"}>
+          <button type="button" class="pick" class:muted={!shown} onclick={() => pick(target)} title={tree ? "Select the target (its root node)" : "No AR content yet – add a node in the Entity panel"}>
             <span class="name">{target.id}</span>
             {#if stage?.found.includes(target.id)}<span class="small muted" title="In view now">in view</span>{/if}
-            {#if stage?.overrideOf(target.id)}<span class="dot" title="Shown with other values than the draft's">●</span>{/if}
           </button>
           <span class="eye"></span>
         </div>
-        {#if target.entity}
-          <div class="node depth-3" class:on role="treeitem" aria-selected={on}>
-            <span class="guide g1"></span><span class="guide g2"></span><span class="guide g3"></span>
-            <span class="chevron"></span>
-            <span class="type"><Icon name={entityIcon(target)} size="1em" stroke={2} /></span>
-            <button type="button" class="pick" class:muted={!shown} onclick={() => pick(target)} title="Edit this entity">
-              <span class="name">{entityName(target)}</span>
-            </button>
-            <span class="eye"></span>
-          </div>
+        {#if tree}
+          {@render nodeRows(target, tree, [], 3, shown)}
         {/if}
       {/if}
     {/each}
@@ -129,17 +160,13 @@
   .node.on { background: var(--pressed-background); color: var(--pressed-color); }
   .depth-1 { padding-left: calc(.25rem + var(--indent)); }
   .depth-2 { padding-left: calc(.25rem + 2 * var(--indent)); }
-  .depth-3 { padding-left: calc(.25rem + 3 * var(--indent)); }
   .guide { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); pointer-events: none; }
-  .g1 { left: calc(.25rem + var(--cell) / 2); }
-  .g2 { left: calc(.25rem + var(--indent) + var(--cell) / 2); }
-  .g3 { left: calc(.25rem + 2 * var(--indent) + var(--cell) / 2); }
   .chevron, .type, .eye { flex: none; width: var(--cell); height: var(--cell); display: inline-flex; align-items: center; justify-content: center; }
   .chevron, .type { color: var(--muted); }
   button.chevron, button.eye { padding: 0; border: none; background: none; color: var(--muted); cursor: pointer; border-radius: var(--control-radius); }
   button.chevron:hover, button.eye:hover { color: var(--text); }
   button.eye[aria-pressed="true"] { color: var(--text); }
-  .on .chevron, .on .type, .on button.eye { color: var(--pressed-color); }
+  .on .chevron, .on .type { color: var(--pressed-color); }
   .pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: .375rem; height: var(--cell); padding: 0; border: none; background: none; color: inherit; text-align: left; cursor: pointer; }
   .pick:disabled { cursor: default; }
   .pick.muted { color: var(--muted); }

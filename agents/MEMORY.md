@@ -35,6 +35,15 @@ outcome in the line (or move it into a dated decision block).
   (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
 - [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
   tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
+- 2026-10-29 (Tilman, "ja bauen"): **content schema 2.0 = the node tree**, structure first, components later: an
+  entity's node has `children` (placed relative to the parent), types `group` and `text` joined model / video /
+  image, one node stays the default. Decided alone: the app reads 1.x content as it is (a one-node tree), so the
+  schema MAJOR costs no content rebuild and no app MAJOR; unknown node types render nothing but keep their children
+  (a later type is MINOR); the placement stays flat in `params` (the concept's `params` object is what we have);
+  text nodes draw a canvas line in a system serif (the brand font and real typography are open); a new node in the
+  editor takes a file the book already has (upload = the asset layer, open). The Blender-style tree (outliner at
+  the left, chain icon for uniform scale), pan (Shift / middle / two fingers), the colour popover with the stage
+  eyedropper (`IArScene.sampleColor`), the book as an object and the sheet previews landed the same day.
 - 2026-10-29 morning (Tilman): the tree (outliner) at the left and the chain icon for uniform scale landed. Open
   questions he raised, to decide: how targets are placed in the editor (upload / replace a target image), asset
   resolutions (images 1x / 2x / 3x, videos 480p / 720p / 1080p) and whether Scutoons' asset layer (`scutoons/agents/ASSETS.md`:

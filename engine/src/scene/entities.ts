@@ -1,15 +1,17 @@
-import { AnimationMixer, DoubleSide, Group, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial } from "three";
+import { AnimationMixer, CanvasTexture, DoubleSide, Group, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, SRGBColorSpace } from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EntityData, EntityType, resolvePlacement, Target } from "../types/index";
 import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma-key";
 import { LoadedAsset } from "./assets";
+import { getBook, getEntry } from "../content/game-config";
 
 /**
- * Entity registry: one builder per entity type creates the three.js object for a target and may return hooks for
+ * Entity registry: one builder per node type creates the three.js object for a node and may return hooks for
  * found / lost / pause and a per-frame update. New types: `registerEntity("type", builder)` – no logic
- * in the content. `buildEntity` puts the object into a group placed on the target by the entity's
- * `params` (position / rotation / scale – shared/types/placement.ts; axes: x right, y up the page, z out of
- * the page, 1 unit = target width, origin in its centre).
+ * in the content. `buildEntity` builds the entity's **node tree** (content schema 2.0): every node's object goes
+ * into a group placed by the node's `params` (position / rotation / scale – shared/types/placement.ts; axes: x
+ * right, y up the page, z out of the page, 1 unit = target width, origin in its centre) relative to its parent, the
+ * root on the target's anchor. A node of a type without a builder renders nothing (logged) but keeps its children.
  */
 
 export interface EntityInstance {
@@ -45,22 +47,45 @@ export const registerEntity = (type: EntityType, builder: EntityBuilder): void =
   registry.set(type, builder);
 };
 
-/** The target's entity, or null (no entity → the found indicator shows it as app UI) */
-export const buildEntity = (target: Target, asset: EntityContext["asset"]): EntityInstance | null => {
-  const entity = target.entity;
-  if (!entity) return null;
-  const builder = registry.get(entity.type);
-  if (!builder) {
-    console.warn(`[entities] No builder for entity type "${entity.type}" (target ${target.id})`);
-    return null;
-  }
-  const instance = builder({ target, entity, asset });
-  if (!instance) return null;
+/** The target's entity (its whole node tree), or null (no entity → the found indicator shows it as app UI) */
+export const buildEntity = (target: Target, asset: EntityContext["asset"]): EntityInstance | null =>
+  target.entity ? buildNode(target, target.entity, asset, target.id) : null;
+
+/** One node: its own object (if its type has a builder) and its children, in a group placed by its params */
+const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset"], name: string): EntityInstance | null => {
+  const builder = registry.get(node.type);
+  if (!builder) console.warn(`[entities] No builder for node type "${node.type}" (target ${target.id})`);
+  const own = builder ? builder({ target, entity: node, asset }) : null;
+  const children = (node.children ?? [])
+    .map((child, i) => buildNode(target, child, asset, `${name}.${i}`))
+    .filter((child): child is EntityInstance => child !== null);
+  if (!own && !children.length) return null;
   const placed = new Group();
-  placed.name = `${target.id}-placement`;
-  placeEntity(placed, entity);
-  placed.add(instance.object);
-  return { ...instance, object: placed };
+  placed.name = `${name}-placement`;
+  placeEntity(placed, node);
+  if (own) placed.add(own.object);
+  children.forEach(child => placed.add(child.object));
+  const all = own ? [own, ...children] : children;
+  return {
+    object: placed,
+    onFound: () => all.forEach(part => part.onFound?.()),
+    onLost: () => all.forEach(part => part.onLost?.()),
+    onPause: () => all.forEach(part => part.onPause?.()),
+    update: delta => all.forEach(part => part.update?.(delta)),
+    dispose: () => all.forEach(part => part.dispose?.()),
+    // The same tree shape with other values: every node tunes in place and is placed again; else rebuild
+    tune: tuned => {
+      if (tuned.type !== node.type) return false;
+      const next = tuned.children ?? [];
+      if (next.length !== children.length || (node.children ?? []).length !== next.length) return false;
+      if (own && !(own.tune?.(tuned) ?? true)) return false;
+      for (let i = 0; i < children.length; i++) {
+        if (!children[i].tune!(next[i])) return false;
+        placeEntity(children[i].object, next[i]);
+      }
+      return true;
+    },
+  };
 };
 
 /** Set the placement group's transform from the entity's `params` (defaults per type) */
@@ -174,6 +199,48 @@ registerEntity("image", ({ entity, asset }) => {
     dispose: () => {
       mesh.geometry.dispose();
       material.dispose();
+    },
+  };
+});
+
+/** A group only holds children (placed by its params) */
+registerEntity("group", () => ({ object: new Group() }));
+
+/** Text: one line on a plane of width 1, drawn on a canvas (system serif) – `{{entry.title}}` is the entry's title */
+const TEXT_CANVAS_WIDTH = 1024;
+const TEXT_FONT_PX = 112;
+registerEntity("text", ({ target, entity }) => {
+  const text = (entity.text ?? "")
+    .replace(/\{\{\s*entry\.title\s*\}\}/g, getEntry(target.entryId)?.title ?? "")
+    .replace(/\{\{\s*book\.title\s*\}\}/g, getBook().title)
+    .trim() || " ";
+  const color = entity.color && /^#[0-9a-f]{6}$/i.test(entity.color) ? entity.color : "#ffffff";
+  const canvas = document.createElement("canvas");
+  canvas.width = TEXT_CANVAS_WIDTH;
+  canvas.height = Math.round(TEXT_FONT_PX * 1.5);
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.font = `${TEXT_FONT_PX}px Georgia, "Times New Roman", serif`;
+    context.textBaseline = "middle";
+    context.textAlign = "center";
+    context.fillStyle = color;
+    // Shrink long lines to the plane's width
+    const width = context.measureText(text).width;
+    if (width > TEXT_CANVAS_WIDTH * 0.96) context.font = `${Math.floor((TEXT_FONT_PX * TEXT_CANVAS_WIDTH * 0.96) / width)}px Georgia, "Times New Roman", serif`;
+    context.fillText(text, TEXT_CANVAS_WIDTH / 2, canvas.height / 2);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  const material = new MeshBasicMaterial({ map: texture, transparent: true, side: DoubleSide });
+  const mesh = plane(material, canvas.height / TEXT_CANVAS_WIDTH);
+  return {
+    object: mesh,
+    // Another text or colour needs a new canvas: the scene rebuilds the node
+    tune: tuned => (tuned.text ?? "") === (entity.text ?? "") && (tuned.color ?? "") === (entity.color ?? ""),
+    dispose: () => {
+      mesh.geometry.dispose();
+      material.dispose();
+      texture.dispose();
     },
   };
 });

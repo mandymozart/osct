@@ -74,8 +74,9 @@ const DEFAULT_TEXTS: LoadTexts = {
 export const checkContentCompatibility = (version: ConfigurationVersion, texts: LoadTexts = DEFAULT_TEXTS): ErrorInfo | null => {
   const app = parseContentSchema(CONTENT_SCHEMA_VERSION);
   const content = parseContentSchema(version.schema);
-  if (app && content && content.major === app.major) {
-    if (content.minor !== app.minor) {
+  // Schema 1.x content is a 2.0 tree of one node per entity: this app reads it as it is
+  if (app && content && (content.major === app.major || (app.major === 2 && content.major === 1))) {
+    if (content.major !== app.major || content.minor !== app.minor) {
       console.info(`[game-config] Content schema ${version.schema}, this app reads ${CONTENT_SCHEMA_VERSION} – compatible.`);
     }
     return null;
@@ -229,8 +230,13 @@ export const getContentSizes = (): Record<string, number> | null =>
 const withContentUrls = (raw: GameConfiguration, base: string): GameConfiguration => {
   if (!base) return raw;
   const url = (path?: string) => (path === undefined ? undefined : contentUrl(path));
+  const node = (e: EntityData): EntityData => ({
+    ...e,
+    assets: e.assets.map(a => ({ ...a, src: contentUrl(a.src) })),
+    ...(e.children ? { children: e.children.map(node) } : {}),
+  });
   const entity = (e?: EntityData | EntityRefData): EntityData | EntityRefData | undefined =>
-    e && !isEntityRef(e) ? { ...e, assets: e.assets.map(a => ({ ...a, src: contentUrl(a.src) })) } : e;
+    e && !isEntityRef(e) ? node(e) : e;
   return {
     ...raw,
     entities: Object.fromEntries(Object.entries(raw.entities).map(([id, e]) => [id, entity(e) as EntityData])),
@@ -312,11 +318,19 @@ export const getTargets = (spreadId: string): Target[] => spreadById.get(spreadI
 
 export const getTarget = (id: string): Target | undefined => targetById.get(id);
 
+/** The assets of an entity's whole node tree, root first */
+export const entityAssets = (entity: EntityData | undefined): AssetData[] =>
+  entity ? [...entity.assets, ...(entity.children ?? []).flatMap(entityAssets)] : [];
+
+/** Every node of an entity's tree with its path from the root (`[]` = the root, `[1, 0]` = the second child's first) */
+export const entityNodes = (entity: EntityData, path: number[] = []): Array<{ node: EntityData; path: number[] }> =>
+  [{ node: entity, path }, ...(entity.children ?? []).flatMap((child, i) => entityNodes(child, [...path, i]))];
+
 /** Assets of all entities (optionally of one spread), deduplicated by id */
 export const getAssets = (spreadId?: string): AssetData[] => {
   const targets = spreadId ? getTargets(spreadId) : [...targetById.values()];
   const assets = new Map<string, AssetData>();
-  targets.forEach(t => t.entity?.assets.forEach(a => assets.set(a.id, a)));
+  targets.forEach(t => entityAssets(t.entity).forEach(a => assets.set(a.id, a)));
   return [...assets.values()];
 };
 
