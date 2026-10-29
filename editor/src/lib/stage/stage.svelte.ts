@@ -17,6 +17,7 @@ import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { plugins } from "$lib/plugins.svelte";
 import { setPreviewActive, setTargetHidden } from "./preview";
+import type { PrintPlacement } from "$lib/api";
 
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
 const REPLAY_GAP_MS = 900;
@@ -349,6 +350,11 @@ export class Stage {
   private ghostDrag: { kind: "move" | "width"; grabX: number; grabY: number } | null = null;
   /** The form or the panel editing the placement listens: a handle moved it */
   onGhostChange: ((place: { surface: "left" | "right" | "front" | "back"; x: number; y: number; width: number }) => void) | null = null;
+
+  /** Where a target is printed in the book's layout, null when the layout has no place for it */
+  printedPlace(targetId: string): PrintPlacement | null {
+    return this.tracker?.printedPlace(targetId) ?? null;
+  }
 
   /** Show where a target would be printed (a translucent image on the page with handles); null = none */
   ghost(target: GhostPlace | null): void {
