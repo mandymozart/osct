@@ -24,8 +24,8 @@ final class Auth
         // Housekeeping: requests are only needed while they can be confirmed (and for the hourly limits)
         Db::run('DELETE FROM login_requests WHERE created_at < :before', ['before' => Db::now(-86400)]);
         $hourAgo = Db::now(-3600);
-        if ((int) Db::value('SELECT COUNT(*) FROM login_requests WHERE email = :email AND created_at > :since', ['email' => $email, 'since' => $hourAgo]) >= Config::int('LOGIN_MAX_PER_EMAIL_HOUR')
-            || (int) Db::value('SELECT COUNT(*) FROM login_requests WHERE ip_hash = :ip AND created_at > :since', ['ip' => $ipHash, 'since' => $hourAgo]) >= Config::int('LOGIN_MAX_PER_IP_HOUR')) {
+        if ((int) Db::value('SELECT COUNT(*) FROM login_requests WHERE email = :email AND created_at > :since', ['email' => $email, 'since' => $hourAgo]) >= Config::limit('LOGIN_MAX_PER_EMAIL_HOUR')
+            || (int) Db::value('SELECT COUNT(*) FROM login_requests WHERE ip_hash = :ip AND created_at > :since', ['ip' => $ipHash, 'since' => $hourAgo]) >= Config::limit('LOGIN_MAX_PER_IP_HOUR')) {
             throw new ApiError(429, 'too-many-requests', 'Too many emails requested – try again later.');
         }
 
@@ -76,7 +76,7 @@ final class Auth
         if ($request['used_at'] !== null) throw new ApiError(410, 'already-used', 'This link or code was used already.');
         if ($request['expires_at'] < Db::now()) throw new ApiError(410, 'expired', 'This link or code has expired.');
         if (!$byLink) {
-            if ((int) $request['attempts'] >= Config::int('LOGIN_MAX_ATTEMPTS')) {
+            if ((int) $request['attempts'] >= Config::limit('LOGIN_MAX_ATTEMPTS')) {
                 throw new ApiError(429, 'too-many-attempts', 'Too many wrong codes – request a new email.');
             }
             if (!hash_equals($request['code_hash'], self::codeHash($request['id'], $code))) {
