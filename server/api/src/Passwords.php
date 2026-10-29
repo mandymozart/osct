@@ -48,7 +48,7 @@ final class Passwords
         }
         Db::run('DELETE FROM password_attempts WHERE email = :email', ['email' => $email]);
         $session = Auth::createSession($user['id'], 'password');
-        Http::json(200, ['session' => $session, 'user' => Users::toJson($user), 'created' => false]);
+        Http::json(200, ['session' => $session, 'user' => Users::toJson(Roles::grantConfigured($user)), 'created' => false]);
     }
 
     /** PUT /user/password { password, currentPassword? } → { user } */

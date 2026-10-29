@@ -2,7 +2,8 @@ import { ApiError, getToken, logout, me, requestCode, setToken, signInWithPasswo
 
 /**
  * Who is signed in: the instance user of the accounts API (sign-in by email code or password, as the reader's
- * account). The editor needs `role: "editor"` – `POST /admin/editors` (docs/server.md) gives it.
+ * account). The editor needs the role `editor`, the admin page (`/admin`) the role `admin` – an admin grants them
+ * there, or the deployment's `EDITORS` / `ADMINS` lists at sign-in (docs/server.md "Roles").
  */
 class Session {
   user = $state<User | null>(null);
@@ -14,12 +15,20 @@ class Session {
   pending = $state<{ email: string; requestId: string } | null>(null);
 
   get isEditor(): boolean {
-    return this.user?.role === "editor";
+    return this.has("editor");
   }
 
-  /** The stored token, checked once at startup */
-  async restore(): Promise<void> {
-    if (this.status !== "unknown") return;
+  get isAdmin(): boolean {
+    return this.has("admin");
+  }
+
+  has(role: string): boolean {
+    return this.user?.roles?.includes(role) ?? false;
+  }
+
+  /** The stored token, checked once at startup (`again`: reload the user, e.g. after their own roles changed) */
+  async restore(again = false): Promise<void> {
+    if (this.status !== "unknown" && !again) return;
     if (!getToken()) {
       this.status = "out";
       return;

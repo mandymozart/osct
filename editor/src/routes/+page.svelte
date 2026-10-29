@@ -26,6 +26,7 @@
   <strong>OSCT Editor</strong>
   <span class="muted">{session.user?.email}</span>
   <span class="grow"></span>
+  {#if session.isAdmin}<a href="{base}/admin/" class="pill">Admin</a>{/if}
   <button type="button" class="pill" onclick={() => session.signOut()}>Sign out</button>
 </header>
 
@@ -60,6 +61,7 @@
 </main>
 
 <style>
+  .top a.pill { text-decoration: none; }
   .top { display: flex; align-items: center; gap: .75rem; height: 2.5rem; padding: 0 .75rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .grow { flex: 1; }
   main { max-width: 40rem; margin: 0 auto; padding: 1rem; }
