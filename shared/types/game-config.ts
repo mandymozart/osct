@@ -37,14 +37,14 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * between content and app (RULES #10). The app version a content build was made with is information only.
  * - MAJOR: a change an older app cannot read – a new required field, a renamed or removed field, a changed
  *   type, a new enum value (asset type, category, step action, spread format). The app refuses content of a
- *   newer MAJOR at startup; it reads every MAJOR from `OLDEST_READABLE_SCHEMA_MAJOR` on as it is (so far every
- *   MAJOR only added: the node tree, the light node).
- * - MINOR: an addition older apps ignore – a new optional field, a new node type (the guard lets it pass). Any
- *   MINOR of the same MAJOR loads.
+ *   newer MAJOR at startup; it reads every MAJOR from `OLDEST_READABLE_SCHEMA_MAJOR` on as it is (so far the one
+ *   MAJOR, the node tree, only added).
+ * - MINOR: an addition older apps ignore – a new optional field, and since 2.6 a new node type (the guard lets an
+ *   unknown one pass; a 2.5 app refuses it). Any MINOR of the same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "3.0";
+export const CONTENT_SCHEMA_VERSION = "2.6";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -123,7 +123,7 @@ export interface EntityData {
   text?: string;
   /** `text` nodes: the colour, `#rrggbb` (default white) */
   color?: string;
-  /** `light` nodes (schema 3.0 – `LIGHT_PARAMS`): kind, colour, intensity, …; every value optional */
+  /** `light` nodes (schema 2.6 – `LIGHT_PARAMS`): kind, colour, intensity, …; every value optional */
   light?: LightData;
 }
 

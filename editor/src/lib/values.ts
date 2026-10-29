@@ -2,6 +2,7 @@ import {
   AssetData,
   ComponentData,
   ComponentParamSpec,
+  componentSpec,
   componentTypes,
   EntityData,
   FilterData,
@@ -110,7 +111,6 @@ const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): V
         unit: param.unit, strict: true, description: param.description,
       };
     }
-  });
   });
 
 /** The rows of a post-processing pass (`passes.{i}.{name}`), from its spec; a type the editor does not know has none */

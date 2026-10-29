@@ -11,7 +11,7 @@ const lightOf = (object: Object3D): Light => {
   return found!;
 };
 
-describe("light nodes (content schema 3.0)", () => {
+describe("light nodes (content schema 2.6)", () => {
   it("resolves every value to what is set or the default", () => {
     expect(resolveLight()).toEqual({ kind: "point", color: "#ffffff", intensity: 0.25, distance: 0, decay: 2, angle: 30, penumbra: 0.1 });
     expect(resolveLight({ kind: "spot", intensity: 3, angle: 200 })).toMatchObject({ kind: "spot", intensity: 3, angle: 30 });
