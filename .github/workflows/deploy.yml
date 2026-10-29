@@ -7,9 +7,11 @@
 #   variables: SSH_HOST (the server), SSH_USER (default root), CONTENT_BASE_URL (the environment's content CDN –
 #              empty builds the commit's content into the image), ALLOWED_ORIGINS, MAIL_TRANSPORT (default smtp),
 #              MAIL_FROM (default no-reply@buildingfictions.com), SMTP_HOST (default: AWS SES eu-west-1),
-#              SMTP_PORT (default 587), SMTP_SECURE (default tls), SMTP_USER (SES SMTP user name)
+#              SMTP_PORT (default 587), SMTP_SECURE (default tls), SMTP_USER (SES SMTP user name),
+#              CONTENT_STORE (local, default, or bunny: where the editor publishes – docs/server.md "Editor data"),
+#              BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ENDPOINT (default storage.bunnycdn.com)
 #   secrets:   SSH_PRIVATE_KEY (its public key on the server), DB_PASS, DB_ROOT_PASS, SECRET (32+ characters),
-#              SMTP_PASS (SES SMTP password)
+#              SMTP_PASS (SES SMTP password), BUNNY_STORAGE_PASSWORD (the zone's access key, with CONTENT_STORE=bunny)
 # With MAIL_TRANSPORT=smtp the deploy stops before Kamal when SMTP_USER or SMTP_PASS is missing – a site whose
 # sign-in mails fail is worse than no deploy (docs/deploy.md "Mail").
 name: Deploy
@@ -104,6 +106,10 @@ jobs:
           SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
           SMTP_SECURE: ${{ vars.SMTP_SECURE || 'tls' }}
           SMTP_USER: ${{ vars.SMTP_USER }}
+          CONTENT_STORE: ${{ vars.CONTENT_STORE || 'local' }}
+          BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
+          BUNNY_STORAGE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ENDPOINT || 'storage.bunnycdn.com' }}
+          BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
         run: kamal deploy -d "${{ inputs.destination }}"
 
       # The container ran the migration before Apache started; this confirms the site answers through the proxy

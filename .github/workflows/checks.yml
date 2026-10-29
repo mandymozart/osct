@@ -63,6 +63,28 @@ jobs:
           extensions: pdo_sqlite
       - run: php server/tests/api-test.php
 
+  editor:
+    name: Editor
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editor/package-lock.json
+      - run: npm ci
+      # svelte-check covers the editor and the engine files it imports
+      - name: Type-check
+        run: npm run check
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
   client:
     name: Client
     runs-on: ubuntu-latest
