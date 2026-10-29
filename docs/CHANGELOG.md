@@ -12,6 +12,14 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.19.3 – 2026-10-30
+
+### Fixed
+- **The cover lines up with the spreads** (#115): with a column gap a double page was wider than two single pages, so
+  the cover's sheet came out shorter. The gap is now half a gap of padding on each side of a card and none on a single
+  page's gutter side – every sheet has the same height. On hover the page image's border is highlighted instead of the
+  card's background.
+
 ## 1.19.1 – 2026-10-30
 
 ### Fixed
