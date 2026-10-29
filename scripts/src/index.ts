@@ -9,6 +9,7 @@
  *   content/entries/<id>/entry.yaml    category, title, page, body, …, target? { image, order?, id?, entity? }
  *   content/entities/<id>/entity.yaml  type, assets[{ id?, src }], params   (referenced as entity: { ref })
  *   content/steps/<id>/step.yaml       tutorial
+ *   content/plugins/<id>/index.ts      the book's own code (build/plugins.ts): type-checked, bundled, declared
  *
  * Folders: build/ one file per part of the configuration (book, spreads, entities, entries, targets,
  * tutorial; game-config.ts puts them together), lib/ helpers (reading content, files, hash, schema,
@@ -18,6 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, FIXTURE_MARKER, OUTPUT_FILE, projectRoot } from './config';
 import { buildConfig } from './build/game-config';
+import { buildPlugins, writePluginBundles } from './build/plugins';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
 import { optimizeMedia } from './lib/optimize-media';
 import { buildWarnings } from './lib/errors';
@@ -48,7 +50,10 @@ async function generateConfigFile(): Promise<void> {
       return;
     }
 
-    const config = buildConfig(versionStr, inputHash);
+    // Plugins first: what they register is checked on the nodes that use it
+    const plugins = await buildPlugins();
+    const config = buildConfig(versionStr, inputHash, plugins.map(p => p.data));
+    writePluginBundles(plugins);
     buildWarnings.forEach(warning => console.warn(`   ⚠️  ${warning}`));
 
     // Media in the client copy: models, images, large videos reported (content/ stays as authored)

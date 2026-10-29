@@ -12,7 +12,7 @@
  * `Target`, `Step`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the
  * loaded version, so the rest of the app never knows where the content comes from.
  */
-import { assertGameConfiguration, GameConfigurationError, isEntityRef } from '@shared/guards/game-config';
+import { assertGameConfiguration, GameConfigurationError, GuardOptions, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, parseContentSchema } from '@shared/types/game-config';
 import { ContentFiles, ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
@@ -25,6 +25,7 @@ import {
   ErrorCode,
   ErrorInfo,
   GameConfiguration,
+  PluginData,
   Spread,
   Step,
   Target,
@@ -145,6 +146,8 @@ export interface LoadOptions {
    */
   assetsBase?: string;
   texts?: LoadTexts;
+  /** The editor's stage: nodes may use component types its Code tab's plugins register at Run (`GuardOptions`) */
+  unknownComponentTypes?: GuardOptions["unknownComponentTypes"];
 }
 
 /**
@@ -166,7 +169,7 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
       raw = await options.bundled();
       if (raw === null) throw new Error('This build loads its content from the CDN but has no content base URL');
     }
-    assertGameConfiguration(raw);
+    assertGameConfiguration(raw, { unknownComponentTypes: options.unknownComponentTypes });
     const { version } = raw;
     console.info(`[game-config] Content ${(version.hash ?? '').slice(0, 12)} (schema ${version.schema}, built with app ${version.version}) from ${versionUrl || 'the app'}.`);
     configurationError = checkContentCompatibility(version, texts);
@@ -335,6 +338,9 @@ export const getAssets = (spreadId?: string): AssetData[] => {
 };
 
 export const getTutorial = (): Step[] => [...tutorial];
+
+/** The plugins the content declares (schema 2.4), their modules as URLs of the loaded version */
+export const getPlugins = (): PluginData[] => (config.plugins ?? []).map(plugin => ({ ...plugin, src: contentUrl(plugin.src) }));
 
 /** The shared entity (`content/entities/<id>`) a target refers to with `ref`, or undefined for an inline entity */
 export const getEntityRef = (targetId: string): string | undefined => {
