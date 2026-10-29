@@ -1,6 +1,6 @@
 # Models of the editor's stage
 
-The desks the Stage panel offers (`desk` in `editor/src/lib/stage/preview.ts`, drawn by `mock-stage.ts`), 1.4 × 1.0 m
+The desks the Stage panel offers (`desk` in `editor/src/lib/stage/preview.ts`, drawn by `mock-stage.ts`), 1.8 × 0.8 m
 tops, 72 cm high – our own low-poly models, both built by `editor/tools/desk-eiermann.py` (Blender, headless):
 
 | File | What | Source |
