@@ -2,7 +2,7 @@
 category: glossary
 title: "Studio: tall tree"
 page: 28
-body: "A model scaled up and turned: rotation, scale and a shift towards the top of the page."
+body: "A model scaled up and turned: rotation, scale and a shift towards the top of the page – with a cool point light under it that moves with the model."
 target:
   image: target.jpg
   entity:
@@ -12,3 +12,12 @@ target:
       rotation: [90, 30, 0]
       position: [0, 0.15, 0]
       scale: 1.4
+    children:
+      # A point light in the model's own space (its y is up): beside the trunk, half way up
+      - type: light
+        light:
+          color: "#8fd0ff"
+          intensity: 0.1
+          distance: 1.5
+        params:
+          position: [0.25, 0.4, 0.2]

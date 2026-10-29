@@ -1,6 +1,9 @@
-import { AnimationAction, AnimationMixer, CanvasTexture, DoubleSide, Group, LoopOnce, LoopRepeat, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, SRGBColorSpace } from "three";
+import {
+  AnimationAction, AnimationMixer, CanvasTexture, DirectionalLight, DoubleSide, Group, Light, LoopOnce, LoopRepeat, MathUtils, Mesh, MeshBasicMaterial,
+  Object3D, PlaneGeometry, PointLight, ShaderMaterial, SpotLight, SRGBColorSpace, Vector3,
+} from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { COMPONENT_TYPES, EntityData, EntityType, NodeTimeline, resolveComponent, resolvePlacement, Target } from "../types/index";
+import { COMPONENT_TYPES, EntityData, EntityType, Light as LightValues, NodeTimeline, resolveComponent, resolveLight, resolvePlacement, Target } from "../types/index";
 import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma-key";
 import { composeLayers, layerObject, tuneLayers } from "../utils/layers";
 import { LoadedAsset } from "./assets";
@@ -318,6 +321,77 @@ registerEntity("image", ({ entity, asset }) => {
 
 /** A group only holds children (placed by its params) */
 registerEntity("group", () => ({ object: new Group() }));
+
+/** The object a light's cone or rays aim at: one unit along the node's −z (the light itself sits at the origin) */
+export const LIGHT_AIM: [number, number, number] = [0, 0, -1];
+
+/** A light of a kind with the node's values (the kind decides the class – another kind is another object) */
+const makeLight = (values: LightValues): Light => {
+  if (values.kind === "spot") return new SpotLight();
+  if (values.kind === "directional") return new DirectionalLight();
+  return new PointLight();
+};
+
+/** The node's values that need no world scale onto a light of its kind */
+const applyLight = (light: Light, values: LightValues): void => {
+  light.color.set(values.color);
+  if (light instanceof PointLight || light instanceof SpotLight) light.decay = values.decay;
+  if (light instanceof SpotLight) {
+    light.angle = MathUtils.degToRad(values.angle);
+    light.penumbra = values.penumbra;
+  }
+};
+
+/**
+ * A light's intensity and distance are in the node's units (target widths) – three.js attenuates in world units
+ * (metres on a target a few centimetres wide), so every frame they are scaled by the light's world scale: an
+ * intensity reads the same on a small or a large target, a scaled parent included. `userData.fade` (0…1) is the
+ * appear / disappear animation's share (`celebration.ts`).
+ */
+const LIGHT_FADE = "fade";
+const worldScale = new Vector3();
+const scaleLight = (light: Light, values: LightValues): void => {
+  light.getWorldScale(worldScale);
+  const scale = (worldScale.x + worldScale.y + worldScale.z) / 3;
+  const fade = typeof light.userData[LIGHT_FADE] === "number" ? (light.userData[LIGHT_FADE] as number) : 1;
+  const sun = light instanceof DirectionalLight;
+  light.intensity = values.intensity * (sun ? 1 : Math.pow(scale, values.decay)) * fade;
+  if (!sun) (light as PointLight | SpotLight).distance = values.distance * scale;
+};
+
+/**
+ * Light (schema 2.6): a point, spot or directional light at the node's origin; spot and directional aim along the
+ * node's own −z (their target is a child of the node, so turning the node turns the light). No shadows. The reveal
+ * and the outro fade it with the entity (`celebration.ts` sets `userData.fade`); other values apply in place,
+ * another kind builds the node anew.
+ */
+registerEntity("light", ({ entity }) => {
+  const group = new Group();
+  group.name = "light";
+  let values = resolveLight(entity.light);
+  const light = makeLight(values);
+  applyLight(light, values);
+  scaleLight(light, values);
+  light.castShadow = false;
+  group.add(light);
+  if (light instanceof SpotLight || light instanceof DirectionalLight) {
+    light.target.position.set(...LIGHT_AIM);
+    group.add(light.target);
+  }
+  return {
+    object: group,
+    update: () => scaleLight(light, values),
+    tune: tuned => {
+      const next = resolveLight(tuned.light);
+      if (next.kind !== values.kind) return false;
+      values = next;
+      applyLight(light, values);
+      scaleLight(light, values);
+      return true;
+    },
+    dispose: () => light.dispose(),
+  };
+});
 
 /** Text: one line on a plane of width 1, drawn on a canvas (system serif) – `{{entry.title}}` is the entry's title */
 const TEXT_CANVAS_WIDTH = 1024;

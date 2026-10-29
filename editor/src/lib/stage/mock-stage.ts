@@ -437,10 +437,13 @@ export class MockStage implements StageView {
     this.dimLights(true);
   }
 
-  /** The scene's own lights (the engine's ambient and sun) step back while the HDRI lights the stage */
+  /**
+   * The scene's own lights (the engine's ambient and sun, children of the scene) step back while the HDRI lights the
+   * stage; the content's lights (light nodes, inside the anchors) keep the author's intensity
+   */
   private dimLights(on: boolean): void {
     if (on) {
-      this.scene.traverse(object => {
+      this.scene.children.forEach(object => {
         if (object instanceof Light && !this.dimmed.has(object)) {
           this.dimmed.set(object, object.intensity);
           object.intensity *= LIGHTS_WITH_HDRI;

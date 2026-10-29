@@ -1,6 +1,7 @@
 import { ENTITY_TYPES, type AssetData, type EntityData, type EntityRefData } from '../../../shared/types/game-config';
 import { FilterData, filterProblems } from '../../../shared/types/filters';
 import { componentProblems, type ComponentData } from '../../../shared/types/components';
+import { lightProblems, type LightData } from '../../../shared/types/lights';
 import { placementProblems } from '../../../shared/types/placement';
 import fs from 'fs';
 import path from 'path';
@@ -8,11 +9,11 @@ import { CONTENT_DIR } from '../config';
 import { buildErrors, buildWarnings } from '../lib/errors';
 import { assetType, contentFile, readSection, validate } from '../lib/content';
 
-/** A node of the content's YAML: `type`, a `src` (or `assets`) for model / video / image, `text` / `color`, `children` */
+/** A node of the content's YAML: `type`, a `src` (or `assets`) for model / video / image, `text` / `color`, `light`, `children` */
 type RawNode = Record<string, any>;
 
 /** Node types without a file of their own */
-const FILELESS = new Set(['group', 'text']);
+const FILELESS = new Set(['group', 'text', 'light']);
 
 export const MAX_NODE_DEPTH = 8;
 
@@ -30,7 +31,7 @@ export function buildEntities(): Record<string, EntityData> {
 
 /**
  * One node of an entity's tree (content schema 2.0), its children recursively. `assets: [{ id?, src }]` (the root
- * of a shared entity) or `src` (inline nodes) name the node's files; `group` and `text` have none. Asset ids:
+ * of a shared entity) or `src` (inline nodes) name the node's files; `group`, `text` and `light` have none. Asset ids:
  * `<idBase>-<n>` for a shared root, `<targetId>-media` for an inline root, `<parent id>-<index>` below.
  */
 export function buildNode(
@@ -78,6 +79,13 @@ export function buildNode(
   if (raw.color !== undefined && !(typeof raw.color === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color))) {
     buildErrors.push(`${label}: color must be #rrggbb`);
   }
+  let light: LightData | undefined;
+  if (raw.light !== undefined) {
+    if (type !== 'light') buildErrors.push(`${label}: only a light node has a light (type is "${type}")`);
+    const problems = lightProblems(raw.light, 'light');
+    problems.forEach(problem => buildErrors.push(`${label}: ${problem}`));
+    if (!problems.length) light = raw.light as LightData;
+  }
   const filters = buildFilters(raw.filters, type, label);
   let components: ComponentData[] | undefined;
   if (raw.components !== undefined) {
@@ -104,6 +112,7 @@ export function buildNode(
     ...(components?.length ? { components } : {}),
     ...(children?.length ? { children } : {}),
     ...(type === 'text' ? { text: String(raw.text ?? ''), ...(raw.color ? { color: raw.color } : {}) } : {}),
+    ...(type === 'light' && light ? { light } : {}),
   };
 }
 
@@ -122,7 +131,7 @@ export function buildFilters(raw: unknown, type: string, label: string): FilterD
 }
 
 /**
- * Inline entity `{ type, src?, params?, filters?, children?, text?, color? }` (a node tree) or reference `{ ref }`
+ * Inline entity `{ type, src?, params?, filters?, children?, text?, color?, light? }` (a node tree) or reference `{ ref }`
  */
 export function buildEntity(
   raw: unknown,
