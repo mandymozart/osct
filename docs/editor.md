@@ -105,6 +105,13 @@ nothing flickers. The printed images:
   names (`top left` …) on the right page, several in one region stacked;
 - without either (the fixture): the images in a row across the middle of the right page, 60 mm wide.
 
+The stage's **sheet image is sharpened on demand**: the layout carries a second, much sharper image per sheet
+(`imageSharp`, `sheets/<sheet>@sharp.jpg`); the stage fetches it once, when the camera comes within 50 cm of the page.
+The Stage panel sets a **grid** (on / off, spacing in mm; its lines run through the origin, which is red) and the
+**origin** (`stage/origin.ts`): a corner of the base format (per page) or the book's centre. The x / y rows of a
+target's placement and of a new target are shown and entered from that origin (x to the right, y downwards, so values
+left of or above it are negative); what is saved stays mm from the page's top left corner.
+
 Every target lies flat on the page and counts as **found**: the **mock tracker** (`stage/mock-tracker.ts`) implements
 the engine's `IImageTracker` and reports each pose every frame exactly as the 8th Wall engine would (1 unit = the
 printed width, origin in the image's centre, the image in the x/y plane), so `ArScene`, the entities, the animations
@@ -160,8 +167,9 @@ is involved.
     + vignette / + grade** adds one, *remove* drops one, changes show live on the stage, **Save** writes the list to
     the spread (`PUT …/spreads/{id} { passes }`), *Back to the draft* undoes, *Use the book's* drops the spread's own
     list so the book's passes apply. The stage shows the passes under **rendered** only (like the HDRI's sky): the
-    mock stage's table, book, printed images and sky lie on the engine's **backdrop layer** and are drawn under the
-    passes, as the camera picture lies under the canvas in the reader – a pass never sees them.
+    mock stage's table, book, printed images and sky lie on the engine's **backdrop layer** and stand in for the
+    camera picture: bloom and vignette run over them as they run over the camera picture in the reader, the grade
+    stays on the AR layer (it gets the layer's coverage as a mask).
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
     a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by

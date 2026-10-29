@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { printedPlaceOf, sheetForSpread, sheetImageUrl, StageLayout } from "../stage-layout";
+import { printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, StageLayout } from "../stage-layout";
 
 const layout: StageLayout = {
   page: { width: 230, height: 320 },
@@ -51,5 +51,12 @@ describe("stage layout: where a target is printed", () => {
 
   it("gives nothing for a surface a target cannot be printed on", () => {
     expect(printedPlaceOf(withTargets, "p005-2")).toBeNull();
+  });
+});
+
+describe("stage layout: the sharper sheet image", () => {
+  it("points at it when the layout has one, else nothing", () => {
+    expect(sheetSharpImageUrl(layout.sheets[2])).toBeUndefined();
+    expect(sheetSharpImageUrl({ ...layout.sheets[2], imageSharp: "sheets/pp-004-005@sharp.jpg" })).toBe("/assets/content/layout/sheets/pp-004-005@sharp.jpg");
   });
 });

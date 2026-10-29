@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
+  import { clampGrid } from "$lib/stage/preview";
+  import { isOriginId, ORIGIN_LABELS, ORIGINS } from "$lib/stage/origin";
+  import Segmented from "$lib/components/Segmented.svelte";
   import {
     DESKS, getPreview, HDRIS, isDeskId, isHdriId, subscribePreview, updatePreview, type PreviewState,
   } from "$lib/stage/preview";
@@ -12,7 +15,8 @@
    * orbits, wheel / pinch the distance, double tap = the reader's view), found / lost per target is the tree's eye,
    * the first find is replayed from the stage's menu – the panel no longer doubles them (Tilman, 2026-10-29). And the
    * **narrative** of the book's plugins: their variables with scopes, the last events of the stage, and *reset* for a
-   * new game (nothing unlocked, no variable).
+   * new game (nothing unlocked, no variable). The **grid** over the page (spacing in mm) and the **origin** the grid
+   * and every position of the editor are counted from: a corner of the base format, or the book's centre.
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
@@ -48,6 +52,18 @@
   <span class="controls">
     <span class="w"><ScrubNumber value={preview.wobble} min={0} max={1} step={0.05} fallback={0} strict label="Hand shake" oninput={wobble => updatePreview({ wobble })} /></span>
     <span class="small muted">0 = still, 1 = a hand holding the phone</span>
+  </span></div>
+
+<div class="row"><span class="label">grid</span>
+  <span class="controls">
+    <Segmented options={["off", "on"] as const} value={preview.grid ? "on" : "off"} onchange={v => updatePreview({ grid: v === "on" })} />
+    <span class="w"><ScrubNumber value={preview.gridMm} min={1} max={500} step={1} fallback={10} strict unit="mm" label="Grid spacing" oninput={gridMm => updatePreview({ gridMm: clampGrid(gridMm) })} /></span>
+  </span></div>
+
+<div class="row"><span class="label">origin</span>
+  <span class="controls">
+    <Segmented options={ORIGINS} value={preview.origin} labels={ORIGIN_LABELS} titles={{ centre: "The spine's middle; x to the right, y downwards" }}
+      onchange={origin => { if (isOriginId(origin)) updatePreview({ origin }); }} />
   </span></div>
 
 <div class="row"><span class="label">desk</span>

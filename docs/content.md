@@ -593,7 +593,7 @@ npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_
 ```
 
 `scripts/layout/extract-layout.py` (Python 3 with PyMuPDF – an external tool like ffmpeg) renders every sheet
-to `<content>/layout/sheets/*.jpg` (1200 px wide) and writes `<content>/layout/layout.json`: the page format in mm,
+to `<content>/layout/sheets/*.jpg` (1200 px wide) and, next to each, a much sharper `<sheet>@sharp.jpg` (`--sharp-width`, 4096 px for a double page, 0 = none; the editor fetches it only when the camera is close to the page) and writes `<content>/layout/layout.json`: the page format in mm,
 the sheets (kind `spread`, `cover-front`, `cover-back`, front and back matter; their book pages read from the page
 numbers printed at the foot), and per target its page, surface (`left` / `right`), `x`, `y`, `width`, `height` in
 mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)

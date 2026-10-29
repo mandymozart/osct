@@ -10,6 +10,8 @@
  *   Not stored.
  */
 
+import { isOriginId, type OriginId } from "./origin";
+
 export const PREVIEW_VIEWS = ["reader", "top", "low", "far"] as const;
 export type PreviewView = (typeof PREVIEW_VIEWS)[number];
 
@@ -61,6 +63,10 @@ export interface PreviewSettings {
   desk: DeskId;
   /** 0 = still, 1 = a hand holding a phone */
   wobble: number;
+  /** A grid over the page (the stage), its spacing in mm, and the origin it and the positions are counted from */
+  grid: boolean;
+  gridMm: number;
+  origin: OriginId;
 }
 
 export interface PreviewState extends PreviewSettings {
@@ -70,7 +76,10 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, hdri: "ferndale_studio_04", desk: "eiermann", wobble: 0 };
+const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, hdri: "ferndale_studio_04", desk: "eiermann", wobble: 0, grid: false, gridMm: 10, origin: "top-left" };
+
+/** The grid's spacing stays between 1 mm and the page's size */
+export const clampGrid = (mm: number): number => Math.min(500, Math.max(1, mm));
 
 const readSettings = (): PreviewSettings => {
   try {
@@ -84,6 +93,9 @@ const readSettings = (): PreviewSettings => {
       hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
       desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
       wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
+      grid: stored.grid === true,
+      gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,
+      origin: isOriginId(stored.origin) ? stored.origin : DEFAULTS.origin,
     };
   } catch {
     return { ...DEFAULTS };
