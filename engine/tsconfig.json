@@ -1,0 +1,27 @@
+{
+  "//": "The engine is compiled by the app that imports it (client/, editor/ – path alias @engine); this file serves editors and a stand-alone `tsc --noEmit -p engine`.",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "typeRoots": ["../client/node_modules/@types"],
+    "types": ["three", "node", "vite/client"],
+    "paths": {
+      "@shared/*": ["../shared/*"],
+      "three": ["../client/node_modules/three"],
+      "three/*": ["../client/node_modules/three/*"],
+      "@8thwall/engine": ["../client/node_modules/@8thwall/engine"],
+      "vitest": ["../client/node_modules/vitest"]
+    }
+  },
+  "include": ["src/**/*.ts", "../shared/**/*.ts"]
+}
