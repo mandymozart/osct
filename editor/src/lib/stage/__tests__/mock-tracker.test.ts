@@ -261,6 +261,7 @@ describe("MockTracker input (#131: the panels are no stage)", () => {
     updatePreview({ view: "reader", orbit: null, hidden: [] });
     // The editor's layout: the stage between the side panels, its toolbar inside it
     document.body.innerHTML = `
+      <header class="top" data-app-ui><span class="crumb">book</span></header>
       <aside class="tree" data-app-ui><div class="spread-row">spread</div></aside>
       <div class="stage"><canvas></canvas><div class="tools" role="toolbar" data-app-ui><span class="gap"></span></div></div>
       <aside class="panel" data-app-ui><div class="body"><span class="field">value</span></div></aside>`;
@@ -288,9 +289,9 @@ describe("MockTracker input (#131: the panels are no stage)", () => {
     expect(tracker.currentOrbit.yaw).not.toBe(yaw);
   });
 
-  it("ignores drags and the wheel in the panels, the spread list and the toolbar", () => {
+  it("ignores drags and the wheel in the top bar, the panels, the spread list and the toolbar", () => {
     const orbit = { ...tracker.currentOrbit };
-    for (const target of [field, document.querySelector(".spread-row")!, toolbarGap]) {
+    for (const target of [document.querySelector(".crumb")!, field, document.querySelector(".spread-row")!, toolbarGap]) {
       pointer("pointerdown", target, 100);
       pointer("pointermove", canvas, 200);
       pointer("pointerup", canvas, 200);
