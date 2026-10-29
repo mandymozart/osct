@@ -12,6 +12,15 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.6 – 2026-10-30
+
+### Fixed
+- **The editor survives a deploy under an open tab** (#160): a code file that fails to load (Vite's `vite:preloadError`,
+  e.g. Monaco for the Code tab) reloads the page once – at most once every 10 s, so a deploy still uploading shows its
+  error instead of a reload loop. Tilman saw "the package could not be loaded" right after the 1.26.5 deploy.
+- **The FTPS upload sends the HTML pages and the service worker last**: lftp uploaded in parallel and in no order, so
+  a new page could name code files that were not on the server yet.
+
 ## 1.26.5 – 2026-10-30
 
 ### Fixed
