@@ -87,7 +87,7 @@
           {@const targets = withTarget(spread)}
           {@const caption = captionOf(spread)}
           {@const format = formatLabelOf(spread)}
-          <li style:grid-column="span {cell.span}">
+          <li style:grid-column="span {cell.span}" class:right={cell.side === "right"} class:left={cell.side === "left"}>
             <a href="{base}/{bookId}/{spread.id}/" class="spread">
               <span class="sheet" style:aspect-ratio={cell.span * pageRatio}>
                 {#if sheet}<img src="{assetsBase}{LAYOUT_PATH}{sheet.image}" alt="" loading="lazy" decoding="async" class:single={cell.span === 1 && !!layout && sheet.widthMm > layout.page.width * 1.5} />{/if}
@@ -116,10 +116,15 @@
   .top a { text-decoration: none; }
   .grow { flex: 1; }
   main { max-width: 80rem; margin: 0 auto; padding: 1rem; }
-  .spreads { list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); }
+  .spreads { list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); }
   .spread { display: block; text-decoration: none; border-radius: var(--control-radius); }
-  .spread:hover { background: var(--hover-background); }
-  .sheet { display: block; width: 100%; box-sizing: border-box; background: var(--surface-head); border: 1px solid var(--line); overflow: hidden; }
+  /* No column gap: half a gap on each side of a card, none on a single page's gutter side – so a single page is
+     exactly half a double page and every sheet has the same height (#115) */
+  .spreads > li { padding: 0 .5rem; min-width: 0; }
+  .spreads > li.right { padding-left: 0; }
+  .spreads > li.left { padding-right: 0; }
+  .spread:hover .sheet, .spread:focus-visible .sheet { border-color: var(--text); }
+  .sheet { display: block; width: 100%; box-sizing: border-box; background: var(--surface-head); border: 1px solid var(--line); overflow: hidden; transition: border-color .15s; }
   .sheet img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .sheet img.single { width: 200%; max-width: none; margin-left: -100%; }
   .caption { display: flex; align-items: center; gap: .5rem; padding: .25rem 0; white-space: nowrap; overflow: hidden; }
