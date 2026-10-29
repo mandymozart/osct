@@ -26,6 +26,30 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **Disabled controls look disabled** in the whole editor: dimmed, a not-allowed cursor, a select without its arrow –
   the spread format select on a double page no longer looks broken. The reason stays in the Info view.
 
+## 1.28.0 – 2026-10-30
+
+### Added
+- **The Library is the picker of every file** (#164): a target's printed image, a node's file (video, image, model),
+  a new node's file, the new-target form's files and the environment's world and sky each have *Library…* next to
+  *Upload…*. It opens the Library in place as a picker: the filter starts at the kind being picked, a click on a card
+  (or *Pick*) takes the file for that one field and returns, an upload that fits is taken at once, *cancel* or Esc
+  return without one. The panel underneath keeps its values (a half-filled new target, the selected node).
+- **A "target image" filter** next to images: the pictures printed in the book (a target's image in the draft, or the
+  import's `target.*` of an entry); "image" lists the other images.
+
+### Changed
+- **The new target form tells its two choices apart** (#165): *What appears on the page* (none, model, video, image,
+  text, group, light – pills, so the 3D model is in sight) with its file, then the *Entry category* (where the reader's
+  consultation menu lists the entry). The category follows what appears – a video makes a Videos entry, everything
+  else a glossary term – until it is set by hand.
+- The file fields show the file by where it belongs (`p015-1 · target`), pictures with a preview; the dropdowns of
+  file names ("Target Image, Target Image, …") are gone from the new-target form and the Entity panel's *+ node*.
+- File uploads offer only the kinds the field takes (a model: `.glb`, `.gltf` and their media types).
+
+### Fixed
+- **The Library opened from a node changed the target's image** (#164): it fills only the field it was opened for.
+- The Library tab's *Use* reached no node: the Entity panel was closed while the Library showed. It opens first now.
+
 ## 1.27.1 – 2026-10-30
 
 ### Added

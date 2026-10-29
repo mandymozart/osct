@@ -19,6 +19,26 @@ outcome in the line (or move it into a dated decision block).
   double page (an older server) – then the book page offers no double pages.
 - [ ] The MCP server has no tool for adding or removing spreads yet (RULES #32: a new endpoint is a new tool there).
 
+## 2026-10-30 – The Library as the picker; entry category vs what appears (#164, #165)
+
+- Tilman on staging: file dropdowns of identical names ("Target Image, …"), and the Library opened from a video node
+  changed the **target's image** (its *Target image* button sat next to *Use* on every image card). Built: every file
+  field (`components/FileField.svelte`) opens the **Library in place as a picker** (`LibraryPanel` with `pick`,
+  `library-pick.ts`) – the filter preselected, only fitting files pickable, the pick fills the one field it was opened
+  for. In place (not the Library tab) because the tab replaces the panel that asked: the new-target form lost its
+  values and the Entity panel was unmounted (the tab's *Use* reached no node – fixed too, the Entity tab opens first).
+  The Environment tab's pick moved in place as well, so there is one picker; the tab stays the browser of the files.
+- **Target images** = images a target of the draft uses, or the import's `target.*`. There is no "marked as a target"
+  flag in the API; [ ] add one if uploads meant as targets should show there before a target uses them.
+- **#165**: develop, which staging deploys, has offered `model` in the new-target form since 1.10.0. The likely cause
+  was the form: an unlabelled category select (glossary, video, text, link) on the *page* row read as "the type", and
+  the AR content select sat below the placement under "AR content (optional)". The category and the content stay
+  **two choices** – the category is where the reader's consultation menu lists the entry (a glossary term may show a
+  model), not what appears – but the category **follows** what appears (video → Videos, else Glossary) until set by
+  hand, and both are labelled ("What appears on the page" as pills, then "Entry category"). [ ] Staging itself could
+  not be opened from the agent's container – check the form there by hand.
+- [ ] iOS Safari may grey out `.glb` files in a file picker (no system type for glTF); the model upload names the
+  media types next to the extensions. Check on an iPhone / iPad.
 ## 2026-10-30 – Local MariaDB in Docker, staging's data, the API test on MariaDB (#168)
 
 - Tilman after #161: *"in future, for testing locally, start a MariaDB in a Docker container, as in SCUTOONS"*, plus a

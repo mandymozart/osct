@@ -13,6 +13,8 @@ export interface AssetPlace {
   /** `entries`, `spreads`, `plugins` … – null without a place */
   collection: string | null;
   place: string | null;
+  /** The file's role, its name without the extension (`target`, `video`) – null without a place */
+  role: string | null;
   label: string;
 }
 
@@ -20,11 +22,11 @@ export function assetPlace(asset: Pick<Asset, "name" | "url">): AssetPlace {
   const path = pathOf(asset.url);
   const at = path.indexOf(CONTENT_PREFIX);
   const parts = at < 0 ? [] : path.slice(at + CONTENT_PREFIX.length).split("/").filter(Boolean).map(safeDecode);
-  if (parts.length < 3) return { collection: null, place: null, label: asset.name };
+  if (parts.length < 3) return { collection: null, place: null, role: null, label: asset.name };
   const place = parts.slice(1, -1).join("/");
   const file = parts[parts.length - 1];
   const stem = file.includes(".") ? file.slice(0, file.lastIndexOf(".")) : file;
-  return { collection: parts[0], place, label: `${place} · ${stem}` };
+  return { collection: parts[0], place, role: stem, label: `${place} · ${stem}` };
 }
 
 /** The search's text: the name, the place and the collection (`p015-1`, `entries`, `target`) */
