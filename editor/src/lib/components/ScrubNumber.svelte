@@ -191,5 +191,6 @@
     border: none; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0; }
   .reset:hover, .reset:focus-visible { color: var(--text); outline: none; }
   .problem { color: var(--danger); font-size: var(--text-small); line-height: 1rem; padding: 0 .6rem; }
-  .disabled .frame { opacity: .5; pointer-events: none; }
+  .disabled { cursor: not-allowed; }
+  .disabled .frame { opacity: .45; pointer-events: none; }
 </style>

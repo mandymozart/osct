@@ -151,10 +151,24 @@ is involved.
   taken; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
   media is copied; for a content base it is the version's folder).
 - **Spreads** (`/editor/<book>/`): the spreads as cards with the sheet of each as its preview (from the book's layout
-  at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ cover** / **+ back
+  at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ double page** adds a
+  double page after the last one (before the back cover), a card's **+ after** (on hover, over its sheet) one right
+  after that spread – a cover included, the back cover not. A new double page is empty (*New spread*, id `spread-<n>`)
+  and takes the two pages after the spread before it: **every later page is numbered on by two**, and the entries on
+  those pages (their `page`) and their targets' printed page (`print.page`) move with them, so each entry stays on its
+  spread. The book's layout does not move – a laid-out sheet is matched by its pages, so after an insertion every card
+  from the new spread on shows the sheet of its new page numbers (the new one the sheet the next spread had) until a
+  layout with the new pages is imported.
+  A card's **remove** takes out a spread **without entries** (it asks first): a double page's later pages are numbered
+  back by its pages, a cover moves nothing. A spread with entries is not removed with them – their targets and AR are
+  work – so *remove* is disabled until they are deleted (in the workspace's tree); the spread the book opens on
+  (`initialSpreadId`) cannot go either; the reason is the button's tooltip and help. Should the API know only the
+  covers (an older server), the page says *New spreads come in with an import for now* instead of offering double
+  pages. **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
   the last) when the book has none; **Publish** with the environment (`local`, `staging`, `production` – production
-  asks), and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section.
+  asks), and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section; on a double page
+  the select is disabled (only a one-page spread can be a cover) – the reason is its help in the Info view.
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
@@ -353,7 +367,8 @@ lowers** the value, the two directions add up (the quadrant rule, Tilman 2026-10
 Shift ×10, Alt ×0.1, tap to type,
 ↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders, no native colour picker: the colour popover
 in the top layer); small enums as segmented pressed pills;
-on / off per item as a pressed chip; Feather icons only where a word makes no sense (step, replay, photo, close, the
+on / off per item as a pressed chip; a **disabled** control looks it at a glance – dimmed, a not-allowed cursor, a
+select without its arrow (`app.css`) – and says why in its help, never in a hint beside it; Feather icons only where a word makes no sense (step, replay, photo, close, the
 chain that links the scale axes) – and in the tree, where type icons and the eye are every outliner's convention
 (Blender, Unity, Figma); each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
 itself renders the reader's content unchanged. Texts are English (RULES #20).

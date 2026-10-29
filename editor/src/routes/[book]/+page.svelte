@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import { base } from "$app/paths";
   import { page } from "$app/state";
-  import { addSpread, ApiError, getBook, type BookTree } from "$lib/api";
+  import { addSpread, ApiError, deleteSpread, getBook, type BookTree } from "$lib/api";
+  import { canFollow, isAddRefused, removeBlockedBy, removeQuestion } from "$lib/spread-edit";
   import { sheetForSpread, type StageLayout } from "$lib/stage/stage-layout";
   import { fetchBookLayout, printBoxes, sheetUrl } from "$lib/sheet-preview";
   import SheetPreview from "$lib/components/SheetPreview.svelte";
@@ -22,17 +23,29 @@
 
   const hasFormat = (format: string) => !!tree?.spreads.some(s => (s as { format?: string }).format === format);
   let adding = $state(false);
-  /** The front or the back cover as a spread of its own (format cover / back, content schema 2.3) */
-  const addCover = async (format: "cover" | "back") => {
+  /** The API takes no double page (an older server): new spreads come only with an import, the page says so */
+  let addRefused = $state(false);
+  /** One change to the spreads, then the tree again (the pages may have been numbered anew) */
+  const change = async (work: () => Promise<unknown>) => {
     adding = true;
+    error = null;
     try {
-      await addSpread(bookId, { format });
+      await work();
       tree = await getBook(bookId);
     } catch (e) {
-      error = e instanceof ApiError ? e.message : String(e);
+      if (isAddRefused(e)) addRefused = true;
+      else error = e instanceof ApiError ? e.message : String(e);
     } finally {
       adding = false;
     }
+  };
+  /** The front or the back cover as a spread of its own (format cover / back, content schema 2.3) */
+  const addCover = (format: "cover" | "back") => change(() => addSpread(bookId, { format }));
+  /** A double page after `after` (default: the last one before the back cover); the later pages are numbered on */
+  const addDoublePage = (after?: string) => change(() => addSpread(bookId, after ? { format: "spread", after } : { format: "spread" }));
+  const removeSpread = (spread: BookTree["spreads"][number]) => {
+    if (!tree || !window.confirm(removeQuestion(spread, tree.spreads))) return;
+    void change(() => deleteSpread(bookId, spread.id));
   };
   const assetsBase = $derived((tree?.book.assetsBase ?? "").replace(/\/+$/, ""));
 
@@ -58,6 +71,9 @@
   {#if error}<p class="danger">{error}</p>{/if}
   {#if tree}
     <p class="muted small">{tree.book.author} · {tree.spreads.length} spreads · assets at {tree.book.assetsBase || "the draft's origin"}
+      {#if addRefused}· <span>New spreads come in with an import for now.</span>
+      {:else}· <button type="button" class="text-link" disabled={adding} onclick={() => void addDoublePage()}
+        data-help="A double page after the last one (before the back cover). Its pages are numbered on from there.">+ double page</button>{/if}
       {#if !hasFormat("cover")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("cover")}>+ cover</button>{/if}
       {#if !hasFormat("back")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("back")}>+ back cover</button>{/if}
     </p>
@@ -77,6 +93,7 @@
           {@const targets = withTarget(spread)}
           {@const caption = captionOf(spread)}
           {@const format = formatLabelOf(spread)}
+          {@const blocked = removeBlockedBy(spread, tree.book.initialSpreadId)}
           <li style:grid-column="span {cell.span}" class:right={cell.side === "right"} class:left={cell.side === "left"}>
             <a href="{base}/{bookId}/{spread.id}/" class="spread">
               <span class="frame">
@@ -94,6 +111,14 @@
                 </span>
               </span>
             </a>
+            <span class="actions">
+              {#if canFollow(spread) && !addRefused}
+                <button type="button" class="pill framed" disabled={adding} onclick={() => void addDoublePage(spread.id)}
+                  data-help="A double page right after this spread. The pages after it are numbered on by two, their entries move with them.">+ after</button>
+              {/if}
+              <button type="button" class="pill framed" disabled={adding || !!blocked} onclick={() => removeSpread(spread)}
+                title={blocked ?? undefined} data-help="Removes this spread from the draft; the pages after a double page are numbered back. {blocked ?? 'Only a spread without entries can go.'}">remove</button>
+            </span>
           </li>
         {/if}
       {/each}
@@ -116,7 +141,12 @@
   .spread { display: block; text-decoration: none; border-radius: var(--control-radius); }
   /* No column gap: half a gap on each side of a card, none on a single page's gutter side – so a single page is
      exactly half a double page and every sheet has the same height (#115) */
-  .spreads > li { padding: 0 .5rem; min-width: 0; }
+  .spreads > li { position: relative; padding: 0 .5rem; min-width: 0; }
+  .actions { position: absolute; top: .25rem; right: .75rem; display: flex; gap: .25rem; opacity: 0; transition: opacity .15s; }
+  .spreads > li.left .actions { right: .25rem; }
+  .spreads > li:hover .actions, .spreads > li:focus-within .actions { opacity: 1; }
+  @media (hover: none) { .actions { opacity: 1; } }
+  .actions .pill:not(:hover) { background: var(--surface); }
   .spreads > li.right { padding-left: 0; }
   .spreads > li.left { padding-right: 0; }
   .spread:hover .frame, .spread:focus-visible .frame { border-color: var(--text); }

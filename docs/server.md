@@ -275,6 +275,21 @@ entity? } }` → 201 `{ entry, spreadId }` makes an entry (id from title and pag
 204 removes entry and target (changes recorded). The reader tracks such a target after a publish: the 8th Wall
 engine makes the image-target data from `imageSrc` at runtime (`engine/src/scene/xr8.ts`).
 
+### Spreads made in the editor
+
+A spread's pages decide which entries are on it: an entry belongs to the first spread whose `firstPage`–`lastPage`
+include its `page` (the `spread_id` column records it), and a target's optional `print.page` names its page. Adding
+or removing a double page therefore **renumbers the pages after it** – every spread starting later, every entry on a
+later page and every later `print.page` move by the same amount, data and typed columns alike, so each entry keeps
+its spread and the contract stays as the content build writes it. Every moved row is a change in the log.
+
+| Endpoint | Body | Answer |
+|---|---|---|
+| `POST /editor/books/{id}/spreads` | `{ format: "spread", after?, id?, title? }` | 201 `{ spread, moved: { spreads, entries, targets } }` – a double page right after the spread `after` (default: the last one before the back cover; a book without one starts on page 1). Its pages are the two after that spread's `lastPage`, its position the next; every later page is numbered on by two. `id` defaults to the first free `spread-<n>`, `title` to *New spread*. 400 `unknown-spread` (no such `after`), `invalid-spread` (after the back cover, an unknown format), `invalid-id`; 409 `duplicate-id` |
+| `POST /editor/books/{id}/spreads` | `{ format: "cover" \| "back", title? }` | 201 `{ spread, moved }` – the front cover (page 0, first) or the back cover (the page after the last, last); nothing moves. 400 `invalid-spread` with an `after`; 409 `duplicate-id` when the book has one |
+| `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes? }` | `{ spread }` – title, format (`cover` only on page 0) and post-processing; the pages stay |
+| `DELETE /editor/books/{id}/spreads/{sid}` | | 204 – the spread goes; a double page's later pages are numbered back by its pages (the reverse of adding it), a cover moves nothing. 409 `initial-spread` for the spread the book opens on; 409 `spread-not-empty` with `entries` (their ids) while entries are on it – they are deleted one by one, never with their spread; 404 |
+
 ## Logs
 
 The API writes its errors (with the reason, e.g. a failed mail or a database error) to `LOG_PATH` – locally
