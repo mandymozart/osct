@@ -103,7 +103,7 @@ export class GameHeader extends HTMLElement {
   }
 
   private initialize() {
-    this.shadowRoot!.querySelector("#info")?.addEventListener("click", () => {
+    this.shadowRoot?.querySelector("#info")?.addEventListener("click", () => {
       this.game.router.navigate("/about");
     });
   }

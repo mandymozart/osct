@@ -140,7 +140,7 @@ export class BookGame extends HTMLElement {
 
   private initializeComponents() {
     this.game.startLoading();
-    this.errorPage = this.shadowRoot!.querySelector("error-page");
+    this.errorPage = this.shadowRoot?.querySelector("error-page") ?? null;
   }
 
   private async setupGameState() {

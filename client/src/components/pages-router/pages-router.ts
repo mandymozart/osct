@@ -1,6 +1,5 @@
 import { GameStoreService } from "@/services";
 import {
-  GameState,
   IGame,
   IPagesRouter,
   PageRoute,
@@ -16,12 +15,14 @@ import { assert, camelToKebab } from "@/utils";
 export class PagesRouter extends HTMLElement implements IPagesRouter {
   private pages: Map<string, HTMLElement> = new Map();
   private game: Readonly<IGame>;
+  private shadow: ShadowRoot;
+  /** Cleanup of the `currentRoute` subscription while connected */
+  private unsubscribe: (() => void) | null = null;
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
-    this.attachShadow({ mode: "open" });
-    this.handleStateChange = this.handleStateChange.bind(this);
+    this.shadow = this.attachShadow({ mode: "open" });
   }
 
   connectedCallback() {
@@ -29,17 +30,14 @@ export class PagesRouter extends HTMLElement implements IPagesRouter {
     this.setupPages();
     this.setupListeners();
 
-    if (!this.game.state.currentRoute) {
-      this.game.router.navigate("/");
-    }
+    // A route set before the router connected is shown at once
+    if (this.game.state.currentRoute) this.updateRoute(this.game.state.currentRoute);
+    else this.game.router.navigate("/");
   }
 
   disconnectedCallback() {
-    this.game.unsubscribe(this.handleStateChange);
-  }
-
-  private handleStateChange(state: GameState) {
-    this.updateRoute(state.currentRoute);
+    this.unsubscribe?.();
+    this.unsubscribe = null;
   }
 
   public updateRoute(route: PageRoute | null) {
@@ -92,11 +90,12 @@ export class PagesRouter extends HTMLElement implements IPagesRouter {
   }
 
   private setupListeners() {
-    this.game.subscribe(this.handleStateChange.bind(this));
+    this.unsubscribe?.();
+    this.unsubscribe = this.game.subscribeToProperty("currentRoute", route => this.updateRoute(route));
   }
 
   private setupPages() {
-    const slot = this.shadowRoot!.querySelector("slot");
+    const slot = this.shadow.querySelector("slot");
     assert(slot, "Slot element not found");
 
     const initialElements = slot.assignedElements();
@@ -109,7 +108,7 @@ export class PagesRouter extends HTMLElement implements IPagesRouter {
   }
 
   private render() {
-    this.shadowRoot!.innerHTML = /* html */ `
+    this.shadow.innerHTML = /* html */ `
       <style>
         :host {
           position: fixed;
