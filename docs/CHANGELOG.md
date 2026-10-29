@@ -12,6 +12,15 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.7 – 2026-10-30
+
+### Fixed
+- **Create target works on staging** (#161): the API found the page's spread with one named SQL parameter used twice.
+  MySQL with native prepares refuses that (a 500 on every new target); SQLite, locally and in the API test, allows it.
+  Each parameter is used once now, and the API test checks every query for a repeated name.
+- **The import form no longer suggests `https://<instance>:5174/src/game.config.json`**: that is the reader's dev
+  server, so it is prefilled only on localhost. On an instance the fields start empty and "the CDN" is selected.
+
 ## 1.26.6 – 2026-10-30
 
 ### Fixed
