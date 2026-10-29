@@ -27,7 +27,9 @@ the camera only works over https). The accounts API runs locally with `npm run d
 
 | Folder | What |
 |---|---|
-| `client/` | The app: TypeScript, Vite, vanilla web components, three.js + the 8th Wall engine for AR |
+| `engine/` | The base of reader and editor: the content runtime and the AR scene (three.js, trackers behind one interface) – a source folder both apps compile (`@engine/*`) |
+| `client/` | The reader: TypeScript, Vite, vanilla web components; the engine with the 8th Wall tracker |
+| `editor/` | The authors' editor: a SvelteKit app at `/editor` – the engine over the mock stage, saving and publishing through the API |
 | `scripts/` | Content build and the `osct` CLI (content sync to the CDN), delivery import |
 | `server/` | Accounts API (plain PHP 8, PDO) and the Docker image's Apache config |
 | `shared/` | The content contract: game-configuration types and guards used by app and build |
@@ -47,7 +49,7 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
 - [Game store](docs/game-store.md) · [Managers](docs/managers.md) · [BaseStore](docs/base-store.md) – app state
 - [Pages](docs/pages.md) · [Components](docs/components.md) · [Error page](docs/error-page.md) – the UI
 - [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene
-- [Editor](docs/editor.md) – the authors' tool: the scene over a simulated page, no camera (`/editor`)
+- [Editor](docs/editor.md) – the authors' tool at `/editor`: engine, mock stage, saving to the database, publishing
 - [Languages](docs/i18n.md) – UI texts and translations
 - [Server](docs/server.md) – the accounts API
 - [Deploy](docs/deploy.md) – Kamal, staging and production, the board

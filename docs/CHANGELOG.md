@@ -22,32 +22,40 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   content version – to the container's own content store (`GET /api/content/{env}/…`, environment `local`) or to the
   CDN's storage zone with the osct CLI's bookkeeping (`OSCT_CONTENT_STORE=bunny`), with a publish log. `docs/server.md`
   "Editor data".
-- **Editor, first step** (#61, the mock stage of #59): `/editor` runs the AR scene over a simulated page instead of
-  the camera – a table, the open book in its page format, the current spread's printed images in their printed size
-  and region (from the trigger protocol) or in a row – and every target counts as found, so models, videos and
+- **The editor** (#61, the mock stage of #59): a SvelteKit app of its own at `/editor` (`editor/`, built into the image
+  next to the reader) for an instance user with the role `editor`. It runs the engine over a simulated page instead of
+  the camera – a table, the open book in its page format, the current spread's printed images where they are printed
+  (the book's layout), by the trigger protocol or in a row – and every target counts as found, so models, videos and
   filters show with their reveal, unlock and outro exactly as in AR, on the desktop and on a phone, without a camera.
-  The bar steps through the spreads and opens the **preview** panel (view presets *reader / top / low / far*, drag to
-  orbit, wheel or pinch for the distance, found switch per target, *unlock ↺* to replay the first find, hand-shake
-  *wobble*, backdrop *table / paper / photo* of your own desk) and the **tune** panel (placement and filters, Copy
-  YAML). The editor's own code is a chunk that loads only when the page opens; the debug overlay's `editor` button
-  and a `P` in the debug line show the preview. Docs: `docs/editor.md`.
+  Books are imported from a game configuration (the CDN's current version, a URL or a file); the workspace has the
+  **Stage** panel (view presets *reader / top / low / far*, drag to orbit, wheel or pinch for the distance, found chips
+  per target, replay of the first find, hand shake, backdrop *table / paper / photo* of your own desk) and the
+  **Entity** panel (placement with X, Y, Z in one row as in Blender, filters, colours – live on the stage, **Save** to
+  the database, **Back to the draft**), and **Publish** makes a content version. Docs: `docs/editor.md`.
+- **The engine as a package** (`engine/`): the content runtime (`loadGameConfiguration`, the accessors, `contentUrl`)
+  and the AR scene (`ArScene`, entities, animations, trackers behind `IImageTracker`) moved out of the reader into a
+  source folder both apps compile (`@engine/*`). The app passes what differs: its tracker (the reader the 8th Wall
+  engine, the editor its mock tracker), the graphics options, the bundled content, the startup texts; the scene gained
+  `overrideEntity()` (the editor's live edit) and `refresh()` (rebuild the spread after a save).
 - **The book as laid out on the stage**: `npm run layout` (scripts, Python with PyMuPDF) reads the designed PDFs – the
   book preview and the trigger layout – and writes the content's `layout/` folder: every sheet as an image (covers
   included) and every printed target's page, side, position and size in mm. With it the editor's stage shows the
   spread's real page under the entities and every target exactly where it is printed; leafing shows the next sheet.
   Without it: blank pages, targets by the trigger protocol or in a row (`docs/content.md`, "Importing the book layout").
-- **One compact sheet** for the editor, after the Scutoons UI dogma with OSCT's own primitives: the head is the tab row
-  (‹ › spreads · Stage · Entity · ×) and closed the sheet is that row alone; rows of one control height; numbers as
-  `<scrub-number>` (press and slide or tap and type, Shift ×10, Alt ×0.1, reset arrow in the field) instead of
-  sliders; segmented groups and pressed chips; Feather icons with names and tooltips where a word makes no sense. The
-  tune panel's body became the `<tune-inspector>`, shared by the debug overlay's *tune* panel and the editor's
-  Entity tab. Position, rotation and scale are one row each with X, Y, Z side by side, as in Blender.
 - **Studio spreads in the test fixture** (`fixtures/content`, pages 28–31): every entity type, placement and filter of
   the content model on two double pages, for the editor and the tests (`FIXTURE.md`).
 
 ### Changed
-- The camera permission counts as granted while the editor's preview runs (nothing asks the browser); the trial
-  panel reads the trigger protocol through the shared `fetchTriggerInfos()`.
+- The reader carries nothing of the editor (RULES #32): no `/editor` route or page, no preview flag, no mock
+  tracker, no simulated camera permission, no forgetting of an unlock. The trial panel reads the trigger protocol
+  through the engine's `fetchTriggerInfos()`.
+- The image serves the editor at `/editor` (`.htaccess` fallback to its `index.html`, a year's cache for its hashed
+  files); CI checks, tests and builds it (`checks.yml`, job *Editor*).
+
+### Removed
+- The debug overlay's **tune** panel, `<tune-inspector>`, `tune-values.ts` and `<scrub-number>` (Tilman: "es geht im
+  Debug-Overlay nicht um Einstellungen – das ist Legacy"): the overlay debugs, the editor edits. The `editor` button
+  and the `P` marker of the debug line went with the preview.
 
 ## 1.9.6 – 2026-10-28
 
