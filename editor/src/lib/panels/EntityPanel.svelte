@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
   import { ENTITY_TYPES, FILTER_TYPES, type AssetData, type EntityData, type EntityType, type FilterType, type Target } from "@engine/types";
   import { ApiError, putEntity, putTargetEntity } from "$lib/api";
@@ -66,12 +67,20 @@
   $effect(() => {
     if (entity && !nodeAt(entity, node)) node = [];
   });
-  // The uniform-scale switch follows the selected node
+  // The uniform-scale switch follows the selected node (not every value change: the author may unlink equal axes)
   $effect(() => {
-    const n = current;
     const path = node.join(".");
+    const t = editingTarget;
     void path;
+    void t;
+    const n = untrack(() => current);
     if (n) uniformScale = hasUniformScale(n);
+  });
+  // The stage's override is the shared source of the live tree (the gizmo writes it too): follow it
+  $effect(() => {
+    const t = target;
+    const live = t ? stage?.overrides.get(t.id) : undefined;
+    if (t && live && untrack(() => editingTarget === t.id && entity !== live)) entity = live;
   });
   /** The same node in the draft (undefined for a node the draft does not have yet) */
   const draftNode = $derived(target?.entity ? nodeAt(target.entity, node) : undefined);
@@ -85,13 +94,10 @@
   const anyChanged = (ids: ValueRow[]) => ids.some(changed);
   const pathLabel = $derived(node.length ? `root › ${node.join(" › ")}` : "root");
 
-  let frame = 0;
   const apply = (next: EntityData) => {
     entity = next;
     saved = null;
-    const id = target?.id;
-    cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => id && stage?.override(id, next));
+    if (target) stage?.override(target.id, next);
   };
   /** Replace the selected node in the tree */
   const applyNode = (next: EntityData) => entity && apply(withNode(entity, node, next));

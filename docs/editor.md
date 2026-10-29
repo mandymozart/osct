@@ -97,6 +97,14 @@ again). Nothing of the reader's store, progress or routes is involved.
     its children, as deep as the content nests them. A tap on a node selects it and opens the Entity panel; a tap on
     the stage selects the root. ↑ ↓ walk the targets, ← → fold and unfold, Enter selects. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device).
+  - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
+    selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own
+    space, so a drag changes the node's placement **relative to its parent** – the Entity panel's rows follow live,
+    Save writes them. **Ctrl** snaps (0.05 target widths, 15°, 0.1). **Hover** draws a thin box around the entity
+    under the pointer and shows the pointer cursor; a tap selects it (a click that ends a drag does not). The
+    tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
+    such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
+    hit test) – the reader never calls it.
   - **Stage** – the simulated camera: **view** *reader* (35 cm above the page, tilted 30°), *top*, *low* (75° – shows
     how flat a video plane is), *far*; on the stage **drag** orbits, **Shift + drag**, the **middle button** or **two fingers** pan (the looked-at
     point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
@@ -141,7 +149,7 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`) and the reader's graphics options |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, backdrop, hidden targets), `stage-layout.ts` |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, backdrop, hidden targets), `stage-layout.ts` |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |

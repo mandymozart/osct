@@ -5,6 +5,7 @@
   import { page } from "$app/state";
   import { content } from "$lib/content.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
+  import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode } from "$lib/stage/gizmo";
   import Icon from "$lib/components/Icon.svelte";
   import StagePanel from "$lib/panels/StagePanel.svelte";
   import EntityPanel from "$lib/panels/EntityPanel.svelte";
@@ -84,6 +85,14 @@
     const id = spreadId;
     if (stage && stage.spreadId !== id) void stage.open(id);
   });
+  // The gizmo sits on the selected node
+  $effect(() => {
+    const id = selectedTarget;
+    const path = selectedNode;
+    stage?.selectNode(id, path);
+  });
+  const GIZMO_LABELS: Record<GizmoMode, string> = { translate: "Move (W)", rotate: "Rotate (E)", scale: "Scale (R)" };
+  const GIZMO_ICONS: Record<GizmoMode, "move" | "rotate" | "scale"> = { translate: "move", rotate: "rotate", scale: "scale" };
 
   const spread = $derived(content.spread(spreadId));
   const step = (direction: 1 | -1) => {
@@ -91,9 +100,15 @@
     if (next) void goto(`${base}/${bookId}/${next.id}/`, { replaceState: true });
   };
   const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Control") stage?.setSnap(true);
     if ((event.target as HTMLElement).closest("input, textarea, select")) return;
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);
+    const mode = GIZMO_KEYS[event.key.toLowerCase()];
+    if (mode && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setGizmoMode(mode);
+  };
+  const onKeyUp = (event: KeyboardEvent) => {
+    if (event.key === "Control") stage?.setSnap(false);
   };
 
   // ── Pick a colour from the stage (the colour field's eyedropper): an overlay over the stage shows the colour under
@@ -120,7 +135,7 @@
   };
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnap(false)} />
 
 <div class="workspace" class:closed={shown === null} class:tree-closed={!treeOpen}>
   <aside class="tree">
@@ -136,6 +151,14 @@
   </aside>
 
   <div class="stage" bind:this={container}>
+    {#if stage && stage.status === "running"}
+      <div class="tools" role="toolbar" aria-label="Transform">
+        {#each GIZMO_MODES as mode (mode)}
+          <button type="button" class="icon-button" class:on={stage.gizmoMode === mode} aria-pressed={stage.gizmoMode === mode} title="{GIZMO_LABELS[mode]} – Ctrl snaps" aria-label={GIZMO_LABELS[mode]}
+            onclick={() => stage?.setGizmoMode(mode)}><Icon name={GIZMO_ICONS[mode]} stroke={2} /></button>
+        {/each}
+      </div>
+    {/if}
     {#if loadError}
       <p class="notice danger">{loadError}</p>
     {:else if !stage || stage.status === "idle" || stage.status === "loading" || stage.status === "starting"}
@@ -188,6 +211,7 @@
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   .stage :global(canvas) { display: block; width: 100%; height: 100%; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
+  .tools { position: absolute; left: .5rem; top: .5rem; z-index: 1; display: flex; gap: .125rem; padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font-size: var(--text-small); font-family: ui-monospace, Consolas, monospace; }

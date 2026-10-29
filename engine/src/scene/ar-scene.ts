@@ -1,5 +1,5 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
-import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, SceneState, Target } from "../types/index";
+import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, SceneInspection, SceneState, Target } from "../types/index";
 import { getAssets, getSpread, getTargets } from "../content/game-config";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
@@ -349,9 +349,17 @@ export class ArScene implements IArScene {
       void focusAtTap(event.clientX, event.clientY);
       return;
     }
+    const hit = this.hitTest(event.clientX, event.clientY);
+    if (hit) this.emitter.emit("targetTapped", hit);
+    else void focusAtTap(event.clientX, event.clientY);
+  };
+
+  /** The nearest found entity whose on-screen bounds (+ margin) contain the point (client px), or null */
+  private hitTest(clientX: number, clientY: number): string | null {
+    if (!this.view || !this.content) return null;
     const rect = this.container.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
     const camera = this.view.camera;
     const box = new Box3();
     const corner = new Vector3();
@@ -374,9 +382,21 @@ export class ArScene implements IArScene {
       const distance = box.getCenter(corner).distanceTo(camera.position);
       if (!hit || distance < hit.distance) hit = { id: anchor.target.id, distance };
     }
-    if (hit) this.emitter.emit("targetTapped", hit.id);
-    else void focusAtTap(event.clientX, event.clientY);
-  };
+    return hit?.id ?? null;
+  }
+
+  inspect(): SceneInspection | null {
+    const view = this.view;
+    if (!view) return null;
+    return {
+      scene: view.scene,
+      camera: view.camera,
+      domElement: view.domElement,
+      onFrame: listener => view.onFrame(listener),
+      nodeObject: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.nodes?.[path.join(".")] ?? null,
+      hitTest: (clientX, clientY) => this.hitTest(clientX, clientY),
+    };
+  }
 
   private teardown(): void {
     document.removeEventListener("click", this.onTap);

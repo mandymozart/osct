@@ -214,6 +214,8 @@ export class MockTracker implements IImageTracker {
   private pointers = new Map<number, { x: number; y: number; startX: number; startY: number; button: number }>();
   /** Two fingers: where their midpoint was (they pan together while they pinch) */
   private lastMid: { x: number; y: number } | null = null;
+  /** A pointer gesture that belongs to an editor tool (the gizmo's handle under the pointer): not an orbit */
+  ignorePointer: ((event: PointerEvent) => boolean) | null = null;
   private dragging = false;
   private lastPinch = 0;
   private cameraWorld = new Matrix4();
@@ -451,7 +453,7 @@ export class MockTracker implements IImageTracker {
   }
 
   private onPointerDown = (event: PointerEvent): void => {
-    if (this.paused || onAppUi(event)) return;
+    if (this.paused || onAppUi(event) || this.ignorePointer?.(event)) return;
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, button: event.button });
     if (this.pointers.size === 1) this.dragging = false;
     this.lastPinch = 0;
@@ -462,6 +464,11 @@ export class MockTracker implements IImageTracker {
   private onPointerMove = (event: PointerEvent): void => {
     const pointer = this.pointers.get(event.pointerId);
     if (!pointer) return;
+    if (this.ignorePointer?.(event)) {
+      // The gizmo took the gesture after all (touch: no hover before the press)
+      this.pointers.delete(event.pointerId);
+      return;
+    }
     if (this.pointers.size === 2) {
       const [a, b] = [...this.pointers.values()];
       const other = a === pointer ? b : a;

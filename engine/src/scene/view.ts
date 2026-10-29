@@ -104,6 +104,11 @@ export class ArView {
   }
 
   /** Called every rendered frame with the seconds since the last one */
+  /** The canvas – editor tools listen on it */
+  get domElement(): HTMLCanvasElement {
+    return this.renderer.domElement;
+  }
+
   onFrame(listener: (delta: number) => void): () => void {
     this.frameListeners.add(listener);
     return () => this.frameListeners.delete(listener);

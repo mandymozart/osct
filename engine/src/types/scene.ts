@@ -1,3 +1,4 @@
+import type { Camera, Object3D, Scene } from "three";
 import { EntityData } from "./content";
 
 /**
@@ -46,6 +47,19 @@ export type ArSceneEvents = {
  * `LazyArScene`). No store access – the app connects it to its state (the reader's `<ar-bridge>`). Calls are queued and the latest request wins
  * (switching spreads while loading builds only the newest spread).
  */
+/** The running scene opened for editor tools: three.js objects, the canvas, a frame hook, a hit test */
+export interface SceneInspection {
+  scene: Scene;
+  camera: Camera;
+  domElement: HTMLElement;
+  /** Every rendered frame */
+  onFrame(listener: (delta: number) => void): () => void;
+  /** The placement group of a node of a target's entity (`[]` = the root), null when the spread has no such node */
+  nodeObject(targetId: string, path: number[]): Object3D | null;
+  /** The found entity under a point of the screen (client px), as a tap would report it */
+  hitTest(clientX: number, clientY: number): string | null;
+}
+
 export interface IArScene {
   readonly status: ArStatus;
   readonly spreadId: string | null;
@@ -59,6 +73,8 @@ export interface IArScene {
   refresh(): Promise<void>;
   /** The colour under a point of the scene's canvas (CSS px from its top left) as `#rrggbb`, null while nothing renders */
   sampleColor(x: number, y: number): string | null;
+  /** What an editor tool needs of the running scene (the gizmo, hover); null while nothing renders */
+  inspect(): SceneInspection | null;
   /**
    * Show a target's entity with these values instead of the content's (the editor's live edit) – kept across
    * spread switches until `null` restores the content
