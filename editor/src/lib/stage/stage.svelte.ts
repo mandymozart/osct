@@ -1,12 +1,13 @@
 import { SvelteMap } from "svelte/reactivity";
 import { base } from "$app/paths";
-import { Object3D, Raycaster, Vector2 } from "three";
+import { Object3D, Quaternion, Raycaster, Vector2 } from "three";
+import type { EnvironmentData } from "@shared/types/environment";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
 import { allVars, ArScene, observeEvents, resetVars, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
-import { SceneState, type ArStatus, type EntityData, type IArScene, type NodeTimeline, type PassData } from "@engine/types";
+import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "$lib/values";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
 import { LightHelpers } from "./light-helper";
@@ -80,8 +81,13 @@ export class Stage {
   /** The viewport's shading (stored with the preview settings) */
   shading = $state<ShadingMode>(getPreview().shading);
 
-  private scene: IArScene;
+  private scene: ArScene;
   private tracker: MockTracker | null = null;
+  private mockStage: MockStage | null = null;
+  /** The environment previewed on the stage (the Environment tab), null = none */
+  private environment: EnvironmentData | null = null;
+  private lookUp = 0;
+  private orientation = new Quaternion();
   private gizmo: Gizmo | null = null;
   /** The helpers of the spread's light nodes (Blender-style, the editor's only) */
   private lightHelpers: LightHelpers | null = null;
@@ -105,7 +111,10 @@ export class Stage {
     const scene = new ArScene(container, {
       createTracker: ({ container, options, scene }) => {
         const tracker = new MockTracker(container, options);
-        tracker.attachStage(new MockStage(scene, path => `${base}/${path}`));
+        this.mockStage = new MockStage(scene, path => `${base}/${path}`);
+        this.mockStage.setStudioSky(!this.environment);
+        tracker.attachStage(this.mockStage);
+        tracker.setLookUp(this.environment ? this.lookUp : 0);
         tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
         this.tracker = tracker;
         return tracker;
@@ -220,6 +229,29 @@ export class Stage {
 
   setPickMode(mode: PickMode): void {
     this.pickMode = mode;
+  }
+
+  /**
+   * Preview the book's environment on the stage (the Environment tab): the engine's look-around world with these
+   * values – the reader's pass, not a stand-in – under the stage, turned by the view as a phone's gyroscope would turn
+   * it; the studio's sky steps aside. `null` ends it (the studio again, the camera at the book).
+   */
+  previewEnvironment(environment: EnvironmentData | null): void {
+    const was = this.environment;
+    this.environment = environment;
+    this.mockStage?.setStudioSky(!environment);
+    this.tracker?.setLookUp(environment ? this.lookUp : 0);
+    if (!environment) {
+      if (was) this.scene.previewEnvironment(null);
+      return;
+    }
+    this.scene.previewEnvironment({ environment, orientation: () => this.tracker?.worldOrientation(this.orientation) ?? this.orientation });
+  }
+
+  /** How far the previewing camera looks up from the book (degrees) – the world's sky and horizon come into view */
+  setLookUp(degrees: number): void {
+    this.lookUp = degrees;
+    if (this.environment) this.tracker?.setLookUp(degrees);
   }
 
   /** Show a spread on the stage (the scene runs as soon as it is asked to) */

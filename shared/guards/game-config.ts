@@ -145,7 +145,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     ["id", "title", "author"].forEach(key => str(book, key, "book"));
     str(book, "publisher", "book", true);
     if (book.passes !== undefined) passProblems(book.passes, "book.passes").forEach(problem => problems.push(problem));
-    if (book.environment !== undefined) environmentProblems(book.environment, "book.environment").forEach(problem => problems.push(problem));
+    if (book.environment !== undefined) environmentProblems(book.environment, "book.environment", false).forEach(problem => problems.push(problem));
   }
 
   str(root, "initialSpreadId", "config");

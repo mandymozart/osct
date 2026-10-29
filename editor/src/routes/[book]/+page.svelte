@@ -8,7 +8,7 @@
   import { captionOf, formatLabelOf, gridCells, GRID_COLUMNS } from "$lib/spread-grid";
   import Icon from "$lib/components/Icon.svelte";
   import PublishButton from "$lib/PublishButton.svelte";
-  import EnvironmentPanel from "$lib/panels/EnvironmentPanel.svelte";
+  import { environmentOf } from "@shared/types/environment";
 
   /** A book's spreads with the sheet of each as its preview (when the content carries the layout): open one to work on its stage */
   const bookId = $derived(page.params.book!);
@@ -51,10 +51,6 @@
     }
   });
 
-  const reload = async () => {
-    tree = await getBook(bookId);
-  };
-
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
   const cells = $derived(gridCells(tree?.spreads ?? []));
   /** One page's proportions: a double page is twice as wide, so every card has the cover's height */
@@ -76,7 +72,12 @@
       {#if !hasFormat("cover")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("cover")}>+ cover</button>{/if}
       {#if !hasFormat("back")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("back")}>+ back cover</button>{/if}
     </p>
-    <EnvironmentPanel bookId={bookId} saved={tree.book.book?.environment} onsaved={reload} />
+    {@const environment = environmentOf(tree.book.book)}
+    {@const fileName = (url: string) => decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() ?? url)}
+    <p class="muted small environment">environment ({tree.book.book?.environment ? "this book's" : "the default"}):
+      world {environment.worldSrc ? fileName(environment.worldSrc) : "café"} · sky {environment.skySrc ? fileName(environment.skySrc) : "the world's"} ·
+      onion sky {environment.onionSky ? "on" : "off"}
+      {#if tree.spreads[0]}· <a class="text-link" href="{base}/{bookId}/{tree.spreads[0].id}/?tab=environment">Edit on the stage</a>{/if}</p>
     <ul class="spreads" style:--columns={GRID_COLUMNS} style:--page-ratio={pageRatio}>
       {#each cells as cell, i (cell.spacer ? `spacer-${i}` : cell.spread.id)}
         {#if cell.spacer}
