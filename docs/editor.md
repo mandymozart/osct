@@ -56,8 +56,12 @@ writes a new one, and the staging reader sees it on its next start.
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: the
 **sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's backdrop
 *hdri* and its choice), the equirectangular image as `scene.background` and `scene.environment`, turned with the
-stage every frame so the room stays put while the camera orbits – a desk of **screen-printed plywood** (Poly Haven's
-plywood texture tinted to the phenolic brown), the open book as an object – two blocks of paper on a white hardcover board (3 mm) that overhangs the pages by 3 mm, the block's
+stage every frame so the room stays put while the camera orbits – the **desk**, a 1.4 × 1.0 m screen-printed plywood
+top (18 mm; Poly Haven's plywood texture tinted to the phenolic brown on the faces, the plies showing untinted on the
+cut edges) on a steel tube frame after Egon Eiermann's table frame (1953), 72 cm high: our own low-poly model
+(`editor/static/models/desk-eiermann.glb`, 236 triangles, built by `editor/tools/desk-eiermann.py` in Blender –
+`editor/static/models/README.md`), loaded with its origin at the top's surface, so the book lies on it; the backdrop
+*paper* turns the top into plain paper, *photo* hides the desk – the open book as an object – two blocks of paper on a white hardcover board (3 mm) that overhangs the pages by 3 mm, the block's
 thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) – and the current
 spread's printed images. A spread of the format `cover` or `back` shows the **closed book** instead – the printed
 cover board on top (the layout's `cover-front` / `cover-back` sheet as its texture), the whole block of paper under
