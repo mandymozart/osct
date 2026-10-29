@@ -96,6 +96,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     const e = obj(value, path);
     if (!e) return;
     if (e.id !== undefined && typeof e.id !== "string") fail(`${path}.id`, "expected a string");
+    if (e.name !== undefined && typeof e.name !== "string") fail(`${path}.name`, "expected a string");
     if (e.text !== undefined && typeof e.text !== "string") fail(`${path}.text`, "expected a string");
     if (e.color !== undefined && !(typeof e.color === "string" && /^#[0-9a-f]{6}$/i.test(e.color))) fail(`${path}.color`, "expected #rrggbb");
     if (e.children !== undefined) {

@@ -43,11 +43,11 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * - MINOR: an addition older apps ignore – a new optional field (the book's `environment` since 2.8, its world and sky assets since 2.10), and since 2.6 a
  *   new node type (the guard lets an unknown one pass; a 2.5 app refuses it), and since 2.9 a new pass parameter
  *   (the grade's `reach`: the guard ignores a parameter it does not know; a 2.8 app refuses it), and since 2.11 the
- *   content manifest's `book`. Any MINOR of the same MAJOR loads.
+ *   content manifest's `book`, and since 2.12 a node's `name`. Any MINOR of the same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.11";
+export const CONTENT_SCHEMA_VERSION = "2.12";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -115,6 +115,8 @@ export interface AssetData {
 export interface EntityData {
   /** Optional, unique within the tree: the editor's selection, a later behaviour's target */
   id?: string;
+  /** Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; the reader ignores it */
+  name?: string;
   type: EntityType;
   /** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` */
   assets: AssetData[];
