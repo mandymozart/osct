@@ -57,6 +57,8 @@ export class ArScene implements IArScene {
   private queue: Promise<void> = Promise.resolve();
   private wantedSpread: string | null = null;
   private wantedState: SceneState = SceneState.STOPPED;
+  /** The current spread's content is stale (the editor saved): the next step builds it again */
+  private stale = false;
 
   private view: ArView | null = null;
   /** The world around the reader + its sky (3DoF, anchored to the book) (off per the reader's graphics options) */
@@ -102,6 +104,11 @@ export class ArScene implements IArScene {
   setState(state: SceneState): Promise<void> {
     if (state !== this.wantedState) this.startFailed = false;
     this.wantedState = state;
+    return this.reconcile();
+  }
+
+  refresh(): Promise<void> {
+    this.stale = true;
     return this.reconcile();
   }
 
@@ -180,7 +187,8 @@ export class ArScene implements IArScene {
       this.setStatus("idle");
       return;
     }
-    if (this.wantedSpread !== this.spreadId) {
+    if (this.wantedSpread !== this.spreadId || this.stale) {
+      this.stale = false;
       await this.changeSpread(this.wantedSpread);
       this.startFailed = false;
     }

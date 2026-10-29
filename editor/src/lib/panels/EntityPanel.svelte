@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getEntityRef, getTarget, getTargets, getTargetsUsingEntity } from "@engine/content/game-config";
+  import { getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
   import { FILTER_TYPES, type EntityData, type FilterType, type Target } from "@engine/types";
   import { ApiError, putEntity, putTargetEntity } from "$lib/api";
   import { content } from "$lib/content.svelte";
@@ -18,7 +18,7 @@
    */
   let { stage, bookId, spreadId, selected = $bindable() }: { stage: Stage | null; bookId: string; spreadId: string; selected: string | null } = $props();
 
-  const targets = $derived(getTargets(spreadId).filter(target => target.entity));
+  const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.entity));
   const target = $derived<Target | undefined>(targets.find(t => t.id === selected) ?? targets.find(t => stage?.found.includes(t.id)) ?? targets[0]);
 
   let entity = $state<EntityData | null>(null);
@@ -38,12 +38,15 @@
       return;
     }
     if (editingTarget === t.id && entity) return;
+    const other = editingTarget !== t.id;
     editingTarget = t.id;
     const override = stage?.overrideOf(t.id);
     entity = override ?? t.entity!;
     uniformScale = hasUniformScale(entity);
-    saved = null;
-    error = null;
+    if (other) {
+      saved = null;
+      error = null;
+    }
   });
 
   const rows = $derived(entity ? valueRows(entity, uniformScale) : []);
@@ -80,10 +83,11 @@
       const body = contentEntity(entity, uniformScale);
       if (ref) await putEntity(bookId, ref, body);
       else await putTargetEntity(bookId, target.id, body);
-      // The draft now holds these values: reload it so the content's values (markers, revert) follow
+      // The draft now holds these values: reload it and build the spread again from it (markers, revert follow)
       const id = target.id;
       await content.load(bookId);
       stage?.override(id, null);
+      await stage?.refresh();
       editingTarget = null;
       saved = ref ? `saved ${ref}` : `saved ${id}`;
     } catch (e) {

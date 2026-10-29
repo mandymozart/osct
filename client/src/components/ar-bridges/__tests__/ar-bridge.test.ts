@@ -21,6 +21,7 @@ class FakeArScene implements IArScene {
   celebrated: string[] = [];
   async dispose() { this.disposed = true; }
   celebrate(targetId: string) { this.celebrated.push(targetId); }
+  async refresh() {}
   overrides: Array<[string, unknown]> = [];
   overrideEntity(targetId: string, entity: unknown) { this.overrides.push([targetId, entity]); }
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]) {

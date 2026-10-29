@@ -1,3 +1,4 @@
+import { SvelteMap } from "svelte/reactivity";
 import { ArScene } from "@engine/scene";
 import { getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type IArScene } from "@engine/types";
@@ -25,7 +26,8 @@ export class Stage {
 
   private scene: IArScene;
   private unlocked = new Set<string>();
-  private overrides = new Map<string, EntityData>();
+  /** Entities shown with other values than the draft's, by target id (reactive: the panels mark them) */
+  overrides = new SvelteMap<string, EntityData>();
   private replayTimer = 0;
   private cleanups: Array<() => void> = [];
 
@@ -76,6 +78,11 @@ export class Stage {
 
   overrideOf(targetId: string): EntityData | undefined {
     return this.overrides.get(targetId);
+  }
+
+  /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */
+  refresh(): Promise<void> {
+    return this.scene.refresh();
   }
 
   /** Every shown target is locked again, hidden, and found anew: the unlock animation plays */
