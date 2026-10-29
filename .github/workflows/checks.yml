@@ -1,5 +1,5 @@
 # Checks for every push and pull request (agents/RULES.md #9, #10): type checks, tests, content build,
-# API tests. Deploys nothing – deploy-staging.yml and deploy-production.yml do (docs/deploy.md).
+# API tests, the MCP server. Deploys nothing – deploy-staging.yml and deploy-production.yml do (docs/deploy.md).
 name: Checks
 
 on:
@@ -84,6 +84,30 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  mcp:
+    name: MCP server
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      # The end-to-end test starts the API with PHP's built-in server (skipped without php)
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npm test
 
   client:
     name: Client

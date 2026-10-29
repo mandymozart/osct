@@ -12,10 +12,10 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.14.0 – 2026-10-29
+## 1.17.0 – 2026-10-30
 
 ### Added
-- **The book's environment – content schema 2.7** (#79, Tilman: "Wir hatten im Reader das Environment und diese Himmel-Effekte.
+- **The book's environment – content schema 2.8** (#79, Tilman: "Wir hatten im Reader das Environment und diese Himmel-Effekte.
   Dafür brauchen wir eine eigene UI"): `book.yaml` takes an optional `environment: { world, onionSky }` – the world around
   the reader while scanning (`cafe`, the only one) and the onion sky on or off. The engine reads it (`LookAround`); the
   reader's Graphics switches still apply on top, so the content cannot turn on what the reader has off. A book without
@@ -24,8 +24,62 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   Not in this step: world assets, per-spread overrides, tuning values in the editor.
 
 ### Changed
-- The schema lock is at 2.7 (a MINOR step over the light nodes' 2.6): older apps ignore the new field.
+- The schema lock is at 2.8 (a MINOR step over the plugin API 1.1's 2.7): older apps ignore the new field.
 
+## 1.16.1 – 2026-10-30
+
+### Fixed
+- **The plugin API's `registerPass` is wired** (#97): a plugin registers its own post-processing pass with
+  `api.registerPass(type, spec, factory)`, as the editor's docs and 1.12.0 already said. The pass belongs to the plugin
+  and leaves the pass registry when the plugin is uninstalled; a type another plugin or the engine holds is refused.
+  Not yet: the content build and the reader's guard accept only the built-in pass types, so a spread cannot name a
+  plugin's pass until that is decided (#97).
+## 1.16.0 – 2026-10-30
+
+### Added
+- **An MCP server over the editor's API** (#75, `mcp/`, [docs/mcp.md](mcp.md); Tilman: "wir brauchen eine MCP-Schnittstelle,
+  dass wir dann beim Bauen in Amsterdam genügend schnell auch mit Claude Sachen bauen können" – "do it like in scutoons,
+  important this will one day merge"). A Claude session works on a book as a signed-in editor: `whoami`, a sign-in by
+  mail code (`sign_in_request` / `sign_in_verify`, or `OSCT_EDITOR_TOKEN` in the environment), the book's tree and a
+  spread with every target's entity resolved, shared entities and targets (entity, image, printed place), new entries
+  with their target, the library (upload a local file, list, delete), the Code tab's plugin sources, the draft, publish to
+  `local` or `staging`, the publish and change logs, and `describe_content_model` – the content contract plus a book's
+  declared plugins and Code tab sources. Built after SCUTOONS' MCP: the API is the only authority (over HTTP with the
+  editor's token, the tools listed for the role `editor`), every entity goes through the shared guard before it is sent,
+  every write answers with the editor's link where the person checks the draft on the stage, and **publishing to
+  production stays with a person** – the tool refuses it. Claude Code sessions in this repository get the server from
+  the root `.mcp.json`; resources `osct://rules/content-model` and `osct://guides/plugins`, prompts `editor` and
+  `add-target`. Tests: a mocked fetch per tool and the server over stdio against the PHP API end to end; CI job *MCP
+  server*. The version check covers `mcp/package.json` (RULES #10, #23).
+
+## 1.15.0 – 2026-10-30
+
+### Added
+- **The demo book** (#80, Tilman: "ein Beispiel, das einmal versucht, alle Möglichkeiten, die der Editor gerade kann,
+  zu simulieren – auch mit diversen Game-Narrativen und Interaktionen, mit der Buch-API … call it demo"): a sandbox
+  book `fixtures/demo/` next to the test fixture, built with `OSCT_CONTENT_DIR=fixtures/demo` – six spreads with every
+  node type, placement, filter and component, the covers, a shared entity, `print` on every target, entries of every
+  category, and six plugins that together use every part of the plugin API: `tint` and `pulse` (layers), `spin`,
+  `scenes` (a tap shows the next child), `narrative` (the key found on page 1 opens the door on page 3, the lamp
+  lights when the door opened) and `tally` (a text the book writes from the progress). The assets are the fixture's
+  stand-ins. `DEMO.md` marks a demo build: `osct content sync` uploads it to the environment `demo` only, and the
+  workflow *Demo book* (`demo.yml`) builds and syncs it from `develop`. The decision and the gaps the demo found:
+  `agents/research/2026-10-30-demo-book.md`; the guide: docs/plugins.md "The demo book".
+- **Plugin API 1.1 – across nodes and pages**: `api.events` (the engine's core events `targetFound`, `targetLost`,
+  `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the book's
+  own to emit and hear – one bus, a plugin's listeners go with it), `api.vars` (variables in the scopes `spread`,
+  `stage`, `session`, `book` with the concept's outward lookup; `book` persisted with the reader's progress),
+  `api.progress` (read-only: `unlocked`, `consulted`, `completion`, `counts` – the reader passes an adapter over its
+  history through `ArSceneOptions.progress`, the editor its simulation), `api.spread` (the current spread), the
+  component context's `children` and the hook `onUnlocked` (`engine/src/scene/plugin-runtime.ts`). The progress
+  record keeps the book variables (`variables`, additive within format 1; merged with this device's values winning).
+  Content schema **2.7** (the API version a declared plugin carries; 2.5 are the passes, 2.6 the light nodes).
+- **The editor**: the Stage panel's **vars** and **events** rows (the plugins' variables with their scopes, the last
+  events of the stage) and **reset** (a new game); *Import a book… → URL* takes a **content base URL** (a CDN folder
+  with `latest.json`, e.g. `…/demo`) and imports its current version; the Entity panel's rows follow the plugins the
+  engine loads with a spread (before, a declared plugin's component showed its rows only after a Run).
+- **The reader on a debug build** takes `?content=<base url>` and keeps it for the tab: the staging reader opens the
+  demo with `?content=https://buildingfictions.b-cdn.net/demo`; production builds ignore it (docs/content-cdn.md).
 ## 1.13.0 – 2026-10-29
 
 ### Added

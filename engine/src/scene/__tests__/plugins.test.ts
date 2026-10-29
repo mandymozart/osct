@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Group, Mesh, MeshBasicMaterial, ShaderMaterial } from "three";
-import { componentProblems, componentSpec, componentTypes, ComponentSpec, EntityData, PLUGIN_API_VERSION, Target } from "../../types/index";
+import { Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene, ShaderMaterial, Vector2 } from "three";
+import { componentProblems, componentSpec, componentTypes, ComponentSpec, EntityData, PassSpec, PLUGIN_API_VERSION, Target } from "../../types/index";
 import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, loadPlugins, PluginApi, PluginError, pluginTypes, uninstallPlugin } from "../plugins";
+import { PostChain } from "../post/chain";
+import { passRegistration, registeredPassTypes } from "../post/registry";
+import "../post/index";
 
 /** The plugin API 1.0: components and material layers a book's own code registers, kept per plugin */
 
@@ -167,6 +170,54 @@ describe("a plugin's material layer on a node", () => {
   it("a node of the wrong type builds without the layer (the build and the guard refuse it)", () => {
     installPlugin("fx", { register: api => api.registerLayer("tint", TINT, { glsl: "return rgba;" }) });
     expect(componentProblems([{ type: "tint" }], "components", "group")).toEqual(["components[0]: tint applies to video, image nodes, not to a group"]);
+  });
+});
+
+describe("a plugin's pass", () => {
+  const HALO: PassSpec = {
+    description: "A test pass.",
+    params: { amount: { kind: "number", default: 0.5, min: 0, max: 1, description: "How much." } },
+  };
+  /** Three's Pass shape without a renderer: the chain only sizes and disposes it until a frame is drawn */
+  const fakePass = () => ({ enabled: true, needsSwap: true, clear: false, renderToScreen: false, setSize: vi.fn(), render: vi.fn(), dispose: vi.fn() });
+  /** The chain reads the renderer's size and pixel ratio when it is built; no WebGL context is needed */
+  const fakeRenderer = { getSize: () => new Vector2(300, 200), getPixelRatio: () => 1, capabilities: { maxSamples: 0 } };
+
+  it("is registered with the plugin as its owner, runs in a spread's chain, and leaves with the plugin", () => {
+    const factory = vi.fn(() => fakePass() as never);
+    installPlugin("fx", { register: api => api.registerPass("halo", HALO, factory) });
+    expect(passRegistration("halo")?.owner).toBe("fx");
+    expect(registeredPassTypes()).toContain("halo");
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const chain = new PostChain(fakeRenderer as never, new Scene(), new PerspectiveCamera());
+    chain.set([{ type: "halo", amount: 0.8 }]);
+    expect(factory).toHaveBeenCalledWith(expect.objectContaining({ params: { amount: 0.8 }, size: expect.any(Vector2) }));
+    expect(chain.passes).toEqual([{ type: "halo", amount: 0.8 }]);
+    expect(chain.active).toBe(true);
+
+    uninstallPlugin("fx");
+    expect(passRegistration("halo")).toBeUndefined();
+    chain.set([{ type: "halo" }]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no pass "halo" is registered'));
+    expect(chain.passes).toEqual([]);
+    chain.dispose();
+  });
+
+  it("cannot take a built-in pass type, nor a type another plugin registered", () => {
+    const factory = () => fakePass() as never;
+    installPlugin("fx", { register: api => api.registerPass("halo", HALO, factory) });
+    expect(() => installPlugin("other", { register: api => api.registerPass("bloom", HALO, factory) })).toThrow(/registered by engine/);
+    expect(() => installPlugin("other", { register: api => api.registerPass("halo", HALO, factory) })).toThrow(/registered by fx/);
+    expect(() => installPlugin("fx", {
+      register: api => {
+        api.registerPass("twice", HALO, factory);
+        api.registerPass("twice", HALO, factory);
+      },
+    })).toThrow(/registered twice/);
+    expect(passRegistration("twice")).toBeUndefined();
+    expect(passRegistration("halo")?.owner).toBe("fx");
+    expect(passRegistration("bloom")?.owner).toBe("engine");
   });
 });
 

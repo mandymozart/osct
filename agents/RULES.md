@@ -58,9 +58,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).
    Tests of removed features are not wanted – test behaviour that stays. Test layers: README "Tests".
-10. **One version** (semver) for the app, the content tooling (`scripts/`) and the server: `client/package.json`,
-    `scripts/package.json` and `server/api/src/Version.php` always carry the same version (checked by tests
-    + CI); the source is `client/package.json`.
+10. **One version** (semver) for the app, the content tooling (`scripts/`), the server and the MCP server (`mcp/`):
+    `client/package.json`, `scripts/package.json`, `server/api/src/Version.php` and `mcp/package.json` (+ `VERSION` in
+    `mcp/src/user.ts`) always carry the same version (checked by tests + CI); the source is `client/package.json`.
     **Content compatibility = the content schema `MAJOR.MINOR`, nothing else**: `CONTENT_SCHEMA_VERSION`
     (`shared/types/game-config.ts`) versions the contract in `shared/`. MAJOR = older apps cannot read it (new
     required field, renamed or removed field, changed type, new enum value) – the app refuses content of a newer
@@ -189,8 +189,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     - **What bumps:** PATCH = fixes, refactors, comments, styling, tooling; MINOR = new features compatible
       with existing content and progress; MAJOR = progress format change (content compatibility is the content
       schema, RULES #10). Changes only in `agents/`, `docs/` or `*.md` need no bump.
-    - **How:** `client/package.json` + lock, `scripts/package.json` + lock, `server/api/src/Version.php`
-      (`npm version X.Y.Z --no-git-tag-version` in client/ and scripts/), then
+    - **How:** `client/package.json` + lock, `scripts/package.json` + lock, `mcp/package.json` + lock (+ `VERSION` in
+      `mcp/src/user.ts`), `server/api/src/Version.php` (`npm version X.Y.Z --no-git-tag-version` in client/, scripts/ and
+      mcp/), then
       `npm run content` in client/ (the regenerated `game.config.json` is not committed).
       Add `## X.Y.Z – <date>` at the top of `docs/CHANGELOG.md` (Added / Changed / Fixed / Removed), written
       for people, not agents.
@@ -243,7 +244,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 27. **CI**: `.github/workflows/checks.yml` ("Checks") runs on every push/PR: the version check (strict into
     `develop`/`main`), scripts type-check + build + tests + fixture build (+ the book content while it is in
     git), the Accounts API test (PHP 8.3, SQLite), client fixture build + `tsc` (app and service worker) +
-    translations status + `vitest`. All four jobs must be green before a merge.
+    translations status + `vitest`, the editor, the MCP server (`mcp/`: `tsc` + vitest with the end-to-end test against
+    the PHP API). All jobs must be green before a merge.
     **Actions minutes** (Tilman, 2026-10-28, #42): every push starts runners. Runs on this public repository are
     free today, but the account's included compute is nearly used up by the private repositories, and OSCT may
     become private. So **push bundled** – at the end of a round or when a stage is done, never after every commit;
@@ -300,6 +302,10 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     the game (spread, found targets, replay) in its own state, and owns the stage, the panels, saving (`/api/editor/*`)
     and publishing. Never a second renderer or scene model: what the author sees is the engine the reader runs,
     built from the same commit. The editor never imports the reader; the reader never imports the editor.
+    **The MCP server** (`mcp/`, #75, docs/mcp.md) is a client of the editor's API like the editor app – over HTTP with the
+    editor's token, never a second path into the database – built after SCUTOONS' MCP (Tilman, 2026-10-29: "do it like in
+    scutoons … this will one day merge"): the API is the only authority, a save is the draft with the editor's link, and
+    readers are reached only by a person (no publish to production from an agent). A new endpoint is a new tool there.
     **UI** (Tilman, 2026-10-29: "check for reference the scutoons UI dogma … reuse components as much as possible,
     save real estate"): the editor's controls follow the Scutoons dogma (`scutoons/agents/DESIGN.md`) built from
     OSCT's own primitives – one control height, rows with a label column, numbers as `<scrub-number>` (never a native

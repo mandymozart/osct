@@ -28,23 +28,35 @@ role. The **first editors and admins** of an instance need no secret: the addres
 settings (GitHub environment variables of the same names, comma-separated, written into the server's config by the
 deploys) get the role when they sign in.
 
-## Try it (the morning test with the demo scene)
+## Try it (the demo book, or the fixture's studio spreads)
 
-The fixture's **studio spreads** (`fixtures/content/FIXTURE.md`, pages 28–31: every entity type, placement and filter)
-are the demo scene. Locally, with SQLite and the local content store:
+The **demo book** (`fixtures/demo/`, `DEMO.md`): six spreads that use every node type, placement, filter and
+component, six plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
+lights when the door opened, a tally counts the pages found, a tap switches a scene ([plugins](plugins.md) "The demo
+book", the note `agents/research/2026-10-30-demo-book.md`). The fixture's **studio spreads**
+(`fixtures/content/FIXTURE.md`, pages 28–31) are the smaller scene of every entity type, placement and filter. Locally,
+with SQLite and the local content store:
 
 1. `server/api/config.local.php` (not committed, copy of `config.local.php.example`): `DB_SQLITE_PATH`, a `SECRET`,
    `MAIL_TRANSPORT => 'log'` with `MAIL_LOG_PATH`, `CONTENT_STORE => 'local'`, and the dev servers in
    `ALLOWED_ORIGINS` (`http://localhost:5175, http://localhost:5174`).
-2. The reader with the fixture: `cd client && OSCT_CONTENT_DIR=fixtures/content npm run content && npm run dev:http -- --port 5174`.
+2. The reader with the demo: `cd client && OSCT_CONTENT_DIR=fixtures/demo npm run content && npm run dev:http -- --port 5174`
+   (the fixture: `OSCT_CONTENT_DIR=fixtures/content`).
 3. The API: `cd client && npm run dev:api` (127.0.0.1:8080). Make yourself an editor with the curl above against
    `http://127.0.0.1:8080/api/admin/editors`.
 4. The editor: `cd editor && npm install && npm run dev` → http://localhost:5175/editor/ (its `/api` is proxied to
    the dev API). Sign in: the code is in the mail log.
 5. **Import a book…** → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
    configuration), *assets at* `http://localhost:5174` → Import. The book appears with its spreads.
-6. Open *Studio A – models*: the stage shows the spread's targets with their entities. Move the tree in the **Entity**
-   tab (type a scale, or press and slide), **Save**, then **Publish** to `local`.
+6. Open *The key*: the stage shows the spread's targets with their entities, the key is found and unlocked – the
+   **Stage** tab's *vars* row shows `book · hasKey = true`, *events* the finds. Walk with › to *The door*: the door
+   lifts and turns, `stage · doorOpen = true`, the lamp on the right page shows. Switch a target off and on with the
+   tree's eye (lost, found again), *Replay the first find* in the stage's right-click menu plays it again, *reset* in
+   the Stage tab starts a new game. Open *The switch*
+   and click the entity on the stage: the next scene shows. The **Code** tab lists the six plugins (compiled by the
+   content build, their sources next to them): change one, **Run**, and the stage shows it. Move a node in the
+   **Entity** tab (type a scale, or press and slide), **Save**, then **Publish** to `local`.
+   With the fixture: open *Studio A – models* the same way.
 7. The reader reads the published version when it is started with
    `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` (`latest.json` names the new build).
 
@@ -54,6 +66,14 @@ The one-page version of this flow for editors, with the diagram, ships with the 
 On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the storage zone's credentials in the
 `staging` GitHub environment ([deploy](deploy.md)); *Import a book… → the CDN* takes the current version, publishing
 writes a new one, and the staging reader sees it on its next start.
+
+**The demo book on staging**: the workflow *Demo book* (`.github/workflows/demo.yml`, by hand or on a push to
+`develop` that touches the demo) builds `fixtures/demo` and syncs it to the environment **`demo`** of the storage zone
+– `https://buildingfictions.b-cdn.net/demo/`. In the staging editor: *Import a book… → URL* with that base URL (the
+form takes the current version and its folder as *assets at*), then open its spreads. Publish it to `local` only:
+a publish to `staging` or `production` would make it the book's current version (the store is per environment, not
+per book). On a phone, the staging reader opens it with
+`https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo` ([content on the CDN](content-cdn.md)).
 
 ## What is on the stage
 
@@ -93,13 +113,16 @@ moving the view moves the stage and the anchors together, which is why entity an
 
 The editor simulates the game around the scene (`stage/stage.svelte.ts`): which spread is open, which targets the
 "camera" sees, which were found for the first time (the unlock animation plays once per target, *replay* plays it
-again). Nothing of the reader's store, progress or routes is involved.
+again), and the reader's progress for the book's plugins (`stage/progress.ts` – the engine's `api.progress` and the
+`book` scope of its variables, alive while the workspace is open). Nothing of the reader's store, progress or routes
+is involved.
 
 ## The app
 
 - **Books** (`/editor/`): the instance's books, *Import a book…* (the CDN's current version, a `game.config.json` by
-  URL or file; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
-  media is copied).
+  URL or file, or a **content base URL** – a CDN folder with `latest.json`, e.g. `…/demo` – whose current version is
+  taken; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
+  media is copied; for a content base it is the version's folder).
 - **Spreads** (`/editor/<book>/`): the spreads as cards with the sheet of each as its preview (from the book's layout
   at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
@@ -173,7 +196,11 @@ again). Nothing of the reader's store, progress or routes is involved.
     change the distance, **double tap** returns to the reader's view (35 cm above the page, tilted 30°; the free orbit
     is kept on the device). Found / lost per target is the tree's eye (off reports it lost → outro, on found again →
     reveal); **Replay the first find** is in the stage's right-click menu. (The panel's view presets and found chips
-    doubled these and are gone – Tilman, 2026-10-29.)
+    doubled these and are gone – Tilman, 2026-10-29.) **vars** and **events**: the book's plugins' variables with
+    their scopes (`book · hasKey = true`) and the last events of the stage (found, lost, unlocked, spreadChanged, the
+    plugins' own), newest first – the narrative of a book like the demo ([plugins](plugins.md) "Across nodes and
+    pages") is driven from the tree's eyes and read here; **reset** starts a new game (every variable cleared, nothing
+    unlocked, the spread found anew).
   - **Entity** – first the **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;
     **Save placement** writes it; until then a target made in the editor lies where its form put it, an imported one
@@ -263,12 +290,17 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   target are phase 15 step 3; the book's own code is the Code tab (above).
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
-- The plugin API 1.0 has components and material layers (`registerComponent`, `registerLayer`, `api.three`); node
-  types are #77, events beyond a node's own, variables and scopes come when a work needs them. The Code tab has no
-  completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind the
-  publish (#78).
-- The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with an owner, and
-  `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade) and a plugin's
-  passes reach the build and the guard with `unknownTypes: "allow"` where plugins are declared.
+- The plugin API 1.1 has components, material layers, events, variables in scopes, the progress and the spread
+  (`registerComponent`, `registerLayer`, `registerPass`, `api.three`, `api.events`, `api.vars`, `api.progress`,
+  `api.spread`); node types are #77, declared variables and a `behaviour` component without code come when a work needs them. The Code
+  tab has no completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind
+  the publish (#78).
+- What the stage cannot simulate of a reader's game: consulted entries (no entry view), a reader's stored progress
+  (the stage's progress lives while the workspace is open – leaving to the spread list starts a new game), two
+  spreads on one stage (the mock tracker reports the current spread's targets only; a `stage` variable survives the
+  switch, a `spread` variable does not), the reader's UI around the scene.
+- The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with the plugin as
+  owner, and `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade); the
+  build and the guard do not accept a spread naming a plugin's pass yet (#97).
 - The phone layout of the workspace (the sheet) is built but was checked on the desktop only; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

@@ -9,6 +9,7 @@ strict=false; [ "${1:-}" = "--strict" ] && strict=true
 
 v=$(node -p "require('./client/package.json').version")
 scripts=$(node -p "require('./scripts/package.json').version")
+mcp=$(node -p "require('./mcp/package.json').version")
 server=$(sed -n "s/.*APP = '\(.*\)'.*/\1/p" server/api/src/Version.php)
 fail() { echo "::error::$1"; exit 1; }
 
