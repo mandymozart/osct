@@ -13,7 +13,7 @@
  * Environment (or a scripts/.env file, never committed):
  *   OSCT_CONTENT_DIR             the content source (absolute or relative to the repository; fixtures/content for
  *                                the test fixture; default: a local content/ folder)
- *   OSCT_CONTENT_ENV             environment when --env is not given: staging | production
+ *   OSCT_CONTENT_ENV             environment when --env is not given: staging | production | demo
  *   BUNNY_STORAGE_ZONE           storage zone (osct)
  *   BUNNY_STORAGE_ZONE_ENDPOINT  Storage API host (storage.bunnycdn.com)
  *   BUNNY_STORAGE_PASSWORD       the zone's access key (read-only is enough for status and purge --dry-run)
@@ -28,6 +28,7 @@ import {
   DEFAULT_PURGE,
   describePurge,
   describeSync,
+  isDemoBuild,
   isFixtureBuild,
   planPurge,
   planSync,
@@ -37,6 +38,7 @@ import {
   runSync,
 } from './lib/content-sync';
 import { StorageClient } from './lib/storage';
+import { DEMO_ENV } from './config';
 
 // scripts/.env is loaded by config.ts (imported through lib/content-sync)
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -60,7 +62,7 @@ const USAGE = `osct – content command line
                                                delete old versions that are provably out of use
                                                (defaults: --min-age ${DEFAULT_PURGE.minAgeDays} --keep ${DEFAULT_PURGE.keep})
 
-<env>: staging | production. Storage access: BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ZONE_ENDPOINT,
+<env>: staging | production, demo for the demo book (fixtures/demo). Storage access: BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ZONE_ENDPOINT,
 BUNNY_STORAGE_PASSWORD, CONTENT_BASE_URL (environment variables or scripts/.env). docs/content-cdn.md`;
 
 const required = (name: string): string => {
@@ -133,6 +135,9 @@ async function main(): Promise<void> {
       const build = readContentBuild();
       if (isFixtureBuild(build)) {
         throw new Error('This build is the test fixture (fixtures/content) – build the content source first (OSCT_CONTENT_DIR)');
+      }
+      if (isDemoBuild(build) && env !== DEMO_ENV) {
+        throw new Error(`This build is the demo book (fixtures/demo) – it goes to --env ${DEMO_ENV} only, never where the book's current version is`);
       }
       const client = storage();
       const plan = await planSync(client, env, build, flag('force'));

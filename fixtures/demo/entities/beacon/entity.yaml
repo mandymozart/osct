@@ -1,0 +1,22 @@
+# The shared entity of the twins: a tall model turned a quarter and spinning, a line of text under it.
+type: group
+params:
+  position: [0, 0.05, 0]
+children:
+  - type: model
+    assets:
+      - src: beacon.glb
+    params:
+      rotation: [90, 90, 0]
+      position: [0, 0, 0.05]
+      scale: 0.8
+    components:
+      - type: spin
+        degreesPerSecond: -20
+        axis: y
+  - type: text
+    text: "{{entry.title}}"
+    color: "#ffffff"
+    params:
+      position: [0, -0.42, 0.01]
+      scale: 0.7

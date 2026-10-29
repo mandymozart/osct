@@ -1,0 +1,33 @@
+# The back cover's colophon: the book's title as text, a chest, and the tally of the whole book – "complete" when
+# every page was found.
+category: glossary
+title: The colophon
+page: 9
+body: "The back cover: `{{book.title}}` as a text node, a chest, and the `tally` of the whole book – it says complete when every page was found."
+tags: [narrative, progress]
+target:
+  image: target.jpg
+  print:
+    surface: back
+    x: 65
+    y: 120
+    width: 100
+  entity:
+    type: group
+    children:
+      - type: text
+        text: "{{book.title}}"
+        color: "#f3cc94"
+        params:
+          position: [0, 0.4, 0.01]
+      - type: model
+        src: chest.glb
+        params:
+          rotation: [90, 0, 0]
+          scale: 0.4
+          position: [0, 0.05, 0]
+    components:
+      - type: tally
+        of: book
+        label: of the book found
+        color: "#f3cc94"

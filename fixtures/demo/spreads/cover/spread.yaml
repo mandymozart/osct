@@ -1,0 +1,6 @@
+# The front cover (format cover, page 0): the stage shows the closed book, the seal lies on its surface `front`.
+title: Cover
+order: -1
+firstPage: 0
+lastPage: 0
+format: cover

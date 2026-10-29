@@ -16,6 +16,11 @@ if (!process.env.VITEST && existsSync(envFile)) process.loadEnvFile(envFile);
 export const FIXTURE_DIR = resolve(projectRoot, 'fixtures/content');
 /** Marks the fixture; the build copies it into the output, `osct content sync` refuses a build with it */
 export const FIXTURE_MARKER = 'FIXTURE.md';
+/** The demo book (fixtures/demo, agents/research/2026-10-30-demo-book.md): a sandbox next to the fixture */
+export const DEMO_DIR = resolve(projectRoot, 'fixtures/demo');
+/** Marks the demo; a build with it goes to the environment DEMO_ENV only – never where the book's current version is */
+export const DEMO_MARKER = 'DEMO.md';
+export const DEMO_ENV = 'demo';
 
 // The content source. The book content is not in this repository: OSCT_CONTENT_DIR names its folder (absolute, or
 // relative to the repository root – `fixtures/content` for the fixture). Default: a local `content/` folder.
