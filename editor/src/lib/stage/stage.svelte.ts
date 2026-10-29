@@ -95,7 +95,12 @@ export class Stage {
     if (entity) this.overrides.set(targetId, entity);
     else this.overrides.delete(targetId);
     this.scene.overrideEntity(targetId, entity);
-    this.gizmo?.sync();
+    this.gizmo?.select(this.visibleSelection());
+  }
+
+  /** The selection while its target shows a tree (a removed root leaves the gizmo nothing to hold) */
+  private visibleSelection(): GizmoSelection | null {
+    return this.selection && this.treeOf(this.selection.targetId) ? this.selection : null;
   }
 
   // ── The gizmo: TransformControls on the selected node, writing the node's placement into the override ──
@@ -112,14 +117,14 @@ export class Stage {
       this.override(selection.targetId, withNode(base, selection.path, { ...node, params: { ...node.params, ...placement } }));
     });
     this.gizmo.mode = this.wantedMode;
-    this.gizmo.select(this.selection);
+    this.gizmo.select(this.visibleSelection());
   }
 
   /** The gizmo follows the selection (null = none) */
   selectNode(targetId: string | null, path: number[] = []): void {
     this.selection = targetId ? { targetId, path } : null;
     this.ensureGizmo();
-    this.gizmo?.select(this.selection);
+    this.gizmo?.select(this.visibleSelection());
   }
 
   setGizmoMode(mode: GizmoMode): void {
