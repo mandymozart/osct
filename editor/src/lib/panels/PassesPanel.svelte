@@ -9,13 +9,15 @@
   import ColourField from "$lib/components/ColourField.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
+  import Section from "$lib/components/Section.svelte";
 
   /**
    * The spread's **post-processing** (content schema 2.5): the passes over the rendered image in order – the built-in
    * bloom, vignette and grade with their rows from the contract's specs. Changes show live on the stage (under
    * *rendered*), the draft stays unchanged until **Save** writes the list to the spread. Without a list of its own the
    * spread shows the book's passes; *+ type* starts a list of its own, removing the last pass leaves an empty list
-   * (none), **Back to the book's** drops the list.
+   * (none), **Back to the book's** drops the list. A collapsible section of the Stage panel; the passes' descriptions
+   * are their help in the Info view.
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
@@ -83,17 +85,20 @@
   };
 </script>
 
-<div class="section"><span class="section-label">post-processing</span>
-  <span class="small muted">{passes === null ? (bookPasses.length ? "the book's" : "none") : passes.length ? "this spread's" : "off"}</span></div>
+{#snippet status()}
+  <span class="small muted">{passes === null ? (bookPasses.length ? "the book's" : "none") : passes.length ? "this spread's" : "off"}</span>
+{/snippet}
+<Section id="stage.passes" label="post-processing" aside={status}
+  help="The passes over the rendered image, in order. Changes show live on the stage (rendered shading); Save writes the list to the spread. Without a list of its own the spread uses the book's.">
 {#each shown as pass, i (i)}
-  <div class="row"><span class="label">{pass.type}</span>
+  <div class="row" data-help-name={pass.type} data-help={(PASSES as Record<string, { description: string }>)[pass.type]?.description ?? "A plugin's pass."}>
+    <span class="label pass">{pass.type}</span>
     <span class="controls">
-      <span class="small muted">{(PASSES as Record<string, { description: string }>)[pass.type]?.description ?? "a plugin's pass"}</span>
       <button type="button" class="text-link" onclick={() => remove(i)}>remove</button>
     </span></div>
   {#each passRows(pass, i) as row (row.id)}
     {@const name = row.id.split(".")[2]}
-    <div class="row" class:changed={passValue(pass, row) !== (draft?.[i] ? passValue(draft[i], row) : row.default)} title="{row.description} – default {row.default}">
+    <div class="row" class:changed={passValue(pass, row) !== (draft?.[i] ? passValue(draft[i], row) : row.default)} data-help-name="{pass.type} · {name}" data-help="{row.description} – default {row.default}">
       <span class="label sub">{name}</span>
       {#if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(passValue(pass, row))} labels={passOptionLabels(pass, row)} onchange={v => set(i, row, v)} /></span>
@@ -106,7 +111,7 @@
     </div>
   {/each}
 {/each}
-<div class="row"><span class="label">add pass</span>
+<div class="row" data-help="Adds a pass at the end of the list; a spread without a list of its own starts one from the book's."><span class="label">add pass</span>
   <span class="controls">
     {#each PASS_TYPES as type (type)}
       <button type="button" class="pill" onclick={() => add(type)}>+ {type}</button>
@@ -122,11 +127,13 @@
     <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
   </div>
 {/if}
+</Section>
 
 <style>
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .label.sub { padding-left: 1rem; }
+  .label.pass { color: var(--text); }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
 </style>
