@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Color, PerspectiveCamera, Scene, Vector2 } from "three";
 import { PostChain } from "../post/chain";
+import { cameraGrades, cameraGradeShader } from "../post/grade";
 import { passContext, passRegistration, registeredPassTypes, registerPass, unregisterPassesOf } from "../post/registry";
 import "../post/index";
 
@@ -103,5 +104,51 @@ describe("a live edit of a pass", () => {
     expect(grade.uExposure.value).toBeCloseTo(Math.pow(2, -1.8));
     expect((vignette.uColor.value as Color).getHexString()).toBe("00ff00");
     chain.dispose();
+  });
+});
+
+describe("the grade's reach", () => {
+  const grade = (data: Record<string, unknown>) => {
+    const registration = passRegistration("grade")!;
+    const pass = registration.factory(passContext(registration, { type: "grade", ...data }, new Vector2(1, 1), 1));
+    return { pass, uniforms: (pass as unknown as { uniforms: Record<string, { value: unknown }> }).uniforms };
+  };
+  const mask = { isTexture: true } as never;
+
+  it("ar (the default) takes the AR layer's mask, all grades the whole image", () => {
+    const ar = grade({});
+    ar.pass.setMask!(mask);
+    expect(ar.uniforms.uMasked.value).toBe(1);
+    expect(ar.uniforms.tMask.value).toBe(mask);
+    const all = grade({ reach: "all" });
+    all.pass.setMask!(mask);
+    expect(all.uniforms.uMasked.value).toBe(0);
+    expect(all.uniforms.tMask.value).toBeNull();
+  });
+
+  it("a live edit of the reach switches the mask on and off", () => {
+    const { pass, uniforms } = grade({});
+    pass.setMask!(mask);
+    pass.update!({ reach: "all", exposure: 0, contrast: 1, saturation: 1, tint: "#ffffff" });
+    expect(uniforms.uMasked.value).toBe(0);
+    pass.update!({ reach: "ar", exposure: 0, contrast: 1, saturation: 1, tint: "#ffffff" });
+    expect(uniforms.uMasked.value).toBe(1);
+    expect(uniforms.tMask.value).toBe(mask);
+  });
+
+  it("the camera picture gets a shader only for the grades that reach it, in order", () => {
+    expect(cameraGrades([{ type: "grade" }, { type: "bloom" }, { type: "grade", reach: "ar" }])).toEqual([]);
+    expect(cameraGradeShader([])).toBeNull();
+    const grades = cameraGrades([{ type: "vignette" }, { type: "grade", reach: "all", exposure: 1, saturation: 0 }, { type: "grade", reach: "all", contrast: 1.5 }]);
+    expect(grades).toEqual([
+      { reach: "all", exposure: 1, contrast: 1, saturation: 0, tint: "#ffffff" },
+      { reach: "all", exposure: 0, contrast: 1.5, saturation: 1, tint: "#ffffff" },
+    ]);
+    const shader = cameraGradeShader(grades)!;
+    expect(shader).toMatch(/varying vec2 texUv;[\s\S]*uniform sampler2D sampler;/);
+    expect(shader).toContain("s *= vec3(2.0, 2.0, 2.0);");
+    expect(shader).toContain("s, 0.0), 0.0);");
+    expect(shader).toContain("* 1.5 + MID_GREY;");
+    expect(shader.indexOf("vec3(2.0, 2.0, 2.0)")).toBeLessThan(shader.indexOf("* 1.5 + MID_GREY"));
   });
 });

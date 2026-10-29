@@ -41,11 +41,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   newer MAJOR at startup; it reads every MAJOR from `OLDEST_READABLE_SCHEMA_MAJOR` on as it is (so far the one
  *   MAJOR, the node tree, only added).
  * - MINOR: an addition older apps ignore – a new optional field (the book's `environment` since 2.8), and since 2.6 a
- *   new node type (the guard lets an unknown one pass; a 2.5 app refuses it). Any MINOR of the same MAJOR loads.
+ *   new node type (the guard lets an unknown one pass; a 2.5 app refuses it), and since 2.9 a new pass parameter
+ *   (the grade's `reach`: the guard ignores a parameter it does not know; a 2.8 app refuses it). Any MINOR of the
+ *   same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.8";
+export const CONTENT_SCHEMA_VERSION = "2.9";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 

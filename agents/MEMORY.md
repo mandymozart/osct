@@ -4,6 +4,16 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The grade's reach, content schema 2.9 (#136)
+
+- `grade` has `reach: ar | all`. The phone's camera picture is drawn by the 8th Wall engine into its own canvas (a
+  second WebGL context) and never reaches the post chain; `all` grades it through the engine's camera renderer
+  instead (`XR8.GlTextureRenderer.configure({ fragmentSource })`, `cameraGradeShader` in `post/grade.ts`) – check that
+  this API is still there on an engine upgrade. It is graded before the AR layer lies over it, so passes before the
+  grade are not graded on it, and the look-around world is not graded at all.
+- A new pass parameter is now MINOR in earnest: the app's guard ignores a pass parameter it does not know
+  (`unknownParams: "ignore"`); the build and the API still refuse it. A 2.8 app still refuses `reach`.
+
 ## 2026-10-30 – content out of git, one rewrite with the Claude cleanup (#5, #30)
 
 - Tilman: the old Claude attribution leaves the history in the **same** filter-repo run as the content (one force push,

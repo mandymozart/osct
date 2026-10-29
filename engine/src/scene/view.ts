@@ -208,7 +208,7 @@ export class ArView {
     }
     if (this.post?.active) {
       // The whole scene through the passes: the backdrop (the camera picture's stand-ins) is part of the image they
-      // shade, the grade is limited to the AR layer by its mask
+      // shade, a grade with `reach: ar` is limited to the AR layer by its mask
       if (!this.underlay?.active) this.renderer.clear();
       this.renderer.autoClear = false;
       this.post.render(this.hasBackdrop() ? { arLayers: 1 << AR_LAYER } : null);
