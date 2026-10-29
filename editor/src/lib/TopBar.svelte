@@ -30,7 +30,7 @@
   const spreadLabel = $derived(!spread ? spreadId : formatLabelOf(spread) ? spread.title || formatLabelOf(spread) : `p. ${captionOf(spread) || pagesOf(spread)}`);
 </script>
 
-<header class="top">
+<header class="top" data-app-ui>
   <nav class="crumbs" aria-label="Breadcrumb">
     {#if session.isEditor}
       <a href="{base}/" class="crumb" aria-current={!bookId && !isAdminRoute ? "page" : undefined}>Books</a>
