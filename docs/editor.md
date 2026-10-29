@@ -52,7 +52,11 @@ writes a new one, and the staging reader sees it on its next start.
 ## What is on the stage
 
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: a table,
-the open book, and the current spread's printed images:
+the open book as an object – two blocks of paper on a dark cover board that overhangs the pages by 3 mm, the block's
+thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) – and the current
+spread's printed images. Every plane lies a hair (0.5 mm) under the one above it: the entities sit at the target's
+own plane (z = 0, as the tracker reports it), the printed image one layer below, the sheet's image below that, so
+nothing flickers. The printed images:
 
 - with the **book's layout** (`content/layout/`, imported from the designed PDFs – [content guide](content.md),
   "Importing the book layout"): the spread's sheet as laid out is the page's texture, and every target lies exactly
@@ -78,7 +82,8 @@ again). Nothing of the reader's store, progress or routes is involved.
 - **Books** (`/editor/`): the instance's books, *Import a book…* (the CDN's current version, a `game.config.json` by
   URL or file; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
   media is copied).
-- **Spreads** (`/editor/<book>/`): the spreads with their entries, targets and AR count; **Publish** with the
+- **Spreads** (`/editor/<book>/`): the spreads as cards with the sheet of each as its preview (from the book's layout
+  at *assets at*; without a layout the cards are text), their entries, targets and AR count; **Publish** with the
   environment (`local`, `staging`, `production` – production asks).
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row

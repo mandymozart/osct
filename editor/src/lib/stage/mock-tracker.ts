@@ -1,6 +1,6 @@
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { Target } from "@engine/types";
-import { getSpread } from "@engine/content/game-config";
+import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, TriggerInfos } from "@engine/utils/trigger-protocol";
 import { fetchStageLayout, LayoutSheet, sheetForSpread, sheetImageUrl, StageLayout } from "./stage-layout";
@@ -40,6 +40,11 @@ export interface StageSheet {
   image: string;
   widthMm: number;
   heightMm: number;
+}
+
+/** The book as an object: how many spreads it has (the stage's block thickness follows) */
+export interface StageBook {
+  spreads: number;
 }
 
 export interface Orbit extends PreviewOrbit {}
@@ -168,7 +173,7 @@ export const wobbled = (orbit: Orbit, wobble: number, t: number): { orbit: Orbit
 /** What the stage draws – set by the tracker, which owns the layout and the camera */
 export interface StageView {
   /** The spread's targets on the page format, over the sheet's image when the book's layout has one */
-  setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null): void;
+  setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null, book: StageBook): void;
   setBackdrop(backdrop: PreviewState["backdrop"], photo: string | null): void;
   /** Every frame: the stage's frame relative to the camera (the camera stays at the origin) */
   update(cameraInverse: Matrix4): void;
@@ -240,13 +245,17 @@ export class MockTracker implements IImageTracker {
   attachStage(stage: StageView): void {
     this.stage?.dispose();
     this.stage = stage;
-    if (this.targets.length) stage.setLayout(this.targets, this.pageFormat(), this.stageSheet());
+    if (this.targets.length) stage.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
     stage.setBackdrop(this.preview.backdrop, this.preview.photo);
   }
 
   /** The page format: the book's layout, else this book's constant */
   private pageFormat(): PageFormat {
     return this.layout?.page ?? BOOK_PAGE_MM;
+  }
+
+  private stageBook(): StageBook {
+    return { spreads: Math.max(1, getSpreads().length) };
   }
 
   private stageSheet(): StageSheet | null {
@@ -272,7 +281,7 @@ export class MockTracker implements IImageTracker {
     this.spreadId = spreadId;
     this.sheet = sheetForSpread(this.layout, getSpread(spreadId));
     this.targets = layoutTargets(targets, this.infos, this.pageFormat(), this.layout);
-    this.stage?.setLayout(this.targets, this.pageFormat(), this.stageSheet());
+    this.stage?.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
     this.publishState();
   }
 
