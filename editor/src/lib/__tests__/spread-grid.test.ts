@@ -26,6 +26,12 @@ describe("spread grid", () => {
     }
   });
 
+  it("knows a single page's side of the gutter (the cover is a right-hand page)", () => {
+    const cover = cells.find(c => !c.spacer && c.spread.id === "cover");
+    expect(cover && !cover.spacer && cover.side).toBe("right");
+    for (const cell of cells) if (!cell.spacer && cell.span === 2) expect(cell.side).toBeNull();
+  });
+
   it("never wraps a double page", () => {
     for (const { cell, start } of layoutOf()) {
       if (!cell.spacer) expect((start % GRID_COLUMNS) + cell.span).toBeLessThanOrEqual(GRID_COLUMNS);

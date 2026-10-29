@@ -12,7 +12,8 @@ export interface GridSpread {
   format?: string;
 }
 
-export type GridCell<T extends GridSpread> = { spacer: true } | { spacer: false; spread: T; span: 1 | 2 };
+/** `side`: a single page's side of the gutter (a right-hand page on an odd column) – its padding there is dropped */
+export type GridCell<T extends GridSpread> = { spacer: true } | { spacer: false; spread: T; span: 1 | 2; side: "left" | "right" | null };
 
 /** Columns of the grid (an even number, so a double page never wraps) */
 export const GRID_COLUMNS = 8;
@@ -34,7 +35,7 @@ export const gridCells = <T extends GridSpread>(spreads: T[]): GridCell<T>[] => 
       cells.push({ spacer: true });
       column += 1;
     }
-    cells.push({ spacer: false, spread, span });
+    cells.push({ spacer: false, spread, span, side: span === 2 ? null : column % 2 === 1 ? "right" : "left" });
     column = (column + span) % GRID_COLUMNS;
   }
   return cells;
