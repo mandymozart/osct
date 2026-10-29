@@ -65,13 +65,40 @@ decides). Resources `osct://rules/content-model` and `osct://guides/plugins` (do
   editor), no renditions / transcoding (the content build's).
 - No personal access tokens, no one-file build, no Desktop extension (above).
 
-## Tried with Claude Code (2026-10-30)
+## Tried (2026-10-30)
 
-The fixture imported into a local API (SQLite, mail log, `EDITORS` with a test address), `claude -p` with this
-`.mcp.json` and the prompt "add a target on spread 30–31 with a tinted video" – the essence:
+The fixture imported into a local API (PHP on 8082, SQLite, mail log, `EDITORS` with the test address – 17 spreads,
+49 entries, 47 targets, 2 shared entities), the editor signed in through the mail log. `claude -p` with the server could
+not run: the Claude Code **CLI** on this machine is not signed in (`claude auth status`: `loggedIn: false` – the desktop
+app's session is not the CLI's), so the example task ran as a **scripted MCP session over stdio** with the same tools in
+the order an agent takes them (`scratchpad/try.mjs`, the client SDK). The essence:
 
-- _filled in below after the run_
+- `whoami` → editor@example.test, roles reader + editor, `services.editor: true`, the editor's URL, the confirm line.
+- `get_spread { page: 31 }` → *Studio B – videos* (30–31), five targets with their entities resolved (`studio-shared-b`
+  as the shared `showcase-tree`; `studio-screen` already carries `tint`) – 3.5 KB. `describe_content_model { book }` →
+  7.4 KB: the contract plus the declared plugin `tint` (its `src` below the assets base) and no Code tab sources.
+- `upload_asset` twice (a 10 KB mp4, an 11 KB jpg) → URLs under `…/api/content/assets/osct/<id>/v1.<ext>`; the image
+  with width / height, the video with `width: null, height: null` (→ #91).
+- `add_entry` with `scale: -1` → refused before the request: `target.entity.params.scale: expected a number > 0 …`.
+  Then the real one: entry `p31-mcp-try` on `studio-b`, the standing video (`rotation [90, 0, 0]`, `position [0, 0, 0.3]`,
+  `scale 0.6`) with `components: [{ type: tint, color: "#f3cc94", opacity: 0.35 }]`, `print` on the right page at 40 / 60 mm,
+  80 mm wide; the answer carries the warning *component types no built-in provides: tint* although the book declares the
+  plugin (→ #90) and `open: http://localhost:5175/editor/osct/studio-b/`.
+- `get_spread` again lists the new target last; `list_changes` shows entry + target by the editor; `publish production`
+  → `production-is-a-person` with the editor's link, nothing sent.
+- The end-to-end test (`mcp/test/e2e.test.ts`) runs the same flow from a cold API, sign-in by mail code included, in
+  about 1.5 s.
 
 ### What an agent needs that the API does not give yet (proposals)
 
-- _filled in below after the run_
+- **Where the imported targets are printed**: every imported target answers `print: null` – the layout lives in
+  `content/layout/` (the designed PDFs) and reaches the editor's stage, not the API. An agent placing a new target next
+  to an existing one guesses. **#60** (page format and printed positions in the content) covers it – note there that
+  the API / `get_spread` should carry it.
+- **The page format** (230 × 320 mm, the editor's constant): an agent choosing `print` in mm needs it. Part of #60.
+- **A plugin's spec**: the configuration declares `tint` but not what it registers, so the guard cannot check its
+  parameters and the MCP warns about a declared plugin's type → **#90** (the specs recorded in the configuration).
+- **A video's dimensions and duration** on upload → **#91**.
+- **Seeing the stage**: the agent hands over the link; a headless render → **#89**.
+- Not missing: the tree, the spread with resolved entities, the contract, uploads, the draft, the logs – the API as it
+  is carries the morning's work ("add a target with a tinted video") without a change.
