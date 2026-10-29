@@ -26,6 +26,8 @@ class FakeArScene implements IArScene {
   inspect() { return null; }
   overrides: Array<[string, unknown]> = [];
   overrideEntity(targetId: string, entity: unknown) { this.overrides.push([targetId, entity]); }
+  overridePasses() {}
+  setPostProcessing() {}
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]) {
     const list = this.listeners.get(event) ?? [];
     list.push(listener);
