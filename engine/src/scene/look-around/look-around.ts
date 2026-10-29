@@ -123,6 +123,8 @@ export class LookAround {
 
   /** The editor's preview on (the world drawn, turned by its orientation) or off (`null`: the reader's switches again) */
   setPreview(preview: LookAroundPreview | null): void {
+    // The preview ends at once (the editor's studio returns), it does not fade
+    if (this.preview && !preview) this.presence = 0;
     this.preview = preview;
     this.options = this.drawn();
     this.followOptions();
@@ -149,7 +151,13 @@ export class LookAround {
 
   /** Every frame: the found pages' anchors (relative to the camera) place the book; `delta` in seconds */
   update(delta: number, viewCamera: PerspectiveCamera, anchors: readonly Matrix4[]): void {
-    if (!this.running || !this.anyOption()) return;
+    if (!this.running) return;
+    if (!this.anyOption()) {
+      // Both turned off while scanning: the world fades out as when the book is forgotten, nothing else is read
+      this.presence = Math.max(0, this.presence - delta / FADE_OUT);
+      this.skyInView = false;
+      return;
+    }
     this.time += delta;
     const orientation = this.preview?.orientation() ?? this.orientation.quaternion;
     if (anchors.length) this.book.see(anchors, orientation, this.settings.windowMargin, this.settings.windowSoftness);

@@ -1,7 +1,8 @@
-import { Matrix4, Quaternion, Vector3 } from "three";
+import { Matrix4, PerspectiveCamera, Quaternion, Vector3, WebGLRenderer } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { deviceQuaternion } from "../look-around/orientation";
 import { BookAnchor, lerpAngle, windowRadii, yawTowards } from "../look-around/book-anchor";
+import { LookAround } from "../look-around/look-around";
 
 const forward = (alpha: number, beta: number, gamma: number, screen = 0) =>
   new Vector3(0, 0, -1).applyQuaternion(deviceQuaternion(alpha, beta, gamma, screen));
@@ -79,3 +80,61 @@ describe("BookAnchor", () => {
   });
 });
 
+
+describe("LookAround", () => {
+  /** A graphics source the test switches; the renderer is never drawn with here */
+  const setup = () => {
+    let settings = { onionSky: true, surroundings: true };
+    const listeners = new Set<(s: typeof settings) => void>();
+    const graphics = {
+      getSettings: () => settings,
+      subscribe: (listener: (s: typeof settings) => void) => (listeners.add(listener), () => listeners.delete(listener)),
+    };
+    const set = (next: typeof settings) => {
+      settings = next;
+      listeners.forEach(listener => listener(next));
+    };
+    const loaders = { sky: vi.fn(), world: vi.fn() };
+    const lookAround = new LookAround({} as WebGLRenderer, () => null, graphics, { world: "cafe", onionSky: true }, loaders);
+    return { lookAround, set, loaders };
+  };
+  const page = new Matrix4().compose(new Vector3(0, -0.3, -0.4), new Quaternion(), new Vector3(0.2, 0.2, 0.2));
+  const camera = new PerspectiveCamera(60, 1);
+
+  it("fades the world out when the reader turns both switches off while scanning", () => {
+    const { lookAround, set } = setup();
+    lookAround.start();
+    for (let i = 0; i < 40; i++) lookAround.update(0.1, camera, [page]);
+    expect(lookAround.active).toBe(true);
+    set({ onionSky: false, surroundings: false });
+    for (let i = 0; i < 40; i++) lookAround.update(0.1, camera, [page]);
+    expect(lookAround.active).toBe(false);
+    lookAround.dispose();
+  });
+
+  it("the editor's preview draws the world whatever the switches say, turned by its orientation, and ends at once", () => {
+    const { lookAround, set } = setup();
+    set({ onionSky: false, surroundings: false });
+    lookAround.start();
+    const orientation = vi.fn(() => new Quaternion());
+    lookAround.setPreview({ orientation });
+    for (let i = 0; i < 40; i++) lookAround.update(0.1, camera, [page]);
+    expect(orientation).toHaveBeenCalled();
+    expect(lookAround.active).toBe(true);
+    lookAround.setPreview(null);
+    expect(lookAround.active).toBe(false);
+    lookAround.dispose();
+  });
+
+  it("loads the environment's files only once something is drawn", () => {
+    const { lookAround, set, loaders } = setup();
+    set({ onionSky: false, surroundings: false });
+    lookAround.setEnvironment({ world: "cafe", onionSky: true, skySrc: "https://cdn.example/sky.jpg" });
+    lookAround.start();
+    expect(loaders.sky).not.toHaveBeenCalled();
+    loaders.sky.mockReturnValue(new Promise(() => {}));
+    set({ onionSky: false, surroundings: true });
+    expect(loaders.sky).toHaveBeenCalledWith("https://cdn.example/sky.jpg");
+    lookAround.dispose();
+  });
+});
