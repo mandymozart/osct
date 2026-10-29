@@ -3,7 +3,7 @@ import type { SpreadFormat, Target } from "@engine/types";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, TriggerInfos } from "@engine/utils/trigger-protocol";
-import { fetchStageLayout, LayoutSheet, sheetForSpread, sheetImageUrl, StageLayout } from "./stage-layout";
+import { fetchStageLayout, LayoutSheet, printedPlaceOf, sheetForSpread, sheetImageUrl, StageLayout } from "./stage-layout";
 import { getPreview, PreviewOrbit, PreviewState, PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
@@ -262,6 +262,11 @@ export class MockTracker implements IImageTracker {
   /** The stage's printed images (for picking) */
   printedPlanes(): Object3D[] {
     return this.stage?.printedPlanes?.() ?? [];
+  }
+
+  /** Where the book's layout prints a target (null without a layout or a place for it) */
+  printedPlace(targetId: string) {
+    return printedPlaceOf(this.layout, targetId);
   }
 
   ghostParts(): { image: Object3D | null; corner: Object3D | null } {

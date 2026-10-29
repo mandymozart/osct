@@ -1,4 +1,5 @@
 import type { EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
+import type { EnvironmentData } from "@shared/types/environment";
 
 /**
  * The instance's API (server/api, docs/server.md): the accounts endpoints the sign-in uses and the editor's own
@@ -103,7 +104,7 @@ export interface TreeSpread {
 }
 
 export interface BookTree {
-  book: BookSummary & { assetsBase?: string | null; schema?: string };
+  book: BookSummary & { assetsBase?: string | null; schema?: string; book?: { environment?: EnvironmentData } };
   spreads: TreeSpread[];
 }
 
@@ -292,6 +293,10 @@ export const addEntry = (bookId: string, body: { id?: string; title: string; pag
   api<{ entry: { id: string; target: { id: string } }; spreadId: string | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
 
 /** `passes`: the spread's post-processing (schema 2.5); `null` removes the list (the book's applies), `[]` turns it off */
+/** The book's world and onion sky (content schema 2.8); `null` removes them – the default applies */
+export const putEnvironment = (bookId: string, environment: EnvironmentData | null) =>
+  api<{ environment: EnvironmentData | null }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/environment`, { environment });
+
 export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: "spread" | "cover" | "back"; passes?: PassData[] | null }) =>
   api<{ spread: unknown }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, body);
 
