@@ -311,7 +311,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     save real estate"): the editor's controls follow the Scutoons dogma (`scutoons/agents/DESIGN.md`) built from
     OSCT's own primitives – one control height, rows with a label column, numbers as `<scrub-number>` (never a native
     slider or checkbox), small enums as segmented pressed pills, icons (Feather, `editor/icons.ts`, with a name and a
-    tooltip) only where a word makes no sense, the drawn close cross, one sheet whose head is the tab row and whose
+    tooltip) only where a word makes no sense – and the sheet's tabs on a phone (Tilman, 2026-10-30: "Mobile bitte
+    die tabs auch mit icons statt text"), so its head stays one line –, the drawn close cross, one sheet whose head is the tab row and whose
     closed state is that row alone. A control the editor needs is built once in `components/common/` or
     `components/dev-tools/` and used by both the editor and the dev tools (`<tune-inspector>`), never twice.
     **Three token variants** (Tilman, 2026-10-29: "debugging looks like debugging, the editor neutral like Figma,

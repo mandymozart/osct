@@ -10,6 +10,10 @@ import {
 
 const target = (id: string): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg` });
 
+/** A target printed with its centre on the spread's root (the spine's middle): the camera's distance to it is the orbit's */
+const atRoot = (id: string, spreadId = "s"): Target =>
+  ({ ...target(id), spreadId, print: { surface: "right", x: -20, y: BOOK_PAGE_MM.height / 2 - 20, width: 40, height: 40 } }) as Target;
+
 /** The anchor's scale (1 unit = the printed width, in metres) and its position in camera space */
 const decompose = (matrix: Matrix4) => {
   const position = new Vector3();
@@ -165,9 +169,21 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     const { position, scale } = decompose(updates[0][1]!);
     expect(scale.x).toBeCloseTo(0.05, 6); // 50 mm
     expect(position.z).toBeLessThan(0); // in front of the camera
-    expect(position.length()).toBeCloseTo(0.35, 3); // the focus (target a) at the reader's distance
     expect(getEngineState().current).toEqual({ spreadId: "s", targets: 2 });
     expect(getEngineState().seen).toEqual(["a", "b"]);
+  });
+
+  it("keeps the camera on the spread's root when the spread and its targets change (#105)", async () => {
+    await tracker.startCamera();
+    await tracker.loadTargets({ spreadId: "s", targets: [atRoot("a")] });
+    tracker.tick(now);
+    const before = updates.filter(([id]) => id === "a").at(-1)![1]!.clone();
+    expect(decompose(before).position.length()).toBeCloseTo(0.35, 3); // the root at the reader's distance
+    const elsewhere: Target = { ...target("z"), spreadId: "t", print: { surface: "left", x: 10, y: 10, width: 40 } } as Target;
+    await tracker.loadTargets({ spreadId: "t", targets: [elsewhere, atRoot("a", "t")] });
+    tracker.tick(now);
+    const after = updates.filter(([id]) => id === "a").at(-1)![1]!;
+    expect(after.equals(before)).toBe(true); // the first target moved, the camera did not
   });
 
   it("reports a hidden target lost once and found again when shown", async () => {
@@ -203,7 +219,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
 
   it("follows the preview's view preset and a free orbit", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    await tracker.loadTargets({ spreadId: "s", targets: [atRoot("a")] });
     tracker.tick(now);
     const reader = decompose(updates[0][1]!).position.length();
     updatePreview({ view: "far" });

@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The phone sheet: icon tabs, a frozen stage while dragging, the camera on the spread's root (#155, #105)
+
+- Tilman on the S22 after 1.26.0: the sheet drag "glitches and competes with the scene drag", the stage still jumps on
+  a spread change ("first it jumps, then it is fixed") and flickers on resize. Causes: a 14 px grip (a drag just above
+  it landed on the stage), the WebGL canvas resized on every pointer move, the engine waited for its loop's next frame
+  after a resize (a blank frame), and the mock camera looked at the first target (different per spread, missing until
+  the targets arrived). Fixed in 1.26.4.
+- **Tabs as icons on a phone** – Tilman: "Mobile bitte die tabs auch mit icons statt text. Dann ist es auch einfacher
+  und auf einer zeile." An exception to the editor's words-over-icons rule, added to RULES #32's UI part.
+- [ ] Check on the S22: the sheet drag, the icon tabs, a spread change, the Code tab with the soft keyboard.
+
 ## 2026-10-30 – The books page as covers, the demo's pages rendered (#153)
 
 - Tilman: "a clean dashboard with the books cover as image … bigger preview pictures, less useless info … left the

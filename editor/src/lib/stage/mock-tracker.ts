@@ -488,13 +488,13 @@ export class MockTracker implements IImageTracker {
     this.stage?.update(this.cameraInverse);
   }
 
-  /** The point the camera looks at: the first target's centre, else the right page's centre */
+  /**
+   * The point the camera looks at: the spread's root (the spine's middle on an open book, the cover's middle) plus the
+   * author's pan. Never a target's centre: a spread change or targets arriving would move the camera (#105)
+   */
   private focus(): Vector3 {
-    const first = this.targets[0];
-    const page = this.pageFormat();
-    const centre = first ? targetCentre(first, page) : new Vector3(page.width / 2000, 0, 0);
     const pan = this.orbit.pan;
-    return pan ? centre.add(new Vector3(pan.x / 1000, pan.y / 1000, 0)) : centre;
+    return new Vector3((pan?.x ?? 0) / 1000, (pan?.y ?? 0) / 1000, 0);
   }
 
   private loop(): void {
