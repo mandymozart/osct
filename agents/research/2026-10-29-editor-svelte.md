@@ -113,3 +113,44 @@ Svelte editor and recommends one.
   protocol is built in both cases, and A reaches parity with today's sheet in about a day; B when the editor outgrows
   a chunk (forms for every entry, history, the database step).
 - Whether the vanilla `/editor` sheet stays as the on-device quick tool, and the name, stay open.
+- Then: "Und OSCT wird das nie. Das ist für Building Fictions im Moment" – the instance is **Building Fictions**, the
+  brand; OSCT is a title inside it. The editor belongs to the instance, not to the book: its users are the brand's,
+  its API the instance's. And: "Der Editor erstmal im OSCT-Repo" – it is built here (A or B), not in another repository.
+
+## The boundary (proposal, 2026-10-29 evening – Tilman decides)
+
+Tilman: "Das ist die Frage des Routings – wer für was verantwortlich ist. Der Editor hat eine Sonderstellung: er
+braucht die Engine nur für ein Preview, der Rest ist simuliert. Daher muss da eine Grenze her."
+
+The boundary is a route and a protocol, nothing else:
+
+| | Reader (the engine side) | Editor (the tool side) |
+|---|---|---|
+| Owns the routes | `/`, `/spread`, `/entry`, … and **`/stage`** – the one route an editor uses | **`/editor/*`** – its own router (sign-in, book, spread, entry, target, entity, history, publish) |
+| Runs | three.js, 8th Wall or the mock tracker, the mock stage, the preview – **only inside `/stage`** | no engine at all: forms, lists, the 2D spread map (page image + target boxes, simulated), state, history |
+| Knows about | the content it is given (published, or a draft by URL: `/stage?content=<url>`) | users, drafts, the database, versions, the compile step, publishing |
+| Talks | the stage protocol: commands in, state / tapped / ready out (`stage-api.ts`) | embeds `/stage` in an iframe when the author wants the 3D preview; drives it through the protocol |
+| Build and deploy | the reader's Vite build, as today | a SvelteKit app built in the same image, served at `/editor` (B) |
+| Server | `/content/*` (CDN) as today | `/api/editor/*` on the accounts API: drafts, publish, compile job |
+
+Consequences:
+- The reader stays a reader: `/stage` is the editor page without a sheet, no account, no draft logic. If someone
+  opens it by hand they see the mock stage with the published content – harmless.
+- The editor can work without the engine: the spread map (the sheet image from the layout, the targets as boxes,
+  drag to move / resize – the "rest is simulated") is where most editing happens; the iframe is the preview the
+  author opens when they want to see it in 3D. On a phone the iframe fills the screen and the editor is the sheet.
+- `/editor` moves out of the reader's router (the vanilla sheet goes when the Svelte editor reaches parity; the
+  debug overlay's `editor` button then opens `/editor/` the app). The reader's router no longer knows an editor.
+- The compile step is the content build (`scripts/`) run by the server on publish: draft rows → game configuration
+  + plugin bundle → a content version on the CDN; staging first.
+
+Packages to push through once decided (Tilman: "schlafen und durchziehen – bis Ende aller Pakete: Datenbank,
+Editor, Compilieren, Ausliefern"):
+1. `/stage` + protocol in the reader (this branch).
+2. Database: the editor tables (data-model note), `/api/editor/*` (read book, spreads, targets, entities; save
+   entity drafts; publish).
+3. Editor: the SvelteKit app at `/editor` – sign-in (instance user), spread map, Stage / Entity panels on the stage
+   iframe, save.
+4. Compile: publish runs the content build from the database on the server → a new content version.
+5. Deliver: the image builds reader + editor, Kamal deploys to staging; the editor reachable at
+   osct.porschuetz.de/editor.
