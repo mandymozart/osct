@@ -17,7 +17,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ### Changed
 - **The mock stage's book cover is 1 mm thick and ends where the page block ends** (#106): the cover board was 2 mm with a
   3 mm overhang that framed the pages; now `COVER_THICKNESS` is 1 mm and `COVER_OVERHANG` 0, so the board lies flush under
-  the block. The page-edge texture for the cover's hard-cover edge is still open on #106.
+  the block.
+- **The cover's edge carries a paper texture** (#106): the board's four sides show fine paper fibre lines, drawn in code
+  (`coverEdgeTexture()`, a seeded sequence) – no image file, so no licence to check. The page-edge geometry stays a separate change.
 
 ## 1.16.1 – 2026-10-30
 
