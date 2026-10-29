@@ -208,9 +208,12 @@ export class SettingsAccount extends SettingsSection {
 
   private notice(notice: UserNotice | null): string {
     if (!notice) return "";
+    // A refused request (429) says when the next one is allowed – in minutes, rounded up
     const text = typeof notice === "string"
       ? t(NOTICES[notice])
-      : t(`account:errors.${notice.error}`, { defaultValue: t("account:errors.server-error") });
+      : notice.retryAfter
+        ? t(`account:errors.${notice.error}-wait`, { count: Math.max(1, Math.ceil(notice.retryAfter / 60)), defaultValue: t(`account:errors.${notice.error}`, { defaultValue: t("account:errors.server-error") }) })
+        : t(`account:errors.${notice.error}`, { defaultValue: t("account:errors.server-error") });
     return `<p class="description notice" role="${typeof notice === "string" ? "status" : "alert"}">${text}</p>`;
   }
 

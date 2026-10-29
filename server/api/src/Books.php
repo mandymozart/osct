@@ -57,13 +57,14 @@ final class Books
                 'id' => $bookId, 'title' => $book->title, 'author' => $book->author, 'book' => Editor::encode($book),
                 'tutorial' => Editor::encode($parts['tutorial']), 'initial' => $parts['initialSpreadId'], 'base' => $assetsBase,
                 'files' => Editor::encode($files), 'schema' => $parts['schema'], 'hash' => $parts['hash'], 'now' => $now,
+                'plugins' => Editor::encode($parts['plugins']),
             ];
             if (Db::value('SELECT id FROM books WHERE id = :id', ['id' => $bookId]) !== null) {
                 Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, tutorial_json = :tutorial, initial_spread_id = :initial,
-                         assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, updated_at = :now WHERE id = :id', $params);
+                         assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, updated_at = :now WHERE id = :id', $params);
             } else {
-                Db::run('INSERT INTO books (id, title, author, book_json, tutorial_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, created_at, updated_at)
-                         VALUES (:id, :title, :author, :book, :tutorial, :initial, :base, :files, :schema, :hash, :created, :now)', $params + ['created' => $now]);
+                Db::run('INSERT INTO books (id, title, author, book_json, tutorial_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, created_at, updated_at)
+                         VALUES (:id, :title, :author, :book, :tutorial, :initial, :base, :files, :schema, :hash, :plugins, :created, :now)', $params + ['created' => $now]);
             }
             foreach ($parts['spreads'] as $s) {
                 Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
@@ -403,6 +404,12 @@ final class Books
         if ($note !== null && !is_string($note)) throw new ApiError(400, 'invalid-note', 'note must be a string.');
 
         $version = ContentVersion::assemble($bookId);
+        // A component type no plugin can register would make the reader refuse the whole content: a plugin written
+        // in the editor reaches readers through the content source, not through a publish
+        $unknown = self::unknownComponentTypes($version['configuration']);
+        if ($unknown && empty($version['configuration']->plugins)) {
+            throw new ApiError(409, 'unknown-components', 'Nodes use components no compiled plugin provides: ' . implode(', ', $unknown) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['components' => $unknown]);
+        }
         $store = ContentStore::for($env);
         $root = $version['build'];
         $uploaded = $store->exists("$root/game.config.json");
@@ -421,6 +428,31 @@ final class Books
         Db::run('INSERT INTO book_versions (id, book_id, env, build, hash, published_by, published_at, note) VALUES (:id, :book, :env, :build, :hash, :by, :at, :note)',
             ['id' => Db::uuid(), 'book' => $bookId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
         Http::json(200, ['env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now]);
+    }
+
+    /**
+     * The component types of every node of the configuration that are not built in (Editor::COMPONENT_TYPES), sorted
+     * @return list<string>
+     */
+    public static function unknownComponentTypes(stdClass $configuration): array
+    {
+        $types = [];
+        $walk = static function (mixed $node) use (&$walk, &$types): void {
+            if (!$node instanceof stdClass) return;
+            foreach ((array) ($node->components ?? []) as $component) {
+                $type = $component instanceof stdClass ? ($component->type ?? null) : null;
+                if (is_string($type) && !in_array($type, Editor::COMPONENT_TYPES, true)) $types[$type] = true;
+            }
+            foreach ((array) ($node->children ?? []) as $child) $walk($child);
+        };
+        foreach (get_object_vars($configuration->entities ?? new stdClass()) as $entity) $walk($entity);
+        foreach ((array) ($configuration->entries ?? []) as $entry) {
+            $entity = $entry->target->entity ?? null;
+            if ($entity instanceof stdClass && !isset($entity->ref)) $walk($entity);
+        }
+        $list = array_keys($types);
+        sort($list);
+        return $list;
     }
 
     /** GET /editor/books/{id}/versions → { versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] } newest first */
@@ -506,7 +538,7 @@ final class Books
     /**
      * Checks what the rows need of a configuration and splits it into rows-to-be; every other field stays inside the
      * objects (data_json). An entry belongs to the first spread whose pages include its page, else to none.
-     * @return array{book: stdClass, schema: string, hash: ?string, initialSpreadId: string, tutorial: array, spreads: array, entities: array, entries: array, targets: array}
+     * @return array{book: stdClass, schema: string, hash: ?string, initialSpreadId: string, tutorial: array, plugins: array, spreads: array, entities: array, entries: array, targets: array}
      */
     private static function parse(stdClass $c): array
     {
@@ -521,6 +553,15 @@ final class Books
         if (!$entitiesIn instanceof stdClass) $fail('entities must be an object.');
         $tutorial = $c->tutorial ?? [];
         if (!is_array($tutorial)) $fail('tutorial must be an array.');
+        // The book's compiled plugins (content schema 2.4): kept as declared – the content build is their one writer
+        $plugins = $c->plugins ?? [];
+        if (!is_array($plugins)) $fail('plugins must be an array.');
+        foreach ($plugins as $i => $plugin) {
+            if (!$plugin instanceof stdClass || !is_string($plugin->id ?? null) || !preg_match('/^' . Plugins::ID . '$/', $plugin->id)
+                || !is_string($plugin->src ?? null) || !is_string($plugin->api ?? null)) {
+                $fail("plugins[$i] needs id, src and api.");
+            }
+        }
 
         $spreads = [];
         foreach ($c->spreads as $i => $s) {
@@ -562,7 +603,7 @@ final class Books
         }
         return [
             'book' => $book, 'schema' => $version->schema, 'hash' => is_string($version->hash ?? null) ? $version->hash : null,
-            'initialSpreadId' => $c->initialSpreadId, 'tutorial' => $tutorial,
+            'initialSpreadId' => $c->initialSpreadId, 'tutorial' => $tutorial, 'plugins' => $plugins,
             'spreads' => array_values($spreads), 'entities' => array_values($entities), 'entries' => array_values($entries), 'targets' => array_values($targets),
         ];
     }

@@ -22,7 +22,8 @@ class Content {
     this.loading = true;
     try {
       if (this.bookId !== bookId || this.assetsBase === null) this.assetsBase = (await getBook(bookId)).book.assetsBase ?? "";
-      const error = await loadGameConfiguration({ baseUrl: draftBaseUrl(bookId), fetch: authFetch, assetsBase: this.assetsBase || undefined });
+      // The stage is the sandbox: a node may use a component the Code tab's plugins register at Run
+      const error = await loadGameConfiguration({ baseUrl: draftBaseUrl(bookId), fetch: authFetch, assetsBase: this.assetsBase || undefined, unknownComponentTypes: "allow" });
       this.bookId = bookId;
       this.error = error;
       this.spreads = error ? [] : getSpreads();

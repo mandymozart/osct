@@ -152,6 +152,12 @@ The roles' keys ([Roles](#roles)): `EDITORS` and `ADMINS` – comma-separated e-
 
 The editor's keys:
 - `EDITOR_MAX_BYTES` (8 MB): the largest request body of the editor endpoints – the import of a game configuration.
+- `LOGIN_MAX_PER_EMAIL_HOUR` (5), `LOGIN_MAX_PER_IP_HOUR` (30): sign-in emails per hour; over the limit
+  `POST /auth/request` answers 429 `too-many-requests` with `retryAfter` (seconds until the window opens again, also
+  the `Retry-After` header) and the minutes in its message – the reader and the editor show them. **A limit of -1 is
+  no limit** (`Config::limit`; 0 allows nothing), for local testing (`config.local.php.example`) – the same for
+  `LOGIN_MAX_ATTEMPTS` (5 wrong codes) and `PASSWORD_MAX_FAILS_PER_EMAIL_HOUR` / `PASSWORD_MAX_FAILS_PER_IP_HOUR`
+  (10 / 30). Tilman: "-1 ist besser als Limit für aus" (#83).
 - `CONTENT_STORE` (`local`): where a publish to `staging` or `production` goes – `local` = the directory below, `bunny`
   = the storage zone. The environment `local` always stays in the directory.
 - `CONTENT_STORE_DIR` (`api/db/content`): the local store, served by `GET /content/{env}/…`; a relative path counts
@@ -174,7 +180,7 @@ signs in like the reader (email code) and checks `GET /user` for `editor` in `ro
 **Tables** (both schema files, additive): `books` (the book row: `BookData` as `book_json`, the tutorial, the initial
 spread, the imported `files.json`, the content schema, the imported hash, `assets_base`), `spreads`, `entries`,
 `targets`, `entities` (keys `(book_id, id)` / `(book_id, ref)`, deleted with the book), `book_versions` (the publish
-log) and `changes` (the change log). Every content row keeps the object exactly as it was imported in its
+log), `changes` (the change log) and `plugins` (the Code tab's sources, below). Every content row keeps the object exactly as it was imported in its
 `data_json` column – unknown fields included – and `position` keeps the imported order; the typed columns (title,
 page, category, image, entity ref, …) only index the rows for the tree and the queries. An entry's `data_json` is the
 entry without its target; the target row holds the target with its entity, inline or `{ ref }`. An entry belongs to
@@ -232,6 +238,25 @@ bytes uploaded twice are one asset.
 | `DELETE /editor/books/{id}/assets/{aid}[?force=1]` | | 204; 409 `asset-in-use` with `usages` unless forced (the files of every version go) |
 
 Renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build (PLAN 2b).
+
+## Plugin sources
+
+The editor's **Code** tab ([editor](editor.md)) keeps the TypeScript of a book's plugins in the `plugins` table
+(`Plugins.php`): one row per plugin id (`book_id`, `id`, `source`, who, when), at most 256 KB each, every save a
+change (`kind: plugin`, the source before and after). They are the editor's sandbox: the editor transpiles and runs
+them on its own stage, and nothing of them reaches a publish. The compiled plugins a book has come in with the
+import – the configuration's `plugins` list (content schema 2.4: `{ id, src, api }`, written by the content build
+only) is kept in `books.plugins_json` and assembled back after `tutorial`, its `src` below the assets base like
+every other content path. A publish whose nodes use a component type that is neither built in
+(`Editor::COMPONENT_TYPES`) nor possibly a declared plugin's (no `plugins` at all) answers 409 `unknown-components`
+with the types – the reader would refuse such content as a whole.
+
+| Endpoint | Body | Answer |
+|---|---|---|
+| `GET /editor/books/{id}/plugins` | | `{ plugins: [{ id, size, updatedAt, updatedBy }] }` |
+| `GET /editor/books/{id}/plugins/{pid}` | | `{ plugin: { id, source, size, updatedAt, updatedBy } }`; 404 |
+| `PUT /editor/books/{id}/plugins/{pid}` | `{ source }` | `{ plugin }` – new or changed; 400 `invalid-plugin` (the id is 1–40 lower-case letters, digits or `-`; the source a string), 413 above 256 KB |
+| `DELETE /editor/books/{id}/plugins/{pid}` | | 204 |
 
 ### Targets and entries made in the editor
 
