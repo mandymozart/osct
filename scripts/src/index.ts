@@ -17,7 +17,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, FIXTURE_MARKER, OUTPUT_FILE, projectRoot } from './config';
+import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_ENV, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE, projectRoot } from './config';
 import { buildConfig } from './build/game-config';
 import { buildPlugins, writePluginBundles } from './build/plugins';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
@@ -38,6 +38,7 @@ if (!fs.existsSync(path.join(CONTENT_DIR, 'book.yaml'))) {
   process.exit(1);
 }
 if (fs.existsSync(path.join(CONTENT_DIR, FIXTURE_MARKER))) console.log('🧪 This is the test fixture – never synced to the CDN');
+if (fs.existsSync(path.join(CONTENT_DIR, DEMO_MARKER))) console.log(`🎲 This is the demo book – synced to the environment ${DEMO_ENV} only`);
 
 async function generateConfigFile(): Promise<void> {
   try {

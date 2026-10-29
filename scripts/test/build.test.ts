@@ -152,3 +152,23 @@ describe('the test fixture', () => {
     expect(plugins.map(p => p.data.id)).toEqual(['tint']);
   });
 });
+
+describe('the demo book', () => {
+  it('builds without errors: every node type, the covers, a shared entity, six plugins', { timeout: 60000 }, async () => {
+    const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const plugins = await build.plugins.buildPlugins();
+    const { book, spreads, entries } = build.buildAll();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    expect(book.id).toBe('demo');
+    expect(plugins.map(p => p.data.id)).toEqual(['narrative', 'pulse', 'scenes', 'spin', 'tally', 'tint']);
+    expect(spreads.map(s => s.format ?? 'spread')).toEqual(expect.arrayContaining(['cover', 'back', 'spread']));
+    const types = new Set<string>();
+    const walk = (node: { type: string; children?: Array<{ type: string }> }) => { types.add(node.type); (node.children ?? []).forEach(walk as never); };
+    entries.forEach(e => { if (e.target?.entity && !('ref' in e.target.entity)) walk(e.target.entity); });
+    expect([...types].sort()).toEqual(['group', 'image', 'model', 'text', 'video']);
+    expect(entries.some(e => e.target?.entity && 'ref' in e.target.entity)).toBe(true);
+    expect(new Set(entries.map(e => e.category))).toEqual(new Set(['glossary', 'video', 'text', 'link']));
+  });
+});

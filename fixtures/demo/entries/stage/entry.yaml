@@ -1,0 +1,33 @@
+# The switch: a group of three children – an image, an alpha video and a text; the `scenes` component (plugins/scenes)
+# shows one at a time and a tap on the entity switches to the next (the spread variable `scene` counts).
+category: glossary
+title: The switch
+page: 5
+body: "Three scenes in one entity: a picture, a video with its own alpha, a line of text. The `scenes` component shows one child and a tap shows the next – `scene` in the spread scope says which, `sceneChanged` is emitted."
+tags: [interaction, tap]
+target:
+  image: target.jpg
+  print:
+    surface: left
+    x: 60
+    y: 100
+    width: 90
+  entity:
+    type: group
+    children:
+      - type: image
+        src: picture.jpg
+        params:
+          scale: [0.9, 0.6, 1]
+          position: [0, 0, 0.02]
+      - type: video
+        src: sploosh.webm
+        params:
+          rotation: [0, 0, 10]
+          scale: 0.8
+      - type: text
+        text: "Tap me again"
+        color: "#ffffff"
+    components:
+      - type: scenes
+        start: 0
