@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.17.3 – 2026-10-30
+## 1.17.4 – 2026-10-30
 
 ### Changed
 - **The editor's spread cards** (#115): no border, and the page uses the full width instead of a centred column. One
@@ -20,6 +20,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   and the first cell of the first row stays empty, so 2–3, 4–5 … line up as spreads. The caption is one line (pages and
   title, the cover's name no longer shows twice), the counts are small icons with the numbers (entries, targets, with
   AR; titles for screen readers), and the format shows as a small label only when it is not a double page.
+
+## 1.17.3 – 2026-10-30
+
+### Fixed
+- **The Library no longer fails with "Something went wrong on the server"** (#116): since 1.17.1 the asset list also
+  lists the files of the CDN import, and it counted each file's uses with three queries over targets, entities and
+  entries – a build with hundreds of files ran over a thousand queries. The rows are now read once per request
+  (`Assets::usageRows`, `countUsages`), and a `files.json` entry that is not an object no longer breaks the list.
 
 ## 1.17.2 – 2026-10-30
 
