@@ -22,7 +22,8 @@ no admin sees "No admin access" at `/editor/admin`.
   (`reader` is fixed – every account has it; `editor` and `admin` grant / revoke with one click; hovering a role
   shows when and by whom it was granted: `signup`, `migration`, `config` for the `EDITORS` / `ADMINS` lists, `secret`
   for the admin secret, or the granting admin's address), the language, the **update options** the reader opted into
-  (read-only: book · artist · publisher), sign-up and last-seen dates.
+  (plain text, read-only: the ones that are on of book, artist, publisher, else `–`), sign-up and last-seen dates. A
+  role that is on shows pressed; the notice reports a grant or revoke only when the role really changed.
 - **Editors** / **Admins** – the filter buttons show the users with that role (the editors shortcut).
 - **Newsletter** – the filter shows the users with any update option on; **Newsletter CSV** downloads them
   (`GET /api/admin/users.csv?newsletter=1`: `email, language, bookUpdates, artistUpdates, publisherUpdates, createdAt`)
