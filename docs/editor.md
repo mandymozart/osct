@@ -299,8 +299,8 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   (the stage's progress lives while the workspace is open – leaving to the spread list starts a new game), two
   spreads on one stage (the mock tracker reports the current spread's targets only; a `stage` variable survives the
   switch, a `spread` variable does not), the reader's UI around the scene.
-- The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with an owner, and
-  `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade) and a plugin's
-  passes reach the build and the guard with `unknownTypes: "allow"` where plugins are declared.
+- The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with the plugin as
+  owner, and `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade); the
+  build and the guard do not accept a spread naming a plugin's pass yet (#97).
 - The phone layout of the workspace (the sheet) is built but was checked on the desktop only; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

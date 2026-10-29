@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – `api.registerPass` wired (#97, 1.16.1) – the pass names are open
+
+- The plugin API's `registerPass(type, spec, factory)` now reaches the engine's pass registry with the plugin as owner;
+  uninstalling the plugin unregisters its passes (`removeRegistrations` → `unregisterPassesOf`). Patch: no schema change.
+- **Open (Tilman decides, #97):** a spread or book cannot name a plugin's pass yet. The reader's guard
+  (`shared/guards/game-config.ts`, `passProblems` without `unknownTypes: "allow"`) and the build's final
+  `assertGameConfiguration` refuse it; the editor's API (`server/api/src/Books.php` `PASS_TYPES`) refuses it too.
+  The fix in `shared/` is one option each – every `shared/` change needs a schema bump and a re-lock (RULES #10).
+- Also open: `PLUGIN_API_VERSION` stays `1.1` (in `shared/types/plugins.ts`); `registerPass` is additive, so a bump
+  would be a choice, not a need.
+
 ## 2026-10-30 – An MCP server over the editor's API, after SCUTOONS' model (#75)
 
 - Tilman (2026-10-29, #66): "wir brauchen eine MCP-Schnittstelle, dass wir dann beim Bauen in Amsterdam genügend schnell

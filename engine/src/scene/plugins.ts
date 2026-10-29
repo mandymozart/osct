@@ -8,12 +8,14 @@ import {
   PLUGIN_API_VERSION,
   pluginApiCompatible,
   PluginData,
+  PassSpec,
   registerComponentSpec,
   resolveParams,
   Target,
   unregisterComponentSpec,
 } from "../types/index";
 import { dropPluginListeners, nextRun, PluginEvents, PluginProgress, PluginSpread, PluginVars, runtimeApi } from "./plugin-runtime";
+import { PassFactory, passRegistration, registerPass, unregisterPassesOf } from "./post/registry";
 
 /**
  * The plugin API (version `PLUGIN_API_VERSION`, agents/research/2026-10-29-code-in-the-editor.md): a book's own code
@@ -21,11 +23,14 @@ import { dropPluginListeners, nextRun, PluginEvents, PluginProgress, PluginSprea
  *
  *   api.registerComponent("spin", SPEC, ({ object, params }) => ({ update: delta => { object.rotation.y += … } }))
  *   api.registerLayer("tint", SPEC, { glsl: "return mix(rgba, vec4(color, rgba.a), opacity);" })
+ *   api.registerPass("halo", PASS_SPEC, ({ shaderPass }) => shaderPass(FRAGMENT))
  *
- * – with the specs of `shared/types/components.ts`, so the editor's Entity panel, the content build and the guard
- * read a plugin's component like the built-in `animation`. A **component** runs code on a node (`applyComponents`,
- * called by the entity registry when a node is built); a **material layer** is a piece of GLSL the engine composes
- * into the node's material (`utils/layers.ts`). Both are used in the content as `components: [{ type, … }]`.
+ * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`), so the editor's Entity panel,
+ * the content build and the guard read a plugin's component like the built-in `animation`. A **component** runs code
+ * on a node (`applyComponents`, called by the entity registry when a node is built); a **material layer** is a piece
+ * of GLSL the engine composes into the node's material (`utils/layers.ts`); a **pass** is a post-processing effect
+ * over the rendered AR image (`post/registry.ts`). Components and layers are used in the content as
+ * `components: [{ type, … }]`.
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`, API 1.1): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread).
@@ -88,6 +93,12 @@ export interface PluginApi {
   readonly three: typeof THREE;
   registerComponent(type: string, spec: ComponentSpec, apply: ComponentApply): void;
   registerLayer(type: string, spec: ComponentSpec, layer: LayerDefinition): void;
+  /**
+   * A post-processing pass of the plugin's own: its spec as the built-in passes have it, the factory builds the
+   * three.js pass (`PassContext`: the resolved parameters, `shaderPass`, the canvas size). The content names it in
+   * `passes: [{ type, … }]`; the plugin's pass leaves the registry when the plugin is uninstalled.
+   */
+  registerPass(type: string, spec: PassSpec, factory: PassFactory): void;
   /** Core events of the scene (read-only) and scene events of the content */
   readonly events: PluginEvents;
   /** Variables in the scopes spread, stage, session and book */
@@ -108,6 +119,7 @@ export interface PluginModule {
 
 interface ComponentRegistration { plugin: string; spec: ComponentSpec; apply: ComponentApply }
 interface LayerRegistration { plugin: string; spec: ComponentSpec; layer: LayerDefinition }
+interface PassRegistrationStaged { spec: PassSpec; factory: PassFactory }
 
 const components = new Map<string, ComponentRegistration>();
 const layers = new Map<string, LayerRegistration>();
@@ -123,7 +135,7 @@ export class PluginError extends Error {
   }
 }
 
-/** Every component and layer type this plugin registered leaves the registries, its listeners with them */
+/** Every component, layer and pass type this plugin registered leaves the registries, its listeners with them */
 export const uninstallPlugin = (id: string): void => {
   dropPluginListeners(id);
   removeRegistrations(id);
@@ -135,6 +147,7 @@ const removeRegistrations = (id: string): void => {
     if (layers.get(type)?.plugin === id) layers.delete(type);
     if (components.get(type)?.plugin !== id && layers.get(type)?.plugin !== id) unregisterComponentSpec(type);
   });
+  unregisterPassesOf(id);
   installed.delete(id);
 };
 
@@ -146,7 +159,11 @@ const removeRegistrations = (id: string): void => {
 export const installPlugin = (id: string, module: PluginModule): void => {
   const register = module.register ?? module.default;
   if (typeof register !== "function") throw new PluginError(id, `${id}: the module exports no register(api) function`);
-  const staged: { components: Map<string, ComponentRegistration>; layers: Map<string, LayerRegistration> } = { components: new Map(), layers: new Map() };
+  const staged: { components: Map<string, ComponentRegistration>; layers: Map<string, LayerRegistration>; passes: Map<string, PassRegistrationStaged> } = {
+    components: new Map(),
+    layers: new Map(),
+    passes: new Map(),
+  };
   // The listeners this run subscribes replace the previous run's once register succeeded
   const run = nextRun();
   const check = (type: string, spec: ComponentSpec) => {
@@ -170,7 +187,16 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (typeof layer?.glsl !== "string" || !layer.glsl.trim()) throw new PluginError(id, `${id}: the layer ${type} needs its glsl`);
       staged.layers.set(type, { plugin: id, spec, layer });
     },
-    log: (...args) => console.info(`[plugin ${id}]`, ...args),
+    registerPass: (type, spec, factory) => {
+      const problems = componentSpecProblems(type, spec);
+      const owner = passRegistration(type)?.owner;
+      if (owner && owner !== id) problems.push(`the pass "${type}" is registered by ${owner}`);
+      if (staged.passes.has(type)) problems.push(`the pass "${type}" is registered twice`);
+      if (typeof factory !== "function") problems.push(`the pass "${type}" needs a factory`);
+      if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
+      staged.passes.set(type, { spec, factory });
+    },
+    log:(...args) => console.info(`[plugin ${id}]`, ...args),
   };
   try {
     register(api);
@@ -189,6 +215,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
     layers.set(type, registration);
     registerComponentSpec(type, registration.spec);
   });
+  staged.passes.forEach(({ spec, factory }, type) => registerPass(type, spec, factory, id));
   installed.set(id, [...staged.components.keys(), ...staged.layers.keys()]);
 };
 

@@ -304,7 +304,8 @@ A pass of the book's own – a shader Kévin writes – registers with the engin
 three.js and `ShaderPass`, and returns a three `Pass` over the composer's buffers. The buffer holds the AR layer as
 premultiplied colour over alpha, in linear RGB, nothing of the camera picture: a pass keeps a texel's alpha unless it
 means to shade the camera picture too. The plugin API of the code editor ([editor](editor.md)) exposes the registry
-as `api.registerPass`; until then the built-ins are the passes the content can name.
+as `api.registerPass(type, spec, factory)`: the plugin's pass runs in the engine and leaves with the plugin. The content
+build and the guard still accept only the built-in pass types, so a spread cannot name a plugin's pass yet (#97).
 
 ```yaml
 # content/spreads/cover/spread.yaml
