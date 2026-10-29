@@ -1,9 +1,8 @@
 import {
   AssetData,
-  COMPONENTS,
   ComponentData,
-  ComponentSpec,
-  ComponentType,
+  componentSpec,
+  componentTypes,
   EntityData,
   FilterData,
   FILTERS,
@@ -84,7 +83,7 @@ export const filterRows = (filter: FilterData, index: number): ValueRow[] => {
 
 /** The rows of a component (`components.{i}.{name}`), from its spec */
 export const componentRows = (component: ComponentData, index: number): ValueRow[] => {
-  const spec: ComponentSpec | undefined = COMPONENTS[component.type];
+  const spec = componentSpec(component.type);
   if (!spec) return [];
   return Object.entries(spec.params).map(([name, param]): ValueRow => {
     const id = `components.${index}.${name}`;
@@ -102,9 +101,9 @@ export const componentRows = (component: ComponentData, index: number): ValueRow
 };
 
 /** The component types a node of `type` may take */
-export const componentTypesFor = (type: EntityData["type"]): ComponentType[] =>
-  (Object.keys(COMPONENTS) as ComponentType[]).filter(key => {
-    const nodeTypes = (COMPONENTS[key] as { nodeTypes?: readonly string[] }).nodeTypes;
+export const componentTypesFor = (type: EntityData["type"]): string[] =>
+  componentTypes().filter(key => {
+    const nodeTypes = componentSpec(key)?.nodeTypes as readonly string[] | undefined;
     return !nodeTypes || nodeTypes.includes(type);
   });
 
@@ -177,7 +176,7 @@ export const addFilter = (entity: EntityData, type: FilterType): EntityData =>
 export const removeFilter = (entity: EntityData, index: number): EntityData =>
   ({ ...entity, filters: (entity.filters ?? []).filter((_, i) => i !== index) });
 
-export const addComponent = (entity: EntityData, type: ComponentType): EntityData =>
+export const addComponent = (entity: EntityData, type: string): EntityData =>
   ({ ...entity, components: [...(entity.components ?? []), { type }] });
 
 export const removeComponent = (entity: EntityData, index: number): EntityData => {

@@ -43,6 +43,8 @@
     "already-used": "This link or code was used already. Request a new email to sign in on this device.",
     "too-many-attempts": "Too many wrong codes. Request a new email.",
     "too-many-requests": "Too many emails in a short time. Try again in an hour.",
+    "too-many-requests-wait_one": "Too many emails in a short time. Try again in {{count}} minute.",
+    "too-many-requests-wait_other": "Too many emails in a short time. Try again in {{count}} minutes.",
     "mail-failed": "The email could not be sent. Try again later.",
     "offline": "No connection to the server. Check your internet connection.",
     "unauthorized": "You're signed out. Sign in again.",

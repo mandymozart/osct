@@ -2,7 +2,7 @@
 category: video
 title: "Studio: standing video"
 page: 31
-body: "A video standing upright on the page like a screen, lifted so its bottom edge touches the paper."
+body: "A video standing upright on the page like a screen, lifted so its bottom edge touches the paper – tinted gold by the fixture's plugin (plugins/tint)."
 target:
   image: target.jpg
   entity:
@@ -12,3 +12,7 @@ target:
       rotation: [90, 0, 0]
       position: [0, 0, 0.28]
       scale: 0.9
+    components:
+      - type: tint
+        color: "#f3cc94"
+        opacity: 0.35

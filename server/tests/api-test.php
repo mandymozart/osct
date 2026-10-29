@@ -156,6 +156,16 @@ try {
     check($status === 202, 'four requests per hour are fine');
     [$status, $data] = call($api, 'POST', '/auth/request', ['email' => 'many@example.com']);
     check($status === 429 && $data['error']['code'] === 'too-many-requests', 'the fifth → 429');
+    check(($data['error']['retryAfter'] ?? 0) > 0 && $data['error']['retryAfter'] <= 3600 && str_contains($data['error']['message'], 'minute'), 'the 429 says when the next email is allowed (retryAfter, seconds)');
+
+    echo "rate limits off (-1)\n";
+    $openApi = startApi(['DB_SQLITE_PATH' => "$tmp/open.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '-1', 'LOGIN_MAX_PER_IP_HOUR' => '-1'] + $settings);
+    $statuses = [];
+    for ($i = 0; $i < 7; $i++) [$statuses[]] = call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com']);
+    check($statuses === array_fill(0, 7, 202), 'a limit of -1 is off: seven requests in a row pass (local testing)');
+    $zeroApi = startApi(['DB_SQLITE_PATH' => "$tmp/zero.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '0'] + $settings);
+    [$status, $data] = call($zeroApi, 'POST', '/auth/request', ['email' => 'zero@example.com']);
+    check($status === 429 && $data['error']['code'] === 'too-many-requests', 'a limit of 0 allows nothing (#83)');
 
     echo "user\n";
     [$status] = call($api, 'GET', '/user');
@@ -352,6 +362,7 @@ try {
         ],
         'entities' => ['castle' => ['type' => 'video', 'assets' => [['id' => 'castle-0', 'assetType' => 'video', 'src' => '/assets/content/entities/castle/c.mp4']], 'params' => new stdClass(), 'filters' => [['type' => 'chromaKey', 'color' => '#00ff00']]]],
         'tutorial' => [['id' => 'step-1', 'index' => 0, 'title' => '{{title}}', 'illustration' => '/assets/content/tutorial/mark.svg', 'advance' => 3800]],
+        'plugins' => [['id' => 'tint', 'src' => '/assets/content/plugins/tint/plugin.js', 'api' => '1.0']],
     ];
     $files = ['/assets/content/entries/racoon/racoon.glb' => ['size' => 1234, 'v' => 'abcdef012345'], '/assets/content/entries/racoon/img.jpg' => ['size' => 10, 'v' => '0123456789ab']];
     $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
@@ -505,6 +516,46 @@ try {
     check($status === 400, 'nodes deeper than 8 levels → 400');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     check($status === 200 && !isset($data['entity']['children']), 'back to one node');
+
+    echo "editor: plugins (the Code tab's sources)\n";
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/plugins', null, $editor);
+    check($status === 200 && $data['plugins'] === [], 'no plugin sources yet');
+    $source = "export const register = (api) => { api.log('hi'); };\n";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/glow', ['source' => $source], $editor);
+    check($status === 200 && $data['plugin']['id'] === 'glow' && $data['plugin']['source'] === $source && $data['plugin']['size'] === strlen($source) && $data['plugin']['updatedBy'] === 'author@example.com', 'PUT a plugin source → saved with size and author');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/Glow', ['source' => $source], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-plugin', 'an upper-case id → 400 invalid-plugin');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/glow', ['source' => 3], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-plugin', 'a source that is no string → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/glow', ['source' => str_repeat('x', 262145)], $editor);
+    check($status === 413, 'a source above 256 KB → 413');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/glow', ['source' => "$source// v2\n"], $editor);
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/plugins/glow', null, $editor);
+    check($status === 200 && str_ends_with($data['plugin']['source'], "// v2\n"), 'GET the plugin → the new source');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/plugins', null, $editor);
+    check($status === 200 && count($data['plugins']) === 1 && $data['plugins'][0]['id'] === 'glow' && !isset($data['plugins'][0]['source']), 'the list names the plugin without its source');
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=2', null, $editor);
+    check($data['changes'][0]['kind'] === 'plugin' && $data['changes'][0]['ref'] === 'glow' && str_ends_with($data['changes'][0]['after'], "// v2\n") && $data['changes'][1]['before'] === null, 'every save is a change with the source before and after');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    $rawDraft = (string) file_get_contents("$api/editor/books/osct/draft/{$m['build']}/game.config.json", false, $withToken);
+    check(!str_contains($rawDraft, 'glow') && str_contains($rawDraft, '"plugins":[{"id":"tint","src":"' . $base . '/assets/content/plugins/tint/plugin.js","api":"1.0"}]'), 'the draft declares the imported compiled plugins (below the assets base), never an editor source');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/plugins/glow', null, $editor);
+    [$status2] = call($api, 'GET', '/editor/books/osct/plugins/glow', null, $editor);
+    check($status === 204 && $status2 === 404, 'DELETE → 204, then 404');
+    // Publishing content whose nodes use a component no plugin of the content can provide is refused
+    $castle = $configuration['entities']['castle'];
+    $castle['components'] = [['type' => 'tint', 'opacity' => 0.4]];
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200, 'with a plugin declared, a node may use its component');
+    $noPlugins = $configuration;
+    unset($noPlugins['plugins']);
+    call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $noPlugins, 'files' => $files], $flags));
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-components' && $data['error']['components'] === ['tint'], 'without one, publish → 409 unknown-components naming the types');
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'import again with the plugins');
 
     echo "editor: assets\n";
     // A 1×1 PNG and a tiny glb-like file (the API checks the type by the name, not the bytes)
