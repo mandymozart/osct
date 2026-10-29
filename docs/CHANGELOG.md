@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.24.1 – 2026-10-30
+
+### Added
+- **`/admin` is the short address of the admin page**: the site's `.htaccess` redirects it to `/editor/admin/` (302).
+  Carried over from the unmerged branch `feature/65-admin-roles` (1.10.0) before the branch cleanup after the history
+  rewrite (#5, #30).
+
 ## 1.24.0 – 2026-10-30
 
 ### Added
