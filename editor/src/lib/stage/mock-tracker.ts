@@ -60,6 +60,8 @@ export const VIEW_PRESETS: Record<PreviewView, Orbit> = {
 const MIN_DISTANCE = 80;
 const MAX_DISTANCE = 1500;
 const MAX_TILT = 85;
+/** The looked-at point may be panned this far from the spread's own (mm) */
+const MAX_PAN = 600;
 /** A pointer that moved this far is a drag (orbit), not a tap */
 const DRAG_PX = 8;
 const ORBIT_DEGREES_PER_PX = 0.4;
@@ -209,7 +211,9 @@ export class MockTracker implements IImageTracker {
   private frame = 0;
   private startedAt = 0;
   private storeTimer = 0;
-  private pointers = new Map<number, { x: number; y: number; startX: number; startY: number }>();
+  private pointers = new Map<number, { x: number; y: number; startX: number; startY: number; button: number }>();
+  /** Two fingers: where their midpoint was (they pan together while they pinch) */
+  private lastMid: { x: number; y: number } | null = null;
   private dragging = false;
   private lastPinch = 0;
   private cameraWorld = new Matrix4();
@@ -373,7 +377,9 @@ export class MockTracker implements IImageTracker {
   private focus(): Vector3 {
     const first = this.targets[0];
     const page = this.pageFormat();
-    return first ? targetCentre(first, page) : new Vector3(page.width / 2000, 0, 0);
+    const centre = first ? targetCentre(first, page) : new Vector3(page.width / 2000, 0, 0);
+    const pan = this.orbit.pan;
+    return pan ? centre.add(new Vector3(pan.x / 1000, pan.y / 1000, 0)) : centre;
   }
 
   private loop(): void {
@@ -411,6 +417,22 @@ export class MockTracker implements IImageTracker {
     this.orbitChanged();
   }
 
+  /** Move the looked-at point by a pointer movement (px): the stage follows the pointer in the page plane */
+  private pan(dx: number, dy: number): void {
+    const height = this.container.clientHeight || window.innerHeight || 1;
+    const mmPerPx = (2 * this.orbit.distance * Math.tan(degrees(PREVIEW_FOV) / 2)) / height;
+    const yaw = degrees(this.orbit.yaw);
+    // The screen's right and up in the page plane (the camera's up is the top of the page, turned by the yaw)
+    const right = { x: Math.cos(yaw), y: Math.sin(yaw) };
+    const up = { x: -Math.sin(yaw), y: Math.cos(yaw) };
+    const pan = this.orbit.pan ?? { x: 0, y: 0 };
+    this.orbit.pan = {
+      x: Math.min(MAX_PAN, Math.max(-MAX_PAN, pan.x - (right.x * dx - up.x * dy) * mmPerPx)),
+      y: Math.min(MAX_PAN, Math.max(-MAX_PAN, pan.y - (right.y * dx - up.y * dy) * mmPerPx)),
+    };
+    this.orbitChanged();
+  }
+
   // ── Input: the whole document, except the app's UI (the panels are dialogs) ──────────────────────
 
   private listen(on: boolean): void {
@@ -430,9 +452,11 @@ export class MockTracker implements IImageTracker {
 
   private onPointerDown = (event: PointerEvent): void => {
     if (this.paused || onAppUi(event)) return;
-    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY });
+    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, button: event.button });
     if (this.pointers.size === 1) this.dragging = false;
     this.lastPinch = 0;
+    this.lastMid = null;
+    if (event.button === 1) event.preventDefault(); // the middle button pans; no autoscroll
   };
 
   private onPointerMove = (event: PointerEvent): void => {
@@ -444,6 +468,9 @@ export class MockTracker implements IImageTracker {
       const distance = Math.hypot(event.clientX - other.x, event.clientY - other.y);
       if (this.lastPinch) this.zoom(this.lastPinch / distance);
       this.lastPinch = distance;
+      const mid = { x: (event.clientX + other.x) / 2, y: (event.clientY + other.y) / 2 };
+      if (this.lastMid) this.pan(mid.x - this.lastMid.x, mid.y - this.lastMid.y);
+      this.lastMid = mid;
       this.dragging = true;
     } else {
       const dx = event.clientX - pointer.x;
@@ -454,9 +481,14 @@ export class MockTracker implements IImageTracker {
         return;
       }
       this.dragging = true;
-      this.orbit.yaw += dx * ORBIT_DEGREES_PER_PX;
-      this.orbit.tilt = Math.min(MAX_TILT, Math.max(0, this.orbit.tilt + dy * TILT_DEGREES_PER_PX));
-      this.orbitChanged();
+      if (pointer.button === 1 || event.shiftKey) {
+        // Shift + drag or the middle button: pan (as in every 3D tool); plain drag: orbit
+        this.pan(dx, dy);
+      } else {
+        this.orbit.yaw += dx * ORBIT_DEGREES_PER_PX;
+        this.orbit.tilt = Math.min(MAX_TILT, Math.max(0, this.orbit.tilt + dy * TILT_DEGREES_PER_PX));
+        this.orbitChanged();
+      }
     }
     pointer.x = event.clientX;
     pointer.y = event.clientY;
@@ -465,6 +497,7 @@ export class MockTracker implements IImageTracker {
   private onPointerUp = (event: PointerEvent): void => {
     this.pointers.delete(event.pointerId);
     this.lastPinch = 0;
+    this.lastMid = null;
   };
 
   /** A click that ends a drag is no tap on the scene (ArScene listens on the document in the bubble phase) */
@@ -505,4 +538,5 @@ export class MockTracker implements IImageTracker {
   }
 }
 
-const sameOrbit = (a: Orbit, b: Orbit) => a.distance === b.distance && a.tilt === b.tilt && a.yaw === b.yaw;
+const sameOrbit = (a: Orbit, b: Orbit) =>
+  a.distance === b.distance && a.tilt === b.tilt && a.yaw === b.yaw && (a.pan?.x ?? 0) === (b.pan?.x ?? 0) && (a.pan?.y ?? 0) === (b.pan?.y ?? 0);
