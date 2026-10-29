@@ -9,10 +9,12 @@
 import { EntryCategory } from "./entry";
 import { FilterData } from "./filters";
 import type { ComponentData } from "./components";
+import type { PluginData } from "./plugins";
 
 export * from "./filters";
 export * from "./placement";
 export * from "./components";
+export * from "./plugins";
 
 /**
  * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text –
@@ -34,7 +36,7 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.2";
+export const CONTENT_SCHEMA_VERSION = "2.3";
 
 export interface ContentSchema {
   major: number;
@@ -90,7 +92,7 @@ export interface EntityData {
   assets: AssetData[];
   params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
-  /** Components applied to this node (schema 2.2 – `COMPONENTS`): an `animation` on a model, … */
+  /** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.3) */
   components?: ComponentData[];
   /** Child nodes, placed relative to this one */
   children?: EntityData[];
@@ -176,4 +178,6 @@ export interface GameConfiguration {
   entries: readonly EntryData[];
   entities: Readonly<Record<string, EntityData>>; // shared entities, referenced by `EntityRefData`
   tutorial: readonly StepData[];
+  /** The book's own code (schema 2.3, optional): compiled plugins the engine loads before the first spread */
+  plugins?: readonly PluginData[];
 }

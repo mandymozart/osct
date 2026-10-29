@@ -17,6 +17,7 @@ import {
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
+import { pluginProblems } from "../types/plugins";
 import { filterProblems } from "../types/filters";
 import { placementProblems } from "../types/placement";
 
@@ -72,6 +73,10 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     return null;
   };
 
+  // With plugins declared, a component type the registry does not know yet is the plugin's (it registers it at load)
+  const root0 = isObject(raw) ? raw : {};
+  const hasPlugins = Array.isArray(root0.plugins) && root0.plugins.length > 0;
+
   const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
     if (!e) return;
@@ -100,7 +105,8 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
       filterProblems(e.filters, `${path}.filters`).forEach(problem => problems.push(problem));
     }
     if (e.components !== undefined) {
-      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined).forEach(problem => problems.push(problem));
+      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: hasPlugins ? "allow" : "refuse" })
+        .forEach(problem => problems.push(problem));
     }
   };
 
@@ -122,6 +128,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
   }
 
   str(root, "initialSpreadId", "config");
+  if (root.plugins !== undefined) pluginProblems(root.plugins).forEach(problem => problems.push(problem));
 
   const spreadIds = new Set<string>();
   const pageRanges: [number, number][] = [];
