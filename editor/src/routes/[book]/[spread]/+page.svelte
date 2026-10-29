@@ -554,7 +554,8 @@
   .head { flex: none; }
   .bar .tab { padding: 0 .5rem; }
   .bar .tab.on { background: var(--surface); }
-  .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; }
+  /* A size container: the panels answer their own width (#159), narrow on a phone and when dragged small (#144) */
+  .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; container: panel / inline-size; }
   .body.code { overflow: hidden; }
   .icon-button { text-decoration: none; }
   /* A column's edge: a strip over the border with a grip in its middle; the border shows while it is hovered or dragged */

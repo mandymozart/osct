@@ -108,7 +108,7 @@ select.field { cursor: pointer; }
 .row.changed > .label { color: var(--text); }
 .row.changed > .label::before { content: "● "; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; min-width: 0; }
-.section { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: var(--control-height);
+.section { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 .5rem; min-height: var(--control-height);
   margin-top: .25rem; border-top: 1px solid var(--line); padding-top: .25rem; }
 .section-label { color: var(--muted); font-size: var(--text-small); letter-spacing: .08em; text-transform: uppercase; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.75rem, 1fr)); gap: .25rem; min-width: 0; }
