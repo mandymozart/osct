@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.17.3 – 2026-10-30
+## 1.17.4 – 2026-10-30
 
 ### Fixed
 - **The post-processing in the editor shows on the stage** (#114): changing a grade, a bloom or a vignette in the
@@ -20,6 +20,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   (three.js copies a shader's values when it builds a pass), and the bloom and vignette never reached the stage's desk,
   table and book. Now every pass shows at once: bloom and vignette run over the whole picture, the desk counting as
   the camera picture, and the grade stays on the AR layer (the desk keeps its colours, as the camera picture does).
+
+## 1.17.3 – 2026-10-30
+
+### Fixed
+- **The Library no longer fails with "Something went wrong on the server"** (#116): since 1.17.1 the asset list also
+  lists the files of the CDN import, and it counted each file's uses with three queries over targets, entities and
+  entries – a build with hundreds of files ran over a thousand queries. The rows are now read once per request
+  (`Assets::usageRows`, `countUsages`), and a `files.json` entry that is not an object no longer breaks the list.
 
 ## 1.17.2 – 2026-10-30
 

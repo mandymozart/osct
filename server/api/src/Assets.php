@@ -60,18 +60,50 @@ final class Assets
         $base = rtrim((string) $book['assets_base'], '/');
         if ($base !== '') $files = ContentVersion::rewriteFiles($files, $base);
         $at = Editor::iso((int) $book['updated_at']);
+        $rows = null;
         $result = [];
         foreach (get_object_vars($files) as $url => $file) {
+            $url = (string) $url;
             $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
             if (!isset(self::KINDS[$extension]) || ($kind !== null && self::KINDS[$extension] !== $kind)) continue;
+            // the book's rows read once: a build has hundreds of files, three queries per file timed out (#116)
+            $rows ??= self::usageRows($bookId);
             $result[] = [
                 'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
-                'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) ($file->size ?? 0),
-                'width' => null, 'height' => null, 'version' => 1, 'url' => $url, 'usages' => count(self::usagesOf($bookId, ['url' => $url])),
+                'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) (is_object($file) ? ($file->size ?? 0) : 0),
+                'width' => null, 'height' => null, 'version' => 1, 'url' => $url, 'usages' => self::countUsages($rows, $url),
                 'createdAt' => $at, 'updatedAt' => $at, 'imported' => true,
             ];
         }
         return $result;
+    }
+
+    /**
+     * The texts `usagesOf` searches, one per row: targets (data and image), entities, entries
+     * @return array<int, string>
+     */
+    private static function usageRows(string $bookId): array
+    {
+        $rows = [];
+        foreach (Db::run('SELECT image_src, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+            $rows[] = ['text' => (string) $row['data_json'], 'exact' => (string) $row['image_src']];
+        }
+        foreach (['entities', 'entries'] as $table) {
+            foreach (Db::run("SELECT data_json FROM $table WHERE book_id = :book", ['book' => $bookId])->fetchAll() as $row) {
+                $rows[] = ['text' => (string) $row['data_json'], 'exact' => null];
+            }
+        }
+        return $rows;
+    }
+
+    /** = count(usagesOf(...)) over rows read once: a row uses the url when its JSON contains it (or a target's image is it) */
+    private static function countUsages(array $rows, string $url): int
+    {
+        $count = 0;
+        foreach ($rows as $row) {
+            if ($row['exact'] === $url || str_contains($row['text'], $url)) $count++;
+        }
+        return $count;
     }
 
     /**
