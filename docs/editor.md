@@ -70,10 +70,28 @@ writes a new one, and the staging reader sees it on its next start.
 **The demo book on staging**: the workflow *Demo book* (`.github/workflows/demo.yml`, by hand or on a push to
 `develop` that touches the demo) builds `fixtures/demo` and syncs it to the environment **`demo`** of the storage zone
 – `https://buildingfictions.b-cdn.net/demo/`. In the staging editor: *Import a book… → URL* with that base URL (the
-form takes the current version and its folder as *assets at*), then open its spreads. Publish it to `local` only:
-a publish to `staging` or `production` would make it the book's current version (the store is per environment, not
-per book). On a phone, the staging reader opens it with
+form takes the current version and its folder as *assets at*), then open its spreads. Publish it to `local`: a
+publish to `staging` or `production` makes it *the* book of that environment (the store is per environment, not per
+book – see "One book per environment" below), so the editor asks first. On a phone, the staging reader opens it with
 `https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo` ([content on the CDN](content-cdn.md)).
+
+### One book per environment
+
+Each environment's content store (`<env>/latest.json`, `<env>/<build>/` – [content on the CDN](content-cdn.md)) serves
+exactly one book: the last one published there. Until the store has a folder per book (#87) the editor makes that
+visible and safe (#143):
+
+- **Where a book is live.** The Books overview shows under each book *live on staging · build … · since …* (one line per
+  environment that serves it) or *draft only*; next to Publish the book page shows the same in short. An environment
+  serving a book that is not imported here, or whose store cannot be read, gets a line under the list.
+- **Publishing over another book asks.** Publishing a book to an environment that serves another one asks first,
+  naming both (*Staging serves “Onion Skin & Crocodile Tears”. Publish “Demo” instead? …*); production says it more
+  strictly (every reader of the app gets the other book). Only on *OK* does the editor send `replace: true` – the API
+  refuses the publish without it (409 `other-book`). Publishing the book an environment already serves is one click
+  (production keeps its usual question).
+- **Switching back** is publishing the real book again (with the same question): when its draft is unchanged, its last
+  version is still on the store and only `latest.json` moves back – nothing is uploaded again.
+- The MCP server never replaces a book: its publish gets the 409 and leaves the decision to a person in the editor.
 
 ## What is on the stage
 
@@ -135,7 +153,7 @@ is involved.
   at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
   the last) when the book has none; **Publish** with the environment (`local`, `staging`, `production` – production
-  asks). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section.
+  asks), and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section.
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the

@@ -12,6 +12,19 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.22.0 – 2026-10-30
+
+### Added
+- **Which book is live where** (#143): each environment (local, staging, production) serves exactly one book – the
+  last one published there. The Books overview now shows under each book *live on staging · build … · since …* or
+  *draft only*, and the book page shows it next to Publish.
+- **Publishing over another book asks first**: publishing a book to an environment that serves another one names
+  both and asks (production more strictly); the API refuses it without an explicit `replace: true`. Publishing the
+  book an environment already serves stays one click. Switching back is publishing the real book again – its last
+  version is re-activated without a new upload when the draft is unchanged.
+- `latest.json` and `versions.json` name their book (`book`, content schema 2.11) – written by the editor's publish
+  and by `osct content sync`; older manifests are read through their version's configuration.
+
 ## 1.21.0 – 2026-10-30
 
 ### Added

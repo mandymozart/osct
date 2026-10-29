@@ -18,7 +18,12 @@ osct/<env>/<build>/files.json           size and checksum of every content file 
 osct/<env>/<build>/assets/content/…     the content files, same paths as in the app's public folder
 ```
 
-`<env>` is `staging` or `production`. `<build>` is the first 12 hex digits of the content build checksum: the same
+`<env>` is `staging` or `production`. **An environment serves one book** – the last one published or synced there:
+`latest.json` and each `versions.json` entry name it (`book`, the configuration's `book.id`; content schema 2.11). A
+manifest without `book` is older – its version's `game.config.json` tells the book. Publishing another book to an
+environment replaces the book for its readers: the editor asks first and the API refuses it without `replace: true`
+([editor](editor.md) "One book per environment"). `osct content sync` writes the book too, and does not ask – it syncs
+the content source it is given. A store per book is #87. `<build>` is the first 12 hex digits of the content build checksum: the same
 content is the same folder, whatever app version built it. A content file on the CDN never changes, so no edge
 cache, browser cache or service worker can serve a stale copy of it – only `latest.json` moves.
 
