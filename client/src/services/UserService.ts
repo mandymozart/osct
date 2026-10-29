@@ -402,8 +402,9 @@ export class UserService implements IUserService {
       return await action();
     } catch (error) {
       const code = error instanceof ApiError ? error.code : "server-error";
+      const retryAfter = error instanceof ApiError ? (error.data as { error?: { retryAfter?: number } } | undefined)?.error?.retryAfter : undefined;
       if (error instanceof ApiError && error.status === 401) this.signedOutLocally({ error: code });
-      else this.update({ notice: { error: code } });
+      else this.update({ notice: typeof retryAfter === "number" && retryAfter > 0 ? { error: code, retryAfter } : { error: code } });
       return onError;
     } finally {
       this.update({ busy: false });
