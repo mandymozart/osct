@@ -35,10 +35,11 @@ Done in this repository (1.7.6, #5): the fixture, CI and the tests on the fixtur
    `builder.args`, `deploy.yml`) and the FTPS staging deploy build with `VITE_CONTENT_BASE_URL` =
    `CONTENT_BASE_URL` of the GitHub environment. Still to do with step 3: the `Dockerfile` drops `COPY content content`
    and `.dockerignore` its `!content/` line – until then an image without `CONTENT_BASE_URL` still bundles the content.
-2. **A home for the source that is backed up.** Decide where `osct-content` is kept safe – a private repository
+2. **A home for the source.** Decided (Tilman, 2026-10-30): **kept locally** in `C:\Development\osct\osct-content\content`,
+   next to the mirror backup of step 5 – those two are the only copies; neither is deleted. Was: Decide where `osct-content` is kept safe – a private repository
    of its own, or a `source/` folder on the storage zone – before the history that holds the only other copy is
    rewritten.
-3. **Remove `content/` from the tree** in a normal commit on `develop`:
+3. **Done 1.19.2 (#5):** Remove `content/` from the tree in a normal commit on `develop`:
 
    ```bash
    git rm -r --cached content
@@ -51,7 +52,9 @@ Done in this repository (1.7.6, #5): the fixture, CI and the tests on the fixtur
 4. **Freeze and tidy.** Merge or drop the open branches – on 2026-10-28: `build-content-in-ci`, `compilation`,
    `claude/laughing-wright-hrt8zy`, `claude/heuristic-varahamihira-4faefe` – and their pull requests. Nobody
    pushes until step 6 is done. Every branch that survives is rewritten too; work that is not pushed is lost to it.
-5. **Rewrite a fresh mirror clone** (never a working checkout). Keep a backup first – it holds the whole content
+5. **Rewrite a fresh mirror clone** (never a working checkout). The same run also drops the old Claude attribution
+   (#30): `--mailmap` maps `Claude <noreply@anthropic.com>` to Tilman, `--message-callback` drops `Co-Authored-By: Claude…`
+   and `Claude-Session:` lines. Keep a backup first – it holds the whole content
    history, keep it off GitHub:
 
    ```bash
