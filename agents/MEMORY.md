@@ -4,6 +4,25 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Local MariaDB in Docker, staging's data, the API test on MariaDB (#168)
+
+- Tilman after #161: *"in future, for testing locally, start a MariaDB in a Docker container, as in SCUTOONS"*, plus a
+  dump of staging. Built in 1.26.8: `docker-compose.yml` in the repository root (service `db`, MariaDB **10.11** – the
+  version of the all-inkl host could not be read from here, so the LTS the task named; `OSCT_MARIADB_VERSION=11.4`
+  matches the Kamal accessory), `scripts/db/pull-staging.sh`, `OSCT_TEST_DB=mysql` for the API test, the CI job
+  "Accounts API (MariaDB)". Local development against MariaDB is the recommended setup now; SQLite stays for quick
+  tests (docs/server.md).
+- **Personal data in a staging dump**: pseudonymised on load by default (addresses → `user-<id>@example.invalid`,
+  passwords, sessions, sign-in requests and failed sign-ins gone; `KEEP_EMAILS` exempts your own), the dump deleted
+  after loading unless `--keep`. Credentials in `server/.env`, dumps in `server/db-dumps/` – both outside the Docker
+  build context and git. One bash script (Git Bash on Windows) rather than a PowerShell twin: the repo's tooling
+  scripts are bash, and the dump runs inside the container (no MySQL client needed).
+- The first MariaDB run found a second MySQL-only bug: `LIKE … ESCAPE '\'` (admin user search, asset usages) is an
+  unterminated string literal on MySQL. `Db::contains` escapes with `!`; the API test scans for the backslash form.
+- [ ] Open: once staging is on the Kamal VM, check the SSH route of `pull-staging.sh` against the accessory
+  (`STAGING_DUMP_COMMAND="docker exec -i -e MYSQL_PWD osct-staging-db mariadb-dump"`, docs/server.md "Staging's data").
+- [ ] Open: the real staging pull is untested here (no credentials in this session) – the script was checked against
+  a second database in the local container, directly and over a stand-in for ssh.
 ## 2026-10-30 – The editor's selection levels and the tree's hierarchy (#162, #163)
 
 - From Tilman's walkthrough on staging: no feedback on a click in the tree, target and entity always shown together,

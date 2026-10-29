@@ -71,7 +71,7 @@ One approach per layer; all of them run in CI (`.github/workflows/checks.yml`) o
 |---|---|---|
 | App: store, managers, services, utils, components | `client/src/**/__tests__/*.test.ts` (vitest, happy-dom) | `cd client && npx tsc --noEmit && npx vitest run` |
 | Content build, CDN sync and purge planning, delivery import | `scripts/test/*.test.ts` (vitest, node) | `cd scripts && npm test` |
-| Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite) | `php server/tests/api-test.php` |
+| Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite, or MariaDB – docs/server.md "Tests") | `php server/tests/api-test.php` · `OSCT_TEST_DB=mysql php server/tests/api-test.php` (after `docker compose up -d db`) |
 | MCP server | `mcp/test/*.test.ts` (vitest: a mocked fetch per tool; end to end over stdio against the PHP API) | `cd mcp && npx tsc --noEmit && npm test` |
 
 The client tests need a built game configuration (`npm run content`, the fixture is enough). Test content is

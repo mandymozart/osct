@@ -260,16 +260,16 @@ final class Assets
      */
     public static function usagesOf(string $bookId, array $asset): array
     {
-        $needle = '%' . str_replace(['%', '_'], ['\%', '\_'], $asset['url']) . '%';
+        $needle = Db::contains($asset['url']);
         $usages = [];
         if (str_contains(self::environmentText($bookId), Editor::encode($asset['url']))) $usages[] = ['kind' => 'environment', 'ref' => $bookId];
-        foreach (Db::run("SELECT id FROM targets WHERE book_id = :book AND (data_json LIKE :needle ESCAPE '\\' OR image_src = :url) ORDER BY id", ['book' => $bookId, 'needle' => $needle, 'url' => $asset['url']])->fetchAll() as $row) {
+        foreach (Db::run("SELECT id FROM targets WHERE book_id = :book AND (data_json LIKE :needle ESCAPE '!' OR image_src = :url) ORDER BY id", ['book' => $bookId, 'needle' => $needle, 'url' => $asset['url']])->fetchAll() as $row) {
             $usages[] = ['kind' => 'target', 'ref' => $row['id']];
         }
-        foreach (Db::run("SELECT ref FROM entities WHERE book_id = :book AND data_json LIKE :needle ESCAPE '\\' ORDER BY ref", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
+        foreach (Db::run("SELECT ref FROM entities WHERE book_id = :book AND data_json LIKE :needle ESCAPE '!' ORDER BY ref", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
             $usages[] = ['kind' => 'entity', 'ref' => $row['ref']];
         }
-        foreach (Db::run("SELECT id FROM entries WHERE book_id = :book AND data_json LIKE :needle ESCAPE '\\' ORDER BY id", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
+        foreach (Db::run("SELECT id FROM entries WHERE book_id = :book AND data_json LIKE :needle ESCAPE '!' ORDER BY id", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
             $usages[] = ['kind' => 'entry', 'ref' => $row['id']];
         }
         return $usages;
