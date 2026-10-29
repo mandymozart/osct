@@ -15,7 +15,10 @@ outcome in the line (or move it into a dated decision block).
   start at 2.5); the code editor's plugin API (#66, PR #73, not merged when this was built) gets `api.registerPass`
   as a one-line delegation to the registry with the plugin as the owner (`unregisterPassesOf(id)` on uninstall),
   and the guard's `passProblems(…, { unknownTypes: "allow" })` where plugins are declared. Built on `develop`, not
-  on #66's branch, so the PR stays reviewable; the #66 session was told the shape.
+  on #66's branch, so the PR stays reviewable. Agreed with the #66 session: **pass specs stay out of the component
+  spec registry** (`registerComponentSpec` feeds the Entity panel's *+ component* row and the node check – a pass there
+  would show on every node); passes have their own lookup, `passSpec(type)` in `shared/types/passes.ts` (the built-ins
+  plus a registered spec), which the Stage panel's rows read.
 - The chain keeps the AR layer's alpha (RULES #4): the scene renders into a half-float buffer (MSAA as the canvas),
   the passes run over premultiplied colour, the last pass converts to the output colour space with the alpha
   un-premultiplied and multiplied again, drawn over the screen with premultiplied blending (the look-around world
