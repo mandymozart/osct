@@ -260,7 +260,9 @@ export class ArView {
     this.camera.aspect = width / height;
     this.onResize(this.camera); // the tracker fits video + field of view
     this.camera.updateProjectionMatrix();
-    if (!this.running) this.draw();
+    // A resized canvas is cleared by the browser: draw at once, also while the loop runs, or the next paint shows a
+    // blank frame before the loop's next frame (the flicker while a panel is dragged)
+    this.draw();
     this.cleared = false; // size changed: draw again
   };
 

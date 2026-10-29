@@ -12,6 +12,23 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.4 – 2026-10-30
+
+### Fixed
+- **The panel sheet on a phone drags smoothly** (follow-up to #155): while it is dragged, the stage keeps its size and
+  the sheet slides over it; the 3D stage resizes once, on release. The grip is finger-sized (1.5rem), so a drag that
+  starts just above the tab row no longer lands on the stage and orbits the camera at the same time.
+- **No blank frame when the stage resizes**: the engine draws right after a resize, also while its loop runs – the
+  browser clears a resized canvas, and the next paint showed it empty (the flicker while a panel or the window was
+  resized; the reader on rotation too).
+- **A spread change no longer makes the stage jump** (#105): the editor's camera looks at the spread's root (the
+  spine's middle, the cover's middle) plus the author's pan, never at the first target – which differed per spread and
+  was missing until the targets arrived, so the camera jumped twice.
+
+### Changed
+- **The sheet's tabs are icons on a phone**, on one line (Tilman: "Mobile bitte die tabs auch mit icons statt text"):
+  tree, stage, entity, environment, library, code; the name is the label and the tooltip. A desktop keeps the words.
+
 ## 1.26.3 – 2026-10-30
 
 ### Changed

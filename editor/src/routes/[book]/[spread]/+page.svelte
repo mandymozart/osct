@@ -37,6 +37,15 @@
   const TABS = ["tree", "stage", "entity", "environment", "library", "code"] as const;
   type Tab = (typeof TABS)[number];
   const TAB_KEY = "osct-editor-tab";
+  /** The tab row: the word on a desktop, the icon on a phone (Tilman 2026-10-30) */
+  const TAB_BUTTONS: { tab: Tab; label: string; icon: IconName; title?: string }[] = [
+    { tab: "tree", label: "Tree", icon: "list" },
+    { tab: "stage", label: "Stage", icon: "sliders" },
+    { tab: "entity", label: "Entity", icon: "model" },
+    { tab: "environment", label: "Environment", icon: "globe", title: "The world around the reader and its sky, previewed on the stage" },
+    { tab: "library", label: "Library", icon: "folder" },
+    { tab: "code", label: "Code", icon: "code" },
+  ];
   const TREE_KEY = "osct-editor-tree";
   const NARROW = "(max-width: 47.9rem)";
 
@@ -126,6 +135,8 @@
   /** The sheet's head (grip and tab row), px */
   let headHeight = $state(0);
   let sheetDragging = $state(false);
+  /** The sheet's row while it is dragged (px): the stage keeps its size and the sheet slides over it; let go, it resizes once */
+  let sheetRow = $state(0);
   const sheetMin = $derived(Math.min(SHEET_MAX, (headHeight + SHEET_BODY_MIN) / Math.max(1, screenHeight)));
   const sheetShare = $derived(widths.sheet(sheetMin));
   const sheetHeight = $derived(Math.round(sheetShare * screenHeight));
@@ -147,6 +158,7 @@
     if (!d.moved) {
       if (Math.abs(event.clientY - d.startY) < DRAG_PX) return;
       d.moved = true;
+      sheetRow = ((event.currentTarget as HTMLElement).closest(".panel") as HTMLElement | null)?.offsetHeight ?? d.startHeight;
       sheetDragging = true;
       (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     }
@@ -404,7 +416,7 @@
 
 <div class="workspace" class:closed={shown === null} class:tree-closed={!treeOpen} class:dragging class:sheet-dragging={sheetDragging} bind:this={workspace}
   style:--panel-width="{panelWidth}px" style:--tree-width={treeShown ? `${treeWidth}px` : undefined}
-  style:--sheet-height={narrow && shown !== null ? `${sheetHeight}px` : undefined}>
+  style:--sheet-height={narrow && shown !== null ? `${sheetHeight}px` : undefined} style:--sheet-row={sheetDragging ? `${sheetRow}px` : undefined}>
   <aside class="tree" data-app-ui>
     <div class="bar">
       {#if treeOpen}<span class="section-label grow">tree</span>{/if}
@@ -493,14 +505,14 @@
       <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
       <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
       <span class="grow"></span>
-      {#if narrow}
-        <button type="button" class="pill tab" class:on={shown === "tree"} aria-pressed={shown === "tree"} onclick={() => setTab("tree")}>Tree</button>
-      {/if}
-      <button type="button" class="pill tab" class:on={shown === "stage"} aria-pressed={shown === "stage"} onclick={() => setTab("stage")}>Stage</button>
-      <button type="button" class="pill tab" class:on={shown === "entity"} aria-pressed={shown === "entity"} onclick={() => setTab("entity")}>Entity</button>
-      <button type="button" class="pill tab" class:on={shown === "environment"} aria-pressed={shown === "environment"} title="The world around the reader and its sky, previewed on the stage" onclick={() => setTab("environment")}>Environment</button>
-      <button type="button" class="pill tab" class:on={shown === "library"} aria-pressed={shown === "library"} onclick={() => setTab("library")}>Library</button>
-      <button type="button" class="pill tab" class:on={shown === "code"} aria-pressed={shown === "code"} onclick={() => setTab("code")}>Code</button>
+      {#each TAB_BUTTONS as b (b.tab)}
+        {#if b.tab !== "tree" || narrow}
+          <!-- A phone shows the tabs as icons, so the row stays one line (the name is the tooltip and the label) -->
+          <button type="button" class="pill tab" class:icon-tab={narrow} class:on={shown === b.tab} aria-pressed={shown === b.tab}
+            aria-label={narrow ? b.label : undefined} title={narrow ? `${b.label}${b.title ? ` – ${b.title}` : ""}` : b.title}
+            onclick={() => setTab(b.tab)}>{#if narrow}<Icon name={b.icon} />{:else}{b.label}{/if}</button>
+        {/if}
+      {/each}
     </div>
     </div>
     {#if addingTarget && spread}
@@ -577,14 +589,20 @@
   @media (max-width: 47.9rem) {
     .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
     .tree { display: none; }
-    .workspace.sheet-dragging { cursor: row-resize; user-select: none; }
+    .workspace.sheet-dragging { cursor: row-resize; user-select: none; grid-template-rows: minmax(0, 1fr) var(--sheet-row); }
+    /* Dragged, the sheet grows over the stage from its frozen row: the stage (a WebGL canvas) resizes once, on release */
+    .workspace.sheet-dragging .panel { align-self: end; position: relative; z-index: 4; }
     .panel { height: var(--sheet-height, auto); border-left: none; border-top: 1px solid var(--line); }
     /* The grip and the tab row take the drag; the panel's own content still scrolls */
     .head { touch-action: none; background: var(--surface-head); }
-    .grip { position: relative; height: .875rem; cursor: row-resize; outline: none; }
-    .grip::after { content: ""; position: absolute; top: .375rem; left: calc(50% - 1.25rem); width: 2.5rem; height: 4px; border-radius: 2px; background: var(--muted); opacity: .6; }
+    /* A finger-sized grip: a drag that starts just above the bar must not land on the stage (and orbit it) */
+    .grip { position: relative; height: 1.5rem; cursor: row-resize; outline: none; }
+    .grip::after { content: ""; position: absolute; top: calc(50% - 2px); left: calc(50% - 1.25rem); width: 2.5rem; height: 4px; border-radius: 2px; background: var(--muted); opacity: .6; }
     .grip:hover::after, .grip:focus-visible::after, .grip.on::after { opacity: 1; background: var(--text); }
     .body { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
+    /* One line: the tabs are icons; should it still not fit, the row scrolls instead of wrapping */
+    .panel .bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .bar .tab.icon-tab { padding: 0; width: var(--control-height); justify-content: center; flex: none; }
     /* Closed, the tab row is the bottom of the screen: above the home indicator */
     .workspace.closed .panel .bar { padding-bottom: calc(.25rem + env(safe-area-inset-bottom)); }
   }
