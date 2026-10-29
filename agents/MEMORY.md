@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-29 (night) – Code in the editor: plugins (#66, decided alone from the concept – to review)
+
+- Tilman (on staging): own JS scripts and shaders in the editor, "wie hatte das Niantic Studio gemacht? Das war mega.
+  Wichtig für Spezialeffekte für Kévin und für erweiterte Game-Logik." Decided (`agents/research/2026-10-29-code-in-
+  the-editor.md`): **a plugin folder in the content source, compiled by the content build, is the way to readers**
+  (type check against the engine's own API types, esbuild bundle, recorded once, declared in the configuration –
+  schema 2.4); **the editor's Code tab is the sandbox** – sources in a `plugins` table, Run transpiles in the browser
+  (sucrase, ~200 KB, loaded with the first Run; esbuild-wasm's 10 MB and CodeMirror were left out to keep the editor
+  small), nothing of it reaches a publish (409 when nodes use a type no declared plugin provides). The plugin API
+  1.0 is `registerComponent` + `registerLayer` + `api.three`; material layers are **components** in the content
+  (`components: [{ type: tint, … }]`), so panel, build and guard treat them as one; GLSL never travels in content.
+- Not in 1.0 (decide when a work needs it): `registerNodeType`, events beyond a node's own hooks, variables and
+  scopes, `api.progress`; "compile on publish" (the build behind the API) and completion from the API's types in the
+  Code tab.
+- Schema clash resolved in the merge: the covers took 2.3 on develop while this branch used 2.3 too → the plugins are
+  **2.4** (RULES #23's rule for version files, applied to the content schema).
+
 ## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
 
 - Tilman: "Das ist die Frage des Routings – wer für was verantwortlich ist." "Der Editor hat eine Sonderstellung:
