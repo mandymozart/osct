@@ -6,6 +6,7 @@
   import { session } from "$lib/session.svelte";
   import { sheetForSpread, type StageLayout } from "$lib/stage/stage-layout";
   import PublishButton from "$lib/PublishButton.svelte";
+  import EnvironmentPanel from "$lib/panels/EnvironmentPanel.svelte";
 
   /** A book's spreads with the sheet of each as its preview (when the content carries the layout): open one to work on its stage */
   const bookId = $derived(page.params.book!);
@@ -48,6 +49,10 @@
     }
   });
 
+  const reload = async () => {
+    tree = await getBook(bookId);
+  };
+
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
   const pagesOf = (spread: { firstPage: number; lastPage: number; format?: string }) =>
     spread.format === "cover" ? "cover" : spread.format === "back" ? "back" : `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}`;
@@ -70,6 +75,7 @@
       {#if !hasFormat("cover")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("cover")}>+ cover</button>{/if}
       {#if !hasFormat("back")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("back")}>+ back cover</button>{/if}
     </p>
+    <EnvironmentPanel bookId={bookId} saved={tree.book.book?.environment} onsaved={reload} />
     <ul class="spreads">
       {#each tree.spreads as spread (spread.id)}
         {@const sheet = sheetForSpread(layout, spread)}
