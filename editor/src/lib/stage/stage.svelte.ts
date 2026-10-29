@@ -80,6 +80,11 @@ export class Stage {
     return this.overrides.get(targetId);
   }
 
+  /** The colour under a point of the stage (CSS px from the container's top left), `#rrggbb` or null */
+  sampleColor(x: number, y: number): string | null {
+    return this.scene.sampleColor(x, y);
+  }
+
   /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */
   refresh(): Promise<void> {
     return this.scene.refresh();

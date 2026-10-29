@@ -127,6 +127,21 @@ export class ArView {
     });
   }
 
+  /**
+   * The colour under a point of the canvas (CSS px from its top left) as `#rrggbb`: the frame is drawn again and the
+   * pixel read right after (the drawing buffer is not preserved between frames) – the editor's "pick from the stage"
+   */
+  sample(x: number, y: number): string | null {
+    const gl = this.renderer.getContext();
+    const size = this.renderer.getSize(new Vector2());
+    const dpr = this.renderer.getPixelRatio();
+    if (x < 0 || y < 0 || x > size.x || y > size.y) return null;
+    this.draw();
+    const pixel = new Uint8Array(4);
+    gl.readPixels(Math.min(Math.round(x * dpr), Math.round(size.x * dpr) - 1), Math.min(Math.round((size.y - y) * dpr), Math.round(size.y * dpr) - 1), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    return `#${[pixel[0], pixel[1], pixel[2]].map(v => v.toString(16).padStart(2, "0")).join("")}`;
+  }
+
   /** Stop rendering – the canvas keeps the last frame */
   stop(): void {
     this.looping = false;

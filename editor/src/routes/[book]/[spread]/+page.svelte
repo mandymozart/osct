@@ -92,6 +92,29 @@
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);
   };
+
+  // ── Pick a colour from the stage (the colour field's eyedropper): an overlay over the stage shows the colour under
+  // the pointer in a chip; a tap takes it, Esc cancels. The overlay is app UI (role dialog), so the tracker ignores it.
+  let picking = $state<((hex: string | null) => void) | null>(null);
+  let pickHex = $state<string | null>(null);
+  let pickAt = $state({ x: 0, y: 0 });
+  let picker = $state<HTMLDivElement>();
+  const pickColour = () => new Promise<string | null>(resolve => {
+    picking = resolve;
+    pickHex = null;
+    requestAnimationFrame(() => picker?.focus());
+  });
+  const endPick = (hex: string | null) => {
+    picking?.(hex);
+    picking = null;
+    pickHex = null;
+  };
+  const samplePick = (event: PointerEvent) => {
+    if (!container || !stage) return;
+    const rect = container.getBoundingClientRect();
+    pickAt = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    pickHex = stage.sampleColor(pickAt.x, pickAt.y);
+  };
 </script>
 
 <svelte:window onkeydown={onKey} />
@@ -117,6 +140,13 @@
     {:else if stage.status === "error"}
       <p class="notice danger">{stage.error}</p>
     {/if}
+    {#if picking}
+      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+      <div bind:this={picker} class="picker" role="dialog" aria-label="Pick a colour from the stage – tap to take it, Esc to cancel" tabindex="-1"
+        onpointermove={samplePick} onpointerdown={samplePick} onclick={() => endPick(pickHex)} onkeydown={e => { if (e.key === "Escape") endPick(null); }}>
+        {#if pickHex}<span class="pick-chip" style:left="{pickAt.x + 16}px" style:top="{pickAt.y + 16}px" style:--c={pickHex}>{pickHex}</span>{/if}
+      </div>
+    {/if}
   </div>
 
   <aside class="panel">
@@ -136,7 +166,7 @@
     {:else if shown === "stage"}
       <div class="body"><StagePanel {stage} {spreadId} /></div>
     {:else if shown === "entity"}
-      <div class="body"><EntityPanel {stage} {bookId} {spreadId} bind:selected={selectedTarget} /></div>
+      <div class="body"><EntityPanel {stage} {bookId} {spreadId} bind:selected={selectedTarget} {pickColour} /></div>
     {/if}
     <div class="foot">
       <PublishButton {bookId} />
@@ -155,6 +185,10 @@
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   .stage :global(canvas) { display: block; width: 100%; height: 100%; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
+  .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }
+  .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
+    border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font-size: var(--text-small); font-family: ui-monospace, Consolas, monospace; }
+  .pick-chip::before { content: ""; width: .875rem; height: .875rem; border-radius: 50%; border: 1px solid var(--line); background: var(--c); }
   .panel { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--line); color: var(--text); }
   .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .bar .spread-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 .25rem; }

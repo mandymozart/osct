@@ -105,8 +105,11 @@ again). Nothing of the reader's store, progress or routes is involved.
   - **Entity** – the target (a tap on an entity on the stage or in the tree selects it), then every placement value
     and filter parameter of its entity as rows of one control height: position, rotation and scale with X, Y, Z side
     by side as in Blender (the chain icon at the end of the scale row links the axes: pressed = one `scale` field, as
-    Blender's lock), choices as a segmented group, colours as
-    swatch + hex, a reset arrow while a value differs from the type's default, ● on rows that differ from the draft.
+    Blender's lock), choices as a segmented group, colours as a
+    swatch + hex whose swatch opens the editor's **colour popover** (after Scutoons': a palette of the usual keys and
+    the book's gold, this browser's recent colours, a saturation / brightness area with a hue slider, the hex, and
+    the eyedropper that **picks from the stage** – the colour under the pointer in a chip, a tap takes it, Esc
+    cancels; the sampled pixel is the rendered one, lit and tone-mapped), a reset arrow while a value differs from the type's default, ● on rows that differ from the draft.
     Changes show live on the stage; **Save** writes the entity to the API – the shared entity when the target refers
     to one (the head says `shared: <ref> (n×)`), else the target's own – and the stage rebuilds from the draft;
     **Back to the draft** drops them. Rows come from the content contract's definitions (`PLACEMENT_PARAMS`,
@@ -121,7 +124,8 @@ the reader's design tokens: a design tool's default palette – day (white, ligh
 (dark greys, white text), following the system, forced with `data-scheme` on `<html>` – and **no colour** but the
 danger red; one control height (`--control-height`, 1.75rem), square corners, compact system type; rows with a label
 column; numbers as `ScrubNumber` (the whole field is the gesture: press and slide, Shift ×10, Alt ×0.1, tap to type,
-↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders); small enums as segmented pressed pills;
+↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders, no native colour picker: the colour popover
+in the top layer); small enums as segmented pressed pills;
 on / off per item as a pressed chip; Feather icons only where a word makes no sense (step, replay, photo, close, the
 chain that links the scale axes) – and in the tree, where type icons and the eye are every outliner's convention
 (Blender, Unity, Figma); each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
