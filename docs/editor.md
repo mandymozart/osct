@@ -173,6 +173,10 @@ is involved.
     **right click** on a node row opens the menu with *Remove node* / *Remove entity*. Removing is live on the stage;
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device).
+  - **Column edges** – the tree's right edge and the panel's left edge are dragged to resize the columns (#144; the
+    panel 18rem to 70% of the window, the tree 10rem to 40%, the stage keeps at least 12rem; a focused edge also moves
+    with ← →). The stage's view follows live. The widths are kept on the device (`editor/src/lib/widths.svelte.ts`);
+    the Code tab has its own, wider width; a double-click on an edge restores the default. Not on a phone.
   - **Info** – at the bottom of the tree column (on the book page at the bottom left), after Ableton's Info View: the
     name and description of the control under the pointer or in focus; collapsible, the state kept on the device. The
     panels carry no explanatory text of their own – it is the controls' help (`editor/src/lib/help.svelte.ts`): an
