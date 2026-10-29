@@ -275,6 +275,11 @@ back spread the page after the last printed one; an entry on that page belongs t
 surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
 any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
 
+**Environment** (content schema 2.8): `book.yaml` may set `environment: { world: cafe, onionSky: true }` – the world
+around the reader while scanning and the onion sky (docs/look-around.md). Book-level only; without it the café with
+the onion sky applies. The reader's Graphics switches still apply on top, so the content never turns on what the reader
+has off. The editor saves it on the book page (`PUT /editor/books/{id}/environment`).
+
 **Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
 whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
 `passes` too: they apply to every spread without a list of its own (`passes: []` on a spread turns them off there).
@@ -498,6 +503,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.5 | 1.12.0 | in develop | post-processing passes |
 | 2.6 | 1.13.0 | in develop | light nodes: point, spot and directional lights as a node type |
 | 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
+| 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

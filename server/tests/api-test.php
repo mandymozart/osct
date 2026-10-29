@@ -651,6 +651,21 @@ try {
     [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Seal', 'page' => 0, 'target' => ['imageSrc' => 'https://cdn.example/seal.jpg', 'print' => ['surface' => 'front', 'x' => 60, 'y' => 100, 'width' => 100]]], $editor);
     check($status === 201 && $data['spreadId'] === 'cover' && $data['entry']['target']['print']['surface'] === 'front', 'an entry on page 0 lands on the cover, printed on its front');
 
+    echo "editor: the book's environment (content schema 2.8)\n";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => false]], $editor);
+    check($status === 200 && $data['environment'] === ['world' => 'cafe', 'onionSky' => false], 'PUT environment');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=3', null, $editor);
+    [, $draftNow] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check(($draftNow['book']['environment'] ?? null) === ['world' => 'cafe', 'onionSky' => false], 'the draft carries the environment');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'moon', 'onionSky' => true]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-environment', 'an unknown world is refused');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe']], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-environment', 'onionSky is required');
+    [$status] = call($api, 'PUT', '/editor/books/osct/environment', ['world' => 'cafe'], $editor);
+    check($status === 400, 'the body needs environment');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => null], $editor);
+    check($status === 200 && !isset($data['environment']), 'environment: null removes it – the default applies');
+
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();
     $bunnyDir = "$tmp/bunny";
