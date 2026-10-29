@@ -574,7 +574,13 @@ try {
     check($file === $png, 'the file is served by the content route');
     check(in_array('Content-Type: image/png', $http_response_header, true) && in_array('Access-Control-Allow-Origin: *', $http_response_header, true), 'with its type and open CORS');
     [$status, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
-    check($status === 200 && count($data['assets']) === 1 && $data['assets'][0]['usages'] === 0, 'the list: one asset, unused');
+    check($status === 200 && count($data['assets']) === 3 && $data['assets'][0]['id'] === $asset['id'] && $data['assets'][0]['usages'] === 0 && $data['assets'][0]['imported'] === false, 'the list: the upload, unused, first');
+    $imported = array_values(array_filter($data['assets'], fn($a) => $a['imported']));
+    check(count($imported) === 2 && $imported[0]['name'] === 'racoon.glb' && $imported[0]['kind'] === 'glb' && $imported[0]['size'] === 1234 && $imported[0]['url'] === '/assets/content/entries/racoon/racoon.glb' && $imported[1]['kind'] === 'image', 'and the files of the import (files.json) after it');
+    [, $filtered] = call($api, 'GET', '/editor/books/osct/assets?kind=image', null, $editor);
+    check(count($filtered['assets']) === 2 && array_column($filtered['assets'], 'kind') === ['image', 'image'], 'the kind filter applies to both');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$imported[0]['id']}", null, $editor);
+    check($status === 404, 'an imported file is read-only (no delete, replace or usages: 404)');
     // Used by a node: the usages know, delete refuses, replace relinks
     $image = ['type' => 'image', 'assets' => [['id' => 'castle-img', 'assetType' => 'image', 'src' => $asset['url']]]];
     [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $image, $editor);
@@ -595,7 +601,7 @@ try {
     check($status === 204, 'forced delete → 204');
     [$status] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
     [, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
-    check($data['assets'] === [], 'gone from the list');
+    check(array_column($data['assets'], 'imported') === [true, true], 'gone from the list (the imported files stay)');
     $gone = @file_get_contents($v2);
     check($gone === false, 'and from the store');
 

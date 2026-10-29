@@ -240,6 +240,8 @@ export interface Asset {
   /** The absolute URL nodes and targets name */
   url: string;
   usages: number;
+  /** A file of the content import (`files.json`), not an upload: read-only, no replace or delete */
+  imported: boolean;
   createdAt: string;
   updatedAt: string;
 }
