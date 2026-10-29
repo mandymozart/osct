@@ -170,6 +170,8 @@ interface AssetData {
 interface EntityData {
 	/** Optional, unique within the tree: the editor's selection, a later behaviour's target */
 	id?: string;
+	/** Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; the reader ignores it */
+	name?: string;
 	type: EntityType;
 	/** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` */
 	assets: AssetData[];
