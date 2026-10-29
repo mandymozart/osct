@@ -1,7 +1,7 @@
 {
   "name": "osct-mcp",
   "private": true,
-  "version": "1.20.1",
+  "version": "1.20.5",
   "description": "OSCT MCP server (stdio): a Claude session as a signed-in editor over the instance's API – the book's draft, assets and plugin sources; the API decides, readers are reached only by a person",
   "type": "module",
   "engines": {

@@ -7,6 +7,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
 import { gridAreas, gridLines, type OriginId } from "./origin";
+import { applyShading, ownMaterial } from "./shading";
 import type { DeskId, HdriId, ShadingMode } from "./preview";
 
 /**
@@ -142,11 +143,17 @@ export class MockStage implements StageView {
   private shading: ShadingMode = "rendered";
   private hdri: HdriId | null = null;
 
-  /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only */
+  /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only; wireframe and solid reach the book and the desk too (#137) */
   setShading(mode: ShadingMode): void {
     if (this.shading === mode) return;
     this.shading = mode;
     this.setHdri(this.hdri);
+    this.shadeStage();
+  }
+
+  /** The current shading on the desk, the book and the pages – not the ghost, the grid or the sky */
+  private shadeStage(): void {
+    applyShading([this.table, this.book, this.pages], this.shading);
   }
   /** The scene's own lights at their intensity before the HDRI dimmed them */
   private dimmed = new Map<Light, number>();
@@ -312,8 +319,9 @@ export class MockStage implements StageView {
         }
         texture.colorSpace = SRGBColorSpace;
         this.textures.push(texture);
-        paper.material.map = texture;
-        paper.material.needsUpdate = true;
+        const own = ownMaterial<MeshBasicMaterial>(paper);
+        own.map = texture;
+        own.needsUpdate = true;
         this.setDetail(this.distance);
       });
     } else if (!closed) {
@@ -346,8 +354,9 @@ export class MockStage implements StageView {
         plane.geometry.dispose();
         plane.geometry = new PlaneGeometry(target.width / 1000, (target.width * aspect) / 1000);
         plane.position.y = (page.height / 2 - target.y - (target.width * aspect) / 2) / 1000;
-        plane.material.map = texture;
-        plane.material.needsUpdate = true;
+        const own = ownMaterial<MeshBasicMaterial>(plane);
+        own.map = texture;
+        own.needsUpdate = true;
       });
     });
     this.drawGrid();
@@ -366,7 +375,7 @@ export class MockStage implements StageView {
     const paper = this.sheetPaper;
     if (!paper || !this.sharpSource || this.sharpRequested || distanceMm > SHARP_DISTANCE_MM) return;
     // The base image first: the sharper one only replaces a picture that is already there
-    if (!paper.material.map) return;
+    if (!ownMaterial<MeshBasicMaterial>(paper).map) return;
     this.sharpRequested = true;
     const run = this.layoutRun;
     this.loader.load(this.sharpSource, texture => {
@@ -377,8 +386,9 @@ export class MockStage implements StageView {
       texture.colorSpace = SRGBColorSpace;
       texture.anisotropy = 8;
       this.textures.push(texture);
-      paper.material.map = texture;
-      paper.material.needsUpdate = true;
+      const own = ownMaterial<MeshBasicMaterial>(paper);
+      own.map = texture;
+      own.needsUpdate = true;
     }, undefined, error => console.warn("[mock-stage] the sharper sheet image could not be loaded:", error));
   }
 
@@ -439,6 +449,8 @@ export class MockStage implements StageView {
    */
   private toBackdropLayer(): void {
     this.group.traverse(object => object.layers.set(BACKDROP_LAYER));
+    // Called whenever the stage built something new: it gets the current shading as well
+    this.shadeStage();
   }
 
   /** The sky and the light: the HDRI while rendered, else the scene's own lights over the editor's dark ground */
