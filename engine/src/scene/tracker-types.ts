@@ -65,6 +65,12 @@ export interface IImageTracker {
   stopTracking(): void;
   /** Release the camera (and the tracking) */
   stop(): void;
+  /**
+   * Draw the camera picture with this fragment shader (`cameraGradeShader`: a grade that reaches the whole picture),
+   * `null` = as the camera gives it. Kept across a camera restart. A tracker without a picture of its own (the
+   * editor's stage) has none – its desk is graded in the post chain.
+   */
+  gradeCamera?(fragmentShader: string | null): void;
   /** Fit the camera picture to the container and give the three.js camera the matching projection */
   fit(camera: PerspectiveCamera): void;
 }
