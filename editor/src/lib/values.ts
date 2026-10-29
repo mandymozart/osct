@@ -1,10 +1,9 @@
 import {
   AssetData,
-  COMPONENTS,
   ComponentData,
   ComponentParamSpec,
-  ComponentSpec,
-  ComponentType,
+  componentSpec,
+  componentTypes,
   EntityData,
   FilterData,
   FILTERS,
@@ -21,7 +20,7 @@ import {
 
 /**
  * The Entity panel's values: one row per adjustable value of an entity, generated from the content contract's
- * definitions (`PLACEMENT_PARAMS`, `FILTERS`, `COMPONENTS`, `LIGHT_PARAMS`), reading and writing them on an
+ * definitions (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`, `LIGHT_PARAMS`), reading and writing them on an
  * `EntityData` copy. Row ids use the three.js names: `position.x`, `rotation.y`, `scale` (uniform) or `scale.z`,
  * `filters.0.threshold`, `components.0.speed`, `light.intensity`. A new filter, component, light parameter or
  * parameter in the contract needs no panel code.
@@ -88,14 +87,14 @@ export const filterRows = (filter: FilterData, index: number): ValueRow[] => {
 
 /** The rows of a component (`components.{i}.{name}`), from its spec */
 export const componentRows = (component: ComponentData, index: number): ValueRow[] => {
-  const spec: ComponentSpec | undefined = COMPONENTS[component.type];
+  const spec = componentSpec(component.type);
   return spec ? specRows(`components.${index}`, spec.params) : [];
 };
 
 /** The rows of a light node (`light.{name}`), from `LIGHT_PARAMS` */
 export const lightRows = (): ValueRow[] => specRows("light", LIGHT_PARAMS);
 
-/** One row per parameter of a spec (a component's, the light's), ids `{prefix}.{name}` */
+/** One row per parameter of a spec (a component's – built-in or a plugin's – or the light's), ids `{prefix}.{name}` */
 const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): ValueRow[] =>
   Object.entries(params).map(([name, param]): ValueRow => {
     const id = `${prefix}.${name}`;
@@ -112,9 +111,9 @@ const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): V
   });
 
 /** The component types a node of `type` may take */
-export const componentTypesFor = (type: EntityData["type"]): ComponentType[] =>
-  (Object.keys(COMPONENTS) as ComponentType[]).filter(key => {
-    const nodeTypes = (COMPONENTS[key] as { nodeTypes?: readonly string[] }).nodeTypes;
+export const componentTypesFor = (type: EntityData["type"]): string[] =>
+  componentTypes().filter(key => {
+    const nodeTypes = componentSpec(key)?.nodeTypes as readonly string[] | undefined;
     return !nodeTypes || nodeTypes.includes(type);
   });
 
@@ -193,7 +192,7 @@ export const addFilter = (entity: EntityData, type: FilterType): EntityData =>
 export const removeFilter = (entity: EntityData, index: number): EntityData =>
   ({ ...entity, filters: (entity.filters ?? []).filter((_, i) => i !== index) });
 
-export const addComponent = (entity: EntityData, type: ComponentType): EntityData =>
+export const addComponent = (entity: EntityData, type: string): EntityData =>
   ({ ...entity, components: [...(entity.components ?? []), { type }] });
 
 export const removeComponent = (entity: EntityData, index: number): EntityData => {

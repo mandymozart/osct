@@ -25,6 +25,34 @@ outcome in the line (or move it into a dated decision block).
   branch for the plugins: whoever merges second resolves the lock to 3.x (3.1 for the plugins' MINOR).
 - Open: the publish writes the imported book's schema (`books.content_schema`), not the server's – a 2.3 book
   published with a light says 2.3; the reader of the same build reads it anyway, an older reader fails on the node.
+## 2026-10-29 (night) – Code in the editor: plugins (#66, decided alone from the concept – to review)
+
+- Tilman (on staging): own JS scripts and shaders in the editor, "wie hatte das Niantic Studio gemacht? Das war mega.
+  Wichtig für Spezialeffekte für Kévin und für erweiterte Game-Logik." Decided (`agents/research/2026-10-29-code-in-
+  the-editor.md`): **a plugin folder in the content source, compiled by the content build, is the way to readers**
+  (type check against the engine's own API types, esbuild bundle, recorded once, declared in the configuration –
+  schema 2.4); **the editor's Code tab is the sandbox** – sources in a `plugins` table, Run transpiles in the browser
+  (sucrase, ~200 KB, loaded with the first Run; esbuild-wasm's 10 MB and CodeMirror were left out to keep the editor
+  small), nothing of it reaches a publish (409 when nodes use a type no declared plugin provides). The plugin API
+  1.0 is `registerComponent` + `registerLayer` + `api.three`; material layers are **components** in the content
+  (`components: [{ type: tint, … }]`), so panel, build and guard treat them as one; GLSL never travels in content.
+- Tilman answered the open questions the same night: **no sandbox in the reader** ("ich finde wir schützen schon
+  genug vor Release" – the review before a release is the protection; a sandbox would cost the direct three.js
+  access, the point of the API); **layers stay components** – his concern is performance, so the build warns about
+  more than three layers on a node and the guide says to bake what never changes into the video; **type stubs with
+  completion** – wanted, #76 (Monaco, lazily with the Code tab); **node types** – wanted, as the engine's existing
+  builder contract with a small spec, #77; **the way to readers stays the content build – run on the server behind the
+  publish** ("Build Option 2": Node and `scripts/` in the image, the API compiles the stored sources on publish; no
+  download detour – "kind of stupid to think about"), #78; **an MCP server** over the editor's API so
+  Claude builds content and plugins fast in Amsterdam, #75. Schema numbers are fine ("einfach mal weiter machen");
+  how the content schema links to the app's and the editor's versions is still open.
+- [ ] Open: how the content schema version relates to the app's and the editor's versions (today: MAJOR refused,
+  MINOR ignored – RULES #10; the editor reads the same engine).
+- [ ] Open: the plugin API's own version (`PLUGIN_API_VERSION` 1.0) against app releases – bump the MINOR when the
+  API grows (#77 registerNodeType), MAJOR when a hook changes meaning.
+- Schema clash resolved in the merge: the covers took 2.3 on develop while this branch used 2.3 too → the plugins are
+  **2.4** (RULES #23's rule for version files, applied to the content schema).
+
 ## 2026-10-29 – The stage's desk is our own Eiermann model (#68)
 
 - Tilman: "the table should be an Eiermann"; he supplied a 3ds Max model of the frame (`01_E1_1100x660-exzentrisch`,

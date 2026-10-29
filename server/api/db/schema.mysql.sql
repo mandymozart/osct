@@ -252,3 +252,18 @@ INSERT IGNORE INTO `user_roles` (`user_id`, `role_id`, `granted_at`, `granted_by
   SELECT `id`, 1, UTC_TIMESTAMP(), 'migration' FROM `users`;
 INSERT IGNORE INTO `user_roles` (`user_id`, `role_id`, `granted_at`, `granted_by`)
   SELECT `id`, 2, UTC_TIMESTAMP(), 'migration' FROM `users` WHERE `role` = 'editor';
+
+-- The editor's plugin sources (Plugins.php): the Code tab's TypeScript per plugin id; the compiled plugins a book
+-- declares come with the import (books.plugins_json)
+CREATE TABLE IF NOT EXISTS plugins (
+  book_id VARCHAR(64) NOT NULL,
+  id VARCHAR(64) NOT NULL,
+  source MEDIUMTEXT NOT NULL,
+  created_by CHAR(36) NULL DEFAULT NULL,
+  updated_by CHAR(36) NULL DEFAULT NULL,
+  created_at BIGINT NOT NULL,          -- ms since 1970 (UTC)
+  updated_at BIGINT NOT NULL,
+  PRIMARY KEY (book_id, id),
+  CONSTRAINT plugins_book_fk FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ALTER TABLE `books` ADD COLUMN `plugins_json` TEXT NOT NULL DEFAULT '[]';

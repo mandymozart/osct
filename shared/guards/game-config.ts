@@ -17,6 +17,7 @@ import {
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
+import { pluginProblems } from "../types/plugins";
 import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
@@ -46,11 +47,19 @@ export class GameConfigurationError extends Error {
   }
 }
 
+export interface GuardOptions {
+  /**
+   * Component types the registry does not know: refused unless the configuration declares plugins (the default) –
+   * or always allowed (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run)
+   */
+  unknownComponentTypes?: "declared" | "allow";
+}
+
 /**
  * Throws a `GameConfigurationError` listing every problem (with its path) unless `raw` matches
  * the `GameConfiguration` contract. Also checks references: entity refs exist, ids are unique.
  */
-export function assertGameConfiguration(raw: unknown): asserts raw is GameConfiguration {
+export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}): asserts raw is GameConfiguration {
   const problems: string[] = [];
   const fail = (path: string, message: string) => problems.push(`${path}: ${message}`);
 
@@ -73,6 +82,10 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     fail(path, "expected an object");
     return null;
   };
+
+  // With plugins declared, a component type the registry does not know yet is the plugin's (it registers it at load)
+  const root0 = isObject(raw) ? raw : {};
+  const hasPlugins = options.unknownComponentTypes === "allow" || (Array.isArray(root0.plugins) && root0.plugins.length > 0);
 
   const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
@@ -109,7 +122,8 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
       filterProblems(e.filters, `${path}.filters`).forEach(problem => problems.push(problem));
     }
     if (e.components !== undefined) {
-      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined).forEach(problem => problems.push(problem));
+      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: hasPlugins ? "allow" : "refuse" })
+        .forEach(problem => problems.push(problem));
     }
   };
 
@@ -131,6 +145,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
   }
 
   str(root, "initialSpreadId", "config");
+  if (root.plugins !== undefined) pluginProblems(root.plugins).forEach(problem => problems.push(problem));
 
   const spreadIds = new Set<string>();
   const pageRanges: [number, number][] = [];

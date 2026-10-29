@@ -1096,12 +1096,21 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        guard, API, editor's tree with + node / remove node; the app reads 1.x as one-node trees – 2026-10-29);
        [x] components with specs (schema 2.2, `shared/types/components.ts`): the first is `animation` on a model
        (clip, playOn found / tap / never, stopOn, loop, speed) with the editor's timeline; the entity instance got
-       `onTap` and a `NodeTimeline`; [x] the node type `light` (schema 3.0, #71: point / spot / directional with
+       `onTap` and a `NodeTimeline`; [x] the **plugin API 1.0** (#66, 1.11.0, `agents/research/2026-10-29-code-in-the-
+       editor.md`): `registerComponent` and `registerLayer` (material layers – GLSL composed into a node's material)
+       with the shared specs as a registry, `api.three`, the component context and hooks; plugins compiled by the
+       content build (`plugins/<id>/index.ts` → type check, esbuild, recorded, declared – schema 2.4), loaded by the
+       engine with the first spread; [x] the node type `light` (schema 3.0, #71: point / spot / directional with
        the editor's rows, tree icon and stage helper; an unknown node type passes the guard from 3.0 on, so the next
-       type is MINOR); [ ] more components (`behaviour` with actions, `spin` / `float`, `audio`,
-       material layers), the node-type registry with specs, nodes without a target on the spread (scope `spread`),
-       `api.three`; plugins compiled by the content build.
-4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.
+       type is MINOR); [ ] more built-in components (`behaviour` with actions, `audio`), the node-type
+       registry (`registerNodeType`), nodes without a target on the spread (scope `spread`), events and variables
+       between entities (Studio C).
+4. [x] Code in the editor (#66, 1.11.0): the **Code** tab – plugin sources stored through the API (`plugins` table),
+       a plain code editor, Run = browser transpile (sucrase) into the stage's registry, Save, Download; the editor's
+       stage is the only place unchecked code runs, a publish refuses component types no declared plugin provides.
+       Open: [ ] the content build in the image, run by the API on publish (#78, Tilman: option 2), [ ] the API's type stubs with
+       completion and type errors in the Code tab (#76, Monaco), [ ] `registerNodeType` (#77), [ ] an MCP server
+       over the editor's API for building with Claude in Amsterdam (#75).
 5. [~] Spread **formats** (Tilman 2026-10-29: "Format als assignable ins Modell … default Spread, special Front und
        Back, Bonus Museumswand") and the geometry import (#60): [x] the import from the designed PDFs (`npm run
        layout`, 1.10.0); [x] `format` on a spread (schema 2.3): `spread`, `cover`, `back` – the covers as spreads of
