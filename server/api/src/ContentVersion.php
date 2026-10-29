@@ -121,7 +121,7 @@ final class ContentVersion
     }
 
     /** files.json with its keys (content paths) rewritten the same way, in the same order */
-    private static function rewriteFiles(stdClass $files, string $base): stdClass
+    public static function rewriteFiles(stdClass $files, string $base): stdClass
     {
         $result = new stdClass();
         foreach (get_object_vars($files) as $path => $file) {

@@ -42,7 +42,36 @@ final class Assets
         $kind = $_GET['kind'] ?? null;
         $rows = Db::run('SELECT * FROM assets WHERE book_id = :book AND status = :status' . (is_string($kind) && $kind !== '' ? ' AND kind = :kind' : '') . ' ORDER BY updated_at DESC',
             ['book' => $bookId, 'status' => 'active'] + (is_string($kind) && $kind !== '' ? ['kind' => $kind] : []))->fetchAll();
-        Http::json(200, ['assets' => array_map(fn(array $row) => self::summary($row, count(self::usagesOf($bookId, $row))), $rows)]);
+        $assets = array_map(fn(array $row) => self::summary($row, count(self::usagesOf($bookId, $row))), $rows);
+        Http::json(200, ['assets' => array_merge($assets, self::imported($bookId, is_string($kind) && $kind !== '' ? $kind : null))]);
+    }
+
+    /**
+     * The files of the book's import (its `files.json`, keys below the assets base like the content): images, videos,
+     * models and sounds the stage uses although nobody uploaded them. Read-only – their ids are no uuids, so replace, usages and
+     * delete answer 404; replacing one is the content build's business (`imported: true`, id `import-<hash of the url>`, version 1, no dimensions).
+     * @return array<int, array<string, mixed>>
+     */
+    private static function imported(string $bookId, ?string $kind): array
+    {
+        $book = Db::one('SELECT files_json, assets_base, updated_at, created_at FROM books WHERE id = :id', ['id' => $bookId]);
+        $files = Editor::decode($book['files_json'] ?? null);
+        if (!$files instanceof stdClass) return [];
+        $base = rtrim((string) $book['assets_base'], '/');
+        if ($base !== '') $files = ContentVersion::rewriteFiles($files, $base);
+        $at = Editor::iso((int) $book['updated_at']);
+        $result = [];
+        foreach (get_object_vars($files) as $url => $file) {
+            $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
+            if (!isset(self::KINDS[$extension]) || ($kind !== null && self::KINDS[$extension] !== $kind)) continue;
+            $result[] = [
+                'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
+                'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) ($file->size ?? 0),
+                'width' => null, 'height' => null, 'version' => 1, 'url' => $url, 'usages' => count(self::usagesOf($bookId, ['url' => $url])),
+                'createdAt' => $at, 'updatedAt' => $at, 'imported' => true,
+            ];
+        }
+        return $result;
     }
 
     /**
@@ -244,7 +273,7 @@ final class Assets
         return [
             'id' => $row['id'], 'name' => $row['name'], 'kind' => $row['kind'], 'mime' => $row['mime'], 'size' => (int) $row['size'],
             'width' => $row['width'] === null ? null : (int) $row['width'], 'height' => $row['height'] === null ? null : (int) $row['height'],
-            'version' => (int) $row['version'], 'url' => $row['url'], 'usages' => $usages,
+            'version' => (int) $row['version'], 'url' => $row['url'], 'usages' => $usages, 'imported' => false,
             'createdAt' => Editor::iso((int) $row['created_at']), 'updatedAt' => Editor::iso((int) $row['updated_at']),
         ];
     }
