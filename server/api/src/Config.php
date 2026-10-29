@@ -46,6 +46,18 @@ final class Config
         'PASSWORD_MAX_FAILS_PER_IP_HOUR' => '30',
         'PASSWORD_RESET_MINUTES' => '15',
         'PROGRESS_MAX_BYTES' => '262144',
+        // Editor (docs/server.md "Editor data"): largest request body (the import of a game configuration)
+        'EDITOR_MAX_BYTES' => '8388608',
+        // Where published content versions go: local = CONTENT_STORE_DIR (served by GET /content/{env}/…), bunny =
+        // the storage zone the osct CLI syncs to (staging / production; the environment local always stays local)
+        'CONTENT_STORE' => 'local',
+        'CONTENT_STORE_DIR' => __DIR__ . '/../db/content',
+        // The reader's content CDN of this instance – `{ "source": "cdn" }` imports its current version
+        'CONTENT_BASE_URL' => '',
+        'BUNNY_STORAGE_ZONE' => '',
+        // Host name; a full http(s) origin only for a local test double
+        'BUNNY_STORAGE_ENDPOINT' => 'storage.bunnycdn.com',
+        'BUNNY_STORAGE_PASSWORD' => '',
         // Error log of the API (db/ is never served over HTTP – read it on the server); empty = the host's log
         'LOG_PATH' => __DIR__ . '/../db/error.log',
     ];

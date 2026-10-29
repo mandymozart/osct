@@ -15,6 +15,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.10.0 – 2026-10-29
 
 ### Added
+- **Editor API** (#61): the accounts API carries the editor's data under `/api/editor/*` for users with the new role
+  `editor` (`POST /admin/editors { email }` with the admin secret gives it; `GET /user` shows it). A game configuration is
+  imported into rows (books, spreads, entries, targets, entities – every field kept), read as a tree, edited entity by
+  entity with a change log, served as a draft the engine loads like the CDN (`…/draft/latest.json`), and published as a
+  content version – to the container's own content store (`GET /api/content/{env}/…`, environment `local`) or to the
+  CDN's storage zone with the osct CLI's bookkeeping (`OSCT_CONTENT_STORE=bunny`), with a publish log. `docs/server.md`
+  "Editor data".
 - **Editor, first step** (#61, the mock stage of #59): `/editor` runs the AR scene over a simulated page instead of
   the camera – a table, the open book in its page format, the current spread's printed images in their printed size
   and region (from the trigger protocol) or in a row – and every target counts as found, so models, videos and

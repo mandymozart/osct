@@ -72,11 +72,14 @@ The files are ERB: the server and the mail settings come from environment variab
 | variable | `MAIL_FROM` | sender of the sign-in mails, default `no-reply@buildingfictions.com` – any address at the domain verified in SES ([Mail](#mail-aws-ses)) |
 | variable | `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_SECURE` (tls) | default: the SES endpoint `email-smtp.eu-west-1.amazonaws.com`, STARTTLS on 587 – nothing to set for SES |
 | variable | `SMTP_USER` | the SES SMTP user name (an IAM access key ID) |
+| variable | `CONTENT_STORE` | where the editor's publishes to `staging` / `production` go ([server, "Editor data"](server.md#editor-data)): `local` (default – the container's own directory, served at `/api/content/{env}/…`) or `bunny` (the content CDN's storage zone, the same the osct CLI syncs to) |
+| variable | `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` | the storage zone (`osct`) and its endpoint host (default `storage.bunnycdn.com`) – only read with `CONTENT_STORE=bunny` |
 | secret | `SSH_PRIVATE_KEY` | a deploy key whose public key is in the server user's `authorized_keys` |
 | secret | `DB_PASS` | the API's database password (also the MariaDB user `osct`) |
 | secret | `DB_ROOT_PASS` | MariaDB root password |
 | secret | `SECRET` | 32+ random characters (`openssl rand -hex 32`) – hashes codes and IPs |
 | secret | `SMTP_PASS` | the SES SMTP password (derived from the IAM secret key – not the key itself) |
+| secret | `BUNNY_STORAGE_PASSWORD` | the storage zone's access key (read/write), with `CONTENT_STORE=bunny` – the key `scripts/.env` holds for `osct content sync` |
 | secret | `KAMAL_REGISTRY_PASSWORD` | ghcr.io: `GITHUB_TOKEN` in the workflow; locally a personal access token with `write:packages` |
 
 In GitHub: Settings → Environments → `staging` / `production`. Locally: `server/.env` (not committed) with the same

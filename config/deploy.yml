@@ -51,10 +51,18 @@ env:
     OSCT_SMTP_PORT: "<%= ENV.fetch("SMTP_PORT", "587") %>"
     OSCT_SMTP_SECURE: <%= ENV.fetch("SMTP_SECURE", "tls") %>
     OSCT_SMTP_USER: <%= ENV.fetch("SMTP_USER", "") %>
+    # The editor publishes content versions (docs/server.md "Editor data"): CONTENT_STORE=bunny sends staging /
+    # production to the storage zone the osct CLI syncs to; local (default) keeps them on the host under /api/content.
+    # CONTENT_BASE_URL (the same variable as the build flag) lets the editor import the CDN's current version.
+    OSCT_CONTENT_STORE: <%= ENV.fetch("CONTENT_STORE", "local") %>
+    OSCT_CONTENT_BASE_URL: <%= ENV.fetch("CONTENT_BASE_URL", "") %>
+    OSCT_BUNNY_STORAGE_ZONE: <%= ENV.fetch("BUNNY_STORAGE_ZONE", "") %>
+    OSCT_BUNNY_STORAGE_ENDPOINT: <%= ENV.fetch("BUNNY_STORAGE_ENDPOINT", "storage.bunnycdn.com") %>
   secret:
     - OSCT_DB_PASS
     - OSCT_SECRET
     - OSCT_SMTP_PASS
+    - OSCT_BUNNY_STORAGE_PASSWORD
 
 logging:
   driver: json-file
