@@ -12,7 +12,8 @@
    * textarea with a line gutter – Tab indents, Ctrl+Enter runs, Ctrl+S saves). **Run** transpiles the TypeScript in
    * the browser and installs the module in the stage's registry, so a layer or component shows on the stage and in
    * the Entity panel at once; **Save** stores the source; errors show under the editor with their line. Nothing run
-   * here reaches readers: a plugin gets there as a folder of the content source (**Download**), through the build.
+   * here reaches readers: a publish compiles the stored plugins with the content build (#78); until then only the
+   * plugins of the content source are compiled.
    */
   let { bookId, stage }: { bookId: string; stage: Stage | null } = $props();
 
@@ -126,17 +127,6 @@
     }
   };
 
-  /** The source as a file for the content source: plugins/<id>/index.ts */
-  const download = () => {
-    const id = adding ? newId || "plugin" : open;
-    const url = URL.createObjectURL(new Blob([source], { type: "text/typescript" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${id}.index.ts`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Tab") {
       event.preventDefault();
@@ -190,11 +180,10 @@
 {:else if notice}
   <p class="small muted message">{notice}</p>
 {:else}
-  <p class="small muted message">Run shows it on the stage (Ctrl+Enter); Save stores the source (Ctrl+S). Readers get a plugin through the content source: Download → plugins/&lt;id&gt;/index.ts → the content build.</p>
+  <p class="small muted message">Run shows it on the stage (Ctrl+Enter); Save stores the source (Ctrl+S). Readers get a plugin with a publish, once it compiles them (#78) – today only the content source's plugins are compiled.</p>
 {/if}
 
 <div class="actions">
-  <button type="button" class="text-link" onclick={download} disabled={!source}>Download</button>
   {#if current?.stored}
     {#if confirmingDelete}
       <button type="button" class="text-link danger" onclick={remove}>Delete {open}</button>

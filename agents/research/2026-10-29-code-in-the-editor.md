@@ -23,10 +23,10 @@ same compiled plugins the content build made.
 *Run* transpiles in the browser (sucrase – types erased, no type check: that is the build's half), imports the
 module from a blob URL and installs it in the stage's registry under the plugin's id, replacing what that id
 registered before; the spread is built again so the effect shows at once. *Save* stores the source. Nothing of it
-reaches a publish: the configuration's `plugins` list has one writer, the content build. A plugin written in the
-editor reaches readers by landing in the content source (the tab's *Download*), a build and a review – Git stays
-the review channel, as the concept wanted. "The build compiles it on publish" (a build job behind the API) is the
-follow-up, not this version.
+reaches a publish: the configuration's `plugins` list has one writer, the content build. Tilman decided the same
+night (#78): **the build runs on the server** – Node and `scripts/` in the image, the API compiles the stored
+plugin sources on publish, no download / content-source detour for the author ("kind of stupid to think about").
+Until that lands, a plugin reaches readers only from the content source.
 
 ## The plugin API 1.0 (`engine/src/scene/plugins.ts`, `PLUGIN_API_VERSION = "1.0"`)
 

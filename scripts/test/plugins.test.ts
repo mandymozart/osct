@@ -50,6 +50,17 @@ describe('plugins (the book\'s own code)', () => {
     fs.rmSync(out, { recursive: true, force: true });
   }, 30000);
 
+  it('warns about a node that stacks more than three layers', async () => {
+    const four = '    components:\n' + ['tint', 'tint', 'tint', 'tint'].map(t => `      - type: ${t}\n`).join('');
+    const build = await loadBuild(makeContent(content(TINT, four)));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await build.plugins.buildPlugins();
+    build.plugins.warnLayerStacks(build.buildAll().entries.flatMap(e => (e.target?.entity && !('ref' in e.target.entity) ? [{ label: `entries/${e.id} target`, node: e.target.entity }] : [])));
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    expect(build.warnings).toEqual(['entries/first target: 4 material layers on one node (tint, tint, tint, tint) – every layer runs on every pixel; bake what never changes into the video']);
+  }, 30000);
+
   it('a node using a component no plugin provides is an error', async () => {
     const build = await loadBuild(makeContent({ ...content(TINT), 'plugins/tint/index.ts': TINT.replace('"tint"', '"glow"') }));
     vi.spyOn(console, 'log').mockImplementation(() => {});
