@@ -1,0 +1,31 @@
+# Local MariaDB for the user API (docs/server.md "Local development"): `docker compose up -d db`.
+# The version is the one staging's host runs (OSCT_MARIADB_VERSION picks another, e.g. 11.4 as in config/deploy.yml).
+# The first start creates the database `osct` from server/api/db/schema.mysql.sql; the data stays in the volume
+# `db` until `docker compose down -v`. The values below are for this machine only – the API reads them from
+# config.local.php (config.local.php.example) or OSCT_DB_* variables. Staging's data: scripts/db/pull-staging.sh.
+name: osct
+
+services:
+  db:
+    image: mariadb:${OSCT_MARIADB_VERSION:-10.11}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_DATABASE: osct
+      MARIADB_USER: osct
+      MARIADB_PASSWORD: osct
+      # The tests (OSCT_TEST_DB=mysql) and the staging pull create and drop databases – they sign in as root
+      MARIADB_ROOT_PASSWORD: osct-root
+      MARIADB_AUTO_UPGRADE: "1"
+    ports:
+      - "127.0.0.1:${OSCT_DB_PORT:-3306}:3306"
+    volumes:
+      - db:/var/lib/mysql
+      - ./server/api/db/schema.mysql.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  db:

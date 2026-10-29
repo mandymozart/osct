@@ -164,8 +164,8 @@ final class Admin
         $params = [];
         $q = is_string($query['q'] ?? null) ? trim($query['q']) : '';
         if ($q !== '') {
-            $where[] = "u.email LIKE :q ESCAPE '\\'";
-            $params['q'] = '%' . addcslashes(strtolower($q), '%_\\') . '%';
+            $where[] = "u.email LIKE :q ESCAPE '!'";
+            $params['q'] = Db::contains(strtolower($q));
         }
         $role = is_string($query['role'] ?? null) ? $query['role'] : '';
         if ($role !== '') {

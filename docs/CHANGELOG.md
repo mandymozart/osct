@@ -12,6 +12,25 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.8 – 2026-10-30
+
+### Added
+- **A local MariaDB for the API** (#168): `docker compose up -d db` starts MariaDB 10.11 (the version of staging's host)
+  with the schema; `config.local.php.example` carries its settings. This is now the recommended local setup – SQLite
+  stays for quick tests (docs/server.md "Local development").
+- **Staging's data locally**: `scripts/db/pull-staging.sh` dumps staging's database (credentials in the git-ignored
+  `server/.env`, directly or over SSH), loads it into the local MariaDB, replaces the readers' addresses with
+  placeholders, removes passwords and sessions, and migrates it to the checkout's schema. The dump is deleted unless
+  kept with `--keep` (then in the git-ignored `server/db-dumps/`).
+- **The API test runs against MariaDB too**: `OSCT_TEST_DB=mysql php server/tests/api-test.php` gives every API of the
+  test a new database and drops them at the end; CI runs it as "Accounts API (MariaDB)" next to the SQLite run.
+
+### Fixed
+- **The admin page's user search works on staging**: the search wrote `LIKE … ESCAPE '\'`, which MySQL reads as an
+  unterminated string (a 500 on every search with text). The same pattern broke an asset's usages in the editor (the
+  usage list, deleting and replacing an asset). Both now escape with `!`, which works on MySQL and SQLite; the first
+  MariaDB run of the API test found it, and the test now also scans for it.
+
 ## 1.26.7 – 2026-10-30
 
 ### Fixed
