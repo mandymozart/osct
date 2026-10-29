@@ -255,6 +255,7 @@ export default defineConfig(async ({command,mode})=>{
     alias: {
       '@': resolve(import.meta.dirname, 'src'),
       '@shared': resolve(import.meta.dirname, '../shared'),
+      '@engine': resolve(import.meta.dirname, '../engine/src'),
     }
   },
   server: {
@@ -264,7 +265,7 @@ export default defineConfig(async ({command,mode})=>{
     proxy: { '/api': 'http://127.0.0.1:8080' },
     fs: {
       // shared/ (game configuration contract) lives next to client/
-      allow: [resolve(import.meta.dirname), resolve(import.meta.dirname, '../shared')],
+      allow: [resolve(import.meta.dirname), resolve(import.meta.dirname, '../shared'), resolve(import.meta.dirname, '../engine')],
     },
   },
   build: {
@@ -313,7 +314,8 @@ export default defineConfig(async ({command,mode})=>{
       reportsDirectory: './coverage'
     },
     globals: true,
-    include: ['src/**/*.{test,spec}.{js,ts}'],
+    // The engine's tests run here too (engine/ has no test runner of its own; the reader is its first app)
+    include: ['src/**/*.{test,spec}.{js,ts}', '../engine/src/**/*.test.ts'],
     setupFiles: ['./src/test/setup.ts']
   }
 }});

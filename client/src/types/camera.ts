@@ -32,9 +32,4 @@ export interface ICameraManager {
   /** Sets NOT_RESPONDING after the camera start timed out */
   reportNotResponding(): void;
 
-  /**
-   * The editor's preview runs the scene without a camera: while simulated, the permission counts as granted and
-   * nothing asks the browser
-   */
-  setSimulated(simulated: boolean): void;
 }

@@ -1,0 +1,66 @@
+import { EntityData } from "./content";
+
+/**
+ * What the AR scene (three.js / 8th Wall) should be doing. Derived from the game mode and the current
+ * route (`ar-bridges/utils/scene-state.ts`), applied by `<ar-bridge>`. Ordered from least to most active.
+ * STOPPED: camera released · PAUSED: tracking + video paused, camera stream kept (instant resume,
+ * last frame frozen behind the UI) · RUNNING: camera, tracking and rendering.
+ */
+export enum SceneState {
+  STOPPED = 0,
+  PAUSED = 1,
+  RUNNING = 2,
+}
+
+/**
+ * What the AR scene is doing. Reported to the store as `arStatus`.
+ * idle: no scene · loading: building the spread's scene · ready: scene loaded, camera off ·
+ * starting: camera requested, targets loading · running: tracking · paused: tracking + camera video
+ * paused (stream kept) · error: camera or AR failed (see `arError`).
+ */
+export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "paused" | "error";
+
+/**
+ * Duration of an entity's unlock animation (scene/celebration.ts); the reader's found indicator stays up as long.
+ * Defined here so an app does not import the lazily loaded scene for it.
+ */
+export const ENTITY_UNLOCK_MS = 3000;
+
+/** Marker in the AR error message for a camera start timeout (maps to CameraPermissionStatus.NOT_RESPONDING) */
+export const CAMERA_NOT_RESPONDING = "camera not responding";
+
+export type ArSceneEvents = {
+  targetFound: (targetId: string) => void;
+  targetLost: (targetId: string) => void;
+  status: (status: ArStatus, error?: string) => void;
+  /** A found target's AR entity was tapped (scan mode) */
+  targetTapped: (targetId: string) => void;
+  /** The spread's targets are loaded and tracking began */
+  ready: (spreadId: string) => void;
+  /** A neighbouring spread's page is in view instead of the current spread (the reader turned the page) */
+  spreadSeen: (spreadId: string) => void;
+};
+
+/**
+ * The only code that touches three.js and the tracking engine (`ArScene`; the reader loads it lazily via its
+ * `LazyArScene`). No store access – the app connects it to its state (the reader's `<ar-bridge>`). Calls are queued and the latest request wins
+ * (switching spreads while loading builds only the newest spread).
+ */
+export interface IArScene {
+  readonly status: ArStatus;
+  readonly spreadId: string | null;
+  /** Build the scene for a spread (camera stays as wanted by `setState`) */
+  load(spreadId: string): Promise<void>;
+  /** RUNNING = camera + tracking, PAUSED = frozen frame, stream kept, STOPPED = camera released */
+  setState(state: SceneState): Promise<void>;
+  /** Play the discovery animation on a found target's entity (first find = unlock) */
+  celebrate(targetId: string): void;
+  /**
+   * Show a target's entity with these values instead of the content's (the editor's live edit) – kept across
+   * spread switches until `null` restores the content
+   */
+  overrideEntity(targetId: string, entity: EntityData | null): void;
+  /** Tear everything down (camera released, scene removed) */
+  dispose(): Promise<void>;
+  on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]): () => void;
+}

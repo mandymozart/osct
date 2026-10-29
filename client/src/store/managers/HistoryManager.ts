@@ -106,13 +106,6 @@ export class HistoryManager implements IHistoryManager {
     return targetId in this.progress.unlocked;
   }
 
-  public forgetTarget(targetId: string): void {
-    if (!this.isUnlocked(targetId)) return;
-    this.change(draft => {
-      delete draft.unlocked[targetId];
-    });
-  }
-
   public getUnlockedTargets(spreadId: string): string[] {
     return getTargets(spreadId).filter(t => this.isUnlocked(t.id)).map(t => t.id);
   }

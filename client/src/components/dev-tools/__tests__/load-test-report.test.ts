@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LoadTestResult } from "@/components/ar-bridges/utils/tracker-debug";
+import type { LoadTestResult } from "@engine/utils/tracker-debug";
 import { findLabel, loadTestCells, loadTestReport } from "../load-test-report";
 
 const result = (change: Partial<LoadTestResult>): LoadTestResult => ({

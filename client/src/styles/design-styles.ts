@@ -19,75 +19,14 @@
  *   .section-title  muted title between two rules
  *   .gold-spinner   gold loader ring (from styles/gold-spinner.css, shared with the startup loader)
  *
- * Token variants (Tilman, 2026-10-29: "debugging looks like debugging, the editor neutral like Figma, brand UI only in
- * reader-facing elements"): **branded** = the reader's UI, the tokens of main.css (the default, no attribute);
- * **editor** = a neutral tool in a design tool's default colours, day and night (follows the system; `data-scheme` on
- * the host forces one), no colour, square corners, compact system type; **debug** = the dev
- * tools' green terminal. A host sets `data-theme="editor"` / `"debug"` on itself; the tokens cascade into its shadow
- * tree and every primitive inside follows – one set of components, three looks.
+ * Token variants (Tilman, 2026-10-29: "debugging looks like debugging … brand UI only in reader-facing elements"):
+ * **branded** = the reader's UI, the tokens of main.css (the default, no attribute); **debug** = the dev tools' green
+ * terminal. A host sets `data-theme="debug"` on itself; the tokens cascade into its shadow tree and every primitive
+ * inside follows – one set of components, two looks. (The editor's neutral day/night palette lives in the editor app.)
  */
 import goldSpinnerCss from "./gold-spinner.css?inline";
 
 export const DESIGN_CSS = goldSpinnerCss + /* css */ `
-  /* editor – the palette of a design tool's defaults: day (white, light greys, near-black text) and night (dark greys,
-     white text); no colour at all – focus and accents in the text colour, pressed segments in grey. The night values follow
-     the system; data-scheme="light" / "dark" on the host forces one. */
-  :host([data-theme="editor"]) {
-    --font-design: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --tracking-design: 0;
-    --text-size: .75rem;
-    --text-size-small: .6875rem;
-    --text-line: 1.3;
-    --glass-blur: none;
-    --shadow-bronze: none;
-    --control-height: 1.75rem;
-    --control-radius: .25rem;
-    --color-on-dark: #1e1e1e;
-    --color-muted: #7f7f7f;
-    --color-accent: #1e1e1e;
-    --rule: .0625rem solid #e6e6e6;
-    --gold-gradient: linear-gradient(90deg, #1e1e1e, #1e1e1e);
-    --glass-background: #f5f5f5;
-    --pressed-background: #e0e0e0;
-    --pressed-color: #1e1e1e;
-    --hover-background: #ebebeb;
-    --surface: #ffffff;
-    --surface-head: #f5f5f5;
-    --line: #e6e6e6;
-    color-scheme: light;
-  }
-  @media (prefers-color-scheme: dark) {
-    :host([data-theme="editor"]:not([data-scheme="light"])) {
-      --color-on-dark: #ffffff;
-      --color-muted: #a3a3a3;
-      --color-accent: #ffffff;
-      --rule: .0625rem solid #444444;
-      --gold-gradient: linear-gradient(90deg, #ffffff, #ffffff);
-      --glass-background: #383838;
-      --pressed-background: #4f4f4f;
-      --pressed-color: #ffffff;
-      --hover-background: #3f3f3f;
-      --surface: #2c2c2c;
-      --surface-head: #1e1e1e;
-      --line: #444444;
-      color-scheme: dark;
-    }
-  }
-  :host([data-theme="editor"][data-scheme="dark"]) {
-    --color-on-dark: #ffffff;
-    --color-muted: #a3a3a3;
-    --color-accent: #ffffff;
-    --rule: .0625rem solid #444444;
-    --gold-gradient: linear-gradient(90deg, #ffffff, #ffffff);
-    --glass-background: #383838;
-    --pressed-background: #4f4f4f;
-    --pressed-color: #ffffff;
-    --hover-background: #3f3f3f;
-    --surface: #2c2c2c;
-    --surface-head: #1e1e1e;
-    --line: #444444;
-    color-scheme: dark;
-  }
   :host([data-theme="debug"]) {
     --font-design: monospace;
     --tracking-design: 0;

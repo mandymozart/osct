@@ -2,7 +2,7 @@ import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 import {
   DEFAULT_LOAD_TEST, getEngineState, getLoadTest, LoadTestControl, LoadTestOptions, LoadTestProgress,
   subscribeEngineState, subscribeLoadTest,
-} from "@/components/ar-bridges/utils/tracker-debug";
+} from "@engine/utils/tracker-debug";
 import { getBook, getConfigVersion } from "@/utils/game-config";
 import { LOAD_TEST_COLUMNS, loadTestCells, loadTestReport } from "./load-test-report";
 

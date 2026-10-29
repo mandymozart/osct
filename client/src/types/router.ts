@@ -46,8 +46,6 @@ export enum Pages {
   ENTRIES = "entries",
   ENTRY = "entry",
   NOT_FOUND = "not-found",
-  /** The authors' editor: the scene over the mock stage (docs/editor.md) */
-  EDITOR = "editor",
 }
 
 export interface PageRouteDefinition {
