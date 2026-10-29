@@ -65,7 +65,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     (`shared/types/game-config.ts`) versions the contract in `shared/`. MAJOR = older apps cannot read it (new
     required field, renamed or removed field, changed type, new enum value) – the app refuses content of a newer
     MAJOR at startup and reads every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` as it is (raise it when a
-    MAJOR removes or renames something). MINOR = additions older apps ignore (new optional field, and since 3.0 a
+    MAJOR removes or renames something). MINOR = additions older apps ignore (new optional field, and since 2.6 a
     new **node type**: the guard lets an unknown one pass, the engine renders nothing for it and keeps its children;
     the content build and the editor's API still refuse it) – any MINOR of the same MAJOR loads.
     Every change in `shared/` needs a bump, comments included: `shared/content-schema.json` locks the checksum of

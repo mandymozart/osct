@@ -145,7 +145,7 @@ again). Nothing of the reader's store, progress or routes is involved.
     side: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
     materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
     icons only, every button's label is its tooltip. The stage and the gizmo keep their own look.
-    **Light nodes** (content schema 3.0) have no mesh: the stage draws a **helper** for each, after Blender's – a
+    **Light nodes** (content schema 2.6) have no mesh: the stage draws a **helper** for each, after Blender's – a
     small bulb at the node's origin and lines for what the light does (short rays for a point light, the cone of a
     spot, parallel rays for a directional light), in the node's own space so the gizmo moves and turns it (−z is where
     a spot or the sun points); dark grey, orange while selected, drawn through everything, never in the reader

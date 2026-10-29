@@ -1,5 +1,5 @@
 /**
- * A `light` node (content schema 3.0): a light an author places like any node – under a group or a model it moves
+ * A `light` node (content schema 2.6): a light an author places like any node – under a group or a model it moves
  * with it. Three kinds: a **point** light shines in every direction from the node's origin, a **spot** light in a
  * cone and a **directional** light as parallel rays, both along the node's own −z (turn the node to aim it; the
  * default placement puts a light half a target width above the page, pointing down onto it). Ambient light is the

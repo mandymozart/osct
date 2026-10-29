@@ -15,7 +15,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.13.0 – 2026-10-29
 
 ### Added
-- **Light nodes – content schema 3.0** (#71, Tilman: "one entity type is missing in the editor – lights"): the node
+- **Light nodes – content schema 2.6** (#71, Tilman: "one entity type is missing in the editor – lights"): the node
   type `light` – a point, spot or directional light an author places like any node (own `params`, children allowed;
   under a group or a model it moves with it), its values under `light:` (`kind`, `color`, `intensity`, `distance`,
   `decay`, the spot's `angle` and `penumbra`), defined once in `shared/types/lights.ts`; spot and sun aim along the
@@ -25,10 +25,11 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   the Entity panel shows its rows from the definition (no panel code per field), the tree shows a light icon and the
   kind, the gizmo moves it and the stage draws a Blender-style helper (bulb, cone or rays; orange while selected;
   never in the reader). The content build, the guard and the editor's API check the values; the fixture's Studio A
-  has a spot aimed at the tree of nodes and a point light under the tall tree. **Schema 3.0** because a 2.x app's
-  guard refuses a node type it does not know; from 3.0 on the guard lets an unknown node type pass (the engine
-  renders nothing for it, keeps its children), so the next node type is a MINOR step – and the app reads every older
-  MAJOR as it is (`OLDEST_READABLE_SCHEMA_MAJOR`), nothing has to be rebuilt.
+  has a spot aimed at the tree of nodes and a point light under the tall tree. **Schema 2.6** (a MINOR step, as the
+  editor session asked): a 2.5 app's guard refuses a node type it does not know, so it shows "invalid configuration"
+  on a book with a light where "update the app" would be right – no deployed reader is on 2.x. From 2.6 on the guard
+  lets an unknown node type pass (the engine renders nothing for it, keeps its children), so every later node type is
+  a MINOR step too; the app reads every older MAJOR as it is (`OLDEST_READABLE_SCHEMA_MAJOR`).
 
 ## 1.12.0 – 2026-10-29
 

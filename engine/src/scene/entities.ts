@@ -360,7 +360,7 @@ const scaleLight = (light: Light, values: LightValues): void => {
 };
 
 /**
- * Light (schema 3.0): a point, spot or directional light at the node's origin; spot and directional aim along the
+ * Light (schema 2.6): a point, spot or directional light at the node's origin; spot and directional aim along the
  * node's own −z (their target is a child of the node, so turning the node turns the light). No shadows. The reveal
  * and the outro fade it with the entity (`celebration.ts` sets `userData.fade`); other values apply in place,
  * another kind builds the node anew.

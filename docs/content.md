@@ -323,7 +323,7 @@ to its parent**, as deep as you like (8 levels at most). Node types: `model`, `v
 below) and `group` (nothing of its own, it only holds children – move or scale the whole tree by its params). One
 node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node).
 
-**A light** (`type: light`, content schema 3.0) lights the entity it belongs to – under a group or a model it moves
+**A light** (`type: light`, content schema 2.6) lights the entity it belongs to – under a group or a model it moves
 with it; the scene's own ambient light and sun stay. Its values are under `light:` (every one optional):
 
 | `light` value | Values | Default | What it does |

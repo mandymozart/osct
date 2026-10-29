@@ -22,7 +22,7 @@ target:
         params:
           position: [0, -0.45, 0.01]
           scale: 0.8
-      # A light node (content schema 3.0): a spot aimed along its own −z – turned 45° about y it points down-left onto the tree
+      # A light node (content schema 2.6): a spot aimed along its own −z – turned 45° about y it points down-left onto the tree
       - type: light
         light:
           kind: spot
