@@ -9,6 +9,7 @@ declare(strict_types=1);
  * and bunny.net's Storage API – the zone the osct CLI syncs to, with the same paths and headers, so the reader
  * cannot tell who published. The environment `local` always stays in the directory; `staging` and `production`
  * go to bunny when CONTENT_STORE is `bunny`.
+ * An environment serves one book, the last one published there: latest.json names it (`book`).
  */
 final class ContentStore
 {
@@ -88,6 +89,28 @@ final class ContentStore
     }
 
     /**
+     * The book this environment serves, after latest.json: null when nothing is published here; `book` null when it
+     * cannot be told (an unreadable manifest, a version without its configuration). A manifest without `book` was
+     * written before it existed – the book of its version's game.config.json (`book.id`) tells.
+     * @return array{book: ?string, build: ?string, since: ?string}|null
+     */
+    public function live(): ?array
+    {
+        $raw = $this->get('latest.json');
+        if ($raw === null) return null;
+        $manifest = json_decode($raw, true);
+        $build = is_array($manifest) && is_string($manifest['build'] ?? null) && preg_match(self::BUILD, $manifest['build']) ? $manifest['build'] : null;
+        if ($build === null) return ['book' => null, 'build' => null, 'since' => null];
+        $book = is_string($manifest['book'] ?? null) ? $manifest['book'] : null;
+        if ($book === null) {
+            $configuration = json_decode((string) $this->get("$build/game.config.json"), true);
+            $id = is_array($configuration) && is_array($configuration['book'] ?? null) ? ($configuration['book']['id'] ?? null) : null;
+            $book = is_string($id) ? $id : null;
+        }
+        return ['book' => $book, 'build' => $build, 'since' => is_string($manifest['activatedAt'] ?? null) ? $manifest['activatedAt'] : null];
+    }
+
+    /**
      * GET /content/{env}/{path} – a json file of the local store. Public, like the CDN: latest.json and versions.json
      * are revalidated, a version folder's files never change.
      */
@@ -111,11 +134,12 @@ final class ContentStore
      * versions.json after `version` (build, hash, schema) became current at `now`: the previous current version is
      * retired, this build's entry is appended or updated – the osct CLI's bookkeeping (content-sync.ts `activate`),
      * so `osct content purge` reads what the editor publishes.
+     * The entry records the book (`book`).
      * @param array<int, mixed> $versions
      * @param array{build: string, hash: string, schema: string} $version
      * @return array<int, array<string, mixed>>
      */
-    public static function activate(array $versions, array $version, string $now, bool $uploadedNow): array
+    public static function activate(array $versions, array $version, string $now, bool $uploadedNow, string $bookId): array
     {
         $existing = null;
         $result = [];
@@ -136,6 +160,7 @@ final class ContentStore
             'uploadedAt' => $uploadedNow || !$existing ? $now : $existing['uploadedAt'],
             'activatedAt' => $existing && ($existing['retiredAt'] ?? null) === null ? $existing['activatedAt'] : $now,
             'retiredAt' => null,
+            'book' => $bookId,
         ];
         usort($result, fn(array $a, array $b) => strcmp((string) ($a['activatedAt'] ?? ''), (string) ($b['activatedAt'] ?? '')));
         return $result;
