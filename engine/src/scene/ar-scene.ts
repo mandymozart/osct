@@ -1,12 +1,13 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, PassData, SceneInspection, SceneState, Target } from "../types/index";
-import { entityAssets, getAssets, getPasses, getSpread, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getPasses, getPlugins, getSpread, getTargets } from "../content/game-config";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
 import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance, placeEntity } from "./entities";
+import { loadPlugins } from "./plugins";
 import { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
 import { onAppUi } from "./ui";
@@ -301,11 +302,11 @@ export class ArScene implements IArScene {
     this.started = false;
     this.running = false;
 
-    // 2. Swap the content (assets both spreads use stay loaded)
+    // 2. Swap the content (assets both spreads use stay loaded); the book's plugins load with the first spread
     this.removeContent();
     const assets = getAssets(spreadId);
     this.assets.release(new Set(assets.map(a => a.id)));
-    await this.assets.load(assets);
+    await Promise.all([this.assets.load(assets), loadPlugins(getPlugins())]);
     const targets = getTargets(spreadId);
     const anchors = targets.map(target => this.buildAnchor(target));
     anchors.forEach(anchor => view.scene.add(anchor.group));

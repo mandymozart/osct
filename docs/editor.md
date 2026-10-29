@@ -48,6 +48,9 @@ are the demo scene. Locally, with SQLite and the local content store:
 7. The reader reads the published version when it is started with
    `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` (`latest.json` names the new build).
 
+The one-page version of this flow for editors, with the diagram, ships with the app at `/docs/tutorials/`
+(`client/public/docs/tutorials/index.html` – a static page, served by the site's `.htaccess` like any file).
+
 On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the storage zone's credentials in the
 `staging` GitHub environment ([deploy](deploy.md)); *Import a book… → the CDN* takes the current version, publishing
 writes a new one, and the staging reader sees it on its next start.
@@ -138,12 +141,13 @@ again). Nothing of the reader's store, progress or routes is involved.
     passes, as the camera picture lies under the canvas in the reader – a pass never sees them.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), the entity under the pointer
-    a white one. The toolbar's last group is the viewport's **shading**, after Blender's: *wire* (the entities as
-    lines), *solid* (one grey under the scene's lights), *textured* (the content's materials, no sky) and *rendered*
-    (the HDRI's sky and light, the default); stored on the device. The stage and the gizmo keep their own look.
+    a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
+    side: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
+    materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
+    icons only, every button's label is its tooltip. The stage and the gizmo keep their own look.
   - **Picking** – a click on the stage selects what lies under the pointer by the **pick mode** next to the gizmo's
-    tools (Blender's select mode): *entity* (the root of the entity hit), *node* (the node under the pointer, as deep
-    as the tree goes) or *target* (the printed image). A printed image without AR content is always picked as its
+    tools (Blender's select mode): *entity* (a parcel – the root of the entity hit), *node* (a point on the graph –
+    the node under the pointer, as deep as the tree goes) or *target* (the crosshair – the printed image). A printed image without AR content is always picked as its
     target. A **right click** on the stage opens the menu for what lies there: on a target *Add node… / Add AR
     content…*, *Remove node / entity*, *Placement on the page…*, *Library…*, *Remove target*; on the page or the table
     *+ target…* and *Stage settings…*. While a target's placement is edited (the form, the Entity panel's rows) the
@@ -156,12 +160,14 @@ again). Nothing of the reader's store, progress or routes is involved.
     **Target image** (an image becomes the selected target's printed image), **Replace…** (a new version, every use
     relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes name a file by
     its absolute URL, so draft and every publish point at the same file.
-  - **Stage** – the simulated camera: **view** *reader* (35 cm above the page, tilted 30°), *top*, *low* (75° – shows
-    how flat a video plane is), *far*; on the stage **drag** orbits, **Shift + drag**, the **middle button** or **two fingers** pan (the looked-at
-    point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
-    one pressed chip per target (◉ = in view) – off reports it lost (outro), on found again (reveal); the replay arrow
-    plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the default) or *Schöpfer*. **sky**: one of six
-    Poly Haven studios (the HDRI – sky and light while the shading is rendered). Both stored on the device.
+  - **Stage** – the stage's settings: **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the
+    default) or *Schöpfer*. **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is
+    rendered). All stored on the device. The camera is moved on the stage itself: **drag** orbits, **Shift + drag**,
+    the **middle button** or **two fingers** pan (the looked-at point moves in the page plane), **wheel / pinch**
+    change the distance, **double tap** returns to the reader's view (35 cm above the page, tilted 30°; the free orbit
+    is kept on the device). Found / lost per target is the tree's eye (off reports it lost → outro, on found again →
+    reveal); **Replay the first find** is in the stage's right-click menu. (The panel's view presets and found chips
+    doubled these and are gone – Tilman, 2026-10-29.)
   - **Entity** – first the **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;
     **Save placement** writes it; until then a target made in the editor lies where its form put it, an imported one
@@ -183,7 +189,23 @@ again). Nothing of the reader's store, progress or routes is involved.
     each with its rows and *remove*, **+ animation** on a model; the animation component shows the model's
     **timeline** – its clips, play / pause, the time in the clip as a slider – and drives the same clip the reader
     plays (`playOn` found / tap / never, `stopOn`, loop, speed). Rows come from the content contract's definitions
-    (`PLACEMENT_PARAMS`, `FILTERS`, `COMPONENTS`): a new filter, component or parameter needs no panel code.
+    (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`): a new filter, component or parameter needs no panel code – a
+    component or material layer a **plugin** registers shows the same way, with **+ type** after a Run in the Code tab.
+  - **Code** – the book's own code ([the decision](../agents/research/2026-10-29-code-in-the-editor.md)): the
+    plugins stored for the book and the ones the content declares (compiled by the content build – opening one reads
+    its `index.ts` next to the compiled module; Save keeps a copy), one open in a plain code editor (a textarea with
+    a line gutter: Tab indents, Ctrl+Enter runs, Ctrl+S saves). **Run** transpiles the TypeScript in the browser
+    (sucrase, types erased – no type check, that is the build's half), imports the module and installs it in the
+    stage's registry under the plugin's id (a second Run replaces the first), then builds the spread again: a
+    material layer tints the video at once, a component shows under *add component* in the Entity panel. Errors
+    show under the editor with their line (a transpile error, a plugin that imports a module – plugins import
+    nothing, three.js is `api.three` – an invalid spec, an exception in `register`); the previous registration stays.
+    **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it.
+    **Nothing run here reaches readers**: a plugin gets there through the content build – today as a folder
+    `plugins/<id>/index.ts` of the content source and the import, soon compiled by the publish itself on the server
+    (#78, Tilman 2026-10-29) – and a publish whose nodes use a component no compiled plugin can provide is refused
+    (409 `unknown-components`). The plugin API (`api.three`, `registerComponent`, `registerLayer`, the component
+    context) is described in [content](content.md) "Plugins", the guide for authors is [plugins](plugins.md).
 - Settings (view, orbit, sky, desk, shake, the open tab, the tree open or collapsed) are stored per device; the
   session token too.
 
@@ -211,9 +233,10 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`) and the reader's graphics options |
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts` |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
+| The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |
-| The API | `server/api/src/Books.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php` | [server](server.md) "Editor data" |
+| The API | `server/api/src/Books.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php` | [server](server.md) "Editor data", "Plugin sources" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |
 
 Tests: the engine's next to its code (`engine/src/**/__tests__`, run by the reader's vitest), the editor's stage tests
@@ -227,12 +250,16 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   image and placement: texts and the entries' own fields are still edited in the content source and imported again
   (the import keeps the logs). Renditions and transcoding stay with the content build. A target made in the editor
   tracks in the reader after a publish: the 8th Wall engine makes its image-target data from the printed image at
-  runtime (`engine/src/scene/xr8.ts`), nothing has to be compiled. Components, events, a timeline for a model's
-  animation clips, nodes without a target and the book's own code (plugins) are phase 15 steps 3–4.
+  runtime (`engine/src/scene/xr8.ts`), nothing has to be compiled. Events between entities and nodes without a
+  target are phase 15 step 3; the book's own code is the Code tab (above).
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
-- The plugin API (content schema 2.0, code in the editor) is phase 15 steps 3–4 (`agents/PLAN.md`). The pass
-  registry (`engine/src/scene/post/`) is ready for it: `registerPass` with an owner is what `api.registerPass` will
-  call; the content names only the built-in passes until a plugin's reach the build and the guard.
+- The plugin API 1.0 has components and material layers (`registerComponent`, `registerLayer`, `api.three`); node
+  types are #77, events beyond a node's own, variables and scopes come when a work needs them. The Code tab has no
+  completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind the
+  publish (#78).
+- The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with an owner, and
+  `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade) and a plugin's
+  passes reach the build and the guard with `unknownTypes: "allow"` where plugins are declared.
 - The phone layout of the workspace (the sheet) is built but was checked on the desktop only; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

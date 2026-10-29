@@ -157,11 +157,14 @@ describe('content build', () => {
 });
 
 describe('the test fixture', () => {
-  it('builds without errors', async () => {
+  it('builds without errors', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/content') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    // The fixture's plugin (tint) first: Studio B's standing video uses its layer
+    const plugins = await build.plugins.buildPlugins();
     build.buildAll();
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
+    expect(plugins.map(p => p.data.id)).toEqual(['tint']);
   });
 });
