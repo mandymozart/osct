@@ -50,6 +50,13 @@ describe("progress record", () => {
   it("reads records written before the onboarding flag existed as not onboarded", () => {
     expect(readProgress({ format: PROGRESS_FORMAT }, bookId).record.onboarded).toBe(false);
   });
+
+  it("keeps the plugins' book variables (scalars) and reads records without them as empty – additive within format 1", () => {
+    expect(readProgress({ format: PROGRESS_FORMAT }, bookId).record.variables).toEqual({});
+    const { record, status } = readProgress({ format: PROGRESS_FORMAT, variables: { hasKey: true, chapter: 2, name: "x", bad: { a: 1 } } }, bookId);
+    expect(record.variables).toEqual({ hasKey: true, chapter: 2, name: "x" });
+    expect(status).toBe("current");
+  });
 });
 
 describe("mergeProgress (account sync)", () => {
@@ -63,6 +70,11 @@ describe("mergeProgress (account sync)", () => {
       consulted: { x: 3, y: 7 },
       appVersions: ["1.0.9", "1.1.0", "1.2.0"],
     });
+  });
+
+  it("this device's variables win, the other's fill in", () => {
+    expect(mergeProgress(record({ variables: { hasKey: true } }), record({ variables: { hasKey: false, chapter: 3 } })).variables)
+      .toEqual({ hasKey: true, chapter: 3 });
   });
 
   it("this device's last spread and category win, the other's fill in; onboarded if either was", () => {

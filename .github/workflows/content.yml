@@ -1,0 +1,77 @@
+# Content on the bunny.net CDN, by hand (docs/content-cdn.md). Content has its own lifecycle, apart from the app
+# deployment: nothing here runs on a push. It runs the osct CLI against the storage:
+#   status – the versions on the storage and what the CDN serves
+#   purge  – delete old versions that are provably out of use (strict checks, see the CLI)
+# No sync here: the book content is not in this repository, so a checkout has nothing to upload (the CLI refuses
+# the test fixture). Sync runs where the content source is – `osct content sync` on that machine, later perhaps a
+# workflow of a content repository.
+#
+# GitHub → Settings → Environments → "staging" / "production":
+#   variables: BUNNY_STORAGE_ZONE (osct), BUNNY_STORAGE_ZONE_ENDPOINT (storage.bunnycdn.com),
+#              CONTENT_BASE_URL (https://buildingfictions.b-cdn.net/<env>)
+#   secrets:   BUNNY_STORAGE_PASSWORD (the storage zone's read/write access key)
+name: Content
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment (storage folder and secrets)"
+        type: choice
+        options: [staging, production]
+        default: staging
+      command:
+        description: "status or purge (old versions)"
+        type: choice
+        options: [status, purge]
+        default: status
+      dry_run:
+        description: "purge: only show what would happen"
+        type: boolean
+        default: true
+      min_age:
+        description: "purge: days a version must have been retired (default 30 = CDN cache time)"
+        type: string
+        default: "30"
+      keep:
+        description: "purge: newest retired versions that always stay"
+        type: string
+        default: "1"
+      unknown:
+        description: "purge: also delete what is not a version on record"
+        type: boolean
+        default: false
+
+concurrency:
+  group: content-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  content:
+    name: Content ${{ inputs.command }} (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: scripts
+    env:
+      OSCT_CONTENT_ENV: ${{ inputs.environment }}
+      BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
+      BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
+      BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+      CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Content ${{ inputs.command }}
+        run: >
+          npm run osct -- content ${{ inputs.command }}
+          ${{ inputs.dry_run && inputs.command != 'status' && '--dry-run' || '' }}
+          ${{ inputs.command == 'purge' && format('--min-age {0} --keep {1}', inputs.min_age, inputs.keep) || '' }}
+          ${{ inputs.command == 'purge' && inputs.unknown && '--unknown' || '' }}

@@ -11,7 +11,7 @@ import {
   IGame,
 } from "@/types";
 import { hideStaticSplash, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
-import { getConfigurationError, getTutorial } from "@/utils/game-config";
+import { getConfigurationError, getTutorial, loadGameConfiguration } from "@/utils/game-config";
 import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
 
@@ -140,7 +140,6 @@ export class BookGame extends HTMLElement {
 
   private initializeComponents() {
     this.game.startLoading();
-    // TODO: move error handling to centralized error page and game state.
     this.errorPage = this.shadowRoot!.querySelector("error-page");
   }
 
@@ -200,4 +199,6 @@ export class BookGame extends HTMLElement {
   }
 }
 
-customElements.define("book-game", BookGame);
+// The game configuration is loaded first (content CDN or the bundled copy); the static splash shows meanwhile.
+// The element is defined afterwards, so nothing reads the configuration before it is there.
+void loadGameConfiguration().then(() => customElements.define("book-game", BookGame));

@@ -19,7 +19,7 @@ describe("found indicator", () => {
     expect(getIndicatorTarget(["plain-2", "plain"])?.id).toBe("plain");
   });
 
-  it("ignores targets with an AR entity (A-Frame shows them) and unknown ids", () => {
+  it("ignores targets with an AR entity (the scene shows them) and unknown ids", () => {
     expect(getIndicatorTarget(["plain", "video"])?.id).toBe("plain");
     expect(getIndicatorTarget(["video", "unknown"])).toBeUndefined();
     expect(getIndicatorTarget([])).toBeUndefined();

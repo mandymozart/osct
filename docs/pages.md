@@ -11,11 +11,11 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | Route | Page | Mode | |
 |---|---|---|---|
 | `/` | `<splash-page>` | idle | start for returning readers: the splash (the onboarding steps before the first button), then scan mode |
-| `/tutorial` (`step`) | `<tutorial-page>` | idle | onboarding / tutorial steps from `content/steps` |
+| `/tutorial` (`step`) | `<tutorial-page>` | idle | onboarding / tutorial steps from the content's `steps/` |
 | `/spread` (`spreadId`) | `<spread-page>` | scan | scan mode: found indicator, spread menu |
 | `/entries` (`category`) | `<entries-page>` | consultation | entries list by category |
 | `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: meta table, text, media |
-| `/about` | `<about-page>` | consultation | Info: about text, settings (Tutorial, History = reset book, Language), colophon |
+| `/about` | `<about-page>` | consultation | Info: about text, settings (account, sound and vibration, graphics, language, home screen, download, reset book), colophon |
 | `/error` | `<error-page>` | (keeps mode) | errors and notices, see [Error page](error-page.md) |
 | `/not-found` | `<not-found-page>` | (keeps mode) | unknown route or link target, with "Go to start" |
 
@@ -48,8 +48,8 @@ exists → converted, with a notice that parts may be missing; none exists → p
 
 Printed QR codes: `https://osct.buildingfictions.com/spread/<spreadId>?osct=<version>` – the dev QR
 generator in the debug overlay makes them for the current spread. The server has to answer every path
-with `index.html`: `client/public/.htaccess` (Apache / FTP production) and `client/public/_redirects`
-(Netlify) do that; Vite does it in dev and preview.
+with `index.html`: `client/public/.htaccess` does that (Apache – the Docker image, [deploy](deploy.md)); Vite does
+it in dev and preview.
 
 Two overlays have no route – they sit outside `<pages-router>` and follow the store:
 

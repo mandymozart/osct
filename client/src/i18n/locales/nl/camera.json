@@ -8,5 +8,8 @@
   "continueWithout": "Doorgaan zonder camera",
   "notResponding": "De camera reageert niet.",
   "notRespondingHelp": "Laad de pagina opnieuw. Helpt dat niet, sluit je browser dan helemaal af en open hem opnieuw – misschien gebruikt een andere app de camera nog.",
-  "reload": "Pagina opnieuw laden"
+  "reload": "Pagina opnieuw laden",
+  "unsupported": "Deze browser kan de boekscanner niet uitvoeren.",
+  "unsupportedIos": "Om te scannen heb je iOS 16.4 of nieuwer nodig. Kan je iPhone updaten: Instellingen → Algemeen → Software-update, en open de app daarna opnieuw. iPhone 7, 6s en SE (1e generatie) kunnen niet zo ver updaten – daarop werkt scannen niet.",
+  "unsupportedOther": "Werk je browser bij naar de nieuwste versie en open de app daarna opnieuw."
 }

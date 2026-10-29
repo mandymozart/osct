@@ -7,6 +7,7 @@ import { gzipSync } from 'fflate';
 import jpeg from 'jpeg-js';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import { PNG } from 'pngjs';
+import { listFiles } from './files';
 
 /**
  * Media optimisation of the content build, on the copy in `client/public/assets/content` only –
@@ -108,6 +109,27 @@ const shrinkImage = (image: Uint8Array, mimeType: string, maxSize: number): { da
   return data.byteLength < limit ? { data, opaque } : null;
 };
 
+/**
+ * A JPEG of an image for `content/` (delivery import): scaled to `maxSize` (long side), transparency
+ * flattened on white. Null when the image cannot be read.
+ */
+export const toJpeg = (image: Uint8Array, mimeType: string, maxSize: number, quality = 90): Uint8Array | null => {
+  const decoded = decode(image, mimeType);
+  if (!decoded) return null;
+  const scale = Math.min(1, maxSize / Math.max(decoded.width, decoded.height));
+  const resized = scale < 1
+    ? downscale(decoded, Math.max(1, Math.round(decoded.width * scale)), Math.max(1, Math.round(decoded.height * scale)))
+    : decoded;
+  if (!isOpaque(resized)) {
+    for (let i = 0; i < resized.data.length; i += 4) {
+      const a = resized.data[i + 3] / 255;
+      for (let c = 0; c < 3; c++) resized.data[i + c] = Math.round(resized.data[i + c] * a + 255 * (1 - a));
+      resized.data[i + 3] = 255;
+    }
+  }
+  return new Uint8Array(jpeg.encode({ width: resized.width, height: resized.height, data: resized.data }, quality).data);
+};
+
 /** Smaller texture (scaled down, opaque → JPEG), or false when it would not get smaller */
 const optimizeTexture = (texture: Texture): boolean => {
   const image = texture.getImage();
@@ -171,27 +193,17 @@ export function gzipCopy(file: string): MediaOptimization {
   return { file: `${file}.gz`, before: data.byteLength, after: gz.byteLength };
 }
 
-const listFiles = (dir: string, pattern: RegExp): string[] => {
-  const files: string[] = [];
-  const walk = (current: string) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (pattern.test(entry.name)) files.push(full);
-    }
-  };
-  if (fs.existsSync(dir)) walk(dir);
-  return files.sort();
-};
+const matchingFiles = (dir: string, pattern: RegExp): string[] =>
+  listFiles(dir).filter(file => pattern.test(path.basename(file))).map(file => path.join(dir, file));
 
 /** Optimise the content copy: models (+ gzip copy), images; report large videos */
 export async function optimizeMedia(dir: string): Promise<MediaOptimization[]> {
   const results: MediaOptimization[] = [];
-  for (const file of listFiles(dir, /\.glb$/i)) results.push(await optimizeModel(file));
-  for (const file of listFiles(dir, /\.(jpe?g|png)$/i)) results.push(optimizeImage(file));
+  for (const file of matchingFiles(dir, /\.glb$/i)) results.push(await optimizeModel(file));
+  for (const file of matchingFiles(dir, /\.(jpe?g|png)$/i)) results.push(optimizeImage(file));
   // After the model optimisation: the .glb.gz holds the optimised model (client: utils/compressed.ts)
-  for (const file of listFiles(dir, /\.glb$/i)) results.push(gzipCopy(file));
-  for (const file of listFiles(dir, /\.(mp4|webm|mov)$/i)) {
+  for (const file of matchingFiles(dir, /\.glb$/i)) results.push(gzipCopy(file));
+  for (const file of matchingFiles(dir, /\.(mp4|webm|mov)$/i)) {
     const size = fs.statSync(file).size;
     if (size > VIDEO_WARN_BYTES) results.push({ file, before: size, after: size, note: VIDEO_ADVICE });
   }

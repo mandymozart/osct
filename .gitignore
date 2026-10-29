@@ -10,14 +10,16 @@ coverage
 # client/.env holds comments only (documents the VITE_* build flags, no values)
 !client/.env
 .claude
-.netlify
-# Local folder of the removed .mind tooling (1.2.x) – delete it where it still exists
-.mindar/
+# Content build output – built by every `npm run build` in client/ (prebuild → `npm run content`), CI and deploys
+client/src/game.config.json
+client/public/assets/content/
 
 # Server secrets and local data (docs/server.md)
 server/api/config.local.php
 server/api/db/*.sqlite
 server/api/db/*.log
+# The local content store (what the editor publishes on this machine)
+server/api/db/content/
 
 # Logs
 logs
@@ -34,3 +36,15 @@ logs
 *.sln
 *.sw?
 .venv
+
+# Kamal: only .kamal/secrets (references to environment variables) is committed
+.kamal/secrets.*
+.kamal/secrets-common
+# Trial/final content videos stay out of git – synced to the CDN separately; a build without
+# them gives those targets no AR video (warning, not an error)
+content/entries/*/video.mp4
+# The book's layout for the editor's stage – generated from the designed PDFs (scripts/layout/extract-layout.py)
+content/layout/
+
+# The book content lives outside the repository (OSCT_CONTENT_DIR, docs/content-out-of-git.md, #5)
+/content/

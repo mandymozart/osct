@@ -1,0 +1,35 @@
+# Showcase entry for the editor and the tests (spread studio-a): an entity as a tree of nodes (content schema 2.0).
+category: glossary
+title: "Studio: tree of nodes"
+page: 29
+body: "A group with three children: the tree, lifted and turned, a line of text under it, and an orange spot light aimed at the tree from the right."
+target:
+  image: target.jpg
+  entity:
+    type: group
+    params:
+      position: [0, 0.1, 0]
+    children:
+      - type: model
+        src: tree.glb
+        params:
+          rotation: [90, 45, 0]
+          position: [0, 0, 0.1]
+          scale: 0.7
+      - type: text
+        text: "{{entry.title}}"
+        color: "#f3cc94"
+        params:
+          position: [0, -0.45, 0.01]
+          scale: 0.8
+      # A light node (content schema 2.6): a spot aimed along its own −z – turned 45° about y it points down-left onto the tree
+      - type: light
+        light:
+          kind: spot
+          color: "#ff9a3c"
+          intensity: 0.3
+          angle: 35
+          penumbra: 0.3
+        params:
+          position: [0.4, 0, 0.6]
+          rotation: [0, 45, 0]

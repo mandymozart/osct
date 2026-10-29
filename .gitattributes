@@ -1,0 +1,20 @@
+# Text files are committed with LF line endings on every platform (the content hash normalises them too)
+* text=auto eol=lf
+
+# Binary content and media
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.mp4 binary
+*.webm binary
+*.wav binary
+*.mp3 binary
+*.glb binary
+*.gltf binary
+*.gz binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

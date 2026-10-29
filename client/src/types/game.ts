@@ -1,6 +1,5 @@
 import { CameraManagerState, ICameraManager } from "./camera";
 import { ErrorInfo, ErrorListener } from "./errors";
-import { ConfigurationVersion } from "./game-config";
 import { HistoryManagerState, IHistoryManager } from "./history";
 import { IRouterManager, RouterManagerState } from "./router";
 import { ArStatus } from "./scene";
@@ -10,7 +9,7 @@ import { ITargetManager, TargetManagerState } from "./targets";
 import { LoadingState } from "./common";
 
 export interface IGame extends IBaseStore<GameState> {
-  version: ConfigurationVersion;
+  version: GameVersion; // the app build (content: getConfigVersion())
   state: GameState;
   spreads: ISpreadManager;
   router: IRouterManager;
@@ -20,7 +19,6 @@ export interface IGame extends IBaseStore<GameState> {
 
   startLoading(): void;
   finishLoading(): void;
-  setLoadingState(state: LoadingState): void;
   /** Called by `<ar-bridge>` whenever the AR scene status changes */
   setArStatus(status: ArStatus): void;
   notifyError(error: ErrorInfo): void;

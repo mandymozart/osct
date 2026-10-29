@@ -4,6 +4,715 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – content out of git, one rewrite with the Claude cleanup (#5, #30)
+
+- Tilman: the old Claude attribution leaves the history in the **same** filter-repo run as the content (one force push,
+  issue #30 option A). The content source is **kept locally** (`osct-content/content`) – with the mirror backup the only
+  copies. `content/` left the tree in 1.19.2; next: develop → main release (production with asgerb), freeze, rewrite, push.
+
+## 2026-10-30 – The editor is not part of the PWA (#122)
+
+- Tilman: "the editor shouldn't be part of the PWA". The reader's service worker (scope `/`) leaves the editor's pages
+  (`/editor`) and all their requests to the browser (`client/sw/editor-clients.ts`): no precache, no content cache, no
+  offline fallback for them. The editor has no worker of its own (`serviceWorker.register: false`).
+
+## 2026-10-30 – The book's environment, content schema 2.8 (#79)
+
+- Tilman confirmed the draft's two open decisions: the environment is a MINOR step after the light nodes' 2.6. It was
+  first numbered 2.7, but #80 (demo book) took 2.7 on develop, so it is **2.8** (the rebase takes the next free number; the reader's Graphics switches **apply on top**
+  of the content (the content cannot turn on what the reader has off). Built: `environment: { world, onionSky }` in
+  `book.yaml` (`shared/types/environment.ts`, one world `cafe`), `effectiveGraphics` in the engine's `LookAround`, the
+  guard and the build check it, `PUT /editor/books/{id}/environment` (draft path), an Environment block on the book page.
+  A book without it keeps today's look (`DEFAULT_ENVIRONMENT`).
+- Open (#79 "not in this step"): world assets (an equirectangular dome), per-spread overrides, tuning values in the
+  editor, the stage preview of the look-around pass. The café is the only world, so `surroundings` follows `world`
+  through a single check in `effectiveGraphics`; a second world needs its own branch there.
+- The editor's package check (`svelte-check`) could not run here: the editor's `node_modules` is not installed.
+## 2026-10-30 – `api.registerPass` wired (#97, 1.16.1) – the pass names are open
+
+- The plugin API's `registerPass(type, spec, factory)` now reaches the engine's pass registry with the plugin as owner;
+  uninstalling the plugin unregisters its passes (`removeRegistrations` → `unregisterPassesOf`). Patch: no schema change.
+- **Open (Tilman decides, #97):** a spread or book cannot name a plugin's pass yet. The reader's guard
+  (`shared/guards/game-config.ts`, `passProblems` without `unknownTypes: "allow"`) and the build's final
+  `assertGameConfiguration` refuse it; the editor's API (`server/api/src/Books.php` `PASS_TYPES`) refuses it too.
+  The fix in `shared/` is one option each – every `shared/` change needs a schema bump and a re-lock (RULES #10).
+- Also open: `PLUGIN_API_VERSION` stays `1.1` (in `shared/types/plugins.ts`); `registerPass` is additive, so a bump
+  would be a choice, not a need.
+
+## 2026-10-30 – An MCP server over the editor's API, after SCUTOONS' model (#75)
+
+- Tilman (2026-10-29, #66): "wir brauchen eine MCP-Schnittstelle, dass wir dann beim Bauen in Amsterdam genügend schnell
+  auch mit Claude Sachen bauen können"; at this session's start: **"how it is done, do it like in scutoons. important this
+  will one day merge."** Decided (`agents/research/2026-10-30-mcp-server.md`): a package **`mcp/`** at the root (Node 22,
+  the v2 SDK `@modelcontextprotocol/server` + zod 4 like SCUTOONS' `tools/mcp`, the same file shapes: `main` / `config` /
+  `services` / `user` (their `member`) / `prompts` / `resources`), **a client of the API over HTTP with the editor's session
+  token – never a second path into the database**; `OSCT_EDITOR_TOKEN` or the pair `sign_in_request` / `sign_in_verify`
+  (the code by mail, the token kept in the process, never shown); the tools listed per role (`editor`); every entity through
+  the shared guard before it is sent; every write answers with the editor's link – **the person checks the draft on the
+  stage; `publish` refuses `production`** (SCUTOONS' MCP has no publish tool at all – whether `staging` should go too is
+  Tilman's call). The start bundles `src/` + `shared/` with esbuild (`shared/` imports without extensions and OSCT has no
+  root `package.json`, so Node's own type stripping – SCUTOONS' way – cannot run it). `.mcp.json` at the root gives every
+  Claude Code session here the server. RULES #10 / #23: `mcp/package.json` carries the one version too.
+- [ ] Open: personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
+  connects; a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
+- [x] Tilman, 2026-10-30: **"publish soll beim Menschen bleiben … so lassen wie in PR #92"** – the MCP may publish to
+  `local` and `staging` (a check), production is the editor's Publish button; the one step more than SCUTOONS is the
+  content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
+  over the MCP, he checks on the stage and clicks Publish – nothing by hand, nothing on GitHub.
+## 2026-10-30 – The demo book and the plugin API 1.1 (#80, decided alone – to review)
+
+- Tilman (2026-10-29): a sandbox book that uses everything the editor can do, with game narratives, the book API
+  (progress) and inter-spread interactions – "call it demo", on staging when done. Decided
+  (`agents/research/2026-10-30-demo-book.md`): **`fixtures/demo/`** next to the test fixture (the fixture stays the
+  tests'; `DEMO.md` marks the demo, the CLI syncs it to the environment **`demo`** only), the narrative key → door →
+  lamp + a tally + a tap that switches scenes, six plugins as the examples to copy from. **Plugin API 1.1** (the
+  smallest additions the narrative needed, the concept's shapes): `api.events` with two owners (core events are the
+  engine's, scene events the book's; one flat bus, no bubbling yet), `api.vars` with the scopes spread / stage /
+  session / book (a `get` without scope looks outward, innermost wins; `set` defaults to `spread`; the `node` scope is a
+  component's closure), `api.progress` read-only from the app (`ArSceneOptions.progress` – the reader's history behind
+  an adapter, the editor's `StageProgress`; RULES #32), `api.spread`, the context's `children`, `onUnlocked`. The
+  **book variables are persisted** in the progress record as an optional `variables` map – additive within format 1
+  like `onboarded`, so a MINOR. Content schema **2.7** (PLUGIN_API_VERSION lives in shared/, so the lock moves; 2.5 are the passes, 2.6 the light nodes).
+- **The way to staging**: no second destination, no store change – the workflow `demo.yml` builds `fixtures/demo` and
+  syncs it with the osct CLI to `<zone>/demo/`; the staging reader (a debug build) takes `?content=<base url>`; the
+  staging editor imports a content base URL. Found on the way: **a publish is per environment, not per book** – a
+  second book published to `staging` would replace the book's current version once the store is bunny → #87
+  (Proposals, decide). Until then the demo's Publish stays `local`.
+- [ ] Open: #88 (an animated GLB for the key, a tap button and editable variables in the Stage panel, the
+  `behaviour` component and declared variables, bubbling scopes, two spreads on one stage); the Entity panel's rows
+  now follow the engine's plugin load (`plugins.version` bumped when the scene runs) – a small fix found by the demo.
+
+## 2026-10-29 (night) – Light nodes, content schema 2.6 (#71)
+
+- Tilman (testing the desks on the stage): "one entity type is missing in the editor – lights" → issue #71, its own
+  session. Built: node type `light` (point / spot / directional, values under `light:` from `shared/types/lights.ts`,
+  spot and sun along the node's −z, default half a target width above the parent), engine builder with fade in reveal
+  and outro, editor rows from the definition, tree icon, Blender-style helper on the stage, fixture lights in Studio A.
+- First built as **schema 3.0** (the 2.x guard refuses a node type it does not know – the engine would have kept the
+  children, but the guard throws first – so an older app cannot read content with a light: RULES #10's MAJOR); the
+  #61 editor session then asked for **2.6** on top of the passes' 2.5 (a MINOR step), so it is 2.6 – the cost: a 2.5
+  app shows "invalid configuration" on a book with a light instead of "update the app" (no deployed reader is on
+  2.x; production is on 1.x). From 2.6 on the guard lets an unknown node type pass with a warning (the content build
+  and the editor's API still refuse one); RULES #10 says so. The app reads every older MAJOR as it is
+  (`OLDEST_READABLE_SCHEMA_MAJOR = 1` – every MAJOR so far only added) instead of the hard-coded "2 reads 1".
+  **Units**: three.js attenuates point and spot lights in world units – metres, on a target a few centimetres wide
+  a 1 cd light at 5 cm gives 400 lux, pure white – so `intensity` and `distance` are in the node's units (target
+  widths) and the engine scales them by the light's world scale every frame (`scaleLight` in entities.ts); the
+  reader has no tone mapping, so a lit white page clips above ~1 – the default intensity is 0.25, the fixture's
+  lights 0.3 / 0.1. The fade of reveal / outro is a factor (`userData.fade`) the light node applies, not an absolute
+  value the animation writes (the two would fight per frame).
+  The HDRI dims only the scene's own lights (children of the scene), not the content's. Merged after #66 (2.4) and #72 (2.5).
+- Open: the publish writes the imported book's schema (`books.content_schema`), not the server's – a 2.3 book
+  published with a light says 2.3; the reader of the same build reads it anyway, an older reader fails on the node.
+## 2026-10-29 (night) – Post-processing lives in the engine's pass registry, the code editor hooks into it (#72)
+
+- Tilman (testing the stage, #68): "post processing, which we could just delegate to code editor, since it can handle
+  stuff like that also by code right?" Decided (recommendation (c) of #72, built alone – to review): **one mechanism
+  for Kévin's own passes and the ready ones** – a pass registry in the engine (`engine/src/scene/post/registry.ts`:
+  `registerPass(type, spec, factory, owner)`, specs in the component spec shape) with the built-in `bloom`,
+  `vignette` and `grade` registered by the engine itself; the content names passes per spread or per book
+  (`passes: [{ type, …params }]`, content schema **2.5** – 2.4 is #66's plugins, its hand-over asked the next bump to
+  start at 2.5); the code editor's plugin API (#66, PR #73, not merged when this was built) gets `api.registerPass`
+  as a one-line delegation to the registry with the plugin as the owner (`unregisterPassesOf(id)` on uninstall),
+  and the guard's `passProblems(…, { unknownTypes: "allow" })` where plugins are declared. Built on `develop`, not
+  on #66's branch, so the PR stays reviewable. Agreed with the #66 session: **pass specs stay out of the component
+  spec registry** (`registerComponentSpec` feeds the Entity panel's *+ component* row and the node check – a pass there
+  would show on every node); passes have their own lookup, `passSpec(type)` in `shared/types/passes.ts` (the built-ins
+  plus a registered spec), which the Stage panel's rows read.
+- The chain keeps the AR layer's alpha (RULES #4): the scene renders into a half-float buffer (MSAA as the canvas),
+  the passes run over premultiplied colour, the last pass converts to the output colour space with the alpha
+  un-premultiplied and multiplied again, drawn over the screen with premultiplied blending (the look-around world
+  stays under it). three's UnrealBloomPass blends with alpha 1 – the built-in bloom replaces its blend factors so
+  the glow is light over the camera picture, not a black screen.
+- The editor's stage: the mock stage's objects (table, book, printed images, sky) lie on the engine's
+  **backdrop layer** (`BACKDROP_LAYER`, view.ts) and are drawn under the chain – the first try ran the HDRI sky
+  through the bloom and the whole stage glowed white. The passes show under *rendered* only.
+- Budget: a chain costs one full-screen render-to-texture plus one full-screen shader per pass; the bloom works at
+  half resolution (five blur levels). Guideline: one bloom plus one or two single-shader passes per spread. **The
+  S22 measurement is still open** – no phone was connected when this was built (adb: no devices); measure on the
+  reader with Studio B (`adb reverse`, Chrome's performance panel) before the book names passes on many spreads.
+- Open: the celebration bloom (`view.ts`, the unlock animation) is not a pass of the chain – it keeps its own
+  half-size composer as before; folding it into the registry's bloom is a later cleanup.
+## 2026-10-29 (night) – Code in the editor: plugins (#66, decided alone from the concept – to review)
+
+- Tilman (on staging): own JS scripts and shaders in the editor, "wie hatte das Niantic Studio gemacht? Das war mega.
+  Wichtig für Spezialeffekte für Kévin und für erweiterte Game-Logik." Decided (`agents/research/2026-10-29-code-in-
+  the-editor.md`): **a plugin folder in the content source, compiled by the content build, is the way to readers**
+  (type check against the engine's own API types, esbuild bundle, recorded once, declared in the configuration –
+  schema 2.4); **the editor's Code tab is the sandbox** – sources in a `plugins` table, Run transpiles in the browser
+  (sucrase, ~200 KB, loaded with the first Run; esbuild-wasm's 10 MB and CodeMirror were left out to keep the editor
+  small), nothing of it reaches a publish (409 when nodes use a type no declared plugin provides). The plugin API
+  1.0 is `registerComponent` + `registerLayer` + `api.three`; material layers are **components** in the content
+  (`components: [{ type: tint, … }]`), so panel, build and guard treat them as one; GLSL never travels in content.
+- Tilman answered the open questions the same night: **no sandbox in the reader** ("ich finde wir schützen schon
+  genug vor Release" – the review before a release is the protection; a sandbox would cost the direct three.js
+  access, the point of the API); **layers stay components** – his concern is performance, so the build warns about
+  more than three layers on a node and the guide says to bake what never changes into the video; **type stubs with
+  completion** – wanted, #76 (Monaco, lazily with the Code tab); **node types** – wanted, as the engine's existing
+  builder contract with a small spec, #77; **the way to readers stays the content build – run on the server behind the
+  publish** ("Build Option 2": Node and `scripts/` in the image, the API compiles the stored sources on publish; no
+  download detour – "kind of stupid to think about"), #78; **an MCP server** over the editor's API so
+  Claude builds content and plugins fast in Amsterdam, #75. Schema numbers are fine ("einfach mal weiter machen");
+  how the content schema links to the app's and the editor's versions is still open.
+- [ ] Open: how the content schema version relates to the app's and the editor's versions (today: MAJOR refused,
+  MINOR ignored – RULES #10; the editor reads the same engine).
+- [ ] Open: the plugin API's own version (`PLUGIN_API_VERSION` 1.0) against app releases – bump the MINOR when the
+  API grows (#77 registerNodeType), MAJOR when a hook changes meaning.
+- Schema clash resolved in the merge: the covers took 2.3 on develop while this branch used 2.3 too → the plugins are
+  **2.4** (RULES #23's rule for version files, applied to the content schema).
+
+## 2026-10-29 – The stage's desk is our own Eiermann model (#68)
+
+- Tilman: "the table should be an Eiermann"; he supplied a 3ds Max model of the frame (`01_E1_1100x660-exzentrisch`,
+  17 000 triangles, kept outside the repository) and asked for an effective poly reduction, an 18 mm Siebdruckplatte
+  top with the plywood's plies visible on the cut edges. Decided: **no decimation of the supplied model** – the frame's
+  tube axes were measured from it and `editor/tools/desk-eiermann.py` rebuilds the table from primitives (8-segment
+  tubes, 236 triangles, materials `top` / `edge` / `steel`, origin at the top's surface, metres, Y up), so the GLB is
+  ours and regenerable without the source file. The desk keeps its own materials under every shading mode (like the
+  gizmo and the outlines); the plies are the untinted plywood texture with its grain along the edge.
+- Tilman, later the same day: **both desks as options, like the HDRI picker** – the Eiermann (default) and Philipp
+  Camille Schöpfer's white desk (modelled after a photograph) – "the tool is for designers and they should feel at
+  home". `desk` is a stored preview setting; the stage keeps each loaded model for a switch back and decides the
+  top's look by id (plywood / white). The supplied archive carries no licence or readme, so nothing of it is
+  committed – it served as the measurement reference only.
+- Tilman, on seeing the panel: "there is overhead, we won't need anymore – we got the HDRI and we got the table as
+  default; more basic". **The backdrops *table*, *paper* and *photo* are removed** (never shipped – 1.10.0): the stage
+  has the desk always and the HDRI as its sky while rendered (the scene's lights in wire / solid / textured); the
+  Stage panel keeps *desk* and *sky*.
+- [ ] Open: the frames' finishes (dark metallic steel, Schöpfer's white; chrome would be a material change in the
+  script) and Schöpfer's leg geometry (four straight splayed legs read from one photograph).
+
+## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
+
+- 2026-10-29 (#65, Tilman: "bitte stark an Scutoons' Modellierung orientieren, wir werden das fürs White Label später
+  vereinen"): **roles after SCUTOONS** – tables `roles` (fixed ids 1 reader, 2 editor, 3 admin) + `user_roles`
+  (`granted_at`, `granted_by`: signup / migration / config / secret / the admin's id), `Roles::require()` as the guard,
+  `GET /user` `roles`; `users.role` stays as a mirror of the editor role (older readers, the schema's backfill). The
+  admin page lives at **`/editor/admin`** (the editor's build and `.htaccess` fallback serve it in both deploys; a root
+  `/admin` would need a rewrite per deploy) – an admin who is no editor sees only that page. The admin API takes an
+  admin session **or** `X-Admin-Secret` (break-glass; `admin/migrate` secret only). `ADMINS` next to `EDITORS` is the
+  bootstrap (Tilman sets the GitHub variables on `staging` / `production`). The newsletter list = the users with any
+  update option on (no new opt-in column – the three options are the opt-in); the reader's preferences untouched.
+  Differences to SCUTOONS listed in docs/server.md "Roles".
+
+- Tilman: "Das ist die Frage des Routings – wer für was verantwortlich ist." "Der Editor hat eine Sonderstellung:
+  er braucht die Engine nur für ein Preview, der Rest ist simuliert. Daher muss da eine Grenze her." "Wieso muss
+  Stage dann im Reader sein – das ist doch ein Editor." "Ich möchte eine klare Trennung. Und wenn das heißt, Tune ist
+  raus, dann bitte. Es geht im Debug-Overlay nicht um Einstellungen. Das ist Legacy." Decided: **the engine becomes a
+  package of its own (`engine/`: content runtime + AR scene), the reader uses it with the real tracker and carries no
+  editor trace, the editor is a SvelteKit app in this repository at `/editor` that uses the engine with the mock
+  tracker and owns the stage** – no `/stage` route, no stage protocol, no iframe (B with the stage in process).
+  Tune leaves the debug overlay (legacy); `TUNE_ENTITY_EVENT` becomes `scene.overrideEntity()`. Design:
+  `agents/research/2026-10-29-editor-architecture.md`. RULES #32 rewritten.
+- Tilman: "So weit wie möglich selbstständig … bis Ende aller Pakete: Datenbank, Editor, Compilieren, Ausliefern."
+  "Ich möchte die Demo-Szene am Morgen ausprobieren zu bearbeiten" – the studio spreads of the fixture must be
+  editable in the editor in the morning (import from the reader dev server, edit, save, publish to the local store).
+- Compile = the publish assembles the content version from the database rows (the server, PHP); the plugin compile
+  (schema 2.0, code in the editor) stays phase 15 steps 3–4.
+- Earlier the same day: an OSCT instance user signs in (the instance is **Building Fictions**, the brand; "OSCT wird
+  das nie"), independent of Scutoons for now, "der Editor erstmal im OSCT-Repo".
+- [x] The reader's vanilla editor sheet and `<scrub-number>` went with this (Tilman: clear separation) – the editor
+  app replaces them; `docs/editor.md` rewritten for the app.
+- Built that night (1.10.0, decided alone – to review): the editor mirrors the Scutoons apps' toolchain (SvelteKit 2.55,
+  Svelte 5.55, adapter-static with `fallback: index.html`, `paths.base=/editor`, vite-plugin-svelte 7) but with the
+  reader's three 0.174 so the engine compiles once; `tsconfig` overrides `verbatimModuleSyntax` (the engine has no
+  type-only imports) and maps `three` to `@types/three`, Vite dedupes `three` for the engine's files. The import's
+  `assetsBase` is where a book's `/assets/content/…` paths resolve (the reader dev server in dev, the CDN's version
+  folder on staging) – the engine's loader got the same option so layout and trigger protocol resolve there too.
+  The editor's own users are the accounts table with `users.role` (`POST /admin/editors`). Publish `local` writes to
+  the API's `db/content/`, served at `/api/content/local/…`. The dev setup for the morning: `server/api/config.local.php`
+  (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
+- [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
+  tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
+- 2026-10-29 (Tilman): the Stage panel's **view presets and found chips are removed** – they doubled the stage's own
+  gestures (orbit, pan, double tap) and the tree's eye column; the replay of the first find lives in the stage's
+  right-click menu. `PREVIEW_VIEWS` and `view` stay in `preview.ts` (the reader view is the double tap's target).
+  Local sign-in has no hourly email limit (`LOGIN_MAX_PER_*_HOUR` -1 – Tilman: "-1 ist besser als Limit für aus";
+  0 allows nothing); a refused request tells the minutes.
+- 2026-10-29 (Tilman): the covers are spreads of another **format** – `format` on a spread (`spread` default,
+  `cover`, `back`; later `wall`, objects, facades: "damit kann die App auch verschiedene Medien bespielen"), with a
+  UI to set it; the covers are page 0 and the page after the last so the page → spread rule holds everywhere. Scripts
+  and shaders in the editor (Niantic Studio's model) are issue #66 with their own session.
+- 2026-10-29 (Tilman, on staging): the first editors come from the config list `EDITORS` (GitHub environment
+  variable, written by the deploys) because the admin secret is not readable after it is set; a **minimal admin UI**
+  at `/admin` follows (editors, later newsletter lists) – own and small, a feature set of the white-label core, not
+  a copy of Scutoons' admin (PLAN 2d). Also decided: the editor's viewport follows Blender (orange selection outline,
+  shading wire / solid / textured / rendered), components start with `animation` and the timeline (schema 2.2).
+- 2026-10-29 (Tilman, "Ja, bau den Asset-Upload nach dem Scutoons-Modell"): built as **the content store as the
+  storage** (no second driver layer: `ContentStore` learned binary files, delete and serving assets), a registry of
+  assets + versions, usages computed from the rows (no usage table – the book is small), absolute URLs in the content
+  (publish and engine leave them alone), replace = new path + relink (no CDN purge). Targets made in the editor carry
+  `print` (schema 2.1, MINOR); their tracking data for the real reader is open (the content build's target set).
+  Asked the same day, parked for steps 3–4: spread-level nodes without a target, a timeline for glb clips with
+  start / stop events, the script part. The sky became a sphere in the stage group after three's background
+  rotation mirrored axes.
+- 2026-10-29 (Tilman, "ja bauen"): **content schema 2.0 = the node tree**, structure first, components later: an
+  entity's node has `children` (placed relative to the parent), types `group` and `text` joined model / video /
+  image, one node stays the default. Decided alone: the app reads 1.x content as it is (a one-node tree), so the
+  schema MAJOR costs no content rebuild and no app MAJOR; unknown node types render nothing but keep their children
+  (a later type is MINOR); the placement stays flat in `params` (the concept's `params` object is what we have);
+  text nodes draw a canvas line in a system serif (the brand font and real typography are open); a new node in the
+  editor takes a file the book already has (upload = the asset layer, open). The Blender-style tree (outliner at
+  the left, chain icon for uniform scale), pan (Shift / middle / two fingers), the colour popover with the stage
+  eyedropper (`IArScene.sampleColor`), the book as an object and the sheet previews landed the same day.
+- 2026-10-29 morning (Tilman): the tree (outliner) at the left and the chain icon for uniform scale landed. Open
+  questions he raised, to decide: how targets are placed in the editor (upload / replace a target image), asset
+  resolutions (images 1x / 2x / 3x, videos 480p / 720p / 1080p) and whether Scutoons' asset layer (`scutoons/agents/ASSETS.md`:
+  PHP registry + storage drivers incl. bunny, `@scutoons/media` picker and media standard) is copied for it. The local
+  editor DB now holds the real book (imported from the reader dev server with the layout from the 2110 PDFs); the
+  fixture's studio spreads come back by rebuilding the fixture content and importing again (same book id `osct`).
+
+## 2026-10-29 – Editor, first step: `/editor` over the mock stage (#61, overnight after Tilman's go)
+
+- Tilman (2026-10-28, late): "#59 skippen und direkt in diesen Editor reingehen" – the mock stage (#59) is the editor's
+  preview, not a reader debug panel; onboarding steps stay out of the database; entities become a node tree with
+  components and plugins (the book's own code, compiled by the content build – 8th Wall's model, verified in their
+  repository: webpack per project, schemas parsed from the AST); click UI only together with code in the editor;
+  events have owners (core = book logic, read-only for plugins; scene = content) and scopes `node ⊂ spread ⊂ stage ⊂
+  session ⊂ book ⊂ global` (lookup outward, bubbling outward); a spread is the targets seen together, pages optional
+  (record sleeve, wall, cover); the book is the first layout template, OSCT a filled instance; variables are declared
+  with scope, writers and setter rules. All of it in `agents/research/2026-10-28-entity-components.md` and
+  `2026-10-28-editor-data-model.md`; issues #60 (geometry from the PDF), #61 (editor), both Proposals → #61 In progress.
+- Built overnight (1.10.0): route `/editor` (scan mode), `editor-page` shell + lazy chunk `src/editor/` (bar, preview
+  panel), `MockTracker` behind `IImageTracker`, `MockStage` in the scene, `ArScene.ensureTracker()` picks the tracker
+  when the camera would start (the editor page may become active a moment after the scene is asked to run – a first
+  version started the engine once and asked for the camera), camera permission simulated while the preview runs,
+  `history.forgetTarget()` for *unlock ↺*. English texts (RULES #20), RULES #32.
+- Decided alone, to review: the page format is a constant (230 × 320 mm) until the content carries it (#60); the row
+  layout when the protocol is missing; targets without an image are not on the stage; the preview panel opens with
+  the editor; the editor's chunk imports the dev-tools barrel (already in the main bundle) and defines `tune-panel`
+  itself in production builds.
+- Later that night (Tilman: "use these two to create the most realistic preview mock stage you can make",
+  "beim Blättern sollte auch alles passen", "front and backside bitte auch mitdenken – für dieses Buch nicht relevant,
+  aber im Editor darf man dort Targets platzieren"): `scripts/layout/extract-layout.py` reads `All_Triggers.pdf`
+  (129 double pages, 460 × 320 mm, every trigger as an image) and `OSCT_2110_previewLOWRES.pdf` (135 sheets: cover
+  front and back as single pages, two front- and two back-matter spreads, the rest double pages with page numbers at
+  the foot) → `content/layout/` (git-ignored, copied by the content build): 135 sheet images, 121 of 131 targets placed
+  (the ten not on the printout: pages 30, 95, 222 have two targets and one printed image). Python chosen because
+  PyMuPDF gives image boxes and renders pages in a few lines; a Node port (pdfjs + canvas) is possible when the
+  import becomes part of the osct CLI (#60). The stage shows the sheet as the page texture and the targets exactly
+  where printed; the covers are sheets of the layout (`cover-front` / `cover-back`, surfaces `front` / `back`) without
+  a spread yet – spreads without pages are a content schema change (#60, #61 step 5).
+- Morning (Tilman: "check for reference the scutoons UI dogma and libraries … reuse components as much as possible,
+  save real estate"): read `scutoons/agents/DESIGN.md` (Compact inspector, One control height, Icons, Close cross,
+  the phone inspector = a sheet whose head is its tab row) and `@scutoons/ui` (Svelte – not importable here; the
+  patterns are). Rebuilt the editor UI as one `<editor-sheet>` (head = ‹ › · Stage · Entity · ×, closed = the head
+  row), `<scrub-number>` in `components/common/` for every number (dogma: never a native slider / checkbox), the tune
+  panel split into `<tune-inspector>` (shared with the debug overlay) + a thin sheet host. Kept native for now: the
+  colour input (the dogma's colour popover is a later piece), the target `<select>`. RULES #32 "UI" paragraph.
+- Tilman (morning): XYZ in one row like Blender – done (`<scrub-number prefix>`); "Beispielszenen für 3D-Entities und
+  Shader" – the fixture got `studio-a` / `studio-b` (ten entries, every entity type, placement and filter of today's
+  model, a shared entity used twice); "Event- und Variablen-Austausch zwischen Entities" – needs schema 2.0, written
+  as *Studio C* in the entity concept (the acceptance scenario). Svelte: not in the reader (RULES Stack); Tilman sees
+  the editor as the bridge to Scutoons that could profit from Svelte – open decision, options in the #61 comment.
+  Leading zeros in ids (`s004-005`, `p004-1`): from the delivery import (`import-delivery.ts`, `padStart(3)`) so
+  folders and lists sort in book order; cosmetic – the app sorts by `order` / `page`. Changing them = new ids for the
+  progress (fine before release); Tilman decides.
+- Tilman (morning, after seeing the shared inspector gold in the debug panel): "I want debugging look like debugging.
+  The editor have a neutral color schema more like Figma. Focus on efficient space use and brand UI comes only in
+  real reader facing UI elements" → three token variants in `styles/design-styles.ts`: **branded** (his word for the
+  reader's, the default), **editor**, **debug** – switched by `data-theme` on the host; components carry structure
+  only. Copy YAML stays until step 2 saves to the database (then redundant in the editor, as Tilman expects). Then:
+  "I hate that blue grey. Use a color schema inspired by the default in figma. Day and night theme" and "Blau gar
+  nicht" – the editor variant is white / light grey by day, dark grey by night (the system; Tilman: "Nacht/Tag braucht
+  es nur als Flag, später ggf. in Settings" – the flag `osct-editor-scheme` exists, no button), focus and accents in
+  the text colour, pressed segments grey; `branded` is Tilman's word for the reader's
+  variant – the layer a white-label brand overrides later (one token block in `main.css`).
+- Tilman: "Svelte als Konzept klären" → `agents/research/2026-10-29-editor-svelte.md`: A Svelte in the reader's
+  chunk, B a SvelteKit app in the OSCT repo, C the editor as an app in the Scutoons monorepo on `@scutoons/ui` (a
+  private source package – no publishing), the reader exposing `/stage` + a stage protocol (postMessage cross
+  origin), the instance's API for saving. Recommendation was C; Tilman: "also ein OSCT-Instanzen-User" and "das Ding
+  ist Scutoons-unabhängig im Moment" → sign-in with an OSCT user (editor role), not C. Open: A (Svelte in the lazy
+  chunk, recommended now) or B (a SvelteKit app in the OSCT repo under /editor). Then: "OSCT wird das nie. Das ist für
+  Building Fictions im Moment" (the instance is the brand, the editor belongs to it, not to the title) and "Der Editor
+  erstmal im OSCT-Repo". Ids without leading zeros: #63 (Backlog). Day / night of the editor: only the flag, no button.
+- [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
+  Kévin's own phone later); comes with accounts / roles in step 2.
+- [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
+  loop settling?) – seen once in the browser pane, not reproduced.
+- [ ] Open (Tilman): 35 cm / 30° as the reader's view, or measure; the desktop default could start closer (20 cm).
+
+## 2026-10-28 – Entity animations shorter (#57, Tilman)
+
+- On the phone the unlock ran too long: by the time a video or a 3D object had materialised the reader had often
+  drifted off the trigger. The durations are global for every entity type (`ANIMATIONS` in `ar/celebration.ts`,
+  `ENTITY_UNLOCK_MS` in `types/scene.ts`): unlock 4.2 → **3 s**, reveal 1 → **0.6 s**, outro stays 0.7 s. Image
+  targets without an entity never had the dissolve (found indicator rotation, 2.6 s) – they felt right already.
+- Video suffers most because it plays from `onFound`, i.e. during the dissolve – the first seconds of motion are
+  only seen through the noise mask. A model's shape is its content, the gold edge carries the time.
+- [ ] Tilman tests on the phone (video and 3D target). If video still feels long: a duration factor per entity type
+  passed to `celebrate()` – only after the global values have been tried (#57).
+
+## 2026-10-28 – Direction: scutoons-animus-ar, a white-label AR core; data sovereignty (Tilman, milestone 2)
+
+- Tilman: "game.config.json is tied to a version of the book, so current data is testing data". Goal: a bare core
+  app developed as a vendor app; branded instances (Building Fictions, Scutoons) tied into their brand's ecosystem
+  (WordPress or other, own editors), each with its own database and its own CDN; config and content load per book
+  or game. Long term SaaS, or quick resale to publishers, museums, authors.
+- Then (same day): "white-label ist ein guter Begriff" – **no platform** until there is demand, only our own
+  projects until requests come; niche **art, graphic novels and the music around them**; a **contracted** model
+  (people commissioned to make content for us or with us); hosting content and apps matters, delivered **under the
+  brand's DNS, PWA first, native app later**, or inside our own app; **data sovereignty is the selling point**
+  ("ich möchte den Tech nutzen, ohne Tracking einer anderen Firma"). Project name **scutoons-animus-ar** (the
+  bridge to animism). Competitors in Vienna: Artivive (white-label WebAR), Artificial Museum (GPS AR, framework
+  rented out).
+- Then: "das ist das Ziel": **instances initialised at a click**, on the client's servers or on selected partners'
+  (bunny, Hetzner, Amazon, Timme, whatever); the **CDN is a decisive advantage**, the audience is **products that
+  travel the world**, where access times matter.
+- Strategy draft: `agents/STRATEGY.md` (model, data sovereignty as of today, architecture, phases A–C, market).
+  Issues: umbrella #44, decisions #45–#49, phases A #50 #51 #52, B #53, C #54 (board lane Proposals).
+  GitHub milestone 2 "scutoons-animus-ar – white-label AR core" (first created as "Overprint – vendor core for AR
+  books", renamed).
+- Order (Tilman): first OSCT as the archetype – how it handles content independently from the app – then issues
+  for the core, perhaps developed over the winter.
+
+## 2026-10-28 – Tap to focus for every reader (#37, Tilman via #14, 1.9.4)
+
+- Tilman: the camera default is continuous autofocus **and** tap to focus – a tap on the camera picture (anywhere that
+  is not UI) focuses on that point once, then continuous focus again; for everyone, not a debug switch; no zoom.
+- Built into the AR scene's tap handling: a tap that hits an entity opens its entry as before, any other tap on the
+  picture focuses. Chrome on the S22 reports no `pointsOfInterest` (both lenses) – the tap can only start a new focus
+  run on the whole picture, not on the point. Safari 15 has no focus controls at all.
+- Branch renamed to `feature/37-camera-focus` (RULES #26); the old remote `claude/camera-focus-zoom-ffbbaa` is left for
+  Tilman to delete.
+
+## 2026-10-28 – Camera defaults: main lens, continuous focus, engine size; iOS below 16.4 cannot scan (#37, Tilman, 1.9.0)
+
+- **The first trigger test ran on the S22's ultra-wide lens** (fixed focus, `camera 2, facing back`, 60 fps): the
+  engine picks Samsung's main lens by the label `camera2 0, facing back`, Chromium now says `camera 0, facing back`
+  (Chrome 156 and Brave 155 alike; the first test was in Brave). The app asks for camera 0 by device id itself
+  (`camera-request.ts`, Android only). Main lens retest: 23 of the 25 misses found without zoom, only the flat logos
+  p067-1 / p129-1 not (`docs/trigger-tests/2026-10-28-camera.md`).
+- Tilman: "Please just do the defaults like this" – **main lens, continuous focus at start (if offered), the engine's
+  960 × 720, no zoom**. 1920 × 1440 found p123-1 later (27 s vs. 14 s) and less steadily; Tilman's impression the
+  same. His wish for an automatic resolution choice with a menu override is not built: no size found better on the
+  S22. Revisit with a recent iPhone (second trial #36) – the **res** switch in the debug camera panel stays for that.
+- **iPhone 7 (iOS 15.8.3) cannot scan**: the engine's tracking WebAssembly uses SIMD (Safari from iOS 16.4). Tilman:
+  build the warning – update if the phone can, otherwise scanning does not work; a SIMD-free engine build is proposal
+  #39 ("decide later"). The app cannot tell an iPhone 7 from an iPhone 8 (same screen, no model in the user agent),
+  so one notice names both cases. Safari 15 reports no focus or zoom controls at all.
+- **Frame rate** (~14–16 fps) is its own issue #40 (Tilman: "I want to tackle the frame rate issue by itself"); lead:
+  the ultra-wide ran at 60 fps – compare with the lens switch.
+- Debug overlay re-sorted on Tilman's request ("i cant close the overlay … for the camera focus test do your own tab
+  which open perhapse the same slide out as the trial has"): camera panel at the bottom, × to close, QR behind a button
+  ("its mostly not needed on mobile. also on the long run we need to provide this somewhere else").
+- [ ] Open: where the dev QR codes live in the long run (Tilman; options: desktop only, a dev page with every spread's
+  QR, or QR codes from the content build) – not filed as an issue yet.
+- [ ] Open (found on the iPhone 7, not #37): the onboarding **Continue** button is unstyled on Safari 15 (likely CSS
+  nesting or `color-mix()`, Safari 16.x); the trial panel's top bar cannot be dragged on iOS 15.
+- [ ] Open: check the camera choice on a recent iPhone (Safari reports "Back Camera" etc.; no lens rewrite on iOS).
+
+## 2026-10-28 – The tracker window defaults to ±1 again, not grow (#38, Tilman, 1.8.2)
+
+- Tilman, after testers on staging (iOS among them) had trouble: the growing window "will make it really difficult for
+  people to test the image targets … Until we finish this tracker window and have like a conclusive solution, we will
+  not deploy it as a default." Default ±1 (the default before 1.7.0: the next and previous spread switch by
+  themselves); grow stays selectable in the debug overlay. A device that stored *grow* by cycling keeps it.
+- #38 goes on: diagnose grow vs ±0 on the S22, then grow or a sliding target budget.
+## 2026-10-28 – GitHub Actions: minutes, notifications, runners (#42, Tilman)
+
+- Tilman: worktree pushes and small commits to `develop` burn the account's Actions compute; no Actions mails
+  ("just don't notify me"); the repository may go private, so the research continued.
+- Found: OSCT is public, so its runs are free today (timing API: billable 0); the quota goes to the private repos.
+  OSCT's cost per push as a private repo is measured in #42 (Checks bills 4 min for ~2 real, a PR branch runs it
+  twice per push, a `develop` push 7–12 min) with options A (rules), B (trim workflows), C (local runner). GitHub
+  mails the run's triggering actor and has no branch or repository filter: "failures on main only" cannot be set in
+  GitHub – Actions email off, or failures-only plus a mail rule.
+- Nadeos pattern for a local runner: `nadeos-cli/runner/` (Docker Desktop; develop/PR local, main GitHub-hosted,
+  GitHub fallback when offline). A personal account registers runners per repository; never on a public repo.
+- Decided: RULES #27 – push bundled, agents watch their runs. Actions email is off entirely (Tilman, 2026-10-28). Open
+  (Tilman, #42): repository private? Then B: Checks `push` only on develop/main, fold the jobs, drop the FTPS deploy
+  with the staging VM, no runner boot while SSH_HOST is missing; C only if B is not enough.
+
+## 2026-10-28 – Trigger test S22: size, texture, camera readout (#14, Tilman, 1.8.0)
+
+- First trigger test (Galaxy S22, printout of 121 triggers): 96 found, 25 not found, 10 not on the printout –
+  `docs/trigger-tests/`. Every miss is printed ≤ 10.8 cm²; the two flat logos (p067-1 Blender, p129-1 open source)
+  have 4–6 corner points against ≥ 25 for every found image – Tilman: the image type does matter. Repetitive
+  images (p101-1, p096-1, p176-1) suspected.
+- Tilman felt the camera did not focus. Neither the app nor the engine sets focus or zoom (engine: back main
+  camera, exactly 960 × 720 first). 1.8.0 adds the camera readout and test switches (AF continuous, tap to focus,
+  zoom steps, ask for zoom) to the overlay and the trial panel, before the iPhone 7 run.
+- Designer report (best practice for trigger images, with examples) as a PDF outside git:
+  `osct-incoming-content/trials/report-2026-10-28/`.
+
+## 2026-10-28 – Code base review (#19)
+
+- Findings per area with paths: the comment on #19. Fixed there: editorconfig/gitattributes, dead members, duplicate
+  helpers, comments with names/dates/history/gone libraries, two TODOs without an issue, scripts tests type-checked,
+  the book-content test replaced by the fixture, docs streamlined (README is the index, docs/README.md gone),
+  RULES restructured. Split off: bugs #20 #21 #22 (fixed, 1.7.3–1.7.5), Proposals #26 formatter/linter, #27 naming,
+  #28 typed boundaries, #29 test gaps, #30 Claude trailers in the old history (with the #5 filter-repo run),
+  #31 cut PLAN/MEMORY history, #32 trigger-protocol.json and i18n types in git, #33 constant settings.
+- RULES numbers are stable from now on (cited in code and issues): Server is #25 (was a second #21), Git #26,
+  CI #27, Deployment #28, Issues and board #29, "Every session starts with its issue" #30, docs ownership #31.
+  New in #22: a TODO needs an issue (`TODO: … (#N)`). #13 narrowed: `*Data` for the per-entity types, the two root
+  documents keep their names. #17: file casing per folder (PascalCase in services/store, kebab-case elsewhere) until
+  #27 decides otherwise.
+- Content schema 1.1 → 1.2: only comments changed in `shared/`, but the lock covers the whole folder (RULES #10).
+- [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` and the "while it is in git" CI step go with
+  the content removal; RULES #8 says so.
+- [ ] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+
+## 2026-10-28 – The trigger trial runs at ±0 (#14, Tilman, 1.7.8)
+
+- Tilman: "the trial run should not do the grow loading window. just next next next. i want to be sure it is not
+  hitting performance limits that have nothing to do with the image tracking algo engine itself".
+- While the trial panel is open the tracker holds the current spread only (`setWindowOverride(0)`, in memory, not
+  stored): no growing window, nothing prepared or preloaded for other spreads. Closing restores the stored setting.
+  Grow vs. ±0 is diagnosed separately (`docs/tracking.md` "A page is not found…").
+
+## 2026-10-28 – Content out of git, prepared: fixture, source outside, filter-repo tried (#5, Tilman, 1.7.6)
+
+- Tilman: "bereite das Entfernen von content/ aus Git inklusive History vor (Fixture für CI und Tests,
+  Content-Ordner außerhalb, filter-repo-Plan). Den Force-Push mache ich selbst nach Absprache."
+- **Fixture** `fixtures/content/` (916 KB): the former `content-demo/` slimmed (images ≤ 400 px, two-second
+  160 px videos – the alpha webm stays VP8 with alpha, models replaced by the small castle). All 44 client test
+  files pass on it as on the book (the tests were content-agnostic already); CI builds it
+  (`OSCT_CONTENT_DIR: fixtures/content`) and still builds `content/` while it is in git. `FIXTURE.md` marks it:
+  the build copies it into the output, `osct content sync` refuses such a build.
+- **Content source**: `OSCT_CONTENT_DIR` (relative paths now resolve from the repository root, not the working
+  folder), loaded from `scripts/.env` by `config.ts` for every command; no `book.yaml` there → the build stops,
+  no fallback (a fallback to the fixture could have deployed it). Copied to `C:\Development\osct\osct-content`
+  (`content/` from the main checkout with its 16 videos, `content-demo/` full size). The workflow "Content" lost
+  its sync – a checkout has no content.
+- **filter-repo tried** on a fresh mirror clone: 192.8 MiB → 28.4 MiB with the path list in
+  `docs/content-out-of-git.md` (content, content-demo and content of earlier layouts: `videos/`, `beta/`,
+  `targets/`, `.mindar/`, page images, committed build output). `main` still tracks
+  `client/public/assets/content/` (build output from before 2026-09-28) → release the content-free tree first.
+  The repository is public; GitHub keeps old objects through PR refs until GitHub Support collects them.
+- [ ] Open (Tilman): where `osct-content` is backed up (private repository or the storage zone) – before the
+  rewrite, the history is the only other copy.
+- [x] Deploys build with `VITE_CONTENT_BASE_URL` (1.7.9, #6: Kamal image + FTPS staging). [ ] Open: `Dockerfile`
+  without `COPY content` with the removal commit – then the removal commit, release, freeze, rewrite, force push (Tilman), GitHub Support.
+
+## 2026-10-28 – Content deployment apart from the app: versions + strict purge; content schema MAJOR.MINOR (#5, Tilman, 1.7.6)
+
+- Tilman, in order: "i dont want to end up with multiples on the server that eat up storage", "one folder each
+  environment only", "there will not be any content in git … content CDN!", "please split content deployment from
+  app deployment carefully", "use perhaps a osct-cli to sync cdn. where we trigger this we will find out". Then,
+  after the in-place sync (one folder per environment, files overwritten) was built: "jetzt haben wir dasselbe
+  Problem mit dem Cache, der sich nicht updatet auf den Pullzones … Ich möchte gern, dass trotzdem die Versions
+  hochgeladen werden … und dass wir eine Option haben im CLI, dass wir alte Versionen purgen können. Und dass da
+  vorher gecheckt wird, ob die gerade in Benutzung sind oder nicht. Strikt sein." → versions back, plus purge.
+  "Wir brauchen jetzt nicht unbedingt auf Kompatibilität anpassen" (restructuring phase).
+- Why versions: the pull zone caches 30 days, ignores query strings and the CLI cannot purge the edge – a file
+  overwritten in place stays stale at edges (seen 2026-10-28: a deleted version's game.config.json was still a
+  cache HIT). Immutable version folders never go stale; only `latest.json` moves.
+- Why not the first design of this work (`<version>-<hash>` folders, upload on every push, nothing deleted): the app
+  version was in the hash (every app bump = new 20 MB folder) and old versions piled up.
+- **Storage**: zone `osct` (Frankfurt, Singapore, New York), pull zone `buildingfictions.b-cdn.net` (→
+  `cdn.buildingfictions.com` with #17). Per environment: `latest.json`, `versions.json`, `<build>/` (12-hex content
+  checksum) with `game.config.json`, `files.json`, `assets/content/…` (`shared/types/content-manifest.ts`).
+- **osct CLI** (`scripts/src/cli.ts`, `npm run osct -- …`, bin `osct`): `content build | status | sync | purge`.
+  sync skips a version that is complete on the storage (rollback = sync an older build: only `latest.json`
+  moves) and refuses when the build lacks videos the current version has (`--without-videos`). purge keeps the
+  current version, the one the CDN's `latest.json` names, the newest retired (`--keep 1`) and anything retired
+  < `--min-age 30` days; refuses on missing/inconsistent `latest.json`/`versions.json`; unknown entries only with
+  `--unknown`. `content.yml` is a manual button (status / sync / purge, dry run on by default) – nothing on push.
+- **Content version** = `version.hash` (content + build logic + shared, not the app version); `version.version` is
+  information only. **Compatibility**: `CONTENT_SCHEMA_VERSION` `MAJOR.MINOR` (1.1 since the manifest types went
+  into shared/), another MAJOR refused, any MINOR loads; `shared/content-schema.json` + test force a bump on any
+  change in `shared/`. Investigation behind it: by rule only a MAJOR app-version difference refused content, in
+  practice the guard refused any contract change and such changes shipped as patches (1.3.2, 1.5.1).
+- **App**: CDN builds read no content (`virtual:osct-game-config` null, `prebuild` skips the content build, splash
+  and home-screen name from the CDN's current version). Runtime: `latest.json?t=<minute>` (no-cache) →
+  `<build>/game.config.json` + `files.json`. Service worker: one content cache, `latest.json` network-first; a new
+  build in `latest.json` drops the other versions' files.
+- Verified 2026-10-28 on staging (content.yml runs on the branch): version `6448aacb4ab7` (452 files, 33.9 MB, no
+  videos – CI checkout) uploaded, `latest.json` + `versions.json` written, the CDN serves it; the dev app with
+  `VITE_CONTENT_BASE_URL` loads latest.json → `6448aacb4ab7/` and its images from the CDN. A CDN-mode app build
+  ran with no content on disk. purge was not run against the storage – the auto-mode classifier refused a push
+  trigger that deletes; it is unit-tested (`scripts/test/content-sync.test.ts`).
+- [ ] Open (Tilman): `staging/` still holds the leftovers of the in-place sync of the same day (`game.config.json`,
+  `files.json`, `assets/` at the environment root). `npm run osct -- content purge --env staging --unknown`
+  (or the Content button with "unknown") removes them – try `--dry-run` first.
+- [ ] Open (dashboard, Tilman): edge rule `*/latest.json` → cache time 0, or "Vary cache → URL query string"
+  (checked 2026-10-28: query strings still ignored). Until then an edge can hand out the previous version for up
+  to 30 days.
+- [x] CORS (checked 2026-10-28): `latest.json`, `game.config.json`, `files.json` and `.jpg` send
+  `Access-Control-Allow-Origin: *`. Models and videos not checked – none in the CI sync.
+- [x] 1.7.9 (#6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable `CONTENT_BASE_URL`,
+  `config/deploy.yml` builder.args → `Dockerfile` ARG), the FTPS staging deploy too. [ ] Later `Dockerfile` drops
+  `COPY content` (with the removal commit, docs/content-out-of-git.md step 1).
+- [~] Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
+  Repository wieder klein und handelbar wird") – prepared, see the entry above and `docs/content-out-of-git.md`.
+- [ ] Open: #15 – trial videos go through the same sync once they are part of the content folder outside git.
+## 2026-10-27 – Sessions start with their issue; deploys move issues on the board (Tilman, 1.7.1, #11)
+
+- Tilman: "every session should start with their respective issue number. look for an issue first, if one exists, and
+  if not create one an analyse what stage it will enter the board." → RULES.md "Every session starts with its issue"
+  (lanes for a new issue: In progress / Backlog / Proposals), pointer at the top of CLAUDE.md; the OSCT sessions of the
+  day were told by message.
+- #11 (Tilman said "start issue #11" = wanted): `board-status.yml` runs on `workflow_run` of the three deploy
+  workflows, so the deploy files stay untouched. Agent decisions: `Refs #N` moves nothing (a step, not finished);
+  only forward (Deployed / Done stay); a Kamal run with a skipped Deploy step does not count; the built-in board
+  workflow "Item closed → Done" from the proposal stays off – it would skip Deployed. Dry-run against real runs.
+- [ ] Open (Tilman): repo secret `PROJECT_TOKEN` (classic PAT, scope `project`); runs only once on `main`.
+
+## 2026-10-27 – Preload flow analysis, engine view and load test (Tilman, 1.7.0)
+
+- Tilman's idea: once a spread is found, preload the spreads around it in the background and switch to them, until
+  eventually every target is loaded. With the trial content (87 spreads, 131 targets, mostly 1–2 per spread) the ±1
+  window holds only ~3 spreads / 4–5 targets, so only the next and previous spread switch by themselves. Tilman: he
+  will regroup the content ("I will have to group better"), and wants an incremental way to find how many targets
+  the engine can hold ("how wide we can scale the window").
+- Engine internals read from `xr-tracking.js` (`@8thwall/engine` 0.1.0): `configure()` unloads targets not listed,
+  keeps loaded ones, queues new ones and extracts **one per animation frame** on the main thread; every configure
+  **cancels and re-queues** what is not extracted yet; `reality.imagescanning` fires when the queue is empty (no
+  per-target event). No target limit in the code. A spread switch configures twice today (current, then window).
+- Built (1.7.0): overlay "Engine" lines (current ◉ + held spreads with target counts, ready/held, extracting,
+  preparing; `E<ready>/<held>` in the summary), published by the tracker through `ar-bridges/utils/tracker-debug.ts`.
+  Load test panel (overlay → *load*, `ar/load-test.ts`, `dev-tools/load-test-panel.ts`): the tracker's
+  `holdTargets()` replaces the window with the current spread + N nearest targets (no automatic switch meanwhile),
+  steps 0/5/10/20/40/80/all; lens cover detected by camera brightness. `docs/tracking.md` documents flow, test and
+  options.
+- Tilman, same day, after a phone trial: "I still want to switch pages – always test the entire app". So the load test
+  no longer pins the spread: it sets a **target budget** for the normal window (`setTargetBudget()`,
+  `prepared-spreads.ts`), the window follows the scanned spread, pages switch, and the content preload follows the same
+  window (`PreloaderService.preloadSpreads()`, nearest first – before, content was always ±1). The window is now nearest
+  first for ±n too.
+- **Preload direction** (Tilman): preload everything eventually, in steps – targets, then content, then higher
+  resolutions (1x/2x/3x images, video levels – issue #13); caching (service worker, browser, Bunny CDN server-side
+  cache – Tilman assumes the CDN has one, not checked) means a window preloaded once comes back sharp later.
+- **Trial panel** (Tilman): no notes, no slow/flicker/no buttons, header only the number not found; small strip whose
+  height is dragged by its top bar (`osct-trial-height`); thumbnails, tap → that spread, ‹ › spread buttons (the panel
+  covered the app's own navigation and adjacent pages were not always found). Clicking *trial* again closes it (×
+  too). Report = targets not found + list of found. Old marks (`osct-trial:<book>`) are no longer read.
+- All of this is 1.7.0 (1.6.1 was never committed or shipped; folded in with the growing window).
+- **First load test result** (Tilman's Android phone, Chrome 155, dev server, 18:18 UTC; label says 1.6.0 because the dev
+  server was started before the bump): 2 → 131 targets held made no measurable difference – engine = page fps
+  12–18 at every step (13.6 at 2 targets, 18.5 at all 131), stutter frames ~70–80 per 6 s at every step, tracking 100 %
+  found / 0 lost at 83 and 131 targets, best re-find ~0.5 s at 2, 24 and 131 targets (the 3.8–7.9 s outliers came with
+  page changes / handling, not with load). JS heap flat 32 MB. The cost of more targets is only the one-time work:
+  ~0.16 s prepare + ~0.19 s extract per new target on the main thread (+50 targets: 7.8 s + 9.4 s).
+  → Holding the whole book is affordable; build it up incrementally (nearest first, in idle time) instead of up front.
+  → The real problem is the **base frame rate (~14 fps, almost every frame > 50 ms) even with 2 targets** – before it
+  was ~34 fps on the S22 (2026-09-28). Not caused by the target count; cause open.
+- **Videos out of git** (Tilman: "leave them out. i believe i have a seperate cdn sync setup? if not we need to add
+  one … a sepearte issue that follows the setup of the bunny cdn"): `content/entries/*/video.mp4` git-ignored (117 MB,
+  16 files); the content build turns a missing entry video into a warning (target without AR video) so CI and deploys
+  still build. No CDN sync exists in the repo (checked) – issue #15 (Backlog), after #5 (bunny.net).
+- **Growing window** (Tilman: "Build the growing window: hold the current spread, then add the nearest spreads in idle
+  time until the whole book is held"): default `grow` setting (`prepared-spreads.ts`, stored `grow`), tracker
+  `growTargets()` – batches of ≤ 3 targets (whole spreads), each after the previous is extracted (the engine cancels
+  and re-queues on every configure, so batches must not overlap), 150 ms pause + `requestIdleCallback`; a switch only
+  re-orders the queue, nothing is unloaded; `prepareTargets()` (fixed window / load test) ends the growth. Content
+  preload stays ±1 in grow mode (the media step comes later). A device that cycled the old setting keeps its stored
+  ±n until cycled to *grow*.
+- [ ] Run the load test on an iPhone; check the growing window on the phone (time until the whole book is held,
+  stutter while it grows).
+- **Grow on the phone (Tilman, same evening, A3 printout):** with all 131 held (overlay 131/131 ready, current
+  s004-005), pages 4–5 that were found at once at the start were **not found at all**, and some images became slow to
+  find. The engine's native matcher is global (`DetectionImageMatcher` with LSH tables over all loaded targets – strings
+  in the wasm), so more targets dilute the matches for a weak target; on the dense printout every other trigger in view
+  is now also a loaded target that can be tracked or switch the spread. The load test missed it: it re-found only the
+  scanned page's (strong) target. Open: tell the two apart (cover the neighbouring images, or ±1), then cap what the
+  engine holds (nearest targets up to a budget) while the cheap part – downloading and preparing target images – can
+  still grow to the whole book.
+- [ ] Find why the base frame rate is ~14 fps (production build vs dev server, overlay/panels, video textures,
+  look-around, content preload in the background).
+
+## 2026-10-27 – Trial content: delivery 2110 imported, trigger protocol (Tilman)
+
+- Building Fictions delivered the trial content (`C:\Development\osct\osct-incoming-content`, 1.5 GB): `00_Glossary.zip`
+  (90 pairs `P<page>_Print_<n>.jpg` = the image as printed, `P<page>_Online_<n>.jpg` = the colour original for the
+  entry), `00_Links.zip` (43 screenshots `OSCT_Ref_<name>`, no page in the name), `00_Documentation Works Kevin.zip`
+  (16 videos `P<page>.mov/mp4`, up to 195 MB each), `2110.zip` (`All_Triggers.pdf` – 129 spreads with the 121 printed
+  triggers in place, the trial printout; the book as PDF, print and low-res; back covers). No texts, titles or
+  URLs yet – every title and body is a placeholder.
+- Mapping (`scripts/import/2110.yaml`): the 121 triggers of the PDF matched against the delivered files by page and
+  appearance (24 px greyscale correlation, ≥ 0.73 for 119; `p063-1` → Disney City and `p171-1` → Rutt are uncertain –
+  the printed crop differs). 79 are glossary images, 42 link screenshots. 10 Print images are **not** in the PDF
+  (p. 2, 30, 34, 35, 95, 100, 106, 158, 192, 222 – imported with targets, not on the printout; p. 130 was listed here in error, corrected 2026-10-28) and the links
+  `Evangelion_02`, `Vonnegut_02` have no place in the book (not imported). The videos sit on the trigger of their
+  page where there is exactly one (category → `video`), on a link trigger for p. 103, 132, 148 (kept `link`, video
+  attached, note) and without a target for p. 99, 116, 127, 146, 191, 218, 255 – which image triggers them is a
+  question for Kévin. `text-placeholder` keeps the Texts category (tests need every category).
+- Decisions: content ids `p<page>-<n>` (n = reading order on the page) until titles exist – rename before the
+  release, not after (progress is keyed by id). Spreads only for pages with an entry (`s038-039`), one per pair of
+  facing pages; the menu lists only spreads with targets anyway. Target images ≤ 1600 px JPEG in `content/`
+  (the build still copies ≤ 1200 px to the client), link PNGs flattened to JPEG. Videos re-encoded on import
+  (ffmpeg), not committed as delivered. `content/` is ~100 MB now – the CDN issue (bunny.net) becomes relevant.
+- The placeholder content moved to `content-demo/` (build with `OSCT_CONTENT_DIR=../content-demo`); it keeps the
+  examples for every entity type and the chroma key. Nothing deleted.
+- Protocol (Tilman: "doesn't need to be printed – the checklist in the debug overlay is fine, with a report md file
+  to forward to the designers"): `<trial-panel>` (overlay → trial), marks per target in `localStorage`
+  `osct-trial:<book>`, report `trial-report.ts`; `npm run protocol -- import/2110.yaml` writes
+  `client/public/trigger-protocol.json` (delivered file, mm, position per target) for the panel. The printable HTML
+  of the first draft was dropped the same day.
+- Phone on the dev server: the overlay's QR code now shows the Wi-Fi address of a physical adapter (was the first
+  interface: WSL/Hyper-V 172.31.x) with the port of the running server. Camera needs https on a LAN address →
+  `client-https` (5173) or USB + `adb reverse` (memory "Phone testing from the PC").
+- **Media quality** (Tilman, same day): production images will be **WebP**; the content builder should write three
+  quality levels (images 1x/2x/3x, videos 480p/720p/1080p) and the app pick by bandwidth – modelled on SCUTOONS'
+  "Media quality" account setting (auto / low / medium / high, suffix naming `.2x.webp` / `.720p.mp4`, automatic by
+  `saveData` / `effectiveType` / `downlink` + a 512 KB probe). Issue #13 on the board has the research and scope.
+- [ ] Open: trial on the printout (S22, iPhone) → results; texts and URLs from Kévin; video ↔ trigger questions above;
+  whether the 10 Print images missing from the PDF are printed in the book.
+
+## 2026-10-27 – Sign-in mails through Amazon SES (Tilman, asgerb)
+
+- asgerb: Building Fictions' apps send mail via **AWS SES, eu-west-1**; the entire domain is verified, so any sender
+  address at it works with the right credentials. Tilman: make the mail setup part of the production deployment.
+- Built (1.5.3): `config/deploy.yml` defaults `SMTP_HOST` to `email-smtp.eu-west-1.amazonaws.com` (587, STARTTLS) and
+  `MAIL_FROM` to `no-reply@buildingfictions.com` – an environment only sets `SMTP_USER` + `SMTP_PASS` (SES SMTP
+  credentials, one pair per environment). `deploy.yml` fails before Kamal when `MAIL_TRANSPORT=smtp` and they are
+  missing. `server/deploy/mail-test.php` (in the image: `/opt/osct/mail-test.php`) sends one test mail;
+  `server/deploy/ses-smtp-password.php` derives the SES SMTP password from an IAM secret key (SigV4, fixed date
+  11111111, message SendRawEmail). The API's `Smtp.php` (AUTH LOGIN, STARTTLS) needs no change for SES.
+- Assumed, to confirm with asgerb: the verified domain is `buildingfictions.com`; the account has production access
+  (out of the SES sandbox) in eu-west-1.
+- [ ] Open: SES SMTP credentials from asgerb / Building Fictions → GitHub environments `production` (and `staging`);
+  then `mail-test.php` against a real inbox. Issue #12 (milestone Release Japan) is written for asgerb; his
+  collaborator invite (write, sent 2026-10-27) is pending – assign #12 to him once he has accepted (Tilman).
+
+## 2026-10-27 – Deployment with Kamal; issues on the OSCT board (Tilman)
+
+- Tilman: "rework deployment for ssh server with kamal docker containers … main deploys to prod and develop to stag";
+  staging = https://osct.porschuetz.de, production = https://osct.buildingfictions.com; osct.netlify.app (a clone of
+  the staging frontend) is abandoned now. Built as 1.5.3: one image (`Dockerfile`), `config/deploy.yml` +
+  `deploy.staging.yml` / `deploy.production.yml` (service `osct-staging` / `osct` – both may share one server),
+  MariaDB 11.4 as a Kamal accessory per destination, migration in the container's entrypoint, `.kamal/secrets` only
+  references environment variables. Workflows `deploy-staging.yml` / `deploy-production.yml` → `deploy.yml`;
+  `release.yml`, the FTPS upload (`write-config.php`) and the Netlify files are gone; `tag-version.yml` stays.
+- Decisions: Apache + mod_php (the two `.htaccess` files keep working as on the shared host), client IP from
+  kamal-proxy's `X-Forwarded-For` (rate limits per IP), `.gz` copies served without `Content-Encoding` (the app
+  unpacks), errors to the container log. Image checked locally (`docker build`, SQLite run: health, SPA fallback,
+  headers, API routing, content types). Not yet run against a server – the server and credentials are open.
+- Staging host (Tilman, same day): osct.porschuetz.de is the all-inkl shared host without Docker. Decided: a **staging VM
+  on the production server** (asgerb) instead of a second deploy method; until then `deploy-staging-ftps.yml` (the old
+  upload, marked temporary) keeps staging alive and the Kamal staging deploy skips with a warning (no `SSH_HOST`).
+- Mail (same day, from a parallel editor – not this session and not the CDN session; Tilman to confirm): Amazon SES
+  eu-west-1 as the SMTP default in `config/deploy.yml`, a "Mail configured?" step in `deploy.yml` that stops a
+  deploy with `smtp` but no credentials, `server/deploy/mail-test.php` (test mail from the container) and
+  `ses-smtp-password.php` (IAM secret → SES SMTP password), docs/deploy.md "Mail (AWS SES)". Kept as is;
+  `.dockerignore` lets `mail-test.php` into the image.
+- Credentials: a colleague (GitHub `asgerb`) fills them in – issue "Credentials and access for the Kamal deploys"
+  lists every variable and secret per GitHub environment; docs/deploy.md "Configuration" is the reference.
+- Tracking: GitHub project **OSCT** (users/mandymozart/projects/5), copied from the SCUTOONS board (lanes Backlog ·
+  Proposals · In progress · Review on staging · Deployed · Done), labels like SCUTOONS, milestone `Release Japan`
+  (production launch; made by the CDN session, which also owns "Host content on bunny.net CDN"). Rule in RULES.md
+  "Deployment".
+- [ ] Open: first `kamal setup -d staging` / `-d production` once the server exists; DNS of both domains; move the
+  staging users database from all-inkl; shut down Netlify + all-inkl (issues on the board).
+- [x] Deploys move issues on the board like SCUTOONS / Nadeos – built in 1.7.1 (#11, entry above).
+
+## 2026-10-02 – Content editor: not built (Tilman)
+
+- Researched a standalone, reusable content + 3D scene editor (`agents/research/content-editor.md`). Tilman: "we will
+  be fine with just tweaking and using the agent" – **abandoned for now**; content changes go through Claude Code.
+- [x] Built in 1.5.1 (branch `tune-panel`, 2026-10-03): on-phone tune panel in the debug bar (placement sliders on the found target, "Copy YAML" with
+  the file path) pasted into a Claude session – avoids the USB tunnel for tuning on staging.
+  Tilman (2026-10-03): **every** adjustable parameter (placement, all filter parameters), slider **plus a number
+  field** for exact values; rows labelled with the three.js names (`position.x`, `rotation.y`, `scale.z`); the panel
+  opens with the values currently in the content. Copy = only values that differ from the defaults.
+  Built: `dev-tools/tune-panel.ts` + `tune-values.ts` (rows from `PLACEMENT_PARAMS` – new in shared placement – and
+  `FILTERS`), `TUNE_ENTITY_EVENT` → `<ar-bridge>` → `IArScene.tuneEntity` (placement in place, chroma key uniforms in
+  place, otherwise the entity is rebuilt; tuned values survive spread switches until "Back to content"). Typed
+  placement values may leave the slider range (content accepts any finite number), filter values may not.
+  `keyMode` moved to `shared/types/filters.ts` (the panel must not import three.js). Look-around section later.
+
 ## 2026-09-28 – Look-around world / world tracking research (Tilman)
 
 - Idea (Tilman): a reader who turns the phone from the book (e.g. to the sky) ends up inside an **alien coffee
@@ -46,6 +755,21 @@ outcome in the line (or move it into a dated decision block).
 - [ ] Open: the world is a placeholder in the shader (`PLACEHOLDER_WORLD` in `look-around/shader.ts`) – the real one comes as
   content in Phase 14 (RULES #5).
 
+## 2026-09-28 – Content build output not in git (Tilman; branch `build-content-in-ci`)
+
+- `client/src/game.config.json` and `client/public/assets/content/` are ignored and untracked. `npm run build`
+  in `client/` builds the content first (`prebuild` → `npm run content` = `npm --prefix ../scripts install` +
+  `npm --prefix ../scripts start`). So nothing changes in the deploy commands: the staging workflow, the
+  release workflow and both Netlify sites (base `/client`, `npm run build` – read from the Netlify API) build
+  the content of their commit. Fresh build incl. content: ~25 s locally.
+- Checks: the "committed game configuration is up to date" diff is gone; the scripts job still builds the
+  content (content errors fail), the client job runs `npm run content` before `tsc` / `vitest`.
+- `vite.config.js` stops with "game.config.json is missing – run `npm run content`" on a fresh checkout
+  (dev server and vitest), instead of a bare ENOENT. The broken `build:config` script is gone.
+- The config's `timestamp` is now the build time of each deploy; the content cache key stays the content
+  hash (`version.hash`), so a deploy without content changes keeps the phones' content cache.
+- Landed on `develop` 2026-10-20 as **1.5.2** (Tilman: "merge"), after merging 1.4.0–1.5.1 into the branch.
+
 ## 2026-09-28 – 1.3.2: MindAR leftovers cleaned up (Tilman)
 
 - Targets are keyed by **id** everywhere (tracker `onUpdate(targetId)`, scene anchors, poses): MindAR's
@@ -54,9 +778,8 @@ outcome in the line (or move it into a dated decision block).
   build only checks the 10-per-spread limit (`checkTargetsPerSpread`). A test asserts unique target ids.
 - `.mindar/targets/` (49 files) had been committed with 1.3.0 by mistake (its ignore rule was removed while the
   folder still existed) – removed from git, `.mindar/` ignored again (other machines may still have it).
-- [ ] Tilman asked why the generated content is committed (`client/src/game.config.json`,
-  `client/public/assets/content/`): the deploys (staging workflow, release, Netlify) build only `client/`.
-  Option: build the content in CI/deploys and stop committing the output – awaiting Tilman's decision.
+- [x] Tilman asked why the generated content is committed: the deploys only built `client/`. Decided
+  (Tilman: yes) → the output is no longer in git (branch `build-content-in-ci`, entry above).
 
 ## 2026-09-28 – 1.4.0: optional password, one sign-in form (Tilman)
 
@@ -112,7 +835,7 @@ outcome in the line (or move it into a dated decision block).
   next real format change (Tilman: no notice when nothing changed).
 - S22 check of the 8th Wall-only build: 11 automatic switches across pages 1–27 in 90 s, ready in 0–3 ms, photo spreads found.
 - iPhone test belongs to Phase 14 "Content and refinement" (Amsterdam, with Kévin Bray – Tilman).
-- [ ] Staging: the Netlify site may still set `VITE_AR_TRACKER` – harmless now, can be deleted there.
+- [x] Staging: the Netlify site may still set `VITE_AR_TRACKER` – obsolete, Netlify is shut down (#10).
 
 ## 2026-09-28 – Demo spreads from the layout PDF for the tracker load test (Tilman)
 
@@ -213,7 +936,7 @@ outcome in the line (or move it into a dated decision block).
 - **`.mindar/`** in the root holds everything local about `.mind` files (not in git): `targets/` (was
   `mind-ar/`), `history/` (was `mind-history/`), `cache/`, `browser/`, `benchmark.json` (were in
   `scripts/.cache/`). `lib/local-folders.ts` moves the old folders on the first content build.
-  [ ] Remove `moveOldLocalFolders()` once Tilman's working copy has built once.
+  [x] Remove `moveOldLocalFolders()` once Tilman's working copy has built once – gone.
 - `.gitignore` rewritten (grouped, stale rules gone); `client/.env` is an explicit exception (comments only,
   documents the `VITE_*` flags); `scripts/.gitignore` removed (the root one covers it). Checked: nothing
   tracked is ignored, nothing untracked is missing. By design, not wrong: the content media exist twice
@@ -305,7 +1028,7 @@ outcome in the line (or move it into a dated decision block).
   `.mind` and the one it replaces in `mind-history/` (gitignored, next to `mind-ar/`), same bytes once,
   newest 20 per spread + the current one. Restore refuses versions made from other target images
   (would be "stale"). Test on the dev server (service worker off there).
-  - [ ] Open: when the content moves out of the repository, move `mind-history/` (and `mind-ar/`) next
+  - [x] Open: when the content moves out of the repository, move `mind-history/` (and `mind-ar/`) next (obsolete: MindAR removed in 1.3.0)
         to it – both tools resolve the paths from the repo root today.
 - Attribution (2026-09-28, Tilman): compile tool = MindAR's own `Compiler` from the vendored build (no
   compiler code of ours; the Node CPU port from the research was never committed). MindAR's MIT `LICENSE`
@@ -336,7 +1059,7 @@ outcome in the line (or move it into a dated decision block).
   carrying it (so v1.1.2 and v1.1.3 were tagged retroactively). Bot-made tags start no workflows.
 - Netlify cannot trigger on tags/releases itself → its automatic builds are stopped (Netlify UI) and the
   release workflow uploads the tagged build with the Netlify CLI.
-- [ ] Tilman: GitHub environment `production` with `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `VITE_API_URL`;
+- [x] Tilman: GitHub environment `production` with `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `VITE_API_URL`; (obsolete: Kamal deploys, #6/#10)
   Netlify site `osct` → Stop builds. Production server settings (`FTP_*`, `DB_*`, …) once the client's
   server exists – until then that job is skipped with a warning.
 
@@ -458,7 +1181,7 @@ outcome in the line (or move it into a dated decision block).
   **reveal** (every later find) the plain dissolve (1 s, no colour, no bloom); **outro** (target lost) the
   reveal rewound (0.7 s) at the last position, then the anchor hides.
 - Sounds: the calm second take was reverted – Tilman prefers the chiptune placeholders (for now).
-- [ ] Tune further on the phone – Tilman.
+- [x] Tune further on the phone – Tilman: shorter in 1.9.6 (#57, see 2026-10-28).
 
 ## 2026-09-26 – Stuck spinner on the S22 = Chrome's camera, not the app
 
@@ -862,7 +1585,7 @@ outcome in the line (or move it into a dated decision block).
       skeleton-style sweep injected into the SVG; gold scale `--gold-100…900` added to the tokens.
 - [x] Onboarding steps are content (5 steps, old 6 replaced); step contract extended (button, action,
       fadeIn, advance, footer; title/description optional).
-- [ ] Camera starts with the scene (MindAR autoStart) before "Grant access" – Phase 6.
+- [x] Camera starts with the scene (MindAR autoStart) before "Grant access" – obsolete, camera only in scan mode (RULES #12).
 
 ## 2026-09-25 – Phase 4 consultation mode built
 
@@ -997,9 +1720,9 @@ outcome in the line (or move it into a dated decision block).
 - [x] Modes/routes as planned (see PLAN Phase 2). `GameMode.DEFAULT` is now `SCAN`; `CONSULTATION` is new
       (index, about → scene paused). Close / START / resume / last tutorial step all reach scan mode
       through the route, not by setting the mode.
-- [ ] The scene is still *playing* in IDLE (home) – MindAR `autoStart` starts the camera on load.
+- [x] The scene is still *playing* in IDLE (home) – obsolete with the 8th Wall engine (camera only in scan mode).
       Covered by "camera only in scan mode" (Phase 5 "Grant access" / Phase 6 `autoStart: false`).
-- [ ] TF.js warns "High memory usage in GPU" after several scene switches (1.17 MB in the pane) →
+- [x] TF.js warns "High memory usage in GPU" after several scene switches – obsolete, TF.js left with MindAR →
       check on devices in Phase 7 ("memory when switching groups").
 - [x] (user) `origin` switched to SSH (`git@github.com:mandymozart/osct.git`); the user's SSH key
       authenticates, so agents can push. HTTPS had no credential helper configured.
@@ -1223,7 +1946,7 @@ Agent decisions (reversible, flagged for review):
       **Owner: Tilman.**
 - [x] `beta/` (old prototype sandbox) removed on request (2026-09-24). Docs (`docs/docs/*`) cleaned
       of QR; the 2025 blog post stays as history.
-- [ ] Chapter → spread rename changes persisted history (`chapterId` in localStorage). Existing
+- [x] Chapter → spread rename changes persisted history (`chapterId` in localStorage) – no compatibility below 1.1.0 (RULES #10). Existing
       sessions only get the "configuration changed" warning; Phase 2 re-keys history anyway.
 
 ## 2026-09-24 – Naming, cardinality, maxTrack
@@ -1286,7 +2009,7 @@ Agent decisions (reversible, flagged for review):
 - [x] `/spreads` (was `/chapters`) → dev view for now
 - [x] Header counter → consulted / total entries
 - [x] Found-target indicator behaviour → see taxonomy block
-- [ ] Indicator visibility in consultation mode (review after trying)
+- [x] Indicator visibility in consultation mode (review after trying) – hidden (PLAN decision #16)
 - [ ] Note on PDF p.37–39 (sentence was cut off)
 - [x] `maxTrack` → 5 (= max per spread)
 - [x] `.windsurfrules` → deleted

@@ -111,7 +111,8 @@ describe("game configuration", () => {
   // RULES.md #14 – single source of truth: one module reads the JSON (and runs the type guard)
   it("is imported only by utils/game-config.ts", () => {
     const importers = listSourceFiles(srcDir)
-      .filter(file => /from ['"][^'"]*game\.config\.json['"]|require\([^)]*game\.config\.json/.test(readFileSync(file, "utf8")))
+      // static or dynamic imports of the JSON or of the bundled-configuration module (vite.config.js)
+      .filter(file => /(from\s*|import\(\s*|require\(\s*)['"]([^'"]*game\.config\.json|virtual:osct-game-config)['"]/.test(readFileSync(file, "utf8")))
       .map(file => relative(srcDir, file).split("\\").join("/"));
     expect(importers).toEqual(["utils/game-config.ts"]);
   });

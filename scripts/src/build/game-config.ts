@@ -1,30 +1,35 @@
 import { assertGameConfiguration, GameConfigurationError } from '../../../shared/guards/game-config';
-import type { GameConfiguration } from '../../../shared/types/game-config';
+import { CONTENT_SCHEMA_VERSION, type GameConfiguration, type PluginData } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { copyContentToPublic } from '../lib/files';
 import { buildBook } from './book';
 import { buildEntities } from './entities';
+import { warnLayerStacks } from './plugins';
 import { buildEntries } from './entries';
 import { buildSpreads } from './spreads';
 import { checkTargetsPerSpread } from './targets';
 import { buildTutorial } from './tutorial';
 
 /**
- * Build the final config object
+ * Build the final config object; `plugins` = the compiled plugins (build/plugins.ts), declared when there are any
  */
-export function buildConfig(versionStr: string, inputHash: string): GameConfiguration {
+export function buildConfig(versionStr: string, inputHash: string, plugins: PluginData[] = []): GameConfiguration {
   const book = buildBook();
   const spreads = buildSpreads();
   const entities = buildEntities();
   const builds = buildEntries(spreads, entities);
   checkTargetsPerSpread(spreads, builds);
+  warnLayerStacks([
+    ...Object.entries(entities).map(([ref, node]) => ({ label: `entities/${ref}`, node })),
+    ...builds.flatMap(b => (b.entry.target?.entity && !('ref' in b.entry.target.entity) ? [{ label: `entries/${b.entry.id} target`, node: b.entry.target.entity }] : [])),
+  ]);
   const tutorial = buildTutorial(book);
 
   const entries = builds
     .map(b => b.entry)
     .sort((a, b) => a.page - b.page || a.title.localeCompare(b.title));
 
-  console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities, ${tutorial.length} steps`);
+  console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities, ${tutorial.length} steps${plugins.length ? `, ${plugins.length} plugins` : ''}`);
 
   const timestamp = new Date().toISOString();
   console.log(`📊 Building config version: ${versionStr} (${timestamp}, hash ${inputHash.slice(0, 12)})`);
@@ -33,7 +38,8 @@ export function buildConfig(versionStr: string, inputHash: string): GameConfigur
     version: {
       version: versionStr,
       timestamp, // when the build inputs last changed
-      hash: inputHash
+      hash: inputHash,
+      schema: CONTENT_SCHEMA_VERSION,
     },
     book,
     initialSpreadId: spreads[0]?.id ?? '',
@@ -41,6 +47,7 @@ export function buildConfig(versionStr: string, inputHash: string): GameConfigur
     entries,
     entities,
     tutorial,
+    ...(plugins.length ? { plugins } : {}),
   };
 
   // The same contract check the app runs on load

@@ -1,6 +1,5 @@
 # Checks for every push and pull request (agents/RULES.md #9, #10): type checks, tests, content build,
-# API tests. Deploys nothing – the staging server (app + API) is deployed by deploy-staging.yml; the
-# temporary Netlify site osct-staging builds itself from develop; production deploys from releases (release.yml).
+# API tests, the MCP server. Deploys nothing – deploy-staging.yml and deploy-production.yml do (docs/deploy.md).
 name: Checks
 
 on:
@@ -43,12 +42,11 @@ jobs:
         run: npm run build
       - name: Tests
         run: npm test
-      # The build skips when its input hash equals the committed game.config.json; any rebuild
-      # (content, build logic or version changed without rebuilding) shows up as a diff.
-      - name: Committed game configuration is up to date
-        run: |
-          npm run build:content
-          git diff --exit-code -- ../client/src/game.config.json ../client/public/assets/content
+      # The book content is not in git (docs/content-cdn.md): CI builds the test fixture
+      - name: Build the test fixture
+        run: npm run build:content
+        env:
+          OSCT_CONTENT_DIR: fixtures/content
 
   server:
     name: Accounts API
@@ -60,6 +58,52 @@ jobs:
           php-version: "8.3"
           extensions: pdo_sqlite
       - run: php server/tests/api-test.php
+
+  editor:
+    name: Editor
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editor/package-lock.json
+      - run: npm ci
+      # svelte-check covers the editor and the engine files it imports
+      - name: Type-check
+        run: npm run check
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  mcp:
+    name: MCP server
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      # The end-to-end test starts the API with PHP's built-in server (skipped without php)
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npm test
 
   client:
     name: Client
@@ -73,8 +117,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: |
+            client/package-lock.json
+            scripts/package-lock.json
       - run: npm ci
+      # The app's types and tests need a game configuration: the test fixture (the book content is not in git)
+      - name: Build the test fixture
+        run: npm run content
+        env:
+          OSCT_CONTENT_DIR: fixtures/content
       - name: Type-check
         run: npx tsc --noEmit
       # The service worker has its own scope (lib webworker) – vite-plugin-pwa builds it with `vite build`

@@ -1,163 +1,51 @@
 /**
- * Read access to the game configuration (`game.config.json`): the data the content build
- * (`scripts/`) generates from the authored content in `content/`.
- *
- * The only module that imports `game.config.json` (RULES #14). On load it checks the JSON
- * against the contract (`assertGameConfiguration`), maps `*Data` to the app model
- * (`Spread`, `Entry`, `Target`, `Step`) and builds in-memory indexes.
+ * The game configuration – read access for the whole app (RULES #14). The runtime is the engine's
+ * (engine/src/content/game-config.ts); the reader adds what differs per app: the content base URL of the build
+ * (`VITE_CONTENT_BASE_URL`, docs/content-cdn.md), the bundled copy (`virtual:osct-game-config` – dev server, tests)
+ * and the translated startup errors. A debug build (the dev server, staging) also takes a content base URL from the
+ * address – `?content=<base url>` – and keeps it for the tab, so another book (the demo) opens in the same reader.
  */
-import raw from '@/game.config.json';
-import { assertGameConfiguration, GameConfigurationError, isEntityRef } from '@shared/guards/game-config';
-import {
-  AssetData,
-  BookData,
-  ConfigurationVersion,
-  EntityData,
-  EntityRefData,
-  Entry,
-  ErrorCode,
-  ErrorInfo,
-  GameConfiguration,
-  Spread,
-  Step,
-  Target,
-} from '@/types';
-import { compareVersions } from './version';
 import { t } from "i18next";
+import { loadGameConfiguration as load, LoadOptions } from "@engine/content/game-config";
 
-/** Used when the JSON is invalid, so modules can load and the app can show the error */
-const EMPTY_CONFIGURATION: GameConfiguration = {
-  version: { version: '0.0.0', timestamp: '' },
-  book: { id: '', title: '', author: '' },
-  initialSpreadId: '',
-  spreads: [],
-  entries: [],
-  entities: {},
-  tutorial: [],
-};
+export * from "@engine/content/game-config";
+
+/** Where the tab keeps the content base URL of `?content=` (a debug build only) */
+export const CONTENT_OVERRIDE_KEY = "osct-content-base";
 
 /**
- * Runtime error handling: the guard's `GameConfigurationError` (every problem with its path, same
- * as the build reports) goes to the console; the app gets an `ErrorInfo` with an `ErrorCode`.
- * `main.ts` checks `getConfigurationError()` before starting and shows a critical error instead.
+ * The content base URL named by `?content=<url>` on a debug build, kept in the tab's session storage so routes and
+ * reloads keep the book; `?content=` (empty) forgets it. Production builds ignore the parameter. Null = none.
  */
-let configurationError: ErrorInfo | null = null;
-
-/**
- * One version for app and content build (RULES #10): another MAJOR means the content has to be
- * rebuilt (no configuration migrations); MINOR/PATCH differences must just work.
- */
-export const checkConfigurationVersion = (appVersion: string, configVersion: string): ErrorInfo | null => {
-  const compatibility = compareVersions(appVersion, configVersion);
-  if (compatibility === 'compatible') {
-    console.info(`[game-config] Content built with ${configVersion}, app is ${appVersion}.`);
-  }
-  if (compatibility !== 'incompatible') return null;
-  return {
-    code: ErrorCode.NOT_SUPPORTED,
-    msg: t('startup:contentOtherVersion'),
-    type: 'critical',
-    details: [`App ${appVersion}, content ${configVersion}: the content needs to be rebuilt.`],
-  };
-};
-
-const loadConfiguration = (): GameConfiguration => {
+export const contentBaseOverride = (
+  search = typeof location === "undefined" ? "" : location.search,
+  debug = import.meta.env.DEV || import.meta.env.VITE_DEBUG === "true",
+): string | null => {
+  if (!debug) return null;
+  const store = typeof sessionStorage === "undefined" ? null : sessionStorage;
   try {
-    assertGameConfiguration(raw);
-    configurationError = checkConfigurationVersion(__VITE_APP_VERSION__, raw.version.version);
-    if (configurationError) {
-      console.error(`[game-config] ${configurationError.details?.[0]}`);
-      return EMPTY_CONFIGURATION;
+    const params = new URLSearchParams(search);
+    const given = params.get("content");
+    if (given !== null) {
+      const url = given.trim().replace(/\/+$/, "");
+      if (/^https?:\/\//.test(url)) store?.setItem(CONTENT_OVERRIDE_KEY, url);
+      else store?.removeItem(CONTENT_OVERRIDE_KEY);
     }
-    return raw;
-  } catch (error) {
-    const problems = error instanceof GameConfigurationError ? error.problems : [String(error)];
-    console.error(`[game-config] Invalid game configuration:\n  - ${problems.join('\n  - ')}`);
-    configurationError = {
-      code: ErrorCode.GAME_CONFIGURATION_INVALID,
-      msg: t('startup:contentNotLoaded'),
-      type: 'critical',
-      details: problems,
-    };
-    return EMPTY_CONFIGURATION;
+    return store?.getItem(CONTENT_OVERRIDE_KEY) || null;
+  } catch {
+    return null;
   }
 };
 
-const config: GameConfiguration = loadConfiguration();
-
-/** Set when the game configuration is invalid; the app must not start then */
-export const getConfigurationError = (): ErrorInfo | null => configurationError;
-
-const resolveEntity = (entity?: EntityData | EntityRefData): EntityData | undefined =>
-  entity && isEntityRef(entity) ? config.entities[entity.ref] : entity;
-
-const spreadForPage = (page: number): string => {
-  const spread = config.spreads.find(s => page >= s.firstPage && page <= s.lastPage);
-  if (!spread) throw new Error(`[game-config] Page ${page} is not part of any spread`);
-  return spread.id;
-};
-
-const entries: Entry[] = config.entries.map(({ target, ...data }) => {
-  const spreadId = spreadForPage(data.page);
-  return {
-    ...data,
-    spreadId,
-    ...(target
-      ? { target: { ...target, entity: resolveEntity(target.entity), entryId: data.id, spreadId } }
-      : {}),
-  };
-});
-
-const spreads: Spread[] = config.spreads.map(data => {
-  const spreadEntries = entries.filter(e => e.spreadId === data.id);
-  return {
-    ...data,
-    entries: spreadEntries,
-    targets: spreadEntries.flatMap(e => (e.target ? [e.target] : [])),
-  };
-});
-
-const spreadById = new Map(spreads.map(s => [s.id, s]));
-const entryById = new Map(entries.map(e => [e.id, e]));
-const targetById = new Map(spreads.flatMap(s => s.targets.map(t => [t.id, t] as const)));
-const tutorial: Step[] = [...config.tutorial];
-
-/** Version of the game configuration (content build): version, timestamp, hash */
-export const getConfigVersion = (): ConfigurationVersion => config.version;
-
-export const getBook = (): BookData => config.book;
-
-
-export const getInitialSpreadId = (): string => config.initialSpreadId;
-
-export const getSpreads = (): Spread[] => [...spreads];
-
-export const getSpread = (id: string): Spread | undefined => spreadById.get(id);
-
-/**
- * The spreads next to `spreadId` in book order (the ones the spread menu reaches next) – what is preloaded
- * ahead of a switch (target images + content, and the tracker's image targets)
- */
-export const getNeighbourSpreads = (spreadId: string, range = 1): Spread[] => {
-  const index = spreads.findIndex(s => s.id === spreadId);
-  return index === -1 ? [] : spreads.filter((_, i) => i !== index && Math.abs(i - index) <= range);
-};
-
-export const getEntries = (): Entry[] => [...entries];
-
-export const getEntry = (id: string): Entry | undefined => entryById.get(id);
-
-/** Targets of a spread in entry order (page → title) */
-export const getTargets = (spreadId: string): Target[] => spreadById.get(spreadId)?.targets ?? [];
-
-export const getTarget = (id: string): Target | undefined => targetById.get(id);
-
-/** Assets of all entities (optionally of one spread), deduplicated by id */
-export const getAssets = (spreadId?: string): AssetData[] => {
-  const targets = spreadId ? getTargets(spreadId) : [...targetById.values()];
-  const assets = new Map<string, AssetData>();
-  targets.forEach(t => t.entity?.assets.forEach(a => assets.set(a.id, a)));
-  return [...assets.values()];
-};
-
-export const getTutorial = (): Step[] => [...tutorial];
+/** Loads the game configuration once before the app starts (main.ts); see the engine's `loadGameConfiguration` */
+export const loadGameConfiguration = (options: LoadOptions = {}) =>
+  load({
+    baseUrl: contentBaseOverride() ?? import.meta.env.VITE_CONTENT_BASE_URL ?? "",
+    bundled: () => import("virtual:osct-game-config").then(module => module.default),
+    texts: {
+      contentNewer: t("startup:contentNewer"),
+      contentOlder: t("startup:contentOlder"),
+      contentNotLoaded: t("startup:contentNotLoaded"),
+    },
+    ...options,
+  });

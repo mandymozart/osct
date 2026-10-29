@@ -1,0 +1,46 @@
+# After a deploy, moves its finished issues on the board OSCT (#11): `Fixes #N` in the deployed commits → "Review on
+# staging" (develop → staging) or "Deployed" (main → production), with a comment naming the version. The logic and
+# its rules are in .github/scripts/board-status.js; the session rules in agents/RULES.md "Every session starts with
+# its issue".
+#
+# GitHub starts workflow_run workflows only from the default branch: this one works once it is on `main`.
+#
+# Needs the repo secret PROJECT_TOKEN: a classic personal access token with the scope "project" (the workflow token
+# cannot reach a user-owned project). Without it the workflow says so and ends green.
+name: Board status after deploys
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy staging (osct.porschuetz.de)
+      - Deploy staging over FTPS (temporary)
+      - Deploy production (osct.buildingfictions.com)
+    types: [completed]
+
+concurrency:
+  group: board-status
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  move:
+    name: Move the deployed issues
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - uses: actions/github-script@v7
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        with:
+          script: |
+            await require('./.github/scripts/board-status.js')({ github, context, core, getOctokit })

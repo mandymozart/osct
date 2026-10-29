@@ -1,4 +1,3 @@
-import fs from 'fs';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOOK, entry, loadBuild, makeContent, spread } from './helpers';
@@ -72,6 +71,19 @@ describe('content build', () => {
       expect(await errorsFor(files)).toContainEqual('entries/first target: file "x.jpg" not found in content/entries/first/');
     });
 
+    it('a missing entry video is a warning: the target is built without its AR video', async () => {
+      const videoEntity = ['  entity:', '    type: video', '    src: video.mp4', ''].join('\n');
+      const files = { ...valid(), 'entries/first/entry.yaml': entry(1, 'x.jpg', videoEntity) };
+      const build = await loadBuild(makeContent(files));
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const { entries } = build.buildAll();
+      vi.restoreAllMocks();
+      expect(build.errors).toEqual([]);
+      expect(build.warnings).toContainEqual('entries/first target: video "video.mp4" is not on this machine (videos are not in git) – built without its AR video');
+      expect(entries.find(e => e.id === 'first')?.target?.entity).toBeUndefined();
+    });
+
     it('an unknown category', async () => {
       const errors = await errorsFor({ ...valid(), 'entries/first/entry.yaml': entry(1, 'x.jpg').replace('glossary', 'poem') });
       expect(errors.join('\n')).toMatch(/entries\/first: .*category.*must be one of/);
@@ -80,6 +92,22 @@ describe('content build', () => {
     it('an entity reference that does not exist', async () => {
       const errors = await errorsFor({ ...valid(), 'entries/first/entry.yaml': `${entry(1, 'x.jpg')}  entity:\n    ref: nothing\n` });
       expect(errors).toContainEqual('entries/first target: entity ref "nothing" not found in content/entities/');
+    });
+
+    it('passes of a spread and the book are checked against their specs', async () => {
+      const { content } = makeContent({
+        'book.yaml': BOOK + 'passes:\n  - type: vignette\n    strength: 0.3\n',
+        'spreads/a/spread.yaml': spread(1, 2) + 'passes:\n  - type: bloom\n    strength: 0.8\n',
+        'spreads/b/spread.yaml': spread(3, 4, 1) + 'passes:\n  - type: glow\n  - type: bloom\n    radius: 7\n',
+      });
+      const build = await loadBuild({ content });
+      const { book, spreads } = build.buildAll();
+      expect(book.passes).toEqual([{ type: 'vignette', strength: 0.3 }]);
+      expect(spreads.find(s => s.id === 'a')?.passes).toEqual([{ type: 'bloom', strength: 0.8 }]);
+      expect(build.errors).toEqual([
+        'spreads/b: passes[0].type: "glow" is not one of bloom, vignette, grade',
+        'spreads/b: passes[1].radius: expected a number from 0 to 1, got 7',
+      ]);
     });
 
     it('a missing book.yaml', async () => {
@@ -119,22 +147,44 @@ describe('content build', () => {
   describe('input hash', () => {
     it('ignores Windows line endings in text files, not content changes', async () => {
       const unix = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK }));
-      const hashUnix = unix.hash.hashBuildInputs('1.0.0');
+      const hashUnix = unix.hash.hashBuildInputs();
       const windows = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK.replace(/\n/g, '\r\n') }));
-      expect(windows.hash.hashBuildInputs('1.0.0')).toBe(hashUnix);
+      expect(windows.hash.hashBuildInputs()).toBe(hashUnix);
       const changed = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK.replace('Test', 'Other') }));
-      expect(changed.hash.hashBuildInputs('1.0.0')).not.toBe(hashUnix);
-      expect(unix.hash.hashBuildInputs('1.0.1')).not.toBe(hashUnix);
+      expect(changed.hash.hashBuildInputs()).not.toBe(hashUnix);
     });
   });
 });
 
-describe('the real content', () => {
-  it('builds without errors', async () => {
-    const build = await loadBuild({ content: path.resolve(__dirname, '../../content') });
+describe('the test fixture', () => {
+  it('builds without errors', { timeout: 60000 }, async () => {
+    const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/content') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    // The fixture's plugin (tint) first: Studio B's standing video uses its layer
+    const plugins = await build.plugins.buildPlugins();
     build.buildAll();
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
+    expect(plugins.map(p => p.data.id)).toEqual(['tint']);
+  });
+});
+
+describe('the demo book', () => {
+  it('builds without errors: every node type, the covers, a shared entity, six plugins', { timeout: 60000 }, async () => {
+    const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const plugins = await build.plugins.buildPlugins();
+    const { book, spreads, entries } = build.buildAll();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    expect(book.id).toBe('demo');
+    expect(plugins.map(p => p.data.id)).toEqual(['narrative', 'pulse', 'scenes', 'spin', 'tally', 'tint']);
+    expect(spreads.map(s => s.format ?? 'spread')).toEqual(expect.arrayContaining(['cover', 'back', 'spread']));
+    const types = new Set<string>();
+    const walk = (node: { type: string; children?: Array<{ type: string }> }) => { types.add(node.type); (node.children ?? []).forEach(walk as never); };
+    entries.forEach(e => { if (e.target?.entity && !('ref' in e.target.entity)) walk(e.target.entity); });
+    expect([...types].sort()).toEqual(['group', 'image', 'model', 'text', 'video']);
+    expect(entries.some(e => e.target?.entity && 'ref' in e.target.entity)).toBe(true);
+    expect(new Set(entries.map(e => e.category))).toEqual(new Set(['glossary', 'video', 'text', 'link']));
   });
 });

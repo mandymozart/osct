@@ -1,5 +1,5 @@
 /**
- * Placement of an AR entity on its target (Tilman 2026-09-26): `entity.params` in the content –
+ * Placement of an AR entity on its target: `entity.params` in the content –
  *
  *   entity:
  *     type: model
@@ -36,14 +36,38 @@ export interface Placement {
 }
 
 export const PLACEMENT_KEYS = ["position", "rotation", "scale"] as const;
+export type PlacementKey = (typeof PLACEMENT_KEYS)[number];
+
+/** How a placement value is adjusted in tools (debug tune panel): slider range and step, unit shown */
+export interface PlacementParamSpec {
+  unit: string;
+  /** Slider range – a typed value may lie outside it (the content accepts any finite number, scale > 0) */
+  min: number;
+  max: number;
+  step: number;
+  description: string;
+}
+
+/** The placement values with the names of three.js `Object3D` (`position.x`, `rotation.y`, `scale.z`) */
+export const PLACEMENT_PARAMS: Record<PlacementKey, PlacementParamSpec> = {
+  position: { unit: "target widths", min: -1, max: 1, step: 0.01, description: "x → right, y → top of the page, z → out of the page" },
+  rotation: { unit: "°", min: -180, max: 180, step: 1, description: "Degrees, Euler order XYZ (three.js uses radians)" },
+  scale: { unit: "×", min: 0.05, max: 3, step: 0.01, description: "Relative to the target's width" },
+};
 
 const FLAT: Placement = { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] };
 
-/** Defaults by entity type (other types lie flat, size 1) */
+/**
+ * Defaults by node type (other types lie flat, size 1); a text lies a hair above its parent so it never flickers on
+ * a plane; a light hangs half a target width above its parent, its −z (the spot's and the sun's direction) down onto it
+ */
 export const PLACEMENT_DEFAULTS: Record<string, Placement> = {
   model: { position: [0, 0, 0], rotation: [90, 0, 0], scale: [0.5, 0.5, 0.5] },
   video: FLAT,
   image: FLAT,
+  group: FLAT,
+  text: { position: [0, 0, 0.01], rotation: [0, 0, 0], scale: [1, 1, 1] },
+  light: { position: [0, 0, 0.5], rotation: [0, 0, 0], scale: [1, 1, 1] },
 };
 
 const isVector = (value: unknown): value is Vector3Data =>

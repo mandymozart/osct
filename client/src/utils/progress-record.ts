@@ -1,4 +1,4 @@
-import { ProgressRecord } from "@/types";
+import { ProgressRecord, ProgressVariable } from "@/types";
 import { isEntryCategory } from "@shared/guards/game-config";
 import { parseVersion } from "./version";
 
@@ -25,6 +25,7 @@ export const createProgressRecord = (bookId: string): ProgressRecord => ({
   lastSpreadId: null,
   lastCategory: null,
   onboarded: false,
+  variables: {},
 });
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -37,6 +38,7 @@ const pick = <T>(value: unknown, isValue: (v: unknown) => v is T): Record<string
 
 const isNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isString = (v: unknown): v is string => typeof v === "string";
+const isVariable = (v: unknown): v is ProgressVariable => isString(v) || isNumber(v) || typeof v === "boolean";
 
 /** Format 1 (app 1.x): the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
 const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
@@ -48,6 +50,8 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
   lastCategory: isEntryCategory(raw.lastCategory) ? raw.lastCategory : null,
   // Additive field within format 1: records without it count as not onboarded
   onboarded: raw.onboarded === true,
+  // Additive field within format 1: the plugins' book variables, scalars only
+  variables: pick(raw.variables, isVariable),
 });
 
 /** One reader per storage format, each returns the current shape */
@@ -67,8 +71,8 @@ const sameValue = (a: unknown, b: unknown): boolean => {
 
 /**
  * Every field the stored record had comes out of the reader as it was (only its format and defaults for
- * missing fields differ) – nothing was dropped or corrected, so the reader need not be told (Tilman,
- * 2026-09-28: a new format that didn't change someone's progress shows no notice).
+ * missing fields differ) – nothing was dropped or corrected, so the reader need not be told:
+ * a new format that did not change their progress shows no notice.
  */
 const keptAsItWas = (raw: Record<string, unknown>, record: ProgressRecord): boolean =>
   Object.entries(raw).every(([key, value]) => key === "format" || sameValue(value, (record as unknown as Record<string, unknown>)[key]));
@@ -98,7 +102,8 @@ const union = (a: Record<string, number>, b: Record<string, number>): Record<str
 
 /**
  * Merges two records of the same book (account sync): union of unlocked and consulted ids with the
- * earliest time, onboarded if either was; this device's last spread / category win, the other's fill gaps.
+ * earliest time, onboarded if either was; this device's last spread / category and variables win, the other's fill
+ * gaps.
  */
 export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): ProgressRecord => ({
   ...local,
@@ -109,4 +114,5 @@ export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): Pro
   lastSpreadId: local.lastSpreadId ?? other.lastSpreadId,
   lastCategory: local.lastCategory ?? other.lastCategory,
   onboarded: local.onboarded || other.onboarded,
+  variables: { ...other.variables, ...local.variables },
 });

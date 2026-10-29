@@ -10,9 +10,12 @@ const PROGRESS_KEY = LocalProgressStorage.key(bookId);
 
 const stored = (): ProgressRecord => JSON.parse(localStorage.getItem(PROGRESS_KEY)!);
 
+/** A spread with at least two targets: the tests need two ids on the same spread, whatever the content */
+const spreadWithTargets = () => getSpreads().find(s => getTargets(s.id).length >= 2) ?? getSpreads()[0];
+
 describe("HistoryManager (progress)", () => {
   let game: IGame;
-  const spreadId = getSpreads()[0].id;
+  const spreadId = spreadWithTargets().id;
   const targets = getTargets(spreadId);
   const entryId = getEntries()[0].id;
 
@@ -31,6 +34,17 @@ describe("HistoryManager (progress)", () => {
       lastSpreadId: null,
     });
     expect(stored().appVersions).toEqual([__VITE_APP_VERSION__]);
+  });
+
+  it("keeps the plugins' book variables: set, read, delete – and persists them", () => {
+    game.history.setVariable("hasKey", true);
+    game.history.setVariable("chapter", 2);
+    expect(game.history.getVariable("hasKey")).toBe(true);
+    expect(game.history.getVariables()).toEqual({ hasKey: true, chapter: 2 });
+    expect(stored().variables).toEqual({ hasKey: true, chapter: 2 });
+    game.history.setVariable("hasKey", null);
+    expect(game.history.getVariable("hasKey")).toBeUndefined();
+    expect(stored().variables).toEqual({ chapter: 2 });
   });
 
   it("unlocks a target once by id and persists it", () => {
@@ -155,7 +169,7 @@ describe("HistoryManager (progress)", () => {
 
 describe("TargetManager", () => {
   let game: IGame;
-  const spreadId = getSpreads()[0].id;
+  const spreadId = spreadWithTargets().id;
   const target = getTargets(spreadId)[1];
 
   beforeEach(() => {

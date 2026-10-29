@@ -1,17 +1,21 @@
 import { beforeAll, afterEach, vi } from "vitest";
 
+/** Test hooks on `Image.prototype`: every image created since the last test, and the newest one */
+interface ImageTestHooks {
+  _instances: HTMLImageElement[];
+  _lastInstance: HTMLImageElement | null;
+}
+
+const imageHooks = Image.prototype as HTMLImageElement & ImageTestHooks;
+
 beforeAll(() => {
-  const originalImage = global.Image;
-  // @ts-ignore - adding _instances array
-  Image.prototype._instances = [];
-  // @ts-ignore - replacing Image constructor
-  global.Image = class extends originalImage {
+  const OriginalImage = global.Image;
+  imageHooks._instances = [];
+  global.Image = class extends OriginalImage {
     constructor() {
       super();
-      // @ts-ignore - storing last instance
-      Image.prototype._lastInstance = this;
-      // @ts-ignore - storing instance
-      Image.prototype._instances.push(this);
+      imageHooks._lastInstance = this;
+      imageHooks._instances.push(this);
     }
   };
   global.fetch = vi.fn();
@@ -21,10 +25,8 @@ beforeAll(() => {
 
 afterEach(() => {
   document.body.innerHTML = "";
-  // @ts-ignore - accessing _lastInstance
-  Image.prototype._lastInstance = null;
-  // @ts-ignore - accessing _instances
-  Image.prototype._instances = [];
+  imageHooks._lastInstance = null;
+  imageHooks._instances = [];
   vi.clearAllMocks();
   vi.clearAllTimers();
 });
@@ -40,3 +42,7 @@ window.confirm = () => false;
 
 // UI texts: i18next is set up once for all tests (as main.ts does first in the app)
 import "@/i18n";
+
+// The game configuration (bundled copy) is loaded before each test file, as main.ts does before the app starts
+import { loadGameConfiguration } from "@/utils/game-config";
+await loadGameConfiguration();

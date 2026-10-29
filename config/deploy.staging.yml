@@ -1,0 +1,19 @@
+# Staging: `develop` → https://osct.porschuetz.de (debug bar on). `kamal deploy -d staging`
+service: osct-staging
+
+servers:
+  - <%= ENV.fetch("SSH_HOST") %>
+
+proxy:
+  host: osct.porschuetz.de
+
+builder:
+  args:
+    VITE_DEBUG: "true"
+
+env:
+  clear:
+    OSCT_DB_HOST: osct-staging-db
+    OSCT_APP_URL: https://osct.porschuetz.de
+    # The dev server on a laptop or phone may use the staging API
+    OSCT_ALLOWED_ORIGINS: <%= ENV.fetch("ALLOWED_ORIGINS", "https://localhost:5173") %>

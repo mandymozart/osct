@@ -1,0 +1,26 @@
+# The cover's seal: an image with two material layers (plugins/tint, plugins/pulse) and its printed place on the
+# cover's surface.
+category: glossary
+title: The seal
+page: 0
+body: "An image on the front cover, tinted gold by the `tint` layer and breathing with the `pulse` layer – two plugins' GLSL composed into one material."
+target:
+  image: target.jpg
+  print:
+    surface: front
+    x: 65
+    y: 110
+    width: 100
+  entity:
+    type: image
+    src: seal.jpg
+    params:
+      scale: [1, 0.75, 1]
+    components:
+      - type: tint
+        color: "#f3cc94"
+        opacity: 0.4
+      - type: pulse
+        color: "#ffffff"
+        amount: 0.3
+        speed: 0.5

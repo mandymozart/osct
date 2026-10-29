@@ -1,0 +1,236 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { pathToFileURL } from 'url';
+import * as esbuild from 'esbuild';
+import ts from 'typescript';
+import * as THREE from 'three';
+import { componentSpecProblems, registerComponentSpec, type ComponentSpec } from '../../../shared/types/components';
+import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData } from '../../../shared/types/plugins';
+import type { EntityData } from '../../../shared/types/game-config';
+import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
+import { buildErrors, buildWarnings } from '../lib/errors';
+
+/**
+ * The book's own code (content schema 2.4, agents/research/2026-10-29-code-in-the-editor.md): every folder
+ * `content/plugins/<id>/` with an `index.ts` is a plugin. The build
+ *   1. type-checks it against the plugin API (`engine/src/scene/plugins.ts`, imported as `osct-plugin-api`) –
+ *      every error with its file and line, like any other content error;
+ *   2. bundles it with esbuild into one ES module (`plugin.js`, next to the source in the build output – the
+ *      immutable version folder); a plugin imports nothing but types (three.js is `api.three`);
+ *   3. runs the module once with a recording API: the components and material layers it registers join the
+ *      registry, so the nodes that use them are checked like the built-in `animation`;
+ *   4. declares it in `game.config.json`: `plugins: [{ id, src, api }]`.
+ * Nothing here runs in the content build without a review: plugins live in the content source like the YAML.
+ */
+
+const PLUGINS_DIR = 'plugins';
+const ENTRY = 'index.ts';
+/** A bundle above this is reported (the reader downloads it with the AR chunk) */
+const WARN_BYTES = 256 * 1024;
+/** A node with more layers than this is reported (every layer runs on every pixel of its plane) */
+export const MAX_LAYERS_UNWARNED = 3;
+
+/** The material layer types the plugins registered (a layer is a component in the content) */
+const layerTypes = new Set<string>();
+
+export interface PluginBuild {
+  data: PluginData;
+  /** The bundled module */
+  code: string;
+}
+
+/** The compiler options of the plugin type check: the engine's own types, three's types from scripts/ */
+const compilerOptions = (): ts.CompilerOptions => ({
+  strict: true,
+  target: ts.ScriptTarget.ES2020,
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  lib: ['lib.es2020.d.ts', 'lib.dom.d.ts', 'lib.dom.iterable.d.ts'],
+  types: [],
+  noEmit: true,
+  skipLibCheck: true,
+  isolatedModules: true,
+  esModuleInterop: true,
+  baseUrl: projectRoot,
+  paths: {
+    'osct-plugin-api': ['engine/src/scene/plugins.ts'],
+    '@shared/*': ['shared/*'],
+    three: ['scripts/node_modules/@types/three/index.d.ts'],
+    'three/*': ['scripts/node_modules/@types/three/*'],
+  },
+});
+
+/** The plugin folders of the content source, sorted; a folder with a bad name or without index.ts is an error */
+export function pluginFolders(): Array<{ id: string; entry: string }> {
+  const dir = path.join(CONTENT_DIR, PLUGINS_DIR);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name)
+    .sort()
+    .flatMap(id => {
+      if (!PLUGIN_ID_PATTERN.test(id)) {
+        buildErrors.push(`plugins/${id}: a plugin folder is named with lower-case letters, digits and - (e.g. tint)`);
+        return [];
+      }
+      const entry = path.join(dir, id, ENTRY);
+      if (!fs.existsSync(entry)) {
+        buildErrors.push(`plugins/${id}: missing ${ENTRY}`);
+        return [];
+      }
+      return [{ id, entry }];
+    });
+}
+
+/** Type-check every plugin against the plugin API; the diagnostics become content errors */
+export function typeCheckPlugins(entries: string[]): void {
+  if (!entries.length) return;
+  const program = ts.createProgram(entries, compilerOptions());
+  for (const diagnostic of ts.getPreEmitDiagnostics(program)) {
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
+    if (diagnostic.file && diagnostic.start !== undefined) {
+      const { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
+      const file = path.relative(CONTENT_DIR, diagnostic.file.fileName).split(path.sep).join('/');
+      buildErrors.push(`${file.startsWith('..') ? diagnostic.file.fileName : file}(${line + 1},${character + 1}): ${message}`);
+    } else {
+      buildErrors.push(`plugins: ${message}`);
+    }
+  }
+}
+
+/** Bundle one plugin into an ES module; null (with errors recorded) when it does not build */
+export async function bundlePlugin(id: string, entry: string): Promise<string | null> {
+  try {
+    const result = await esbuild.build({
+      entryPoints: [entry],
+      bundle: true,
+      format: 'esm',
+      target: 'es2020',
+      write: false,
+      logLevel: 'silent',
+      // A plugin imports nothing: three.js is api.three (one instance in the app), types with `import type`
+      plugins: [{
+        name: 'osct-no-imports',
+        setup: build => build.onResolve({ filter: /^[^./]/ }, args => {
+          if (args.kind === 'entry-point' || path.isAbsolute(args.path)) return undefined;
+          return { errors: [{ text: `a plugin imports nothing – "${args.path}" is not available; three.js is api.three, types with \`import type\`` }] };
+        }),
+      }],
+    });
+    const code = result.outputFiles[0].text;
+    if (code.length > WARN_BYTES) buildWarnings.push(`plugins/${id}: the bundle is ${Math.round(code.length / 1024)} KB – readers download it with the AR scene`);
+    return code;
+  } catch (error) {
+    const messages = (error as { errors?: Array<{ text: string; location?: { file: string; line: number; column: number } | null }> }).errors;
+    if (messages?.length) {
+      messages.forEach(m => buildErrors.push(`plugins/${id}${m.location ? `/${path.basename(m.location.file)}(${m.location.line},${m.location.column + 1})` : ''}: ${m.text}`));
+    } else {
+      buildErrors.push(`plugins/${id}: ${(error as Error).message}`);
+    }
+    return null;
+  }
+}
+
+/**
+ * Run the bundled module once with a recording API: what it registers joins the registry (for the checks of the
+ * nodes that use it). An exception in register, an invalid spec or a type two plugins register are errors.
+ */
+export async function recordPlugin(id: string, code: string, taken: Map<string, string>): Promise<string[]> {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'osct-plugin-')), `${id}.mjs`);
+  fs.writeFileSync(file, code);
+  const registered: string[] = [];
+  const take = (type: string, spec: ComponentSpec) => {
+    const problems = componentSpecProblems(type, spec);
+    if (taken.has(type) && taken.get(type) !== id) problems.push(`"${type}" is registered by the plugin ${taken.get(type)} too`);
+    if (problems.length) {
+      problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+      return;
+    }
+    taken.set(type, id);
+    registerComponentSpec(type, spec);
+    registered.push(type);
+  };
+  try {
+    const module = (await import(pathToFileURL(file).href)) as { register?: unknown; default?: unknown };
+    const register = module.register ?? module.default;
+    if (typeof register !== 'function') {
+      buildErrors.push(`plugins/${id}: ${ENTRY} exports no register(api) function`);
+      return registered;
+    }
+    register({
+      version: PLUGIN_API_VERSION,
+      three: THREE,
+      registerComponent: (type: string, spec: ComponentSpec, apply: unknown) => {
+        if (typeof apply !== 'function') buildErrors.push(`plugins/${id}: ${type} needs an apply(context) function`);
+        take(type, spec);
+      },
+      registerLayer: (type: string, spec: ComponentSpec, layer: { glsl?: unknown }) => {
+        if (typeof layer?.glsl !== 'string' || !layer.glsl.trim()) buildErrors.push(`plugins/${id}: the layer ${type} needs its glsl`);
+        take(type, spec);
+        if (registered.includes(type)) layerTypes.add(type);
+      },
+      // The build checks a pass's spec and factory. TODO: a spread may name the pass once the guard takes plugin pass types (#97)
+      registerPass: (type: string, spec: ComponentSpec, factory: unknown) => {
+        const problems = componentSpecProblems(type, spec);
+        if (typeof factory !== 'function') problems.push(`the pass ${type} needs a factory`);
+        problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+      },
+      // The runtime (events, variables, progress, the spread) belongs to a running scene: here nothing happens
+      events: { on: () => () => undefined, emit: () => undefined },
+      vars: { get: () => undefined, set: () => undefined, on: () => () => undefined, all: () => ({}) },
+      progress: { unlocked: () => false, consulted: () => false, completion: () => 0, counts: () => ({ unlocked: 0, targets: 0 }) },
+      spread: { current: null, get: () => undefined },
+      log: () => undefined,
+    });
+  } catch (error) {
+    buildErrors.push(`plugins/${id}: register failed – ${(error as Error).message}`);
+  } finally {
+    fs.rmSync(path.dirname(file), { recursive: true, force: true });
+  }
+  return registered;
+}
+
+/**
+ * Warn about every node that stacks more than MAX_LAYERS_UNWARNED layers: the phone runs them all on every pixel
+ * of the plane. `nodes` = the entities to walk with a label each (the build's entries and shared entities).
+ */
+export function warnLayerStacks(nodes: Array<{ label: string; node: EntityData }>): void {
+  const walk = (node: EntityData, label: string) => {
+    const layers = (node.components ?? []).filter(c => layerTypes.has(c.type)).map(c => c.type);
+    if (layers.length > MAX_LAYERS_UNWARNED) {
+      buildWarnings.push(`${label}: ${layers.length} material layers on one node (${layers.join(', ')}) – every layer runs on every pixel; bake what never changes into the video`);
+    }
+    (node.children ?? []).forEach((child, i) => walk(child, `${label} children[${i}]`));
+  };
+  nodes.forEach(({ label, node }) => walk(node, label));
+}
+
+/** Every plugin of the content: type-checked, bundled, recorded – in that order; errors in buildErrors */
+export async function buildPlugins(): Promise<PluginBuild[]> {
+  const folders = pluginFolders();
+  if (!folders.length) return [];
+  console.log(`\n🧩 ${folders.length} plugin(s): ${folders.map(f => f.id).join(', ')}`);
+  const before = buildErrors.length;
+  typeCheckPlugins(folders.map(f => f.entry));
+  if (buildErrors.length > before) return [];
+  const builds: PluginBuild[] = [];
+  const taken = new Map<string, string>();
+  for (const { id, entry } of folders) {
+    const code = await bundlePlugin(id, entry);
+    if (code === null) continue;
+    const types = await recordPlugin(id, code, taken);
+    console.log(`   ${id}: ${Math.round(code.length / 1024)} KB${types.length ? ` – ${types.join(', ')}` : ''}`);
+    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION }, code });
+  }
+  return builds;
+}
+
+/** The bundles into the build output, next to their sources (after the content was copied) */
+export function writePluginBundles(builds: PluginBuild[]): void {
+  for (const { data, code } of builds) {
+    const file = path.join(CLIENT_PUBLIC_ASSETS_DIR, PLUGINS_DIR, data.id, 'plugin.js');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, code);
+  }
+}

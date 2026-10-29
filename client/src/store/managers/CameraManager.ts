@@ -1,17 +1,20 @@
 import { CameraPermissionStatus, ICameraManager, IGame } from "@/types";
 
+/** A WebAssembly module with one SIMD instruction (`i8x16.splat`) – valid only where SIMD is supported */
+const SIMD_PROBE = [0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11];
+
 /**
  * Camera permission state (`cameraPermission`): queries the Permissions API, probes access with
  * progressively simpler constraints and reports unavailable / denied / not-responding cameras,
- * which the permission overlay reacts to.
+ * which the permission overlay reacts to. A browser that cannot run the image tracking is reported before any
+ * camera request.
  */
 export class CameraManager implements ICameraManager {
   private game: IGame;
-  
   constructor(game: IGame) {
     this.game = game;
   }
-  
+
   private setPermissionStatus(status: CameraPermissionStatus): void {
     this.game.update(draft => {
       draft.cameraPermission = status;
@@ -23,10 +26,26 @@ export class CameraManager implements ICameraManager {
     return window.isSecureContext !== false && typeof navigator.mediaDevices?.getUserMedia === "function";
   }
 
+  /**
+   * The image tracking engine's WebAssembly uses SIMD (`v128`); without it the engine cannot start (Safari before
+   * iOS 16.4). The module below is the smallest one with a SIMD instruction.
+   */
+  private get trackingSupported(): boolean {
+    try {
+      return WebAssembly.validate(new Uint8Array(SIMD_PROBE));
+    } catch {
+      return false;
+    }
+  }
+
   /** Resolves whether the camera may be used; requests access when the state is prompt / unknown. */
   public async checkPermission(): Promise<boolean> {
     if (!this.cameraAvailable) {
       this.setPermissionStatus(CameraPermissionStatus.UNAVAILABLE);
+      return false;
+    }
+    if (!this.trackingSupported) {
+      this.setPermissionStatus(CameraPermissionStatus.UNSUPPORTED);
       return false;
     }
     try {
@@ -72,6 +91,10 @@ export class CameraManager implements ICameraManager {
     if (!this.cameraAvailable) {
       console.warn('[Camera Manager] No camera API – the app needs https (or localhost) for the camera');
       this.setPermissionStatus(CameraPermissionStatus.UNAVAILABLE);
+      return false;
+    }
+    if (!this.trackingSupported) {
+      this.setPermissionStatus(CameraPermissionStatus.UNSUPPORTED);
       return false;
     }
     try {

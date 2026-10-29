@@ -1,0 +1,18 @@
+# Showcase entry for the editor and the tests (spread studio-b).
+category: video
+title: "Studio: chroma key"
+page: 30
+body: "A video with a green chroma key, spill suppression and 90 % opacity – every filter parameter set."
+target:
+  image: target.jpg
+  entity:
+    type: video
+    src: bunny.mp4
+    filters:
+      - type: chromaKey
+        color: "#00ff00"
+        mode: chroma
+        threshold: 0.35
+        softness: 0.12
+        spill: 0.25
+        opacity: 0.9

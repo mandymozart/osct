@@ -47,14 +47,24 @@ function startApi(array $settings): string
 }
 
 /** @return array{0: int, 1: mixed} status and decoded JSON */
-function call(string $base, string $method, string $path, ?array $body = null, ?string $token = null, string $origin = 'http://localhost:5173', ?string $rawBody = null): array
+function call(string $base, string $method, string $path, ?array $body = null, ?string $token = null, string $origin = 'http://localhost:5173', ?string $rawBody = null, array $extraHeaders = []): array
 {
-    $headers = ["Origin: $origin", 'Content-Type: application/json'];
+    $headers = [...["Origin: $origin", 'Content-Type: application/json'], ...$extraHeaders];
     if ($token) $headers[] = "Authorization: Bearer $token";
     $context = stream_context_create(['http' => [
         'method' => $method, 'header' => implode("\r\n", $headers), 'ignore_errors' => true,
         'content' => $rawBody ?? ($body === null ? '' : json_encode($body)),
     ]]);
+    $response = file_get_contents($base . $path, false, $context);
+    $status = (int) explode(' ', $http_response_header[0])[1];
+    return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
+}
+
+/** A file upload: the bytes as the body, the name in X-File-Name */
+function upload(string $base, string $method, string $path, string $bytes, string $name, string $token): array
+{
+    $headers = ['Origin: http://localhost:5173', 'Content-Type: application/octet-stream', "X-File-Name: $name", "Authorization: Bearer $token"];
+    $context = stream_context_create(['http' => ['method' => $method, 'header' => implode("\r\n", $headers), 'ignore_errors' => true, 'content' => $bytes]]);
     $response = file_get_contents($base . $path, false, $context);
     $status = (int) explode(' ', $http_response_header[0])[1];
     return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
@@ -72,9 +82,9 @@ function lastMail(string $log): array
 try {
     $mailLog = "$tmp/mail.log";
     $settings = [
-        'DB_SQLITE_PATH' => "$tmp/test.sqlite", 'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log',
+        'DB_SQLITE_PATH' => "$tmp/test.sqlite", 'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'EDITORS' => 'Listed@example.com, other@example.com', 'ADMINS' => 'Chief@example.com',
         'MAIL_LOG_PATH' => $mailLog, 'APP_URL' => 'https://app.example', 'ALLOWED_ORIGINS' => 'http://localhost:5173, https://*--staging.example',
-        'LOGIN_MAX_PER_EMAIL_HOUR' => '4',
+        'LOGIN_MAX_PER_EMAIL_HOUR' => '4', 'CONTENT_STORE_DIR' => "$tmp/content",
     ];
     $api = startApi($settings);
 
@@ -146,6 +156,16 @@ try {
     check($status === 202, 'four requests per hour are fine');
     [$status, $data] = call($api, 'POST', '/auth/request', ['email' => 'many@example.com']);
     check($status === 429 && $data['error']['code'] === 'too-many-requests', 'the fifth → 429');
+    check(($data['error']['retryAfter'] ?? 0) > 0 && $data['error']['retryAfter'] <= 3600 && str_contains($data['error']['message'], 'minute'), 'the 429 says when the next email is allowed (retryAfter, seconds)');
+
+    echo "rate limits off (-1)\n";
+    $openApi = startApi(['DB_SQLITE_PATH' => "$tmp/open.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '-1', 'LOGIN_MAX_PER_IP_HOUR' => '-1'] + $settings);
+    $statuses = [];
+    for ($i = 0; $i < 7; $i++) [$statuses[]] = call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com']);
+    check($statuses === array_fill(0, 7, 202), 'a limit of -1 is off: seven requests in a row pass (local testing)');
+    $zeroApi = startApi(['DB_SQLITE_PATH' => "$tmp/zero.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '0'] + $settings);
+    [$status, $data] = call($zeroApi, 'POST', '/auth/request', ['email' => 'zero@example.com']);
+    check($status === 429 && $data['error']['code'] === 'too-many-requests', 'a limit of 0 allows nothing (#83)');
 
     echo "user\n";
     [$status] = call($api, 'GET', '/user');
@@ -217,6 +237,489 @@ try {
     [$status, $data] = call($api, 'PUT', '/progress/other', null, $session, 'http://localhost:5173', json_encode(['record' => $record, 'baseUpdatedAt' => null]));
     check($status === 400 && $data['error']['code'] === 'invalid-record', 'record of another book → 400');
 
+    echo "editor: access\n";
+    $storeDir = "$tmp/content";
+    call($api, 'POST', '/auth/request', ['email' => 'author@example.com']);
+    [, $data] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    $editor = $data['session'];
+    check($data['user']['role'] === 'reader', 'a new user is a reader');
+    // An address in EDITORS (config) is an editor from its first sign-in – the first editors without the admin secret
+    call($api, 'POST', '/auth/request', ['email' => 'listed@example.com']);
+    [, $data] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    check($data['user']['role'] === 'editor', 'an address listed in EDITORS signs in as an editor');
+    [$status] = call($api, 'GET', '/editor/books', null, $data['session']);
+    check($status === 200, 'and may use the editor');
+    [$status] = call($api, 'GET', '/editor/books');
+    check($status === 401, 'editor endpoints without a token → 401');
+    [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
+    check($status === 403 && $data['error']['code'] === 'forbidden', 'a reader → 403 forbidden');
+    [$status] = call($api, 'POST', '/admin/editors', ['email' => 'author@example.com']);
+    check($status === 401, 'admin/editors without the secret or a session → 401');
+    $admin = fn(string $path, array $body): array => (array) json_decode((string) file_get_contents("$api$path", false, stream_context_create(['http' => [
+        'method' => 'POST', 'header' => 'X-Admin-Secret: ' . str_repeat('s', 40) . "\r\nContent-Type: application/json", 'content' => json_encode($body), 'ignore_errors' => true]])), true);
+    $data = $admin('/admin/editors', ['email' => 'Author@Example.com']);
+    check(($data['user']['role'] ?? null) === 'editor' && $data['created'] === false, 'with the secret: the existing user becomes an editor');
+    $data = $admin('/admin/editors', ['email' => 'new-editor@example.com']);
+    check(($data['user']['role'] ?? null) === 'editor' && $data['created'] === true, 'an unknown address: the user is created as an editor');
+    [, $data] = call($api, 'GET', '/user', null, $editor);
+    check($data['user']['role'] === 'editor', 'GET /user shows the role');
+    [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
+    check($status === 200 && $data['books'] === [], 'the editor sees the (empty) book list');
+    [$status] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 404, 'no book before an import → 404');
+
+    echo "roles, admin (docs/server.md \"Roles\")\n";
+    [, $data] = call($api, 'GET', '/user', null, $session);
+    check($data['user']['roles'] === ['reader'], 'GET /user lists the roles: every account has reader');
+    [, $data] = call($api, 'GET', '/user', null, $editor);
+    check($data['user']['roles'] === ['reader', 'editor'] && $data['user']['role'] === 'editor', 'an editor has reader and editor (role stays editor)');
+    [$status, $data] = call($api, 'GET', '/admin/users');
+    check($status === 401, 'admin endpoints without a session or the secret → 401');
+    [$status, $data] = call($api, 'GET', '/admin/users', null, $editor);
+    check($status === 403 && $data['error']['role'] === 'admin', 'an editor is no admin → 403 forbidden { role: admin }');
+    $withSecret = fn(string $method, string $path, ?array $body = null): array => call($api, $method, $path, $body, null, 'http://localhost:5173', null, ['X-Admin-Secret: ' . str_repeat('s', 40)]);
+    [$status, $data] = call($api, 'GET', '/admin/users', null, null, 'http://localhost:5173', null, ['X-Admin-Secret: wrong']);
+    check($status === 403, 'a wrong secret → 403');
+    [$status, $data] = $withSecret('GET', '/admin/users?q=AUTHOR');
+    check($status === 200 && count($data['users']) === 1 && $data['users'][0]['email'] === 'author@example.com' && $data['total'] === 1, 'with the secret: search by e-mail (case-insensitive, a part)');
+    $authorId = $data['users'][0]['id'];
+    check($data['users'][0]['options']['bookUpdates'] === false && $data['users'][0]['language'] === 'en' && is_string($data['users'][0]['lastSeenAt']), 'a user comes with options, language and last seen');
+    [, $data] = $withSecret('GET', '/admin/roles');
+    check(array_column($data['roles'], 'name') === ['reader', 'editor', 'admin'], 'GET /admin/roles: reader, editor, admin with fixed ids');
+    // An address in ADMINS (config) is an admin from its first sign-in – the instance's first admin without the secret
+    call($api, 'POST', '/auth/request', ['email' => 'chief@example.com', 'options' => ['publisherUpdates' => true]]);
+    [, $data] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    $chief = $data['session'];
+    check($data['user']['roles'] === ['reader', 'admin'] && $data['user']['role'] === 'reader', 'an address listed in ADMINS signs in as an admin (not an editor)');
+    [$status, $data] = call($api, 'GET', '/admin/users?role=admin', null, $chief);
+    check($status === 200 && count($data['users']) === 1 && $data['users'][0]['grants'][1]['grantedBy'] === 'config', 'the admin may use the admin API; the grant says config');
+    [$status, $data] = call($api, 'GET', '/editor/books', null, $chief);
+    check($status === 403, 'but not the editor API');
+    [$status, $data] = call($api, 'GET', '/admin/users?role=editor', null, $chief);
+    check($status === 200 && count($data['users']) === 3, 'the editors: listed, author (made by the secret) and new-editor');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/admin", null, $chief);
+    check($status === 200 && $data['changed'] === true && $data['user']['roles'] === ['reader', 'editor', 'admin'], 'grant admin → changed, the user with its roles');
+    $grant = array_values(array_filter($data['user']['grants'], fn(array $g) => $g['role'] === 'admin'))[0];
+    check($grant['grantedByEmail'] === 'chief@example.com' && is_string($grant['grantedAt']), 'the grant records the granting admin');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/admin", null, $chief);
+    check($status === 200 && $data['changed'] === false, 'granting again changes nothing');
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$authorId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === true && $data['user']['roles'] === ['reader', 'admin'] && $data['user']['role'] === 'reader', 'revoke editor → the user is a reader again');
+    [$status] = call($api, 'GET', '/editor/books', null, $editor);
+    check($status === 403, 'and may not use the editor API any more');
+    $pdo = new PDO("sqlite:$tmp/test.sqlite");
+    check($pdo->query("SELECT role FROM users WHERE id = '$authorId'")->fetchColumn() === 'reader', 'users.role mirrors the editor role');
+    $pdo = null;
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$authorId/roles/reader", null, $chief);
+    check($status === 400 && $data['error']['code'] === 'invalid-role', 'reader cannot be revoked');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/wizard", null, $chief);
+    check($status === 404 && $data['error']['code'] === 'unknown-role', 'an unknown role → 404 unknown-role');
+    [$status, $data] = call($api, 'PUT', '/admin/users/00000000-0000-4000-8000-000000000000/roles/editor', null, $chief);
+    check($status === 404 && $data['error']['code'] === 'not-found', 'an unknown user → 404');
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$authorId/roles/admin", null, $editor);
+    check($status === 200 && $data['changed'] === true, 'an admin may revoke their own admin role while another admin remains');
+    [, $data] = call($api, 'GET', '/admin/users?q=chief', null, $chief);
+    $chiefId = $data['users'][0]['id'];
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$chiefId/roles/admin", null, $chief);
+    check($status === 409 && $data['error']['code'] === 'last-admin', 'the last admin keeps the role → 409 last-admin');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/editor", null, $chief);
+    check($status === 200 && $data['user']['role'] === 'editor', 'the author is an editor again');
+    [$status] = call($api, 'GET', '/editor/books', null, $editor);
+    check($status === 200, 'and the editor API opens again');
+    [$status, $data] = $withSecret('PUT', "/admin/users/$chiefId/roles/editor");
+    check($status === 200 && array_values(array_filter($data['user']['grants'], fn(array $g) => $g['role'] === 'editor'))[0]['grantedBy'] === 'secret', 'a grant with the secret says secret');
+    $withSecret('DELETE', "/admin/users/$chiefId/roles/editor");
+    [$status, $data] = call($api, 'POST', '/admin/editors', ['email' => 'invited@example.com'], $chief);
+    check($status === 200 && $data['created'] === true && $data['user']['roles'] === ['reader', 'editor'], 'an admin invites an editor by e-mail (POST /admin/editors by session)');
+    // The newsletter list: the users with an update option on, as CSV
+    $csvContext = stream_context_create(['http' => ['header' => "Authorization: Bearer $chief", 'ignore_errors' => true]]);
+    $csv = (string) file_get_contents("$api/admin/users.csv?newsletter=1", false, $csvContext);
+    $lines = array_values(array_filter(explode("\n", trim($csv))));
+    check(in_array('Content-Type: text/csv; charset=utf-8', $http_response_header, true) && (bool) preg_grep('/^Content-Disposition: attachment; filename="newsletter-/', $http_response_header), 'GET /admin/users.csv answers a CSV download');
+    check($lines[0] === 'email,language,bookUpdates,artistUpdates,publisherUpdates,createdAt', 'the CSV header names the options');
+    check(count($lines) === 2 && str_starts_with($lines[1], 'chief@example.com,en,no,no,yes,'), 'newsletter=1: only the users with an option on (the reader turned theirs off; chief: publisher updates)');
+    $csv = (string) file_get_contents("$api/admin/users.csv?option=publisherUpdates", false, $csvContext);
+    check(count(array_filter(explode("\n", trim($csv)))) === 2 && str_contains($csv, 'chief@example.com'), 'option=publisherUpdates narrows to that option');
+    $csv = (string) file_get_contents("$api/admin/users.csv", false, $csvContext);
+    check(count(array_filter(explode("\n", trim($csv)))) === 7, 'without a filter: every user');
+    [$status] = call($api, 'GET', '/admin/users.csv', null, $editor);
+    check($status === 403, 'the CSV needs an admin');
+    // #99: the admin page grants editor to a reader-only account and shows the row the API answers with
+    call($api, 'POST', '/auth/request', ['email' => 'reader99@example.com']);
+    call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    [, $data] = call($api, 'GET', '/admin/users?q=reader99', null, $chief);
+    $readerId = $data['users'][0]['id'];
+    check($data['users'][0]['roles'] === ['reader'] && $data['users'][0]['role'] === 'reader', '#99: a new account is a reader only');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$readerId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === true && $data['user']['id'] === $readerId && $data['user']['roles'] === ['reader', 'editor'] && $data['user']['role'] === 'editor', '#99: grant editor answers the row with editor on');
+    check(array_column($data['user']['grants'], 'role') === ['reader', 'editor'] && $data['user']['grants'][1]['grantedByEmail'] === 'chief@example.com', '#99: and its grant, by the admin');
+    [$status, $data] = call($api, 'GET', '/admin/users?role=editor&q=reader99', null, $chief);
+    check($status === 200 && $data['total'] === 1 && $data['users'][0]['roles'] === ['reader', 'editor'], '#99: the Editors filter lists the new editor');
+    [$status, $data] = call($api, 'GET', '/admin/users?role=editor', null, $chief);
+    check($status === 200 && $data['total'] === count($data['users']) && in_array($readerId, array_column($data['users'], 'id'), true), '#99: the Editors filter without a search (count and list agree)');
+    [$status, $data] = call($api, 'PUT', "/admin/users/$readerId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === false && $data['user']['roles'] === ['reader', 'editor'], '#99: granting again is no change (the page says so instead of "Granted")');
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$readerId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === true && $data['user']['roles'] === ['reader'], '#99: revoke answers the row with editor off');
+    [$status, $data] = call($api, 'DELETE', "/admin/users/$readerId/roles/editor", null, $chief);
+    check($status === 200 && $data['changed'] === false, '#99: revoking again is no change');
+
+    echo "editor: import\n";
+    $configuration = [
+        'version' => ['version' => '1.9.0', 'timestamp' => '2026-01-01T00:00:00.000Z', 'hash' => str_repeat('ab', 32), 'schema' => '1.2'],
+        'book' => ['id' => 'osct', 'title' => 'Test Book', 'author' => 'Someone', 'publisher' => 'Building Fictions'],
+        'initialSpreadId' => 's1',
+        'spreads' => [['id' => 's1', 'title' => 'One', 'firstPage' => 1, 'lastPage' => 2], ['id' => 's2', 'title' => 'Two', 'firstPage' => 3, 'lastPage' => 4, 'note' => 'an extra field']],
+        'entries' => [
+            ['id' => 'racoon', 'category' => 'glossary', 'title' => 'Racoon', 'page' => 1, 'body' => 'A beast.', 'tags' => [], 'target' => [
+                'id' => 'racoon', 'imageSrc' => '/assets/content/entries/racoon/img.jpg',
+                'entity' => ['type' => 'model', 'assets' => [['id' => 'racoon-0', 'assetType' => 'glb', 'src' => '/assets/content/entries/racoon/racoon.glb']], 'params' => ['scale' => 0.5]]]],
+            ['id' => 'castle', 'category' => 'video', 'title' => 'Castle', 'page' => 3, 'body' => '', 'image' => '/assets/content/entries/castle/cover.jpg', 'tags' => ['x'], 'target' => [
+                'id' => 'castle-target', 'imageSrc' => '/assets/content/entries/castle/img.jpg', 'entity' => ['ref' => 'castle']]],
+            ['id' => 'link', 'category' => 'link', 'title' => 'A link', 'page' => 4, 'body' => '', 'media' => 'https://example.com', 'tags' => []],
+            ['id' => 'lost', 'category' => 'text', 'title' => 'Lost', 'page' => 99, 'body' => 'No spread has page 99.', 'tags' => []],
+        ],
+        'entities' => ['castle' => ['type' => 'video', 'assets' => [['id' => 'castle-0', 'assetType' => 'video', 'src' => '/assets/content/entities/castle/c.mp4']], 'params' => new stdClass(), 'filters' => [['type' => 'chromaKey', 'color' => '#00ff00']]]],
+        'tutorial' => [['id' => 'step-1', 'index' => 0, 'title' => '{{title}}', 'illustration' => '/assets/content/tutorial/mark.svg', 'advance' => 3800]],
+        'plugins' => [['id' => 'tint', 'src' => '/assets/content/plugins/tint/plugin.js', 'api' => '1.0']],
+    ];
+    $files = ['/assets/content/entries/racoon/racoon.glb' => ['size' => 1234, 'v' => 'abcdef012345'], '/assets/content/entries/racoon/img.jpg' => ['size' => 10, 'v' => '0123456789ab']];
+    $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200 && $data['counts'] === ['spreads' => 2, 'entries' => 4, 'targets' => 2, 'entities' => 1], 'import → counts');
+    check(preg_match('/^[0-9a-f]{12}$/', $data['draft']['build'] ?? '') === 1 && $data['book']['importedHash'] === str_repeat('ab', 32), 'import answers with the draft build and the imported hash');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => ['book' => []]]));
+    check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'a configuration without a schema → 400');
+    $bad = $configuration;
+    $bad['entities']['castle']['type'] = 'hologram';
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $bad], $flags));
+    check($status === 400 && $data['error']['code'] === 'invalid-entity', 'an unknown entity type → 400 invalid-entity');
+    $bad = $configuration;
+    $bad['entries'][1]['target']['entity'] = ['ref' => 'ghost'];
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $bad], $flags));
+    check($status === 400 && $data['error']['code'] === 'unknown-entity', 'a ref to no entity → 400 unknown-entity');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', ['source' => 'cdn'], $editor);
+    check($status === 400 && $data['error']['code'] === 'no-content-base', 'source cdn without CONTENT_BASE_URL → 400');
+
+    echo "editor: tree, entities\n";
+    [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
+    check($status === 200 && count($data['books']) === 1 && $data['books'][0]['spreads'] === 2 && $data['books'][0]['lastPublish'] === null && $data['books'][0]['book']['publisher'] === 'Building Fictions', 'book list: one book, two spreads, not published');
+    [$status, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 200 && count($tree['spreads']) === 2 && $tree['spreads'][0]['id'] === 's1' && $tree['spreads'][0]['firstPage'] === 1 && $tree['spreads'][1]['note'] === 'an extra field', 'tree: spreads in order with every field');
+    check(($tree['spreads'][0]['entries'][0]['target']['entity']['type'] ?? null) === 'model', 'tree: an inline entity under its entry');
+    check(($tree['spreads'][1]['entries'][0]['target']['entity']['ref'] ?? null) === 'castle' && $tree['spreads'][1]['entries'][1]['target'] === null, 'tree: a ref, and an entry without a target');
+    check(count($tree['unassigned']) === 1 && $tree['unassigned'][0]['id'] === 'lost', 'an entry whose page is in no spread is kept apart');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($status === 200 && array_keys($data['entities']) === ['castle'] && $data['entities']['castle']['type'] === 'video', 'the shared entities');
+
+    echo "editor: draft\n";
+    [$status, $manifest, $headers] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=1', null, $editor);
+    check($status === 200 && preg_match('/^[0-9a-f]{12}$/', $manifest['build']) === 1 && strlen($manifest['hash']) === 64 && str_starts_with($manifest['hash'], $manifest['build'])
+        && $manifest['schema'] === '1.2' && $manifest['version'] === $appVersion && isset($manifest['activatedAt']), 'draft latest.json is a content manifest');
+    check(in_array('Cache-Control: no-store', $headers, true), 'the draft is never cached');
+    $withToken = stream_context_create(['http' => ['header' => "Authorization: Bearer $editor"]]);
+    $rawDraft = (string) file_get_contents("$api/editor/books/osct/draft/{$manifest['build']}/game.config.json", false, $withToken);
+    $draft = json_decode($rawDraft, true);
+    check($draft['version']['hash'] === $manifest['hash'] && $draft['version']['version'] === $appVersion && preg_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/', $draft['version']['timestamp']) === 1
+        && array_keys($draft['version']) === ['version', 'timestamp', 'hash', 'schema'], 'game.config.json carries the version block');
+    $expected = json_decode(json_encode($configuration, $flags), true);
+    unset($expected['version'], $draft['version']);
+    check($draft === $expected, 'import → draft round-trips the configuration unchanged (keys, order, extra fields, the entry without a spread)');
+    check(str_contains($rawDraft, '"params":{}') && str_contains($rawDraft, '"tags":[]'), 'empty objects and lists keep their kind');
+    [$status, $data] = call($api, 'GET', "/editor/books/osct/draft/{$manifest['build']}/files.json", null, $editor);
+    check($status === 200 && $data === $files, 'files.json as imported');
+    [$status] = call($api, 'GET', "/editor/books/osct/draft/{$manifest['build']}/game.config.json");
+    check($status === 401, 'the draft needs the token');
+
+    echo "editor: edit\n";
+    $castle = $configuration['entities']['castle'];
+    $castle['params'] = ['scale' => 2];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    check($status === 200 && $data['entity']['params']['scale'] === 2, 'PUT entity → saved');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'hologram', 'assets' => []], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entity', 'an unknown type → 400 invalid-entity');
+    [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'video'], $editor);
+    check($status === 400, 'without assets → 400');
+    $racoon = $configuration['entries'][0]['target']['entity'];
+    $racoon['params'] = ['position' => [0, 0.1, 0], 'scale' => 0.5];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['entity' => $racoon], $editor);
+    check($status === 200 && $data['target']['id'] === 'racoon' && $data['target']['entity']['params']['position'] === [0, 0.1, 0], 'PUT target → the inline entity changed');
+    [$status] = call($api, 'PUT', '/editor/books/osct/targets/nope', ['entity' => $racoon], $editor);
+    check($status === 404, 'unknown target → 404');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['ref' => 'nope'], $editor);
+    check($status === 400 && $data['error']['code'] === 'unknown-entity', 'a ref to an unknown entity → 400');
+    [, $data] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    check($data['build'] !== $manifest['build'], 'an edit changes the draft build');
+    $edited = json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$data['build']}/game.config.json", false, $withToken), true);
+    check($edited['entities']['castle']['params']['scale'] === 2 && $edited['entries'][0]['target']['entity']['params']['position'] === [0, 0.1, 0], 'the draft has both edits');
+    unset($edited['version'], $edited['entities']['castle']['params'], $edited['entries'][0]['target']['entity']['params']);
+    $rest = $expected;
+    unset($rest['entities']['castle']['params'], $rest['entries'][0]['target']['entity']['params']);
+    check($edited === $rest, 'everything else is as imported');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/changes', null, $editor);
+    check($status === 200 && count($data['changes']) === 2 && $data['changes'][0]['kind'] === 'target' && $data['changes'][0]['ref'] === 'racoon' && $data['changes'][0]['user'] === 'author@example.com'
+        && $data['changes'][1]['kind'] === 'entity' && $data['changes'][1]['ref'] === 'castle' && $data['changes'][1]['after']['params']['scale'] === 2 && $data['changes'][1]['before']['params'] === [], 'change log: two entries, newest first, before/after and the user');
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    check(count($data['changes']) === 1, 'limit');
+
+    echo "editor: publish (local store)\n";
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'nowhere'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-env', 'unknown env → 400');
+    [$status, $first] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local', 'note' => 'first'], $editor);
+    check($status === 200 && $first['env'] === 'local' && preg_match('/^[0-9a-f]{12}$/', $first['build']) === 1 && str_starts_with($first['hash'], $first['build']) && isset($first['publishedAt']), 'publish → env, build, hash');
+    check(is_file("$storeDir/local/{$first['build']}/game.config.json") && is_file("$storeDir/local/{$first['build']}/files.json") && is_file("$storeDir/local/latest.json") && is_file("$storeDir/local/versions.json"), 'the version folder, versions.json and latest.json are in the store dir');
+    [$status, $data, $headers] = call($api, 'GET', '/content/local/latest.json');
+    check($status === 200 && $data['build'] === $first['build'] && $data['hash'] === $first['hash'] && $data['schema'] === '1.2' && $data['version'] === $appVersion && isset($data['activatedAt']), 'GET /content/local/latest.json serves the manifest (no token needed)');
+    check(in_array('Cache-Control: no-cache', $headers, true), 'latest.json is revalidated');
+    [$status, $data, $headers] = call($api, 'GET', "/content/local/{$first['build']}/game.config.json");
+    check($status === 200 && $data['version']['hash'] === $first['hash'] && $data['entities']['castle']['params']['scale'] === 2, 'the published game.config.json is the draft');
+    check((bool) preg_grep('/^Cache-Control: public, max-age=31536000, immutable$/', $headers), 'version files are immutable');
+    [, $data] = call($api, 'GET', '/content/local/versions.json');
+    check(count($data) === 1 && $data[0]['build'] === $first['build'] && $data[0]['retiredAt'] === null && $data[0]['uploadedAt'] === $data[0]['activatedAt'], 'versions.json has the one version, current');
+    [$status] = call($api, 'GET', '/content/local/../test.sqlite');
+    [$status2] = call($api, 'GET', "/content/local/{$first['build']}/game.config.txt");
+    [$status3] = call($api, 'GET', '/content/Local/latest.json');
+    check($status === 404 && $status2 === 404 && $status3 === 404, 'only the json files of a version: no traversal, other names and envs → 404');
+    $castle['params'] = ['scale' => 3];
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    [$status, $second] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200 && $second['build'] !== $first['build'], 'a second publish makes a new version');
+    [, $data] = call($api, 'GET', '/content/local/versions.json');
+    check(count($data) === 2 && $data[0]['build'] === $first['build'] && is_string($data[0]['retiredAt']) && $data[1]['build'] === $second['build'] && $data[1]['retiredAt'] === null, 'versions.json: the first retired, the second current');
+    [, $data] = call($api, 'GET', '/content/local/latest.json');
+    check($data['build'] === $second['build'] && is_file("$storeDir/local/{$first['build']}/game.config.json"), 'latest.json moved, the first version folder stays');
+    $written = file_get_contents("$storeDir/local/{$second['build']}/game.config.json");
+    [$status, $again] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    [, $data] = call($api, 'GET', '/content/local/versions.json');
+    check($status === 200 && $again['build'] === $second['build'] && count($data) === 2 && file_get_contents("$storeDir/local/{$second['build']}/game.config.json") === $written, 'publishing the same draft again rewrites no version folder and adds no version');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/versions', null, $editor);
+    check($status === 200 && count($data['versions']) === 3 && $data['versions'][2]['note'] === 'first' && $data['versions'][0]['publishedBy'] === 'author@example.com', 'the publish log: three publishes, newest first');
+    [, $data] = call($api, 'GET', '/editor/books', null, $editor);
+    check($data['books'][0]['lastPublish']['env'] === 'local' && $data['books'][0]['lastPublish']['build'] === $second['build'], 'the book list shows the last publish');
+
+    echo "editor: assets base\n";
+    $base = 'https://cdn.example/staging/0123456789ab';
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => "$base/"], $flags));
+    check($status === 200, 're-import with an assets base');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    [, $data] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check($data['entries'][0]['target']['imageSrc'] === "$base/assets/content/entries/racoon/img.jpg"
+        && $data['entries'][0]['target']['entity']['assets'][0]['src'] === "$base/assets/content/entries/racoon/racoon.glb"
+        && $data['entries'][1]['image'] === "$base/assets/content/entries/castle/cover.jpg"
+        && $data['entities']['castle']['assets'][0]['src'] === "$base/assets/content/entities/castle/c.mp4"
+        && $data['tutorial'][0]['illustration'] === "$base/assets/content/tutorial/mark.svg"
+        && $data['entries'][2]['media'] === 'https://example.com', 'content paths become URLs below the base (src, imageSrc, image, illustration); other strings stay');
+    [, $data] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/files.json", null, $editor);
+    check(array_keys($data) === ["$base/assets/content/entries/racoon/racoon.glb", "$base/assets/content/entries/racoon/img.jpg"], 'files.json keys rewritten, in order');
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes', null, $editor);
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check(count($data['changes']) === 3 && $tree['spreads'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
+
+    echo "editor: node trees (content schema 2.0)
+";
+    $castle = $configuration['entities']['castle'];
+    // Content schema 2.0: the entity as a tree of nodes
+    $tree = ['type' => 'group', 'assets' => [], 'children' => [
+        $castle,
+        ['type' => 'text', 'assets' => [], 'text' => '{{entry.title}}', 'color' => '#f3cc94', 'params' => ['position' => [0, -0.5, 0.01]]],
+    ]];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $tree, $editor);
+    check($status === 200 && count($data['entity']['children']) === 2 && $data['entity']['children'][1]['type'] === 'text', 'PUT entity with children → saved as a tree');
+    $bad = $tree;
+    $bad['children'][1]['color'] = 'gold';
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $bad, $editor);
+    check($status === 400 && str_contains($data['error']['message'] ?? '', 'children[1].color'), 'a bad child → 400 with its path');
+    $deep = ['type' => 'group', 'assets' => []];
+    for ($i = 0; $i < 9; $i++) $deep = ['type' => 'group', 'assets' => [], 'children' => [$deep]];
+    [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $deep, $editor);
+    check($status === 400, 'nodes deeper than 8 levels → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    check($status === 200 && !isset($data['entity']['children']), 'back to one node');
+
+    echo "editor: plugins (the Code tab's sources)\n";
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/plugins', null, $editor);
+    check($status === 200 && $data['plugins'] === [], 'no plugin sources yet');
+    $source = "export const register = (api) => { api.log('hi'); };\n";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/glow', ['source' => $source], $editor);
+    check($status === 200 && $data['plugin']['id'] === 'glow' && $data['plugin']['source'] === $source && $data['plugin']['size'] === strlen($source) && $data['plugin']['updatedBy'] === 'author@example.com', 'PUT a plugin source → saved with size and author');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/Glow', ['source' => $source], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-plugin', 'an upper-case id → 400 invalid-plugin');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/glow', ['source' => 3], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-plugin', 'a source that is no string → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/glow', ['source' => str_repeat('x', 262145)], $editor);
+    check($status === 413, 'a source above 256 KB → 413');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/plugins/glow', ['source' => "$source// v2\n"], $editor);
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/plugins/glow', null, $editor);
+    check($status === 200 && str_ends_with($data['plugin']['source'], "// v2\n"), 'GET the plugin → the new source');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/plugins', null, $editor);
+    check($status === 200 && count($data['plugins']) === 1 && $data['plugins'][0]['id'] === 'glow' && !isset($data['plugins'][0]['source']), 'the list names the plugin without its source');
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=2', null, $editor);
+    check($data['changes'][0]['kind'] === 'plugin' && $data['changes'][0]['ref'] === 'glow' && str_ends_with($data['changes'][0]['after'], "// v2\n") && $data['changes'][1]['before'] === null, 'every save is a change with the source before and after');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    $rawDraft = (string) file_get_contents("$api/editor/books/osct/draft/{$m['build']}/game.config.json", false, $withToken);
+    check(!str_contains($rawDraft, 'glow') && str_contains($rawDraft, '"plugins":[{"id":"tint","src":"' . $base . '/assets/content/plugins/tint/plugin.js","api":"1.0"}]'), 'the draft declares the imported compiled plugins (below the assets base), never an editor source');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/plugins/glow', null, $editor);
+    [$status2] = call($api, 'GET', '/editor/books/osct/plugins/glow', null, $editor);
+    check($status === 204 && $status2 === 404, 'DELETE → 204, then 404');
+    // Publishing content whose nodes use a component no plugin of the content can provide is refused
+    $castle = $configuration['entities']['castle'];
+    $castle['components'] = [['type' => 'tint', 'opacity' => 0.4]];
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200, 'with a plugin declared, a node may use its component');
+    $noPlugins = $configuration;
+    unset($noPlugins['plugins']);
+    call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $noPlugins, 'files' => $files], $flags));
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-components' && $data['error']['components'] === ['tint'], 'without one, publish → 409 unknown-components naming the types');
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'import again with the plugins');
+
+    echo "editor: assets\n";
+    // A 1×1 PNG and a tiny glb-like file (the API checks the type by the name, not the bytes)
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'Dot.png', $editor);
+    $asset = $data['asset'] ?? null;
+    check($status === 201 && $asset && $asset['kind'] === 'image' && $asset['width'] === 1 && $asset['height'] === 1 && $asset['version'] === 1 && str_ends_with($asset['url'], '/v1.png'), 'upload → 201 image asset with its size');
+    check(str_starts_with($asset['url'], "$api/content/assets/osct/"), 'the local store\'s URL is this API\'s content route');
+    [$status, $same] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'again.png', $editor);
+    check($status === 200 && $same['asset']['id'] === $asset['id'], 'the same bytes again → the same asset');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', 'not a model', 'thing.exe', $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-file', 'an unsupported type → 400 invalid-file');
+    [$status] = upload($api, 'POST', '/editor/books/osct/assets', '', 'empty.png', $editor);
+    check($status === 400, 'an empty file → 400');
+    $file = file_get_contents($asset['url']);
+    check($file === $png, 'the file is served by the content route');
+    check(in_array('Content-Type: image/png', $http_response_header, true) && in_array('Access-Control-Allow-Origin: *', $http_response_header, true), 'with its type and open CORS');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    check($status === 200 && count($data['assets']) === 3 && $data['assets'][0]['id'] === $asset['id'] && $data['assets'][0]['usages'] === 0 && $data['assets'][0]['imported'] === false, 'the list: the upload, unused, first');
+    $imported = array_values(array_filter($data['assets'], fn($a) => $a['imported']));
+    check(count($imported) === 2 && $imported[0]['name'] === 'racoon.glb' && $imported[0]['kind'] === 'glb' && $imported[0]['size'] === 1234 && $imported[0]['url'] === '/assets/content/entries/racoon/racoon.glb' && $imported[1]['kind'] === 'image', 'and the files of the import (files.json) after it');
+    check($imported[0]['usages'] === 1 && $imported[1]['usages'] === 1, 'an imported file counts its uses (the entity in the target, the target image)');
+    // Below an assets base the list shows CDN URLs, the rows still name the content paths: the uses count all the same (#121)
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => 'https://cdn.example/staging/0123456789ab/'], $flags));
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    $based = array_values(array_filter($data['assets'], fn($a) => $a['imported']));
+    check($status === 200 && $based[0]['url'] === 'https://cdn.example/staging/0123456789ab/assets/content/entries/racoon/racoon.glb' && $based[0]['usages'] === 1 && $based[1]['usages'] === 1, 'an imported file used by a target counts 1 below an assets base too');
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'import again without the base');
+    [, $filtered] = call($api, 'GET', '/editor/books/osct/assets?kind=image', null, $editor);
+    check(count($filtered['assets']) === 2 && array_column($filtered['assets'], 'kind') === ['image', 'image'], 'the kind filter applies to both');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$imported[0]['id']}", null, $editor);
+    check($status === 404, 'an imported file is read-only (no delete, replace or usages: 404)');
+    // Used by a node: the usages know, delete refuses, replace relinks
+    $image = ['type' => 'image', 'assets' => [['id' => 'castle-img', 'assetType' => 'image', 'src' => $asset['url']]]];
+    [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $image, $editor);
+    check($status === 200, 'a node takes the asset\'s URL');
+    [$status, $data] = call($api, 'GET', "/editor/books/osct/assets/{$asset['id']}/usages", null, $editor);
+    check($status === 200 && $data['usages'] === [['kind' => 'entity', 'ref' => 'castle']], 'usages: the entity');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$asset['id']}", null, $editor);
+    check($status === 409 && $data['error']['code'] === 'asset-in-use' && $data['error']['usages'][0]['ref'] === 'castle', 'delete while used → 409 with the usages');
+    $png2 = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR42mNk+M9Qz4AEGHEJAAB3AgT/0hQgCwAAAABJRU5ErkJggg==');
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$asset['id']}/file", $png2, 'dot2.png', $editor);
+    check($status === 200 && $data['asset']['version'] === 2 && str_ends_with($data['asset']['url'], '/v2.png') && $data['relinked'] === 1, 'replace → version 2 at a new path, one row relinked');
+    $v2 = $data['asset']['url'];
+    [, $data] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($data['entities']['castle']['assets'][0]['src'] === $v2, 'the node names the new version');
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$asset['id']}/file", 'glb bytes', 'tree.glb', $editor);
+    check($status === 400, 'a replace of another kind → 400');
+    [$status] = call($api, 'DELETE', "/editor/books/osct/assets/{$asset['id']}?force=1", null, $editor);
+    check($status === 204, 'forced delete → 204');
+    [$status] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    check(array_column($data['assets'], 'imported') === [true, true], 'gone from the list (the imported files stay)');
+    $gone = @file_get_contents($v2);
+    check($gone === false, 'and from the store');
+
+    echo "editor: targets and entries\n";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v2.jpg', 'print' => ['surface' => 'right', 'x' => 20, 'y' => 30, 'width' => 80]], $editor);
+    check($status === 200 && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg' && $data['target']['print']['width'] == 80, 'PUT target: image and print placement');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['print' => ['surface' => 'top', 'x' => 1, 'y' => 1, 'width' => 1]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-target', 'a bad surface → 400 invalid-target');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    $racoonEntry = $tree['spreads'][0]['entries'][0];
+    check($racoonEntry['target']['print']['surface'] === 'right', 'the tree carries the print placement');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'page' => 1, 'target' => ['imageSrc' => 'https://cdn.example/shadows.jpg', 'print' => ['surface' => 'left', 'x' => 10, 'y' => 10, 'width' => 60]]], $editor);
+    check($status === 201 && $data['entry']['id'] === 'p1-shadows-light' && $data['entry']['target']['id'] === 'p1-shadows-light' && $data['spreadId'] === $tree['spreads'][0]['id'], 'POST entry → 201 with a slug id, on the page\'s spread');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'page' => 1, 'target' => ['imageSrc' => 'x.jpg']], $editor);
+    check($status === 409 && $data['error']['code'] === 'duplicate-id', 'the same id again → 409');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'No target', 'page' => 1], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'without a target → 400');
+    [, $manifest2] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    $draft2 = json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$manifest2['build']}/game.config.json", false, $withToken), true);
+    $added = array_values(array_filter($draft2['entries'], fn($e) => $e['id'] === 'p1-shadows-light'));
+    check(count($added) === 1 && $added[0]['target']['print']['surface'] === 'left' && $added[0]['tags'] === [], 'the draft has the new entry with its target');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/p1-shadows-light', null, $editor);
+    check($status === 204, 'DELETE entry → 204');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/p1-shadows-light', null, $editor);
+    check($status === 404, 'again → 404');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check(!in_array('p1-shadows-light', array_column($tree['spreads'][0]['entries'], 'id'), true), 'gone from the tree');
+
+    echo "editor: spread formats (content schema 2.3)\n";
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
+    check($status === 201 && $data['spread'] === ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'], 'POST spreads cover → page 0, first');
+    [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
+    check($status === 409, 'a second cover → 409');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'back', 'title' => 'Rückseite'], $editor);
+    $lastPage = max(array_map(fn($s) => $s['lastPage'], $tree['spreads']));
+    check($status === 201 && $data['spread']['firstPage'] === $lastPage + 1 && $data['spread']['title'] === 'Rückseite', 'POST spreads back → the page after the last');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($tree['spreads'][0]['id'] === 'cover' && end($tree['spreads'])['id'] === 'back', 'the tree: cover first, back last');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['title' => 'First pages'], $editor);
+    check($status === 200 && $data['spread']['title'] === 'First pages' && !isset($data['spread']['format']), 'PUT spread title');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['format' => 'cover'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a double page cannot become the cover');
+    echo "editor: spread passes (content schema 2.5)\n";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']]], $editor);
+    check($status === 200 && $data['spread']['passes'] === [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']], 'PUT spread passes');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=2', null, $editor);
+    [, $draftNow] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check(($draftNow['spreads'][1]['passes'] ?? null) === [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']], 'the draft carries the passes');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => [['type' => 'glow']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'an unknown pass type is refused');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => null], $editor);
+    check($status === 200 && !isset($data['spread']['passes']), 'passes: null removes the list');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Seal', 'page' => 0, 'target' => ['imageSrc' => 'https://cdn.example/seal.jpg', 'print' => ['surface' => 'front', 'x' => 60, 'y' => 100, 'width' => 100]]], $editor);
+    check($status === 201 && $data['spreadId'] === 'cover' && $data['entry']['target']['print']['surface'] === 'front', 'an entry on page 0 lands on the cover, printed on its front');
+
+    echo "editor: the book's environment (content schema 2.8)\n";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => false]], $editor);
+    check($status === 200 && $data['environment'] === ['world' => 'cafe', 'onionSky' => false], 'PUT environment');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=3', null, $editor);
+    [, $draftNow] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check(($draftNow['book']['environment'] ?? null) === ['world' => 'cafe', 'onionSky' => false], 'the draft carries the environment');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'moon', 'onionSky' => true]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-environment', 'an unknown world is refused');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe']], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-environment', 'onionSky is required');
+    [$status] = call($api, 'PUT', '/editor/books/osct/environment', ['world' => 'cafe'], $editor);
+    check($status === 400, 'the body needs environment');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => null], $editor);
+    check($status === 200 && !isset($data['environment']), 'environment: null removes it – the default applies');
+
+    echo "editor: publish to bunny (test double)\n";
+    $storagePort = freePort();
+    $bunnyDir = "$tmp/bunny";
+    $testLog = [1 => ['file', sys_get_temp_dir() . '/osct-api-test.log', 'a'], 2 => ['file', sys_get_temp_dir() . '/osct-api-test.log', 'a']];
+    $processes[] = proc_open([PHP_BINARY, '-S', "127.0.0.1:$storagePort", __DIR__ . '/fake-storage.php'], $testLog, $pipes, __DIR__, ['STORAGE_DIR' => $bunnyDir, 'STORAGE_KEY' => 'zone-key'] + getenv());
+    for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $storagePort); $i++) usleep(100000);
+    $bunny = ['CONTENT_STORE' => 'bunny', 'BUNNY_STORAGE_ZONE' => 'osct', 'BUNNY_STORAGE_ENDPOINT' => "http://127.0.0.1:$storagePort", 'BUNNY_STORAGE_PASSWORD' => 'zone-key'];
+    $bunnyApi = startApi($bunny + $settings);
+    [$status, $data] = call($bunnyApi, 'POST', '/editor/books/osct/publish', ['env' => 'staging'], $editor);
+    check($status === 200 && is_file("$bunnyDir/osct/staging/{$data['build']}/game.config.json") && is_file("$bunnyDir/osct/staging/{$data['build']}/files.json"), 'staging goes to the storage zone: osct/staging/<build>/');
+    $latest = json_decode((string) @file_get_contents("$bunnyDir/osct/staging/latest.json"), true);
+    $versions = json_decode((string) @file_get_contents("$bunnyDir/osct/staging/versions.json"), true);
+    check(($latest['build'] ?? null) === $data['build'] && count($versions ?? []) === 1 && $versions[0]['build'] === $data['build'] && $versions[0]['retiredAt'] === null, 'latest.json and versions.json on the zone');
+    [$status] = call($bunnyApi, 'GET', '/content/staging/latest.json');
+    check($status === 404, 'nothing local for staging on a bunny host');
+    [$status, $data] = call($bunnyApi, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200 && is_file("$storeDir/local/{$data['build']}/game.config.json"), 'the environment local stays in the local store');
+    $wrongKey = startApi(['BUNNY_STORAGE_PASSWORD' => 'wrong'] + $bunny + $settings);
+    [$status, $data] = call($wrongKey, 'POST', '/editor/books/osct/publish', ['env' => 'production'], $editor);
+    check($status === 502 && $data['error']['code'] === 'content-store-failed', 'a refused upload → 502 content-store-failed');
+
     echo "deploy keeps the data\n";
     foreach (glob(dirname(__DIR__) . '/api/db/schema.*.sql') as $schema) {
         check(!preg_match('/\b(DROP|TRUNCATE)\b|^\s*DELETE\b/im', (string) file_get_contents($schema)), basename($schema) . ' only adds (no DROP / TRUNCATE / DELETE)');
@@ -227,6 +730,8 @@ try {
     check($status === 200 && $data['user']['email'] === 'reader@example.com', 'migrate again (as every deploy does): users and sessions still there');
     [, $data] = call($api, 'GET', '/progress/osct', null, $session);
     check(($data['record']['consulted']['e1'] ?? null) === 5, 'migrate again: progress still there');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 200 && count($data['spreads']) === 4, "migrate again: the editor's book still there (its two spreads and the covers)");
 
     [$status] = call($api, 'POST', '/auth/password', ['email' => 'reader@example.com', 'password' => 'final password']);
     check($status === 200, 'migrate again: the password still signs in');

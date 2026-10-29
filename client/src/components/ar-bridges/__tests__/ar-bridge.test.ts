@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ArSceneEvents, ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
+import { getPreparedWindow } from "@engine/utils/prepared-spreads";
+import { targetWithVideo } from "@/test/content-fixtures";
 
 const { ArBridge } = await import("../ar-bridge");
 
@@ -19,6 +21,13 @@ class FakeArScene implements IArScene {
   celebrated: string[] = [];
   async dispose() { this.disposed = true; }
   celebrate(targetId: string) { this.celebrated.push(targetId); }
+  async refresh() {}
+  sampleColor() { return null; }
+  inspect() { return null; }
+  overrides: Array<[string, unknown]> = [];
+  overrideEntity(targetId: string, entity: unknown) { this.overrides.push([targetId, entity]); }
+  overridePasses() {}
+  setPostProcessing() {}
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]) {
     const list = this.listeners.get(event) ?? [];
     list.push(listener);
@@ -33,7 +42,9 @@ class FakeArScene implements IArScene {
 
 describe("<ar-bridge>", () => {
   const game = GameStoreService.getInstance();
-  const [spread1, spread2] = getSpreads();
+  // A spread with AR content (the tests celebrate an entity) and any other spread to switch to
+  const spread1 = getSpreads().find(s => s.id === targetWithVideo().target.spreadId)!;
+  const spread2 = getSpreads().find(s => s.id !== spread1.id)!;
   let scene: FakeArScene;
   let bridge: HTMLElement;
 
@@ -144,10 +155,10 @@ describe("<ar-bridge>", () => {
     expect(check).toHaveBeenCalled();
   });
 
-  it("preloads the neighbours once a spread is ready", () => {
-    const preload = vi.spyOn(PreloaderService.getInstance(), "preloadNeighbours").mockResolvedValue([]);
+  it("preloads the content of the window the tracker holds once a spread is ready", () => {
+    const preload = vi.spyOn(PreloaderService.getInstance(), "preloadSpreads").mockResolvedValue([]);
     scene.emit("ready", spread1.id);
-    expect(preload).toHaveBeenCalledWith(spread1.id);
+    expect(preload).toHaveBeenCalledWith(getPreparedWindow(spread1.id).map(spread => spread.id));
   });
 
   it("disposes the scene and stops listening when removed", () => {

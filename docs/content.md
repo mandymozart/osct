@@ -1,8 +1,10 @@
 # Content guide
 
 How the book's content is organised for the app – for artists, designers and editors.
-Everything the app shows comes from the `content/` folder: small text files (YAML) plus the media
-next to them. No code is involved.
+Everything the app shows comes from the content folder (`content/` below): small text files (YAML) plus the media
+next to them. No code is involved. The book's content folder is not in the app repository – it lives in a folder
+of its own that `OSCT_CONTENT_DIR` names ([content on the CDN](content-cdn.md)); the repository has a small test
+fixture with the same layout (`fixtures/content/`).
 
 ## The idea in five words
 
@@ -142,7 +144,7 @@ the defaults). Today there is one filter type:
 Tips: raise `threshold` in small steps (0.02) until the background is gone; if edges look hard, raise
 `softness`. A black key also makes very dark parts of the picture see-through – keep the subject lighter
 than the background. The content build checks every value and names the file and parameter if one is off.
-Example with all parameters: `content/entries/edge/entry.yaml`.
+Example with all parameters: `fixtures/content/entries/edge/entry.yaml`.
 
 **A 3D model on a printed image:**
 
@@ -176,6 +178,12 @@ half the image's width; videos and images lie flat on the image, as wide as it.
 
 Each value you leave out keeps its default, so `rotation` alone is enough to turn a model.
 
+**Tuning placement and filters:** the [editor](editor.md) (`/editor`) shows the spread on a simulated page and has a
+field for every placement value and every filter parameter – the names are three.js's (`position.x`, `rotation.y`,
+`scale`; rotation in degrees). Changes show on the stage at once; **Save** writes them to the instance's database and
+**Publish** makes a content version of the draft. The content source in git is imported into the editor, not written
+by it: carry a saved value back into `entry.yaml` (or the shared `entity.yaml`) when the source should keep it.
+
 **Unlock and consult:** finding a target for the first time unlocks its entry – "New entry unlocked"
 appears, AR content (model, video, image) pops, turns once and sparkles on the page. Tapping the found
 image or the AR content opens the entry – from then on it counts as consulted.
@@ -201,11 +209,182 @@ body: Light plays a role in architecture.
 media: https://www.youtube.com/watch?v=…
 ```
 
+**Components** (content schema 2.2, the first piece of the plugin API): a node may carry
+`components: [{ type, ...parameters }]`, each applied to it by the engine; every type is defined once in
+`shared/types/components.ts` with its parameters, so the editor's panel, the build and the guard read one
+definition. The first type is **`animation`** on a model: which glTF clip plays (`clip`, empty = the first), when it
+starts (`playOn: found | tap | never`), when it stops (`stopOn: lost | never`), whether it loops (`loop`) and its
+`speed`. Without the component every clip of the model plays in a loop, as before.
+
+```yaml
+target:
+  image: images-040.jpg
+  entity:
+    type: model
+    src: fox.glb
+    components:
+      - type: animation
+        clip: Run
+        playOn: tap        # the reader taps the fox and it runs
+        loop: false
+```
+
+**Plugins – the book's own code** (content schema 2.4, `agents/research/2026-10-29-code-in-the-editor.md`): a
+folder `content/plugins/<id>/` with an `index.ts` that exports `register(api)`. The content build type-checks it
+against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin imports nothing but types – three.js is
+`api.three`), runs it once to learn what it registers, and declares it in the configuration (`plugins: [{ id, src,
+api }]`); the reader loads it with the AR scene. What a plugin registers is used in the content like `animation`:
+
+- `api.registerComponent(type, spec, apply)` – code on a node. `spec` = `{ description, nodeTypes?, params }` with
+  every parameter's `kind` (`number` with `min` / `max`, `color`, `choice` with `options`, `boolean`, `string`),
+  `default` and `description` – the editor's Entity panel shows the rows from it. `apply({ node, params, object,
+  placed, target, three })` runs when the node is built and returns hooks: `update(delta)` every frame, `onFound`,
+  `onLost`, `onTap`, `onPause`, `dispose`, `tune(params)` (new values in place; `false` = build the node anew).
+- `api.registerLayer(type, spec, { glsl })` – a **material layer**: GLSL on every pixel of a video, image or text
+  plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
+  `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
+  in the spec's order (`number` / `boolean` → `float`, `color` → `vec3`, `choice` → `int`, the index in its options).
+- **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
+  `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
+  book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
+  persisted with the reader's progress), `api.progress` (read-only: `unlocked`, `consulted`, `completion`, `counts`),
+  `api.spread` (the current spread); the component context's `children` and the hook `onUnlocked`. The reader hands
+  the engine its progress through `ArSceneOptions.progress`, the editor its simulation.
+- The editor's **Code** tab ([editor](editor.md)) runs a plugin on its stage without a build; readers get only what
+  the build compiled. The fixture's `plugins/tint` is the template; [plugins](plugins.md) is the guide for writing
+  one, the **demo book** `fixtures/demo/` (built with `OSCT_CONTENT_DIR=fixtures/demo`) the sandbox that uses all of
+  it. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
+  above 256 KB.
+
+```yaml
+# content/plugins/tint/index.ts registers the layer "tint" (color, opacity, blend) – used like a component:
+target:
+  image: images-031.jpg
+  entity:
+    type: video
+    src: screen.mp4
+    components:
+      - type: tint
+        color: "#f3cc94"
+        opacity: 0.35
+```
+
+**The covers** (content schema 2.3): a spread has a **format** – `spread` (a double page, the default), `cover`
+(the front cover) or `back` (the back cover). The covers have no page number: the cover spread is **page 0**, the
+back spread the page after the last printed one; an entry on that page belongs to it. Its targets are printed on the
+surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
+any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
+
+**Environment** (content schema 2.8): `book.yaml` may set `environment: { world: cafe, onionSky: true }` – the world
+around the reader while scanning and the onion sky (docs/look-around.md). Book-level only; without it the café with
+the onion sky applies. The reader's Graphics switches still apply on top, so the content never turns on what the reader
+has off. The editor saves it on the book page (`PUT /editor/books/{id}/environment`).
+
+**Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
+whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
+`passes` too: they apply to every spread without a list of its own (`passes: []` on a spread turns them off there).
+Every built-in type is defined once in `shared/types/passes.ts` with its parameters, so the editor's Stage panel,
+the build and the guard read one definition; missing parameters take the defaults. A spread without passes costs
+nothing – the scene renders straight to the canvas as before.
+
+| Type | What it does | Parameters |
+|---|---|---|
+| `bloom` | Bright parts glow: the part of the image above `threshold` is blurred and added back as light – over the camera picture too. | `strength` 0–3 (1), `radius` 0–1 (0.4), `threshold` 0–1 (0.85; 1 = only brighter than white) |
+| `vignette` | The edges fade to a colour – the AR layer and the camera picture alike. | `strength` 0–1 (0.6), `radius` 0–1.5 (0.6, 1 = the sides), `softness` (0.6), `color` (#000000) |
+| `grade` | Colour grading of the AR layer only (the camera picture lies under the canvas and keeps its colours). | `exposure` −2…2 EV (0), `contrast` 0–2 (1), `saturation` 0–2 (1), `tint` (#ffffff = none) |
+
+```yaml
+# content/spreads/studio-b/spread.yaml
+title: Studio B – videos
+firstPage: 30
+lastPage: 31
+passes:
+  - type: bloom
+    strength: 0.8
+    threshold: 0.7
+```
+
+A pass of the book's own – a shader Kévin writes – registers with the engine's pass registry
+(`registerPass(type, spec, factory)`, `engine/src/scene/post/registry.ts`): the factory gets the resolved parameters,
+three.js and `ShaderPass`, and returns a three `Pass` over the composer's buffers. The buffer holds the AR layer as
+premultiplied colour over alpha, in linear RGB, nothing of the camera picture: a pass keeps a texel's alpha unless it
+means to shade the camera picture too. The plugin API of the code editor ([editor](editor.md)) exposes the registry
+as `api.registerPass(type, spec, factory)`: the plugin's pass runs in the engine and leaves with the plugin. The content
+build and the guard still accept only the built-in pass types, so a spread cannot name a plugin's pass yet (#97).
+
+```yaml
+# content/spreads/cover/spread.yaml
+title: Cover
+order: -1
+firstPage: 0
+lastPage: 0
+format: cover
+```
+
+**Where a target is printed** (`print`, optional, content schema 2.1): targets made in the editor carry their
+printed place – `surface: left | right` (the pages of a double page) or `front | back` (the covers), `x`, `y`, `width` in mm from the
+surface's top left corner, optional `height` and `page` – so the editor's stage lays them out without the book's
+layout. The content build does not need it.
+
 **Several targets on the same page:** one entry each – there is no order to keep and nothing to
 compile (max 10 targets per spread). An older `order:` under `target` is ignored.
 
-**AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` and refer to
-it with `ref`:
+**An entity is a tree of nodes** (content schema 2.0): the node under `entity:` is the **root**, it sits on the
+target (1 unit = the target's width); every node may hold `children`, each placed by its own `params` **relative
+to its parent**, as deep as you like (8 levels at most). Node types: `model`, `video`, `image` (a file, `src`),
+`text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced), `light` (a light,
+below) and `group` (nothing of its own, it only holds children – move or scale the whole tree by its params). One
+node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node).
+
+**A light** (`type: light`, content schema 2.6) lights the entity it belongs to – under a group or a model it moves
+with it; the scene's own ambient light and sun stay. Its values are under `light:` (every one optional):
+
+| `light` value | Values | Default | What it does |
+|---|---|---|---|
+| `kind` | `point`, `spot`, `directional` | `point` | A point light shines in every direction from the node; a spot in a cone, a directional light as parallel rays (the sun) – both along the node's own **−z**, so turn the node (`rotation`) to aim them. By default a light sits half a unit along its parent's +z (`position: [0, 0, 0.5]`: above the page for a root or a group, in front of a model, whose +z points towards the reader), pointing back at it |
+| `color` | `#rrggbb` | `#ffffff` | The light's colour |
+| `intensity` | 0 … 10 | `0.25` | How bright, in the node's units – whatever the target's printed size (the engine scales it to the world): a point or spot light of 1 lights a surface one target width away fully (a white page turns white; more clips, the reader has no tone mapping), half as far away four times as much; a directional light of 1 lights every surface fully |
+| `distance` | 0 … 5 target widths | `0` | How far a point or spot light reaches; 0 = no limit |
+| `decay` | 0 … 4 | `2` | How fast a point or spot light dims with the distance (2 = physical) |
+| `angle` | 1 … 90° | `30` | The spot's cone: half the opening angle |
+| `penumbra` | 0 … 1 | `0.1` | The spot's soft edge: 0 = hard, 1 = the whole cone fades |
+
+Lights cast no shadows. They appear and disappear with the entity (the reveal and the outro fade them). The editor
+draws a small helper for every light (a bulb, the cone or the rays – Blender's); the reader shows only the light.
+
+```yaml
+target:
+  image: images-029.jpg
+  entity:
+    type: group
+    params:
+      position: [0, 0.1, 0]       # the whole tree, a little towards the top
+    children:
+      - type: model
+        src: tree.glb
+        params:
+          rotation: [90, 45, 0]
+          position: [0, 0, 0.1]  # relative to the group
+          scale: 0.7
+      - type: text
+        text: "{{entry.title}}"
+        color: "#f3cc94"
+        params:
+          position: [0, -0.45, 0.01]
+          scale: 0.8
+      - type: light                # an orange spot from the right, aimed at the tree (−z turned 45° about y)
+        light:
+          kind: spot
+          color: "#ff9a3c"
+          intensity: 0.3
+          angle: 35
+        params:
+          position: [0.4, 0, 0.6]
+          rotation: [0, 45, 0]
+```
+
+**AR content used by several entries:** put it in `content/entities/<id>/entity.yaml` (the root node; its
+`children` as above, files next to it) and refer to it with `ref`:
 
 ```yaml
 # content/entities/castle/entity.yaml
@@ -299,14 +478,39 @@ message when something is wrong, e.g.:
 ```
 entries/old-castle: file "images-022.jpg" not found in content/entries/old-castle/
 entries/ancient-tree: Field 'category' in entry must be one of: glossary, video, text, link
-spreads/spread1 has 6 targets, max is 5.
+spreads/spread1 has 11 targets, max is 10.
 ```
 
 Then look at the result in the app – see the quick start in the [README](../README.md).
 
+## Schema and app versions
+
+The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
+(`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
+every MINOR of its schema MAJOR; a content file of another MAJOR is refused at startup. This table names, per schema,
+the app version that first ships it. The last row is the current schema (a test checks that it matches
+`CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
+
+| Schema | First app version | Status | What the schema adds |
+|---|---|---|---|
+| 1.1 | 1.7.6 | released | content on the CDN |
+| 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 |
+| 2.0 | 1.10.0 | unreleased | the entity as a tree of nodes |
+| 2.1 | 1.10.0 | unreleased | print placement of targets (`print`) |
+| 2.2 | 1.10.0 | unreleased | components (animation) |
+| 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
+| 2.4 | 1.11.0 | in develop | plugins – the book's own code, compiled by the content build (plugin API 1.0) |
+| 2.5 | 1.12.0 | in develop | post-processing passes |
+| 2.6 | 1.13.0 | in develop | light nodes: point, spot and directional lights as a node type |
+| 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
+| 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
+
+Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
+bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
+
 ## Content build
 
-`scripts/` checks `content/` and turns it into the files the app loads.
+`scripts/` checks the content source (`OSCT_CONTENT_DIR`) and turns it into the files the app loads.
 
 ### Quick start
 
@@ -316,8 +520,8 @@ npm install     # once
 npm start       # build the tool, then the content
 ```
 
-Commit what changed in `content/`, `client/src/game.config.json` and `client/public/assets/content/`
-– the checks on GitHub fail when they don't match.
+The output (below) is not in git: every app build runs the content build first (`npm run build` in `client/`),
+unless the build reads the content from the CDN ([content on the CDN](content-cdn.md)).
 
 ### Commands
 
@@ -330,25 +534,132 @@ Run in `scripts/`:
 | `npm test` | Run the tests |
 | `npm run build` | Rebuild the tool after changing `scripts/src/` |
 | `npm run sounds` | Generate the placeholder app sounds |
+| `npm run import -- <delivery folder> import/<name>.yaml` | Import a publisher's delivery into `content/` (below) |
+| `npm run protocol -- import/<name>.yaml` | Write the printed-image details for the trigger trial panel (below) |
+
+### Importing a delivery
+
+A publisher's delivery (folders of printed images, entry images and videos) goes into `content/` through a
+**mapping file** in `scripts/import/` – one per delivery, e.g. `import/2110.yaml` for the trial content of
+October 2026. The mapping says, per entry id, what the entry is and which delivered file is what:
+
+```yaml
+entries:
+  p038-1:
+    category: glossary
+    title: "p. 38 · 1"                # placeholder until the texts arrive
+    page: 38
+    target: glossary/P38_Print_01.jpg   # the image as printed → target.jpg
+    image: glossary/P38_Online_01.jpg   # the entry image → image.jpg
+    video: documentation/P38.mov        # AR video on the target → video.mp4 (optional)
+    printed: { width: 44, height: 26, position: top left }   # mm – only for the protocol
+    note: "anything the editors should know"
+```
+
+```bash
+cd scripts
+npm run import -- "C:/path/to/delivery" import/2110.yaml
+```
+
+What it does: every image becomes a JPEG (targets ≤ 1600 px, entry images ≤ 1600 px, transparency flattened
+on white), every video is re-encoded with ffmpeg (H.264 MP4, long side ≤ 1280 px, ~2 Mbit/s, AAC – ffmpeg
+has to be installed), `entry.yaml` is written with placeholder texts and the note as a comment, and a spread
+is created for every pair of facing pages that has an entry (`s038-039`, title "38–39"). Media is rewritten
+when the delivered file is newer; **`entry.yaml` and `spread.yaml` are never overwritten** – edit them
+freely and run the import again when the next delivery comes. Problems (a file missing, ffmpeg failing, a
+video without a target) are listed at the end.
+
+The mapping of a delivery is made by hand or with a script – for 2110 the printed images were matched
+against the trigger layout PDF (`All_Triggers.pdf`) by page and appearance, the link screenshots have no
+page in their file names. Files the delivery contains but the book does not place are listed in a comment at
+the top of the mapping.
+
+`fixtures/content/` is the placeholder content from before the first delivery, slimmed down to a test fixture
+(every entity type, chroma key and alpha video, shared entities; small images, two-second videos, one stand-in
+model): build it with `OSCT_CONTENT_DIR=fixtures/content npm run build:content:force`. CI and the tests build it,
+and `osct content sync` refuses it (`FIXTURE.md` marks it). The full-size placeholder content is kept next to the
+book content source (`content-demo/` there).
+
+### Importing the book layout
+
+The editor's stage ([Editor](editor.md)) shows the book as laid out when the content carries the **layout**: every
+sheet of the book as an image and every printed target's position and size. It comes from the designed PDFs –
+the preview of the whole book (every sheet, covers as single pages) and the trigger layout (one page per double
+page, each printed trigger as an image where it is printed):
+
+```bash
+cd scripts
+npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content ../content
+```
+
+`scripts/layout/extract-layout.py` (Python 3 with PyMuPDF – an external tool like ffmpeg) renders every sheet
+to `<content>/layout/sheets/*.jpg` (1200 px wide) and, next to each, a much sharper `<sheet>@sharp.jpg` (`--sharp-width`, 4096 px for a double page, 0 = none; the editor fetches it only when the camera is close to the page) and writes `<content>/layout/layout.json`: the page format in mm,
+the sheets (kind `spread`, `cover-front`, `cover-back`, front and back matter; their book pages read from the page
+numbers printed at the foot), and per target its page, surface (`left` / `right`), `x`, `y`, `width`, `height` in
+mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)
+by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed (the
+trial delivery has ten targets that are not on the printout). The content build copies `layout/` with the rest of
+the content; the folder is generated and git-ignored. Run it again when the PDFs change, and rebuild the content
+with `--force` (the layout is not part of the build hash).
+
+### Videos are not in git
+
+The imported entry videos (`content/entries/<id>/video.mp4`) are git-ignored – they are large and come to the servers
+through the CDN sync: `osct content sync` uploads whatever the local content build holds, videos included
+([content on the CDN](content-cdn.md); #15). Keep them in the local `content/` folder: the local build uses them. A build on a machine without them (CI, a deploy, a fresh clone) prints a warning per missing video and builds
+those targets without their AR video.
+
+### Trigger test protocol
+
+The checklist for a test with the printed book (or the trigger printout) is in the app: debug overlay → **trial**
+(dev server and staging; *trial* again or × closes it). A strip flush with the bottom of the screen shows every
+target as a thumbnail in a fixed order – the order of the printout, with its running number (the same numbers as the
+tester printouts of trial 2; targets not on the printout are dimmed, "not printed"). Nothing moves: a found one gets
+a green frame and a ✓, the one in view a yellow frame, the current spread's a white frame, and the strip scrolls smoothly to
+the current spread when it changes. While the trial is open the engine holds the current spread and its neighbours
+(±1, no growing window), so scanning the next image on the sheet switches the spread by itself; closing restores
+the window setting. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to
+make it taller or lower. A camera line under the bar shows the lens, resolution, focus and zoom the trial runs with –
+feedback only, the trial uses the app's camera defaults; the md report records it (the test switches are in the
+debug overlay's camera panel, `docs/tracking.md` "Camera"). The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
+(debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their
+printed image, then the found ones – to forward to the designers.
+
+The runs so far, with their results per device, are in [trigger-tests/](trigger-tests/README.md).
+
+The printed-image details come from the delivery mapping:
+
+```bash
+cd scripts
+npm run protocol -- import/2110.yaml       # → client/public/trigger-protocol.json
+```
+
+Run it after an import (the file is committed and served at `/trigger-protocol.json`); the panel works without
+it, then without file names and sizes.
 
 ### What it writes
 
 | Where | What |
 |---|---|
-| `client/src/game.config.json` | Everything the app needs to know about the book |
-| `client/public/assets/content/` | The content media, optimised |
+| `client/src/game.config.json` | Everything the app needs to know about the book (not in git) |
+| `client/public/assets/content/` | The content media, optimised, and every plugin's compiled `plugin.js` next to its source (not in git) |
 
 ### Folders
 
 ```
 scripts/
 ├── src/            everything in TypeScript, bundled into dist/ by `npm run build`
-│   ├── index.ts    the content build: start
-│   ├── config.ts   all folders and limits
-│   ├── build/      content build parts: book, spreads, entities, entries, targets, tutorial
-│   ├── lib/        shared helpers: reading content, files, hash, checks, media
-│   └── sounds.ts   placeholder app sounds
-└── test/           tests (npm test)
+│   ├── index.ts            the content build: start
+│   ├── config.ts           all folders and limits
+│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial, plugins
+│   ├── lib/                shared helpers: reading content, files, hash, checks, media, storage, sync
+│   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
+│   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)
+│   ├── protocol.ts         `npm run protocol` – printed-image details for the trigger trial panel
+│   ├── schema-lock.ts      `npm run schema:lock` – locks shared/ to the content schema
+│   └── sounds.ts           placeholder app sounds
+├── import/                 one mapping file per delivery
+└── test/                   tests (npm test)
 ```
 
 The shape of `game.config.json` is defined in `shared/types/game-config.ts`.

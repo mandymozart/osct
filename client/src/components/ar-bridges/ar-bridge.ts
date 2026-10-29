@@ -2,6 +2,8 @@ import { GameStoreService, PreloaderService } from "@/services";
 import { ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, GameMode, IArScene, IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
+import { reportArError } from "@engine/utils/camera-debug";
+import { getPreparedWindow } from "@engine/utils/prepared-spreads";
 import { getSceneState } from "./utils/scene-state";
 
 /** Delay after startup before the AR chunk and the current spread are preloaded in idle time */
@@ -10,10 +12,11 @@ const WARM_UP_DELAY_MS = 1500;
 /**
  * <ar-bridge>: the only link between the game store and the AR scene.
  *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (policy in scene-state.ts).
- *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → neighbour preload.
+ *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → content preload of the
+ *   spreads kept ready next to the current one (the same window the tracker holds, `prepared-spreads.ts`).
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
- * tapping an entity opens its entry. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first scan,
- * warmed up in idle time after startup); tests inject one via `sceneFactory`.
+ * tapping an entity opens its entry. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first
+ * scan, warmed up in idle time after startup); tests inject one via `sceneFactory`.
  */
 export class ArBridge extends HTMLElement {
   private game: Readonly<IGame>;
@@ -44,8 +47,8 @@ export class ArBridge extends HTMLElement {
       scene.on("spreadSeen", id => {
         if (this.game.state.mode === GameMode.SCAN && id !== this.game.state.currentSpread) this.game.spreads.switchSpread(id);
       }),
-      // The spread is tracked: fetch the neighbours' target images + content into the browser cache
-      scene.on("ready", spreadId => void PreloaderService.getInstance().preloadNeighbours(spreadId)),
+      // The spread is tracked (or its window changed): fetch the window's target images + content into the cache
+      scene.on("ready", spreadId => void PreloaderService.getInstance().preloadSpreads(getPreparedWindow(spreadId).map(spread => spread.id))),
       game.subscribeToProperty("currentSpread", id => {
         if (id) void scene.load(id);
       }),
@@ -113,6 +116,7 @@ export class ArBridge extends HTMLElement {
   }
 
   private handleStatus(status: ArStatus, error?: string) {
+    reportArError(status === "error" ? error ?? "unknown" : null);
     this.game.setArStatus(status);
     // The 3D layer shows while AR runs (main.css: body.scene-active #scene)
     document.body.classList.toggle("scene-active", status === "running");

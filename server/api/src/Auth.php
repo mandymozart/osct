@@ -12,6 +12,22 @@ final class Auth
     /** The sign-up options (the progress is always kept – it can be reset in the app) */
     public const OPTIONS = ['bookUpdates' => 'book_updates', 'artistUpdates' => 'artist_updates', 'publisherUpdates' => 'publisher_updates'];
 
+    /**
+     * The hourly limit on emails per address / per IP: seconds until the next request is allowed, 0 = allowed now.
+     * A limit of -1 means no limit (local testing – `config.local.php.example`).
+     */
+    private static function retryAfter(string $column, string $value, string $setting): int
+    {
+        $limit = Config::limit($setting);
+        if ($limit === PHP_INT_MAX) return 0;
+        $hourAgo = Db::now(-3600);
+        $count = (int) Db::value("SELECT COUNT(*) FROM login_requests WHERE $column = :value AND created_at > :since", ['value' => $value, 'since' => $hourAgo]);
+        if ($count < $limit) return 0;
+        // The window opens again when the oldest request in it is an hour old
+        $oldest = (string) Db::value("SELECT MIN(created_at) FROM login_requests WHERE $column = :value AND created_at > :since", ['value' => $value, 'since' => $hourAgo]);
+        return max(1, (int) strtotime($oldest . ' UTC') + 3600 - time());
+    }
+
     /** POST /auth/request { email, language?, options? } → 202 { requestId, expiresAt } */
     public static function request(array $body): never
     {
@@ -23,10 +39,11 @@ final class Auth
 
         // Housekeeping: requests are only needed while they can be confirmed (and for the hourly limits)
         Db::run('DELETE FROM login_requests WHERE created_at < :before', ['before' => Db::now(-86400)]);
-        $hourAgo = Db::now(-3600);
-        if ((int) Db::value('SELECT COUNT(*) FROM login_requests WHERE email = :email AND created_at > :since', ['email' => $email, 'since' => $hourAgo]) >= Config::int('LOGIN_MAX_PER_EMAIL_HOUR')
-            || (int) Db::value('SELECT COUNT(*) FROM login_requests WHERE ip_hash = :ip AND created_at > :since', ['ip' => $ipHash, 'since' => $hourAgo]) >= Config::int('LOGIN_MAX_PER_IP_HOUR')) {
-            throw new ApiError(429, 'too-many-requests', 'Too many emails requested – try again later.');
+        $retryAfter = max(self::retryAfter('email', $email, 'LOGIN_MAX_PER_EMAIL_HOUR'), self::retryAfter('ip_hash', $ipHash, 'LOGIN_MAX_PER_IP_HOUR'));
+        if ($retryAfter > 0) {
+            $minutes = (int) ceil($retryAfter / 60);
+            header('Retry-After: ' . $retryAfter);
+            throw new ApiError(429, 'too-many-requests', "Too many emails requested – try again in $minutes " . ($minutes === 1 ? 'minute' : 'minutes') . '.', ['retryAfter' => $retryAfter]);
         }
 
         $id = Db::uuid();
@@ -76,7 +93,7 @@ final class Auth
         if ($request['used_at'] !== null) throw new ApiError(410, 'already-used', 'This link or code was used already.');
         if ($request['expires_at'] < Db::now()) throw new ApiError(410, 'expired', 'This link or code has expired.');
         if (!$byLink) {
-            if ((int) $request['attempts'] >= Config::int('LOGIN_MAX_ATTEMPTS')) {
+            if ((int) $request['attempts'] >= Config::limit('LOGIN_MAX_ATTEMPTS')) {
                 throw new ApiError(429, 'too-many-attempts', 'Too many wrong codes – request a new email.');
             }
             if (!hash_equals($request['code_hash'], self::codeHash($request['id'], $code))) {
@@ -102,13 +119,14 @@ final class Auth
                     ['id' => $id, 'email' => $request['email'], 'language' => $request['language'],
                      'bu' => $request['book_updates'], 'au' => $request['artist_updates'], 'pu' => $request['publisher_updates'], 'now' => $now, 'now2' => $now, 'now3' => $now]
                 );
+                Roles::grant($id, Roles::READER, 'signup');
                 $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $id]);
                 $created = true;
             }
             return [$user, $created, self::createSession($user['id'], 'email')];
         });
 
-        Http::json(200, ['session' => $session, 'user' => Users::toJson($user), 'created' => $created]);
+        Http::json(200, ['session' => $session, 'user' => Users::toJson(Roles::grantConfigured($user)), 'created' => $created]);
     }
 
     /** POST /auth/logout → 204 (this device only) */
@@ -162,7 +180,7 @@ final class Auth
         }
         $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $session['user_id']]);
         if (!$user) throw new ApiError(401, 'unauthorized', 'Not signed in.');
-        return [$user, $session];
+        return [Roles::grantConfigured($user), $session];
     }
 
     /**

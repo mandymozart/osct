@@ -3,9 +3,6 @@
     "target": "es2020",
     "module": "esnext",
     "lib": ["es2020", "dom"],
-    "declaration": true,
-    "declarationDir": "./dist",
-    "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -22,14 +19,17 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/*": ["../shared/*"]
+      "@shared/*": ["../shared/*"],
+      "@engine/*": ["../engine/src/*"],
+      "vitest": ["./node_modules/vitest"]
     }
   },
   "include": [
     "src/**/*.ts", 
     "src/**/*.d.ts",
     "src/types/env.d.ts",
-    "../shared/**/*.ts"
+    "../shared/**/*.ts",
+    "../engine/src/**/*.ts"
   ],
-  "exclude": ["./node_modules", "**/*.spec.ts"]
+  "exclude": ["./node_modules"]
 }

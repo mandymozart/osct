@@ -1,0 +1,8 @@
+# Shared showcase entity: a tall tree, turned a quarter, lifted off the page – used by two targets.
+type: model
+assets:
+  - src: tree.glb
+params:
+  rotation: [90, 90, 0]
+  position: [0, 0, 0.05]
+  scale: 0.9

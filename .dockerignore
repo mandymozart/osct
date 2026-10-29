@@ -1,0 +1,22 @@
+# Only what the image needs: the shared types, the content build, the app and server/
+# (docs, agents, workflows, local files and every build output stay out – the image builds its own).
+*
+!client/
+!scripts/
+!shared/
+!server/api/
+!server/deploy/migrate.php
+!server/deploy/mail-test.php
+!server/docker/
+
+# Build output and local state are rebuilt or belong on the host
+**/node_modules
+**/dist
+**/coverage
+client/src/game.config.json
+client/public/assets/content/
+client/.env.local
+server/api/config.local.php
+server/api/db/*.sqlite
+server/api/db/*.log
+**/.DS_Store

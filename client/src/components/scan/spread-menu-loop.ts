@@ -13,8 +13,9 @@ import { getSpreads } from "@/utils/game-config";
 export const getMenuSpreads = (): Spread[] => getSpreads().filter(s => s.targets.length > 0);
 
 /** "20–21" (en dash); a single page as "20" */
-export const formatPages = (spread: Pick<Spread, "firstPage" | "lastPage">): string =>
-  spread.firstPage === spread.lastPage ? `${spread.firstPage}` : `${spread.firstPage}–${spread.lastPage}`;
+export const formatPages = (spread: Pick<Spread, "firstPage" | "lastPage" | "title" | "format">): string =>
+  spread.format === "cover" || spread.format === "back" ? spread.title
+    : spread.firstPage === spread.lastPage ? `${spread.firstPage}` : `${spread.firstPage}–${spread.lastPage}`;
 
 /** Odd number of copies so that one full viewport of items exists on both sides of the middle copy */
 export const loopCopies = (copyWidth: number, viewportWidth: number): number => {

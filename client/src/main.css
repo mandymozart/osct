@@ -14,9 +14,9 @@
   --font-design: Arial, Helvetica, sans-serif;
   --tracking-design: 0.02em;
   --text-size: 0.9375rem;
-  --text-size-small: 0.8125rem;    /* hints, instructions */
+  --text-size-small: 0.8125rem;
   --text-line: 1.25;
-  --row-height: 1.5rem;            /* table and list rows */
+  --row-height: 1.5rem;
 
   /* Gold is always this gradient, clipped to the text, left → right per element (DESIGN.md §1) */
   --gold-1: #f5e7c8;
@@ -35,7 +35,6 @@
 
   --app-background: #000;
   --consultation-background: rgba(0, 0, 0, 0.82);
-  /* Startup and spread switch */
   --loading-background:
     radial-gradient(ellipse 60% 55% at 50% 50%, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.82) 100%);
   /* farthest-corner: the gradient must reach the corners, or a grey base shows there */
@@ -45,13 +44,13 @@
   /* Glass buttons: alpha must stay non-zero, otherwise backdrop-filter does not blur */
   --glass-background: rgba(255, 255, 255, 0.001);
   --glass-blur: blur(0.625rem);
-  --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);   /* menu highlight */
-  --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);  /* primary onboarding buttons */
-  --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);  /* pills and "i" */
-  --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);   /* open category menu */
-  --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);  /* secondary onboarding buttons */
+  --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);
+  --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);
+  --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);
+  --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);
 
-  --category-width: 6.25rem;       /* category pill and its open menu */
+  --category-width: 6.25rem;
 
   --mark-width: 6.1875rem;
   --mark-height: 6rem;
@@ -61,6 +60,17 @@
   /* Where consultation content starts below the header: entry and Info pages / entries list (below the counter) */
   --consultation-top: calc(env(safe-area-inset-top) + 8.5rem);
   --consultation-top-counter: calc(env(safe-area-inset-top) + 10.75rem);
+
+  /* Controls (the tools' token variants switch these – styles/design-styles.ts): one height, pill corners,
+     a pressed state, a hover wash, the surfaces of sheets and panels */
+  --control-height: 2rem;
+  --control-radius: 999rem;
+  --pressed-background: rgba(255, 255, 255, 0.14);
+  --pressed-color: var(--color-on-dark);
+  --hover-background: rgba(255, 255, 255, 0.08);
+  --surface: var(--consultation-background);
+  --surface-head: rgba(0, 0, 0, 0.9);
+  --line: var(--color-muted);
 
   color-scheme: dark;              /* native scrollbars and fields */
 

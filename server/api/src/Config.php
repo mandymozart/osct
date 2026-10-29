@@ -21,6 +21,12 @@ final class Config
         'APP_URL' => 'http://localhost:5173',
         // Other origins that may call the API (comma separated, * wildcard), e.g. the staging site
         'ALLOWED_ORIGINS' => '',
+        // Roles (docs/server.md "Roles"): e-mail addresses that get the role editor when they sign in – the first editors of
+        // an instance without the admin secret; the admin page and POST /admin/editors add more at any time
+        'EDITORS' => '',
+        // Addresses that get the role admin when they sign in (docs/server.md "Roles") – the instance's first admins,
+        // who then grant roles on the admin page (/editor/admin) without the secret
+        'ADMINS' => '',
         // log = write the mails to MAIL_LOG_PATH (development), mail = PHP mail() (testing), smtp (production)
         'MAIL_TRANSPORT' => 'log',
         'MAIL_FROM' => 'no-reply@example.com',
@@ -46,7 +52,23 @@ final class Config
         'PASSWORD_MAX_FAILS_PER_IP_HOUR' => '30',
         'PASSWORD_RESET_MINUTES' => '15',
         'PROGRESS_MAX_BYTES' => '262144',
-        // Error log of the API (db/ is never served over HTTP – read it over FTP); empty = the host's log
+        // Editor (docs/server.md "Editor data"): largest request body (the import of a game configuration)
+        'EDITOR_MAX_BYTES' => '8388608',
+        // Assets uploaded in the editor (docs/server.md "Assets"): the largest file; where their URLs point
+        // (empty = the CDN's CONTENT_BASE_URL + /assets for the bunny store, this API's /content/assets for the local one)
+        'ASSET_MAX_BYTES' => '67108864',
+        'ASSET_BASE_URL' => '',
+        // Where published content versions go: local = CONTENT_STORE_DIR (served by GET /content/{env}/…), bunny =
+        // the storage zone the osct CLI syncs to (staging / production; the environment local always stays local)
+        'CONTENT_STORE' => 'local',
+        'CONTENT_STORE_DIR' => __DIR__ . '/../db/content',
+        // The reader's content CDN of this instance – `{ "source": "cdn" }` imports its current version
+        'CONTENT_BASE_URL' => '',
+        'BUNNY_STORAGE_ZONE' => '',
+        // Host name; a full http(s) origin only for a local test double
+        'BUNNY_STORAGE_ENDPOINT' => 'storage.bunnycdn.com',
+        'BUNNY_STORAGE_PASSWORD' => '',
+        // Error log of the API (db/ is never served over HTTP – read it on the server); empty = the host's log
         'LOG_PATH' => __DIR__ . '/../db/error.log',
     ];
 
@@ -66,6 +88,13 @@ final class Config
     public static function int(string $key): int
     {
         return (int) self::get($key);
+    }
+
+    /** A rate limit (emails, attempts, failures per hour): **-1 switches it off** (local testing, the codes in the mail log); 0 allows nothing */
+    public static function limit(string $key): int
+    {
+        $limit = self::int($key);
+        return $limit < 0 ? PHP_INT_MAX : $limit;
     }
 
     /** @return string[] */

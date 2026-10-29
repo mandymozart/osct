@@ -82,6 +82,9 @@ export default interface Resources {
     "notRespondingHelp": "Reload the page. If that doesn't help, close your browser completely and open it again – another app may still be using the camera.",
     "reload": "Reload page",
     "unavailable": "The camera only works over a secure connection. Open the app with https:// and try again.",
+    "unsupported": "This browser can't run the book scanner.",
+    "unsupportedIos": "Scanning needs iOS 16.4 or newer. If your iPhone can update, go to Settings → General → Software Update, then open the app again. iPhone 7, 6s and SE (1st generation) can't update that far – scanning doesn't work on them.",
+    "unsupportedOther": "Update your browser to the latest version, then open the app again.",
     "waiting": "Waiting for camera access…"
   },
   "common": {
@@ -163,8 +166,9 @@ export default interface Resources {
     "surroundingsLabel": "Scene around the book"
   },
   "startup": {
+    "contentNewer": "The book content is newer than this app. Please update the app.",
     "contentNotLoaded": "The book content could not be loaded.",
-    "contentOtherVersion": "The book content was built for another app version.",
+    "contentOlder": "The book content is older than this app. Please try again later.",
     "unknownError": "An unknown error occurred."
   },
   "tutorial": {

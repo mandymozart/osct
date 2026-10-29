@@ -10,6 +10,11 @@ export enum CameraPermissionStatus {
    * the camera; only a browser restart recovers). Set by `<ar-bridge>` when the camera start times out.
    */
   NOT_RESPONDING = 'not-responding',
+  /**
+   * The browser cannot run the image tracking: the engine needs WebAssembly SIMD (Safari from iOS 16.4). Asking for
+   * the camera would not help; the overlay asks to update iOS or the browser.
+   */
+  UNSUPPORTED = 'unsupported',
 }
 
 export interface CameraManagerState {
@@ -26,4 +31,5 @@ export interface ICameraManager {
 
   /** Sets NOT_RESPONDING after the camera start timed out */
   reportNotResponding(): void;
+
 }

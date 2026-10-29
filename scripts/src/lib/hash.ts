@@ -4,22 +4,25 @@ import path from 'path';
 import { CONTENT_DIR, OUTPUT_FILE, projectRoot, SCRIPTS_SRC_DIR } from '../config';
 import { listFiles } from './files';
 
-// The command run by hand (sounds) doesn't shape the content build's output – editing it must not force a
-// rebuild
-const COMMAND_FILES = ['sounds.ts'];
+// Commands besides the build (sounds, the osct CLI with the CDN sync, the schema lock, the delivery import and the
+// trigger protocol) don't shape the content build's output – editing them must not change the content's version
+// (a new hash = new content to sync)
+const COMMAND_FILES = [
+  'sounds.ts', 'cli.ts', 'schema-lock.ts', 'import-delivery.ts', 'protocol.ts',
+  'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts',
+];
 const isCommandFile = (file: string) => COMMAND_FILES.some(prefix => file.startsWith(prefix));
 
 // Text files get normalised line endings before hashing
 const TEXT_FILE = /\.(ya?ml|json|ts|js|md|txt|html|css)$/i;
 
 /**
- * Checksum of everything that determines the build output: content files, the build logic,
- * the shared contract and the package version. Line endings of text files are normalised so
- * Windows and Unix checkouts produce the same hash.
+ * The content's own version: checksum of everything that determines the build output – content files, the
+ * build logic and the shared contract. Not the app version: an app release does not make new content
+ * (RULES #10). Line endings of text files are normalised so Windows and Unix checkouts produce the same hash.
  */
-export function hashBuildInputs(version: string): string {
+export function hashBuildInputs(): string {
   const hash = createHash('sha256');
-  hash.update(`version:${version}\n`);
   const sharedDir = path.join(projectRoot, 'shared');
   for (const [label, dir] of [['content', CONTENT_DIR], ['scripts', SCRIPTS_SRC_DIR], ['shared', sharedDir]] as const) {
     for (const file of listFiles(dir).filter(f => !(label === 'scripts' && isCommandFile(f)))) {

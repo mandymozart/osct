@@ -44,8 +44,7 @@ final class Db
     {
         $file = __DIR__ . '/../db/' . (self::isSqlite() ? 'schema.sqlite.sql' : 'schema.mysql.sql');
         $sql = preg_replace('/^\s*--.*$/m', '', (string) file_get_contents($file));
-        $statements = array_filter(array_map('trim', preg_split('/;\s*(
-|$)/', (string) $sql)));
+        $statements = array_filter(array_map('trim', preg_split('/;\s*(\n|$)/', (string) $sql)));
         foreach ($statements as $statement) {
             if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+ADD\s+COLUMN\s+`?(\w+)`?/i', $statement, $match)
                 && self::hasColumn($match[1], $match[2])) continue;

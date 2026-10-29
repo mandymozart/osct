@@ -39,6 +39,7 @@ final class Users
             // Explicit (also where foreign keys are off)
             Db::run('DELETE FROM progress WHERE user_id = :id', ['id' => $user['id']]);
             Db::run('DELETE FROM sessions WHERE user_id = :id', ['id' => $user['id']]);
+            Db::run('DELETE FROM user_roles WHERE user_id = :id', ['id' => $user['id']]);
             Db::run('DELETE FROM login_requests WHERE email = :email', ['email' => $user['email']]);
             Db::run('DELETE FROM password_attempts WHERE email = :email', ['email' => $user['email']]);
             Db::run('DELETE FROM users WHERE id = :id', ['id' => $user['id']]);
@@ -51,11 +52,16 @@ final class Users
     {
         $options = [];
         foreach (Auth::OPTIONS as $key => $column) $options[$key] = (bool) (int) $row[$column];
+        $roles = Roles::of((string) $row['id']);
         return [
             'email' => $row['email'],
             'language' => $row['language'],
             'options' => $options,
             'hasPassword' => ($row['password_hash'] ?? null) !== null,
+            // Roles (docs/server.md "Roles"): reader for every account, editor (the editor API), admin (the admin API);
+            // `role` stays for older readers of the field – editor when the user has that role, else reader
+            'roles' => $roles,
+            'role' => in_array(Roles::EDITOR, $roles, true) ? Roles::EDITOR : Roles::READER,
             'createdAt' => gmdate('c', strtotime($row['created_at'] . ' UTC')),
         ];
     }

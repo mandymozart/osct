@@ -12,6 +12,766 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.19.3 – 2026-10-30
+
+### Fixed
+- **The cover lines up with the spreads** (#115): with a column gap a double page was wider than two single pages, so
+  the cover's sheet came out shorter. The gap is now half a gap of padding on each side of a card and none on a single
+  page's gutter side – every sheet has the same height. On hover the page image's border is highlighted instead of the
+  card's background.
+
+## 1.19.2 – 2026-10-30
+
+### Removed
+- **The book content is no longer in the repository's tree** (#5, step 3 of `docs/content-out-of-git.md`): `content/` is
+  untracked and ignored, the image no longer copies it (`Dockerfile`, `.dockerignore`), and CI no longer builds it (the
+  test fixture stays). Every build needs `VITE_CONTENT_BASE_URL` (the environment's `CONTENT_BASE_URL`); the content source
+  is `OSCT_CONTENT_DIR`. Prepares the history rewrite that removes the content and the old Claude attribution (#30).
+
+## 1.19.1 – 2026-10-30
+
+### Fixed
+- **The spread cards keep a thin border around the page image** (#115): 1.17.4 removed it with the card's border;
+  the card stays borderless, the image is framed again, and the grid's gap is 1rem in both directions.
+
+## 1.19.0 – 2026-10-30
+
+### Added
+- **The Library tells its files apart** (#121): the import names every file `image.jpg`, `target.jpg` or `video.mp4`
+  in a folder per entry, so a card now reads where the file belongs – `p015-1 · target` (`library-place.ts`) – and the
+  search matches the entry, the role and the collection (`p015 target`). Videos show their first frame instead of the
+  film icon and play muted and inline while hovered, or after a click on ▷ (a second click stops); they only load once
+  they scroll into view. Every preview shows an animated skeleton until it has loaded (a still one with reduced motion).
+- **A list view in the Library** (#121): *view* switches between the cards and a plain list – name, place, kind, size,
+  uses; a click on a row opens its actions. The choice is remembered per browser.
+
+### Fixed
+- **Imported files no longer show 0 uses** (#121): below an assets base the list names a file by its CDN URL, but the
+  book's rows name the content path (`/assets/content/…`) – `Assets::imported` now counts with that path.
+
+## 1.18.2 – 2026-10-30
+
+### Fixed
+- **Editor images from the CDN** (#122): the reader's service worker (scope `/`) also handled the requests of the
+  editor's pages at `/editor`, and its CDN rule broke some Library thumbnails in Firefox ("A ServiceWorker intercepted
+  the request and encountered an unexpected error", "Image corrupt or truncated"). The worker now leaves editor pages
+  and every request they make to the browser (`client/sw/editor-clients.ts`); a page it has not seen yet (after the
+  browser restarted the worker) is looked up and its request goes straight to the network, uncached. The reader's
+  offline behaviour is unchanged: its CDN rule still stores only complete `200` responses (no opaque or `206`).
+
+## 1.18.1 – 2026-10-30
+
+### Fixed
+- **The admin page shows a granted role** (#99): a role that is on (and the active filter) never looked pressed –
+  `.pill.framed` came after `.pill.on` in the editor's stylesheet and won with the same specificity, so a grant
+  seemed to do nothing. A framed toggle that is on now shows pressed (`.pill.framed.on`, `.icon-button.framed.on`).
+  The notice reports *Granted* / *Revoked* only when the role really changed (the API's `changed`), else that the
+  user had the role already.
+- **The update options on the admin page are plain text** (#99): the ones the user opted into (book, artist,
+  publisher, else `–`) instead of `●` / `○` marks that looked like radio buttons.
+
+## 1.18.0 – 2026-10-30
+
+### Added
+- **The editor's stage: sharp sheets, a grid and a settable origin** (#113): the designed pages were too soft close up.
+  - `npm run layout` now also renders every sheet a second time, much sharper (`sheets/<sheet>@sharp.jpg`, 4096 px for a
+    double page, `--sharp-width`, 0 = none). The stage shows the normal image at once and fetches the sharp one only when
+    the camera comes within 50 cm of the page – a far view, the spread cards and spreads never looked at cost nothing.
+    Run the layout import again to get the sharp images; without them nothing changes.
+  - **Grid** (Stage panel): a grid over the page that is switched on and off, with its spacing in mm. Its lines run
+    through the origin, which is drawn in red.
+  - **Origin** (Stage panel): positions are read and entered from a corner of the base format (the page's top left, top
+    right, bottom left or bottom right – per page) or from the book's centre (the spine's middle). It applies to the grid
+    and to the x / y rows of a target's placement and of a new target; the axes keep running right and down, so a value
+    left of or above the origin is negative. Saved positions stay as before (mm from the page's top left corner).
+
+## 1.17.5 – 2026-10-30
+
+### Fixed
+- **The post-processing in the editor shows on the stage** (#114): changing a grade, a bloom or a vignette in the
+  spread's panel changed nothing. The grade's and the vignette's live edit wrote to values the pass no longer drew with
+  (three.js copies a shader's values when it builds a pass), and the bloom and vignette never reached the stage's desk,
+  table and book. Now every pass shows at once: bloom and vignette run over the whole picture, the desk counting as
+  the camera picture, and the grade stays on the AR layer (the desk keeps its colours, as the camera picture does).
+
+## 1.17.4 – 2026-10-30
+
+### Changed
+- **The editor's spread cards** (#115): no border, and the page uses the full width instead of a centred column. One
+  grid cell is one printed page: the cover is a single right-hand page (no taller or wider than one page of a spread)
+  and the first cell of the first row stays empty, so 2–3, 4–5 … line up as spreads. The caption is one line (pages and
+  title, the cover's name no longer shows twice), the counts are small icons with the numbers (entries, targets, with
+  AR; titles for screen readers), and the format shows as a small label only when it is not a double page.
+
+## 1.17.3 – 2026-10-30
+
+### Fixed
+- **The Library no longer fails with "Something went wrong on the server"** (#116): since 1.17.1 the asset list also
+  lists the files of the CDN import, and it counted each file's uses with three queries over targets, entities and
+  entries – a build with hundreds of files ran over a thousand queries. The rows are now read once per request
+  (`Assets::usageRows`, `countUsages`), and a `files.json` entry that is not an object no longer breaks the list.
+
+## 1.17.2 – 2026-10-30
+
+### Changed
+- **The stage's desks are 180 × 80 cm** (#109, Tilman): both the Eiermann and the Schöpfer desk have a 1800 × 800 mm top
+  (they were 1.4 × 1.0 m). The models are regenerated by `editor/tools/desk-eiermann.py`. The Eiermann frame keeps its
+  measured size, so its ends now sit well inside the longer top; the Schöpfer legs keep their place.
+
+## 1.17.1 – 2026-10-30
+
+### Fixed
+- **The Library and the picker list the imported files** (#111, split from #95): the Library showed only the book's
+  uploads, so the images, videos, models and sounds that came from the CDN import (`files.json`) were invisible there
+  and in the asset picker (a node's file, a new target's content), although the stage uses them. `GET
+  /editor/books/{id}/assets` now lists the imported files after the uploads (`imported: true`, id `import-<hash>`,
+  their size from `files.json`, the number of uses; the `kind` filter applies to both). They are read-only: the Library
+  card shows *imported* instead of Replace / Delete.
+
+## 1.17.0 – 2026-10-30
+
+### Added
+- **The book's environment – content schema 2.8** (#79, Tilman: "Wir hatten im Reader das Environment und diese Himmel-Effekte.
+  Dafür brauchen wir eine eigene UI"): `book.yaml` takes an optional `environment: { world, onionSky }` – the world around
+  the reader while scanning (`cafe`, the only one) and the onion sky on or off. The engine reads it (`LookAround`); the
+  reader's Graphics switches still apply on top, so the content cannot turn on what the reader has off. A book without
+  it keeps today's look. The config guard and the build check it (`environmentProblems`), the server refuses an unknown
+  world (`PUT /editor/books/{id}/environment`; `null` removes it), and the book page has an *Environment* block to set it.
+  Not in this step: world assets, per-spread overrides, tuning values in the editor.
+
+### Changed
+- The schema lock is at 2.8 (a MINOR step over the plugin API 1.1's 2.7): older apps ignore the new field.
+
+## 1.16.2 – 2026-10-29
+
+### Fixed
+- **Placement starts where the target is printed** (#101): opening "placement" on a target without a saved place moved the
+  ghost to a fixed default (right page, x 40, y 60, 80 mm wide). It now starts at the target's place in the book's layout
+  (`content/layout/`, the designed PDFs). Without a place in the layout the ghost stays where it is until the first
+  change. The label says where the place comes from: the book's layout, or "not in the book's layout" when there is none.
+
+## Editor 1.10.1 – 2026-10-29
+
+### Changed
+- **The mock stage's book cover is 1 mm thick and ends where the page block ends** (#106): the cover board was 2 mm with a
+  3 mm overhang that framed the pages; now `COVER_THICKNESS` is 1 mm and `COVER_OVERHANG` 0, so the board lies flush under
+  the block.
+- **The cover's edge carries a paper texture** (#106): the board's four sides show fine paper fibre lines, drawn in code
+  (`coverEdgeTexture()`, a seeded sequence) – no image file, so no licence to check. The page-edge geometry stays a separate change.
+
+## 1.16.1 – 2026-10-30
+
+### Fixed
+- **The plugin API's `registerPass` is wired** (#97): a plugin registers its own post-processing pass with
+  `api.registerPass(type, spec, factory)`, as the editor's docs and 1.12.0 already said. The pass belongs to the plugin
+  and leaves the pass registry when the plugin is uninstalled; a type another plugin or the engine holds is refused.
+  Not yet: the content build and the reader's guard accept only the built-in pass types, so a spread cannot name a
+  plugin's pass until that is decided (#97).
+## 1.16.0 – 2026-10-30
+
+### Added
+- **An MCP server over the editor's API** (#75, `mcp/`, [docs/mcp.md](mcp.md); Tilman: "wir brauchen eine MCP-Schnittstelle,
+  dass wir dann beim Bauen in Amsterdam genügend schnell auch mit Claude Sachen bauen können" – "do it like in scutoons,
+  important this will one day merge"). A Claude session works on a book as a signed-in editor: `whoami`, a sign-in by
+  mail code (`sign_in_request` / `sign_in_verify`, or `OSCT_EDITOR_TOKEN` in the environment), the book's tree and a
+  spread with every target's entity resolved, shared entities and targets (entity, image, printed place), new entries
+  with their target, the library (upload a local file, list, delete), the Code tab's plugin sources, the draft, publish to
+  `local` or `staging`, the publish and change logs, and `describe_content_model` – the content contract plus a book's
+  declared plugins and Code tab sources. Built after SCUTOONS' MCP: the API is the only authority (over HTTP with the
+  editor's token, the tools listed for the role `editor`), every entity goes through the shared guard before it is sent,
+  every write answers with the editor's link where the person checks the draft on the stage, and **publishing to
+  production stays with a person** – the tool refuses it. Claude Code sessions in this repository get the server from
+  the root `.mcp.json`; resources `osct://rules/content-model` and `osct://guides/plugins`, prompts `editor` and
+  `add-target`. Tests: a mocked fetch per tool and the server over stdio against the PHP API end to end; CI job *MCP
+  server*. The version check covers `mcp/package.json` (RULES #10, #23).
+
+## 1.15.0 – 2026-10-30
+
+### Added
+- **The demo book** (#80, Tilman: "ein Beispiel, das einmal versucht, alle Möglichkeiten, die der Editor gerade kann,
+  zu simulieren – auch mit diversen Game-Narrativen und Interaktionen, mit der Buch-API … call it demo"): a sandbox
+  book `fixtures/demo/` next to the test fixture, built with `OSCT_CONTENT_DIR=fixtures/demo` – six spreads with every
+  node type, placement, filter and component, the covers, a shared entity, `print` on every target, entries of every
+  category, and six plugins that together use every part of the plugin API: `tint` and `pulse` (layers), `spin`,
+  `scenes` (a tap shows the next child), `narrative` (the key found on page 1 opens the door on page 3, the lamp
+  lights when the door opened) and `tally` (a text the book writes from the progress). The assets are the fixture's
+  stand-ins. `DEMO.md` marks a demo build: `osct content sync` uploads it to the environment `demo` only, and the
+  workflow *Demo book* (`demo.yml`) builds and syncs it from `develop`. The decision and the gaps the demo found:
+  `agents/research/2026-10-30-demo-book.md`; the guide: docs/plugins.md "The demo book".
+- **Plugin API 1.1 – across nodes and pages**: `api.events` (the engine's core events `targetFound`, `targetLost`,
+  `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the book's
+  own to emit and hear – one bus, a plugin's listeners go with it), `api.vars` (variables in the scopes `spread`,
+  `stage`, `session`, `book` with the concept's outward lookup; `book` persisted with the reader's progress),
+  `api.progress` (read-only: `unlocked`, `consulted`, `completion`, `counts` – the reader passes an adapter over its
+  history through `ArSceneOptions.progress`, the editor its simulation), `api.spread` (the current spread), the
+  component context's `children` and the hook `onUnlocked` (`engine/src/scene/plugin-runtime.ts`). The progress
+  record keeps the book variables (`variables`, additive within format 1; merged with this device's values winning).
+  Content schema **2.7** (the API version a declared plugin carries; 2.5 are the passes, 2.6 the light nodes).
+- **The editor**: the Stage panel's **vars** and **events** rows (the plugins' variables with their scopes, the last
+  events of the stage) and **reset** (a new game); *Import a book… → URL* takes a **content base URL** (a CDN folder
+  with `latest.json`, e.g. `…/demo`) and imports its current version; the Entity panel's rows follow the plugins the
+  engine loads with a spread (before, a declared plugin's component showed its rows only after a Run).
+- **The reader on a debug build** takes `?content=<base url>` and keeps it for the tab: the staging reader opens the
+  demo with `?content=https://buildingfictions.b-cdn.net/demo`; production builds ignore it (docs/content-cdn.md).
+## 1.13.0 – 2026-10-29
+
+### Added
+- **Light nodes – content schema 2.6** (#71, Tilman: "one entity type is missing in the editor – lights"): the node
+  type `light` – a point, spot or directional light an author places like any node (own `params`, children allowed;
+  under a group or a model it moves with it), its values under `light:` (`kind`, `color`, `intensity`, `distance`,
+  `decay`, the spot's `angle` and `penumbra`), defined once in `shared/types/lights.ts`; spot and sun aim along the
+  node's −z, by default a light sits half a unit along its parent's +z pointing back at it. Intensity and distance
+  are in the node's units, whatever the target's printed size (the engine scales them to the world every frame).
+  The engine builds and disposes it (no shadows), the reveal and the outro fade it with the entity. In the editor **+ node** offers `light`,
+  the Entity panel shows its rows from the definition (no panel code per field), the tree shows a light icon and the
+  kind, the gizmo moves it and the stage draws a Blender-style helper (bulb, cone or rays; orange while selected;
+  never in the reader). The content build, the guard and the editor's API check the values; the fixture's Studio A
+  has a spot aimed at the tree of nodes and a point light under the tall tree. **Schema 2.6** (a MINOR step, as the
+  editor session asked): a 2.5 app's guard refuses a node type it does not know, so it shows "invalid configuration"
+  on a book with a light where "update the app" would be right – no deployed reader is on 2.x. From 2.6 on the guard
+  lets an unknown node type pass (the engine renders nothing for it, keeps its children), so every later node type is
+  a MINOR step too; the app reads every older MAJOR as it is (`OLDEST_READABLE_SCHEMA_MAJOR`).
+
+## 1.12.0 – 2026-10-29
+
+### Added
+- **Post-processing passes** (#72, Tilman: "post processing, which we could just delegate to code editor"): content
+  schema 2.5 – a spread (or the book, as the default for every spread) names `passes: [{ type, …parameters }]` over
+  the rendered AR image: the built-in **bloom**, **vignette** and **grade**, each defined once with its parameters
+  (`shared/types/passes.ts`), checked by the build and the guard. The engine runs them in one chain over its single
+  renderer (the scene into a buffer, the passes, the result over the camera picture with its alpha kept – a bloom adds
+  light to the camera picture, a vignette darkens it, a grade touches the AR layer only), built only while a spread
+  names passes, disposed on a spread switch, nothing rendered twice without one. A pass of the book's own registers
+  with the engine's pass registry (`registerPass(type, spec, factory)`, `engine/src/scene/post/`), the hook the
+  code editor's plugin API (#66) exposes as `api.registerPass`. The editor's Stage panel lists the spread's passes
+  with their rows, live on the stage under *rendered* (the mock stage's table, book and sky lie on a backdrop layer
+  under the passes, as the camera picture does), Save writes them (`PUT …/spreads/{id} { passes }`). The fixture's
+  Studio B carries a bloom.
+
+## 1.11.0 – 2026-10-29
+
+### Added
+- **Code in the editor – the book's own code as plugins** (#66, Tilman: "wo kann ich meine eigenen JS-Skripte im
+  Editor ansetzen, also Shader hinzufügen? … wie hatte das Niantic Studio gemacht? Das war mega"; the decision:
+  `agents/research/2026-10-29-code-in-the-editor.md`). A plugin is a folder `plugins/<id>/index.ts` of the content
+  source that exports `register(api)`: the **content build** type-checks it against the plugin API (the engine's own
+  types), bundles it with esbuild into `plugin.js` next to its source, runs it once to learn the components and
+  layers it registers (so the nodes that use them are checked like `animation`) and declares it in the configuration
+  (`plugins: [{ id, src, api }]`, **content schema 2.4**); the reader loads the declared plugins with the first spread.
+  The **plugin API 1.0** (`engine/src/scene/plugins.ts`): `api.three` (the app's three.js), `registerComponent(type,
+  spec, apply)` – code on a node with the context `{ node, params, object, placed, target, three }` and the hooks
+  update / onFound / onLost / onTap / onPause / dispose / tune – and `registerLayer(type, spec, { glsl })` – a
+  **material layer**, GLSL composed into the node's material after its own shading (plain planes through
+  `onBeforeCompile`, the chroma key's shader patched; a model's materials as patched clones; kept under the unlock
+  animation's dissolve). Both use the component specs of `shared/types/components.ts`, which became a registry
+  (`componentSpec`, `componentTypes`): a plugin's component or layer shows in the Entity panel with its rows and
+  **+ type** without panel code, and is used in the content like a component. The **Code** tab of the editor (the 5th
+  tab): the plugins stored for the book (`plugins` table, `GET / PUT / DELETE /editor/books/{id}/plugins/{pid}`) and
+  the ones the content declares (opening one reads its `index.ts` next to the compiled module), a plain code editor
+  with a line gutter (Tab indents, Ctrl+Enter runs, Ctrl+S saves), **Run** transpiles in the browser (sucrase) and
+  installs the module in the stage's registry so the effect shows at once, **Save** stores the source, errors
+  inline with their line. Nothing run in the editor reaches readers: the configuration's `plugins` list has one
+  writer (the content build), the import keeps it, and a publish whose nodes use a component no compiled plugin
+  can provide is refused (409 `unknown-components`) – the build behind the publish is #78. The content build warns
+  about a node with more than three layers. The fixture's `plugins/tint` (a tint layer with colour, opacity and
+  blend on Studio B's standing video) is the template; [plugins](plugins.md) is the guide for writing one.
+
+## 1.10.0 – 2026-10-29
+
+### Added
+- **Tutorial: the content workflow** (#61, Tilman: "eine Visualisierung, wie der Workflow Speichern, Sync, Publish ist,
+  zum schnelleren Einstieg – auf einer Seite unter /docs/tutorials"): a static page shipped with the app at
+  `/docs/tutorials/` – the three places (content folder, CDN, editor database) and the arrows between them (sync,
+  import, save, publish, the reader), the seven steps to bring a book onto an instance, and the things to know
+  (import replaces the draft, sync and publish both make versions).
+- **Roles and the admin page** (#65, Tilman: "wir werden ein kleines Admin-UI brauchen", modelled on SCUTOONS' roles for the
+  white-label core): the tables `roles` (reader / editor / admin, fixed ids) and `user_roles` (granted when, by whom);
+  every account has `reader`, existing editors keep `editor` (the schema backfills on the next deploy), `GET /user`
+  answers `roles`. The admin API (`/api/admin/*` – a signed-in admin, or the admin secret as the break-glass path):
+  the users searched by e-mail with their roles, options and language, grant / revoke a role (`PUT` / `DELETE
+  /admin/users/{id}/roles/{role}`), the newsletter list as CSV (`/admin/users.csv?newsletter=1` – the users with an
+  update option on). The **admin page** at `/editor/admin` (docs/admin.md): search, the roles as toggles with their
+  grant on hover, the editors and admins as filters, the Newsletter CSV button, an editor invited by e-mail. The
+  first admins come from the deployment's `ADMINS` list (GitHub environment variable, both deploys), like `EDITORS`.
+- **Content schema 2.0 – the entity as a tree of nodes** (#61, Tilman: "es können tiefere Hierarchien entstehen, das
+  ist die ganze Idee; bei default erstmal eins"): an entity's node may hold `children`, each placed by its own
+  `params` relative to its parent (8 levels at most); new node types `group` (holds children) and `text` (a line
+  drawn on a plane, `text` + `color`, `{{entry.title}}` / `{{book.title}}` replaced); optional `id` per node. The
+  engine builds the tree recursively (found / lost / pause / update / dispose and the live edit's `tune` reach every
+  node; a type without a builder renders nothing but keeps its children), the content build reads `children` in
+  `entry.yaml` and `entity.yaml` (`npm run schema:lock` → 2.0), the guard and the API check nodes recursively. The app
+  reads schema **1.x content as it is** (a tree of one node), so nothing has to be rebuilt; the fixture's Studio A
+  gained *Studio: tree of nodes*. In the editor the tree shows every node, the Entity panel edits the selected node,
+  **+ node** adds a child (or a target's first node) from the book's files, **remove node** drops one. Components
+  and plugins (the registries, code in the editor) stay phase 15 steps 3–4.
+- **Sky, light and desk of the editor's stage** (#61, Tilman: "HDRI and sky sphere … as default"): six studio HDRIs
+  from Poly Haven (CC0, 1k, `editor/static/hdri/`) as the stage's sky and environment light (the Stage panel's
+  *sky*; turned with the stage every frame), the desk a screen-printed plywood board (Poly Haven's
+  plywood texture, tinted), the cover a white 2 mm hardcover board.
+- **Stage panel trimmed** (Tilman: "this whole section is doable in our current interface, but not needed – we have
+  more intuitive options"): the view presets and the found chips are gone – orbit, pan, wheel and double tap move the
+  camera, the tree's eye finds and loses a target; **Replay the first find** moved to the stage's right-click menu.
+- **The sign-in limit says when** (Tilman: "das Stundenfenster aufheben – lokal sollte das nicht sein, und sonst
+  muss der Cooldown in der UI stehen"): over the hourly limit the API answers with `retryAfter` and the minutes, the
+  reader's account page and the editor's sign-in show "try again in N minutes" instead of "in an hour";
+  a limit of -1 turns it off (`LOGIN_MAX_PER_*_HOUR`, `LOGIN_MAX_ATTEMPTS`, `PASSWORD_MAX_FAILS_PER_*` – the local
+  example config; 0 allows nothing, #83).
+- **The stage's toolbar as icons** (#61, Tilman: "replace the top editor bar with the icons for each, and for the
+  four view types we can just use Blender's circles"): the pick modes are a parcel (entity), a point on the graph
+  (node) and the crosshair (target); viewport shading is Blender's four spheres – wire, solid, textured, rendered –
+  side by side; every button keeps its label as the tooltip.
+- **Covers as spreads, the spread's format** (#61, #60, Tilman: "wie gehen wir mit Cover und Rückseite um? … es ist
+  eh ein Spread, nur in einem anderen Format"): content schema 2.3 – a spread has a `format` (`spread`, `cover`,
+  `back`; the covers are page 0 and the page after the last), a target's `print` takes the surfaces `front` / `back`,
+  `print` is read from `entry.yaml`. The editor's stage draws the closed book for a cover spread (the layout's cover
+  sheet on top, the block under it); the overview adds **+ cover** / **+ back cover**, the workspace bar sets a
+  one-page spread's format; the new-target form and the placement rows offer the cover's surface; the reader's
+  spread menu names the covers by their title. API: `POST …/spreads { format }`, `PUT …/spreads/{id} { title?,
+  format? }`. Fixture: the spread `cover` with *Cover: seal*.
+- **The stage's desk: an Eiermann table or Schöpfer's desk** (#68, Tilman: "the table should be an Eiermann … create a
+  low-poly version we can use", both as options "like the HDRI picker" – the tool is for designers, they should feel
+  at home): the Stage panel's *desk* chooses between a 1.4 × 1.0 m screen-printed plywood top, 18 mm thick with the
+  plies showing on its cut edges, on a steel tube frame after Egon Eiermann's table frame (two end frames, cross
+  tubes, two crossed diagonal struts; the default) and Philipp Camille Schöpfer's white desk (a thick top with three
+  drawer cutouts in its front edge on four slender legs splayed outward), both 72 cm high – our own low-poly models
+  (`editor/static/models/`, 236 and 124 triangles, no textures in the files) built from primitives by
+  `editor/tools/desk-eiermann.py` in Blender, the Eiermann frame measured from a model Tilman supplied. The book, the
+  printed images, the ghost and the page hits lie on the top as before; the desk keeps its own look under every
+  shading mode. The backdrops *table*, *paper* and *photo* of the first editor build went with this (Tilman:
+  "overhead, we won't need anymore – we got the HDRI and we got the table as default").
+- **A live edit with a new file** (the library's *Use*, *+ node* with an uploaded model): the scene loads the files
+  the spread's content does not have before it builds the node (before, such a node stayed invisible until Save).
+- **Selection outline and viewport shading** (#61, Tilman: "selected targets aren't visible … something like in
+  Blender"): the selected node wears an orange outline of its meshes' edges in its own space (a plane outlines as a
+  plane – the axis-aligned box of before tilted), hover a white one; the toolbar's shading modes *wire / solid /
+  textured / rendered* after Blender's, applied to the entities (the stage, gizmo and outlines keep their own
+  materials), the HDRI's sky and light only while rendered.
+- **Components and the timeline** (#61, phase 15 step 3, Tilman: "glb import should also show somehow a simple
+  timeline, we do have start stop etc events"): content schema 2.2 – a node carries `components: [{ type, … }]`,
+  defined once in `shared/types/components.ts` (specs with kind, default, range, the node types they apply to; the
+  guard, the build and the editor read them). The first component is **`animation`** on a model: the clip, `playOn`
+  found / tap / never, `stopOn` lost / never, loop, speed; without it every clip loops as before. The engine's entity
+  instances gained `onTap` (the tap reaches the entity) and a `NodeTimeline` per model node (`IArScene.inspect()
+  .nodeTimeline`); the Entity panel shows the component's rows, **+ animation**, and the **timeline** (clips, play /
+  pause, a time slider that scrubs the model). The FTPS staging deploy ships the editor at `/editor`; both deploys
+  use the CDN store as soon as the zone's key is set.
+- **Assets, the library and new targets** (#61, Tilman: "Asset-Upload nach dem Scutoons-Modell … in the tree I want to
+  be able to add a target"): uploaded files in the content store (`assets/<book>/<asset>/v<n>.<ext>`, local or bunny)
+  with a registry (`assets`, `asset_versions`), `GET / POST /editor/books/{id}/assets`, replace with a new version and
+  every use relinked, delete guarded by the usages, the same bytes once; the editor's **Library** tab (upload, drop,
+  use for the selected node, as a target's image, replace, delete), the node's **file** row, the target's **image**
+  and **print placement** (content schema 2.1 `print`: surface, x, y, width in mm – the stage lays a target there
+  before the book's layout), **+ target** in the tree (an entry with its printed image and place –
+  `POST /editor/books/{id}/entries`, `DELETE …/entries/{id}`), *Remove target* in the tree's menu; the new-target
+  form takes the AR content too (a node of a type with its file, or a text). **Picking** on the stage by a pick mode
+  (entity / node / printed target – Blender's select mode) with a right-click menu (add node, remove, placement,
+  library, remove target; + target on the page), and a translucent **ghost** of the image while a placement is edited,
+  with handles (drag to move, the corner for the width). **ScrubNumber follows the quadrant rule** (Tilman: up or
+  right raises, down or left lowers, the directions add up); the panel is 22rem wide and the three axes of a placement
+  row stay on one line.
+  The sky of the stage is a sphere inside the stage group (three's background rotation mirrored axes).
+- **Removing nodes** (#61, Tilman: "Wie lösche ich Knoten?"): Delete / Backspace on the selected node (tree or
+  workspace), a right-click menu on the tree's node rows, *remove node* / *remove entity* in the Entity panel – all
+  through the stage, so tree, panel and stage show one state; a removed root marks the target as without AR content
+  until Save.
+- **The gizmo** (#61, Tilman: "das Anklicken von Items auf der Bühne, wir brauchen dann die Achsen"): three.js
+  `TransformControls` on the selected node of the editor's stage – move / rotate / scale (toolbar, W / E / R), handles
+  in the node's own space so a drag edits the placement relative to the parent, Ctrl snaps (0.05 widths, 15°, 0.1),
+  the Entity panel's rows follow live; hover draws a box around the entity under the pointer. The engine opens the
+  running scene to editor tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its
+  path, the tap's hit test); the entity builder records every node's placement group by its path.
+- **Editor API** (#61): the accounts API carries the editor's data under `/api/editor/*` for users with the new role
+  `editor` (`POST /admin/editors { email }` with the admin secret gives it; `GET /user` shows it). A game configuration is
+  imported into rows (books, spreads, entries, targets, entities – every field kept), read as a tree, edited entity by
+  entity with a change log, served as a draft the engine loads like the CDN (`…/draft/latest.json`), and published as a
+  content version – to the container's own content store (`GET /api/content/{env}/…`, environment `local`) or to the
+  CDN's storage zone with the osct CLI's bookkeeping (`OSCT_CONTENT_STORE=bunny`), with a publish log. `docs/server.md`
+  "Editor data".
+- **The editor** (#61, the mock stage of #59): a SvelteKit app of its own at `/editor` (`editor/`, built into the image
+  next to the reader) for an instance user with the role `editor`. It runs the engine over a simulated page instead of
+  the camera – a table, the open book as an object (paper blocks whose thickness follows the number of spreads on a
+  cover board with an overhang; every plane a hair under the one above it, so nothing flickers), the current spread's
+  printed images where they are printed (the book's layout), by the trigger protocol or in a row – and every target
+  counts as found, so models, videos and
+  filters show with their reveal, unlock and outro exactly as in AR, on the desktop and on a phone, without a camera.
+  Books are imported from a game configuration (the CDN's current version, a URL or a file); the spreads list shows
+  each spread's sheet as its preview; the workspace has the
+  **tree** of the spread at the left in the style of Blender's outliner (entries → targets → entities with type icons,
+  guide lines, the eye column for found, keyboard navigation, a tap selects; collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, Shift-drag, middle button or two fingers
+  to pan, wheel or pinch for the distance, found chips per target, replay of the first find, hand shake) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
+  linking the scale axes, filters, colours through the editor's colour popover – palette, recent colours, area + hue,
+  hex, and an eyedropper that picks the colour under the pointer from the stage (`IArScene.sampleColor()`) – live on
+  the stage, **Save** to the database, **Back to the draft**), and
+  **Publish** makes a content version. Docs: `docs/editor.md`.
+- **The engine as a package** (`engine/`): the content runtime (`loadGameConfiguration`, the accessors, `contentUrl`)
+  and the AR scene (`ArScene`, entities, animations, trackers behind `IImageTracker`) moved out of the reader into a
+  source folder both apps compile (`@engine/*`). The app passes what differs: its tracker (the reader the 8th Wall
+  engine, the editor its mock tracker), the graphics options, the bundled content, the startup texts; the scene gained
+  `overrideEntity()` (the editor's live edit) and `refresh()` (rebuild the spread after a save).
+- **The book as laid out on the stage**: `npm run layout` (scripts, Python with PyMuPDF) reads the designed PDFs – the
+  book preview and the trigger layout – and writes the content's `layout/` folder: every sheet as an image (covers
+  included) and every printed target's page, side, position and size in mm. With it the editor's stage shows the
+  spread's real page under the entities and every target exactly where it is printed; leafing shows the next sheet.
+  Without it: blank pages, targets by the trigger protocol or in a row (`docs/content.md`, "Importing the book layout").
+- **Studio spreads in the test fixture** (`fixtures/content`, pages 28–31): every entity type, placement and filter of
+  the content model on two double pages, for the editor and the tests (`FIXTURE.md`).
+
+### Changed
+- The reader carries nothing of the editor (RULES #32): no `/editor` route or page, no preview flag, no mock
+  tracker, no simulated camera permission, no forgetting of an unlock. The trial panel reads the trigger protocol
+  through the engine's `fetchTriggerInfos()`.
+- The image serves the editor at `/editor` (`.htaccess` fallback to its `index.html`, a year's cache for its hashed
+  files); CI checks, tests and builds it (`checks.yml`, job *Editor*).
+
+### Removed
+- The debug overlay's **tune** panel, `<tune-inspector>`, `tune-values.ts` and `<scrub-number>` (Tilman: "es geht im
+  Debug-Overlay nicht um Einstellungen – das ist Legacy"): the overlay debugs, the editor edits. The `editor` button
+  and the `P` marker of the debug line went with the preview.
+
+## 1.9.6 – 2026-10-28
+
+### Changed
+- The AR entity's animations are shorter (#57): the unlock (first find) takes 3 s instead of 4.2 s and the reveal
+  (every later find) 0.6 s instead of 1 s, so a video or a 3D object is readable before the reader drifts off the
+  page. The "New entry unlocked" label follows the unlock. The outro stays 0.7 s.
+
+## 1.9.5 – 2026-10-28
+
+### Changed
+- The trial strip looks like the debug bar at the top, turned upside down (#14): .25rem in from the left and right
+  edges, .5rem rounded top corners, flat on the bottom edge; no green line on top (the grab bar marks the edge).
+- The strip scrolls smoothly to the current spread when it changes, so the reader sees it move (instantly with
+  reduced motion); a re-render mid-scroll continues the scroll, touching the strip stops it.
+- The strip's camera row is a feedback line only – lens, resolution, focus and zoom, no AF / ◎ / zoom buttons: the
+  trial runs with the app's camera defaults (#37). The md report records the camera, also when the camera is already
+  off when md is tapped (the last one seen).
+- **One bottom sheet for all debug panels** (#14): trial, camera, load test and tune share `dev-tools/debug-sheet.ts`
+  – the debug bar at the top turned upside down, a top bar with the grab handle that sets the height by dragging
+  (stored per panel on the device), a scrolling body. Before, each panel drew its own frame (three different ones)
+  and only the trial could be resized.
+- **The collapsed debug line is one line again**: the status dot, `T<targets on the spread>`, `E<ready>/<held>`.
+  The spread id, `F[…]` (found counts), `S[…]` (what the engine sees), `↪` and the camera summary are gone from it –
+  what the engine sees and the last auto switch are in the expanded view, the camera in its panel.
+## 1.9.4 – 2026-10-28
+
+### Added
+- **Tap to focus for every reader** (#37): a tap on the camera picture that is not on app UI and hits no AR entity
+  (those still open their entry) starts one focus run, then the camera goes back to continuous focus after 1.5 s. Where
+  the browser supports focus points (`pointsOfInterest`) it focuses on the tapped spot; Chrome on the Galaxy S22 does
+  not, so there the whole picture is refocused. Browsers without focus controls (Safari) ignore the tap. Continuous
+  focus at camera start stays; no zoom. The debug camera panel keeps its own **◎** test switch
+  (`ar-bridges/utils/camera-request.ts` → `focusAtTap()`, called from the AR scene's tap handling).
+
+## 1.9.2 – 2026-10-28
+
+### Fixed
+- **Dependabot alerts resolved** (#55): all 13 open alerts were in the development tooling (nothing in the app
+  bundle or the server). `client/`: vite 8.3.1 → 8.3.5 (launch-editor command injection, `server.fs` bypasses,
+  cross-origin script execution), vitest 5.0.2 → 5.0.5 (`@vitest/mocker` code injection and path traversal),
+  source-map-js 1.2.2, fast-uri and serialize-javascript refreshed, happy-dom 20 → 21.0.4 (host code execution
+  through an unsanitized import alias). `scripts/`: vitest 3.2 → 4.1.12 (no patched 3.x release – also replaces
+  the vulnerable tinypool), vite 6.3 → 6.4.5, sharp 0.35.5, source-map-js 1.2.2. The remaining `npm audit` note
+  in `client/` (deepmerge, low, through vite-plugin-pwa → workbox-build) has no fix upstream and is not a
+  Dependabot alert.
+
+## 1.9.1 – 2026-10-28
+
+### Changed
+- **Trial strip in a fixed order** (#14): the strip shows every target in the order of the printout, with its running
+  number (the same numbers as the tester printouts of trial 2) and its page – nothing reorders or disappears any more
+  (before, it showed the current spread's targets and then only the ones not found yet, from the current spread on,
+  so tiles jumped and vanished). Found ones get a green frame and a ✓, the one in view a yellow frame, the current
+  spread's a white frame; the strip scrolls to the current spread when it changes. Targets not on the printout are
+  dimmed and labelled "not printed".
+- **The trial holds ±1** instead of ±0: the next and previous spreads are loaded, so scanning the sheet in order
+  switches to the next page by itself; ‹ › stay.
+- The strip sits flush with the bottom edge of the screen, full width, square corners.
+
+## 1.9.0 – 2026-10-28
+
+### Fixed
+- **Android scans with the main lens again** (#37): the 8th Wall engine chooses Samsung's main back lens by the label
+  `camera2 0, facing back`; Chromium now names the lenses `camera 0, facing back` (Chrome 156, Brave 155), so the
+  engine asked for "the back camera" and the S22 opened its **ultra-wide lens** – fixed focus, small triggers held
+  close stay blurry and look even smaller. The app now changes the engine's camera request on the way and asks for
+  camera 0 by its device id (`ar-bridges/utils/camera-request.ts`; old and new label; only on Android – elsewhere the
+  request stays). On the S22, 23 of the 25 triggers the first trigger test missed are now found, without zoom; the
+  two left are flat logos (`docs/trigger-tests/2026-10-28-camera.md`).
+- **The dev server runs on Safari 15** (iPhone 7): its TypeScript transform turned static class fields into
+  `static {}` blocks, which Safari before 16.4 cannot parse – the app stopped on the splash screen. The dev server now
+  lowers them for Safari 15 (`vite.config.js`), as the build already did.
+
+### Added
+- **Notice for browsers that cannot scan** (#37): the engine's tracking WebAssembly needs WebAssembly SIMD – Safari
+  from iOS 16.4. Without it the camera overlay says so instead of the generic AR error: on an iPhone, update to
+  iOS 16.4 or newer if the phone can (iPhone 7, 6s and SE 1st generation cannot); elsewhere, update the browser
+  (`CameraPermissionStatus.UNSUPPORTED`, checked before any camera request). A SIMD-free engine build is proposal #39.
+- **Continuous focus at camera start** where the camera offers it and does not use it already
+  (`applyCameraDefaults()`).
+- **Debug camera panel** (overlay → *camera*, a strip at the bottom like the trial): the camera readout and switches
+  moved out of the overlay into it. It lists the current spread's targets (yellow in view, ✓ found since opened), a
+  retest list (`?retest=<ids>` link or `osct-camera-retest`), and next to AF / ◎ / zoom: **lens** (main or the
+  browser's choice), **res** (engine 960 × 720, 1280 × 960, 1920 × 1440) and **ask zoom**, each on the next start.
+  It shows why AR could not start (also after "AR: error" in the overlay) – the console is out of reach on a phone.
+  While open the tracker holds the current spread only, as in the trial.
+
+### Changed
+- **Debug overlay**: tabs `spread · progress · camera · trial · load · tune` and a **×** that closes it (the expanded
+  overlay could not be closed on a phone); the spread's QR code is behind a **QR** button.
+- The camera resolution stays the engine's 960 × 720: 1920 × 1440 found the smallest trigger later and held it less
+  steadily on the S22, 1280 × 960 brought nothing.
+
+## 1.8.2 – 2026-10-28
+
+### Changed
+- **The tracker holds the neighbouring spreads again, not the whole book** (#38): by default the engine keeps the
+  current spread and the next and previous one loaded (±1, as before 1.7.0), so turning a page still switches by
+  itself. The growing window (the whole book, added in the background) stays selectable in the debug overlay; with
+  it, pages of a printout were no longer found once every target was held. Until that is solved it is not the
+  default.
+
+## 1.8.1 – 2026-10-28
+
+### Changed
+- **Trial tiles show clearly what was found** (#36): a found image gets a thick green frame and a green square with a
+  ✓ in its top right corner, and stays fully visible (it was dimmed before); the image in view is framed yellow.
+  Square tiles, no rounded corners. Testers just move on when an image is not found – there is no "did not work"
+  button.
+
+## 1.8.0 – 2026-10-28
+
+### Added
+- **Camera readout and focus / zoom tests** in the debug overlay (#14): the trigger test of 28 October missed small
+  printed triggers and the camera seemed not to focus, while neither the app nor the 8th Wall engine sets a focus
+  mode or zoom. The overlay's new *Camera* section shows the lens the engine opened (its label), the resolution and
+  frame rate, the focus mode, focus distance and range, the zoom and its range – and test switches: **AF continuous**,
+  **Tap to focus** (the next tap on the camera picture focuses there), the zoom steps 1× / 1.5× / 2× / 3× the lens
+  offers, and **Ask for zoom** (the next camera start requests zoom too – Chrome may only offer zoom with the
+  camera's pan-tilt-zoom permission). The collapsed line ends with `C<lens> <resolution> <focus> <distance> <zoom>`.
+  The trial panel has a camera row with **AF**, **◎** (tap to focus) and the zoom step, and its `md` report records
+  the camera. The tracker hands the engine's camera track over on its "hasStream" status
+  (`ar-bridges/utils/camera-debug.ts`); nothing in the app depends on it. Zoom changes the field of view the engine
+  assumes: finding works, the AR overlay may sit slightly off while zoomed.
+
+## 1.7.10 – 2026-10-28
+
+### Changed
+- Code base review (#19): comments explain the code, not its history – names, dates, test references, design frame
+  numbers and libraries the app no longer uses (A-Frame, MindAR, Netlify, FTP) are gone from code comments,
+  workflows and `.gitignore`; the two TODOs without an issue are removed.
+- `.editorconfig` and `.gitattributes` fix line endings (LF) and indentation for every editor.
+- The content build no longer treats edits to the delivery import or the trigger protocol tool as a new content
+  version (`import-delivery.ts` and `protocol.ts` are left out of the content hash like the other commands). The
+  content schema is 1.2 (comments in `shared/` changed; nothing older apps cannot read).
+- Documentation: the root `README.md` is the index of `docs/` (with the repository layout and the three test
+  layers); `agents/RULES.md` has stable rule numbers (the second "21" is #25, Git #26, CI #27, Deployment #28,
+  Issues #29, session start #30, docs ownership #31) and a rule that a TODO needs an issue; outdated statements in
+  the docs (target limit, namespaces, settings and dev tools, scripts folders) corrected.
+
+### Removed
+- Dead members: `Pages.NOTIFICATION`, `IGame.setLoadingState`, `ISpreadManager.getCurrentSpread`,
+  `StorageClient.listTree`, an unused Mark image; duplicate helpers in `scripts/` (`isMain`, `listFiles`,
+  `isObject`); `docs/README.md` (its two URLs are in the root README).
+
+### Fixed
+- `scripts/test/` is type-checked, and the build test builds the test fixture instead of the book content
+  (RULES #8). The API schema split no longer relies on a literal line break inside a regex.
+
+## 1.7.9 – 2026-10-28
+
+### Changed
+- The deploys build the app against the environment's content CDN: `CONTENT_BASE_URL` of the GitHub environment
+  reaches the Docker build (`config/deploy.yml` → `builder.args` → `Dockerfile` `VITE_CONTENT_BASE_URL`) and the
+  temporary FTPS staging build. Such an image holds no content; the app loads the current version from the CDN at
+  startup ([content-cdn](content-cdn.md)). Without the variable the commit's content is still bundled (#6, #5).
+
+## 1.7.8 – 2026-10-28
+
+### Changed
+- **The trigger trial holds the current spread only** (#14): while the trial panel is open the tracker's window is
+  ±0 – no growing window, no other spread prepared, no content preloaded for neighbours – so a trigger that is not
+  found is down to the engine and the printout, not to work in the background. Step through the book with ‹ ›.
+  Closing the panel restores the setting chosen in the debug overlay (the override is not stored); the overlay shows
+  "±0 while trial is open (then …)".
+
+## 1.7.7 – 2026-10-28
+
+### Fixed
+- The error page unsubscribes from the store when it leaves the DOM (#20): it subscribed to the whole store on every
+  connect and "unsubscribed" a different function, so each reconnect left a listener behind. It now subscribes to
+  `currentError` only (typed `ErrorInfo | null`) and keeps the cleanup it gets back, like the other pages.
+
+## 1.7.6 – 2026-10-28
+
+### Added
+- **Content deployment apart from the app** (#5): the **osct CLI** in `scripts/` (`npm run osct -- content build |
+  status | sync | purge --env staging|production`). `sync` uploads the content build as a new version – its own
+  folder on the bunny.net CDN, never overwritten – and points `latest.json` at it; syncing an older build again is
+  the rollback. `purge` deletes old versions strictly: never the current one, the one the CDN still serves, the
+  newest retired one or anything retired within the CDN cache time (30 days), and nothing at all when the
+  bookkeeping is inconsistent. Nothing runs on a push; the workflow "Content" is a manual button (dry run by
+  default). The app loads the current version at startup when it is built with `VITE_CONTENT_BASE_URL`; such a
+  build reads no content at all. Without the flag the content stays bundled (dev server, tests). The installed app
+  still works offline. How it works: `docs/content-cdn.md`.
+- **Test fixture** `fixtures/content/` (#5): the placeholder content, slimmed to under 1 MB (every entity type,
+  chroma key and alpha video). CI and the tests build it – the book content is leaving the repository, history
+  included (`docs/content-out-of-git.md`). `osct content sync` refuses a build of it.
+- **Content schema `MAJOR.MINOR`** (`version.schema`, `shared/types/game-config.ts`, now 1.1): the only
+  compatibility rule between content and app. Another MAJOR is refused at startup ("The book content is newer than
+  this app" / "… older than this app", en/fr/nl/de); any MINOR loads. A test fails when `shared/` changes without a
+  schema bump (`shared/content-schema.json`, `npm run schema:lock` in `scripts/`).
+
+### Changed
+- The content build reads only the content source named by `OSCT_CONTENT_DIR` (environment or `scripts/.env`,
+  relative to the repository) and stops when there is none – no fallback. `content-demo/` became the fixture; its
+  full-size copy lives next to the content source. The workflow "Content" offers status and purge – sync runs where
+  the content source is.
+- The content's version is its build checksum and no longer includes the app version – an app release does not make
+  new content. The app version a content build was made with is information only (the startup check no longer
+  compares it).
+- The game configuration is loaded before the app element starts (`loadGameConfiguration()`), no longer imported at
+  build time. The whole-book download takes the file sizes from `files.json` of the loaded version.
+
+## 1.7.5 – 2026-10-28
+
+### Fixed
+- The debug overlay's QR code on staging pointed at the build machine (#22): the build no longer bakes in a dev
+  server address, so in a build the code leads to the address the page was opened on (staging, production). On
+  the dev server it still shows the Wi-Fi address for phones. The stale environment list (Netlify) is gone.
+
+## 1.7.4 – 2026-10-28
+
+### Fixed
+- The debug overlay removed its click listener with a freshly bound function, so nothing was removed: after a disconnect and reconnect one tap toggled it twice (#21). Add and remove now use the same function.
+
+## 1.7.2 – 2026-10-28
+
+### Fixed
+- The first push of the Kamal deploy: the staging and production workflows now grant `packages: write` to the
+  deploy they call (the repository's token is read-only by default, so the called workflow could not ask for it
+  and the run failed at startup).
+- 1.7.1 had bumped only the app's version; the content build and the API said 1.7.0, which the API test caught
+  (the FTPS staging deploy failed). All three are 1.7.2.
+
+## 1.7.1 – 2026-10-27
+
+### Added
+- **Deploys move issues on the board** (#11): after a successful deploy, `board-status.yml` sets every `Fixes #N` in the
+  deployed commits to *Review on staging* (staging) or *Deployed* (production) on the board OSCT and comments the
+  version – only forward, `Refs #N` moves nothing. Needs the repo secret `PROJECT_TOKEN` and runs once it is on `main`
+  ([deploy](deploy.md) "Board").
+- **Every session starts with its issue** (`agents/RULES.md`, `CLAUDE.md`): find or create the issue, pick its lane,
+  start the session title with `#N`.
+
+## 1.7.0 – 2026-10-27
+
+### Added
+- **Growing window** (new default, debug overlay *Spreads held: grow*): the tracker holds the current spread, then adds
+  the nearest spreads in idle time – three targets at a time, each batch after the previous one is extracted – until
+  the whole book is held. Nothing is dropped on a switch, so every page visited or grown into switches by itself
+  afterwards. Based on the first load test: holding all 131 targets cost no frame rate, tracking stability or detection
+  speed, only ~0.35 s of main-thread work per new target. Content is still preloaded for ±1. The fixed windows (±0,
+  ±1, ±2, all) stay selectable for comparison. The overlay shows how many spreads are left to add.
+- **What the engine sees** (debug overlay): `S[…]` on the collapsed line lists every target the engine finds right now,
+  of any held spread – the current spread's in green, others in orange – and `↪<spread>` the last automatic switch for
+  10 s; expanded, *Engine sees* and *Last auto switch* (via which target, how long ago). The window setting's
+  **Change** button now applies at once instead of at the next switch. To tell a crowded printout from too many held
+  targets when a page is not found ([tracking](tracking.md)).
+- **Engine view in the debug overlay**: which spreads the image tracker holds right now – the current one (◉) and the
+  ones kept loaded next to it, with their target counts – how many targets are extracted (can be found), whether the
+  engine is still extracting, and which spreads are being prepared. The summary line shows `E<ready>/<held>`.
+- **Engine load test** (debug overlay → *load*, dev server and staging), run in the app as it is used: the window of
+  spreads kept ready next to the scanned one gets a growing target budget (0, 5, 10, 20, 40, 80, all – nearest spreads
+  first); the tracker holds it, the preloader fetches its content, pages switch as usual. Per step it measures preparing
+  and extracting the window's new targets, engine and page frame rate, stutter, how steadily the scanned page stays
+  found, and – when the tester covers and uncovers the lens – how fast it is found again. Download .md / Copy give the
+  table ([tracking](tracking.md)).
+
+### Changed
+- **Entry videos stay out of git** (`content/entries/*/video.mp4` in `.gitignore`): the trial's 16 videos (117 MB) are
+  not committed; they reach the servers through a CDN sync later. A content build without a video (CI, deploys) warns
+  and builds that target without its AR video instead of failing.
+- **Trigger trial panel** is a small strip at the bottom: drag its top bar to make it taller or lower (remembered on
+  the device). It shows the current spread's targets (found ones dimmed with ✓, the one in view outlined), then every
+  target not found yet from the next pages on – tap one to go to its spread; ‹ › step through the spreads. The bar only
+  counts the targets not found yet; **md** downloads the report of those. The slow / flicker / no buttons and notes are
+  gone (found comes from the progress; reset the progress to start a trial over).
+- **Content preload follows the tracker's window**: the spreads whose targets the engine holds (±n, nearest first) also
+  get their content preloaded – before, content was always ±1 while the targets could be ±2 or all. Target images
+  first, then one spread at a time, nearest first; a moved window stops the older run.
+
+## 1.6.0 – 2026-10-27
+
+### Added
+- **Trial content** from the publisher's delivery of 21 October (`scripts/import/2110.yaml`): 138 entries on 87 spreads –
+  84 glossary images, 41 link screenshots, 16 documentation videos (13 as AR videos on their page's trigger) – with
+  placeholder titles and texts. 121 of the 131 targets are on the trial printout (`All_Triggers.pdf`).
+- **Delivery import** (`npm run import -- <delivery folder> import/<name>.yaml` in `scripts/`): a mapping file names,
+  per entry, the delivered printed image, entry image and video; the import writes resized JPEGs, re-encodes videos
+  with ffmpeg (H.264, ≤ 1280 px, ~2 Mbit/s), creates `entry.yaml` with placeholders and the spreads, and never
+  overwrites an edited `entry.yaml` (`docs/content.md` "Importing a delivery").
+- **Trigger trial panel** (debug overlay → *trial*, dev server and staging): the checklist for a test with the printed
+  book. It lists the targets of the current spread or the whole book with thumbnail, delivered file, printed size and
+  position (`npm run protocol -- import/2110.yaml` → `trigger-protocol.json`), marks what the scanner found, takes
+  *slow* / *flicker* / *no* and a note per target, and downloads (or copies) a Markdown report – problems first – for
+  the designers. The progress tab's **Copy** button gives the raw list of unlocked targets with times.
+
+### Changed
+- The placeholder content (demo spreads, castle, racoon, edge …) moved from `content/` to `content-demo/`; build it with
+  `OSCT_CONTENT_DIR=../content-demo`. `content/` now holds the book's content only.
+
+### Fixed
+- The debug overlay's QR code (opens the dev server on a phone) named a virtual adapter's address (WSL, Hyper-V, Docker)
+  and always port 5173; it now uses the Wi-Fi address of a physical adapter and the port and protocol of the server
+  the page came from.
+
+## 1.5.3 – 2026-10-27
+
+### Added
+- The sign-in mails go out through Amazon SES (eu-west-1): the deploy configuration defaults to its SMTP endpoint,
+  an environment only needs the SES SMTP user name and password (`docs/deploy.md` "Mail"). The deploy stops before
+  Kamal when mail is set to SMTP but the credentials are missing.
+- `php /opt/osct/mail-test.php <address>` in the container (`server/deploy/mail-test.php` locally) sends one test mail
+  with the current settings and prints the SMTP error when it fails; `server/deploy/ses-smtp-password.php` turns an
+  IAM secret key into the SES SMTP password.
+
+### Changed
+- Deployment: the site – app and user API – ships as one Docker image, deployed with Kamal over SSH:
+  `develop` → staging https://osct.porschuetz.de, `main` → production https://osct.buildingfictions.com
+  (`docs/deploy.md`). The container creates missing tables and columns at every start; the API reads its settings
+  from `OSCT_*` environment variables, there is no `config.local.php` on a server any more.
+- Cache headers, MIME types, gzip and the SPA fallback are part of the image (`server/docker/apache.conf`,
+  `.htaccess`), not a hosting provider's settings.
+
+### Removed
+- The Netlify deploys (`_headers`, `_redirects`) and the release workflow: production deploys from `main`; GitHub
+  releases are optional notes. The FTPS upload to the shared host stays as a temporary workflow until the staging
+  VM exists.
+
+## 1.5.2 – 2026-10-20
+
+### Changed
+- The content build output (`client/src/game.config.json`, `client/public/assets/content/`) is no longer in
+  git: `npm run build` in `client/` builds the content first, so every deploy (staging, release, Netlify)
+  builds the content of its commit. After a content change, run `npm run content` in `client/` locally and
+  commit only `content/`.
+- The checks build the content instead of comparing a committed copy.
+
+### Fixed
+- A fresh checkout tells you to run `npm run content` instead of failing on a missing file; the broken
+  `build:config` script is gone.
+
+## 1.5.1 – 2026-10-03
+
+### Added
+- **Tune panel** (debug builds: dev server and staging): debug overlay → "tune" opens a panel at the bottom of the
+  screen for the AR content of a page – every placement value (`position.x`, `rotation.y`, `scale` … – the three.js
+  names) and every parameter of its filters (chroma key: color, mode, threshold, softness, spill, opacity), each
+  with a slider and a field for an exact value (a comma works as the decimal point). It opens with the values in the
+  content and shows changes live on the page; filters can be added and removed. "Copy YAML" copies the `params` /
+  `filters` block with the file it belongs in – only values that differ from the defaults. The content itself is
+  not changed: paste the block into the entry (or into a Claude session). How to use it: `docs/content.md`.
+
 ## 1.5.0 – 2026-09-28
 
 ### Added
