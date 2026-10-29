@@ -1,8 +1,10 @@
 import { AnimationAction, AnimationMixer, CanvasTexture, DoubleSide, Group, LoopOnce, LoopRepeat, MathUtils, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, SRGBColorSpace } from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { EntityData, EntityType, NodeTimeline, resolveComponent, resolvePlacement, Target } from "../types/index";
+import { COMPONENT_TYPES, EntityData, EntityType, NodeTimeline, resolveComponent, resolvePlacement, Target } from "../types/index";
 import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma-key";
+import { composeLayers, layerObject, tuneLayers } from "../utils/layers";
 import { LoadedAsset } from "./assets";
+import { applyComponents, unknownComponentTypes } from "./plugins";
 import { getBook, getEntry } from "../content/game-config";
 
 /**
@@ -12,6 +14,9 @@ import { getBook, getEntry } from "../content/game-config";
  * into a group placed by the node's `params` (position / rotation / scale – shared/types/placement.ts; axes: x
  * right, y up the page, z out of the page, 1 unit = target width, origin in its centre) relative to its parent, the
  * root on the target's anchor. A node of a type without a builder renders nothing (logged) but keeps its children.
+ * A node's **components** are the built-in ones its builder knows (`animation` on a model) and the ones a plugin
+ * registered (`plugins.ts`): applied after the node's object exists, with their hooks joined to the node's; a
+ * node's **material layers** (a plugin's GLSL) are composed into its materials (`utils/layers.ts`).
  */
 
 export interface EntityInstance {
@@ -73,7 +78,14 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
   placeEntity(placed, node);
   if (own) placed.add(own.object);
   children.forEach(child => placed.add(child.object));
-  const all = own ? [own, ...children] : children;
+  // The plugin's components and material layers of this node
+  unknownComponentTypes(node, COMPONENT_TYPES).forEach(type => console.warn(`[entities] No component "${type}" registered (target ${target.id}) – ignored`));
+  const components = applyComponents({ node, object: own?.object ?? placed, placed, target });
+  const layers = own ? composeLayers(node) : null;
+  const layered = own && layers ? layerObject(own.object, layers) : null;
+  const all: Array<Pick<EntityInstance, "onTap" | "onFound" | "onLost" | "onPause" | "update" | "dispose">> = [
+    ...(own ? [own] : []), ...components.parts, ...children,
+  ];
   const nodes: Record<string, Object3D> = { "": placed };
   const timelines: Record<string, NodeTimeline> = {};
   if (own?.timeline) timelines[""] = own.timeline;
@@ -89,14 +101,22 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
     onFound: () => all.forEach(part => part.onFound?.()),
     onLost: () => all.forEach(part => part.onLost?.()),
     onPause: () => all.forEach(part => part.onPause?.()),
-    update: delta => all.forEach(part => part.update?.(delta)),
-    dispose: () => all.forEach(part => part.dispose?.()),
+    update: delta => {
+      if (layers) (layers.time.value as number) += delta;
+      all.forEach(part => part.update?.(delta));
+    },
+    dispose: () => {
+      all.forEach(part => part.dispose?.());
+      layered?.dispose();
+    },
     // The same tree shape with other values: every node tunes in place and is placed again; else rebuild
     tune: tuned => {
       if (tuned.type !== node.type) return false;
       const next = tuned.children ?? [];
       if (next.length !== children.length || (node.children ?? []).length !== next.length) return false;
       if (own && !(own.tune?.(tuned) ?? true)) return false;
+      if (!components.tune(tuned)) return false;
+      if (own && (layers ? !tuneLayers(layers, tuned) : composeLayers(tuned) !== null)) return false;
       for (let i = 0; i < children.length; i++) {
         if (!children[i].tune!(next[i])) return false;
         placeEntity(children[i].object, next[i]);

@@ -25,6 +25,7 @@ import {
   ErrorCode,
   ErrorInfo,
   GameConfiguration,
+  PluginData,
   Spread,
   Step,
   Target,
@@ -335,6 +336,9 @@ export const getAssets = (spreadId?: string): AssetData[] => {
 };
 
 export const getTutorial = (): Step[] => [...tutorial];
+
+/** The plugins the content declares (schema 2.3), their modules as URLs of the loaded version */
+export const getPlugins = (): PluginData[] => (config.plugins ?? []).map(plugin => ({ ...plugin, src: contentUrl(plugin.src) }));
 
 /** The shared entity (`content/entities/<id>`) a target refers to with `ref`, or undefined for an inline entity */
 export const getEntityRef = (targetId: string): string | undefined => {
