@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.19.4 – 2026-10-30
+
+### Fixed
+- **The board moves deployed issues again** (`board-status.yml`): the first run on `main` failed with
+  `getOctokit is not defined` – `actions/github-script@v7` does not provide it. The project client is now built from the
+  action's own Octokit class with `PROJECT_TOKEN`.
+
 ## 1.19.3 – 2026-10-30
 
 ### Fixed
