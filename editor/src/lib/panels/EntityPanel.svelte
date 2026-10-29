@@ -166,17 +166,29 @@
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
   let print = $state<PrintPlacement>({ surface: "right", x: 40, y: 60, width: 80 });
+  /** The shown place is where the book's layout prints the target (until saved), not one set in the editor */
+  let placeFromLayout = $state(false);
   /** The surfaces this spread has: the pages of the open book, or the cover's face */
   const surfaces = $derived.by<readonly PrintPlacement["surface"][]>(() => {
     const format = stage?.format() ?? "spread";
     return format === "cover" ? ["front"] : format === "back" ? ["back"] : ["left", "right"];
   });
-  // The placement follows the target (its own print, else a default on the spread's first surface)
+  /** The target's place in the book's layout; without one the ghost stays where it is */
+  const placeFromBookLayout = (t: Target) => {
+    const place = stage?.printedPlace(t.id) ?? null;
+    placeFromLayout = !!place;
+    if (place) print = place;
+  };
+  // The placement follows the target: its own print; else the book's layout while the placement is open
   $effect(() => {
     const t = target;
-    const fallback = surfaces[surfaces.length - 1];
-    print = t?.print ? { ...t.print } : { surface: fallback, x: 40, y: 60, width: 80 };
+    if (t?.print) print = { ...t.print };
+    else if (t && untrack(() => printOpen)) placeFromBookLayout(t);
   });
+  const togglePlacement = () => {
+    if (!printOpen && target && !target.print) placeFromBookLayout(target);
+    printOpen = !printOpen;
+  };
   // While the placement rows are open the stage shows the edited place as a translucent image
   $effect(() => {
     const t = target;
@@ -345,7 +357,7 @@
   <div class="section"><span class="section-label">target · {target.id}</span>
     <span class="controls">
       <button type="button" class="text-link" onclick={() => targetImageInput?.click()} title="Upload another printed image for this target">Replace image…</button>
-      <button type="button" class="text-link placement-toggle" class:on={printOpen} onclick={() => (printOpen = !printOpen)}>{printOpen ? "hide placement" : "placement"}</button>
+      <button type="button" class="text-link placement-toggle" class:on={printOpen} onclick={togglePlacement}>{printOpen ? "hide placement" : "placement"}</button>
     </span></div>
   <div class="row"><span class="label">image</span>
     <span class="controls file">
@@ -366,7 +378,7 @@
       <span class="controls">
         <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => (print = { ...print, width: v })} /></span>
         <button type="button" class="pill" disabled={targetBusy} onclick={savePrint}>{targetBusy ? "Saving…" : "Save placement"}</button>
-        {#if !target.print}<span class="small muted">from the book's layout until saved</span>{/if}
+        {#if !target.print}<span class="small muted">{placeFromLayout ? "from the book's layout until saved" : "not in the book's layout – set by hand until saved"}</span>{/if}
       </span></div>
   {/if}
   {#if targetError}<p class="small danger">{targetError}</p>{/if}

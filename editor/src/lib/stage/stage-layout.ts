@@ -1,5 +1,8 @@
 import type { Spread } from "@engine/types";
 import { contentUrl } from "@engine/content/game-config";
+import type { PrintPlacement } from "$lib/api";
+
+const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
 
 /**
  * The book's layout for the editor's mock stage (three-free): every sheet of the book as laid out (the covers as
@@ -55,6 +58,13 @@ export const fetchStageLayout = async (): Promise<StageLayout | null> => {
   } catch {
     return null;
   }
+};
+
+/** Where a target is printed in the book's layout (its box in mm on the surface), null when the layout has none */
+export const printedPlaceOf = (layout: StageLayout | null, targetId: string): PrintPlacement | null => {
+  const printed = layout?.targets[targetId];
+  if (!printed || !PRINT_SURFACES.includes(printed.surface as PrintPlacement["surface"])) return null;
+  return { surface: printed.surface as PrintPlacement["surface"], x: printed.x, y: printed.y, width: printed.width, height: printed.height };
 };
 
 /** URL of a sheet's image */
