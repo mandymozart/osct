@@ -43,6 +43,8 @@
     "already-used": "Dieser Link oder Code wurde schon benutzt. Fordere eine neue E-Mail an, um dich auf diesem Gerät anzumelden.",
     "too-many-attempts": "Zu viele falsche Codes. Fordere eine neue E-Mail an.",
     "too-many-requests": "Zu viele E-Mails in kurzer Zeit. Versuch es in einer Stunde noch einmal.",
+    "too-many-requests-wait_one": "Zu viele E-Mails in kurzer Zeit. Versuch es in {{count}} Minute noch einmal.",
+    "too-many-requests-wait_other": "Zu viele E-Mails in kurzer Zeit. Versuch es in {{count}} Minuten noch einmal.",
     "mail-failed": "Die E-Mail konnte nicht gesendet werden. Versuch es später noch einmal.",
     "offline": "Keine Verbindung zum Server. Prüf deine Internetverbindung.",
     "unauthorized": "Du bist abgemeldet. Melde dich wieder an.",
