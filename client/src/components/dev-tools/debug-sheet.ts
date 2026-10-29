@@ -1,5 +1,5 @@
 /**
- * The shared frame of the debug panels that slide up from the bottom – trial, camera, load test and tune: the debug
+ * The shared frame of the debug panels that slide up from the bottom – trial, camera and load test: the debug
  * bar at the top turned upside down (flat on the bottom edge, .25rem in from the sides, rounded top corners), a top
  * bar with a grab handle that sets the height by dragging (stored per panel on this device), and a body below it that
  * scrolls. A panel renders `<div class="bar">…</div>` and `<div class="body">…</div>` into its shadow root with

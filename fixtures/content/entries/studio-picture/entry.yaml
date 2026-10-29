@@ -1,0 +1,14 @@
+# Showcase entry for the editor and the tests (spread studio-a).
+category: text
+title: "Studio: picture"
+page: 29
+body: "An image entity stretched to 1.2 × 0.8 and tilted by 8° – a non-uniform scale."
+target:
+  image: target.jpg
+  entity:
+    type: image
+    src: picture.jpg
+    params:
+      rotation: [0, 0, -8]
+      position: [0, 0, 0.02]
+      scale: [1.2, 0.8, 1]

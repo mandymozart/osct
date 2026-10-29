@@ -1,17 +1,5 @@
-import { EntityData, TargetData } from "./game-config";
-
 export interface TargetManagerState {
   trackedTargets: string[]; // target ids
-}
-
-/**
- * App model of a target (mapped from `TargetData` by `utils/game-config.ts`).
- * The entity ref is resolved.
- */
-export interface Target extends Omit<TargetData, "entity"> {
-  entryId: string;
-  spreadId: string;
-  entity?: EntityData;
 }
 
 export interface ITargetManager {

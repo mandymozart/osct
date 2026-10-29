@@ -19,14 +19,17 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/*": ["../shared/*"]
+      "@shared/*": ["../shared/*"],
+      "@engine/*": ["../engine/src/*"],
+      "vitest": ["./node_modules/vitest"]
     }
   },
   "include": [
     "src/**/*.ts", 
     "src/**/*.d.ts",
     "src/types/env.d.ts",
-    "../shared/**/*.ts"
+    "../shared/**/*.ts",
+    "../engine/src/**/*.ts"
   ],
   "exclude": ["./node_modules"]
 }

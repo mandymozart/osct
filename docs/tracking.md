@@ -1,7 +1,8 @@
 # Image tracking: spreads, preloading, load test
 
-How the 8th Wall engine (`@8thwall/engine`, `client/src/components/ar-bridges/ar/`) gets the targets it can find,
-how a spread switch works, and how to measure how many targets a phone can hold.
+How the 8th Wall engine (`@8thwall/engine`, `engine/src/scene/tracker.ts` + `xr8.ts`, used by the reader) gets the
+targets it can find, how a spread switch works, and how to measure how many targets a phone can hold. Without a camera
+and engine – the editor's stage with the mock tracker – see [Editor](editor.md).
 
 ## The flow today
 

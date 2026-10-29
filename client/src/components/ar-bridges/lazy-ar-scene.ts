@@ -1,5 +1,5 @@
-import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneState } from "@/types";
-import { Emitter } from "./utils/emitter";
+import { ArSceneEvents, ArStatus, EntityData, IArScene, SceneInspection, SceneState } from "@/types";
+import { Emitter } from "@engine/utils/emitter";
 
 type ArModule = typeof import("./ar");
 
@@ -93,8 +93,20 @@ export class LazyArScene implements IArScene {
     this.scene?.celebrate(targetId);
   }
 
-  tuneEntity(targetId: string, entity: EntityData | null): void {
-    this.scene?.tuneEntity(targetId, entity);
+  async refresh(): Promise<void> {
+    await this.scene?.refresh();
+  }
+
+  overrideEntity(targetId: string, entity: EntityData | null): void {
+    this.scene?.overrideEntity(targetId, entity);
+  }
+
+  sampleColor(x: number, y: number): string | null {
+    return this.scene?.sampleColor(x, y) ?? null;
+  }
+
+  inspect(): SceneInspection | null {
+    return this.scene?.inspect() ?? null;
   }
 
   async dispose(): Promise<void> {
@@ -105,8 +117,8 @@ export class LazyArScene implements IArScene {
   private create(): Promise<IArScene> {
     if (!this.creating) {
       this.emitter.emit("status", "loading");
-      this.creating = loadArModule().then(({ ArScene }) => {
-        const scene = new ArScene(this.container);
+      this.creating = loadArModule().then(({ createReaderScene }) => {
+        const scene = createReaderScene(this.container);
         // Forward the real scene's events
         SCENE_EVENTS.forEach(event =>
           scene.on(event, ((...args: unknown[]) =>

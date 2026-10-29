@@ -1,4 +1,4 @@
-import { EntryCategory } from "./entries";
+import { EntryCategory } from "./game-config";
 
 /**
  * What one reader discovered in one book, keyed by stable content ids and stored per `book.id` via

@@ -9,7 +9,7 @@ import {
 
 type DebugTab = "spread" | "progress";
 /** The bottom panels the overlay opens (`<name>-panel`), at most one at a time */
-const PANELS = ["camera", "trial", "load-test", "tune"];
+const PANELS = ["camera", "trial", "load-test"];
 
 const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -18,8 +18,8 @@ const formatTime = (time: number) => new Date(time).toLocaleString();
 
 /**
  * Development overlay: a one-line status summary – AR status dot, T<targets on the spread>, E<ready>/<held> in the
- * engine; the rest is in the expanded view (Tilman, 2026-10-28: the line stays one line)
- * that expands on tap into spread, target and progress details, and opens the tune panel (`<tune-panel>`), the
+ * engine; the rest is in the expanded view (the line stays one line)
+ * that expands on tap into spread, target and progress details, and opens the
  * camera test panel (`<camera-panel>`), the trigger trial panel (`<trial-panel>`) or the engine load test (`<load-test-panel>`).
  * Sets `--debug-offset` so app chrome moves below the collapsed line.
  */

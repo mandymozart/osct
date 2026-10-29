@@ -9,15 +9,13 @@
 
 export const GRAPHICS_STORAGE_KEY = "osct-graphics";
 
-export interface GraphicsSettings {
-  onionSky: boolean;
-  surroundings: boolean;
-}
+import type { GraphicsSettings, GraphicsSource } from "@engine/types/graphics";
+export type { GraphicsSettings };
 
 /** Off until the reader turns them on (prototypes until the content's world arrives) */
 const DEFAULT_SETTINGS: GraphicsSettings = { onionSky: false, surroundings: false };
 
-export class GraphicsService {
+export class GraphicsService implements GraphicsSource {
   private static instance: GraphicsService | null = null;
 
   static getInstance(): GraphicsService {

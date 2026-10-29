@@ -11,11 +11,10 @@ const SIMD_PROBE = [0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1
  */
 export class CameraManager implements ICameraManager {
   private game: IGame;
-  
   constructor(game: IGame) {
     this.game = game;
   }
-  
+
   private setPermissionStatus(status: CameraPermissionStatus): void {
     this.game.update(draft => {
       draft.cameraPermission = status;

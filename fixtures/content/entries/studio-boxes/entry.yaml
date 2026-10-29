@@ -1,0 +1,14 @@
+# Showcase entry for the editor and the tests (spread studio-a).
+category: glossary
+title: "Studio: floating boxes"
+page: 29
+body: "A model lifted off the page and turned by 45° – the parallax test when the view moves."
+target:
+  image: target.jpg
+  entity:
+    type: model
+    src: cardboard-boxes.glb
+    params:
+      rotation: [90, 45, 0]
+      position: [0, 0, 0.3]
+      scale: 0.6

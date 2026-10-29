@@ -1053,6 +1053,45 @@ The final content goes in and the app is tuned on it, on the devices readers wil
 
 ---
 
+## Phase 15 – Editor  `[~]` (1.10.0, 2026-10-29 – Tilman, #61: "ich möchte 59 skippen und direkt in diesen Editor reingehen")
+
+The authors' tool for Amsterdam: the app's own scene over a simulated page, then forms and saving to the database,
+then the plugin API and code in the editor. Concept notes: `agents/research/2026-10-28-editor-data-model.md`,
+`2026-10-28-entity-components.md`; issues #61 (editor), #60 (book geometry from the PDF); #59 (mock stage) folded in.
+1. [x] `/editor` route with the mock tracker and the mock stage, the preview panel and the tune panel, lazily loaded
+       (1.10.0). Open: an editor-only progress (the preview unlocks targets in the device's progress); the layout
+       from the trigger protocol is coarse until #60 imports the PDF.
+1b. [~] Where the editor lives – decided (evening, `agents/research/2026-10-29-editor-architecture.md`): the
+       engine (content runtime + AR scene) becomes `engine/`, the reader uses it with the real tracker and loses every
+       editor trace (route, chunk, preview, mock tracker, tune panel), the editor is a SvelteKit app `editor/` at
+       `/editor` with the engine + mock tracker in process; an OSCT instance user (Building Fictions) signs in,
+       independent of Scutoons. Done (1.10.0): [x] engine package, [x] reader stripped, [x] editor app (sign-in, books,
+       import, stage, Stage / Entity panels, save, publish), [x] image + CI; staging = the PR into develop.
+2b. [~] **Asset upload** (Tilman 2026-10-29): [x] the asset layer after Scutoons' in OSCT size – registry (assets,
+       versions, usages computed), the content store as storage (local + bunny), upload, replace with relink, guarded
+       delete, the editor's Library, a node's file, a target's image; [x] targets made in the editor (`print`
+       placement, `POST /entries`, `DELETE /entries/{id}`, "+ target" in the tree); [ ] renditions (1x / 2x / 3x,
+       480p / 720p / 1080p) and transcoding – the content build or a job; [x] a target made in the editor tracks in
+       the reader: the 8th Wall engine makes the image-target data from the image at runtime (`xr8.ts`), nothing to
+       compile; [ ] the media standard's density suffixes.
+2c. [ ] **Asked on 2026-10-29, for steps 3–4** (Tilman): nodes without a target on the spread (scenery, listeners on
+       events – an anchor for the spread's scene, scope `spread`), a **timeline** for a model's animation clips with
+       start / stop on found / lost / tap (the `animation` component and `behaviour` of the concept), and the
+       **script part** (code in the editor, step 4). Studio C is the acceptance scenario.
+2. [x] Saving (1.10.0): books, spreads, entries, targets, entities in the database (`/api/editor/*`, import from a
+       game configuration, entity edits with a change log), the draft as a content version the engine loads
+       (`…/draft/latest.json`), publish = the version assembled from the rows into the content store (local dir or
+       bunny) – the "compile" of this step. Open: `CONTENT_STORE=bunny` + the zone's credentials in the staging
+       environment; texts, entries, targets and media still come from the content source (import again).
+3. [~] Plugin API: [x] content schema 2.0 – the node tree (`children`, `group`, `text`, recursive engine, build,
+       guard, API, editor's tree with + node / remove node; the app reads 1.x as one-node trees – 2026-10-29);
+       [ ] registries for node types, components and material layers with specs (`shared/`), `api.three`; plugins
+       compiled by the content build.
+4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.
+5. [~] Layout templates per spread (`book`, `sheet`, `cover`, `sleeve`, `wall`) and the geometry import (#60): the
+       import from the designed PDFs exists (`npm run layout`, 1.10.0 – sheets, covers, printed geometry into the
+       content's `layout/`); templates as spreads of their own and the geometry in the content schema are open.
+
 ## Suggested order
 
 0 → 1 (incl. 1e) → 2 → 3 → 4 → 5 → 6 → 9 → 9b → 11 → 13 (built) → 14 (content, with the designers) → 7 → 8 → 10.

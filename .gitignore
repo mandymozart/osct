@@ -18,6 +18,8 @@ client/public/assets/content/
 server/api/config.local.php
 server/api/db/*.sqlite
 server/api/db/*.log
+# The local content store (what the editor publishes on this machine)
+server/api/db/content/
 
 # Logs
 logs
@@ -41,3 +43,5 @@ logs
 # Trial/final content videos stay out of git – synced to the CDN separately; a build without
 # them gives those targets no AR video (warning, not an error)
 content/entries/*/video.mp4
+# The book's layout for the editor's stage – generated from the designed PDFs (scripts/layout/extract-layout.py)
+content/layout/

@@ -151,7 +151,9 @@ describe("content compatibility", () => {
   it("refuses another MAJOR: newer content asks for an app update", () => {
     expect(check(schema(app.major + 1, 0))).toMatchObject({ code: ErrorCode.NOT_SUPPORTED, type: "critical" });
     expect(check(schema(app.major + 1, 0))?.details?.[0]).toMatch(/update the app/);
-    if (app.major > 1) expect(check(schema(app.major - 1, 9))?.details?.[0]).toMatch(/newer build/);
+    // Schema 1.x content is a 2.0 tree of one node per entity: read as it is; anything older is refused
+    expect(check(schema(1, 9))).toBeNull();
+    expect(check(schema(0, 9))?.details?.[0]).toMatch(/newer build/);
   });
 
   it("ignores the app version the content was built with", () => {
