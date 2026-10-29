@@ -127,24 +127,24 @@ export class ArScene implements IArScene {
     else this.overrides.delete(targetId);
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (!anchor) return;
-    // A file the spread's content does not have (the editor's library, a new node): loaded first, built after
-    const missing = entityAssets(entity ?? undefined).filter(asset => !this.assets.get(asset.id));
+    this.rebuildOverride(anchor, targetId);
+    // A file the spread's content does not have (the editor's library, a new node): the entity shows at once as far
+    // as it can (a placeholder for a model), the file loads, then the entity is built again with it
+    const missing = entityAssets(entity ?? undefined).filter(asset => !this.assets.knows(asset.id));
     if (missing.length) {
       void this.assets.load(missing).then(() => {
-        if (this.overrides.get(targetId) === entity) this.rebuildOverride(anchor, targetId);
+        if (this.overrides.get(targetId) === entity) this.rebuildOverride(anchor, targetId, true);
       });
-      return;
     }
-    this.rebuildOverride(anchor, targetId);
   }
 
-  /** The anchor shows its entity as overridden: tuned in place when it can, built anew otherwise */
-  private rebuildOverride(anchor: Anchor, targetId: string): void {
+  /** The anchor shows its entity as overridden: tuned in place when it can (unless `force`), built anew otherwise */
+  private rebuildOverride(anchor: Anchor, targetId: string, force = false): void {
     const wanted = this.entityOf(anchor.target);
     // A running animation holds the entity's materials – it ends first
     this.animations.get(targetId)?.finish();
     this.animations.delete(targetId);
-    if (wanted && anchor.entity && wanted.type === anchor.entity.type && (anchor.entity.tune?.(wanted) ?? true)) {
+    if (!force && wanted && anchor.entity && wanted.type === anchor.entity.type && (anchor.entity.tune?.(wanted) ?? true)) {
       placeEntity(anchor.entity.object, wanted);
       return;
     }
