@@ -1097,9 +1097,13 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        material layers), the node-type registry with specs, nodes without a target on the spread (scope `spread`),
        `api.three`; plugins compiled by the content build.
 4. [ ] Code in the editor: browser transpile for the preview, a code panel, plugin sources as content.
-5. [~] Layout templates per spread (`book`, `sheet`, `cover`, `sleeve`, `wall`) and the geometry import (#60): the
-       import from the designed PDFs exists (`npm run layout`, 1.10.0 – sheets, covers, printed geometry into the
-       content's `layout/`); templates as spreads of their own and the geometry in the content schema are open.
+5. [~] Spread **formats** (Tilman 2026-10-29: "Format als assignable ins Modell … default Spread, special Front und
+       Back, Bonus Museumswand") and the geometry import (#60): [x] the import from the designed PDFs (`npm run
+       layout`, 1.10.0); [x] `format` on a spread (schema 2.3): `spread`, `cover`, `back` – the covers as spreads of
+       their own (page 0, the page after the last), the closed book on the stage, surfaces `front` / `back`, + cover /
+       + back cover and the format select in the editor; [ ] `wall` (a museum wall: targets on one surface of any
+       size, the stage draws a wall), `object` / `sleeve` later; [ ] the printed geometry in the content schema for
+       every target (today `print` only for editor-made targets, the layout for the rest).
 
 ## Suggested order
 

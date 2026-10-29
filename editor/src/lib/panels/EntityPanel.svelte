@@ -162,10 +162,16 @@
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
   let print = $state<PrintPlacement>({ surface: "right", x: 40, y: 60, width: 80 });
-  // The placement follows the target (its own print, else a default on the right page)
+  /** The surfaces this spread has: the pages of the open book, or the cover's face */
+  const surfaces = $derived.by<readonly PrintPlacement["surface"][]>(() => {
+    const format = stage?.format() ?? "spread";
+    return format === "cover" ? ["front"] : format === "back" ? ["back"] : ["left", "right"];
+  });
+  // The placement follows the target (its own print, else a default on the spread's first surface)
   $effect(() => {
     const t = target;
-    print = t?.print ? { ...t.print } : { surface: "right", x: 40, y: 60, width: 80 };
+    const fallback = surfaces[surfaces.length - 1];
+    print = t?.print ? { ...t.print } : { surface: fallback, x: 40, y: 60, width: 80 };
   });
   // While the placement rows are open the stage shows the edited place as a translucent image
   $effect(() => {
@@ -319,7 +325,7 @@
     </span></div>
   {#if printOpen}
     <div class="row"><span class="label">surface</span>
-      <span class="controls"><Segmented options={["left", "right"] as const} value={print.surface} onchange={s => (print = { ...print, surface: s })} /></span></div>
+      <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => (print = { ...print, surface: s })} /></span></div>
     <div class="row"><span class="label">x · y</span>
       <span class="fields">
         <ScrubNumber value={print.x} min={0} max={230} step={1} fallback={0} prefix="X" unit="mm" label="printed x" oninput={v => (print = { ...print, x: v })} />
