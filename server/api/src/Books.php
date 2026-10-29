@@ -303,6 +303,47 @@ final class Books
     }
 
     /**
+     * PUT /editor/books/{id}/environment { environment: { world, onionSky } | null } → 200 { environment }: the world
+     * around the reader and the onion sky (content schema 2.7, shared/types/environment.ts). `null` removes it – the
+     * default applies. Book-level only; the reader's Graphics switches still apply on top.
+     */
+    public static function putEnvironment(string $bookId): never
+    {
+        $user = Editor::user();
+        $row = self::book($bookId);
+        $body = Editor::body();
+        if (!property_exists($body, 'environment')) throw new ApiError(400, 'invalid-environment', 'Send { environment: { world, onionSky } } or { environment: null }.');
+        $book = Editor::decode($row['book_json']);
+        if ($body->environment === null) {
+            unset($book->environment);
+        } else {
+            $problems = self::environmentProblems($body->environment);
+            if ($problems) throw new ApiError(400, 'invalid-environment', $problems[0]);
+            $book->environment = (object) ['world' => $body->environment->world, 'onionSky' => $body->environment->onionSky];
+        }
+        $json = Editor::encode($book);
+        Db::transaction(function () use ($bookId, $json, $row, $user) {
+            Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
+            self::touch($bookId);
+            self::change($bookId, $user, 'environment', $bookId, $row['book_json'], $json);
+        });
+        Http::json(200, ['environment' => $book->environment ?? null]);
+    }
+
+    /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`); [] when valid */
+    public static function environmentProblems(mixed $value): array
+    {
+        if (!$value instanceof stdClass) return ['environment must be an object { world, onionSky }.'];
+        $problems = [];
+        if (!in_array($value->world ?? null, self::WORLDS, true)) $problems[] = 'environment.world must be one of ' . implode(', ', self::WORLDS) . '.';
+        if (!is_bool($value->onionSky ?? null)) $problems[] = 'environment.onionSky must be true or false.';
+        foreach (array_keys(get_object_vars($value)) as $key) {
+            if (!in_array($key, ['world', 'onionSky'], true)) $problems[] = "environment.$key is not a field of the environment.";
+        }
+        return $problems;
+    }
+
+    /**
      * POST /editor/books/{id}/spreads { format: "cover" | "back", title? } → 201 { spread }: the front cover (page 0,
      * first in order) or the back cover (the page after the last, last in order). 409 `duplicate-id` when the book
      * has one.
@@ -338,6 +379,8 @@ final class Books
 
     /** The built-in post-processing passes of the contract (shared/types/passes.ts `PASSES`) */
     public const PASS_TYPES = ['bloom', 'vignette', 'grade'];
+    /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
+    public const WORLDS = ['cafe'];
 
     /**
      * A `passes` list as the content holds it: every pass an object with a built-in `type` and scalar parameters (the
@@ -547,6 +590,10 @@ final class Books
         if (!$version instanceof stdClass || !is_string($version->schema ?? null) || !preg_match('/^\d+\.\d+$/', $version->schema)) $fail('version.schema must be "MAJOR.MINOR".');
         $book = $c->book ?? null;
         if (!$book instanceof stdClass || !is_string($book->id ?? null) || !is_string($book->title ?? null) || !is_string($book->author ?? null)) $fail('book needs id, title and author.');
+        if (isset($book->environment)) {
+            $problems = self::environmentProblems($book->environment);
+            if ($problems) $fail($problems[0]);
+        }
         if (!is_string($c->initialSpreadId ?? null)) $fail('initialSpreadId must be a string.');
         if (!is_array($c->spreads ?? null) || !is_array($c->entries ?? null)) $fail('spreads and entries must be arrays.');
         $entitiesIn = $c->entities ?? new stdClass();
