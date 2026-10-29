@@ -43,6 +43,8 @@
     "already-used": "Ce lien ou ce code a déjà été utilisé. Demande un nouvel e-mail pour te connecter sur cet appareil.",
     "too-many-attempts": "Trop de codes erronés. Demande un nouvel e-mail.",
     "too-many-requests": "Trop d'e-mails en peu de temps. Réessaie dans une heure.",
+    "too-many-requests-wait_one": "Trop d'e-mails en peu de temps. Réessaie dans {{count}} minute.",
+    "too-many-requests-wait_other": "Trop d'e-mails en peu de temps. Réessaie dans {{count}} minutes.",
     "mail-failed": "L'e-mail n'a pas pu être envoyé. Réessaie plus tard.",
     "offline": "Pas de connexion au serveur. Vérifie ta connexion internet.",
     "unauthorized": "Tu es déconnecté·e. Connecte-toi à nouveau.",

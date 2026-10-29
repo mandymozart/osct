@@ -156,6 +156,16 @@ try {
     check($status === 202, 'four requests per hour are fine');
     [$status, $data] = call($api, 'POST', '/auth/request', ['email' => 'many@example.com']);
     check($status === 429 && $data['error']['code'] === 'too-many-requests', 'the fifth → 429');
+    check(($data['error']['retryAfter'] ?? 0) > 0 && $data['error']['retryAfter'] <= 3600 && str_contains($data['error']['message'], 'minute'), 'the 429 says when the next email is allowed (retryAfter, seconds)');
+
+    echo "rate limits off (-1)\n";
+    $openApi = startApi(['DB_SQLITE_PATH' => "$tmp/open.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '-1', 'LOGIN_MAX_PER_IP_HOUR' => '-1'] + $settings);
+    $statuses = [];
+    for ($i = 0; $i < 7; $i++) [$statuses[]] = call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com']);
+    check($statuses === array_fill(0, 7, 202), 'a limit of -1 is off: seven requests in a row pass (local testing)');
+    $zeroApi = startApi(['DB_SQLITE_PATH' => "$tmp/zero.sqlite", 'LOGIN_MAX_PER_EMAIL_HOUR' => '0'] + $settings);
+    [$status, $data] = call($zeroApi, 'POST', '/auth/request', ['email' => 'zero@example.com']);
+    check($status === 429 && $data['error']['code'] === 'too-many-requests', 'a limit of 0 allows nothing (#83)');
 
     echo "user\n";
     [$status] = call($api, 'GET', '/user');
