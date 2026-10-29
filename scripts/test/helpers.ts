@@ -24,7 +24,7 @@ export function makeContent(files: Record<string, string | Buffer>): { root: str
 export async function loadBuild(dirs: { content: string }) {
   vi.stubEnv('OSCT_CONTENT_DIR', dirs.content);
   vi.resetModules();
-  const [errors, book, spreads, entities, entries, targets, tutorial, hash] = await Promise.all([
+  const [errors, book, spreads, entities, entries, targets, tutorial, hash, plugins] = await Promise.all([
     import('../src/lib/errors'),
     import('../src/build/book'),
     import('../src/build/spreads'),
@@ -33,6 +33,7 @@ export async function loadBuild(dirs: { content: string }) {
     import('../src/build/targets'),
     import('../src/build/tutorial'),
     import('../src/lib/hash'),
+    import('../src/build/plugins'),
   ]);
   /** book → spreads → entities → entries → target limit, like the content build */
   const buildAll = () => {
@@ -42,5 +43,5 @@ export async function loadBuild(dirs: { content: string }) {
     targets.checkTargetsPerSpread(s, builds);
     return { book: b, spreads: s, entries: builds.map(x => x.entry), tutorial: tutorial.buildTutorial(b) };
   };
-  return { errors: errors.buildErrors, warnings: errors.buildWarnings, buildAll, book, spreads, entities, entries, targets, tutorial, hash };
+  return { errors: errors.buildErrors, warnings: errors.buildWarnings, buildAll, book, spreads, entities, entries, targets, tutorial, hash, plugins };
 }

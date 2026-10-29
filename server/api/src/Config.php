@@ -90,6 +90,13 @@ final class Config
         return (int) self::get($key);
     }
 
+    /** A rate limit (emails, attempts, failures per hour): **-1 switches it off** (local testing, the codes in the mail log); 0 allows nothing */
+    public static function limit(string $key): int
+    {
+        $limit = self::int($key);
+        return $limit < 0 ? PHP_INT_MAX : $limit;
+    }
+
     /** @return string[] */
     public static function list(string $key): array
     {
