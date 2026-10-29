@@ -24,10 +24,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   "Editor data".
 - **The editor** (#61, the mock stage of #59): a SvelteKit app of its own at `/editor` (`editor/`, built into the image
   next to the reader) for an instance user with the role `editor`. It runs the engine over a simulated page instead of
-  the camera – a table, the open book in its page format, the current spread's printed images where they are printed
-  (the book's layout), by the trigger protocol or in a row – and every target counts as found, so models, videos and
+  the camera – a table, the open book as an object (paper blocks whose thickness follows the number of spreads on a
+  cover board with an overhang; every plane a hair under the one above it, so nothing flickers), the current spread's
+  printed images where they are printed (the book's layout), by the trigger protocol or in a row – and every target
+  counts as found, so models, videos and
   filters show with their reveal, unlock and outro exactly as in AR, on the desktop and on a phone, without a camera.
-  Books are imported from a game configuration (the CDN's current version, a URL or a file); the workspace has the
+  Books are imported from a game configuration (the CDN's current version, a URL or a file); the spreads list shows
+  each spread's sheet as its preview; the workspace has the
   **tree** of the spread at the left in the style of Blender's outliner (entries → targets → entities with type icons,
   guide lines, the eye column for found, keyboard navigation, a tap selects; collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, wheel or
   pinch for the distance, found chips per target, replay of the first find, hand shake, backdrop *table / paper /
