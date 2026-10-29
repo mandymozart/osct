@@ -3,7 +3,7 @@ import type { SpreadFormat, Target } from "@engine/types";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, TriggerInfos } from "@engine/utils/trigger-protocol";
-import { fetchStageLayout, LayoutSheet, printedPlaceOf, sheetForSpread, sheetImageUrl, StageLayout } from "./stage-layout";
+import { fetchStageLayout, LayoutSheet, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, StageLayout } from "./stage-layout";
 import { getPreview, PreviewOrbit, PreviewState, PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
@@ -52,6 +52,8 @@ export interface StageTarget {
 /** The sheet of the book under the targets, as laid out: its rendered image and size */
 export interface StageSheet {
   image: string;
+  /** A much sharper image of the sheet, fetched once the camera is close (absent: the base image only) */
+  imageSharp?: string;
   widthMm: number;
   heightMm: number;
 }
@@ -93,6 +95,8 @@ const WOBBLE_DEGREES = 0.5;
 const DEFAULT_PRINT_MM = 60;
 const PAGE_MARGIN_MM = 20;
 const ROW_GAP_MM = 25;
+
+const gridOf = (state: PreviewState) => ({ on: state.grid, mm: state.gridMm, origin: state.origin });
 
 const degrees = (value: number) => (value * Math.PI) / 180;
 
@@ -212,6 +216,10 @@ export interface StageView {
   setGhost?(ghost: StageTarget | null): void;
   /** The printed images on the page, each with `userData.targetId` (picking a target by its print) */
   printedPlanes?(): Object3D[];
+  /** The grid over the page: spacing in mm, counted from the origin */
+  setGrid?(grid: { on: boolean; mm: number; origin: PreviewState["origin"] }): void;
+  /** The camera's distance from the page (mm), every frame: close up the sheet's sharper image is fetched */
+  setDetail?(distanceMm: number): void;
   /** The viewport's shading: the sky and the HDRI's light show only while rendered */
   setShading?(mode: PreviewState["shading"]): void;
   /** The ghost's image and corner (the placement handles) */
@@ -321,11 +329,12 @@ export class MockTracker implements IImageTracker {
     stage.setShading?.(this.preview.shading);
     stage.setHdri(this.preview.hdri);
     stage.setDesk?.(this.preview.desk);
+    stage.setGrid?.(gridOf(this.preview));
     stage.setGhost?.(this.ghost);
   }
 
   /** The page format: the book's layout, else this book's constant */
-  private pageFormat(): PageFormat {
+  pageFormat(): PageFormat {
     return this.layout?.page ?? BOOK_PAGE_MM;
   }
 
@@ -336,7 +345,7 @@ export class MockTracker implements IImageTracker {
 
   private stageSheet(): StageSheet | null {
     const sheet = this.sheet;
-    return sheet ? { image: sheetImageUrl(sheet), widthMm: sheet.widthMm, heightMm: sheet.heightMm } : null;
+    return sheet ? { image: sheetImageUrl(sheet), imageSharp: sheetSharpImageUrl(sheet), widthMm: sheet.widthMm, heightMm: sheet.heightMm } : null;
   }
 
   async startCamera(): Promise<void> {
@@ -443,6 +452,7 @@ export class MockTracker implements IImageTracker {
       }
       this.options.onUpdate(target.id, matrix);
     }
+    this.stage?.setDetail?.(this.orbit.distance);
     this.stage?.update(this.cameraInverse);
   }
 
@@ -476,6 +486,7 @@ export class MockTracker implements IImageTracker {
     if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
     if (initial || state.hdri !== previous.hdri) this.stage?.setHdri(state.hdri);
     if (initial || state.desk !== previous.desk) this.stage?.setDesk?.(state.desk);
+    if (initial || state.grid !== previous.grid || state.gridMm !== previous.gridMm || state.origin !== previous.origin) this.stage?.setGrid?.(gridOf(state));
     if (state.hidden !== previous.hidden) this.publishState();
   }
 
