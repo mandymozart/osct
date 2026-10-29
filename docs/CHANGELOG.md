@@ -12,6 +12,20 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Add and remove spreads in the editor** (#166): the book page has **+ double page** (after the last one, before the
+  back cover) and, on each card, **+ after** and **remove**. A new double page takes the two pages after the spread
+  before it and numbers every later page on by two – the later spreads, the entries on those pages and their targets'
+  printed page move with them. Removing an empty spread numbers the later pages back; a spread with entries, or the
+  one the book opens on, is not removed (the button is disabled and says why). The API: `POST …/spreads { format:
+  "spread", after? }` and `DELETE …/spreads/{id}` (docs/server.md "Spreads made in the editor").
+
+### Changed
+- **Disabled controls look disabled** in the whole editor: dimmed, a not-allowed cursor, a select without its arrow –
+  the spread format select on a double page no longer looks broken. The reason stays in the Info view.
+
 ## 1.27.1 – 2026-10-30
 
 ### Added

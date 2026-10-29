@@ -102,6 +102,8 @@ export interface BookSummary {
   live?: LiveIn[];
   /** Where the content's `/assets/content/…` paths resolve (the layout, the cover); empty: the draft's origin */
   assetsBase?: string | null;
+  /** The spread the book opens on – it cannot be removed */
+  initialSpreadId?: string;
 }
 
 export interface TreeTarget {
@@ -339,8 +341,23 @@ export const putEnvironment = (bookId: string, environment: EnvironmentData | nu
 export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: "spread" | "cover" | "back"; passes?: PassData[] | null }) =>
   api<{ spread: unknown }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, body);
 
-export const addSpread = (bookId: string, body: { format: "cover" | "back"; title?: string }) =>
-  api<{ spread: { id: string } }>("POST", `/editor/books/${encodeURIComponent(bookId)}/spreads`, body);
+/** The rows a new or removed double page renumbered (the later spreads, the entries on their pages, the printed pages) */
+export interface MovedRows {
+  spreads: number;
+  entries: number;
+  targets: number;
+}
+
+/**
+ * A double page (`format: "spread"`, after the spread `after` – default: the last one before the back cover; the later
+ * pages are numbered on by two) or a cover (`cover` / `back`)
+ */
+export const addSpread = (bookId: string, body: { format: "cover" | "back"; title?: string } | { format: "spread"; after?: string; id?: string; title?: string }) =>
+  api<{ spread: { id: string; firstPage: number; lastPage: number }; moved: MovedRows }>("POST", `/editor/books/${encodeURIComponent(bookId)}/spreads`, body);
+
+/** Removes a spread without entries (409 `spread-not-empty` / `initial-spread` otherwise); a double page's later pages are numbered back */
+export const deleteSpread = (bookId: string, spreadId: string) =>
+  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`);
 
 export const deleteEntry = (bookId: string, entryId: string) =>
   api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`);

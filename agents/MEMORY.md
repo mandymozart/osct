@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Spreads added and removed on the book page (#166)
+
+- Tilman on the disabled format select: "no hint next to it, the disabled state just has to be clearer" – disabled
+  controls are dimmed, get a not-allowed cursor and a select loses its arrow, editor-wide (`app.css`); the reason stays
+  in the Info view (RULES #32).
+- A new double page **renumbers the pages after it** (Tilman: "the pages are numbered on") – later spreads, entries and
+  `print.page` move by two, and removing a double page reverses it. The layout's sheets are matched by page and do
+  not move, so later cards show the sheets of their new numbers until a layout with the new pages is imported.
+- **Removing a spread with entries is refused** (409 `spread-not-empty`), not "ask and remove them too": the entries
+  carry targets and AR (work), a bulk delete is not undone by anything but the change log, and deleting entries one by
+  one already exists in the tree. The spread the book opens on cannot be removed either (`initial-spread`).
+- The hint "New spreads come in with an import for now" shows only where adding is impossible: the API refuses a
+  double page (an older server) – then the book page offers no double pages.
+- [ ] The MCP server has no tool for adding or removing spreads yet (RULES #32: a new endpoint is a new tool there).
+
 ## 2026-10-30 – Local MariaDB in Docker, staging's data, the API test on MariaDB (#168)
 
 - Tilman after #161: *"in future, for testing locally, start a MariaDB in a Docker container, as in SCUTOONS"*, plus a

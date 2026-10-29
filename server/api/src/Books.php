@@ -391,9 +391,14 @@ final class Books
     }
 
     /**
-     * POST /editor/books/{id}/spreads { format: "cover" | "back", title? } → 201 { spread }: the front cover (page 0,
-     * first in order) or the back cover (the page after the last, last in order). 409 `duplicate-id` when the book
-     * has one.
+     * POST /editor/books/{id}/spreads { format: "spread" | "cover" | "back", after?, id?, title? } → 201 { spread, moved }:
+     * - `spread`: a double page after the spread `after` (default: after the last one before the back cover). Its pages
+     *   are the two after that spread's last page; every later page is numbered on by two – the later spreads, the
+     *   entries on those pages and their targets' `print.page` move with them (`moved` counts the rows). Its id is
+     *   `id`, else the first free `spread-<n>`. 400 `unknown-spread` for an unknown `after`, `invalid-spread` after
+     *   the back cover; 409 `duplicate-id`.
+     * - `cover` / `back`: the front cover (page 0, first in order) or the back cover (the page after the last, last in
+     *   order) – nothing moves. 409 `duplicate-id` when the book has one.
      */
     public static function addSpread(string $bookId): never
     {
@@ -401,10 +406,56 @@ final class Books
         self::book($bookId);
         $body = Editor::body();
         $format = $body->format ?? null;
-        if (!in_array($format, ['cover', 'back'], true)) throw new ApiError(400, 'invalid-spread', 'format must be cover or back.');
+        if (!in_array($format, self::FORMATS, true)) throw new ApiError(400, 'invalid-spread', 'format must be one of ' . implode(', ', self::FORMATS) . '.');
+        $title = is_string($body->title ?? null) && trim($body->title) !== '' ? trim($body->title) : null;
+        if ($format !== 'spread') {
+            if (property_exists($body, 'after')) throw new ApiError(400, 'invalid-spread', 'after is for a double page – the covers have their places.');
+            self::addCover($bookId, $format, $title, $user);
+        }
+        $spreads = Db::run('SELECT id, position, first_page, last_page, data_json FROM spreads WHERE book_id = :book ORDER BY position', ['book' => $bookId])->fetchAll();
+        if (property_exists($body, 'after')) {
+            $afterId = Editor::id($body->after, 'after');
+            $anchor = array_values(array_filter($spreads, fn(array $s) => $s['id'] === $afterId))[0] ?? null;
+            if ($anchor === null) throw new ApiError(400, 'unknown-spread', "No spread \"$afterId\" in this book.");
+            if (self::formatOf($anchor) === 'back') throw new ApiError(400, 'invalid-spread', 'Nothing comes after the back cover.');
+        } else {
+            $before = array_values(array_filter($spreads, fn(array $s) => self::formatOf($s) !== 'back'));
+            $anchor = $before ? end($before) : null;
+        }
+        $ids = array_column($spreads, 'id');
+        if (property_exists($body, 'id')) {
+            $id = Editor::id($body->id, 'id');
+            if (in_array($id, $ids, true)) throw new ApiError(409, 'duplicate-id', "A spread \"$id\" exists.");
+        } else {
+            for ($n = 1; in_array("spread-$n", $ids, true); $n++);
+            $id = "spread-$n";
+        }
+        // A book without spreads (or with only a back cover) starts on page 1, before everything
+        $last = $anchor !== null ? (int) $anchor['last_page'] : 0;
+        $position = $anchor !== null ? (int) $anchor['position'] + 1 : ($spreads ? (int) $spreads[0]['position'] : 0);
+        $spread = (object) ['id' => $id, 'title' => $title ?? 'New spread', 'firstPage' => $last + 1, 'lastPage' => $last + 2];
+        $json = Editor::encode($spread);
+        $moved = Db::transaction(function () use ($bookId, $id, $position, $spread, $last, $json, $user) {
+            Db::run('UPDATE spreads SET position = position + 1 WHERE book_id = :book AND position >= :position', ['book' => $bookId, 'position' => $position]);
+            $moved = self::renumber($bookId, $last, 2, $user);
+            Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
+                ['book' => $bookId, 'id' => $id, 'position' => $position, 'title' => $spread->title, 'first' => $spread->firstPage, 'last' => $spread->lastPage, 'data' => $json]);
+            self::touch($bookId);
+            self::change($bookId, $user, 'spread', $id, null, $json);
+            return $moved;
+        });
+        Http::json(201, ['spread' => $spread, 'moved' => $moved]);
+    }
+
+    /**
+     * The front cover (page 0, first) or the back cover (the page after the last, last) – POST …/spreads { format }
+     * @param array<string, mixed> $user
+     */
+    private static function addCover(string $bookId, string $format, ?string $title, array $user): never
+    {
         $id = $format;
         if (Db::one('SELECT id FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $id])) throw new ApiError(409, 'duplicate-id', "The book has a $format spread.");
-        $title = is_string($body->title ?? null) && trim($body->title) !== '' ? trim($body->title) : ($format === 'cover' ? 'Cover' : 'Back cover');
+        $title ??= $format === 'cover' ? 'Cover' : 'Back cover';
         $last = (int) Db::value('SELECT COALESCE(MAX(last_page), 0) FROM spreads WHERE book_id = :book', ['book' => $bookId]);
         $page = $format === 'cover' ? 0 : $last + 1;
         $position = $format === 'cover'
@@ -418,7 +469,88 @@ final class Books
             self::touch($bookId);
             self::change($bookId, $user, 'spread', $id, null, $json);
         });
-        Http::json(201, ['spread' => $spread]);
+        Http::json(201, ['spread' => $spread, 'moved' => ['spreads' => 0, 'entries' => 0, 'targets' => 0]]);
+    }
+
+    /**
+     * DELETE /editor/books/{id}/spreads/{spreadId} → 204: a spread without entries goes. A double page takes its pages
+     * with it: every later page is numbered back (the later spreads, the entries on those pages, their targets'
+     * `print.page`) – the reverse of adding it; the covers have no page number, nothing moves. 409 `spread-not-empty`
+     * (with `entries`, their ids) while entries are on it – they carry targets and AR, so they are deleted one by one,
+     * never with the spread; 409 `initial-spread` for the spread the book opens on.
+     */
+    public static function deleteSpread(string $bookId, string $spreadId): never
+    {
+        $user = Editor::user();
+        $book = self::book($bookId);
+        $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
+        if (!$row) throw new ApiError(404, 'not-found', 'No such spread.');
+        if ($book['initial_spread_id'] === $spreadId) throw new ApiError(409, 'initial-spread', 'The book opens on this spread.');
+        $entries = array_column(Db::run('SELECT id FROM entries WHERE book_id = :book AND spread_id = :spread ORDER BY position', ['book' => $bookId, 'spread' => $spreadId])->fetchAll(), 'id');
+        if ($entries) {
+            $count = count($entries) === 1 ? 'an entry' : count($entries) . ' entries';
+            throw new ApiError(409, 'spread-not-empty', "The spread has $count – delete them first.", ['entries' => $entries]);
+        }
+        $pages = in_array(self::formatOf($row), ['cover', 'back'], true) ? 0 : (int) $row['last_page'] - (int) $row['first_page'] + 1;
+        Db::transaction(function () use ($bookId, $spreadId, $row, $pages, $user) {
+            Db::run('DELETE FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
+            Db::run('UPDATE spreads SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
+            if ($pages > 0) self::renumber($bookId, (int) $row['last_page'], -$pages, $user);
+            self::touch($bookId);
+            self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], 'null');
+        });
+        http_response_code(204);
+        exit;
+    }
+
+    /**
+     * A spread row's format (`spread` when its data names none)
+     * @param array<string, mixed> $row
+     */
+    private static function formatOf(array $row): string
+    {
+        return Editor::decode($row['data_json'])->format ?? 'spread';
+    }
+
+    /**
+     * Every page after `$after` moves by `$by`: the spreads starting there (pages and data), the entries on those pages
+     * (page and data – they keep their spread, which moves with them) and the targets printed there (`print.page`).
+     * Each moved row is a change. Runs inside the caller's transaction.
+     * @param array<string, mixed> $user
+     * @return array{spreads: int, entries: int, targets: int}
+     */
+    private static function renumber(string $bookId, int $after, int $by, array $user): array
+    {
+        $moved = ['spreads' => 0, 'entries' => 0, 'targets' => 0];
+        $params = ['book' => $bookId, 'page' => $after];
+        foreach (Db::run('SELECT id, data_json FROM spreads WHERE book_id = :book AND first_page > :page', $params)->fetchAll() as $row) {
+            $spread = Editor::decode($row['data_json']);
+            $spread->firstPage = (int) $spread->firstPage + $by;
+            $spread->lastPage = (int) $spread->lastPage + $by;
+            $json = Editor::encode($spread);
+            Db::run('UPDATE spreads SET first_page = :first, last_page = :last, data_json = :data WHERE book_id = :book AND id = :id',
+                ['first' => $spread->firstPage, 'last' => $spread->lastPage, 'data' => $json, 'book' => $bookId, 'id' => $row['id']]);
+            self::change($bookId, $user, 'spread', $row['id'], $row['data_json'], $json);
+            $moved['spreads']++;
+        }
+        foreach (Db::run('SELECT id, data_json FROM entries WHERE book_id = :book AND page > :page', $params)->fetchAll() as $row) {
+            $entry = Editor::decode($row['data_json']);
+            $entry->page = (int) $entry->page + $by;
+            $json = Editor::encode($entry);
+            Db::run('UPDATE entries SET page = :page, data_json = :data WHERE book_id = :book AND id = :id', ['page' => $entry->page, 'data' => $json, 'book' => $bookId, 'id' => $row['id']]);
+            self::change($bookId, $user, 'entry', $row['id'], $row['data_json'], $json);
+            $moved['entries']++;
+        }
+        foreach (Db::run('SELECT id, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+            $target = Editor::decode($row['data_json']);
+            if (!is_numeric($target->print->page ?? null) || (int) $target->print->page <= $after) continue;
+            $target->print->page = (int) $target->print->page + $by;
+            $json = Editor::encode($target);
+            Db::run('UPDATE targets SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $row['id']]);
+            self::change($bookId, $user, 'target', $row['id'], $row['data_json'], $json);
+            $moved['targets']++;
+        }
+        return $moved;
     }
 
     /** The spread formats of the content contract (shared/types/game-config.ts `SPREAD_FORMATS`) */
