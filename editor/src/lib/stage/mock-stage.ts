@@ -5,7 +5,7 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
-import type { HdriId, PreviewBackdrop, ShadingMode } from "./preview";
+import type { DeskId, HdriId, PreviewBackdrop, ShadingMode } from "./preview";
 
 /**
  * A plane sits a hair below the one above it, so nothing flickers: the entities' plane is the target's (z = 0, as
@@ -32,12 +32,14 @@ const BLOCK_MAX = 0.04;
 const COVER_THICKNESS = 0.003;
 const COVER_OVERHANG = 0.003;
 /**
- * The desk: a 1.4 × 1.0 m top (18 mm) on an Eiermann steel tube frame, 72 cm high – our own low-poly model, built by
- * `editor/tools/desk-eiermann.py` (`editor/static/models/README.md`). Its origin is the centre of the top's upper
- * surface; its materials are `top` and `edge` (the stage's plywood, see below) and `steel` (as exported). glTF is
- * Y up: the model is turned so its up is the page's +z.
+ * The desks (the Stage panel's choice): 1.4 × 1.0 m tops, 72 cm high – our own low-poly models, built by
+ * `editor/tools/desk-eiermann.py` (`editor/static/models/README.md`). Each model's origin is the centre of the top's
+ * upper surface; its material `top` (and the Eiermann top's `edge`) becomes the stage's own – the Eiermann top is
+ * the screen-printed plywood (see below), Schöpfer's a white board – while `steel` and `drawer` stay as exported.
+ * glTF is Y up: a model is turned so its up is the page's +z.
  */
-const DESK_MODEL = "models/desk-eiermann.glb";
+const DESK_MODELS: Record<DeskId, string> = { eiermann: "models/desk-eiermann.glb", schoepfer: "models/desk-schoepfer.glb" };
+const DESK_WHITE = 0xf2f2f0;
 /** The desk texture's files and how often it repeats across the top (the edges carry their own UVs, one repeat) */
 const DESK_DIFFUSE = "textures/plywood_diff_1k.jpg";
 const DESK_ROUGHNESS = "textures/plywood_rough_1k.jpg";
@@ -73,8 +75,12 @@ interface DeskTextures {
  */
 export class MockStage implements StageView {
   private group = new Group();
-  /** The desk (the model, once loaded): its origin is the top's surface, placed at the table height */
+  /** The desk (the chosen model, once loaded): its origin is the top's surface, placed at the table height */
   private table = new Group();
+  private deskId: DeskId = "eiermann";
+  /** The desks' models by id, loaded once and kept for a switch back */
+  private models = new Map<DeskId, Group>();
+  private loadingDesks = new Set<DeskId>();
   private topMaterial = new MeshStandardMaterial({ color: DESK_TINT, roughness: 0.5 });
   private edgeMaterial = new MeshStandardMaterial({ color: DESK_EDGE_TINT, roughness: 0.7 });
   private disposed = false;
@@ -116,18 +122,36 @@ export class MockStage implements StageView {
     this.ghostGroup.name = "mock-ghost";
     this.group.add(this.table, this.book, this.pages, this.ghostGroup);
     scene.add(this.group);
-    this.loadDesk();
+    this.showDesk();
   }
 
-  /** The desk's model into its group: the top's materials become the stage's own, the frame keeps the file's steel */
-  private loadDesk(): void {
-    new GLTFLoader().load(this.assetUrl(DESK_MODEL), gltf => {
+  /** The desk under the book: its model (loaded once) into the desk's group, its top in the look of the backdrop */
+  setDesk(desk: DeskId): void {
+    if (this.deskId === desk) return;
+    this.deskId = desk;
+    this.showDesk();
+    this.applyDeskLook();
+  }
+
+  private showDesk(): void {
+    const id = this.deskId;
+    [...this.table.children].forEach(child => this.table.remove(child));
+    const loaded = this.models.get(id);
+    if (loaded) {
+      this.table.add(loaded);
+      return;
+    }
+    if (this.loadingDesks.has(id)) return;
+    this.loadingDesks.add(id);
+    new GLTFLoader().load(this.assetUrl(DESK_MODELS[id]), gltf => {
+      this.loadingDesks.delete(id);
       const model = gltf.scene;
       if (this.disposed) {
         this.clear(model);
         return;
       }
       model.rotation.x = Math.PI / 2; // glTF's +y (up) becomes the page's +z
+      // The top's materials become the stage's own; the frame keeps the file's steel
       model.traverse(object => {
         if (!(object instanceof Mesh) || Array.isArray(object.material)) return;
         const material = object.material as Material;
@@ -136,8 +160,38 @@ export class MockStage implements StageView {
         material.dispose();
         object.material = own;
       });
-      this.table.add(model);
-    }, undefined, error => console.warn("[mock-stage] the desk could not be loaded:", error));
+      this.models.set(id, model);
+      if (this.deskId === id) this.table.add(model);
+    }, undefined, error => {
+      this.loadingDesks.delete(id);
+      console.warn(`[mock-stage] the desk "${id}" could not be loaded:`, error);
+    });
+  }
+
+  /** The top's look: plain paper for the paper backdrop, else the desk's own – plywood with the plies on the edges, or white */
+  private applyDeskLook(): void {
+    const top = this.topMaterial;
+    const edge = this.edgeMaterial;
+    if (this.lastBackdrop.backdrop === "paper" || this.deskId === "schoepfer") {
+      const colour = this.lastBackdrop.backdrop === "paper" ? PAPER_BACKDROP_COLOR : DESK_WHITE;
+      top.map = edge.map = null;
+      top.roughnessMap = edge.roughnessMap = null;
+      top.color.setHex(colour);
+      edge.color.setHex(colour);
+      top.roughness = edge.roughness = this.lastBackdrop.backdrop === "paper" ? 1 : 0.6;
+    } else {
+      const desk = this.ensureDesk();
+      top.map = desk.map;
+      top.roughnessMap = desk.roughnessMap;
+      top.color.setHex(DESK_TINT);
+      top.roughness = 0.5;
+      edge.map = desk.edgeMap;
+      edge.roughnessMap = desk.edgeRoughnessMap;
+      edge.color.setHex(DESK_EDGE_TINT);
+      edge.roughness = 0.7;
+    }
+    top.needsUpdate = true;
+    edge.needsUpdate = true;
   }
 
   setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null, book: StageBook): void {
@@ -253,28 +307,7 @@ export class MockStage implements StageView {
     this.container.style.backgroundImage = usePhoto ? `url(${photo})` : "";
     this.container.style.backgroundSize = usePhoto ? "cover" : "";
     this.container.style.backgroundPosition = usePhoto ? "center" : "";
-    // The desk's top: plain paper, or the screen-printed board with the plies on its edges
-    const top = this.topMaterial;
-    const edge = this.edgeMaterial;
-    if (backdrop === "paper") {
-      top.map = edge.map = null;
-      top.roughnessMap = edge.roughnessMap = null;
-      top.color.setHex(PAPER_BACKDROP_COLOR);
-      edge.color.setHex(PAPER_BACKDROP_COLOR);
-      top.roughness = edge.roughness = 1;
-    } else {
-      const desk = this.ensureDesk();
-      top.map = desk.map;
-      top.roughnessMap = desk.roughnessMap;
-      top.color.setHex(DESK_TINT);
-      top.roughness = 0.5;
-      edge.map = desk.edgeMap;
-      edge.roughnessMap = desk.edgeRoughnessMap;
-      edge.color.setHex(DESK_EDGE_TINT);
-      edge.roughness = 0.7;
-    }
-    top.needsUpdate = true;
-    edge.needsUpdate = true;
+    this.applyDeskLook();
     // The sky and the light: the HDRI, else the scene's own lights over the editor's dark ground
     this.wantedHdri = backdrop === "hdri" && hdri && this.shading === "rendered" ? hdri : null;
     if (!this.wantedHdri) {
@@ -445,6 +478,8 @@ export class MockStage implements StageView {
     this.ghostTextures.forEach(texture => texture.dispose());
     this.ghostTextures.clear();
     this.clear(this.table);
+    this.models.forEach(model => this.clear(model));
+    this.models.clear();
     this.topMaterial.dispose();
     this.edgeMaterial.dispose();
     this.textures.forEach(texture => texture.dispose());

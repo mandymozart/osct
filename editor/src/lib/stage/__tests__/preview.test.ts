@@ -26,7 +26,7 @@ describe("editor preview settings", () => {
     setTargetHidden("a", true);
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
-    expect(stored).toEqual({ view: "top", shading: "rendered", orbit: null, backdrop: "paper", hdri: "ferndale_studio_04", photo: null, wobble: 0.4 });
+    expect(stored).toEqual({ view: "top", shading: "rendered", orbit: null, backdrop: "paper", hdri: "ferndale_studio_04", desk: "eiermann", photo: null, wobble: 0.4 });
     expect(getPreview().hidden).toEqual(["a"]);
   });
 
@@ -52,9 +52,9 @@ describe("editor preview settings", () => {
   });
 
   it("ignores broken stored values when it loads", async () => {
-    localStorage.setItem("osct-preview", JSON.stringify({ view: "sideways", wobble: 7, backdrop: "lava", photo: "http://x", orbit: { distance: "far" } }));
+    localStorage.setItem("osct-preview", JSON.stringify({ view: "sideways", wobble: 7, backdrop: "lava", desk: "ikea", photo: "http://x", orbit: { distance: "far" } }));
     vi.resetModules();
     const fresh = await import("../preview");
-    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, backdrop: "hdri", hdri: "ferndale_studio_04", photo: null, orbit: null, active: false });
+    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, backdrop: "hdri", hdri: "ferndale_studio_04", desk: "eiermann", photo: null, orbit: null, active: false });
   });
 });
