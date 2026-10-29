@@ -12,6 +12,21 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.19.0 – 2026-10-30
+
+### Added
+- **The Library tells its files apart** (#121): the import names every file `image.jpg`, `target.jpg` or `video.mp4`
+  in a folder per entry, so a card now reads where the file belongs – `p015-1 · target` (`library-place.ts`) – and the
+  search matches the entry, the role and the collection (`p015 target`). Videos show their first frame instead of the
+  film icon and play muted and inline while hovered, or after a click on ▷ (a second click stops); they only load once
+  they scroll into view. Every preview shows an animated skeleton until it has loaded (a still one with reduced motion).
+- **A list view in the Library** (#121): *view* switches between the cards and a plain list – name, place, kind, size,
+  uses; a click on a row opens its actions. The choice is remembered per browser.
+
+### Fixed
+- **Imported files no longer show 0 uses** (#121): below an assets base the list names a file by its CDN URL, but the
+  book's rows name the content path (`/assets/content/…`) – `Assets::imported` now counts with that path.
+
 ## 1.17.4 – 2026-10-30
 
 ### Changed
