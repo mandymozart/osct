@@ -1,8 +1,16 @@
 # Production: `main` → https://osct.buildingfictions.com (no debug bar). `kamal deploy -d production`
 service: osct
 
+# The server is shared with other apps (docs/deploy.md "A shared server"): the app joins the internal network
+# `osct` next to the `kamal` network Kamal always adds, and has fixed memory and CPU limits.
 servers:
-  - <%= ENV.fetch("SSH_HOST") %>
+  web:
+    hosts:
+      - <%= ENV.fetch("SSH_HOST") %>
+    options:
+      network: osct
+      memory: 1g
+      cpus: 1
 
 proxy:
   host: osct.buildingfictions.com
@@ -12,3 +20,10 @@ env:
     OSCT_DB_HOST: osct-db
     OSCT_APP_URL: https://osct.buildingfictions.com
     OSCT_ALLOWED_ORIGINS: <%= ENV.fetch("ALLOWED_ORIGINS", "") %>
+
+# The database only on `osct`, so other containers on the server cannot reach it
+accessories:
+  db:
+    network: osct
+    options:
+      memory: 1g

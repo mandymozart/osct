@@ -1,8 +1,16 @@
 # Staging: `develop` → https://osct.porschuetz.de (debug bar on). `kamal deploy -d staging`
 service: osct-staging
 
+# The server is shared with production and other apps (docs/deploy.md "A shared server"): the app joins the
+# internal network `osct-staging` next to the `kamal` network Kamal always adds, and has fixed memory and CPU limits.
 servers:
-  - <%= ENV.fetch("SSH_HOST") %>
+  web:
+    hosts:
+      - <%= ENV.fetch("SSH_HOST") %>
+    options:
+      network: osct-staging
+      memory: 512m
+      cpus: 0.5
 
 proxy:
   host: osct.porschuetz.de
@@ -17,3 +25,10 @@ env:
     OSCT_APP_URL: https://osct.porschuetz.de
     # The dev server on a laptop or phone may use the staging API
     OSCT_ALLOWED_ORIGINS: <%= ENV.fetch("ALLOWED_ORIGINS", "https://localhost:5173") %>
+
+# The database only on `osct-staging`, so other containers on the server cannot reach it
+accessories:
+  db:
+    network: osct-staging
+    options:
+      memory: 512m
