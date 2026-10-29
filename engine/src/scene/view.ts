@@ -59,11 +59,11 @@ const bloomOverlayMaterial = () => new ShaderMaterial({
 
 /**
  * The layer of objects that stand in for the camera picture (the editor's stage: table, book, printed images, sky).
- * They are drawn straight to the canvas, under the content's passes, as the camera picture lies under the canvas
- * in the reader – a pass never sees them, as it never sees the camera picture. Without passes they render with
- * everything else in one pass.
+ * With passes, the image the passes shade holds them: bloom and vignette reach them as they reach the camera picture
+ * in the reader, the grade stays on the AR layer (its mask). Without passes they render with everything else.
  */
 export const BACKDROP_LAYER = 1;
+const AR_LAYER = 0;
 
 /** Something drawn under the scene each frame (the look-around pass) – into the cleared screen, while active */
 export interface Underlay {
@@ -207,13 +207,11 @@ export class ArView {
       this.renderer.autoClear = false;
     }
     if (this.post?.active) {
-      // The backdrop (the camera picture's stand-ins) straight to the canvas, then the AR layer through the passes
-      this.camera.layers.set(BACKDROP_LAYER);
-      this.renderer.render(this.scene, this.camera);
+      // The whole scene through the passes: the backdrop (the camera picture's stand-ins) is part of the image they
+      // shade, the grade is limited to the AR layer by its mask
+      if (!this.underlay?.active) this.renderer.clear();
       this.renderer.autoClear = false;
-      this.camera.layers.set(0);
-      this.post.render();
-      this.camera.layers.enable(BACKDROP_LAYER);
+      this.post.render(this.hasBackdrop() ? { arLayers: 1 << AR_LAYER } : null);
     } else {
       this.renderer.render(this.scene, this.camera);
     }
@@ -224,6 +222,11 @@ export class ArView {
       bloom.quad.render(this.renderer);
     }
     this.renderer.autoClear = autoClear;
+  }
+
+  /** Objects stand in for the camera picture (a light does not) */
+  private hasBackdrop(): boolean {
+    return this.scene.children.some(child => !(child as { isLight?: boolean }).isLight && child.layers.isEnabled(BACKDROP_LAYER) && !child.layers.isEnabled(AR_LAYER));
   }
 
   private ensureBloom() {
