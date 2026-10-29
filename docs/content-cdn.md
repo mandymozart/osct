@@ -137,3 +137,9 @@ With `OSCT_CONTENT_DIR` in `scripts/.env` pointing at the content source.
 To run the app against the staging CDN locally, put `VITE_CONTENT_BASE_URL=https://buildingfictions.b-cdn.net/staging`
 into `client/.env.local` and start `npm run dev`. The console line `[game-config] Content … from …` names the content
 version and where it came from.
+
+**Another book in a debug build** (the dev server, staging): `?content=<base url>` on the address opens the content
+of that base (`latest.json` and its version folders) instead of the build's – `https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo`
+shows the demo book ([plugins](plugins.md) "The demo book") in the staging reader. The tab keeps it
+(`sessionStorage`) across routes and reloads; `?content=` (empty) goes back to the build's content. Progress is kept
+per book id, so the demo's does not touch the book's. Production builds ignore the parameter.

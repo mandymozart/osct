@@ -15,7 +15,8 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-`register` runs once when the plugin loads. Three things you can do with `api`:
+`register` runs once when the plugin loads. Three things you can do with `api` – and, for a book's logic across
+nodes and pages, four more ("Across nodes and pages" below):
 
 - **`api.registerLayer(type, spec, { glsl })`** – a **material layer**: a few lines of GLSL that run on every
   pixel of a video or image plane after its own shading. Tint, dissolve, scan lines, a pulse.
@@ -89,6 +90,70 @@ defaults filled in. It returns the hooks it needs: `update(delta)` every frame, 
 in place, `false` to have the node built anew). A component on a `group` node may build anything with
 `api.three` and add it to `placed` – particles, lines, a sprite.
 
+## Across nodes and pages: events, variables, the progress (API 1.1)
+
+A component knows its own node. A **narrative** needs more: a key found on one page opens a door on another, a lamp
+lights when the door opened, a text counts the pages found. Four parts of `api` carry that (the concept behind them:
+`agents/research/2026-10-28-entity-components.md`, the decision `2026-10-30-demo-book.md`; the demo book
+`fixtures/demo/` uses every one):
+
+- **`api.events`** – one bus for the stage. *Core events* belong to the engine, you only listen: `targetFound`,
+  `targetLost`, `targetUnlocked` (the first find – progress is the app's), `targetTapped`, `spreadChanged`,
+  `sceneState` (running / paused / stopped), `varChanged`. *Scene events* are yours: `api.events.emit("doorOpened",
+  { by: "key" })` – any camelCase name that is not a core event – and every plugin hears it with
+  `api.events.on("doorOpened", payload => …)`. `on` returns the unsubscribe; when a plugin is replaced (Run) or
+  unloaded, its listeners go with it.
+- **`api.vars`** – variables in **scopes**: `spread` (while the spread is the current one – cleared when it changes),
+  `stage` (while the scene exists), `session` (this app start), `book` (persisted with the reader's progress). `set(name,
+  value, scope)` with `spread` as the default scope, `get(name, scope?)` – without a scope the innermost definition
+  wins (spread → stage → session → book) – `on(name, (value, previous, scope) => …)` and `all(scope)`. Values are
+  strings, numbers or booleans; `null` deletes.
+- **`api.progress`** – read-only, from the app: `unlocked(targetId)`, `consulted(entryId)`, `completion(spreadId?)`
+  (0–1, the whole book without an id), `counts(spreadId?)` → `{ unlocked, targets }`. On the editor's stage the
+  progress is the stage's own (what was found since the workspace opened); the reader passes its history.
+- **`api.spread`** – `current` (id, title, pages, format, targets) and `get(id)`.
+
+And two more things in a component: the context's **`children`** – the placement groups of the node's children, in
+content order, so a component on a `group` can show, hide or move them – and the hook **`onUnlocked`**, the first
+find of the target (`onFound` is every find).
+
+The key, the door and the lamp of the demo, shortened (`fixtures/demo/plugins/narrative/index.ts`):
+
+```ts
+export const register = (api: PluginApi): void => {
+  // The key: its first find is remembered in the book (it survives the session)
+  api.registerComponent("key", { description: "Finding this node gives the reader the key.", params: {} }, () => ({
+    onUnlocked: () => api.vars.set("hasKey", true, "book"),
+  }));
+
+  // The door: on another page. With the key it opens and tells the stage; without it the hint shows
+  api.registerComponent("door", { description: "Opens when the reader has the key.", nodeTypes: ["group"], params: {} }, ({ children }) => {
+    const [door, hint] = children;
+    return {
+      onFound: () => {
+        const hasKey = api.vars.get("hasKey") === true;
+        if (hint) hint.visible = !hasKey;
+        if (hasKey) {
+          api.vars.set("doorOpen", true, "stage");
+          api.events.emit("doorOpened", { by: "key" });
+        }
+      },
+    };
+  });
+
+  // The lamp: dark until the door opened – on this stage, now or earlier
+  api.registerComponent("lamp", { description: "Lights when the door opened.", params: {} }, ({ object }) => {
+    object.visible = api.vars.get("doorOpen") === true;
+    const off = api.vars.on("doorOpen", value => { object.visible = value === true; });
+    return { dispose: off };
+  });
+};
+```
+
+Try it in the editor: find the key (the first find sets `hasKey` – the Stage panel's **vars** row shows `book ·
+hasKey = true`), walk to the door's spread with ›, switch the door off and on in **found** – the door opens, the
+**events** row shows `doorOpened`. **reset** starts a new game.
+
 ## Trying it: the Code tab
 
 Open a spread in the editor, **Code**, **+** for a new plugin (it starts with the two examples above) or pick one
@@ -109,4 +174,13 @@ provides is refused.
 
 Rules of the road: one `index.ts` per plugin (more files next to it are bundled in), no imports but
 `import type`, `camelCase` type names (`tint`, `spin`), keep it small – the build warns above 256 KB, and
-everything a plugin registers runs on the reader's phone.
+everything a plugin registers runs on the reader's phone. A listener you subscribe in a component: unsubscribe it in
+`dispose` (a listener subscribed in `register` lives as long as the plugin). Never emit a core event – the engine does.
+
+## The demo book: everything at once
+
+`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and six plugins that
+together use every part of the API – a narrative across its spreads (the key, the door, the lamp, a tally of the
+pages found, a tap that switches a scene). Build it with `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor
+([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
+model still lacks: `agents/research/2026-10-30-demo-book.md`.

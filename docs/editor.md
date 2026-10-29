@@ -90,13 +90,16 @@ moving the view moves the stage and the anchors together, which is why entity an
 
 The editor simulates the game around the scene (`stage/stage.svelte.ts`): which spread is open, which targets the
 "camera" sees, which were found for the first time (the unlock animation plays once per target, *replay* plays it
-again). Nothing of the reader's store, progress or routes is involved.
+again), and the reader's progress for the book's plugins (`stage/progress.ts` – the engine's `api.progress` and the
+`book` scope of its variables, alive while the workspace is open). Nothing of the reader's store, progress or routes
+is involved.
 
 ## The app
 
 - **Books** (`/editor/`): the instance's books, *Import a book…* (the CDN's current version, a `game.config.json` by
-  URL or file; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
-  media is copied).
+  URL or file, or a **content base URL** – a CDN folder with `latest.json`, e.g. `…/demo` – whose current version is
+  taken; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
+  media is copied; for a content base it is the version's folder).
 - **Spreads** (`/editor/<book>/`): the spreads as cards with the sheet of each as its preview (from the book's layout
   at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
@@ -153,7 +156,11 @@ again). Nothing of the reader's store, progress or routes is involved.
     how flat a video plane is), *far*; on the stage **drag** orbits, **Shift + drag**, the **middle button** or **two fingers** pan (the looked-at
     point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
     one pressed chip per target (◉ = in view) – off reports it lost (outro), on found again (reveal); the replay arrow
-    plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the default) or *Schöpfer*. **sky**: one of six
+    plays the first find again. **vars** and **events**: the book's plugins' variables with their scopes (`book · hasKey = true`)
+    and the last events of the stage (found, lost, unlocked, spreadChanged, the plugins' own), newest first – the
+    narrative of a book like the demo ([plugins](plugins.md) "Across nodes and pages") is driven from the chips and
+    read here; **reset** starts a new game (every variable cleared, nothing unlocked, the spread found anew).
+    **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the default) or *Schöpfer*. **sky**: one of six
     Poly Haven studios (the HDRI – sky and light while the shading is rendered). Both stored on the device.
   - **Entity** – first the **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;

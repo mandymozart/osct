@@ -36,6 +36,17 @@ describe("HistoryManager (progress)", () => {
     expect(stored().appVersions).toEqual([__VITE_APP_VERSION__]);
   });
 
+  it("keeps the plugins' book variables: set, read, delete – and persists them", () => {
+    game.history.setVariable("hasKey", true);
+    game.history.setVariable("chapter", 2);
+    expect(game.history.getVariable("hasKey")).toBe(true);
+    expect(game.history.getVariables()).toEqual({ hasKey: true, chapter: 2 });
+    expect(stored().variables).toEqual({ hasKey: true, chapter: 2 });
+    game.history.setVariable("hasKey", null);
+    expect(game.history.getVariable("hasKey")).toBeUndefined();
+    expect(stored().variables).toEqual({ chapter: 2 });
+  });
+
   it("unlocks a target once by id and persists it", () => {
     game.history.unlockTarget(targets[0].id);
     const time = game.state.progress.unlocked[targets[0].id];

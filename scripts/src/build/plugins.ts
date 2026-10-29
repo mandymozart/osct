@@ -170,6 +170,11 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         take(type, spec);
         if (registered.includes(type)) layerTypes.add(type);
       },
+      // The runtime (events, variables, progress, the spread) belongs to a running scene: here nothing happens
+      events: { on: () => () => undefined, emit: () => undefined },
+      vars: { get: () => undefined, set: () => undefined, on: () => () => undefined, all: () => ({}) },
+      progress: { unlocked: () => false, consulted: () => false, completion: () => 0, counts: () => ({ unlocked: 0, targets: 0 }) },
+      spread: { current: null, get: () => undefined },
       log: () => undefined,
     });
   } catch (error) {

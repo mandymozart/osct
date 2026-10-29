@@ -5,3 +5,4 @@ export * from "./ar-scene";
 export * from "./entities";
 export * from "./tracker-types";
 export { onAppUi, UI_SELECTOR } from "./ui";
+export * from "./plugin-runtime";

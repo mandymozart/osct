@@ -4,6 +4,9 @@ import { EntryCategory } from "./game-config";
  * What one reader discovered in one book, keyed by stable content ids and stored per `book.id` via
  * `IProgressStorage`. Ids no longer in the content are kept (listed as missing in the debug overlay).
  */
+/** A book variable's value (the plugins' `book` scope): a JSON scalar */
+export type ProgressVariable = string | number | boolean;
+
 export interface ProgressRecord {
   /** Storage format = app MAJOR that wrote the record; an older format is read and converted */
   format: number;
@@ -20,6 +23,8 @@ export interface ProgressRecord {
   lastCategory: EntryCategory | null;
   /** Onboarding finished or skipped; until then the app starts with the onboarding */
   onboarded: boolean;
+  /** The book's variables set by its plugins (the `book` scope of the plugin API) – additive within format 1 */
+  variables: Record<string, ProgressVariable>;
 }
 
 export interface HistoryManagerState {
@@ -67,6 +72,12 @@ export interface IHistoryManager {
 
   /** The reader finished or skipped the onboarding */
   setOnboarded(): void;
+
+  /** A book variable of the plugins' `book` scope (persisted with the progress) */
+  getVariable(name: string): ProgressVariable | undefined;
+  /** Set a book variable; `null` deletes it */
+  setVariable(name: string, value: ProgressVariable | null): void;
+  getVariables(): Record<string, ProgressVariable>;
 
   /** Stored ids that are no longer in the content (kept in storage, shown in the debug overlay) */
   getMissingIds(): { targets: string[]; entries: string[] };

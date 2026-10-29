@@ -1,6 +1,6 @@
 import { Box3, Group, Matrix4, Vector3 } from "three";
 import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, SceneInspection, SceneState, Target } from "../types/index";
-import { entityAssets, getAssets, getPlugins, getSpread, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
@@ -8,6 +8,7 @@ import { AssetStore } from "./assets";
 import { AnimationKind, celebrate, Celebration } from "./celebration";
 import { buildEntity, EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
+import { emitCoreEvent, ProgressReader, setProgressReader, setSpreadSource, spreadChanged, stageEnded } from "./plugin-runtime";
 import { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
 import { onAppUi } from "./ui";
@@ -31,6 +32,11 @@ export interface ArSceneOptions {
   /** The reader: the 8th Wall `ImageTracker`; the editor: its mock tracker over the stage */
   createTracker: (context: TrackerContext) => IImageTracker;
   graphics?: GraphicsSource;
+  /**
+   * The reader's progress for the plugins (`api.progress`, the `book` scope of `api.vars`): the reader passes an
+   * adapter over its history, the editor its simulation – never a store (RULES #32). Without it nothing is unlocked.
+   */
+  progress?: ProgressReader;
 }
 
 /** A tap this close to an entity's on-screen bounds still hits it (small models) */
@@ -83,7 +89,10 @@ export class ArScene implements IArScene {
   private overrides = new Map<string, EntityData>();
   private windowCleanup: (() => void) | null = null;
 
-  constructor(private container: HTMLElement, private options: ArSceneOptions) {}
+  constructor(private container: HTMLElement, private options: ArSceneOptions) {
+    setProgressReader(options.progress);
+    setSpreadSource(getSpread, getSpreads);
+  }
 
   get status(): ArStatus {
     return this._status;
@@ -116,7 +125,10 @@ export class ArScene implements IArScene {
   /** The unlock animation (first find – called by the bridge right after `targetFound`; replaces the reveal) */
   celebrate(targetId: string): void {
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
-    if (anchor) this.animate(anchor, "unlock");
+    if (!anchor) return;
+    this.animate(anchor, "unlock");
+    anchor.entity?.onUnlocked?.();
+    emitCoreEvent("targetUnlocked", { targetId });
   }
 
   sampleColor(x: number, y: number): string | null {
@@ -289,6 +301,8 @@ export class ArScene implements IArScene {
     this.assets.release(new Set(assets.map(a => a.id)));
     await Promise.all([this.assets.load(assets), loadPlugins(getPlugins())]);
     const targets = getTargets(spreadId);
+    // The spread scope of the plugins' variables ends before the new spread's entities are built
+    spreadChanged(spreadId);
     const anchors = targets.map(target => this.buildAnchor(target));
     anchors.forEach(anchor => view.scene.add(anchor.group));
     this.content = { spreadId, targets, anchors };
@@ -340,6 +354,7 @@ export class ArScene implements IArScene {
       this.animate(anchor, "reveal");
       anchor.entity?.onFound?.();
       this.emitter.emit("targetFound", id);
+      emitCoreEvent("targetFound", { targetId: id });
     } else if (!matrix && this.found.has(id)) {
       // Lost: the entity dissolves away at its last position (outro), then the anchor hides
       this.found.delete(id);
@@ -347,6 +362,7 @@ export class ArScene implements IArScene {
       else anchor.group.visible = false;
       anchor.entity?.onLost?.();
       this.emitter.emit("targetLost", id);
+      emitCoreEvent("targetLost", { targetId: id });
     }
     scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
   }
@@ -367,6 +383,7 @@ export class ArScene implements IArScene {
     if (hit) {
       this.content.anchors.find(a => a.target.id === hit)?.entity?.onTap?.();
       this.emitter.emit("targetTapped", hit);
+      emitCoreEvent("targetTapped", { targetId: hit });
     } else {
       void focusAtTap(event.clientX, event.clientY);
     }
@@ -434,6 +451,7 @@ export class ArScene implements IArScene {
     this.started = false;
     this.running = false;
     scanningIndicator()?.classList.add("hidden");
+    stageEnded();
     this.setStatus("idle");
   }
 
@@ -487,6 +505,7 @@ export class ArScene implements IArScene {
     this.view!.start();
     scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
     this.setStatus("running");
+    emitCoreEvent("sceneState", { state: "running" });
   }
 
   private pause(): void {
@@ -503,6 +522,7 @@ export class ArScene implements IArScene {
     this.loseAll();
     scanningIndicator()?.classList.add("hidden");
     this.setStatus(this.started ? "paused" : "ready");
+    emitCoreEvent("sceneState", { state: "paused" });
   }
 
   private stop(): void {
@@ -515,6 +535,7 @@ export class ArScene implements IArScene {
     this.running = false;
     scanningIndicator()?.classList.add("hidden");
     this.setStatus("ready");
+    emitCoreEvent("sceneState", { state: "stopped" });
   }
 
   private pauseEntities(): void {
@@ -525,7 +546,10 @@ export class ArScene implements IArScene {
   private loseAll(): void {
     this.finishAnimations();
     this.content?.anchors.forEach(a => (a.group.visible = false));
-    this.found.forEach(id => this.emitter.emit("targetLost", id));
+    this.found.forEach(id => {
+      this.emitter.emit("targetLost", id);
+      emitCoreEvent("targetLost", { targetId: id });
+    });
     this.found.clear();
   }
 }
