@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.26.5 – 2026-10-30
+
+### Fixed
+- **The panel sheet can be dragged with a finger at all** (follow-up to #155): a touch is captured by the element it
+  starts on (the grip, a tab). When the drag took the capture for the head, that element lost it, and its
+  `lostpointercapture` bubbled up to the head, where it ended the drag – after its first step, so a touch drag never
+  moved the sheet (a mouse has no such capture, so it worked on a desktop and in the tests). The head now ignores a
+  lost capture of its children. Checked on the S22 over the DevTools protocol: the sheet follows the finger, the stage
+  stays put, and on release the sheet snaps and the stage resizes once.
+
 ## 1.26.4 – 2026-10-30
 
 ### Fixed
