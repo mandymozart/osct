@@ -176,6 +176,10 @@
   const sheetUp = (event: PointerEvent) => {
     const d = sheetDrag;
     if (!d || event.pointerId !== d.id) return;
+    // A touch is captured by the element it starts on (the grip, a tab): taking the capture for the head makes that
+    // element lose it, and its lostpointercapture bubbles up here – that is no end of the drag (it ended every touch
+    // drag after its first step)
+    if (event.type === "lostpointercapture" && event.target !== event.currentTarget) return;
     sheetDrag = null;
     if (d.moved) {
       sheetDragging = false;

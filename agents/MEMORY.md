@@ -13,7 +13,12 @@ outcome in the line (or move it into a dated decision block).
   the targets arrived). Fixed in 1.26.4.
 - **Tabs as icons on a phone** – Tilman: "Mobile bitte die tabs auch mit icons statt text. Dann ist es auch einfacher
   und auf einer zeile." An exception to the editor's words-over-icons rule, added to RULES #32's UI part.
-- [ ] Check on the S22: the sheet drag, the icon tabs, a spread change, the Code tab with the soft keyboard.
+- **1.26.5**: the touch drag still did nothing on the S22 (Tilman's screen recording). Cause: a touch is implicitly
+  captured by the element it starts on; taking the capture for the head fired `lostpointercapture` on that child, which
+  bubbled up and ended the drag. A mouse has no implicit capture, so desktop and tests never showed it. **Test touch
+  gestures on the phone** (CDP `Input.dispatchTouchEvent` over `adb forward … chrome_devtools_remote`, Brave too).
+- [x] The sheet drag on the S22 (1.26.5, over CDP). [ ] Still to check by hand: the icon tabs, a spread change, the
+  Code tab with the soft keyboard.
 
 ## 2026-10-30 – The books page as covers, the demo's pages rendered (#153)
 
