@@ -7,6 +7,7 @@
   import {
     addFilter, contentEntity, getValue, hasUniformScale, removeFilter, sameValue, setValue, valueProblem, valueRows, type ValueRow,
   } from "$lib/values";
+  import Icon from "$lib/components/Icon.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
 
@@ -40,6 +41,8 @@
     if (editingTarget === t.id && entity) return;
     const other = editingTarget !== t.id;
     editingTarget = t.id;
+    // The tree and the stage follow the target shown here (a fallback when nothing is selected yet)
+    if (selected !== t.id) selected = t.id;
     const override = stage?.overrideOf(t.id);
     entity = override ?? t.entity!;
     uniformScale = hasUniformScale(entity);
@@ -116,21 +119,29 @@
     <span class="small muted">{source}</span>
   </div>
 
-  <div class="section"><span class="section-label">placement</span>
-    <button type="button" class="pill" class:on={uniformScale} aria-pressed={uniformScale} title="One scale for x, y and z"
-      onclick={() => { uniformScale = !uniformScale; entity && apply(entity); }}>uniform scale</button></div>
+  <div class="section"><span class="section-label">placement</span></div>
   {#each ["position", "rotation", "scale"] as key (key)}
     {@const axes = rows.filter(r => r.id === key || r.id.startsWith(`${key}.`))}
     {#if axes.length}
       <div class="row" class:changed={anyChanged(axes)} title="{axes[0].description}{axes[0].unit ? ` (${axes[0].unit})` : ''} – default {axes.map(r => r.default).join(', ')}">
         <span class="label">{key}</span>
-        <span class="fields">
-          {#each axes as row (row.id)}
-            {@const axis = row.id.split(".")[1]}
-            <ScrubNumber value={Number(getValue(entity, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-              prefix={axis ? axis.toUpperCase() : ""} unit={row.unit === "°" ? "°" : ""} label={row.id} positive={row.id.startsWith("scale")}
-              oninput={v => set(row, v)} />
-          {/each}
+        <span class="axes">
+          <span class="fields">
+            {#each axes as row (row.id)}
+              {@const axis = row.id.split(".")[1]}
+              <ScrubNumber value={Number(getValue(entity, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
+                prefix={axis ? axis.toUpperCase() : ""} unit={row.unit === "°" ? "°" : ""} label={row.id} positive={row.id.startsWith("scale")}
+                oninput={v => set(row, v)} />
+            {/each}
+          </span>
+          {#if key === "scale"}
+            <!-- The chain (Blender): pressed = one scale for x, y and z -->
+            <button type="button" class="icon-button" class:on={uniformScale} aria-pressed={uniformScale} aria-label="Uniform scale"
+              title={uniformScale ? "Uniform scale: one value for x, y and z – tap to scale per axis" : "Scale per axis – tap to link x, y and z"}
+              onclick={() => { uniformScale = !uniformScale; entity && apply(entity); }}><Icon name="link" /></button>
+          {:else}
+            <span class="link-slot"></span>
+          {/if}
         </span>
       </div>
     {/if}
@@ -188,6 +199,9 @@
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .fields :global(.scrub) { width: 100%; }
+  .axes { display: flex; align-items: center; gap: .25rem; min-width: 0; }
+  .axes .fields { flex: 1; }
+  .link-slot { flex: none; width: var(--control-height); }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
 </style>
