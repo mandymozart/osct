@@ -24,6 +24,8 @@ export interface EntityInstance {
   object: Object3D;
   onFound?(): void;
   onLost?(): void;
+  /** The target's first find (`ArScene.celebrate`) – the app's progress decides what a first find is */
+  onUnlocked?(): void;
   /** Scene paused (consultation, overlays) – e.g. stop video sound */
   onPause?(): void;
   /** Every rendered frame while the scene runs (seconds since the last frame) */
@@ -80,10 +82,10 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
   children.forEach(child => placed.add(child.object));
   // The plugin's components and material layers of this node
   unknownComponentTypes(node, COMPONENT_TYPES).forEach(type => console.warn(`[entities] No component "${type}" registered (target ${target.id}) – ignored`));
-  const components = applyComponents({ node, object: own?.object ?? placed, placed, target });
+  const components = applyComponents({ node, object: own?.object ?? placed, placed, children: children.map(child => child.object), target });
   const layers = own ? composeLayers(node) : null;
   const layered = own && layers ? layerObject(own.object, layers) : null;
-  const all: Array<Pick<EntityInstance, "onTap" | "onFound" | "onLost" | "onPause" | "update" | "dispose">> = [
+  const all: Array<Pick<EntityInstance, "onTap" | "onFound" | "onLost" | "onUnlocked" | "onPause" | "update" | "dispose">> = [
     ...(own ? [own] : []), ...components.parts, ...children,
   ];
   const nodes: Record<string, Object3D> = { "": placed };
@@ -100,6 +102,7 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
     onTap: () => all.forEach(part => part.onTap?.()),
     onFound: () => all.forEach(part => part.onFound?.()),
     onLost: () => all.forEach(part => part.onLost?.()),
+    onUnlocked: () => all.forEach(part => part.onUnlocked?.()),
     onPause: () => all.forEach(part => part.onPause?.()),
     update: delta => {
       if (layers) (layers.time.value as number) += delta;

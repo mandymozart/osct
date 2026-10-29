@@ -6,10 +6,11 @@
  * (`engine/src/scene/plugins.ts`): registries for components and material layers, the app's three.js.
  *
  * The API is versioned apart from the content schema: `PLUGIN_API_VERSION` MAJOR.MINOR – a plugin built against
- * another MAJOR is not loaded (logged); MINOR adds.
+ * another MAJOR is not loaded (logged); MINOR adds. 1.1 added `api.events`, `api.vars`, `api.progress`, `api.spread`,
+ * the component context's `children` and the hook `onUnlocked`.
  */
 
-export const PLUGIN_API_VERSION = "1.0";
+export const PLUGIN_API_VERSION = "1.1";
 
 /** A plugin as the game configuration declares it */
 export interface PluginData {

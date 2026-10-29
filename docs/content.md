@@ -244,9 +244,16 @@ api }]`); the reader loads it with the AR scene. What a plugin registers is used
   plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
   `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
   in the spec's order (`number` / `boolean` → `float`, `color` → `vec3`, `choice` → `int`, the index in its options).
+- **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
+  `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
+  book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
+  persisted with the reader's progress), `api.progress` (read-only: `unlocked`, `consulted`, `completion`, `counts`),
+  `api.spread` (the current spread); the component context's `children` and the hook `onUnlocked`. The reader hands
+  the engine its progress through `ArSceneOptions.progress`, the editor its simulation.
 - The editor's **Code** tab ([editor](editor.md)) runs a plugin on its stage without a build; readers get only what
   the build compiled. The fixture's `plugins/tint` is the template; [plugins](plugins.md) is the guide for writing
-  one. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
+  one, the **demo book** `fixtures/demo/` (built with `OSCT_CONTENT_DIR=fixtures/demo`) the sandbox that uses all of
+  it. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
   above 256 KB.
 
 ```yaml

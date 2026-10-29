@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BOOK, entry, loadBuild, makeContent, spread } from './helpers';
+import { PLUGIN_API_VERSION } from '../../shared/types/plugins';
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -35,7 +36,7 @@ describe('plugins (the book\'s own code)', () => {
     const { entries } = build.buildAll();
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
-    expect(plugins.map(p => p.data)).toEqual([{ id: 'tint', src: '/assets/content/plugins/tint/plugin.js', api: '1.0' }]);
+    expect(plugins.map(p => p.data)).toEqual([{ id: 'tint', src: '/assets/content/plugins/tint/plugin.js', api: PLUGIN_API_VERSION }]);
     expect(plugins[0].code).toContain('registerLayer("tint"');
     expect(plugins[0].code).not.toContain('osct-plugin-api');
     expect(entries[0].target?.entity).toMatchObject({ components: [{ type: 'tint', opacity: 0.5 }] });
