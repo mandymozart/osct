@@ -1,7 +1,7 @@
 <script lang="ts" module>
   /**
    * Feather icons (MIT, feathericons.com) as inline SVG – stroke 2.5, square caps, `currentColor`, sized by the font.
-   * Only where a word makes no sense (RULES #32): step, replay, photo, close.
+   * Only where a word makes no sense (RULES #32): step, replay, photo, close, the linked scale, the tree's folds.
    */
   export const ICONS = {
     previous: '<polyline points="15 18 9 12 15 6"></polyline>',
@@ -12,6 +12,8 @@
     reset: '<polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>',
     up: '<polyline points="18 15 12 9 6 15"></polyline>',
     down: '<polyline points="6 9 12 15 18 9"></polyline>',
+    /** Uniform scale: the three axes linked (Blender's chain) */
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>',
   } as const;
   export type IconName = keyof typeof ICONS;
 </script>

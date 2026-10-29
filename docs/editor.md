@@ -80,24 +80,32 @@ again). Nothing of the reader's store, progress or routes is involved.
   media is copied).
 - **Spreads** (`/editor/<book>/`): the spreads with their entries, targets and AR count; **Publish** with the
   environment (`local`, `staging`, `production` – production asks).
-- **Workspace** (`/editor/<book>/<spread>/`): the stage and one panel – a column at the right on a desktop, a sheet
-  at the bottom on a phone whose head is the tab row (closed = the row only). The bar: × back to the spreads, ‹ ›
-  (also ← →) through the spreads, the spread's title, the tabs.
+- **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
+  desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
+  (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
+  spreads, the spread's title, the tabs.
+  - **Tree** – the spread as a 3D tool's outliner: the spread, its entries in page order (category, title, page),
+    each entry's target (◉ in view / ○ not – the mark is the found toggle, as the Stage panel's chips; ● while the
+    stage shows it with other values than the draft's) and the target's entity (type; `shared <ref>` or `own`). A tap on
+    a target or its entity selects it and opens the Entity panel; a tap on the stage selects it here. Entries fold;
+    the column collapses to its bar (‹ ›, kept on the device).
   - **Stage** – the simulated camera: **view** *reader* (35 cm above the page, tilted 30°), *top*, *low* (75° – shows
     how flat a video plane is), *far*; on the stage **drag** orbits, **wheel / pinch** change the distance, **double
     tap** returns to the reader's view (a free orbit is shown next to the presets and kept on the device). **found**:
     one pressed chip per target (◉ = in view) – off reports it lost (outro), on found again (reveal); the replay arrow
     plays the first find again. **shake**: 0 = still, 1 = a hand holding a phone. **backdrop**: *table*, *paper*,
     *photo* of your own desk (the camera button; long side 1600 px, stored on the device).
-  - **Entity** – the target (a tap on an entity on the stage selects it), then every placement value and filter
-    parameter of its entity as rows of one control height: position, rotation and scale with X, Y, Z side by side
-    as in Blender (one `scale` field while *uniform scale* is pressed), choices as a segmented group, colours as
+  - **Entity** – the target (a tap on an entity on the stage or in the tree selects it), then every placement value
+    and filter parameter of its entity as rows of one control height: position, rotation and scale with X, Y, Z side
+    by side as in Blender (the chain icon at the end of the scale row links the axes: pressed = one `scale` field, as
+    Blender's lock), choices as a segmented group, colours as
     swatch + hex, a reset arrow while a value differs from the type's default, ● on rows that differ from the draft.
     Changes show live on the stage; **Save** writes the entity to the API – the shared entity when the target refers
     to one (the head says `shared: <ref> (n×)`), else the target's own – and the stage rebuilds from the draft;
     **Back to the draft** drops them. Rows come from the content contract's definitions (`PLACEMENT_PARAMS`,
     `FILTERS`): a new filter or parameter needs no panel code.
-- Settings (view, orbit, backdrop, photo, shake, the open tab) are stored per device; the session token too.
+- Settings (view, orbit, backdrop, photo, shake, the open tab, the tree open or collapsed) are stored per device; the
+  session token too.
 
 ### UI rules
 
@@ -107,8 +115,8 @@ the reader's design tokens: a design tool's default palette – day (white, ligh
 danger red; one control height (`--control-height`, 1.75rem), square corners, compact system type; rows with a label
 column; numbers as `ScrubNumber` (the whole field is the gesture: press and slide, Shift ×10, Alt ×0.1, tap to type,
 ↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders); small enums as segmented pressed pills;
-on / off per item as a pressed chip; Feather icons only where a word makes no sense (step, replay, photo, close), each
-with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
+on / off per item as a pressed chip; Feather icons only where a word makes no sense (step, replay, photo, close, the
+chain that links the scale axes, the tree's folds), each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
 itself renders the reader's content unchanged. Texts are English (RULES #20).
 
 ## Where the code lives
@@ -119,7 +127,7 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`) and the reader's graphics options |
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, backdrop, hidden targets), `stage-layout.ts` |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Stage, Entity; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity; `ScrubNumber`, `Segmented`, `Icon`; the rows from the contract |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |
 | The API | `server/api/src/Books.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php` | [server](server.md) "Editor data" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |

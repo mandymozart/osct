@@ -28,10 +28,12 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   (the book's layout), by the trigger protocol or in a row – and every target counts as found, so models, videos and
   filters show with their reveal, unlock and outro exactly as in AR, on the desktop and on a phone, without a camera.
   Books are imported from a game configuration (the CDN's current version, a URL or a file); the workspace has the
-  **Stage** panel (view presets *reader / top / low / far*, drag to orbit, wheel or pinch for the distance, found chips
-  per target, replay of the first find, hand shake, backdrop *table / paper / photo* of your own desk) and the
-  **Entity** panel (placement with X, Y, Z in one row as in Blender, filters, colours – live on the stage, **Save** to
-  the database, **Back to the draft**), and **Publish** makes a content version. Docs: `docs/editor.md`.
+  **tree** of the spread at the left (a 3D tool's outliner: entries → targets → entities, found marks, a tap selects;
+  collapsible, a tab on a phone), the **Stage** panel (view presets *reader / top / low / far*, drag to orbit, wheel or
+  pinch for the distance, found chips per target, replay of the first find, hand shake, backdrop *table / paper /
+  photo* of your own desk) and the **Entity** panel (placement with X, Y, Z in one row as in Blender, the chain icon
+  linking the scale axes, filters, colours – live on the stage, **Save** to the database, **Back to the draft**), and
+  **Publish** makes a content version. Docs: `docs/editor.md`.
 - **The engine as a package** (`engine/`): the content runtime (`loadGameConfiguration`, the accessors, `contentUrl`)
   and the AR scene (`ArScene`, entities, animations, trackers behind `IImageTracker`) moved out of the reader into a
   source folder both apps compile (`@engine/*`). The app passes what differs: its tracker (the reader the 8th Wall
