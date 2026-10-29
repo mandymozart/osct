@@ -79,20 +79,29 @@ export const componentProblems = (raw: unknown, path: string, nodeType?: string)
       const param = spec.params[name];
       if (!param) {
         problems.push(`${at}.${name}: unknown parameter of ${type} (${Object.keys(spec.params).join(", ")})`);
-      } else if (param.kind === "color" && !(typeof value === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value))) {
-        problems.push(`${at}.${name}: expected a color "#rrggbb", got ${JSON.stringify(value)}`);
-      } else if (param.kind === "choice" && !param.options.includes(value as string)) {
-        problems.push(`${at}.${name}: expected one of ${param.options.join(", ")}, got ${JSON.stringify(value)}`);
-      } else if (param.kind === "number" && !(typeof value === "number" && value >= param.min && value <= param.max)) {
-        problems.push(`${at}.${name}: expected a number from ${param.min} to ${param.max}, got ${JSON.stringify(value)}`);
-      } else if (param.kind === "boolean" && typeof value !== "boolean") {
-        problems.push(`${at}.${name}: expected true or false, got ${JSON.stringify(value)}`);
-      } else if (param.kind === "string" && typeof value !== "string") {
-        problems.push(`${at}.${name}: expected a string, got ${JSON.stringify(value)}`);
+        continue;
       }
+      const problem = paramProblem(param, value);
+      if (problem) problems.push(`${at}.${name}: ${problem}`);
     }
   });
   return problems;
+};
+
+/** Why a value does not fit a parameter's spec (a component's, a light's), or null when it does */
+export const paramProblem = (param: ComponentParamSpec, value: unknown): string | null => {
+  if (param.kind === "color" && !(typeof value === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value))) {
+    return `expected a color "#rrggbb", got ${JSON.stringify(value)}`;
+  }
+  if (param.kind === "choice" && !param.options.includes(value as string)) {
+    return `expected one of ${param.options.join(", ")}, got ${JSON.stringify(value)}`;
+  }
+  if (param.kind === "number" && !(typeof value === "number" && value >= param.min && value <= param.max)) {
+    return `expected a number from ${param.min} to ${param.max}, got ${JSON.stringify(value)}`;
+  }
+  if (param.kind === "boolean" && typeof value !== "boolean") return `expected true or false, got ${JSON.stringify(value)}`;
+  if (param.kind === "string" && typeof value !== "string") return `expected a string, got ${JSON.stringify(value)}`;
+  return null;
 };
 
 /** The component of a type on a node, with every parameter resolved to its value or default */

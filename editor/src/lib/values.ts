@@ -2,6 +2,7 @@ import {
   AssetData,
   COMPONENTS,
   ComponentData,
+  ComponentParamSpec,
   ComponentSpec,
   ComponentType,
   EntityData,
@@ -9,6 +10,8 @@ import {
   FILTERS,
   FilterType,
   keyMode,
+  LIGHT_PARAMS,
+  LightData,
   PLACEMENT_DEFAULTS,
   PLACEMENT_PARAMS,
   PlacementKey,
@@ -18,8 +21,9 @@ import {
 
 /**
  * The Entity panel's values: one row per adjustable value of an entity, generated from the content contract's
- * definitions (`PLACEMENT_PARAMS`, `FILTERS`), reading and writing them on an `EntityData` copy. Row ids use the
- * three.js names: `position.x`, `rotation.y`, `scale` (uniform) or `scale.z`, `filters.0.threshold`. A new filter or
+ * definitions (`PLACEMENT_PARAMS`, `FILTERS`, `COMPONENTS`, `LIGHT_PARAMS`), reading and writing them on an
+ * `EntityData` copy. Row ids use the three.js names: `position.x`, `rotation.y`, `scale` (uniform) or `scale.z`,
+ * `filters.0.threshold`, `components.0.speed`, `light.intensity`. A new filter, component, light parameter or
  * parameter in the contract needs no panel code.
  */
 
@@ -85,9 +89,16 @@ export const filterRows = (filter: FilterData, index: number): ValueRow[] => {
 /** The rows of a component (`components.{i}.{name}`), from its spec */
 export const componentRows = (component: ComponentData, index: number): ValueRow[] => {
   const spec: ComponentSpec | undefined = COMPONENTS[component.type];
-  if (!spec) return [];
-  return Object.entries(spec.params).map(([name, param]): ValueRow => {
-    const id = `components.${index}.${name}`;
+  return spec ? specRows(`components.${index}`, spec.params) : [];
+};
+
+/** The rows of a light node (`light.{name}`), from `LIGHT_PARAMS` */
+export const lightRows = (): ValueRow[] => specRows("light", LIGHT_PARAMS);
+
+/** One row per parameter of a spec (a component's, the light's), ids `{prefix}.{name}` */
+const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): ValueRow[] =>
+  Object.entries(params).map(([name, param]): ValueRow => {
+    const id = `${prefix}.${name}`;
     switch (param.kind) {
       case "color": return { id, kind: "color", default: param.default, description: param.description };
       case "choice": return { id, kind: "choice", default: param.default, options: param.options, description: param.description };
@@ -99,7 +110,6 @@ export const componentRows = (component: ComponentData, index: number): ValueRow
       };
     }
   });
-};
 
 /** The component types a node of `type` may take */
 export const componentTypesFor = (type: EntityData["type"]): ComponentType[] =>
@@ -110,6 +120,7 @@ export const componentTypesFor = (type: EntityData["type"]): ComponentType[] =>
 
 export const valueRows = (entity: EntityData, uniformScale: boolean): ValueRow[] => [
   ...placementRows(entity, uniformScale),
+  ...(entity.type === "light" ? lightRows() : []),
   ...(entity.filters ?? []).flatMap(filterRows),
   ...(entity.components ?? []).flatMap(componentRows),
 ];
@@ -125,6 +136,10 @@ export const getValue = (entity: EntityData, row: ValueRow): RowValue => {
     const value = entity.components?.[Number(second)]?.[third];
     if (value === undefined) return row.default;
     return row.kind === "boolean" ? (value ? "true" : "false") : (value as RowValue);
+  }
+  if (head === "light") {
+    const value = entity.light?.[second as keyof LightData];
+    return (value as RowValue | undefined) ?? row.default;
   }
   const placement = resolvePlacement(entity.type, entity.params);
   return placement[head as PlacementKey][second ? AXES.indexOf(second as "x") : 0];
@@ -143,6 +158,7 @@ export const setValue = (entity: EntityData, row: ValueRow, value: RowValue): En
       i === Number(second) ? { ...component, [third]: row.kind === "boolean" ? value === "true" : value } : component);
     return { ...entity, components };
   }
+  if (head === "light") return { ...entity, light: { ...entity.light, [second]: value } };
   const placement = resolvePlacement(entity.type, entity.params);
   const key = head as PlacementKey;
   const vector = [...placement[key]] as Vector3Data;
@@ -224,6 +240,19 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
     });
     if (!result.components.length) delete result.components;
   }
+  if (entity.type === "light") {
+    // The light's values only where they differ from the defaults; none left = no `light` key
+    const light: Record<string, unknown> = {};
+    lightRows().forEach(row => {
+      const name = row.id.split(".")[1];
+      const value = getValue(entity, row);
+      if (!sameValue(value, row.default)) light[name] = typeof value === "number" ? round(value) : value;
+    });
+    if (Object.keys(light).length) result.light = light as LightData;
+    else delete result.light;
+  } else {
+    delete result.light;
+  }
   if (entity.filters) {
     result.filters = entity.filters.map((filter, i) => {
       const kept: Record<string, unknown> = { type: filter.type };
@@ -276,7 +305,7 @@ export const contentTree = (root: EntityData): EntityData => {
   return node;
 };
 
-/** A new node of a type: fileless types at once, model / video / image with the asset chosen from the book */
+/** A new node of a type: fileless types (group, text, light) at once, model / video / image with the asset chosen from the book */
 export const newNode = (type: EntityData["type"], asset?: { id: string; assetType: AssetData["assetType"]; src: string }): EntityData => ({
   type,
   assets: asset ? [asset] : [],

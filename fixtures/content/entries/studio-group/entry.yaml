@@ -2,7 +2,7 @@
 category: glossary
 title: "Studio: tree of nodes"
 page: 29
-body: "A group with two children: the tree, lifted and turned, and a line of text under it."
+body: "A group with three children: the tree, lifted and turned, a line of text under it, and an orange spot light aimed at the tree from the right."
 target:
   image: target.jpg
   entity:
@@ -22,3 +22,14 @@ target:
         params:
           position: [0, -0.45, 0.01]
           scale: 0.8
+      # A light node (content schema 3.0): a spot aimed along its own −z – turned 45° about y it points down-left onto the tree
+      - type: light
+        light:
+          kind: spot
+          color: "#ff9a3c"
+          intensity: 0.3
+          angle: 35
+          penumbra: 0.3
+        params:
+          position: [0.4, 0, 0.6]
+          rotation: [0, 45, 0]

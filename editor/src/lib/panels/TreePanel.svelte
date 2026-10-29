@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getEntityRef } from "@engine/content/game-config";
-  import type { EntityData, Entry, Target } from "@engine/types";
+  import { resolveLight, type EntityData, type Entry, type Target } from "@engine/types";
   import { content } from "$lib/content.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
   import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "$lib/stage/preview";
@@ -45,12 +45,13 @@
     onselect?.(target.id);
   };
   const same = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => v === b[i]);
-  const NODE_ICONS: Record<string, IconName> = { group: "layers", model: "model", video: "video", image: "image", text: "type" };
+  const NODE_ICONS: Record<string, IconName> = { group: "layers", model: "model", video: "video", image: "image", text: "type", light: "light" };
   const nodeIcon = (n: EntityData): IconName => NODE_ICONS[n.type] ?? "layers";
   const nodeName = (n: EntityData, target: Target, path: number[]) => {
     const ref = path.length ? undefined : getEntityRef(target.id);
     if (n.type === "text") return `“${(n.text ?? "").slice(0, 40)}”`;
-    return `${n.type}${n.id ? ` ${n.id}` : ""}${ref ? ` · ${ref}` : ""}`;
+    const type = n.type === "light" ? `${resolveLight(n.light).kind} light` : n.type;
+    return `${type}${n.id ? ` ${n.id}` : ""}${ref ? ` · ${ref}` : ""}`;
   };
   /** The entity shown for a target: the stage's override (a live edit, or removed) or the draft's */
   const treeOf = (target: Target): EntityData | undefined => {
