@@ -7,6 +7,8 @@
   import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
   import { plugins } from "$lib/plugins.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
+  import { fromOrigin, toOrigin } from "$lib/stage/origin";
+  import { getPreview, subscribePreview } from "$lib/stage/preview";
   import {
     addChild, addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
     sameValue, setValue, valueRows, withNode, type ValueRow,
@@ -166,6 +168,12 @@
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
   let print = $state<PrintPlacement>({ surface: "right", x: 40, y: 60, width: 80 });
+  // The x / y rows are read and entered from the stage's origin (Stage panel); `print` keeps the content's frame
+  let origin = $state(getPreview().origin);
+  $effect(() => subscribePreview(state => (origin = state.origin)));
+  const frame = $derived({ page: stage?.pageFormat() ?? { width: 230, height: 320 }, format: stage?.format() ?? "spread" });
+  const shown = $derived(toOrigin(origin, frame, print.surface, print.x, print.y));
+  const setShown = (x: number, y: number) => (print = { ...print, ...fromOrigin(origin, frame, print.surface, x, y) });
   /** The shown place is where the book's layout prints the target (until saved), not one set in the editor */
   let placeFromLayout = $state(false);
   /** The surfaces this spread has: the pages of the open book, or the cover's face */
@@ -371,8 +379,8 @@
       <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => (print = { ...print, surface: s })} /></span></div>
     <div class="row"><span class="label">x · y</span>
       <span class="fields">
-        <ScrubNumber value={print.x} min={0} max={230} step={1} fallback={0} prefix="X" unit="mm" label="printed x" oninput={v => (print = { ...print, x: v })} />
-        <ScrubNumber value={print.y} min={0} max={320} step={1} fallback={0} prefix="Y" unit="mm" label="printed y" oninput={v => (print = { ...print, y: v })} />
+        <ScrubNumber value={shown.x} step={1} fallback={0} prefix="X" unit="mm" label="printed x" oninput={v => setShown(v, shown.y)} />
+        <ScrubNumber value={shown.y} step={1} fallback={0} prefix="Y" unit="mm" label="printed y" oninput={v => setShown(shown.x, v)} />
       </span></div>
     <div class="row"><span class="label">width</span>
       <span class="controls">
