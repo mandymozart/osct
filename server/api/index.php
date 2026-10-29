@@ -44,12 +44,14 @@ declare(strict_types=1);
  *   POST   /editor/books/{id}/assets            the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
  *   PUT    /editor/books/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
  *   GET    /editor/books/{id}/assets/{aid}/usages · DELETE /editor/books/{id}/assets/{aid}[?force=1]
+ *   GET    /editor/books/{id}/plugins · GET | PUT { source } | DELETE /editor/books/{id}/plugins/{pid}
+ *                                               the Code tab's plugin sources (docs/server.md "Plugin sources")
  *   GET    /content/{env}/{path}                the local content store (json files, and the assets' files; public)
  *
  * Signed-in requests send `Authorization: Bearer <session token>`.
  */
 
-foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets'] as $class) {
+foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'Plugins'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -134,6 +136,10 @@ try {
         (bool) preg_match("#^PUT /editor/books/($id)/assets/($uuid)/file$#", $route, $match) => Assets::replace($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/books/($id)/plugins$#", $route, $match) => Plugins::list($match[1]),
+        (bool) preg_match("#^GET /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::get($match[1], $match[2]),
+        (bool) preg_match("#^PUT /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::put($match[1], $match[2]),
+        (bool) preg_match("#^DELETE /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::delete($match[1], $match[2]),
         // The local content store, public like the CDN (the environment name as the osct CLI accepts it)
         (bool) preg_match('#^GET /content/([a-z][a-z0-9-]{0,31})/(.+)$#', $route, $match) => ContentStore::serve($match[1], $match[2]),
         default => throw new ApiError(404, 'not-found', 'Unknown endpoint.'),
