@@ -5,16 +5,13 @@
  * - `active`: the editor page is open – `ArScene` builds the mock tracker instead of the engine (a change while the
  *   scene exists rebuilds it). Not stored: the route decides.
  * - The settings the preview panel changes, stored on this device (`osct-preview`): the view preset or a free orbit,
- *   the backdrop (table, paper or a photo of the reader's own desk as a data URL), the hand-shake amount.
+ *   the sky (an HDRI), the desk, the hand-shake amount.
  * - `hidden`: targets switched off in the panel – the mock reports them as lost (outro), on again as found (reveal).
  *   Not stored.
  */
 
 export const PREVIEW_VIEWS = ["reader", "top", "low", "far"] as const;
 export type PreviewView = (typeof PREVIEW_VIEWS)[number];
-
-export const PREVIEW_BACKDROPS = ["hdri", "table", "paper", "photo"] as const;
-export type PreviewBackdrop = (typeof PREVIEW_BACKDROPS)[number];
 
 /** The HDRIs the stage offers as sky and light (Poly Haven, CC0 – `editor/static/hdri/README.md`) */
 export const HDRIS = [
@@ -58,13 +55,10 @@ export interface PreviewSettings {
   shading: ShadingMode;
   /** A free orbit (dragged, zoomed) replaces the preset until the next preset is chosen */
   orbit: PreviewOrbit | null;
-  backdrop: PreviewBackdrop;
-  /** The HDRI shown as sky and used as light while the backdrop is `hdri` */
+  /** The HDRI shown as sky and used as light (while the shading is rendered) */
   hdri: HdriId;
-  /** The desk under the book (hidden while the backdrop is a photo) */
+  /** The desk under the book */
   desk: DeskId;
-  /** The reader's photo behind the stage (data URL), null = none chosen yet */
-  photo: string | null;
   /** 0 = still, 1 = a hand holding a phone */
   wobble: number;
 }
@@ -76,7 +70,7 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, backdrop: "hdri", hdri: "ferndale_studio_04", desk: "eiermann", photo: null, wobble: 0 };
+const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, hdri: "ferndale_studio_04", desk: "eiermann", wobble: 0 };
 
 const readSettings = (): PreviewSettings => {
   try {
@@ -87,10 +81,8 @@ const readSettings = (): PreviewSettings => {
       view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
       shading: SHADING_MODES.includes(stored.shading as ShadingMode) ? (stored.shading as ShadingMode) : DEFAULTS.shading,
       orbit: isOrbit(stored.orbit) ? stored.orbit : null,
-      backdrop: PREVIEW_BACKDROPS.includes(stored.backdrop as PreviewBackdrop) ? (stored.backdrop as PreviewBackdrop) : DEFAULTS.backdrop,
       hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
       desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
-      photo: typeof stored.photo === "string" && stored.photo.startsWith("data:image/") ? stored.photo : null,
       wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
     };
   } catch {

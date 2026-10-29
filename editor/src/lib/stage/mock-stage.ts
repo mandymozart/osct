@@ -5,7 +5,7 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
-import type { DeskId, HdriId, PreviewBackdrop, ShadingMode } from "./preview";
+import type { DeskId, HdriId, ShadingMode } from "./preview";
 
 /**
  * A plane sits a hair below the one above it, so nothing flickers: the entities' plane is the target's (z = 0, as
@@ -14,13 +14,12 @@ import type { DeskId, HdriId, PreviewBackdrop, ShadingMode } from "./preview";
  */
 const LAYER = 0.0005;
 /**
- * Backdrop colours. The desk's top is a screen-printed plywood board (Siebdruckplatte): Poly Haven's plywood texture
+ * Colours. The Eiermann desk's top is a screen-printed plywood board (Siebdruckplatte): Poly Haven's plywood texture
  * tinted to the dark phenolic brown on the faces, roughness from its map; the cut edges show the plywood's plies
  * untinted. The cover is a white hardcover board.
  */
 const DESK_TINT = 0x3b2416;
 const DESK_EDGE_TINT = 0xffffff;
-const PAPER_BACKDROP_COLOR = 0xdedbd2;
 const PAGE_COLOR = 0xf3efe6;
 const PAGE_EDGE_COLOR = 0xe6e1d6;
 const SPINE_COLOR = 0xd8d2c4;
@@ -29,7 +28,7 @@ const COVER_COLOR = 0xf2efe9;
 const SHEET_THICKNESS = 0.00015;
 const BLOCK_MIN = 0.003;
 const BLOCK_MAX = 0.04;
-const COVER_THICKNESS = 0.003;
+const COVER_THICKNESS = 0.002;
 const COVER_OVERHANG = 0.003;
 /**
  * The desks (the Stage panel's choice): 1.4 × 1.0 m tops, 72 cm high – our own low-poly models, built by
@@ -68,10 +67,9 @@ interface DeskTextures {
  * The mock stage: what the camera would show – a desk, the open book in its page format (the sheet as laid out when
  * the content has the book's layout, blank pages otherwise), the current spread's printed images where they are
  * printed (or in a row), all in the same three.js scene as the entities, moved as one group by the tracker's camera
- * (the three.js camera stays at the origin, as in AR). Backdrops: the desk, plain paper (the top as paper, the frame
- * stays), or the reader's photo as the container's background (the desk is hidden, the book stays so the entities keep
- * their paper). Nothing of this is lit differently from AR: the scene's lights stay. The desk keeps its own materials
- * under every viewport shading (`shading.ts` applies to the entities), like the gizmo and the outlines.
+ * (the three.js camera stays at the origin, as in AR). The sky and the light: the chosen HDRI while the shading is
+ * rendered, the scene's own lights otherwise. The desk keeps its own materials under every viewport shading
+ * (`shading.ts` applies to the entities), like the gizmo and the outlines.
  */
 export class MockStage implements StageView {
   private group = new Group();
@@ -101,20 +99,19 @@ export class MockStage implements StageView {
   /** The sky: the HDRI on a sphere inside the stage's group, so it turns with the stage by construction */
   private sky: Mesh<SphereGeometry, MeshBasicMaterial> | null = null;
   private shading: ShadingMode = "rendered";
-  private lastBackdrop: { backdrop: PreviewBackdrop; photo: string | null; hdri: HdriId | null } = { backdrop: "hdri", photo: null, hdri: null };
+  private hdri: HdriId | null = null;
 
   /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only */
   setShading(mode: ShadingMode): void {
     if (this.shading === mode) return;
     this.shading = mode;
-    const last = this.lastBackdrop;
-    this.setBackdrop(last.backdrop, last.photo, last.hdri);
+    this.setHdri(this.hdri);
   }
   /** The scene's own lights at their intensity before the HDRI dimmed them */
   private dimmed = new Map<Light, number>();
 
   /** `assetUrl`: where the editor's static files live (`hdri/…`, `textures/…`) */
-  constructor(private scene: Scene, private container: HTMLElement, private assetUrl: (path: string) => string = path => `/${path}`) {
+  constructor(private scene: Scene, private assetUrl: (path: string) => string = path => `/${path}`) {
     this.group.name = "mock-stage";
     this.group.matrixAutoUpdate = false;
     this.table.name = "mock-desk";
@@ -125,7 +122,7 @@ export class MockStage implements StageView {
     this.showDesk();
   }
 
-  /** The desk under the book: its model (loaded once) into the desk's group, its top in the look of the backdrop */
+  /** The desk under the book: its model (loaded once) into the desk's group, its top in its own look */
   setDesk(desk: DeskId): void {
     if (this.deskId === desk) return;
     this.deskId = desk;
@@ -168,17 +165,16 @@ export class MockStage implements StageView {
     });
   }
 
-  /** The top's look: plain paper for the paper backdrop, else the desk's own – plywood with the plies on the edges, or white */
+  /** The top's look by desk: plywood with the plies on the edges, or Schöpfer's white */
   private applyDeskLook(): void {
     const top = this.topMaterial;
     const edge = this.edgeMaterial;
-    if (this.lastBackdrop.backdrop === "paper" || this.deskId === "schoepfer") {
-      const colour = this.lastBackdrop.backdrop === "paper" ? PAPER_BACKDROP_COLOR : DESK_WHITE;
+    if (this.deskId === "schoepfer") {
       top.map = edge.map = null;
       top.roughnessMap = edge.roughnessMap = null;
-      top.color.setHex(colour);
-      edge.color.setHex(colour);
-      top.roughness = edge.roughness = this.lastBackdrop.backdrop === "paper" ? 1 : 0.6;
+      top.color.setHex(DESK_WHITE);
+      edge.color.setHex(DESK_WHITE);
+      top.roughness = edge.roughness = 0.6;
     } else {
       const desk = this.ensureDesk();
       top.map = desk.map;
@@ -300,16 +296,10 @@ export class MockStage implements StageView {
     });
   }
 
-  setBackdrop(backdrop: PreviewBackdrop, photo: string | null, hdri: HdriId | null = null): void {
-    this.lastBackdrop = { backdrop, photo, hdri };
-    const usePhoto = backdrop === "photo" && !!photo;
-    this.table.visible = !usePhoto;
-    this.container.style.backgroundImage = usePhoto ? `url(${photo})` : "";
-    this.container.style.backgroundSize = usePhoto ? "cover" : "";
-    this.container.style.backgroundPosition = usePhoto ? "center" : "";
-    this.applyDeskLook();
-    // The sky and the light: the HDRI, else the scene's own lights over the editor's dark ground
-    this.wantedHdri = backdrop === "hdri" && hdri && this.shading === "rendered" ? hdri : null;
+  /** The sky and the light: the HDRI while rendered, else the scene's own lights over the editor's dark ground */
+  setHdri(hdri: HdriId | null): void {
+    this.hdri = hdri;
+    this.wantedHdri = hdri && this.shading === "rendered" ? hdri : null;
     if (!this.wantedHdri) {
       this.scene.background = null;
       this.scene.environment = null;
@@ -499,9 +489,6 @@ export class MockStage implements StageView {
     this.scene.environment = null;
     this.dimLights(false);
     this.group.removeFromParent();
-    this.container.style.backgroundImage = "";
-    this.container.style.backgroundSize = "";
-    this.container.style.backgroundPosition = "";
   }
 
   /** Empties `group`, freeing every mesh below it (the desk's shared materials are the stage's own, disposed apart) */

@@ -129,10 +129,10 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
   let tracker: MockTracker;
   let now = 1000;
 
-  const stage = (): StageView & { layouts: number; backdrops: string[]; frames: number; disposed: boolean } => ({
-    layouts: 0, backdrops: [], frames: 0, disposed: false,
+  const stage = (): StageView & { layouts: number; hdris: string[]; frames: number; disposed: boolean } => ({
+    layouts: 0, hdris: [], frames: 0, disposed: false,
     setLayout() { this.layouts++; },
-    setBackdrop(backdrop) { this.backdrops.push(backdrop); },
+    setHdri(hdri) { this.hdris.push(hdri); },
     update() { this.frames++; },
     dispose() { this.disposed = true; },
   });
@@ -142,7 +142,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     vi.stubGlobal("cancelAnimationFrame", () => {});
     localStorage.clear();
     setPreviewActive(true);
-    updatePreview({ view: "reader", orbit: null, backdrop: "table", photo: null, wobble: 0, hidden: [] });
+    updatePreview({ view: "reader", orbit: null, hdri: "ferndale_studio_04", wobble: 0, hidden: [] });
     updates = [];
     now = 1000;
     tracker = new MockTracker(container, { onUpdate: (id, matrix) => updates.push([id, matrix]) }, async () => ({ a: { width: 50, height: 40, position: "top left" }, b: { width: 30, height: 20, position: "bottom right" } }), () => now);
@@ -225,17 +225,17 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     expect(camera.aspect).toBe(0.5);
   });
 
-  it("feeds the stage the layout, the backdrop and every frame's camera", async () => {
+  it("feeds the stage the layout, the sky and every frame's camera", async () => {
     const view = stage();
     tracker.attachStage(view);
     await tracker.startCamera();
-    expect(view.backdrops).toContain("table");
+    expect(view.hdris).toContain("ferndale_studio_04");
     await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
     expect(view.layouts).toBe(1);
     tracker.tick(now);
     expect(view.frames).toBe(1);
-    updatePreview({ backdrop: "paper" });
-    expect(view.backdrops[view.backdrops.length - 1]).toBe("paper");
+    updatePreview({ hdri: "wooden_studio_07" });
+    expect(view.hdris[view.hdris.length - 1]).toBe("wooden_studio_07");
     tracker.stop();
     expect(view.disposed).toBe(true);
   });
