@@ -1,0 +1,5 @@
+# Another page reacts to the key: the door opens with it, the lamp lights when the door opened.
+title: The door
+order: 1
+firstPage: 3
+lastPage: 4

@@ -12,6 +12,34 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.15.0 – 2026-10-30
+
+### Added
+- **The demo book** (#80, Tilman: "ein Beispiel, das einmal versucht, alle Möglichkeiten, die der Editor gerade kann,
+  zu simulieren – auch mit diversen Game-Narrativen und Interaktionen, mit der Buch-API … call it demo"): a sandbox
+  book `fixtures/demo/` next to the test fixture, built with `OSCT_CONTENT_DIR=fixtures/demo` – six spreads with every
+  node type, placement, filter and component, the covers, a shared entity, `print` on every target, entries of every
+  category, and six plugins that together use every part of the plugin API: `tint` and `pulse` (layers), `spin`,
+  `scenes` (a tap shows the next child), `narrative` (the key found on page 1 opens the door on page 3, the lamp
+  lights when the door opened) and `tally` (a text the book writes from the progress). The assets are the fixture's
+  stand-ins. `DEMO.md` marks a demo build: `osct content sync` uploads it to the environment `demo` only, and the
+  workflow *Demo book* (`demo.yml`) builds and syncs it from `develop`. The decision and the gaps the demo found:
+  `agents/research/2026-10-30-demo-book.md`; the guide: docs/plugins.md "The demo book".
+- **Plugin API 1.1 – across nodes and pages**: `api.events` (the engine's core events `targetFound`, `targetLost`,
+  `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the book's
+  own to emit and hear – one bus, a plugin's listeners go with it), `api.vars` (variables in the scopes `spread`,
+  `stage`, `session`, `book` with the concept's outward lookup; `book` persisted with the reader's progress),
+  `api.progress` (read-only: `unlocked`, `consulted`, `completion`, `counts` – the reader passes an adapter over its
+  history through `ArSceneOptions.progress`, the editor its simulation), `api.spread` (the current spread), the
+  component context's `children` and the hook `onUnlocked` (`engine/src/scene/plugin-runtime.ts`). The progress
+  record keeps the book variables (`variables`, additive within format 1; merged with this device's values winning).
+  Content schema **2.7** (the API version a declared plugin carries; 2.5 are the passes, 2.6 the light nodes).
+- **The editor**: the Stage panel's **vars** and **events** rows (the plugins' variables with their scopes, the last
+  events of the stage) and **reset** (a new game); *Import a book… → URL* takes a **content base URL** (a CDN folder
+  with `latest.json`, e.g. `…/demo`) and imports its current version; the Entity panel's rows follow the plugins the
+  engine loads with a spread (before, a declared plugin's component showed its rows only after a Run).
+- **The reader on a debug build** takes `?content=<base url>` and keeps it for the tab: the staging reader opens the
+  demo with `?content=https://buildingfictions.b-cdn.net/demo`; production builds ignore it (docs/content-cdn.md).
 ## 1.13.0 – 2026-10-29
 
 ### Added
