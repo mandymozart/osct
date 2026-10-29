@@ -35,6 +35,14 @@ outcome in the line (or move it into a dated decision block).
   (SQLite, mail log, local store), Tilman's address already an editor there, the code in `server/api/db/mail.log`.
 - [ ] Open after the night: staging's `CONTENT_STORE=bunny` + credentials (GitHub environment); MariaDB against the new
   tables; the phone layout of the workspace; entries / texts / media editing (step 2b); the plugin API (steps 3–4).
+- 2026-10-29 (Tilman, "Ja, bau den Asset-Upload nach dem Scutoons-Modell"): built as **the content store as the
+  storage** (no second driver layer: `ContentStore` learned binary files, delete and serving assets), a registry of
+  assets + versions, usages computed from the rows (no usage table – the book is small), absolute URLs in the content
+  (publish and engine leave them alone), replace = new path + relink (no CDN purge). Targets made in the editor carry
+  `print` (schema 2.1, MINOR); their tracking data for the real reader is open (the content build's target set).
+  Asked the same day, parked for steps 3–4: spread-level nodes without a target, a timeline for glb clips with
+  start / stop events, the script part. The sky became a sphere in the stage group after three's background
+  rotation mirrored axes.
 - 2026-10-29 (Tilman, "ja bauen"): **content schema 2.0 = the node tree**, structure first, components later: an
   entity's node has `children` (placed relative to the parent), types `group` and `text` joined model / video /
   image, one node stays the default. Decided alone: the app reads 1.x content as it is (a one-node tree), so the

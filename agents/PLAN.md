@@ -1067,11 +1067,16 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        `/editor` with the engine + mock tracker in process; an OSCT instance user (Building Fictions) signs in,
        independent of Scutoons. Done (1.10.0): [x] engine package, [x] reader stripped, [x] editor app (sign-in, books,
        import, stage, Stage / Entity panels, save, publish), [x] image + CI; staging = the PR into develop.
-2b. [ ] **Asset upload** (Tilman 2026-10-29: "hoffe der Asset-Upload ist auch schon in Planung"): the asset layer
-       after Scutoons' (`scutoons/agents/ASSETS.md`: registry of assets / versions / renditions / usages, storage
-       drivers local + bunny with opt-in writes, the media standard 1x / 2x / 3x and 480p / 720p / 1080p, the asset
-       picker) in the API and the editor – upload and replace a node's file and a target's image, pick from the
-       library; transcoding stays with the content build or a job. Next after the stage's sky and gizmo.
+2b. [~] **Asset upload** (Tilman 2026-10-29): [x] the asset layer after Scutoons' in OSCT size – registry (assets,
+       versions, usages computed), the content store as storage (local + bunny), upload, replace with relink, guarded
+       delete, the editor's Library, a node's file, a target's image; [x] targets made in the editor (`print`
+       placement, `POST /entries`, `DELETE /entries/{id}`, "+ target" in the tree); [ ] renditions (1x / 2x / 3x,
+       480p / 720p / 1080p) and transcoding – the content build or a job; [ ] a target made in the editor gets its
+       tracking data (the content build's target set from the uploaded image); [ ] the media standard's density suffixes.
+2c. [ ] **Asked on 2026-10-29, for steps 3–4** (Tilman): nodes without a target on the spread (scenery, listeners on
+       events – an anchor for the spread's scene, scope `spread`), a **timeline** for a model's animation clips with
+       start / stop on found / lost / tap (the `animation` component and `behaviour` of the concept), and the
+       **script part** (code in the editor, step 4). Studio C is the acceptance scenario.
 2. [x] Saving (1.10.0): books, spreads, entries, targets, entities in the database (`/api/editor/*`, import from a
        game configuration, entity edits with a change log), the draft as a content version the engine loads
        (`…/draft/latest.json`), publish = the version assembled from the rows into the content store (local dir or

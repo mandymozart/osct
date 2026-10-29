@@ -4,7 +4,8 @@ declare(strict_types=1);
 /** An error answered as `{ "error": { "code", "message" } }` with its HTTP status */
 final class ApiError extends Exception
 {
-    public function __construct(public readonly int $status, public readonly string $errorCode, string $message = '')
+    /** @param array<string, mixed> $details more for the client, beside code and message (e.g. an asset's usages) */
+    public function __construct(public readonly int $status, public readonly string $errorCode, string $message = '', public readonly array $details = [])
     {
         parent::__construct($message !== '' ? $message : $errorCode);
     }
@@ -42,7 +43,7 @@ final class Http
 
     public static function error(ApiError $error): never
     {
-        self::json($error->status, ['error' => ['code' => $error->errorCode, 'message' => $error->getMessage()]]);
+        self::json($error->status, ['error' => ['code' => $error->errorCode, 'message' => $error->getMessage()] + $error->details]);
     }
 
     /** The `Authorization: Bearer <token>` header (Apache may hide it – see .htaccess) */
@@ -90,6 +91,14 @@ final class Http
             http_response_code(204);
             exit;
         }
+    }
+
+    /** This API's own absolute URL (`https://host/api`), from the request: for the URLs of files the local store serves */
+    public static function apiUrl(): string
+    {
+        $https = (($_SERVER['HTTPS'] ?? '') !== '' && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+        $host = (string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost');
+        return ($https ? 'https' : 'http') . "://$host" . rtrim((string) ($GLOBALS['osctApiBase'] ?? '/api'), '/');
     }
 
     /** Where links in emails point: the calling app if its origin is allowed, else APP_URL */

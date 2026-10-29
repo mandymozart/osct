@@ -13,6 +13,8 @@ final class Editor
 
     /** The entity types of the content contract: shared/types/game-config.ts `ENTITY_TYPES` – keep in step */
     public const ENTITY_TYPES = ['group', 'model', 'video', 'image', 'text'];
+    /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
+    public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
     public const MAX_NODE_DEPTH = 8;
 
@@ -96,6 +98,22 @@ final class Editor
             foreach ($value->children as $i => $child) self::entity($child, "$path.children[$i]", $depth + 1);
         }
         return $value;
+    }
+
+    /** A target's printed placement (`PrintPlacement`): surface left / right, x, y, width (mm), optional height and page */
+    public static function print(mixed $value, string $path = 'print'): stdClass
+    {
+        if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-target', "$path must be an object.");
+        if (!in_array($value->surface ?? null, ['left', 'right'], true)) throw new ApiError(400, 'invalid-target', "$path.surface must be left or right.");
+        foreach (['x', 'y', 'width'] as $key) {
+            if (!is_numeric($value->$key ?? null)) throw new ApiError(400, 'invalid-target', "$path.$key must be a number (mm).");
+        }
+        if (property_exists($value, 'height') && $value->height !== null && !is_numeric($value->height)) throw new ApiError(400, 'invalid-target', "$path.height must be a number (mm).");
+        if (property_exists($value, 'page') && $value->page !== null && !is_numeric($value->page)) throw new ApiError(400, 'invalid-target', "$path.page must be a number.");
+        $print = (object) ['surface' => $value->surface, 'x' => (float) $value->x, 'y' => (float) $value->y, 'width' => (float) $value->width];
+        if (isset($value->height)) $print->height = (float) $value->height;
+        if (isset($value->page)) $print->page = (int) $value->page;
+        return $print;
     }
 
     /** JSON as the *_json columns and the content files hold it – the same flags as the content build */

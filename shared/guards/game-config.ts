@@ -172,6 +172,17 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     if (!target) return;
     str(target, "id", tPath);
     str(target, "imageSrc", tPath);
+    if (target.print !== undefined) {
+      const print = obj(target.print, `${tPath}.print`);
+      if (print) {
+        if (print.surface !== "left" && print.surface !== "right") fail(`${tPath}.print.surface`, 'expected "left" or "right"');
+        (["x", "y", "width"] as const).forEach(key => {
+          if (typeof print[key] !== "number" || !Number.isFinite(print[key])) fail(`${tPath}.print.${key}`, "expected a number (mm)");
+        });
+        if (print.height !== undefined && (typeof print.height !== "number" || !Number.isFinite(print.height))) fail(`${tPath}.print.height`, "expected a number (mm)");
+        if (print.page !== undefined && (typeof print.page !== "number" || !Number.isInteger(print.page))) fail(`${tPath}.print.page`, "expected a page number");
+      }
+    }
     if (typeof target.id === "string") {
       if (targetIds.has(target.id)) fail(`${tPath}.id`, `duplicate target id "${target.id}"`);
       targetIds.add(target.id);

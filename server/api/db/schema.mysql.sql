@@ -181,3 +181,41 @@ CREATE TABLE IF NOT EXISTS `changes` (
   KEY `changes_book` (`book_id`, `created_at`),
   CONSTRAINT `changes_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- The editor's assets (Assets.php): uploaded files, one row per upload in asset_versions
+CREATE TABLE IF NOT EXISTS assets (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  book_id VARCHAR(64) NOT NULL,
+  name VARCHAR(255) NOT NULL,          -- the file name as uploaded
+  kind VARCHAR(16) NOT NULL,           -- glb | gltf | video | image | audio (the contract's asset types)
+  mime VARCHAR(64) NOT NULL,
+  size BIGINT NOT NULL,
+  sha256 CHAR(64) NOT NULL,
+  width INT NULL DEFAULT NULL,         -- images
+  height INT NULL DEFAULT NULL,
+  version INT NOT NULL DEFAULT 1,      -- the current version
+  path VARCHAR(255) NOT NULL,          -- in the store: <book>/<asset>/v<n>.<ext>
+  url VARCHAR(512) NOT NULL,           -- the public URL the content names
+  status VARCHAR(16) NOT NULL DEFAULT 'active',
+  created_by CHAR(36) NULL DEFAULT NULL,
+  created_at BIGINT NOT NULL,          -- ms since 1970 (UTC)
+  updated_at BIGINT NOT NULL,
+  INDEX assets_book (book_id, status, updated_at),
+  CONSTRAINT assets_book_fk FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS asset_versions (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  asset_id CHAR(36) NOT NULL,
+  version INT NOT NULL,
+  path VARCHAR(255) NOT NULL,
+  url VARCHAR(512) NOT NULL,
+  size BIGINT NOT NULL,
+  sha256 CHAR(64) NOT NULL,
+  mime VARCHAR(64) NOT NULL,
+  note VARCHAR(255) NULL DEFAULT NULL,
+  created_by CHAR(36) NULL DEFAULT NULL,
+  created_at BIGINT NOT NULL,
+  INDEX asset_versions_asset (asset_id, version),
+  CONSTRAINT asset_versions_asset_fk FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

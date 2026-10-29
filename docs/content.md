@@ -209,6 +209,10 @@ body: Light plays a role in architecture.
 media: https://www.youtube.com/watch?v=…
 ```
 
+**Where a target is printed** (`print`, optional, content schema 2.1): targets made in the editor carry their
+printed place – `surface: left | right`, `x`, `y`, `width` in mm from the page's top left corner, optional `height`
+and `page` – so the editor's stage lays them out without the book's layout. The content build does not need it.
+
 **Several targets on the same page:** one entry each – there is no order to keep and nothing to
 compile (max 10 targets per spread). An older `order:` under `target` is ignored.
 
