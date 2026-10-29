@@ -7,6 +7,8 @@
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
+  # The admin page lives in the editor app (docs/admin.md): /admin is the short address for it
+  RewriteRule ^admin(/.*)?$ /editor/admin/ [R=302,L]
   # The accounts API (server/) has its own .htaccess – never answer it with the app
   RewriteCond %{REQUEST_URI} !^/api(/|$)
   # The editor's routes (/editor/<book>/<spread>) → its index.html
