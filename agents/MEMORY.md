@@ -4,7 +4,39 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-29 – The stage's desk is our own Eiermann model (#68)
+
+- Tilman: "the table should be an Eiermann"; he supplied a 3ds Max model of the frame (`01_E1_1100x660-exzentrisch`,
+  17 000 triangles, kept outside the repository) and asked for an effective poly reduction, an 18 mm Siebdruckplatte
+  top with the plywood's plies visible on the cut edges. Decided: **no decimation of the supplied model** – the frame's
+  tube axes were measured from it and `editor/tools/desk-eiermann.py` rebuilds the table from primitives (8-segment
+  tubes, 236 triangles, materials `top` / `edge` / `steel`, origin at the top's surface, metres, Y up), so the GLB is
+  ours and regenerable without the source file. The desk keeps its own materials under every shading mode (like the
+  gizmo and the outlines); the plies are the untinted plywood texture with its grain along the edge.
+- Tilman, later the same day: **both desks as options, like the HDRI picker** – the Eiermann (default) and Philipp
+  Camille Schöpfer's white desk (modelled after a photograph) – "the tool is for designers and they should feel at
+  home". `desk` is a stored preview setting; the stage keeps each loaded model for a switch back and decides the
+  top's look by id (plywood / white). The supplied archive carries no licence or readme, so nothing of it is
+  committed – it served as the measurement reference only.
+- Tilman, on seeing the panel: "there is overhead, we won't need anymore – we got the HDRI and we got the table as
+  default; more basic". **The backdrops *table*, *paper* and *photo* are removed** (never shipped – 1.10.0): the stage
+  has the desk always and the HDRI as its sky while rendered (the scene's lights in wire / solid / textured); the
+  Stage panel keeps *desk* and *sky*.
+- [ ] Open: the frames' finishes (dark metallic steel, Schöpfer's white; chrome would be a material change in the
+  script) and Schöpfer's leg geometry (four straight splayed legs read from one photograph).
+
 ## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
+
+- 2026-10-29 (#65, Tilman: "bitte stark an Scutoons' Modellierung orientieren, wir werden das fürs White Label später
+  vereinen"): **roles after SCUTOONS** – tables `roles` (fixed ids 1 reader, 2 editor, 3 admin) + `user_roles`
+  (`granted_at`, `granted_by`: signup / migration / config / secret / the admin's id), `Roles::require()` as the guard,
+  `GET /user` `roles`; `users.role` stays as a mirror of the editor role (older readers, the schema's backfill). The
+  admin page lives at **`/editor/admin`** (the editor's build and `.htaccess` fallback serve it in both deploys; a root
+  `/admin` would need a rewrite per deploy) – an admin who is no editor sees only that page. The admin API takes an
+  admin session **or** `X-Admin-Secret` (break-glass; `admin/migrate` secret only). `ADMINS` next to `EDITORS` is the
+  bootstrap (Tilman sets the GitHub variables on `staging` / `production`). The newsletter list = the users with any
+  update option on (no new opt-in column – the three options are the opt-in); the reader's preferences untouched.
+  Differences to SCUTOONS listed in docs/server.md "Roles".
 
 - Tilman: "Das ist die Frage des Routings – wer für was verantwortlich ist." "Der Editor hat eine Sonderstellung:
   er braucht die Engine nur für ein Preview, der Rest ist simuliert. Daher muss da eine Grenze her." "Wieso muss

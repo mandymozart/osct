@@ -10,22 +10,6 @@ final class Users
         Http::json(200, ['user' => self::toJson(Auth::user())]);
     }
 
-    /**
-     * An address listed in EDITORS (config, docs/server.md "Editor data") is an editor: the role is given when the
-     * user signs in or is looked up – the instance's first editors, without the admin secret.
-     * @param array<string, mixed> $user
-     * @return array<string, mixed>
-     */
-    public static function grantConfiguredEditor(array $user): array
-    {
-        if (($user['role'] ?? 'reader') === 'editor') return $user;
-        $listed = array_map(static fn(string $email) => strtolower(trim($email)), Config::list('EDITORS'));
-        if (!in_array(strtolower((string) ($user['email'] ?? '')), $listed, true)) return $user;
-        Db::run('UPDATE users SET role = :role WHERE id = :id', ['role' => 'editor', 'id' => $user['id']]);
-        $user['role'] = 'editor';
-        return $user;
-    }
-
     /** PATCH /user { options?, language? } → { user } */
     public static function update(array $body): never
     {
@@ -55,6 +39,7 @@ final class Users
             // Explicit (also where foreign keys are off)
             Db::run('DELETE FROM progress WHERE user_id = :id', ['id' => $user['id']]);
             Db::run('DELETE FROM sessions WHERE user_id = :id', ['id' => $user['id']]);
+            Db::run('DELETE FROM user_roles WHERE user_id = :id', ['id' => $user['id']]);
             Db::run('DELETE FROM login_requests WHERE email = :email', ['email' => $user['email']]);
             Db::run('DELETE FROM password_attempts WHERE email = :email', ['email' => $user['email']]);
             Db::run('DELETE FROM users WHERE id = :id', ['id' => $user['id']]);
@@ -67,13 +52,16 @@ final class Users
     {
         $options = [];
         foreach (Auth::OPTIONS as $key => $column) $options[$key] = (bool) (int) $row[$column];
+        $roles = Roles::of((string) $row['id']);
         return [
             'email' => $row['email'],
             'language' => $row['language'],
             'options' => $options,
             'hasPassword' => ($row['password_hash'] ?? null) !== null,
-            // reader (default) or editor – the editor API (/editor/*) needs editor
-            'role' => (string) ($row['role'] ?? 'reader'),
+            // Roles (docs/server.md "Roles"): reader for every account, editor (the editor API), admin (the admin API);
+            // `role` stays for older readers of the field – editor when the user has that role, else reader
+            'roles' => $roles,
+            'role' => in_array(Roles::EDITOR, $roles, true) ? Roles::EDITOR : Roles::READER,
             'createdAt' => gmdate('c', strtotime($row['created_at'] . ' UTC')),
         ];
     }

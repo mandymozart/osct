@@ -5,7 +5,7 @@ describe("editor preview settings", () => {
   beforeEach(() => {
     localStorage.clear();
     setPreviewActive(false);
-    updatePreview({ view: "reader", orbit: null, backdrop: "table", photo: null, wobble: 0, hidden: [] });
+    updatePreview({ view: "reader", orbit: null, hdri: "ferndale_studio_04", wobble: 0, hidden: [] });
   });
 
   afterEach(() => setPreviewActive(false));
@@ -22,11 +22,11 @@ describe("editor preview settings", () => {
   });
 
   it("stores the settings on the device, not the hidden targets or the active flag", () => {
-    updatePreview({ view: "top", wobble: 0.4, backdrop: "paper" });
+    updatePreview({ view: "top", wobble: 0.4, hdri: "wooden_studio_07" });
     setTargetHidden("a", true);
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
-    expect(stored).toEqual({ view: "top", shading: "rendered", orbit: null, backdrop: "paper", hdri: "ferndale_studio_04", photo: null, wobble: 0.4 });
+    expect(stored).toEqual({ view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", desk: "eiermann", wobble: 0.4 });
     expect(getPreview().hidden).toEqual(["a"]);
   });
 
@@ -52,9 +52,9 @@ describe("editor preview settings", () => {
   });
 
   it("ignores broken stored values when it loads", async () => {
-    localStorage.setItem("osct-preview", JSON.stringify({ view: "sideways", wobble: 7, backdrop: "lava", photo: "http://x", orbit: { distance: "far" } }));
+    localStorage.setItem("osct-preview", JSON.stringify({ view: "sideways", wobble: 7, hdri: "lava", desk: "ikea", orbit: { distance: "far" } }));
     vi.resetModules();
     const fresh = await import("../preview");
-    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, backdrop: "hdri", hdri: "ferndale_studio_04", photo: null, orbit: null, active: false });
+    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, hdri: "ferndale_studio_04", desk: "eiermann", orbit: null, active: false });
   });
 });
