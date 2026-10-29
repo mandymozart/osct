@@ -152,6 +152,12 @@ The roles' keys ([Roles](#roles)): `EDITORS` and `ADMINS` – comma-separated e-
 
 The editor's keys:
 - `EDITOR_MAX_BYTES` (8 MB): the largest request body of the editor endpoints – the import of a game configuration.
+- `LOGIN_MAX_PER_EMAIL_HOUR` (5), `LOGIN_MAX_PER_IP_HOUR` (30): sign-in emails per hour; over the limit
+  `POST /auth/request` answers 429 `too-many-requests` with `retryAfter` (seconds until the window opens again, also
+  the `Retry-After` header) and the minutes in its message – the reader and the editor show them. **A limit of -1 is
+  no limit** (`Config::limit`; 0 allows nothing), for local testing (`config.local.php.example`) – the same for
+  `LOGIN_MAX_ATTEMPTS` (5 wrong codes) and `PASSWORD_MAX_FAILS_PER_EMAIL_HOUR` / `PASSWORD_MAX_FAILS_PER_IP_HOUR`
+  (10 / 30). Tilman: "-1 ist besser als Limit für aus" (#83).
 - `CONTENT_STORE` (`local`): where a publish to `staging` or `production` goes – `local` = the directory below, `bunny`
   = the storage zone. The environment `local` always stays in the directory.
 - `CONTENT_STORE_DIR` (`api/db/content`): the local store, served by `GET /content/{env}/…`; a relative path counts
