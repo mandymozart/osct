@@ -15,6 +15,18 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.10.0 – 2026-10-29
 
 ### Added
+- **Post-processing passes** (#72, Tilman: "post processing, which we could just delegate to code editor"): content
+  schema 2.5 – a spread (or the book, as the default for every spread) names `passes: [{ type, …parameters }]` over
+  the rendered AR image: the built-in **bloom**, **vignette** and **grade**, each defined once with its parameters
+  (`shared/types/passes.ts`), checked by the build and the guard. The engine runs them in one chain over its single
+  renderer (the scene into a buffer, the passes, the result over the camera picture with its alpha kept – a bloom adds
+  light to the camera picture, a vignette darkens it, a grade touches the AR layer only), built only while a spread
+  names passes, disposed on a spread switch, nothing rendered twice without one. A pass of the book's own registers
+  with the engine's pass registry (`registerPass(type, spec, factory)`, `engine/src/scene/post/`), the hook the
+  code editor's plugin API (#66) exposes as `api.registerPass`. The editor's Stage panel lists the spread's passes
+  with their rows, live on the stage under *rendered* (the mock stage's table, book and sky lie on a backdrop layer
+  under the passes, as the camera picture does), Save writes them (`PUT …/spreads/{id} { passes }`). The fixture's
+  Studio B carries a bloom.
 - **Content schema 2.0 – the entity as a tree of nodes** (#61, Tilman: "es können tiefere Hierarchien entstehen, das
   ist die ganze Idee; bei default erstmal eins"): an entity's node may hold `children`, each placed by its own
   `params` relative to its parent (8 levels at most); new node types `group` (holds children) and `text` (a line

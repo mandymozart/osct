@@ -258,9 +258,11 @@ final class Books
     }
 
     /**
-     * PUT /editor/books/{id}/spreads/{spreadId} { title?, format? } → { spread }: a spread's title and format
-     * (`spread` | `cover` | `back`, content schema 2.3). The pages stay – a cover is page 0, the back the page after
-     * the last; `format: cover` on a spread with other pages is refused.
+     * PUT /editor/books/{id}/spreads/{spreadId} { title?, format?, passes? } → { spread }: a spread's title, format
+     * (`spread` | `cover` | `back`, content schema 2.3) and post-processing passes (schema 2.5: a list of
+     * `{ type, …parameters }` with a built-in type – `null` removes the list, so the book's passes apply; `[]` turns
+     * them off). The pages stay – a cover is page 0, the back the page after the last; `format: cover` on a spread
+     * with other pages is refused.
      */
     public static function putSpread(string $bookId, string $spreadId): never
     {
@@ -284,7 +286,12 @@ final class Books
             else $spread->format = $format;
             $touched = true;
         }
-        if (!$touched) throw new ApiError(400, 'invalid-spread', 'Send { title } and / or { format }.');
+        if (property_exists($body, 'passes')) {
+            if ($body->passes === null) unset($spread->passes);
+            else $spread->passes = self::passes($body->passes);
+            $touched = true;
+        }
+        if (!$touched) throw new ApiError(400, 'invalid-spread', 'Send { title }, { format } and / or { passes }.');
         $json = Editor::encode($spread);
         Db::transaction(function () use ($bookId, $spreadId, $spread, $json, $row, $user) {
             Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', ['title' => $spread->title, 'data' => $json, 'book' => $bookId, 'id' => $spreadId]);
@@ -327,6 +334,29 @@ final class Books
 
     /** The spread formats of the content contract (shared/types/game-config.ts `SPREAD_FORMATS`) */
     public const FORMATS = ['spread', 'cover', 'back'];
+
+    /** The built-in post-processing passes of the contract (shared/types/passes.ts `PASSES`) */
+    public const PASS_TYPES = ['bloom', 'vignette', 'grade'];
+
+    /**
+     * A `passes` list as the content holds it: every pass an object with a built-in `type` and scalar parameters (the
+     * engine and the guard check the parameters against the specs; the API keeps the shape)
+     * @return list<stdClass>
+     */
+    private static function passes(mixed $value): array
+    {
+        if (!is_array($value)) throw new ApiError(400, 'invalid-spread', 'passes must be a list of { type, …parameters }.');
+        $passes = [];
+        foreach ($value as $i => $pass) {
+            if (!$pass instanceof stdClass || !is_string($pass->type ?? null)) throw new ApiError(400, 'invalid-spread', "passes[$i] needs a type.");
+            if (!in_array($pass->type, self::PASS_TYPES, true)) throw new ApiError(400, 'invalid-spread', "passes[$i].type must be one of " . implode(', ', self::PASS_TYPES) . '.');
+            foreach (get_object_vars($pass) as $name => $param) {
+                if (!is_scalar($param)) throw new ApiError(400, 'invalid-spread', "passes[$i].$name must be a number, a string or true / false.");
+            }
+            $passes[] = $pass;
+        }
+        return $passes;
+    }
 
     /** DELETE /editor/books/{id}/entries/{entryId} → 204: the entry and its target go (changes recorded) */
     public static function deleteEntry(string $bookId, string $entryId): never

@@ -17,6 +17,7 @@ import {
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
+import { passProblems } from "../types/passes";
 import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { placementProblems } from "../types/placement";
@@ -120,6 +121,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
   if (book) {
     ["id", "title", "author"].forEach(key => str(book, key, "book"));
     str(book, "publisher", "book", true);
+    if (book.passes !== undefined) passProblems(book.passes, "book.passes").forEach(problem => problems.push(problem));
   }
 
   str(root, "initialSpreadId", "config");
@@ -135,6 +137,7 @@ export function assertGameConfiguration(raw: unknown): asserts raw is GameConfig
     if (spread.format !== undefined && !(SPREAD_FORMATS as readonly unknown[]).includes(spread.format)) {
       fail(`${path}.format`, `"${spread.format}" is not one of ${SPREAD_FORMATS.join(", ")}`);
     }
+    if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`).forEach(problem => problems.push(problem));
     if (typeof spread.id === "string") {
       if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);
       spreadIds.add(spread.id);
