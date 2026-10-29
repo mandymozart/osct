@@ -12,6 +12,29 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.20.3 – 2026-10-30
+
+### Added
+- **Info view in the editor** (#133): a collapsible box at the bottom of the tree column (on the book page at the
+  bottom left), like Ableton's Info View – it shows the name and description of the control under the pointer or in
+  focus, and remembers whether it is open. The explanations that filled the panels moved into it: the passes'
+  descriptions, the stage's navigation (point at the stage), shake, grid, origin, desk and sky, the vars and events
+  notes, the plugin editor's Run / Save note and the id rule, the placement note, the library's upload hint, the
+  environment's note. Every control's tooltip shows there too.
+
+### Changed
+- **The Stage panel in collapsible sections** (#102): *spread*, *stage* (shake, grid, origin, desk, sky),
+  *post-processing* and *vars and events* (closed by default) each have a header that opens and closes them; each
+  section's state is remembered. The settings sit in one label / control grid, so the rows line up.
+- **The spread's format** (spread, cover, back) is chosen in the Stage panel's *spread* section instead of the
+  workspace's top bar (#133).
+- The origin is chosen with a small reference-point picker (four page corners and the book's centre) instead of a row
+  of five buttons.
+
+### Fixed
+- **Stage panel layout** (#133): the shake hint no longer overlaps the grid row, and the origin's choices no longer
+  wrap over the desk row.
+
 ## 1.19.3 – 2026-10-30
 
 ### Fixed
