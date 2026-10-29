@@ -1,6 +1,6 @@
 import {
-  BoxGeometry, EquirectangularReflectionMapping, Euler, Group, Light, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
-  RepeatWrapping, Scene, SRGBColorSpace, Texture, TextureLoader,
+  BoxGeometry, EquirectangularReflectionMapping, Group, Light, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry,
+  RepeatWrapping, Scene, SphereGeometry, SRGBColorSpace, Texture, TextureLoader, UVMapping,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import type { PageFormat, StageBook, StageSheet, StageTarget, StageView } from "./mock-tracker";
@@ -39,6 +39,8 @@ const DESK_REPEAT = [3, 2] as const;
 const HDRI_EXPOSURE: Record<string, number> = { ferndale_studio_04: 0.9 };
 const HDRI_EXPOSURE_DEFAULT = 0.4;
 const LIGHTS_WITH_HDRI = 0.35;
+/** The sky sphere's radius (metres) – far beyond the table, near enough for the depth buffer */
+const SKY_RADIUS = 30;
 /** The table around the book (metres) */
 const TABLE_WIDTH = 1.4;
 const TABLE_DEPTH = 1.0;
@@ -62,7 +64,8 @@ export class MockStage implements StageView {
   private desk: { map: Texture; roughnessMap: Texture } | null = null;
   private hdris = new Map<string, Texture>();
   private wantedHdri: string | null = null;
-  private rotation = new Euler();
+  /** The sky: the HDRI on a sphere inside the stage's group, so it turns with the stage by construction */
+  private sky: Mesh<SphereGeometry, MeshBasicMaterial> | null = null;
   /** The scene's own lights at their intensity before the HDRI dimmed them */
   private dimmed = new Map<Light, number>();
 
@@ -185,6 +188,7 @@ export class MockStage implements StageView {
     if (!this.wantedHdri) {
       this.scene.background = null;
       this.scene.environment = null;
+      if (this.sky) this.sky.visible = false;
       this.dimLights(false);
       return;
     }
@@ -203,10 +207,29 @@ export class MockStage implements StageView {
 
   private applyHdri(texture: Texture): void {
     const exposure = HDRI_EXPOSURE[this.wantedHdri ?? ""] ?? HDRI_EXPOSURE_DEFAULT;
-    this.scene.background = texture;
+    // The light: the equirectangular map as the scene's environment (its direction does not follow the orbit – the
+    // room's light is even enough for that not to show)
+    this.scene.background = null;
     this.scene.environment = texture;
-    this.scene.backgroundIntensity = exposure;
     this.scene.environmentIntensity = exposure;
+    // The sky: the same image on a sphere around the stage, seen from inside; the HDRI's up is the page's +z
+    const map = texture.clone();
+    map.mapping = UVMapping;
+    map.needsUpdate = true;
+    if (!this.sky) {
+      const geometry = new SphereGeometry(SKY_RADIUS, 64, 32);
+      geometry.scale(-1, 1, 1); // seen from inside, the image reads the right way round
+      this.sky = new Mesh(geometry, new MeshBasicMaterial({ toneMapped: false, depthWrite: false }));
+      this.sky.name = "mock-sky";
+      this.sky.rotation.x = Math.PI / 2;
+      this.sky.renderOrder = -1;
+      this.group.add(this.sky);
+    }
+    this.sky.material.map?.dispose();
+    this.sky.material.map = map;
+    this.sky.material.color.setScalar(exposure);
+    this.sky.material.needsUpdate = true;
+    this.sky.visible = true;
     this.dimLights(true);
   }
 
@@ -241,12 +264,6 @@ export class MockStage implements StageView {
   update(cameraInverse: Matrix4): void {
     this.group.matrix.copy(cameraInverse);
     this.group.matrixWorldNeedsUpdate = true;
-    // The sky turns with the stage (the camera stays at the origin, the stage moves around it)
-    if (this.scene.background) {
-      this.rotation.setFromRotationMatrix(cameraInverse);
-      this.scene.backgroundRotation.copy(this.rotation);
-      this.scene.environmentRotation.copy(this.rotation);
-    }
   }
 
   dispose(): void {
@@ -262,6 +279,13 @@ export class MockStage implements StageView {
     this.desk = null;
     this.hdris.forEach(texture => texture.dispose());
     this.hdris.clear();
+    if (this.sky) {
+      this.sky.geometry.dispose();
+      this.sky.material.map?.dispose();
+      this.sky.material.dispose();
+      this.sky.removeFromParent();
+      this.sky = null;
+    }
     this.scene.background = null;
     this.scene.environment = null;
     this.dimLights(false);
