@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.39.1 – 2026-10-30
 
 ### Fixed
 - **Editor: placing a target moves it instead of showing it twice** (#191): while a target's placement is edited (the
