@@ -66,7 +66,7 @@ final class Books
      * A book that exists is overwritten only in two steps: without `confirm` the answer is 409 confirm-import with the
      * `comparison` (what comes in against what the draft is based on and its edits since) and a `confirmation`
      * { id, expiresAt }; the same import again with `confirm: <id>` replaces the draft. The id is bound to the person (and
-     * the AI connection), the incoming content and the draft as it was compared, and lasts IMPORT_CONFIRM_SECONDS – any
+     * the AI connection), the incoming content and the draft as it was compared, and lasts Confirmation::SECONDS – any
      * change meanwhile voids it (409 confirmation-void, with a new comparison). A new book is imported at once.
      */
     public static function import(string $bookId): never
@@ -143,9 +143,6 @@ final class Books
         ]);
     }
 
-    /** Seconds a confirmation id of an import lasts */
-    private const IMPORT_CONFIRM_SECONDS = 600;
-
     /**
      * What an import brings in: the book, the build (content checksum, first 12 digits), its date, the app and the
      * schema version that built it, where it comes from, and a digest of everything the import would write
@@ -170,9 +167,9 @@ final class Books
     }
 
     /**
-     * The import's second step: passes when `$confirm` is a confirmation id for exactly this comparison, else 409 –
-     * `confirm-import` when none was sent, `confirmation-void` when it is expired, someone else's or the draft or the
-     * incoming content changed since – both with the comparison and a new confirmation
+     * The import's second step (`Confirmation`): passes when `$confirm` is a confirmation id for exactly this
+     * comparison, else 409 – `confirm-import` when none was sent, `confirmation-void` when it is expired, someone else's
+     * or the draft or the incoming content changed since – both with the comparison and a new confirmation
      * @param array<string, mixed> $row
      * @param array<string, mixed> $user
      */
@@ -180,19 +177,11 @@ final class Books
     {
         $edits = self::editsSince($bookId, $row);
         // What the comparison showed: the draft's import, its last change and the rows' state, and what comes in
-        $state = hash('sha256', Editor::encode([$incoming['digest'], $row['imported_json'] ?? null, $row['imported_hash'], $row['updated_at'], $edits['count'], $edits['last']]));
-        $subject = implode('|', ['import', $bookId, $user['id'], Auth::token()['id'] ?? '', $state]);
-        if (is_string($confirm) && preg_match('/^(\d{10})\.([0-9a-f]{32})$/', $confirm, $match) && (int) $match[1] >= time()
-            && hash_equals(substr(hash_hmac('sha256', "$subject|{$match[1]}", Config::get('SECRET')), 0, 32), $match[2])) {
-            return;
-        }
-        $expires = time() + self::IMPORT_CONFIRM_SECONDS;
-        $id = $expires . '.' . substr(hash_hmac('sha256', "$subject|$expires", Config::get('SECRET')), 0, 32);
-        $details = ['comparison' => self::comparison($bookId, $row, $incoming, $edits), 'confirmation' => ['id' => $id, 'expiresAt' => gmdate('Y-m-d\TH:i:s\Z', $expires)]];
-        if ($confirm === null) {
-            throw new ApiError(409, 'confirm-import', 'Importing replaces the draft of ' . $row['title'] . ' – compare the versions, then import again with confirm: <confirmation id>.', $details);
-        }
-        throw new ApiError(409, 'confirmation-void', 'The confirmation is expired, someone else\'s, or the draft or the incoming content changed since – compare again and confirm with the new id.', $details);
+        $state = Confirmation::digest([$incoming['digest'], $row['imported_json'] ?? null, $row['imported_hash'], $row['updated_at'], $edits['count'], $edits['last']]);
+        Confirmation::require("import|$bookId", $user, $state, $confirm,
+            ['confirm-import', 'Importing replaces the draft of ' . $row['title'] . ' – compare the versions, then import again with confirm: <confirmation id>.'],
+            'The confirmation is expired, someone else\'s, or the draft or the incoming content changed since – compare again and confirm with the new id.',
+            fn() => ['comparison' => self::comparison($bookId, $row, $incoming, $edits)]);
     }
 
     /**
@@ -642,34 +631,80 @@ final class Books
     }
 
     /**
-     * DELETE /editor/books/{id}/spreads/{spreadId} → 204: a spread without entries goes. A double page takes its pages
-     * with it: every later page is numbered back (the later spreads, the entries on those pages, their targets'
-     * `print.page`) – the reverse of adding it; the covers have no page number, nothing moves. 409 `spread-not-empty`
-     * (with `entries`, their ids) while entries are on it – they carry targets and AR, so they are deleted one by one,
-     * never with the spread; 409 `initial-spread` for the spread the book opens on.
+     * DELETE /editor/books/{id}/spreads/{spreadId} { confirm?, deleteFiles? } – the spread with everything on it, in two
+     * steps (`Confirmation`, docs/server.md "Removing a spread or an entry"):
+     * 1. without `confirm` nothing is written: 409 `confirm-delete` with the `impact` (the spread, the pages that move
+     *    back, and what `Removal` takes: entries, targets, entities, kept shared entities, Library files used only here
+     *    and elsewhere) and a `confirmation`;
+     * 2. with `confirm` exactly that goes, in one transaction → 200 { deleted, moved }: entries, targets, the entities
+     *    used only there, the spread; a double page takes its pages with it – every later page is numbered back (the
+     *    reverse of adding it); a cover moves nothing. `deleteFiles: true` also removes the Library files used only here
+     *    (off by default; a file used elsewhere never goes). A confirmation that does not fit any more (anything in the
+     *    book changed, another person or token, expired) → 409 `confirmation-void` with a fresh impact.
+     * 409 `initial-spread` for the spread the book opens on (it never goes); 404.
      */
     public static function deleteSpread(string $bookId, string $spreadId): never
     {
         $user = Editor::user();
         $book = self::book($bookId);
+        [$confirm, $deleteFiles] = self::deleteOptions();
         $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such spread.');
         if ($book['initial_spread_id'] === $spreadId) throw new ApiError(409, 'initial-spread', 'The book opens on this spread.');
-        $entries = array_column(Db::run('SELECT id FROM entries WHERE book_id = :book AND spread_id = :spread ORDER BY position', ['book' => $bookId, 'spread' => $spreadId])->fetchAll(), 'id');
-        if ($entries) {
-            $count = count($entries) === 1 ? 'an entry' : count($entries) . ' entries';
-            throw new ApiError(409, 'spread-not-empty', "The spread has $count – delete them first.", ['entries' => $entries]);
-        }
-        $pages = in_array(self::formatOf($row), ['cover', 'back'], true) ? 0 : (int) $row['last_page'] - (int) $row['first_page'] + 1;
-        Db::transaction(function () use ($bookId, $spreadId, $row, $pages, $user) {
+        $entries = Db::run('SELECT * FROM entries WHERE book_id = :book AND spread_id = :spread ORDER BY position, id', ['book' => $bookId, 'spread' => $spreadId])->fetchAll();
+        $format = self::formatOf($row);
+        $pages = in_array($format, ['cover', 'back'], true) ? 0 : (int) $row['last_page'] - (int) $row['first_page'] + 1;
+        $removal = new Removal($bookId, $entries);
+        // pagesBack: by how many pages the later pages are numbered back – 0 for a cover, or when nothing lies after it
+        $after = ['book' => $bookId, 'page' => (int) $row['last_page']];
+        $later = $pages > 0 && ((int) Db::value('SELECT COUNT(*) FROM spreads WHERE book_id = :book AND first_page > :page', $after)
+            + (int) Db::value('SELECT COUNT(*) FROM entries WHERE book_id = :book AND page > :page', $after)) > 0;
+        $impact = ['book' => $bookId, 'kind' => 'spread',
+            'spread' => ['id' => $spreadId, 'title' => $row['title'], 'firstPage' => (int) $row['first_page'], 'lastPage' => (int) $row['last_page'], 'format' => $format],
+            'pagesBack' => $later ? $pages : 0] + $removal->impact();
+        Confirmation::require("delete-spread|$bookId|$spreadId", $user, $removal->state([$row]), $confirm,
+            ['confirm-delete', 'Removing the spread takes ' . self::impactLine($impact) . ' – show this to the person, then remove again with confirm: <confirmation id>.'],
+            'The confirmation is expired, someone else\'s, or the book changed since – here is what the removal takes now; confirm with the new id.',
+            fn() => ['impact' => $impact]);
+        [$deleted, $moved] = Db::transaction(function () use ($bookId, $spreadId, $row, $pages, $user, $removal, $deleteFiles) {
+            $deleted = $removal->remove($user, $deleteFiles);
             Db::run('DELETE FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
-            Db::run('UPDATE spreads SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
-            if ($pages > 0) self::renumber($bookId, (int) $row['last_page'], -$pages, $user);
-            self::touch($bookId);
             self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], 'null');
+            Db::run('UPDATE spreads SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
+            $moved = $pages > 0 ? self::renumber($bookId, (int) $row['last_page'], -$pages, $user) : ['spreads' => 0, 'entries' => 0, 'targets' => 0];
+            self::touch($bookId);
+            return [$deleted, $moved];
         });
-        http_response_code(204);
-        exit;
+        Removal::deleteStoredFiles($deleted['paths']);
+        unset($deleted['paths']);
+        Http::json(200, ['deleted' => ['spread' => $spreadId] + $deleted, 'moved' => $moved]);
+    }
+
+    /**
+     * A removal's options from the body (none for the first step): `confirm` (the confirmation id) and `deleteFiles`
+     * (true / false, default false)
+     * @return array{0: mixed, 1: bool}
+     */
+    private static function deleteOptions(): array
+    {
+        $body = trim((string) file_get_contents('php://input')) === '' ? new stdClass() : Editor::body();
+        $deleteFiles = $body->deleteFiles ?? false;
+        if (!is_bool($deleteFiles)) throw new ApiError(400, 'invalid-delete', 'deleteFiles must be true or false.');
+        return [$body->confirm ?? null, $deleteFiles];
+    }
+
+    /**
+     * An impact in words for the 409's message: "3 entries, 3 targets, 2 entities and 1 Library file used only there"
+     * @param array<string, mixed> $impact
+     */
+    private static function impactLine(array $impact): string
+    {
+        $n = static fn(int $count, string $one, string $many) => $count . ' ' . ($count === 1 ? $one : $many);
+        $counts = $impact['counts'];
+        $parts = [$n($counts['entries'], 'entry', 'entries'), $n($counts['targets'], 'target', 'targets'), $n($counts['entities'], 'entity', 'entities')];
+        $line = implode(', ', $parts);
+        if ($counts['filesOnlyHere'] > 0) $line .= ' (' . $n($counts['filesOnlyHere'], 'Library file', 'Library files') . ' used only there, deleted only with deleteFiles: true)';
+        return $line;
     }
 
     /**
@@ -753,25 +788,35 @@ final class Books
         return $passes;
     }
 
-    /** DELETE /editor/books/{id}/entries/{entryId} → 204: the entry and its target go (changes recorded) */
+    /**
+     * DELETE /editor/books/{id}/entries/{entryId} { confirm?, deleteFiles? } – the entry with its target, the entity used
+     * only there and (with `deleteFiles: true`) the Library files used only there, in the same two steps as a spread:
+     * 409 `confirm-delete` with the `impact` and a `confirmation`, then with `confirm` → 200 { deleted, moved } (nothing
+     * moves); 409 `confirmation-void` with a fresh impact; 404.
+     */
     public static function deleteEntry(string $bookId, string $entryId): never
     {
         $user = Editor::user();
         self::book($bookId);
-        $entry = Db::one('SELECT data_json FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
+        [$confirm, $deleteFiles] = self::deleteOptions();
+        $entry = Db::one('SELECT * FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
         if (!$entry) throw new ApiError(404, 'not-found', 'No such entry.');
-        $targets = Db::run('SELECT id, data_json FROM targets WHERE book_id = :book AND entry_id = :entry', ['book' => $bookId, 'entry' => $entryId])->fetchAll();
-        Db::transaction(function () use ($bookId, $entryId, $entry, $targets, $user) {
-            foreach ($targets as $target) {
-                Db::run('DELETE FROM targets WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $target['id']]);
-                self::change($bookId, $user, 'target', $target['id'], $target['data_json'], 'null');
-            }
-            Db::run('DELETE FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
+        $removal = new Removal($bookId, [$entry]);
+        $impact = ['book' => $bookId, 'kind' => 'entry',
+            'entry' => ['id' => $entryId, 'title' => $entry['title'], 'page' => (int) $entry['page'], 'category' => $entry['category'], 'spread' => $entry['spread_id']],
+            'pagesBack' => 0] + $removal->impact();
+        Confirmation::require("delete-entry|$bookId|$entryId", $user, $removal->state(), $confirm,
+            ['confirm-delete', 'Removing the entry takes ' . self::impactLine($impact) . ' – show this to the person, then remove again with confirm: <confirmation id>.'],
+            'The confirmation is expired, someone else\'s, or the book changed since – here is what the removal takes now; confirm with the new id.',
+            fn() => ['impact' => $impact]);
+        $deleted = Db::transaction(function () use ($bookId, $user, $removal, $deleteFiles) {
+            $deleted = $removal->remove($user, $deleteFiles);
             self::touch($bookId);
-            self::change($bookId, $user, 'entry', $entryId, $entry['data_json'], 'null');
+            return $deleted;
         });
-        http_response_code(204);
-        exit;
+        Removal::deleteStoredFiles($deleted['paths']);
+        unset($deleted['paths']);
+        Http::json(200, ['deleted' => ['spread' => null] + $deleted, 'moved' => ['spreads' => 0, 'entries' => 0, 'targets' => 0]]);
     }
 
     /** An id from a title and a page: `p102-shadows` – lower case, letters, digits and dashes */

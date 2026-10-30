@@ -40,10 +40,12 @@ declare(strict_types=1);
  *   PUT    /editor/books/{id}/spreads/{id}      { title?, format?, passes? } → a spread's title, format (spread | cover | back) and own passes
  *   POST   /editor/books/{id}/spreads           { format: spread, after?, id?, title? } → 201 a double page after `after` (default: before
  *                                               the back cover), later pages numbered on by two · { format: cover | back, title? } → 201 a cover
- *   DELETE /editor/books/{id}/spreads/{id}      a spread without entries goes, later pages numbered back (409 spread-not-empty, initial-spread)
+ *   DELETE /editor/books/{id}/spreads/{id}      { confirm?, deleteFiles? } the spread with everything on it, in two steps: 409 confirm-delete
+ *                                               (the impact, a confirmation id), then again with { confirm } → removed, later pages
+ *                                               numbered back (409 confirmation-void, initial-spread)
  *   PUT    /editor/books/{id}/environment       { environment: { world, onionSky } | null } → the book's world and onion sky
  *   PUT    /editor/books/{id}/passes            { passes: [{ type, … }] | null } → the book's post-processing (every spread without its own)
- *   DELETE /editor/books/{id}/entries/{id}      the entry and its target go
+ *   DELETE /editor/books/{id}/entries/{id}      { confirm?, deleteFiles? } the entry with its target and entity, the same two steps
  *   GET    /editor/books/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
  *                                               the draft as a content version (the engine's loader reads it like the CDN)
  *   POST   /editor/books/{id}/publish           { env, note?, replace? } → writes the version to the content store (env = this
@@ -61,7 +63,7 @@ declare(strict_types=1);
  * Signed-in requests send `Authorization: Bearer <session token>` – or an AI connection's token `osct_…` (ApiTokens).
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 

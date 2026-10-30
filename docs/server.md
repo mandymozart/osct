@@ -83,7 +83,7 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 | `GET /editor/books/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN with the token in its `fetchFn`. The build in the path is not checked against the current draft – an edit between the two requests is no error |
 | `POST /editor/books/{id}/publish` | `{ env, note?, replace? }` | `{ env, store, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env`, which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the book); a row in the publish log. An environment serves one book: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-book` with `current` `{ env, book, title, build, since }`; `replaced` `{ book, build }` names the book replaced, null when none; `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name), `invalid-replace`; 502 `content-store-failed` |
 | `GET /editor/books/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
-| `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target); `token` = the name of the AI connection a save came through, null for the editor; `limit` default 50, at most 500 |
+| `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `spread`, `environment`, `passes`, `plugin`, `asset` (a Library file a removal deleted); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `limit` default 50, at most 500 |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
 
 Signed-in calls send `Authorization: Bearer <session>` – or an AI connection's token `osct_…` ([AI
@@ -147,7 +147,9 @@ with the browser session they have, and hands it to an AI agent (any MCP client)
 - **What a token never does – 403 `not-for-ai`:** make, list, renew or revoke tokens, set the password
   (`PUT /user/password`), delete the account (`DELETE /user`) – those take the person's own session
   (`Auth::session()`) – and **publish**, to any environment (`Auth::refuseToken()` in `Books::publish`): readers are
-  reached only by a person. Reading and saving drafts, assets and plugin sources work as for the person.
+  reached only by a person. Reading and saving drafts, assets and plugin sources work as for the person; removing a
+  spread or an entry too, but only in the two steps of a [confirmation](#confirmations) – the impact first, then the
+  same request with its id.
 - A save through a token records the token's name in the change log (`changes.token_name`, the `token` of
   `GET …/changes`), so the log tells which AI made it. `GET /user` with a token answers `token` beside `user` (the list
   shape below) – the MCP server's `whoami` shows it.
@@ -304,7 +306,7 @@ without edge caching; heavy media goes through this server. Back up the content 
 ### Import with a version comparison
 
 An import replaces the book's draft. Over a book that exists it takes **two steps**, for the editor and the MCP server
-alike (the same shape as #198's confirmations):
+alike (the shared [confirmation](#confirmations), as a removal's):
 
 1. **Compare.** The import without `confirm` writes nothing and answers 409 `confirm-import` with `comparison` –
    `book` `{ id, title }`; `incoming` `{ book, title, build, hash, date, appVersion, schema, source, from }` (the build is
@@ -320,6 +322,16 @@ alike (the same shape as #198's confirmations):
    with a new comparison and id. An import changes what the draft is based on, so an id works once.
 
 A book that does not exist yet is imported at once.
+
+### Confirmations
+
+A request that replaces or removes content – an import over a book that exists, removing a spread or an entry –
+takes two steps, the same for the editor and an AI connection (`Confirmation.php`, one implementation): the first
+call writes nothing and answers 409 with what would happen and `confirmation` `{ id, expiresAt }`; the same call with
+`confirm: <id>` does it. The id is `<expires>.<hmac>` – stateless, signed with `SECRET` over the purpose (what and
+where), the person, the AI connection and a digest of the state the first answer described – and lasts 10 minutes.
+Another person or token, an expired id, or anything that changed in that state answers 409 `confirmation-void` with a
+fresh description and id. Doing it changes the state, so an id works once.
 
 Locally: `OSCT_CONTENT_STORE=local` (the default) with `npm run dev:api`, publish to `local`, and start the reader
 with `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` to see what the editor published (its origin
@@ -396,8 +408,9 @@ without plugins); a publish whose nodes use a material no declared plugin record
 top left corner, optional `height` and `page`) – the editor's stage lays the target there; `null` removes it. 400
 `invalid-target`. `POST /editor/books/{id}/entries` `{ title, page, category?, body?, target: { id?, imageSrc, print?,
 entity? } }` → 201 `{ entry, spreadId }` makes an entry (id from title and page, `p102-shadows`, or the given one;
-409 `duplicate-id`) with its target on the spread its page belongs to; `DELETE /editor/books/{id}/entries/{eid}` →
-204 removes entry and target (changes recorded). The reader tracks such a target after a publish: the 8th Wall
+409 `duplicate-id`) with its target on the spread its page belongs to; `DELETE /editor/books/{id}/entries/{eid}`
+removes the entry with its target and the entity used only there, in two steps ([Removing a spread or an
+entry](#removing-a-spread-or-an-entry)). The reader tracks such a target after a publish: the 8th Wall
 engine makes the image-target data from `imageSrc` at runtime (`engine/src/scene/xr8.ts`).
 
 ### Spreads made in the editor
@@ -414,7 +427,35 @@ its spread and the contract stays as the content build writes it. Every moved ro
 | `POST /editor/books/{id}/spreads` | `{ format: "cover" \| "back", title? }` | 201 `{ spread, moved }` – the front cover (page 0, first) or the back cover (the page after the last, last); nothing moves. 400 `invalid-spread` with an `after`; 409 `duplicate-id` when the book has one |
 | `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes? }` | `{ spread }` – title, format (`cover` only on page 0) and the spread's own post-processing (an override of the book's: `null` removes it so the book's apply, `[]` turns them off there); the pages stay |
 | `PUT /editor/books/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the book's post-processing (`book.passes`, content schema 2.5), the master every spread without a list of its own shows; `null` removes it. Checked as a spread's list (a built-in `type`, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
-| `DELETE /editor/books/{id}/spreads/{sid}` | | 204 – the spread goes; a double page's later pages are numbered back by its pages (the reverse of adding it), a cover moves nothing. 409 `initial-spread` for the spread the book opens on; 409 `spread-not-empty` with `entries` (their ids) while entries are on it – they are deleted one by one, never with their spread; 404 |
+| `DELETE /editor/books/{id}/spreads/{sid}` | `{ confirm?, deleteFiles? }` | the spread with everything on it, in two steps ([below](#removing-a-spread-or-an-entry)): 409 `confirm-delete` with `impact` and `confirmation`, then with `confirm` 200 `{ deleted, moved }` – a double page's later pages are numbered back by its pages (the reverse of adding it), a cover moves nothing. 409 `initial-spread` for the spread the book opens on (it never goes); 404 |
+
+### Removing a spread or an entry
+
+`DELETE /editor/books/{id}/spreads/{sid}` and `DELETE /editor/books/{id}/entries/{eid}` remove with everything on it, in
+the two steps of a [confirmation](#confirmations) – for the editor and an AI connection alike (a token removes like its
+person, only this way; the change log names it). `Removal.php` works out what goes:
+
+1. **Impact.** Without `confirm` nothing is written: 409 `confirm-delete` with `impact` and `confirmation`. `impact` =
+   `kind` (`spread` / `entry`), `spread` `{ id, title, firstPage, lastPage, format }` or `entry` `{ id, title, page,
+   category, spread }`, `pagesBack` (by how many pages the later pages move back – 0 for a cover, an entry, or nothing
+   after it), `entries` `[{ id, title, page, category }]`, `targets` `[{ id, entry, imageSrc }]`, `entities` – the ones
+   that go: a shared entity no other target uses `{ ref, type, shared: true, targets }` and each target's own
+   `{ ref: null, type, shared: false, targets }` –, `keptEntities` – shared entities other targets still use
+   `[{ ref, type, targets, usedBy }]`, kept –, `files` `{ onlyHere, elsewhere }` – the Library files (uploaded assets,
+   [Assets](#assets)) the removed rows name: `[{ id, name, kind, size, url }]`, those used elsewhere with `usedBy`
+   (`Assets::usagesOf` beyond the removed rows; the environment counts) – and `counts` `{ entries, targets, entities,
+   keptEntities, filesOnlyHere, filesElsewhere }`. The import's files (`files.json`) are the content build's and never
+   part of it.
+2. **Confirm.** The same request with `confirm: <id>` removes exactly what the impact listed, in one transaction:
+   targets, the entities used only there, entries, the spread – the later pages move back as when a double page is
+   removed ([above](#spreads-made-in-the-editor)) – and with `deleteFiles: true` also the Library files used only
+   there (off by default; a file used elsewhere is never deleted; the store's files go after the commit). Every removed
+   row is a change with its `before` and `after: null` (kinds `target`, `entity`, `entry`, `spread`, `asset`). 200
+   `{ deleted: { spread, entries, targets, entities, files }, moved: { spreads, entries, targets } }`. The id is bound
+   to every row that goes, the kept entities' users, the files and their uses, and the book's change log and last
+   change: anything that changed in the book answers 409 `confirmation-void` with a fresh impact and id.
+
+400 `invalid-delete` when `deleteFiles` is not true or false.
 
 ## Logs
 
@@ -458,7 +499,8 @@ OSCT_TEST_DB=mysql php server/tests/api-test.php    # MariaDB of docker-compose.
 With `OSCT_TEST_DB=mysql` every API the test starts gets a new database `osct_test_<random>_<name>`, made from
 `schema.mysql.sql` (the older-database case from a cut copy of it), and the test drops them at the end. It signs in
 with `OSCT_TEST_DB_HOST` (`127.0.0.1`), `OSCT_TEST_DB_PORT` (`3306`), `OSCT_TEST_DB_USER` (`root`) and
-`OSCT_TEST_DB_PASS` (`osct-root`) – an account that may create and drop databases, never staging's. CI runs both:
+`OSCT_TEST_DB_PASS` (`osct-root`) – an account that may create and drop databases (and, for a moment, a trigger:
+the removal's rollback test, #198), never staging's. CI runs both:
 "Accounts API" on SQLite, "Accounts API (MariaDB)" against a `mariadb:10.11` service container
 (`.github/workflows/checks.yml`). Both also scan the API's source for the two MySQL traps above.
 

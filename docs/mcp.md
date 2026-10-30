@@ -136,10 +136,11 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `get_spread { book, spread \| page }` | one spread, every target's entity resolved (a shared one with its `ref` next to it) |
 | `get_entity { book, ref }` · `put_entity { book, ref, entity }` | a shared entity – the whole node tree (`EntityData`) |
 | `put_target { book, target, entity? \| ref?, imageSrc?, print? }` | a target's own entity (null removes it), a shared one instead, its printed image, where it is printed |
-| `add_entry { book, title, page, category?, body?, id?, target: { imageSrc, print?, entity? } }` · `delete_entry` | a new target on the spread of its page; the entry and target go |
+| `add_entry { book, title, page, category?, body?, id?, target: { imageSrc, print?, entity? } }` | a new target on the spread of its page |
+| `delete_entry { book, entry, confirm?, deleteFiles? }` | the entry with its target, the entity used only there and – only if asked – the Library files used only there. **Two steps** (the API's, [server](server.md#removing-a-spread-or-an-entry)): the first call removes nothing and answers `{ deleted: false, impact, confirmation, next }`; the agent shows the impact to the person and asks, and only with their yes calls again with the same arguments and `confirm: confirmation.id` (`deleteFiles: true` only when the person asked for the files used only there; files used elsewhere are never deleted). A change meanwhile answers `void` with a fresh impact |
 | `add_spread { book, format: spread \| cover \| back, after?, id?, title? }` | a double page after `after` (later pages numbered on by two, `moved` counts the rows), the front or the back cover; the link opens the new spread |
 | `put_spread { book, spread, title?, format?, passes? }` | a spread's title, format and its own post-processing (replaces the book's there; `[]` off, `null` the book's again) |
-| `delete_spread { book, spread }` | an empty spread goes, later pages numbered back; 409 `spread-not-empty` with the entries, 409 `initial-spread` |
+| `delete_spread { book, spread, confirm?, deleteFiles? }` | the spread with everything on it – entries, targets, the entities used only there, later pages numbered back – in the same two steps as `delete_entry` (the impact also names the spread, `pagesBack` and the shared entities kept); 409 `initial-spread` for the spread the book opens on |
 | `put_book_passes { book, passes \| null }` | the book's post-processing – the master chain every spread without its own shows |
 | `put_environment { book, environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | the world around the reader and the onion sky |
 | `list_assets { book, kind? }` · `upload_asset { book, file, name? }` · `delete_asset { book, asset, force? }` | the library: a local file becomes an asset whose `url` nodes and targets name |
@@ -185,8 +186,9 @@ plugin must register it, the publish checks (409 `unknown-components`, `unknown-
 `test/e2e.test.ts` – the real server over stdio against the real API (PHP's built-in server on a free port, a fresh
 SQLite, mails to a log, as `server/tests/api-test.php`): sign in through the mail log, import, re-import in two steps
 (the comparison, then the confirmation), edit, add a target with an uploaded file, a plugin source, publish to local
-(staging refused: 403 `other-environment`); then a second server started with an AI connection's token made over
-the API (whoami names it, a save names it in the change log, publish is refused, a revoked token is 401). Skipped with a message when `php` is not on the path. CI runs both
+(staging refused: 403 `other-environment`), remove an entry and spreads in two steps (the impact, then the
+confirmation); then a second server started with an AI connection's token made over
+the API (whoami names it, a save names it in the change log, a removal takes the same two steps and names it too, publish is refused, a revoked token is 401). Skipped with a message when `php` is not on the path. CI runs both
 (`checks.yml`, job *MCP server*).
 
 ## Limits

@@ -2,8 +2,8 @@
 // and spreads, entities and targets, entries, the spreads themselves, the book's passes and environment, assets, the
 // draft, publishing to the instance's own environment, the logs. Every write is checked against the shared content
 // contract first and answers with the editor's link, where the person checks the draft on the stage. Production stays
-// with the person – the tool refuses it. Re-importing a book takes the API's two steps: the comparison, which the person
-// sees, then the import with its confirmation.
+// with the person – the tool refuses it. Re-importing a book and removing a spread or an entry take the API's two steps:
+// the comparison or the impact, which the person sees, then the import or the removal with its confirmation.
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
@@ -31,6 +31,22 @@ export function importStep(error: unknown): Json | null {
     comparison: error.details.comparison,
     confirmation: error.details.confirmation,
     next: "Nothing was imported. Show the person the comparison – the incoming build against what the draft is based on and its edits since – and ask. Only with their yes call import_book again with the same arguments and confirm: confirmation.id (it expires, and any change meanwhile voids it).",
+  };
+}
+
+/**
+ * A removal's first step (409 confirm-delete) or a void confirmation (409 confirmation-void) as the tool's answer:
+ * nothing was removed – the impact to show the person and the confirmation to send back with their yes. Other errors:
+ * null.
+ */
+export function deleteStep(error: unknown, tool: "delete_spread" | "delete_entry"): Json | null {
+  if (!(error instanceof ApiError) || error.status !== 409 || (error.code !== "confirm-delete" && error.code !== "confirmation-void")) return null;
+  return {
+    deleted: false,
+    ...(error.code === "confirmation-void" ? { void: error.message } : {}),
+    impact: error.details.impact,
+    confirmation: error.details.confirmation,
+    next: `Nothing was removed. Show the person the impact – the entries, targets and entities that go, the shared entities that are kept, and the Library files used only here and elsewhere – and ask. Only with their yes call ${tool} again with the same arguments and confirm: confirmation.id; add deleteFiles: true only if they asked for the files used only here to be deleted too (files used elsewhere are never deleted). The id expires, and any change in the book meanwhile voids it.`,
   };
 }
 
@@ -154,6 +170,21 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
     );
     return { declared: configuration.plugins ?? [], sources };
+  };
+  /**
+   * A removal (spread or entry) in the API's two steps: without `confirm` the impact and a confirmation (nothing
+   * removed); with it the removal – `deleteFiles` only with `confirm`
+   */
+  const removeStep = async (tool: "delete_spread" | "delete_entry", book: string, path: string, confirm?: string, deleteFiles?: boolean): Promise<Result> => {
+    if (deleteFiles && !confirm) return fail({ error: { code: "mcp", message: "deleteFiles goes with confirm – first show the person the impact" } });
+    try {
+      const result = await api.call<Json>("DELETE", path, confirm ? { confirm, ...(deleteFiles ? { deleteFiles: true } : {}) } : undefined);
+      return text({ ...result, open: editorHref(links, book) });
+    } catch (error) {
+      const step = deleteStep(error, tool);
+      if (!step) throw error;
+      return text({ ...step, open: editorHref(links, book) });
+    }
   };
 
   // ── reading ──
@@ -360,11 +391,18 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "delete_entry",
-    { description: "Removes an entry and its target (changes recorded). The entry's files stay in the library.", inputSchema: z.object({ book: BOOK, entry: ID }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
-    guard(async ({ book, entry }) => {
-      await api.call<void>("DELETE", `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`);
-      return text({ deleted: entry, open: editorHref(links, book) });
-    }),
+    {
+      description:
+        "Removes an entry with its target, the entity used only there and – only if asked – the Library files used only there, in **two steps**: the first call removes nothing and answers `impact` (the target, the entity that goes, a shared entity that is kept with its other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). Every removed row is in the change log, naming this AI connection.",
+      inputSchema: z.object({
+        book: BOOK,
+        entry: ID,
+        confirm: z.string().optional().describe("the second step: the confirmation id of the impact the person agreed to"),
+        deleteFiles: z.boolean().optional().describe("with confirm: also delete the Library files used only here – only when the person asked for it"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    },
+    guard(async ({ book, entry, confirm, deleteFiles }) => removeStep("delete_entry", book, `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`, confirm, deleteFiles)),
   );
 
   // ── writing: the spreads, the book's passes and environment ──
@@ -426,14 +464,16 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "delete_spread",
     {
       description:
-        "Removes a spread without entries (a change recorded): a double page takes its pages with it – every later page is numbered back (the later spreads, the entries on those pages, their targets' print.page); a cover moves nothing. 409 spread-not-empty (with `entries`) while entries are on it – delete them first with delete_entry, never the spread with them; 409 initial-spread for the spread the book opens on.",
-      inputSchema: z.object({ book: BOOK, spread: ID.describe("the spread's id (get_book)") }),
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+        "Removes a spread with everything on it – its entries, their targets, the entities used only there and, only if asked, the Library files used only there – in **two steps**: the first call removes nothing and answers `impact` (the spread, by how many pages the later ones move back, the entries, targets and entities that go, the shared entities that are kept with their other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). A double page takes its pages with it (every later page is numbered back); a cover moves nothing. 409 initial-spread for the spread the book opens on. Every removed row is in the change log, naming this AI connection.",
+      inputSchema: z.object({
+        book: BOOK,
+        spread: ID.describe("the spread's id (get_book)"),
+        confirm: z.string().optional().describe("the second step: the confirmation id of the impact the person agreed to"),
+        deleteFiles: z.boolean().optional().describe("with confirm: also delete the Library files used only here – only when the person asked for it"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, spread }) => {
-      await api.call<void>("DELETE", `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`);
-      return text({ deleted: spread, open: editorHref(links, book) });
-    }),
+    guard(async ({ book, spread, confirm, deleteFiles }) => removeStep("delete_spread", book, `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`, confirm, deleteFiles)),
   );
 
   server.registerTool(

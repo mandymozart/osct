@@ -73,6 +73,13 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     }
     return { ok: !result.isError, data };
   };
+  /** A removal in its two steps (#198): the impact (nothing removed), then the same call with the confirmation */
+  const remove = async (name: "delete_spread" | "delete_entry", args: Record<string, unknown>, via = call) => {
+    const first = await via(name, args);
+    expect(first.ok, JSON.stringify(first.data)).toBe(true);
+    expect(first.data).toMatchObject({ deleted: false, impact: expect.any(Object), confirmation: { id: expect.stringMatching(/^\d{10}\.[0-9a-f]{32}$/) } });
+    return { first, second: await via(name, { ...args, confirm: first.data.confirmation.id }) };
+  };
 
   beforeAll(async () => {
     const port = await freePort();
@@ -251,7 +258,12 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     const changes = await call("list_changes", { book: "osct", limit: 10 });
     expect(changes.data.changes.map((c: any) => c.kind)).toEqual(expect.arrayContaining(["entity", "target", "entry", "plugin"]));
     expect((await call("delete_plugin", { book: "osct", plugin: "glow" })).ok).toBe(true);
-    expect((await call("delete_entry", { book: "osct", entry: "p31-shadows" })).ok).toBe(true);
+    const asked = await call("delete_entry", { book: "osct", entry: "p31-shadows" });
+    expect(asked.data.impact).toMatchObject({ kind: "entry", entry: { id: "p31-shadows" }, counts: { entries: 1, targets: 1, entities: 1 } });
+    expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.entries).toHaveLength(2);
+    const { second } = await remove("delete_entry", { book: "osct", entry: "p31-shadows" });
+    expect(second.ok, JSON.stringify(second.data)).toBe(true);
+    expect(second.data.deleted).toMatchObject({ entries: ["p31-shadows"], targets: ["p31-shadows"], files: [] });
     expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.entries).toHaveLength(1);
   });
 
@@ -275,10 +287,10 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(draft.book).toMatchObject({ passes: [{ type: "grade", reach: "all", saturation: 0.6 }], environment: { world: "cafe", onionSky: false } });
     expect(draft.spreads.map((s: any) => s.id)).toEqual(["s1", "spread-1", "studio-b", "back"]);
     const full = await call("delete_spread", { book: "osct", spread: "studio-b" });
-    expect(full.ok).toBe(false);
-    expect(full.data.error).toMatchObject({ code: "spread-not-empty", entries: ["castle"] });
-    expect((await call("delete_spread", { book: "osct", spread: "back" })).ok).toBe(true);
-    expect((await call("delete_spread", { book: "osct", spread: "spread-1" })).ok).toBe(true);
+    expect(full.data).toMatchObject({ deleted: false, impact: { spread: { id: "studio-b" }, entries: [{ id: "castle" }] } });
+    expect(full.data.next).toContain("Show the person the impact");
+    expect((await remove("delete_spread", { book: "osct", spread: "back" })).second.ok).toBe(true);
+    expect((await remove("delete_spread", { book: "osct", spread: "spread-1" })).second.data.moved).toMatchObject({ spreads: 1 });
     expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.spread).toMatchObject({ firstPage: 30, lastPage: 31 });
     expect((await call("put_environment", { book: "osct", environment: null })).data.environment).toBeNull();
     expect((await call("put_book_passes", { book: "osct", passes: null })).data.passes).toBeNull();
@@ -327,6 +339,14 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
       expect(saved.ok, saved.raw).toBe(true);
       const changes = await callAs("list_changes", { book: "osct", limit: 1 });
       expect(changes.data.changes[0]).toMatchObject({ kind: "entity", ref: "castle", user: "editor@example.test", token: "Claude in the e2e test" });
+
+      // a removal through the token: the same two steps as the person's (#198), the log names the token
+      const added = await callAs("add_entry", { book: "osct", title: "Robot", page: 30, target: { imageSrc: "https://cdn.example/robot.jpg" } });
+      expect(added.ok, added.raw).toBe(true);
+      const { second: removed } = await remove("delete_entry", { book: "osct", entry: added.data.entry.id }, callAs);
+      expect(removed.ok, JSON.stringify(removed.data)).toBe(true);
+      const removal = await callAs("list_changes", { book: "osct", limit: 2 });
+      expect(removal.data.changes.map((c: any) => [c.kind, c.after, c.token])).toEqual(expect.arrayContaining([["entry", null, "Claude in the e2e test"], ["target", null, "Claude in the e2e test"]]));
 
       const publish = await callAs("publish", { book: "osct", env: "local" });
       expect(publish.ok).toBe(false);

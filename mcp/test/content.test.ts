@@ -33,6 +33,28 @@ const REGISTERED = {
   passes: {},
 };
 
+const CONFIRMATION = "1900000000.0123456789abcdef0123456789abcdef";
+
+/**
+ * A removal in the API's two steps (#198): without `confirm` 409 confirm-delete with the impact, with a stale one
+ * confirmation-void, with the right one the removal
+ */
+function removal(seen: Seen) {
+  const body = (seen.body ?? {}) as { confirm?: string; deleteFiles?: boolean };
+  const spread = seen.path.includes("/spreads/");
+  if (body.confirm === CONFIRMATION) {
+    return { json: { deleted: { spread: spread ? "s2" : null, entries: spread ? ["castle", "text"] : ["castle"], targets: ["castle-target"], entities: [], files: body.deleteFiles ? ["a1"] : [] }, moved: { spreads: spread ? 1 : 0, entries: 0, targets: 0 } } };
+  }
+  const impact = {
+    kind: spread ? "spread" : "entry",
+    ...(spread ? { spread: { id: "s2", title: "Two", firstPage: 3, lastPage: 4, format: "spread" }, pagesBack: 2 } : { entry: { id: "castle", title: "Castle", page: 3 }, pagesBack: 0 }),
+    keptEntities: [{ ref: "castle", type: "video", targets: ["castle-target"], usedBy: ["other-target"] }],
+    files: { onlyHere: [{ id: "a1", name: "castle.png" }], elsewhere: [{ id: "a2", name: "shared.png", usedBy: [{ kind: "target", ref: "racoon" }] }] },
+    counts: { entries: spread ? 2 : 1, targets: 1, entities: 0, keptEntities: 1, filesOnlyHere: 1, filesElsewhere: 1 },
+  };
+  return { status: 409, json: { error: { code: body.confirm ? "confirmation-void" : "confirm-delete", message: body.confirm ? "The confirmation is void." : "Removing takes 1 entry.", impact, confirmation: { id: CONFIRMATION, expiresAt: "2030-03-17T17:46:40Z" } } } };
+}
+
 /** The editor's API as the tools see it; `sources: false` = a book without Code tab sources */
 function editorApi(seen: Seen, { sources = true } = {}) {
   const { method, path } = seen;
@@ -43,7 +65,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (method === "PUT" && path === "/editor/books/osct/targets/castle-target") return { json: { target: { id: "castle-target", imageSrc: "/c.jpg", ...(seen.body as object) } } };
   if (method === "PUT" && path.startsWith("/editor/books/osct/targets/")) return { status: 404, json: { error: { code: "not-found", message: "No such target." } } };
   if (method === "POST" && path === "/editor/books/osct/entries") return { status: 201, json: { entry: { id: "p3-new", ...(seen.body as object) }, spreadId: "s2" } };
-  if (method === "DELETE" && path === "/editor/books/osct/entries/castle") return { status: 204 };
+  if (method === "DELETE" && /^\/editor\/books\/osct\/(spreads\/s2|entries\/castle)$/.test(path)) return removal(seen);
   if (path === "/editor/books/osct/draft/latest.json") return { json: { build: "abcdef012345", hash: "abcdef012345" + "0".repeat(52) } };
   if (path === "/editor/books/osct/draft/abcdef012345/game.config.json") return { json: { version: { schema: "2.14" }, plugins: [{ id: "tint", src: "/p.js", api: "1.2", registered: REGISTERED }], entities: ENTITIES.entities } };
   if (path === "/editor/books/osct/draft/abcdef012345/files.json") return { json: { "/m.glb": { size: 1 } } };
@@ -54,8 +76,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     return { status: 201, json: { spread: { id: body.id ?? (body.format === "spread" ? "spread-1" : body.format), title: body.title ?? "New spread", firstPage: 5, lastPage: 6 }, moved: { spreads: 0, entries: 0, targets: 0 } } };
   }
   if (method === "PUT" && path === "/editor/books/osct/spreads/s2") return { json: { spread: { id: "s2", title: "Two", firstPage: 3, lastPage: 4, ...(seen.body as object) } } };
-  if (method === "DELETE" && path === "/editor/books/osct/spreads/s1") return { status: 204 };
-  if (method === "DELETE" && path === "/editor/books/osct/spreads/s2") return { status: 409, json: { error: { code: "spread-not-empty", message: "The spread has 2 entries – delete them first.", entries: ["castle", "text"] } } };
+  if (method === "DELETE" && path === "/editor/books/osct/spreads/s1") return { status: 409, json: { error: { code: "initial-spread", message: "The book opens on this spread." } } };
   if (method === "PUT" && path === "/editor/books/osct/passes") return { json: { passes: (seen.body as any).passes } };
   if (method === "PUT" && path === "/editor/books/osct/environment") return { json: { environment: (seen.body as any).environment } };
   if (method === "GET" && path === "/editor/environments") return { json: { env: "local", environments: [{ env: "local", store: "server", publish: true, url: "http://127.0.0.1:8080/api/content/local", warning: "No CDN connected – the published content is stored and served by this server only." }, { env: "staging", store: "cdn", publish: false, url: null, warning: null }] } };
@@ -235,9 +256,34 @@ describe("the content tools", () => {
     expect(invalid.data.error.problems[0]).toMatch(/^target\.entity\.assets/);
   });
 
-  it("delete_entry → 204 becomes a deleted line", async () => {
-    const result = await rec.call("delete_entry", { book: "osct", entry: "castle" });
-    expect(result.data).toEqual({ deleted: "castle", open: "http://localhost:5175/editor/osct/" });
+  it("delete_entry: first the impact and a confirmation, nothing removed; then with confirm (#198)", async () => {
+    seen.length = 0;
+    const first = await rec.call("delete_entry", { book: "osct", entry: "castle" });
+    expect(first.ok).toBe(true);
+    expect(seen[0]).toMatchObject({ method: "DELETE", path: "/editor/books/osct/entries/castle" });
+    expect(seen[0].body).toBeUndefined();
+    expect(first.data).toMatchObject({ deleted: false, impact: { kind: "entry", counts: { targets: 1, filesOnlyHere: 1 } }, confirmation: { id: CONFIRMATION }, open: "http://localhost:5175/editor/osct/" });
+    expect(first.data.next).toMatch(/Show the person the impact.*ask.*confirm: confirmation\.id.*deleteFiles: true only if they asked/);
+    const second = await rec.call("delete_entry", { book: "osct", entry: "castle", confirm: first.data.confirmation.id });
+    expect(seen[1].body).toEqual({ confirm: CONFIRMATION });
+    expect(second.data).toMatchObject({ deleted: { entries: ["castle"], files: [] }, open: "http://localhost:5175/editor/osct/" });
+    const withFiles = await rec.call("delete_entry", { book: "osct", entry: "castle", confirm: CONFIRMATION, deleteFiles: true });
+    expect(seen[2].body).toEqual({ confirm: CONFIRMATION, deleteFiles: true });
+    expect(withFiles.data.deleted.files).toEqual(["a1"]);
+    const stale = await rec.call("delete_entry", { book: "osct", entry: "castle", confirm: "1900000000.ffffffffffffffffffffffffffffffff" });
+    expect(stale.data).toMatchObject({ deleted: false, void: "The confirmation is void.", impact: { kind: "entry" }, confirmation: { id: CONFIRMATION } });
+    const early = await rec.call("delete_entry", { book: "osct", entry: "castle", deleteFiles: true });
+    expect(early.ok).toBe(false);
+    expect(seen).toHaveLength(4);
+  });
+
+  it("the removal tools tell the agent to show the impact and ask before confirming (#198)", () => {
+    for (const tool of ["delete_spread", "delete_entry"]) {
+      const description = rec.tools.get(tool)?.config.description ?? "";
+      expect(description).toMatch(/two steps/);
+      expect(description).toMatch(/Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`/);
+      expect(description).toMatch(/deleteFiles: true.*only when the person asked/);
+    }
   });
 
   it("describes the files' own numbers an agent sizes and times a node by (#91)", () => {
@@ -316,12 +362,17 @@ describe("the content tools", () => {
     expect(seen).toHaveLength(0);
   });
 
-  it("delete_spread: an empty one goes; one with entries is refused with the entries and a hint", async () => {
-    expect((await rec.call("delete_spread", { book: "osct", spread: "s1" })).data).toEqual({ deleted: "s1", open: "http://localhost:5175/editor/osct/" });
-    const full = await rec.call("delete_spread", { book: "osct", spread: "s2" });
-    expect(full.ok).toBe(false);
-    expect(full.data.error).toMatchObject({ status: 409, code: "spread-not-empty", entries: ["castle", "text"] });
-    expect(full.data.error.hint).toContain("delete_entry");
+  it("delete_spread: the impact first, then with confirm everything on it goes; the opening spread is refused (#198)", async () => {
+    const first = await rec.call("delete_spread", { book: "osct", spread: "s2" });
+    expect(first.ok).toBe(true);
+    expect(first.data).toMatchObject({ deleted: false, impact: { kind: "spread", spread: { id: "s2" }, pagesBack: 2, counts: { entries: 2 }, keptEntities: [{ ref: "castle" }] }, confirmation: { id: CONFIRMATION } });
+    expect(first.data.next).toContain("call delete_spread again");
+    const second = await rec.call("delete_spread", { book: "osct", spread: "s2", confirm: first.data.confirmation.id });
+    expect(second.data).toMatchObject({ deleted: { spread: "s2", entries: ["castle", "text"] }, moved: { spreads: 1 }, open: "http://localhost:5175/editor/osct/" });
+    const opening = await rec.call("delete_spread", { book: "osct", spread: "s1" });
+    expect(opening.ok).toBe(false);
+    expect(opening.data.error).toMatchObject({ status: 409, code: "initial-spread" });
+    expect(opening.data.error.hint).toContain("cannot be removed");
   });
 
   it("put_book_passes: the book's master chain, checked; null removes it", async () => {

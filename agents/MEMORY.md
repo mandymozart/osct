@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Removing a spread or an entry with everything on it (#198)
+
+- Tilman: "AI has the same rights as the user most of the time. So also it needs to get this confirm dialog somehow,
+  like the UI." – a spread or an entry goes with everything on it, in **two steps** for people and AI tokens alike:
+  the impact and a confirmation id first (nothing written), then the same request with `confirm`. This replaces the
+  earlier rule that a spread with entries is refused (`spread-not-empty`, #166 below); the opening spread stays.
+- One confirmation helper for the import and the removals: `Confirmation.php` (the stateless HMAC #183 built,
+  `<expires>.<hmac>`, 10 minutes, bound to the purpose with its ids, the user, the AI token and a digest of the
+  state). A removal's state is every row it takes, the kept entities' users, the files with their uses and the book's
+  change log (count, newest) and `updated_at` – any change in the book voids the id, as the issue asked.
+- Library files: only the uploaded ones (`assets`) count – the import's files are the content build's, never deleted.
+  "Used only here" = `Assets::usagesOf` finds no use beyond the removed rows (the environment counts as a use).
+  They go only with `deleteFiles: true` (off by default); a removed file is a change `asset` with its row and versions
+  as `before`. The store's files are deleted after the commit (a store cannot roll back).
+- The entity count of the impact includes a target's own (inline) entity (`ref: null`) – for a person it is the AR
+  content that goes, not only the shared rows.
+
 ## 2026-10-30 – Publish to the own environment, import comparison, the content store (#183, #197)
 
 - Tilman: an instance publishes only to its own environment (`ENV`); a connected CDN has priority; `local` only on a
@@ -365,7 +382,7 @@ outcome in the line (or move it into a dated decision block).
 - A new double page **renumbers the pages after it** (Tilman: "the pages are numbered on") – later spreads, entries and
   `print.page` move by two, and removing a double page reverses it. The layout's sheets are matched by page and do
   not move, so later cards show the sheets of their new numbers until a layout with the new pages is imported.
-- **Removing a spread with entries is refused** (409 `spread-not-empty`), not "ask and remove them too": the entries
+- *(Replaced by #198: removed with everything on it, after a confirmation.)* **Removing a spread with entries is refused** (409 `spread-not-empty`), not "ask and remove them too": the entries
   carry targets and AR (work), a bulk delete is not undone by anything but the change log, and deleting entries one by
   one already exists in the tree. The spread the book opens on cannot be removed either (`initial-spread`).
 - The hint "New spreads come in with an import for now" shows only where adding is impossible: the API refuses a

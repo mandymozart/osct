@@ -142,6 +142,18 @@ function importing(string $base, string $book, ?string $token, string $raw): arr
     return call($base, 'POST', "/editor/books/$book/import", null, $token, 'http://localhost:5173', json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 }
 
+/**
+ * A removal in its two steps (Books::deleteSpread / deleteEntry): the first answer is 409 confirm-delete with the impact
+ * and a confirmation id – sent again with it (and `$options`, e.g. deleteFiles), as the editor does after the person
+ * confirmed. Any other first answer passes through unchanged.
+ */
+function deleting(string $base, string $path, ?string $token, array $options = []): array
+{
+    $answer = call($base, 'DELETE', $path, null, $token);
+    if ($answer[0] !== 409 || ($answer[1]['error']['code'] ?? null) !== 'confirm-delete') return $answer;
+    return call($base, 'DELETE', $path, ['confirm' => $answer[1]['error']['confirmation']['id']] + $options, $token);
+}
+
 /** A file upload: the bytes as the body, the name in X-File-Name */
 function upload(string $base, string $method, string $path, string $bytes, string $name, string $token): array
 {
@@ -1016,8 +1028,8 @@ try {
     $draft2 = json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$manifest2['build']}/game.config.json", false, $withToken), true);
     $added = array_values(array_filter($draft2['entries'], fn($e) => $e['id'] === 'p1-shadows-light'));
     check(count($added) === 1 && $added[0]['target']['print']['surface'] === 'left' && $added[0]['tags'] === [], 'the draft has the new entry with its target');
-    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/p1-shadows-light', null, $editor);
-    check($status === 204, 'DELETE entry → 204');
+    [$status] = deleting($api, '/editor/books/osct/entries/p1-shadows-light', $editor);
+    check($status === 200, 'DELETE entry, confirmed → 200');
     [$status] = call($api, 'DELETE', '/editor/books/osct/entries/p1-shadows-light', null, $editor);
     check($status === 404, 'again → 404');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
@@ -1091,30 +1103,134 @@ try {
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'poster'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-spread', 'an unknown format → 400');
     [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/s2', null, $editor);
-    check($status === 409 && $data['error']['code'] === 'spread-not-empty' && $data['error']['entries'] === ['castle', 'link'], 'removing a spread with entries → 409 spread-not-empty with their ids');
+    check($status === 409 && $data['error']['code'] === 'confirm-delete' && array_column($data['error']['impact']['entries'], 'id') === ['castle', 'link'], 'removing a spread with entries → 409 confirm-delete: the impact names them, nothing goes yet');
     [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/s1', null, $editor);
     check($status === 409 && $data['error']['code'] === 'initial-spread', 'removing the spread the book opens on → 409 initial-spread');
     [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/nowhere', null, $editor);
     check($status === 404, 'removing an unknown spread → 404');
-    [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/opening', null, $editor);
-    [$status2] = call($api, 'DELETE', '/editor/books/osct/spreads/spread-2', null, $editor);
+    [$status] = deleting($api, '/editor/books/osct/spreads/opening', $editor);
+    [$status2] = deleting($api, '/editor/books/osct/spreads/spread-2', $editor);
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($status === 204 && $status2 === 204 && $pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['spread-1', 5, 6], ['back', 7, 7]], 'DELETE an empty spread → 204, the later pages numbered back');
-    [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/spread-1', null, $editor);
+    check($status === 200 && $status2 === 200 && $pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['spread-1', 5, 6], ['back', 7, 7]], 'DELETE an empty spread, confirmed → 200, the later pages numbered back');
+    [$status] = deleting($api, '/editor/books/osct/spreads/spread-1', $editor);
     [$buildAfter, $draftNow] = $draftOf();
-    check($status === 204 && $buildAfter === $buildBefore, 'added and removed again: the same draft as before (pages, entries, prints)');
+    check($status === 200 && $buildAfter === $buildBefore, 'added and removed again: the same draft as before (pages, entries, prints)');
     [$status, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
     check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'spread' && $c['ref'] === 'spread-1' && $c['after'] === null)) === 1, 'the change log has the removal');
     [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 'cover', 'id' => 'first'], $editor);
-    [$status2] = call($api, 'DELETE', '/editor/books/osct/spreads/first', null, $editor);
-    check($status === 201 && $status2 === 204 && $draftOf()[0] === $buildBefore, 'a double page before everything, and gone again');
-    [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/back', null, $editor);
+    [$status2] = deleting($api, '/editor/books/osct/spreads/first', $editor);
+    check($status === 201 && $status2 === 200 && $draftOf()[0] === $buildBefore, 'a double page before everything, and gone again');
+    [$status] = deleting($api, '/editor/books/osct/spreads/back', $editor);
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($status === 204 && $pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4]] && $tree['unassigned'][0]['page'] === 99, 'removing the back cover moves no page');
+    check($status === 200 && $pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4]] && $tree['unassigned'][0]['page'] === 99, 'removing the back cover moves no page');
     [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'back', 'title' => 'Rückseite'], $editor);
     check($status === 201 && $draftOf()[0] === $buildBefore, 'the back cover added again: the same draft');
     [$status] = call($api, 'PUT', '/editor/books/osct/targets/castle-target', ['print' => null], $editor);
     check($status === 200, 'the castle print removed again');
+
+    echo "editor: removing a spread or an entry with everything on it, in two steps (#198)\n";
+    // A double page 5–6 with three entries: e1 (its own file, the shared entity castle – also on castle-target), e2 (a
+    // file used elsewhere too, its own entity naming a second file of its own), e3 (the shared entity lamp, only here)
+    [$buildStart] = $draftOf();
+    [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 's2', 'id' => 'doomed', 'title' => 'Doomed'], $editor);
+    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'only-a', 'a-only.png', $editor);
+    $onlyA = $up['asset'];
+    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'only-b', 'b-only.png', $editor);
+    $onlyB = $up['asset'];
+    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'shared', 'shared.png', $editor);
+    $sharedFile = $up['asset'];
+    call($api, 'PUT', '/editor/books/osct/entities/lamp', ['type' => 'model', 'assets' => [['id' => 'lamp-0', 'assetType' => 'glb', 'src' => 'https://cdn.example/lamp.glb']]], $editor);
+    $made = [
+        call($api, 'POST', '/editor/books/osct/entries', ['title' => 'One', 'page' => 5, 'id' => 'e1', 'target' => ['imageSrc' => $onlyA['url'], 'entity' => ['ref' => 'castle']]], $editor)[0],
+        call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Two', 'page' => 6, 'id' => 'e2', 'target' => ['imageSrc' => $sharedFile['url'],
+            'entity' => ['type' => 'image', 'assets' => [['id' => 'b', 'assetType' => 'image', 'src' => $onlyB['url']]]]]], $editor)[0],
+        call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Three', 'page' => 6, 'id' => 'e3', 'target' => ['imageSrc' => 'https://cdn.example/three.jpg', 'entity' => ['ref' => 'lamp']]], $editor)[0],
+        call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Elsewhere', 'page' => 1, 'id' => 'e4', 'target' => ['imageSrc' => $sharedFile['url']]], $editor)[0],
+    ];
+    check($status === 201 && $made === [201, 201, 201, 201], 'the double page, three files, the entity lamp and four entries (one of them on page 1)');
+    [, $before] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', null, $editor);
+    $impact = $data['error']['impact'] ?? [];
+    $first = $data['error']['confirmation']['id'] ?? '';
+    check($status === 409 && $data['error']['code'] === 'confirm-delete' && preg_match('/^\d{10}\.[0-9a-f]{32}$/', $first) === 1
+        && strtotime($data['error']['confirmation']['expiresAt']) > time(), 'without confirm → 409 confirm-delete with a confirmation id that expires');
+    check(($impact['spread'] ?? null) === ['id' => 'doomed', 'title' => 'Doomed', 'firstPage' => 5, 'lastPage' => 6, 'format' => 'spread'] && $impact['pagesBack'] === 2 && $impact['kind'] === 'spread',
+        'the impact: the spread, the pages that move back');
+    check($impact['counts'] === ['entries' => 3, 'targets' => 3, 'entities' => 2, 'keptEntities' => 1, 'filesOnlyHere' => 2, 'filesElsewhere' => 1]
+        && array_column($impact['entries'], 'id') === ['e1', 'e2', 'e3'] && array_column($impact['targets'], 'id') === ['e1', 'e2', 'e3'], 'the impact counts: 3 entries, 3 targets, 2 entities, 1 kept, 2 files only here, 1 elsewhere');
+    check($impact['entities'] === [['ref' => 'lamp', 'type' => 'model', 'shared' => true, 'targets' => ['e3']], ['ref' => null, 'type' => 'image', 'shared' => false, 'targets' => ['e2']]]
+        && count($impact['keptEntities']) === 1 && $impact['keptEntities'][0]['ref'] === 'castle' && $impact['keptEntities'][0]['targets'] === ['e1'] && $impact['keptEntities'][0]['usedBy'] === ['castle-target'], 'the entities: lamp and e2\'s own go, castle is kept (castle-target uses it)');
+    check(array_column($impact['files']['onlyHere'], 'name') === ['a-only.png', 'b-only.png'] && array_column($impact['files']['elsewhere'], 'name') === ['shared.png']
+        && $impact['files']['elsewhere'][0]['usedBy'] === [['kind' => 'target', 'ref' => 'e4']] && !isset($impact['files']['onlyHere'][0]['usedBy']),
+        'the Library files: used only here (a-only, b-only) and elsewhere (shared.png, with its other use)');
+    check(str_contains($data['error']['message'], '3 entries, 3 targets, 2 entities'), 'the message says it in words');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    [, $after] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
+    check(count($tree['spreads']) === 5 && count($tree['spreads'][3]['entries']) === 3 && count($after['changes']) === count($before['changes']), 'the first step writes nothing');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['deleteFiles' => 'yes'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-delete', 'deleteFiles must be true or false → 400');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => '9999999999.' . str_repeat('0', 32)], $editor);
+    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $data['error']['impact']['counts']['entries'] === 3 && isset($data['error']['confirmation']['id']),
+        'a forged id → 409 confirmation-void with a fresh impact and id');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/e1', ['confirm' => $first], $editor);
+    check($status === 409, 'the id is bound to what it was asked for: not an entry\'s removal');
+    // Anything that changes meanwhile voids it – here a title elsewhere in the book
+    call($api, 'PUT', '/editor/books/osct/spreads/s2', ['title' => 'Two again'], $editor);
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $first], $editor);
+    $fresh = $data['error']['confirmation']['id'] ?? '';
+    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $fresh !== $first && $data['error']['impact']['counts']['targets'] === 3, 'a stale id (the book changed) → 409 confirmation-void, a fresh impact and a new id');
+    // One transaction: when the last step fails, nothing of the removal stays done
+    $pdo = connect('test');
+    $pdo->exec($mysql ? "CREATE TRIGGER block_spread_delete BEFORE DELETE ON spreads FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'blocked'"
+        : "CREATE TRIGGER block_spread_delete BEFORE DELETE ON spreads BEGIN SELECT RAISE(ABORT, 'blocked'); END");
+    [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $fresh], $editor);
+    $pdo->exec('DROP TRIGGER block_spread_delete');
+    $pdo = null;
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($status === 500 && count($tree['spreads'][3]['entries']) === 3 && isset($entities['entities']['lamp']), 'the spread\'s row refused: entries, targets and the entity are all still there (rolled back)');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $fresh], $editor);
+    check($status === 200 && $data['deleted'] === ['spread' => 'doomed', 'entries' => ['e1', 'e2', 'e3'], 'targets' => ['e1', 'e2', 'e3'], 'entities' => ['lamp'], 'files' => []]
+        && $data['moved'] === ['spreads' => 1, 'entries' => 1, 'targets' => 0], 'confirmed → 200: exactly what the impact listed; the back cover and the entry on page 101 move back');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['back', 5, 5]] && $tree['unassigned'][0]['page'] === 99
+        && !isset($entities['entities']['lamp']) && isset($entities['entities']['castle']), 'the tree: the spread gone, the pages back; lamp gone, castle kept');
+    [, $assets] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    $assetIds = array_column($assets['assets'], 'id');
+    check(in_array($onlyA['id'], $assetIds, true) && in_array($onlyB['id'], $assetIds, true) && in_array($sharedFile['id'], $assetIds, true), 'without deleteFiles every Library file stays (the option is off by default)');
+    [, $after] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
+    $removedRows = array_values(array_filter(array_slice($after['changes'], 0, count($after['changes']) - count($before['changes'])), fn($c) => $c['after'] === null));
+    $kinds = array_map(fn($c) => $c['kind'] . ':' . $c['ref'], $removedRows);
+    sort($kinds);
+    check($kinds === ['entity:lamp', 'entry:e1', 'entry:e2', 'entry:e3', 'spread:doomed', 'target:e1', 'target:e2', 'target:e3']
+        && count(array_filter($removedRows, fn($c) => is_array($c['before']))) === 8, 'the change log: every removed row with its before');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $fresh], $editor);
+    check($status === 404, 'the id works once: the spread is gone');
+
+    // An entry: its target, its entity and – only with deleteFiles – the files used only there; a file used elsewhere stays
+    call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Five', 'page' => 2, 'id' => 'e5', 'target' => ['imageSrc' => $onlyA['url'],
+        'entity' => ['type' => 'image', 'assets' => [['id' => 's', 'assetType' => 'image', 'src' => $sharedFile['url']]]]]], $editor);
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/entries/e5', null, $editor);
+    $impact = $data['error']['impact'] ?? [];
+    check($status === 409 && $data['error']['code'] === 'confirm-delete' && $impact['kind'] === 'entry' && $impact['entry']['id'] === 'e5' && $impact['entry']['spread'] === 's1'
+        && $impact['counts'] === ['entries' => 1, 'targets' => 1, 'entities' => 1, 'keptEntities' => 0, 'filesOnlyHere' => 1, 'filesElsewhere' => 1],
+        'an entry: 409 confirm-delete – its target, its entity, a file only here, one used elsewhere');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/entries/e5', ['confirm' => $data['error']['confirmation']['id'], 'deleteFiles' => true], $editor);
+    check($status === 200 && $data['deleted'] === ['spread' => null, 'entries' => ['e5'], 'targets' => ['e5'], 'entities' => [], 'files' => [$onlyA['id']]], 'confirmed with deleteFiles → the file used only there goes too');
+    [, $assets] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    $assetIds = array_column($assets['assets'], 'id');
+    check(!in_array($onlyA['id'], $assetIds, true) && in_array($sharedFile['id'], $assetIds, true) && @file_get_contents($onlyA['url']) === false && @file_get_contents($sharedFile['url']) !== false,
+        'gone from the Library and the store; the file used elsewhere is never deleted');
+    [, $after] = call($api, 'GET', '/editor/books/osct/changes?limit=3', null, $editor);
+    $assetChange = array_values(array_filter($after['changes'], fn($c) => $c['kind'] === 'asset'))[0] ?? null;
+    check($assetChange && $assetChange['ref'] === $onlyA['id'] && $assetChange['before']['name'] === 'a-only.png' && $assetChange['after'] === null, 'the removed Library file is in the change log with its before');
+    [$status] = deleting($api, '/editor/books/osct/entries/e4', $editor, ['deleteFiles' => true]);
+    [, $assets] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    check($status === 200 && !in_array($sharedFile['id'], array_column($assets['assets'], 'id'), true), 'its last use removed with deleteFiles: now the shared file goes too');
+    call($api, 'DELETE', "/editor/books/osct/assets/{$onlyB['id']}", null, $editor);
+    call($api, 'PUT', '/editor/books/osct/spreads/s2', ['title' => 'Two'], $editor);
+    check($draftOf()[0] === $buildStart, 'cleaned up: the same draft as before');
 
     echo "editor: the book's environment (content schema 2.8)\n";
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => false]], $editor);
@@ -1367,6 +1483,21 @@ try {
     call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
     check($data['changes'][0]['token'] === null, 'a save in the editor records none');
+
+    // A token removes like its person – only through the same two steps (#198); its confirmation is its own
+    [$status] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Robot', 'page' => 1, 'id' => 'robot', 'target' => ['imageSrc' => 'https://cdn.example/robot.jpg']], $aiToken);
+    [$status2, $data] = call($api, 'DELETE', '/editor/books/osct/entries/robot', null, $aiToken);
+    check($status === 201 && $status2 === 409 && $data['error']['code'] === 'confirm-delete' && $data['error']['impact']['counts']['targets'] === 1,
+        'a token\'s removal: first 409 confirm-delete with the impact');
+    $tokenId = $data['error']['confirmation']['id'];
+    [, $data] = call($api, 'DELETE', '/editor/books/osct/entries/robot', null, $editor);
+    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/robot', ['confirm' => $data['error']['confirmation']['id']], $aiToken);
+    [$status2] = call($api, 'DELETE', '/editor/books/osct/entries/robot', ['confirm' => $tokenId], $editor);
+    check($status === 409 && $status2 === 409, 'the person\'s id does not work for the token, nor the token\'s for the person');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/entries/robot', ['confirm' => $tokenId], $aiToken);
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=2', null, $editor);
+    check($status === 200 && $data['deleted']['entries'] === ['robot'] && array_column($log['changes'], 'token') === ['Claude on my laptop', 'Claude on my laptop']
+        && $log['changes'][0]['after'] === null, 'confirmed with its own id → removed; the change log names the token');
 
     // What a token never does: publish (any environment), its own tokens, the password, the account
     foreach (['local', 'staging', 'production'] as $env) {
