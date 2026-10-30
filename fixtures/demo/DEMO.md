@@ -14,9 +14,12 @@ panel's timeline marks each rule that ran.
 (`entries/aquarium/target.jpg`, drawn for the demo), whose AR content is a group holding the plugin node `aquarium` – a
 glass tank with a sandy floor, water and five fish (`plugins/aquarium`, `registerNodeType`). The tank carries the
 plugin's material `water` (`registerMaterial`: a ShaderMaterial with waves on its surface and a tint that deepens with
-the angle), its floor shows the procedural texture `caustics` (`registerTexture`). In the editor the Entity panel shows
-*node type · aquarium* and *material · water* with their rows; **make it code** on any node writes a node type of its own
-into the Code tab.
+the angle), its floor shows the procedural texture `caustics` (`registerTexture`). A shader study (#202): a plastic toy
+fish dips into the water on a loop, a tap pushes it in once; the tank simulates its surface as a heightfield (a damped
+wave equation on a 64-cell grid, on the CPU), the toy displaces its volume, rings run outward and settle, the water shader
+and the floor's caustics follow them (docs/plugins.md "A shader study"). In the editor the Entity panel shows
+*node type · aquarium* (the toy, loop, dip, simulation, grid, damping and splash among its rows) and *material · water*
+with their rows; **make it code** on any node writes a node type of its own into the Code tab.
 
 **The zero plane** (#189): every model stands on its page – its lowest point at the target's `z = 0`. The beacon's model
 has its origin in its middle (lifted by its lower half, `position: [0, 0, 0.9973]`), the door's floor sat 0.0188 above

@@ -12,6 +12,19 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **The demo aquarium is a water shader study** (#202, demo content only). A plastic toy fish (or a ball) dips into the
+  tank's water on a loop and a tap pushes it in once. The tank simulates its surface as a heightfield – a damped wave
+  equation on a grid of 32, 64 or 96 cells, on the CPU, written into a half-float texture: the toy pushes the water
+  aside by its volume as it plunges and gives it back as it rises, so rings run outward, bounce off the glass and settle.
+  The `water` material reads the heightfield – the surface moves with it, its slopes drive a relief, a refraction-like
+  tint, a fresnel highlight and a glint – and the floor's caustics gather under the rings. Without the simulation the
+  water keeps its static waves. New rows in the Entity panel: dipping toy, loop period, dip depth, simulation, grid,
+  damping, splash. About 0.04 ms of work per frame at 64 cells on a desktop. docs/plugins.md "A shader study", the
+  tutorial's aquarium shot is new.
+
 ## 1.50.0 – 2026-10-30
 
 ### Added
