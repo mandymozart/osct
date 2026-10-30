@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – staging's versions.json mismatch was the edge cache, not a writer (#175)
+
+- **Cause:** every writer was already right – `osct content sync` (`runSync`), the API's publish (bunny and directory
+  store) and the demo workflow (the CLI's sync) write `versions.json` before `latest.json`, after reading it through
+  the Storage API (no edge in between). The pull zone has a cache rule for `latest.json` only, so its edges kept
+  `versions.json` for 30 days: staging's served the copy cached on 2026-10-28 17:15, 13 minutes before `6448aacb4ab7`
+  was retired. The storage's copy (read through an uncached URL form) lists all four builds, `b6b0ebaabcfd` current.
+- **Decision: no storage repair, an edge rule plus a purge** – done by a person with the account API key
+  (`docs/content-cdn.md` "Repairing a stale versions.json"). The CLI still has no account API key and gets none.
+- **The check lives in `osct content status`** (`versionProblems` in `content-sync.ts`): storage disagreement exits 1,
+  a disagreeing edge copy only warns. No API change – its publish always rewrites `versions.json`, so it cannot keep
+  a stale record, and the editor never reads `versions.json`.
+- `osct content sync` of the build `latest.json` already names used to stop with "up to date" whatever `versions.json`
+  said; it now rewrites `versions.json` then (the entry dated by `latest.json`'s `activatedAt`).
+
 ## 2026-10-30 – Make it code copies a plugin's whole source; a made type switches once it builds (#199)
 
 - **Decision: copy the whole plugin, not the build.** The issue offered two fixes: copy the plugin's whole source, or

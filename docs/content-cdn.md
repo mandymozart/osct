@@ -11,8 +11,8 @@ One storage zone (`osct`, replicated to Frankfurt, Singapore and New York), one 
 `cdn.buildingfictions.com`). Layout and types: `shared/types/content-manifest.ts`.
 
 ```
-osct/<env>/latest.json                  the current version – the only file that is ever overwritten
-osct/<env>/versions.json                every version on the storage and when it was current (for purge)
+osct/<env>/latest.json                  the current version – overwritten by every switch
+osct/<env>/versions.json                every version on the storage and when it was current (for purge) – written before latest.json
 osct/<env>/<build>/game.config.json     the game configuration of that version
 osct/<env>/<build>/files.json           size and checksum of every content file (whole-book download)
 osct/<env>/<build>/assets/content/…     the content files, same paths as in the app's public folder
@@ -25,7 +25,7 @@ environment replaces the book for its readers: the editor asks first and the API
 ([editor](editor.md) "One book per environment"). `osct content sync` writes the book too, and does not ask – it syncs
 the content source it is given. A store per book is #87. `<build>` is the first 12 hex digits of the content build checksum: the same
 content is the same folder, whatever app version built it. A content file on the CDN never changes, so no edge
-cache, browser cache or service worker can serve a stale copy of it – only `latest.json` moves.
+cache, browser cache or service worker can serve a stale copy of it – only `latest.json` and `versions.json` change.
 
 ## Versions
 
@@ -57,9 +57,16 @@ npm run osct -- content purge --env staging --dry-run  # which old versions woul
 
 - **build** reads the content source `OSCT_CONTENT_DIR` (absolute, or relative to the repository; default: a
   local `content/` folder). It stops when there is no `book.yaml` – there is no fallback to the fixture.
+- **status** lists the versions on the storage and checks that `latest.json` and `versions.json` agree there:
+  `versions.json` lists the build `latest.json` names, as its only current entry (`retiredAt` null). When they
+  disagree it names the problem and exits with 1. With `CONTENT_BASE_URL` it also reads both files through the CDN,
+  as a reader gets them, and warns when the edge's `versions.json` disagrees with its `latest.json` – a cached copy
+  (see the pull zone settings below), not a storage problem.
 - **sync** uploads the build into `<env>/<build>/` – skipped when that version is already complete on the storage
   (its `game.config.json`, written last, exists) – then records it in `versions.json` and points `latest.json` at it.
-  Syncing an older content build again only moves `latest.json` back: that is the rollback. It refuses when the
+  Syncing an older content build again only moves `latest.json` back: that is the rollback. Syncing the current build
+  again rewrites `versions.json` when it does not record that build as current – `latest.json` stays (#175). Both
+  files are read through the Storage API right before the write, never through the pull zone. It refuses when the
   build lacks videos the current version has while their entries stay (a checkout without the git-ignored videos);
   `--without-videos` overrides. `--dry-run` shows the plan, `--force` uploads the version again. It refuses a
   build of the test fixture (`fixtures/content`, marked by `FIXTURE.md`).
@@ -127,7 +134,41 @@ Checked against `buildingfictions.b-cdn.net` on 2026-10-27 and 2026-10-28 (bunny
   turn on "Vary cache → URL query string", then the app's `?t=<minute>` does the same. Until then a reader whose
   edge cached the old `latest.json` keeps the previous version for up to 30 days (it stays complete on the storage,
   nothing breaks – which is also why purge waits 30 days by default). The version folders are immutable, so their
-  30 days are right.
+  30 days are right. On 2026-10-30 `latest.json` came with `cache-control: public, max-age=0` and `cdn-cache: BYPASS`:
+  the rule is in place.
+- **`versions.json` must not stay cached at the edge either** (#175). No code reads it through the pull zone – the
+  CLI and the API read and write it through the Storage API – but a person checking the CDN does, and so does
+  `osct content status`. Without a rule it keeps the 30 days: on 2026-10-30 the edge served staging's `versions.json`
+  as cached on 2026-10-28 17:15 (`cdn-cache: HIT`, only `6448aacb4ab7`, still current) while `latest.json` named
+  `b6b0ebaabcfd`; the demo's looked the same (`7a5254b5a4f6` current at the edge, `dcd17b5e63d2` in `latest.json`).
+  The storage was right both times – read through a URL form the edge had not cached yet (`…/staging//versions.json`,
+  `cdn-cache: MISS`), staging's lists `6448aacb4ab7`, `c396a3554496`, `2e0a4af94ca2` and `b6b0ebaabcfd`, the last
+  as the only current one. `?t=…` does not help: the zone ignores query strings.
+
+#### Repairing a stale `versions.json` at the edge (#175)
+
+A person with the bunny.net account runs it – it needs the **account API key** (dashboard → Account settings → API
+key), not the storage zone's password, so neither the CLI nor a workflow can do it.
+
+1. Edge rule on the pull zone `buildingfictions` (Edge rules): add `*/versions.json` to the conditions of the
+   `latest.json` rule (Request URL, match any), or a second rule with the same action "Override Cache Time" → 0.
+2. Purge the copies the edges hold:
+
+   ```bash
+   for env in staging demo production; do
+     curl -fsS -X POST -H "AccessKey: $BUNNY_API_KEY" \
+       "https://api.bunny.net/purge?url=https%3A%2F%2Fbuildingfictions.b-cdn.net%2F$env%2Fversions.json&async=false"
+   done
+   ```
+
+   (or in the dashboard: Pull zone → Purge cache → the three URLs).
+3. Check: `npm run osct -- content status --env staging` (from `scripts/`, with the storage variables and
+   `CONTENT_BASE_URL`) prints "latest.json and versions.json agree on the storage" and "CDN versions.json: agrees with
+   latest.json"; or `curl -s https://buildingfictions.b-cdn.net/staging/versions.json` lists `b6b0ebaabcfd` with
+   `"retiredAt": null`.
+
+Should the storage itself ever disagree (status exits with 1), `osct content sync --env <env>` of the current build –
+from the content source that built it – rewrites `versions.json` and leaves `latest.json` as it is.
 
 ## Content out of git
 
