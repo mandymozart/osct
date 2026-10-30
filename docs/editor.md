@@ -105,9 +105,11 @@ The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same thr
 shown while the shading is rendered), the equirectangular image as `scene.background` and `scene.environment`, turned with the
 stage every frame so the room stays put while the camera orbits – the **desk**, the Stage panel's choice of two
 (Tilman: the tool is for designers, they should feel at home): a 1.8 × 0.8 m screen-printed plywood top (18 mm; Poly
-Haven's plywood texture tinted to the phenolic brown on the faces, the plies showing untinted on the cut edges) on a
-steel tube frame after Egon Eiermann's table frame (1953, the default), or Philipp Camille Schöpfer's white desk (a
-thick top with three drawer cutouts in its front edge on four slender legs splayed outward), both 72 cm high and our
+Haven's plywood texture tinted to the phenolic brown on the faces) on a steel tube frame after Egon Eiermann's table
+frame (1953, the default), or Philipp Camille Schöpfer's white desk (a thick top with three drawer cutouts in its front
+edge on four slender legs splayed outward); both tops show cut plywood on their edges – seven plies of birch,
+alternating long grain and darker cross grain, parted by glue lines, drawn in code once (`plywood.ts`, a 512 × 128
+data texture, no image file): one stack through the Eiermann board, three through Schöpfer's 60 mm top. Both 72 cm high and our
 own low-poly models (`editor/static/models/`, 236 and 124 triangles, built by `editor/tools/desk-eiermann.py` in
 Blender – `editor/static/models/README.md`), loaded once each with the origin at the top's surface, so the book lies
 on it – the open book as an object – two blocks of paper on a white hardcover board (2 mm) that overhangs the pages by 3 mm, the block's
@@ -418,7 +420,7 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`) and the reader's graphics options |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, the desks' cut edges), `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the Library's filters and picks in `library-pick.ts`, the new target's choices in `new-target.ts` |

@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Plywood on the desks' cut edges (#107)
+
+- **The plies are drawn in code, not downloaded**: the issue proposed a CC0 plywood texture with a visible edge (Poly
+  Haven, ambientCG), but downloads need Tilman's OK (workspace `ORCHESTRATION.md` §7). `editor/src/lib/stage/plywood.ts`
+  draws one stack of seven plies (birch long grain / darker cross grain, glue lines) into a 512 × 128 `DataTexture`
+  once (≈ 5 ms warm, no per-frame cost); a CC0 photo can still replace it later if wanted.
+- **Edge UVs**: u along the edge (250 mm a repeat), v one stack through the thickness – the Eiermann board one stack,
+  Schöpfer's 60 mm top three (a 60 mm board with seven plies would read as stripes). Schöpfer's model now has an `edge`
+  material too (`editor/tools/desk-eiermann.py`).
+- Found while there: the default desk (Eiermann) never got its plywood look until the desk was switched – `setDesk`
+  returned early for the desk the stage started with. Fixed with the same change.
+
 ## 2026-10-30 – Tutorial re-shoot and a look at the Stage panel (#148)
 
 - **The key shots are re-shot** (demo 03, 05, 10; tools 07, 08, 12; new tools 13): the local demo draft was imported

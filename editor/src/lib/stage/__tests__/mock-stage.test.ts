@@ -84,3 +84,32 @@ describe("mock stage: the viewport's shading (#137)", () => {
     expect(paper.material.color.getHex()).not.toBe(0xb4b4b4);
   });
 });
+
+describe("mock stage: the desks' look (#107)", () => {
+  type Looks = { topMaterial: { map: { name: string } | null }; edgeMaterial: { map: { name: string } | null } };
+  const deskStage = async () => {
+    const { Texture } = await import("three");
+    const { stage, requested } = newStage();
+    (stage as unknown as { loader: unknown }).loader = { load: (url: string) => (requested.push(url), new Texture()) } as never;
+    return { stage, requested, looks: stage as unknown as Looks };
+  };
+
+  it("shows the default desk's look on the first call, plywood faces and plies on the edges", async () => {
+    const { stage, requested, looks } = await deskStage();
+    stage.setDesk("eiermann");
+    expect(requested).toEqual(["/textures/plywood_diff_1k.jpg", "/textures/plywood_rough_1k.jpg"]);
+    expect(looks.topMaterial.map).not.toBeNull();
+    expect(looks.edgeMaterial.map?.name).toBe("plywood-edge");
+  });
+
+  it("keeps the plies on Schöpfer's edges under its white top, the same texture for both desks", async () => {
+    const { stage, requested, looks } = await deskStage();
+    stage.setDesk("schoepfer");
+    expect(requested).toEqual([]);
+    expect(looks.topMaterial.map).toBeNull();
+    const plies = looks.edgeMaterial.map;
+    expect(plies?.name).toBe("plywood-edge");
+    stage.setDesk("eiermann");
+    expect(looks.edgeMaterial.map).toBe(plies);
+  });
+});

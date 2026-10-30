@@ -19,9 +19,12 @@ bevels: a few hundred triangles a desk.
 
 Units: the scene is built in millimetres, Z up, and exported in metres, Y up (glTF). The origin is the centre of the
 top's upper surface, so the stage sets the table's height directly. Materials by name – the stage assigns its own
-look to `top` (the plywood faces, UV 0..1 over the top, or Schöpfer's white) and `edge` (the Eiermann top's cut
-edges, the plies along the edge); `steel` (the frame) and `drawer` (the inside of Schöpfer's cutouts) stay as
-exported.
+look to `top` (the plywood faces, UV 0..1 over the top, or Schöpfer's white) and `edge` (both tops' cut sides: the
+plywood's plies, drawn by the stage – `editor/src/lib/stage/plywood.ts`); `steel` (the frame) and `drawer` (the inside
+of Schöpfer's cutouts) stay as exported. The edges' UVs: u runs along the edge (one texture repeat every
+`EDGE_REPEAT_MM`), v through the thickness, one stack of plies from 0 at the underside to 1 at the top surface (the
+glTF export flips v; a whole number of stacks doesn't mind) – the Eiermann board is one stack, Schöpfer's thick top
+three stacks glued on each other.
 """
 
 import os
@@ -37,6 +40,7 @@ TOP_WIDTH, TOP_DEPTH = 1800.0, 800.0                         # the stage's desks
 HEIGHT = 720.0                                               # floor to the top's surface
 FLOOR = -HEIGHT
 SEGMENTS = 8
+EDGE_REPEAT_MM = 250.0                                       # the plies' texture repeats every quarter metre along an edge
 
 # ── The Eiermann table ────────────────────────────────────────────────────────────────────────────────────────────
 E_TOP_THICKNESS = 18.0                                       # a Siebdruckplatte
@@ -48,11 +52,10 @@ E_UPPER_BAR = E_UNDERSIDE - 112.0                            # the upper cross t
 E_LOWER_BAR = FLOOR + 140.0                                  # the lower cross tube's axis above the floor
 E_LEG_TOP = E_UNDERSIDE - 55.0                               # the outer leg ends here, the inner tube shows above
 E_STRUT_LOWER_Y, E_STRUT_UPPER_Y = 254.0, -144.0             # where the struts meet the lower and the upper tubes
-E_EDGE_REPEAT_MM = 500.0                                     # the edge texture repeats every half metre
-E_EDGE_V = (0.46, 0.54)                                      # the slice of the texture across the thickness
 
 # ── Schöpfer's desk ───────────────────────────────────────────────────────────────────────────────────────────────
 S_TOP_THICKNESS = 60.0                                       # the thick white top
+S_EDGE_STACKS = 3                                            # its edge: three plywood boards of 20 mm on each other
 S_LEG_RADIUS = 8.0                                           # Ø 16 slender steel legs
 S_LEG_TOP_X, S_LEG_TOP_Y = 520.0, 350.0                      # where a leg meets the top (inside the corner)
 S_LEG_FOOT_X, S_LEG_FOOT_Y = 760.0, 560.0                    # where it stands (outside the top: splayed)
@@ -108,6 +111,17 @@ def mesh_object(name, bm, materials, smooth=False):
     return obj
 
 
+def edge_uv(co, normal, thickness, stacks=1):
+    """An edge's UV (mm): u along the edge, v through the thickness – 0 at the underside, `stacks` at the top"""
+    along = co.y if abs(normal.x) > 0.5 else co.x
+    return (along / EDGE_REPEAT_MM, (co.z + thickness) / thickness * stacks)
+
+
+def top_uv(co):
+    """The top's faces: UV 0..1 over the top"""
+    return (co.x / TOP_WIDTH + 0.5, co.y / TOP_DEPTH + 0.5)
+
+
 def slab(bm, width, depth, thickness):
     """A box whose upper surface is z = 0, centred on the origin"""
     bmesh.ops.create_cube(bm, size=1.0)
@@ -124,13 +138,11 @@ def build_eiermann():
         if abs(n.z) > 0.5:
             face.material_index = 0  # top: the stage's plywood map repeats over UV 0..1
             for loop in face.loops:
-                loop[uv_layer].uv = (loop.vert.co.x / TOP_WIDTH + 0.5, loop.vert.co.y / TOP_DEPTH + 0.5)
+                loop[uv_layer].uv = top_uv(loop.vert.co)
         else:
-            face.material_index = 1  # edge: the plies run along the edge
-            along = (lambda co: co.y) if abs(n.x) > 0.5 else (lambda co: co.x)
+            face.material_index = 1  # edge: the plies run along the edge, stacked through the thickness
             for loop in face.loops:
-                t = (loop.vert.co.z + E_TOP_THICKNESS) / E_TOP_THICKNESS
-                loop[uv_layer].uv = (along(loop.vert.co) / E_EDGE_REPEAT_MM, E_EDGE_V[0] + t * (E_EDGE_V[1] - E_EDGE_V[0]))
+                loop[uv_layer].uv = edge_uv(loop.vert.co, n, E_TOP_THICKNESS)
     top = mesh_object("Top", bm, (bpy.data.materials["top"], bpy.data.materials["edge"]))
 
     bm = bmesh.new()
@@ -152,7 +164,7 @@ def build_eiermann():
 def build_schoepfer():
     bm = bmesh.new()
     slab(bm, TOP_WIDTH, TOP_DEPTH, S_TOP_THICKNESS)
-    top = mesh_object("Top", bm, (bpy.data.materials["top"], bpy.data.materials["drawer"]))
+    top = mesh_object("Top", bm, (bpy.data.materials["top"], bpy.data.materials["drawer"], bpy.data.materials["edge"]))
     # The drawer cutouts: three boxes taken out of the front edge (a boolean, evaluated once and baked)
     bm = bmesh.new()
     for x in S_CUTOUT_X:
@@ -169,15 +181,25 @@ def build_schoepfer():
     top.data = evaluated
     bpy.data.meshes.remove(old)
     bpy.data.objects.remove(cutter)
-    for mat in (bpy.data.materials["top"], bpy.data.materials["drawer"]):
-        if mat.name not in evaluated.materials:
-            evaluated.materials.append(mat)
+    # The slots anew (the boolean leaves an empty one of the cutter's); every face is assigned below
+    evaluated.materials.clear()
+    for name in ("top", "drawer", "edge"):
+        evaluated.materials.append(bpy.data.materials[name])
+    index = {"top": 0, "drawer": 1, "edge": 2}
+    uv_layer = evaluated.uv_layers[0] if evaluated.uv_layers else evaluated.uv_layers.new(name="UVMap")
     for poly in evaluated.polygons:
         c = poly.center
         inside = any(abs(c.x - x) <= S_CUTOUT_WIDTH / 2 + 0.5 for x in S_CUTOUT_X)
         inside = inside and c.y <= -TOP_DEPTH / 2 + S_CUTOUT_DEPTH + 0.5 and S_CUTOUT_Z[0] - 0.5 <= c.z <= S_CUTOUT_Z[1] + 0.5
         front_face = c.y <= -TOP_DEPTH / 2 + 0.5
-        poly.material_index = 1 if inside and not front_face else 0
+        side = abs(poly.normal.z) < 0.5
+        if inside and not front_face:
+            poly.material_index = index["drawer"]
+        else:
+            poly.material_index = index["edge"] if side else index["top"]
+        for li in poly.loop_indices:
+            co = evaluated.vertices[evaluated.loops[li].vertex_index].co
+            uv_layer.data[li].uv = edge_uv(co, poly.normal, S_TOP_THICKNESS, S_EDGE_STACKS) if side else top_uv(co)
 
     bm = bmesh.new()
     for sx in (-1, 1):
@@ -192,7 +214,7 @@ def build_schoepfer():
 
 DESKS = {
     "desk-eiermann": (build_eiermann, {"top": ((0.23, 0.14, 0.09), 0.0, 0.5), "edge": ((0.78, 0.64, 0.46), 0.0, 0.7), "steel": ((0.16, 0.16, 0.17), 0.85, 0.4)}),
-    "desk-schoepfer": (build_schoepfer, {"top": ((0.92, 0.92, 0.9), 0.0, 0.6), "drawer": ((0.12, 0.12, 0.12), 0.0, 0.9), "steel": ((0.9, 0.9, 0.89), 0.3, 0.5)}),
+    "desk-schoepfer": (build_schoepfer, {"top": ((0.92, 0.92, 0.9), 0.0, 0.6), "edge": ((0.78, 0.64, 0.46), 0.0, 0.7), "drawer": ((0.12, 0.12, 0.12), 0.0, 0.9), "steel": ((0.9, 0.9, 0.89), 0.3, 0.5)}),
 }
 
 

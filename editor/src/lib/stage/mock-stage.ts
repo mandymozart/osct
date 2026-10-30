@@ -7,6 +7,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
 import { gridAreas, gridLines, type OriginId } from "./origin";
+import { plywoodEdgeTexture } from "./plywood";
 import { applyShading, ownMaterial } from "./shading";
 import type { DeskId, HdriId, ShadingMode } from "./preview";
 
@@ -18,11 +19,14 @@ import type { DeskId, HdriId, ShadingMode } from "./preview";
 const LAYER = 0.0005;
 /**
  * Colours. The Eiermann desk's top is a screen-printed plywood board (Siebdruckplatte): Poly Haven's plywood texture
- * tinted to the dark phenolic brown on the faces, roughness from its map; the cut edges show the plywood's plies
- * untinted. The cover is a white hardcover board.
+ * tinted to the dark phenolic brown on the faces, roughness from its map. Both desks' cut edges show the plywood's
+ * plies (`plywood.ts`, drawn in code), untinted and matt. The cover is a white hardcover board.
  */
 const DESK_TINT = 0x3b2416;
-const DESK_EDGE_TINT = 0xffffff;
+const DESK_EDGE_TINT = 0xc8c8c8;
+const DESK_EDGE_ROUGHNESS = 0.8;
+/** The plies in one stack of the edges' texture: the Eiermann board is one stack, Schöpfer's top three (the models' UVs) */
+const DESK_EDGE_PLIES = 7;
 const PAGE_COLOR = 0xf3efe6;
 const PAGE_EDGE_COLOR = 0xe6e1d6;
 const SPINE_COLOR = 0xd8d2c4;
@@ -65,13 +69,13 @@ function coverEdgeTexture(): CanvasTexture | null {
 /**
  * The desks (the Stage panel's choice): 1.8 × 0.8 m tops, 72 cm high – our own low-poly models, built by
  * `editor/tools/desk-eiermann.py` (`editor/static/models/README.md`). Each model's origin is the centre of the top's
- * upper surface; its material `top` (and the Eiermann top's `edge`) becomes the stage's own – the Eiermann top is
- * the screen-printed plywood (see below), Schöpfer's a white board – while `steel` and `drawer` stay as exported.
- * glTF is Y up: a model is turned so its up is the page's +z.
+ * upper surface; its materials `top` and `edge` (the top's cut sides) become the stage's own – the Eiermann top is
+ * the screen-printed plywood (see below), Schöpfer's a white board, both with the plies on their edges – while `steel`
+ * and `drawer` stay as exported. glTF is Y up: a model is turned so its up is the page's +z.
  */
 const DESK_MODELS: Record<DeskId, string> = { eiermann: "models/desk-eiermann.glb", schoepfer: "models/desk-schoepfer.glb" };
 const DESK_WHITE = 0xf2f2f0;
-/** The desk texture's files and how often it repeats across the top (the edges carry their own UVs, one repeat) */
+/** The desk texture's files and how often it repeats across the top (the edges have their own texture and UVs) */
 const DESK_DIFFUSE = "textures/plywood_diff_1k.jpg";
 const DESK_ROUGHNESS = "textures/plywood_rough_1k.jpg";
 const DESK_REPEAT = [3, 2] as const;
@@ -91,12 +95,10 @@ const SHARP_DISTANCE_MM = 500;
 const GRID_COLOR = 0x2d7ff9;
 const GRID_ZERO_COLOR = 0xe5484d;
 
-/** The plywood: repeated over the top, and once more as the edges' (their own repeat is in the model's UVs) */
+/** The Eiermann top's plywood faces, repeated over the top */
 interface DeskTextures {
   map: Texture;
   roughnessMap: Texture;
-  edgeMap: Texture;
-  edgeRoughnessMap: Texture;
 }
 
 /**
@@ -116,7 +118,9 @@ export class MockStage implements StageView {
   private models = new Map<DeskId, Group>();
   private loadingDesks = new Set<DeskId>();
   private topMaterial = new MeshStandardMaterial({ color: DESK_TINT, roughness: 0.5 });
-  private edgeMaterial = new MeshStandardMaterial({ color: DESK_EDGE_TINT, roughness: 0.7 });
+  private edgeMaterial = new MeshStandardMaterial({ color: DESK_EDGE_TINT, roughness: DESK_EDGE_ROUGHNESS });
+  /** The desk whose look the top's and the edges' materials show (none before the first) */
+  private lookOf: DeskId | null = null;
   private disposed = false;
   private book = new Group();
   private pages = new Group();
@@ -124,6 +128,8 @@ export class MockStage implements StageView {
   private loader = new TextureLoader();
   private layoutRun = 0;
   private desk: DeskTextures | null = null;
+  /** The edges' plies, drawn once on first use (both desks share it) */
+  private plies: Texture | null = null;
   /** The page format of the last layout (the ghost is placed on it) */
   private page: PageFormat = { width: 230, height: 320 };
   /** What the current spread is: the open book, or the closed book seen from the front or the back */
@@ -181,7 +187,7 @@ export class MockStage implements StageView {
 
   /** The desk under the book: its model (loaded once) into the desk's group, its top in its own look */
   setDesk(desk: DeskId): void {
-    if (this.deskId === desk) return;
+    if (this.deskId === desk && this.lookOf === desk) return;
     this.deskId = desk;
     this.showDesk();
     this.applyDeskLook();
@@ -226,27 +232,28 @@ export class MockStage implements StageView {
     });
   }
 
-  /** The top's look by desk: plywood with the plies on the edges, or Schöpfer's white */
+  /** The top's look by desk: the screen-printed plywood or Schöpfer's white; the edges show the plies on both */
   private applyDeskLook(): void {
+    this.lookOf = this.deskId;
     const top = this.topMaterial;
     const edge = this.edgeMaterial;
     if (this.deskId === "schoepfer") {
-      top.map = edge.map = null;
-      top.roughnessMap = edge.roughnessMap = null;
+      top.map = null;
+      top.roughnessMap = null;
       top.color.setHex(DESK_WHITE);
-      edge.color.setHex(DESK_WHITE);
-      top.roughness = edge.roughness = 0.6;
+      top.roughness = 0.6;
     } else {
       const desk = this.ensureDesk();
       top.map = desk.map;
       top.roughnessMap = desk.roughnessMap;
       top.color.setHex(DESK_TINT);
       top.roughness = 0.5;
-      edge.map = desk.edgeMap;
-      edge.roughnessMap = desk.edgeRoughnessMap;
-      edge.color.setHex(DESK_EDGE_TINT);
-      edge.roughness = 0.7;
     }
+    this.plies ??= plywoodEdgeTexture({ plies: DESK_EDGE_PLIES });
+    edge.map = this.plies;
+    edge.roughnessMap = null;
+    edge.color.setHex(DESK_EDGE_TINT);
+    edge.roughness = DESK_EDGE_ROUGHNESS;
     top.needsUpdate = true;
     edge.needsUpdate = true;
   }
@@ -618,8 +625,6 @@ export class MockStage implements StageView {
     this.desk = {
       map: load(DESK_DIFFUSE, true, DESK_REPEAT),
       roughnessMap: load(DESK_ROUGHNESS, false, DESK_REPEAT),
-      edgeMap: load(DESK_DIFFUSE, true, [1, 1]),
-      edgeRoughnessMap: load(DESK_ROUGHNESS, false, [1, 1]),
     };
     return this.desk;
   }
@@ -648,6 +653,8 @@ export class MockStage implements StageView {
     this.textures = [];
     if (this.desk) Object.values(this.desk).forEach(texture => texture.dispose());
     this.desk = null;
+    this.plies?.dispose();
+    this.plies = null;
     this.hdris.forEach(texture => texture.dispose());
     this.hdris.clear();
     if (this.sky) {
