@@ -22,21 +22,61 @@ describe("mock stage: the grid", () => {
     const { stage } = newStage();
     stage.setLayout([], page, null, book);
     expect(gridOf(stage)).toHaveLength(0);
-    stage.setGrid({ on: true, mm: 10, origin: "top-left" });
+    stage.setGrid({ on: true, mm: 10, origin: "top-left", axis: false });
     const [lines, zeros] = gridOf(stage);
     // per page 23 vertical (x = 10 … 230) + 32 horizontal lines, two points each; the zero lines are separate
     expect(lines.geometry.getAttribute("position").count).toBe(2 * 2 * (23 + 32));
     expect(zeros.geometry.getAttribute("position").count).toBe(2 * 2 * 2);
-    stage.setGrid({ on: false, mm: 10, origin: "top-left" });
+    expect(gridOf(stage)).toHaveLength(2);
+    stage.setGrid({ on: false, mm: 10, origin: "top-left", axis: true });
     expect(gridOf(stage)).toHaveLength(0);
   });
 
   it("counts both pages as one grid from the book's centre", () => {
     const { stage } = newStage();
     stage.setLayout([], page, null, book);
-    stage.setGrid({ on: true, mm: 10, origin: "centre" });
+    stage.setGrid({ on: true, mm: 10, origin: "centre", axis: false });
     const [, zeros] = gridOf(stage);
     expect(zeros.geometry.getAttribute("position").count).toBe(2 * 2);
+  });
+
+  it("raises the vertical axis from each zero, out of the page, only with the grid (#190)", () => {
+    const { stage } = newStage();
+    stage.setLayout([], page, null, book);
+    stage.setGrid({ on: false, mm: 10, origin: "centre", axis: true });
+    expect(gridOf(stage)).toHaveLength(0);
+    stage.setGrid({ on: true, mm: 10, origin: "centre", axis: true });
+    const [, , vertical] = gridOf(stage);
+    const position = vertical.geometry.getAttribute("position");
+    // one line from the book's centre (the spine's middle) up along z
+    expect(position.count).toBe(2);
+    expect([position.getX(0), position.getY(0), position.getX(1), position.getY(1)]).toEqual([0, 0, 0, 0]);
+    expect(position.getZ(1)).toBeCloseTo(0.15);
+    // a corner origin: one per page, at each page's top left corner
+    stage.setGrid({ on: true, mm: 10, origin: "top-left", axis: true });
+    const corners = gridOf(stage)[2].geometry.getAttribute("position");
+    expect(corners.count).toBe(4);
+    expect([corners.getX(0), corners.getY(0)].map(v => +v.toFixed(3))).toEqual([-0.23, 0.16]);
+    expect([corners.getX(2), corners.getY(2)].map(v => +v.toFixed(3))).toEqual([0, 0.16]);
+  });
+});
+
+describe("mock stage: the snap guides (#190)", () => {
+  const guidesOf = (stage: MockStage) => (stage as unknown as { guideGroup: { children: LineSegments[] } }).guideGroup.children;
+
+  it("draws a line across the spread per guide, through everything, and clears them", () => {
+    const { stage } = newStage();
+    stage.setLayout([], page, null, book);
+    stage.setGuides([{ axis: 0, at: 0 }, { axis: 1, at: 160 }, { axis: 2, at: 0 }]);
+    const [lines] = guidesOf(stage);
+    const position = lines.geometry.getAttribute("position");
+    // x and y only: the height has no line on the page
+    expect(position.count).toBe(4);
+    expect([position.getY(0), position.getY(1)].map(v => +v.toFixed(3))).toEqual([-0.18, 0.18]);
+    expect([position.getX(2), position.getX(3), position.getY(2)].map(v => +v.toFixed(3))).toEqual([-0.25, 0.25, 0.16]);
+    expect((lines.material as { depthTest: boolean }).depthTest).toBe(false);
+    stage.setGuides([]);
+    expect(guidesOf(stage)).toHaveLength(0);
   });
 });
 

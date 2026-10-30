@@ -5,12 +5,14 @@
  * - `active`: the editor page is open – `ArScene` builds the mock tracker instead of the engine (a change while the
  *   scene exists rebuilds it). Not stored: the route decides.
  * - The settings the preview panel changes, stored on this device (`osct-preview`): the view preset or a free orbit,
- *   the sky (an HDRI), the desk, the hand-shake amount.
+ *   the sky (an HDRI), the desk, the hand-shake amount, the grid and its vertical axis, and the snapping (the toolbar's
+ *   *grid & snap* group: on / off, what it snaps to, the precision per gizmo mode – `snap.ts`).
  * - `hidden`: targets switched off in the panel – the mock reports them as lost (outro), on again as found (reveal).
  *   Not stored.
  */
 
 import { isOriginId, type OriginId } from "./origin";
+import { clampSnap, SNAP_TARGETS, type SnapTarget } from "./snap";
 
 export const PREVIEW_VIEWS = ["reader", "top", "low", "far"] as const;
 export type PreviewView = (typeof PREVIEW_VIEWS)[number];
@@ -39,9 +41,12 @@ export const DESKS = [
 export type DeskId = (typeof DESKS)[number]["id"];
 export const isDeskId = (value: unknown): value is DeskId => DESKS.some(d => d.id === value);
 
-/** The Stage panel's *stage* section closed, in a few words: the desk and the grid – "Eiermann · grid off", "Schöpfer · grid 10 mm" */
-export const stageSummary = (settings: Pick<PreviewSettings, "desk" | "grid" | "gridMm">): string =>
-  `${DESKS.find(d => d.id === settings.desk)?.name ?? settings.desk} · ${settings.grid ? `grid ${settings.gridMm} mm` : "grid off"}`;
+/**
+ * The Stage panel's *stage* section closed, in a few words: the desk, the grid and snapping while it is on –
+ * "Eiermann · grid off", "Schöpfer · grid 10 mm · snap on"
+ */
+export const stageSummary = (settings: Pick<PreviewSettings, "desk" | "grid" | "gridMm"> & Partial<Pick<PreviewSettings, "snap">>): string =>
+  `${DESKS.find(d => d.id === settings.desk)?.name ?? settings.desk} · ${settings.grid ? `grid ${settings.gridMm} mm` : "grid off"}${settings.snap ? " · snap on" : ""}`;
 
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
 export interface PreviewOrbit {
@@ -71,6 +76,16 @@ export interface PreviewSettings {
   grid: boolean;
   gridMm: number;
   origin: OriginId;
+  /** The vertical axis: a line for the height through the origin, shown with the grid */
+  axis: boolean;
+  /** The gizmo and the placement handles snap (Shift or Ctrl held turns it around for a drag) */
+  snap: boolean;
+  /** What a move snaps to */
+  snapTo: SnapTarget[];
+  /** The precision per mode: the move's step when the grid is no snap target (mm), the rotation's (degrees), the scale's */
+  snapMove: number;
+  snapRotate: number;
+  snapScale: number;
 }
 
 export interface PreviewState extends PreviewSettings {
@@ -80,15 +95,20 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", desk: "eiermann", wobble: 0, grid: false, gridMm: 10, origin: "top-left" };
+const DEFAULTS: PreviewSettings = {
+  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", desk: "eiermann", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
+  axis: true, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
+};
 
 /** The grid's spacing stays between 1 mm and the page's size */
 export const clampGrid = (mm: number): number => Math.min(500, Math.max(1, mm));
 
+const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
 const readSettings = (): PreviewSettings => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
     const stored = JSON.parse(raw) as Partial<PreviewSettings>;
     return {
       view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
@@ -100,9 +120,15 @@ const readSettings = (): PreviewSettings => {
       grid: stored.grid === true,
       gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,
       origin: isOriginId(stored.origin) ? stored.origin : DEFAULTS.origin,
+      axis: typeof stored.axis === "boolean" ? stored.axis : DEFAULTS.axis,
+      snap: stored.snap === true,
+      snapTo: Array.isArray(stored.snapTo) ? SNAP_TARGETS.filter(target => (stored.snapTo as unknown[]).includes(target)) : [...DEFAULTS.snapTo],
+      snapMove: finite(stored.snapMove) ? clampSnap("move", stored.snapMove) : DEFAULTS.snapMove,
+      snapRotate: finite(stored.snapRotate) ? clampSnap("rotate", stored.snapRotate) : DEFAULTS.snapRotate,
+      snapScale: finite(stored.snapScale) ? clampSnap("scale", stored.snapScale) : DEFAULTS.snapScale,
     };
   } catch {
-    return { ...DEFAULTS };
+    return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
   }
 };
 

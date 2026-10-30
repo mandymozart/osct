@@ -22,7 +22,8 @@ import { plugins } from "#lib/plugins.svelte.js";
 import { setPreviewActive, setTargetHidden } from "./preview";
 import type { PrintPlacement } from "#lib/api.js";
 import { nearPointer, nodeOf, pickable, pickByMode, pickForMenu, samePick, type PickMode, type StageHit, type StagePick } from "./pick";
-import { DEFAULT_ASPECT, draggedPlace, grabOffset, type PlacementDrag } from "./placement";
+import { DEFAULT_ASPECT, draggedPlace, grabOffset, printedHeight, type PlacementDrag } from "./placement";
+import { SceneSnapper } from "./snap-scene";
 
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
 const REPLAY_GAP_MS = 900;
@@ -105,6 +106,22 @@ export class Stage {
   overrides = new SvelteMap<string, EntityData>();
   private replayTimer = 0;
   private cleanups: Array<() => void> = [];
+  /** Shift or Ctrl is held: snapping is turned around for the drag */
+  private snapModifier = false;
+  /** The gizmo's and the placement handles' snapping (the toolbar's *grid & snap*) */
+  private snapper = new SceneSnapper({
+    frame: () => this.tracker?.stageFrame() ?? null,
+    stageFrame: () => ({ page: this.pageFormat(), format: this.format() }),
+    settings: () => getPreview(),
+    modifier: () => this.snapModifier,
+    objects: () => this.nodeObjects(),
+    prints: () => this.tracker?.printedBoxes() ?? [],
+    view: () => {
+      const inspection = this.scene.inspect();
+      return inspection ? { camera: inspection.camera, height: this.container.clientHeight } : null;
+    },
+    guides: guides => this.tracker?.setGuides(guides),
+  });
 
   constructor(container: HTMLElement) {
     setPreviewActive(true);
@@ -396,7 +413,7 @@ export class Stage {
       const node = base && nodeAt(base, selection.path);
       if (!base || !node) return;
       this.override(selection.targetId, withNode(base, selection.path, { ...node, params: { ...node.params, ...placement } }));
-    });
+    }, this.snapper);
     this.gizmo.mode = this.wantedMode;
     this.gizmo.select(this.visibleSelection());
     this.lightHelpers = new LightHelpers(inspection, () => {
@@ -455,9 +472,24 @@ export class Stage {
     if (this.gizmo) this.gizmo.mode = mode;
   }
 
-  /** Ctrl held: the gizmo snaps */
-  setSnap(on: boolean): void {
-    this.gizmo?.snap(on);
+  /** Shift or Ctrl held (true) or let go: snapping is turned around while it is held */
+  setSnapModifier(held: boolean): void {
+    this.snapModifier = held;
+  }
+
+  /** Every node object of the spread's entities (shown or not), with its target – what a move may snap to */
+  private nodeObjects(): Array<{ targetId: string; object: Object3D }> {
+    const inspection = this.scene.inspect();
+    const spread = this.spreadId;
+    if (!inspection || !spread) return [];
+    return getTargets(spread).flatMap(target => {
+      const tree = this.treeOf(target.id);
+      if (!tree) return [];
+      return entityNodes(tree).flatMap(({ path }) => {
+        const object = inspection.nodeObject(target.id, path);
+        return object ? [{ targetId: target.id, object }] : [];
+      });
+    });
   }
 
   overrideOf(targetId: string): EntityData | undefined {
@@ -580,7 +612,10 @@ export class Stage {
     }
     const hit = this.pageAt(event.clientX, event.clientY);
     if (!hit) return;
-    const next = draggedPlace(this.ghostPlace, this.ghostDrag, hit, this.pageFormat());
+    const dragged = draggedPlace(this.ghostPlace, this.ghostDrag, hit, this.pageFormat());
+    const id = this.ghostPlace.targetId ?? null;
+    const height = printedHeight(dragged, id ? this.tracker?.printedAspect(id) : undefined);
+    const next = this.snapper.place(id, dragged, height, this.ghostDrag.kind, event.shiftKey || event.ctrlKey);
     this.ghost(next);
     this.onGhostChange?.({ surface: next.surface, x: next.x, y: next.y, width: next.width, ...(next.height !== undefined ? { height: next.height } : {}) });
     event.preventDefault();
@@ -589,6 +624,7 @@ export class Stage {
   private onGhostPointerUp = (): void => {
     if (!this.ghostDrag) return;
     this.ghostDrag = null;
+    this.snapper.end();
     this.container.style.cursor = "";
   };
 

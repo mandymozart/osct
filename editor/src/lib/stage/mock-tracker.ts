@@ -7,7 +7,7 @@ import { fetchStageLayout, type LayoutSheet, printedPlaceOf, sheetForSpread, she
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
-import { type LivePlacement, type PrintBox, printCentre, surfaceLeft, withLivePlacement } from "./placement";
+import { type LivePlacement, type PrintBox, printCentre, printedHeight, surfaceLeft, withLivePlacement } from "./placement";
 
 export { surfaceLeft };
 
@@ -92,7 +92,7 @@ const DEFAULT_PRINT_MM = 60;
 const PAGE_MARGIN_MM = 20;
 const ROW_GAP_MM = 25;
 
-const gridOf = (state: PreviewState) => ({ on: state.grid, mm: state.gridMm, origin: state.origin });
+const gridOf = (state: PreviewState) => ({ on: state.grid, mm: state.gridMm, origin: state.origin, axis: state.axis });
 
 const degrees = (value: number) => (value * Math.PI) / 180;
 
@@ -220,8 +220,12 @@ export interface StageView {
   printedAspect?(targetId: string): number | undefined;
   /** The printed images on the page, each with `userData.targetId` (picking a target by its print) */
   printedPlanes?(): Object3D[];
-  /** The grid over the page: spacing in mm, counted from the origin */
-  setGrid?(grid: { on: boolean; mm: number; origin: PreviewState["origin"] }): void;
+  /** The grid over the page: spacing in mm, counted from the origin, and its vertical axis */
+  setGrid?(grid: { on: boolean; mm: number; origin: PreviewState["origin"]; axis: boolean }): void;
+  /** The lines a drag snapped to (mm of the stage frame), drawn while it lasts; empty = none */
+  setGuides?(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void;
+  /** The stage's frame (metres, origin in the middle of the book, z out of the page) */
+  frame?(): Object3D;
   /** The camera's distance from the page (mm), every frame: close up the sheet's sharper image is fetched */
   setDetail?(distanceMm: number): void;
   /** The viewport's shading: the sky and the HDRI's light show only while rendered */
@@ -311,6 +315,21 @@ export class MockTracker implements IImageTracker {
   /** A printed image's height per width once its image has loaded */
   printedAspect(targetId: string): number | undefined {
     return this.stage?.printedAspect?.(targetId);
+  }
+
+  /** Every printed target where it lies now (a placement being edited included), with its printed height (mm) */
+  printedBoxes(): Array<{ id: string; place: StageTarget; height: number }> {
+    return this.targets.map(target => ({ id: target.id, place: target, height: printedHeight(target, this.printedAspect(target.id)) }));
+  }
+
+  /** The stage's frame (null before the stage is attached) */
+  stageFrame(): Object3D | null {
+    return this.stage?.frame?.() ?? null;
+  }
+
+  /** Draw the lines a drag snapped to (mm of the stage frame); empty = none */
+  setGuides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void {
+    this.stage?.setGuides?.(guides);
   }
 
   /**
@@ -550,7 +569,9 @@ export class MockTracker implements IImageTracker {
     if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
     if (initial || state.hdri !== previous.hdri) this.stage?.setHdri(state.hdri);
     if (initial || state.desk !== previous.desk) this.stage?.setDesk?.(state.desk);
-    if (initial || state.grid !== previous.grid || state.gridMm !== previous.gridMm || state.origin !== previous.origin) this.stage?.setGrid?.(gridOf(state));
+    if (initial || state.grid !== previous.grid || state.gridMm !== previous.gridMm || state.origin !== previous.origin || state.axis !== previous.axis) {
+      this.stage?.setGrid?.(gridOf(state));
+    }
     if (state.hidden !== previous.hidden) this.publishState();
   }
 
