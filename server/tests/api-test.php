@@ -548,6 +548,18 @@ try {
     check($status === 400 && $data['error']['code'] === 'unknown-entity', 'a ref to no entity → 400 unknown-entity');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/import', ['source' => 'cdn'], $editor);
     check($status === 400 && $data['error']['code'] === 'no-content-base', 'source cdn without CONTENT_BASE_URL → 400');
+    // #204: the rows go under the path's id, the configuration keeps its own book.id – the two must agree
+    [, $before] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    [$status, $data] = importing($api, 'other', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 400 && $data['error']['code'] === 'invalid-configuration' && str_contains($data['error']['message'], '"osct"') && str_contains($data['error']['message'], '"other"'),
+        '#204: a configuration of book osct imported as other → 400 invalid-configuration naming both ids');
+    [$status] = call($api, 'GET', '/editor/books/other', null, $editor);
+    [, $after] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 404 && $after === $before, '… nothing imported under either id');
+    $badId = $configuration;
+    $badId['book']['id'] = 'My Book';
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $badId, 'files' => $files], $flags));
+    check($status === 400 && $data['error']['code'] === 'invalid-id', '#204: a book.id that is no id → 400 invalid-id');
 
     echo "editor: tree, entities\n";
     [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
@@ -761,6 +773,10 @@ try {
     $fresh['book']['id'] = 'fresh';
     [$status, $data] = $preview($api, ['configuration' => $fresh]);
     check($status === 200 && $data['incoming']['book'] === 'fresh' && $data['existing'] === null, 'a book that is not here: existing null');
+    $badId = $configuration;
+    $badId['book']['id'] = 'My Book';
+    [$status, $data] = $preview($api, ['configuration' => $badId]);
+    check($status === 400 && $data['error']['code'] === 'invalid-id', '#204: the preview refuses a book.id the import would refuse');
     [$status] = call($api, 'GET', '/editor/books/fresh', null, $editor);
     check($status === 404, '… and still not here');
     [$status, $data] = $preview($api, ['configuration' => ['version' => $configuration['version'], 'book' => ['title' => 'No id', 'author' => 'x']]]);
@@ -1005,6 +1021,15 @@ try {
     $file = file_get_contents($asset['url']);
     check($file === $png, 'the file is served by the content route');
     check(in_array('Content-Type: image/png', $http_response_header, true) && in_array('Access-Control-Allow-Origin: *', $http_response_header, true), 'with its type and open CORS');
+    // #205: every book id the editor accepts (Editor::ID: capitals, _) has its uploads served by the local store
+    $mixed = $configuration;
+    $mixed['book']['id'] = 'My_Book';
+    [$status] = importing($api, 'My_Book', $editor, json_encode(['configuration' => $mixed], $flags));
+    [$uploaded, $data] = upload($api, 'POST', '/editor/books/My_Book/assets', $png, 'dot.png', $editor);
+    $mixedUrl = $data['asset']['url'] ?? '';
+    check($status === 200 && in_array($uploaded, [200, 201], true) && str_starts_with($mixedUrl, "$api/content/assets/My_Book/"), '#205: an upload to book My_Book on the directory store');
+    $file = @file_get_contents($mixedUrl);
+    check($file === $png && str_ends_with($http_response_header[0] ?? '', '200 OK') && in_array('Content-Type: image/png', $http_response_header, true), '… is served: GET answers 200 with the file');
     [$status, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
     check($status === 200 && count($data['assets']) === 3 && $data['assets'][0]['id'] === $asset['id'] && $data['assets'][0]['usages'] === 0 && $data['assets'][0]['imported'] === false, 'the list: the upload, unused, first');
     $imported = array_values(array_filter($data['assets'], fn($a) => $a['imported']));

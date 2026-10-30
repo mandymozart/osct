@@ -113,11 +113,11 @@ final class Config
         return $limit < 0 ? PHP_INT_MAX : $limit;
     }
 
-    /** This instance's environment (`ENV`): lower-case letters, digits and hyphens, else `local` */
+    /** This instance's environment (`ENV`): an environment name (`ContentStore::ENV_NAME`), else `local` */
     public static function env(): string
     {
         $env = strtolower(trim(self::get('ENV')));
-        return preg_match('/^[a-z0-9][a-z0-9-]{0,31}$/', $env) ? $env : 'local';
+        return preg_match(ContentStore::ENV_NAME, $env) ? $env : 'local';
     }
 
     /** @return string[] */

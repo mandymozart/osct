@@ -216,7 +216,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       description:
         "Replaces a book's content rows from a game configuration (the content build's game.config.json): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the book exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new book is imported at once. To tell the person first which book and build would come in (the CDN's book id among it), call preview_import.",
       inputSchema: z.object({
-        book: BOOK,
+        book: ID.describe("the configuration's own book.id (preview_import's incoming.book) – another id is refused (400 invalid-configuration)"),
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
         assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against"),

@@ -17,8 +17,13 @@ final class ContentStore
     /** The environments every instance knows (what is live there shows in the editor) – plus its own, `environments()` */
     public const ENVIRONMENTS = ['staging', 'production'];
 
-    /** An environment's name, as the osct CLI accepts it */
-    public const ENV_NAME = '/^[a-z][a-z0-9-]{0,31}$/';
+    /**
+     * An environment's name – the one rule of the instance's ENV, a publish's env, the content route and the osct CLI
+     * (scripts/src/lib/content-sync.ts `ENV_NAME`, which a scripts test compares with this): lower-case letters, digits
+     * and -, a letter first, at most 32
+     */
+    public const ENV = '[a-z][a-z0-9-]{0,31}';
+    public const ENV_NAME = '/^' . self::ENV . '$/';
 
     /** The editor's line wherever the directory store is the publish target (#183) */
     public const SERVER_WARNING = 'No CDN connected – the published content is stored and served by this server only. Readers load from here without edge caching; heavy media goes through this server. Back up the content store.';
@@ -28,8 +33,8 @@ final class ContentStore
 
     /** The files below an environment that the local store serves (nothing else, no other folders) */
     private const SERVED = '#^(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files)\.json)$#';
-    /** The assets' files (Assets.php): `<book>/<asset>/v<n>.<ext>` under the `assets` environment */
-    private const SERVED_ASSET = '#^[a-z0-9][a-z0-9-]{0,63}/[0-9a-f-]{36}/v\d+\.([a-z0-9]{2,5})$#';
+    /** The assets' files (Assets.php): `<book>/<asset>/v<n>.<ext>` under the `assets` environment – any book id (`Editor::ID`) */
+    private const SERVED_ASSET = '#^' . Editor::ID . '/[0-9a-f-]{36}/v\d+\.([a-z0-9]{2,5})$#';
 
     private function __construct(private readonly string $kind, private readonly string $env)
     {
