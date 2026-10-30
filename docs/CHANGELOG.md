@@ -12,6 +12,27 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.46.0 – 2026-10-30
+
+### Added
+- **The import says what it imports** (#182): before anything is imported, *Import a book…* shows what comes in –
+  where from (the content base), the current build from its `latest.json` (id, when it was built and became current,
+  the app and content schema version) and the one book in it: title, id, spreads, entries, targets. The button names it:
+  *Import 1 book: The Demo Book (build 7457f0c…)*. *The CDN* no longer asks for a book id – it comes from the
+  configuration. A URL (a content base or a `game.config.json`) and a file get the same preview.
+- When a draft with that id is already here, the form says so before importing: that the import replaces it, and how
+  many of its edits since its import are lost (unpublished, unless the draft as it is now is live). The version
+  comparison and its confirmation in the page follow as before.
+- When the CDN or the URL cannot be read, or its `latest.json` names no build, the form says so with the URL, and
+  *Try again*.
+- `POST /api/editor/import/preview` (the import's body, nothing imported): the content base and its `latest.json`, the
+  incoming book and build, what it holds, and the draft of that id it would replace (the import's comparison). The MCP
+  server's new read-only tool `preview_import` answers the same, so an agent can tell the person what an import would
+  bring in.
+
+### Changed
+- `502 content-fetch-failed` of the import names the failing address in `url` as well as in the message.
+
 ## 1.45.0 – 2026-10-30
 
 ### Changed

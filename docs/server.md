@@ -75,7 +75,8 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 |---|---|---|
 | `GET /editor/books` | | `{ books: [{ id, title, author, book, initialSpreadId, schema, assetsBase, importedHash, spreads, createdAt, updatedAt, lastPublish, live }], environments }` – `lastPublish` `{ env, build, at }` or null; `live` = the environments serving the book `[{ env, build, since }]` (empty: draft only, the tree's `book` has it too); `environments` = what each environment serves `[{ env, book, build, since }]` (`book` null when it cannot be told), `{ env, error }` when its store cannot be read – only environments that serve something |
 | `GET /editor/environments` | | `{ env, environments: [{ env, store, publish, url, warning }] }` – this instance's environment (`ENV`, the only one it publishes to) first, then `staging` and `production` (`local` only where `ENV` is local); `store` = `cdn` (the storage zone) or `server` (the directory store this API serves); `publish` true for the own one only; `url` = where readers load it; `warning` = the line the editor shows wherever the directory store is the publish target, else null – [One environment per instance](#one-environment-per-instance) |
-| `POST /editor/books/{id}/import` | `{ configuration, files?, assetsBase?, confirm? }` or `{ source: "cdn", confirm? }` | `{ book, counts, draft: { build, hash }, imported }` – replaces the book's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json`, `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `CONTENT_BASE_URL`; `imported` = what the draft is now based on. **Over a book that exists, two steps** ([Import with a version comparison](#import-with-a-version-comparison)): without `confirm` 409 `confirm-import` with `comparison` and `confirmation` `{ id, expiresAt }`, nothing written; with `confirm` the import; a confirmation that is expired, someone else's or outdated 409 `confirmation-void` (a new comparison with it). 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` |
+| `POST /editor/import/preview` | `{ configuration, files?, assetsBase? }` or `{ source: "cdn" }` (the import's body) | `{ source, contentBase, manifest, incoming, counts, existing }` – what that import would bring in, **nothing imported** ([Import preview](#import-preview)). The import's access (AI connections too); 400 as the import (`invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id` – also for a configuration without `book.id`, `no-content-base`); 413 `body-too-large`; 502 `content-fetch-failed` with the failing `url` |
+| `POST /editor/books/{id}/import` | `{ configuration, files?, assetsBase?, confirm? }` or `{ source: "cdn", confirm? }` | `{ book, counts, draft: { build, hash }, imported }` – replaces the book's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json`, `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `CONTENT_BASE_URL`; `imported` = what the draft is now based on. **Over a book that exists, two steps** ([Import with a version comparison](#import-with-a-version-comparison)): without `confirm` 409 `confirm-import` with `comparison` and `confirmation` `{ id, expiresAt }`, nothing written; with `confirm` the import; a confirmation that is expired, someone else's or outdated 409 `confirmation-void` (a new comparison with it). 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` (with the failing `url`) |
 | `GET /editor/books/{id}` | | `{ book, spreads: [{ …SpreadData, entries: [{ id, category, title, page, target }] }], unassigned }` – the tree; `target` = the entry's TargetData (id, imageSrc, entity inline or `{ ref }`) or null; `unassigned` = entries whose page is in no spread |
 | `GET /editor/books/{id}/entities` | | `{ entities: { ref: EntityData } }` – the shared entities |
 | `PUT /editor/books/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in a book with plugins – "Plugin sources"), no `assets` list |
@@ -302,6 +303,26 @@ of an instance without a CDN – the answer carries the warning the editor shows
 step: *"No CDN connected – the published content is stored and served by this server only. Readers load from here
 without edge caching; heavy media goes through this server. Back up the content store."* (`ContentStore::SERVER_WARNING`).
 `local` appears only where `ENV` is local; the book list reads what is live on the instance's environments the same way.
+
+### Import preview
+
+Before anything is imported, the editor and the MCP server ask what an import would bring in:
+`POST /editor/import/preview` takes the import's body – a configuration (with `files`, `assetsBase`) or
+`{ source: "cdn" }` – checks it as the import does (the same 400s) and writes nothing. For the CDN it reads the
+instance's content base (`CONTENT_BASE_URL`), its `latest.json` and the current build's `game.config.json`, as the
+import will. The answer:
+
+- `source` – `cdn` or `configuration`; `contentBase` and `manifest` `{ url, build, activatedAt }` – the content base and
+  what its `latest.json` says (null for a configuration: a form that read a content base itself fills them in);
+- `incoming` – as in the comparison below (`book`, `title`, `build`, `hash`, `date`, `appVersion`, `schema`, `source`,
+  `from`); the book's id comes from the configuration (`book.id`), so the CDN needs no id from the person;
+- `counts` `{ spreads, entries, targets, entities }`;
+- `existing` – the comparison the import would answer for the draft of that id (below, without a confirmation), null
+  for a new book.
+
+A content base that cannot be read, or whose `latest.json` names no build, answers 502 `content-fetch-failed` with the
+`url` that failed. The import itself does not depend on a preview: it reads the source again, and over a book that
+exists its own comparison and confirmation decide.
 
 ### Import with a version comparison
 

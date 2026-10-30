@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The import's preview (#182)
+
+- Tilman: "The import from CDN dialog is still confusing, since it doesn't say how many books it imports." – the form
+  shows what comes in before anything is imported (content base, build from `latest.json`, the one book with its
+  counts) and the button names it; a draft of that id is announced as replaced with its edits lost, then the #183
+  comparison and confirmation run as before (no second confirmation).
+- One endpoint, the import's own body: `POST /editor/import/preview` (not `GET …?source=`) – the CDN's preview needs
+  the server (only it knows `CONTENT_BASE_URL`), and a configuration the browser read is checked exactly as the import
+  will check it (parse, entities, plugins), so an invalid configuration fails in the preview, not at the import.
+- No server-side fetch of an arbitrary URL (`source=url&base=…` was considered): the browser already reads a content
+  base (the CDN allows it), and a server that fetches any address an editor types is a request-forgery path. A URL that
+  does not allow the page to read it shows that error with its address; *the CDN* stays the server's.
+- The CDN tab's book-id field (#183) is gone, no fallback: the import refuses a configuration without `book.id`
+  (`parse`), so there is no id to fall back to. The import is still keyed by the path id the form takes from the preview.
+- The import does not check that the build it fetches is the one previewed (an optional `build` in the body would);
+  the CDN moving between preview and import is rare, and over an existing book the comparison shows the build that
+  really comes in.
+
 ## 2026-10-30 – Panels' first divider and defaults; the post-processing level in words (#193, #181)
 
 - **The book's master chain stays in the Stage tab's post-processing** (#181 asked to consider moving it to the book

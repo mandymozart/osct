@@ -742,6 +742,58 @@ try {
         'after the import: no edits since, the same build comes in');
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'back to the first configuration (both steps)');
+
+    echo "editor: the import's preview (#182)\n";
+    $preview = fn(string $base, array $body) => call($base, 'POST', '/editor/import/preview', null, $editor, 'http://localhost:5173', json_encode($body, $flags));
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    [$status, $data] = $preview($api, ['configuration' => $incoming, 'files' => $files, 'assetsBase' => 'https://cdn.example/x/']);
+    check($status === 200 && $data['source'] === 'configuration' && $data['contentBase'] === null && $data['manifest'] === null
+        && $data['incoming']['book'] === 'osct' && $data['incoming']['title'] === 'Test Book' && $data['incoming']['build'] === 'cdcdcdcdcdcd' && $data['incoming']['appVersion'] === '1.42.0'
+        && $data['incoming']['from'] === 'https://cdn.example/x' && !isset($data['incoming']['digest']),
+        'preview of a configuration: the book, its build, app version and assets base');
+    check(($data['counts'] ?? null) === ['spreads' => 2, 'entries' => 4, 'targets' => 2, 'entities' => 1], '… the spreads, entries, targets and entities it holds');
+    check(($data['existing']['book'] ?? null) === ['id' => 'osct', 'title' => 'Test Book'] && $data['existing']['draft']['basedOn']['build'] === 'abababababab' && $data['existing']['draft']['edits'] === 0
+        && $data['existing']['same'] === false && !isset($data['existing']['confirmation']),
+        '… and the draft of that id it would replace, as the import\'s comparison (no confirmation)');
+    [, $after] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($after === $tree, 'the preview imports nothing');
+    $fresh = $configuration;
+    $fresh['book']['id'] = 'fresh';
+    [$status, $data] = $preview($api, ['configuration' => $fresh]);
+    check($status === 200 && $data['incoming']['book'] === 'fresh' && $data['existing'] === null, 'a book that is not here: existing null');
+    [$status] = call($api, 'GET', '/editor/books/fresh', null, $editor);
+    check($status === 404, '… and still not here');
+    [$status, $data] = $preview($api, ['configuration' => ['version' => $configuration['version'], 'book' => ['title' => 'No id', 'author' => 'x']]]);
+    check($status === 400 && $data['error']['code'] === 'invalid-id', 'a configuration without book.id → 400 invalid-id');
+    $bad = $configuration;
+    $bad['entities']['castle']['type'] = 'hologram';
+    [$status, $data] = $preview($api, ['configuration' => $bad]);
+    check($status === 400 && $data['error']['code'] === 'invalid-entity', 'checked as the import checks it: an unknown entity type → 400');
+    [$status, $data] = $preview($api, ['source' => 'cdn']);
+    check($status === 400 && $data['error']['code'] === 'no-content-base', 'source cdn without CONTENT_BASE_URL → 400 no-content-base');
+    [$status] = call($api, 'POST', '/editor/import/preview', ['source' => 'cdn']);
+    check($status === 401, 'without a token → 401');
+    // An instance whose content base is what the first one published to local (one request at a time per PHP server)
+    [, $latest] = call($api, 'GET', '/content/local/latest.json');
+    $cdnApi = startApi(['CONTENT_BASE_URL' => "$api/content/local/"] + $settings);
+    [$status, $data] = $preview($cdnApi, ['source' => 'cdn']);
+    check($status === 200 && $data['source'] === 'cdn' && $data['contentBase'] === "$api/content/local" && $data['manifest']['url'] === "$api/content/local/latest.json"
+        && $data['manifest']['build'] === $latest['build'] && $data['manifest']['activatedAt'] === $latest['activatedAt'] && $data['incoming']['source'] === 'cdn'
+        && $data['incoming']['from'] === "$api/content/local/{$latest['build']}" && $data['incoming']['book'] === 'osct' && $data['existing']['book']['id'] === 'osct',
+        'preview of the CDN: the content base, its latest.json (build, activated), the book in it and the draft it replaces');
+    [$status, $data] = call($cdnApi, 'POST', '/editor/books/osct/import', ['source' => 'cdn'], $editor);
+    check($status === 409 && $data['error']['code'] === 'confirm-import' && $data['error']['comparison']['incoming']['from'] === "$api/content/local/{$latest['build']}",
+        '… and the import of the CDN then answers with the comparison as before');
+    $missing = startApi(['CONTENT_BASE_URL' => "$api/content/nowhere"] + $settings);
+    [$status, $data] = $preview($missing, ['source' => 'cdn']);
+    check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/nowhere/latest.json" && str_contains($data['error']['message'], "$api/content/nowhere/latest.json answered 404"),
+        'a content base without latest.json → 502 content-fetch-failed with the URL');
+    $withBuild = file_get_contents("$storeDir/local/latest.json");
+    file_put_contents("$storeDir/local/latest.json", json_encode(['book' => 'osct']));
+    [$status, $data] = $preview($cdnApi, ['source' => 'cdn']);
+    file_put_contents("$storeDir/local/latest.json", $withBuild);
+    check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/local/latest.json" && str_contains($data['error']['message'], 'names no content version'),
+        'a latest.json that names no build → 502 with the URL');
     echo "editor: assets base\n";
     $base = 'https://cdn.example/staging/0123456789ab';
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => "$base/"], $flags));
@@ -1474,6 +1526,8 @@ try {
     check(!array_key_exists('token', $data), 'a session gets no token field');
     [$status, $data] = call($api, 'GET', '/editor/books', null, $aiToken);
     check($status === 200 && in_array('osct', array_column($data['books'], 'id'), true), 'a token reads the editor API');
+    [$status, $data] = call($api, 'POST', '/editor/import/preview', ['configuration' => $configuration], $aiToken);
+    check($status === 200 && $data['incoming']['book'] === 'osct' && $data['existing']['book']['id'] === 'osct', 'a token previews an import, as it may import');
     $castle = $configuration['entities']['castle'];
     $castle['params'] = ['scale' => 4];
     [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $aiToken);

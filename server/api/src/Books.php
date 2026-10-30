@@ -73,23 +73,7 @@ final class Books
     {
         $user = Editor::user();
         $body = Editor::body();
-        $assetsBase = '';
-        $files = new stdClass();
-        $source = ($body->source ?? null) === 'cdn' ? 'cdn' : 'configuration';
-        if ($source === 'cdn') {
-            [$configuration, $files, $assetsBase] = self::fetchFromCdn();
-        } else {
-            $configuration = $body->configuration ?? null;
-            if (!$configuration instanceof stdClass) throw new ApiError(400, 'invalid-configuration', 'configuration must be an object.');
-            if (isset($body->files)) {
-                if (!$body->files instanceof stdClass) throw new ApiError(400, 'invalid-configuration', 'files must be an object.');
-                $files = $body->files;
-            }
-            if (isset($body->assetsBase)) {
-                if (!is_string($body->assetsBase)) throw new ApiError(400, 'invalid-configuration', 'assetsBase must be a string.');
-                $assetsBase = rtrim($body->assetsBase, '/');
-            }
-        }
+        [$configuration, $files, $assetsBase, $source] = self::source($body);
         $parts = self::parse($configuration, Plugins::hasSources($bookId));
         $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
         $existing = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
@@ -141,6 +125,63 @@ final class Books
             'draft' => ['build' => $draft['build'], 'hash' => $draft['hash']],
             'imported' => self::basedOn(Editor::decode($imported)),
         ]);
+    }
+
+    /**
+     * POST /editor/import/preview { configuration, files?, assetsBase? } | { source: "cdn" }
+     * → { source, contentBase, manifest, incoming, counts, existing }
+     * What the same import body would bring in, before anything is imported – read-only, the import's access. The
+     * configuration is checked as the import checks it (the same 400s); `source: "cdn"` reads the current version of
+     * CONTENT_BASE_URL (`contentBase`; `manifest` = its latest.json { url, build, activatedAt }) – 502
+     * content-fetch-failed with the `url` that failed. `incoming` as in the import's comparison, `counts` the spreads,
+     * entries, targets and entities it holds; `existing` = the comparison the import would answer (the draft of that id
+     * it replaces, its edits since its import, where it is live), null when the book is new.
+     */
+    public static function preview(): never
+    {
+        Editor::user();
+        [$configuration, $files, $assetsBase, $source, $manifest] = self::source(Editor::body());
+        $book = $configuration->book ?? null;
+        $bookId = Editor::id($book instanceof stdClass ? ($book->id ?? null) : null, 'book.id');
+        $parts = self::parse($configuration, Plugins::hasSources($bookId));
+        $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
+        $existing = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
+        $comparison = $existing !== null ? self::comparison($bookId, $existing, $incoming, self::editsSince($bookId, $existing)) : null;
+        unset($incoming['digest']);
+        Http::json(200, [
+            'source' => $source,
+            'contentBase' => $manifest !== null ? $manifest['base'] : null,
+            'manifest' => $manifest !== null ? ['url' => $manifest['url'], 'build' => $manifest['build'], 'activatedAt' => $manifest['activatedAt']] : null,
+            'incoming' => $incoming,
+            'counts' => ['spreads' => count($parts['spreads']), 'entries' => count($parts['entries']), 'targets' => count($parts['targets']), 'entities' => count($parts['entities'])],
+            'existing' => $comparison,
+        ]);
+    }
+
+    /**
+     * What an import (or its preview) reads: the configuration, its files, the assets base and the source – from the
+     * body, or for `source: "cdn"` from the current version of CONTENT_BASE_URL, with that latest.json
+     * @return array{0: stdClass, 1: stdClass, 2: string, 3: string, 4: ?array{base: string, url: string, build: string, activatedAt: ?string}}
+     */
+    private static function source(stdClass $body): array
+    {
+        if (($body->source ?? null) === 'cdn') {
+            [$configuration, $files, $assetsBase, $manifest] = self::fetchFromCdn();
+            return [$configuration, $files, $assetsBase, 'cdn', $manifest];
+        }
+        $configuration = $body->configuration ?? null;
+        if (!$configuration instanceof stdClass) throw new ApiError(400, 'invalid-configuration', 'configuration must be an object.');
+        $files = new stdClass();
+        if (isset($body->files)) {
+            if (!$body->files instanceof stdClass) throw new ApiError(400, 'invalid-configuration', 'files must be an object.');
+            $files = $body->files;
+        }
+        $assetsBase = '';
+        if (isset($body->assetsBase)) {
+            if (!is_string($body->assetsBase)) throw new ApiError(400, 'invalid-configuration', 'assetsBase must be a string.');
+            $assetsBase = rtrim($body->assetsBase, '/');
+        }
+        return [$configuration, $files, $assetsBase, 'configuration', null];
     }
 
     /**
@@ -1160,36 +1201,41 @@ final class Books
     }
 
     /**
-     * The current version of CONTENT_BASE_URL (latest.json → <build>/game.config.json + files.json)
-     * @return array{0: stdClass, 1: stdClass, 2: string}
+     * The current version of CONTENT_BASE_URL (latest.json → <build>/game.config.json + files.json), with what
+     * latest.json said
+     * @return array{0: stdClass, 1: stdClass, 2: string, 3: array{base: string, url: string, build: string, activatedAt: ?string}}
      */
     private static function fetchFromCdn(): array
     {
         $base = rtrim(Config::get('CONTENT_BASE_URL'), '/');
         if ($base === '') throw new ApiError(400, 'no-content-base', 'CONTENT_BASE_URL is not set on this server.');
-        $manifest = self::fetchJson("$base/latest.json?t=" . time());
-        $build = $manifest->build ?? null;
-        if (!is_string($build) || !preg_match(ContentStore::BUILD, $build)) throw new ApiError(502, 'content-fetch-failed', "$base/latest.json names no content version.");
+        $latest = "$base/latest.json";
+        $manifest = self::fetchJson("$latest?t=" . time(), $latest);
+        $build = $manifest instanceof stdClass ? ($manifest->build ?? null) : null;
+        if (!is_string($build) || !preg_match(ContentStore::BUILD, $build)) throw new ApiError(502, 'content-fetch-failed', "$latest names no content version.", ['url' => $latest]);
         $configuration = self::fetchJson("$base/$build/game.config.json");
-        if (!$configuration instanceof stdClass) throw new ApiError(502, 'content-fetch-failed', "$base/$build/game.config.json is not an object.");
+        if (!$configuration instanceof stdClass) throw new ApiError(502, 'content-fetch-failed', "$base/$build/game.config.json is not an object.", ['url' => "$base/$build/game.config.json"]);
         try {
             $files = self::fetchJson("$base/$build/files.json");
         } catch (ApiError) {
             $files = null; // optional, as for the reader
         }
-        return [$configuration, $files instanceof stdClass ? $files : new stdClass(), "$base/$build"];
+        $activatedAt = is_string($manifest->activatedAt ?? null) ? $manifest->activatedAt : null;
+        return [$configuration, $files instanceof stdClass ? $files : new stdClass(), "$base/$build", ['base' => $base, 'url' => $latest, 'build' => $build, 'activatedAt' => $activatedAt]];
     }
 
-    private static function fetchJson(string $url): mixed
+    /** `$shown` = the URL errors name (without a cache-busting query) */
+    private static function fetchJson(string $url, ?string $shown = null): mixed
     {
+        $shown ??= $url;
         $context = stream_context_create(['http' => ['timeout' => 20, 'ignore_errors' => true, 'header' => "Accept: application/json\r\n"]]);
         $body = @file_get_contents($url, false, $context);
         $status = isset($http_response_header[0]) && preg_match('#^HTTP/\S+\s(\d{3})#', $http_response_header[0], $match) ? (int) $match[1] : 0;
-        if ($body === false || $status !== 200) throw new ApiError(502, 'content-fetch-failed', "$url answered " . ($status ?: 'nothing') . '.');
+        if ($body === false || $status !== 200) throw new ApiError(502, 'content-fetch-failed', $status ? "$shown answered $status." : "$shown could not be reached.", ['url' => $shown]);
         try {
             return json_decode($body, false, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            throw new ApiError(502, 'content-fetch-failed', "$url is not JSON.");
+            throw new ApiError(502, 'content-fetch-failed', "$shown is not JSON.", ['url' => $shown]);
         }
     }
 

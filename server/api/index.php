@@ -30,6 +30,8 @@ declare(strict_types=1);
  *   The editor (docs/server.md "Editor data"; a signed-in user with role editor, else 403):
  *   GET    /editor/books                        the books: id, title, author, spreads, updatedAt, lastPublish
  *   GET    /editor/environments                 the environments: which one this instance publishes to, CDN or this server
+ *   POST   /editor/import/preview               the import's body → what it would bring in (book, build, counts) and the
+ *                                               draft of that id it would replace – read-only, nothing imported
  *   POST   /editor/books/{id}/import            { configuration, files?, assetsBase? } or { source: "cdn" }, then again with
  *                                               { confirm } → replace the book's rows (409 confirm-import: the comparison)
  *   GET    /editor/books/{id}                   the tree: book, spreads with entries, each entry's target
@@ -136,6 +138,7 @@ try {
             $match[1] === 'GET' ? Progress::get($match[2]) : Progress::put($match[2], Http::body()),
         $route === 'GET /editor/books' => Books::list(),
         $route === 'GET /editor/environments' => Books::environments(),
+        $route === 'POST /editor/import/preview' => Books::preview(),
         (bool) preg_match("#^POST /editor/books/($id)/import$#", $route, $match) => Books::import($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)$#", $route, $match) => Books::tree($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/entities$#", $route, $match) => Books::entities($match[1]),

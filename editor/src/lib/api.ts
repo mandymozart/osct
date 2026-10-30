@@ -183,6 +183,20 @@ export interface ImportComparison {
   same: boolean;
 }
 
+/**
+ * `POST /editor/import/preview`: what an import body would bring in, nothing imported – the book and its build, what it
+ * holds, and the draft of that id it would replace (`existing`, the comparison the import answers; null: a new book).
+ * `contentBase` / `manifest`: the content base and its latest.json – the server's for the CDN, the form's for a URL.
+ */
+export interface ImportPreview {
+  source: "cdn" | "configuration";
+  contentBase: string | null;
+  manifest: { url: string; build: string; activatedAt: string | null } | null;
+  incoming: ImportComparison["incoming"];
+  counts: { spreads: number; entries: number; targets: number; entities: number };
+  existing: ImportComparison | null;
+}
+
 /** `details.confirmation` of a 409 confirm-import */
 export interface ImportConfirmation {
   id: string;
@@ -337,12 +351,16 @@ export const listBooks = () => api<{ books: BookSummary[]; environments?: Enviro
 export const getBook = (bookId: string) => api<BookTree>("GET", `/editor/books/${encodeURIComponent(bookId)}`);
 
 /** What an import sends: a configuration, or the instance CDN's current version – `confirm` = the second step */
-export type ImportBody = ({ configuration: GameConfiguration; files?: unknown; assetsBase?: string } | { source: "cdn" }) & { confirm?: string };
+export type ImportSource = { configuration: GameConfiguration; files?: unknown; assetsBase?: string } | { source: "cdn" };
+export type ImportBody = ImportSource & { confirm?: string };
 
 /**
  * Imports into the book. Over a book that exists the API answers 409 `confirm-import` (or `confirmation-void`) with
  * `details.comparison` (an `ImportComparison`) and `details.confirmation` – the same call with `confirm` then imports.
  */
+/** What the import of this body would bring in and replace – read-only; 502 content-fetch-failed names the `url` */
+export const previewImport = (body: ImportSource) => api<ImportPreview>("POST", "/editor/import/preview", body);
+
 export const importBook = (bookId: string, body: ImportBody) =>
   api<{ book: BookSummary; imported?: ImportedBuild | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/import`, body);
 
