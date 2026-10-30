@@ -61,6 +61,7 @@ jobs:
 
       - name: Write the server configuration
         env:
+          OSCT_ENV: staging
           OSCT_DB_HOST: ${{ vars.DB_HOST || secrets.DB_HOST || 'localhost' }}
           OSCT_DB_NAME: ${{ vars.DB_NAME || secrets.DB_NAME }}
           OSCT_DB_USER: ${{ secrets.DB_USER || vars.DB_USER }}

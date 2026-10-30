@@ -21,6 +21,7 @@ builder:
 
 env:
   clear:
+    OSCT_ENV: staging
     OSCT_DB_HOST: osct-staging-db
     OSCT_APP_URL: https://osct.porschuetz.de
     # The dev server on a laptop or phone may use the staging API

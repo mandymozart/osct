@@ -1,4 +1,5 @@
-// stdio entry: `node bin/osct-mcp.mjs` (Claude Code starts it from the repository's .mcp.json – docs/mcp.md). Logs go
+// stdio entry: `node bin/osct-mcp.mjs`, started by any MCP client (Claude Code from the repository's .mcp.json, Claude
+// Desktop, Codex, OpenCode, Cursor – the editor's guide writes each one's setup; docs/mcp.md). Logs go
 // to stderr only – stdout is the MCP channel.
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { OsctApi } from "./api.ts";

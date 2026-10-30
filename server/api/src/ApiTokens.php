@@ -145,7 +145,7 @@ final class ApiTokens
     {
         $name = is_string($value) ? trim((string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $value)) : '';
         if ($name === '' || !preg_match('/^.{1,80}$/u', $name)) {
-            throw new ApiError(400, 'invalid-name', 'Name the connection in 1–80 characters, e.g. "Claude on my laptop".');
+            throw new ApiError(400, 'invalid-name', 'Name the connection in 1–80 characters, e.g. "Codex on my laptop".');
         }
         return $name;
     }

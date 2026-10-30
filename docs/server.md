@@ -62,7 +62,7 @@ server/db-dumps/                 the dumps it keeps (not committed)
 | `/user/tokens` | | the [AI connections](#ai-connections)' tokens |
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
-| `GET /health` | | `{ status, version, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10) |
+| `GET /health` | | `{ status, version, env, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10); `env` = the instance's environment (`ENV`, [Configuration](#configuration)) |
 | `/admin/*` | | the [Admin API](#admin-api): roles, users, the newsletter CSV, migrate |
 
 The editor's endpoints ([Editor data](#editor-data)) need a signed-in user with the role `editor` ([Roles](#roles)) – 401
@@ -131,7 +131,7 @@ SCUTOONS' `status: "success"` envelope and has no paging (a search, up to 200 ro
 
 Personal access tokens for the [MCP server](mcp.md) (`ApiTokens.php`, after SCUTOONS' `api_tokens` –
 `scutoons/agents/MCP.md` §3): an editor or admin makes one on the editor's books page ([editor](editor.md#ai-connections))
-with the browser session they have, and hands it to Claude as `OSCT_EDITOR_TOKEN` – no sign-in mail involved.
+with the browser session they have, and hands it to an AI agent (any MCP client) as `OSCT_EDITOR_TOKEN` – no sign-in mail involved.
 `Authorization: Bearer osct_…` is that user with their **current** roles: every role check decides as for a session.
 
 - Table `api_tokens` (both schema files): `id`, `user_id`, `name`, `token_hash` (SHA-256, like sessions), `token_prefix`
@@ -181,6 +181,11 @@ secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` 
 - `log` writes mails to a file (development).
 - `mail` uses PHP `mail()` (testing).
 - `smtp` sends through the `SMTP_*` account (production). It uses its own small client, so no library is needed.
+
+`ENV` (`local`): which environment this instance is – `staging` and `production` in their Kamal destinations
+(`config/deploy.<destination>.yml`). `GET /health` names it; the editor's guide to connect an AI agent names the MCP
+server after it (`osct-staging`, [mcp](mcp.md#connecting-an-agent)). Lower-case letters, digits and hyphens; anything
+else counts as `local`.
 
 The roles' keys ([Roles](#roles)): `EDITORS` and `ADMINS` – comma-separated e-mail addresses that get the role `editor` /
 `admin` when they sign in (the GitHub environment variables of the same names, written into the config by the deploys).

@@ -17,6 +17,7 @@ proxy:
 
 env:
   clear:
+    OSCT_ENV: production
     OSCT_DB_HOST: osct-db
     OSCT_APP_URL: https://osct.buildingfictions.com
     OSCT_ALLOWED_ORIGINS: <%= ENV.fetch("ALLOWED_ORIGINS", "") %>

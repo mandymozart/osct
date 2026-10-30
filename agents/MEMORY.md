@@ -4,6 +4,29 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Connect an AI agent: the guide for any MCP client (#194)
+
+- **Tilman** (issue): "Claude is one – OpenCode, Codex etc. Keep it more general." The guide shows the generic four
+  (name, `node <file>`, `OSCT_API_URL`, `OSCT_EDITOR_TOKEN`) first, then snippets for Claude Code, Claude Desktop,
+  Codex CLI, OpenCode and Cursor – each format checked against the client's docs on 2026-10-30 (URLs in
+  `editor/src/lib/mcp-setup.ts`). Codex's docs now redirect from developers.openai.com/codex/mcp to
+  learn.chatgpt.com; Cursor's table lists `type: "stdio"` as required although its samples omit it – the snippet sets it.
+- **The server's name is `osct-<env>` on every instance, production included (`osct-production`)**: the brief's example
+  had `osct` on production, but the repository's `.mcp.json` already uses `osct` for the local dev API, and in Claude
+  Code a project's server hides a user server of the same name – inside the checkout the production server would
+  silently be the local one. One line (`serverNameFor`) if Tilman wants plain `osct` for production after all.
+- **The environment comes from the API**: nothing in the instance knew it (the content store's environments are where
+  a publish goes, not what the instance is), so `ENV` was added to `Config` (default `local`), set in the Kamal
+  destinations and the FTPS staging deploy, and `GET /health` answers it. An older API without it: the host names the
+  server (`osct-osct-porschuetz-de`).
+- **The path is the person's**: the editor cannot know the checkout, so a field takes it once (localStorage
+  `osct-editor-mcp-file`); without it the snippets say `/path/to/osct/mcp/bin/osct-mcp.mjs` openly.
+- Open: a **one-file download of the MCP server** (SCUTOONS §3a) – a bundled `osct-mcp.mjs` built in CI or the image and
+  served by the instance, so a person needs Node but no checkout. Not built here: `bin/osct-mcp.mjs` bundles `src/` with
+  esbuild at start and needs `mcp/node_modules`; a served bundle needs a build step in the Dockerfile (the mcp
+  dependencies in the build stage), a route or static file next to `/editor`, and the version kept with the app. Its
+  own issue when wanted.
+
 ## 2026-10-30 – AI connections: personal access tokens and the MCP guide on the books page (#142)
 
 - **Tilman's decision** (issue comment): the key for pairing and the MCP guide "like SCUTOONS" but on the dashboard (the
