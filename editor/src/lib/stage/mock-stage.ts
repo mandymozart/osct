@@ -25,8 +25,12 @@ const LAYER = 0.0005;
 const DESK_TINT = 0x3b2416;
 const DESK_EDGE_TINT = 0xc8c8c8;
 const DESK_EDGE_ROUGHNESS = 0.8;
-/** The plies in one stack of the edges' texture: the Eiermann board is one stack, Schöpfer's top three (the models' UVs) */
-const DESK_EDGE_PLIES = 7;
+/**
+ * The plies in one stack of the edges' texture: 18 mm birch plywood has 13 plies of about 1.4 mm (Tilman, 2026-10-30:
+ * "we are 18 mm thick" – the trade's 18 mm birch, phenolic-faced like the Eiermann top, is 13-ply). The Eiermann board is
+ * one stack, Schöpfer's 60 mm top three (the models' UVs) – 39 plies of about 1.5 mm
+ */
+const DESK_EDGE_PLIES = 13;
 const PAGE_COLOR = 0xf3efe6;
 const PAGE_EDGE_COLOR = 0xe6e1d6;
 const SPINE_COLOR = 0xd8d2c4;

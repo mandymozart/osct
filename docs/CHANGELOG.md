@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.37.1 – 2026-10-30
+
+### Changed
+- **The desks' plywood edges have 13 plies per 18 mm** (follow-up to #107): Tilman asked for more layers – the trade's 18 mm
+  birch plywood (phenolic-faced like the Eiermann top) is 13-ply. The Eiermann board shows one stack of 13, Schöpfer's
+  60 mm top three (39 plies of about 1.5 mm).
+
 ## 1.37.0 – 2026-10-30
 
 ### Changed
