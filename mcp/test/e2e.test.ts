@@ -266,4 +266,59 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect((await call("put_environment", { book: "osct", environment: null })).data.environment).toBeNull();
     expect((await call("put_book_passes", { book: "osct", passes: null })).data.passes).toBeNull();
   });
+
+  it("starts with an AI connection's token instead: no mail step, whoami names it, saves name it in the log, publish is refused (#142)", async () => {
+    // the person: signed in in the browser, makes the token on the books page (POST /user/tokens with the session)
+    const json = async (method: string, path: string, body?: unknown, token?: string) => {
+      const response = await fetch(`${api}${path}`, {
+        method,
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      return { status: response.status, data: (await response.json().catch(() => null)) as any };
+    };
+    const { data: request } = await json("POST", "/auth/request", { email: "editor@example.test" });
+    const { data: verified } = await json("POST", "/auth/verify", { requestId: request.requestId, code: lastCode(mailLog) });
+    const made = await json("POST", "/user/tokens", { name: "Claude in the e2e test" }, verified.session);
+    expect(made.status).toBe(201);
+    expect(made.data.token).toMatch(/^osct_/);
+
+    const tokenClient = new Client({ name: "osct-mcp-e2e-token", version: "0.0.0" });
+    await tokenClient.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [resolve(ROOT, "mcp/bin/osct-mcp.mjs")],
+        env: { ...(Object.fromEntries(Object.entries(process.env).filter(([, v]) => typeof v === "string")) as Record<string, string>), OSCT_API_URL: api, OSCT_EDITOR_URL: "http://localhost:5175/editor", OSCT_EDITOR_TOKEN: made.data.token },
+        stderr: "pipe",
+        cwd: ROOT,
+      }),
+    );
+    try {
+      const callAs = async (name: string, args: Record<string, unknown> = {}) => {
+        const result = (await tokenClient.callTool({ name, arguments: args })) as { content: { text?: string }[]; isError?: boolean };
+        const raw = result.content.map(c => c.text ?? "").join("");
+        return { ok: !result.isError, raw, data: JSON.parse(raw) as any };
+      };
+      expect((await tokenClient.listTools()).tools.map(t => t.name)).toEqual(expect.arrayContaining(["whoami", "list_books", "put_entity", "publish"]));
+      const who = await callAs("whoami");
+      expect(who.data.user.email).toBe("editor@example.test");
+      expect(who.data.signedIn).toMatchObject({ with: "token", token: { name: "Claude in the e2e test" } });
+      expect(who.raw).not.toContain(made.data.token);
+
+      const castle = (await callAs("get_entity", { book: "osct", ref: "castle" })).data.entity;
+      const saved = await callAs("put_entity", { book: "osct", ref: "castle", entity: { ...castle, params: { scale: 3 } } });
+      expect(saved.ok, saved.raw).toBe(true);
+      const changes = await callAs("list_changes", { book: "osct", limit: 1 });
+      expect(changes.data.changes[0]).toMatchObject({ kind: "entity", ref: "castle", user: "editor@example.test", token: "Claude in the e2e test" });
+
+      const publish = await callAs("publish", { book: "osct", env: "local" });
+      expect(publish.ok).toBe(false);
+      expect(publish.data.error).toMatchObject({ status: 403, code: "not-for-ai" });
+    } finally {
+      await tokenClient.close().catch(() => undefined);
+    }
+    // revoked in the browser: the next start's whoami says so
+    expect((await json("DELETE", `/user/tokens/${made.data.apiToken.id}`, undefined, verified.session)).status).toBe(204);
+    expect((await json("GET", "/user", undefined, made.data.token)).data.error.code).toBe("token-revoked");
+  }, 60000);
 });

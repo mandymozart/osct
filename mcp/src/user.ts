@@ -1,7 +1,8 @@
 // The OSCT MCP server for one user: their roles pick the service – the editor's tools for the role `editor` – and only
 // that service's tools, prompts and rules are listed. The API stays the only authority: every call carries the user's
-// token. Without a token the server starts with `whoami` and the sign-in pair; a sign-in with the editor role then
-// opens the tools (the client is told the list changed).
+// token. With `OSCT_EDITOR_TOKEN` – an AI connection's token `osct_…` made on the editor's books page, or a session
+// token – the mail sign-in is skipped and whoami names the token. Without a token the server starts with `whoami` and
+// the sign-in pair; a sign-in with the editor role then opens the tools (the client is told the list changed).
 import { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import type { OsctApi } from "./api.ts";
@@ -39,7 +40,8 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
   server.registerTool(
     "whoami",
     {
-      description: "Who you work for (email, roles), whether the editor's tools are open, the API and the editor app whose links every result hands back. Call it first.",
+      description:
+        "Who you work for (email, roles), how this server is signed in (an AI connection's token with its name, a session, or not yet), whether the editor's tools are open, the API and the editor app whose links every result hands back. Call it first.",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -53,8 +55,14 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
       } catch (error) {
         return failure(error);
       }
+      const signedIn = user?.token
+        ? { with: "token", token: user.token, limits: "This token saves drafts as its person and never publishes, manages tokens or changes the account (403 not-for-ai)." }
+        : user
+          ? { with: "session" }
+          : null;
       return text({
         user: user ? { email: user.email, roles: user.roles, language: user.language } : null,
+        signedIn,
         services: services ?? { editor: false, admin: false },
         api: config.local ? `${config.api} (local dev)` : config.api,
         editor: links.editor,
@@ -62,7 +70,7 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
           ? services?.editor
             ? { confirm: "Saves change the book's draft. Give the person the link from each result: they check it on the stage and publish to readers in the editor." }
             : { hint: "No editor role – an admin grants it on the admin page (/editor/admin); this server lists the editor's tools once the role is there." }
-          : { hint: "Not signed in: sign_in_request { email } (the code arrives by mail), then sign_in_verify { requestId, code } – or start with OSCT_EDITOR_TOKEN set." }),
+          : { hint: "Not signed in: start the server with OSCT_EDITOR_TOKEN set to a token made on the editor's books page (AI connections) – or sign_in_request { email } (the code arrives by mail), then sign_in_verify { requestId, code }." }),
       });
     },
   );
@@ -70,7 +78,7 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
   server.registerTool(
     "sign_in_request",
     {
-      description: "Starts a sign-in by e-mail: the API mails a 6-digit code to the address (locally with MAIL_TRANSPORT=log it lands in the mail log). Ask the person for the code, then sign_in_verify. Not needed when OSCT_EDITOR_TOKEN is set.",
+      description: "Starts a sign-in by e-mail, for people without a token: the API mails a 6-digit code to the address (locally with MAIL_TRANSPORT=log it lands in the mail log). Ask the person for the code, then sign_in_verify. Not needed when OSCT_EDITOR_TOKEN is set (a token made on the editor's books page, AI connections).",
       inputSchema: z.object({ email: z.string().email() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
@@ -95,7 +103,7 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
       try {
         const result = await api.call<{ session: string; user: { email: string; roles?: string[]; language?: string } }>("POST", "/auth/verify", { requestId, code: code.replace(/\s+/g, "") });
         api.setToken(result.session);
-        user = { email: result.user.email, roles: result.user.roles ?? [], language: result.user.language ?? "en" };
+        user = { email: result.user.email, roles: result.user.roles ?? [], language: result.user.language ?? "en", token: null };
         services = servicesOf(user.roles);
         const before = opened;
         openEditor();

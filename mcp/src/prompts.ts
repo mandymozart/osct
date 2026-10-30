@@ -9,9 +9,9 @@ export function instructions(services: Services | null, api: string, local: bool
   const lines = [
     `OSCT (${local ? "LOCAL dev API" : api}) – you act as the signed-in editor with exactly their rights; the API decides.`,
     "Start with whoami. Every save changes the book's DRAFT (the editor's stage shows it at once) and gives the person the link to check it there.",
-    "Readers are reached only by a person: publish here goes to local / staging for a check; production is the editor's own Publish button.",
+    "Readers are reached only by a person: publish here goes to local / staging for a check (never with an AI connection's token); production is the editor's own Publish button.",
   ];
-  if (!services) lines.push("Not signed in: sign_in_request (the code arrives by mail – ask the person for it), then sign_in_verify.");
+  if (!services) lines.push("Not signed in: best is a token from the editor's books page (AI connections) in OSCT_EDITOR_TOKEN; else sign_in_request (the code arrives by mail – ask the person for it), then sign_in_verify.");
   else if (!services.editor) lines.push("This account has no editor role – an admin grants it on the admin page (/editor/admin).");
   else lines.push("Content: read osct://rules/content-model (or describe_content_model) before you write an entity; osct://guides/plugins before a plugin source.");
   return lines.join("\n");

@@ -1105,6 +1105,107 @@ try {
     [$status, $data] = call($wrongKey, 'POST', '/editor/books/osct/publish', ['env' => 'production'], $editor);
     check($status === 502 && $data['error']['code'] === 'content-store-failed', 'a refused upload → 502 content-store-failed');
 
+    echo "AI connections: personal access tokens (#142)\n";
+    [$status, $data] = call($api, 'GET', '/user/tokens', null, $editor);
+    check($status === 200 && $data['tokens'] === [], 'an editor without tokens: an empty list');
+    [$status, $data] = call($api, 'POST', '/user/tokens', ['name' => '   '], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-name', 'a token needs a name → 400 invalid-name');
+    [$status, $data] = call($api, 'POST', '/user/tokens', ['name' => 'Claude'], $session);
+    check($status === 403 && $data['error']['code'] === 'forbidden', 'a reader cannot make a token → 403 forbidden');
+    call($api, 'POST', '/auth/request', ['email' => 'other@example.com']);
+    [, $data] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    $otherEditor = $data['session'];
+    [$status, $made] = call($api, 'POST', '/user/tokens', ['name' => 'Claude on my laptop', 'email' => 'other@example.com', 'userId' => 'someone-else'], $editor);
+    $aiToken = $made['token'] ?? '';
+    check($status === 201 && str_starts_with($aiToken, 'osct_') && strlen($aiToken) > 40 && $made['apiToken']['name'] === 'Claude on my laptop'
+        && $made['apiToken']['prefix'] === substr($aiToken, 0, 9) . '…' && $made['apiToken']['lastUsedAt'] === null, 'create → 201: the token once (osct_…), its name and prefix');
+    $days = (strtotime($made['apiToken']['expiresAt']) - time()) / 86400;
+    check($days > 181.9 && $days <= 182, 'a token expires 182 days after it was made');
+    [$status, $data] = call($api, 'GET', '/user/tokens', null, $editor);
+    check($status === 200 && count($data['tokens']) === 1 && $data['tokens'][0]['id'] === $made['apiToken']['id'] && !str_contains(json_encode($data), $aiToken)
+        && !array_key_exists('token', $data['tokens'][0]), 'the list names it, never shows the token again');
+    [, $data] = call($api, 'GET', '/user/tokens', null, $otherEditor);
+    check($data['tokens'] === [], 'nothing was made for another user (the body cannot name one)');
+    $pdo = connect('test');
+    $stored = $pdo->query("SELECT user_id, token_hash FROM api_tokens WHERE id = " . $pdo->quote($made['apiToken']['id']))->fetch(PDO::FETCH_ASSOC);
+    $authorRow = $pdo->query("SELECT id FROM users WHERE email = 'author@example.com'")->fetchColumn();
+    $pdo = null;
+    check($stored['token_hash'] === hash('sha256', $aiToken) && $stored['user_id'] === $authorRow, 'stored as a SHA-256 hash, for the signed-in editor');
+
+    [$status, $data] = call($api, 'GET', '/user', null, $aiToken);
+    check($status === 200 && $data['user']['email'] === 'author@example.com' && in_array('editor', $data['user']['roles'], true) && $data['token']['name'] === 'Claude on my laptop',
+        'a token authenticates as its user, with their roles; GET /user names the token');
+    check(is_string($data['token']['lastUsedAt']), 'its use is recorded (last used)');
+    [, $data] = call($api, 'GET', '/user', null, $editor);
+    check(!array_key_exists('token', $data), 'a session gets no token field');
+    [$status, $data] = call($api, 'GET', '/editor/books', null, $aiToken);
+    check($status === 200 && in_array('osct', array_column($data['books'], 'id'), true), 'a token reads the editor API');
+    $castle = $configuration['entities']['castle'];
+    $castle['params'] = ['scale' => 4];
+    [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $aiToken);
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    check($status === 200 && $data['changes'][0]['ref'] === 'castle' && $data['changes'][0]['user'] === 'author@example.com' && $data['changes'][0]['token'] === 'Claude on my laptop',
+        'a save through a token records the token\'s name in the change log');
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    check($data['changes'][0]['token'] === null, 'a save in the editor records none');
+
+    // What a token never does: publish (any environment), its own tokens, the password, the account
+    foreach (['local', 'staging', 'production'] as $env) {
+        [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => $env], $aiToken);
+        check($status === 403 && $data['error']['code'] === 'not-for-ai', "a token cannot publish to $env → 403 not-for-ai");
+    }
+    $refused = [
+        ['GET', '/user/tokens', null], ['POST', '/user/tokens', ['name' => 'Another']], ['POST', "/user/tokens/{$made['apiToken']['id']}/renew", null],
+        ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],
+    ];
+    foreach ($refused as [$method, $path, $body]) {
+        [$status, $data] = call($api, $method, $path, $body, $aiToken);
+        check($status === 403 && $data['error']['code'] === 'not-for-ai', "a token: $method $path → 403 not-for-ai");
+    }
+    [$status, $data] = call($api, 'GET', '/user', null, $editor);
+    check($status === 200 && $data['user']['hasPassword'] === false, 'the account is still there, its password unchanged');
+
+    // Renew, revoke, expire – the person's own sign-in; another editor's token is as unknown as none
+    [$status] = call($api, 'POST', "/user/tokens/{$made['apiToken']['id']}/renew", null, $otherEditor);
+    [$status2] = call($api, 'DELETE', "/user/tokens/{$made['apiToken']['id']}", null, $otherEditor);
+    check($status === 404 && $status2 === 404, 'another editor cannot renew or revoke it → 404');
+    $pdo = connect('test');
+    $pdo->exec("UPDATE api_tokens SET expires_at = '2000-01-01 00:00:00' WHERE id = " . $pdo->quote($made['apiToken']['id']));
+    $pdo = null;
+    [$status, $data] = call($api, 'GET', '/editor/books', null, $aiToken);
+    check($status === 401 && $data['error']['code'] === 'token-expired', 'an expired token → 401 token-expired');
+    [, $data] = call($api, 'GET', '/user/tokens', null, $editor);
+    check($data['tokens'][0]['expired'] === true, 'the list says it expired');
+    [$status, $data] = call($api, 'POST', "/user/tokens/{$made['apiToken']['id']}/renew", null, $editor);
+    $days = (strtotime($data['apiToken']['expiresAt'] ?? 'now') - time()) / 86400;
+    check($status === 200 && $data['apiToken']['expired'] === false && $days > 181.9, 'renew → expires 182 days from now');
+    [$status] = call($api, 'GET', '/editor/books', null, $aiToken);
+    check($status === 200, 'the renewed token works again');
+    [$status] = call($api, 'DELETE', "/user/tokens/{$made['apiToken']['id']}", null, $editor);
+    check($status === 204, 'revoke → 204');
+    [$status, $data] = call($api, 'GET', '/user', null, $aiToken);
+    check($status === 401 && $data['error']['code'] === 'token-revoked', 'a revoked token → 401 token-revoked');
+    [, $data] = call($api, 'GET', '/user/tokens', null, $editor);
+    [$status] = call($api, 'POST', "/user/tokens/{$made['apiToken']['id']}/renew", null, $editor);
+    check($data['tokens'] === [] && $status === 404, 'a revoked token leaves the list and cannot be renewed');
+    [$status] = call($api, 'GET', '/user', null, 'osct_' . str_repeat('x', 43));
+    check($status === 401, 'an unknown token → 401');
+
+    // A token stops working when its account loses the editor and admin roles
+    // (the author: an address in EDITORS would get the role back at once)
+    [, $made] = call($api, 'POST', '/user/tokens', ['name' => 'Second'], $editor);
+    $pdo = connect('test');
+    $grants = $pdo->query("SELECT * FROM user_roles WHERE role_id IN (2, 3) AND user_id = " . $pdo->quote($authorRow))->fetchAll(PDO::FETCH_ASSOC);
+    $pdo->exec("DELETE FROM user_roles WHERE role_id IN (2, 3) AND user_id = " . $pdo->quote($authorRow));
+    [$status, $data] = call($api, 'GET', '/user', null, $made['token']);
+    check($status === 401 && $data['error']['code'] === 'no-editor-role', 'without the editor or admin role a token → 401 no-editor-role');
+    $insert = $pdo->prepare('INSERT INTO user_roles (user_id, role_id, granted_at, granted_by) VALUES (:user, :role, :at, :by)');
+    foreach ($grants as $grant) $insert->execute(['user' => $grant['user_id'], 'role' => $grant['role_id'], 'at' => $grant['granted_at'], 'by' => $grant['granted_by']]);
+    $pdo = null;
+    [$status] = call($api, 'GET', '/user', null, $made['token']);
+    check($status === 200 && $grants !== [], 'with the role back it works again');
+
     echo "deploy keeps the data\n";
     foreach (glob(dirname(__DIR__) . '/api/db/schema.*.sql') as $schema) {
         check(!preg_match('/\b(DROP|TRUNCATE)\b|^\s*DELETE\b/im', (string) file_get_contents($schema)), basename($schema) . ' only adds (no DROP / TRUNCATE / DELETE)');

@@ -1,0 +1,210 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { API_URL, ApiError, createApiToken, listApiTokens, renewApiToken, revokeApiToken, type ApiToken } from "#lib/api.js";
+  import Segmented from "#lib/components/Segmented.svelte";
+  import { ago, apiUrlFor, day, expiresSoon, snippetFor, type McpClient } from "#lib/mcp-setup.js";
+
+  /**
+   * AI connections on the books page (#142, docs/editor.md "AI connections"): the person's personal access tokens for
+   * the MCP server – create (a name, then the token shown once with a copy button), the list with last use and expiry,
+   * renew (182 days from now) and revoke – and beside them the short MCP guide: what the server does, this instance's
+   * API, the setup snippet for Claude Code or Claude Desktop (a token just made is filled in) and the first steps.
+   * Every call here is the person's own sign-in; the API refuses them to a token.
+   */
+  let tokens = $state<ApiToken[] | null>(null);
+  let name = $state("");
+  let busy = $state(false);
+  let error = $state<string | null>(null);
+  /** The token just made – shown until the person closes it; never stored */
+  let fresh = $state<{ name: string; token: string } | null>(null);
+  let client = $state<McpClient>("code");
+  /** Which copy button just copied (its label says so for a moment) */
+  let copied = $state<string | null>(null);
+
+  const apiUrl = typeof location === "undefined" ? API_URL : apiUrlFor(API_URL, location.origin);
+  const snippet = $derived(snippetFor(client, apiUrl, fresh?.token ?? null));
+
+  const message = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
+
+  const load = async () => {
+    try {
+      tokens = (await listApiTokens()).tokens;
+    } catch (e) {
+      error = message(e);
+    }
+  };
+  onMount(() => void load());
+
+  const run = async (action: () => Promise<void>) => {
+    busy = true;
+    error = null;
+    try {
+      await action();
+    } catch (e) {
+      error = message(e);
+    } finally {
+      busy = false;
+    }
+  };
+
+  const create = (event: SubmitEvent) => {
+    event.preventDefault();
+    return run(async () => {
+      const made = await createApiToken(name.trim());
+      fresh = { name: made.apiToken.name, token: made.token };
+      name = "";
+      await load();
+    });
+  };
+
+  const renew = (token: ApiToken) => run(async () => {
+    const { apiToken } = await renewApiToken(token.id);
+    tokens = (tokens ?? []).map(t => (t.id === apiToken.id ? apiToken : t));
+  });
+
+  const revoke = (token: ApiToken) => {
+    if (!confirm(`Revoke "${token.name}"? Every AI using it stops working at once.`)) return;
+    return run(async () => {
+      await revokeApiToken(token.id);
+      tokens = (tokens ?? []).filter(t => t.id !== token.id);
+    });
+  };
+
+  let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  const copy = async (key: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      copied = key;
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(() => (copied = null), 1600);
+    } catch {
+      error = "The browser did not allow copying – select the text and copy it by hand.";
+    }
+  };
+</script>
+
+<section class="ai" aria-label="AI connections">
+  <div class="tokens">
+    <h2>AI connections</h2>
+    <form class="create" onsubmit={create}>
+      <input class="field" bind:value={name} maxlength="80" required placeholder="Claude on my laptop" aria-label="Name of the connection"
+        data-help-name="Name" data-help="What the token is for – it names the AI in the change log of every save it makes (e.g. Claude on my laptop)." />
+      <button type="submit" class="pill primary" disabled={busy || !name.trim()}
+        data-help-name="Create token" data-help="Makes a personal access token for an MCP client: it works as you, saves drafts and never publishes. It expires after 182 days unless renewed.">Create token</button>
+    </form>
+
+    {#if fresh}
+      <div class="fresh" role="status">
+        <p><b>{fresh.name}</b>: copy the token now – it is not shown again.</p>
+        <div class="secret">
+          <code>{fresh.token}</code>
+          <button type="button" class="pill framed" onclick={() => copy("token", fresh!.token)}>{copied === "token" ? "Copied" : "Copy"}</button>
+        </div>
+        <p class="small muted">The setup under <i>Connect Claude</i> has it filled in.
+          <button type="button" class="text-link" onclick={() => (fresh = null)}>Done</button></p>
+      </div>
+    {/if}
+
+    {#if error}<p class="danger small">{error}</p>{/if}
+
+    {#if tokens === null && !error}
+      <p class="small muted">Loading…</p>
+    {:else if tokens?.length === 0}
+      <p class="small muted">No connection yet.</p>
+    {:else if tokens}
+      <ul class="list">
+        {#each tokens as token (token.id)}
+          <li>
+            <span class="who">
+              <span class="name">{token.name}</span>
+              <span class="small muted prefix">{token.prefix}</span>
+            </span>
+            <span class="small when">
+              <span class="muted" title={token.lastUsedAt ?? undefined}>last used {ago(token.lastUsedAt)}</span>
+              {#if token.expired}
+                <span class="danger">expired {day(token.expiresAt)}</span>
+              {:else}
+                <span class:danger={expiresSoon(token.expiresAt)} class:muted={!expiresSoon(token.expiresAt)}>expires {day(token.expiresAt)}</span>
+              {/if}
+            </span>
+            <span class="actions">
+              <button type="button" class="pill framed" disabled={busy} onclick={() => renew(token)}
+                data-help-name="Renew" data-help="Moves the expiry to 182 days from today – the same token keeps working, nothing to change in Claude.">Renew</button>
+              <button type="button" class="pill framed" disabled={busy} onclick={() => revoke(token)}
+                data-help-name="Revoke" data-help="The token stops working at once; the change log keeps its name.">Revoke</button>
+            </span>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </div>
+
+  <div class="guide">
+    <h2>Connect Claude</h2>
+    <p>The OSCT <b>MCP server</b> lets Claude work in this editor as you: it reads the books, saves drafts – the stage
+      shows them at once, every answer links there – and never publishes. Readers are reached only by your Publish button.</p>
+    <div class="server">
+      <span class="label small muted">server</span>
+      <code>{apiUrl}</code>
+      <button type="button" class="pill framed" onclick={() => copy("server", apiUrl)}
+        data-help-name="Server" data-help="This instance's API – the MCP server's OSCT_API_URL.">{copied === "server" ? "Copied" : "Copy"}</button>
+    </div>
+    <div class="setup">
+      <Segmented options={["code", "desktop"] as const} value={client} labels={{ code: "Claude Code", desktop: "Claude Desktop" }}
+        titles={{ code: "A command for the terminal", desktop: "The entry for claude_desktop_config.json" }} onchange={v => (client = v)} />
+      <button type="button" class="pill framed" onclick={() => copy("snippet", snippet)}>{copied === "snippet" ? "Copied" : "Copy"}</button>
+    </div>
+    <pre class="snippet"><code>{snippet}</code></pre>
+    <ol class="steps">
+      <li>Once: a checkout of the OSCT repository and <code>npm ci</code> in its <code>mcp/</code> folder (Node 22);
+        put its place for <code>&lt;path to osct&gt;</code>.</li>
+      {#if client === "code"}
+        <li>Create a token, then run the command in a terminal.</li>
+      {:else}
+        <li>Create a token, then add the entry to <code>claude_desktop_config.json</code> (Settings → Developer → Edit Config)
+          and restart Claude Desktop.</li>
+      {/if}
+      <li>Ask Claude <code>whoami</code> – it names you and the token – then <code>describe_content_model</code> before the
+        first change.</li>
+    </ol>
+  </div>
+</section>
+
+<style>
+  /* Two columns where there is room, one on a phone; the section sits under the books */
+  .ai { display: grid; gap: 1.5rem 2.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); align-items: start;
+    margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  h2 { font-size: .875rem; font-weight: 600; margin: 0 0 .75rem; }
+  p { margin: 0 0 .75rem; line-height: 1.45; }
+  code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--text-small); }
+
+  .create { display: flex; gap: .375rem; margin-bottom: .75rem; }
+  .create .field { flex: 1; }
+
+  .fresh { padding: .75rem; margin-bottom: .75rem; border: 1px solid var(--text); background: var(--surface-head); }
+  .fresh p:last-child { margin: .5rem 0 0; }
+  .secret { display: flex; gap: .375rem; align-items: center; }
+  .secret code { flex: 1; min-width: 0; padding: .375rem .5rem; overflow-wrap: anywhere; user-select: all; background: var(--surface); border: 1px solid var(--line); }
+
+  .list { list-style: none; margin: 0; padding: 0; }
+  .list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem .75rem; align-items: center; padding: .5rem 0; border-top: 1px solid var(--line); }
+  .list li:last-child { border-bottom: 1px solid var(--line); }
+  .who { display: flex; gap: .5rem; align-items: baseline; min-width: 0; }
+  .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prefix { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: nowrap; }
+  .when { grid-column: 1; display: flex; flex-wrap: wrap; gap: 0 .75rem; }
+  .actions { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: .25rem; }
+
+  .server { display: flex; gap: .5rem; align-items: center; margin-bottom: .75rem; }
+  .server .label { letter-spacing: .06em; text-transform: uppercase; }
+  .server code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .setup { display: flex; gap: .5rem; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: .375rem; }
+  .snippet { margin: 0 0 .75rem; padding: .625rem .75rem; overflow-x: auto; background: var(--surface-head); border: 1px solid var(--line); }
+  .snippet code { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .steps { margin: 0; padding-left: 1.25rem; display: grid; gap: .375rem; line-height: 1.45; }
+
+  @media (max-width: 30em) {
+    .list li { grid-template-columns: minmax(0, 1fr); }
+    .actions { grid-column: 1; grid-row: auto; }
+  }
+</style>

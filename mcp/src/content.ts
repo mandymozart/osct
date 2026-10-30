@@ -488,7 +488,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "publish",
     {
       description:
-        "Writes the draft as a content version into the content store of `env`: `local` (this API's own store – the reader started with VITE_CONTENT_BASE_URL=<api>/content/local shows it) or `staging`. **production is refused** – publishing to readers is the person's Publish button in the editor. 409 unknown-components when a node uses a component no compiled plugin provides. Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's.",
+        "Writes the draft as a content version into the content store of `env`: `local` (this API's own store – the reader started with VITE_CONTENT_BASE_URL=<api>/content/local shows it) or `staging`. **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components when a node uses a component no compiled plugin provides. Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's.",
       inputSchema: z.object({ book: BOOK, env: z.enum(["local", "staging", "production"]), note: z.string().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },

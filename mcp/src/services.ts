@@ -8,6 +8,16 @@ export interface User {
   email: string;
   roles: string[];
   language: string;
+  /** the AI connection's token the server signed in with (made on the editor's books page), null for a session */
+  token: TokenInfo | null;
+}
+
+/** An AI connection's token as `GET /user` names it (never the token itself) */
+export interface TokenInfo {
+  name: string;
+  prefix: string;
+  expiresAt: string | null;
+  lastUsedAt: string | null;
 }
 
 export interface Services {
@@ -21,11 +31,16 @@ export function servicesOf(roles: readonly string[]): Services {
   return { editor: roles.includes("editor"), admin: roles.includes("admin") };
 }
 
-/** The user behind the token (`GET /user`); null without a token */
+/** The user behind the token (`GET /user`, which names an AI connection's token too); null without a token */
 export async function fetchUser(api: OsctApi): Promise<User | null> {
   if (!api.hasToken) return null;
-  const { user } = await api.call<{ user: { email: string; roles?: string[]; language?: string } }>("GET", "/user");
-  return { email: user.email, roles: Array.isArray(user.roles) ? user.roles.map(String) : [], language: user.language ?? "en" };
+  const { user, token } = await api.call<{ user: { email: string; roles?: string[]; language?: string }; token?: Partial<TokenInfo> }>("GET", "/user");
+  return {
+    email: user.email,
+    roles: Array.isArray(user.roles) ? user.roles.map(String) : [],
+    language: user.language ?? "en",
+    token: token?.name ? { name: token.name, prefix: token.prefix ?? "", expiresAt: token.expiresAt ?? null, lastUsedAt: token.lastUsedAt ?? null } : null,
+  };
 }
 
 export interface AppLinks {

@@ -311,6 +311,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     editor's token, never a second path into the database – built after SCUTOONS' MCP (Tilman, 2026-10-29: "do it like in
     scutoons … this will one day merge"): the API is the only authority, a save is the draft with the editor's link, and
     readers are reached only by a person (no publish to production from an agent). A new endpoint is a new tool there.
+    An AI connection signs in with a personal access token (`osct_…`, #142, docs/server.md "AI connections"): a new route
+    that publishes, manages tokens or changes the account refuses it (`Auth::session()` / `Auth::refuseToken()`, 403
+    `not-for-ai`).
     **UI** (Tilman, 2026-10-29: "check for reference the scutoons UI dogma … reuse components as much as possible,
     save real estate"): the editor's controls follow the Scutoons dogma (`scutoons/agents/DESIGN.md`) built from
     OSCT's own primitives – one control height (with a finger, `pointer: coarse`, the dogma's touch height of 44 px,

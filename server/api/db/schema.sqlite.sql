@@ -222,3 +222,18 @@ ALTER TABLE books ADD COLUMN plugins_json TEXT NOT NULL DEFAULT '[]';
 
 -- A video's duration (schema.mysql.sql has the notes)
 ALTER TABLE assets ADD COLUMN duration_ms INTEGER NULL DEFAULT NULL;
+
+-- AI connections' personal access tokens (schema.mysql.sql has the notes)
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id TEXT NOT NULL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  token_prefix TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT NULL DEFAULT NULL,
+  expires_at TEXT NULL DEFAULT NULL,
+  revoked_at TEXT NULL DEFAULT NULL
+);
+CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens (user_id);
+ALTER TABLE changes ADD COLUMN token_name TEXT NULL DEFAULT NULL;

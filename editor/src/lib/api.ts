@@ -175,6 +175,28 @@ export const me = () => api<{ user: User }>("GET", "/user");
 
 export const logout = () => api<void>("POST", "/auth/logout");
 
+// ── AI connections (docs/server.md "AI connections"): personal access tokens for the MCP server ──
+
+/** A token as the list shows it – never the token itself, which only `createApiToken` answers, once */
+export interface ApiToken {
+  id: string;
+  name: string;
+  /** its first characters and an ellipsis (`osct_AbCd…`), to tell tokens apart */
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  expired: boolean;
+}
+
+export const listApiTokens = () => api<{ tokens: ApiToken[] }>("GET", "/user/tokens");
+
+export const createApiToken = (name: string) => api<{ token: string; apiToken: ApiToken }>("POST", "/user/tokens", { name });
+
+export const renewApiToken = (id: string) => api<{ apiToken: ApiToken }>("POST", `/user/tokens/${encodeURIComponent(id)}/renew`);
+
+export const revokeApiToken = (id: string) => api<void>("DELETE", `/user/tokens/${encodeURIComponent(id)}`);
+
 // ── Admin (docs/server.md "Admin API", docs/admin.md) ───────────────────────────────────────────
 
 export interface Role {

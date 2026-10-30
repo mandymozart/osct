@@ -29,10 +29,19 @@ mcp/
 
 The server talks to one API (`OSCT_API_URL`, default `http://127.0.0.1:8080/api` – the local dev API) as one user:
 
-- **A token in the environment** – `OSCT_EDITOR_TOKEN`: the editor's session token (the editor app keeps it in
-  `localStorage` under `osct-editor-session`; a `POST /auth/verify` or `/auth/password` answers it). With it the editor's
-  tools are listed from the start; the API's role checks still decide every call.
-- **The sign-in pair** – without a token the server starts with `whoami`, `sign_in_request { email }` and
+- **An AI connection's token** – the usual way: on the editor's books page, *AI connections* → a name → **Create
+  token** ([editor](editor.md#ai-connections)); the token `osct_…` is shown once, and the setup snippet beside it has
+  it filled in. Set it as `OSCT_EDITOR_TOKEN`: the server skips the mail sign-in, lists the editor's tools from the start,
+  and `whoami` answers `signedIn: { with: "token", token: { name, prefix, expiresAt, lastUsedAt } }`. The token is the
+  person with their roles, but the API refuses it every publish (any environment), the tokens, the password and the
+  account (403 `not-for-ai` – the tool's error hints to hand it to the person); every save names it in the change log
+  (`list_changes` → `token`). It expires after 182 days unless renewed on the books page (401 `token-expired` – renewed,
+  the same token works again); revoked there it stops at once (401 `token-revoked`). [Server, "AI
+  connections"](server.md#ai-connections).
+- **A session token** – `OSCT_EDITOR_TOKEN` may also be an editor's session token (the editor app keeps it in
+  `localStorage` under `osct-editor-session`; a `POST /auth/verify` or `/auth/password` answers it): the person's full
+  rights, publish to local / staging included; `whoami` says `signedIn: { with: "session" }`.
+- **The sign-in pair** – for people without a token: without one the server starts with `whoami`, `sign_in_request { email }` and
   `sign_in_verify { requestId, code }`: the API mails a 6-digit code (locally `MAIL_TRANSPORT=log` writes it to the mail
   log), the person gives it to the session, the token is kept for the process and never shown. With the role `editor`
   the tools, prompts and rules appear (the client is told the list changed).
@@ -51,8 +60,10 @@ The repository's `.mcp.json` (project scope) starts the server for every Claude 
 ```
 
 Once: `cd mcp && npm ci`. Then start the API (`cd client && npm run dev:api`, [editor, "Try it"](editor.md#try-it-the-morning-test-with-the-demo-scene)) and ask Claude
-`whoami`. Against staging: `OSCT_API_URL=https://osct.porschuetz.de/api OSCT_EDITOR_TOKEN=… claude`. In another
-checkout or for Claude Desktop: `claude mcp add osct -e OSCT_API_URL=… -e OSCT_EDITOR_TOKEN=… -- node <repo>/mcp/bin/osct-mcp.mjs`.
+`whoami`. Against staging: `OSCT_API_URL=https://osct.porschuetz.de/api OSCT_EDITOR_TOKEN=osct_… claude`. For every
+project of the computer: `claude mcp add osct --scope user -e OSCT_API_URL=… -e OSCT_EDITOR_TOKEN=osct_… -- node
+<repo>/mcp/bin/osct-mcp.mjs` – the books page's guide shows this command (and Claude Desktop's
+`claude_desktop_config.json` entry, the same `command`, `args` and `env`) with the instance's API and a token just made.
 
 ## The tools
 
@@ -61,8 +72,8 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 
 | tool | what |
 |---|---|
-| `whoami` | the user (email, roles), the service open, the API, the editor app. Call it first |
-| `sign_in_request` · `sign_in_verify` | the sign-in by mail code (above) |
+| `whoami` | the user (email, roles), how the server is signed in (`signedIn`: an AI connection's token with its name, a session, or null), the service open, the API, the editor app. Call it first |
+| `sign_in_request` · `sign_in_verify` | the sign-in by mail code, for people without a token (above) |
 | `list_books` | the instance's books with their last publish |
 | `import_book { book, url \| configuration \| source: "cdn", assetsBase? }` | replaces the book's rows from a game configuration (the reader's dev server serves its own at `/src/game.config.json`) |
 | `get_book { book }` | the tree: spreads with entries and targets (entity inline or `{ ref }`), the unassigned entries |
@@ -78,7 +89,7 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `list_assets { book, kind? }` · `upload_asset { book, file, name? }` · `delete_asset { book, asset, force? }` | the library: a local file becomes an asset whose `url` nodes and targets name |
 | `list_plugins` · `get_plugin` · `put_plugin { book, plugin, source }` · `delete_plugin` | the Code tab's sources; `put_plugin` names what the source registers and warns about a module the engine would refuse |
 | `get_draft { book, part? }` | the draft as the engine loads it: manifest, configuration or files |
-| `publish { book, env: local \| staging, note? }` | writes the draft into the content store of `env`; **production is refused** – the person's button in the editor |
+| `publish { book, env: local \| staging, note? }` | writes the draft into the content store of `env`; **production is refused** – the person's button in the editor; with an AI connection's token every environment is refused (403 `not-for-ai`) |
 | `list_versions` · `list_changes { book, limit? }` | the publish log, the change log |
 | `describe_content_model { book? }` | node types and names, placement, filters, components, passes, the environment, printed placement, categories, formats – from `shared/`; with a book also the declared plugins with the components, node types and passes they recorded (with their parameters) and the Code tab's sources with the types read from them |
 
@@ -114,7 +125,8 @@ plugin must register it, the publish checks (409 `unknown-components`, `unknown-
 `cd mcp && npx tsc --noEmit && npx vitest run`: unit tests with a mocked `fetch` for every tool (`test/*.test.ts`), and
 `test/e2e.test.ts` – the real server over stdio against the real API (PHP's built-in server on a free port, a fresh
 SQLite, mails to a log, as `server/tests/api-test.php`): sign in through the mail log, import, edit, add a target with an
-uploaded file, a plugin source, publish to local. Skipped with a message when `php` is not on the path. CI runs both
+uploaded file, a plugin source, publish to local; then a second server started with an AI connection's token made over
+the API (whoami names it, a save names it in the change log, publish is refused, a revoked token is 401). Skipped with a message when `php` is not on the path. CI runs both
 (`checks.yml`, job *MCP server*).
 
 ## Limits

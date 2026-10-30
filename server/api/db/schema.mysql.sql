@@ -270,3 +270,23 @@ ALTER TABLE `books` ADD COLUMN `plugins_json` TEXT NOT NULL DEFAULT '[]';
 
 -- A video's duration as its file states it (Assets.php, VideoInfo.php); width / height hold its picture's size
 ALTER TABLE `assets` ADD COLUMN `duration_ms` BIGINT NULL DEFAULT NULL;
+
+-- AI connections' personal access tokens (ApiTokens.php, docs/server.md "AI connections"): the token `osct_…` is
+-- shown once, only its SHA-256 hash is kept (like sessions); `token_prefix` = its first characters, to tell tokens apart
+CREATE TABLE IF NOT EXISTS `api_tokens` (
+  `id` CHAR(36) NOT NULL,
+  `user_id` CHAR(36) NOT NULL,
+  `name` VARCHAR(80) NOT NULL,
+  `token_hash` CHAR(64) NOT NULL,
+  `token_prefix` VARCHAR(16) NOT NULL,
+  `created_at` DATETIME NOT NULL,
+  `last_used_at` DATETIME NULL DEFAULT NULL,
+  `expires_at` DATETIME NULL DEFAULT NULL,
+  `revoked_at` DATETIME NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `api_tokens_token` (`token_hash`),
+  KEY `api_tokens_user` (`user_id`),
+  CONSTRAINT `api_tokens_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- A save made through an AI connection names its token in the change log
+ALTER TABLE `changes` ADD COLUMN `token_name` VARCHAR(80) NULL DEFAULT NULL;

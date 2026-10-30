@@ -19,7 +19,8 @@ try {
   const server = createUserServer(config, api, user);
   await server.connect(new StdioServerTransport());
   const who = user ? `${user.email} (${servicesOf(user.roles).editor ? "editor" : "no editor role"})` : "not signed in (sign_in_request / sign_in_verify)";
-  console.error(`osct-mcp: ${config.api} as ${who}; token: ${config.tokenSource}; editor app: ${config.editor}`);
+  const token = user?.token ? `the AI connection "${user.token.name}"` : config.tokenSource;
+  console.error(`osct-mcp: ${config.api} as ${who}; token: ${token}; editor app: ${config.editor}`);
 } catch (error) {
   console.error(`osct-mcp: ${error instanceof Error ? error.message : error}`);
   process.exit(1);

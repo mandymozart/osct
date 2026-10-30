@@ -646,6 +646,8 @@ final class Books
     public static function publish(string $bookId, array $body): never
     {
         $user = Editor::user();
+        // Readers are reached only by a person: no environment takes a publish from an AI connection
+        Auth::refuseToken('Publishing');
         self::book($bookId);
         $env = $body['env'] ?? null;
         if (!is_string($env) || !in_array($env, ContentStore::ENVIRONMENTS, true)) {
@@ -763,7 +765,10 @@ final class Books
         Http::json(200, ['versions' => $versions]);
     }
 
-    /** GET /editor/books/{id}/changes?limit= (default 50, at most 500) → { changes: [{ id, kind, ref, before, after, user, createdAt }] } newest first */
+    /**
+     * GET /editor/books/{id}/changes?limit= (default 50, at most 500) → { changes: [{ id, kind, ref, before, after, user, token,
+     * createdAt }] } newest first; `token` = the AI connection's name for a save made through one, else null
+     */
     public static function changes(string $bookId): never
     {
         Editor::user();
@@ -773,7 +778,7 @@ final class Books
         $rows = Db::run("SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.book_id = :book ORDER BY c.created_at DESC, c.id LIMIT $limit", ['book' => $bookId])->fetchAll();
         foreach ($rows as $row) {
             $changes[] = ['id' => $row['id'], 'kind' => $row['kind'], 'ref' => $row['ref'], 'before' => Editor::decode($row['before_json']), 'after' => Editor::decode($row['after_json']),
-                'user' => $row['email'], 'createdAt' => Editor::iso((int) $row['created_at'])];
+                'user' => $row['email'], 'token' => $row['token_name'] ?? null, 'createdAt' => Editor::iso((int) $row['created_at'])];
         }
         Http::json(200, ['changes' => $changes]);
     }
@@ -978,10 +983,15 @@ final class Books
         Db::run('UPDATE books SET updated_at = :now WHERE id = :id', ['now' => Db::now(), 'id' => $bookId]);
     }
 
-    /** @param array<string, mixed> $user */
+    /**
+     * One row of the change log; a save through an AI connection records the token's name (`token_name`), so the log
+     * tells which AI made it
+     * @param array<string, mixed> $user
+     */
     private static function change(string $bookId, array $user, string $kind, string $ref, ?string $before, string $after): void
     {
-        Db::run('INSERT INTO changes (id, book_id, user_id, kind, ref, before_json, after_json, created_at) VALUES (:id, :book, :user, :kind, :ref, :before, :after, :at)',
-            ['id' => Db::uuid(), 'book' => $bookId, 'user' => $user['id'], 'kind' => $kind, 'ref' => $ref, 'before' => $before, 'after' => $after, 'at' => Editor::nowMs()]);
+        Db::run('INSERT INTO changes (id, book_id, user_id, token_name, kind, ref, before_json, after_json, created_at) VALUES (:id, :book, :user, :token, :kind, :ref, :before, :after, :at)',
+            ['id' => Db::uuid(), 'book' => $bookId, 'user' => $user['id'], 'token' => Auth::token()['name'] ?? null, 'kind' => $kind, 'ref' => $ref,
+             'before' => $before, 'after' => $after, 'at' => Editor::nowMs()]);
     }
 }

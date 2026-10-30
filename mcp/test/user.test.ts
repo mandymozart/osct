@@ -6,7 +6,9 @@ import { fakeFetch, recorder, type Seen } from "./helpers.ts";
 // `createUserServer` makes a real McpServer; the recorder stands in for it here, so the module is loaded with the
 // McpServer swapped for the recorder's double
 const rec = recorder();
-vi.mock("@modelcontextprotocol/server", () => ({ McpServer: class { constructor() { return rec.server; } } }));
+/** the double the next McpServer returns – `rec` unless a test swaps in a fresh one */
+let current = rec;
+vi.mock("@modelcontextprotocol/server", () => ({ McpServer: class { constructor() { return current.server; } } }));
 const { createUserServer } = await import("../src/user.ts");
 
 const CONFIG = { api: "http://api.test/api", editor: "http://localhost:5175/editor", token: "", tokenSource: "none" as const, local: false };
@@ -14,10 +16,18 @@ const USERS: Record<string, { email: string; roles: string[] }> = {
   "tok-editor": { email: "editor@example.com", roles: ["reader", "editor"] },
   "tok-reader": { email: "reader@example.com", roles: ["reader"] },
 };
+/** an AI connection's token, made on the editor's books page – GET /user names it */
+const OSCT_TOKEN = "osct_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";
+const AI_TOKEN = { id: "t1", name: "Claude on my laptop", prefix: "osct_abcd…", createdAt: "2026-10-30T10:00:00+00:00", lastUsedAt: "2026-10-30T10:05:00+00:00", expiresAt: "2027-04-30T10:00:00+00:00", expired: false };
 
 function accountsApi(seen: Seen) {
   const { method, path, headers } = seen;
   const token = headers.Authorization?.replace("Bearer ", "");
+  if (token === "osct_expired") return { status: 401, json: { error: { code: "token-expired", message: "This token has expired." } } };
+  if (token === OSCT_TOKEN) {
+    if (path === "/user") return { json: { user: { ...USERS["tok-editor"], language: "en" }, token: AI_TOKEN } };
+    if (method === "POST" && path === "/editor/books/osct/publish") return { status: 403, json: { error: { code: "not-for-ai", message: "Publishing is not for an AI connection." } } };
+  }
   if (path === "/user") return token && USERS[token] ? { json: { user: { ...USERS[token], language: "en" } } } : { status: 401, json: { error: { code: "unauthorized", message: "Sign in." } } };
   if (method === "POST" && path === "/auth/request") return { status: 202, json: { requestId: "req-1", expiresAt: "later" } };
   if (method === "POST" && path === "/auth/verify") {
@@ -50,7 +60,7 @@ describe("services", () => {
   it("fetchUser reads GET /user, null without a token", async () => {
     const { api } = fakeFetch(accountsApi);
     expect(await fetchUser(api(""))).toBeNull();
-    expect(await fetchUser(api("tok-editor"))).toEqual({ email: "editor@example.com", roles: ["reader", "editor"], language: "en" });
+    expect(await fetchUser(api("tok-editor"))).toEqual({ email: "editor@example.com", roles: ["reader", "editor"], language: "en", token: null });
     await expect(fetchUser(api("tok-dead"))).rejects.toMatchObject({ status: 401 });
   });
 });
@@ -101,7 +111,7 @@ describe("the user's server", () => {
     vi.mocked; // the module-level mock answers `rec`; a second server reuses the same double, so check the count only
     const fake = fakeFetch(accountsApi);
     const before = rec.tools.size;
-    expect(() => createUserServer({ ...CONFIG, token: "tok-editor", tokenSource: "env" }, fake.api("tok-editor"), { email: "editor@example.com", roles: ["reader", "editor"], language: "en" })).toThrow(/registered twice/);
+    expect(() => createUserServer({ ...CONFIG, token: "tok-editor", tokenSource: "env" }, fake.api("tok-editor"), { email: "editor@example.com", roles: ["reader", "editor"], language: "en", token: null })).toThrow(/registered twice/);
     expect(rec.tools.size).toBe(before);
     expect(r.tools.size).toBe(0);
   });
@@ -118,5 +128,54 @@ describe("the user's server", () => {
     registerContentTools(r2.server, forbidden.api("tok-reader"), { editor: CONFIG.editor });
     const result = await r2.call("list_books");
     expect(result.data.error.hint).toContain("admin grants it");
+  });
+});
+
+describe("signed in with an AI connection's token (#142)", () => {
+  it("fetchUser names the token; whoami says it is signed in with it, never shows it, and the tools are there from the start", async () => {
+    current = recorder();
+    const fake = fakeFetch(accountsApi);
+    const api = fake.api(OSCT_TOKEN);
+    const user = await fetchUser(api);
+    expect(user).toEqual({ email: "editor@example.com", roles: ["reader", "editor"], language: "en", token: { name: "Claude on my laptop", prefix: "osct_abcd…", expiresAt: AI_TOKEN.expiresAt, lastUsedAt: AI_TOKEN.lastUsedAt } });
+    createUserServer({ ...CONFIG, token: OSCT_TOKEN, tokenSource: "env" }, api, user);
+    expect(current.tools.has("list_books")).toBe(true);
+    // the mail sign-in stays for people without a token
+    expect(current.tools.has("sign_in_request")).toBe(true);
+    const who = await current.call("whoami");
+    expect(who.ok).toBe(true);
+    expect(who.data.signedIn).toMatchObject({ with: "token", token: { name: "Claude on my laptop", prefix: "osct_abcd…" } });
+    expect(who.data.signedIn.limits).toContain("never publishes");
+    expect(who.raw).not.toContain(OSCT_TOKEN);
+    expect(fake.seen.at(-1)!.headers.Authorization).toBe(`Bearer ${OSCT_TOKEN}`);
+  });
+
+  it("a session says so in whoami", async () => {
+    current = recorder();
+    const fake = fakeFetch(accountsApi);
+    const api = fake.api("tok-editor");
+    createUserServer({ ...CONFIG, token: "tok-editor", tokenSource: "env" }, api, await fetchUser(api));
+    expect((await current.call("whoami")).data.signedIn).toEqual({ with: "session" });
+  });
+
+  it("publish with a token: the API's 403 not-for-ai comes back with a hint to hand it to the person", async () => {
+    current = recorder();
+    const fake = fakeFetch(accountsApi);
+    const api = fake.api(OSCT_TOKEN);
+    createUserServer({ ...CONFIG, token: OSCT_TOKEN, tokenSource: "env" }, api, await fetchUser(api));
+    const result = await current.call("publish", { book: "osct", env: "local" });
+    expect(result.ok).toBe(false);
+    expect(result.data.error).toMatchObject({ status: 403, code: "not-for-ai" });
+    expect(result.data.error.hint).toContain("the person does it in the editor");
+  });
+
+  it("an expired token: whoami's error says to renew it on the books page", async () => {
+    current = recorder();
+    const fake = fakeFetch(accountsApi);
+    createUserServer({ ...CONFIG, token: "osct_expired", tokenSource: "env" }, fake.api("osct_expired"), null);
+    const who = await current.call("whoami");
+    expect(who.ok).toBe(false);
+    expect(who.data.error.code).toBe("token-expired");
+    expect(who.data.error.hint).toContain("renews it on the editor's books page");
   });
 });

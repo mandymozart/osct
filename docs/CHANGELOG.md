@@ -12,6 +12,22 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **AI connections on the editor's books page** (#142): an editor or admin makes a personal access token for Claude
+  with a name ("Claude on my laptop") – shown once with a copy button and the warning that it is not shown again – and
+  sees each token's last use and expiry, renews it (182 days from today, the same token works on) or revokes it. Beside
+  it a short guide: what the MCP server does, this instance's API, a copyable setup for Claude Code or Claude Desktop
+  with the new token filled in, and the first steps (`whoami`, `describe_content_model`). No sign-in mail is needed.
+- **API: personal access tokens** (`/user/tokens`, docs/server.md "AI connections"): stored as SHA-256 hashes with the
+  prefix `osct_`; `Authorization: Bearer osct_…` acts as the person with their roles. A token can never publish (any
+  environment), manage tokens, set the password or delete the account (403 `not-for-ai`); expired or revoked tokens
+  get 401. Saves made through a token name it in the change log (`token`).
+- **MCP server: signing in with a token**: `OSCT_EDITOR_TOKEN=osct_…` skips the mail sign-in; `whoami` says it is
+  signed in with a token and names it, and the errors of an expired or revoked token say what to do. The mail sign-in
+  stays for people without a token.
+
 ## 1.38.1 – 2026-10-30
 
 ### Fixed

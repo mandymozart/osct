@@ -13,6 +13,9 @@ declare(strict_types=1);
  *   PATCH  /user                     change the options / language
  *   DELETE /user                     delete the user and everything stored with it
  *   PUT    /user/password            set or change the password
+ *   GET    /user/tokens              the AI connections' tokens (docs/server.md "AI connections"; a session only, never a token)
+ *   POST   /user/tokens              { name } → 201 { token, apiToken } – the token once (editors and admins, for themselves)
+ *   POST   /user/tokens/{id}/renew   expires 182 days from now · DELETE /user/tokens/{id} revoke it
  *   GET    /progress/{bookId}        stored progress record
  *   PUT    /progress/{bookId}        store the progress record
  *   POST   /admin/migrate            create missing tables (header X-Admin-Secret: SECRET) – after a deploy
@@ -52,10 +55,10 @@ declare(strict_types=1);
  *                                               the Code tab's plugin sources (docs/server.md "Plugin sources")
  *   GET    /content/{env}/{path}                the local content store (json files, and the assets' files; public)
  *
- * Signed-in requests send `Authorization: Bearer <session token>`.
+ * Signed-in requests send `Authorization: Bearer <session token>` – or an AI connection's token `osct_…` (ApiTokens).
  */
 
-foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
+foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -118,6 +121,10 @@ try {
         $route === 'PATCH /user' => Users::update(Http::body()),
         $route === 'DELETE /user' => Users::delete(),
         $route === 'PUT /user/password' => Passwords::set(Http::body()),
+        $route === 'GET /user/tokens' => ApiTokens::list(),
+        $route === 'POST /user/tokens' => ApiTokens::create(Http::body()),
+        (bool) preg_match("#^POST /user/tokens/($uuid)/renew$#", $route, $match) => ApiTokens::renew($match[1]),
+        (bool) preg_match("#^DELETE /user/tokens/($uuid)$#", $route, $match) => ApiTokens::revoke($match[1]),
         (bool) preg_match('#^(GET|PUT) /progress/([A-Za-z0-9_-]{1,64})$#', $route, $match) =>
             $match[1] === 'GET' ? Progress::get($match[2]) : Progress::put($match[2], Http::body()),
         $route === 'GET /editor/books' => Books::list(),

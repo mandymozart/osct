@@ -151,24 +151,63 @@ final class Auth
         return $session;
     }
 
+    /** The token of an AI connection this request came with (ApiTokens), null for a session */
+    private static ?array $token = null;
+
     /**
-     * The signed-in user (Bearer token), else 401.
+     * The signed-in user (Bearer token: a session, or an AI connection's token – ApiTokens), else 401.
      * @return array<string, mixed>
      */
     public static function user(): array
     {
-        return self::session()[0];
+        return self::signedIn()[0];
     }
 
     /**
-     * The signed-in user and this device's session row (Bearer token), else 401. Sessions end after
-     * SESSION_TTL_DAYS without use.
+     * The signed-in user and this device's session row – the person's own sign-in only: an AI connection's token gets
+     * 403 `not-for-ai` (its tokens, the password, deleting the account). Without a valid token 401.
      * @return array{0: array<string, mixed>, 1: array<string, mixed>}
      */
     public static function session(): array
     {
+        [$user, $session] = self::signedIn();
+        if ($session === null) {
+            throw new ApiError(403, 'not-for-ai', 'Not with an AI connection\'s token – this needs the person\'s own sign-in in the editor.');
+        }
+        return [$user, $session];
+    }
+
+    /**
+     * The token row of an AI connection when this request came with one (after `user()` / `session()`), else null –
+     * for the change log, and for the routes a token may not use (`refuseToken`)
+     * @return array<string, mixed>|null
+     */
+    public static function token(): ?array
+    {
+        return self::$token;
+    }
+
+    /** 403 `not-for-ai` when this request came with an AI connection's token (call after `Auth::user()`) */
+    public static function refuseToken(string $what): void
+    {
+        if (self::$token !== null) {
+            throw new ApiError(403, 'not-for-ai', "$what is not for an AI connection – the person does it in the editor.");
+        }
+    }
+
+    /**
+     * The user and the session row (null for an AI connection's token), else 401. Sessions end after SESSION_TTL_DAYS
+     * without use.
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
+     */
+    private static function signedIn(): array
+    {
         $token = Http::bearerToken();
         if ($token === null) throw new ApiError(401, 'unauthorized', 'Not signed in.');
+        if (ApiTokens::isToken($token)) {
+            [$user, self::$token] = ApiTokens::authenticate($token);
+            return [$user, null];
+        }
         $session = Db::one('SELECT * FROM sessions WHERE token_hash = :hash', ['hash' => hash('sha256', $token)]);
         if (!$session) throw new ApiError(401, 'unauthorized', 'Not signed in.');
         if ($session['last_used_at'] < Db::now(-86400 * Config::int('SESSION_TTL_DAYS'))) {
@@ -222,7 +261,8 @@ final class Auth
         return $secret;
     }
 
-    private static function randomToken(): string
+    /** 32 random bytes, base64url – sessions, sign-in links, the AI connections' tokens */
+    public static function randomToken(): string
     {
         return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
     }

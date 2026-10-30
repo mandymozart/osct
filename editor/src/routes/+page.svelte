@@ -6,10 +6,12 @@
   import ImportForm from "#lib/ImportForm.svelte";
   import BookCover from "#lib/BookCover.svelte";
   import InfoView from "#lib/components/InfoView.svelte";
+  import AiConnections from "#lib/AiConnections.svelte";
 
   /**
    * The editor's start (#153): the books of this instance as their covers on the left, the import of a new one on the
-   * right. A book says only where it is live – each environment serves one book, the last one published there.
+   * right. A book says only where it is live – each environment serves one book, the last one published there. Under
+   * the books the AI connections with the MCP guide (#142) – connecting Claude is a first step of working here.
    */
   let books = $state<BookSummary[] | null>(null);
   let environments = $state<EnvironmentServing[]>([]);
@@ -62,6 +64,7 @@
         {e.env}: {e.error ? "the content store cannot be read" : `serves ${e.book}, a book not imported here`}
       </p>
     {/each}
+    <AiConnections />
   </main>
 
   <aside class="side">
