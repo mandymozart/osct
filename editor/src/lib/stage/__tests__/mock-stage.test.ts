@@ -144,8 +144,9 @@ describe("mock stage: the printed images and the placement (#191)", () => {
   });
 });
 
-describe("mock stage: the desks' look (#107)", () => {
-  type Looks = { topMaterial: { map: { name: string } | null }; edgeMaterial: { map: { name: string } | null } };
+describe("mock stage: the desks' look (#107, #187)", () => {
+  type Look = { map: { name: string } | null };
+  type Looks = { topMaterial: Look; edgeMaterial: Look; linoleumMaterial: Look; oakMaterial: Look };
   const deskStage = async () => {
     const { Texture } = await import("three");
     const { stage, requested } = newStage();
@@ -161,14 +162,24 @@ describe("mock stage: the desks' look (#107)", () => {
     expect(looks.edgeMaterial.map?.name).toBe("plywood-edge");
   });
 
-  it("keeps the plies on Schöpfer's edges under its white top, the same texture for both desks", async () => {
+  it("gives Schöpfer's desk linoleum and oak drawn in code – no plywood, no file", async () => {
     const { stage, requested, looks } = await deskStage();
     stage.setDesk("schoepfer");
     expect(requested).toEqual([]);
+    expect(looks.linoleumMaterial.map?.name).toBe("linoleum");
+    expect(looks.oakMaterial.map?.name).toBe("oak");
+    expect(looks.edgeMaterial.map).toBeNull();
     expect(looks.topMaterial.map).toBeNull();
-    const plies = looks.edgeMaterial.map;
-    expect(plies?.name).toBe("plywood-edge");
+  });
+
+  it("draws each texture once and keeps the Eiermann's plies apart from Schöpfer's oak", async () => {
+    const { stage, looks } = await deskStage();
+    stage.setDesk("schoepfer");
+    const oak = looks.oakMaterial.map;
     stage.setDesk("eiermann");
-    expect(looks.edgeMaterial.map).toBe(plies);
+    expect(looks.edgeMaterial.map?.name).toBe("plywood-edge");
+    expect(looks.oakMaterial.map).toBe(oak);
+    stage.setDesk("schoepfer");
+    expect(looks.oakMaterial.map).toBe(oak);
   });
 });

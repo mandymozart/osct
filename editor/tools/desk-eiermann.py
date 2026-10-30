@@ -1,8 +1,10 @@
 """
 The editor stage's desks, built from primitives as low-poly glTF for `editor/src/lib/stage/mock-stage.ts` (the Stage
 panel's *desk* choice): a table on Egon Eiermann's steel tube frame (Tischgestell 1, 1953) with a screen-printed
-plywood top, and Philipp Camille Schöpfer's white desk – a thick white top with three drawer cutouts in its front
-edge on four slender white steel legs splayed outward.
+plywood top, and Philipp Camille Schöpfer's desk – a thin sandwich top (linoleum on an aluminium core, an oak edge
+band all round) with three open oak drawers hanging under its front edge, on a black powder-coated steel frame: a flat
+rim under the top and, at each end, two straight legs splayed outward in a narrow A, each with a strut up to the end of
+the rim (a Y seen from the front).
 
     "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" -b -P editor/tools/desk-eiermann.py [-- out-dir]
 
@@ -14,17 +16,21 @@ The Eiermann frame's measurements (mm) come from a 3ds Max model of the frame Ti
 thinner Ø 17 inner tube of the height adjustment showing under the top, an upper and a lower cross tube per end
 frame, and two diagonal struts that cross between the ends – from the back of one lower cross tube to the front of
 the other's upper one, placed off the middle ("exzentrisch"). The clamps and screws of the original are left out.
-Schöpfer's desk is modelled after a photograph. Every tube has eight segments, no caps where none shows, and no
-bevels: a few hundred triangles a desk.
+Schöpfer's desk is modelled after the manufacturer's catalogue photographs (#187, not in the repository): the frame's
+proportions from its side view (M 2000 × 900 × 750, scaled to our 1800 × 800 top, the height kept at 750), the top's
+build from the catalogue's "aluminium sandwich, oak wood, linoleum". Every tube has eight segments, no caps where none
+shows, and no bevels; Schöpfer's frame is square and flat steel (closed boxes): a few hundred triangles a desk.
 
 Units: the scene is built in millimetres, Z up, and exported in metres, Y up (glTF). The origin is the centre of the
 top's upper surface, so the stage sets the table's height directly. Materials by name – the stage assigns its own
-look to `top` (the plywood faces, UV 0..1 over the top, or Schöpfer's white) and `edge` (both tops' cut sides: the
-plywood's plies, drawn by the stage – `editor/src/lib/stage/plywood.ts`); `steel` (the frame) and `drawer` (the inside
-of Schöpfer's cutouts) stay as exported. The edges' UVs: u runs along the edge (one texture repeat every
-`EDGE_REPEAT_MM`), v through the thickness, one stack of plies from 0 at the underside to 1 at the top surface (the
-glTF export flips v; a whole number of stacks doesn't mind) – the Eiermann board is one stack, Schöpfer's thick top
-three stacks glued on each other.
+look to the Eiermann's `top` (the plywood faces, UV 0..1 over the top) and `edge` (the board's cut sides: the
+plywood's plies, drawn by the stage – `editor/src/lib/stage/plywood.ts`) and to Schöpfer's `linoleum` and `oak`
+(drawn by the stage – `linoleum.ts`, `oak.ts`); `steel` (the frames), Schöpfer's `aluminium` (the top's underside)
+and `drawer` (the drawers' dark inside) stay as exported. The Eiermann edges' UVs: u runs along the edge (one texture
+repeat every `EDGE_REPEAT_MM`), v through the thickness, one stack of plies from 0 at the underside to 1 at the top
+surface (the glTF export flips v; a whole stack doesn't mind). Schöpfer's oak: u along the grain – the longer side of
+each face, so the grain runs along the edge band and along each drawer wall – in units of `OAK_U_MM`, v across it in
+units of `OAK_V_MM`; the linoleum: millimetres over `LINOLEUM_REPEAT_MM`, both ways.
 """
 
 import os
@@ -37,7 +43,7 @@ from mathutils import Matrix, Vector
 
 # ── Both tables (mm) ──────────────────────────────────────────────────────────────────────────────────────────────
 TOP_WIDTH, TOP_DEPTH = 1800.0, 800.0                         # the stage's desks: 180 × 80 cm
-HEIGHT = 720.0                                               # floor to the top's surface
+HEIGHT = 720.0                                               # the Eiermann's floor to the top's surface
 FLOOR = -HEIGHT
 SEGMENTS = 8
 EDGE_REPEAT_MM = 250.0                                       # the plies' texture repeats every quarter metre along an edge
@@ -54,18 +60,40 @@ E_LEG_TOP = E_UNDERSIDE - 55.0                               # the outer leg end
 E_STRUT_LOWER_Y, E_STRUT_UPPER_Y = 254.0, -144.0             # where the struts meet the lower and the upper tubes
 
 # ── Schöpfer's desk ───────────────────────────────────────────────────────────────────────────────────────────────
-S_TOP_THICKNESS = 60.0                                       # the thick white top
-S_EDGE_STACKS = 3                                            # its edge: three plywood boards of 20 mm on each other
-S_LEG_RADIUS = 8.0                                           # Ø 16 slender steel legs
-S_LEG_TOP_X, S_LEG_TOP_Y = 520.0, 350.0                      # where a leg meets the top (inside the corner)
-S_LEG_FOOT_X, S_LEG_FOOT_Y = 760.0, 560.0                    # where it stands (outside the top: splayed)
-S_CUTOUT_WIDTH, S_CUTOUT_HEIGHT, S_CUTOUT_DEPTH = 240.0, 26.0, 50.0
-S_CUTOUT_X = (-400.0, 0.0, 400.0)                            # three cutouts along the front edge
-S_CUTOUT_Z = (-40.0, -14.0)                                  # from the surface: the slot's bottom and top
+S_HEIGHT = 750.0                                             # the catalogue's 75 cm, floor to the top's surface
+S_FLOOR = -S_HEIGHT
+# The top: a sandwich panel, not a board – the linoleum a layer of its own over the whole top, under it the oak edge
+# band all round (the aluminium core inside it shows only from below)
+S_LINOLEUM = 4.0                                             # the linoleum layer, its edge a blue-grey line over the oak
+S_PANEL = 24.0                                               # linoleum and core: the top's whole thickness
+S_BAND = 12.0                                                # the oak band's width, seen on the underside
+LINOLEUM_REPEAT_MM = 400.0                                   # the linoleum's speckle repeats every 40 cm
+OAK_U_MM, OAK_V_MM = 500.0, 125.0                            # the oak texture: 50 cm along the grain, 12.5 cm across
+# The frame (black powder-coated steel): a flat rim under the top, at each end two square legs in a narrow A (seen
+# from the end) and a strut from each leg up to the rim's end (a Y seen from the front). From the catalogue's side
+# view: the legs meet the rim 293 mm in from its end of 2000 and stand 49 mm in, the struts leave them 135 mm under
+# the rim – the lengths scaled by 0.9 to our 1800 mm top, the heights kept
+S_RIM_GAP = 0.5                                              # the rim lies under the top (no shared face to flicker)
+S_RIM_THICK, S_RIM_WIDTH = 5.0, 40.0                         # flat steel 40 × 5, lying flat
+S_RIM_Y = 355.0                                              # the long bars' middle (inside the top's edge)
+S_RIM_X = 855.0                                              # the end bars' middle
+S_LEG = 20.0                                                 # 20 × 20 square legs
+S_LEG_TOP_X, S_LEG_TOP_Y = 636.0, 350.0                      # where a leg meets the rim (under its long bar)
+S_LEG_FOOT_X, S_LEG_FOOT_Y = 856.0, 400.0                    # where it stands: splayed out to the ends, a narrow A
+S_STRUT = 16.0                                               # 16 × 16 square struts
+S_STRUT_DROP = 135.0                                         # where a strut leaves its leg, under the rim
+# The drawers: three open oak trays hanging under the front edge, just under the rim (their bottoms 80 mm under the
+# surface – the catalogue's 8 cm), pulled out towards the sitter by different amounts so their dark insides show
+S_DRAWER_X = (-420.0, 0.0, 420.0)
+S_DRAWER_PULL = (150.0, 60.0, 110.0)                         # how far each sticks out over the front edge
+S_DRAWER_WIDTH, S_DRAWER_DEPTH = 360.0, 300.0
+S_DRAWER_BOTTOM = -80.0
+S_DRAWER_WALL, S_DRAWER_FLOOR = 10.0, 6.0
 
 # ── Materials ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-def material(name, rgb, metallic, roughness):
+def material(name, rgb, metallic, roughness, specular=None):
+    """A Principled material; `specular` (Specular IOR Level, 0.5 = the default) exports as KHR_materials_specular"""
     mat = bpy.data.materials.new(name)
     if mat.node_tree is None:
         mat.use_nodes = True
@@ -73,6 +101,8 @@ def material(name, rgb, metallic, roughness):
     principled.inputs["Base Color"].default_value = (*rgb, 1.0)
     principled.inputs["Metallic"].default_value = metallic
     principled.inputs["Roughness"].default_value = roughness
+    if specular is not None:
+        principled.inputs["Specular IOR Level"].default_value = specular
     return mat
 
 # ── Geometry ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -161,69 +191,144 @@ def build_eiermann():
     return [top, frame]
 
 
-def build_schoepfer():
-    bm = bmesh.new()
-    slab(bm, TOP_WIDTH, TOP_DEPTH, S_TOP_THICKNESS)
-    top = mesh_object("Top", bm, (bpy.data.materials["top"], bpy.data.materials["drawer"], bpy.data.materials["edge"]))
-    # The drawer cutouts: three boxes taken out of the front edge (a boolean, evaluated once and baked)
-    bm = bmesh.new()
-    for x in S_CUTOUT_X:
-        result = bmesh.ops.create_cube(bm, size=1.0)
-        bmesh.ops.scale(bm, vec=(S_CUTOUT_WIDTH, S_CUTOUT_DEPTH + 2, S_CUTOUT_HEIGHT), verts=result["verts"])
-        bmesh.ops.translate(bm, vec=(x, -TOP_DEPTH / 2 + S_CUTOUT_DEPTH / 2 - 1, (S_CUTOUT_Z[0] + S_CUTOUT_Z[1]) / 2), verts=result["verts"])
-    cutter = mesh_object("Cutter", bm, ())
-    modifier = top.modifiers.new("cutouts", "BOOLEAN")
-    modifier.operation = "DIFFERENCE"
-    modifier.object = cutter
-    evaluated = bpy.data.meshes.new_from_object(top.evaluated_get(bpy.context.evaluated_depsgraph_get()))
-    top.modifiers.clear()
-    old = top.data
-    top.data = evaluated
-    bpy.data.meshes.remove(old)
-    bpy.data.objects.remove(cutter)
-    # The slots anew (the boolean leaves an empty one of the cutter's); every face is assigned below
-    evaluated.materials.clear()
-    for name in ("top", "drawer", "edge"):
-        evaluated.materials.append(bpy.data.materials[name])
-    index = {"top": 0, "drawer": 1, "edge": 2}
-    uv_layer = evaluated.uv_layers[0] if evaluated.uv_layers else evaluated.uv_layers.new(name="UVMap")
-    for poly in evaluated.polygons:
-        c = poly.center
-        inside = any(abs(c.x - x) <= S_CUTOUT_WIDTH / 2 + 0.5 for x in S_CUTOUT_X)
-        inside = inside and c.y <= -TOP_DEPTH / 2 + S_CUTOUT_DEPTH + 0.5 and S_CUTOUT_Z[0] - 0.5 <= c.z <= S_CUTOUT_Z[1] + 0.5
-        front_face = c.y <= -TOP_DEPTH / 2 + 0.5
-        side = abs(poly.normal.z) < 0.5
-        if inside and not front_face:
-            poly.material_index = index["drawer"]
-        else:
-            poly.material_index = index["edge"] if side else index["top"]
-        for li in poly.loop_indices:
-            co = evaluated.vertices[evaluated.loops[li].vertex_index].co
-            uv_layer.data[li].uv = edge_uv(co, poly.normal, S_TOP_THICKNESS, S_EDGE_STACKS) if side else top_uv(co)
+def axis_box(bm, lo, hi):
+    """A closed box between the corners `lo` and `hi` (any order per axis)"""
+    a = [min(lo[i], hi[i]) for i in range(3)]
+    b = [max(lo[i], hi[i]) for i in range(3)]
+    result = bmesh.ops.create_cube(bm, size=1.0)
+    for vert in result["verts"]:
+        vert.co = Vector(tuple(a[i] + (vert.co[i] + 0.5) * (b[i] - a[i]) for i in range(3)))
 
+
+def beam(bm, a, b, size):
+    """A closed square beam of `size` from `a` to `b` (Vectors), two of its sides upright"""
+    axis = (b - a).normalized()
+    ref = Vector((0, 1, 0)) if abs(axis.y) < 0.9 else Vector((1, 0, 0))
+    u = axis.cross(ref).normalized()
+    v = axis.cross(u).normalized()
+    square = ((-1, -1), (1, -1), (1, 1), (-1, 1))
+    ends = [[bm.verts.new(centre + (u * su + v * sv) * (size / 2)) for su, sv in square] for centre in (a, b)]
+    bm.faces.new(ends[0])
+    bm.faces.new(ends[1])
+    for i in range(4):
+        j = (i + 1) % 4
+        bm.faces.new((ends[0][i], ends[0][j], ends[1][j], ends[1][i]))
+
+
+def rect(bm, x0, y0, x1, y1, z):
+    """Four new vertices: a rectangle at height z, counter-clockwise from above"""
+    return [bm.verts.new(co) for co in ((x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z))]
+
+
+def band(bm, upper, lower, material):
+    """The four quads between two rings of four vertices"""
+    for i in range(4):
+        j = (i + 1) % 4
+        bm.faces.new((upper[i], upper[j], lower[j], lower[i])).material_index = material
+
+
+def plane_uv(bm, scale_for):
+    """UVs per face from its plane: u along its longer side, v across – in millimetres over the face material's
+    (u, v) scale, or none (a zero map) for a material without a texture"""
+    uv_layer = bm.loops.layers.uv.verify()
+    for face in bm.faces:
+        scale = scale_for(face.material_index)
+        face.normal_update()
+        normal_axis = max(range(3), key=lambda k: abs(face.normal[k]))
+        a, b = [k for k in range(3) if k != normal_axis]
+        cos = [loop.vert.co for loop in face.loops]
+        extent = lambda k: max(co[k] for co in cos) - min(co[k] for co in cos)
+        u, v = (a, b) if extent(a) >= extent(b) else (b, a)
+        for loop in face.loops:
+            co = loop.vert.co
+            loop[uv_layer].uv = (co[u] / scale[0], co[v] / scale[1]) if scale else (0.0, 0.0)
+
+
+def build_schoepfer():
+    w, d = TOP_WIDTH / 2, TOP_DEPTH / 2
+    lino, oak, aluminium = 0, 1, 2
+
+    # The top: the linoleum over the whole top (its edge a thin layer of its own), the oak band under it all round,
+    # the aluminium core's underside inside the band – one closed panel, 24 mm
     bm = bmesh.new()
+    surface = rect(bm, -w, -d, w, d, 0.0)
+    layer = rect(bm, -w, -d, w, d, -S_LINOLEUM)
+    under = rect(bm, -w, -d, w, d, -S_PANEL)
+    core = rect(bm, -w + S_BAND, -d + S_BAND, w - S_BAND, d - S_BAND, -S_PANEL)
+    bm.faces.new(surface).material_index = lino
+    band(bm, surface, layer, lino)
+    band(bm, layer, under, oak)
+    band(bm, under, core, oak)
+    bm.faces.new(core[::-1]).material_index = aluminium
+    plane_uv(bm, lambda m: (LINOLEUM_REPEAT_MM, LINOLEUM_REPEAT_MM) if m == lino else (OAK_U_MM, OAK_V_MM) if m == oak else None)
+    top = mesh_object("Top", bm, tuple(bpy.data.materials[n] for n in ("linoleum", "oak", "aluminium")))
+
+    # The drawers: open oak trays (a bottom and four walls, the top open) just under the rim, pulled out over the
+    # front edge; their inside is dark
+    rim_top = -S_PANEL - S_RIM_GAP
+    rim_bottom = rim_top - S_RIM_THICK
+    drawer_top = rim_bottom - S_RIM_GAP
+    bm = bmesh.new()
+    wood, inside = 0, 1
+    for cx, pull in zip(S_DRAWER_X, S_DRAWER_PULL):
+        x0, x1 = cx - S_DRAWER_WIDTH / 2, cx + S_DRAWER_WIDTH / 2
+        y0 = -d - pull
+        y1 = y0 + S_DRAWER_DEPTH
+        t = S_DRAWER_WALL
+        outer_bottom = rect(bm, x0, y0, x1, y1, S_DRAWER_BOTTOM)
+        outer_top = rect(bm, x0, y0, x1, y1, drawer_top)
+        inner_top = rect(bm, x0 + t, y0 + t, x1 - t, y1 - t, drawer_top)
+        inner_bottom = rect(bm, x0 + t, y0 + t, x1 - t, y1 - t, S_DRAWER_BOTTOM + S_DRAWER_FLOOR)
+        bm.faces.new(outer_bottom[::-1]).material_index = wood
+        band(bm, outer_top, outer_bottom, wood)
+        band(bm, outer_top, inner_top, wood)
+        band(bm, inner_top, inner_bottom, inside)
+        bm.faces.new(inner_bottom).material_index = inside
+    plane_uv(bm, lambda m: (OAK_U_MM, OAK_V_MM) if m == wood else None)
+    drawers = mesh_object("Drawers", bm, (bpy.data.materials["oak"], bpy.data.materials["drawer"]))
+
+    # The frame: closed boxes that run into each other, so no two faces share a plane
+    bm = bmesh.new()
+    rim_long = S_RIM_X + S_RIM_WIDTH / 2 + 2                  # the long bars reach past the end bars
+    for sy in (-1, 1):
+        axis_box(bm, (-rim_long, sy * (S_RIM_Y - S_RIM_WIDTH / 2), rim_bottom), (rim_long, sy * (S_RIM_Y + S_RIM_WIDTH / 2), rim_top))
+    for sx in (-1, 1):
+        axis_box(bm, (sx * (S_RIM_X - S_RIM_WIDTH / 2), -(S_RIM_Y + 15), rim_bottom + 0.1), (sx * (S_RIM_X + S_RIM_WIDTH / 2), S_RIM_Y + 15, rim_top - 0.1))
+    joint = (rim_top + rim_bottom) / 2                        # legs and struts end inside the rim
     for sx in (-1, 1):
         for sy in (-1, 1):
-            a = Vector((sx * S_LEG_TOP_X, sy * S_LEG_TOP_Y, -S_TOP_THICKNESS + 10))  # the join is inside the top
-            b = Vector((sx * S_LEG_FOOT_X, sy * S_LEG_FOOT_Y, FLOOR))
-            tube(bm, a, b, S_LEG_RADIUS)
-    legs = mesh_object("Legs", bm, (bpy.data.materials["steel"],), smooth=True)
-    return [top, legs]
+            a = Vector((sx * S_LEG_TOP_X, sy * S_LEG_TOP_Y, joint))
+            b = Vector((sx * S_LEG_FOOT_X, sy * S_LEG_FOOT_Y, S_FLOOR))
+            beam(bm, a, b, S_LEG)
+            fork = a.lerp(b, (a.z - (rim_bottom - S_STRUT_DROP)) / (a.z - b.z))
+            beam(bm, fork, Vector((sx * S_RIM_X, fork.y, joint)), S_STRUT)
+    frame = mesh_object("Frame", bm, (bpy.data.materials["steel"],))
+    return [top, drawers, frame]
 
 # ── Build and export ───────────────────────────────────────────────────────────────────────────────────────────────
 
-# Materials: (base colour, metallic, roughness). The frames are powder-coated steel, not bare metal: a metal shows
-# almost only what it reflects, and thin dark tubes would vanish before a dark studio or under the stage's own lights.
+# Materials: (base colour – linear, metallic, roughness[, specular level]). The frames are powder-coated steel, not
+# bare metal: a metal shows almost only what it reflects, and thin dark tubes would vanish before a dark studio or
+# under the stage's own lights. Schöpfer's is black, matt with a slight sheen: a matt coat reflects little (specular
+# level 0.15 of the default 0.5) – the studio HDRIs' bright lights would otherwise wash its flat faces out to tan.
+# Its `linoleum` and `oak` get the stage's drawn textures, these colours stand in for them elsewhere (a glTF viewer);
+# `drawer` is the trays' dark inside.
 DESKS = {
     "desk-eiermann": (build_eiermann, {"top": ((0.23, 0.14, 0.09), 0.0, 0.5), "edge": ((0.78, 0.64, 0.46), 0.0, 0.7), "steel": ((0.16, 0.16, 0.17), 0.15, 0.45)}),
-    "desk-schoepfer": (build_schoepfer, {"top": ((0.92, 0.92, 0.9), 0.0, 0.6), "edge": ((0.78, 0.64, 0.46), 0.0, 0.7), "drawer": ((0.12, 0.12, 0.12), 0.0, 0.9), "steel": ((0.9, 0.9, 0.89), 0.3, 0.5)}),
+    "desk-schoepfer": (build_schoepfer, {
+        "linoleum": ((0.22, 0.34, 0.5), 0.0, 0.8),
+        "oak": ((0.55, 0.42, 0.28), 0.0, 0.6),
+        "aluminium": ((0.6, 0.61, 0.63), 0.4, 0.45),
+        "drawer": ((0.025, 0.023, 0.021), 0.0, 0.9),
+        "steel": ((0.022, 0.022, 0.024), 0.0, 0.55, 0.15),
+    }),
 }
 
 
 def export(name, build, materials, out_dir):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    for mat_name, (rgb, metallic, roughness) in materials.items():
-        material(mat_name, rgb, metallic, roughness)
+    for mat_name, values in materials.items():
+        material(mat_name, *values)
     desk = bpy.data.objects.new("Desk", None)
     bpy.context.scene.collection.objects.link(desk)
     for obj in build():

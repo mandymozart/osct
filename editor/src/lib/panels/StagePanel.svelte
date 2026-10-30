@@ -104,7 +104,7 @@
       <span class="small">{originLabel(preview.origin, format)}</span>
     </span></div>
 
-  <div class="row" data-help="The desk the book lies on: Eiermann's steel frame with a plywood top, or Schöpfer's white desk.">
+  <div class="row" data-help="The desk the book lies on: Eiermann's steel frame with a plywood top, or Schöpfer's desk – linoleum and oak, open drawers, a black steel frame.">
     <span class="label">desk</span>
     <span class="controls">
       <select class="field wide" aria-label="Desk" value={preview.desk} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isDeskId(id)) updatePreview({ desk: id }); }}>

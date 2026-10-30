@@ -12,6 +12,27 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Schöpfer's desk as it really is** (#187, Tilman: "Das ist kein Plywood … Und Material echt heißt"; "Die Fächer sind
+  besonders wichtig, dass die zu erkennen sind. Und die Platte nicht massiv erscheint"): remodelled after the
+  manufacturer's catalogue. The top is a thin sandwich panel (24 mm, still 1800 × 800): a blue-grey **linoleum** layer
+  over the whole top – its edge a thin line of its own – on an **oak** edge band all round, the aluminium core showing
+  from below. Three **open oak drawers** hang under the front edge (bottoms 80 mm under the surface, the catalogue's
+  8 cm), pulled out towards the sitter by different amounts, so their walls, bottom and **dark inside** read from the
+  front and the side. The **frame** is black powder-coated steel, matt with a slight sheen: a flat rim under the top
+  and at each end two square legs splayed outward in a narrow A, each with a strut up to the end of the rim (a Y seen
+  from the front) – the proportions from the catalogue's side view, the height now its 75 cm (the Eiermann stays at
+  72). 256 triangles. No plywood plies on Schöpfer's edges any more (#107 stays on the Eiermann).
+- **Oak and linoleum drawn in code** (`editor/src/lib/stage/oak.ts`, `linoleum.ts`, like the plies – no image file, no
+  download): a light oak with fine, slightly wavy grain lines and the dashes of its pores, running along the edge band
+  and along every drawer wall; linoleum with a faint mottle and speckle. The stage puts them on Schöpfer's materials
+  `oak` and `linoleum`; the Eiermann's look is unchanged.
+- **The desk-model test** checks Schöpfer's materials (no `top` / `edge`), the sandwich top's layers, the three drawers
+  as open boxes with a dark inside under the top's front edge, the splayed legs and struts, and the frame's black, matt
+  coat (both frames: powder coat, not a mirror).
+
 ## 1.41.0 – 2026-10-30
 
 ### Added

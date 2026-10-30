@@ -4,6 +4,28 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Schöpfer's desk from the catalogue (#187)
+
+- **Tilman** (issue, with two catalogue photos kept outside the repo): "Das ist kein Plywood … Und Material echt
+  heißt"; priority: "Die Fächer sind besonders wichtig, dass die zu erkennen sind. Und die Platte nicht massiv
+  erscheint." The model follows the catalogue: aluminium sandwich top with linoleum and an oak edge band, oak drawers,
+  black powder-coated steel frame. Size stays 1800 × 800 (#109), the height is now the catalogue's 750 (the Eiermann
+  keeps 720).
+- **Interpretations** (say so if wrong): the catalogue's "M 200 × 90 × 8" is read as 8 cm from the surface to the
+  drawers' bottoms (the panel itself is 24 mm – thin, as Tilman asked). The photo shows one drawer; the model keeps
+  three (the earlier three cutouts, "Fächer" plural), **pulled out by 150 / 60 / 110 mm** so the dark insides read from
+  above – a desk with its drawers shut would show only their oak fronts under the edge. The drawers hang under the
+  frame's flat rim (5 mm) – a 6 mm gap under the top where they stick out. The legs splay 4° front to back (tops
+  ±350, feet ±400 – the edge of the top) – read from the photo's perspective, not measured.
+- **The default reader view does not show the drawers** (nor does *far*): it is 35 cm from the book and looks down on
+  it, the front edge is 40 cm in front of it. They show once the camera is tilted low (*low*, or a drag) and from the
+  side. Under Ferndale Studio 04 (the default sky, a yellow light from above) the linoleum reads olive-grey from
+  above and grey from the front; in textured shading it is blue-grey (the other skies not checked).
+- **The black frame under the studio HDRIs**: unlit by tone mapping, the HDRIs' bright lights made the flat faces of a
+  black dielectric (F0 4 %) look tan whatever the roughness; the steel has a low specular level (Blender's Specular
+  IOR Level 0.15 → `KHR_materials_specular` 0.3), so it reads dark brown-black in rendered shading and black in
+  textured. The oak is drawn a little darker than a sample of light oak for the same reason (it clips to yellow).
+
 ## 2026-10-30 – Plugins everywhere: materials, textures, make it code; the aquarium; the zero plane (#188, #189)
 
 - **The variant** (Tilman's request in #188, the table now in docs/plugins.md "Where a plugin can go"): plugin API 1.4
@@ -622,7 +644,8 @@ outcome in the line (or move it into a dated decision block).
   has the desk always and the HDRI as its sky while rendered (the scene's lights in wire / solid / textured); the
   Stage panel keeps *desk* and *sky*.
 - [ ] Open: the frames' finishes (dark metallic steel, Schöpfer's white; chrome would be a material change in the
-  script) and Schöpfer's leg geometry (four straight splayed legs read from one photograph).
+  script) and Schöpfer's leg geometry (four straight splayed legs read from one photograph). – Schöpfer's part done
+  in #187 (black powder coat, the catalogue's frame); the Eiermann's graphite stays as #184 left it.
 
 ## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
 

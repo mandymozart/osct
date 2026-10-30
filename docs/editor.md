@@ -106,12 +106,16 @@ shown while the shading is rendered), the equirectangular image as `scene.backgr
 stage every frame so the room stays put while the camera orbits – the **desk**, the Stage panel's choice of two
 (Tilman: the tool is for designers, they should feel at home): a 1.8 × 0.8 m screen-printed plywood top (18 mm; Poly
 Haven's plywood texture tinted to the phenolic brown on the faces) on a steel tube frame after Egon Eiermann's table
-frame (1953, the default), or Philipp Camille Schöpfer's white desk (a thick top with three drawer cutouts in its front
-edge on four slender legs splayed outward); both tops show cut plywood on their edges – 13 plies of birch per 18 mm board (as the trade's 18 mm birch plywood),
-alternating long grain and darker cross grain, parted by glue lines, drawn in code once (`plywood.ts`, a 512 × 128
-data texture, no image file): one stack through the Eiermann board, three through Schöpfer's 60 mm top. Both 72 cm high and our
-own low-poly models (`editor/static/models/`, 236 and 124 triangles, built by `editor/tools/desk-eiermann.py` in
-Blender – `editor/static/models/README.md`), loaded once each with the origin at the top's surface, so the book lies
+frame (1953, the default; its board shows cut plywood on its edges – 13 plies of birch per 18 mm board, as the trade's
+18 mm birch plywood, alternating long grain and darker cross grain, parted by glue lines, drawn in code once
+(`plywood.ts`, a 512 × 128 data texture, no image file)), or Philipp Camille Schöpfer's desk (#187, after the
+manufacturer's catalogue): a thin sandwich top – a blue-grey linoleum layer over an oak edge band, the aluminium core
+underneath, 24 mm in all – with three open oak drawers (dark inside) hanging under its front edge, pulled out towards
+the sitter, on a black powder-coated steel frame (a flat rim; at each end two square legs splayed in a narrow A, each
+with a strut up to the rim's end); its oak and linoleum are drawn in code too (`oak.ts`, `linoleum.ts`). The Eiermann
+72 cm high, Schöpfer's 75; both our own low-poly models (`editor/static/models/`, 236 and 256 triangles, built by
+`editor/tools/desk-eiermann.py` in Blender – `editor/static/models/README.md`), loaded once each with the origin at
+the top's surface, so the book lies
 on it – the open book as an object – two blocks of paper on a white hardcover board (2 mm) that overhangs the pages by 3 mm, the block's
 thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) – and the current
 spread's printed images. A spread of the format `cover` or `back` shows the **closed book** instead – the printed

@@ -30,7 +30,7 @@ export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.i
 /**
  * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; Tilman: the tool is for
  * designers, they should feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
- * Schöpfer's white desk
+ * Schöpfer's desk (linoleum and oak on a black steel frame)
  */
 export const DESKS = [
   { id: "eiermann", name: "Eiermann" },
