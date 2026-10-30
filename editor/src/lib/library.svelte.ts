@@ -1,11 +1,10 @@
-import { ApiError, deleteAsset, listAssets, replaceAsset, uploadAsset, type Asset } from "./api";
+import { deleteAsset, errorText, listAssets, replaceAsset, uploadAsset, type Asset } from "./api";
 import { CODE_EXTENSIONS } from "./library-code";
-import { acceptOf, KIND_EXTENSIONS, type AssetKind } from "./library-pick";
-
-export { NODE_ASSET_KINDS } from "./library-pick";
+import { acceptOf } from "./library-pick";
+import { ASSET_KINDS } from "@shared/api/rules";
 
 /** The files the library accepts: the API's `Assets::KINDS` and scripts (they become plugin sources – #186) */
-export const ACCEPT = [acceptOf(Object.keys(KIND_EXTENSIONS) as AssetKind[]), ...CODE_EXTENSIONS.script].join(",");
+export const ACCEPT = [acceptOf(ASSET_KINDS), ...CODE_EXTENSIONS.script].join(",");
 
 /**
  * The book's library: the files uploaded in the editor (the API's assets – docs/server.md "Assets"), loaded per book,
@@ -27,7 +26,7 @@ class Library {
       this.assets = (await listAssets(bookId)).assets;
       this.bookId = bookId;
     } catch (e) {
-      this.error = e instanceof ApiError ? e.message : String(e);
+      this.error = errorText(e);
     } finally {
       this.loading = false;
     }
@@ -50,7 +49,7 @@ class Library {
       this.assets = [asset, ...this.assets.filter(a => a.id !== asset.id)];
       return asset;
     } catch (e) {
-      this.error = e instanceof ApiError ? `${file.name}: ${e.message}` : String(e);
+      this.error = `${file.name}: ${errorText(e)}`;
       throw e;
     } finally {
       this.uploading = this.uploading.filter(name => name !== file.name);
@@ -66,7 +65,7 @@ class Library {
       this.assets = this.assets.map(a => (a.id === asset.id ? asset : a));
       return asset;
     } catch (e) {
-      this.error = e instanceof ApiError ? `${file.name}: ${e.message}` : String(e);
+      this.error = `${file.name}: ${errorText(e)}`;
       throw e;
     } finally {
       this.uploading = this.uploading.filter(name => name !== file.name);

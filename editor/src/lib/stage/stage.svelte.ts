@@ -21,9 +21,10 @@ import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { describePayload, logEvent, type StageEvent } from "./event-log";
 import { plugins } from "#lib/plugins.svelte.js";
-import type { PrintPlacement } from "#lib/api.js";
+import { errorText, type PrintPlacement } from "#lib/api.js";
 import { nearPointer, nodeOf, pickable, pickByMode, pickForMenu, samePick, type PickMode, type StageHit, type StagePick } from "./pick";
 import { DEFAULT_ASPECT, draggedPlace, grabOffset, printedHeight, type PlacementDrag } from "./placement";
+import { DEFAULT_PAGE_MM } from "./stage-layout";
 import { SceneSnapper } from "./snap-scene";
 
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
@@ -593,7 +594,7 @@ export class Stage {
 
   /** The base format (one page, mm) the positions and the grid are counted in */
   pageFormat(): { width: number; height: number } {
-    return this.tracker?.pageFormat() ?? { width: 230, height: 320 };
+    return this.tracker?.pageFormat() ?? DEFAULT_PAGE_MM;
   }
 
   /** The current spread's format (the form and the panel offer the right surfaces) */
@@ -694,7 +695,7 @@ export class Stage {
       this.vars = allVars();
       return null;
     } catch (error) {
-      return error instanceof Error ? error.message.replace(/^stage: /, "") : String(error);
+      return errorText(error).replace(/^stage: /, "");
     }
   }
 

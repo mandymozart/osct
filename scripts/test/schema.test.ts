@@ -32,6 +32,18 @@ describe('content schema', () => {
     expect(schemaLockProblem(null, '1.0', 'new')).toBeNull();
   });
 
+  it('leaves shared/api/ – the API\'s answers, no content – out of the checksum', () => {
+    const dir = tempDir('osct-contract-');
+    fs.mkdirSync(path.join(dir, 'types'));
+    fs.writeFileSync(path.join(dir, 'types', 'book.ts'), 'export interface Book { id: string }\n');
+    const before = hashContract(dir);
+    fs.mkdirSync(path.join(dir, 'api'));
+    fs.writeFileSync(path.join(dir, 'api', 'editor.ts'), 'export interface BookList { books: string[] }\n');
+    expect(hashContract(dir)).toBe(before);
+    fs.writeFileSync(path.join(dir, 'types', 'book.ts'), 'export interface Book { id: string; title: string }\n');
+    expect(hashContract(dir)).not.toBe(before);
+  });
+
   it('reads the lock only when it is { schema, checksum }', () => {
     const dir = tempDir('osct-lock-');
     const file = path.join(dir, 'content-schema.json');

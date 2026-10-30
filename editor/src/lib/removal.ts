@@ -1,4 +1,5 @@
-import { ApiError, type ImportConfirmation, type RemovalImpact } from "./api";
+import { confirmationStep } from "@shared/api/errors";
+import type { Confirmation, RemovalImpact } from "./api";
 import { count } from "./import-preview";
 
 /**
@@ -11,20 +12,16 @@ import { count } from "./import-preview";
 /** The step to confirm: what the removal takes, the id to send back, and whether an earlier id was void */
 export interface RemovalStep {
   impact: RemovalImpact;
-  confirmation: ImportConfirmation;
+  confirmation: Confirmation;
   /** The book changed since the impact the person saw (409 confirmation-void): this is the fresh one */
   changed: boolean;
 }
 
 /** A 409 confirm-delete / confirmation-void as the step to confirm; anything else: null */
 export const removalStep = (error: unknown): RemovalStep | null => {
-  if (!(error instanceof ApiError) || error.status !== 409 || (error.code !== "confirm-delete" && error.code !== "confirmation-void")) return null;
-  const impact = error.details.impact as RemovalImpact | undefined;
-  const confirmation = error.details.confirmation as ImportConfirmation | undefined;
-  if (!impact || !confirmation) return null;
-  return { impact, confirmation, changed: error.code === "confirmation-void" };
+  const step = confirmationStep<RemovalImpact>(error, "removal");
+  return step && { impact: step.shows, confirmation: step.confirmation, changed: step.changed };
 };
-
 
 /** "3 entries, 3 targets, 2 entities" – the parts that are not zero */
 const takes = (impact: RemovalImpact, withEntries: boolean): string =>
@@ -36,9 +33,8 @@ const takes = (impact: RemovalImpact, withEntries: boolean): string =>
 
 /** What is removed: "spread 4–5", "the cover", "the back cover", "entry “Castle” (page 3)" */
 export const removedName = (impact: RemovalImpact): string => {
-  if (impact.kind === "entry" && impact.entry) return `entry “${impact.entry.title}” (page ${impact.entry.page})`;
+  if (impact.kind === "entry") return `entry “${impact.entry.title}” (page ${impact.entry.page})`;
   const spread = impact.spread;
-  if (!spread) return "it";
   if (spread.format === "cover") return "the cover";
   if (spread.format === "back") return "the back cover";
   return spread.firstPage === spread.lastPage ? `page ${spread.firstPage}` : `spread ${spread.firstPage}–${spread.lastPage}`;

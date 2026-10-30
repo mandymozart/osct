@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { API_URL, ApiError, createApiToken, getHealth, listApiTokens, renewApiToken, revokeApiToken, type ApiToken } from "#lib/api.js";
+  import { API_URL, createApiToken, errorText, getHealth, listApiTokens, renewApiToken, revokeApiToken, type ApiToken } from "#lib/api.js";
   import Segmented from "#lib/components/Segmented.svelte";
   import {
     ago, apiUrlFor, CLIENT_INFO, CLIENTS, commandLine, day, expiresSoon, FILE_PLACEHOLDER, SERVER_FILE, SERVER_NAME_PLACEHOLDER, serverFileFrom, serverNameFor,
     snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, type McpClient, type McpSetup,
   } from "#lib/mcp-setup.js";
+  import { readStored, writeStored } from "#lib/storage.js";
 
   /**
    * AI connections on the books page (#142, docs/editor.md "AI connections"): the person's personal access tokens for
@@ -29,23 +30,9 @@
   let env = $state<string | null>(null);
 
   const FILE_KEY = "osct-editor-mcp-file";
-  const readFile = () => {
-    try {
-      return localStorage.getItem(FILE_KEY) ?? "";
-    } catch {
-      return "";
-    }
-  };
   /** What the person typed for the server file – the checkout's `mcp/bin/osct-mcp.mjs` or the checkout itself */
-  let fileInput = $state(readFile());
-  const storeFile = () => {
-    try {
-      if (fileInput.trim()) localStorage.setItem(FILE_KEY, fileInput.trim());
-      else localStorage.removeItem(FILE_KEY);
-    } catch {
-      // storage blocked: the path holds while the page lives
-    }
-  };
+  let fileInput = $state(readStored(FILE_KEY) ?? "");
+  const storeFile = () => writeStored(FILE_KEY, fileInput.trim() || null);
 
   const apiUrl = typeof location === "undefined" ? API_URL : apiUrlFor(API_URL, location.origin);
   const setup = $derived<McpSetup>({ name: env ? serverNameFor(env) : SERVER_NAME_PLACEHOLDER, api: apiUrl, token: fresh?.token ?? null, file: serverFileFrom(fileInput) });
@@ -57,13 +44,12 @@
     { key: "token", label: "OSCT_EDITOR_TOKEN", value: setup.token ?? TOKEN_PLACEHOLDER, help: "A token from the list on the left – filled in right after you create one, never stored." },
   ]);
 
-  const message = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
 
   const load = async () => {
     try {
       tokens = (await listApiTokens()).tokens;
     } catch (e) {
-      error = message(e);
+      error = errorText(e);
     }
   };
   onMount(() => {
@@ -77,7 +63,7 @@
     try {
       await action();
     } catch (e) {
-      error = message(e);
+      error = errorText(e);
     } finally {
       busy = false;
     }

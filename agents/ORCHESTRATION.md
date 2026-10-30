@@ -18,7 +18,8 @@ This file adds what is special to OSCT. Written after the first night shift, 202
 - After the deploy: `https://osct.porschuetz.de/api/health` shows the version; both "Deploy staging" runs are green.
 
 ## Contracts a worker must know
-- Content schema: any change in `shared/` bumps the schema – MAJOR or MINOR (RULES #10) – then `npm run schema:lock`.
+- Content schema: any change in `shared/` bumps the schema – MAJOR or MINOR (RULES #10) – then `npm run schema:lock`;
+  `shared/api/` (the API's answers and rules) is outside the lock.
 - SQL: every named parameter once per query (MySQL refuses repeats, #161); LIKE through `Db::contains` +
   `ESCAPE '!'`. CI runs the API test on SQLite and MariaDB (#168); locally `docker compose up -d db`.
 - The editor runs on SvelteKit 3 since 1.35.2: imports `#lib/…` with extension, links through `resolve()`.

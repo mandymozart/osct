@@ -29,18 +29,7 @@ import {
 } from "../../shared/types/game-config";
 import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
-
-/** What a plugin source registers, read from its text */
-export interface SourceTypes {
-  components: string[];
-  layers: string[];
-  nodeTypes: string[];
-  passes: string[];
-  /** materials (`registerMaterial`, plugin API 1.4) */
-  materials: string[];
-  /** procedural textures (`registerTexture`, plugin API 1.4) */
-  textures: string[];
-}
+import type { SourceTypes } from "../../shared/api/rules";
 
 export interface BookModel {
   /** the compiled plugins the book's configuration declares (content schema 2.4), with what they recorded (2.14) */
@@ -199,20 +188,6 @@ export function usesPluginTypes(entity: unknown): boolean {
   if (material !== undefined) return true;
   if (Array.isArray(components) && components.some(c => typeof c?.type === "string" && !componentTypes().includes(c.type))) return true;
   return Array.isArray(children) && children.some(usesPluginTypes);
-}
-
-/**
- * The types a plugin source registers – read from the source text (`registerComponent("spin"`, `registerLayer('tint'`,
- * `registerNodeType("sparkle"`, `registerPass("scan"`, `registerMaterial("water"`, `registerTexture("caustics"`), not by
- * running it: the Code tab's sources are the editor's sandbox, nothing runs here
- */
-export function pluginTypes(source: string): SourceTypes {
-  const scan = (fn: string) =>
-    [...new Set([...source.matchAll(new RegExp(`${fn}\\s*\\(\\s*["'\`]([a-zA-Z0-9]+)["'\`]`, "g"))].map(match => match[1]))];
-  return {
-    components: scan("registerComponent"), layers: scan("registerLayer"), nodeTypes: scan("registerNodeType"), passes: scan("registerPass"),
-    materials: scan("registerMaterial"), textures: scan("registerTexture"),
-  };
 }
 
 /** The recorded specs of a kind, type → the spec with the plugin that registers it */

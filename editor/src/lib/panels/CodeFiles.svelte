@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ApiError, assetUsages, pluginUsages, type Usage } from "#lib/api.js";
+  import { ApiError, assetUsages, errorText, pluginUsages, type Usage } from "#lib/api.js";
   import { library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { CODE_EXTENSIONS, codeFiles, codeKindOf, codeLanguage, codeUploadProblem, matchesCodeSearch, usageText, type CodeFile } from "#lib/library-code.js";
@@ -38,7 +38,6 @@
   let error = $state<string | null>(null);
   let replaceInput = $state<HTMLInputElement>();
 
-  const message = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
 
   const open = async (file: CodeFile) => {
     if (opened === file.key) {
@@ -72,7 +71,7 @@
         usages = used?.usages ?? null;
       }
     } catch (e) {
-      error = `${file.name}: ${message(e)}`;
+      error = `${file.name}: ${errorText(e)}`;
     }
   };
 
@@ -117,7 +116,7 @@
       const again = files.find(f => f.key === file.key);
       if (again) await load(again);
     } catch (e) {
-      error = message(e);
+      error = errorText(e);
     }
   };
 
@@ -135,7 +134,7 @@
         confirming = true;
         usages = Array.isArray(e.details.usages) ? (e.details.usages as Usage[]) : usages;
       } else {
-        error = message(e);
+        error = errorText(e);
       }
     }
   };

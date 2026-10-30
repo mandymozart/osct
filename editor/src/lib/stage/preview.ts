@@ -13,6 +13,7 @@
 
 import { isOriginId, type OriginId } from "./origin";
 import { clampSnap, SNAP_TARGETS, type SnapTarget } from "./snap";
+import { readStoredJson, writeStoredJson } from "#lib/storage.js";
 
 export const PREVIEW_VIEWS = ["reader", "top", "low", "far"] as const;
 export type PreviewView = (typeof PREVIEW_VIEWS)[number];
@@ -113,30 +114,26 @@ export const clampGrid = (mm: number): number => Math.min(500, Math.max(1, mm));
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
 const readSettings = (): PreviewSettings => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
-    const stored = JSON.parse(raw) as Partial<PreviewSettings>;
-    return {
-      view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
-      shading: isShadingMode(stored.shading) ? stored.shading : DEFAULTS.shading,
-      orbit: isOrbit(stored.orbit) ? stored.orbit : null,
-      hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
-      desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
-      wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
-      grid: stored.grid === true,
-      gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,
-      origin: isOriginId(stored.origin) ? stored.origin : DEFAULTS.origin,
-      axis: typeof stored.axis === "boolean" ? stored.axis : DEFAULTS.axis,
-      snap: stored.snap === true,
-      snapTo: Array.isArray(stored.snapTo) ? SNAP_TARGETS.filter(target => (stored.snapTo as unknown[]).includes(target)) : [...DEFAULTS.snapTo],
-      snapMove: finite(stored.snapMove) ? clampSnap("move", stored.snapMove) : DEFAULTS.snapMove,
-      snapRotate: finite(stored.snapRotate) ? clampSnap("rotate", stored.snapRotate) : DEFAULTS.snapRotate,
-      snapScale: finite(stored.snapScale) ? clampSnap("scale", stored.snapScale) : DEFAULTS.snapScale,
-    };
-  } catch {
-    return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
-  }
+  const parsed = readStoredJson(STORAGE_KEY);
+  if (!parsed || typeof parsed !== "object") return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
+  const stored = parsed as Partial<PreviewSettings>;
+  return {
+    view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
+    shading: isShadingMode(stored.shading) ? stored.shading : DEFAULTS.shading,
+    orbit: isOrbit(stored.orbit) ? stored.orbit : null,
+    hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
+    desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
+    wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
+    grid: stored.grid === true,
+    gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,
+    origin: isOriginId(stored.origin) ? stored.origin : DEFAULTS.origin,
+    axis: typeof stored.axis === "boolean" ? stored.axis : DEFAULTS.axis,
+    snap: stored.snap === true,
+    snapTo: Array.isArray(stored.snapTo) ? SNAP_TARGETS.filter(target => (stored.snapTo as unknown[]).includes(target)) : [...DEFAULTS.snapTo],
+    snapMove: finite(stored.snapMove) ? clampSnap("move", stored.snapMove) : DEFAULTS.snapMove,
+    snapRotate: finite(stored.snapRotate) ? clampSnap("rotate", stored.snapRotate) : DEFAULTS.snapRotate,
+    snapScale: finite(stored.snapScale) ? clampSnap("scale", stored.snapScale) : DEFAULTS.snapScale,
+  };
 };
 
 const isOrbit = (value: unknown): value is PreviewOrbit => {
@@ -148,11 +145,7 @@ const isOrbit = (value: unknown): value is PreviewOrbit => {
 };
 
 const writeSettings = (settings: PreviewSettings): void => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // storage blocked (or the photo too large for it): the settings hold for this session
-  }
+  writeStoredJson(STORAGE_KEY, settings);
 };
 
 let state: PreviewState = { ...readSettings(), active: false, hidden: [] };

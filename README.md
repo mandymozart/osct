@@ -33,7 +33,7 @@ the camera only works over https). The accounts API runs locally with `npm run d
 | `scripts/` | Content build and the `osct` CLI (content sync to the CDN), delivery import |
 | `server/` | Accounts API (plain PHP 8, PDO) and the Docker image's Apache config |
 | `mcp/` | The MCP server: an AI agent (any MCP client) works on a book as a signed-in editor over the API (stdio, Node 22) |
-| `shared/` | The content contract: game-configuration types and guards used by app and build |
+| `shared/` | The content contract: game-configuration types and guards used by app and build; `shared/api/` – the instance API's answers and rules for the editor, the MCP server and the CLI (no content, outside the schema lock) |
 | `fixtures/content/` | Test fixture with the content layout – CI and the tests build it |
 | `fixtures/demo/` | The demo book: a sandbox that uses everything the editor and the engine can do – [plugins](docs/plugins.md) "The demo book" |
 | `docs/` | Documentation (below) · `agents/` – plan, rules and memory for agent sessions ([CLAUDE.md](CLAUDE.md)) |

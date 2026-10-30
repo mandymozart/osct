@@ -3,16 +3,17 @@ import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { Target } from "@engine/types";
 import type { TriggerInfos } from "@engine/utils/trigger-protocol";
 import { setPreviewActive, setTargetHidden, updatePreview } from "../preview";
+import { DEFAULT_PAGE_MM } from "../stage-layout";
 import { getEngineState } from "@engine/utils/tracker-debug";
 import {
-  BOOK_PAGE_MM, cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, type StageTarget, type StageView, targetCentre, VIEW_PRESETS, wobbled,
+  cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, type StageTarget, type StageView, targetCentre, VIEW_PRESETS, wobbled,
 } from "../mock-tracker";
 
 const target = (id: string): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg` });
 
 /** A target printed with its centre on the spread's root (the spine's middle): the camera's distance to it is the orbit's */
 const atRoot = (id: string, spreadId = "s"): Target =>
-  ({ ...target(id), spreadId, print: { surface: "right", x: -20, y: BOOK_PAGE_MM.height / 2 - 20, width: 40, height: 40 } }) as Target;
+  ({ ...target(id), spreadId, print: { surface: "right", x: -20, y: DEFAULT_PAGE_MM.height / 2 - 20, width: 40, height: 40 } }) as Target;
 
 /** The anchor's scale (1 unit = the printed width, in metres) and its position in camera space */
 const decompose = (matrix: Matrix4) => {
@@ -29,8 +30,8 @@ describe("mock stage layout", () => {
     expect(row[0].x).toBeLessThan(row[1].x);
     expect(row[1].x).toBeLessThan(row[2].x);
     expect(row[0].width).toBe(row[2].width);
-    expect(row[2].x + row[2].width).toBeLessThanOrEqual(BOOK_PAGE_MM.width);
-    expect(row[0].y + row[0].height / 2).toBeCloseTo(BOOK_PAGE_MM.height / 2, 5);
+    expect(row[2].x + row[2].width).toBeLessThanOrEqual(DEFAULT_PAGE_MM.width);
+    expect(row[0].y + row[0].height / 2).toBeCloseTo(DEFAULT_PAGE_MM.height / 2, 5);
   });
 
   it("places printed images by their size and position words, stacking several in one region", () => {
@@ -43,8 +44,8 @@ describe("mock stage layout", () => {
     expect(a.width).toBe(31);
     expect(a.x).toBe(20);
     expect(a.y).toBe(20);
-    expect(b.x + b.width).toBe(BOOK_PAGE_MM.width - 20);
-    expect(b.y + b.height).toBe(BOOK_PAGE_MM.height - 20);
+    expect(b.x + b.width).toBe(DEFAULT_PAGE_MM.width - 20);
+    expect(b.y + b.height).toBe(DEFAULT_PAGE_MM.height - 20);
     expect(c.y).toBeGreaterThan(a.y + a.height);
   });
 

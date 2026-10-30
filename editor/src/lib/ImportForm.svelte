@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { ApiError, importBook, previewImport, type ImportBody, type ImportComparison, type ImportConfirmation, type ImportPreview } from "#lib/api.js";
+  import { confirmationStep } from "@shared/api/errors";
+  import { errorText, importBook, previewImport, type Confirmation, type ImportBody, type ImportComparison, type ImportPreview } from "#lib/api.js";
   import { comparisonRows, confirmLabel, editLabel, editsLine, importedLine, liveLine } from "#lib/import-compare.js";
   import { contentBaseOf, importLabel, lossLine, previewRows, readConfiguration, readContentBase, replaceLine, sourceErrorLine } from "#lib/import-preview.js";
   import type { GameConfiguration } from "@engine/types";
@@ -39,7 +40,7 @@
   let previewing = $state<string | null>(null);
   let previewError = $state<{ key: string; message: string; url: string | null } | null>(null);
   /** The comparison waiting for the person's confirmation, with what to send again */
-  let pending = $state<{ bookId: string; body: ImportBody; comparison: ImportComparison; confirmation: ImportConfirmation; changed: boolean } | null>(null);
+  let pending = $state<{ bookId: string; body: ImportBody; comparison: ImportComparison; confirmation: Confirmation; changed: boolean } | null>(null);
   let compareElement = $state<HTMLElement | null>(null);
 
   /** What the preview is of – a new key reads the source again; null: nothing to read yet */
@@ -118,16 +119,11 @@
       pending = null;
       ondone(book.id);
     } catch (e) {
-      if (!(e instanceof ApiError) || (e.code !== "confirm-import" && e.code !== "confirmation-void")) throw e;
+      const step = confirmationStep<ImportComparison>(e, "import");
+      if (!step) throw e;
       const again: ImportBody = { ...body };
       delete again.confirm;
-      pending = {
-        bookId,
-        body: again,
-        comparison: e.details.comparison as ImportComparison,
-        confirmation: e.details.confirmation as ImportConfirmation,
-        changed: e.code === "confirmation-void",
-      };
+      pending = { bookId, body: again, comparison: step.shows, confirmation: step.confirmation, changed: step.changed };
       await tick();
       compareElement?.querySelector<HTMLButtonElement>("button.primary")?.focus();
     }
@@ -147,7 +143,7 @@
       if (!current.configuration) throw new Error("Read the source again");
       await send(bookId, { configuration: current.configuration, assetsBase: assetsAt ?? undefined });
     } catch (e) {
-      error = e instanceof ApiError ? `${e.message} (${e.code})` : e instanceof Error ? e.message : String(e);
+      error = errorText(e, { code: true });
     } finally {
       busy = false;
     }
@@ -160,7 +156,7 @@
     try {
       await send(pending.bookId, { ...pending.body, confirm: pending.confirmation.id });
     } catch (e) {
-      error = e instanceof ApiError ? `${e.message} (${e.code})` : e instanceof Error ? e.message : String(e);
+      error = errorText(e, { code: true });
     } finally {
       busy = false;
     }

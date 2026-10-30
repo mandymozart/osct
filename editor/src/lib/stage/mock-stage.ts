@@ -8,6 +8,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import type { PageFormat, StageBook, StageSheet, StageSurface, StageTarget, StageView } from "./mock-tracker";
 import { printCentre, printedHeight } from "./placement";
+import { DEFAULT_PAGE_MM } from "./stage-layout";
 import { gridAreas, gridLines, type OriginId } from "./origin";
 import { linoleumTexture } from "./linoleum";
 import { oakTexture } from "./oak";
@@ -199,7 +200,7 @@ export class MockStage implements StageView {
   private linoleum: Texture | null = null;
   private oak: Texture | null = null;
   /** The page format of the last layout (the ghost is placed on it) */
-  private page: PageFormat = { width: 230, height: 320 };
+  private page: PageFormat = { ...DEFAULT_PAGE_MM };
   /** What the current spread is: the open book, or the closed book seen from the front or the back */
   private format: StageBook["format"] = "spread";
   private ghostGroup = new Group();

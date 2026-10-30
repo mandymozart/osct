@@ -1,6 +1,6 @@
 import { CONTENT_PATH } from "@engine/content/game-config";
 import type { PrintPlacement } from "./api";
-import { LAYOUT_PATH, layoutFrom, type LayoutSheet, type StageLayout } from "#lib/stage/stage-layout.js";
+import { DEFAULT_PAGE_MM, LAYOUT_PATH, layoutFrom, type LayoutSheet, type StageLayout } from "#lib/stage/stage-layout.js";
 
 /**
  * Pictures of a book's pages outside the stage (#153): the books page's covers and the book page's spread cards.
@@ -8,9 +8,6 @@ import { LAYOUT_PATH, layoutFrom, type LayoutSheet, type StageLayout } from "#li
  * it is printed – the same `print` the stage reads first, so a print moved in the editor shows at once. Sheets
  * rendered by `scripts/layout/render-layout.py` (the demo book) leave the targets out for exactly this reason.
  */
-
-/** The page the stage assumes without a layout (mock-tracker's BOOK_PAGE_MM) */
-const DEFAULT_PAGE = { width: 230, height: 320 } as const;
 
 /** A content path (`/assets/content/…`) under the book's assets base; any other URL as it is */
 export const assetUrl = (assetsBase: string | null | undefined, src: string): string => {
@@ -37,7 +34,7 @@ export const sheetUrl = (assetsBase: string | null | undefined, sheet: LayoutShe
 export const coverSheetOf = (layout: StageLayout | null): LayoutSheet | null => layout?.sheets.find(sheet => sheet.kind === "cover-front") ?? null;
 
 /** One page in mm: the layout's, else the stage's default */
-export const pageOf = (layout: StageLayout | null): { width: number; height: number } => layout?.page ?? DEFAULT_PAGE;
+export const pageOf = (layout: StageLayout | null): { width: number; height: number } => layout?.page ?? DEFAULT_PAGE_MM;
 
 export interface PrintBox {
   id: string;

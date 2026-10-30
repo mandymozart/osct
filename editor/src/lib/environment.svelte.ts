@@ -1,5 +1,5 @@
 import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS, type EnvironmentData } from "@shared/types/environment";
-import { getBook, putEnvironment, type Asset } from "./api";
+import { errorText, getBook, putEnvironment, type Asset } from "./api";
 import { bookEnvironment } from "#lib/stage/sky.js";
 
 /** The environment's two files: the world model and the sky image */
@@ -49,7 +49,7 @@ class EnvironmentEdit {
     try {
       ({ book } = await getBook(bookId));
     } catch (e) {
-      this.error = e instanceof Error ? e.message : String(e);
+      this.error = errorText(e);
       return;
     }
     this.error = null;
@@ -83,7 +83,7 @@ class EnvironmentEdit {
       this.edited = { ...environmentOf({ environment: this.saved }) };
       return true;
     } catch (e) {
-      this.error = e instanceof Error ? e.message : String(e);
+      this.error = errorText(e);
       return false;
     } finally {
       this.saving = false;

@@ -1,13 +1,14 @@
 <script lang="ts">
   import type { EntityData, EntityType, EntryCategory, Spread } from "@engine/types";
   import type { PrintSurface } from "@shared/types/game-config";
-  import { addEntry, ApiError, isMediaAsset, type Asset } from "#lib/api.js";
-  import { library, NODE_ASSET_KINDS } from "#lib/library.svelte.js";
-  import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
+  import { addEntry, errorText, isMediaAsset, type Asset } from "#lib/api.js";
+  import { library } from "#lib/library.svelte.js";
+  import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { APPEARS, CATEGORIES, categoryFor } from "#lib/new-target.js";
   import { newNode } from "#lib/values.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
+  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
   import { getPreview, subscribePreview } from "#lib/stage/preview.js";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
@@ -47,7 +48,7 @@
   // The x / y rows are read and entered from the stage's origin (Stage panel); x / y keep the content's frame
   let origin = $state(getPreview().origin);
   $effect(() => subscribePreview(state => (origin = state.origin)));
-  const frame = $derived({ page: stage?.pageFormat() ?? { width: 230, height: 320 }, format });
+  const frame = $derived({ page: stage?.pageFormat() ?? DEFAULT_PAGE_MM, format });
   const shown = $derived(toOrigin(origin, frame, surface, x, y));
   const setShown = (nx: number, ny: number) => ({ x, y } = fromOrigin(origin, frame, surface, nx, ny));
   let width = $state(80);
@@ -57,7 +58,7 @@
   let entityType = $state<EntityType | "">("");
   let entityFile = $state("");
   let entityText = $state("{{entry.title}}");
-  const needsFile = $derived(!!entityType && !!NODE_ASSET_KINDS[entityType]);
+  const needsFile = $derived(!!entityType && !!nodeAssetKinds(entityType));
   const entityReady = $derived(!needsFile || !!entityFile);
   const setEntityType = (type: EntityType | "") => {
     entityType = type;
@@ -81,10 +82,10 @@
     error = null;
     try {
       const asset = await library.upload(bookId, file);
-      if (entityType && NODE_ASSET_KINDS[entityType]?.includes(asset.kind)) entityFile = asset.url;
+      if (entityType && nodeAssetKinds(entityType)?.includes(asset.kind)) entityFile = asset.url;
       else error = `${asset.name} is a ${asset.kind}, not for a ${entityType || "node"}`;
     } catch (e) {
-      error = e instanceof ApiError ? e.message : String(e);
+      error = errorText(e);
     }
   };
   const entityData = (): EntityData | undefined => {
@@ -124,7 +125,7 @@
       const asset: Asset = await library.upload(bookId, file);
       imageUrl = asset.url;
     } catch (e) {
-      error = e instanceof ApiError ? e.message : String(e);
+      error = errorText(e);
     }
   };
   const create = async () => {
@@ -139,7 +140,7 @@
       });
       await oncreated(entry.target.id);
     } catch (e) {
-      error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
+      error = errorText(e, { code: true });
     } finally {
       busy = false;
     }

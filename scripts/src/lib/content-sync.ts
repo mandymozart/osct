@@ -59,9 +59,6 @@ export const isFixtureBuild = (build: Pick<ContentBuild, 'files'>): boolean => b
 /** A build of the demo book (fixtures/demo) – synced to its own environment only */
 export const isDemoBuild = (build: Pick<ContentBuild, 'files'>): boolean => build.files.some(f => f.file === DEMO_MARKER);
 
-/** An environment's name on the storage (`<env>/latest.json`) – the API's `ContentStore::ENV` is the same rule (a test checks it) */
-export const ENV_NAME = /^[a-z][a-z0-9-]{0,31}$/;
-
 /** The local content build (`osct content build`) */
 export function readContentBuild(): ContentBuild {
   if (!fs.existsSync(OUTPUT_FILE) || !fs.existsSync(CLIENT_PUBLIC_ASSETS_DIR)) {

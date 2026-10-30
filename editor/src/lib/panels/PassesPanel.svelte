@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { PASS_TYPES, PASSES, type PassData } from "@engine/types";
-  import { putBookPasses, putSpread } from "#lib/api.js";
+  import { errorText, putBookPasses, putSpread } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
@@ -100,7 +100,7 @@
       await stage?.refresh();
       notice = "Saved";
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = errorText(e);
     } finally {
       saving = false;
     }

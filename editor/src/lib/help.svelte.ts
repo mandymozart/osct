@@ -11,6 +11,8 @@
  * is stored (`osct-editor-info`).
  */
 
+import { readStored, writeStored } from "#lib/storage.js";
+
 export interface HelpEntry {
   name: string;
   text: string;
@@ -42,21 +44,18 @@ export const helpOf = (element: Element | null): HelpEntry | null => {
   return null;
 };
 
-const readOpen = (): boolean => {
-  try { return localStorage.getItem(OPEN_KEY) !== "closed"; } catch { return true; }
-};
 
 class Help {
   /** What the Info view shows */
   current = $state<HelpEntry | null>(null);
   /** The Info view is open (stored) */
-  open = $state(readOpen());
+  open = $state(readStored(OPEN_KEY) !== "closed");
   #hovered: HelpEntry | null = null;
   #focused: HelpEntry | null = null;
 
   setOpen(open: boolean) {
     this.open = open;
-    try { localStorage.setItem(OPEN_KEY, open ? "open" : "closed"); } catch { /* storage blocked */ }
+    writeStored(OPEN_KEY, open ? "open" : "closed");
   }
 
   /** The pointer moved onto an element (null = it left the page) */

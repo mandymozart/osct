@@ -1,5 +1,5 @@
 import { resolve } from "$app/paths";
-import { ApiError, getToken, logout, me, onSessionEnd, requestCode, setToken, signInWithPassword, verifyCode, type User } from "./api";
+import { ApiError, errorText, getToken, logout, me, onSessionEnd, requestCode, setToken, signInWithPassword, verifyCode, type User } from "./api";
 
 /** The sign-in form's note after the session ended under the page */
 export const SESSION_ENDED = "Your session ended – sign in again.";
@@ -117,7 +117,7 @@ class Session {
     try {
       await action();
     } catch (error) {
-      this.error = error instanceof Error ? error.message : String(error);
+      this.error = errorText(error);
     } finally {
       this.busy = false;
     }

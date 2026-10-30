@@ -1,31 +1,22 @@
 import { nodeAssetTypes } from "@engine/types";
+import { ASSET_KIND_EXTENSIONS, type AssetKind } from "@shared/api/rules";
 import type { Asset } from "./api";
 import { fitsSlot, type EnvironmentSlot } from "./environment.svelte";
 import { assetPlace } from "./library-place";
 
-export type AssetKind = Asset["kind"];
-
-/** The file extensions of each kind (the API's `Assets::KINDS`) */
-export const KIND_EXTENSIONS: Record<AssetKind, readonly string[]> = {
-  glb: [".glb"], gltf: [".gltf"], video: [".mp4", ".webm", ".mov"], image: [".jpg", ".jpeg", ".png", ".webp"], audio: [".mp3", ".m4a", ".ogg", ".wav"],
-  shader: [".glsl", ".frag", ".vert", ".wgsl"],
-};
 /** The media types of a model next to its extension: a browser that knows no `.glb` may still know the type */
 const KIND_MIMES: Partial<Record<AssetKind, readonly string[]>> = { glb: ["model/gltf-binary"], gltf: ["model/gltf+json"] };
 
 /** A file input's `accept` for these kinds */
 export const acceptOf = (kinds: readonly AssetKind[]): string =>
-  kinds.flatMap(kind => [...KIND_EXTENSIONS[kind], ...(KIND_MIMES[kind] ?? [])]).join(",");
-
-/** The file kinds a built-in node type takes */
-export const NODE_ASSET_KINDS: Record<string, readonly AssetKind[]> = { model: ["glb", "gltf"], video: ["video"], image: ["image"] };
+  kinds.flatMap(kind => [...ASSET_KIND_EXTENSIONS[kind], ...(KIND_MIMES[kind] ?? [])]).join(",");
 
 /**
- * The file kinds a node type takes – a built-in one's, or what a plugin's node type declares as its `src` (#77) –
- * undefined when it takes no file
+ * The file kinds a node type takes – a built-in one's, or what a plugin's node type declares as its `src` (#77), from
+ * the node types (`nodeAssetTypes`) – undefined when it takes no file
  */
 export const nodeAssetKinds = (type: string): readonly AssetKind[] | undefined => {
-  const kinds = NODE_ASSET_KINDS[type] ?? nodeAssetTypes(type);
+  const kinds = nodeAssetTypes(type);
   return kinds?.length ? kinds : undefined;
 };
 

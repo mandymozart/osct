@@ -1,7 +1,7 @@
 import { installPlugin, nodeTypeFailure, PluginError, pluginNodeTypesOf, type PluginModule } from "@engine/scene/plugins";
 import { getPlugins } from "@engine/content/game-config";
 import type { EntityData } from "@engine/types";
-import { ApiError, deletePlugin, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
+import { deletePlugin, errorText, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
 import { library } from "./library.svelte";
 import { importPluginCode, transpilePlugin, type CompileError } from "#lib/plugins/compile.js";
 import type { Stage } from "#lib/stage/stage.svelte.js";
@@ -63,7 +63,7 @@ class Plugins {
       }
       this.bookId = bookId;
     } catch (e) {
-      this.error = e instanceof ApiError ? e.message : String(e);
+      this.error = errorText(e);
     } finally {
       this.loading = false;
     }
@@ -103,7 +103,7 @@ class Plugins {
       const { plugin } = await putPlugin(bookId, id, source);
       return this.keep(plugin);
     } catch (e) {
-      this.error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
+      this.error = errorText(e, { code: true });
       throw e;
     }
   }
@@ -153,13 +153,13 @@ class Plugins {
       try {
         module = (await importPluginCode(result.code, importer)) as PluginModule;
       } catch (e) {
-        this.runError = { plugin: id, message: `The module did not load – ${e instanceof Error ? e.message : String(e)}`, line: null };
+        this.runError = { plugin: id, message: `The module did not load – ${errorText(e)}`, line: null };
         return false;
       }
       try {
         installPlugin(id, module);
       } catch (e) {
-        this.runError = { plugin: id, message: e instanceof PluginError ? e.message : `register failed – ${e instanceof Error ? e.message : String(e)}`, line: null };
+        this.runError = { plugin: id, message: e instanceof PluginError ? e.message : `register failed – ${errorText(e)}`, line: null };
         return false;
       }
       const { pluginTypes } = await import("@engine/scene/plugins");

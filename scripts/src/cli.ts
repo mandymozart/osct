@@ -29,7 +29,6 @@ import {
   DEFAULT_PURGE,
   describePurge,
   describeSync,
-  ENV_NAME,
   isDemoBuild,
   isFixtureBuild,
   nameOf,
@@ -45,6 +44,7 @@ import { type CliArgs, parseArgs } from './lib/cli-args';
 import { messageOf } from './lib/errors';
 import { StorageClient } from './lib/storage';
 import { DEMO_ENV } from './config';
+import { ENV_NAME } from '../../shared/api/rules';
 
 // scripts/.env is loaded by config.ts (imported through lib/content-sync)
 const here = path.dirname(fileURLToPath(import.meta.url));

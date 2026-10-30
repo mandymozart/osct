@@ -1,6 +1,6 @@
 <script lang="ts">
   import { library } from "#lib/library.svelte.js";
-  import { assetPlace } from "#lib/library-place.js";
+  import { assetPlace, fileNameOf } from "#lib/library-place.js";
 
   /**
    * A file field (#164): the chosen file – a picture as a small preview, every file by where it belongs
@@ -27,7 +27,7 @@
   const name = $derived.by(() => {
     if (!src) return empty;
     const asset = library.byUrl(src);
-    return asset ? assetPlace(asset).label : decodeURIComponent(src.split(/[?#]/)[0].split("/").pop() ?? src);
+    return asset ? assetPlace(asset).label : fileNameOf(src);
   });
 </script>
 

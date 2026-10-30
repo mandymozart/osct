@@ -15,6 +15,7 @@
 
 import type { EnvironmentData } from "@shared/types/environment";
 import type { HdriId, ShadingMode } from "./preview";
+import { fileNameOf } from "#lib/library-place.js";
 
 /** What the stage shows as sky: the environment's world, the HDRI on its sphere, or nothing (the editor's dark ground) */
 export type StageSky = "world" | "hdri" | "none";
@@ -60,22 +61,12 @@ export const stageLook = (input: { shading: ShadingMode; hdri: HdriId | null; wo
   return { sky: "none", light: "scene", hdri: null, behindWorld: false };
 };
 
-/** A reference's file name (the URL's last part), for a world or sky file without a Library name */
-const fileName = (url: string): string => {
-  const last = url.split(/[?#]/)[0].split("/").pop() ?? url;
-  try {
-    return decodeURIComponent(last);
-  } catch {
-    return last;
-  }
-};
-
 /**
  * The environment's sky in a few words, for the HDRI picker it overrides: "the environment's (world café)",
  * "the environment's (world forest.glb, sky dusk.jpg)". `nameOf` names a file (the Library's name), else its URL's last part.
  */
 export const environmentSkyLabel = (environment: EnvironmentData, nameOf: (url: string) => string | undefined = () => undefined): string => {
-  const name = (url: string) => nameOf(url) ?? fileName(url);
+  const name = (url: string) => nameOf(url) ?? fileNameOf(url);
   const world = environment.worldSrc ? name(environment.worldSrc) : environment.world === "cafe" ? "café" : environment.world;
   const sky = environment.skySrc ? `, sky ${name(environment.skySrc)}` : "";
   return `the environment's (world ${world}${sky})`;

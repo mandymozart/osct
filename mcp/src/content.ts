@@ -9,12 +9,40 @@ import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import { ApiError, type OsctApi } from "./api.ts";
-import { checkEntity, describeContentModel, pluginTypes, usesPluginTypes, type BookModel } from "./model.ts";
+import { checkEntity, describeContentModel, usesPluginTypes, type BookModel } from "./model.ts";
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
-import type { EntityData, EntityRefData, PassData, PluginData, PrintPlacement } from "../../shared/types/game-config";
+import type { PluginData } from "../../shared/types/game-config";
 import { PASS_TYPES, passProblems, PRINT_SURFACES, SPREAD_FORMATS } from "../../shared/types/game-config";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
+import type {
+  AssetList,
+  AssetUploaded,
+  BookList,
+  BookPassesSaved,
+  BookTree,
+  Change,
+  DraftManifest,
+  EntitySaved,
+  EntryAdded,
+  EnvironmentSaved,
+  EnvironmentsInfo,
+  ImportComparison,
+  ImportPreview,
+  ImportResult,
+  PluginSource,
+  PluginSummary,
+  PublishedVersion,
+  PublishResult,
+  RemovalImpact,
+  RemovalResult,
+  SharedEntities,
+  SpreadAdded,
+  SpreadSaved,
+  TargetSaved,
+} from "../../shared/api/editor";
+import { confirmationStep } from "../../shared/api/errors";
+import { ASSET_KINDS, ENV_NAME, ID_PATTERN, pluginTypes } from "../../shared/api/rules";
 
 type Json = Record<string, unknown>;
 
@@ -24,12 +52,13 @@ type Json = Record<string, unknown>;
  * errors: null.
  */
 export function importStep(error: unknown): Json | null {
-  if (!(error instanceof ApiError) || error.status !== 409 || (error.code !== "confirm-import" && error.code !== "confirmation-void")) return null;
+  const step = error instanceof ApiError ? confirmationStep<ImportComparison>(error, "import") : null;
+  if (!step) return null;
   return {
     imported: false,
-    ...(error.code === "confirmation-void" ? { void: error.message } : {}),
-    comparison: error.details.comparison,
-    confirmation: error.details.confirmation,
+    ...(step.changed ? { void: (error as ApiError).message } : {}),
+    comparison: step.shows,
+    confirmation: step.confirmation,
     next: "Nothing was imported. Show the person the comparison – the incoming build against what the draft is based on and its edits since – and ask. Only with their yes call import_book again with the same arguments and confirm: confirmation.id (it expires, and any change meanwhile voids it).",
   };
 }
@@ -40,64 +69,18 @@ export function importStep(error: unknown): Json | null {
  * null.
  */
 export function deleteStep(error: unknown, tool: "delete_spread" | "delete_entry"): Json | null {
-  if (!(error instanceof ApiError) || error.status !== 409 || (error.code !== "confirm-delete" && error.code !== "confirmation-void")) return null;
+  const step = error instanceof ApiError ? confirmationStep<RemovalImpact>(error, "removal") : null;
+  if (!step) return null;
   return {
     deleted: false,
-    ...(error.code === "confirmation-void" ? { void: error.message } : {}),
-    impact: error.details.impact,
-    confirmation: error.details.confirmation,
+    ...(step.changed ? { void: (error as ApiError).message } : {}),
+    impact: step.shows,
+    confirmation: step.confirmation,
     next: `Nothing was removed. Show the person the impact – the entries, targets and entities that go, the shared entities that are kept, and the Library files used only here and elsewhere – and ask. Only with their yes call ${tool} again with the same arguments and confirm: confirmation.id; add deleteFiles: true only if they asked for the files used only here to be deleted too (files used elsewhere are never deleted). The id expires, and any change in the book meanwhile voids it.`,
   };
 }
 
-/** GET /editor/environments: this instance's environment and, per environment, its backend (`cdn` or `server`) */
-export interface Environments {
-  env: string;
-  environments: { env: string; store: "cdn" | "server"; publish: boolean; url: string | null; warning: string | null }[];
-}
-
-/** The book list's rows (`GET /editor/books`) */
-export interface BookSummary {
-  id: string;
-  title: string;
-  author: string;
-  spreads: number;
-  schema?: string;
-  updatedAt?: string;
-  lastPublish?: { env: string; build: string; at: string } | null;
-}
-
-export interface TreeTarget {
-  id: string;
-  imageSrc: string;
-  entity?: EntityData | EntityRefData;
-  print?: PrintPlacement;
-}
-
-export interface TreeEntry {
-  id: string;
-  title: string;
-  category: string;
-  page: number;
-  target: TreeTarget | null;
-}
-
-export interface TreeSpread {
-  id: string;
-  title: string;
-  firstPage: number;
-  lastPage: number;
-  format?: string;
-  entries: TreeEntry[];
-}
-
-export interface BookTree {
-  book: BookSummary & Json;
-  spreads: TreeSpread[];
-  unassigned?: TreeEntry[];
-}
-
-const ID = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "letters, digits, _ and -, at most 64");
+const ID = z.string().regex(ID_PATTERN, "letters, digits, _ and -, at most 64");
 const BOOK = ID.describe("the book's id (list_books)");
 const entitySchema = z.record(z.string(), z.unknown()).describe("EntityData – the node tree (describe_content_model)");
 const printSchema = z
@@ -152,9 +135,9 @@ async function checkWrite(entity: unknown, path: string, book: () => Promise<Boo
 
 export function registerContentTools(server: McpServer, api: OsctApi, links: AppLinks): void {
   const tree = (book: string) => api.call<BookTree>("GET", `/editor/books/${encodeURIComponent(book)}`);
-  const entities = (book: string) => api.call<{ entities: Record<string, EntityData> }>("GET", `/editor/books/${encodeURIComponent(book)}/entities`);
+  const entities = (book: string) => api.call<SharedEntities>("GET", `/editor/books/${encodeURIComponent(book)}/entities`);
   const draft = async (book: string) => {
-    const manifest = await api.call<{ build: string; hash: string }>("GET", `/editor/books/${encodeURIComponent(book)}/draft/latest.json`);
+    const manifest = await api.call<DraftManifest>("GET", `/editor/books/${encodeURIComponent(book)}/draft/latest.json`);
     const configuration = await api.call<Json & { plugins?: PluginData[] }>("GET", `/editor/books/${encodeURIComponent(book)}/draft/${manifest.build}/game.config.json`);
     return { manifest, configuration };
   };
@@ -162,10 +145,10 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   const spreadOf = (t: BookTree, targetId: string) => t.spreads.find(s => s.entries.some(e => e.target?.id === targetId))?.id ?? null;
   /** the book's plugins: the declared ones with what they recorded (the draft), the Code tab's sources with the types read from them */
   const bookModel = async (book: string): Promise<BookModel> => {
-    const [{ configuration }, { plugins }] = await Promise.all([draft(book), api.call<{ plugins: { id: string }[] }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins`)]);
+    const [{ configuration }, { plugins }] = await Promise.all([draft(book), api.call<{ plugins: PluginSummary[] }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins`)]);
     const sources = await Promise.all(
       plugins.map(async p => {
-        const { plugin } = await api.call<{ plugin: { id: string; source: string } }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins/${encodeURIComponent(p.id)}`);
+        const { plugin } = await api.call<{ plugin: PluginSource }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins/${encodeURIComponent(p.id)}`);
         return { id: plugin.id, ...pluginTypes(plugin.source) };
       }),
     );
@@ -178,7 +161,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   const removeStep = async (tool: "delete_spread" | "delete_entry", book: string, path: string, confirm?: string, deleteFiles?: boolean): Promise<Result> => {
     if (deleteFiles && !confirm) return fail({ error: { code: "mcp", message: "deleteFiles goes with confirm – first show the person the impact" } });
     try {
-      const result = await api.call<Json>("DELETE", path, confirm ? { confirm, ...(deleteFiles ? { deleteFiles: true } : {}) } : undefined);
+      const result = await api.call<RemovalResult>("DELETE", path, confirm ? { confirm, ...(deleteFiles ? { deleteFiles: true } : {}) } : undefined);
       return text({ ...result, open: editorHref(links, book) });
     } catch (error) {
       const step = deleteStep(error, tool);
@@ -193,8 +176,8 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "list_books",
     { description: "The instance's books: id, title, author, number of spreads, content schema, last publish, `live` (the environments serving it – empty: draft only) – and the editor's link of each; `environments` = what each environment serves.", inputSchema: z.object({}), annotations: read },
     guard(async () => {
-      const { books } = await api.call<{ books: BookSummary[] }>("GET", "/editor/books");
-      return text({ books: books.map(b => ({ ...b, open: editorHref(links, b.id) })) });
+      const { books, environments } = await api.call<BookList>("GET", "/editor/books");
+      return text({ books: books.map(b => ({ ...b, open: editorHref(links, b.id) })), environments });
     }),
   );
 
@@ -229,7 +212,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       const body = await importSource({ url, configuration, assetsBase, source });
       if ("error" in body) return fail(body);
       try {
-        const result = await api.call<Json>("POST", `/editor/books/${encodeURIComponent(book)}/import`, { ...body, ...(confirm ? { confirm } : {}) });
+        const result = await api.call<ImportResult>("POST", `/editor/books/${encodeURIComponent(book)}/import`, { ...body, ...(confirm ? { confirm } : {}) });
         return text({ ...result, open: editorHref(links, book) });
       } catch (error) {
         const step = importStep(error);
@@ -255,7 +238,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     guard(async ({ url, configuration, assetsBase, source }) => {
       const body = await importSource({ url, configuration, assetsBase, source });
       if ("error" in body) return fail(body);
-      const preview = await api.call<{ incoming: { book: string; title: string; build: string | null }; existing: unknown } & Json>("POST", "/editor/import/preview", body);
+      const preview = await api.call<ImportPreview>("POST", "/editor/import/preview", body);
       const { book, title, build } = preview.incoming;
       return text({
         ...preview,
@@ -276,7 +259,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     guard(async ({ book }) => {
       const t = await tree(book);
       const targets = t.spreads.reduce((n, s) => n + s.entries.filter(e => e.target).length, 0);
-      return text({ ...t, counts: { spreads: t.spreads.length, entries: t.spreads.reduce((n, s) => n + s.entries.length, 0) + (t.unassigned?.length ?? 0), targets }, open: editorHref(links, book) });
+      return text({ ...t, counts: { spreads: t.spreads.length, entries: t.spreads.reduce((n, s) => n + s.entries.length, 0) + t.unassigned.length, targets }, open: editorHref(links, book) });
     }),
   );
 
@@ -322,7 +305,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       annotations: read,
     },
     guard(async ({ book, part }) => {
-      const manifest = await api.call<{ build: string; hash: string }>("GET", `/editor/books/${encodeURIComponent(book)}/draft/latest.json`);
+      const manifest = await api.call<DraftManifest>("GET", `/editor/books/${encodeURIComponent(book)}/draft/latest.json`);
       if (part === "manifest") return text(manifest);
       const file = part === "files" ? "files.json" : "game.config.json";
       const data = await api.call<Json>("GET", `/editor/books/${encodeURIComponent(book)}/draft/${manifest.build}/${file}`);
@@ -354,7 +337,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     guard(async ({ book, ref, entity }) => {
       const { refused, warnings } = await checkWrite(entity, "entity", () => bookModel(book));
       if (refused) return refused;
-      const result = await api.call<{ ref: string; entity: EntityData }>("PUT", `/editor/books/${encodeURIComponent(book)}/entities/${encodeURIComponent(ref)}`, entity);
+      const result = await api.call<EntitySaved>("PUT", `/editor/books/${encodeURIComponent(book)}/entities/${encodeURIComponent(ref)}`, entity);
       return text({ ...result, ...warnings, open: editorHref(links, book) });
     }),
   );
@@ -383,7 +366,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc or print" } });
       const { refused, warnings } = entity ? await checkWrite(entity, "entity", () => bookModel(book)) : { refused: null, warnings: {} };
       if (refused) return refused;
-      const [result, t] = await Promise.all([api.call<{ target: TreeTarget }>("PUT", `/editor/books/${encodeURIComponent(book)}/targets/${encodeURIComponent(target)}`, body), tree(book)]);
+      const [result, t] = await Promise.all([api.call<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/targets/${encodeURIComponent(target)}`, body), tree(book)]);
       return text({ ...result, ...warnings, open: editorHref(links, book, spreadOf(t, target)) });
     }),
   );
@@ -414,7 +397,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       const inline = entity && !("ref" in entity && Object.keys(entity).length === 1);
       const { refused, warnings } = inline ? await checkWrite(entity, "target.entity", () => bookModel(book)) : { refused: null, warnings: {} };
       if (refused) return refused;
-      const result = await api.call<{ entry: Json; spreadId: string | null }>("POST", `/editor/books/${encodeURIComponent(book)}/entries`, { ...entry, target });
+      const result = await api.call<EntryAdded>("POST", `/editor/books/${encodeURIComponent(book)}/entries`, { ...entry, target });
       return text({ ...result, ...warnings, open: editorHref(links, book, result.spreadId) });
     }),
   );
@@ -456,7 +439,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         return fail({ error: { code: "mcp", message: "after and id are for a double page – the covers have their places and ids (cover, back)" } });
       }
       const body: Json = { format, ...(after ? { after } : {}), ...(id ? { id } : {}), ...(title ? { title } : {}) };
-      const result = await api.call<{ spread: TreeSpread; moved: Json }>("POST", `/editor/books/${encodeURIComponent(book)}/spreads`, body);
+      const result = await api.call<SpreadAdded>("POST", `/editor/books/${encodeURIComponent(book)}/spreads`, body);
       return text({ ...result, open: editorHref(links, book, result.spread.id) });
     }),
   );
@@ -485,7 +468,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         body.passes = passes;
       }
       if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send title, format or passes" } });
-      const result = await api.call<{ spread: Json }>("PUT", `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`, body);
+      const result = await api.call<SpreadSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`, body);
       return text({ ...result, open: editorHref(links, book, spread) });
     }),
   );
@@ -517,7 +500,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     guard(async ({ book, passes }) => {
       const refused = passes === null ? null : refusePasses(passes, "passes");
       if (refused) return refused;
-      const result = await api.call<{ passes: PassData[] | null }>("PUT", `/editor/books/${encodeURIComponent(book)}/passes`, { passes });
+      const result = await api.call<BookPassesSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/passes`, { passes });
       return text({ ...result, open: editorHref(links, book) });
     }),
   );
@@ -546,7 +529,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       if (problems.length) {
         return fail({ error: { code: "invalid-environment", message: "environment does not match the content contract (nothing was sent).", problems }, hint: "describe_content_model lists the worlds and the files worldSrc and skySrc may be." });
       }
-      const result = await api.call<{ environment: Json | null }>("PUT", `/editor/books/${encodeURIComponent(book)}/environment`, { environment });
+      const result = await api.call<EnvironmentSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/environment`, { environment });
       return text({ ...result, open: editorHref(links, book) });
     }),
   );
@@ -555,8 +538,8 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_assets",
-    { description: "The book's uploaded files: id, name, kind (model | video | image | audio | shader), mime, size, width / height (pixels, images and videos), durationMs (videos), version, url (what nodes and targets name – and what a plugin loads a shader by, api.loadText(url)), usages (a shader's: the plugin sources that name its url). width / height / durationMs are read from the file on upload – null when unknown (an imported file, an older upload). A video plane is one target width wide and as high as the file's proportions; scale a portrait video's node by width / height to keep it within the target's width, and time an animation by durationMs.", inputSchema: z.object({ book: BOOK, kind: z.enum(["model", "video", "image", "audio", "shader"]).optional() }), annotations: read },
-    guard(async ({ book, kind }) => text(await api.call<Json>("GET", `/editor/books/${encodeURIComponent(book)}/assets${kind ? `?kind=${kind}` : ""}`))),
+    { description: `The book's files: id, name, kind (${ASSET_KINDS.join(" | ")}), mime, size, width / height (pixels, images and videos), durationMs (videos), version, url (what nodes and targets name – and what a plugin loads a shader by, api.loadText(url)), usages (a shader's: the plugin sources that name its url). width / height / durationMs are read from the file on upload – null when unknown (an imported file, an older upload). A video plane is one target width wide and as high as the file's proportions; scale a portrait video's node by width / height to keep it within the target's width, and time an animation by durationMs. \`imported\`: a file of the content import (no upload) – read-only.`, inputSchema: z.object({ book: BOOK, kind: z.enum(ASSET_KINDS).optional() }), annotations: read },
+    guard(async ({ book, kind }) => text(await api.call<AssetList>("GET", `/editor/books/${encodeURIComponent(book)}/assets${kind ? `?kind=${kind}` : ""}`))),
   );
 
   server.registerTool(
@@ -569,7 +552,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     },
     guard(async ({ book, file, name }) => {
       const bytes = new Uint8Array(await readFile(file));
-      const result = await api.upload<{ asset: Json }>("POST", `/editor/books/${encodeURIComponent(book)}/assets`, bytes, name ?? basename(file));
+      const result = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets`, bytes, name ?? basename(file));
       return text({ ...result, size: bytes.byteLength });
     }),
   );
@@ -589,12 +572,12 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "publish",
     {
       description:
-        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components when a node uses a component no compiled plugin provides. Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's.",
-      inputSchema: z.object({ book: BOOK, env: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
+        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides (the Code tab's sources reach readers through the content build only). Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's. The other refusals: 400 invalid-env, invalid-note, invalid-replace; 404 not-found (no such book); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
+      inputSchema: z.object({ book: BOOK, env: z.string().regex(ENV_NAME).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     guard(async ({ book, env, note }) => {
-      const { env: own, environments } = await api.call<Environments>("GET", "/editor/environments");
+      const { env: own, environments } = await api.call<EnvironmentsInfo>("GET", "/editor/environments");
       const target = env ?? own;
       if (target === "production") {
         return fail({
@@ -602,7 +585,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
           open: editorHref(links, book),
         });
       }
-      const result = await api.call<Json>("POST", `/editor/books/${encodeURIComponent(book)}/publish`, { env: target, ...(note ? { note } : {}) });
+      const result = await api.call<PublishResult>("POST", `/editor/books/${encodeURIComponent(book)}/publish`, { env: target, ...(note ? { note } : {}) });
       const warning = environments.find(e => e.env === target)?.warning;
       return text({ ...result, ...(warning ? { warning } : {}), open: editorHref(links, book) });
     }),
@@ -611,12 +594,12 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   server.registerTool(
     "list_versions",
     { description: "The publish log, newest first: env, build, hash, who, when, note.", inputSchema: z.object({ book: BOOK }), annotations: read },
-    guard(async ({ book }) => text(await api.call<Json>("GET", `/editor/books/${encodeURIComponent(book)}/versions`))),
+    guard(async ({ book }) => text(await api.call<{ versions: PublishedVersion[] }>("GET", `/editor/books/${encodeURIComponent(book)}/versions`))),
   );
 
   server.registerTool(
     "list_changes",
     { description: "The change log, newest first: kind (entity | target | entry | plugin), ref, before, after, user, when. `limit` default 50, at most 500.", inputSchema: z.object({ book: BOOK, limit: z.number().int().min(1).max(500).optional() }), annotations: read },
-    guard(async ({ book, limit }) => text(await api.call<Json>("GET", `/editor/books/${encodeURIComponent(book)}/changes${limit ? `?limit=${limit}` : ""}`))),
+    guard(async ({ book, limit }) => text(await api.call<{ changes: Change[] }>("GET", `/editor/books/${encodeURIComponent(book)}/changes${limit ? `?limit=${limit}` : ""}`))),
   );
 }

@@ -7,7 +7,8 @@ import {
 const file = (name: string, usedBy?: RemovalFile["usedBy"]): RemovalFile => ({ id: name, name, kind: "image", size: 1, url: `https://cdn.example/${name}`, ...(usedBy ? { usedBy } : {}) });
 
 /** The impact of spread 4–5: 3 entries, 3 targets, 2 entities; castle kept; two files only here, one elsewhere */
-const spreadImpact = (over: Partial<RemovalImpact> = {}): RemovalImpact => ({
+type SpreadImpact = Extract<RemovalImpact, { kind: "spread" }>;
+const spreadImpact = (over: Partial<SpreadImpact> = {}): SpreadImpact => ({
   book: "osct",
   kind: "spread",
   spread: { id: "s4", title: "Four", firstPage: 4, lastPage: 5, format: "spread" },
@@ -22,9 +23,8 @@ const spreadImpact = (over: Partial<RemovalImpact> = {}): RemovalImpact => ({
 });
 
 const entryImpact = (): RemovalImpact => ({
-  ...spreadImpact(),
+  book: "osct",
   kind: "entry",
-  spread: undefined,
   entry: { id: "castle", title: "Castle", page: 3, category: "video", spread: "s2" },
   pagesBack: 0,
   entries: [{ id: "castle", title: "Castle", page: 3, category: "video" }],

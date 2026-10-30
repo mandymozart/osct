@@ -2,11 +2,12 @@
   import { onMount } from "svelte";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
-  import { ApiError, listBooks, type BookSummary, type EnvironmentServing } from "#lib/api.js";
+  import { errorText, listBooks, type BookSummary, type EnvironmentServing } from "#lib/api.js";
   import ImportForm from "#lib/ImportForm.svelte";
   import BookCover from "#lib/BookCover.svelte";
   import InfoView from "#lib/components/InfoView.svelte";
   import AiConnections from "#lib/AiConnections.svelte";
+  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
 
   /**
    * The editor's start (#153): the books of this instance as their covers on the left, the import of a new one on the
@@ -22,19 +23,19 @@
     try {
       const data = await listBooks();
       books = data.books;
-      environments = data.environments ?? [];
+      environments = data.environments;
       error = null;
     } catch (e) {
-      error = e instanceof ApiError ? e.message : String(e);
+      error = errorText(e);
     }
   };
   onMount(() => void load());
 
-  const strays = $derived(environments.filter(e => e.error || (e.book && !books?.some(b => b.id === e.book))));
+  const strays = $derived(environments.filter(e => "error" in e || (e.book && !books?.some(b => b.id === e.book))));
 </script>
 
 <div class="split">
-  <main class="shelf">
+  <main class="shelf" style:--cover-ratio="{DEFAULT_PAGE_MM.width} / {DEFAULT_PAGE_MM.height}">
     <h1>Books</h1>
     {#if error}<p class="danger">{error}</p>{/if}
     {#if books === null && !error}
@@ -62,7 +63,7 @@
     {/if}
     {#each strays as e (e.env)}
       <p class="small muted" title="An environment whose book is not among the books here, or whose content store cannot be read">
-        {e.env}: {e.error ? "the content store cannot be read" : `serves ${e.book}, a book not imported here`}
+        {e.env}: {"error" in e ? "the content store cannot be read" : `serves ${e.book}, a book not imported here`}
       </p>
     {/each}
     <AiConnections />
@@ -95,7 +96,7 @@
   .covers { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: 2.25rem 1.75rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
   @media (max-width: 47.9rem) { .covers { gap: 1.5rem 1rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); } }
   .book { display: grid; gap: .1875rem; text-decoration: none; }
-  .cover-box { display: block; aspect-ratio: 230 / 320; margin-bottom: .5rem; border-radius: 2px; overflow: hidden; background: var(--surface-head);
+  .cover-box { display: block; aspect-ratio: var(--cover-ratio); margin-bottom: .5rem; border-radius: 2px; overflow: hidden; background: var(--surface-head);
     box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / .06), 0 8px 20px -8px rgb(0 0 0 / .18); transition: transform .2s, box-shadow .2s; }
   .book:focus-visible .cover-box { transform: translateY(-3px);
     box-shadow: 0 0 0 1px var(--text), 0 2px 4px rgb(0 0 0 / .08), 0 16px 28px -10px rgb(0 0 0 / .28); }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { putSpread } from "#lib/api.js";
+  import { errorText, putSpread } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import { clampGrid } from "#lib/stage/preview.js";
@@ -50,7 +50,7 @@
       await stage?.refresh();
       stage?.relayout();
     } catch (e) {
-      formatError = e instanceof Error ? e.message : String(e);
+      formatError = errorText(e);
     }
   };
   const format = $derived(spread?.format ?? "spread");

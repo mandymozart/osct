@@ -3,6 +3,8 @@
  * this browser's recent colours. No Svelte.
  */
 
+import { readStoredJson, writeStoredJson } from "#lib/storage.js";
+
 export const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 /** `#abc` → `#aabbcc`, lower case */
@@ -59,20 +61,12 @@ const RECENT_MAX = 8;
 
 /** This browser's last picked colours, newest first */
 export const recentColours = (): string[] => {
-  try {
-    const list = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
-    return Array.isArray(list) ? list.filter(c => typeof c === "string" && HEX.test(c)).slice(0, RECENT_MAX) : [];
-  } catch {
-    return [];
-  }
+  const list = readStoredJson(RECENT_KEY);
+  return Array.isArray(list) ? list.filter((c): c is string => typeof c === "string" && HEX.test(c)).slice(0, RECENT_MAX) : [];
 };
 
 export const rememberColour = (hex: string): void => {
   if (!HEX.test(hex)) return;
   const c = longHex(hex);
-  try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify([c, ...recentColours().filter(x => x !== c)].slice(0, RECENT_MAX)));
-  } catch {
-    // not remembered – fine
-  }
+  writeStoredJson(RECENT_KEY, [c, ...recentColours().filter(x => x !== c)].slice(0, RECENT_MAX));
 };

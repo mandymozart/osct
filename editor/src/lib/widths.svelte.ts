@@ -10,6 +10,8 @@
  * drag ends (0 = closed, the tab row only).
  */
 
+import { readStoredJson, writeStoredJson } from "#lib/storage.js";
+
 export type Column = "tree" | "panel" | "code";
 
 const KEY = "osct-editor-widths";
@@ -107,14 +109,10 @@ export const maxWidth = (column: Column, viewport: number, other = 0): number =>
   Math.round(Math.min(viewport * LIMITS[column].maxShare, viewport - other - STAGE_MIN));
 
 const read = (): Stored => {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(KEY) ?? "{}");
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    return Object.fromEntries(Object.entries(parsed).filter((e): e is [Column | "sheet", number] =>
-      typeof e[1] === "number" && Number.isFinite(e[1]) && e[1] > 0 && (e[0] in LIMITS || (e[0] === "sheet" && e[1] <= 1))));
-  } catch {
-    return {};
-  }
+  const parsed = readStoredJson(KEY);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  return Object.fromEntries(Object.entries(parsed).filter((e): e is [Column | "sheet", number] =>
+    typeof e[1] === "number" && Number.isFinite(e[1]) && e[1] > 0 && (e[0] in LIMITS || (e[0] === "sheet" && e[1] <= 1))));
 };
 
 class Widths {
@@ -132,7 +130,7 @@ class Widths {
 
   /** Store the widths (the end of a drag) */
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify(this.#stored)); } catch { /* storage blocked */ }
+    writeStoredJson(KEY, this.#stored);
   }
 
   /** Back to the column's default (a double-click on its edge) */
