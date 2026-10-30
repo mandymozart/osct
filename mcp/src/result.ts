@@ -19,14 +19,15 @@ export function hintFor(error: ApiError): string {
   if (error.status === 401) return "Not signed in: set OSCT_EDITOR_TOKEN to a token made on the editor's books page (AI connections), or use sign_in_request and sign_in_verify (the code arrives by mail).";
   if (error.code === "not-for-ai") return "An AI connection's token may not do this (publishing, tokens, the password, the account) – the person does it in the editor; give them the link.";
   if (error.code === "other-environment") return `This instance publishes to its own environment only (${String(error.details.env ?? "")}) – another environment is published from its own editor.`;
-  if (error.code === "confirm-import" || error.code === "confirmation-void") return "Nothing was imported: show the person the comparison and ask – only with their yes import again with confirm: confirmation.id.";
+  if (error.code === "confirm-import") return "Nothing was imported: show the person the comparison and ask – only with their yes import again with confirm: confirmation.id.";
+  if (error.code === "confirm-delete") return "Nothing was removed: show the person the impact and ask – only with their yes remove again with confirm: confirmation.id (deleteFiles: true only if they asked).";
+  if (error.code === "confirmation-void") return "The confirmation no longer fits (expired, or the book changed): show the person the new comparison or impact and ask again – then send the new confirmation.id.";
   if (error.status === 403) return `This account lacks the role ${String(error.details.role ?? "editor")} – an admin grants it on the admin page.`;
   if (error.code === "unknown-components") return "A node uses a component type no compiled plugin provides – the publish refuses it; the Code tab's sources reach readers through the content build only.";
   if (error.code === "asset-in-use") return "The asset is used – remove the uses first, or delete with force: true.";
   if (error.code === "duplicate-id") return "Pick another id, or delete the entry first.";
   if (error.code === "unknown-node-types") return "A node has a type no compiled plugin provides – the publish refuses it; the Code tab's sources reach readers through the content build only.";
   if (error.code === "unknown-entity") return "No shared entity with that ref – list them with get_book or save one with put_entity.";
-  if (error.code === "spread-not-empty") return "Entries are on the spread – delete them one by one with delete_entry first (they carry targets and AR), then the spread.";
   if (error.code === "initial-spread") return "The book opens on this spread – it cannot be removed.";
   return "";
 }

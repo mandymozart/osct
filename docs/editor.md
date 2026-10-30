@@ -205,11 +205,15 @@ is involved.
   spread. The book's layout does not move – a laid-out sheet is matched by its pages, so after an insertion every card
   from the new spread on shows the sheet of its new page numbers (the new one the sheet the next spread had) until a
   layout with the new pages is imported.
-  A card's **Remove** takes out a spread **without entries** (it asks first, in the card under its caption – *Remove*
-  or *keep*, Esc keeps): a double page's later pages are numbered
-  back by its pages, a cover moves nothing. A spread with entries is not removed with them – their targets and AR are
-  work – so *Remove* is disabled until they are deleted (in the workspace's tree); the spread the book opens on
-  (`initialSpreadId`) cannot go either; the reason is shown under the disabled item. Should the API know only the
+  A card's **Remove** takes out a spread **with everything on it** (#198), after the person saw what goes: the API's
+  first step answers the impact (nothing is removed), and the card shows it under its caption
+  (`RemovalConfirm.svelte`, words from `removal.ts`) – *Removes spread 4–5 with 3 entries, 3 targets, 2 entities.*,
+  the later pages that move back, the shared entities kept because other targets use them, *Library files are kept*,
+  and, when files are used only there, the option **Also delete the 2 files used only here** (off at first) with their
+  names; the files used elsewhere are listed as kept. *Remove spread 4–5* sends the confirmation (with the option),
+  *Keep* or Esc keeps it – no browser dialog. Should the book have changed meanwhile, the card shows the fresh impact to
+  confirm again. A double page's later pages are numbered back by its pages, a cover moves nothing; the spread the book
+  opens on (`initialSpreadId`) cannot go – the reason is shown under the disabled item. Should the API know only the
   covers (an older server), the page says *New spreads come in with an import for now* instead of offering double
   pages. **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
@@ -248,7 +252,8 @@ is involved.
     it – it follows what appears, a video makes a Videos entry, until set by hand; #165), and where it is printed
     (surface, x / y, width in mm) – the API makes entry and target, the stage shows it at once (and the reader tracks it after
     a publish: the engine makes the image-target data from the image at runtime); the target row's right-click
-    menu has **Remove target** (entry and target go). **Delete** (or Backspace)
+    menu has **Remove target** – the entry with its target, its entity and (only with the option) the Library files used
+    only there go, after the same confirmation as a spread's, shown in the panel. **Delete** (or Backspace)
     removes the selected node – its children with it, the root leaves the target without AR content – and a
     **right click** on a node row opens the menu with *Move up / down*, *Into the node above*, *Out of its parent*
     and *Remove node* / *Remove entity*. Removing is live on the stage;

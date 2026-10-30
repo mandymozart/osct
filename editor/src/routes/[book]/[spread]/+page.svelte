@@ -19,6 +19,8 @@
   import { environmentEdit } from "#lib/environment.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
   import { deleteEntry, putTarget, type Asset } from "#lib/api.js";
+  import { removalStep, type RemovalStep } from "#lib/removal.js";
+  import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
   import { nodeAt } from "#lib/values.js";
   import { selection } from "#lib/selection.svelte.js";
@@ -251,11 +253,46 @@
     selection.selectTarget(targetId);
     setTab("entity");
   };
-  const removeTarget = async (target: { id: string; entryId: string }) => {
-    if (!window.confirm(`Remove the target ${target.id} and its entry? The draft loses both (Publish makes it final).`)) return;
-    await deleteEntry(bookId, target.entryId);
-    if (selection.target === target.id) selection.reset();
+  /** An entry's removal waiting for the person's confirmation in the panel, with the API's impact (#198) – no browser dialog */
+  let removal = $state<{ targetId: string; entryId: string; step: RemovalStep } | null>(null);
+  let removalBusy = $state(false);
+  let removalError = $state<string | null>(null);
+  const removed = async (targetId: string) => {
+    removal = null;
+    if (selection.target === targetId) selection.reset();
     await reloadContent();
+  };
+  /** The tree's or the stage's "Remove target": first the impact (the API removes nothing), shown in the panel */
+  const removeTarget = async (target: { id: string; entryId: string }) => {
+    removalError = null;
+    try {
+      // An API without the two steps removes it at once
+      await deleteEntry(bookId, target.entryId);
+      await removed(target.id);
+    } catch (e) {
+      const step = removalStep(e);
+      if (!step) throw e;
+      addingTarget = false;
+      removal = { targetId: target.id, entryId: target.entryId, step };
+      if (shown === null) setTab(lastTab);
+    }
+  };
+  /** The second step: the same removal with the confirmation id; a void id brings the fresh impact */
+  const confirmRemoval = async (deleteFiles: boolean) => {
+    if (!removal) return;
+    const { targetId, entryId } = removal;
+    removalBusy = true;
+    removalError = null;
+    try {
+      await deleteEntry(bookId, entryId, removal.step.confirmation.id, deleteFiles);
+      await removed(targetId);
+    } catch (e) {
+      const step = removalStep(e);
+      if (step) removal = { targetId, entryId, step };
+      else removalError = e instanceof Error ? e.message : String(e);
+    } finally {
+      removalBusy = false;
+    }
   };
   // ── the environment: previewed on the stage while its tab is open (its Library picker included) ──
   $effect(() => {
@@ -590,7 +627,9 @@
       {/each}
     </div>
     </div>
-    {#if addingTarget && spread}
+    {#if removal}
+      <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
+    {:else if addingTarget && spread}
       <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
     {:else if shown === "tree"}
       <div class="body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => (addingTarget = true)} onremovetarget={removeTarget} /></div>

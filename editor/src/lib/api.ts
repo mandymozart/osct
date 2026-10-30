@@ -462,12 +462,53 @@ export interface MovedRows {
 export const addSpread = (bookId: string, body: { format: "cover" | "back"; title?: string } | { format: "spread"; after?: string; id?: string; title?: string }) =>
   api<{ spread: { id: string; firstPage: number; lastPage: number }; moved: MovedRows }>("POST", `/editor/books/${encodeURIComponent(bookId)}/spreads`, body);
 
-/** Removes a spread without entries (409 `spread-not-empty` / `initial-spread` otherwise); a double page's later pages are numbered back */
-export const deleteSpread = (bookId: string, spreadId: string) =>
-  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`);
+/** A Library file a removal touches: used only by the removed rows, or (`usedBy`) elsewhere too */
+export interface RemovalFile {
+  id: string;
+  name: string;
+  kind: string;
+  size: number;
+  url: string;
+  usedBy?: { kind: string; ref: string }[];
+}
 
-export const deleteEntry = (bookId: string, entryId: string) =>
-  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`);
+/** `details.impact` of a 409 confirm-delete (docs/server.md "Removing a spread or an entry") */
+export interface RemovalImpact {
+  book: string;
+  kind: "spread" | "entry";
+  spread?: { id: string; title: string; firstPage: number; lastPage: number; format: string };
+  entry?: { id: string; title: string; page: number; category: string; spread: string | null };
+  /** By how many pages the later pages move back (0: a cover, an entry, or nothing after it) */
+  pagesBack: number;
+  entries: { id: string; title: string; page: number; category: string }[];
+  targets: { id: string; entry: string; imageSrc: string }[];
+  /** The entities that go: a shared one with its `ref`, a target's own with `ref: null` */
+  entities: { ref: string | null; type: string | null; shared: boolean; targets: string[] }[];
+  /** Shared entities that stay, because `usedBy` targets elsewhere use them */
+  keptEntities: { ref: string; type: string; targets: string[]; usedBy: string[] }[];
+  files: { onlyHere: RemovalFile[]; elsewhere: RemovalFile[] };
+  counts: { entries: number; targets: number; entities: number; keptEntities: number; filesOnlyHere: number; filesElsewhere: number };
+}
+
+/** What a confirmed removal took (`files` only with `deleteFiles`) and the rows that moved */
+export interface RemovalResult {
+  deleted: { spread: string | null; entries: string[]; targets: string[]; entities: string[]; files: string[] };
+  moved: MovedRows;
+}
+
+/**
+ * Removes a spread with everything on it, in two steps: without `confirm` the API answers 409 `confirm-delete` with
+ * `details.impact` (a `RemovalImpact`) and `details.confirmation` (`removalStep` reads them); the same call with
+ * `confirm` (and `deleteFiles` when the person chose it) removes exactly that. 409 `initial-spread` for the opening spread.
+ */
+export const deleteSpread = (bookId: string, spreadId: string, confirm?: string, deleteFiles = false) =>
+  api<RemovalResult>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, removalBody(confirm, deleteFiles));
+
+/** Removes an entry with its target, its entity and (with `deleteFiles`) the files used only there – the same two steps */
+export const deleteEntry = (bookId: string, entryId: string, confirm?: string, deleteFiles = false) =>
+  api<RemovalResult>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`, removalBody(confirm, deleteFiles));
+
+const removalBody = (confirm: string | undefined, deleteFiles: boolean) => (confirm ? { confirm, ...(deleteFiles ? { deleteFiles: true } : {}) } : undefined);
 
 // ── Plugin sources (docs/server.md "Plugin sources") – the Code tab ─────────────────────────────
 

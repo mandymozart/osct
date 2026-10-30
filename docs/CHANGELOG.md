@@ -12,6 +12,30 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.44.0 – 2026-10-30
+
+### Added
+- **Remove a spread with everything on it** (#198): the book page's *Remove* is no longer disabled for spreads with
+  entries. It shows, in the card, what goes – "Removes spread 4–5 with 3 entries, 3 targets, 2 entities." – which later
+  pages move back, which shared entities are kept because other targets use them, and that the Library files are kept;
+  an option, off at first, also deletes the files used only there (named), while the files used elsewhere are listed as
+  kept. Nothing is removed before *Remove* in that confirmation. The spread the book opens on still cannot go.
+- **Removing an entry** in the tree or on the stage uses the same confirmation, in the panel – no browser dialog.
+
+### Changed
+- `DELETE /api/editor/books/{id}/spreads/{sid}` and `…/entries/{eid}` take two steps, for people and AI connections
+  alike: the first answers 409 `confirm-delete` with the `impact` (entries, targets, entities, kept shared entities,
+  Library files used only here and elsewhere) and a short-lived confirmation id, and removes nothing; the same request
+  with `confirm` removes exactly that in one transaction (`deleteFiles: true` also the files used only there), every
+  removed row in the change log with its `before`. A confirmation that no longer fits answers 409 `confirmation-void`
+  with a fresh impact. The import's confirmation and these share one implementation (`Confirmation.php`).
+- The MCP server's `delete_spread` and `delete_entry` return the impact and the confirmation id; their descriptions
+  tell the agent to show the impact to the person and ask before calling again with the id. An AI connection removes
+  like its person, only through these two steps, and the change log names it.
+
+### Fixed
+- The tree's *Remove target* did nothing: the menu closed before it read which target it was for.
+
 ## 1.43.0 – 2026-10-30
 
 ### Added

@@ -296,7 +296,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     spread: {
       description:
-        "SpreadData: { id, title, firstPage, lastPage, format?, passes? }. add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes an empty one; put_spread changes title, format and passes.",
+        "SpreadData: { id, title, firstPage, lastPage, format?, passes? }. add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes.",
       formats: SPREAD_FORMATS,
     },
     plugin: {

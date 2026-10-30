@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onMount } from "svelte";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { addSpread, ApiError, deleteSpread, getBook, type BookTree } from "#lib/api.js";
-  import { followBlockedBy, isAddRefused, removeBlockedBy, removeQuestion } from "#lib/spread-edit.js";
+  import { followBlockedBy, isAddRefused, removeBlockedBy } from "#lib/spread-edit.js";
+  import { removalStep, type RemovalStep } from "#lib/removal.js";
+  import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
   import { menuTrigger } from "#lib/menu-trigger.js";
   import type { Point } from "#lib/context-menu.js";
@@ -62,26 +64,49 @@
       { label: "Open", icon: "open", help: "Opens the spread's stage.", select: () => openCard(spread) },
       { label: "Add a double page after", icon: "plus", disabled: busy ?? followBlockedBy(spread, addRefused), select: () => void addDoublePage(spread.id),
         help: "A double page right after this spread. The pages after it are numbered on by two, their entries move with them." },
-      { label: "Remove", icon: "trash", danger: true, disabled: busy ?? removeBlockedBy(spread, tree?.book.initialSpreadId), select: () => askRemove(spread),
-        help: "Removes this spread from the draft (it asks first); the pages after a double page are numbered back. Only a spread without entries can go." },
+      { label: "Remove", icon: "trash", danger: true, disabled: busy ?? removeBlockedBy(spread, tree?.book.initialSpreadId), select: () => void askRemove(spread),
+        help: "Removes this spread with its entries, targets and the entities used only there – it shows what goes and asks first; the pages after a double page are numbered back. Library files are kept unless you choose to delete the ones used only here. The spread the book opens on stays." },
     ];
   };
 
-  /** The spread whose removal is being asked about, in its card – no browser dialog */
-  let confirming = $state<string | null>(null);
-  let keepButton = $state<HTMLButtonElement>();
+  /** The spread whose removal is being asked about, in its card, with the API's impact – no browser dialog (#198) */
+  let confirming = $state<{ id: string; step: RemovalStep } | null>(null);
+  let removing = $state(false);
+  let removeError = $state<string | null>(null);
+  /** The first step: the API answers what the removal takes and a confirmation id, and removes nothing */
   const askRemove = async (spread: Spread) => {
-    confirming = spread.id;
-    await tick();
-    keepButton?.focus();
+    error = null;
+    removeError = null;
+    try {
+      await deleteSpread(bookId, spread.id);
+      // An API without the two steps removed it at once
+      tree = await getBook(bookId);
+    } catch (e) {
+      const step = removalStep(e);
+      if (step) confirming = { id: spread.id, step };
+      else error = e instanceof ApiError ? e.message : String(e);
+    }
   };
   const keep = (spread: Spread) => {
     confirming = null;
     links[spread.id]?.focus();
   };
-  const removeSpread = (spread: Spread) => {
-    confirming = null;
-    void change(() => deleteSpread(bookId, spread.id));
+  /** The second step: the same removal with the confirmation id; a void id brings the fresh impact to confirm again */
+  const removeSpread = async (spread: Spread, deleteFiles: boolean) => {
+    if (!confirming) return;
+    removing = true;
+    removeError = null;
+    try {
+      await deleteSpread(bookId, spread.id, confirming.step.confirmation.id, deleteFiles);
+      confirming = null;
+      tree = await getBook(bookId);
+    } catch (e) {
+      const step = removalStep(e);
+      if (step) confirming = { id: spread.id, step };
+      else removeError = e instanceof ApiError ? e.message : String(e);
+    } finally {
+      removing = false;
+    }
   };
   const assetsBase = $derived((tree?.book.assetsBase ?? "").replace(/\/+$/, ""));
 
@@ -153,13 +178,9 @@
                 </span>
               </span>
             </a>
-            {#if confirming === spread.id}
-              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-              <p class="confirm small" role="group" aria-label="Remove the spread?" onkeydown={e => { if (e.key === "Escape") keep(spread); }}>
-                <span role="alert">{removeQuestion(spread, tree.spreads)}</span>
-                <button type="button" class="text-link danger" disabled={adding} onclick={() => removeSpread(spread)}>Remove</button>
-                <button type="button" class="text-link" bind:this={keepButton} onclick={() => keep(spread)}>keep</button>
-              </p>
+            {#if confirming?.id === spread.id}
+              <RemovalConfirm step={confirming.step} busy={removing || adding} error={removeError}
+                onconfirm={deleteFiles => void removeSpread(spread, deleteFiles)} oncancel={() => keep(spread)} />
             {/if}
             {#if menu?.id === spread.id}
               <ContextMenu at={menu.at} label="Spread {caption || format || spread.title}" head={[format, caption].filter(Boolean).join(" · ") || spread.title}
@@ -194,7 +215,6 @@
   .pressing .frame, .menu-open .frame { border-color: var(--text); }
   .pressing .frame { transform: scale(.98); transition: transform .5s ease-out, border-color .15s; }
   @media (prefers-reduced-motion: reduce) { .pressing .frame { transform: none; } }
-  .confirm { display: flex; flex-wrap: wrap; align-items: baseline; gap: .125rem .5rem; margin: 0; padding: .25rem 0; }
   .spreads > li.right { padding-left: 0; }
   .spreads > li.left { padding-right: 0; }
   .spread:focus-visible .frame { border-color: var(--text); }
