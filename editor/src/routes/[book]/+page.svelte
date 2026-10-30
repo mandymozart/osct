@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { resolve } from "$app/paths";
+  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { addSpread, ApiError, deleteSpread, getBook, type BookTree } from "#lib/api.js";
-  import { canFollow, isAddRefused, removeBlockedBy, removeQuestion } from "#lib/spread-edit.js";
+  import { followBlockedBy, isAddRefused, removeBlockedBy, removeQuestion } from "#lib/spread-edit.js";
+  import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
+  import { menuTrigger } from "#lib/menu-trigger.js";
+  import type { Point } from "#lib/context-menu.js";
   import { sheetForSpread, type StageLayout } from "#lib/stage/stage-layout.js";
   import { fetchBookLayout, printBoxes, sheetUrl } from "#lib/sheet-preview.js";
   import SheetPreview from "#lib/components/SheetPreview.svelte";
@@ -43,8 +47,40 @@
   const addCover = (format: "cover" | "back") => change(() => addSpread(bookId, { format }));
   /** A double page after `after` (default: the last one before the back cover); the later pages are numbered on */
   const addDoublePage = (after?: string) => change(() => addSpread(bookId, after ? { format: "spread", after } : { format: "spread" }));
-  const removeSpread = (spread: BookTree["spreads"][number]) => {
-    if (!tree || !window.confirm(removeQuestion(spread, tree.spreads))) return;
+  type Spread = BookTree["spreads"][number];
+
+  // ── a card's menu (#196): right click, a long press or the menu key – the sheet carries no buttons ──
+  let menu = $state<{ id: string; at: Point } | null>(null);
+  /** The card a finger is held on: its light cue until the menu opens */
+  let pressing = $state<string | null>(null);
+  /** The cards' links, for the focus to come back to when the menu closes */
+  const links: Record<string, HTMLAnchorElement> = {};
+  const openCard = (spread: Spread) => void goto(resolve(`${bookId}/${spread.id}/`));
+  const menuItems = (spread: Spread): MenuItem[] => {
+    const busy = adding ? "A change to the spreads is under way." : null;
+    return [
+      { label: "Open", icon: "open", help: "Opens the spread's stage.", select: () => openCard(spread) },
+      { label: "Add a double page after", icon: "plus", disabled: busy ?? followBlockedBy(spread, addRefused), select: () => void addDoublePage(spread.id),
+        help: "A double page right after this spread. The pages after it are numbered on by two, their entries move with them." },
+      { label: "Remove", icon: "trash", danger: true, disabled: busy ?? removeBlockedBy(spread, tree?.book.initialSpreadId), select: () => askRemove(spread),
+        help: "Removes this spread from the draft (it asks first); the pages after a double page are numbered back. Only a spread without entries can go." },
+    ];
+  };
+
+  /** The spread whose removal is being asked about, in its card – no browser dialog */
+  let confirming = $state<string | null>(null);
+  let keepButton = $state<HTMLButtonElement>();
+  const askRemove = async (spread: Spread) => {
+    confirming = spread.id;
+    await tick();
+    keepButton?.focus();
+  };
+  const keep = (spread: Spread) => {
+    confirming = null;
+    links[spread.id]?.focus();
+  };
+  const removeSpread = (spread: Spread) => {
+    confirming = null;
     void change(() => deleteSpread(bookId, spread.id));
   };
   const assetsBase = $derived((tree?.book.assetsBase ?? "").replace(/\/+$/, ""));
@@ -93,9 +129,15 @@
           {@const targets = withTarget(spread)}
           {@const caption = captionOf(spread)}
           {@const format = formatLabelOf(spread)}
-          {@const blocked = removeBlockedBy(spread, tree.book.initialSpreadId)}
-          <li style:grid-column="span {cell.span}" class:right={cell.side === "right"} class:left={cell.side === "left"}>
-            <a href={resolve(`${bookId}/${spread.id}/`)} class="spread">
+          <li style:grid-column="span {cell.span}" class:right={cell.side === "right"} class:left={cell.side === "left"}
+            class:pressing={pressing === spread.id} class:menu-open={menu?.id === spread.id}>
+            <a href={resolve(`${bookId}/${spread.id}/`)} class="spread" draggable="false" aria-haspopup="menu" aria-expanded={menu?.id === spread.id}
+              bind:this={links[spread.id]}
+              data-help="Opens the spread's stage. Its menu – a right click, a long press, or the menu key – adds a double page after it or removes it."
+              {@attach menuTrigger({
+                open: at => { confirming = null; menu = { id: spread.id, at }; },
+                pressing: on => { pressing = on ? spread.id : pressing === spread.id ? null : pressing; },
+              })}>
               <span class="frame">
                 <SheetPreview ratio={cell.span * pageRatio} image={sheet ? sheetUrl(assetsBase, sheet) : null}
                   single={cell.span === 1 && !!sheet && !!layout && sheet.widthMm > layout.page.width * 1.5}
@@ -111,14 +153,18 @@
                 </span>
               </span>
             </a>
-            <span class="actions">
-              {#if canFollow(spread) && !addRefused}
-                <button type="button" class="pill framed" disabled={adding} onclick={() => void addDoublePage(spread.id)}
-                  data-help="A double page right after this spread. The pages after it are numbered on by two, their entries move with them.">+ after</button>
-              {/if}
-              <button type="button" class="pill framed" disabled={adding || !!blocked} onclick={() => removeSpread(spread)}
-                title={blocked ?? undefined} data-help="Removes this spread from the draft; the pages after a double page are numbered back. {blocked ?? 'Only a spread without entries can go.'}">remove</button>
-            </span>
+            {#if confirming === spread.id}
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <p class="confirm small" role="group" aria-label="Remove the spread?" onkeydown={e => { if (e.key === "Escape") keep(spread); }}>
+                <span role="alert">{removeQuestion(spread, tree.spreads)}</span>
+                <button type="button" class="text-link danger" disabled={adding} onclick={() => removeSpread(spread)}>Remove</button>
+                <button type="button" class="text-link" bind:this={keepButton} onclick={() => keep(spread)}>keep</button>
+              </p>
+            {/if}
+            {#if menu?.id === spread.id}
+              <ContextMenu at={menu.at} label="Spread {caption || format || spread.title}" head={[format, caption].filter(Boolean).join(" · ") || spread.title}
+                items={menuItems(spread)} returnFocus={links[spread.id]} onclose={() => (menu = null)} />
+            {/if}
           </li>
         {/if}
       {/each}
@@ -138,28 +184,24 @@
   .spreads { --page-min: 9rem; list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0;
     grid-template-columns: repeat(auto-fill, minmax(min(var(--page-min), 50%), 1fr) minmax(min(var(--page-min), 50%), 1fr)); }
   @media (min-width: 96rem) { .spreads { --page-min: 10rem; } }
-  .spread { display: block; text-decoration: none; border-radius: var(--control-radius); }
+  /* A held finger opens the card's menu: no text selection, no callout, no dragged link or picture */
+  .spread { display: block; text-decoration: none; border-radius: var(--control-radius);
+    -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+  .spread :global(img) { -webkit-user-drag: none; }
   /* No column gap: half a gap on each side of a card, none on a single page's gutter side – so a single page is
      exactly half a double page and every sheet has the same height (#115) */
   .spreads > li { position: relative; padding: 0 .5rem; min-width: 0; }
-  .actions { position: absolute; top: .25rem; right: .75rem; display: flex; gap: .25rem; opacity: 0; transition: opacity .15s; }
-  .spreads > li.left .actions { right: .25rem; }
-  .spreads > li:focus-within .actions { opacity: 1; }
-  @media (hover: hover) {
-    .spreads > li:hover .actions { opacity: 1; }
-  }
-  @media (hover: none) { .actions { opacity: 1; } }
-  .actions .pill { background: var(--surface); }
-  @media (hover: hover) {
-    .actions .pill:hover:not(:disabled) { background: var(--hover-background); }
-  }
+  .pressing .frame, .menu-open .frame { border-color: var(--text); }
+  .pressing .frame { transform: scale(.98); transition: transform .5s ease-out, border-color .15s; }
+  @media (prefers-reduced-motion: reduce) { .pressing .frame { transform: none; } }
+  .confirm { display: flex; flex-wrap: wrap; align-items: baseline; gap: .125rem .5rem; margin: 0; padding: .25rem 0; }
   .spreads > li.right { padding-left: 0; }
   .spreads > li.left { padding-right: 0; }
   .spread:focus-visible .frame { border-color: var(--text); }
   @media (hover: hover) {
     .spread:hover .frame { border-color: var(--text); }
   }
-  .frame { display: block; border: 1px solid var(--line); transition: border-color .15s; }
+  .frame { display: block; border: 1px solid var(--line); transition: border-color .15s, transform .15s; }
   /* The caption wraps instead of cutting off (#159): the title takes up to two lines (the whole of it in its tooltip),
      the format and the stats keep together and move to the next line when the card is narrow */
   .caption { display: flex; flex-wrap: wrap; align-items: center; gap: .125rem .5rem; padding: .25rem 0; }

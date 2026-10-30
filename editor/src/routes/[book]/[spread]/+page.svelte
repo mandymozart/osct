@@ -23,6 +23,7 @@
   import { nodeAt } from "#lib/values.js";
   import { selection } from "#lib/selection.svelte.js";
   import InfoView from "#lib/components/InfoView.svelte";
+  import ContextMenu from "#lib/components/ContextMenu.svelte";
   import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
 
   /**
@@ -311,7 +312,7 @@
       };
       stage.onContextMenu = (hit, x, y) => {
         if (hit) selectHit(hit);
-        stageMenu = { hit, x: Math.min(x, window.innerWidth - 200), y: Math.min(y, window.innerHeight - 160) };
+        stageMenu = { hit, x, y };
       };
       await stage.open(spreadId);
     })();
@@ -522,26 +523,23 @@
         <button type="button" class="icon-button framed step step-next" data-app-ui onclick={() => step(1)}
           title="Next spread" aria-label="Next spread"><Icon name="next" /></button>
       {/if}
-      {#if stageMenu}
-        <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={() => (stageMenu = null)} oncontextmenu={e => { e.preventDefault(); stageMenu = null; }}></button>
-        <div class="menu" role="menu" data-app-ui style:left="{stageMenu.x}px" style:top="{stageMenu.y}px">
-          {#if stageMenu.hit}
-            {@const hit = stageMenu.hit}
-            {@const hasTree = !!stage.treeOf(hit.targetId)}
-            <span class="menu-head small muted">{hit.targetId}{hit.path.length ? ` › ${hit.path.join(" › ")}` : ""}</span>
-            <button type="button" role="menuitem" class="menu-item" onclick={menuAddNode}>{hasTree ? "Add node…" : "Add AR content…"}</button>
-            {#if hasTree}<button type="button" role="menuitem" class="menu-item" onclick={menuRemoveNode}>{hit.path.length ? "Remove node" : "Remove entity"}</button>{/if}
-            <button type="button" role="menuitem" class="menu-item" onclick={menuPlacement}>Placement on the page…</button>
-            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; stage?.replayUnlock(); }}>Replay the first find</button>
-            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; setTab("library"); }}>Library…</button>
-            <button type="button" role="menuitem" class="menu-item danger" onclick={() => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); stageMenu = null; if (t) void removeTarget(t); }}>Remove target</button>
-          {:else}
-            <span class="menu-head small muted">{spread?.title ?? spreadId}</span>
-            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; addingTarget = true; }}>+ target…</button>
-            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; stage?.replayUnlock(); }}>Replay the first find</button>
-            <button type="button" role="menuitem" class="menu-item" onclick={() => { stageMenu = null; setTab("stage"); }}>Stage settings…</button>
-          {/if}
-        </div>
+      {#if stageMenu?.hit}
+        {@const hit = stageMenu.hit}
+        {@const hasTree = !!stage.treeOf(hit.targetId)}
+        <ContextMenu at={stageMenu} label="Target" head="{hit.targetId}{hit.path.length ? ` › ${hit.path.join(' › ')}` : ''}" onclose={() => (stageMenu = null)} items={[
+          { label: hasTree ? "Add node…" : "Add AR content…", select: menuAddNode },
+          ...(hasTree ? [{ label: hit.path.length ? "Remove node" : "Remove entity", select: menuRemoveNode }] : []),
+          { label: "Placement on the page…", select: menuPlacement },
+          { label: "Replay the first find", select: () => stage?.replayUnlock() },
+          { label: "Library…", select: () => setTab("library") },
+          { label: "Remove target", danger: true, select: () => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); if (t) void removeTarget(t); } },
+        ]} />
+      {:else if stageMenu}
+        <ContextMenu at={stageMenu} label="Stage" head={spread?.title ?? spreadId} onclose={() => (stageMenu = null)} items={[
+          { label: "+ target…", select: () => (addingTarget = true) },
+          { label: "Replay the first find", select: () => stage?.replayUnlock() },
+          { label: "Stage settings…", select: () => setTab("stage") },
+        ]} />
       {/if}
     {/if}
     {#if loadError}
@@ -634,14 +632,6 @@
   .steps-up .tools { max-width: calc(100% - 1.375rem - 2 * var(--control-height)); }
   .steps-up .step { top: calc(.5rem + .1875rem); bottom: auto; }
   .steps-up .step-previous { left: auto; right: calc(.625rem + var(--control-height)); }
-  .menu-backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }
-  .menu { position: fixed; z-index: 10; display: flex; flex-direction: column; min-width: 11rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
-  .menu-head { padding: .25rem .625rem; }
-  .menu-item { height: var(--control-height); padding: 0 .625rem; border: none; border-radius: var(--control-radius); background: none; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
-  @media (hover: hover) {
-    .menu-item:hover { background: var(--hover-background); }
-  }
-  .menu-item.danger { color: var(--danger); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font-size: var(--text-small); font-family: ui-monospace, Consolas, monospace; }

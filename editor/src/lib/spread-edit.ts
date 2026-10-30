@@ -16,6 +16,13 @@ export interface EditableSpread {
 /** Whether a double page can be added right after this spread (nothing follows the back cover) */
 export const canFollow = (spread: EditableSpread): boolean => spread.format !== "back";
 
+/** Why no double page can be added after the spread (the card's menu shows it), or null when one can */
+export const followBlockedBy = (spread: EditableSpread, addRefused = false): string | null => {
+  if (!canFollow(spread)) return "Nothing follows the back cover.";
+  if (addRefused) return "New spreads come in with an import for now.";
+  return null;
+};
+
 /** Why the spread cannot be removed, or null when it can */
 export const removeBlockedBy = (spread: EditableSpread, initialSpreadId: string | null | undefined): string | null => {
   if (spread.id === initialSpreadId) return "The book opens on this spread.";
