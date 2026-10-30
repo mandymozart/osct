@@ -308,7 +308,11 @@ the import) may name a type outside `Editor::ENTITY_TYPES` when a plugin of the 
 built here, so nothing is recorded) or a declared plugin of an older build – any name like one passes
 (`Editor::PLUGIN_NODE_TYPE`: camelCase, at most 32 characters; the stage and the content build run the code); without
 plugins it is 400 `invalid-entity`. A publish whose nodes have types no declared plugin recorded answers 409
-`unknown-node-types` with `nodeTypes`.
+`unknown-node-types` with `nodeTypes`. A node's **material** (content schema 2.17) is always a plugin's: `{ type, params? }`
+with a camelCase type (`Editor::MATERIAL_TYPE`), checked against the declared plugins' recorded materials the same way
+(`Editor::pluginMaterials` – a typo is 400 `invalid-entity` naming them, any name passes while a plugin is unknown, none
+without plugins); a publish whose nodes use a material no declared plugin recorded answers 409 `unknown-materials` with
+`materials`. A plugin's `registered` may hold `materials` and `textures` next to the other kinds.
 
 | Endpoint | Body | Answer |
 |---|---|---|

@@ -60,7 +60,7 @@ export const register = (api: PluginApi): void => {
       shallow: { kind: "color", default: "#7fd6e8", label: "shallow", description: "The water's colour where you look straight through little of it." },
       deep: { kind: "color", default: "#0b4f6c", label: "deep", description: "Its colour at a grazing angle and near the floor." },
       opacity: { kind: "number", default: 0.45, min: 0.05, max: 1, step: 0.01, description: "How much of what lies behind shows through." },
-      waveHeight: { kind: "number", default: 0.012, min: 0, max: 0.05, step: 0.001, unit: "target widths", label: "wave height", description: "How high the waves on the top rise." },
+      waveHeight: { kind: "number", default: 0.012, min: 0, max: 0.05, step: 0.001, label: "wave height", description: "How high the waves on the top rise (target widths)." },
       waveSpeed: { kind: "number", default: 1, min: 0, max: 4, step: 0.1, unit: "×", label: "wave speed", description: "How fast the waves run." },
       ripples: { kind: "texture", default: "", label: "ripples", description: "A picture that shimmers over the water (a Library image, or caustics) – none: the shader's own shimmer." },
     },
@@ -149,10 +149,10 @@ export const register = (api: PluginApi): void => {
     description: "A glass tank with a sandy floor, water and fish – y up, its floor at the node's origin (stand it on the page with rotation [90, 0, 0]).",
     src: "none",
     params: {
-      width: { kind: "number", default: 0.7, min: 0.1, max: 2, step: 0.01, unit: "target widths", description: "The tank's width (x)." },
-      depth: { kind: "number", default: 0.4, min: 0.1, max: 2, step: 0.01, unit: "target widths", description: "The tank's depth (z)." },
-      height: { kind: "number", default: 0.45, min: 0.1, max: 2, step: 0.01, unit: "target widths", description: "The tank's height (y)." },
-      level: { kind: "number", default: 0.85, min: 0.2, max: 1, step: 0.01, unit: "of the height", label: "water level", description: "How full the tank is." },
+      width: { kind: "number", default: 0.7, min: 0.1, max: 2, step: 0.01, description: "The tank's width (x), in target widths." },
+      depth: { kind: "number", default: 0.4, min: 0.1, max: 2, step: 0.01, description: "The tank's depth (z), in target widths." },
+      height: { kind: "number", default: 0.45, min: 0.1, max: 2, step: 0.01, description: "The tank's height (y), in target widths." },
+      level: { kind: "number", default: 0.85, min: 0.2, max: 1, step: 0.01, label: "water level", description: "How full the tank is (a share of its height)." },
       fish: { kind: "number", default: 5, min: 0, max: 12, step: 1, label: "fish", description: "How many fish swim." },
       fishSpeed: { kind: "number", default: 1, min: 0, max: 4, step: 0.1, unit: "×", label: "fish speed", description: "How fast they swim." },
       sand: { kind: "color", default: "#d9c48f", description: "The floor's colour." },
@@ -235,7 +235,7 @@ export const register = (api: PluginApi): void => {
     const body = own(new three.SphereGeometry(1, 10, 6));
     const tail = own(new three.ConeGeometry(0.6, 1, 3));
     const colours = FISH_COLOURS.map(colour => own(new three.MeshStandardMaterial({ color: colour, roughness: 0.5 })));
-    const size = Math.min(width, depth) * 0.08;
+    const size = Math.min(width, depth) * 0.11;
     const fish = Array.from({ length: Math.round(Number(params.fish)) }, (_, i) => {
       const one = new three.Group();
       const bodyMesh = keep(new three.Mesh(body, colours[i % colours.length]));

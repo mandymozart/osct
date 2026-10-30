@@ -178,6 +178,14 @@ half the image's width; videos and images lie flat on the image, as wide as it.
 
 Each value you leave out keeps its default, so `rotation` alone is enough to turn a model.
 
+**The page is the zero plane** (#189): a model that stands on the page should have its lowest point on the paper
+(`z = 0` of its target), not float above it or sink into it. That holds by itself for a model whose origin is its floor
+(a glTF made so); a model whose origin is its middle needs `position` z = its lower half × its scale. The content build
+reads each model's bounding box from its file, carries it through the placements of the nodes above it and **warns**
+when its lowest point is more than 0.005 target widths away from the page – with the position that stands it there. A
+model meant to float keeps the warning; nothing is refused. Videos and images standing upright are not checked (the
+build does not know a video's height): half the plane's height (the video's height ÷ width × the scale) is its z.
+
 **Tuning placement and filters:** the [editor](editor.md) (`/editor`) shows the spread on a simulated page and has a
 field for every placement value and every filter parameter – the names are three.js's (`position.x`, `rotation.y`,
 `scale`; rotation in degrees). Changes show on the stage at once; **Save** writes them to the instance's database and
@@ -234,7 +242,8 @@ folder `content/plugins/<id>/` with an `index.ts` that exports `register(api)`. 
 against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin imports nothing but types – three.js is
 `api.three`), runs it once to learn what it registers, and declares it in the configuration (`plugins: [{ id, src,
 api, registered }]`); the reader loads it with the AR scene. `registered` (content schema 2.14, optional) is what the
-run recorded – `{ components, nodeTypes, passes }`, each a map of type → spec (layers are under `components`) – so the
+run recorded – `{ components, nodeTypes, passes }` and, since 2.17, `materials` and `textures`, each a map of type →
+spec (layers are under `components`) – so the
 app's guard, the editor's API, the MCP server and the editor's Entity panel know a plugin's types and parameters without
 running it: the guard checks a plugin component's or node type's parameters like a built-in one's and refuses a type
 no declared plugin registers. A plugin declared without it (an older build) is unknown until it loads; the guard then
@@ -245,7 +254,10 @@ lets its types pass. The engine ignores the field. What a plugin registers is us
   `default` and `description`, and an optional `label` (plugin API 1.3, schema 2.15: the words the row shows, 1–24
   characters; without one the name split into words) – the editor's Entity panel shows the rows from it.
   `apply({ node, params, object, placed, target, three })` runs when the node is built and returns hooks: `update(delta)` every frame, `onFound`,
-  `onLost`, `onTap`, `onPause`, `dispose`, `tune(params)` (new values in place; `false` = build the node anew).
+  `onLost`, `onTap`, `onPause`, `dispose`, `tune(params)` (new values in place; `false` = build the node anew). A
+  parameter of kind `texture` (plugin API 1.4, schema 2.17) takes a picture: `""` (none), a procedural texture's type
+  (`caustics`), `{ type, …parameters }`, or a file – next to the node in the YAML (`sand.jpg`, made a content path by the
+  build) or a Library file's URL; the code gets a three.js texture, a layer's GLSL a `sampler2D`.
 - `api.registerLayer(type, spec, { glsl })` – a **material layer**: GLSL on every pixel of a video, image or text
   plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
   `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
@@ -255,6 +267,15 @@ lets its types pass. The engine ignores the field. What a plugin registers is us
   component's (never `position`, `rotation`, `scale`). `build({ node, params, asset, target, three })` returns `{
   object, …hooks }` – the node's three.js object, which the engine places like every node (children, components and
   layers included); `asset` is the loaded `src`, shared – clone what you change. Used as the node's `type` (above).
+- `api.registerMaterial(type, spec, build)` (plugin API 1.4, schema 2.17) – a whole **material**. `spec` = `{
+  description, nodeTypes?, params }`; `build({ node, params, time, map, target, three })` returns a three.js material
+  or `{ material, update, tune, dispose }` (`time` a uniform the engine advances, `map` the picture of the material it
+  replaces). A node names it as `material: { type, params }`: it replaces the material of the node's meshes (a mesh
+  with `userData.keepMaterial` keeps its own), the node's layers still add on top. Every material is a plugin's: the
+  build and the guard refuse one no plugin of the book registers.
+- `api.registerTexture(type, spec, draw)` (plugin API 1.4) – a **procedural texture**: `draw({ params, three })`
+  returns a texture (a canvas or data texture) or `{ texture, update, dispose }`; a `texture` parameter takes it by its
+  type.
 - **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
   `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
   book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
@@ -377,6 +398,21 @@ type, so a tree of several groups and videos stays readable; the reader ignores 
 any other, `type` the plugin's name for it; its parameters go into `params` next to the placement, and it takes a
 `src` only when its plugin says which kind (a model, a video or an image). The content build checks both once it has
 run the plugin; a type no plugin of the book registers is an error.
+
+**A node's material** (content schema 2.17): any node with meshes (a model, an image, a video, a text, a plugin's node)
+may carry `material: { type, params }` – a material a plugin of the book registers (`api.registerMaterial`,
+[plugins](plugins.md) "An aquarium, step by step"). It replaces what the node's type draws; the node's material layers
+still add on top. A `texture` parameter names a procedural texture of a plugin or a file next to the node.
+
+```yaml
+- type: model
+  src: tank.glb
+  material:
+    type: water            # the demo book's plugins/aquarium
+    params:
+      deep: "#0b4f6c"
+      ripples: caustics    # a texture parameter: the plugin's procedural texture
+```
 
 ```yaml
 - type: sparkle            # the demo book's plugins/sparkle

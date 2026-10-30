@@ -154,7 +154,9 @@ it: a body that breaks the contract never reaches the API, the problems come bac
 When the tree names a type that is not built in, the book's plugins are read first (`model.ts` `knownPluginTypes`): the
 declared plugins' recorded specs (content schema 2.14) go into the guard, so a plugin component's or node type's
 parameters are checked like a built-in one's; the Code tab's sources give the types read from their text
-(`registerComponent`, `registerLayer`, `registerNodeType`, `registerPass`). A node type no plugin of the book registers
+(`registerComponent`, `registerLayer`, `registerNodeType`, `registerPass`, `registerMaterial`, `registerTexture`). A node's
+`material` (schema 2.17) is checked against the recorded materials (its values like a component's); one no plugin of the
+book registers is refused when every plugin is known, else it passes with a warning. A node type no plugin of the book registers
 is refused – unless a plugin is unknown (a Code tab source, a declared plugin of an older build): then a name like a
 plugin's passes with a warning, as the API lets it through. A component type nobody knows passes with a warning – a
 plugin must register it, the publish checks (409 `unknown-components`, `unknown-node-types`). `put_spread` and
