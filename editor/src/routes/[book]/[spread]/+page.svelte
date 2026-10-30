@@ -21,7 +21,7 @@
   import { nodeAt } from "#lib/values.js";
   import { selection } from "#lib/selection.svelte.js";
   import InfoView from "#lib/components/InfoView.svelte";
-  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
+  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, wrapRows, type Column } from "#lib/widths.svelte.js";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -380,6 +380,42 @@
   const GIZMO_ICONS: Record<GizmoMode, "move" | "rotate" | "scale"> = { translate: "move", rotate: "rotate", scale: "scale" };
 
   const spread = $derived(content.spread(spreadId));
+
+  // ── the phone's ‹ › (#177): at the stage's lower corners while the stage holds them below the wrapped toolbar;
+  // on a shorter stage (the sheet almost full) they share the stage's top row with the toolbar, which then keeps
+  // to one row and scrolls sideways – the tools stay reachable at every sheet height ──
+  let tools = $state<HTMLDivElement>();
+  let stageWidth = $state(0);
+  let stageHeight = $state(0);
+  let stepsUp = $state(false);
+  /** The toolbar's wrapped height and one row's (px) on a stage `width` px wide, from its groups (the same in both layouts) */
+  const wrappedToolbar = (bar: HTMLElement, width: number, rem: number) => {
+    const px = (value: string) => parseFloat(value) || 0;
+    const style = getComputedStyle(bar);
+    const groups = [...bar.children] as HTMLElement[];
+    const outer = groups.map(group => {
+      const s = getComputedStyle(group);
+      return group.getBoundingClientRect().width + px(s.marginLeft) + px(s.marginRight);
+    });
+    const chromeX = px(style.paddingLeft) + px(style.paddingRight) + px(style.borderLeftWidth) + px(style.borderRightWidth);
+    const chromeY = px(style.paddingTop) + px(style.paddingBottom) + px(style.borderTopWidth) + px(style.borderBottomWidth);
+    const row = Math.max(0, ...groups.map(group => group.offsetHeight));
+    // the toolbar's max-width is the stage's less 1rem
+    const rows = wrapRows(outer, width - rem - chromeX, px(style.columnGap));
+    return { height: rows * row + Math.max(0, rows - 1) * px(style.rowGap) + chromeY, row };
+  };
+  $effect(() => {
+    const [bar, width, height] = [tools, stageWidth, stageHeight];
+    void coarse;
+    if (!narrow || !bar || !height) {
+      stepsUp = false;
+      return;
+    }
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const toolbar = wrappedToolbar(bar, width, rem);
+    stepsUp = stepsOnTop(height, toolbar.height, toolbar.row, rem / 2);
+  });
+
   const step = (direction: 1 | -1) => {
     const next = content.neighbour(spreadId, direction);
     if (next) void goto(resolve(`${bookId}/${next.id}/`), { replace: true });
@@ -451,10 +487,11 @@
     {/if}
   </aside>
 
-  <div class="stage" bind:this={container} data-help-name="Stage" data-help={NAVIGATION_HELP}>
+  <div class="stage" class:steps-up={narrow && stepsUp} bind:this={container} bind:clientWidth={stageWidth} bind:clientHeight={stageHeight}
+    data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
       <!-- Three groups that wrap whole when the stage is narrow (a phone with the touch height – #171) -->
-      <div class="tools" role="toolbar" data-app-ui aria-label="Transform">
+      <div class="tools" role="toolbar" data-app-ui aria-label="Transform" bind:this={tools}>
         <span class="tool-group" role="group" aria-label="Gizmo">
           {#each GIZMO_MODES as mode (mode)}
             <button type="button" class="icon-button" class:on={stage.gizmoMode === mode} aria-pressed={stage.gizmoMode === mode} title="{GIZMO_LABELS[mode]} – Ctrl snaps" aria-label={GIZMO_LABELS[mode]}
@@ -473,7 +510,8 @@
         </span>
       </div>
       {#if narrow}
-        <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171) -->
+        <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171); on a short
+             stage at its top right, beside the toolbar (#177) -->
         <button type="button" class="icon-button framed step step-previous" data-app-ui onclick={() => step(-1)}
           title="Previous spread" aria-label="Previous spread"><Icon name="previous" /></button>
         <button type="button" class="icon-button framed step step-next" data-app-ui onclick={() => step(1)}
@@ -581,7 +619,7 @@
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   .tools { position: absolute; left: .5rem; top: .5rem; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
   /* Three groups – gizmo, pick, shading – with a rule between; on a narrow stage a group wraps whole */
-  .tool-group { display: inline-flex; align-items: center; gap: .125rem; }
+  .tool-group { flex: none; display: inline-flex; align-items: center; gap: .125rem; }
   .tool-group + .tool-group { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
   /* Blender's shading spheres sit shoulder to shoulder */
   .tools .shading { gap: 0; }
@@ -589,11 +627,17 @@
   .step { position: absolute; bottom: .5rem; z-index: 1; color: var(--text); }
   .step-previous { left: .5rem; }
   .step-next { right: .5rem; }
+  /* A short stage (#177): toolbar and ‹ › share the top row; the toolbar stops before them and scrolls sideways */
+  .steps-up .tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: calc(100% - 1.375rem - 2 * var(--control-height)); }
+  .steps-up .step { top: calc(.5rem + .1875rem); bottom: auto; }
+  .steps-up .step-previous { left: auto; right: calc(.625rem + var(--control-height)); }
   .menu-backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }
   .menu { position: fixed; z-index: 10; display: flex; flex-direction: column; min-width: 11rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
   .menu-head { padding: .25rem .625rem; }
   .menu-item { height: var(--control-height); padding: 0 .625rem; border: none; border-radius: var(--control-radius); background: none; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
-  .menu-item:hover { background: var(--hover-background); }
+  @media (hover: hover) {
+    .menu-item:hover { background: var(--hover-background); }
+  }
   .menu-item.danger { color: var(--danger); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
@@ -618,8 +662,12 @@
   .edge-left { left: -.25rem; }
   .edge::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--muted); opacity: 0; transition: opacity .1s; }
   .edge::after { content: ""; position: absolute; top: calc(50% - .75rem); left: calc(50% - 2px); width: 4px; height: 1.5rem; border-radius: 2px; background: var(--muted); opacity: .6; }
-  .edge:hover::before, .edge:focus-visible::before, .edge.on::before { opacity: 1; }
-  .edge:hover::after, .edge:focus-visible::after, .edge.on::after { opacity: 1; background: var(--text); }
+  .edge:focus-visible::before, .edge.on::before { opacity: 1; }
+  .edge:focus-visible::after, .edge.on::after { opacity: 1; background: var(--text); }
+  @media (hover: hover) {
+    .edge:hover::before { opacity: 1; }
+    .edge:hover::after { opacity: 1; background: var(--text); }
+  }
   /* A finger catches a wider edge (mostly over the stage, so the panel's first button stays free) */
   @media (pointer: coarse) {
     .edge { width: 1.25rem; }
@@ -640,7 +688,10 @@
     /* A finger-sized grip: a drag that starts just above the bar must not land on the stage (and orbit it) */
     .grip { position: relative; height: 1.5rem; cursor: row-resize; outline: none; }
     .grip::after { content: ""; position: absolute; top: calc(50% - 2px); left: calc(50% - 1.25rem); width: 2.5rem; height: 4px; border-radius: 2px; background: var(--muted); opacity: .6; }
-    .grip:hover::after, .grip:focus-visible::after, .grip.on::after { opacity: 1; background: var(--text); }
+    .grip:focus-visible::after, .grip.on::after { opacity: 1; background: var(--text); }
+    @media (hover: hover) {
+      .grip:hover::after { opacity: 1; background: var(--text); }
+    }
     .body { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
     /* The head is the six tab icons alone (× ‹ › moved out – #171): they share the row, each at least the control
        height wide, so six of the touch height fit 360 px; the row scrolls rather than wraps */

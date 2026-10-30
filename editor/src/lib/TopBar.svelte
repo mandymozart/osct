@@ -63,7 +63,10 @@
   .crumbs { flex: 1; display: flex; align-items: center; gap: .375rem; min-width: 0; white-space: nowrap; }
   .crumb { overflow: hidden; text-overflow: ellipsis; }
   a.crumb { color: var(--muted); }
-  a.crumb:hover, a.crumb[aria-current="page"], .crumb.current { color: var(--text); }
+  a.crumb[aria-current="page"], .crumb.current { color: var(--text); }
+  @media (hover: hover) {
+    a.crumb:hover { color: var(--text); }
+  }
   .crumb[aria-current="page"] { font-weight: 600; }
   .sep { flex: none; color: var(--muted); }
   .crumb.spread { flex: none; }

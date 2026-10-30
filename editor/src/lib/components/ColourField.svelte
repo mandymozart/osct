@@ -93,7 +93,9 @@
   .colour { display: grid; grid-template-columns: var(--control-height) minmax(0, 1fr); gap: .375rem; align-items: center; }
   .swatch { width: var(--control-height); height: var(--control-height); margin: 0; padding: 2px; border: 1px solid var(--line); border-radius: 50%;
     background: linear-gradient(var(--c), var(--c)) content-box, var(--surface); cursor: pointer; }
-  .swatch:hover { border-color: var(--text); }
+  @media (hover: hover) {
+    .swatch:hover { border-color: var(--text); }
+  }
   .hex { width: 100%; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
   .colour .small { grid-column: 2; }
   .pop { position: fixed; inset: auto; margin: 0; padding: 0; border: none; background: none; color: inherit; overflow: visible; }

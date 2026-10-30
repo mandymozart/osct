@@ -31,7 +31,9 @@
 <style>
   .info { flex: none; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: var(--surface); }
   .head { display: flex; align-items: center; gap: .25rem; height: var(--control-height); padding: 0 .5rem; border: none; background: var(--surface-head); color: var(--muted); cursor: pointer; text-align: left; }
-  .head:hover, .head:hover .section-label { color: var(--text); }
+  @media (hover: hover) {
+    .head:hover, .head:hover .section-label { color: var(--text); }
+  }
   .body { height: 9rem; overflow-y: auto; padding: .375rem .625rem .5rem; }
   .name { display: block; margin-bottom: .25rem; font-weight: 600; }
   .text { margin: 0; overflow-wrap: anywhere; }

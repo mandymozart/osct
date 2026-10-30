@@ -12,6 +12,19 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.36.3 – 2026-10-30
+
+### Fixed
+- **Phone: ‹ › no longer cover the stage's toolbar** (#177): with the sheet almost full the stage is too short for the
+  spread buttons below the toolbar, so they move to its top right and the toolbar keeps to one row beside them, which
+  scrolls sideways – every tool stays reachable at every sheet height. At a third or half nothing changes.
+- **Editor on touch: a tapped button no longer looks pressed** (#178): every hover style (pills, icon buttons, tree
+  rows, menus, crumbs, the Library's rows and cards, the column edges, the sheet's grip …) applies only where a
+  pointer can hover, so a finger leaves no grey behind. Pressed and focus states are unchanged; a test checks every
+  stylesheet of the editor.
+- **Demo book: the printed sheet of pages 1–2 describes the animated key** (#179): rendered again from the demo's
+  texts – it still spoke of the fixture's dragon stand-in. The other sheets had not changed.
+
 ## 1.36.2 – 2026-10-30
 
 ### Added

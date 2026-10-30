@@ -204,7 +204,9 @@
   .origin { display: inline-grid; grid-template-columns: repeat(3, .75rem); grid-template-rows: repeat(3, .75rem); gap: .125rem; padding: .125rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); }
   .spot { width: .75rem; height: .75rem; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: none; cursor: pointer; }
-  .spot:hover { border-color: var(--text); }
+  @media (hover: hover) {
+    .spot:hover { border-color: var(--text); }
+  }
   .spot.on { border-color: var(--text); background: var(--text); }
   /* A finger (#171): each point a 1.75rem cell to hit, the drawn dot the same size as with a mouse */
   @media (pointer: coarse) {
