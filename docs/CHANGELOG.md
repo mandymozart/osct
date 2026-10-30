@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.35.0 – 2026-10-30
 
 ### Added
 - **Words as labels in the Entity panel** (#173, content schema 2.15, plugin API 1.3): a parameter spec may carry a
