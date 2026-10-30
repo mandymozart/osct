@@ -7,6 +7,30 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Fixed
+- **An import refuses a configuration of another book** (#204): `POST /api/editor/books/{id}/import` answers 400
+  `invalid-configuration` naming both ids when the configuration's `book.id` is not `{id}`, and a `book.id` that is no
+  id is refused by the import as by its preview (400 `invalid-id`). Before, the rows went under one id while the
+  configuration kept the other, and a publish named one book in `latest.json` and another in `game.config.json`. The
+  editor's import form already sends the configuration's own id.
+- **The uploads of every book are served without a CDN** (#205): the local content store served the files of book ids
+  in lower-case letters, digits and `-` only, so a book like `My_Book` got 404s for its uploads.
+- **The admin page's CSV button follows the Newsletter filter only** (#206): under *Editors* or *Admins* it said
+  "Newsletter CSV" and downloaded the newsletter list; now there is no CSV button there (*All* keeps *Users CSV*).
+- **The editor goes back to sign-in when the session ends** (#208): a call answered 401 for the stored token clears
+  it and shows the sign-in form with *Your session ended – sign in again.* instead of raw error text in a panel. A
+  draft that cannot be loaded shows the error with *Retry* instead of *Building the stage…* forever, and a failed
+  removal, target image or environment read shows its error in the page instead of failing silently.
+- **Content build and CLI** (#215): editing the CLI's argument parser no longer makes a new content version; a `.glb`
+  with a broken JSON chunk no longer stops the build with a raw parse error (its zero-plane check skips it, as any file
+  that is no glTF); a thrown string is
+  reported as itself instead of "undefined"; the CLI, the API's `ENV` and its publish and content routes share one
+  environment-name rule (a letter first, then lower-case letters, digits and `-`, at most 32 – an `ENV` starting with a
+  digit now counts as `local`), and the CLI names `demo` when the environment is missing; the build's recording plugin
+  API is typed by the engine's `PluginApi`; one SHA-256 helper for the sync and the storage.
+
 ## 1.50.2 – 2026-10-30
 
 ### Changed

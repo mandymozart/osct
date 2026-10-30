@@ -4,6 +4,29 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – the review's fixes: import id, served assets, CSV button, session end, CLI (#204 #205 #206 #208 #215)
+
+- **Import id (#204)**: the import compares the configuration's `book.id` with the path after the configuration's own
+  checks (so a malformed configuration still answers its own 400 first) – 400 `invalid-configuration` naming both. The
+  preview has no path id: it answers for the configuration's own id (400 `invalid-id` when that is no id, as the import
+  now does too – before, the import took any string). The editor and the MCP server already send `incoming.book`.
+- **Served assets (#205)**: `ContentStore::SERVED_ASSET` is built from `Editor::ID`; ids have no `.`, so no traversal.
+- **CSV button (#206)**: *All* keeps *Users CSV* (docs/admin.md describes it; removing it would remove a feature),
+  *Newsletter* has *Newsletter CSV*, *Editors* / *Admins* none. One pure function, `editor/src/lib/users-csv.ts`.
+- **Session end (#208)**: `api()` (and the upload and CSV calls) end the session on a 401 only when the stored token
+  was sent and is still the stored one (a sign-in meanwhile is left alone, parallel 401s end it once). The sign-in
+  calls, the sign-out and `me()` pass `unauthorizedIsAnswer`: a wrong password is a form error, a stale token at
+  startup signs out quietly; `restore(true)` of a signed-in user that answers 401 ends the session with the note. The
+  engine's draft fetch (`authFetch`) does not end it by itself – `getBook` runs first and does.
+- **One environment-name rule (#215)**: `[a-z][a-z0-9-]{0,31}` – `ContentStore::ENV` in PHP (Config::env, the publish
+  check, the content route), `ENV_NAME` in `scripts/src/lib/content-sync.ts` for the CLI; a scripts test reads the PHP
+  constant and compares. `Config::env()` used to accept a digit first: such an `ENV` now counts as `local` (no instance
+  uses one). The MCP server's `publish` keeps its own copy of the regex (`mcp/src/content.ts`) – #217 pins the PHP copies.
+- **Recording API typed (#215)**: `scripts/tsconfig.json` maps `@shared/*` and `three` like the plugin type check does,
+  so the build's recording API is `PluginApi` from the engine – an engine API change fails the scripts' type check.
+  `sha256` lives in `lib/storage.ts` (the Storage API's checksum format), the sync imports it. `messageOf` in
+  `lib/errors.ts` turns any thrown value into text.
+
 ## 2026-10-30 – the second code review (#19, develop at 1.50.0)
 
 - **Scope**: the editor, the engine, the MCP server, the API's new classes, `shared/` to 2.19, the CLI, `docs/` and
