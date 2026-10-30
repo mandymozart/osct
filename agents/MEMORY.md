@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The demo video's tooling (#195)
+
+- Tilman: *"Kein Text."* – the WIP video has no titles and no end card; only the UI's own words. It is recorded from a
+  local editor against a **copy** of the SQLite with the demo imported from the CDN, never uploaded by us
+  (`editor/tools/demo-video/README.md`). Recording-only CSS hides the account's address, the AI connections and
+  Android's blue tap highlight; nothing else in the UI is changed.
+- The screencast delivers device pixels only with the browser's own scale (`--force-device-scale-factor`); an emulated
+  `deviceScaleFactor` gives CSS-pixel frames. So each format gets its own headless Edge.
+- [ ] **Make it code on the aquarium's tank leaves the tank empty on the stage** (found while recording, 1.42.0): the
+  plugin's `FISH_COLOURS` lives in `register()` outside the builder (`fixtures/demo/plugins/aquarium/index.ts:146`),
+  `make-code.ts` copies only the builder, so the generated `tank-code` throws; *Run* does not bring the tank back, a
+  reload does. The generated code also shows TypeScript squiggles. Needs an issue (the worker could not file one); the
+  video uses *make it code* on the key's model instead.
+- [ ] The phone's sheet dragged **down** shows black under the stage until the canvas resizes on release (headless Edge,
+  CDP touch) – worth a look on the S22.
+- [ ] Android's default blue tap highlight flashes over tapped links in the editor on a phone (the books page's cover
+  link) – `-webkit-tap-highlight-color: transparent` with a visible `:active` state would be calmer.
+
 ## 2026-10-30 – A spread card's menu: right click, long press, menu key (#196)
 
 - Tilman (from his phone): *"+ after / remove – should on desktop only appear on right click and on mobile on long
