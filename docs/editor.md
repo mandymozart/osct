@@ -28,6 +28,12 @@ role. The **first editors and admins** of an instance need no secret: the addres
 settings (GitHub environment variables of the same names, comma-separated, written into the server's config by the
 deploys) get the role when they sign in.
 
+A session that ends while the editor is open – it expired, the person signed out elsewhere, the account lost its role –
+goes back to the sign-in form with *Your session ended – sign in again.* (#208): any API call answered 401 for the stored
+token clears it (`editor/src/lib/api.ts`, `session.svelte.ts`). The route stays, so signing in again returns to the
+same page. The sign-in calls themselves (a wrong code or password), the sign-out and the startup check of a stored token
+answer 401 without that note.
+
 ## Try it (the demo book, or the fixture's studio spreads)
 
 The **demo book** (`fixtures/demo/`, `DEMO.md`): six spreads that use every node type, placement, filter and
@@ -268,6 +274,9 @@ is involved.
   stage's lower corners, and the top bar's book link is the way back to the spreads. On a stage too short for them below
   the toolbar (the sheet almost full) they move to its top right, beside the toolbar (#177) – which is one row and
   always leaves them that room, so every tool stays reachable at every sheet height without scrolling (#180).
+  When the draft cannot be loaded (the API is down, the book is not there) the stage area says why with **Retry**
+  instead of *Building the stage…*; an action that fails (a removal, a target image, the reload after a change) shows
+  its error over the stage until dismissed (#208).
   - **The stage toolbar** (#180, `components/ToolGroup.svelte`, `lib/tool-groups.ts`) – three groups: **transform**
     (move / rotate / scale), **pick** (entities / nodes / targets) and **shading** (wire / solid / textured /
     rendered). Each group is one button showing its active option's icon (a small corner mark says it opens more); a

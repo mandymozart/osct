@@ -28,7 +28,8 @@ no admin sees "No admin access" at `/editor/admin`.
 - **Editors** / **Admins** – the filter buttons show the users with that role (the editors shortcut).
 - **Newsletter** – the filter shows the users with any update option on; **Newsletter CSV** downloads them
   (`GET /api/admin/users.csv?newsletter=1`: `email, language, bookUpdates, artistUpdates, publisherUpdates, createdAt`)
-  for the mailing tool. With the filter *All*, the button downloads every user. The API also narrows to one option
+  for the mailing tool. With the filter *All*, the button is **Users CSV** and downloads every user; under *Editors* or
+  *Admins* there is no CSV button (#206 – `editor/src/lib/users-csv.ts`). The API also narrows to one option
   (`?option=bookUpdates`), which the page does not offer yet.
 - **Invite an editor** – an address becomes an editor at once (`POST /api/admin/editors`); a new address is created as
   an account that signs in with a code by e-mail, like every reader.

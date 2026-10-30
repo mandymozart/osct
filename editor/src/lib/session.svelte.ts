@@ -1,10 +1,15 @@
 import { resolve } from "$app/paths";
-import { ApiError, getToken, logout, me, requestCode, setToken, signInWithPassword, verifyCode, type User } from "./api";
+import { ApiError, getToken, logout, me, onSessionEnd, requestCode, setToken, signInWithPassword, verifyCode, type User } from "./api";
+
+/** The sign-in form's note after the session ended under the page */
+export const SESSION_ENDED = "Your session ended – sign in again.";
 
 /**
  * Who is signed in: the instance user of the accounts API (sign-in by email code or password, as the reader's
  * account). The editor needs the role `editor`, the admin page (`/admin`) the role `admin` – an admin grants them
  * there, or the deployment's `EDITORS` / `ADMINS` lists at sign-in (docs/server.md "Roles").
+ * A session that ends under the page (any API call answers 401 to the stored token – `api.ts`) goes back to the
+ * sign-in form with a note; the page the person was on stays the route, so signing in again returns there.
  */
 class Session {
   user = $state<User | null>(null);
@@ -14,6 +19,12 @@ class Session {
   busy = $state(false);
   /** A code was requested for this address: the code form shows */
   pending = $state<{ email: string; requestId: string } | null>(null);
+  /** Why the sign-in form shows, when it is not the first visit: the session ended (`SESSION_ENDED`) */
+  notice = $state<string | null>(null);
+
+  constructor() {
+    onSessionEnd(() => this.ended());
+  }
 
   get isEditor(): boolean {
     return this.has("editor");
@@ -38,6 +49,8 @@ class Session {
       this.user = (await me()).user;
       this.status = "in";
     } catch (error) {
+      // A reload of the signed-in user (`again`) that answers 401: the session ended under the page
+      if (error instanceof ApiError && error.status === 401 && this.status === "in") return this.ended();
       if (error instanceof ApiError && error.status === 401) setToken(null);
       this.status = "out";
       this.error = error instanceof ApiError && error.status !== 401 ? error.message : null;
@@ -76,6 +89,17 @@ class Session {
     setToken(null);
     this.user = null;
     this.pending = null;
+    this.notice = null;
+    this.status = "out";
+  }
+
+  /** The session ended under the page: the token is cleared and the sign-in form shows with a note */
+  ended(): void {
+    setToken(null);
+    this.user = null;
+    this.pending = null;
+    this.error = null;
+    this.notice = SESSION_ENDED;
     this.status = "out";
   }
 
@@ -83,6 +107,7 @@ class Session {
     setToken(token);
     this.user = user;
     this.pending = null;
+    this.notice = null;
     this.status = "in";
   }
 

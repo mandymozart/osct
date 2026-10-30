@@ -73,7 +73,13 @@
   let coarse = $state(window.matchMedia(COARSE).matches);
   // The one selection of the tree, the stage and the Entity panel – a target, its entity or a node (#162)
   selection.reset();
+  /** The draft or the stage could not be loaded: the stage area shows it with a retry instead of "Building the stage…" */
   let loadError = $state<string | null>(null);
+  /** An action on the page failed (a removal, a target image, a reload after a change): shown over the stage until dismissed */
+  let actionError = $state<string | null>(null);
+  const failed = (e: unknown): void => {
+    actionError = e instanceof Error ? e.message : String(e);
+  };
 
   /** The tab the sheet opens with when it is dragged open (the last one shown) */
   let lastTab: Tab = firstTab;
@@ -248,9 +254,13 @@
   let entityPanel = $state<{ useAsset: (kind: MediaKind, src: string, assetId: string) => void }>();
   /** The content changed under the stage (a target's image or placement, a relink): reload it and build the spread again */
   const reloadContent = async () => {
-    await content.load(bookId);
-    await stage?.refresh();
-    void library.refresh();
+    try {
+      await content.load(bookId);
+      await stage?.refresh();
+      void library.refresh();
+    } catch (e) {
+      failed(e);
+    }
   };
   const targetCreated = async (targetId: string) => {
     addingTarget = false;
@@ -276,7 +286,7 @@
       await removed(target.id);
     } catch (e) {
       const step = removalStep(e);
-      if (!step) throw e;
+      if (!step) return failed(e);
       addingTarget = false;
       removal = { targetId: target.id, entryId: target.entryId, step };
       if (shown === null) setTab(lastTab);
@@ -321,7 +331,11 @@
   };
   const useAsTargetImage = async (asset: Asset) => {
     if (!selection.target) return;
-    await putTarget(bookId, selection.target, { imageSrc: asset.url });
+    try {
+      await putTarget(bookId, selection.target, { imageSrc: asset.url });
+    } catch (e) {
+      return failed(e);
+    }
     await reloadContent();
   };
   const selectedNodeType = $derived.by(() => {
@@ -329,16 +343,11 @@
     return t ? (nodeAt(t, selection.node) ?? t).type : null;
   });
 
-  onMount(() => {
-    let disposed = false;
-    const media = window.matchMedia(NARROW);
-    narrow = media.matches;
-    const onMedia = (event: MediaQueryListEvent) => (narrow = event.matches);
-    media.addEventListener("change", onMedia);
-    const pointer = window.matchMedia(COARSE);
-    const onPointer = (event: MediaQueryListEvent) => (coarse = event.matches);
-    pointer.addEventListener("change", onPointer);
-    (async () => {
+  let disposed = false;
+  /** Load the draft (unless it is loaded) and build the stage on it; a failure shows in the stage area with a retry */
+  const start = async () => {
+    loadError = null;
+    try {
       if (content.bookId !== bookId) {
         const error = await content.load(bookId);
         if (error) {
@@ -347,23 +356,39 @@
         }
       }
       if (disposed || !container) return;
-      stage = new Stage(container);
-      // A click picks by the pick mode; nothing of its kind there clears the selection (tree, stage and panel alike)
-      stage.onPick = hit => {
-        stageMenu = null;
-        if (!hit) {
-          selection.clear();
-          return;
-        }
-        selectHit(hit);
-        select();
-      };
-      stage.onContextMenu = (hit, x, y) => {
-        if (hit) selectHit(hit);
-        stageMenu = { hit, x, y };
-      };
+      if (!stage) {
+        stage = new Stage(container);
+        // A click picks by the pick mode; nothing of its kind there clears the selection (tree, stage and panel alike)
+        stage.onPick = hit => {
+          stageMenu = null;
+          if (!hit) {
+            selection.clear();
+            return;
+          }
+          selectHit(hit);
+          select();
+        };
+        stage.onContextMenu = (hit, x, y) => {
+          if (hit) selectHit(hit);
+          stageMenu = { hit, x, y };
+        };
+      }
       await stage.open(spreadId);
-    })();
+    } catch (e) {
+      loadError = e instanceof Error ? e.message : String(e);
+    }
+  };
+
+  onMount(() => {
+    disposed = false;
+    const media = window.matchMedia(NARROW);
+    narrow = media.matches;
+    const onMedia = (event: MediaQueryListEvent) => (narrow = event.matches);
+    media.addEventListener("change", onMedia);
+    const pointer = window.matchMedia(COARSE);
+    const onPointer = (event: MediaQueryListEvent) => (coarse = event.matches);
+    pointer.addEventListener("change", onPointer);
+    void start();
     return () => {
       disposed = true;
       media.removeEventListener("change", onMedia);
@@ -376,7 +401,7 @@
   // The route's spread changed (‹ › or the URL): the stage follows
   $effect(() => {
     const id = spreadId;
-    if (stage && stage.spreadId !== id) void stage.open(id);
+    if (stage && stage.spreadId !== id) stage.open(id).catch(failed);
   });
   /** A pick on the stage: the printed image selects the target, an entity's node the node (the pick mode decides which) */
   const selectHit = (hit: StagePick) => {
@@ -600,7 +625,9 @@
       {/if}
     {/if}
     {#if loadError}
-      <p class="notice danger">{loadError}</p>
+      <p class="notice danger" role="alert">{loadError} <button type="button" class="pill framed" onclick={() => void start()}>Retry</button></p>
+    {:else if actionError}
+      <p class="notice danger" role="alert">{actionError} <button type="button" class="pill framed" onclick={() => (actionError = null)}>Dismiss</button></p>
     {:else if !stage || stage.status === "idle" || stage.status === "loading" || stage.status === "starting"}
       <p class="notice muted">{content.loading ? "Loading the draft…" : "Building the stage…"}</p>
     {:else if stage.status === "error"}
