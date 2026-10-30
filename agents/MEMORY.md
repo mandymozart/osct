@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Tutorial re-shoot and a look at the Stage panel (#148)
+
+- **The key shots are re-shot** (demo 03, 05, 10; tools 07, 08, 12; new tools 13): the local demo draft was imported
+  again from the demo's content base on the CDN (`https://buildingfictions.b-cdn.net/demo`, 1.36.1), whose key is the
+  brass key – the reader dev server's bundled content was still an old build with the dragon. The stage frames the key
+  from low over the left page, so the printed sheet's outdated text ("a dragon") stays out of the picture until the
+  sheets are rendered again (#179).
+- **A `$state` that an effect both reads and writes on its first run loops**: the Entity panel's timeline effect called
+  its frame tick synchronously, read `timeline` and wrote it – with a model that has clips (the key) selecting it ended
+  in `effect_update_depth_exceeded`. The timeline is `$state.raw` (a proxied object never equals the raw one) and the
+  first tick runs `untrack`ed.
+- **A scrolling element in a panel's flex column needs `flex-shrink: 0`**: `overflow: auto` drops its automatic minimum
+  height, so the timeline collapsed to nothing in the phone's sheet (the rows and sections already had it, #170).
+- Found and left for later: ‹ › over the stage toolbar at the sheet's almost-full height (#177), sticky hover on touch
+  (#178), the demo's sheet text (#179) – all in Backlog.
+
 ## 2026-10-30 – Type-only imports, `verbatimModuleSyntax` on (#176)
 
 - **The flag is on in every TypeScript config** (client + service worker, engine, editor + its plugin API, scripts,

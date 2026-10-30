@@ -134,6 +134,7 @@
           <li><a href="#tools-new-target">A new target</a></li>
           <li><a href="#tools-spreads">Adding and removing spreads</a></li>
           <li><a href="#tools-post">Post-processing: the book's and a spread's own</a></li>
+          <li><a href="#tools-stage-vars">Tap, variables and the timeline</a></li>
           <li><a href="#tools-labels">Words as labels</a></li>
           <li><a href="#tools-phone">The editor on a phone</a></li>
           <li><a href="#tools-tablet">The editor on a tablet</a></li>
@@ -408,8 +409,8 @@ npm run osct -- content status --env staging</code></pre>
   <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>key</code> sets the book variable <code>hasKey</code> on the first find – it is kept with the reader's progress – and a tap sends the event <code>keyRattled</code>. <code>animation</code> plays the model's clip <code>rattle</code> on a tap. To tap it without aiming, use <b>tap</b> in the Stage tab's <b>vars and events</b>.</p>
   <p>The <em>tally</em> is a group with a text. Its <code>tally</code> component draws "n of N pages found" and updates it on every new find, on any spread.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key spread in the editor: the whole open book on the desk, the key model selected with its orange outline and the move gizmo; the tree marks the model row; the Entity panel's breadcrumb reads key › model, then name, + node, placement, the file key.glb and three components – spin with its speed in degrees per second and its axis, key, and animation with plays on tap; the Info view describes the speed row.">
-    <figcaption>The key selected. Every component is a block in the Entity panel: <code>spin</code> with its speed and axis, <code>key</code> without settings, <code>animation</code> with <em>plays on: tap</em>. Pointing at a row shows its help in the Info view.</figcaption>
+    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key spread in the editor, close to the left page: the brass key stands upright on its printed image, selected with its orange outline and the move gizmo; the tree marks the model row; the Entity panel's breadcrumb reads key › model, then name, + node, add as, the placement with scale 0.6, the file key.glb and three components – spin with speed 40 °/s and axis y, key, and animation with the model's timeline at 0.00 s of 0.90 s, the clip rattle and plays on tap; the Info view describes the speed row as speed · degreesPerSecond.">
+    <figcaption>The key selected. Every component is a block in the Entity panel: <code>spin</code> with its speed and axis, <code>key</code> without settings, <code>animation</code> with the model's timeline, the clip <em>rattle</em> and <em>plays on: tap</em>. Pointing at a row shows its help in the Info view.</figcaption>
   </figure>
 
   <h4>3–4 · The door</h4>
@@ -442,8 +443,8 @@ npm run osct -- content status --env staging</code></pre>
   </ol>
   <p>The tree's eye switches a target off and on (lost, found again). Variables have scopes: <em>spread</em> lives while the spread is shown, <em>stage</em> while the scene exists, <em>book</em> is kept with the reader's progress. That is why <code>hasKey</code> survives the walk from page 1 to page 3.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/05-door-open.webp" width="1280" height="800" loading="lazy" alt="The door spread after the key was found: the door model lifted and turned, the lamp video showing on the right page; the Stage panel's vars and events section lists stage · doorOpen = true, book · hasKey = true and the events targetFound, targetUnlocked, doorOpened by key, varChanged and spreadChanged from the key to the door.">
-    <figcaption>After the key: the door is open, the lamp video shows. <em>vars and events</em> lists <code>stage · doorOpen = true</code>, <code>book · hasKey = true</code> and the events, newest first – down to <code>spreadChanged</code> from the key to the door.</figcaption>
+    <img src="/docs/tutorials/demo/05-door-open.webp" width="1280" height="800" loading="lazy" alt="The door spread after the walk from the key: the door model on the left page, the lamp video showing on the right page; the Stage panel's vars and events section has a tap button for each target, The door and The lamp, the variables doorOpen (stage · boolean) and hasKey (book · boolean), both set to true, the set row, and the timeline: at 0.04 s targetFound and targetUnlocked for the lamp and the door, doorOpened by key and varChanged doorOpen, at 0.00 s spreadChanged from the key to the door, then the key spread's events.">
+    <figcaption>After the key: the door is open, the lamp video shows. <em>vars and events</em> lists <code>doorOpen</code> (stage) and <code>hasKey</code> (book), both <em>true</em>, and the timeline, newest first. Its clock starts at <code>spreadChanged</code>, when the door's spread opened; the key spread's events follow below.</figcaption>
   </figure>
 
   <h3 class="sec" id="demo-component">How a component works</h3>
@@ -495,7 +496,7 @@ npm run osct -- content status --env staging</code></pre>
       <p>To see the demo as a reader, open the staging reader with <code style="white-space: nowrap">?content=</code> (see <a href="#demo-getting-it-in">Getting it in</a>) and point the camera at the printed pages.</p>
     </div>
     <figure class="shot">
-      <img src="/docs/tutorials/demo/10-phone.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone: the key spread on the stage at the top with the key selected and the toolbar in two rows, ‹ and › at the stage's lower corners; below it the sheet with its grip and six icon tabs, the Entity panel for the key's model – the breadcrumb key › model, name, + node, add as and the placement – in finger-sized rows.">
+      <img src="/docs/tutorials/demo/10-phone.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone: the key spread on the stage at the top, seen low over the left page, the brass key selected with its orange outline and the move gizmo, the toolbar in two rows, ‹ and › at the stage's lower corners; below it the sheet with its grip and six icon tabs, the Entity panel for the key's model – the breadcrumb key › model, name, + node, add as and the placement – in finger-sized rows.">
       <figcaption>The key on a phone, with the Entity sheet. Every control is finger-sized.</figcaption>
     </figure>
   </div>
@@ -503,7 +504,7 @@ npm run osct -- content status --env staging</code></pre>
   <p class="muted">The reference for every detail: the repository's <code>fixtures/demo/</code> (the demo itself), <code>docs/plugins.md</code> (writing a plugin) and <code>docs/editor.md</code> (the editor).</p>
 
   <h2 class="chapter" id="tools"><span class="gold">4 · The editor's tools</span></h2>
-  <p>The tools that came with versions 1.27 to 1.35, each shown on the demo book. None of these shots was saved: every change in them was taken back with <b>Back to the draft</b>. Nothing reaches the draft until you press <b>Save</b>, and nothing reaches readers until you <b>Publish</b>.</p>
+  <p>The tools that came with versions 1.27 to 1.36, each shown on the demo book. None of these shots was saved: every change in them was taken back with <b>Back to the draft</b>. Nothing reaches the draft until you press <b>Save</b>, and nothing reaches readers until you <b>Publish</b>.</p>
 
   <h3 class="sec" id="tools-selection">One selection: tree, stage and inspector</h3>
   <p>There is one selection, and it lives at a level: a <b>target</b> (the printed image), its <b>entity</b> (the root of its AR content) or a <b>node</b> inside it. Select in any of the three places and the other two follow:</p>
@@ -554,12 +555,25 @@ npm run osct -- content status --env staging</code></pre>
   <h3 class="sec" id="tools-post">Post-processing: the book's and a spread's own</h3>
   <p>The passes in the Stage tab's <b>post-processing</b> belong to the <b>book</b>: edited once, every spread without a list of its own shows them. The row <b>uses</b> says which list is in effect for the spread on the stage, and the section's head repeats it. <em>the book's</em> is the default – changing the list then changes it for every such spread. <em>own</em> gives this spread an override that starts as a copy of the book's; choosing <em>the book's</em> again drops it. <b>Save</b> writes what changed: the book's list, the spread's, or both.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/tools/07-post-book.webp" width="1280" height="800" loading="lazy" alt="The twins spread in the rendered shading with a soft bloom and a dark vignette at the edges; the Stage panel's post-processing section reads the book's: uses the book's, a bloom with strength 0.35, radius 0.4 and threshold 0.97, a vignette with strength 0.8; Back to the draft and Save, with the book's beside Save.">
+    <img src="/docs/tutorials/tools/07-post-book.webp" width="1280" height="800" loading="lazy" alt="The twins spread in the rendered shading with a soft bloom and a dark vignette at the edges; the Stage panel's post-processing section reads the book's: uses the book's, a bloom with strength 0.35, radius 0.4 and threshold 0.97, a vignette with strength 0.8, radius 0.6, softness 0.6 and the colour #000000, a dot before every changed row; Back to the draft and Save, with the book's beside Save.">
     <figcaption>A bloom and a vignette in the book's list – every spread without its own shows them. Beside <b>Save</b>: what it would write, <em>the book's</em>.</figcaption>
   </figure>
   <figure class="shot">
-    <img src="/docs/tutorials/tools/08-post-own.webp" width="1280" height="800" loading="lazy" alt="The same spread with uses set to own: the section's head reads this spread's, the list holds the copied bloom and vignette and a new grade with reach AR layer, exposure, contrast, saturation and tint; beside Save: the book's + this spread's; the Info view says own passes for this spread.">
+    <img src="/docs/tutorials/tools/08-post-own.webp" width="1280" height="800" loading="lazy" alt="The same spread with uses set to own: the section's head reads this spread's, the list holds the copied bloom and vignette and a new grade with reach AR layer, exposure, contrast, saturation and tint; at the bottom Back to the draft and, beside Save, the book's + this spread's; the Info view describes the bloom.">
     <figcaption><em>own</em>: the spread's list starts as a copy of the book's, here with a grade added. <b>Save</b> would write both lists.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-stage-vars">Tap, variables and the timeline</h3>
+  <p>The Stage tab's <b>vars and events</b> plays a book's story by hand, without a phone. It is closed until you open it by its head.</p>
+  <ul>
+    <li><b>tap</b> has a button for each printed target of the spread. It taps the target's AR content as a reader's tap would, without aiming at it: the entity's <code>onTap</code>, the <code>animation</code> component's <em>plays on: tap</em> and the event <code>targetTapped</code>. A target that is not found, or has no AR content, is greyed out.</li>
+    <li><b>vars</b> lists the plugins' variables, each with its scope and type and a control for its value – <em>false / true</em>, a number or a text – and <b>×</b> to delete it. <b>set</b> adds one: a camelCase name, the scope (spread, stage, session or book), the type and the value. Both write through the plugin API, so the plugins react as if one of them had set it: set <code>hasKey</code> to <em>true</em> on the door's spread and the door opens without a visit to page 1. <b>reset</b> starts a new game.</li>
+    <li><b>events</b> is the timeline, newest first: the time since the spread opened, the event and its payload. The last 100 are kept; <b>clear</b> empties it.</li>
+  </ul>
+  <p>Nothing here is saved to the draft: the variables live while the spread's workspace is open, as a reader's progress lives on the phone.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/13-stage-vars.webp" width="1280" height="800" loading="lazy" alt="The key spread with the Stage panel's vars and events open: the tap row with The key, just tapped, and The tally; vars with tries (stage · number, 2), set by hand, and hasKey (book · boolean, true), each with a cross; the set row with an empty name, the scope stage, number pressed and the value 2; events 10 with clear, then the timeline: 11.61 s targetTapped key and keyRattled, 9.67 s varChanged tries, 0.14 s the finds and the key's varChanged hasKey, 0.00 s spreadChanged; the Info view explains the tap row.">
+    <figcaption><em>The key</em> tapped from the panel: <code>targetTapped</code> and the plugin's own <code>keyRattled</code> top the timeline. <code>tries</code> was set by hand as a <em>stage</em> number.</figcaption>
   </figure>
 
   <h3 class="sec" id="tools-labels">Words as labels</h3>
@@ -590,7 +604,7 @@ npm run osct -- content status --env staging</code></pre>
       <p>The column edges can be dragged on a tablet too: the panel from 16rem to 70% of the window, the tree from 10rem to 40%. A double tap on an edge restores its width.</p>
     </div>
     <figure class="shot">
-      <img src="/docs/tutorials/tools/12-tablet.webp" width="768" height="1024" loading="lazy" alt="The editor on a 768 px tablet in portrait: the tree collapsed to a narrow bar with › at the left, the key spread on the stage in the middle with the key selected, and the panel on the right with icon tabs and the Entity panel of the key's model – breadcrumb key › model, name, + node, add as, placement, file, the spin component and the animation component – in finger-sized rows.">
+      <img src="/docs/tutorials/tools/12-tablet.webp" width="768" height="1024" loading="lazy" alt="The editor on a 768 px tablet in portrait: the tree collapsed to a narrow bar with › at the left, the key spread on the stage in the middle, seen low over the left page with the brass key selected, and the panel on the right with icon tabs and the Entity panel of the key's model – breadcrumb key › model, name, + node, add as, placement, file, the spin, key and animation components with the model's timeline – in finger-sized rows.">
       <figcaption>A 768 px tablet: the tree collapsed, the tabs as icons.</figcaption>
     </figure>
   </div>
