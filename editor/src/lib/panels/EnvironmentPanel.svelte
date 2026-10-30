@@ -7,6 +7,7 @@
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
   import FileField from "#lib/components/FileField.svelte";
+  import Section from "#lib/components/Section.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
 
   /**
@@ -17,7 +18,8 @@
    * equirectangular image. *Library…* opens the Library here as a picker (a glTF model, a sky image – the stage keeps
    * previewing); **Save** writes the
    * environment to the draft, *Back to the draft* undoes, *Use the default* removes it (the café with the onion sky).
-   * Book-level only; the reader's Graphics switches (Info → Settings) still apply on top.
+   * Book-level only; the reader's Graphics switches (Info → Settings) still apply on top. Two collapsible sections: the
+   * environment open on the first visit, the stage's *preview* (look up) closed, its head naming the angle.
    */
   let { stage, bookId }: { stage: Stage | null; bookId: string } = $props();
 
@@ -71,8 +73,9 @@
 {#if pick}
 <LibraryPanel {bookId} {pick} />
 {:else}
-<div class="section"><span class="section-label">environment</span>
-  <span class="small muted" data-help-name="Environment" data-help="The book's world around the reader while scanning, its sky and the onion sky – shown on the stage while this tab is open: the reader's own look-around pass, anchored to the book, turned by the view. The reader's Graphics switches (Info → Settings) still apply on top.">{edit.saved ? "this book's" : "the default"}</span></div>
+{#snippet whose()}
+  <span class="small muted">{edit.saved ? "this book's" : "the default"}</span>
+{/snippet}
 
 {#snippet slotRow(slot: EnvironmentSlot)}
   {@const src = edit.edited[SOURCE[slot]]}
@@ -89,6 +92,8 @@
   </div>
 {/snippet}
 
+<Section id="environment.world" label="environment" aside={whose}
+  help="The book's world around the reader while scanning, its sky and the onion sky – shown on the stage while this tab is open: the reader's own look-around pass, anchored to the book, turned by the view. The reader's Graphics switches (Info → Settings) still apply on top.">
 {@render slotRow("world")}
 {@render slotRow("sky")}
 <div class="row" class:changed={edit.edited.onionSky !== (edit.saved?.onionSky ?? true)}
@@ -102,12 +107,14 @@
 </div>
 {#if library.error}<div class="row"><span class="small danger">{library.error}</span></div>{/if}
 {#if library.uploading.length}<div class="row"><span class="small muted">Uploading {library.uploading.join(", ")}…</span></div>{/if}
+</Section>
 
-<div class="section"><span class="section-label">preview</span></div>
+<Section id="environment.preview" label="preview" open={false} summary="look up {lookUp}°" help="How the stage shows the world – not saved.">
 <div class="row" data-help="Raise the stage's camera from the book towards the horizon and the sky (the book stays found, as the reader's world stays).">
   <span class="label">look up</span>
   <span class="w"><ScrubNumber value={lookUp} min={-30} max={90} step={1} fallback={0} unit="°" label="look up" strict oninput={v => (lookUp = v)} /></span>
 </div>
+</Section>
 
 {#if edit.dirty || edit.saved || notice || edit.error}
   <div class="actions">

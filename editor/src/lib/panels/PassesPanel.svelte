@@ -5,8 +5,8 @@
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
-    backToBooks, draftPasses, editInEffect, effectivePasses, ownPasses, passesSource, passesStatus, pendingSaves,
-    type PassesDraft, type PassesSource,
+    backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, pendingSaves,
+    saveLabel, spreadsOnBooks, type PassesDraft, type PassesSource,
   } from "#lib/passes-edit.js";
   import { helpName, passOptionLabels, passRows, passValue, setPassValue, type ValueRow } from "#lib/values.js";
   import ColourField from "#lib/components/ColourField.svelte";
@@ -17,16 +17,17 @@
   /**
    * The **post-processing** (content schema 2.5): the passes over the rendered image in order – the built-in bloom,
    * vignette and grade with their rows from the contract's specs. The book's passes are the master every spread shows;
-   * a spread uses them until it has **own** passes (an override, starting as a copy of the book's; an empty list turns
-   * them off there), *the book's* drops the override again. The list shown is the one in effect – while the spread uses
-   * the book's, editing it edits the book's (every spread without its own). Changes show live on the stage (under
-   * *rendered*), the draft stays unchanged until **Save** writes what changed: the book's list
-   * (`PUT …/passes`) and / or the spread's (`PUT …/spreads/{id}`). A collapsible section of the Stage panel; the
-   * passes' descriptions are their help in the Info view.
+   * a spread uses them until it has its **own** (an override, starting as a copy of the book's; an empty list turns
+   * them off there), *back to the book's* drops the override again. The list shown is the one in effect – while the
+   * spread uses the book's, editing it edits the book's (every spread without its own). The level is unmistakable
+   * (#181): the head names it ("post-processing · the whole book" / "· only this spread"), the line under it says what
+   * editing changes (all N spreads that use the book's, or this spread's override) with the switch to the other, and
+   * Save says what it saves. Changes show live on the stage (under *rendered*), the draft stays unchanged until
+   * **Save** writes what changed: the book's list (`PUT …/passes`) and / or the spread's (`PUT …/spreads/{id}`). A
+   * collapsible section of the Stage panel, closed on the first visit; the passes' descriptions are their help in the
+   * Info view.
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
-
-  const SOURCES = ["book", "spread"] as const satisfies readonly PassesSource[];
 
   const spread = $derived(content.spread(spreadId));
   /** The draft's lists: the book's (the master) and the spread's own (null = the book's apply) */
@@ -42,8 +43,9 @@
   const shown = $derived<PassData[]>(effectivePasses(edit));
   const source = $derived<PassesSource>(passesSource(edit));
   const pending = $derived(pendingSaves(edit, saved));
-  const pendingWhat = $derived((["book", "spread"] as const).filter(key => key in pending).map(key => (key === "book" ? "the book's" : "this spread's")).join(" + "));
-  const dirty = $derived(pendingWhat !== "");
+  const dirty = $derived(Object.keys(pending).length > 0);
+  /** The spreads editing the book's list changes: every one without a list of its own, this one as it stands now */
+  const onBooks = $derived(spreadsOnBooks(content.spreads, spreadId, edit.own));
   /** The list in effect as the draft holds it – what a changed row is compared with */
   const savedShown = $derived<PassData[]>(source === "book" ? saved.book : saved.own ?? saved.book);
 
@@ -105,17 +107,19 @@
   };
 </script>
 
-{#snippet status()}
-  <span class="small muted">{passesStatus(edit)}</span>
-{/snippet}
-<Section id="stage.passes" label="post-processing" aside={status}
-  help="The passes over the rendered image, in order – the look-around world and its sky included. The book's passes are the master every spread shows; a spread may have its own instead. Changes show live on the stage (rendered shading); Save writes them to the draft.">
-<div class="row" data-help="Which passes this spread shows. The book's: the book's own list, the master every spread without a list of its own shows – the list below is then the book's, and editing it changes every such spread. Own: an override for this spread alone, starting as a copy of the book's; removing every pass turns post-processing off here. Choosing the book's again drops the override.">
-  <span class="label">uses</span>
-  <span class="controls">
-    <Segmented options={SOURCES} value={source} labels={{ book: "the book's", spread: "own" }}
-      titles={{ book: "Back to the book's", spread: "Own passes for this spread" }} onchange={choose} />
-  </span></div>
+<Section id="stage.passes" label={passesHeading(edit)} open={false}
+  help="The passes over the rendered image, in order – the look-around world and its sky included. The head names the level: the whole book – the book's passes, the master every spread without its own shows – or only this spread – an override of its own. Changes show live on the stage (rendered shading); Save writes them to the draft.">
+<div class="level" data-help-name="Level" data-help={source === "book"
+  ? "The list below is the book's: editing it changes every spread without passes of its own (counted here, this one included). Own for this spread gives this spread an override of its own, starting as a copy of the book's."
+  : "The list below is this spread's own: it overrides the book's here alone; removing every pass turns post-processing off here. Back to the book's drops the override – the spread shows the book's passes again."}>
+  <span class="small">{levelLine(edit, onBooks)}</span>
+  <span class="grow"></span>
+  {#if source === "book"}
+    <button type="button" class="text-link" title="Own passes for this spread, starting as a copy of the book's" onclick={() => choose("spread")}>own for this spread</button>
+  {:else}
+    <button type="button" class="text-link" title="Drop this spread's override: it shows the book's passes again" onclick={() => choose("book")}>back to the book's</button>
+  {/if}
+</div>
 {#each shown as pass, i (i)}
   <div class="row" data-help-name={pass.type} data-help={(PASSES as Record<string, { description: string }>)[pass.type]?.description ?? "A plugin's pass."}>
     <span class="label pass">{pass.type}</span>
@@ -147,10 +151,9 @@
   <div class="actions">
     <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
     <span class="grow"></span>
-    {#if dirty}<span class="small muted">{pendingWhat}</span>{/if}
     {#if notice}<span class="small muted">{notice}</span>{/if}
     {#if error}<span class="small danger">{error}</span>{/if}
-    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
+    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : saveLabel(pending)}</button>
   </div>
 {/if}
 </Section>
@@ -160,6 +163,7 @@
   .w :global(.scrub) { width: 100%; }
   .label.sub { padding-left: .5rem; }
   .label.pass { color: var(--text); }
+  .level { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5rem; min-height: var(--control-height); flex-shrink: 0; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
 </style>

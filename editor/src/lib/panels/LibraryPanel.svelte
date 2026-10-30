@@ -157,7 +157,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="library" class:dragging ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop}>
   {#if pick}
-    <div class="section picking"><span class="section-label">library · {pick.label}</span>
+    <div class="section"><span class="section-label">library · {pick.label}</span>
       <button type="button" class="text-link" title="Back without a file (Esc)" onclick={pick.oncancel}>cancel</button></div>
   {/if}
   <div class="row"><span class="label">kind</span>
@@ -233,7 +233,6 @@
   .card.current { border-color: var(--text); }
   .unfit { opacity: .45; }
   .list tbody tr.unfit { cursor: default; }
-  .section.picking { margin-top: 0; border-top: none; padding-top: 0; }
   .list { width: 100%; margin-top: .375rem; border-collapse: collapse; table-layout: fixed; }
   .list th { text-align: left; font-weight: normal; color: var(--muted); font-size: var(--text-small); }
   .list th, .list td { padding: .2rem .25rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
