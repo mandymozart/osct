@@ -23,7 +23,7 @@ declare(strict_types=1);
  */
 final class Assets
 {
-    /** Kinds of the content contract (`ASSET_TYPES`) by file extension; `kind` = the node's `assetType` */
+    /** Kinds of the content contract (`ASSET_TYPES`) and `shader` by file extension; `kind` = the node's `assetType` (shared/api/rules.ts `ASSET_KIND_EXTENSIONS`) */
     public const KINDS = [
         'glb' => 'glb', 'gltf' => 'gltf',
         'mp4' => 'video', 'webm' => 'video', 'mov' => 'video',

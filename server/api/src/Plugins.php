@@ -9,7 +9,7 @@ declare(strict_types=1);
  *
  * The Library shows the same rows as its scripts (#186): a `.ts` / `.js` file uploaded there becomes a source here
  * (`upload`, its id from the file's name), a file replaces one (`replaceFile`) – no second copy. A source is **used**
- * where the draft names a type it registers (`usagesOf`: read from its text like the MCP server's `pluginTypes`), and
+ * where the draft names a type it registers (`usagesOf`: read from its text like shared/api/rules.ts `pluginTypes`), and
  * its delete is refused while it is (409 `plugin-in-use`, forced with `?force=1`).
  */
 final class Plugins
@@ -20,7 +20,7 @@ final class Plugins
     public const MAX_SOURCE_BYTES = 262144;
     /** The extensions of a script file (JavaScript is TypeScript too) */
     public const EXTENSIONS = ['ts', 'js'];
-    /** What a source registers, by kind → the API function (`api.registerLayer("tint", …)`) */
+    /** What a source registers, by kind → the API function (`api.registerLayer("tint", …)` – shared/api/rules.ts `PLUGIN_REGISTER_FUNCTIONS`) */
     private const REGISTERS = [
         'components' => 'registerComponent', 'layers' => 'registerLayer', 'nodeTypes' => 'registerNodeType', 'passes' => 'registerPass',
         'materials' => 'registerMaterial', 'textures' => 'registerTexture',

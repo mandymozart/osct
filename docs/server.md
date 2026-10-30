@@ -262,6 +262,10 @@ database, under `/api/editor/*`. A user needs the role `editor` ([Roles](#roles)
 – or the setting `EDITORS` gives it when a listed address signs in, the instance's first editors. The editor itself
 signs in like the reader (email code) and checks `GET /user` for `editor` in `roles`.
 
+The answers of `/api/editor/*` are typed for the editor and the MCP server in `shared/api/editor.ts` – what the PHP
+sends, field by field; change both together. The PHP's copies of `shared/` rules (`Editor`, `Books`, `ContentStore`,
+`Plugins`, `Assets` constants) are pinned by `mcp/test/php-rules.test.ts` ([mcp](mcp.md#tests)).
+
 **Tables** (both schema files, additive): `books` (the book row: `BookData` as `book_json`, the tutorial, the initial
 spread, the imported `files.json`, the content schema, the imported hash, `assets_base`), `spreads`, `entries`,
 `targets`, `entities` (keys `(book_id, id)` / `(book_id, ref)`, deleted with the book), `book_versions` (the publish

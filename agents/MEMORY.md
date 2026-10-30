@@ -4,6 +4,45 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – one place for the API's types and rules; the PHP's copies pinned (#210 #217)
+
+- **Where the API's types live: `shared/api/`** (#210). `editor.ts` – the answers of `/api/editor/*`, matched field by
+  field against `server/api/src/*.php`; `errors.ts` – the error shape (`apiErrorFields`) and the two-step confirmations
+  (`confirmationStep`, import and removal); `rules.ts` – the API's rules its TypeScript callers share (`ID_PATTERN`,
+  `ENV_NAME`, `ASSET_KINDS` and their extensions, `PLUGIN_REGISTER_FUNCTIONS` and the scanner `pluginTypes`). The
+  editor (`api.ts` re-exports the types it uses), the MCP server and the osct CLI (`ENV_NAME`) import them; no copies
+  left in `editor/src/lib/api.ts`, `mcp/src/content.ts`, `mcp/src/model.ts` or `scripts/src/lib/content-sync.ts`.
+- **`shared/api/` is outside the content schema lock** (RULES #10): the lock hashed every file of `shared/`, so a new
+  folder there would have needed a schema bump for types that are no content. `hashContract` now skips `api/`
+  (`SHARED_API_DIR`, a scripts test proves a file there leaves the checksum alone); the checksum of the rest is
+  unchanged – no bump, no new lock. Rejected: a top-level folder of its own (new aliases and tsconfig paths in four
+  packages for the same result).
+- **Type corrections against the PHP** (#210): `BookSummary` – `book`, `initialSpreadId`, `schema`, `assetsBase`
+  (string, "" = none), `importedHash`, `createdAt`, `live`, `lastPublish` always sent; `listBooks().environments`
+  required, and `EnvironmentServing` is `{ env, book, build, since }` or `{ env, error }`; the tree has `unassigned`,
+  an entry's `target` is `TargetData | null`; `PublishResult.store` and `.replaced` required; `ImportResult` has
+  `counts` and `draft`, `imported` required; `IncomingBuild` is no `ImportedBuild` (no importedAt / By, `schema` and
+  `source` never null); `PluginSource` has no `usages` (`Plugins::summary` sends none – the editor typed it as the
+  list's); `RemovalImpact` is a union by `kind`; `putEntity` answers `{ ref, entity }`, `putTarget` / `putSpread`
+  the whole `TargetData` / `SpreadData` (were `unknown`). MCP: `list_assets`' `kind` enum had `model`, which no asset
+  has (`Assets::KINDS`: glb / gltf) – now the API's kinds; `list_books` dropped `environments` although its
+  description names them – passed on now.
+- **The cache of the book's tree** (#210): `getBook` keeps one promise per book until a write to it – any non-GET to
+  `/editor/books/{id}/…` through `request`, answered or refused – a failed read, a new token, or `{ fresh: true }`
+  (the book page on opening, so it still sees what others changed). Its three readers kept their part per book
+  already (the stage's `assetsBase`, the environment, the top bar's title) – the cache only makes them share one read;
+  the stage's draft is not the tree and is still loaded on every spread.
+- **`errorText`** (`api.ts`) is the one error line: the API's message (`{ code: true }` adds the code), an `Error`'s
+  message, else the value as text. A plain `Error` once shown as `String(e)` ("Error: …") now reads as its message.
+- **The pinning test** (#217): `mcp/test/php-rules.test.ts` runs PHP over the API's classes (autoloaded as
+  `index.php` does) and compares each constant with `shared/`; the scanner by behaviour (`Plugins::registers` and
+  `pluginTypes` on the same sources). `Editor::print`'s surfaces became `Editor::PRINT_SURFACES` to be pinned. No
+  difference found. It replaces the scripts test that compared `ContentStore::ENV` by regex. In `mcp/` because CI's
+  MCP job has PHP; skipped without it, as the e2e test.
+- **Publish refusals** (#217): `result.ts` `PUBLISH_REFUSALS` lists what `Books::publish` (with `Auth::refuseToken`
+  and the content store) refuses with; a test checks that each has a hint and that the publish tool's description
+  names it.
+
 ## 2026-10-30 – editor cleanup: no paths for older APIs, controls built once, one number parser (#211 #212)
 
 - **No compatibility paths for an older API (#211, RULES #10)**: editor and API ship in one image, so the editor no

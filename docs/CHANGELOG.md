@@ -7,6 +7,35 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **The API's answers are typed once** (#210): the editor and the MCP server read the editor API's answers – the
+  books and their tree, entries, targets, spreads, assets, plugin sources, environments, the import's preview and
+  comparison, a removal's impact, a publish – from one module, `shared/api/editor.ts`, checked field by field against
+  the PHP. Where the old types said otherwise they follow the PHP now: a book always has its `book`, `initialSpreadId`,
+  `assetsBase` ("" when none), `live` and `lastPublish`; the book list always names `environments`, the tree its
+  `unassigned` entries and an entry's `target` null when it has none; a publish always says its `store` and
+  `replaced`; an import answers `counts` and `draft`; a plugin source carries no `usages` (only the list does); a
+  removal's impact is the spread's or the entry's. `shared/api/` is outside the content schema lock: no schema bump.
+- **The editor's API layer** (#210): every call goes through one request – the session's 401, the API's errors with
+  their details (the users' CSV download dropped them), the two-step confirmations of an import and a removal read by
+  one helper, one error line for the pages. A book's tree is read once for the stage, the environment and the top
+  bar (three reads per spread before) and read again after any save to the book; the book page reads it fresh. The
+  settings in localStorage go through one helper – the same keys, so stored settings stay.
+- **The Library's *Use* follows the node types** (#210): a plugin node type that takes a file now lists the Library's
+  files of its kind as usable, like a built-in one. The default page size and a file's name from its URL are each
+  written once.
+- **The MCP server's hints cover every publish refusal** (#217): `unknown-materials`, `other-book`, `invalid-env`,
+  `invalid-note`, `invalid-replace`, `content-store-failed`, `content-store-unconfigured` and `not-found` now answer
+  with a hint, and the `publish` tool's description names every refusal. `list_books` hands on `environments` as its
+  description says; `list_assets` filters by the API's kinds (`glb`, `gltf`, … – `model` matched nothing).
+- **The PHP API's copies of `shared/` rules are pinned** (#217): a test in `mcp/` lets PHP print the API's constants –
+  node types, components, entry categories, the node depth, print surfaces, spread formats, passes, the environment's
+  worlds and files, ids, plugin ids, builds, environment names, the Library's kinds, the plugin-type scanner – and fails
+  when one differs from `shared/`. No difference found. The environment-name rule, the Library's kinds and the
+  plugin-type scanner live in `shared/api/rules.ts` for the CLI, the editor and the MCP server.
+
 ## 1.50.5 – 2026-10-30
 
 ### Changed

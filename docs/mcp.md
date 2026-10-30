@@ -15,16 +15,20 @@ mcp/
   bin/osct-mcp.mjs     the start: bundles src/ with the shared contract (esbuild, a tenth of a second) and runs it
   src/main.ts          stdio entry – config, the user behind the token, the server
   src/config.ts        OSCT_API_URL, OSCT_EDITOR_TOKEN, OSCT_EDITOR_URL
-  src/api.ts           the API over HTTP: JSON calls, uploads, errors as the API's { code, message }
+  src/api.ts           the API over HTTP: JSON calls, uploads, errors as the API's { code, message } (shared/api/errors.ts)
   src/services.ts      roles → services (editor), GET /user, the editor app's links
   src/user.ts          the server for one user: whoami, the sign-in pair, the editor's tools when the role is there
   src/content.ts       books, spreads, entities, targets, entries, assets, draft, publish, the logs
   src/code.ts          the Code tab's plugin sources
-  src/model.ts         the content model from shared/, the guard over one entity, what a plugin source registers
+  src/model.ts         the content model from shared/, the guard over one entity, what a book's plugins register
   src/prompts.ts       the server's instructions and the prompts (editor, add-target)
   src/resources.ts     osct://rules/content-model, osct://guides/plugins (docs/plugins.md)
-  test/                unit tests with a mocked fetch, the end-to-end test against the PHP API (vitest)
+  test/                unit tests with a mocked fetch, the end-to-end test against the PHP API, the PHP rules (vitest)
 ```
+
+The API's answers are typed once for this server and the editor (`shared/api/editor.ts`), with the API's rules both
+use – ids, environment names, the Library's file kinds, the plugin-type scanner (`shared/api/rules.ts`) – and its error
+shape and two-step confirmations (`shared/api/errors.ts`).
 
 ## Signing in
 
@@ -130,7 +134,7 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 |---|---|
 | `whoami` | the user (email, roles), how the server is signed in (`signedIn`: an AI connection's token with its name, a session, or null), the service open, the API, the editor app. Call it first |
 | `sign_in_request` · `sign_in_verify` | the sign-in by mail code, for people without a token (above) |
-| `list_books` | the instance's books with their last publish |
+| `list_books` | the instance's books with their last publish and where they are live, and `environments` – what each environment serves (or that its store cannot be read) |
 | `preview_import { url \| configuration \| source: "cdn", assetsBase? }` | read-only: what an import would bring in, nothing imported (the API's [import preview](server.md#import-preview)) – the content base and its `latest.json`, `incoming` (the one book's id and title, the build, its date, app and schema version), `counts`, and `existing`: the draft of that id it would replace (null: a new book) – with `next`, what to tell the person and the `import_book` call that follows |
 | `import_book { book, url \| configuration \| source: "cdn", assetsBase?, confirm? }` | replaces the book's rows from a game configuration (the reader's dev server serves its own at `/src/game.config.json`). **Over a book that exists, two steps** (the API's, [server](server.md#import-with-a-version-comparison)): the first call imports nothing and answers `{ imported: false, comparison, confirmation, next }` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import; the agent shows it to the person and asks, and only with their yes calls again with the same arguments and `confirm: confirmation.id` (10 minutes, one use; a change meanwhile answers `void` with a new comparison). A new book is imported at once. `book` is the configuration's own `book.id` (`preview_import`'s `incoming.book`); another id is refused (400 `invalid-configuration`) |
 | `get_book { book }` | the tree: spreads with entries and targets (entity inline or `{ ref }`), the unassigned entries |
@@ -144,10 +148,10 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `delete_spread { book, spread, confirm?, deleteFiles? }` | the spread with everything on it – entries, targets, the entities used only there, later pages numbered back – in the same two steps as `delete_entry` (the impact also names the spread, `pagesBack` and the shared entities kept); 409 `initial-spread` for the spread the book opens on |
 | `put_book_passes { book, passes \| null }` | the book's post-processing – the master chain every spread without its own shows |
 | `put_environment { book, environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | the world around the reader and the onion sky |
-| `list_assets { book, kind? }` · `upload_asset { book, file, name? }` · `delete_asset { book, asset, force? }` | the library: a local file becomes an asset whose `url` nodes and targets name – a shader (glsl, frag, vert, wgsl; kind `shader`, #186) one a plugin loads by its `url` (`api.loadText`) |
+| `list_assets { book, kind? }` · `upload_asset { book, file, name? }` · `delete_asset { book, asset, force? }` | the library: a local file becomes an asset whose `url` nodes and targets name – a shader (glsl, frag, vert, wgsl; kind `shader`, #186) one a plugin loads by its `url` (`api.loadText`). `kind` is the API's: `glb`, `gltf`, `video`, `image`, `audio`, `shader`; the list also holds the content import's files (`imported`, read-only) |
 | `list_plugins` · `get_plugin` · `put_plugin { book, plugin, source }` · `upload_plugin { book, file, plugin?, replace? }` · `plugin_usages { book, plugin }` · `delete_plugin { book, plugin, force? }` | the Code tab's sources (the Library's scripts); `put_plugin` names what the source registers and warns about a module the engine would refuse; `upload_plugin` makes a local `.ts` / `.js` file a source (its id from the file's name, `replace: true` for an existing one); `delete_plugin` is refused while the draft uses what it registers (409 `plugin-in-use`) unless `force` |
 | `get_draft { book, part? }` | the draft as the engine loads it: manifest, configuration or files |
-| `publish { book, env?, note? }` | writes the draft into the content store of the instance's own environment (the default; `GET /editor/environments` names it) – an instance publishes nowhere else, another `env` is the API's 403 `other-environment`. The answer's `store` is `cdn` or `server`; with `server` it carries the `warning` (no CDN connected) for the person. **production is refused** – the person's button in the editor; with an AI connection's token every environment is refused (403 `not-for-ai`) |
+| `publish { book, env?, note? }` | writes the draft into the content store of the instance's own environment (the default; `GET /editor/environments` names it) – an instance publishes nowhere else, another `env` is the API's 403 `other-environment`. The answer's `store` is `cdn` or `server`; with `server` it carries the `warning` (no CDN connected) for the person. **production is refused** – the person's button in the editor; with an AI connection's token every environment is refused (403 `not-for-ai`). The description names every refusal of the API's publish – 409 `other-book`, `unknown-components`, `unknown-node-types`, `unknown-materials`; 400 `invalid-env`, `invalid-note`, `invalid-replace`; 404 `not-found`; 502 `content-store-failed`, 500 `content-store-unconfigured` – and each answers with a `hint` (`result.ts` `PUBLISH_REFUSALS`, a test checks both) |
 | `list_versions` · `list_changes { book, limit? }` | the publish log, the change log |
 | `describe_content_model { book? }` | node types and names, placement, filters, components, passes, the environment, printed placement, categories, formats – from `shared/`; with a book also the declared plugins with the components, node types and passes they recorded (with their parameters) and the Code tab's sources with the types read from them |
 
@@ -161,7 +165,7 @@ parameters are checked like a built-in one's; the Code tab's sources give the ty
 book registers is refused when every plugin is known, else it passes with a warning. A node type no plugin of the book registers
 is refused – unless a plugin is unknown (a Code tab source, a declared plugin of an older build): then a name like a
 plugin's passes with a warning, as the API lets it through. A component type nobody knows passes with a warning – a
-plugin must register it, the publish checks (409 `unknown-components`, `unknown-node-types`). `put_spread` and
+plugin must register it, the publish checks (409 `unknown-components`, `unknown-node-types`, `unknown-materials`). `put_spread` and
 `put_book_passes` check the passes, `put_environment` the environment against the same contract. Resources: `osct://rules/content-model` (the same as `describe_content_model`) and
 `osct://guides/plugins` ([plugins](plugins.md)). Prompts: `editor` (how to work), `add-target { book, page, what }`.
 
@@ -191,6 +195,13 @@ SQLite, mails to a log, as `server/tests/api-test.php`): sign in through the mai
 confirmation); then a second server started with an AI connection's token made over
 the API (whoami names it, a save names it in the change log, a removal takes the same two steps and names it too, publish is refused, a revoked token is 401). Skipped with a message when `php` is not on the path. CI runs both
 (`checks.yml`, job *MCP server*).
+
+`test/php-rules.test.ts` pins the PHP API's copies of `shared/` rules: PHP loads the API's classes and prints their
+constants – `Editor::ENTITY_TYPES`, `COMPONENT_TYPES`, `PLUGIN_NODE_TYPE`, `MATERIAL_TYPE`, `ENTRY_CATEGORIES`,
+`MAX_NODE_DEPTH`, `PRINT_SURFACES`, `ID`; `Books::FORMATS`, `PASS_TYPES`, `WORLDS` and the world and sky extensions;
+`ContentStore::ENV` and `BUILD`; `Plugins::ID` and `REGISTERS`; `Assets::KINDS` – and the test compares each with
+`shared/` (`shared/api/rules.ts` for the API's own rules); `Plugins::registers` and `pluginTypes` read the same sample
+sources alike. A difference fails; skipped without `php`, like the end-to-end test.
 
 ## Limits
 

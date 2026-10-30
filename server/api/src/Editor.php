@@ -8,10 +8,12 @@ declare(strict_types=1);
  */
 final class Editor
 {
-    /** Ids and references in paths and bodies (books, spreads, entries, targets, entities) */
+    /** Ids and references in paths and bodies (books, spreads, entries, targets, entities – shared/api/rules.ts `ID_PATTERN`) */
     public const ID = '[A-Za-z0-9_-]{1,64}';
 
-    /** The entity types of the content contract: shared/types/game-config.ts `ENTITY_TYPES` – keep in step */
+    // The constants below copy rules of the content contract (shared/); mcp/test/php-rules.test.ts fails on a difference
+
+    /** The entity types of the content contract: shared/types/game-config.ts `ENTITY_TYPES` */
     public const ENTITY_TYPES = ['group', 'model', 'video', 'image', 'text', 'light'];
     /** The built-in component types (shared/types/components.ts `COMPONENTS`) – every other type is a plugin's */
     public const COMPONENT_TYPES = ['animation', 'behaviour'];
@@ -23,6 +25,8 @@ final class Editor
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
     public const MAX_NODE_DEPTH = 8;
+    /** The surfaces a target can be printed on (shared/types/game-config.ts `PRINT_SURFACES`) */
+    public const PRINT_SURFACES = ['left', 'right', 'front', 'back'];
 
     /**
      * The signed-in editor, else 401 (not signed in) or 403 (a reader).
@@ -194,7 +198,7 @@ final class Editor
     public static function print(mixed $value, string $path = 'print'): stdClass
     {
         if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-target', "$path must be an object.");
-        if (!in_array($value->surface ?? null, ['left', 'right', 'front', 'back'], true)) throw new ApiError(400, 'invalid-target', "$path.surface must be left, right, front or back.");
+        if (!in_array($value->surface ?? null, self::PRINT_SURFACES, true)) throw new ApiError(400, 'invalid-target', "$path.surface must be left, right, front or back.");
         foreach (['x', 'y', 'width'] as $key) {
             if (!is_numeric($value->$key ?? null)) throw new ApiError(400, 'invalid-target', "$path.$key must be a number (mm).");
         }
