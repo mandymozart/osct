@@ -183,7 +183,28 @@ The Stage panel sets a **grid** (on / off, spacing in mm; its lines run through 
 **origin** (`stage/origin.ts`): one of the nine points of an alignment square – a corner or an edge's centre of the base
 format (per page), or the centre (the book's centre, the spine's middle, on the open book; the page's centre on a cover). The x / y rows of a
 target's placement and of a new target are shown and entered from that origin (x to the right, y downwards, so values
-left of or above it are negative); what is saved stays mm from the page's top left corner.
+left of or above it are negative); what is saved stays mm from the page's top left corner. With the grid, a thin green
+**vertical axis** (#190) rises 150 mm out of the page from each zero of the origin (one at the book's centre, one per
+page for a corner) – the height's line next to the red x / y lines; the toolbar's *grid & snap* switches it on and off.
+
+**Snapping** (#190, `stage/snap.ts` – the math, pure and tested –, `stage/snap-scene.ts` – the scene's side) works
+for the gizmo and the placement handles; everything is counted in the stage's frame in mm (origin in the middle of
+the book, x right, y up the page, z out of it):
+
+- **Move** (the gizmo's move, a print dragged by its placement handles) snaps per axis: the moving thing's anchors –
+  its pivot and its box's edges and centre (a print: its edges and centre) – go to the nearest line within 8 screen
+  pixels (turned into mm by the camera's distance): an **axis** (the origin's zero lines, the page plane for the
+  height), another **object** (its box's edges and centre, its pivot; a node's own parents count with their pivots
+  only, its children not at all) or an **outline** (the other printed targets' edges and centres, the pages' edges and
+  the spine). With no line near, the pivot (a print: its top left corner) rounds to the **grid** – every grid step from
+  the origin's zero of the page it lies on – when the grid is a snap target, else to the **move step**. Only the axes a
+  handle may change snap (the X arrow only x; a plane its two; the centre handle the page's x and y; a node turned
+  away from the page's axes keeps its turned handles unsnapped). The lines it snapped to are drawn as magenta
+  **guides** across the spread while the drag lasts.
+- **Rotate** snaps the angle turned since the drag started to whole steps of the rotate step (15° by default), about
+  the drag's own axis; **scale** snaps each factor to whole steps of the scale step (0.1), never below one step.
+- **On / off**: the toolbar's switch (stored per browser, off at first); holding **Shift or Ctrl** while dragging turns
+  it around for that drag. A finger has no Shift – the switch is the way there.
 
 Every target lies flat on the page and counts as **found**: the **mock tracker** (`stage/mock-tracker.ts`) implements
 the engine's `IImageTracker` and reports each pose every frame exactly as the 8th Wall engine would (1 unit = the
@@ -255,6 +276,15 @@ is involved.
     Home / End, Enter or Space choose, Esc closes and returns the focus to the button, ↓ on the button opens it; a tap
     outside closes it and picks nothing on the stage. With a finger its items are the touch height (44 px). **W / E /
     R** still switch the gizmo; the Info view shows each button's tooltip.
+    The fourth group, **grid & snap** (#190, `components/GridSnapMenu.svelte`), is always one button – the grid's icon,
+    a dot in its corner while snapping is on – opening a small panel attached to it: *grid* (on / off and its step in
+    mm, the same setting as the Stage panel's), *vertical axis* (on / off), *snap* (on / off), *snap to* (grid, axes,
+    objects, outlines – pressed pills, any combination) and the precision per gizmo mode: *move* (mm, the step while
+    the grid is no snap target), *rotate* (degrees) and *scale*. All are preview settings, stored in this browser
+    (`stage/preview.ts`); the Stage panel's closed *stage* head adds *· snap on*. ↓ on the button opens it on its first
+    control, ↑ ↓ / Home / End move between its buttons (a number field keeps its own keys), Esc closes it and returns
+    the focus to the button, Tab out of it or a tap outside closes it; every control has the touch height with a finger
+    and its help in the Info view.
   - **Tree** – the spread in the style of Blender's outliner: a chevron column, a type icon before every name (book,
     entry, target, group / model / video / image / text / light), guide lines per depth, zebra rows, and the **eye** in a
     column at the right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its
@@ -321,7 +351,8 @@ is involved.
   - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
     selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own
     space, so a drag changes the node's placement **relative to its parent** – the Entity panel's rows follow live,
-    Save writes them. **Ctrl** snaps (0.05 target widths, 15°, 0.1). A click that ends a drag selects nothing. The
+    Save writes them. It snaps as the toolbar's *grid & snap* says (above, "Snapping"); **Shift** or **Ctrl** held
+    turns snapping around for the drag. A click that ends a drag selects nothing. The
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.

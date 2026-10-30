@@ -4,6 +4,35 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The vertical axis and snapping (#190)
+
+- **Snapping is off by default** and the toolbar switch turns it on; Shift or Ctrl held turns it around for one drag.
+  Off keeps every drag as it was before #190 (the placement handles still round to whole mm, the gizmo moves freely),
+  and the old Ctrl-to-snap keeps working – it now snaps to the grid, axes, objects and outlines at the toolbar's
+  precision instead of the fixed 0.05 widths / 15° / 0.1. Shift is the issue's key; on the stage Shift-drag also pans,
+  but only where no gizmo handle or placement handle took the pointer, so the two never meet.
+- **Move snapping works in the stage frame (mm), per axis**: nearest line within 8 screen px (turned into mm by the
+  camera's distance, so it feels the same at any zoom) to the pivot or the box's edges / centre; then the grid; then
+  the move step. The **move step** (the issue's "precision" for move) is the step a move rounds to while the grid is
+  not a snap target – with the grid as a target, the grid's own step is the move's precision, so there is one number
+  for it, not two. Grid snapping works whether or not the grid is shown (a 3D tool's increment snap).
+- **Only the axes the dragged handle may change snap** – the X arrow snaps x alone; a node turned away from the page's
+  axes keeps its turned handle unsnapped rather than being pulled off the handle's line. The centre handle (screen
+  plane) snaps the page's x and y, not the height.
+- **Rotation snaps the angle turned since the drag began** (TransformControls' own convention, about the drag's axis),
+  not the absolute Euler angles – a node at 7° turns to 22°, 37° …; absolute rounding per Euler axis jitters for nodes
+  turned about more than one axis. **Scale** rounds the absolute factor and never goes below one step (TransformControls'
+  own scale snap could round to 0).
+- **The placement handles snap too** (a print dragged on the page): that is where a page edge or another print's edge
+  matters most; the corner snaps the right edge (the width). A print's own outline and its own entity are not lines
+  for it. Snapping to objects' boxes uses the mesh bounding boxes in the stage frame, the editor's helpers left out.
+- **Guides**: the lines a drag snapped to are drawn in magenta through everything while it lasts (the grid is blue /
+  red, the vertical axis green – the stage's own colours, not UI chrome, so RULES #32's "no colour" does not reach
+  them).
+- The grid & snap group is always one button with a panel (role dialog), not a radio menu: it holds switches and
+  number fields, which a WAI-ARIA menu cannot. The grid's on / off and step are the same settings as the Stage panel's
+  rows (both write `preview.ts`); the panel keeps its rows.
+
 ## 2026-10-30 – The import's preview (#182)
 
 - Tilman: "The import from CDN dialog is still confusing, since it doesn't say how many books it imports." – the form

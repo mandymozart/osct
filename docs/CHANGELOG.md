@@ -12,6 +12,30 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Editor: a vertical axis on the stage** (#190, Tilman: "Unser Grid braucht noch eine vertikale Achse"): with the
+  grid, a thin green line for the height rises out of the page from the origin – at the book's centre, or at each
+  page's corner for a corner origin – next to the grid's red x / y lines. It is switched on and off on its own.
+- **Editor: snapping** (#190) for the gizmo and the placement handles. A **move** snaps to the **grid** (its step,
+  counted from the origin), the **axes** (the origin's lines, the page for the height), **other objects** (their
+  boxes' edges and centres, their pivots) and **outlines** (the printed targets' edges and centres, the pages' edges
+  and the spine) – the nearest within a few pixels wins, its line shows as a magenta guide while dragging; with nothing
+  near it steps by the grid, or by the move step when the grid is no snap target. Only the axes of the handle being
+  dragged snap. A **rotation** turns in whole steps of degrees (15° at first), a **scale** in whole steps (0.1, never
+  below one step). **Shift** (or Ctrl, as before) held while dragging turns snapping around for that drag.
+- **Editor: a *grid & snap* group in the stage toolbar** (#190): one button (a dot in its corner while snapping is on)
+  opening a panel with the grid on / off and its step in mm, the vertical axis on / off, snap on / off, what a move
+  snaps to (grid, axes, objects, outlines) and the precision per mode (move in mm, rotate in degrees, scale). Stored in
+  this browser like the other stage settings; the Stage panel's closed *stage* head says *· snap on*. Keyboard (↓ opens
+  it, ↑ ↓ move, Esc closes) and touch (44 px controls) like the other groups.
+- The tutorial's demo chapter has a paragraph on grid and snap with a shot of the open panel.
+
+### Changed
+- **The gizmo's Ctrl snap** (0.05 target widths, 15°, 0.1) became the snapping above: with snapping off, Ctrl or
+  Shift snaps to the grid, axes, objects and outlines at the toolbar's precision instead of fixed steps.
+
 ## 1.46.0 – 2026-10-30
 
 ### Added

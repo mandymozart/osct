@@ -125,6 +125,7 @@
           <li><a href="#demo-post">Post-processing</a></li>
           <li><a href="#demo-environment">Environment and sky</a></li>
           <li><a href="#demo-shading">Shading</a></li>
+          <li><a href="#demo-grid-snap">Grid and snap</a></li>
           <li><a href="#demo-phone">On a phone</a></li>
         </ol>
       </li>
@@ -492,6 +493,13 @@ npm run osct -- content status --env staging</code></pre>
     <figcaption>The door spread as wires: the door's boxes, the hint and the lamp's plane, and the book under them.</figcaption>
   </figure>
 
+  <h3 class="sec" id="demo-grid-snap">Grid and snap</h3>
+  <p>The last button of the toolbar opens <b>grid &amp; snap</b>: the grid and its step in mm, the green <b>vertical axis</b> that rises from the origin, and <b>snap</b>. With snap on, moving with the gizmo or dragging a printed image lands on the grid, the axes, other objects or the outlines of the prints and pages – a magenta line shows what it snapped to; rotating turns in steps of 15°, scaling in steps of 0.1. Choose what it snaps to and the steps in the same panel. Hold <kbd>Shift</kbd> while dragging to snap just this once (or not, when snap is on); with a finger, use the switch.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/11-grid-snap.webp" width="1280" height="800" loading="lazy" alt="The key spread with the grid on and a thin green vertical line rising from the book's centre; the toolbar's grid and snap panel is open: grid on with 10 mm, vertical axis on, snap on, snap to grid, axes, objects and outlines all pressed, move 1 mm, rotate 15°, scale 0.1; the Info view explains snap.">
+    <figcaption>The grid &amp; snap panel: the grid, the vertical axis, snapping, what it snaps to and the steps.</figcaption>
+  </figure>
+
   <h3 class="sec" id="demo-phone">On a phone</h3>
   <div class="with-phone">
     <div>
@@ -621,7 +629,7 @@ npm run osct -- content status --env staging</code></pre>
 
   <h3 class="sec" id="tools-phone">The editor on a phone</h3>
   <p>With a finger every control is 44 px high (2.75rem), the tree's rows, chevrons and eyes too. The panel is a sheet at the bottom whose head is six tab icons sharing the width – tree, Stage, Entity, Environment, Library, Code. Tap the open tab to close the sheet down to its head; tap another to open it. <b>Drag the head</b> to any height, from the tab row alone to almost the whole screen; let go and it snaps to closed, a third, half or almost full, and a flick carries it on. While it is dragged, the stage keeps its size and the sheet slides over it. A double tap on the grip restores half.</p>
-  <p><kbd>‹</kbd> and <kbd>›</kbd> sit at the stage's lower corners and walk through the spreads. The book's name in the top bar leads back to the spreads. The toolbar wraps by whole groups: gizmo, pick, shading.</p>
+  <p><kbd>‹</kbd> and <kbd>›</kbd> sit at the stage's lower corners and walk through the spreads. The book's name in the top bar leads back to the spreads. The toolbar is one row of four buttons, each opening its menu: gizmo, pick, shading, grid &amp; snap.</p>
   <div class="phones">
     <figure class="shot">
       <img src="/docs/tutorials/tools/10-phone-closed.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone with the sheet closed: the door spread fills the screen, the toolbar in two rows at the top, ‹ and › at the stage's lower corners, and at the bottom only the grip and the six tab icons.">
