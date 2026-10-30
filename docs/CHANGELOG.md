@@ -12,6 +12,15 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **The editor's demo video, re-recordable** (#195, Tilman: "Kein Text."): `editor/tools/demo-video/` records the
+  editor with the demo book in headless Edge over CDP (`Page.startScreencast`, scripted mouse and touch with eased
+  moves, a dot only during drags) and cuts it with ffmpeg into a ~30 s 9:16 (1080 × 1920, the phone layout) and 16:9
+  (1920 × 1080) H.264 file without text or audio, each under 16 MB. `prepare.mjs` signs in on a local API copy and
+  imports a CDN build with its files; the outputs stay outside the repository (README in the folder). Tooling only.
+
 ## 1.42.0 – 2026-10-30
 
 ### Changed
