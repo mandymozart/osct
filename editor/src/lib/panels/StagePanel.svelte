@@ -150,7 +150,7 @@
 {/snippet}
 
 <Section id="stage.narrative" label="vars and events" open={false} help="The narrative of the book's plugins on the stage: tap a target, set their variables by hand, read the stage's timeline.">
-  <div class="row top" data-help="Taps a target's AR content without aiming at it, as a reader's tap would: the entity's onTap (a plugin component's, the animation's playOn: tap) and the event targetTapped. Only a found target with AR content takes a tap.">
+  <div class="row top" data-help="Taps a target's AR content without aiming at it, as a reader's tap would: the entity's onTap (a plugin component's, the animation's playOn: tap, a behaviour's tap rules) and the event targetTapped. Only a found target with AR content takes a tap.">
     <span class="label">tap</span>
     <span class="controls">
       {#each taps as t (t.id)}
@@ -188,7 +188,7 @@
       <button type="button" class="pill" disabled={!newName.trim()} onclick={() => { if (write(newName.trim(), newValue, newScope)) newName = ""; }}>set</button>
     </span></div>
 
-  <div class="row" data-help="The stage's events, newest first: the time since the spread opened, the event and its payload – found, lost, unlocked, tapped, spreadChanged, varChanged and the plugins' own. Clear empties the list.">
+  <div class="row" data-help="The stage's events, newest first: the time since the spread opened, the event and its payload – found, lost, unlocked, tapped, spreadChanged, varChanged and the plugins' own; behaviour marks a rule of a behaviour component that ran (which target, the rule, its event and what it did) – the log's own line, not an event of the stage. Clear empties the list.">
     <span class="label">events</span>
     <span class="controls">
       <span class="small muted">{events.length || "none"}</span>

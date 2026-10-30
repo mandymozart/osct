@@ -279,6 +279,13 @@ export const allVars = (): Array<{ scope: VarScope; name: string; value: VarValu
     return Object.entries(values).map(([name, value]) => ({ scope, name, value }));
   });
 
+/**
+ * A rule of a `behaviour` component fired (`behaviour.ts`): told to the observers only, as the pseudo-event `behaviour` –
+ * the editor's log shows which rule ran and what it did; it is no event of the bus, plugins never hear it
+ */
+export const noteBehaviour = (payload: { targetId: string; node?: string; rule: number; on: string; do: string }): void =>
+  observers.forEach(observer => observer("behaviour", payload));
+
 /** Hear every event of the stage without being a plugin (the editor's log); returns the unsubscribe */
 export const observeEvents = (listener: (event: string, payload: unknown) => void): (() => void) => {
   observers.add(listener);

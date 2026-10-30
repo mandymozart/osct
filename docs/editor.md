@@ -50,12 +50,14 @@ with SQLite and the local content store:
 5. **Import a book…** → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
    configuration), *assets at* `http://localhost:5174` → Import. The book appears with its spreads.
 6. Open *The key*: the stage shows the spread's targets with their entities, the key is found and unlocked – the
-   **Stage** tab's *vars and events* lists `hasKey` (book, boolean, true), the timeline the finds. *tap* → *The key*
-   rattles it (the model's clip `rattle`, the event `keyRattled`). Walk with › to *The door*: the door
-   lifts and turns, `stage · doorOpen = true`, the lamp on the right page shows. Switch a target off and on with the
+   **Stage** tab's *vars and events* has the timeline of the finds. *tap* → *The key* takes it: its **behaviour** rule
+   (#88, select the key and open the **Entity** tab to see it) plays the model's clip `rattle`, sets `hasKey` (book,
+   boolean, true) and emits `keyRattled` – in the timeline (newest first) the rule's `behaviour` line sits under the events it caused. Walk with › to
+   *The door*: its rules hide the hint and emit `openDoor`, the `door` plugin lifts and turns the door,
+   `stage · doorOpen = true`, the lamp on the right page shows. Switch a target off and on with the
    tree's eye (lost, found again), *Replay the first find* in the stage's right-click menu plays it again, *reset* in
-   the Stage tab starts a new game – on *The door* the hint shows then; *set* `hasKey` (book, true) and the door
-   opens without a visit to the key's page. Open *The switch*
+   the Stage tab starts a new game – on *The door* the hint shows then; *set* `hasKey` (book, true), switch the door
+   off and on, and it opens without a visit to the key's page. Open *The switch*
    and click the entity on the stage: the next scene shows. The **Code** tab lists the six plugins (compiled by the
    content build, their sources next to them): change one, **Run**, and the stage shows it. Move a node in the
    **Entity** tab (type a scale, or press and slide), **Save**, then **Publish** – it goes to `local · this server`,
@@ -478,7 +480,7 @@ is involved.
     doubled these and are gone – Tilman, 2026-10-29.) **vars and events** – the narrative of a book like the demo
     ([plugins](plugins.md) "Across nodes and pages"), driven from the tree's eyes and from here (#88):
     - **tap** – a button per printed target of the spread (its entry's title): the reader's tap without aiming at the
-      entity – the entity's `onTap` (a plugin component's, the `animation` component's `playOn: tap`) and the event
+      entity – the entity's `onTap` (a plugin component's, the `animation` component's `playOn: tap`, a `behaviour`'s tap rules) and the event
       `targetTapped`, through the engine's own tap path (`SceneInspection.tap`). Only a found target with AR content
       takes a tap; the others are greyed out.
     - **vars** – the plugins' variables, a row each: the name, its scope and type (`book · boolean`), and the value as
@@ -490,7 +492,10 @@ is involved.
       cleared, nothing unlocked, the timeline emptied, the spread found anew).
     - **events** – the timeline, newest first: the time since the spread opened (`4.25 s`, `1:05.3`; a *reset* starts
       it again), the event (found, lost, unlocked, tapped, spreadChanged, varChanged, sceneState once per change, the
-      plugins' own) and its payload; the last 100 are kept. **clear** empties it.
+      plugins' own) and its payload; the last 100 are kept. A **behaviour** line is a rule of a `behaviour` component
+      that ran (#88): the target, the node's name, the rule's number, its event and what it did (`play rattle · set
+      hasKey = true (book) · emit keyRattled`) – the log's own line, not an event of the stage (plugins never hear it);
+      the events its actions caused follow above it. **clear** empties it.
   - **Entity** – opens at the selected level (#162): its head is the **breadcrumb** *target › entity › group › node*
     (a crumb selects that level, ▾ after the target picks another target of the spread). A selected target shows the
     **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
@@ -526,7 +531,17 @@ is involved.
     **Back to the draft** drops them. Save writes the **whole tree**. **Components** (schema 2.2) follow:
     each with its rows and *remove*, **+ animation** on a model; the animation component shows the model's
     **timeline** – its clips, play / pause, the time in the clip as a slider – and drives the same clip the reader
-    plays (`playOn` found / tap / never, `stopOn`, loop, speed). Rows come from the content contract's definitions
+    plays (`playOn` found / tap / never, `stopOn`, loop, speed). **+ behaviour** (any node, #88 – [content](content.md)
+    "Behaviour") adds the rule editor instead of rows: per rule its event as pressed pills (*found*, *lost*, *tap*,
+    *unlocked*, or *event* with a name field offering the book's scene events and the core events), **+ condition**
+    (a row per test: the variable – the book's variables offered: its behaviours' and the ones live on the stage –,
+    *=* or *≠*, the value typed as `true`, `false`, a number or a text, empty = not set; *and* / *or* between them,
+    *all* / *any* from two on) and **+ action…** (a row per action, in order: the verb and what it takes – *play* a clip
+    of the node's model, the clips read from the model on the stage, and the node by name; *pause*, *stop*, *show*,
+    *hide* a node, *this node* or one of its subtree by name; *set* a variable, its value and scope; *emit* an event),
+    × removes a rule, a test or an action. Every change runs on the stage at once (the engine takes new rules in
+    place); what is not complete yet (an empty name, an event not chosen) is listed under the rows in red and keeps
+    **Save** off. Save writes the rules in the content's shortest form. Rows come from the content contract's definitions
     (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`, `LIGHT_PARAMS`): a new filter, component, light parameter or
     parameter needs no panel code (one snippet draws a parameter of any kind) – a component or material layer a
     **plugin** registers shows the same way, with **+ type** after a Run in the Code tab.
@@ -608,7 +623,7 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, the desks' cut edges), `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts` |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts` |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |
@@ -640,7 +655,8 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   come with the content (issues #60, #61).
 - The plugin API 1.3 has components, material layers, passes, node types, parameter labels, events, variables in scopes, the progress
   and the spread (`registerComponent`, `registerLayer`, `registerPass`, `registerNodeType`, `api.three`, `api.events`,
-  `api.vars`, `api.progress`, `api.spread`); declared variables and a `behaviour` component without code come when a work needs them. The Code
+  `api.vars`, `api.progress`, `api.spread`), and rules without code are the `behaviour` component (#88); declared
+  variables (with a type, a default and a write list) and bubbling event scopes come when a work needs them. The Code
   tab has no completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind
   the publish (#78).
 - What the stage cannot simulate of a reader's game: consulted entries (no entry view), a reader's stored progress

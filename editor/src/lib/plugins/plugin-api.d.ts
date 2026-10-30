@@ -230,9 +230,12 @@ interface AssetData {
 	src: string;
 }
 interface EntityData {
-	/** Optional, unique within the tree: the editor's selection, a later behaviour's target */
+	/** Optional, unique within the tree: the editor's selection */
 	id?: string;
-	/** Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; the reader ignores it */
+	/**
+	 * Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; a behaviour's
+	 * action names a node of its subtree by it (schema 2.19)
+	 */
 	name?: string;
 	/** A built-in type (ENTITY_TYPES) or a plugin's (schema 2.13) */
 	type: NodeType;
@@ -241,7 +244,10 @@ interface EntityData {
 	/** Placement: position / rotation / scale (see ./placement.ts); a plugin node type's parameters (schema 2.13, `./node-types.ts`) */
 	params?: Record<string, unknown>;
 	filters?: FilterData[];
-	/** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.4) */
+	/**
+	 * Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model and `behaviour`
+	 * (schema 2.19, rules without code – `./behaviour.ts`), a plugin's component or material layer (schema 2.4)
+	 */
 	components?: ComponentData[];
 	/**
 	 * Optional (schema 2.17): a material a plugin registered (`registerMaterial`) that replaces the material of the node's

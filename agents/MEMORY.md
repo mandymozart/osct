@@ -4,6 +4,47 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – the behaviour component: rules without code (#88, schema 2.19)
+
+- **One component with a list of rules**, not one component per rule as the concept's Studio C sketched
+  (`2026-10-28-entity-components.md`): a node carries at most one `behaviour` (the panel's *add component* allows one
+  per type), its `rules: [{ on, when?, do }]`. The grammar lives in `shared/types/behaviour.ts` (checks, the reading
+  into rules, the shortest written form) – one definition for the build, the guard, the engine, the editor and the MCP
+  server. `behaviour` sits in `COMPONENTS` with no parameters; `componentProblems` hands its fields to
+  `behaviourProblems`, the editor's `contentEntity` writes its rules instead of rows. No new parameter kind: that would
+  have changed the plugin API's spec types for something only the built-in uses.
+- **The verbs**: `play: <clip>` (+ `node`), `pause` / `stop` / `show` / `hide: <node name>`, `set: { name: value }` (+
+  `scope`, spread by default like `api.vars.set`), `emit: <event>`; a bare word runs a verb on the own node. Nodes are
+  named by their `name` (2.12), looked up in the behaviour node's subtree (first match) – a behaviour's reach is its
+  subtree, which is what the entity builder has when the node is built. `stop` = seek 0 + pause (the timeline has no
+  stop of its own). **Left out:** going to a scene of the `scenes` component (it is a plugin's, not built in – a rule
+  can `emit` an event that plugin hears), open an entry or link (the engine knows no routes – RULES #32).
+- **Events**: the node's `found`, `lost`, `tap`, `unlocked` (added to the brief's three: the first find was the key's
+  old trigger, and the hook exists), and any other camelCase name from the bus – scene events and core events alike.
+  A named-event rule fires whether or not its page is in view (visibility and variables are state).
+- **Semantics**: on one event every rule's condition is read first, then the matching rules run in order (a toggle in
+  two rules works). Emits nest synchronously; a chain is cut after 8 nested events (logged). An action that cannot run
+  is logged once per message and skipped.
+- **Runs on the plugin runtime**: each behaviour takes a `runtimeApi("behaviour:<target>")` – its sets, emits and
+  listeners are a plugin's; its emit payload is `{ targetId, node? }`. The editor's log hears a rule that fired through
+  `noteBehaviour` (observers only, pseudo-event `behaviour`), never the bus.
+- **Declared variables left out**: `when` is robust without them – `null` tests "not set" and `{ not: v }` a
+  difference, so "no key yet" is `{ hasKey: { not: true } }` or, as in the demo, a rule without a condition before the
+  one with it. Types, defaults and write lists come with a work that needs them (the concept's `variables:` block).
+  **Bubbling scopes** stay out too (one flat bus).
+- **Compatibility**: MINOR (2.19) as asked, although a 2.18 guard refuses a node carrying `behaviour` (an unknown
+  built-in type) – the same precedent as 2.17's `texture` kind: a book with behaviours needs a 2.19 app. The API needs no
+  validation of its own (it validates no component's parameters); `Editor::COMPONENT_TYPES` lists it so the publish's
+  `unknown-components` check does not take it for a plugin's.
+- **The demo**: the narrative plugin's `key` component is replaced by the key's rule (tap: play `rattle`, set `hasKey`
+  in the book, emit `keyRattled` – the key is now taken with a tap, as Tilman's request reads, no longer on the first
+  find); the `animation` component stays with `playOn: never` (it says how the clip plays). The door model has no clip,
+  so the door's rules show / hide its `hint` and emit `openDoor`; the `door` plugin keeps the lift-and-turn (what a rule
+  cannot do) and opens on that event – it lost its own `hasKey` check and `api.vars.on("hasKey")`, so a `hasKey` set by
+  hand opens the door at the next find, not at once. The `lamp` plugin stays as the `api.vars.on` example.
+- **Editor**: the value fields take text (`true`, `false`, a number, else text; empty = null) with suggestions rather
+  than a type picker per value – booleans are the common case; the condition's all/any shows from two tests on, the
+  rows between read *and* / *or*. Save stays off while a rule is incomplete (the guard would refuse the book otherwise).
 ## 2026-10-30 – staging's versions.json mismatch was the edge cache, not a writer (#175)
 
 - **Cause:** every writer was already right – `osct content sync` (`runSync`), the API's publish (bunny and directory

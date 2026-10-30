@@ -930,12 +930,13 @@ try {
     $typo['entities']['castle'] = ['type' => 'sparkel', 'assets' => []];
     [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $typo, 'files' => $files], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'import: a node type the configuration\'s plugins did not record → 400');
-    // A component no declared plugin recorded is refused at publish, although the book declares plugins
+    // A component no declared plugin recorded is refused at publish, although the book declares plugins; the built-in
+    // behaviour (schema 2.19, #88) is no plugin's
     $glowing = $configuration['entities']['castle'];
-    $glowing['components'] = [['type' => 'glow']];
+    $glowing['components'] = [['type' => 'glow'], ['type' => 'behaviour', 'rules' => [['on' => 'tap', 'do' => ['emit' => 'rattled']]]]];
     call($api, 'PUT', '/editor/books/osct/entities/castle', $glowing, $editor);
     [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
-    check($status === 409 && $data['error']['code'] === 'unknown-components' && $data['error']['components'] === ['glow'], 'publish: a component the declared plugins did not record → 409 unknown-components');
+    check($status === 409 && $data['error']['code'] === 'unknown-components' && $data['error']['components'] === ['glow'], 'publish: a component the declared plugins did not record → 409 unknown-components (the built-in behaviour not among them)');
     // A plugin of an older build (nothing recorded) may register anything: a camelCase name passes, as before
     $older = $typo;
     unset($older['plugins'][0]['registered']);

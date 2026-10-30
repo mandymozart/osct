@@ -5,6 +5,10 @@
 import { assertGameConfiguration, GameConfigurationError, MAX_NODE_DEPTH } from "../../shared/guards/game-config";
 import {
   ASSET_TYPES,
+  BEHAVIOUR_ACTIONS,
+  BEHAVIOUR_CORE_EVENTS,
+  BEHAVIOUR_NODE_EVENTS,
+  BEHAVIOUR_SCOPES,
   COMPONENT_TYPE_PATTERN,
   COMPONENTS,
   componentTypes,
@@ -251,6 +255,27 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       description: "entity.components: [{ type, …params }] – the built-in types, and the components and material layers a plugin registers (used the same way).",
       builtIn: COMPONENTS,
       typePattern: COMPONENT_TYPE_PATTERN.source,
+      behaviour: {
+        description:
+          "The built-in behaviour (content schema 2.19, any node type): rules without code – { type: behaviour, rules: [{ on, when?, do }] }. " +
+          "on = the node's own event or any other camelCase name, an event of the stage's bus (a scene event a plugin or a behaviour emits, or a core event). " +
+          "when = { variable: value, … } (all equal) or { any: { variable: value, … } }; a value is text, a number, true / false, null (= not set), or { not: value }. " +
+          "do = one action or a list, run in order: play: <clip> (\"\" = the node's own clip – its animation component's, else the first) with optional node: <name>; " +
+          "pause / stop / show / hide: <node name> (\"\" = the behaviour's own node; a node of its subtree by its name); set: { variable: value } with optional scope (spread by default, null deletes); " +
+          "emit: <event> (a scene event, never a core event). A string runs a verb on the own node: play, pause, stop, show, hide. " +
+          "On one event every rule's condition is read first, then the matching rules run in their order. Variables are read like a plugin's api.vars.get (the innermost scope that has it).",
+        nodeEvents: BEHAVIOUR_NODE_EVENTS,
+        coreEvents: BEHAVIOUR_CORE_EVENTS,
+        actions: BEHAVIOUR_ACTIONS,
+        scopes: BEHAVIOUR_SCOPES,
+        example: {
+          type: "behaviour",
+          rules: [
+            { on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "book" }, { emit: "keyRattled" }] },
+            { on: "found", when: { hasKey: true }, do: [{ hide: "hint" }, { emit: "openDoor" }] },
+          ],
+        },
+      },
       ...(book
         ? {
             plugins: recordedSpecs(book, "components"),

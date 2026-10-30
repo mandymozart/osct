@@ -120,6 +120,7 @@
           <li><a href="#demo-getting-it-in">Getting it in</a></li>
           <li><a href="#demo-spreads">A walk through the spreads</a></li>
           <li><a href="#demo-story">The story across the pages</a></li>
+          <li><a href="#demo-behaviour">Rules without code: behaviour</a></li>
           <li><a href="#demo-component">How a component works</a></li>
           <li><a href="#demo-pitfalls">Pitfalls</a></li>
           <li><a href="#demo-post">Post-processing</a></li>
@@ -400,8 +401,8 @@ npm run osct -- content status --env staging</code></pre>
   <table>
     <tr><th>Spread</th><th>Targets</th><th>What it shows</th></tr>
     <tr><td>Cover</td><td>seal</td><td>an image with two material layers, <code>tint</code> and <code>pulse</code>, printed on the closed book</td></tr>
-    <tr><td>1–2 · The key</td><td>key, tally</td><td><code>spin</code>, <code>key</code> (sets <code>hasKey</code>), <code>animation</code>; <code>tally</code> writes "n of N pages found"</td></tr>
-    <tr><td>3–4 · The door</td><td>door, lamp</td><td><code>door</code> opens with the key; <code>lamp</code> stays dark until the door opened</td></tr>
+    <tr><td>1–2 · The key</td><td>key, tally</td><td><code>spin</code>, <code>animation</code>, a <code>behaviour</code> rule (a tap takes the key: <code>hasKey</code>); <code>tally</code> writes "n of N pages found"</td></tr>
+    <tr><td>3–4 · The door</td><td>door, lamp</td><td><code>behaviour</code> rules and the <code>door</code> plugin open it with the key; <code>lamp</code> stays dark until the door opened</td></tr>
     <tr><td>5–6 · The switch</td><td>stage, screen</td><td><code>scenes</code>: a tap shows the next child; an upright video that spins slowly</td></tr>
     <tr><td>7–8 · The twins</td><td>twin-a, twin-b</td><td>one shared entity, <code>beacon</code>, used by two targets; its <code>sparkle</code> is a node type a plugin registers</td></tr>
     <tr><td>Back cover</td><td>colophon</td><td><code>{{book.title}}</code> as text and the whole book's <code>tally</code></td></tr>
@@ -411,19 +412,19 @@ npm run osct -- content status --env staging</code></pre>
   <p>The cover is a spread of the format <em>cover</em>: the stage shows the closed book. The <em>seal</em> is an image. Its two layers come from plugins: <code>tint</code> colours it towards the book's gold, <code>pulse</code> makes it breathe.</p>
 
   <h4>1–2 · The key</h4>
-  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>key</code> sets the book variable <code>hasKey</code> on the first find – it is kept with the reader's progress – and a tap sends the event <code>keyRattled</code>. <code>animation</code> plays the model's clip <code>rattle</code> on a tap. To tap it without aiming, use <b>tap</b> in the Stage tab's <b>vars and events</b>.</p>
+  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>animation</code> says how the model's clip <code>rattle</code> plays: once, and never by itself. The <code>behaviour</code> holds one rule, made without code: <em>on tap</em> it plays <code>rattle</code>, sets the book variable <code>hasKey</code> – kept with the reader's progress – and sends the event <code>keyRattled</code>. To tap it without aiming, use <b>tap</b> in the Stage tab's <b>vars and events</b>.</p>
   <p>The <em>tally</em> is a group with a text. Its <code>tally</code> component draws "n of N pages found" and updates it on every new find, on any spread.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key spread in the editor, close to the left page: the brass key stands upright on its printed image, selected with its orange outline and the move gizmo; the tree marks the model row; the Entity panel's breadcrumb reads key › model, then name, + node, add as, the placement with scale 0.6, the file key.glb and three components – spin with speed 40 °/s and axis y, key, and animation with the model's timeline at 0.00 s of 0.90 s, the clip rattle and plays on tap; the Info view describes the speed row as speed · degreesPerSecond.">
-    <figcaption>The key selected. Every component is a block in the Entity panel: <code>spin</code> with its speed and axis, <code>key</code> without settings, <code>animation</code> with the model's timeline, the clip <em>rattle</em> and <em>plays on: tap</em>. Pointing at a row shows its help in the Info view.</figcaption>
+    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key spread in the editor, close to the left page: the brass key stands upright on its printed image, selected; the Entity panel's breadcrumb reads key › model, then its components – spin with speed 40 °/s and axis y, animation with the model's timeline, the clip rattle and plays on never, and behaviour with rule 1: tap pressed, + condition, do play rattle on this node, then set hasKey true in the book scope, then emit keyRattled, + action and + rule.">
+    <figcaption>The key selected. Every component is a block in the Entity panel: <code>spin</code> with its speed and axis, <code>animation</code> with the model's timeline and the clip <em>rattle</em>, and <code>behaviour</code> with its rule – <em>tap</em>, then <em>play rattle</em>, <em>set hasKey</em>, <em>emit keyRattled</em>. Pointing at a row shows its help in the Info view.</figcaption>
   </figure>
 
   <h4>3–4 · The door</h4>
-  <p>The <em>door</em> is a group with two children: the door model and a hint, "Find the key on page 1". When the page is found, the <code>door</code> component reads <code>hasKey</code>. With the key, the door lifts and turns, the variable <code>doorOpen</code> is set and the event <code>doorOpened</code> goes out. Without it, the hint shows.</p>
+  <p>The <em>door</em> is a group with two children, named <em>door</em> and <em>hint</em>: the door model and a hint, "Tap the key on page 1". Its <code>behaviour</code> decides: when the page is found the hint shows; found with <code>hasKey</code>, the hint hides and the event <code>openDoor</code> goes out. The <code>door</code> component – plugin code – hears it: the door lifts and turns, the variable <code>doorOpen</code> is set and the event <code>doorOpened</code> goes out.</p>
   <p>The <em>lamp</em> is a video with a chroma key and a <code>pulse</code> layer. Its <code>lamp</code> component keeps it hidden until <code>doorOpen</code> is set.</p>
   <figure class="shot">
     <img src="/docs/tutorials/demo/04-door-entity.webp" width="1280" height="800" loading="lazy" alt="The door spread: the door group selected on the left page, closed, with the hint text under it; the Entity panel's breadcrumb reads door › group, then the group's placement and the door component with the rows lift 0.35 and seconds 1.2; the Info view explains lift.">
-    <figcaption>The door, still closed: no key yet. The <code>door</code> component has two rows, <em>lift</em> and <em>seconds</em>. They come straight from the plugin (see <a href="#demo-component">How a component works</a>).</figcaption>
+    <figcaption>The door, still closed: no key yet. The <code>door</code> component has two rows, <em>lift</em> and <em>seconds</em>. They come straight from the plugin (see <a href="#demo-component">How a component works</a>). Its <code>behaviour</code> follows below them.</figcaption>
   </figure>
 
   <h4>5–6 · The switch</h4>
@@ -443,7 +444,7 @@ npm run osct -- content status --env staging</code></pre>
   <p>The editor can play the story without a phone. Try it:</p>
   <ol>
     <li>Open <b>1–2 · The key</b>. In the Stage tab, open <b>vars and events</b> and press <b>reset</b>: a new game.</li>
-    <li>Right-click the stage and choose <b>Replay the first find</b>. <code>hasKey</code> appears as a <em>book</em> variable.</li>
+    <li>Press <b>tap</b> → <b>The key</b>. The key rattles and <code>hasKey</code> appears as a <em>book</em> variable; the timeline shows the rule that ran.</li>
     <li>Press <kbd>›</kbd> to go to <b>3–4 · The door</b>. The door lifts, <code>doorOpen</code> is set and the lamp lights.</li>
   </ol>
   <p>The tree's eye switches a target off and on (lost, found again). Variables have scopes: <em>spread</em> lives while the spread is shown, <em>stage</em> while the scene exists, <em>book</em> is kept with the reader's progress. That is why <code>hasKey</code> survives the walk from page 1 to page 3.</p>
@@ -452,20 +453,33 @@ npm run osct -- content status --env staging</code></pre>
     <figcaption>After the key: the door is open, the lamp video shows. <em>vars and events</em> lists <code>doorOpen</code> (stage) and <code>hasKey</code> (book), both <em>true</em>, and the timeline, newest first. Its clock starts at <code>spreadChanged</code>, when the door's spread opened; the key spread's events follow below.</figcaption>
   </figure>
 
+  <h3 class="sec" id="demo-behaviour">Rules without code: behaviour</h3>
+  <p>A <code>behaviour</code> is a component of rules. Select a node, open the <b>Entity</b> tab and press <b>+ behaviour</b> under <em>add component</em>; then <b>+ rule</b>. Each rule has three parts:</p>
+  <ul>
+    <li><b>The event</b> – <em>found</em>, <em>lost</em>, <em>tap</em>, <em>unlocked</em> (the page's first find), or <em>event</em> and a name: an event another rule or a plugin sends, like the door's <code>openDoor</code>.</li>
+    <li><b>+ condition</b> – a variable, <em>=</em> or <em>≠</em>, and a value: <code>true</code>, <code>false</code>, a number or a text; empty means "not set". With two or more, choose <em>all</em> or <em>any</em>.</li>
+    <li><b>+ action…</b> – in order: <em>play</em>, <em>pause</em> or <em>stop</em> a clip of a model (the clips come from the model), <em>show</em> or <em>hide</em> a node (this node or a named child), <em>set</em> a variable with its scope, <em>emit</em> an event.</li>
+  </ul>
+  <p>Every change runs on the stage at once – press <b>tap</b> in the Stage tab and watch. The timeline marks each rule that ran with a <em>behaviour</em> line: which rule, on which event, and what it did. A rule that is not finished yet – an empty name, no event – is listed in red and <b>Save</b> waits. A rule decides; what it cannot do, like moving the door over time, is plugin code that hears the rule's event.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/demo/12-behaviour.webp" width="1280" height="800" loading="lazy" alt="The key spread after a tap, the key turned in its rattle: the Stage panel's vars and events with the tap buttons The key, The aquarium and The tally, hasKey true as a book boolean, and the timeline newest first – at 3.04 s targetTapped key, keyRattled, varChanged hasKey book true, and behaviour with target key, rule 1, on tap, do play rattle · set hasKey = true (book) · emit keyRattled; below them the finds at 0.91 s.">
+    <figcaption>The key tapped from the Stage tab. Read the timeline from the bottom up: the <em>behaviour</em> line of the key's rule, then what it did – <code>varChanged</code> for <code>hasKey</code> and the event <code>keyRattled</code> – and on top <code>targetTapped</code>, which the stage reports once the tap's work is done.</figcaption>
+  </figure>
+
   <h3 class="sec" id="demo-component">How a component works</h3>
-  <p>A component is a few lines of TypeScript in a plugin. The <b>Code</b> tab shows the book's plugins in a real code editor, with completion and type errors. Pick <em>narrative</em>: it holds <code>key</code>, <code>door</code> and <code>lamp</code>.</p>
+  <p>A component is a few lines of TypeScript in a plugin. The <b>Code</b> tab shows the book's plugins in a real code editor, with completion and type errors. Pick <em>narrative</em>: it holds <code>door</code> and <code>lamp</code>.</p>
   <pre><code>api.registerComponent("door", {
-  description: "Opens when the page is found and the reader has the key; …",
+  description: "Opens the door (the first child) when it hears openDoor for its target: …",
   nodeTypes: ["group"],
   params: {
     lift:    { kind: "number", default: 0.35, min: 0, max: 2, step: 0.05, … },
     seconds: { kind: "number", default: 1.2, min: 0.1, max: 10, step: 0.1, … },
   },
-}, ({ children, params }) => { … });</code></pre>
+}, ({ children, params, target }) => { … });</code></pre>
   <p>Each entry under <code>params</code> becomes a row in the Entity panel: <em>lift</em> and <em>seconds</em> in the door's figure above. <code>nodeTypes</code> says where it may go – only on a group. Point at a row and the <b>Info</b> view at the bottom left shows its <code>description</code>. Change a value and the stage shows it.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/06-code.webp" width="1280" height="800" loading="lazy" alt="The Code tab: the plugin narrative selected, in the content, not stored; the source shows api.registerComponent for key and door with their descriptions and params; under it the note compiled by the content build and the buttons Download, Run and Save.">
-    <figcaption>The Code tab with the <em>narrative</em> plugin. Line 22 starts the <code>door</code> component. <b>Run</b> and <b>Save</b> are at the bottom right.</figcaption>
+    <img src="/docs/tutorials/demo/06-code.webp" width="1280" height="800" loading="lazy" alt="The Code tab: the plugin narrative selected, in the content, not stored; the source shows its comment and api.registerComponent for door with its description and params; under it the note compiled by the content build and the buttons Download, Run and Save.">
+    <figcaption>The Code tab with the <em>narrative</em> plugin. Line 14 starts the <code>door</code> component. <b>Run</b> and <b>Save</b> are at the bottom right.</figcaption>
   </figure>
   <div class="note">
     <p><b>Run</b> tries the code on the stage at once: the plugin is replaced in place and the spread is built again. <b>Save</b> keeps the source with the book. <b>Neither reaches readers.</b> A plugin gets to the phone through the content build.</p>
@@ -582,13 +596,13 @@ npm run osct -- content status --env staging</code></pre>
   <p>The Stage tab's <b>vars and events</b> plays a book's story by hand, without a phone. It is closed until you open it by its head.</p>
   <ul>
     <li><b>tap</b> has a button for each printed target of the spread. It taps the target's AR content as a reader's tap would, without aiming at it: the entity's <code>onTap</code>, the <code>animation</code> component's <em>plays on: tap</em> and the event <code>targetTapped</code>. A target that is not found, or has no AR content, is greyed out.</li>
-    <li><b>vars</b> lists the plugins' variables, each with its scope and type and a control for its value – <em>false / true</em>, a number or a text – and <b>×</b> to delete it. <b>set</b> adds one: a camelCase name, the scope (spread, stage, session or book), the type and the value. Both write through the plugin API, so the plugins react as if one of them had set it: set <code>hasKey</code> to <em>true</em> on the door's spread and the door opens without a visit to page 1. <b>reset</b> starts a new game.</li>
+    <li><b>vars</b> lists the plugins' and the rules' variables, each with its scope and type and a control for its value – <em>false / true</em>, a number or a text – and <b>×</b> to delete it. <b>set</b> adds one: a camelCase name, the scope (spread, stage, session or book), the type and the value. Both write through the plugin API, so the plugins and rules react as if one of them had set it: set <code>hasKey</code> to <em>true</em> on the door's spread, switch the door off and on with the tree's eye, and it opens without a visit to page 1. <b>reset</b> starts a new game.</li>
     <li><b>events</b> is the timeline, newest first: the time since the spread opened, the event and its payload. The last 100 are kept; <b>clear</b> empties it.</li>
   </ul>
   <p>Nothing here is saved to the draft: the variables live while the spread's workspace is open, as a reader's progress lives on the phone.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/13-stage-vars.webp" width="1280" height="800" loading="lazy" alt="The key spread with the Stage panel's vars and events open: the tap row with The key, just tapped, and The tally; vars with tries (stage · number, 2), set by hand, and hasKey (book · boolean, true), each with a cross; the set row with an empty name, the scope stage, number pressed and the value 2; events 10 with clear, then the timeline: 11.61 s targetTapped key and keyRattled, 9.67 s varChanged tries, 0.14 s the finds and the key's varChanged hasKey, 0.00 s spreadChanged; the Info view explains the tap row.">
-    <figcaption><em>The key</em> tapped from the panel: <code>targetTapped</code> and the plugin's own <code>keyRattled</code> top the timeline. <code>tries</code> was set by hand as a <em>stage</em> number.</figcaption>
+    <figcaption><em>The key</em> tapped from the panel: <code>targetTapped</code> and <code>keyRattled</code> top the timeline (since the key's rule took over, a <em>behaviour</em> line sits between them – <a href="#demo-behaviour">Rules without code</a>). <code>tries</code> was set by hand as a <em>stage</em> number.</figcaption>
   </figure>
 
   <h3 class="sec" id="tools-code">Code everywhere: a node type, a material, a texture</h3>

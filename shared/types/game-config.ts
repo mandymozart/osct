@@ -18,6 +18,7 @@ import type { MaterialData } from "./materials";
 export * from "./filters";
 export * from "./placement";
 export * from "./components";
+export * from "./behaviour";
 export * from "./lights";
 export * from "./passes";
 export * from "./plugins";
@@ -58,12 +59,14 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   `registerMaterial`, plugin API 1.4 – a 2.16 app keeps the node's own material), and a plugin's recorded materials and
  *   textures (a 2.16 app ignores them) – but a recorded spec with a parameter of the new kind `texture` is refused by a
  *   2.16 guard (it knows no such kind): a book whose plugins take textures needs a 2.17 app, and 2.18 adds nothing to the
- *   content (plugin API 1.5: `api.loadText`, a declared plugin built against it carries `api: "1.5"`). Any MINOR of the
- *   same MAJOR loads.
+ *   content (plugin API 1.5: `api.loadText`, a declared plugin built against it carries `api: "1.5"`), and since 2.19 the
+ *   built-in component `behaviour` (rules without code, `./behaviour.ts`) – a 2.18 guard refuses a node that carries one
+ *   (it knows no such component, as a 2.16 guard a `texture` parameter): a book with behaviours needs a 2.19 app. Any
+ *   MINOR of the same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.18";
+export const CONTENT_SCHEMA_VERSION = "2.19";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -129,9 +132,12 @@ export interface AssetData {
  * its parent and may hold `children`. A 1.x entity is a tree of one node, so the app reads both.
  */
 export interface EntityData {
-  /** Optional, unique within the tree: the editor's selection, a later behaviour's target */
+  /** Optional, unique within the tree: the editor's selection */
   id?: string;
-  /** Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; the reader ignores it */
+  /**
+   * Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; a behaviour's
+   * action names a node of its subtree by it (schema 2.19)
+   */
   name?: string;
   /** A built-in type (ENTITY_TYPES) or a plugin's (schema 2.13) */
   type: NodeType;
@@ -140,7 +146,10 @@ export interface EntityData {
   /** Placement: position / rotation / scale (see ./placement.ts); a plugin node type's parameters (schema 2.13, `./node-types.ts`) */
   params?: Record<string, unknown>;
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
-  /** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.4) */
+  /**
+   * Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model and `behaviour`
+   * (schema 2.19, rules without code – `./behaviour.ts`), a plugin's component or material layer (schema 2.4)
+   */
   components?: ComponentData[];
   /**
    * Optional (schema 2.17): a material a plugin registered (`registerMaterial`) that replaces the material of the node's

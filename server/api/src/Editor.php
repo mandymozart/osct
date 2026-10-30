@@ -14,7 +14,7 @@ final class Editor
     /** The entity types of the content contract: shared/types/game-config.ts `ENTITY_TYPES` – keep in step */
     public const ENTITY_TYPES = ['group', 'model', 'video', 'image', 'text', 'light'];
     /** The built-in component types (shared/types/components.ts `COMPONENTS`) – every other type is a plugin's */
-    public const COMPONENT_TYPES = ['animation'];
+    public const COMPONENT_TYPES = ['animation', 'behaviour'];
     /** A plugin's node type (shared/types/node-types.ts `NODE_TYPE_PATTERN`): camelCase letters and digits, at most 32 (entities.type) */
     public const PLUGIN_NODE_TYPE = '[a-z][a-zA-Z0-9]{0,31}';
     /** A plugin's material type (shared/types/materials.ts `MATERIAL_TYPE_PATTERN`): camelCase letters and digits, at most 40 */

@@ -76,7 +76,7 @@ describe('plugins (the book\'s own code)', () => {
     await build.plugins.buildPlugins();
     build.buildAll();
     vi.restoreAllMocks();
-    expect(build.errors).toEqual(['entries/first target: components[0].type: "tint" is not one of animation, glow']);
+    expect(build.errors).toEqual(['entries/first target: components[0].type: "tint" is not one of animation, behaviour, glow']);
   }, 30000);
 
   it('reports type errors with file and line, an import, a bad spec and a bad folder name', async () => {

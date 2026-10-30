@@ -3,8 +3,8 @@ import { COMPONENT_TYPES, componentProblems, resolveComponent } from "@shared/ty
 
 /** Content schema 2.2: components on a node – the specs drive the checks and the defaults */
 describe("components", () => {
-  it("the animation component is the first", () => {
-    expect(COMPONENT_TYPES).toEqual(["animation"]);
+  it("the built-in components: animation, behaviour", () => {
+    expect(COMPONENT_TYPES).toEqual(["animation", "behaviour"]);
   });
 
   it("accepts a well-formed animation on a model", () => {
@@ -16,7 +16,7 @@ describe("components", () => {
       { type: "spin" },
       { type: "animation", playOn: "sometimes", speed: 9, loop: "yes", clip: 3, extra: 1 },
     ], "components", "model")).toEqual([
-      'components[0].type: "spin" is not one of animation',
+      'components[0].type: "spin" is not one of animation, behaviour',
       "components[1].playOn: expected one of found, tap, never, got \"sometimes\"",
       "components[1].speed: expected a number from 0.1 to 4, got 9",
       "components[1].loop: expected true or false, got \"yes\"",
