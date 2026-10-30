@@ -9,6 +9,7 @@ import { composeLayers, layerObject, tuneLayers } from "../utils/layers";
 import type { LoadedAsset } from "./assets";
 import { applyComponents, buildPluginNode, nodeTypeRegistration, unknownComponentTypes } from "./plugins";
 import { applyMaterial } from "./materials";
+import { applyBehaviour, behaviourOf } from "./behaviour";
 import { getBook, getEntry } from "../content/game-config";
 
 /**
@@ -19,7 +20,8 @@ import { getBook, getEntry } from "../content/game-config";
  * into a group placed by the node's `params` (position / rotation / scale – shared/types/placement.ts; axes: x
  * right, y up the page, z out of the page, 1 unit = target width, origin in its centre) relative to its parent, the
  * root on the target's anchor. A node of a type without a builder renders nothing (logged) but keeps its children.
- * A node's **components** are the built-in ones its builder knows (`animation` on a model) and the ones a plugin
+ * A node's **components** are the built-in ones its builder knows (`animation` on a model), the built-in `behaviour` of
+ * any node (`behaviour.ts` – its rules act on the node's subtree, joined after its children) and the ones a plugin
  * registered (`plugins.ts`): applied after the node's object exists, with their hooks joined to the node's; a node's
  * **material** of a plugin (`material: { type, params }`, `materials.ts`) replaces the material of its meshes first, then
  * its **material layers** (a plugin's GLSL) are composed into its materials (`utils/layers.ts`).
@@ -105,6 +107,9 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
     Object.entries(child.nodes ?? {}).forEach(([key, object]) => (nodes[key === "" ? `${i}` : `${i}.${key}`] = object));
     Object.entries(child.timelines ?? {}).forEach(([key, timeline]) => (timelines[key === "" ? `${i}` : `${i}.${key}`] = timeline));
   });
+  // The node's behaviour (built-in, schema 2.19): its rules act on the node's subtree – heard after the node's other parts
+  const behaviour = applyBehaviour({ node, target, nodes, timelines });
+  if (behaviour) all.push(behaviour);
   return {
     object: placed,
     nodes,
@@ -135,6 +140,7 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
       // A material added, removed or of another type (or one that did not apply): built anew
       if (material ? !material.tune(tuned) : !!own && JSON.stringify(tuned.material ?? null) !== JSON.stringify(node.material ?? null)) return false;
       if (!components.tune(tuned)) return false;
+      if (behaviour ? !behaviour.tune(tuned) : !!behaviourOf(tuned)) return false;
       if (own && (layers ? !tuneLayers(layers, tuned) : composeLayers(tuned) !== null)) return false;
       for (let i = 0; i < children.length; i++) {
         if (!children[i].tune!(next[i])) return false;

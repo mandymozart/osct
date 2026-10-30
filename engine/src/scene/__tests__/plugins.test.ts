@@ -53,7 +53,7 @@ describe("installPlugin", () => {
     expect(componentSpec("spin")).toBeUndefined();
     expect(componentSpec("float")).toBe(SPIN);
     uninstallPlugin("fx");
-    expect(componentTypes()).toEqual(["animation"]);
+    expect(componentTypes()).toEqual(["animation", "behaviour"]);
     expect(installedPlugins()).toEqual([]);
   });
 

@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
   import {
-    ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, textureTypes, type AssetData, type EntityData, type FilterType, type NodeType,
+    BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, textureTypes, type AssetData, type EntityData, type FilterType, type NodeType,
     type Target,
   } from "@engine/types";
   import { ApiError, isMediaAsset, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
@@ -29,6 +29,8 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import FileField from "#lib/components/FileField.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
+  import BehaviourRules from "./BehaviourRules.svelte";
+  import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
    * The selected **node** of a target's entity (content schema 2.0: the entity is a tree; the tree panel or a tap
@@ -197,6 +199,36 @@
   const changed = (row: ValueRow) => !!current && (!draftNode || !sameValue(getValue(current, row), getValue(draftNode, row)));
   const anyChanged = (ids: ValueRow[]) => ids.some(changed);
   const pathLabel = $derived(node.length ? `root › ${node.join(" › ")}` : "root");
+
+  // ── a behaviour component (#88): its rule editor's pickers and what keeps Save off ──
+  const hasBehaviour = $derived(!!current?.components?.some(c => c.type === BEHAVIOUR_TYPE));
+  /** What is wrong with the tree's behaviours (an empty name, an event not chosen yet): shown, and Save waits */
+  const behaviourProblems = $derived(entity ? treeBehaviourIssues(entity) : []);
+  /** Every tree of the book (the draft's, this one as edited): the variables and events its behaviours use */
+  const bookTrees = $derived([...content.spreads.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
+  const ruleVariables = $derived(bookVariables(bookTrees, (stage?.vars ?? []).map(v => v.name)));
+  const ruleEvents = $derived(bookEvents(bookTrees, (stage?.events ?? []).map(e => e.event)));
+  /** The clips of the models under the selected node by node name ("" = the node itself), read from the stage as the models load */
+  let behaviourClips = $state<Record<string, string[]>>({});
+  $effect(() => {
+    const t = target;
+    const s = stage;
+    const n = current;
+    const at = node;
+    if (!t || !s || !n || !hasBehaviour) return;
+    const read = () => {
+      const next: Record<string, string[]> = {};
+      for (const name of ["", ...subtreeNames(n)]) {
+        const path = pathOfName(n, name);
+        const clips = path ? s.timeline(t.id, [...at, ...path])?.clips.map(c => c.name) : undefined;
+        if (clips?.length) next[name] = clips;
+      }
+      if (JSON.stringify(next) !== JSON.stringify(untrack(() => behaviourClips))) behaviourClips = next;
+    };
+    read();
+    const timer = setInterval(read, 500);
+    return () => clearInterval(timer);
+  });
 
   const apply = (next: EntityData) => {
     entity = next;
@@ -456,7 +488,7 @@
     {#if saved}<span class="small muted">{saved}</span>{/if}
     {#if error}<span class="small danger">{error}</span>{/if}
     {#if error && codeError && oncode}<button type="button" class="text-link" onclick={oncode}>Code tab</button>{/if}
-    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
+    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
   </div>
 {/snippet}
 
@@ -599,7 +631,7 @@
       <span class="grow"></span>
       {#if saved}<span class="small muted">{saved}</span>{/if}
       {#if error}<span class="small danger">{error}</span>{/if}
-      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
+      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
     </div>
   {:else if atTarget}
     <!-- The target is selected: its entity is one step down -->
@@ -726,6 +758,11 @@
             oninput={e => timeline?.seek(Number((e.currentTarget as HTMLInputElement).value))} />
         </div>
       {/if}
+      {#if component.type === BEHAVIOUR_TYPE}
+        <!-- The behaviour's rules (#88): event, condition and actions as pickers -->
+        <BehaviourRules rules={rulesOf(current, i)} names={subtreeNames(current)} clipsOf={name => behaviourClips[name] ?? []}
+          variables={ruleVariables} events={ruleEvents} uid="behaviour-{i}" onchange={rules => current && applyNode(withRules(current, i, rules))} />
+      {/if}
       {#each rows.filter(r => r.id.startsWith(`components.${i}.`)) as row (row.id)}
         {@render specRow(row, row.id.split(".")[2])}
       {/each}
@@ -747,13 +784,16 @@
         </span></div>
     {/if}
 
+    {#if behaviourProblems.length}
+      <ul class="problems small danger" aria-label="Behaviour problems">{#each behaviourProblems as problem (problem)}<li>{problem}</li>{/each}</ul>
+    {/if}
     <div class="actions">
       <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
       <span class="grow"></span>
       {#if saved}<span class="small muted">{saved}</span>{/if}
       {#if error}<span class="small danger">{error}</span>{/if}
       {#if error && codeError && oncode}<button type="button" class="text-link" onclick={oncode}>Code tab</button>{/if}
-      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
+      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
     </div>
   {/if}
 {/if}
@@ -804,4 +844,5 @@
   .text-link.on { color: var(--text); }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
+  .problems { margin: .25rem 0 0; padding-left: 1rem; overflow-wrap: anywhere; }
 </style>

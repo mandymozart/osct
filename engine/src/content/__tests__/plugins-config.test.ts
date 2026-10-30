@@ -32,7 +32,7 @@ describe("plugins in the configuration", () => {
   it("accepts a declared plugin and lets its component types through – the plugin registers them at load", () => {
     const plugins = [{ id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.0" }];
     expect(problemsOf(config({ plugins }, [{ type: "tint", opacity: 0.4 }]))).toEqual([]);
-    expect(problemsOf(config({}, [{ type: "tint", opacity: 0.4 }]))).toEqual(['entries[0].target.entity.components[0].type: "tint" is not one of animation']);
+    expect(problemsOf(config({}, [{ type: "tint", opacity: 0.4 }]))).toEqual(['entries[0].target.entity.components[0].type: "tint" is not one of animation, behaviour']);
     expect(problemsOf(config({ plugins }, [{ type: "animation" }]))).toEqual(["entries[0].target.entity.components[0]: animation applies to model nodes, not to a video"]);
   });
 
@@ -64,7 +64,7 @@ describe("plugins in the configuration", () => {
         "entries[0].target.entity.components[0].opacity: expected a number from 0 to 1, got 4",
         "entries[0].target.entity.components[0].glow: unknown parameter of tint (opacity)",
       ]);
-      expect(problemsOf(at2_14({ plugins: [recorded] }, [{ type: "tnit" }]))).toEqual(['entries[0].target.entity.components[0].type: "tnit" is not one of animation, tint']);
+      expect(problemsOf(at2_14({ plugins: [recorded] }, [{ type: "tnit" }]))).toEqual(['entries[0].target.entity.components[0].type: "tnit" is not one of animation, behaviour, tint']);
     });
 
     it("checks a plugin node type's parameters, refuses a node type no declared plugin registers – unless the content is newer", () => {

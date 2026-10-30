@@ -1,5 +1,8 @@
 import {
   type AssetData,
+  BEHAVIOUR_TYPE,
+  behaviourData,
+  behaviourRules,
   type ComponentData,
   type ComponentParamSpec,
   componentSpec,
@@ -348,6 +351,8 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
   else delete result.params;
   if (entity.components) {
     result.components = entity.components.map((component, i) => {
+      // A behaviour's rules are no rows: written in the content's shortest form (#88)
+      if (component.type === BEHAVIOUR_TYPE) return behaviourData(behaviourRules(component)) as ComponentData;
       const keep: Record<string, unknown> = { type: component.type };
       componentRows(component, i).forEach(row => {
         const name = row.id.split(".")[2];

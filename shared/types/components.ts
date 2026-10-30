@@ -14,10 +14,12 @@
  * the plugin registers it when it loads.
  *
  * Adding a built-in component: define it in COMPONENTS, implement it in the engine, document it in docs/content.md.
- * The editor shows its rows without panel code.
+ * The editor shows its rows without panel code. One built-in component is not made of parameters: `behaviour` (schema
+ * 2.19) holds a list of rules, its grammar and checks are its own (`./behaviour.ts`) and the editor has a rule editor for it.
  */
 
 import type { NodeType } from "./game-config";
+import { BEHAVIOUR_TYPE, behaviourProblems } from "./behaviour";
 
 /**
  * A parameter of a spec (a component's, a material layer's, a pass's, a light's, a plugin node type's, a material's, a
@@ -123,6 +125,14 @@ export const COMPONENTS = {
       loop: { kind: "boolean", default: true, label: "loop", description: "Repeat the clip; off = play it once and hold the last frame." },
       speed: { kind: "number", default: 1, min: 0.1, max: 4, step: 0.1, unit: "×", label: "speed", description: "Playback speed." },
     },
+  },
+  /**
+   * Rules without code (schema 2.19): on an event, when the variables match, do actions – its `rules` are no parameters
+   * (no rows), their grammar is `./behaviour.ts`
+   */
+  behaviour: {
+    description: "Rules without code: on an event (found, lost, tap, unlocked or a named event), when variables match, do actions – play, pause or stop a clip, show or hide a node, set a variable, emit an event.",
+    params: {},
   },
 } as const satisfies Record<string, ComponentSpec>;
 
@@ -271,6 +281,11 @@ export const componentProblems = (raw: unknown, path: string, nodeType?: string,
     }
     if (nodeType && spec.nodeTypes && !(spec.nodeTypes as readonly string[]).includes(nodeType)) {
       problems.push(`${at}: ${type} applies to ${spec.nodeTypes.join(", ")} nodes, not to a ${nodeType}`);
+    }
+    // The behaviour's rules are no parameters: their own grammar
+    if (type === BEHAVIOUR_TYPE) {
+      problems.push(...behaviourProblems(params, at));
+      return;
     }
     for (const [name, value] of Object.entries(params)) {
       const param = spec.params[name];

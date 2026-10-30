@@ -127,7 +127,7 @@ describe("describeContentModel – the contract as an agent reads it", () => {
     expect(model.entity.nodeTypes).toEqual([...ENTITY_TYPES]);
     expect(model.entity.nodeTypes).toEqual(expect.arrayContaining(["group", "model", "video", "image", "text"]));
     expect(Object.keys(model.filters.types)).toEqual(["chromaKey"]);
-    expect(Object.keys(model.components.builtIn)).toEqual(["animation"]);
+    expect(Object.keys(model.components.builtIn)).toEqual(["animation", "behaviour"]);
     expect(model.placement.params.position.unit).toBe("target widths");
     expect(model.target.print.surfaces).toEqual(["left", "right", "front", "back"]);
     expect(model.entry.categories).toEqual(["glossary", "video", "text", "link"]);
