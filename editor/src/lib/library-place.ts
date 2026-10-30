@@ -43,6 +43,9 @@ export function matchesSearch(asset: Pick<Asset, "name" | "url">, query: string)
   return words.every(word => text.includes(word));
 }
 
+/** A file's size as the library shows it: `850 kB`, `12.3 MB` */
+export const formatSize = (bytes: number): string => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`);
+
 /** A video's duration as the library shows it: `0:04`, `12:30`, `1:02:03` (whole seconds, rounded) */
 export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));

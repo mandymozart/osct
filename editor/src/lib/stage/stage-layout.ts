@@ -1,8 +1,6 @@
 import type { Spread } from "@engine/types";
 import { contentUrl } from "@engine/content/game-config";
-import type { PrintPlacement } from "#lib/api.js";
-
-const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
+import { PRINT_SURFACES, type PrintPlacement, type PrintSurface } from "@shared/types/game-config";
 
 /**
  * The book's layout for the editor's mock stage (three-free): every sheet of the book as laid out (the covers as
@@ -48,15 +46,20 @@ export interface StageLayout {
   targets: Record<string, LayoutTarget>;
 }
 
-const LAYOUT_PATH = "/assets/content/layout/";
+/** The layout's folder in the content */
+export const LAYOUT_PATH = "/assets/content/layout/";
+
+/** A fetched `layout.json` as a layout, null when it is none */
+export const layoutFrom = (data: unknown): StageLayout | null => {
+  const layout = data as Partial<StageLayout> | null;
+  return layout && typeof layout === "object" && Array.isArray(layout.sheets) && layout.targets ? (layout as StageLayout) : null;
+};
 
 /** The layout, or null when the content has none (never throws) */
 export const fetchStageLayout = async (): Promise<StageLayout | null> => {
   try {
     const response = await fetch(contentUrl(`${LAYOUT_PATH}layout.json`));
-    if (!response.ok) return null;
-    const layout = await response.json();
-    return layout && typeof layout === "object" && Array.isArray(layout.sheets) && layout.targets ? (layout as StageLayout) : null;
+    return response.ok ? layoutFrom(await response.json()) : null;
   } catch {
     return null;
   }
@@ -65,7 +68,7 @@ export const fetchStageLayout = async (): Promise<StageLayout | null> => {
 /** Where a target is printed in the book's layout (its box in mm on the surface), null when the layout has none */
 export const printedPlaceOf = (layout: StageLayout | null, targetId: string): PrintPlacement | null => {
   const printed = layout?.targets[targetId];
-  if (!printed || !PRINT_SURFACES.includes(printed.surface as PrintPlacement["surface"])) return null;
+  if (!printed || !PRINT_SURFACES.includes(printed.surface as PrintSurface)) return null;
   return { surface: printed.surface as PrintPlacement["surface"], x: printed.x, y: printed.y, width: printed.width, height: printed.height };
 };
 

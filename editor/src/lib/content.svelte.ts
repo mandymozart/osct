@@ -1,7 +1,7 @@
 import { getBook as getConfigBook, getConfigVersion, getPlugins, getSpreads, loadGameConfiguration } from "@engine/content/game-config";
 import type { ErrorInfo, PassData, Spread } from "@engine/types";
 import { authFetch, draftBaseUrl, getBook } from "./api";
-import { adoptRecordedSpecs } from "./plugins/recorded";
+import { adoptRecordedSpecs } from "#lib/plugins/recorded.js";
 import { plugins } from "./plugins.svelte";
 
 /**

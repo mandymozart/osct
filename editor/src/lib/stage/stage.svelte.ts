@@ -3,24 +3,24 @@ import { asset } from "$app/paths";
 import type { AssetPath } from "$app/types";
 import { type BufferAttribute, type BufferGeometry, type Camera, type Intersection, type Object3D, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 import type { EnvironmentData } from "@shared/types/environment";
+import type { PrintSurface } from "@shared/types/game-config";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
 import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
-import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData } from "@engine/types";
+import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData, type SpreadFormat } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "#lib/values.js";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
 import { LightHelpers } from "./light-helper";
 import { applyShading, HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
-import { getPreview, subscribePreview, type ShadingMode } from "./preview";
+import { getPreview, setPreviewActive, setTargetHidden, subscribePreview, type ShadingMode } from "./preview";
 import { MockStage } from "./mock-stage";
 import { showsWorld } from "./sky";
 import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { describePayload, logEvent, type StageEvent } from "./event-log";
 import { plugins } from "#lib/plugins.svelte.js";
-import { setPreviewActive, setTargetHidden } from "./preview";
 import type { PrintPlacement } from "#lib/api.js";
 import { nearPointer, nodeOf, pickable, pickByMode, pickForMenu, samePick, type PickMode, type StageHit, type StagePick } from "./pick";
 import { DEFAULT_ASPECT, draggedPlace, grabOffset, printedHeight, type PlacementDrag } from "./placement";
@@ -51,7 +51,7 @@ export interface GhostPlace {
   /** The target whose placement this is (absent: a target not made yet – the new-target form) */
   targetId?: string;
   imageSrc: string;
-  surface: "left" | "right" | "front" | "back";
+  surface: PrintSurface;
   x: number;
   y: number;
   width: number;
@@ -560,7 +560,7 @@ export class Stage {
   /** A drag of the ghost: the image (move) or its corner (width), with the grab point inside the image */
   private ghostDrag: PlacementDrag | null = null;
   /** The form or the panel editing the placement listens: a handle moved it (a stored height follows the width) */
-  onGhostChange: ((place: { surface: "left" | "right" | "front" | "back"; x: number; y: number; width: number; height?: number }) => void) | null = null;
+  onGhostChange: ((place: { surface: PrintSurface; x: number; y: number; width: number; height?: number }) => void) | null = null;
 
   /** Where a target is printed in the book's layout, null when the layout has no place for it */
   printedPlace(targetId: string): PrintPlacement | null {
@@ -597,7 +597,7 @@ export class Stage {
   }
 
   /** The current spread's format (the form and the panel offer the right surfaces) */
-  format(): "spread" | "cover" | "back" {
+  format(): SpreadFormat {
     return (this.spreadId ? getSpread(this.spreadId)?.format : undefined) ?? "spread";
   }
 
@@ -652,7 +652,7 @@ export class Stage {
   };
 
   /** Where a point of the screen meets the page (mm from the page's top left corner) */
-  private pageAt(clientX: number, clientY: number): { surface: "left" | "right" | "front" | "back"; x: number; y: number } | null {
+  private pageAt(clientX: number, clientY: number): { surface: PrintSurface; x: number; y: number } | null {
     const inspection = this.scene.inspect();
     if (!inspection) return null;
     const rect = this.container.getBoundingClientRect();

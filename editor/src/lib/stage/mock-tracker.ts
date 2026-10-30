@@ -1,5 +1,6 @@
 import { Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type Raycaster, Vector3 } from "three";
 import type { SpreadFormat, Target } from "@engine/types";
+import type { PrintSurface } from "@shared/types/game-config";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, type TriggerInfos } from "@engine/utils/trigger-protocol";
@@ -23,7 +24,7 @@ const FAR = 100;
 export const BOOK_PAGE_MM = { width: 230, height: 320 } as const;
 
 /** The surfaces a target lies on: the pages of the open book, or the closed book's front / back cover */
-export type StageSurface = "left" | "right" | "front" | "back";
+export type StageSurface = PrintSurface;
 
 /** The surface a target falls back to on a spread: the right page of the open book, the cover's own face */
 export const defaultSurface = (format: SpreadFormat | undefined): StageSurface =>

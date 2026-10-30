@@ -1,6 +1,8 @@
 import type { EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { SpreadFormat } from "@shared/types/game-config";
+import type { AssetType, PrintPlacement, SpreadFormat } from "@shared/types/game-config";
+
+export type { PrintPlacement };
 
 /**
  * The instance's API (server/api, docs/server.md): the accounts endpoints the sign-in uses and the editor's own
@@ -383,7 +385,7 @@ export interface Asset {
   id: string;
   name: string;
   /** `shader`: a source file a plugin loads by its URL (`api.loadText` – #186) */
-  kind: "glb" | "gltf" | "video" | "image" | "audio" | "shader";
+  kind: AssetType | "shader";
   mime: string;
   size: number;
   /** The picture's size in pixels (images, videos), null when the file does not tell */
@@ -402,7 +404,7 @@ export interface Asset {
 }
 
 /** The kinds a node's or a target's file can be (the content contract's asset types): every asset kind but `shader` */
-export type MediaKind = Exclude<Asset["kind"], "shader">;
+export type MediaKind = AssetType;
 export const isMediaAsset = (asset: Asset): asset is Asset & { kind: MediaKind } => asset.kind !== "shader";
 
 export const listAssets = (bookId: string, kind?: string) =>
@@ -431,7 +433,7 @@ export const uploadAsset = async (bookId: string, file: File): Promise<Asset> =>
   (await sendFile<{ asset: Asset }>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets`, file)).asset;
 
 export const replaceAsset = (bookId: string, assetId: string, file: File) =>
-  sendFile<{ asset: Asset; relinked: number }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/file`, file);
+  sendFile<{ asset: Asset; relinked: number }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/file`, file);
 
 /** Where a file or a plugin is used: a row of the draft (`entity castle`), or a plugin source that loads the file */
 export interface Usage {
@@ -440,21 +442,12 @@ export interface Usage {
 }
 
 export const assetUsages = (bookId: string, assetId: string) =>
-  api<{ usages: Usage[]; asset: Asset }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/usages`);
+  api<{ usages: Usage[]; asset: Asset }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/usages`);
 
 export const deleteAsset = (bookId: string, assetId: string, force = false) =>
-  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}${force ? "?force=1" : ""}`);
+  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}${force ? "?force=1" : ""}`);
 
 // ── Targets and entries made in the editor ───────────────────────────────────────────────────────
-
-export interface PrintPlacement {
-  page?: number;
-  surface: "left" | "right" | "front" | "back";
-  x: number;
-  y: number;
-  width: number;
-  height?: number;
-}
 
 /** The target's printed image and / or where it is printed */
 export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: string; print?: PrintPlacement | null }) =>
@@ -472,7 +465,7 @@ export const putBookPasses = (bookId: string, passes: PassData[] | null) =>
   api<{ passes: PassData[] | null }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/passes`, { passes });
 
 /** `passes`: the spread's post-processing (schema 2.5); `null` removes the list (the book's applies), `[]` turns it off */
-export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: "spread" | "cover" | "back"; passes?: PassData[] | null }) =>
+export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: SpreadFormat; passes?: PassData[] | null }) =>
   api<{ spread: unknown }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, body);
 
 /** The rows a new or removed double page renumbered (the later spreads, the entries on their pages, the printed pages) */
@@ -486,7 +479,7 @@ export interface MovedRows {
  * A double page (`format: "spread"`, after the spread `after` – default: the last one before the back cover; the later
  * pages are numbered on by two) or a cover (`cover` / `back`)
  */
-export const addSpread = (bookId: string, body: { format: "cover" | "back"; title?: string } | { format: "spread"; after?: string; id?: string; title?: string }) =>
+export const addSpread = (bookId: string, body: { format: Exclude<SpreadFormat, "spread">; title?: string } | { format: "spread"; after?: string; id?: string; title?: string }) =>
   api<{ spread: { id: string; firstPage: number; lastPage: number }; moved: MovedRows }>("POST", `/editor/books/${encodeURIComponent(bookId)}/spreads`, body);
 
 /** A Library file a removal touches: used only by the removed rows, or (`usedBy`) elsewhere too */

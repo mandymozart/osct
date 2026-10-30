@@ -3,8 +3,8 @@ import { getPlugins } from "@engine/content/game-config";
 import type { EntityData } from "@engine/types";
 import { ApiError, deletePlugin, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
 import { library } from "./library.svelte";
-import { importPluginCode, transpilePlugin, type CompileError } from "./plugins/compile";
-import type { Stage } from "./stage/stage.svelte";
+import { importPluginCode, transpilePlugin, type CompileError } from "#lib/plugins/compile.js";
+import type { Stage } from "#lib/stage/stage.svelte.js";
 import { nodeAt, withNode } from "./values";
 
 /** A node made code whose new type has not built yet: it shows as it was until its plugin's code builds it (#199) */

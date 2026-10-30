@@ -214,7 +214,7 @@ const builtInBuilder = (node: EntityData): { src: NodeSrcKind; params: Record<st
       const light = resolveLight(node.light);
       return {
         src: "none",
-        params: LIGHT_PARAMS as unknown as Record<string, ComponentParamSpec>,
+        params: LIGHT_PARAMS,
         defaults: { ...light },
         build: `({ params }) => {
     const group = new three.Group();

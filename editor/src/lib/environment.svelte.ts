@@ -1,6 +1,6 @@
 import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS, type EnvironmentData } from "@shared/types/environment";
 import { getBook, putEnvironment, type Asset } from "./api";
-import { bookEnvironment } from "./stage/sky";
+import { bookEnvironment } from "#lib/stage/sky.js";
 
 /** The environment's two files: the world model and the sky image */
 export type EnvironmentSlot = "world" | "sky";

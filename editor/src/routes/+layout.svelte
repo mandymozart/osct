@@ -3,7 +3,7 @@
   import { onMount } from "svelte";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import { session } from "#lib/session.svelte.js";
+  import { isAdminPath, session } from "#lib/session.svelte.js";
   import SignIn from "#lib/SignIn.svelte";
   import TopBar from "#lib/TopBar.svelte";
   import { reloadOnStaleChunks } from "#lib/reload-on-stale.js";
@@ -15,7 +15,7 @@
   onMount(() => reloadOnStaleChunks());
 
   /** The admin page (docs/admin.md) is for admins, everything else for editors – an account may be both */
-  const isAdminRoute = $derived(`${page.url.pathname}/` === resolve("admin/") || page.url.pathname.startsWith(resolve("admin/")));
+  const isAdminRoute = $derived(isAdminPath(page.url.pathname));
   const allowed = $derived(isAdminRoute ? session.isAdmin : session.isEditor);
 </script>
 

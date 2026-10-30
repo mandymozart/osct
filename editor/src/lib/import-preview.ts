@@ -78,13 +78,15 @@ export const importLabel = (p: ImportPreview): string => {
   return `Import 1 book: ${p.incoming.title}${build ? ` (build ${build})` : ""}`;
 };
 
-const count = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
+/** `1 entry`, `3 entries` */
+export const count = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
 
 /** `6 spreads · 13 entries · 8 targets · 3 shared entities` */
 export const contentsLine = (counts: ImportPreview["counts"]): string =>
   [count(counts.spreads, "spread"), count(counts.entries, "entry", "entries"), count(counts.targets, "target"), ...(counts.entities ? [count(counts.entities, "shared entity", "shared entities")] : [])].join(" · ");
 
-const date = (iso: string | null | undefined): string | null => {
+/** An ISO time in the browser's short local form; null for none, the text itself when it is no time */
+export const date = (iso: string | null | undefined): string | null => {
   if (!iso) return null;
   const at = new Date(iso);
   return Number.isNaN(at.getTime()) ? iso : at.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });

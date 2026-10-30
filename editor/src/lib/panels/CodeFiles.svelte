@@ -3,6 +3,7 @@
   import { library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { CODE_EXTENSIONS, codeFiles, codeKindOf, codeLanguage, codeUploadProblem, matchesCodeSearch, usageText, type CodeFile } from "#lib/library-code.js";
+  import { formatSize } from "#lib/library-place.js";
   import CodePreview from "./CodePreview.svelte";
 
   /**
@@ -37,7 +38,6 @@
   let error = $state<string | null>(null);
   let replaceInput = $state<HTMLInputElement>();
 
-  const size = (bytes: number) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`);
   const message = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
 
   const open = async (file: CodeFile) => {
@@ -155,7 +155,7 @@
           <tr class:on={opened === file.key} onclick={() => void open(file)}>
             <td class="name" title={file.asset?.url ?? `The plugin source ${file.plugin}`}><button type="button" class="open" aria-expanded={opened === file.key}>{file.name}</button>{#if file.version && file.version > 1} <span class="muted">v{file.version}</span>{/if}</td>
             <td class="muted kind">{file.kind}</td>
-            <td class="num muted size">{size(file.size)}</td>
+            <td class="num muted size">{formatSize(file.size)}</td>
             <td class="num muted uses">{file.usages}<span class="unit">&nbsp;use{file.usages === 1 ? "" : "s"}</span></td>
           </tr>
           {#if opened === file.key}
