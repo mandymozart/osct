@@ -4,6 +4,29 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Panels' first divider and defaults; the post-processing level in words (#193, #181)
+
+- **The book's master chain stays in the Stage tab's post-processing** (#181 asked to consider moving it to the book
+  page or the Environment tab, shown read-only in a spread; "keep it simple"). Kept where it is: once the head names
+  the level ("post-processing · the whole book" / "· only this spread"), the line counts the spreads it changes and
+  Save says what it saves, the level is unmistakable without a second place. Moving it would split one list over two
+  places – the book page has no stage to preview passes on (they show only under *rendered* on a spread), and the
+  override starts as a copy of the book's, which wants both in reach –, and add a read-only view and a link for
+  nothing the wording doesn't already do. Revisit only if authors still confuse the two after the new wording.
+- The level line replaces the *uses: the book's / own* pill pair: its end is the switch (**own for this spread** /
+  **back to the book's**), so the choice is still there in one place, in words.
+- N in "changes all N spreads that use the book's" counts the draft's spreads without passes of their own – an empty
+  own list is an override too (post-processing off) – and the spread on the stage as the panel holds it, so an
+  unsaved *own for this spread* already shows the override line.
+- #193 defaults: Stage tab all closed on a first visit (spread, stage, post-processing, vars and events), the stage's
+  closed head names desk and grid; Environment: *environment* open, *preview* closed. The **Entity tab** keeps its
+  plain section headings (not collapsible): it already shows only the selected level, and components, filters and the
+  plugin material appear only when they have entries – the proposal's state without a toggle. Stored open states per
+  browser (`osct-editor-sections`) are untouched; only the first-visit default changed.
+- The first section's divider goes once in `app.css` (`.section:first-child`), for every panel and the Library's
+  picker head (its own rule went). The Entity tab's first section keeps its line: it sits under the breadcrumb, not
+  under the tab row.
+
 ## 2026-10-30 – Removing a spread or an entry with everything on it (#198)
 
 - Tilman: "AI has the same rights as the user most of the time. So also it needs to get this confirm dialog somehow,
