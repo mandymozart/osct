@@ -76,7 +76,7 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, hdri: "ferndale_studio_04", desk: "eiermann", wobble: 0, grid: false, gridMm: 10, origin: "top-left" };
+const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", desk: "eiermann", wobble: 0, grid: false, gridMm: 10, origin: "top-left" };
 
 /** The grid's spacing stays between 1 mm and the page's size */
 export const clampGrid = (mm: number): number => Math.min(500, Math.max(1, mm));
