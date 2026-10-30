@@ -3,7 +3,7 @@ import { getSpread } from "../content/game-config";
 
 /**
  * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.spread` (plugin API 1.1,
- * agents/research/2026-10-30-demo-book.md): what lets a book's code reach across nodes and pages.
+ * docs/plugins.md "Across nodes and pages"): what lets a book's code reach across nodes and pages.
  *
  * - **Events** have two owners (the concept's rule): *core events* describe the book and are emitted by the scene
  *   only (`CORE_EVENTS` – a plugin that emits one gets an error); *scene events* are the content's own, any other

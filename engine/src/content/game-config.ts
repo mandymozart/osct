@@ -55,11 +55,6 @@ const LOAD_TIMEOUT_MS = 20000;
  */
 let configurationError: ErrorInfo | null = null;
 
-/**
- * Can this app read the content? The content schema (`MAJOR.MINOR`, shared/) is the only rule (RULES #10):
- * another MAJOR is refused – newer content needs an app update, older content a newer content sync – and any
- * MINOR of the same MAJOR loads. The app version the content was built with is information only.
- */
 /** Texts of the startup errors (`ErrorInfo.msg`) – the app translates them */
 export interface LoadTexts {
   contentNewer: string;
@@ -73,11 +68,16 @@ const DEFAULT_TEXTS: LoadTexts = {
   contentNotLoaded: 'The content could not be loaded.',
 };
 
+/**
+ * Can this app read the content? The content schema (`MAJOR.MINOR`, shared/) is the only rule (RULES #10): a newer
+ * MAJOR is refused (the app needs an update), so is one below `OLDEST_READABLE_SCHEMA_MAJOR` (the content needs a
+ * newer build); every MAJOR in between and any MINOR loads as it is. The app version the content was built with is
+ * information only.
+ */
 export const checkContentCompatibility = (version: ConfigurationVersion, texts: LoadTexts = DEFAULT_TEXTS): ErrorInfo | null => {
   const app = parseContentSchema(CONTENT_SCHEMA_VERSION);
   const content = parseContentSchema(version.schema);
-  // Every MAJOR so far only added (the node tree, the light node): this app reads older content as it is, down to
-  // the oldest MAJOR the contract still knows
+  // Older content is read as it is, down to the oldest MAJOR the contract still knows
   if (app && content && content.major <= app.major && content.major >= OLDEST_READABLE_SCHEMA_MAJOR) {
     if (content.major !== app.major || content.minor !== app.minor) {
       console.info(`[game-config] Content schema ${version.schema}, this app reads ${CONTENT_SCHEMA_VERSION} – compatible.`);

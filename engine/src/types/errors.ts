@@ -3,7 +3,8 @@ export interface ErrorInfo {
   code: string;
   msg: string;
   type?: "critical" | "warning" | "info";
-  details?: any;
+  /** The problems behind it, one line each (shown in development) */
+  details?: string[];
   action?: {
     text: string;
     callback: () => void;
