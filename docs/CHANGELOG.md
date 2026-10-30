@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.41.0 – 2026-10-30
 
 ### Added
 - **Plugins: a whole material, a procedural texture, textures as parameters** (#188, plugin API 1.4, content schema
