@@ -12,6 +12,27 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.35.1 – 2026-10-30
+
+### Added
+- **The tutorial page brings a book in** (#95): `/docs/tutorials/` has a new chapter, *Bringing a book in* – the empty
+  instance, the three ways in (the CDN with its book id, a URL – a `game.config.json` or a content base like `…/demo` –
+  and a file), what the assets base is, how to see what is on the CDN (`latest.json`, `versions.json`,
+  `<build>/game.config.json`, `osct content status`; staging's out-of-date `versions.json`) and what to do when the media
+  is missing. Four screenshots of the import form.
+- **The tutorial page tours the editor's tools**: a chapter *The editor's tools* with a screenshot each – one selection
+  across tree, stage and inspector with the breadcrumb (#162), dragging nodes, *add as* and names (#163), the Library as
+  the picker (#164), the new target's two choices (#165), adding and removing spreads (#166), the book's post-processing
+  and a spread's own (#149), words as parameter labels (#173), the editor on a phone – the sheet's drag, the icon tabs,
+  ‹ › on the stage (#155, #171) – and on a tablet (#172).
+
+### Changed
+- **The demo book's screenshots are new** (#148): all ten shots of the chapter (now chapter 3) show the editor of 1.35 –
+  square corners, the breadcrumb, words as labels, the phone's sheet head – and no longer a local test target. Captions
+  and texts follow (the dot on an unsaved row, the phone's ‹ › on the stage, seven plugins).
+- **The editor's empty Books page says how to import** (#95): *No book yet. Import one with Import a book: the CDN, a URL
+  or a file.* with a link to the tutorial's chapter.
+
 ## 1.35.0 – 2026-10-30
 
 ### Added

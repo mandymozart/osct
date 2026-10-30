@@ -39,7 +39,8 @@
         {#each [0, 1] as i (i)}<li class="skeleton"><span class="cover-box"></span><span class="line"></span><span class="line short"></span></li>{/each}
       </ul>
     {:else if books?.length === 0}
-      <p class="muted empty">No book yet – import one.</p>
+      <p class="muted empty">No book yet. Import one with <b>Import a book</b>: the CDN, a URL or a file.
+        <a class="text-link" href="/docs/tutorials/#bringing-in">How to bring a book in</a></p>
     {:else if books}
       <ul class="covers">
         {#each books as book (book.id)}
@@ -86,7 +87,8 @@
   }
 
   h1 { font-size: 1.125rem; font-weight: 600; margin: 0 0 1.5rem; }
-  .empty { font-size: .875rem; }
+  .empty { font-size: .875rem; max-width: 32rem; }
+  .empty a { white-space: nowrap; }
   .covers { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: 2.25rem 1.75rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
   /* A phone shows two covers a row, not one cover as wide as the screen (#170) */
   @media (max-width: 47.9rem) { .covers { gap: 1.5rem 1rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); } }
