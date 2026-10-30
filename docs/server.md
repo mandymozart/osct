@@ -122,7 +122,10 @@ checks; `Roles::require($user, $role)` is the route guard (401 without a session
 
 `granted_by` is `signup`, `migration`, `config`, `secret` (a grant with `X-Admin-Secret`) or the granting admin's
 user id (the admin API resolves it to the address). `reader` cannot be revoked (400 `invalid-role`); the last admin
-keeps the role (409 `last-admin`). `GET /user` answers `roles: ["reader", …]`; the older field `role` stays and is
+keeps the role (409 `last-admin` – the check and the revoke are one transaction with the admins' grants locked, so two
+admins revoking each other at the same moment cannot both pass). A grant and its `users.role` mirror are one
+transaction; a grant that a parallel one wrote first answers `changed: false`, never a 500. `POST /admin/editors`
+makes the user and its roles in one transaction. `GET /user` answers `roles: ["reader", …]`; the older field `role` stays and is
 `editor` when the roles hold it, else `reader`. The column `users.role` mirrors the editor role for that field and
 the backfill – checks go through the tables.
 
@@ -278,7 +281,10 @@ it). The hash is the sha256 of that JSON without `timestamp` and `hash`; the bui
 so the same rows are the same version. With an `assets_base`, every `/assets/content/…` under `src`, `imageSrc`,
 `image` and `illustration`, and every key of `files.json`, becomes a URL below it: a published version points at the
 imported build's media on the CDN and copies nothing. `PUT …/entities/{ref}` and `PUT …/targets/{id}` change one
-entity and record before and after with the user in `changes`. **Publish** writes the same assembly to the content
+entity and record before and after with the user in `changes`. Every save that changes a row from its current value
+(`PUT …/targets/{id}`, `…/spreads/{id}`, `…/environment`, `…/passes`, `…/entities/{ref}`, an asset's replace) reads,
+changes and writes it in one transaction with the row locked (`SELECT … FOR UPDATE` on MySQL, `BEGIN IMMEDIATE` on
+SQLite – `Db::transaction`, `Db::forUpdate`), so two saves at the same moment never lose one's change. **Publish** writes the same assembly to the content
 store as a version of the environment (`local`, `staging`, `production`) with the osct CLI's bookkeeping
 (`versions.json`, `latest.json` last – [content-cdn](content-cdn.md)), so the reader of that environment sees it at
 its next start and `osct content purge` understands what the editor wrote. `latest.json` and the `versions.json` entry
@@ -375,12 +381,22 @@ plugin source ("Plugin sources" – the 400 says so). They live in the content s
 `assets/<book>/<asset id>/v<n>.<ext>` – in the content store's folder for the local store, served (for every book id the
 editor accepts, capitals and `_` included) by `GET /content/assets/…` with the file's type, a year's cache and `Access-Control-Allow-Origin: *` (the reader's
 engine loads them cross-origin), or in the CDN's storage zone (`CONTENT_STORE=bunny`, reached at
-`CONTENT_BASE_URL/assets/…`). `ASSET_BASE_URL` overrides where their URLs point.
+`CONTENT_BASE_URL/assets/…`). `ASSET_BASE_URL` overrides where their URLs point. The local store's URLs are this API's
+own (`Http::apiUrl()`): on a deployed instance (`ENV` not `local`) the host of `APP_URL` – the API is served as `/api`
+next to the app – and never the request's `Host` / `X-Forwarded-Host`, which the client chooses and which would end up
+in the content; without `APP_URL` such an instance refuses the upload (500 `not-configured`). A local instance takes
+the request's host (there `APP_URL` names an app's dev server, and the API answers on its own port). The same host is
+in `GET /editor/environments`' `url` for the server store.
 
 A node's `src` and a target's `imageSrc` hold the asset's **absolute URL** – the publish leaves absolute URLs as
 they are, so draft and every version point at the same file. Tables: `assets` (one per file: name, kind, mime,
 size, sha256, width / height, `duration_ms`, the current version's path and URL) and `asset_versions` (one per upload). The same
-bytes uploaded twice are one asset.
+bytes uploaded twice are one asset. An upload or a replace writes the file first and then its rows in one transaction;
+rows that cannot be written take the file with them (no file without its row). A replace locks the asset's row from
+reading its version to the new version's rows, so two replaces at once take two version numbers. A delete removes the
+rows in one transaction with a change in the book's log (kind `asset`, `before` = the asset with its versions – as a
+[removal](#removing-a-spread-or-an-entry) records the files it takes), so a forced delete is in the history; the files
+go after the commit.
 
 An upload or a replace reads the file's own numbers: an image's width and height (its header), a video's width, height
 and duration (`VideoInfo.php`, plain PHP, no ffmpeg): mp4 / mov from `moov › mvhd` (duration, timescale) and the video
@@ -395,7 +411,7 @@ the column existed stay `null` until their file is replaced.
 | `POST /editor/books/{id}/assets` | the file; `X-File-Name: name.ext` | 201 `{ asset }`, or 200 with the asset that already holds these bytes. 400 `invalid-file` (no name, unsupported type, empty, a shader that is no text), 413 `body-too-large` (a shader above 256 KB) |
 | `PUT /editor/books/{id}/assets/{aid}/file` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked }` – a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one, and the book's environment (`worldSrc`, `skySrc`), and every plugin source that names it (a shader it loads – the URL replaced in its text) (a change each) |
 | `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: environment | target | entity | entry | plugin, ref }], asset }` (`environment`: the book's world model or sky, `ref` = the book; `plugin`: a plugin source naming the URL, `ref` = its id; `asset` as the list has it) |
-| `DELETE /editor/books/{id}/assets/{aid}[?force=1]` | | 204; 409 `asset-in-use` with `usages` unless forced (the files of every version go) |
+| `DELETE /editor/books/{id}/assets/{aid}[?force=1]` | | 204; 409 `asset-in-use` with `usages` unless forced (the files of every version go; a change `asset` in the log) |
 
 Renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build (PLAN 2b).
 

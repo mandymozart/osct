@@ -8,6 +8,8 @@ declare(strict_types=1);
 final class Db
 {
     private static ?PDO $pdo = null;
+    /** Whether `transaction()` has one open (PDO does not know about SQLite's hand-written BEGIN IMMEDIATE) */
+    private static bool $inTransaction = false;
 
     public static function pdo(): PDO
     {
@@ -104,18 +106,61 @@ final class Db
         return '%' . strtr($text, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
     }
 
+    /**
+     * Runs $work in one transaction: committed when it returns, rolled back when it throws. Called inside another
+     * transaction it joins that one (the outer call commits or rolls back), so a helper that keeps its own statements
+     * together (`Roles::grant`) can also run inside a caller's transaction.
+     *
+     * On SQLite the transaction is `BEGIN IMMEDIATE`: it takes the database's write lock at the start, so a second
+     * writer waits (the busy timeout) before it reads anything and then reads what the first one committed. PDO's own
+     * `beginTransaction()` starts a deferred transaction, where two writers that both read first deadlock on their
+     * first write – hence the statements by hand and the flag below instead of PDO's.
+     */
     public static function transaction(callable $work): mixed
     {
         $pdo = self::pdo();
-        $pdo->beginTransaction();
+        if (self::$inTransaction || $pdo->inTransaction()) return $work();
+        $sqlite = self::isSqlite();
+        if ($sqlite) $pdo->exec('BEGIN IMMEDIATE');
+        else $pdo->beginTransaction();
+        self::$inTransaction = true;
         try {
             $result = $work();
-            $pdo->commit();
+            if ($sqlite) $pdo->exec('COMMIT');
+            else $pdo->commit();
             return $result;
         } catch (Throwable $error) {
-            $pdo->rollBack();
+            try {
+                if ($sqlite) $pdo->exec('ROLLBACK');
+                else $pdo->rollBack();
+            } catch (PDOException) {
+                // SQLite may have rolled back on its own (a failed COMMIT, a full disk): the first error is the one to report
+            }
             throw $error;
+        } finally {
+            self::$inTransaction = false;
         }
+    }
+
+    /**
+     * ` FOR UPDATE` on MySQL, nothing on SQLite – appended to a SELECT inside a transaction whose rows are read, changed
+     * and written back, or counted before a change that depends on the count. On InnoDB a plain SELECT reads a snapshot,
+     * so two requests could both read the old state and act on it; the locking read makes the second wait for the
+     * first's commit and read its result. SQLite has no such clause and needs none: its transactions hold the write
+     * lock from the start (`transaction()`).
+     */
+    public static function forUpdate(): string
+    {
+        return self::isSqlite() ? '' : ' FOR UPDATE';
+    }
+
+    /** Whether a failed statement broke a unique key or the primary key (MySQL 1062, SQLite's UNIQUE / PRIMARY KEY constraint) */
+    public static function isDuplicate(PDOException $error): bool
+    {
+        $info = $error->errorInfo ?? [];
+        $code = (int) ($info[1] ?? 0);
+        if ($code === 1062) return true;
+        return $code === 19 && preg_match('/UNIQUE|PRIMARY KEY/i', (string) ($info[2] ?? $error->getMessage())) === 1;
     }
 
     /** UTC time as stored in the DATETIME columns */

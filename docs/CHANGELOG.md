@@ -7,6 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Fixed
+- **Stored file URLs no longer come from the request's host headers** (#209): on staging and production the URLs of
+  files the server stores itself (uploads without a CDN) are built from `APP_URL`, never from the client's `Host` /
+  `X-Forwarded-Host`; an instance without `APP_URL` refuses the upload instead of storing a guessed URL. A local
+  development instance still takes the request's host.
+- **Admin role changes cannot race** (#209): two admins revoking each other at the same moment can no longer leave the
+  instance without an admin, adding an editor by address creates the user and its roles together or not at all, and a
+  role granted twice at once answers "already granted" instead of a server error.
+- **Library files and their rows stay together** (#209): an upload or a replace whose database rows fail removes its
+  file again, two replaces at once get two version numbers, and deleting a file – forced or not – is recorded in the
+  book's change log.
+- **Parallel saves no longer overwrite each other** (#209): saving a target, a spread, the book's environment or its
+  post-processing reads and writes the row in one locked transaction.
+
 ## 1.50.3 – 2026-10-30
 
 ### Fixed

@@ -144,20 +144,28 @@ final class Assets
         $id = Db::uuid();
         $path = self::path($bookId, $id, 1, $extension);
         $store = ContentStore::for(self::STORE_ENV);
-        $store->put($path, $data, self::MIMES[$extension]);
+        // The URL before the file: a refusal there (no APP_URL) leaves nothing behind
+        $url = self::url($store, $path);
         [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
         $row = [
             'id' => $id, 'book_id' => $bookId, 'name' => $name, 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension],
             'size' => strlen($data), 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_ms' => $duration, 'version' => 1,
-            'path' => $path, 'url' => self::url($store, $path), 'status' => 'active', 'created_by' => $user['id'], 'created_at' => $now, 'updated_at' => $now,
+            'path' => $path, 'url' => $url, 'status' => 'active', 'created_by' => $user['id'], 'created_at' => $now, 'updated_at' => $now,
         ];
-        Db::transaction(function () use ($row, $user, $now) {
-            Db::run('INSERT INTO assets (id, book_id, name, kind, mime, size, sha256, width, height, duration_ms, version, path, url, status, created_by, created_at, updated_at)
-                     VALUES (:id, :book_id, :name, :kind, :mime, :size, :sha256, :width, :height, :duration_ms, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
-            Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, 1, :path, :url, :size, :sha, :mime, :by, :at)',
-                ['id' => Db::uuid(), 'asset' => $row['id'], 'path' => $row['path'], 'url' => $row['url'], 'size' => $row['size'], 'sha' => $row['sha256'], 'mime' => $row['mime'], 'by' => $user['id'], 'at' => $now]);
-        });
+        // The file first, then its rows in one transaction; rows that cannot be written take the file with them (no orphan)
+        $store->put($path, $data, self::MIMES[$extension]);
+        try {
+            Db::transaction(function () use ($row, $user, $now) {
+                Db::run('INSERT INTO assets (id, book_id, name, kind, mime, size, sha256, width, height, duration_ms, version, path, url, status, created_by, created_at, updated_at)
+                         VALUES (:id, :book_id, :name, :kind, :mime, :size, :sha256, :width, :height, :duration_ms, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
+                Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, 1, :path, :url, :size, :sha, :mime, :by, :at)',
+                    ['id' => Db::uuid(), 'asset' => $row['id'], 'path' => $row['path'], 'url' => $row['url'], 'size' => $row['size'], 'sha' => $row['sha256'], 'mime' => $row['mime'], 'by' => $user['id'], 'at' => $now]);
+            });
+        } catch (Throwable $error) {
+            self::deleteFile($store, $path);
+            throw $error;
+        }
         Http::json(201, ['asset' => self::summary($row, 0)]);
     }
 
@@ -173,21 +181,29 @@ final class Assets
         if (self::KINDS[$extension] !== $asset['kind']) {
             throw new ApiError(400, 'invalid-file', "A {$asset['kind']} asset can only be replaced by a {$asset['kind']} file.");
         }
-        $version = (int) $asset['version'] + 1;
-        $path = self::path($bookId, $assetId, $version, $extension);
         $store = ContentStore::for(self::STORE_ENV);
-        $store->put($path, $data, self::MIMES[$extension]);
-        $url = self::url($store, $path);
         [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
-        $relinked = 0;
-        Db::transaction(function () use ($bookId, $asset, $assetId, $name, $extension, $data, $version, $path, $url, $width, $height, $duration, $now, $user, &$relinked) {
-            Db::run('UPDATE assets SET name = :name, mime = :mime, size = :size, sha256 = :sha, width = :width, height = :height, duration_ms = :duration, version = :version, path = :path, url = :url, updated_at = :now WHERE id = :id',
-                ['name' => $name, 'mime' => self::MIMES[$extension], 'size' => strlen($data), 'sha' => hash('sha256', $data), 'width' => $width, 'height' => $height, 'duration' => $duration,
-                 'version' => $version, 'path' => $path, 'url' => $url, 'now' => $now, 'id' => $assetId]);
-            Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, :version, :path, :url, :size, :sha, :mime, :by, :at)',
-                ['id' => Db::uuid(), 'asset' => $assetId, 'version' => $version, 'path' => $path, 'url' => $url, 'size' => strlen($data), 'sha' => hash('sha256', $data), 'mime' => self::MIMES[$extension], 'by' => $user['id'], 'at' => $now]);
-            $relinked = self::relink($bookId, $asset['url'], $url, $user);
+        // The asset's row locked from reading its version to the new version's rows: a parallel replace waits and takes the
+        // next number instead of writing the same path. The file goes first; rows that cannot be written take it with them
+        // – inside the transaction, while no other replace can have written that path.
+        [$url, $relinked] = Db::transaction(function () use ($bookId, $assetId, $name, $extension, $data, $width, $height, $duration, $now, $user, $store) {
+            $current = self::row($bookId, $assetId, true);
+            $version = (int) $current['version'] + 1;
+            $path = self::path($bookId, $assetId, $version, $extension);
+            $url = self::url($store, $path);
+            $store->put($path, $data, self::MIMES[$extension]);
+            try {
+                Db::run('UPDATE assets SET name = :name, mime = :mime, size = :size, sha256 = :sha, width = :width, height = :height, duration_ms = :duration, version = :version, path = :path, url = :url, updated_at = :now WHERE id = :id',
+                    ['name' => $name, 'mime' => self::MIMES[$extension], 'size' => strlen($data), 'sha' => hash('sha256', $data), 'width' => $width, 'height' => $height, 'duration' => $duration,
+                     'version' => $version, 'path' => $path, 'url' => $url, 'now' => $now, 'id' => $assetId]);
+                Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, :version, :path, :url, :size, :sha, :mime, :by, :at)',
+                    ['id' => Db::uuid(), 'asset' => $assetId, 'version' => $version, 'path' => $path, 'url' => $url, 'size' => strlen($data), 'sha' => hash('sha256', $data), 'mime' => self::MIMES[$extension], 'by' => $user['id'], 'at' => $now]);
+                return [$url, self::relink($bookId, $current['url'], $url, $user)];
+            } catch (Throwable $error) {
+                self::deleteFile($store, $path);
+                throw $error;
+            }
         });
         Http::json(200, ['asset' => self::summary(self::row($bookId, $assetId), count(self::usagesOf($bookId, ['url' => $url, 'id' => $assetId]))), 'relinked' => $relinked]);
     }
@@ -201,21 +217,43 @@ final class Assets
         Http::json(200, ['usages' => $usages, 'asset' => self::summary($asset, count($usages))]);
     }
 
-    /** DELETE /editor/books/{id}/assets/{assetId}[?force=1] → 204; 409 `asset-in-use` with the usages unless forced */
+    /**
+     * DELETE /editor/books/{id}/assets/{assetId}[?force=1] → 204; 409 `asset-in-use` with the usages unless forced. The rows
+     * go in one transaction with a change in the book's log (kind `asset`, `before` = the asset with its versions – as a
+     * removal records the files it takes), so a forced delete that leaves rows naming a missing file is in the history;
+     * the stored files of every version go after the commit (a store cannot roll back).
+     */
     public static function delete(string $bookId, string $assetId): never
     {
-        Editor::user();
+        $user = Editor::user();
         $asset = self::row($bookId, $assetId);
         $usages = self::usagesOf($bookId, $asset);
         if ($usages && ($_GET['force'] ?? '') !== '1') {
             throw new ApiError(409, 'asset-in-use', 'The asset is used – remove the uses first, or force the delete.', ['usages' => $usages]);
         }
-        $store = ContentStore::for(self::STORE_ENV);
-        foreach (Db::run('SELECT path FROM asset_versions WHERE asset_id = :id', ['id' => $assetId])->fetchAll() as $version) {
-            $store->delete($version['path']);
-        }
-        Db::run('DELETE FROM assets WHERE id = :id', ['id' => $assetId]);
+        $paths = Db::transaction(static function () use ($bookId, $assetId, $user): array {
+            $asset = self::row($bookId, $assetId, true);
+            $versions = Db::run('SELECT version, path, url FROM asset_versions WHERE asset_id = :id ORDER BY version', ['id' => $assetId])->fetchAll();
+            Db::run('DELETE FROM asset_versions WHERE asset_id = :id', ['id' => $assetId]);
+            Db::run('DELETE FROM assets WHERE id = :id', ['id' => $assetId]);
+            Books::recordChange($bookId, $user, 'asset', $assetId, Editor::encode(self::before($asset, $versions)), 'null');
+            return array_column($versions, 'path');
+        });
+        Removal::deleteStoredFiles($paths);
         Http::json(204, null);
+    }
+
+    /**
+     * An asset as a change's `before` records it when its row goes (here and in `Removal`): the row's fields and its versions
+     * @param array<string, mixed> $asset
+     * @param list<array<string, mixed>> $versions rows of asset_versions (version, path, url)
+     * @return array<string, mixed>
+     */
+    public static function before(array $asset, array $versions): array
+    {
+        return ['id' => $asset['id'], 'name' => $asset['name'], 'kind' => $asset['kind'], 'mime' => $asset['mime'], 'size' => (int) $asset['size'],
+            'sha256' => $asset['sha256'], 'url' => $asset['url'], 'version' => (int) $asset['version'],
+            'versions' => array_map(static fn(array $v) => ['version' => (int) $v['version'], 'path' => $v['path'], 'url' => $v['url']], $versions)];
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────────────────────
@@ -298,12 +336,26 @@ final class Assets
         return $info ? [(int) $info[0], (int) $info[1], null] : [null, null, null];
     }
 
-    /** @return array<string, mixed> */
-    private static function row(string $bookId, string $assetId): array
+    /**
+     * The asset's row, else 404. `$lock` (inside a transaction that changes it) locks it – `Db::forUpdate()`.
+     * @return array<string, mixed>
+     */
+    private static function row(string $bookId, string $assetId, bool $lock = false): array
     {
-        $row = Db::one('SELECT * FROM assets WHERE book_id = :book AND id = :id AND status = :status', ['book' => $bookId, 'id' => $assetId, 'status' => 'active']);
+        $row = Db::one('SELECT * FROM assets WHERE book_id = :book AND id = :id AND status = :status' . ($lock ? Db::forUpdate() : ''),
+            ['book' => $bookId, 'id' => $assetId, 'status' => 'active']);
         if (!$row) throw new ApiError(404, 'not-found', 'No such asset.');
         return $row;
+    }
+
+    /** Takes back a file whose rows could not be written; a file that cannot be deleted is logged, the first error stands */
+    private static function deleteFile(ContentStore $store, string $path): void
+    {
+        try {
+            $store->delete($path);
+        } catch (Throwable $error) {
+            error_log("Assets: the stored file $path stays without its rows – {$error->getMessage()}");
+        }
     }
 
     /**
@@ -339,7 +391,7 @@ final class Assets
         $count = 0;
         $swap = static fn(string $json): string => str_replace(Editor::encode($from), Editor::encode($to), $json);
         // The book's environment (its world model or sky): only that field of the book's JSON, nothing else of the book
-        $book = Db::one('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $book = Db::one('SELECT book_json FROM books WHERE id = :id' . Db::forUpdate(), ['id' => $bookId]);
         $decoded = Editor::decode($book['book_json'] ?? null);
         if ($decoded instanceof stdClass && ($decoded->environment ?? null) instanceof stdClass) {
             $changed = false;
