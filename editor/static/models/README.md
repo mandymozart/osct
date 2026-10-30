@@ -10,8 +10,10 @@ tops, 72 cm high – our own low-poly models, both built by `editor/tools/desk-e
 
 The files carry no textures. Each model's origin is the centre of the top's upper surface; the stage puts its own
 look on the material `top` (Poly Haven's plywood tinted to the phenolic brown for the Eiermann top, white for
-Schöpfer's) and on `edge` (the Eiermann top's cut edges: the plies along the edge) and leaves `steel` (the frame) and
-`drawer` (the inside of the cutouts) as exported. Regenerate both with
+Schöpfer's) and on `edge` (both tops' cut sides: the plywood's plies, drawn in code by
+`editor/src/lib/stage/plywood.ts`) and leaves `steel` (the frame) and `drawer` (the inside of the cutouts) as exported.
+The edges' UVs run u along the edge (a repeat every 250 mm) and v through the thickness: one stack of plies for the
+Eiermann board, three for Schöpfer's top. Regenerate both with
 
 ```bash
 "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" -b -P editor/tools/desk-eiermann.py

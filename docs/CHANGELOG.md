@@ -12,6 +12,18 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **The stage's desks show cut plywood on their edges** (#107): both the Eiermann board and Schöpfer's thick white top
+  show the plies of birch plywood along their cut sides – light long-grain veneers and slightly darker cross-grain ones
+  in turn, with thin glue lines between them. The plies are drawn by the editor itself (no image to download), and the
+  faces of both desks look as before. The desk models' edges got their own UVs so the plies lie parallel to the faces.
+
+### Fixed
+- **The Eiermann desk showed a flat brown top until the desk was switched** (#107): the default desk now gets its
+  plywood look right away.
+
 ## 1.36.3 – 2026-10-30
 
 ### Fixed
