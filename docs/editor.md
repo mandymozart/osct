@@ -440,22 +440,27 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 
 ## AI connections
 
-Connecting Claude is a first step of working here, so it sits on the books page under the covers (#142,
+Connecting an AI agent is a first step of working here, so it sits on the books page under the covers (#142, #194,
 `lib/AiConnections.svelte`, `lib/mcp-setup.ts`), two columns where the shelf has room, one under the other on a phone:
 
-- **AI connections** – a name ("Claude on my laptop") and **Create token**: the token `osct_…` shows once in a framed
+- **AI connections** – a name and **Create token**; the field suggests the agent and the machine after the client picked
+  in the guide ("Codex on my laptop") – the name stands in the change log of every save. The token `osct_…` shows once in a framed
   box with **Copy** and the warning that it is not shown again; **Done** closes it (it is never stored in the browser).
   The list: each token's name and prefix, *last used* (never, 5 min ago, yesterday …) and *expires* (red in its last
   14 days and once expired), **Renew** (182 days from today – the same token works on) and **Revoke** (asks first; it
   stops at once). Every call is the person's own session – the API refuses them to a token ([server, "AI
   connections"](server.md#ai-connections)).
-- **Connect Claude** – the MCP guide: what the server does (Claude works in this editor as you, saves drafts, never
-  publishes), this instance's API as the **server** URL (the editor's `/api` as an absolute URL) with **Copy**, the
-  setup as segmented pills **Claude Code** (`claude mcp add osct --scope user -e OSCT_API_URL=… -e OSCT_EDITOR_TOKEN=…
-  -- node <path to osct>/mcp/bin/osct-mcp.mjs`) / **Claude Desktop** (the `mcpServers` entry of
-  `claude_desktop_config.json`) with **Copy** – a token just made is filled in, else `osct_…` – and the first steps: a
-  checkout with `npm ci` in `mcp/`, the command or the config entry, then `whoami` and `describe_content_model`
-  ([mcp](mcp.md)).
+- **Connect an AI agent** – the MCP guide: what the server does (an AI agent – Claude, Codex, OpenCode, Cursor or any
+  other MCP client – works in this editor as you, saves drafts, never publishes), then **Any MCP client (stdio)**: a
+  field for *the path to `mcp/bin/osct-mcp.mjs` in your osct checkout* (typed once, kept in this browser under
+  `osct-editor-mcp-file`; a folder gets the file appended, quotes of a copied path go) and four rows with **Copy** – the
+  **name** `osct-<env>` after the environment `GET /health` names (`osct-staging` on staging), the **command**
+  `node <file>`, **OSCT_API_URL** (the editor's `/api` as an absolute URL) and **OSCT_EDITOR_TOKEN**. Under it the same
+  as each client's snippet, segmented pills **Claude Code** (`claude mcp add …`) / **Claude Desktop**
+  (`claude_desktop_config.json`) / **Codex CLI** (`~/.codex/config.toml`) / **OpenCode** (`opencode.json`) / **Cursor**
+  (`.cursor/mcp.json`) with **Copy** – a token just made is filled in, else `osct_…`; no path typed, `/path/to/osct/…` –
+  and the first steps: a checkout with `npm ci` in `mcp/`, where the snippet goes, then `whoami` and
+  `describe_content_model` ([mcp, "Connecting an agent"](mcp.md#connecting-an-agent)).
 
 ## Where the code lives
 

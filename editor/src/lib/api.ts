@@ -197,6 +197,16 @@ export const renewApiToken = (id: string) => api<{ apiToken: ApiToken }>("POST",
 
 export const revokeApiToken = (id: string) => api<void>("DELETE", `/user/tokens/${encodeURIComponent(id)}`);
 
+/** The instance's health: its version and its environment (`local`, `staging`, `production`; absent from an older API) */
+export interface Health {
+  status: string;
+  version: string;
+  env?: string;
+  db: string;
+}
+
+export const getHealth = () => api<Health>("GET", "/health");
+
 // ── Admin (docs/server.md "Admin API", docs/admin.md) ───────────────────────────────────────────
 
 export interface Role {

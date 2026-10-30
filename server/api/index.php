@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * OSCT users API (docs/server.md) – every request under /api/ comes here (.htaccess).
  *
- *   GET    /health                   { status, version, db }
+ *   GET    /health                   { status, version, env, db }
  *   POST   /auth/request             send the confirmation email (link + code)
  *   POST   /auth/verify              link token or request id + code → session token
  *   POST   /auth/password            email + password → session token (users who set a password)
@@ -106,7 +106,7 @@ try {
     Http::cors();
     $route = "$method $path";
     match (true) {
-        $route === 'GET /health' => Http::json(200, ['status' => 'ok', 'version' => Version::APP, 'db' => Db::value('SELECT 1') == 1 ? 'ok' : 'error']),
+        $route === 'GET /health' => Http::json(200, ['status' => 'ok', 'version' => Version::APP, 'env' => Config::env(), 'db' => Db::value('SELECT 1') == 1 ? 'ok' : 'error']),
         $route === 'POST /admin/migrate' => migrate(),
         $route === 'POST /admin/editors' => Admin::makeEditor(Http::body()),
         $route === 'GET /admin/roles' => Admin::roles(),

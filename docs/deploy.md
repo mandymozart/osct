@@ -56,7 +56,8 @@ Then http://localhost:8080 and http://localhost:8080/api/health; sign-in mails l
 
 `config/deploy.yml` is the shared Kamal configuration, `config/deploy.staging.yml` and
 `config/deploy.production.yml` the two destinations (service name `osct-staging` / `osct`, the server, the domain,
-`OSCT_APP_URL`, `OSCT_ALLOWED_ORIGINS`, `OSCT_DB_HOST`). The API reads every setting from `OSCT_*` environment
+`OSCT_ENV` – `staging` / `production`, which `/api/health` names –, `OSCT_APP_URL`, `OSCT_ALLOWED_ORIGINS`,
+`OSCT_DB_HOST`). The API reads every setting from `OSCT_*` environment
 variables (`server/api/src/Config.php`); there is no `config.local.php` in the container.
 
 The files are ERB: the server and the mail settings come from environment variables, the secrets through

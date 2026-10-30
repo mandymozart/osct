@@ -1,7 +1,8 @@
-# MCP server: a Claude session as an editor
+# MCP server: an AI agent as an editor
 
-`mcp/` is an [MCP](https://modelcontextprotocol.io) server (stdio, Node 22) over the editor's API, so an AI client –
-Claude Code in this repository, Claude Desktop – works on a book the way the editor does: it reads the tree and a
+`mcp/` is an [MCP](https://modelcontextprotocol.io) server (stdio, Node 22) over the editor's API, so an AI agent – any
+MCP client: Claude Code in this repository, Claude Desktop, Codex CLI, OpenCode, Cursor … – works on a book the way the
+editor does: it reads the tree and a
 spread, places entities on targets, sets components and filters, uploads files, writes plugin sources and publishes a
 draft for a check. It is built after SCUTOONS' MCP (`scutoons/tools/mcp`, `agents/MCP.md` there) so the two can be one
 in the white-label core later: **the API is the only authority** – every call carries the user's session token and the
@@ -30,8 +31,8 @@ mcp/
 The server talks to one API (`OSCT_API_URL`, default `http://127.0.0.1:8080/api` – the local dev API) as one user:
 
 - **An AI connection's token** – the usual way: on the editor's books page, *AI connections* → a name → **Create
-  token** ([editor](editor.md#ai-connections)); the token `osct_…` is shown once, and the setup snippet beside it has
-  it filled in. Set it as `OSCT_EDITOR_TOKEN`: the server skips the mail sign-in, lists the editor's tools from the start,
+  token** ([editor](editor.md#ai-connections)) – best named after the agent and the machine ("Codex on my laptop"); the
+  token `osct_…` is shown once, and the setup snippets beside it have it filled in. Set it as `OSCT_EDITOR_TOKEN`: the server skips the mail sign-in, lists the editor's tools from the start,
   and `whoami` answers `signedIn: { with: "token", token: { name, prefix, expiresAt, lastUsedAt } }`. The token is the
   person with their roles, but the API refuses it every publish (any environment), the tokens, the password and the
   account (403 `not-for-ai` – the tool's error hints to hand it to the person); every save names it in the change log
@@ -50,20 +51,75 @@ A signed-in user without the editor role gets `whoami`'s hint and no tools: an a
 ([admin](admin.md)). `OSCT_EDITOR_URL` names the editor app the links point at (default: the local dev editor
 `http://localhost:5175/editor`, or `/editor` next to a deployed API).
 
-## In Claude Code
+## Connecting an agent
 
-The repository's `.mcp.json` (project scope) starts the server for every Claude Code session opened here:
+The server runs from a checkout of the repository: once `cd mcp && npm ci` (Node 22). Any MCP client that starts a
+stdio server needs four things – the editor's books page shows them under *Connect an AI agent*
+([editor](editor.md#ai-connections)) with the instance's values, a token just made and the path the person typed once:
+
+| | what |
+|---|---|
+| name | `osct-<env>` after the instance's environment (`GET /health` → `env`, the API's `ENV` setting – [server](server.md#configuration)): `osct-local`, `osct-staging`, `osct-production`. One name per instance, so several sit side by side, and none is `osct` – the repository's own `.mcp.json` (below) has that name, and in Claude Code a project's server hides a user server of the same name |
+| command | `node <checkout>/mcp/bin/osct-mcp.mjs` – the path to the file in the person's osct checkout (the editor cannot know it: the guide's field takes it once, the browser keeps it, a folder gets `mcp/bin/osct-mcp.mjs` appended) |
+| `OSCT_API_URL` | the instance's API, absolute: `https://osct.porschuetz.de/api` |
+| `OSCT_EDITOR_TOKEN` | an AI connection's token `osct_…` ([above](#signing-in)) |
+
+Each client's own format, as the guide writes it (`editor/src/lib/mcp-setup.ts`, checked against each client's docs):
+
+- **Claude Code** – one command for every project of the computer
+  ([docs](https://code.claude.com/docs/en/mcp)); the name comes before the options – right after `-e` the CLI would
+  read it as another variable:
+  ```sh
+  claude mcp add osct-staging --scope user -e OSCT_API_URL=https://osct.porschuetz.de/api -e OSCT_EDITOR_TOKEN=osct_… -- node /path/to/osct/mcp/bin/osct-mcp.mjs
+  ```
+- **Claude Desktop** – the `mcpServers` entry of `claude_desktop_config.json` (Settings → Developer → Edit Config),
+  then restart ([docs](https://modelcontextprotocol.io/docs/develop/connect-local-servers)):
+  ```json
+  { "mcpServers": { "osct-staging": { "command": "node", "args": ["/path/to/osct/mcp/bin/osct-mcp.mjs"],
+    "env": { "OSCT_API_URL": "https://osct.porschuetz.de/api", "OSCT_EDITOR_TOKEN": "osct_…" } } } }
+  ```
+- **Codex CLI** – a table in `~/.codex/config.toml` ([docs](https://developers.openai.com/codex/mcp)):
+  ```toml
+  [mcp_servers.osct-staging]
+  command = "node"
+  args = ["/path/to/osct/mcp/bin/osct-mcp.mjs"]
+
+  [mcp_servers.osct-staging.env]
+  OSCT_API_URL = "https://osct.porschuetz.de/api"
+  OSCT_EDITOR_TOKEN = "osct_…"
+  ```
+- **OpenCode** – a local server under `mcp` in `~/.config/opencode/opencode.json` (every project) or a project's
+  `opencode.json`; the command is one array, the variables are `environment`
+  ([docs](https://opencode.ai/docs/mcp-servers/)):
+  ```json
+  { "$schema": "https://opencode.ai/config.json", "mcp": { "osct-staging": { "type": "local",
+    "command": ["node", "/path/to/osct/mcp/bin/osct-mcp.mjs"], "enabled": true,
+    "environment": { "OSCT_API_URL": "https://osct.porschuetz.de/api", "OSCT_EDITOR_TOKEN": "osct_…" } } } }
+  ```
+- **Cursor** – the `mcpServers` entry of `~/.cursor/mcp.json` (every project) or a project's `.cursor/mcp.json`
+  ([docs](https://cursor.com/docs/context/mcp)):
+  ```json
+  { "mcpServers": { "osct-staging": { "type": "stdio", "command": "node", "args": ["/path/to/osct/mcp/bin/osct-mcp.mjs"],
+    "env": { "OSCT_API_URL": "https://osct.porschuetz.de/api", "OSCT_EDITOR_TOKEN": "osct_…" } } } }
+  ```
+
+A Windows path goes in as it is: the JSON and TOML snippets escape its backslashes, the command quotes it when it holds
+a space. Then ask the agent `whoami` – it names the person and the token – and `describe_content_model` before the first
+change.
+
+### In this repository (development)
+
+The repository's `.mcp.json` (project scope) starts the server as `osct` for every Claude Code session opened here,
+against the local dev API:
 
 ```json
 { "mcpServers": { "osct": { "command": "node", "args": ["mcp/bin/osct-mcp.mjs"],
   "env": { "OSCT_API_URL": "${OSCT_API_URL:-http://127.0.0.1:8080/api}", "OSCT_EDITOR_TOKEN": "${OSCT_EDITOR_TOKEN:-}" } } } }
 ```
 
-Once: `cd mcp && npm ci`. Then start the API (`cd client && npm run dev:api`, [editor, "Try it"](editor.md#try-it-the-morning-test-with-the-demo-scene)) and ask Claude
-`whoami`. Against staging: `OSCT_API_URL=https://osct.porschuetz.de/api OSCT_EDITOR_TOKEN=osct_… claude`. For every
-project of the computer: `claude mcp add osct --scope user -e OSCT_API_URL=… -e OSCT_EDITOR_TOKEN=osct_… -- node
-<repo>/mcp/bin/osct-mcp.mjs` – the books page's guide shows this command (and Claude Desktop's
-`claude_desktop_config.json` entry, the same `command`, `args` and `env`) with the instance's API and a token just made.
+Start the API (`cd client && npm run dev:api`, [editor, "Try it"](editor.md#try-it-the-morning-test-with-the-demo-scene))
+and ask `whoami`. Against staging for one session: `OSCT_API_URL=https://osct.porschuetz.de/api
+OSCT_EDITOR_TOKEN=osct_… claude`; for good, the `osct-staging` server above.
 
 ## The tools
 

@@ -12,6 +12,20 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Connect an AI agent, not only Claude** (#194): the guide beside the AI connections on the editor's books page is
+  for any agent. It first shows what every MCP client needs – the server's name, the command `node <file>`,
+  `OSCT_API_URL` and `OSCT_EDITOR_TOKEN`, each with a copy button – then a ready snippet for Claude Code, Claude
+  Desktop, Codex CLI, OpenCode and Cursor, with the new token filled in. The path to `mcp/bin/osct-mcp.mjs` in your
+  osct checkout is a field you fill once (this browser remembers it) instead of a placeholder hidden in the snippet.
+  The server is named after the instance (`osct-staging` on staging, `osct-production` on production), so several
+  instances sit side by side and none takes the repository's own `osct`. The token name suggests the agent and the
+  machine ("Codex on my laptop").
+- **API: `/api/health` names the environment** (`env`: `local`, `staging`, `production` – the new setting `ENV`,
+  set in the Kamal destinations).
+
 ## 1.39.1 – 2026-10-30
 
 ### Fixed

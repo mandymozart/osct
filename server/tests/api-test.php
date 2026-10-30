@@ -210,6 +210,7 @@ try {
     check($status === 200 && $data['db'] === 'ok', 'health answers with the database');
     $appVersion = json_decode((string) file_get_contents(dirname($root) . '/client/package.json'), true)['version'];
     check(($data['version'] ?? null) === $appVersion, "health reports the server version = the app version ($appVersion, RULES #10)");
+    check(($data['env'] ?? null) === 'local', 'health names the environment (ENV, default local) – the AI agent guide names the MCP server after it');
     check(in_array('Access-Control-Allow-Origin: http://localhost:5173', $headers, true), 'allowed origin gets CORS headers');
     [, , $headers] = call($api, 'GET', '/health', null, null, 'https://deploy-1--staging.example');
     check(in_array('Access-Control-Allow-Origin: https://deploy-1--staging.example', $headers, true), 'wildcard origin is allowed');

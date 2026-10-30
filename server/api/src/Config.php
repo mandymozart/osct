@@ -19,6 +19,9 @@ final class Config
         'SECRET' => '',
         // The app: links in the emails go here, unless the request comes from another allowed origin
         'APP_URL' => 'http://localhost:5173',
+        // Which environment this instance is (local, staging, production): GET /health names it, and the editor's AI
+        // agent guide names the MCP server after it (osct-staging …)
+        'ENV' => 'local',
         // Other origins that may call the API (comma separated, * wildcard), e.g. the staging site
         'ALLOWED_ORIGINS' => '',
         // Roles (docs/server.md "Roles"): e-mail addresses that get the role editor when they sign in – the first editors of
@@ -95,6 +98,13 @@ final class Config
     {
         $limit = self::int($key);
         return $limit < 0 ? PHP_INT_MAX : $limit;
+    }
+
+    /** This instance's environment (`ENV`): lower-case letters, digits and hyphens, else `local` */
+    public static function env(): string
+    {
+        $env = strtolower(trim(self::get('ENV')));
+        return preg_match('/^[a-z0-9][a-z0-9-]{0,31}$/', $env) ? $env : 'local';
     }
 
     /** @return string[] */
