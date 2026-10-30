@@ -3,7 +3,7 @@
 //   import type { PluginApi } from "osct-plugin-api";
 
 import * as THREE from 'three';
-import { AnimationClip, Group, Object3D, Texture, Vector2, VideoTexture } from 'three';
+import { AnimationClip, Group, Material, Object3D, Texture, Vector2, VideoTexture } from 'three';
 import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
@@ -76,7 +76,15 @@ interface FilterData {
 	type: FilterType;
 	[param: string]: string | number;
 }
-type ComponentParamSpec = ParamText & ({
+/**
+ * A parameter of a spec (a component's, a material layer's, a pass's, a light's, a plugin node type's, a material's, a
+ * procedural texture's): its kind with default and range, a `description` (the editor's help) and an optional `label`
+ * (schema 2.15, plugin API 1.3) – the few words the editor's row shows. Without a label the row shows the name split
+ * into words (`paramLabel`). A `texture` (schema 2.17, plugin API 1.4) takes a picture: a file (a Library image or
+ * video, a file of the content) or a procedural texture a plugin registers (`registerTexture`) – its value is a
+ * `TextureValue` (below); the engine hands the plugin's code a three.js texture.
+ */
+export type ComponentParamSpec = ParamText & ({
 	kind: "color";
 	default: string;
 } | {
@@ -96,7 +104,20 @@ type ComponentParamSpec = ParamText & ({
 } | {
 	kind: "string";
 	default: string;
+} | {
+	kind: "texture";
+	default: string;
 });
+/**
+ * A texture parameter's value (schema 2.17): `""` = none; a procedural texture's type (`caustics` – camelCase, what a
+ * plugin registers with `registerTexture`, with its defaults); `{ type, …parameters }` = a procedural texture with other
+ * values; any other string = a file (a Library file's URL or a `/assets/content/…` path – in the content's YAML a file
+ * next to the node, which the content build resolves to its path).
+ */
+export type TextureValue = string | {
+	type: string;
+	[param: string]: unknown;
+};
 interface ParamText {
 	/**
 	 * The few words the editor's row shows (schema 2.15, plugin API 1.3), e.g. `"speed"` for `degreesPerSecond` – 1 to
@@ -153,6 +174,22 @@ export interface NodeTypeSpec {
 	/** Its parameters, set in the node's `params` (never `position`, `rotation` or `scale` – the placement's) */
 	params: Record<string, ComponentParamSpec>;
 }
+export interface MaterialSpec {
+	description: string;
+	/** The node types it applies to (none = every node with meshes) – built-in types or a plugin's */
+	nodeTypes?: readonly string[];
+	/** Its parameters, set in the node's `material.params` */
+	params: Record<string, ComponentParamSpec>;
+}
+export interface TextureSpec {
+	description: string;
+	/** Its parameters, set in a texture value `{ type, …parameters }` (a plain type takes the defaults) */
+	params: Record<string, ComponentParamSpec>;
+}
+interface MaterialData {
+	type: string;
+	params?: Record<string, unknown>;
+}
 declare const ENTITY_TYPES: readonly [
 	"group",
 	"model",
@@ -206,6 +243,11 @@ interface EntityData {
 	filters?: FilterData[];
 	/** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.4) */
 	components?: ComponentData[];
+	/**
+	 * Optional (schema 2.17): a material a plugin registered (`registerMaterial`) that replaces the material of the node's
+	 * meshes – its type and values (`./materials.ts`); the node's material layers still add on top
+	 */
+	material?: MaterialData;
 	/** Child nodes, placed relative to this one */
 	children?: EntityData[];
 	/** `text` nodes: the line shown; `{{entry.title}}` and `{{book.title}}` are replaced */
@@ -426,6 +468,71 @@ export interface PostPass extends Pass {
 }
 export type PassFactory = (context: PassContext) => PostPass;
 /**
+ * A node's material of a plugin (plugin API 1.4, content schema 2.17 – `api.registerMaterial`): the node's
+ * `material: { type, params }` names a material a plugin registered; its `build` makes a three.js material (a
+ * `ShaderMaterial` with GLSL of its own, a `MeshStandardMaterial` with a procedural texture …) and the engine puts it on
+ * every mesh of the node's own object, in place of the material its type made (a model's, an image's or video's plane,
+ * a plugin node's). The node's material layers then add on top (`utils/layers.ts` patches the plugin's material in
+ * place – a `ShaderMaterial` takes them before `#include <colorspace_fragment>` and reads `vUv`). Texture parameters
+ * arrive as three.js textures (`textures.ts`); `time` is a uniform the engine advances every frame, so a shader can use
+ * it directly (`uniforms: { time }`).
+ */
+/** What a material's `build` gets */
+export interface MaterialContext {
+	node: EntityData;
+	/** The material's parameters with the spec's defaults filled in – a `texture` parameter as a three.js `Texture` (or null) */
+	params: Record<string, unknown>;
+	/** Seconds since the material was built, as a uniform the engine advances every frame (`uniforms: { time }`) */
+	time: {
+		value: number;
+	};
+	/**
+	 * The picture of the material it replaces – an image's or video's texture, a model's base colour map – or null: a
+	 * material that keeps the node's own picture reads it here
+	 */
+	map: Texture | null;
+	target: Target;
+	/** The app's three.js (one instance – plugins never import three themselves) */
+	three: typeof THREE;
+}
+/** What `build` returns when it needs more than the material: hooks, as a node type's */
+export interface MaterialInstance {
+	material: Material;
+	/** Every frame (seconds since the last one) – `time` advances by itself */
+	update?(delta: number): void;
+	/** Other parameter values in place (the editor's live edit); false = the material is built anew */
+	tune?(params: Record<string, unknown>): boolean;
+	/** Free what the build made beside the material (the engine disposes the material) */
+	dispose?(): void;
+}
+/** Builds the material: a three.js material, or a `MaterialInstance` with hooks */
+export type MaterialBuild = (context: MaterialContext) => Material | MaterialInstance | null | void;
+/**
+ * Texture parameters (plugin API 1.4, content schema 2.17): a spec's parameter of kind `texture` takes a file – a Library
+ * image or video, a file of the content – or a procedural texture a plugin registered (`api.registerTexture`, drawn by
+ * its code: a canvas or a data texture, animated or not). Wherever a plugin's code gets its parameters (a material's
+ * `build`, a node type's `build`, a component's `apply`, a layer's GLSL) the engine resolves such a value into a
+ * three.js `Texture` first (`resolveTextures`): the code never loads a file itself.
+ *
+ * A **file** texture is shared by every use of the same file (counted, disposed with its last use) – change its wrap or
+ * repeat once, never dispose it. A video plays muted in a loop while it is used. A **procedural** texture is drawn per
+ * use: the use owns it (its `update` runs every frame, it is disposed with the node).
+ */
+/** What a procedural texture's `draw` gets: its parameters resolved (the spec's defaults filled in), three.js */
+export interface TextureContext {
+	params: Record<string, unknown>;
+	/** The app's three.js (one instance – plugins never import three themselves) */
+	three: typeof THREE;
+}
+/** What `draw` returns: the texture and, for an animated one, an `update` every frame; `dispose` frees what it made beside it */
+export interface TextureInstance {
+	texture: Texture;
+	update?(delta: number): void;
+	dispose?(): void;
+}
+/** Draws a procedural texture: a texture (a `CanvasTexture`, a `DataTexture`) or a `TextureInstance` */
+export type TextureDraw = (context: TextureContext) => TextureInstance | Texture | null | void;
+/**
  * The plugin API (version `PLUGIN_API_VERSION`, agents/research/2026-10-29-code-in-the-editor.md): a book's own code
  * extends the engine without touching it. A plugin module exports `register(api)` and calls the registries –
  *
@@ -433,6 +540,8 @@ export type PassFactory = (context: PassContext) => PostPass;
  *   api.registerLayer("tint", SPEC, { glsl: "return mix(rgba, vec4(color, rgba.a), opacity);" })
  *   api.registerPass("halo", PASS_SPEC, ({ shaderPass }) => shaderPass(FRAGMENT))
  *   api.registerNodeType("sparkle", NODE_SPEC, ({ params, three }) => ({ object: new three.Points(…) }))
+ *   api.registerMaterial("water", MATERIAL_SPEC, ({ params, time, three }) => new three.ShaderMaterial({ uniforms: { time }, … }))
+ *   api.registerTexture("caustics", TEXTURE_SPEC, ({ params, three }) => ({ texture: new three.CanvasTexture(canvas), update }))
  *
  * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`, a node type:
  * `shared/types/node-types.ts`), so the editor's Entity panel, the content build and the guard read a plugin's
@@ -441,7 +550,9 @@ export type PassFactory = (context: PassContext) => PostPass;
  * material (`utils/layers.ts`); a **pass** is a post-processing effect over the rendered AR image
  * (`post/registry.ts`); a **node type** builds a node's own three.js object (`buildPluginNode`, called by the entity
  * registry for a type without a built-in builder – the node is placed, holds children, components and layers like
- * any). Components and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
+ * any); a **material** (API 1.4, `materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
+ * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
+ * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`, API 1.1): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread).
@@ -510,7 +621,9 @@ export interface NodeTypeContext {
 }
 /**
  * What a node type's `build` returns: the node's own three.js object – the engine puts it into the node's placement
- * group, next to its children – and the hooks it needs (every one optional, as a component's).
+ * group, next to its children – and the hooks it needs (every one optional, as a component's). When the node carries a
+ * material (API 1.4) it replaces the material of every mesh of the object, except a mesh with `userData.keepMaterial =
+ * true`.
  */
 export interface NodeTypeInstance {
 	object: Object3D;
@@ -545,6 +658,19 @@ export interface PluginApi {
 	 * `passes: [{ type, … }]`; the plugin's pass leaves the registry when the plugin is uninstalled.
 	 */
 	registerPass(type: string, spec: PassSpec, factory: PassFactory): void;
+	/**
+	 * A whole material (API 1.4): `build` makes a three.js material – a `ShaderMaterial` with GLSL of its own, a
+	 * `MeshStandardMaterial` with a procedural texture – and may return `{ material, update, tune, dispose }`. A node names
+	 * it as `material: { type, params }`; it replaces the material of the node's meshes (a model's, a plane's, a plugin
+	 * node's), the node's layers still add on top. `time` in the context is a uniform the engine advances.
+	 */
+	registerMaterial(type: string, spec: MaterialSpec, build: MaterialBuild): void;
+	/**
+	 * A procedural texture (API 1.4): `draw` makes a three.js texture (a `CanvasTexture`, a `DataTexture`) and may
+	 * return `{ texture, update, dispose }` to animate it. Any spec's `texture` parameter takes it by its type – a
+	 * material's, a layer's, a component's, a node type's.
+	 */
+	registerTexture(type: string, spec: TextureSpec, draw: TextureDraw): void;
 	/** Core events of the scene (read-only) and scene events of the content */
 	readonly events: PluginEvents;
 	/** Variables in the scopes spread, stage, session and book */

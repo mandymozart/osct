@@ -8,6 +8,9 @@ import * as THREE from 'three';
 import { componentSpecProblems, registerComponentSpec, type ComponentSpec } from '../../../shared/types/components';
 import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData, type PluginRegistrations } from '../../../shared/types/plugins';
 import { nodeTypeSpecProblems, registerNodeTypeSpec, type NodeTypeSpec } from '../../../shared/types/node-types';
+import {
+  materialSpecProblems, registerMaterialSpec, registerTextureSpec, textureSpecProblems, type MaterialSpec, type TextureSpec,
+} from '../../../shared/types/materials';
 import type { EntityData } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings } from '../lib/errors';
@@ -21,10 +24,11 @@ import { buildErrors, buildWarnings } from '../lib/errors';
  *      immutable version folder); a plugin imports nothing but types (three.js is `api.three`);
  *   3. runs the module once with a recording API: the components and material layers it registers join the
  *      registry, so the nodes that use them are checked like the built-in `animation`; the node types it registers
- *      join the node type registry, so nodes of that type pass (their parameters and file checked);
+ *      join the node type registry, so nodes of that type pass (their parameters and file checked); its materials and
+ *      procedural textures (API 1.4) join theirs, so a node's `material` and a `texture` parameter are checked;
  *   4. declares it in `game.config.json`: `plugins: [{ id, src, api, registered }]` – `registered` (schema 2.14) the
- *      specs of the components, layers, node types and passes it registered, so the guard, the editor's API, the MCP
- *      server and the Entity panel know them without running the plugin.
+ *      specs of the components, layers, node types, passes, materials and textures it registered, so the guard, the
+ *      editor's API, the MCP server and the Entity panel know them without running the plugin.
  * Nothing here runs in the content build without a review: plugins live in the content source like the YAML.
  */
 
@@ -154,7 +158,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'osct-plugin-')), `${id}.mjs`);
   fs.writeFileSync(file, code);
   const types: string[] = [];
-  const registered: Required<PluginRegistrations> = { components: {}, nodeTypes: {}, passes: {} };
+  const registered: Required<PluginRegistrations> = { components: {}, nodeTypes: {}, passes: {}, materials: {}, textures: {} };
   const record: PluginRecord = { types, registered };
   const take = (type: string, spec: ComponentSpec) => {
     const problems = componentSpecProblems(type, spec);
@@ -212,6 +216,36 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         types.push(type);
         registered.nodeTypes[type] = plain(spec);
       },
+      // A material (API 1.4): its spec joins the registry, so a node's `material` is checked (type, parameters)
+      registerMaterial: (type: string, spec: MaterialSpec, build: unknown) => {
+        const problems = materialSpecProblems(type, spec);
+        const key = `material:${type}`;
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the material "${type}" is registered by the plugin ${taken.get(key)} too`);
+        if (typeof build !== 'function') problems.push(`the material ${type} needs a build(context) function`);
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        registerMaterialSpec(type, spec);
+        types.push(type);
+        registered.materials[type] = plain(spec);
+      },
+      // A procedural texture (API 1.4): its spec joins the registry, so a `texture` parameter that names it is checked
+      registerTexture: (type: string, spec: TextureSpec, draw: unknown) => {
+        const problems = textureSpecProblems(type, spec);
+        const key = `texture:${type}`;
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the texture "${type}" is registered by the plugin ${taken.get(key)} too`);
+        if (typeof draw !== 'function') problems.push(`the texture ${type} needs a draw(context) function`);
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        registerTextureSpec(type, spec);
+        types.push(type);
+        registered.textures[type] = plain(spec);
+      },
       // The runtime (events, variables, progress, the spread) belongs to a running scene: here nothing happens
       events: { on: () => () => undefined, emit: () => undefined },
       vars: { get: () => undefined, set: () => undefined, on: () => () => undefined, all: () => ({}) },
@@ -257,7 +291,10 @@ export async function buildPlugins(): Promise<PluginBuild[]> {
     if (code === null) continue;
     const { types, registered } = await recordPlugin(id, code, taken);
     console.log(`   ${id}: ${Math.round(code.length / 1024)} KB${types.length ? ` – ${types.join(', ')}` : ''}`);
-    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION, registered }, code });
+    // Materials and textures (API 1.4) only when the plugin registers some
+    const { materials, textures, ...kinds } = registered;
+    const recorded: PluginRegistrations = { ...kinds, ...(Object.keys(materials).length ? { materials } : {}), ...(Object.keys(textures).length ? { textures } : {}) };
+    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION, registered: recorded }, code });
   }
   return builds;
 }

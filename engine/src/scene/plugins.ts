@@ -5,6 +5,8 @@ import {
   type ComponentSpec,
   componentSpecProblems,
   type EntityData,
+  type MaterialSpec,
+  materialSpecProblems,
   type NodeTypeSpec,
   nodeTypeSpecProblems,
   PLUGIN_API_VERSION,
@@ -12,16 +14,24 @@ import {
   type PluginData,
   type PassSpec,
   registerComponentSpec,
+  registerMaterialSpec,
   registerNodeTypeSpec,
+  registerTextureSpec,
   resolveNodeParams,
   resolveParams,
   type Target,
+  type TextureSpec,
+  textureSpecProblems,
   unregisterComponentSpec,
+  unregisterMaterialSpec,
   unregisterNodeTypeSpec,
+  unregisterTextureSpec,
 } from "../types/index";
 import type { LoadedAsset } from "./assets";
 import { dropPluginListeners, nextRun, type PluginEvents, type PluginProgress, type PluginSpread, type PluginVars, runtimeApi } from "./plugin-runtime";
 import { type PassFactory, passRegistration, registerPass, unregisterPassesOf } from "./post/registry";
+import { deleteMaterialRegistration, type MaterialBuild, materialRegistration, setMaterialRegistration } from "./materials";
+import { deleteTextureRegistration, resolveTextures, sameTextures, setTextureRegistration, type TextureDraw, textureRegistration } from "./textures";
 
 /**
  * The plugin API (version `PLUGIN_API_VERSION`, agents/research/2026-10-29-code-in-the-editor.md): a book's own code
@@ -31,6 +41,8 @@ import { type PassFactory, passRegistration, registerPass, unregisterPassesOf } 
  *   api.registerLayer("tint", SPEC, { glsl: "return mix(rgba, vec4(color, rgba.a), opacity);" })
  *   api.registerPass("halo", PASS_SPEC, ({ shaderPass }) => shaderPass(FRAGMENT))
  *   api.registerNodeType("sparkle", NODE_SPEC, ({ params, three }) => ({ object: new three.Points(…) }))
+ *   api.registerMaterial("water", MATERIAL_SPEC, ({ params, time, three }) => new three.ShaderMaterial({ uniforms: { time }, … }))
+ *   api.registerTexture("caustics", TEXTURE_SPEC, ({ params, three }) => ({ texture: new three.CanvasTexture(canvas), update }))
  *
  * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`, a node type:
  * `shared/types/node-types.ts`), so the editor's Entity panel, the content build and the guard read a plugin's
@@ -39,7 +51,9 @@ import { type PassFactory, passRegistration, registerPass, unregisterPassesOf } 
  * material (`utils/layers.ts`); a **pass** is a post-processing effect over the rendered AR image
  * (`post/registry.ts`); a **node type** builds a node's own three.js object (`buildPluginNode`, called by the entity
  * registry for a type without a built-in builder – the node is placed, holds children, components and layers like
- * any). Components and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
+ * any); a **material** (API 1.4, `materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
+ * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
+ * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`, API 1.1): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread).
@@ -114,7 +128,9 @@ export interface NodeTypeContext {
 
 /**
  * What a node type's `build` returns: the node's own three.js object – the engine puts it into the node's placement
- * group, next to its children – and the hooks it needs (every one optional, as a component's).
+ * group, next to its children – and the hooks it needs (every one optional, as a component's). When the node carries a
+ * material (API 1.4) it replaces the material of every mesh of the object, except a mesh with `userData.keepMaterial =
+ * true`.
  */
 export interface NodeTypeInstance {
   object: Object3D;
@@ -151,6 +167,19 @@ export interface PluginApi {
    * `passes: [{ type, … }]`; the plugin's pass leaves the registry when the plugin is uninstalled.
    */
   registerPass(type: string, spec: PassSpec, factory: PassFactory): void;
+  /**
+   * A whole material (API 1.4): `build` makes a three.js material – a `ShaderMaterial` with GLSL of its own, a
+   * `MeshStandardMaterial` with a procedural texture – and may return `{ material, update, tune, dispose }`. A node names
+   * it as `material: { type, params }`; it replaces the material of the node's meshes (a model's, a plane's, a plugin
+   * node's), the node's layers still add on top. `time` in the context is a uniform the engine advances.
+   */
+  registerMaterial(type: string, spec: MaterialSpec, build: MaterialBuild): void;
+  /**
+   * A procedural texture (API 1.4): `draw` makes a three.js texture (a `CanvasTexture`, a `DataTexture`) and may
+   * return `{ texture, update, dispose }` to animate it. Any spec's `texture` parameter takes it by its type – a
+   * material's, a layer's, a component's, a node type's.
+   */
+  registerTexture(type: string, spec: TextureSpec, draw: TextureDraw): void;
   /** Core events of the scene (read-only) and scene events of the content */
   readonly events: PluginEvents;
   /** Variables in the scopes spread, stage, session and book */
@@ -173,6 +202,8 @@ interface ComponentRegistration { plugin: string; spec: ComponentSpec; apply: Co
 interface LayerRegistration { plugin: string; spec: ComponentSpec; layer: LayerDefinition }
 interface PassRegistrationStaged { spec: PassSpec; factory: PassFactory }
 interface NodeTypeRegistration { plugin: string; spec: NodeTypeSpec; build: NodeTypeBuild }
+interface MaterialStaged { spec: MaterialSpec; build: MaterialBuild }
+interface TextureStaged { spec: TextureSpec; draw: TextureDraw }
 
 const components = new Map<string, ComponentRegistration>();
 const layers = new Map<string, LayerRegistration>();
@@ -181,6 +212,9 @@ const nodeTypes = new Map<string, NodeTypeRegistration>();
 const installed = new Map<string, string[]>();
 /** Plugins installed, by id → the node types they registered (a namespace of its own) */
 const installedNodeTypes = new Map<string, string[]>();
+/** Plugins installed, by id → the materials and the procedural textures they registered */
+const installedMaterials = new Map<string, string[]>();
+const installedTextures = new Map<string, string[]>();
 /** The compiled modules loaded, by URL (a spread switch never loads a plugin twice) */
 const loaded = new Map<string, Promise<void>>();
 
@@ -208,9 +242,21 @@ const removeRegistrations = (id: string): void => {
     nodeTypes.delete(type);
     unregisterNodeTypeSpec(type);
   });
+  (installedMaterials.get(id) ?? []).forEach(type => {
+    if (materialRegistration(type)?.plugin !== id) return;
+    deleteMaterialRegistration(type);
+    unregisterMaterialSpec(type);
+  });
+  (installedTextures.get(id) ?? []).forEach(type => {
+    if (textureRegistration(type)?.plugin !== id) return;
+    deleteTextureRegistration(type);
+    unregisterTextureSpec(type);
+  });
   unregisterPassesOf(id);
   installed.delete(id);
   installedNodeTypes.delete(id);
+  installedMaterials.delete(id);
+  installedTextures.delete(id);
 };
 
 /**
@@ -223,12 +269,14 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   if (typeof register !== "function") throw new PluginError(id, `${id}: the module exports no register(api) function`);
   const staged: {
     components: Map<string, ComponentRegistration>; layers: Map<string, LayerRegistration>; passes: Map<string, PassRegistrationStaged>;
-    nodeTypes: Map<string, NodeTypeRegistration>;
+    nodeTypes: Map<string, NodeTypeRegistration>; materials: Map<string, MaterialStaged>; textures: Map<string, TextureStaged>;
   } = {
     components: new Map(),
     layers: new Map(),
     passes: new Map(),
     nodeTypes: new Map(),
+    materials: new Map(),
+    textures: new Map(),
   };
   // The listeners this run subscribes replace the previous run's once register succeeded
   const run = nextRun();
@@ -271,6 +319,24 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
       staged.nodeTypes.set(type, { plugin: id, spec, build });
     },
+    registerMaterial: (type, spec, build) => {
+      const problems = materialSpecProblems(type, spec);
+      const owner = materialRegistration(type)?.plugin;
+      if (owner && owner !== id) problems.push(`the material "${type}" is registered by the plugin ${owner}`);
+      if (staged.materials.has(type)) problems.push(`the material "${type}" is registered twice`);
+      if (typeof build !== "function") problems.push(`the material "${type}" needs a build(context) function`);
+      if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
+      staged.materials.set(type, { spec, build });
+    },
+    registerTexture: (type, spec, draw) => {
+      const problems = textureSpecProblems(type, spec);
+      const owner = textureRegistration(type)?.plugin;
+      if (owner && owner !== id) problems.push(`the texture "${type}" is registered by the plugin ${owner}`);
+      if (staged.textures.has(type)) problems.push(`the texture "${type}" is registered twice`);
+      if (typeof draw !== "function") problems.push(`the texture "${type}" needs a draw(context) function`);
+      if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
+      staged.textures.set(type, { spec, draw });
+    },
     log: (...args) => console.info(`[plugin ${id}]`, ...args),
   };
   try {
@@ -295,8 +361,18 @@ export const installPlugin = (id: string, module: PluginModule): void => {
     nodeTypes.set(type, registration);
     registerNodeTypeSpec(type, registration.spec);
   });
+  staged.materials.forEach(({ spec, build }, type) => {
+    setMaterialRegistration(type, { plugin: id, spec, build });
+    registerMaterialSpec(type, spec);
+  });
+  staged.textures.forEach(({ spec, draw }, type) => {
+    setTextureRegistration(type, { plugin: id, spec, draw });
+    registerTextureSpec(type, spec);
+  });
   installed.set(id, [...staged.components.keys(), ...staged.layers.keys()]);
   installedNodeTypes.set(id, [...staged.nodeTypes.keys()]);
+  installedMaterials.set(id, [...staged.materials.keys()]);
+  installedTextures.set(id, [...staged.textures.keys()]);
 };
 
 /** The ids of the plugins installed right now */
@@ -307,6 +383,10 @@ export const pluginTypes = (id: string): string[] => [...(installed.get(id) ?? [
 
 /** The node types a plugin registered */
 export const pluginNodeTypesOf = (id: string): string[] => [...(installedNodeTypes.get(id) ?? [])];
+
+/** The materials and the procedural textures a plugin registered */
+export const pluginMaterialsOf = (id: string): string[] => [...(installedMaterials.get(id) ?? [])];
+export const pluginTexturesOf = (id: string): string[] => [...(installedTextures.get(id) ?? [])];
 
 export const componentRegistration = (type: string): ComponentRegistration | undefined => components.get(type);
 export const layerRegistration = (type: string): LayerRegistration | undefined => layers.get(type);
@@ -327,30 +407,51 @@ export const buildPluginNode = (
   if (!registration) return null;
   const params = resolveNodeParams(registration.spec, node.params);
   const file = node.assets[0];
+  // Texture parameters (API 1.4) arrive as three.js textures
+  const textures = resolveTextures(registration.spec.params, params, `node type ${node.type} on ${target.id}`);
   let instance: NodeTypeInstance | null | void;
   try {
-    instance = registration.build({ node, params, asset: file ? asset(file.id) : undefined, target, three: THREE });
+    instance = registration.build({ node, params: textures.values, asset: file ? asset(file.id) : undefined, target, three: THREE });
   } catch (error) {
     console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) failed on ${target.id}:`, error);
+    textures.dispose();
     return null;
   }
   if (!instance || !(instance.object instanceof THREE.Object3D)) {
     if (instance) console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) returned no three.js object on ${target.id}`);
+    textures.dispose();
     return null;
   }
   const built = instance;
   let applied = params;
   return {
     ...built,
+    update: delta => {
+      textures.update(delta);
+      built.update?.(delta);
+    },
+    dispose: () => {
+      built.dispose?.();
+      textures.dispose();
+    },
     tune: next => {
       if (next.type !== node.type || (next.assets[0]?.src ?? "") !== (file?.src ?? "")) return false;
       const values = resolveNodeParams(registration.spec, next.params);
+      // Another texture: built anew
+      if (!sameTextures(registration.spec.params, values, applied)) return false;
       const same = Object.keys(values).every(key => JSON.stringify(values[key]) === JSON.stringify(applied[key]));
-      const ok = same || (built.tune?.(values) ?? false);
+      const ok = same || (built.tune?.(withTextures(registration.spec.params, values, textures.values)) ?? false);
       if (ok) applied = values;
       return ok;
     },
   };
+};
+
+/** New values with the texture parameters' textures of a resolved set (a live edit keeps the textures) */
+const withTextures = (specParams: NodeTypeSpec["params"], values: Record<string, unknown>, resolved: Record<string, unknown>): Record<string, unknown> => {
+  const next = { ...values };
+  Object.entries(specParams).forEach(([name, param]) => { if (param.kind === "texture") next[name] = resolved[name]; });
+  return next;
 };
 
 /** Load and install the plugins a configuration declares; a plugin that fails is logged and skipped (RULES #16) */
@@ -404,13 +505,29 @@ export const applyComponents = (
   context: Omit<ComponentContext, "params" | "three">,
 ): { parts: ComponentInstance[]; types: string[]; tune(node: EntityData): boolean } => {
   const applied = pluginComponentsOf(context.node);
-  const parts = applied.map(({ registration, params, data }) => {
+  // Texture parameters (API 1.4) arrive as three.js textures; each component's go with it
+  const resolved = applied.map(({ registration, params, data }) => resolveTextures(registration.spec.params, params, `${data.type} on ${context.target.id}`));
+  const parts = applied.map(({ registration, data }, i): ComponentInstance => {
+    const textures = resolved[i];
+    let part: ComponentInstance;
     try {
-      return registration.apply({ ...context, params, three: THREE }) ?? {};
+      part = registration.apply({ ...context, params: textures.values, three: THREE }) ?? {};
     } catch (error) {
       console.error(`[plugins] ${data.type} (plugin ${registration.plugin}) failed on ${context.target.id}:`, error);
-      return {};
+      part = {};
     }
+    if (!Object.values(textures.values).some(value => value instanceof THREE.Texture)) return part;
+    return {
+      ...part,
+      update: delta => {
+        textures.update(delta);
+        part.update?.(delta);
+      },
+      dispose: () => {
+        part.dispose?.();
+        textures.dispose();
+      },
+    };
   });
   const types = applied.map(a => a.data.type);
   return {
@@ -419,7 +536,9 @@ export const applyComponents = (
     tune: node => {
       const next = pluginComponentsOf(node);
       if (next.length !== applied.length || next.some((c, i) => c.data.type !== types[i])) return false;
-      return next.every((c, i) => parts[i].tune?.(c.params) ?? Object.keys(c.params).every(key => JSON.stringify(c.params[key]) === JSON.stringify(applied[i].params[key])));
+      if (next.some((c, i) => !sameTextures(c.registration.spec.params, c.params, applied[i].params))) return false;
+      return next.every((c, i) => parts[i].tune?.(withTextures(c.registration.spec.params, c.params, resolved[i].values))
+        ?? Object.keys(c.params).every(key => JSON.stringify(c.params[key]) === JSON.stringify(applied[i].params[key])));
     },
   };
 };

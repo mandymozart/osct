@@ -5,6 +5,7 @@ import { copyContentToPublic } from '../lib/files';
 import { buildBook } from './book';
 import { buildEntities } from './entities';
 import { warnLayerStacks } from './plugins';
+import { warnZeroPlane } from './zero-plane';
 import { buildEntries } from './entries';
 import { buildSpreads } from './spreads';
 import { checkTargetsPerSpread } from './targets';
@@ -19,10 +20,13 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
   const entities = buildEntities();
   const builds = buildEntries(spreads, entities);
   checkTargetsPerSpread(spreads, builds);
-  warnLayerStacks([
+  const trees = [
     ...Object.entries(entities).map(([ref, node]) => ({ label: `entities/${ref}`, node })),
     ...builds.flatMap(b => (b.entry.target?.entity && !('ref' in b.entry.target.entity) ? [{ label: `entries/${b.entry.id} target`, node: b.entry.target.entity }] : [])),
-  ]);
+  ];
+  warnLayerStacks(trees);
+  // Every model stands on its page (#189): its lowest point at the target's z = 0
+  warnZeroPlane(trees);
   const tutorial = buildTutorial(book);
 
   const entries = builds

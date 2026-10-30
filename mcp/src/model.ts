@@ -11,6 +11,7 @@ import {
   CONTENT_SCHEMA_VERSION,
   ENTITY_TYPES,
   FILTERS,
+  MATERIAL_TYPE_PATTERN,
   NODE_SRC_KINDS,
   NODE_TYPE_PATTERN,
   PASSES,
@@ -31,6 +32,10 @@ export interface SourceTypes {
   layers: string[];
   nodeTypes: string[];
   passes: string[];
+  /** materials (`registerMaterial`, plugin API 1.4) */
+  materials: string[];
+  /** procedural textures (`registerTexture`, plugin API 1.4) */
+  textures: string[];
 }
 
 export interface BookModel {
@@ -46,6 +51,10 @@ export interface KnownPluginTypes {
   components: string[];
   /** node types (`registerNodeType`), the same way */
   nodeTypes: string[];
+  /** materials (`registerMaterial`, schema 2.17), the same way */
+  materials: string[];
+  /** procedural textures (`registerTexture`), the same way */
+  textures: string[];
   /**
    * every plugin's registrations are known: each declared plugin recorded them (schema 2.14) and the book has no Code tab
    * source (a source's types are read from its text, which may miss one) – a type outside the lists is then a typo
@@ -60,6 +69,8 @@ export function knownPluginTypes(book: BookModel): KnownPluginTypes {
   return {
     components: unique([...recorded.flatMap(r => Object.keys(r.components ?? {})), ...book.sources.flatMap(s => [...s.components, ...s.layers])]),
     nodeTypes: unique([...recorded.flatMap(r => Object.keys(r.nodeTypes ?? {})), ...book.sources.flatMap(s => s.nodeTypes)]),
+    materials: unique([...recorded.flatMap(r => Object.keys(r.materials ?? {})), ...book.sources.flatMap(s => s.materials)]),
+    textures: unique([...recorded.flatMap(r => Object.keys(r.textures ?? {})), ...book.sources.flatMap(s => s.textures)]),
     complete: book.declared.every(plugin => plugin.registered) && book.sources.length === 0,
   };
 }
@@ -71,6 +82,8 @@ export interface EntityCheck {
   unknownComponents: string[];
   /** node types named like a plugin's that no known plugin registers – passed because a plugin of the book is unknown */
   unverifiedNodeTypes: string[];
+  /** material types (schema 2.17) no known plugin registers – a plugin must provide them; the publish checks */
+  unknownMaterials: string[];
 }
 
 /**
@@ -104,7 +117,31 @@ export function checkEntity(entity: unknown, path = "entity", book?: BookModel):
   // A type the guard refused already (with the book's recorded plugins) is named once
   const refused = new Set(problems.map(problem => problem.split(":")[0]));
   const typeProblems = nodes.problems.filter(problem => !refused.has(problem.split(":")[0]));
-  return { problems: [...problems, ...typeProblems], unknownComponents: unknownComponentTypes(entity, known), unverifiedNodeTypes: nodes.unverified };
+  const materials = unknownMaterialTypes(entity, known);
+  // A material no plugin of the book can register (every plugin known, or none): refused as the API refuses it
+  const materialProblems = known?.complete
+    ? materials.map(type => `material "${type}" is not registered by a plugin of the book${known?.materials.length ? ` (${known.materials.join(", ")})` : ""}`)
+    : [];
+  return {
+    problems: [...problems, ...typeProblems, ...materialProblems],
+    unknownComponents: unknownComponentTypes(entity, known),
+    unverifiedNodeTypes: nodes.unverified,
+    unknownMaterials: materialProblems.length ? [] : materials,
+  };
+}
+
+/** Every material type (schema 2.17) in the tree that the book's known plugins do not register */
+export function unknownMaterialTypes(entity: unknown, known?: KnownPluginTypes): string[] {
+  const found = new Set<string>();
+  const walk = (node: unknown) => {
+    if (typeof node !== "object" || node === null) return;
+    const { material, children } = node as { material?: unknown; children?: unknown };
+    const type = (material as { type?: unknown } | undefined)?.type;
+    if (typeof type === "string" && MATERIAL_TYPE_PATTERN.test(type) && !known?.materials.includes(type)) found.add(type);
+    if (Array.isArray(children)) children.forEach(walk);
+  };
+  walk(entity);
+  return [...found];
 }
 
 /**
@@ -153,25 +190,29 @@ export function unknownComponentTypes(entity: unknown, known?: KnownPluginTypes)
 /** The tree names a node type or a component type that is not built in – only then the book's plugins matter */
 export function usesPluginTypes(entity: unknown): boolean {
   if (typeof entity !== "object" || entity === null) return false;
-  const { type, components, children } = entity as { type?: unknown; components?: unknown; children?: unknown };
+  const { type, components, children, material } = entity as { type?: unknown; components?: unknown; children?: unknown; material?: unknown };
   if (typeof type === "string" && !(ENTITY_TYPES as readonly string[]).includes(type)) return true;
+  if (material !== undefined) return true;
   if (Array.isArray(components) && components.some(c => typeof c?.type === "string" && !componentTypes().includes(c.type))) return true;
   return Array.isArray(children) && children.some(usesPluginTypes);
 }
 
 /**
  * The types a plugin source registers – read from the source text (`registerComponent("spin"`, `registerLayer('tint'`,
- * `registerNodeType("sparkle"`, `registerPass("scan"`), not by running it: the Code tab's sources are the editor's
- * sandbox, nothing runs here
+ * `registerNodeType("sparkle"`, `registerPass("scan"`, `registerMaterial("water"`, `registerTexture("caustics"`), not by
+ * running it: the Code tab's sources are the editor's sandbox, nothing runs here
  */
 export function pluginTypes(source: string): SourceTypes {
   const scan = (fn: string) =>
     [...new Set([...source.matchAll(new RegExp(`${fn}\\s*\\(\\s*["'\`]([a-zA-Z0-9]+)["'\`]`, "g"))].map(match => match[1]))];
-  return { components: scan("registerComponent"), layers: scan("registerLayer"), nodeTypes: scan("registerNodeType"), passes: scan("registerPass") };
+  return {
+    components: scan("registerComponent"), layers: scan("registerLayer"), nodeTypes: scan("registerNodeType"), passes: scan("registerPass"),
+    materials: scan("registerMaterial"), textures: scan("registerTexture"),
+  };
 }
 
 /** The recorded specs of a kind, type → the spec with the plugin that registers it */
-const recordedSpecs = (book: BookModel, kind: "components" | "nodeTypes" | "passes") =>
+const recordedSpecs = (book: BookModel, kind: "components" | "nodeTypes" | "passes" | "materials" | "textures") =>
   Object.fromEntries(book.declared.flatMap(plugin => Object.entries(plugin.registered?.[kind] ?? {}).map(([type, spec]) => [type, { plugin: plugin.id, ...spec }])));
 
 /** The static model (the contract) and, with a book, what its plugins add */
@@ -182,7 +223,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     pluginApi: PLUGIN_API_VERSION,
     entity: {
       description:
-        "An AR entity is a tree of nodes (EntityData): { id?, name?, type, assets, params?, filters?, components?, children?, text?, color? }. " +
+        "An AR entity is a tree of nodes (EntityData): { id?, name?, type, assets, params?, filters?, components?, material?, children?, text?, color? }. " +
         "The root sits on the target (1 unit = the target image's width, origin in its centre); every node's params place it relative to its parent. " +
         `At most ${MAX_NODE_DEPTH} levels. Shared entities live under a ref and are used by targets as { ref }.`,
       name: "name (content schema 2.12, optional): what the editor's tree shows instead of the type – give the nodes of a larger tree names (\"door\", \"hint\") so the person finds them; the reader ignores it.",
@@ -220,6 +261,14 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
           }
         : {}),
     },
+    materials: {
+      description:
+        "entity.material (content schema 2.17, plugin API 1.4): { type, params? } – a material a plugin registers (api.registerMaterial) replaces the material of the node's meshes (a model, an image or video plane, a plugin node); its layers still add on top. Every material is a plugin's: the API refuses one no plugin of the book registers when the plugins recorded what they register, the publish refuses one no compiled plugin provides (409 unknown-materials).",
+      textures:
+        "A parameter of kind texture takes \"\" (none), a procedural texture's type (api.registerTexture – e.g. \"caustics\"), { type, …parameters } for one with other values, or a file: an uploaded image or video asset's url, or a /assets/content/… path.",
+      typePattern: MATERIAL_TYPE_PATTERN.source,
+      ...(book ? { plugins: recordedSpecs(book, "materials"), proceduralTextures: recordedSpecs(book, "textures"), known: known!.materials } : {}),
+    },
     passes: {
       description:
         "Post-processing over the whole rendered AR image: [{ type, …params }], run in order. The book's passes (put_book_passes) are the master every spread shows; a spread's own (put_spread passes) replace them for that spread, [] turns them off there, null gives the spread the book's again. The API takes the built-in types.",
@@ -252,7 +301,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     plugin: {
       description:
-        "A plugin source (the Code tab) exports register(api): api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js – never import three. The spec's params have kind (number | color | choice | boolean | string), default, description and an optional label (the few words the editor's row shows, plugin API 1.3); nodeTypes narrows the node types. Read the resource osct://guides/plugins.",
+        "A plugin source (the Code tab) exports register(api): api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.registerMaterial(type, spec, build) for a whole material (a ShaderMaterial …, plugin API 1.4), api.registerTexture(type, spec, draw) for a procedural texture, api.three for three.js – never import three. The spec's params have kind (number | color | choice | boolean | string | texture), default, description and an optional label (the few words the editor's row shows, plugin API 1.3); nodeTypes narrows the node types. Read the resource osct://guides/plugins.",
       idPattern: PLUGIN_ID_PATTERN.source,
     },
   };

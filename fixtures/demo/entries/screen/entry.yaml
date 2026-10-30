@@ -17,7 +17,7 @@ target:
     src: screen.mp4
     params:
       rotation: [90, 0, 0]
-      position: [0, 0, 0.28]
+      position: [0, 0, 0.2535]  # half the plane's height (160 / 284 × 0.9): its bottom edge on the page (#189)
       scale: 0.9
     components:
       - type: tint

@@ -11,6 +11,7 @@ import {
   keyMode,
   LIGHT_PARAMS,
   type LightData,
+  materialSpec,
   nodeTypeSpec,
   paramLabel,
   type PassData,
@@ -27,15 +28,17 @@ import {
  * The Entity panel's values: one row per adjustable value of an entity, generated from the content contract's
  * definitions (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`, `LIGHT_PARAMS`, `nodeTypeSpec`), reading and writing
  * them on an `EntityData` copy. Row ids use the three.js names: `position.x`, `rotation.y`, `scale` (uniform) or
- * `scale.z`, `filters.0.threshold`, `components.0.speed`, `light.intensity`, `params.count` (a plugin node type's). A
- * new filter, component, light parameter, plugin node type or parameter in the contract needs no panel code.
+ * `scale.z`, `filters.0.threshold`, `components.0.speed`, `light.intensity`, `params.count` (a plugin node type's),
+ * `material.depthColor` (a plugin material's – #188). A new filter, component, light parameter, plugin node type,
+ * material or parameter in the contract needs no panel code.
  */
 
 export type RowValue = number | string;
 
 export interface ValueRow {
   id: string;
-  kind: "number" | "color" | "choice" | "boolean" | "string";
+  /** `texture` (#188): a file (a Library image or video by its URL) or a procedural texture's type – a string; "" = none */
+  kind: "number" | "color" | "choice" | "boolean" | "string" | "texture";
   default: RowValue;
   /** Scrub range (number rows) */
   min?: number;
@@ -111,6 +114,12 @@ export const componentRows = (component: ComponentData, index: number): ValueRow
 /** The rows of a light node (`light.{name}`), from `LIGHT_PARAMS` */
 export const lightRows = (): ValueRow[] => specRows("light", LIGHT_PARAMS);
 
+/** The rows of the node's plugin material (`material.{name}` – #188), from its spec; none without a material or its spec */
+export const materialRows = (entity: EntityData): ValueRow[] => {
+  const spec = entity.material ? materialSpec(entity.material.type) : undefined;
+  return spec ? specRows("material", spec.params) : [];
+};
+
 /** The rows of a plugin's node type (`params.{name}` – the values sit in the node's params next to the placement), from its spec */
 export const nodeTypeRows = (type: string): ValueRow[] => {
   const spec = nodeTypeSpec(type);
@@ -127,6 +136,7 @@ const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): V
       case "choice": return { id, kind: "choice", default: param.default, options: param.options, label, description: param.description };
       case "boolean": return { id, kind: "boolean", default: param.default ? "true" : "false", label, description: param.description };
       case "string": return { id, kind: "string", default: param.default, label, description: param.description };
+      case "texture": return { id, kind: "texture", default: param.default, label, description: param.description };
       default: return {
         id, kind: "number", default: param.default, min: param.min, max: param.max, step: param.step ?? (param.max - param.min <= 1 ? 0.001 : 0.01),
         unit: param.unit, strict: true, label, description: param.description,
@@ -177,7 +187,36 @@ export const valueRows = (entity: EntityData, uniformScale: boolean): ValueRow[]
   ...nodeTypeRows(entity.type),
   ...(entity.filters ?? []).flatMap(filterRows),
   ...(entity.components ?? []).flatMap(componentRows),
+  ...materialRows(entity),
 ];
+
+/**
+ * A row's value as the panel shows it: a boolean as "true" / "false"; a texture with values of its own
+ * (`{ type, …parameters }`) by its type
+ */
+const shown = (row: ValueRow, value: unknown): RowValue => {
+  if (row.kind === "boolean") return value ? "true" : "false";
+  if (row.kind === "texture" && typeof value === "object" && value !== null) return String((value as { type?: unknown }).type ?? "");
+  return value as RowValue;
+};
+
+/**
+ * The value the content keeps for a row (none: undefined – it equals the default): a texture with values of its own stays
+ * as written while the panel shows its type
+ */
+const kept = (row: ValueRow, raw: unknown, value: RowValue): unknown => {
+  if (sameValue(value, row.default)) return undefined;
+  if (row.kind === "texture" && typeof raw === "object" && raw !== null && shown(row, raw) === value) return raw;
+  return row.kind === "boolean" ? value === "true" : typeof value === "number" ? round(value) : value;
+};
+
+/** The node with a plugin material of `type` (its parameters at their defaults), or without one (null) */
+export const setMaterial = (entity: EntityData, type: string | null): EntityData => {
+  const next: EntityData = { ...entity };
+  if (type) next.material = { type };
+  else delete next.material;
+  return next;
+};
 
 /** The value the entity shows for a row (placement: params or the type's default; filters: value or default) */
 export const getValue = (entity: EntityData, row: ValueRow): RowValue => {
@@ -189,7 +228,11 @@ export const getValue = (entity: EntityData, row: ValueRow): RowValue => {
   if (head === "components") {
     const value = entity.components?.[Number(second)]?.[third];
     if (value === undefined) return row.default;
-    return row.kind === "boolean" ? (value ? "true" : "false") : (value as RowValue);
+    return shown(row, value);
+  }
+  if (head === "material") {
+    const value = entity.material?.params?.[second];
+    return value === undefined ? row.default : shown(row, value);
   }
   if (head === "light") {
     const value = entity.light?.[second as keyof LightData];
@@ -198,7 +241,7 @@ export const getValue = (entity: EntityData, row: ValueRow): RowValue => {
   if (head === "params") {
     const value = entity.params?.[second];
     if (value === undefined) return row.default;
-    return row.kind === "boolean" ? (value ? "true" : "false") : (value as RowValue);
+    return shown(row, value);
   }
   const placement = resolvePlacement(entity.type, entity.params);
   return placement[head as PlacementKey][second ? AXES.indexOf(second as "x") : 0];
@@ -218,6 +261,9 @@ export const setValue = (entity: EntityData, row: ValueRow, value: RowValue): En
     return { ...entity, components };
   }
   if (head === "light") return { ...entity, light: { ...entity.light, [second]: value } };
+  if (head === "material" && entity.material) {
+    return { ...entity, material: { ...entity.material, params: { ...entity.material.params, [second]: row.kind === "boolean" ? value === "true" : value } } };
+  }
   if (head === "params") return { ...entity, params: { ...entity.params, [second]: row.kind === "boolean" ? value === "true" : value } };
   const placement = resolvePlacement(entity.type, entity.params);
   const key = head as PlacementKey;
@@ -284,9 +330,9 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
   nodeTypeRows(entity.type).forEach(row => {
     const name = row.id.split(".")[1];
     if (params[name] === undefined) return;
-    const value = getValue(entity, row);
-    if (sameValue(value, row.default)) delete params[name];
-    else params[name] = row.kind === "boolean" ? value === "true" : typeof value === "number" ? round(value) : value;
+    const value = kept(row, params[name], getValue(entity, row));
+    if (value === undefined) delete params[name];
+    else params[name] = value;
   });
   if (!sameVector(placement.position, defaults.position)) params.position = placement.position.map(round);
   if (!sameVector(placement.rotation, defaults.rotation)) params.rotation = placement.rotation.map(round);
@@ -302,15 +348,30 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
   else delete result.params;
   if (entity.components) {
     result.components = entity.components.map((component, i) => {
-      const kept: Record<string, unknown> = { type: component.type };
+      const keep: Record<string, unknown> = { type: component.type };
       componentRows(component, i).forEach(row => {
         const name = row.id.split(".")[2];
-        const value = getValue(entity, row);
-        if (!sameValue(value, row.default)) kept[name] = row.kind === "boolean" ? value === "true" : typeof value === "number" ? round(value) : value;
+        const value = kept(row, component[name], getValue(entity, row));
+        if (value !== undefined) keep[name] = value;
       });
-      return kept as ComponentData;
+      return keep as ComponentData;
     });
     if (!result.components.length) delete result.components;
+  }
+  if (entity.material) {
+    // A plugin material (#188): its values only where they differ from its spec's defaults
+    const rows = materialRows(entity);
+    const values: Record<string, unknown> = {};
+    if (rows.length) {
+      rows.forEach(row => {
+        const name = row.id.split(".")[1];
+        const value = kept(row, entity.material?.params?.[name], getValue(entity, row));
+        if (value !== undefined) values[name] = value;
+      });
+    } else {
+      Object.assign(values, entity.material.params ?? {});
+    }
+    result.material = { type: entity.material.type, ...(Object.keys(values).length ? { params: values } : {}) };
   }
   if (entity.type === "light") {
     // The light's values only where they differ from the defaults; none left = no `light` key
