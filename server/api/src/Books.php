@@ -31,12 +31,23 @@ final class Books
         Http::json(200, ['books' => $books, 'environments' => $environments]);
     }
 
+    /**
+     * GET /editor/environments → { env, environments: [{ env, store, publish, url, warning }] }: this instance's
+     * environment (the only one it publishes to) and, per environment, its backend – `cdn` or `server` (the directory
+     * store this API serves) –, where readers load it, and the warning wherever the directory store is the target
+     */
+    public static function environments(): never
+    {
+        Editor::user();
+        Http::json(200, ['env' => Config::env(), 'environments' => ContentStore::describe()]);
+    }
+
     /** @return array<string, array{book: ?string, build: ?string, since: ?string}|null|false> */
     private static function liveEnvironments(): array
     {
         if (self::$live === null) {
             self::$live = [];
-            foreach (ContentStore::ENVIRONMENTS as $env) {
+            foreach (ContentStore::environments() as $env) {
                 try {
                     self::$live[$env] = ContentStore::for($env)->live();
                 } catch (ApiError) {
@@ -48,17 +59,24 @@ final class Books
     }
 
     /**
-     * POST /editor/books/{id}/import { configuration, files?, assetsBase? } | { source: "cdn" } → { book, counts, draft }
+     * POST /editor/books/{id}/import { configuration, files?, assetsBase?, confirm? } | { source: "cdn", confirm? }
+     * → { book, counts, draft, imported }
      * Replaces the book's content rows in one transaction (the logs stay). `assetsBase` is where the configuration's
      * `/assets/content/…` paths resolve; `source: "cdn"` imports the current version of CONTENT_BASE_URL.
+     * A book that exists is overwritten only in two steps: without `confirm` the answer is 409 confirm-import with the
+     * `comparison` (what comes in against what the draft is based on and its edits since) and a `confirmation`
+     * { id, expiresAt }; the same import again with `confirm: <id>` replaces the draft. The id is bound to the person (and
+     * the AI connection), the incoming content and the draft as it was compared, and lasts IMPORT_CONFIRM_SECONDS – any
+     * change meanwhile voids it (409 confirmation-void, with a new comparison). A new book is imported at once.
      */
     public static function import(string $bookId): never
     {
-        Editor::user();
+        $user = Editor::user();
         $body = Editor::body();
         $assetsBase = '';
         $files = new stdClass();
-        if (($body->source ?? null) === 'cdn') {
+        $source = ($body->source ?? null) === 'cdn' ? 'cdn' : 'configuration';
+        if ($source === 'cdn') {
             [$configuration, $files, $assetsBase] = self::fetchFromCdn();
         } else {
             $configuration = $body->configuration ?? null;
@@ -73,9 +91,14 @@ final class Books
             }
         }
         $parts = self::parse($configuration, Plugins::hasSources($bookId));
+        $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
+        $existing = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
+        if ($existing !== null) self::confirmImport($bookId, $existing, $incoming, $user, $body->confirm ?? null);
         $now = Db::now();
+        $imported = Editor::encode(['build' => $incoming['build'], 'hash' => $incoming['hash'], 'date' => $incoming['date'], 'appVersion' => $incoming['appVersion'],
+            'schema' => $incoming['schema'], 'source' => $source, 'from' => $incoming['from'], 'at' => Editor::nowMs(), 'by' => $user['email'] ?? null]);
 
-        Db::transaction(function () use ($bookId, $parts, $files, $assetsBase, $now) {
+        Db::transaction(function () use ($bookId, $parts, $files, $assetsBase, $now, $imported) {
             foreach (['targets', 'entries', 'spreads', 'entities'] as $table) {
                 Db::run("DELETE FROM $table WHERE book_id = :book", ['book' => $bookId]);
             }
@@ -84,14 +107,14 @@ final class Books
                 'id' => $bookId, 'title' => $book->title, 'author' => $book->author, 'book' => Editor::encode($book),
                 'tutorial' => Editor::encode($parts['tutorial']), 'initial' => $parts['initialSpreadId'], 'base' => $assetsBase,
                 'files' => Editor::encode($files), 'schema' => $parts['schema'], 'hash' => $parts['hash'], 'now' => $now,
-                'plugins' => Editor::encode($parts['plugins']),
+                'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported,
             ];
             if (Db::value('SELECT id FROM books WHERE id = :id', ['id' => $bookId]) !== null) {
                 Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, tutorial_json = :tutorial, initial_spread_id = :initial,
-                         assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, updated_at = :now WHERE id = :id', $params);
+                         assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, updated_at = :now WHERE id = :id', $params);
             } else {
-                Db::run('INSERT INTO books (id, title, author, book_json, tutorial_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, created_at, updated_at)
-                         VALUES (:id, :title, :author, :book, :tutorial, :initial, :base, :files, :schema, :hash, :plugins, :created, :now)', $params + ['created' => $now]);
+                Db::run('INSERT INTO books (id, title, author, book_json, tutorial_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, created_at, updated_at)
+                         VALUES (:id, :title, :author, :book, :tutorial, :initial, :base, :files, :schema, :hash, :plugins, :imported, :created, :now)', $params + ['created' => $now]);
             }
             foreach ($parts['spreads'] as $s) {
                 Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
@@ -116,7 +139,130 @@ final class Books
             'book' => self::summary(self::book($bookId)),
             'counts' => ['spreads' => count($parts['spreads']), 'entries' => count($parts['entries']), 'targets' => count($parts['targets']), 'entities' => count($parts['entities'])],
             'draft' => ['build' => $draft['build'], 'hash' => $draft['hash']],
+            'imported' => self::basedOn(Editor::decode($imported)),
         ]);
+    }
+
+    /** Seconds a confirmation id of an import lasts */
+    private const IMPORT_CONFIRM_SECONDS = 600;
+
+    /**
+     * What an import brings in: the book, the build (content checksum, first 12 digits), its date, the app and the
+     * schema version that built it, where it comes from, and a digest of everything the import would write
+     * @return array{book: string, title: string, build: ?string, hash: ?string, date: ?string, appVersion: ?string, schema: string, source: string, from: ?string, digest: string}
+     */
+    private static function incoming(stdClass $configuration, array $parts, stdClass $files, string $assetsBase, string $source): array
+    {
+        $version = $configuration->version;
+        $hash = is_string($parts['hash']) && $parts['hash'] !== '' ? $parts['hash'] : null;
+        return [
+            'book' => $parts['book']->id,
+            'title' => $parts['book']->title,
+            'build' => $hash !== null ? substr($hash, 0, 12) : null,
+            'hash' => $hash,
+            'date' => is_string($version->timestamp ?? null) ? $version->timestamp : null,
+            'appVersion' => is_string($version->version ?? null) ? $version->version : null,
+            'schema' => $parts['schema'],
+            'source' => $source,
+            'from' => $assetsBase !== '' ? $assetsBase : null,
+            'digest' => hash('sha256', Editor::encode([$configuration, $files, $assetsBase])),
+        ];
+    }
+
+    /**
+     * The import's second step: passes when `$confirm` is a confirmation id for exactly this comparison, else 409 –
+     * `confirm-import` when none was sent, `confirmation-void` when it is expired, someone else's or the draft or the
+     * incoming content changed since – both with the comparison and a new confirmation
+     * @param array<string, mixed> $row
+     * @param array<string, mixed> $user
+     */
+    private static function confirmImport(string $bookId, array $row, array $incoming, array $user, mixed $confirm): void
+    {
+        $edits = self::editsSince($bookId, $row);
+        // What the comparison showed: the draft's import, its last change and the rows' state, and what comes in
+        $state = hash('sha256', Editor::encode([$incoming['digest'], $row['imported_json'] ?? null, $row['imported_hash'], $row['updated_at'], $edits['count'], $edits['last']]));
+        $subject = implode('|', ['import', $bookId, $user['id'], Auth::token()['id'] ?? '', $state]);
+        if (is_string($confirm) && preg_match('/^(\d{10})\.([0-9a-f]{32})$/', $confirm, $match) && (int) $match[1] >= time()
+            && hash_equals(substr(hash_hmac('sha256', "$subject|{$match[1]}", Config::get('SECRET')), 0, 32), $match[2])) {
+            return;
+        }
+        $expires = time() + self::IMPORT_CONFIRM_SECONDS;
+        $id = $expires . '.' . substr(hash_hmac('sha256', "$subject|$expires", Config::get('SECRET')), 0, 32);
+        $details = ['comparison' => self::comparison($bookId, $row, $incoming, $edits), 'confirmation' => ['id' => $id, 'expiresAt' => gmdate('Y-m-d\TH:i:s\Z', $expires)]];
+        if ($confirm === null) {
+            throw new ApiError(409, 'confirm-import', 'Importing replaces the draft of ' . $row['title'] . ' – compare the versions, then import again with confirm: <confirmation id>.', $details);
+        }
+        throw new ApiError(409, 'confirmation-void', 'The confirmation is expired, someone else\'s, or the draft or the incoming content changed since – compare again and confirm with the new id.', $details);
+    }
+
+    /**
+     * The import's comparison: the book, what comes in, and the draft – the build it is based on, its edits since that
+     * import (the change log), its build now and where that is live
+     * @param array<string, mixed> $row
+     * @param array{count: int, last: ?string, since: ?int, recent: list<array<string, mixed>>} $edits
+     * @return array<string, mixed>
+     */
+    private static function comparison(string $bookId, array $row, array $incoming, array $edits): array
+    {
+        $draft = ContentVersion::assemble($bookId);
+        $live = [];
+        foreach (self::liveEnvironments() as $env => $serving) {
+            if (is_array($serving) && $serving['book'] === $bookId) $live[] = ['env' => $env, 'build' => $serving['build'], 'current' => $serving['build'] === $draft['build']];
+        }
+        $basedOn = self::basedOn(Editor::decode($row['imported_json'] ?? null));
+        if ($basedOn === null && is_string($row['imported_hash']) && $row['imported_hash'] !== '') {
+            $basedOn = ['build' => substr($row['imported_hash'], 0, 12), 'hash' => $row['imported_hash'], 'date' => null, 'appVersion' => null, 'schema' => $row['content_schema'], 'source' => null, 'from' => null, 'importedAt' => null, 'importedBy' => null];
+        }
+        unset($incoming['digest']);
+        return [
+            'book' => ['id' => $bookId, 'title' => $row['title']],
+            'incoming' => $incoming,
+            'draft' => [
+                'basedOn' => $basedOn,
+                'build' => $draft['build'],
+                'edits' => $edits['count'],
+                'editsSince' => $edits['since'] !== null ? Editor::iso($edits['since']) : null,
+                'recentEdits' => $edits['recent'],
+                'live' => $live,
+            ],
+            'same' => $basedOn !== null && $incoming['hash'] !== null && $basedOn['hash'] === $incoming['hash'],
+        ];
+    }
+
+    /**
+     * The draft's edits since its import: the change log after `imported_json.at` (all of it for a book imported before
+     * that was recorded), the newest ten in short
+     * @param array<string, mixed> $row
+     * @return array{count: int, last: ?string, since: ?int, recent: list<array<string, mixed>>}
+     */
+    private static function editsSince(string $bookId, array $row): array
+    {
+        $imported = Editor::decode($row['imported_json'] ?? null);
+        $since = is_object($imported) && is_int($imported->at ?? null) ? $imported->at : null;
+        $params = ['book' => $bookId, 'since' => $since ?? 0];
+        $count = (int) Db::value('SELECT COUNT(*) FROM changes WHERE book_id = :book AND created_at > :since', $params);
+        $recent = [];
+        foreach (Db::run('SELECT c.id, c.kind, c.ref, c.created_at, c.token_name, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id
+                          WHERE c.book_id = :book AND c.created_at > :since ORDER BY c.created_at DESC, c.id LIMIT 10', $params)->fetchAll() as $change) {
+            $recent[] = ['kind' => $change['kind'], 'ref' => $change['ref'], 'user' => $change['email'], 'token' => $change['token_name'], 'at' => Editor::iso((int) $change['created_at'])];
+        }
+        $last = $count ? Db::value('SELECT id FROM changes WHERE book_id = :book AND created_at > :since ORDER BY created_at DESC, id LIMIT 1', $params) : null;
+        return ['count' => $count, 'last' => is_string($last) ? $last : null, 'since' => $since, 'recent' => $recent];
+    }
+
+    /**
+     * What an import recorded (books.imported_json) as the API shows it, null when nothing was recorded
+     * @return array{build: ?string, hash: ?string, date: ?string, appVersion: ?string, schema: ?string, source: ?string, from: ?string, importedAt: ?string, importedBy: ?string}|null
+     */
+    private static function basedOn(mixed $imported): ?array
+    {
+        if (!is_object($imported)) return null;
+        $string = static fn(string $key): ?string => is_string($imported->$key ?? null) ? $imported->$key : null;
+        return [
+            'build' => $string('build'), 'hash' => $string('hash'), 'date' => $string('date'), 'appVersion' => $string('appVersion'),
+            'schema' => $string('schema'), 'source' => $string('source'), 'from' => $string('from'),
+            'importedAt' => is_int($imported->at ?? null) ? Editor::iso($imported->at) : null, 'importedBy' => $string('by'),
+        ];
     }
 
     /**
@@ -636,9 +782,11 @@ final class Books
     }
 
     /**
-     * POST /editor/books/{id}/publish { env, note?, replace? } → { env, build, hash, publishedAt, replaced }: the
+     * POST /editor/books/{id}/publish { env, note?, replace? } → { env, store, build, hash, publishedAt, replaced }: the
      * assembled version into the content store – the version folder (unless that build is there already: a folder is
      * never overwritten), then versions.json, then latest.json (the switch) – and a row in the publish log.
+     * `env` must be this instance's own environment (ENV): another one answers 403 other-environment with `env`, the
+     * own one. `store` = where it went: `cdn` or `server` (the directory store).
      * An environment serves one book: when it serves another one (or one that cannot be told) the publish needs
      * `replace: true`, else 409 other-book with `current` { env, book, title, build, since }. `replaced` names the
      * book replaced there, null when there was none.
@@ -650,8 +798,13 @@ final class Books
         Auth::refuseToken('Publishing');
         self::book($bookId);
         $env = $body['env'] ?? null;
-        if (!is_string($env) || !in_array($env, ContentStore::ENVIRONMENTS, true)) {
-            throw new ApiError(400, 'invalid-env', 'env must be ' . implode(', ', ContentStore::ENVIRONMENTS) . '.');
+        $own = Config::env();
+        if (!is_string($env) || !preg_match(ContentStore::ENV_NAME, $env)) {
+            throw new ApiError(400, 'invalid-env', "env must be this instance's environment ($own).");
+        }
+        // An instance publishes to its own environment only: another one is published from its own editor
+        if ($env !== $own) {
+            throw new ApiError(403, 'other-environment', "This instance publishes to $own only – $env is published from its own editor.", ['env' => $own]);
         }
         $note = $body['note'] ?? null;
         if ($note !== null && !is_string($note)) throw new ApiError(400, 'invalid-note', 'note must be a string.');
@@ -703,7 +856,7 @@ final class Books
 
         Db::run('INSERT INTO book_versions (id, book_id, env, build, hash, published_by, published_at, note) VALUES (:id, :book, :env, :build, :hash, :by, :at, :note)',
             ['id' => Db::uuid(), 'book' => $bookId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
-        Http::json(200, ['env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now,
+        Http::json(200, ['env' => $env, 'store' => $store->isLocal() ? 'server' : 'cdn', 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now,
             'replaced' => $replaced !== null ? ['book' => $replaced['book'], 'build' => $replaced['build']] : null]);
     }
 

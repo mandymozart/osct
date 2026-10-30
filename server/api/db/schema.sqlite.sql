@@ -237,3 +237,6 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 );
 CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens (user_id);
 ALTER TABLE changes ADD COLUMN token_name TEXT NULL DEFAULT NULL;
+
+-- What the draft is based on (schema.mysql.sql has the notes)
+ALTER TABLE books ADD COLUMN imported_json TEXT NULL DEFAULT NULL;

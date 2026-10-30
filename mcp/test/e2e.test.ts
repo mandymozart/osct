@@ -86,6 +86,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
       APP_URL: "https://app.example",
       ALLOWED_ORIGINS: "http://localhost:5175",
       CONTENT_STORE_DIR: storeDir,
+      LOG_PATH: join(tmp, "error.log"),
       CONFIG_FILE: "/nonexistent",
     };
     const env = { ...process.env, ...Object.fromEntries(Object.entries(settings).map(([k, v]) => [`OSCT_${k}`, v])) };
@@ -162,6 +163,19 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(spread.data.open).toBe("http://localhost:5175/editor/osct/studio-b/");
   });
 
+  it("re-imports in two steps: the comparison and a confirmation first, nothing replaced; then with confirm (#183)", async () => {
+    const args = { book: "osct", configuration: CONFIGURATION, assetsBase: "http://localhost:5174" };
+    const first = await call("import_book", args);
+    expect(first.ok).toBe(true);
+    expect(first.data.imported).toBe(false);
+    expect(first.data.comparison).toMatchObject({ book: { id: "osct", title: "Test Book" }, incoming: { build: "abababababab", appVersion: "1.0.0", schema: "2.4" }, draft: { basedOn: { build: "abababababab", importedBy: "editor@example.test" }, edits: 0 }, same: true });
+    expect(first.data.confirmation.id).toMatch(/^[0-9]{10}[.][0-9a-f]{32}$/);
+    const second = await call("import_book", { ...args, confirm: first.data.confirmation.id });
+    expect(second.ok).toBe(true);
+    expect(second.data.counts).toEqual({ spreads: 2, entries: 2, targets: 2, entities: 1 });
+    expect(second.data.imported).toMatchObject({ build: "abababababab", importedBy: "editor@example.test" });
+  });
+
   it("edits the shared entity: a bad body never reaches the API, a good one is the draft", async () => {
     const bad = await call("put_entity", { book: "osct", ref: "castle", entity: { type: "video", assets: [], params: { scale: "big" } } });
     expect(bad.ok).toBe(false);
@@ -226,6 +240,9 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(published.ok).toBe(true);
     expect(published.data.build).toMatch(/^[0-9a-f]{12}$/);
     expect(existsSync(join(storeDir, "local", published.data.build, "game.config.json"))).toBe(true);
+    expect(published.data).toMatchObject({ env: "local", store: "server", warning: expect.stringContaining("No CDN connected") });
+    const staging = await call("publish", { book: "osct", env: "staging" });
+    expect(staging.data.error).toMatchObject({ status: 403, code: "other-environment", env: "local" });
     const production = await call("publish", { book: "osct", env: "production" });
     expect(production.ok).toBe(false);
     expect(production.data.error.code).toBe("production-is-a-person");

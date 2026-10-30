@@ -1,13 +1,14 @@
 // The editor's content tools over the API (`/api/editor/*`, docs/server.md "Editor data", "Assets"): the book's tree
 // and spreads, entities and targets, entries, the spreads themselves, the book's passes and environment, assets, the
-// draft, publishing to local / staging, the logs. Every write is checked against the shared content contract first and
-// answers with the editor's link, where the person checks the draft on the stage. Production stays with the person –
-// the tool refuses it.
+// draft, publishing to the instance's own environment, the logs. Every write is checked against the shared content
+// contract first and answers with the editor's link, where the person checks the draft on the stage. Production stays
+// with the person – the tool refuses it. Re-importing a book takes the API's two steps: the comparison, which the person
+// sees, then the import with its confirmation.
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
-import type { OsctApi } from "./api.ts";
+import { ApiError, type OsctApi } from "./api.ts";
 import { checkEntity, describeContentModel, pluginTypes, usesPluginTypes, type BookModel } from "./model.ts";
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
@@ -16,6 +17,28 @@ import { PASS_TYPES, passProblems, PRINT_SURFACES, SPREAD_FORMATS } from "../../
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 
 type Json = Record<string, unknown>;
+
+/**
+ * The import's first step (409 confirm-import) or a void confirmation (409 confirmation-void) as the tool's answer:
+ * nothing was imported – the comparison to show the person and the confirmation to send back with their yes. Other
+ * errors: null.
+ */
+export function importStep(error: unknown): Json | null {
+  if (!(error instanceof ApiError) || error.status !== 409 || (error.code !== "confirm-import" && error.code !== "confirmation-void")) return null;
+  return {
+    imported: false,
+    ...(error.code === "confirmation-void" ? { void: error.message } : {}),
+    comparison: error.details.comparison,
+    confirmation: error.details.confirmation,
+    next: "Nothing was imported. Show the person the comparison – the incoming build against what the draft is based on and its edits since – and ask. Only with their yes call import_book again with the same arguments and confirm: confirmation.id (it expires, and any change meanwhile voids it).",
+  };
+}
+
+/** GET /editor/environments: this instance's environment and, per environment, its backend (`cdn` or `server`) */
+export interface Environments {
+  env: string;
+  environments: { env: string; store: "cdn" | "server"; publish: boolean; url: string | null; warning: string | null }[];
+}
 
 /** The book list's rows (`GET /editor/books`) */
 export interface BookSummary {
@@ -148,17 +171,18 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "import_book",
     {
       description:
-        "Replaces a book's content rows from a game configuration (the content build's game.config.json): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced.",
+        "Replaces a book's content rows from a game configuration (the content build's game.config.json): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the book exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new book is imported at once.",
       inputSchema: z.object({
         book: BOOK,
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
         assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against"),
         source: z.enum(["cdn"]).optional().describe('"cdn" = the instance CDN\'s current version (CONTENT_BASE_URL)'),
+        confirm: z.string().optional().describe("the second step: the confirmation id of the comparison the person agreed to"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
-    guard(async ({ book, url, configuration, assetsBase, source }) => {
+    guard(async ({ book, url, configuration, assetsBase, source, confirm }) => {
       let body: Json;
       if (source === "cdn") body = { source };
       else {
@@ -170,8 +194,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         }
         body = { configuration, ...(assetsBase ? { assetsBase } : {}) };
       }
-      const result = await api.call<Json>("POST", `/editor/books/${encodeURIComponent(book)}/import`, body);
-      return text({ ...result, open: editorHref(links, book) });
+      try {
+        const result = await api.call<Json>("POST", `/editor/books/${encodeURIComponent(book)}/import`, { ...body, ...(confirm ? { confirm } : {}) });
+        return text({ ...result, open: editorHref(links, book) });
+      } catch (error) {
+        const step = importStep(error);
+        if (!step) throw error;
+        return text({ ...step, open: editorHref(links, book) });
+      }
     }),
   );
 
@@ -489,19 +519,22 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "publish",
     {
       description:
-        "Writes the draft as a content version into the content store of `env`: `local` (this API's own store – the reader started with VITE_CONTENT_BASE_URL=<api>/content/local shows it) or `staging`. **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components when a node uses a component no compiled plugin provides. Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's.",
-      inputSchema: z.object({ book: BOOK, env: z.enum(["local", "staging", "production"]), note: z.string().optional() }),
+        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components when a node uses a component no compiled plugin provides. Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's.",
+      inputSchema: z.object({ book: BOOK, env: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     guard(async ({ book, env, note }) => {
-      if (env === "production") {
+      const { env: own, environments } = await api.call<Environments>("GET", "/editor/environments");
+      const target = env ?? own;
+      if (target === "production") {
         return fail({
-          error: { code: "production-is-a-person", message: "Publishing to production stays with a person: open the editor and press Publish there. This tool publishes to local or staging only." },
+          error: { code: "production-is-a-person", message: "Publishing to production stays with a person: open the editor and press Publish there. This tool publishes only to a local or staging instance's own environment." },
           open: editorHref(links, book),
         });
       }
-      const result = await api.call<Json>("POST", `/editor/books/${encodeURIComponent(book)}/publish`, { env, ...(note ? { note } : {}) });
-      return text({ ...result, open: editorHref(links, book) });
+      const result = await api.call<Json>("POST", `/editor/books/${encodeURIComponent(book)}/publish`, { env: target, ...(note ? { note } : {}) });
+      const warning = environments.find(e => e.env === target)?.warning;
+      return text({ ...result, ...(warning ? { warning } : {}), open: editorHref(links, book) });
     }),
   );
 

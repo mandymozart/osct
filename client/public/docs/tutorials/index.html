@@ -260,13 +260,13 @@ npm run osct -- content sync --env staging</code></pre>
     </li>
     <li>
       <h3>Publish <span class="who">editor</span></h3>
-      <p><b>Publish</b> with the environment makes a new content version from the draft and switches <code>latest.json</code>. The reader picks it up on its next start. Every publish is kept as a version; the versions list shows who published what, and an older version can be made current again.</p>
+      <p><b>Publish</b> makes a new content version from the draft and switches <code>latest.json</code> – in the instance's own environment, and only there: the staging editor publishes to staging, the production editor to production. Next to the button the editor names it with its backend, <code>staging · CDN</code> or <code>… · this server</code> (no CDN connected – then the server stores and serves the content itself; back it up). A step in the page names the book and the build before anything is written. The reader picks it up on its next start. Every publish is kept as a version; the versions list shows who published what, and an older version can be made current again.</p>
     </li>
   </ol>
 
   <h3 class="sec" id="things-to-know">Things to know</h3>
   <div class="note">
-    <p><b>Import replaces the draft.</b> Importing again swaps the book's rows for the version imported – edits that were not published are gone (the change log stays). Publish first, or do not import again.</p>
+    <p><b>Import replaces the draft.</b> Importing again swaps the book's rows for the version imported – edits that were not published are gone (the change log stays). So the editor compares first: the build coming in against the build the draft is based on (date, app and schema version), and the edits made since. Only <b>Replace the draft</b> imports. Publish first, or cancel.</p>
   </div>
   <div class="note">
     <p><b>Sync and publish both make versions.</b> A sync from the folder after editor work puts a version <em>without</em> the editor's changes on the CDN. Once the editor is where the book is edited, sync from the folder only when the YAML changed, and import again afterwards – placements saved in the draft survive that import only if they were carried back into the YAML first.</p>
@@ -377,8 +377,8 @@ npm run osct -- content status --env staging</code></pre>
       <p>The staging reader takes a content address: <code>https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo</code>. It keeps it for the tab. The progress is kept apart from the book's. Production ignores the parameter.</p>
     </li>
     <li>
-      <h3>Publish only to local <span class="who">editor</span></h3>
-      <p>One environment holds one book. A publish of the demo to <code>staging</code> would replace the real book there, so the editor asks first and names both books. Publish the demo to <code>local</code>, or to staging only on purpose.</p>
+      <h3>Publish the demo only on purpose <span class="who">editor</span></h3>
+      <p>One environment holds one book. A publish of the demo in the staging editor would replace the real book on staging, so the publish step names both books first. Read the demo on a phone with its content address instead (above), or publish it on a local editor, whose environment is <code>local</code>.</p>
     </li>
   </ol>
 

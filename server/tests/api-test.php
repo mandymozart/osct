@@ -129,6 +129,19 @@ function call(string $base, string $method, string $path, ?array $body = null, ?
     return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
 }
 
+/**
+ * An import that overwrites: the first answer of a book that exists is 409 confirm-import with a confirmation id
+ * (Books::import) – sent again with it, as the editor does after the comparison. Errors pass through unchanged.
+ */
+function importing(string $base, string $book, ?string $token, string $raw): array
+{
+    $answer = call($base, 'POST', "/editor/books/$book/import", null, $token, 'http://localhost:5173', $raw);
+    if ($answer[0] !== 409 || ($answer[1]['error']['code'] ?? null) !== 'confirm-import') return $answer;
+    $body = json_decode($raw);
+    $body->confirm = $answer[1]['error']['confirmation']['id'];
+    return call($base, 'POST', "/editor/books/$book/import", null, $token, 'http://localhost:5173', json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+}
+
 /** A file upload: the bytes as the body, the name in X-File-Name */
 function upload(string $base, string $method, string $path, string $bytes, string $name, string $token): array
 {
@@ -201,7 +214,7 @@ try {
     $settings = database('test') + [
         'SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'EDITORS' => 'Listed@example.com, other@example.com', 'ADMINS' => 'Chief@example.com',
         'MAIL_LOG_PATH' => $mailLog, 'APP_URL' => 'https://app.example', 'ALLOWED_ORIGINS' => 'http://localhost:5173, https://*--staging.example',
-        'LOGIN_MAX_PER_EMAIL_HOUR' => '4', 'CONTENT_STORE_DIR' => "$tmp/content",
+        'LOGIN_MAX_PER_EMAIL_HOUR' => '4', 'CONTENT_STORE_DIR' => "$tmp/content", 'LOG_PATH' => "$tmp/error.log",
     ];
     $api = startApi($settings);
 
@@ -508,18 +521,18 @@ try {
     ];
     $files = ['/assets/content/entries/racoon/racoon.glb' => ['size' => 1234, 'v' => 'abcdef012345'], '/assets/content/entries/racoon/img.jpg' => ['size' => 10, 'v' => '0123456789ab']];
     $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200 && $data['counts'] === ['spreads' => 2, 'entries' => 4, 'targets' => 2, 'entities' => 1], 'import → counts');
     check(preg_match('/^[0-9a-f]{12}$/', $data['draft']['build'] ?? '') === 1 && $data['book']['importedHash'] === str_repeat('ab', 32), 'import answers with the draft build and the imported hash');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => ['book' => []]]));
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => ['book' => []]]));
     check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'a configuration without a schema → 400');
     $bad = $configuration;
     $bad['entities']['castle']['type'] = 'hologram';
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $bad], $flags));
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $bad], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'an unknown entity type → 400 invalid-entity');
     $bad = $configuration;
     $bad['entries'][1]['target']['entity'] = ['ref' => 'ghost'];
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $bad], $flags));
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $bad], $flags));
     check($status === 400 && $data['error']['code'] === 'unknown-entity', 'a ref to no entity → 400 unknown-entity');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/import', ['source' => 'cdn'], $editor);
     check($status === 400 && $data['error']['code'] === 'no-content-base', 'source cdn without CONTENT_BASE_URL → 400');
@@ -586,8 +599,21 @@ try {
     check(count($data['changes']) === 1, 'limit');
 
     echo "editor: publish (local store)\n";
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'nowhere'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-env', 'unknown env → 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'No where!'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-env', 'an env that is no environment name → 400');
+    foreach (['staging', 'production', 'nowhere'] as $env) {
+        [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => $env], $editor);
+        check($status === 403 && $data['error']['code'] === 'other-environment' && $data['error']['env'] === 'local' && !is_dir("$storeDir/$env"), "a local instance publishes to local only: $env → 403 other-environment, nothing written (#183)");
+    }
+    [$status, $data] = call($api, 'GET', '/editor/environments', null, $editor);
+    $byEnv = array_column($data['environments'] ?? [], null, 'env');
+    check($status === 200 && $data['env'] === 'local' && array_keys($byEnv) === ['local', 'staging', 'production'], 'environments: the own one first, local only because this instance is local');
+    check($byEnv['local']['publish'] === true && $byEnv['local']['store'] === 'server' && str_ends_with((string) $byEnv['local']['url'], '/api/content/local')
+        && str_contains((string) $byEnv['local']['warning'], 'No CDN connected – the published content is stored and served by this server only') && str_contains((string) $byEnv['local']['warning'], 'Back up the content store'),
+        'the target local: this server, its URL, and the warning (content, not data)');
+    check($byEnv['staging']['publish'] === false && $byEnv['production']['publish'] === false && $byEnv['staging']['warning'] === null && $byEnv['staging']['store'] === 'server', 'staging and production: no publish from here, no warning (not the target)');
+    [$status] = call($api, 'GET', '/editor/environments', null, $chief);
+    check($status === 403, 'environments: editors only (an admin without the editor role → 403)');
     [$status, $first] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local', 'note' => 'first'], $editor);
     check($status === 200 && $first['env'] === 'local' && preg_match('/^[0-9a-f]{12}$/', $first['build']) === 1 && str_starts_with($first['hash'], $first['build']) && isset($first['publishedAt']), 'publish → env, build, hash');
     check(is_file("$storeDir/local/{$first['build']}/game.config.json") && is_file("$storeDir/local/{$first['build']}/files.json") && is_file("$storeDir/local/latest.json") && is_file("$storeDir/local/versions.json"), 'the version folder, versions.json and latest.json are in the store dir');
@@ -636,7 +662,7 @@ try {
     file_put_contents("$storeDir/local/latest.json", $withBook);
     $demo = $configuration;
     $demo['book'] = ['id' => 'demo', 'title' => 'Demo', 'author' => 'Someone'];
-    [$status] = call($api, 'POST', '/editor/books/demo/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $demo], $flags));
+    [$status] = importing($api, 'demo', $editor, json_encode(['configuration' => $demo], $flags));
     check($status === 200, 'a second book: demo');
     [, $data] = call($api, 'GET', '/editor/books', null, $editor);
     $byId = array_column($data['books'], null, 'id');
@@ -660,9 +686,53 @@ try {
     $current = array_values(array_filter($versions, fn($v) => $v['retiredAt'] === null));
     check($status === 200 && $data['build'] === $second['build'] && $data['replaced']['book'] === 'demo' && count($current) === 1 && $current[0]['build'] === $second['build'] && $current[0]['book'] === 'osct', "switching back re-activates the book's version (no new folder)");
 
+    echo "editor: import with a version comparison before it overwrites (#183)\n";
+    $raw = fn(array $body) => call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode($body, $flags));
+    $incoming = $configuration;
+    $incoming['version'] = ['version' => '1.42.0', 'timestamp' => '2026-10-30T08:00:00.000Z', 'hash' => str_repeat('cd', 32), 'schema' => '1.2'];
+    [, $before] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files]);
+    $comparison = $data['error']['comparison'] ?? [];
+    $confirmation = $data['error']['confirmation'] ?? [];
+    check($status === 409 && $data['error']['code'] === 'confirm-import' && preg_match('/^\d{10}\.[0-9a-f]{32}$/', $confirmation['id'] ?? '') === 1 && strtotime($confirmation['expiresAt'] ?? '') > time(),
+        'an import over an existing book → 409 confirm-import with a confirmation id that expires');
+    check(($comparison['book'] ?? null) === ['id' => 'osct', 'title' => 'Test Book'] && $comparison['incoming']['build'] === 'cdcdcdcdcdcd' && $comparison['incoming']['date'] === '2026-10-30T08:00:00.000Z'
+        && $comparison['incoming']['appVersion'] === '1.42.0' && $comparison['incoming']['schema'] === '1.2' && $comparison['incoming']['source'] === 'configuration' && !isset($comparison['incoming']['digest']),
+        'the comparison: the incoming build, its date, app and schema version');
+    $basedOn = $comparison['draft']['basedOn'] ?? [];
+    check(($basedOn['build'] ?? null) === 'abababababab' && $basedOn['date'] === '2026-01-01T00:00:00.000Z' && $basedOn['appVersion'] === '1.9.0' && $basedOn['importedBy'] === 'author@example.com' && is_string($basedOn['importedAt']),
+        '… against what the draft is based on: build, date, app version, who imported it and when');
+    check($comparison['draft']['edits'] === 3 && $comparison['draft']['recentEdits'][0]['kind'] === 'entity' && $comparison['draft']['recentEdits'][0]['ref'] === 'castle' && $comparison['draft']['recentEdits'][0]['user'] === 'author@example.com'
+        && preg_match('/^[0-9a-f]{12}$/', $comparison['draft']['build']) === 1 && $comparison['same'] === false && ($comparison['draft']['live'][0]['env'] ?? null) === 'local',
+        "… and the draft's unpublished edits since the import (the change log), its build and where it is live");
+    [, $after] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($after === $before, 'the first step changes nothing');
+    [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files, 'confirm' => substr($confirmation['id'], 0, -1) . (str_ends_with($confirmation['id'], '0') ? '1' : '0')]);
+    check($status === 409 && $data['error']['code'] === 'confirmation-void' && isset($data['error']['comparison'], $data['error']['confirmation']), 'a forged confirmation → 409 confirmation-void, with a new comparison');
+    [$status, $data] = $raw(['configuration' => $configuration, 'files' => $files, 'confirm' => $confirmation['id']]);
+    check($status === 409 && $data['error']['code'] === 'confirmation-void', 'the id is bound to the incoming content: another configuration → void');
+    $castleNow = $before['entities']['castle'];
+    $castleNow['params'] = ['scale' => 4];
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $castleNow, $editor);
+    [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files, 'confirm' => $confirmation['id']]);
+    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $data['error']['comparison']['draft']['edits'] === 4, 'an edit after the comparison voids the id; the new comparison counts it');
+    $confirmation = $data['error']['confirmation'];
+    call($api, 'POST', '/auth/request', ['email' => 'listed@example.com']);
+    [, $other] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $other['session'], 'http://localhost:5173', json_encode(['configuration' => $incoming, 'files' => $files, 'confirm' => $confirmation['id']], $flags));
+    check($status === 409 && $data['error']['code'] === 'confirmation-void', "another editor cannot use someone's confirmation");
+    [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files, 'confirm' => $confirmation['id']]);
+    check($status === 200 && $data['book']['importedHash'] === str_repeat('cd', 32) && $data['imported']['build'] === 'cdcdcdcdcdcd' && $data['imported']['appVersion'] === '1.42.0' && $data['imported']['importedBy'] === 'author@example.com',
+        'the second step with the id imports and answers what the draft is now based on');
+    [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files, 'confirm' => $confirmation['id']]);
+    check($status === 409 && $data['error']['code'] === 'confirmation-void', 'the id is used up: the same import again needs a new comparison');
+    check($data['error']['comparison']['draft']['edits'] === 0 && $data['error']['comparison']['same'] === true && $data['error']['comparison']['draft']['basedOn']['build'] === 'cdcdcdcdcdcd',
+        'after the import: no edits since, the same build comes in');
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'back to the first configuration (both steps)');
     echo "editor: assets base\n";
     $base = 'https://cdn.example/staging/0123456789ab';
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => "$base/"], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => "$base/"], $flags));
     check($status === 200, 're-import with an assets base');
     [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
     [, $data] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
@@ -676,7 +746,7 @@ try {
     check(array_keys($data) === ["$base/assets/content/entries/racoon/racoon.glb", "$base/assets/content/entries/racoon/img.jpg"], 'files.json keys rewritten, in order');
     [, $data] = call($api, 'GET', '/editor/books/osct/changes', null, $editor);
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check(count($data['changes']) === 3 && $tree['spreads'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
+    check(count($data['changes']) === 4 && $tree['spreads'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
 
     echo "editor: node trees (content schema 2.0)
 ";
@@ -741,7 +811,7 @@ try {
     check($status === 200, 'with a plugin declared, a node may use its component');
     $noPlugins = $configuration;
     unset($noPlugins['plugins']);
-    call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $noPlugins, 'files' => $files], $flags));
+    importing($api, 'osct', $editor, json_encode(['configuration' => $noPlugins, 'files' => $files], $flags));
     call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'unknown-components' && $data['error']['components'] === ['tint'], 'without one, publish → 409 unknown-components naming the types');
@@ -767,14 +837,14 @@ try {
     // The import: allowed with plugins declared, refused without (and without sources)
     $withNodes = $configuration;
     $withNodes['entities']['castle'] = $sparkly;
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $withNodes, 'files' => $files], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $withNodes, 'files' => $files], $flags));
     check($status === 200, 'import: a plugin node type with plugins declared → 200');
     [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
     check($status === 200, 'with a plugin declared, a node may have its type');
     unset($withNodes['plugins']);
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $withNodes, 'files' => $files], $flags));
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $withNodes, 'files' => $files], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'import: a plugin node type without plugins → 400 invalid-entity');
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the plugins');
 
     echo "editor: the plugins' recorded specs (#90)\n";
@@ -785,7 +855,7 @@ try {
     check($status === 200, 'the recorded node type passes');
     $typo = $configuration;
     $typo['entities']['castle'] = ['type' => 'sparkel', 'assets' => []];
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $typo, 'files' => $files], $flags));
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $typo, 'files' => $files], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'import: a node type the configuration\'s plugins did not record → 400');
     // A component no declared plugin recorded is refused at publish, although the book declares plugins
     $glowing = $configuration['entities']['castle'];
@@ -796,13 +866,13 @@ try {
     // A plugin of an older build (nothing recorded) may register anything: a camelCase name passes, as before
     $older = $typo;
     unset($older['plugins'][0]['registered']);
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $older, 'files' => $files], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $older, 'files' => $files], $flags));
     check($status === 200, 'import: a plugin without recorded specs lets a camelCase node type pass');
     $broken = $configuration;
     $broken['plugins'][0]['registered'] = ['nodeTypes' => ['sparkle']];
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $broken, 'files' => $files], $flags));
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $broken, 'files' => $files], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'import: registered.nodeTypes that is no object → 400');
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the recorded plugins');
 
     echo "editor: a plugin's material (#188)\n";
@@ -812,7 +882,7 @@ try {
         'caustics' => ['kind' => 'texture', 'default' => '', 'description' => 'The caustics.'],
     ]]];
     $watery['plugins'][0]['registered']['textures'] = ['caustics' => ['description' => 'Light on the floor.', 'params' => new stdClass()]];
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $watery, 'files' => $files], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $watery, 'files' => $files], $flags));
     check($status === 200, 'import: a plugin with recorded materials and textures → 200');
     $tank = $configuration['entities']['castle'];
     $tank['material'] = ['type' => 'water', 'params' => ['caustics' => 'caustics']];
@@ -838,9 +908,9 @@ try {
     call($api, 'DELETE', '/editor/books/osct/plugins/lava', null, $editor);
     $dry = $noPlugins;
     $dry['entities']['castle'] = $tank;
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $dry, 'files' => $files], $flags));
+    [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $dry, 'files' => $files], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-entity' && str_contains($data['error']['message'], 'no plugins'), 'import: a material in a book without plugins → 400');
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the recorded plugins');
 
     echo "editor: assets\n";
@@ -865,11 +935,11 @@ try {
     check(count($imported) === 2 && $imported[0]['name'] === 'racoon.glb' && $imported[0]['kind'] === 'glb' && $imported[0]['size'] === 1234 && $imported[0]['url'] === '/assets/content/entries/racoon/racoon.glb' && $imported[1]['kind'] === 'image', 'and the files of the import (files.json) after it');
     check($imported[0]['usages'] === 1 && $imported[1]['usages'] === 1, 'an imported file counts its uses (the entity in the target, the target image)');
     // Below an assets base the list shows CDN URLs, the rows still name the content paths: the uses count all the same (#121)
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => 'https://cdn.example/staging/0123456789ab/'], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => 'https://cdn.example/staging/0123456789ab/'], $flags));
     [, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
     $based = array_values(array_filter($data['assets'], fn($a) => $a['imported']));
     check($status === 200 && $based[0]['url'] === 'https://cdn.example/staging/0123456789ab/assets/content/entries/racoon/racoon.glb' && $based[0]['usages'] === 1 && $based[1]['usages'] === 1, 'an imported file used by a target counts 1 below an assets base too');
-    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again without the base');
     [, $filtered] = call($api, 'GET', '/editor/books/osct/assets?kind=image', null, $editor);
     check(count($filtered['assets']) === 2 && array_column($filtered['assets'], 'kind') === ['image', 'image'], 'the kind filter applies to both');
@@ -1127,7 +1197,8 @@ try {
     $processes[] = proc_open([PHP_BINARY, '-S', "127.0.0.1:$storagePort", __DIR__ . '/fake-storage.php'], $testLog, $pipes, __DIR__, ['STORAGE_DIR' => $bunnyDir, 'STORAGE_KEY' => 'zone-key'] + getenv());
     for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $storagePort); $i++) usleep(100000);
     $bunny = ['CONTENT_STORE' => 'bunny', 'BUNNY_STORAGE_ZONE' => 'osct', 'BUNNY_STORAGE_ENDPOINT' => "http://127.0.0.1:$storagePort", 'BUNNY_STORAGE_PASSWORD' => 'zone-key'];
-    $bunnyApi = startApi($bunny + $settings);
+    // A staging instance with the CDN connected: it publishes to staging only, and staging goes to the zone (#183)
+    $bunnyApi = startApi(['ENV' => 'staging'] + $bunny + $settings);
     [$status, $data] = call($bunnyApi, 'POST', '/editor/books/osct/publish', ['env' => 'staging'], $editor);
     check($status === 200 && is_file("$bunnyDir/osct/staging/{$data['build']}/game.config.json") && is_file("$bunnyDir/osct/staging/{$data['build']}/files.json"), 'staging goes to the storage zone: osct/staging/<build>/');
     $latest = json_decode((string) @file_get_contents("$bunnyDir/osct/staging/latest.json"), true);
@@ -1138,12 +1209,120 @@ try {
     check(in_array('staging', array_column(array_column($data['books'], null, 'id')['osct']['live'], 'env'), true), 'the book list reads the zone: live on staging');
     [$status] = call($bunnyApi, 'GET', '/content/staging/latest.json');
     check($status === 404, 'nothing local for staging on a bunny host');
-    [$status, $data] = call($bunnyApi, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
-    check($status === 200 && is_file("$storeDir/local/{$data['build']}/game.config.json"), 'the environment local stays in the local store');
-    $wrongKey = startApi(['BUNNY_STORAGE_PASSWORD' => 'wrong'] + $bunny + $settings);
+    foreach (['local', 'production'] as $env) {
+        [$status, $data] = call($bunnyApi, 'POST', '/editor/books/osct/publish', ['env' => $env], $editor);
+        check($status === 403 && $data['error']['code'] === 'other-environment' && $data['error']['env'] === 'staging', "a staging instance refuses $env → 403 other-environment (no cross-environment publish)");
+    }
+    [, $data] = call($bunnyApi, 'GET', '/editor/environments', null, $editor);
+    $byEnv = array_column($data['environments'], null, 'env');
+    check($data['env'] === 'staging' && array_keys($byEnv) === ['staging', 'production'], 'a deployed instance lists no local');
+    check($byEnv['staging']['store'] === 'cdn' && $byEnv['staging']['publish'] === true && $byEnv['staging']['warning'] === null && $byEnv['production']['store'] === 'cdn' && $byEnv['production']['publish'] === false,
+        'the CDN has priority: staging · CDN, no warning');
+    [, $data] = call($bunnyApi, 'GET', '/editor/books', null, $editor);
+    check(!in_array('local', array_column($data['environments'], 'env'), true), 'the book list reads no local store on a deployed instance');
+    // A developer's machine with the CDN's key: local still stays in the directory store – with the warning
+    $localBunny = startApi($bunny + $settings);
+    [$status, $data] = call($localBunny, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200 && $data['store'] === 'server' && is_file("$storeDir/local/{$data['build']}/game.config.json"), 'the environment local stays in the directory store');
+    [, $data] = call($localBunny, 'GET', '/editor/environments', null, $editor);
+    $byEnv = array_column($data['environments'], null, 'env');
+    check($byEnv['local']['store'] === 'server' && is_string($byEnv['local']['warning']) && $byEnv['staging']['store'] === 'cdn' && $byEnv['staging']['publish'] === false, 'local · this server (warned), staging · CDN (not a target here)');
+    // An instance without a CDN: its own environment goes to the directory store, and the editor warns
+    $plainStaging = startApi(['ENV' => 'staging'] + $settings);
+    [, $data] = call($plainStaging, 'GET', '/editor/environments', null, $editor);
+    check($data['environments'][0]['env'] === 'staging' && $data['environments'][0]['store'] === 'server' && str_starts_with((string) $data['environments'][0]['warning'], 'No CDN connected'), 'staging without a CDN: staging · this server, with the warning');
+    [$status, $data] = call($plainStaging, 'POST', '/editor/books/osct/publish', ['env' => 'staging', 'replace' => true], $editor);
+    check($status === 200 && $data['store'] === 'server' && is_file("$storeDir/staging/{$data['build']}/game.config.json"), '… and publishes there');
+    $wrongKey = startApi(['ENV' => 'production', 'BUNNY_STORAGE_PASSWORD' => 'wrong'] + $bunny + $settings);
     [$status, $data] = call($wrongKey, 'POST', '/editor/books/osct/publish', ['env' => 'production'], $editor);
     check($status === 502 && $data['error']['code'] === 'content-store-failed', 'a refused upload → 502 content-store-failed');
 
+    echo "content store and var/: the move out of api/db/ (#197)\n";
+    // Copies of the API's code (never a developer's config or data) in temporary trees, started like the dev server
+    $apiCopy = function (string $to) use ($root): void {
+        foreach (['src', 'db'] as $folder) mkdir("$to/$folder", 0777, true);
+        foreach (['index.php', '.htaccess'] as $file) copy("$root/api/$file", "$to/$file");
+        foreach (glob("$root/api/src/*.php") as $file) copy($file, "$to/src/" . basename($file));
+        foreach (['schema.mysql.sql', 'schema.sqlite.sql', '.htaccess'] as $file) copy("$root/api/db/$file", "$to/db/$file");
+    };
+    $startCopy = function (string $api, array $settings, ?string $configFile = null) use (&$processes): string {
+        $port = freePort();
+        $env = array_filter(getenv(), fn(string $key) => !str_starts_with($key, 'OSCT_'), ARRAY_FILTER_USE_KEY);
+        foreach ($settings as $key => $value) $env["OSCT_$key"] = $value;
+        $env['OSCT_CONFIG_FILE'] = $configFile ?? '/nonexistent';
+        $log = sys_get_temp_dir() . '/osct-api-test.log';
+        $processes[] = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", '-t', dirname($api), "$api/index.php"], [1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $pipes, dirname($api), $env);
+        for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $port); $i++) usleep(100000);
+        return "http://127.0.0.1:$port/api";
+    };
+    $legacyStore = function (string $api): void {
+        mkdir("$api/db/content/local/0123456789ab", 0777, true);
+        file_put_contents("$api/db/content/local/latest.json", json_encode(['build' => '0123456789ab', 'book' => 'osct']));
+        file_put_contents("$api/db/content/local/0123456789ab/game.config.json", '{"book":{"id":"osct"}}');
+    };
+    $copySecret = ['SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'ALLOWED_ORIGINS' => 'http://localhost:5173'];
+
+    // A developer's checkout: the old folder and files, and a config.local.php that names them (__DIR__ . '/db/…')
+    $dev = "$tmp/dev-checkout";
+    $devApi = "$dev/server/api";
+    $apiCopy($devApi);
+    $legacyStore($devApi);
+    $sqlite = new PDO("sqlite:$devApi/db/local.sqlite");
+    loadSchema($sqlite, (string) file_get_contents("$root/api/db/schema.sqlite.sql"));
+    $sqlite->exec('CREATE TABLE kept (note TEXT)');
+    $sqlite->exec("INSERT INTO kept VALUES ('the developer''s data')");
+    $sqlite = null;
+    file_put_contents("$devApi/db/mail.log", "=== an old mail ===\n");
+    file_put_contents("$devApi/db/error.log", "an old error\n");
+    file_put_contents("$tmp/dev-config.php", '<?php return ' . var_export(['DB_SQLITE_PATH' => "$devApi/db/local.sqlite", 'MAIL_LOG_PATH' => "$devApi/db/mail.log"], true) . ';');
+    $devBase = $startCopy($devApi, $copySecret, "$tmp/dev-config.php");
+    [$status, $data] = call($devBase, 'GET', '/health');
+    check($status === 200 && $data['db'] === 'ok', 'the first start after the move answers');
+    check(is_file("$dev/content-store/local/latest.json") && is_file("$dev/content-store/local/0123456789ab/game.config.json") && !file_exists("$devApi/db/content"),
+        'the content store moved from server/api/db/content to content-store/ at the top level');
+    [$status, $data] = call($devBase, 'GET', '/content/local/latest.json');
+    check($status === 200 && $data['build'] === '0123456789ab', 'GET /content/local/… serves it from there');
+    $kept = is_file("$dev/var/db/local.sqlite") ? (new PDO("sqlite:$dev/var/db/local.sqlite"))->query('SELECT note FROM kept')->fetchColumn() : null;
+    check($kept === "the developer's data" && !file_exists("$devApi/db/local.sqlite"), "the SQLite file named in config.local.php moved to var/db/ with the developer's data");
+    call($devBase, 'POST', '/auth/request', ['email' => 'dev@example.com']);
+    $mails = (string) @file_get_contents("$dev/var/mail/mail.log");
+    check(str_starts_with($mails, '=== an old mail ===') && str_contains($mails, 'dev@example.com') && !file_exists("$devApi/db/mail.log"), 'the mail log moved to var/mail/ and new mails land there');
+    $errors = (string) @file_get_contents("$dev/var/log/error.log");
+    check(str_starts_with($errors, 'an old error') && str_contains($errors, 'moved') && !file_exists("$devApi/db/error.log"), 'the error log moved to var/log/, the moves are logged there');
+    $left = array_values(array_diff(scandir("$devApi/db"), ['.', '..']));
+    check($left === ['.htaccess', 'schema.mysql.sql', 'schema.sqlite.sql'], 'server/api/db/ keeps only the schema files');
+
+    // The new place holds something already: nothing moves, nothing is overwritten
+    $both = "$tmp/both-checkout";
+    $apiCopy("$both/server/api");
+    $legacyStore("$both/server/api");
+    mkdir("$both/content-store/staging", 0777, true);
+    file_put_contents("$both/content-store/staging/latest.json", '{"build":"aaaaaaaaaaaa"}');
+    $bothBase = $startCopy("$both/server/api", $copySecret + ['DB_SQLITE_PATH' => "$tmp/both.sqlite", 'LOG_PATH' => "$tmp/both-error.log"]);
+    call($bothBase, 'GET', '/health');
+    check(is_file("$both/server/api/db/content/local/latest.json") && is_file("$both/content-store/staging/latest.json") && !file_exists("$both/content-store/local"),
+        'when the content store is not empty, the old folder stays where it is (both kept, the new one used)');
+
+    // A setting that points elsewhere (a test, a mounted volume): used as it is, the old folder is never touched
+    $elsewhere = "$tmp/elsewhere-checkout";
+    $apiCopy("$elsewhere/server/api");
+    $legacyStore("$elsewhere/server/api");
+    $elsewhereBase = $startCopy("$elsewhere/server/api", $copySecret + ['CONTENT_STORE_DIR' => "$tmp/mounted-store", 'DB_SQLITE_PATH' => "$tmp/elsewhere.sqlite", 'LOG_PATH' => "$tmp/elsewhere-error.log"]);
+    [$status] = call($elsewhereBase, 'GET', '/content/local/latest.json');
+    check($status === 404 && is_file("$elsewhere/server/api/db/content/local/latest.json") && !file_exists("$tmp/mounted-store/local"), 'OSCT_CONTENT_STORE_DIR elsewhere: nothing moves into it');
+
+    // A deployed layout (the API at <docroot>/api, the FTPS staging): the store and var/ inside the API's folder, where
+    // every request goes through index.php – outside the uploaded code, which the upload never deletes
+    $site = "$tmp/site";
+    $apiCopy("$site/api");
+    $legacyStore("$site/api");
+    file_put_contents("$site/api/db/error.log", "an old staging error\n");
+    $siteBase = $startCopy("$site/api", $copySecret + ['DB_SQLITE_PATH' => "$tmp/site.sqlite", 'ENV' => 'staging']);
+    [$status, $data] = call($siteBase, 'GET', '/content/local/latest.json');
+    check(is_file("$site/api/content-store/local/latest.json") && !file_exists("$site/api/db/content") && $status === 200,
+        'deployed: the old store moved to api/content-store (served as before)');
+    check(str_starts_with((string) @file_get_contents("$site/api/var/log/error.log"), 'an old staging error') && trim((string) @file_get_contents("$site/api/var/.htaccess")) === 'Require all denied',
+        'deployed: the error log moved to api/var/log/, and var/ denies direct requests');
     echo "AI connections: personal access tokens (#142)\n";
     [$status, $data] = call($api, 'GET', '/user/tokens', null, $editor);
     check($status === 200 && $data['tokens'] === [], 'an editor without tokens: an empty list');

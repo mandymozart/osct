@@ -21,11 +21,12 @@ if [ -n "${OSCT_DB_SQLITE_PATH:-}" ]; then
     chown www-data:www-data "$OSCT_DB_SQLITE_PATH" "$(dirname "$OSCT_DB_SQLITE_PATH")"
 fi
 
-# The local content store (docs/server.md "Editor data"): the editor's publishes to the environment `local` land
-# here whatever OSCT_CONTENT_STORE says; the API (www-data) must be able to create version folders in it. The default
-# is under api/db, which is never served – GET /api/content/{env}/… reads it.
-store_dir="${OSCT_CONTENT_STORE_DIR:-${OSCT_API_DIR:-/var/www/html/api}/db/content}"
+# The content store (docs/server.md "Content store and var"): published content and the Library's uploads wherever the
+# directory store is the backend – mounted as a volume by Kamal, so it outlives the container. The API (www-data) must
+# be able to create folders in it: a fresh volume or host folder may belong to root, so whatever is not www-data's is
+# handed over (only those, not the whole tree on every start). GET /api/content/{env}/… reads it.
+store_dir="${OSCT_CONTENT_STORE_DIR:-/var/lib/osct/content-store}"
 mkdir -p "$store_dir"
-chown -R www-data:www-data "$store_dir"
+find "$store_dir" ! -user www-data -exec chown www-data:www-data {} +
 
 exec "$@"

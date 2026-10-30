@@ -15,6 +15,12 @@ servers:
 proxy:
   host: osct.buildingfictions.com
 
+# The content store (docs/server.md "Content store and var"): published content and the Library's uploads wherever the
+# directory store is the backend (an environment without a CDN) – a named volume on the server, so no deploy loses it.
+# Back it up together with the database (docs/deploy.md "Backup").
+volumes:
+  - osct-content-store:/var/lib/osct/content-store
+
 env:
   clear:
     OSCT_ENV: production

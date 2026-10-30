@@ -14,11 +14,14 @@ coverage
 client/src/game.config.json
 client/public/assets/content/
 
-# Server secrets and local data (docs/server.md)
+# Server secrets and local data (docs/server.md "Content store and var"): published content and uploads in content-store/,
+# the SQLite file and the logs in var/ – both at the top level, never committed
+/content-store/
+/var/
 server/api/config.local.php
+# Their older places, moved out by the API on its first start (server/api/db/ holds the schema only)
 server/api/db/*.sqlite
 server/api/db/*.log
-# The local content store (what the editor publishes on this machine)
 server/api/db/content/
 # Dumps of staging's database (scripts/db/pull-staging.sh) – personal data, never committed
 server/db-dumps/

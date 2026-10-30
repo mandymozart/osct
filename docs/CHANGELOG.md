@@ -12,6 +12,41 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.43.0 – 2026-10-30
+
+### Added
+- **Import with a version comparison before it overwrites** (#183, Tilman: "Wichtig hier ein Versionsabgleich, wenn
+  es überschreibt."): importing over a book that exists shows, in the page, the incoming build against the build the
+  draft is based on – id, build date, app and schema version – with who imported it, the draft's edits since that
+  import (from the change log) and whether the draft as it is now is live anywhere. *Replace the draft* imports; nothing
+  is written before. The API answers the first import with that comparison and a short-lived confirmation
+  (409 `confirm-import`), the second with `confirm` imports (`books.imported_json` records what each import brought).
+  The MCP server's `import_book` takes the same two steps and tells the agent to show the comparison to the person
+  first. *The CDN* asks for the book id in the form, not in a browser prompt.
+- `GET /api/editor/environments`: this instance's environment and, per environment, whether the CDN or this server is
+  its backend, with the warning wherever this server is the publish target.
+
+### Changed
+- **An instance publishes only to its own environment** (#183, Tilman: "Bitte nicht auf andere Environments pushen
+  lassen."): the editor has no environment select any more – Publish goes to the instance's environment, named next to
+  the button with its backend (`staging · CDN`, `local · this server`; a connected CDN has priority), and `local` exists
+  only on a developer's machine. The API refuses another environment (403 `other-environment`); the MCP server's
+  `publish` defaults to the own environment.
+- **Publish asks in the page, not in a browser dialog**: a step names the book, its build, the target and what it
+  replaces there (another book: *Replace on staging*). Wherever this server is the target, it and the bar warn: *No CDN
+  connected – the published content is stored and served by this server only. Readers load from here without edge
+  caching; heavy media goes through this server. Back up the content store.*
+- **Published content and uploads out of the API's code folder** (#197): the content store is `content-store/` at the
+  top level of a checkout (`OSCT_CONTENT_STORE_DIR`; the API's `CONTENT_STORE_DIR` still works), the SQLite file and the
+  logs are in `var/` (`var/db/`, `var/log/error.log`, `var/mail/mail.log`); `server/api/db/` keeps the schema only. On
+  its first start the API moves the old `api/db/content`, `error.log`, and a `local.sqlite` / `mail.log` an older
+  `config.local.php` names there, once and logged – nothing is overwritten. On the FTPS staging they move to
+  `api/content-store` and `api/var`, outside the uploaded code. The image keeps the content store in
+  `/var/lib/osct/content-store`, a Kamal volume on staging and production, so a redeploy cannot lose it; backup =
+  the database plus the content store (docs/deploy.md).
+- The tutorial (`/docs/tutorials/`) says where Publish goes, that an import compares first, and how to read the demo
+  without publishing it over the book on staging.
+
 ## 1.42.1 – 2026-10-30
 
 ### Added

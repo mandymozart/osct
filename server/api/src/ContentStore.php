@@ -7,13 +7,21 @@ declare(strict_types=1);
  * when it was current) and `<env>/latest.json` (the current one, written last). Two stores behind one interface:
  * the directory CONTENT_STORE_DIR, served by `GET /content/{env}/{path}` (development, a host without the CDN),
  * and bunny.net's Storage API – the zone the osct CLI syncs to, with the same paths and headers, so the reader
- * cannot tell who published. The environment `local` always stays in the directory; `staging` and `production`
- * go to bunny when CONTENT_STORE is `bunny`.
+ * cannot tell who published. A connected CDN has priority: with CONTENT_STORE `bunny` every environment goes there
+ * except `local`, which always stays in the directory (a developer's machine).
  * An environment serves one book, the last one published there: latest.json names it (`book`).
+ * An instance publishes to its own environment only (ENV, `Config::env()`); `local` exists only where ENV is local.
  */
 final class ContentStore
 {
-    public const ENVIRONMENTS = ['local', 'staging', 'production'];
+    /** The environments every instance knows (what is live there shows in the editor) – plus its own, `environments()` */
+    public const ENVIRONMENTS = ['staging', 'production'];
+
+    /** An environment's name, as the osct CLI accepts it */
+    public const ENV_NAME = '/^[a-z][a-z0-9-]{0,31}$/';
+
+    /** The editor's line wherever the directory store is the publish target (#183) */
+    public const SERVER_WARNING = 'No CDN connected – the published content is stored and served by this server only. Readers load from here without edge caching; heavy media goes through this server. Back up the content store.';
 
     /** A version folder name: the first 12 hex digits of the content hash (content-manifest.ts `CONTENT_BUILD`) */
     public const BUILD = '/^[0-9a-f]{12}$/';
@@ -35,6 +43,42 @@ final class ContentStore
     public function isLocal(): bool
     {
         return $this->kind === 'local';
+    }
+
+    /**
+     * This instance's environments, its own first: staging and production, and its own when it is another one – `local`
+     * on a developer's machine (ENV=local), a white-label instance's name. `local` never appears elsewhere.
+     * @return list<string>
+     */
+    public static function environments(): array
+    {
+        $own = Config::env();
+        return in_array($own, self::ENVIRONMENTS, true) ? [$own, ...array_values(array_diff(self::ENVIRONMENTS, [$own]))] : [$own, ...self::ENVIRONMENTS];
+    }
+
+    /**
+     * What the editor shows per environment (GET /editor/environments): its backend – `cdn` (the storage zone) or
+     * `server` (the directory store, served by this API) –, whether this instance publishes there (its own environment
+     * only), where readers load it, and the warning wherever the directory store is the publish target
+     * @return list<array{env: string, store: string, publish: bool, url: ?string, warning: ?string}>
+     */
+    public static function describe(): array
+    {
+        $own = Config::env();
+        $list = [];
+        foreach (self::environments() as $env) {
+            $local = self::for($env)->isLocal();
+            $publish = $env === $own;
+            $cdn = rtrim(Config::get('CONTENT_BASE_URL'), '/');
+            $list[] = [
+                'env' => $env,
+                'store' => $local ? 'server' : 'cdn',
+                'publish' => $publish,
+                'url' => $local ? Http::apiUrl() . "/content/$env" : ($publish && $cdn !== '' ? $cdn : null),
+                'warning' => $publish && $local ? self::SERVER_WARNING : null,
+            ];
+        }
+        return $list;
     }
 
     /** Writes a file below the environment (folders are created; a write is complete or absent, never half) */
@@ -166,12 +210,10 @@ final class ContentStore
         return $result;
     }
 
-    /** The local store's directory: CONTENT_STORE_DIR, a relative path counted from the api folder */
+    /** The directory store's folder: the content store (Paths – CONTENT_STORE_DIR, content-store/ by default) */
     public static function dir(): string
     {
-        $dir = rtrim(Config::get('CONTENT_STORE_DIR'), '/\\');
-        if (!preg_match('#^([A-Za-z]:)?[/\\\\]#', $dir)) $dir = dirname(__DIR__) . "/$dir";
-        return $dir;
+        return rtrim(Paths::contentStore(), '/');
     }
 
     /**

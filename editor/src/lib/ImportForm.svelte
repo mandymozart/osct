@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { ApiError, importBook } from "#lib/api.js";
+  import { tick } from "svelte";
+  import { ApiError, importBook, type ImportBody, type ImportComparison, type ImportConfirmation } from "#lib/api.js";
+  import { comparisonRows, confirmLabel, editLabel, editsLine, importedLine, liveLine } from "#lib/import-compare.js";
   import type { GameConfiguration } from "@engine/types";
 
   /**
@@ -10,6 +12,8 @@
    * configuration and its folder as the assets base. `assetsBase` is where the configuration's `/assets/content/…`
    * paths resolve: the draft and every publish point there. The books page shows it open beside the books (#153);
    * the explanations are the fields' Info view help.
+   * Over a book that exists the API answers with a version comparison first (#183): the form shows what comes in
+   * against what the draft is based on and its edits since, and imports only when the person confirms here.
    */
   let { ondone, oncancel }: { ondone: (bookId: string) => void; oncancel?: () => void } = $props();
 
@@ -20,9 +24,35 @@
   let mode = $state<"cdn" | "url" | "file">(local ? "url" : "cdn");
   let url = $state(local ? `${readerGuess}/src/game.config.json` : "");
   let assetsBase = $state(readerGuess);
+  let cdnBook = $state("osct");
   let file = $state<File | null>(null);
   let busy = $state(false);
   let error = $state<string | null>(null);
+  /** The comparison waiting for the person's confirmation, with what to send again */
+  let pending = $state<{ bookId: string; body: ImportBody; comparison: ImportComparison; confirmation: ImportConfirmation; changed: boolean } | null>(null);
+  let compareElement = $state<HTMLElement | null>(null);
+
+  /** One import call; a comparison answer (409 confirm-import / confirmation-void) becomes the step to confirm */
+  const send = async (bookId: string, body: ImportBody) => {
+    try {
+      const { book } = await importBook(bookId, body);
+      pending = null;
+      ondone(book.id);
+    } catch (e) {
+      if (!(e instanceof ApiError) || (e.code !== "confirm-import" && e.code !== "confirmation-void")) throw e;
+      const again: ImportBody = { ...body };
+      delete again.confirm;
+      pending = {
+        bookId,
+        body: again,
+        comparison: e.details.comparison as ImportComparison,
+        confirmation: e.details.confirmation as ImportConfirmation,
+        changed: e.code === "confirmation-void",
+      };
+      await tick();
+      compareElement?.querySelector<HTMLButtonElement>("button.primary")?.focus();
+    }
+  };
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -30,10 +60,9 @@
     error = null;
     try {
       if (mode === "cdn") {
-        const id = prompt("Book id (the configuration's book.id):", "osct")?.trim();
-        if (!id) return;
-        const { book } = await importBook(id, { source: "cdn" });
-        return ondone(book.id);
+        const id = cdnBook.trim();
+        if (!id) throw new Error("Name the book's id (the configuration's book.id)");
+        return await send(id, { source: "cdn" });
       }
       let configuration: GameConfiguration;
       let base = assetsBase.trim().replace(/\/+$/, "");
@@ -58,8 +87,20 @@
       }
       const id = configuration.book?.id;
       if (!id) throw new Error("The configuration has no book.id");
-      const { book } = await importBook(id, { configuration, assetsBase: base || undefined });
-      ondone(book.id);
+      await send(id, { configuration, assetsBase: base || undefined });
+    } catch (e) {
+      error = e instanceof ApiError ? `${e.message} (${e.code})` : e instanceof Error ? e.message : String(e);
+    } finally {
+      busy = false;
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!pending) return;
+    busy = true;
+    error = null;
+    try {
+      await send(pending.bookId, { ...pending.body, confirm: pending.confirmation.id });
     } catch (e) {
       error = e instanceof ApiError ? `${e.message} (${e.code})` : e instanceof Error ? e.message : String(e);
     } finally {
@@ -68,6 +109,36 @@
   };
 </script>
 
+{#if pending}
+  {@const c = pending.comparison}
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <section class="import compare" aria-label="Compare before importing" bind:this={compareElement} onkeydown={e => { if (e.key === "Escape") pending = null; }}>
+    <h2>Replace the draft of “{c.book.title}”?</h2>
+    {#if pending.changed}<p class="danger small" role="alert">The draft or the incoming content changed since – compare again.</p>{/if}
+    <table class="rows">
+      <thead><tr><th></th><th scope="col">Coming in</th><th scope="col">Draft based on</th></tr></thead>
+      <tbody>
+        {#each comparisonRows(c) as row (row.label)}
+          <tr class:differs={row.differs}><th scope="row">{row.label}</th><td>{row.incoming}</td><td>{row.draft}</td></tr>
+        {/each}
+      </tbody>
+    </table>
+    <p class="small muted">{importedLine(c)}</p>
+    <p class:danger={c.draft.edits > 0}>{editsLine(c)}</p>
+    {#if c.draft.recentEdits.length}
+      <ul class="edits small muted">
+        {#each c.draft.recentEdits.slice(0, 5) as edit, i (i)}<li>{editLabel(edit)}</li>{/each}
+        {#if c.draft.edits > 5}<li>… and {c.draft.edits - 5} more</li>{/if}
+      </ul>
+    {/if}
+    <p class="small">{liveLine(c)}</p>
+    {#if error}<p class="danger small">{error}</p>{/if}
+    <p class="actions">
+      <button type="button" class="pill primary" onclick={confirmImport} disabled={busy}>{busy ? "Importing…" : confirmLabel(c)}</button>
+      <button type="button" class="text-link" onclick={() => (pending = null)}>Cancel</button>
+    </p>
+  </section>
+{:else}
 <form class="import" onsubmit={submit}>
   <h2>Import a book</h2>
   <p class="lead muted">A book's game configuration becomes a draft here – by URL, as a file, or the instance's published content.</p>
@@ -77,7 +148,7 @@
     <button type="button" class="pill" class:on={mode === "file"} onclick={() => (mode = "file")}
       data-help-name="File" data-help="A game.config.json from this computer.">file</button>
     <button type="button" class="pill" class:on={mode === "cdn"} onclick={() => (mode = "cdn")}
-      data-help-name="The CDN" data-help="The server fetches the current version of its content CDN (OSCT_CONTENT_BASE_URL) and asks for the book's id.">the CDN</button>
+      data-help-name="The CDN" data-help="The server fetches the current version of its content CDN (OSCT_CONTENT_BASE_URL) for the book of this id.">the CDN</button>
   </div>
   {#if mode === "url"}
     <label class="stack"><span class="label">URL</span>
@@ -87,7 +158,9 @@
     <label class="stack"><span class="label">file</span>
       <input class="field" type="file" accept="application/json,.json" onchange={e => (file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} /></label>
   {:else}
-    <p class="small muted">The server fetches the current version of its content CDN.</p>
+    <label class="stack"><span class="label">book id</span>
+      <input class="field" bind:value={cdnBook} placeholder="osct" required
+        data-help-name="Book id" data-help="The id of the book the CDN's current version holds (its configuration's book.id) – the draft it replaces." /></label>
   {/if}
   {#if mode !== "cdn"}
     <label class="stack"><span class="label">assets at</span>
@@ -100,6 +173,7 @@
     {#if oncancel}<button type="button" class="text-link" onclick={oncancel}>Cancel</button>{/if}
   </p>
 </form>
+{/if}
 
 <style>
   .import { display: grid; gap: .875rem; }
@@ -112,4 +186,11 @@
   .field[type="file"] { padding-top: .3rem; }
   .actions { display: flex; align-items: center; gap: .75rem; margin: .25rem 0 0; }
   .actions .pill { height: 2.125rem; padding: 0 1.25rem; }
+  .compare p { margin: 0; line-height: 1.45; }
+  .rows { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .rows th, .rows td { padding: .3125rem .5rem .3125rem 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+  .rows thead th { color: var(--muted); font-size: var(--text-small); font-weight: 400; letter-spacing: .06em; text-transform: uppercase; }
+  .rows tbody th { color: var(--muted); font-weight: 400; white-space: nowrap; }
+  .rows tr.differs td { font-weight: 600; }
+  .edits { margin: -.375rem 0 0; padding-left: 1rem; line-height: 1.5; }
 </style>

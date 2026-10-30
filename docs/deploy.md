@@ -17,7 +17,11 @@ says so (`agents/RULES.md` #11). `tag-version.yml` still tags every version on `
 **Transition:** while a GitHub environment has no `SSH_HOST`, its Kamal deploy is skipped with a warning. Staging
 runs on the all-inkl shared host (no Docker) until the staging VM exists – `deploy-staging-ftps.yml` keeps
 uploading `develop` there over FTPS in the meantime (the old way: `server/deploy/write-config.php` writes
-`config.local.php`). Once the VM is live and DNS points at it, delete that workflow and the script.
+`config.local.php`). Once the VM is live and DNS points at it, delete that workflow and the script. On that host the
+content store and the API's logs live in the API's folder – `api/content-store`, `api/var` ([server, "Content store and
+var"](server.md#content-store-and-var)): the upload never contains them and deletes nothing, so they survive every
+deploy; the first request after the deploy that brought them moved the older `api/db/content` and `api/db/error.log`
+there once. Bring them along when staging moves to the VM (into the volume below).
 
 ## What is in the image
 
@@ -38,8 +42,8 @@ uploading `develop` there over FTPS in the meantime (the old way: `server/deploy
 
 At every start `server/docker/entrypoint.sh` runs `server/deploy/migrate.php` – the same additive migration as
 `POST /api/admin/migrate` (missing tables and columns only; a deploy never resets data) – waits for the database
-if it is still starting, then hands over to Apache. A failing migration fails the start, and kamal-proxy keeps the
-previous container.
+if it is still starting, makes the content store (`/var/lib/osct/content-store`, the Kamal volume) writable for
+Apache, then hands over to Apache. A failing migration fails the start, and kamal-proxy keeps the previous container.
 
 Local check of the image, without a MariaDB (the API falls back to SQLite):
 
@@ -49,15 +53,18 @@ docker run --rm -p 8080:80 -e OSCT_DB_SQLITE_PATH=/data/osct.sqlite -e OSCT_SECR
 ```
 
 Then http://localhost:8080 and http://localhost:8080/api/health; sign-in mails land in the container's temp folder
-(`MAIL_TRANSPORT` defaults to `log` without the Kamal settings). In Git Bash on Windows prefix the command with
-`MSYS_NO_PATHCONV=1`, or the `/data/…` path is rewritten.
+(`/tmp/osct-mail.log`; `MAIL_TRANSPORT` defaults to `log` without the Kamal settings). The content store is
+`/var/lib/osct/content-store` in the image (`OSCT_CONTENT_STORE_DIR`, created for `www-data`); add
+`-v osct-content-store:/var/lib/osct/content-store` to keep what the editor publishes between runs. In Git Bash on
+Windows prefix the command with `MSYS_NO_PATHCONV=1`, or the `/data/…` path is rewritten.
 
 ## Configuration
 
 `config/deploy.yml` is the shared Kamal configuration, `config/deploy.staging.yml` and
 `config/deploy.production.yml` the two destinations (service name `osct-staging` / `osct`, the server, the domain,
-`OSCT_ENV` – `staging` / `production`, which `/api/health` names –, `OSCT_APP_URL`, `OSCT_ALLOWED_ORIGINS`,
-`OSCT_DB_HOST`). The API reads every setting from `OSCT_*` environment
+`OSCT_ENV` – `staging` / `production`, which `/api/health` names and the only environment the instance's editor
+publishes to –, `OSCT_APP_URL`, `OSCT_ALLOWED_ORIGINS`,
+`OSCT_DB_HOST`, the content store's volume). The API reads every setting from `OSCT_*` environment
 variables (`server/api/src/Config.php`); there is no `config.local.php` in the container.
 
 The files are ERB: the server and the mail settings come from environment variables, the secrets through
@@ -76,7 +83,7 @@ The files are ERB: the server and the mail settings come from environment variab
 | variable | `SMTP_USER` | the SES SMTP user name (an IAM access key ID) |
 | variable | `EDITORS` | e-mail addresses (comma-separated) that get the role `editor` when they sign in – the instance's first editors; more on the admin page ([admin](admin.md), [server, "Roles"](server.md#roles)) |
 | variable | `ADMINS` | e-mail addresses (comma-separated) that get the role `admin` when they sign in – the instance's first admin, who then grants roles at `/editor/admin`; set it on `staging` and `production` |
-| variable | `CONTENT_STORE` | where the editor's publishes and uploaded assets go ([server, "Editor data"](server.md#editor-data), ["Assets"](server.md#assets)): `bunny` (the content CDN's storage zone, the same the osct CLI syncs to) or `local` (the container's own directory, served at `/api/content/{env}/…`). Default: `bunny` as soon as `BUNNY_STORAGE_PASSWORD` is set, else `local` |
+| variable | `CONTENT_STORE` | where the editor's publishes and uploaded assets go ([server, "Editor data"](server.md#editor-data), ["Assets"](server.md#assets)): `bunny` (the content CDN's storage zone, the same the osct CLI syncs to – a connected CDN has priority) or `local` (the content store on the server's volume, served at `/api/content/{env}/…`; the editor then warns that no CDN is connected). Each instance publishes to its own environment (`OSCT_ENV`) only. Default: `bunny` as soon as `BUNNY_STORAGE_PASSWORD` is set (the FTPS staging), `local` in the Kamal configuration |
 | variable | `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (or `BUNNY_STORAGE_ZONE_ENDPOINT`) | the storage zone (`osct`) and its endpoint host (default `storage.bunnycdn.com`) – only read with the bunny store |
 | secret | `SSH_PRIVATE_KEY` | a deploy key whose public key is in the server user's `authorized_keys` |
 | secret | `DB_PASS` | the API's database password (also the MariaDB user `osct`) |
@@ -182,10 +189,30 @@ kamal details -d production                    # proxy, app and accessory contai
 ```
 
 The database files live on the server in `<service>-db/data` (the SSH user's home) and survive deploys, restarts and
-`kamal app remove`. `kamal accessory remove db` deletes the container, **not** the folder; delete the folder only on
+`kamal app remove`. The content store is the named Docker volume `<service>-content-store` (`osct-staging-content-store`,
+`osct-content-store` – `volumes` in `config/deploy.<destination>.yml`), mounted at `/var/lib/osct/content-store`; it
+survives every deploy too, and `docker volume rm` is the only way to lose it. `kamal accessory remove db` deletes the container, **not** the folder; delete the folder only on
 purpose. To bring the data from the old shared host: dump it there (phpMyAdmin or `mysqldump`), then
 `kamal accessory exec -d staging db --reuse -i 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" osct' < dump.sql` –
 the migration on the next start adds whatever columns the dump lacks.
+
+### Backup
+
+An instance's data is **the database plus the content store** – the published content and the Library's uploads of
+every environment whose backend is this server (no CDN connected, [server, "Content store and
+var"](server.md#content-store-and-var)). With the CDN connected, the published content is on the CDN's storage zone and
+the content store holds little; back it up anyway.
+
+```bash
+kamal accessory exec -d production db --reuse 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" osct' > osct-db.sql
+ssh <server> 'docker run --rm -v osct-content-store:/store:ro alpine tar czf - -C /store .' > osct-content-store.tgz
+```
+
+Restoring: the dump as above (`kamal accessory exec … -i 'mariadb …' < osct-db.sql`), the archive with
+`ssh <server> 'docker run --rm -i -v osct-content-store:/store alpine tar xzf - -C /store' < osct-content-store.tgz`
+before the next start (the entrypoint hands the files to `www-data`). On the FTPS staging the same two are the
+database's dump and the folder `api/content-store` (by FTP); a development checkout's are `var/db/` (or the MariaDB) and
+`content-store/`.
 
 Releases: GitHub releases are optional now (notes only – nothing deploys from them); the version on `main` is tagged
 by `tag-version.yml` as before.

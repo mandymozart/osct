@@ -20,7 +20,7 @@ if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
 }
 
 $api = getenv('OSCT_API_DIR') ?: dirname(__DIR__) . '/api';
-foreach (['Version', 'Config', 'Mailer', 'Smtp'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Mailer', 'Smtp'] as $class) {
     require "$api/src/$class.php";
 }
 
@@ -31,7 +31,7 @@ if ($transport === 'smtp') {
     echo "  SMTP_HOST=" . Config::get('SMTP_HOST') . ':' . Config::get('SMTP_PORT') . ' (' . Config::get('SMTP_SECURE') . ")  SMTP_USER="
         . Config::get('SMTP_USER') . "  SMTP_PASS=" . (Config::get('SMTP_PASS') === '' ? 'missing' : 'set') . "\n";
 } elseif ($transport === 'log') {
-    echo "  MAIL_LOG_PATH=" . (Config::get('MAIL_LOG_PATH') ?: sys_get_temp_dir() . '/osct-mail.log') . "\n";
+    echo "  MAIL_LOG_PATH=" . Paths::mailLog() . "\n";
 }
 
 $subject = 'Onion Skin & Crocodile Tears – mail test';

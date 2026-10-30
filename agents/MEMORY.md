@@ -4,6 +4,28 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Publish to the own environment, import comparison, the content store (#183, #197)
+
+- Tilman: an instance publishes only to its own environment (`ENV`); a connected CDN has priority; `local` only on a
+  developer's machine; warn wherever the directory store is the target, in **content** words ("Content is better than
+  data"); import from anywhere, but with a version comparison before it overwrites. Implemented as 403
+  `other-environment` (an env name that is valid but not the own one; a malformed one stays 400 `invalid-env`).
+- The import's confirmation is a **stateless HMAC id** (`<expires>.<hmac>` with `SECRET`, 10 minutes) bound to the
+  user, the AI token, the incoming content's digest and the draft's state (`imported_json`, `imported_hash`,
+  `updated_at`, the change log's count and newest id) – no table. An import changes `imported_json`, so an id works
+  once. #198's delete confirmations may want a shared helper later; this one lives in `Books::confirmImport`.
+- The next-to-Publish warning is the short *No CDN connected* (its Info view help and the publish step carry Tilman's
+  full sentence) – the whole sentence does not fit the top bar, on a phone neither. The sentence itself comes from the
+  API (`ContentStore::SERVER_WARNING`), so the editor and the MCP server say the same.
+- Content store and var/ (`Paths.php`): a dev checkout keeps them at the top level; a deployed layout (`<docroot>/api`,
+  the FTPS staging) inside the API's folder (`api/content-store`, `api/var` with a deny `.htaccess`) – the parent of the
+  docroot is unknown on shared hosting. Settings pointing into `api/db/` are read as the same name at the new place (a
+  developer's `config.local.php` keeps working, its files move); a setting pointing elsewhere never receives a move (the
+  tests' temp folders, a mounted volume). The FTPS staging moves on its first request after the deploy; if `rename()`
+  fails there the old place keeps being used and every request logs it.
+- [ ] After the merge, check on the FTPS staging that `api/content-store` and `api/var/log/error.log` exist and
+  `api/db/` has only the schema (an FTP listing); else the error log says why the move failed.
+
 ## 2026-10-30 – The demo video's tooling (#195)
 
 - Tilman: *"Kein Text."* – the WIP video has no titles and no end card; only the UI's own words. It is recorded from a
