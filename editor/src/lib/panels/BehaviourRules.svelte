@@ -58,29 +58,32 @@
 {/snippet}
 
 {#each rules as rule, i (i)}
-  <div class="row rule" data-help-name="Rule {i + 1}" data-help="What the rule reacts to: the page found or lost, a tap on the AR content, the page's first find (unlocked), or a named event on the stage – a scene event a plugin or another behaviour emits, or a core event like targetFound. The cross removes the rule.">
+  <div class="row top rule" data-help-name="Rule {i + 1}" data-help="What the rule reacts to: the page found or lost, a tap on the AR content, the page's first find (unlocked), or a named event on the stage – a scene event a plugin or another behaviour emits, or a core event like targetFound. The cross removes the rule.">
     <span class="label strong">rule {i + 1}</span>
-    <span class="controls">
+    <span class="controls line">
+      <span class="args">
       <Segmented options={EVENT_KINDS} value={kindOf(rule.on)} titles={EVENT_TITLES} onchange={kind => setKind(i, kind)} />
       {#if kindOf(rule.on) === "event"}
         <input class="field name" list="{uid}-events" aria-label="Event of rule {i + 1}" placeholder="event" spellcheck="false" value={rule.on}
           oninput={e => update(i, { ...rule, on: (e.currentTarget as HTMLInputElement).value.trim() })} />
       {/if}
-      <span class="grow"></span>
-      <button type="button" class="icon-button" aria-label="Remove rule {i + 1}" title="Remove rule {i + 1}" onclick={() => update(i, undefined)}><Icon name="close" /></button>
+      </span>
+      <button type="button" class="icon-button end" aria-label="Remove rule {i + 1}" title="Remove rule {i + 1}" onclick={() => update(i, undefined)}><Icon name="close" /></button>
     </span>
   </div>
 
   {#each rule.when?.tests ?? [] as test, t (t)}
-    <div class="row" data-help-name="Condition" data-help="The rule runs only when the variable equals the value (=) or does not (≠) – read like a plugin's api.vars.get, from the innermost scope that has it. A value is true, false, a number or a text; empty means the variable is not set. With several conditions, all or any of them must hold.">
+    <div class="row top" data-help-name="Condition" data-help="The rule runs only when the variable equals the value (=) or does not (≠) – read like a plugin's api.vars.get, from the innermost scope that has it. A value is true, false, a number or a text; empty means the variable is not set. With several conditions, all or any of them must hold.">
       <span class="label">{t === 0 ? "when" : rule.when?.match === "any" ? "or" : "and"}</span>
-      <span class="controls">
+      <span class="controls line">
+        <span class="args">
         <input class="field name" list="{uid}-vars" aria-label="Variable of condition {t + 1}, rule {i + 1}" placeholder="variable" spellcheck="false" value={test.name}
           oninput={e => update(i, withTest(rule, t, { ...test, name: (e.currentTarget as HTMLInputElement).value.trim() }))} />
         <Segmented options={["=", "≠"] as const} value={test.not ? "≠" : "="} titles={{ "=": "equals", "≠": "does not equal" }}
           onchange={op => update(i, withTest(rule, t, { ...test, not: op === "≠" }))} />
         <input class="field value" list="{uid}-values" aria-label="Value of condition {t + 1}, rule {i + 1}" placeholder="not set" spellcheck="false" value={formatValue(test.value)}
           onchange={e => update(i, withTest(rule, t, { ...test, value: parseValue((e.currentTarget as HTMLInputElement).value) }))} />
+        </span>
         <button type="button" class="icon-button" aria-label="Remove condition {t + 1}" title="Remove the condition" onclick={() => update(i, withTest(rule, t, undefined))}><Icon name="close" /></button>
       </span>
     </div>
@@ -97,9 +100,10 @@
   </div>
 
   {#each rule.do as action, j (j)}
-    <div class="row" data-help-name="Action" data-help="What the rule does, in order: play, pause or stop a clip of a model (its own clip when none is chosen), show or hide a node (this node or one of its named children), set a variable in a scope (empty value deletes it), emit a named event to the stage. The cross removes the action.">
+    <div class="row top" data-help-name="Action" data-help="What the rule does, in order: play, pause or stop a clip of a model (its own clip when none is chosen), show or hide a node (this node or one of its named children), set a variable in a scope (empty value deletes it), emit a named event to the stage. The cross removes the action.">
       <span class="label">{j === 0 ? "do" : "then"}</span>
-      <span class="controls">
+      <span class="controls line">
+        <span class="args">
         <select class="field verb" aria-label="Action {j + 1} of rule {i + 1}" value={action.action}
           onchange={e => setAction(i, j, newAction((e.currentTarget as HTMLSelectElement).value as BehaviourVerb, action, variables))}>
           {#each BEHAVIOUR_ACTIONS as verb (verb)}<option value={verb}>{VERB_LABELS[verb]}</option>{/each}
@@ -125,6 +129,7 @@
         {:else}
           {@render nodePicker(action.node, `Node to ${action.action}`, node => setAction(i, j, { ...action, node }))}
         {/if}
+        </span>
         <button type="button" class="icon-button" aria-label="Remove action {j + 1} of rule {i + 1}" title="Remove the action" onclick={() => setAction(i, j, undefined)}><Icon name="close" /></button>
       </span>
     </div>
@@ -132,7 +137,7 @@
   <div class="row" data-help-name="Action" data-help="Adds an action to the rule; the actions run in order.">
     <span class="label">{rule.do.length ? "" : "do"}</span>
     <span class="controls">
-      <select class="field verb" aria-label="Add an action to rule {i + 1}" value=""
+      <select class="field add" aria-label="Add an action to rule {i + 1}" value=""
         onchange={e => { const verb = (e.currentTarget as HTMLSelectElement).value as BehaviourVerb; (e.currentTarget as HTMLSelectElement).value = ""; if (verb) setAction(i, rule.do.length, newAction(verb, undefined, variables)); }}>
         <option value="">+ action…</option>
         {#each BEHAVIOUR_ACTIONS as verb (verb)}<option value={verb}>{VERB_LABELS[verb]}</option>{/each}
@@ -149,9 +154,18 @@
 <style>
   .rule { margin-top: .25rem; }
   .row > .strong { color: var(--text); }
-  .grow { flex: 1; }
-  .name { width: 6.5rem; }
-  .value { width: 4.5rem; }
-  .verb { width: 5rem; }
-  .clip, .node, .scope { width: 5.5rem; }
+  .end { margin-left: auto; }
+  .row.top { align-items: start; }
+  .row.top > .label { line-height: var(--control-height); }
+  /* A condition's or an action's fields wrap among themselves; its cross stays at the end of the first line */
+  .line { flex-wrap: nowrap; align-items: flex-start; }
+  .args { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: .25rem; }
+  /* The fields share the row and grow into it; what does not fit goes to the next line (a phone) */
+  .field { padding: 0 .375rem; }
+  .verb { flex: none; width: 3.75rem; }
+  .name { flex: 1 1 4rem; min-width: 3rem; }
+  .value { flex: 1 1 3rem; min-width: 2.75rem; }
+  .clip, .node { flex: 1 1 4rem; min-width: 3rem; }
+  .scope { flex: 1 1 4.25rem; min-width: 4rem; }
+  .add { flex: none; width: auto; }
 </style>

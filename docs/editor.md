@@ -52,7 +52,7 @@ with SQLite and the local content store:
 6. Open *The key*: the stage shows the spread's targets with their entities, the key is found and unlocked – the
    **Stage** tab's *vars and events* has the timeline of the finds. *tap* → *The key* takes it: its **behaviour** rule
    (#88, select the key and open the **Entity** tab to see it) plays the model's clip `rattle`, sets `hasKey` (book,
-   boolean, true) and emits `keyRattled` – the timeline shows the rule's `behaviour` line above them. Walk with › to
+   boolean, true) and emits `keyRattled` – in the timeline (newest first) the rule's `behaviour` line sits under the events it caused. Walk with › to
    *The door*: its rules hide the hint and emit `openDoor`, the `door` plugin lifts and turns the door,
    `stage · doorOpen = true`, the lamp on the right page shows. Switch a target off and on with the
    tree's eye (lost, found again), *Replay the first find* in the stage's right-click menu plays it again, *reset* in

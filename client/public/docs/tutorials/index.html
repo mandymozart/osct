@@ -462,8 +462,8 @@ npm run osct -- content status --env staging</code></pre>
   </ul>
   <p>Every change runs on the stage at once – press <b>tap</b> in the Stage tab and watch. The timeline marks each rule that ran with a <em>behaviour</em> line: which rule, on which event, and what it did. A rule that is not finished yet – an empty name, no event – is listed in red and <b>Save</b> waits. A rule decides; what it cannot do, like moving the door over time, is plugin code that hears the rule's event.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/12-behaviour.webp" width="1280" height="800" loading="lazy" alt="The key spread after a tap: the Stage panel's vars and events with The key tapped, hasKey true as a book boolean, and the timeline newest first – keyRattled, varChanged hasKey, behaviour with target key, rule 1, on tap and do play rattle · set hasKey = true (book) · emit keyRattled, then targetTapped.">
-    <figcaption>The key tapped from the Stage tab. Read the timeline from the bottom: <code>targetTapped</code>, the <em>behaviour</em> line of the key's rule, then what it did – <code>varChanged</code> for <code>hasKey</code> and the event <code>keyRattled</code>.</figcaption>
+    <img src="/docs/tutorials/demo/12-behaviour.webp" width="1280" height="800" loading="lazy" alt="The key spread after a tap, the key turned in its rattle: the Stage panel's vars and events with the tap buttons The key, The aquarium and The tally, hasKey true as a book boolean, and the timeline newest first – at 3.04 s targetTapped key, keyRattled, varChanged hasKey book true, and behaviour with target key, rule 1, on tap, do play rattle · set hasKey = true (book) · emit keyRattled; below them the finds at 0.91 s.">
+    <figcaption>The key tapped from the Stage tab. Read the timeline from the bottom up: the <em>behaviour</em> line of the key's rule, then what it did – <code>varChanged</code> for <code>hasKey</code> and the event <code>keyRattled</code> – and on top <code>targetTapped</code>, which the stage reports once the tap's work is done.</figcaption>
   </figure>
 
   <h3 class="sec" id="demo-component">How a component works</h3>
