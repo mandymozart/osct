@@ -4,12 +4,18 @@ declare(strict_types=1);
 /** The signed-in user (the reader's account): read, change the options, delete */
 final class Users
 {
-    /** GET /user → { user }, plus `token` (ApiTokens::toJson) when the request came with an AI connection's token */
+    /**
+     * GET /user → { user }, plus `token` (ApiTokens::toJson) when the request came with an AI connection's token, and
+     * `csrfToken` when it came with the session cookie (the browser keeps it in memory for its writes – Auth::csrfToken)
+     */
     public static function get(): never
     {
-        $user = self::toJson(Auth::user());
+        $answer = ['user' => self::toJson(Auth::user())];
         $token = Auth::token();
-        Http::json(200, $token === null ? ['user' => $user] : ['user' => $user, 'token' => ApiTokens::toJson($token)]);
+        if ($token !== null) $answer['token'] = ApiTokens::toJson($token);
+        $csrf = Auth::csrf();
+        if ($csrf !== null) $answer['csrfToken'] = $csrf;
+        Http::json(200, $answer);
     }
 
     /**

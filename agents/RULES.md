@@ -352,3 +352,13 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     (`Auth::session()`). Never an AI connection's token (403 `not-for-ai`, no MCP tool for it), never an admin: the admin
     page and `/admin/*` read them (the list, the newsletter CSV) but write none – a new admin write never takes options
     or language, and a user an admin creates (`POST /admin/editors`) starts with every option off (RULES #25 opt-in).
+
+34. **The browser session never sits in storage a script can read** (Tilman, 2026-10-30, #207: "the token in an HttpOnly
+    cookie (SameSite, CSRF token)"): a browser's sign-in asks for the cookie (`"session": "cookie"`) – HttpOnly,
+    SameSite=Strict, `Path=/api`, Secure off a local instance – and the reader and the editor keep only its CSRF token,
+    in memory, sent in `X-CSRF-Token` with every write. No session token in `localStorage`, `sessionStorage`, IndexedDB,
+    a non-HttpOnly cookie or a URL; no `Authorization` header for the person's session in a browser. A new write route
+    needs nothing extra – `Auth::user()` / `Auth::session()` check the CSRF token of a cookie session – but a new browser
+    client sends the header. Bearer stays for non-browser clients and for the AI connections' tokens (`osct_…`), which
+    never become a cookie. The cookie does not sandbox plugin code on the site's pages (docs/server.md "Sessions, cookies
+    and CSRF").

@@ -129,6 +129,49 @@ function call(string $base, string $method, string $path, ?array $body = null, ?
     return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
 }
 
+/** A browser's cookie jar (#207): keeps what the API's `Set-Cookie` headers set, sends it back as `Cookie` */
+final class CookieJar
+{
+    /** @var array<string, string> */
+    public array $cookies = [];
+    /** @var array<string, string> the last `Set-Cookie` line per cookie, for its attributes */
+    public array $lines = [];
+
+    public function take(array $headers): void
+    {
+        foreach ($headers as $header) {
+            if (!preg_match('/^Set-Cookie:\s*([^=;]+)=([^;]*)/i', $header, $match)) continue;
+            $this->lines[$match[1]] = $header;
+            $cleared = $match[2] === '' || $match[2] === 'deleted' || preg_match('/;\s*Max-Age=0\b/i', $header);
+            if ($cleared) unset($this->cookies[$match[1]]);
+            else $this->cookies[$match[1]] = urldecode($match[2]);
+        }
+    }
+
+    /** @return list<string> */
+    public function headers(): array
+    {
+        if (!$this->cookies) return [];
+        return ['Cookie: ' . implode('; ', array_map(fn($name, $value) => "$name=$value", array_keys($this->cookies), $this->cookies))];
+    }
+}
+
+/** A call as the browser makes it: the jar's cookies, the CSRF token when given; the answer's cookies go into the jar */
+function browser(CookieJar $jar, string $base, string $method, string $path, ?array $body = null, ?string $csrf = null, array $extraHeaders = []): array
+{
+    $headers = [...$jar->headers(), ...$extraHeaders];
+    if ($csrf !== null) $headers[] = "X-CSRF-Token: $csrf";
+    $answer = call($base, $method, $path, $body, null, 'http://localhost:5173', null, $headers);
+    $jar->take($answer[2]);
+    return $answer;
+}
+
+/** The `Set-Cookie` lines of an answer */
+function setCookies(array $headers): array
+{
+    return array_values(preg_grep('/^Set-Cookie:/i', $headers));
+}
+
 /**
  * An import that overwrites: the first answer of a book that exists is 409 confirm-import with a confirmation id
  * (Books::import) – sent again with it, as the editor does after the comparison. Errors pass through unchanged.
@@ -1764,6 +1807,116 @@ try {
     $pdo = null;
     [$status] = call($api, 'GET', '/user', null, $made['token']);
     check($status === 200 && $grants !== [], 'with the role back it works again');
+
+    echo "browser session: the HttpOnly cookie and the CSRF token (#207)\n";
+    // A database of its own: the main one's hourly sign-in limits are spent by now
+    $cookieApi = startApi(database('cookie') + $settings);
+    $jar = new CookieJar();
+    [, $pending] = call($cookieApi, 'POST', '/auth/request', ['email' => 'listed@example.com']);
+    $code = lastMail($mailLog)['code'];
+    [$status, $data, $headers] = browser($jar, $cookieApi, 'POST', '/auth/verify', ['requestId' => $pending['requestId'], 'code' => $code, 'session' => 'cookie']);
+    $line = $jar->lines['osct_session'] ?? '';
+    $csrf = $data['csrfToken'] ?? '';
+    check($status === 200 && !array_key_exists('session', $data) && strlen($csrf) > 20 && in_array('editor', $data['user']['roles'], true),
+        'a browser\'s code sign-in (session: cookie) → 200 { csrfToken, user } – no session token in the body');
+    check(isset($jar->cookies['osct_session']) && !str_contains(json_encode($data), $jar->cookies['osct_session']), 'the session is the cookie osct_session, in no answer a script reads');
+    check((bool) preg_match('/;\s*HttpOnly/i', $line) && (bool) preg_match('/;\s*SameSite=Strict/i', $line) && (bool) preg_match('/;\s*path=\/api(;|$)/i', $line),
+        'the cookie: HttpOnly, SameSite=Strict, Path=/api – ' . $line);
+    check((bool) preg_match('/;\s*Max-Age=31536000\b/i', $line) && !preg_match('/;\s*secure/i', $line),
+        'the cookie lives as long as a session (SESSION_TTL_DAYS) and is not Secure on a local instance over plain http');
+    [$status, $data] = browser($jar, $cookieApi, 'GET', '/user');
+    check($status === 200 && $data['user']['email'] === 'listed@example.com' && ($data['csrfToken'] ?? null) === $csrf, 'GET /user by cookie needs no CSRF token and answers it');
+    [$status, $data] = browser($jar, $cookieApi, 'GET', '/editor/books');
+    check($status === 200 && $data['books'] === [], 'the editor API reads by cookie');
+    [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'nl']);
+    check($status === 403 && $data['error']['code'] === 'csrf', 'a cookie write without the CSRF token → 403 csrf');
+    [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'nl'], 'x' . substr($csrf, 1));
+    check($status === 403 && $data['error']['code'] === 'csrf', 'a wrong CSRF token → 403 csrf');
+    [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'nl'], $csrf);
+    check($status === 200 && $data['user']['language'] === 'nl', 'with the CSRF token the write goes through');
+    foreach (['cross-site', 'same-site'] as $site) {
+        [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'fr'], $csrf, ["Sec-Fetch-Site: $site"]);
+        check($status === 403 && $data['error']['code'] === 'csrf', "Sec-Fetch-Site: $site → 403 csrf, even with the token");
+    }
+    [$status] = browser($jar, $cookieApi, 'PUT', '/progress/osct', ['record' => ['bookId' => 'osct', 'consulted' => ['e1' => 1]], 'baseUpdatedAt' => null], $csrf, ['Sec-Fetch-Site: same-origin']);
+    check($status === 200, 'a progress save by cookie with the token, from the same origin');
+    [$status, $made] = browser($jar, $cookieApi, 'POST', '/user/tokens', ['name' => 'Cookie test'], $csrf);
+    $cookieAi = $made['token'] ?? '';
+    check($status === 201 && str_starts_with($cookieAi, 'osct_'), 'the person\'s own session by cookie makes an AI connection\'s token (Auth::session)');
+    [$status] = browser($jar, $cookieApi, 'PUT', '/user/password', ['password' => 'cookie password'], $csrf);
+    check($status === 200, 'and sets the password (signed in by email just now)');
+
+    // A Bearer AI token: no CSRF token, never a cookie, never the person's own session
+    [$status, $data] = call($cookieApi, 'POST', '/editor/books/cookie-book/entries', ['title' => 'x', 'page' => 1, 'target' => ['imageSrc' => 'https://cdn.example/x.jpg']], $cookieAi);
+    check($status !== 403 && $status !== 401, "a Bearer AI token writes without a CSRF token (→ $status, not 401/403)");
+    [$status, $data] = call($cookieApi, 'PATCH', '/user', ['language' => 'de'], $cookieAi);
+    check($status === 403 && $data['error']['code'] === 'not-for-ai', 'a Bearer AI token still cannot act as the person (PATCH /user → 403 not-for-ai)');
+    $aiJar = new CookieJar();
+    $aiJar->cookies['osct_session'] = $cookieAi;
+    [$status] = browser($aiJar, $cookieApi, 'GET', '/user');
+    check($status === 401 && !isset($aiJar->cookies['osct_session']), 'an AI token sent as the cookie is no session → 401, and the cookie is cleared');
+    [$status, $data] = call($cookieApi, 'POST', '/auth/cookie', null, $cookieAi);
+    check($status === 403 && $data['error']['code'] === 'not-for-ai', 'an AI token never becomes a cookie (POST /auth/cookie → 403 not-for-ai)');
+    [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'en'], null, ["Authorization: Bearer $cookieAi"]);
+    check($status === 403 && $data['error']['code'] === 'not-for-ai', 'a Bearer token wins over the cookie (the AI token, refused as the person)');
+
+    // A second browser signs in with the password over https: Secure; its CSRF token is not the first's
+    $jar2 = new CookieJar();
+    [$status, $data] = browser($jar2, $cookieApi, 'POST', '/auth/password', ['email' => 'listed@example.com', 'password' => 'cookie password', 'session' => 'cookie'], null, ['X-Forwarded-Proto: https']);
+    $csrf2 = $data['csrfToken'] ?? '';
+    check($status === 200 && !array_key_exists('session', $data) && $csrf2 !== '' && $csrf2 !== $csrf, 'a browser\'s password sign-in → the cookie and a CSRF token of its own');
+    check((bool) preg_match('/;\s*secure/i', $jar2->lines['osct_session'] ?? ''), 'over https the cookie is Secure');
+    [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'en'], $csrf2);
+    check($status === 403 && $data['error']['code'] === 'csrf', 'another session\'s CSRF token → 403 csrf');
+
+    // Non-browser clients (the MCP server's sign-in pair) keep the Bearer session: no cookie, no CSRF token
+    [$status, $data, $headers] = call($cookieApi, 'POST', '/auth/password', ['email' => 'listed@example.com', 'password' => 'cookie password']);
+    $bearer = $data['session'] ?? '';
+    check($status === 200 && $bearer !== '' && !array_key_exists('csrfToken', $data) && setCookies($headers) === [], 'without session: cookie → the token in the body, no cookie (non-browser clients)');
+    [$status] = call($cookieApi, 'PATCH', '/user', ['language' => 'en'], $bearer);
+    check($status === 200, 'a Bearer session writes without a CSRF token');
+
+    // The migration: a token kept in localStorage before #207 becomes the cookie, once
+    $jar3 = new CookieJar();
+    [$status] = browser($jar3, $cookieApi, 'POST', '/auth/cookie');
+    check($status === 401, 'POST /auth/cookie without a Bearer token → 401');
+    [$status, $data] = browser($jar3, $cookieApi, 'POST', '/auth/cookie', null, null, ["Authorization: Bearer $bearer"]);
+    $csrf3 = $data['csrfToken'] ?? '';
+    check($status === 200 && $data['user']['email'] === 'listed@example.com' && $csrf3 !== '' && isset($jar3->cookies['osct_session']) && $jar3->cookies['osct_session'] !== $bearer,
+        'POST /auth/cookie with the stored token → 200 { user, csrfToken } and a new token as the cookie');
+    check((bool) preg_match('/;\s*HttpOnly/i', $jar3->lines['osct_session'] ?? ''), 'the exchanged cookie is HttpOnly too');
+    [$status] = call($cookieApi, 'GET', '/user', null, $bearer);
+    check($status === 401, 'the stored token stops working once exchanged');
+    [$status] = browser($jar3, $cookieApi, 'PATCH', '/user', ['language' => 'en'], $csrf3);
+    check($status === 200, 'the exchanged session writes with its CSRF token');
+    [$status] = call($cookieApi, 'POST', '/auth/cookie', null, $bearer);
+    check($status === 401, 'an invalid (already exchanged) token → 401: the client signs in normally');
+    $pdo = connect('cookie');
+    $method = $pdo->query("SELECT method FROM sessions WHERE token_hash = " . $pdo->quote(hash('sha256', $jar3->cookies['osct_session'])))->fetchColumn();
+    $pdo = null;
+    check($method === 'password', 'the session keeps how it signed in (the password-change rule reads it)');
+
+    // A new sign-in in the same browser ends the session its cookie held
+    $before = $jar2->cookies['osct_session'];
+    [, $pending] = call($cookieApi, 'POST', '/auth/request', ['email' => 'listed@example.com']);
+    [$status] = browser($jar2, $cookieApi, 'POST', '/auth/verify', ['requestId' => $pending['requestId'], 'code' => lastMail($mailLog)['code'], 'session' => 'cookie']);
+    $staleJar = new CookieJar();
+    $staleJar->cookies['osct_session'] = $before;
+    [$status2, , $headers] = browser($staleJar, $cookieApi, 'GET', '/user');
+    check($status === 200 && $jar2->cookies['osct_session'] !== $before && $status2 === 401, 'signing in again in a browser ends the session its cookie held');
+    check(!isset($staleJar->cookies['osct_session']) && (bool) preg_grep('/^Set-Cookie:\s*osct_session=deleted.*Max-Age=0/i', $headers), 'a cookie of a session that is gone → 401 and the cookie cleared');
+
+    // Logout: the cookie session ends like a write – with the CSRF token – and the cookie is cleared
+    [$status, $data] = browser($jar, $cookieApi, 'POST', '/auth/logout');
+    check($status === 403 && $data['error']['code'] === 'csrf' && isset($jar->cookies['osct_session']), 'logout by cookie without the CSRF token → 403 csrf, still signed in');
+    $kept = $jar->cookies['osct_session'];
+    [$status, , $headers] = browser($jar, $cookieApi, 'POST', '/auth/logout', null, $csrf);
+    check($status === 204 && !isset($jar->cookies['osct_session']) && (bool) preg_match('/;\s*path=\/api/i', setCookies($headers)[0] ?? ''), 'logout with it → 204 and the cookie cleared (on its path)');
+    $staleJar->cookies['osct_session'] = $kept;
+    [$status] = browser($staleJar, $cookieApi, 'GET', '/user');
+    check($status === 401, 'the logged-out session no longer works, with the old cookie either');
+    [$status] = browser($jar2, $cookieApi, 'GET', '/user');
+    check($status === 200, 'the other browser stays signed in');
 
     echo "deploy keeps the data\n";
     foreach (glob(dirname(__DIR__) . '/api/db/schema.*.sql') as $schema) {

@@ -7,6 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Signing in keeps the session in a cookie** (#207): in the reader and the editor, the sign-in is now an HttpOnly
+  cookie of the API that no script on the page can read – nothing about it stays in the browser's storage. The reader
+  and the editor share it: signing in or out in one does the same in the other. Everyone already signed in stays
+  signed in – the first start after the update moves the stored sign-in into the cookie. AI connections (the MCP
+  server) sign in as before.
+
+### Security
+- **The session can no longer be read and carried off by code on the page** (#207): a book's plugin running in the
+  editor could read the session token from `localStorage`; it is now an HttpOnly, SameSite=Strict, Secure cookie on
+  `/api`, and every write that comes with it needs a CSRF token (403 `csrf` without it, also for a request another
+  site sends). AI connections' tokens stay `Authorization: Bearer` only and never become a cookie. Plugin code on the
+  page can still act while the page is open – a sandbox for it is a separate step.
+
 ## 1.50.8 – 2026-10-30
 
 ### Changed

@@ -6,8 +6,9 @@ declare(strict_types=1);
  * preferences and language), grant / revoke a role, the newsletter list as CSV. The admin page of the editor app
  * (/editor/admin, docs/admin.md) is their UI; after SCUTOONS' admin API (`/api/admin/users`, `…/roles/{role}`).
  *
- * Access: a signed-in user with the role `admin` (Bearer token), or the admin secret in `X-Admin-Secret` – the
- * break-glass path from the deploy or the shell, which also runs /admin/migrate (secret only, index.php).
+ * Access: a signed-in user with the role `admin` (the session cookie, or a Bearer session), or the admin secret in
+ * `X-Admin-Secret` – the break-glass path from the deploy or the shell, which also runs /admin/migrate (secret only,
+ * index.php).
  */
 final class Admin
 {

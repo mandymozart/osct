@@ -1,6 +1,7 @@
 /**
- * The editor's settings in this browser's localStorage, each under its own `osct-…` key (the session token, the
- * widths, the open sections, the stage's preview, …). Storage may be blocked – a private window, a site policy, a full
+ * The editor's settings in this browser's localStorage, each under its own `osct-…` key (the widths, the open
+ * sections, the stage's preview, …) – never the session, which is the API's HttpOnly cookie (#207, RULES #34).
+ * Storage may be blocked – a private window, a site policy, a full
  * quota: a read then finds nothing and a write is dropped, so the setting holds only while the page lives. A JSON value
  * that does not parse reads as nothing stored; the caller checks the shape of what it gets.
  */

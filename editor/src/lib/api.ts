@@ -58,15 +58,22 @@ export type {
 
 /**
  * The instance's API (server/api, docs/server.md): the accounts endpoints the sign-in uses and the editor's own
- * `/editor/*`. `VITE_API_URL` names it (default `/api`, next to the app – the dev server proxies it to the PHP dev
- * API). The session token lives in `localStorage`; `authFetch` is the `fetch` the engine's content loader uses for
- * the draft, so the draft endpoints see the token too. Every call goes through `request`: the token, the end of a
- * session on a 401, the API's errors as `ApiError`, and the book's tree read again after a write to the book.
+ * `/editor/*`. `VITE_API_URL` names it (default `/api`, next to the app on the same origin – the dev server proxies it
+ * to the PHP dev API). The session is the API's HttpOnly cookie (#207, docs/server.md "Sessions, cookies and CSRF"): no
+ * script on the page can read it, and nothing about it is in `localStorage`. What the editor holds is the session's
+ * CSRF token, in memory only, sent with every write. `authFetch` is the `fetch` the engine's content loader uses for
+ * the draft – the cookie goes with it. Every call goes through `request`: the cookie and the CSRF token, the end of a
+ * session on a 401, a stale CSRF token renewed once, the API's errors as `ApiError`, and the book's tree read again
+ * after a write to the book.
  */
 
 export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? "/api").replace(/\/+$/, "");
 
-const TOKEN_KEY = "osct-editor-session";
+/**
+ * Where the editor kept the session token before the cookie (#207). TEMPORARY: read once at startup, exchanged for the
+ * cookie (`exchangeStoredToken`) and removed – drop with the exchange endpoint (MEMORY open item).
+ */
+const LEGACY_TOKEN_KEY = "osct-editor-session";
 
 export class ApiError extends Error {
   /** `details` = the rest of the server's error object (e.g. `current` of a 409 other-book) */
@@ -88,23 +95,42 @@ export const errorText = (error: unknown, { code = false }: { code?: boolean } =
  */
 const trees = new Map<string, Promise<BookTree>>();
 
-export const getToken = (): string | null => readStored(TOKEN_KEY);
+/**
+ * The signed-in session as the editor knows it – never the session token, which only the cookie holds: the CSRF token
+ * the API handed out (sent in `X-CSRF-Token` with every write) and whose session it is. Memory only. Each sign-in is a
+ * new object, so a call can tell whether the session it was sent in is still the one.
+ */
+export interface SessionKey {
+  csrfToken: string;
+  email: string;
+}
 
-/** A new token (a sign-in) or none (a sign-out, an ended session): the trees read for the old one are dropped */
-export const setToken = (token: string | null): void => {
-  writeStored(TOKEN_KEY, token || null);
+let current: SessionKey | null = null;
+
+/** The session the editor is signed in to, or null */
+export const getSession = (): SessionKey | null => current;
+
+/** A sign-in (the API's CSRF token and the user's address) or none (a sign-out, an ended session): the trees read before are dropped */
+export const setSession = (session: { csrfToken: string; email: string } | null): void => {
+  current = session ? { csrfToken: session.csrfToken, email: session.email } : null;
   trees.clear();
 };
 
-/** `fetch` with the session token – also handed to the engine for the draft content */
+const WRITE = /^(POST|PUT|PATCH|DELETE)$/i;
+
+/**
+ * `fetch` with the session: the cookie (same origin – the API is `/api` next to the editor) and, on a write, the CSRF
+ * token – also handed to the engine for the draft content. Never an `Authorization` header: that is for the AI
+ * connections' tokens and the MCP server, not the person's session in a browser.
+ */
 export const authFetch: typeof fetch = (input, init = {}) => {
   const headers = new Headers(init.headers);
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  return fetch(input, { ...init, headers });
+  const method = init.method ?? (input instanceof Request ? input.method : "GET");
+  if (current && WRITE.test(method)) headers.set("X-CSRF-Token", current.csrfToken);
+  return fetch(input, { credentials: "same-origin", ...init, headers });
 };
 
-/** Called when the session ended under the page (a 401 to the stored token) – the session store registers it */
+/** Called when the session ended under the page (a 401 while signed in) – the session store registers it */
 let sessionEnded: (() => void) | null = null;
 
 /** Who hears that the session ended (`session.svelte.ts`); null: nobody */
@@ -112,15 +138,40 @@ export const onSessionEnd = (handler: (() => void) | null): void => {
   sessionEnded = handler;
 };
 
-/**
- * A 401 to a call that carried the stored token means the session is gone (expired, signed out elsewhere, the
- * account's roles revoked): the token is cleared and the session store hears it. Not when the token changed
- * meanwhile (a new sign-in), nor when no token was sent – then a 401 is only "not signed in".
- */
-const checkSession = (response: Response, sentToken: string | null): void => {
-  if (response.status !== 401 || sentToken === null || getToken() !== sentToken) return;
-  setToken(null);
+/** The session ended under the page: forgotten here, and the session store hears it */
+const endSession = (): void => {
+  setSession(null);
   sessionEnded?.();
+};
+
+/**
+ * A 401 to a call sent while signed in means the session is gone (expired, signed out elsewhere – the reader shares the
+ * cookie –, the account's roles revoked): the session store hears it. Not when another sign-in happened meanwhile, nor
+ * when the call was sent signed out – then a 401 is only "not signed in".
+ */
+const checkSession = (response: Response, sent: SessionKey | null): void => {
+  if (response.status !== 401 || sent === null || current !== sent) return;
+  endSession();
+};
+
+/**
+ * A write refused with 403 `csrf` while signed in: the CSRF token the editor holds is not the cookie's session's any
+ * more – the cookie was replaced in this browser (a sign-in in the reader shares it, docs/server.md). The session's
+ * token is read again from `GET /user`, once; when the cookie now belongs to someone else, the editor's session ended.
+ * True when the write may be sent again.
+ */
+const renewCsrf = async (sent: SessionKey): Promise<boolean> => {
+  if (current !== sent) return current !== null;
+  const response = await fetch(`${API_URL}/user`, { credentials: "same-origin", cache: "no-store" }).catch(() => null);
+  if (current !== sent || response === null) return false;
+  const body = (await response.json().catch(() => null)) as { user?: { email?: string }; csrfToken?: string } | null;
+  if (response.status === 401 || (response.ok && body?.user?.email !== sent.email)) {
+    endSession();
+    return false;
+  }
+  if (!response.ok || typeof body?.csrfToken !== "string") return false;
+  sent.csrfToken = body.csrfToken; // the same sign-in, the cookie's new session
+  return true;
 };
 
 /** The API's error answer as an `ApiError` (shared/api/errors.ts reads it – an answer that is no JSON too) */
@@ -135,15 +186,26 @@ const bookOfPath = (path: string): string | null => {
   return match ? decodeURIComponent(match[1]) : null;
 };
 
+/** A 403 `csrf` answer (read from a clone – the caller may still read the original) */
+const isCsrfRefusal = async (response: Response): Promise<boolean> => {
+  if (response.status !== 403) return false;
+  const body = (await response.clone().json().catch(() => null)) as { error?: { code?: string } } | null;
+  return body?.error?.code === "csrf";
+};
+
 /**
- * One call to the API: the session token, a 401 that ends the session (unless `unauthorizedIsAnswer`), an error answer
- * as `ApiError`; after a write to a book (answered or not) its tree is read again
+ * One call to the API: the cookie and, on a write, the CSRF token; a 403 `csrf` renews the token and sends the write
+ * once more; a 401 that ends the session (unless `unauthorizedIsAnswer`), an error answer as `ApiError`; after a write
+ * to a book (answered or not) its tree is read again
  */
 const request = async (method: string, path: string, init: RequestInit, { unauthorizedIsAnswer = false } = {}): Promise<Response> => {
-  const sentToken = getToken();
+  const sent = current;
   try {
-    const response = await authFetch(`${API_URL}${path}`, { ...init, method });
-    if (!unauthorizedIsAnswer) checkSession(response, sentToken);
+    let response = await authFetch(`${API_URL}${path}`, { ...init, method });
+    if (sent !== null && WRITE.test(method) && (await isCsrfRefusal(response)) && (await renewCsrf(sent))) {
+      response = await authFetch(`${API_URL}${path}`, { ...init, method });
+    }
+    if (!unauthorizedIsAnswer) checkSession(response, sent);
     if (!response.ok) throw await errorOf(response);
     return response;
   } finally {
@@ -186,15 +248,50 @@ const signIn = { unauthorizedIsAnswer: true };
 export const requestCode = (email: string) =>
   api<{ requestId: string; expiresAt: string }>("POST", "/auth/request", { email, language: "en" }, signIn);
 
+/**
+ * What a browser's sign-in answers (`session: "cookie"`): the session is the cookie the answer set, the CSRF token is
+ * for the writes (`setSession`) – never the session token itself
+ */
+export interface SignedIn {
+  csrfToken: string;
+  user: User;
+}
+
 export const verifyCode = (requestId: string, code: string) =>
-  api<{ session: string; user: User }>("POST", "/auth/verify", { requestId, code }, signIn);
+  api<SignedIn>("POST", "/auth/verify", { requestId, code, session: "cookie" }, signIn);
 
 export const signInWithPassword = (email: string, password: string) =>
-  api<{ session: string; user: User }>("POST", "/auth/password", { email, password }, signIn);
+  api<SignedIn>("POST", "/auth/password", { email, password, session: "cookie" }, signIn);
 
-export const me = () => api<{ user: User }>("GET", "/user", undefined, signIn);
+/** The signed-in user and the cookie session's CSRF token (401 when the browser has no session) */
+export const me = () => api<{ user: User; csrfToken?: string }>("GET", "/user", undefined, signIn);
 
 export const logout = () => api<void>("POST", "/auth/logout", undefined, signIn);
+
+/**
+ * TEMPORARY (#207 – remove with `POST /auth/cookie`, MEMORY open item): a session token the editor kept in
+ * `localStorage` before the cookie is sent once to the exchange endpoint, which sets the cookie; the stored token is
+ * removed once the API took it or refused it (401 / 403). Null when nothing was stored or the token no longer holds
+ * (sign in as usual); a network failure or a server error keeps it for the next start.
+ */
+export const exchangeStoredToken = async (): Promise<SignedIn | null> => {
+  const token = readStored(LEGACY_TOKEN_KEY);
+  if (token === null) return null;
+  if (token === "") {
+    writeStored(LEGACY_TOKEN_KEY, null);
+    return null;
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/auth/cookie`, { method: "POST", credentials: "same-origin", headers: { Authorization: `Bearer ${token}` } });
+  } catch {
+    return null;
+  }
+  if (response.ok || response.status === 401 || response.status === 403) writeStored(LEGACY_TOKEN_KEY, null);
+  if (!response.ok) return null;
+  const body = (await response.json().catch(() => null)) as Partial<SignedIn> | null;
+  return body && typeof body.csrfToken === "string" && body.user ? { csrfToken: body.csrfToken, user: body.user } : null;
+};
 
 // ── AI connections (docs/server.md "AI connections"): personal access tokens for the MCP server ──
 

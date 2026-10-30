@@ -4,6 +4,40 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – the browser session in an HttpOnly cookie, CSRF token on writes (#207)
+
+- **Tilman decided** (#207, of the four options: separate admin session, HttpOnly cookie, plugin sandbox, documented
+  acceptance): "the token in an HttpOnly cookie (SameSite, CSRF token)". Built in `Auth.php`; how it works is
+  `docs/server.md` "Sessions, cookies and CSRF"; the rule is RULES #34.
+- **Browser vs. non-browser sign-in: an explicit body field** `"session": "cookie"` on `/auth/verify` and
+  `/auth/password`. Rejected: guessing a browser from `Sec-Fetch-*` / `Origin` – reader apps from before #207 still cached
+  as a PWA would then get a cookie and no `session` in the answer and fail their sign-in. Without the field the API
+  answers the Bearer token as before (MCP `sign_in_verify`, scripts, old apps).
+- **One cookie `osct_session` for the reader and the editor**: same origin, same accounts, same sessions table – separate
+  cookies would isolate nothing (a script on either page can use both) and need a client marker on every request. The
+  consequence: one sign-in per browser for the site; a sign-in in the reader replaces the editor's session and the other
+  way round (the old row is deleted). The editor notices a cookie that changed hands on its next write (403 `csrf` →
+  `GET /user` → another email → its session ends) – Tilman testing a reader account and an admin account side by side
+  now needs two browser profiles.
+- **SameSite=Strict**, not Lax: every request needing the session is a same-origin `fetch`; the mail link opens the
+  reader page, which confirms with a `fetch`. **Path=/api** (the API base) so the pages never send it. **Secure** unless
+  `ENV=local` over plain http. Max-Age = SESSION_TTL_DAYS, renewed with `last_used_at` (hourly).
+- **CSRF token = HMAC(SECRET, "csrf:" + session row id)**, base64url – stateless, bound to the session, survives the
+  exchange's token rotation (same row). Checked in `Auth::signedIn()` for cookie requests with POST/PUT/PATCH/DELETE, so
+  every route is covered without a per-route call; `Sec-Fetch-Site` other than `same-origin` → 403 `csrf` too (SameSite
+  treats sibling subdomains as same-site). The clients keep it in memory and renew it once from `GET /user` on a 403
+  `csrf` (the reader after an offline start, either app after the other replaced the cookie).
+- **Logout by cookie needs the CSRF token** like any write (kept simple and uniform; the clients always hold it). A
+  cookie of a session that is gone is cleared with the 401.
+- **Plainly, for the record:** the cookie stops the session from being read and taken away. It does **not** sandbox
+  plugin code: a book's plugin in the editor (or the reader's AR scene) runs in the site's origin and can still send
+  requests with the cookie – and fetch the CSRF token from `GET /user` – while the page is open. The sandbox (opaque-
+  origin iframe or worker) is the orchestrator's to raise with Tilman as a follow-up.
+- [ ] Open: **remove the token exchange** (`POST /auth/cookie`, `Auth::exchange`, the editor's `exchangeStoredToken` and
+  `LEGACY_TOKEN_KEY`, the reader's `StoredSession.session` / `exchangeStoredToken` and `canSync`'s check) a few releases
+  after #207 is on production – once browsers signed in before have started once. Keep the Bearer session answer for
+  non-browser sign-ins (MCP).
+
 ## 2026-10-30 – engine cleanup: one behaviour vocabulary, no reader traces, AR errors as codes (#213)
 
 - **The vocabulary lives in `shared/types/behaviour.ts` only**: `plugin-runtime.ts` aliases `VAR_SCOPES`, `VarScope`,

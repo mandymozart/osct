@@ -28,11 +28,22 @@ role. The **first editors and admins** of an instance need no secret: the addres
 settings (GitHub environment variables of the same names, comma-separated, written into the server's config by the
 deploys) get the role when they sign in.
 
+**The session is a cookie** (#207, [server, "Sessions, cookies and CSRF"](server.md#sessions-cookies-and-csrf)): the
+sign-in sets the API's HttpOnly cookie `osct_session`, which no script on the page can read – the editor keeps nothing
+about the session in `localStorage`, only the session's CSRF token in memory, sent as `X-CSRF-Token` with every write
+(`request` in `editor/src/lib/api.ts`; uploads, the CSV download and the engine's draft fetch take the same path). At
+startup the editor asks `GET /user` whether the browser is signed in. The cookie is the site's one sign-in: signing in or
+out in the reader at `/` does the same for the editor, and the other way round. A write refused 403 `csrf` (the cookie
+was replaced meanwhile, e.g. by a sign-in in the reader) renews the CSRF token from `GET /user` and is sent once more;
+when the cookie now belongs to another person, the editor's session ends. An editor from before the cookie kept the
+session token in `localStorage` (`osct-editor-session`): the first start after the update exchanges it for the cookie
+(`POST /auth/cookie`) and deletes it, so nobody is signed out by the update.
+
 A session that ends while the editor is open – it expired, the person signed out elsewhere, the account lost its role –
-goes back to the sign-in form with *Your session ended – sign in again.* (#208): any API call answered 401 for the stored
-token clears it (`editor/src/lib/api.ts`, `session.svelte.ts`). The route stays, so signing in again returns to the
-same page. The sign-in calls themselves (a wrong code or password), the sign-out and the startup check of a stored token
-answer 401 without that note.
+goes back to the sign-in form with *Your session ended – sign in again.* (#208): any API call answered 401 while signed
+in ends it (`editor/src/lib/api.ts`, `session.svelte.ts`). The route stays, so signing in again returns to the same
+page. The sign-in calls themselves (a wrong code or password), the sign-out and the startup check answer 401 without
+that note.
 
 ## Try it (the demo book, or the fixture's studio spreads)
 
@@ -575,8 +586,8 @@ is involved.
     (#78, Tilman 2026-10-29) – and a publish whose nodes use a component no compiled plugin can provide is refused
     (409 `unknown-components`). The plugin API (`api.three`, the `register…` calls, the component
     context) and the guide for authors are [plugins](plugins.md).
-- Settings (view, orbit, sky, desk, shake, the open tab, the tree open or collapsed) are stored per device; the
-  session token too.
+- Settings (view, orbit, sky, desk, shake, the open tab, the tree open or collapsed) are stored per device. The
+  session is not: it is the API's HttpOnly cookie ([who may use it](#who-may-use-it)).
 
 ### UI rules
 
@@ -634,7 +645,7 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, the desks' cut edges), `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the token, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
+| The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts` |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |

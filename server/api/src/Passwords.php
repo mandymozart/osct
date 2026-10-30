@@ -20,7 +20,10 @@ final class Passwords
     /** A bcrypt hash of a random string: compared against when there is no user, so the answer takes as long */
     private const DUMMY_HASH = '$2y$12$cwg0DnIOyfn8TYV31Lq5Q.PwQTubG4.zjw5IljDStIspGAWR/BQvu';
 
-    /** POST /auth/password { email, password } → 200 { session, user, created: false }; 401 invalid-credentials */
+    /**
+     * POST /auth/password { email, password, session? } → 200 { session, user, created: false } – with `session: "cookie"`
+     * { csrfToken, user, created: false } and the cookie; 401 invalid-credentials
+     */
     public static function signIn(array $body): never
     {
         $email = Auth::email($body['email'] ?? null);
@@ -48,7 +51,8 @@ final class Passwords
         }
         Db::run('DELETE FROM password_attempts WHERE email = :email', ['email' => $email]);
         $session = Auth::createSession($user['id'], 'password');
-        Http::json(200, ['session' => $session, 'user' => Users::toJson(Roles::grantConfigured($user)), 'created' => false]);
+        // A browser (`session: "cookie"`) gets the cookie and its CSRF token instead of the token (Auth::sessionAnswer)
+        Http::json(200, Auth::sessionAnswer($session, $body) + ['user' => Users::toJson(Roles::grantConfigured($user)), 'created' => false]);
     }
 
     /** PUT /user/password { password, currentPassword? } → { user } */
