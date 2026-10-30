@@ -18,7 +18,7 @@ osct/<env>/<build>/files.json           size and checksum of every content file 
 osct/<env>/<build>/assets/content/…     the content files, same paths as in the app's public folder
 ```
 
-`<env>` is `staging` or `production`. **An environment serves one book** – the last one published or synced there:
+`<env>` is `staging` or `production` – or `demo`, the demo book's own (`fixtures/demo`, never the book's). **An environment serves one book** – the last one published or synced there:
 `latest.json` and each `versions.json` entry name it (`book`, the configuration's `book.id`; content schema 2.11). A
 manifest without `book` is older – its version's `game.config.json` tells the book. Publishing another book to an
 environment replaces the book for its readers: the editor asks first and the API refuses it without `replace: true`
@@ -34,8 +34,8 @@ cache, browser cache or service worker can serve a stale copy of it – only `la
   content.
 - **App version** a content build was made with (`version.version`): information only.
 - **Content schema** `MAJOR.MINOR` (`version.schema`, `CONTENT_SCHEMA_VERSION` in `shared/types/game-config.ts`):
-  the only compatibility rule (RULES #10). The app refuses content of another MAJOR at startup – newer content:
-  "update the app", older content: "the content needs a newer build". Any MINOR of the same MAJOR loads.
+  the only compatibility rule (RULES #10). The app refuses content of a newer MAJOR at startup ("update the app") and of
+  one below `OLDEST_READABLE_SCHEMA_MAJOR` ("the content needs a newer build"). Any MINOR of the same MAJOR loads.
   - MAJOR: a change older apps cannot read – a new required field, a renamed or removed field, a changed type, a
     new enum value (asset type, category, step action, spread format). The app reads every older MAJOR down to
     `OLDEST_READABLE_SCHEMA_MAJOR` as it is (so far every MAJOR only added).
@@ -84,7 +84,7 @@ npm run osct -- content purge --env staging --dry-run  # which old versions woul
 | Variable | Meaning |
 |---|---|
 | `OSCT_CONTENT_DIR` | the content source to build (absolute or relative to the repository; `fixtures/content` for the test fixture) |
-| `OSCT_CONTENT_ENV` | environment when `--env` is not given: `staging` or `production` |
+| `OSCT_CONTENT_ENV` | environment when `--env` is not given: `staging`, `production` or `demo` |
 | `BUNNY_STORAGE_ZONE` | storage zone name (`osct`) |
 | `BUNNY_STORAGE_ZONE_ENDPOINT` | Storage API host (`storage.bunnycdn.com`) |
 | `BUNNY_STORAGE_PASSWORD` | the zone's access key – read/write for sync and purge, read-only is enough for status and `--dry-run`; never in the repository |
@@ -94,8 +94,8 @@ The CLI reads them from the environment or from `scripts/.env` (untracked; also 
 client/). **sync** runs where the content source is – by hand on that machine; where it is triggered in the long
 run (a content repository's workflow?) is open. The workflow "Content" (`.github/workflows/content.yml`, Actions →
 Content → Run workflow: environment, status / purge, dry run on by default) takes the variables and the secret from
-the GitHub environment; it has no sync, because a checkout of this repository has no content. Nothing runs on a
-push.
+the GitHub environment; it has no sync, because a checkout of this repository has no content. The one sync on a push is the demo book's
+(`.github/workflows/demo.yml`: a push to `develop` that touches the demo or what builds it, to the environment `demo`).
 
 ## Loading in the app
 

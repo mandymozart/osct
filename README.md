@@ -69,7 +69,8 @@ One approach per layer; all of them run in CI (`.github/workflows/checks.yml`) o
 
 | Layer | Where | Run |
 |---|---|---|
-| App: store, managers, services, utils, components | `client/src/**/__tests__/*.test.ts` (vitest, happy-dom) | `cd client && npx tsc --noEmit && npx vitest run` |
+| App: store, managers, services, utils, components – and the engine | `client/src/**/__tests__/*.test.ts`, `engine/src/**/__tests__/*.test.ts` (vitest, happy-dom – the engine's run with the client's) | `cd client && npx tsc --noEmit && npx vitest run` |
+| Editor: panels, stage, plugins, the plugin API stubs | `editor/src/**/__tests__/*.test.ts` (vitest, happy-dom) | `cd editor && npm run check && npm test && npm run plugin-api -- --check` |
 | Content build, CDN sync and purge planning, delivery import | `scripts/test/*.test.ts` (vitest, node) | `cd scripts && npm test` |
 | Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite, or MariaDB – docs/server.md "Tests") | `php server/tests/api-test.php` · `OSCT_TEST_DB=mysql php server/tests/api-test.php` (after `docker compose up -d db`) |
 | MCP server | `mcp/test/*.test.ts` (vitest: a mocked fetch per tool; end to end over stdio against the PHP API) | `cd mcp && npx tsc --noEmit && npm test` |

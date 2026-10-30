@@ -15,7 +15,7 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-`register` runs once when the plugin loads. Seven things you can do with `api` – and, for a book's logic across
+`register` runs once when the plugin loads. Nine things you can do with `api` – and, for a book's logic across
 nodes and pages, four more ("Across nodes and pages" below):
 
 - **`api.registerLayer(type, spec, { glsl })`** – a **material layer**: a few lines of GLSL that run on every
@@ -33,6 +33,9 @@ nodes and pages, four more ("Across nodes and pages" below):
   the app has one three.js and a plugin that brings another is refused by the build.
 - **`api.loadText(url)`** (API 1.5) – a **text file** by its URL: a shader you uploaded to the editor's Library ("A
   shader file" below).
+- **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture; the content build
+  checks and records it, but a spread or the book cannot name a plugin's pass in `passes` yet.
+- **`api.log(…)`** – to the console, prefixed with the plugin's id.
 
 A `spec` describes the parameters the author sets in the editor: every one with a `kind` (`number` with `min`
 and `max`, `color`, `choice` with `options`, `boolean`, `string`, and since API 1.4 `texture` – a picture: a Library

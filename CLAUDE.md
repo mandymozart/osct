@@ -1,7 +1,8 @@
 # OSCT – Agent entry point
 
-AR companion app for Kévin Bray's book *Onion Skin & Crocodile Tears*: app in `client/`, content build and
-osct CLI in `scripts/`, accounts API in `server/`, shared content contract in `shared/`. The book content
+AR companion app for Kévin Bray's book *Onion Skin & Crocodile Tears*: the reader app in `client/`, the engine it
+shares with the editor in `engine/`, the editor in `editor/`, content build and osct CLI in `scripts/`, accounts and
+editor API in `server/`, the MCP server in `mcp/`, shared content contract in `shared/`. The book content
 lives outside the repository (`OSCT_CONTENT_DIR`); `fixtures/content/` is the test fixture.
 
 Before working, read:

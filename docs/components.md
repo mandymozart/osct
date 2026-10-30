@@ -15,7 +15,7 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 | `settings/` | Info page sections, one component each: `<settings-account>`, `<settings-feedback>` (sound, vibration), `<settings-graphics>`, `<settings-language>`, `<settings-install>` (home screen), `<settings-download>` (whole book), `<settings-history>` (reset book); `settings-section.ts` is their shared frame |
 | `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary); `<gold-switch>` |
 | `pages-router/` | `<pages-router>` – shows the page of the current route |
-| `dev-tools/` | With `VITE_DEBUG=true`: `<debug-overlay>` (status, settings, the panels below), `<qr-generator>`, `<load-test-panel>` (engine load test, report in `load-test-report.ts`), `<trial-panel>` (trigger trial of a printed delivery, report in `trial-report.ts`) |
+| `dev-tools/` | With `VITE_DEBUG=true`: `<debug-overlay>` (status, settings, the panels below), `<qr-generator>`, `<load-test-panel>` (engine load test, report in `load-test-report.ts`), `<trial-panel>` (trigger trial of a printed delivery, report in `trial-report.ts`), `<camera-panel>` (the AR camera's lens, focus and zoom) |
 
 ## Design styles
 
