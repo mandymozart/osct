@@ -6,7 +6,8 @@
  *
  * sync:  upload the build into `<env>/<build>/` (skipped when that version is already complete there: its
  *        game.config.json – written last – exists), then versions.json, then latest.json (the switch).
- *        Syncing an older content build again only moves latest.json back (rollback).
+ *        Syncing an older content build again only moves latest.json back (rollback). Syncing the current build
+ *        again repairs a versions.json that does not record it as current (#175).
  * purge: delete version folders that are not current, not served by the CDN's latest.json, not among the newest
  *        retired ones kept, and retired long enough ago (default: the CDN cache time, 30 days). Strict: missing or
  *        inconsistent bookkeeping refuses; folders it does not know stay unless asked for.
@@ -132,6 +133,29 @@ const nameOf = (item: StoredFile) => item.path.split('/').pop() ?? '';
 const versionFolders = (state: EnvironmentState): string[] =>
   state.listing.filter(i => i.isDirectory && CONTENT_BUILD.test(nameOf(i))).map(nameOf);
 
+/**
+ * Where latest.json and versions.json disagree (#175): versions.json must list the build latest.json names, with it as
+ * its only current entry (`retiredAt` null). Empty when they agree, or when neither exists yet. Arguments as in
+ * `EnvironmentState`: undefined = none, null = unreadable.
+ */
+export function versionProblems(current: ContentManifest | null | undefined, versions: ContentVersion[] | null | undefined): string[] {
+  const problems: string[] = [];
+  if (current === null) problems.push('latest.json is not readable');
+  if (versions === null) problems.push('versions.json is not readable');
+  if (current === null || versions === null) return problems;
+  const open = (versions ?? []).filter(v => v.retiredAt === null).map(v => v.build);
+  if (!current) {
+    if (open.length > 0) problems.push(`latest.json is missing, versions.json has ${open.join(', ')} as current`);
+    return problems;
+  }
+  if (!versions) return [`versions.json is missing (latest.json names ${current.build})`];
+  if (!versions.some(v => v.build === current.build)) problems.push(`versions.json does not list ${current.build}, the build latest.json names`);
+  if (open.length !== 1 || open[0] !== current.build) {
+    problems.push(`versions.json has ${open.join(', ') || 'no version'} as current, latest.json names ${current.build}`);
+  }
+  return problems;
+}
+
 // ---------------------------------------------------------------- sync
 
 export interface SyncPlan {
@@ -141,6 +165,8 @@ export interface SyncPlan {
   uploaded: boolean;
   /** latest.json names this version already */
   current: boolean;
+  /** latest.json and versions.json agree (`versionProblems`) – when they do not, the sync rewrites versions.json */
+  agrees: boolean;
   /** Videos the current version has and this build lacks although the entry stays (a checkout without them) */
   missingVideos: string[];
 }
@@ -166,6 +192,7 @@ export async function planSync(storage: StorageClient, env: string, build: Conte
     build,
     uploaded,
     current: !!state.current && state.current.build === build.build,
+    agrees: versionProblems(state.current, state.versions).length === 0,
     missingVideos: videosMissing(isContentFiles(currentFiles) ? currentFiles : null, build),
   };
 }
@@ -179,6 +206,7 @@ export function describeSync(plan: SyncPlan): string[] {
     `📦 Content ${build.build} (schema ${build.schema}, built with app ${build.version}, ${build.files.length} files, ${mb(bytes)}) → ${plan.env}/${build.build}/`,
     plan.uploaded ? '   already on the storage – no upload' : `   upload ${build.files.length} files (${mb(bytes)})`,
     plan.current ? '   already the current version' : '   becomes the current version (latest.json)',
+    ...(plan.current && !plan.agrees ? ['   versions.json does not record it as current – rewritten (latest.json stays)'] : []),
   ];
 }
 
@@ -222,12 +250,20 @@ export async function runSync(storage: StorageClient, plan: SyncPlan): Promise<v
     await storage.put(`${root}/game.config.json`, build.config, 'application/json');
     console.log(`✅ ${root}/ uploaded`);
   }
-  if (plan.current) return;
-  const now = new Date().toISOString();
+  if (plan.current && plan.agrees) return;
+  // Read again right before the write, from the Storage API (never through the pull zone, whose edges cache JSON for
+  // 30 days): versions.json first, latest.json last – a reader never sees a current version without its record
   const state = await readEnvironment(storage, env);
   if (state.versions === null) throw new Error(`${env}/versions.json is not readable – fix it before switching versions`);
+  // latest.json names the build already: only versions.json is repaired, the build current since latest.json says (#175)
+  const stays = state.current?.build === build.build ? state.current : null;
+  const now = stays?.activatedAt ?? new Date().toISOString();
   const versions = activate(state.versions ?? [], build, now, !plan.uploaded);
   await storage.put(`${env}/versions.json`, JSON.stringify(versions, null, 2), 'application/json');
+  if (stays) {
+    console.log(`✅ ${env}/versions.json records ${build.build} as current again (latest.json named it already)`);
+    return;
+  }
   const manifest: ContentManifest = {
     build: build.build, hash: build.hash, schema: build.schema, version: build.version, activatedAt: now,
     ...(build.book ? { book: build.book } : {}),
@@ -245,6 +281,17 @@ export async function cdnManifest(baseUrl: string): Promise<{ manifest: ContentM
     status: `${response.status} ${response.headers.get('cdn-cache') ?? ''}`.trim(),
     cors: !!response.headers.get('access-control-allow-origin'),
   };
+}
+
+/**
+ * What versions.json the CDN serves (from this machine's edge, as a reader sees it – no query string: the pull zone
+ * ignores it) – versions null when it serves none or an unreadable one. Only to compare with the storage: an edge
+ * without the cache rule for versions.json keeps an old copy for 30 days (#175).
+ */
+export async function cdnVersions(baseUrl: string): Promise<{ versions: ContentVersion[] | null; status: string }> {
+  const response = await fetch(`${baseUrl}/versions.json`);
+  const body: unknown = response.ok ? await response.json().catch(() => null) : null;
+  return { versions: isContentVersions(body) ? body : null, status: `${response.status} ${response.headers.get('cdn-cache') ?? ''}`.trim() };
 }
 
 /**

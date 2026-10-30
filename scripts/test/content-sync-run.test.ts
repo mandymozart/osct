@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContentManifest, ContentVersion } from '../../shared/types/content-manifest';
 import {
   cdnManifest,
+  cdnVersions,
   checkCdn,
   type ContentBuild,
   DEFAULT_PURGE,
@@ -129,6 +130,45 @@ describe('content sync and purge against a storage zone', () => {
     expect(await planSync(storage, 'staging', build(A), true)).toMatchObject({ uploaded: false, current: true });
   });
 
+  it('versions.json is written before latest.json, from what the storage holds right before the write', async () => {
+    await runSync(storage, await planSync(storage, 'staging', build(A)));
+    const plan = await planSync(storage, 'staging', build(B));
+    // Another sync records a version between plan and run: it stays on record
+    const C = 'cccccccccccc';
+    await runSync(storage, await planSync(storage, 'staging', build(C)));
+    storage.puts = [];
+    await runSync(storage, plan);
+    expect(storage.puts).toEqual([`staging/${B}/files.json`, `staging/${B}/game.config.json`, 'staging/versions.json', 'staging/latest.json']);
+    expect((storage.json('staging/versions.json') as ContentVersion[]).map(v => v.build)).toEqual([A, C, B]);
+  });
+
+  it("syncing the current build again repairs a versions.json that does not record it (#175, staging's case)", async () => {
+    await runSync(storage, await planSync(storage, 'staging', build(A)));
+    await runSync(storage, await planSync(storage, 'staging', build(B)));
+    const latest = storage.json('staging/latest.json') as ContentManifest;
+    // versions.json lost B: A is still its current version
+    const lost = (storage.json('staging/versions.json') as ContentVersion[]).filter(v => v.build === A).map(v => ({ ...v, retiredAt: null }));
+    storage.files.set('staging/versions.json', Buffer.from(JSON.stringify(lost)));
+
+    const plan = await planSync(storage, 'staging', build(B));
+    expect(plan).toMatchObject({ uploaded: true, current: true, agrees: false });
+    storage.puts = [];
+    await runSync(storage, plan);
+    // Only versions.json: latest.json named B already and stays as it was
+    expect(storage.puts).toEqual(['staging/versions.json']);
+    expect(storage.json('staging/latest.json')).toEqual(latest);
+    const versions = storage.json('staging/versions.json') as ContentVersion[];
+    expect(versions.map(v => [v.build, v.retiredAt])).toEqual([[A, latest.activatedAt], [B, null]]);
+    expect(versions[1].activatedAt).toBe(latest.activatedAt);
+
+    // Agreeing now: the next sync of B has nothing to do
+    const again = await planSync(storage, 'staging', build(B));
+    expect(again).toMatchObject({ uploaded: true, current: true, agrees: true });
+    storage.puts = [];
+    await runSync(storage, again);
+    expect(storage.puts).toEqual([]);
+  });
+
   it('refuses to switch versions while versions.json is not readable', async () => {
     storage.files.set('staging/versions.json', Buffer.from('not json'));
     const plan = await planSync(storage, 'staging', build(A));
@@ -176,6 +216,19 @@ describe('content sync and purge against a storage zone', () => {
     expect(await cdnManifest('https://cdn.example/staging')).toEqual({ manifest: null, status: '200', cors: false });
     fetch.mockResolvedValueOnce(new Response('', { status: 404 }));
     expect(await cdnManifest('https://cdn.example/staging')).toMatchObject({ manifest: null, status: '404' });
+  });
+
+  it('reads the versions.json the CDN serves, as a reader gets it (no query string – the pull zone ignores it)', async () => {
+    const record: ContentVersion[] = [{ build: A, hash: 'h', schema: '2.11', version: '1.26.7', uploadedAt: 'x', activatedAt: 'x', retiredAt: null }];
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(new Response(JSON.stringify(record), { status: 200, headers: { 'cdn-cache': 'HIT' } }));
+    vi.stubGlobal('fetch', fetch);
+    expect(await cdnVersions('https://cdn.example/staging')).toEqual({ versions: record, status: '200 HIT' });
+    expect(String(fetch.mock.calls[0][0])).toBe('https://cdn.example/staging/versions.json');
+
+    fetch.mockResolvedValueOnce(new Response('{"build":1}', { status: 200 }));
+    expect(await cdnVersions('https://cdn.example/staging')).toEqual({ versions: null, status: '200' });
+    fetch.mockResolvedValueOnce(new Response('', { status: 404 }));
+    expect(await cdnVersions('https://cdn.example/staging')).toEqual({ versions: null, status: '404' });
   });
 
   it('checkCdn waits until the CDN serves the new version, and gives up with a warning after a minute', async () => {

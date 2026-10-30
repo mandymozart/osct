@@ -6,7 +6,7 @@
  * needs the environment variables.
  *
  *   osct content build [--force]
- *   osct content status --env <env>
+ *   osct content status --env <env>          (exit code 1 when latest.json and versions.json disagree on the storage)
  *   osct content sync   --env <env> [--force] [--dry-run] [--without-videos]
  *   osct content purge  --env <env> [--dry-run] [--min-age <days>] [--keep <n>] [--unknown]
  *
@@ -24,6 +24,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import {
   cdnManifest,
+  cdnVersions,
   checkCdn,
   DEFAULT_PURGE,
   describePurge,
@@ -36,6 +37,7 @@ import {
   readEnvironment,
   runPurge,
   runSync,
+  versionProblems,
 } from './lib/content-sync';
 import { type CliArgs, parseArgs } from './lib/cli-args';
 import { StorageClient } from './lib/storage';
@@ -49,7 +51,8 @@ const OPTIONS = { flags: ['force', 'dry-run', 'without-videos', 'unknown', 'help
 const USAGE = `osct – content command line
 
   osct content build [--force]                 build the content source (OSCT_CONTENT_DIR)
-  osct content status --env <env>              versions on the storage, what the CDN serves
+  osct content status --env <env>              versions on the storage, what the CDN serves, whether
+                                               latest.json and versions.json agree (exit code 1 if not)
   osct content sync --env <env> [--force] [--dry-run] [--without-videos]
                                                upload the build as a version and make it current
   osct content purge --env <env> [--dry-run] [--min-age <days>] [--keep <n>] [--unknown]
@@ -94,10 +97,27 @@ async function status(env: string): Promise<void> {
   state.listing
     .filter(i => !(i.isDirectory && recorded.has(i.path.split('/').pop()!)) && !/\/(latest|versions)\.json$/.test(i.path))
     .forEach(i => console.log(`   ? ${i.path}${i.isDirectory ? '/' : ''} (not a version on record)`));
+  // The bookkeeping on the storage: latest.json must name a build versions.json records as current (#175)
+  const bullets = (items: string[]) => items.map(item => `\n   - ${item}`).join('');
+  const problems = versionProblems(state.current, state.versions);
+  if (problems.length > 0) {
+    console.warn(`⚠️  ${env}: latest.json and versions.json disagree on the storage – \`osct content sync\` of the current build repairs versions.json${bullets(problems)}`);
+    process.exitCode = 1;
+  } else {
+    console.log(`✅ ${env}: latest.json and versions.json agree on the storage`);
+  }
   const url = baseUrl();
   if (url) {
-    const seen = await cdnManifest(url);
+    const [seen, record] = await Promise.all([cdnManifest(url), cdnVersions(url)]);
     console.log(`🌐 CDN latest.json: ${seen.manifest?.build ?? seen.status}${seen.cors ? '' : ' (no CORS header)'}`);
+    // What a reader of the CDN sees: an edge without the cache rule for versions.json serves an old copy (warning only)
+    const edge = seen.manifest && record.versions ? versionProblems(seen.manifest, record.versions) : [];
+    if (edge.length > 0) {
+      console.warn(`⚠️  CDN versions.json (${record.status}) disagrees with its latest.json – the edge caches versions.json; ` +
+        `add the edge rule for it and purge it (docs/content-cdn.md)${bullets(edge)}`);
+    } else {
+      console.log(`🌐 CDN versions.json: ${record.versions ? 'agrees with latest.json' : record.status}`);
+    }
   }
 }
 
@@ -136,7 +156,7 @@ async function main(): Promise<void> {
         if (!flag('without-videos')) throw new Error(`${message}. Sync from a machine that has them, or pass --without-videos.`);
         console.warn(`⚠️  ${message} – syncing anyway (--without-videos)`);
       }
-      if (plan.uploaded && plan.current) {
+      if (plan.uploaded && plan.current && plan.agrees) {
         console.log(`✅ ${env}/ is up to date`);
         return;
       }

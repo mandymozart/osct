@@ -12,6 +12,17 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.49.2 – 2026-10-30
+
+### Fixed
+- **CDN: staging's `versions.json` seemed not to list the build `latest.json` names** (#175). The storage was right –
+  the CLI and the API write `versions.json` before `latest.json`, read through the Storage API – but the pull zone
+  caches `versions.json` for 30 days, and its edge still served the copy of 2026-10-28 (the demo's too).
+  `docs/content-cdn.md` has the edge rule and the purge a person with the account API key runs. `osct content status`
+  now checks that `latest.json` and `versions.json` agree – on the storage (exit code 1 when not) and as the CDN serves
+  them (a warning) – and `osct content sync` of the current build repairs a `versions.json` that does not record it as
+  current instead of reporting "up to date".
+
 ## 1.49.1 – 2026-10-30
 
 ### Fixed

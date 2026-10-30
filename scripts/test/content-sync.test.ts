@@ -12,6 +12,7 @@ import {
   isDemoBuild,
   isFixtureBuild,
   planPurge,
+  versionProblems,
   videosMissing,
 } from '../src/lib/content-sync';
 import type { StoredFile } from '../src/lib/storage';
@@ -109,6 +110,37 @@ describe('content versions', () => {
 
   it('indexes every file with its size and a short checksum', () => {
     expect(fileIndex(build)['/assets/content/entries/one/image.jpg']).toEqual({ size: 10, v: 'aaa111' });
+  });
+});
+
+describe('latest.json and versions.json agree (#175)', () => {
+  const { current, versions } = state();
+
+  it('agree when versions.json records the build latest.json names as its only current one, or when neither exists', () => {
+    expect(versionProblems(current, versions)).toEqual([]);
+    expect(versionProblems(undefined, undefined)).toEqual([]);
+    expect(versionProblems(undefined, [version(OLD, 10, 5)])).toEqual([]);
+  });
+
+  it("staging's case: latest.json names a build versions.json does not list", () => {
+    expect(versionProblems(current, [version(OLD, 10, null)])).toEqual([
+      `versions.json does not list ${CURRENT}, the build latest.json names`,
+      `versions.json has ${OLD} as current, latest.json names ${CURRENT}`,
+    ]);
+  });
+
+  it('listed, but retired, or another version still open', () => {
+    expect(versionProblems(current, [version(CURRENT, 10, 5)])).toEqual([`versions.json has no version as current, latest.json names ${CURRENT}`]);
+    expect(versionProblems(current, [version(OLD, 10, null), version(CURRENT, 5, null)])).toEqual([
+      `versions.json has ${OLD}, ${CURRENT} as current, latest.json names ${CURRENT}`,
+    ]);
+  });
+
+  it('missing or unreadable files', () => {
+    expect(versionProblems(current, undefined)).toEqual([`versions.json is missing (latest.json names ${CURRENT})`]);
+    expect(versionProblems(undefined, [version(OLD, 10, null)])).toEqual([`latest.json is missing, versions.json has ${OLD} as current`]);
+    expect(versionProblems(null, null)).toEqual(['latest.json is not readable', 'versions.json is not readable']);
+    expect(versionProblems(current, null)).toEqual(['versions.json is not readable']);
   });
 });
 
