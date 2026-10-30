@@ -1,15 +1,15 @@
 import { MathUtils, type Object3D } from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import type { SceneInspection, Vector3Data } from "@engine/types";
-import { HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
+import { outline, SELECTION_COLOR, type Outline } from "./shading";
 
 /**
  * The transform gizmo of the editor's stage: three.js `TransformControls` on the selected node's object (the
  * placement group the engine builds per node), in the node's own space – a drag changes the node's position,
  * rotation or scale **relative to its parent**, exactly the values the Entity panel shows. Modes move / rotate /
- * scale (W / E / R, the toolbar); Ctrl snaps (0.05 target widths, 15°, 0.1). Hover: the entity under the pointer
- * gets a thin box and the pointer cursor, as in every 3D editor. The tracker ignores pointer gestures while an
- * axis is hovered or dragged (`busy`), and a tap right after a drag is no selection (`recentlyDragged`).
+ * scale (W / E / R, the toolbar); Ctrl snaps (0.05 target widths, 15°, 0.1). The hover is the stage's (it follows the
+ * pick mode). The tracker ignores pointer gestures while an axis is hovered or dragged (`busy`), and a tap right after
+ * a drag is no selection (`recentlyDragged`).
  */
 
 export type GizmoMode = "translate" | "rotate" | "scale";
@@ -48,15 +48,12 @@ export interface GizmoSelection {
 export class Gizmo {
   private controls: TransformControls;
   private helper: Object3D;
-  private hoverOutline: Outline | null = null;
   private selectionOutline: Outline | null = null;
-  private hovered: string | null = null;
   private selection: GizmoSelection | null = null;
   private attached: Object3D | null = null;
   private dragging = false;
   private dragEndedAt = 0;
   private offFrame: () => void;
-  private cleanups: Array<() => void> = [];
 
   constructor(
     private inspection: SceneInspection,
@@ -77,11 +74,6 @@ export class Gizmo {
     this.controls.addEventListener("objectChange", () => {
       if (this.selection && this.attached) this.onchange(this.selection, placementOf(this.attached));
     });
-    const onMove = (event: PointerEvent) => this.hoverAt(event.clientX, event.clientY);
-    const onLeave = () => this.hover(null);
-    domElement.addEventListener("pointermove", onMove);
-    domElement.addEventListener("pointerleave", onLeave);
-    this.cleanups.push(() => domElement.removeEventListener("pointermove", onMove), () => domElement.removeEventListener("pointerleave", onLeave));
     // A rebuilt node (the scene built the spread again) is attached and outlined again
     this.offFrame = inspection.onFrame(() => {
       if (this.selection && this.attached && !this.attached.parent) this.sync();
@@ -135,36 +127,12 @@ export class Gizmo {
     this.selectionOutline = this.attached ? outline(this.attached, SELECTION_COLOR) : null;
   }
 
-  private hoverAt(clientX: number, clientY: number): void {
-    if (this.dragging || this.controls.axis) {
-      this.hover(null);
-      return;
-    }
-    this.hover(this.inspection.hitTest(clientX, clientY));
-  }
-
-  private hover(targetId: string | null): void {
-    if (targetId === this.hovered) return;
-    this.hovered = targetId;
-    this.inspection.domElement.style.cursor = targetId ? "pointer" : "";
-    this.hoverOutline?.remove();
-    this.hoverOutline = null;
-    // The selected entity is outlined already
-    if (targetId && targetId === this.selection?.targetId) return;
-    const object = targetId ? this.inspection.nodeObject(targetId, []) : null;
-    if (object) this.hoverOutline = outline(object, HOVER_COLOR);
-  }
-
   dispose(): void {
     this.offFrame();
-    this.cleanups.forEach(cleanup => cleanup());
-    this.cleanups = [];
-    this.hover(null);
     this.selectionOutline?.remove();
     this.selectionOutline = null;
     this.controls.detach();
     this.helper.removeFromParent();
     this.controls.dispose();
-    this.inspection.domElement.style.cursor = "";
   }
 }

@@ -255,8 +255,7 @@ is involved.
   - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
     selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own
     space, so a drag changes the node's placement **relative to its parent** – the Entity panel's rows follow live,
-    Save writes them. **Ctrl** snaps (0.05 target widths, 15°, 0.1). **Hover** draws a thin box around the entity
-    under the pointer and shows the pointer cursor; a tap selects it (a click that ends a drag does not). The
+    Save writes them. **Ctrl** snaps (0.05 target widths, 15°, 0.1). A click that ends a drag selects nothing. The
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
@@ -278,7 +277,8 @@ is involved.
     same passes, as it does in the reader.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), a selected target the same
-    orange around its printed image, the entity under the pointer a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
+    orange around its printed image (it follows the image as loaded and a move), and what a click would pick a light
+    grey one (below). The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
     side (or in the group's menu where the toolbar is short of room, #180): *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
     materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
     icons only (its menus add the names), every button's label is its tooltip. The stage and the gizmo keep their own look.
@@ -289,14 +289,26 @@ is involved.
     (`editor/src/lib/stage/light-helper.ts`). A click on the bulb picks the light. The HDRI dims only the scene's own
     lights; a light node keeps the author's intensity in every shading.
   - **Picking** – a click on the stage selects what lies under the pointer by the **pick mode** next to the gizmo's
-    tools (Blender's select mode): *entity* (a parcel – the root of the entity hit), *node* (a point on the graph –
-    the node under the pointer, as deep as the tree goes) or *target* (the crosshair – the printed image). A printed image without AR content is always picked as its
-    target. A **right click** on the stage opens the menu for what lies there: on a target *Add node… / Add AR
-    content…*, *Remove node / entity*, *Placement on the page…*, *Library…*, *Remove target*; on the page or the table
-    *+ target…* and *Stage settings…*. While a target's placement is edited (the form, the Entity panel's rows) the
-    stage shows a translucent **ghost** of the image where it would be printed, with **handles**: drag the image to
-    move it (across the spine it changes the page), drag the small square at its bottom right corner to set the
-    printed width – the fields follow, Save placement writes them.
+    tools (Blender's select mode, #192), strictly: *entity* (a parcel – only an entity, its root), *node* (a point on
+    the graph – only the node under the pointer, as deep as the tree goes) or *target* (the crosshair – only a printed
+    image, through an entity standing on it). A click where nothing of the mode's kind lies **clears the selection** –
+    the tree, the stage and the Entity panel (*Nothing selected*) alike; until the first selection of a workspace the
+    panel shows a target of the spread. Particles and lines count only where they are drawn (8 px around the pointer),
+    the editor's own outlines and a light's rays never; a light is picked by its bulb. The pure filter is
+    `editor/src/lib/stage/pick.ts`. **Hover** (a mouse on a device that hovers): what a click would pick wears a
+    light grey outline (a particle cloud its bounds) and the pointer cursor; with a finger there is no hover – a
+    tap selects at once and shows the orange outline. A **right click** on the stage opens the menu for what lies
+    there – the mode's pick, else the printed image under the pointer: on a target *Add node… / Add AR content…*,
+    *Remove node / entity*, *Placement on the page…*, *Library…*, *Remove target*; on the page or the table
+    *+ target…* and *Stage settings…*. While a target's placement is edited (the Entity panel's rows) **the target
+    itself lies at the edited place** – its printed image, its outline and its AR content move together, so it never
+    shows twice (#191) – with **handles**: drag the image to move it (across the spine it changes the page), drag the
+    small square at its bottom right corner to set the printed width – the fields follow, Save placement writes them;
+    hiding the placement unsaved puts the target back. The new-target form shows a translucent **ghost** of the
+    image with the same handles. The placement opens at the place the stage shows (its own, the book's layout's, or
+    the stage's fallback). The print is as wide as its place says and as high as its image's aspect makes it; the
+    stage anchors the AR content at the image's centre, as the reader's tracker does – the placement math is
+    `editor/src/lib/stage/placement.ts`.
   - **Library** – the book's uploaded files and the files of the import ([server](server.md) "Assets"): a grid of
     cards (a preview with an animated skeleton until it has loaded – images, a video's first frame that plays muted
     while hovered or after a click on ▷ –, the type's icon else; where the file belongs – the import names every file

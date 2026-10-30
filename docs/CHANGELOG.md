@@ -12,6 +12,38 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.39.1 – 2026-10-30
+
+### Fixed
+- **Editor: placing a target moves it instead of showing it twice** (#191): while a target's placement is edited (the
+  handles on the stage, the inspector's surface, x / y and width), the target itself now lies at the edited place –
+  its printed image, its orange outline and its AR content move together – instead of a translucent copy next to the
+  original that stayed put until the save. Hiding the placement without saving puts it back. A new target (the
+  *+ target* form) still shows its translucent preview.
+- **Editor: the selected target's outline sits exactly around its printed image** (#191): it was drawn at the size the
+  print had before its image loaded (a 4:3 guess), so after a spread change or a save it was too short for any image
+  that is not 4:3. It now follows the image and a move.
+- **Editor: AR content sits on the centre of its printed image, as in the reader** (#191): the stage anchored it at the
+  centre of a 4:3 box, so above the middle of a portrait image (28 mm on the demo's twins) and below that of a wide
+  one; the reader's tracker anchors at the image's real centre, and the stage now does too.
+- **Editor: the placement shows where the target lies** (#191): opening the placement of a target without a place of
+  its own (not in the book's layout either) showed fixed default numbers – or the previous target's – while the image
+  lay elsewhere; it now starts from where the stage shows it. Dragging the corner on the left page counts the width
+  with the book's page width instead of a fixed 230 mm.
+- **Editor: the pick modes filter strictly** (#192): *Entities* picks only an entity, *Nodes* only the node under the
+  pointer, *Targets* only a printed image; a click where nothing of the mode's kind lies clears the selection (tree,
+  stage and Entity panel alike – the panel says *Nothing selected* instead of showing some other target). Before, a
+  click next to an entity in entity mode selected the printed target under it; particles and lines caught clicks far
+  around them (three.js's world-sized ray threshold – the demo's sparkles took clicks a whole target width away), and
+  so did a selected entity's own outline. A node picked on another target than the one in the Entity panel is now
+  selected at once (it fell back to the root). The right click's menu still opens on the printed target when the mode
+  finds nothing there.
+
+### Added
+- **Editor: hover shows what a click would pick** (#192): on a desktop with a mouse, the entity, node or printed image
+  that a click would pick in the current pick mode wears a light grey outline and the pointer cursor (a particle cloud
+  its bounds); with a finger there is no hover – a tap selects at once and shows the selection's orange outline.
+
 ## 1.39.0 – 2026-10-30
 
 ### Added

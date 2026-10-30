@@ -85,6 +85,65 @@ describe("mock stage: the viewport's shading (#137)", () => {
   });
 });
 
+describe("mock stage: the printed images and the placement (#191)", () => {
+  /** A stage whose image loads are answered by hand: `answer(url, width, height)` decodes one */
+  const printStage = () => {
+    const { stage } = newStage();
+    const loads = new Map<string, (texture: unknown) => void>();
+    (stage as unknown as { loader: unknown }).loader = { setCrossOrigin: () => {}, load: (url: string, done: (t: unknown) => void) => { loads.set(url, done); } } as never;
+    const answer = (url: string, width: number, height: number) => loads.get(url)?.({ image: { width, height }, dispose() {} });
+    return { stage, answer };
+  };
+  const portrait = { id: "a", imageSrc: "/a.jpg", surface: "right", x: 70, y: 100, width: 80, height: 60 };
+
+  it("scales one plane to the print: the image's aspect and a move resize it, and an outline on it follows", async () => {
+    const { outline } = await import("../shading");
+    const { stage, answer } = printStage();
+    stage.setLayout([portrait], page, null, book);
+    const [plane] = stage.printedPlanes();
+    expect(plane.scale.x).toBeCloseTo(0.08, 6);
+    expect(plane.scale.y).toBeCloseTo(0.06, 6); // the stored box until the image is known
+    const lines = outline(plane, 0xffa028);
+    const edges = plane.children[0];
+    answer("/a.jpg", 1000, 1450);
+    expect(plane.scale.y).toBeCloseTo(0.116, 6);
+    expect(plane.position.y).toBeCloseTo((160 - 100 - 58) / 1000, 6);
+    expect(stage.printedAspect("a")).toBeCloseTo(1.45, 6);
+    stage.movePrint({ ...portrait, surface: "left", width: 40 });
+    expect(stage.printedPlanes()[0]).toBe(plane);
+    expect(plane.scale.x).toBeCloseTo(0.04, 6);
+    expect(plane.scale.y).toBeCloseTo(0.058, 6);
+    expect(plane.position.x).toBeCloseTo((-230 + 70 + 20) / 1000, 6);
+    // The outline hangs on the plane: it is scaled and moved with it, never redrawn at the old size
+    expect(plane.children[0]).toBe(edges);
+    lines.remove();
+  });
+
+  it("keeps a print moved before its image arrived where it was moved", () => {
+    const { stage, answer } = printStage();
+    stage.setLayout([portrait], page, null, book);
+    stage.movePrint({ ...portrait, x: 10 });
+    answer("/a.jpg", 100, 100);
+    const [plane] = stage.printedPlanes();
+    expect(plane.position.x).toBeCloseTo((10 + 40) / 1000, 6);
+    expect(plane.scale.y).toBeCloseTo(0.08, 6);
+  });
+
+  it("draws a new target's ghost, but only the handles of a target that moves itself", () => {
+    const { stage } = newStage();
+    stage.setLayout([portrait], page, null, book);
+    stage.setGhost({ ...portrait, id: "ghost" });
+    const drawn = stage.ghostParts();
+    expect((drawn.image as unknown as { material: { visible: boolean } }).material.visible).toBe(true);
+    stage.setGhost({ ...portrait, id: "ghost" }, { handlesOnly: true });
+    const handles = stage.ghostParts();
+    expect((handles.image as unknown as { material: { visible: boolean } }).material.visible).toBe(false);
+    expect(handles.corner).not.toBeNull();
+    stage.setGhost(null);
+    expect(stage.ghostParts()).toEqual({ image: null, corner: null });
+  });
+});
+
 describe("mock stage: the desks' look (#107)", () => {
   type Looks = { topMaterial: { map: { name: string } | null }; edgeMaterial: { map: { name: string } | null } };
   const deskStage = async () => {

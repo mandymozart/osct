@@ -1,4 +1,4 @@
-import { EdgesGeometry, LineBasicMaterial, LineSegments, type Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D } from "three";
+import { Box3, BoxGeometry, type BufferGeometry, EdgesGeometry, LineBasicMaterial, LineSegments, type Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Points, Vector3 } from "three";
 
 /**
  * The viewport's shading, after Blender's: **wireframe** (every entity as lines), **solid** (one matte grey, the
@@ -40,8 +40,9 @@ export const applyShading = (roots: readonly Object3D[], mode: ShadingMode): voi
 };
 
 /**
- * Outlines in the object's own space (Blender's selection): the edges of every mesh below `object` as lines that
- * show through everything, added as children so they follow the object. `remove` takes them away again.
+ * Outlines in the object's own space (Blender's selection): the edges of every mesh below `object` (a particle cloud:
+ * its bounds) as lines that show through everything, added as children so they follow the object. `remove` takes
+ * them away again.
  */
 const OUTLINE_ANGLE = 40;
 
@@ -49,15 +50,29 @@ export interface Outline {
   remove(): void;
 }
 
-export const outline = (object: Object3D, color: number, width = 1): Outline => {
+/** A particle cloud has no faces to outline: the box around its points stands in */
+const boundsEdges = (geometry: BufferGeometry): EdgesGeometry => {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox ?? new Box3();
+  const size = box.getSize(new Vector3());
+  const centre = box.getCenter(new Vector3());
+  const cube = new BoxGeometry(size.x, size.y, size.z).translate(centre.x, centre.y, centre.z);
+  const edges = new EdgesGeometry(cube);
+  cube.dispose();
+  return edges;
+};
+
+export const outline = (object: Object3D, color: number, width = 1, opacity = 0.95): Outline => {
   const lines: LineSegments[] = [];
-  const material = new LineBasicMaterial({ color, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95, linewidth: width });
+  const material = new LineBasicMaterial({ color, depthTest: false, depthWrite: false, transparent: true, opacity, linewidth: width });
   object.traverse(child => {
-    if (!(child instanceof Mesh) || child.name.startsWith("editor-")) return;
-    const edges = new LineSegments(new EdgesGeometry(child.geometry, OUTLINE_ANGLE), material);
+    if (!(child instanceof Mesh || child instanceof Points) || child.name.startsWith("editor-")) return;
+    const edges = new LineSegments(child instanceof Points ? boundsEdges(child.geometry) : new EdgesGeometry(child.geometry, OUTLINE_ANGLE), material);
     edges.name = "editor-outline";
     edges.renderOrder = 999;
     edges.frustumCulled = false;
+    // Never hit by a pick: a line's ray threshold would make the outlined object catch clicks around it
+    edges.raycast = () => {};
     child.add(edges);
     lines.push(edges);
   });
@@ -72,6 +87,6 @@ export const outline = (object: Object3D, color: number, width = 1): Outline => 
   };
 };
 
-/** Blender's colours: the active selection's orange, hover white */
+/** The active selection's orange (Blender's); the hover's neutral grey (what a click would pick), seen on the paper and on an entity alike */
 export const SELECTION_COLOR = 0xffa028;
-export const HOVER_COLOR = 0xffffff;
+export const HOVER_COLOR = 0x8c8c8c;

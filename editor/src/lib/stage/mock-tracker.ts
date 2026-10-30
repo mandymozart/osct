@@ -7,6 +7,9 @@ import { fetchStageLayout, type LayoutSheet, printedPlaceOf, sheetForSpread, she
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
+import { type LivePlacement, type PrintBox, printCentre, surfaceLeft, withLivePlacement } from "./placement";
+
+export { surfaceLeft };
 
 /** The simulated camera's vertical field of view – about what the engine reports on a phone at 960 × 720 */
 export const PREVIEW_FOV = 60;
@@ -21,13 +24,6 @@ export const BOOK_PAGE_MM = { width: 230, height: 320 } as const;
 
 /** The surfaces a target lies on: the pages of the open book, or the closed book's front / back cover */
 export type StageSurface = "left" | "right" | "front" | "back";
-
-/**
- * Where a surface's left edge lies in the stage's frame (mm): the open book has its spine at x = 0 – the left page
- * to the left, the right page to the right; the closed book (a cover) is centred on the origin
- */
-export const surfaceLeft = (surface: string, page: PageFormat): number =>
-  surface === "left" ? -page.width : surface === "front" || surface === "back" ? -page.width / 2 : 0;
 
 /** The surface a target falls back to on a spread: the right page of the open book, the cover's own face */
 export const defaultSurface = (format: SpreadFormat | undefined): StageSurface =>
@@ -166,15 +162,12 @@ export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = 
 
 /**
  * The stage's frame: metres, origin in the centre of the double page (the spine), x to the right, y towards the
- * top of the page, z out of the page. A target's centre in that frame.
+ * top of the page, z out of the page. A target's centre in that frame – the centre of its printed image, whose height
+ * follows the image's aspect once the stage knows it (`placement.ts`), as the engine anchors at the image's centre.
  */
-export const targetCentre = (target: StageTarget, page: PageFormat = BOOK_PAGE_MM): Vector3 => {
-  const pageLeft = surfaceLeft(target.surface, page);
-  return new Vector3(
-    (pageLeft + target.x + target.width / 2) / 1000,
-    (page.height / 2 - target.y - target.height / 2) / 1000,
-    0,
-  );
+export const targetCentre = (target: StageTarget, page: PageFormat = BOOK_PAGE_MM, aspect?: number | null): Vector3 => {
+  const centre = printCentre(target, page, aspect);
+  return new Vector3(centre.x / 1000, centre.y / 1000, 0);
 };
 
 /**
@@ -216,8 +209,15 @@ export interface StageView {
   setHdri(hdri: PreviewState["hdri"]): void;
   /** The desk under the book */
   setDesk?(desk: PreviewState["desk"]): void;
-  /** A translucent image where a target is about to be printed (the new-target form, the placement rows); null = none */
-  setGhost?(ghost: StageTarget | null): void;
+  /**
+   * A translucent image where a target is about to be printed (the new-target form, the placement rows); null = none.
+   * `handlesOnly`: the target itself moves with the placement (`movePrint`), the ghost adds only its handles.
+   */
+  setGhost?(ghost: StageTarget | null, options?: { handlesOnly?: boolean }): void;
+  /** A target's printed image moves to another place (the placement being edited) – nothing else is built anew */
+  movePrint?(target: StageTarget): void;
+  /** A printed image's height per width, once its image has loaded (undefined before) */
+  printedAspect?(targetId: string): number | undefined;
   /** The printed images on the page, each with `userData.targetId` (picking a target by its print) */
   printedPlanes?(): Object3D[];
   /** The grid over the page: spacing in mm, counted from the origin */
@@ -249,6 +249,10 @@ export class MockTracker implements IImageTracker {
   private started = false;
   private paused = false;
   private targets: StageTarget[] = [];
+  /** The targets as laid out from the content, before a placement being edited moves one (`targets` is with it) */
+  private laidOut: StageTarget[] = [];
+  /** The placement being edited: that target lies there, print and entity, until it is saved or dropped */
+  private livePlacement: LivePlacement | null = null;
   /** The current spread's targets as the engine handed them over (laid out again by `relayout`) */
   private tracked: readonly Target[] = [];
   private spreadId: string | null = null;
@@ -272,6 +276,7 @@ export class MockTracker implements IImageTracker {
   /** A pointer gesture that belongs to an editor tool (the gizmo's handle under the pointer): not an orbit */
   ignorePointer: ((event: PointerEvent) => boolean) | null = null;
   private ghost: StageTarget | null = null;
+  private ghostOptions: { handlesOnly?: boolean } = {};
 
   /** The stage's printed images (for picking) */
   printedPlanes(): Object3D[] {
@@ -291,10 +296,35 @@ export class MockTracker implements IImageTracker {
     return this.stage?.pageHit?.(raycaster) ?? null;
   }
 
-  /** Show where a target would be printed (the form's placement) */
-  setGhost(ghost: StageTarget | null): void {
+  /** Show where a target would be printed (the form's placement); `handlesOnly` while the target itself follows it */
+  setGhost(ghost: StageTarget | null, options: { handlesOnly?: boolean } = {}): void {
     this.ghost = ghost;
-    this.stage?.setGhost?.(ghost);
+    this.ghostOptions = options;
+    this.stage?.setGhost?.(ghost, options);
+  }
+
+  /** Where a target lies on the stage as the content places it (its own print, the layout, the protocol or the row) */
+  placeOf(targetId: string): StageTarget | null {
+    return this.laidOut.find(target => target.id === targetId) ?? null;
+  }
+
+  /** A printed image's height per width once its image has loaded */
+  printedAspect(targetId: string): number | undefined {
+    return this.stage?.printedAspect?.(targetId);
+  }
+
+  /**
+   * The placement being edited moves the target itself – its print on the page and the anchor its entity follows –
+   * instead of showing a second image (`null` = back to the content's place). The content changes only on a save.
+   */
+  placeTarget(targetId: string | null, place: PrintBox | null): void {
+    const before = this.livePlacement?.id ?? null;
+    this.livePlacement = targetId && place ? { id: targetId, place: { ...place } } : null;
+    this.targets = withLivePlacement(this.laidOut, this.livePlacement);
+    for (const id of new Set([before, targetId])) {
+      const target = id ? this.targets.find(t => t.id === id) : undefined;
+      if (target) this.stage?.movePrint?.(target);
+    }
   }
   private dragging = false;
   private lastPinch = 0;
@@ -338,7 +368,7 @@ export class MockTracker implements IImageTracker {
     stage.setHdri(this.preview.hdri);
     stage.setDesk?.(this.preview.desk);
     stage.setGrid?.(gridOf(this.preview));
-    stage.setGhost?.(this.ghost);
+    stage.setGhost?.(this.ghost, this.ghostOptions);
   }
 
   /** The page format: the book's layout, else this book's constant */
@@ -384,7 +414,8 @@ export class MockTracker implements IImageTracker {
     if (!this.spreadId) return;
     const spread = getSpread(this.spreadId);
     this.sheet = sheetForSpread(this.layout, spread);
-    this.targets = layoutTargets(this.tracked, this.infos, this.pageFormat(), this.layout, spread?.format);
+    this.laidOut = layoutTargets(this.tracked, this.infos, this.pageFormat(), this.layout, spread?.format);
+    this.targets = withLivePlacement(this.laidOut, this.livePlacement);
     this.stage?.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
     this.publishState();
   }
@@ -417,6 +448,7 @@ export class MockTracker implements IImageTracker {
     this.found.forEach(id => this.options.onUpdate(id, null));
     this.found.clear();
     this.targets = [];
+    this.laidOut = [];
     this.spreadId = null;
   }
 
@@ -476,7 +508,7 @@ export class MockTracker implements IImageTracker {
         continue;
       }
       const scale = target.width / 1000;
-      this.pose.compose(targetCentre(target, this.pageFormat()), new Quaternion(), new Vector3(scale, scale, scale));
+      this.pose.compose(targetCentre(target, this.pageFormat(), this.stage?.printedAspect?.(target.id)), new Quaternion(), new Vector3(scale, scale, scale));
       const matrix = new Matrix4().multiplyMatrices(this.cameraInverse, this.pose);
       if (!this.found.has(target.id)) {
         this.found.add(target.id);
