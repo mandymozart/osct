@@ -19,12 +19,43 @@
 
 import type { NodeType } from "./game-config";
 
-export type ComponentParamSpec =
-  | { kind: "color"; default: string; description: string }
-  | { kind: "number"; default: number; min: number; max: number; step?: number; unit?: string; description: string }
-  | { kind: "choice"; options: readonly string[]; default: string; description: string }
-  | { kind: "boolean"; default: boolean; description: string }
-  | { kind: "string"; default: string; description: string };
+/**
+ * A parameter of a spec (a component's, a material layer's, a pass's, a light's, a plugin node type's): its kind with
+ * default and range, a `description` (the editor's help) and an optional `label` (schema 2.15, plugin API 1.3) – the
+ * few words the editor's row shows. Without a label the row shows the name split into words (`paramLabel`).
+ */
+export type ComponentParamSpec = ParamText & (
+  | { kind: "color"; default: string }
+  | { kind: "number"; default: number; min: number; max: number; step?: number; unit?: string }
+  | { kind: "choice"; options: readonly string[]; default: string }
+  | { kind: "boolean"; default: boolean }
+  | { kind: "string"; default: string }
+);
+
+/** What every parameter says about itself, whatever its kind */
+export interface ParamText {
+  /**
+   * The few words the editor's row shows (schema 2.15, plugin API 1.3), e.g. `"speed"` for `degreesPerSecond` – 1 to
+   * 24 characters (`PARAM_LABEL_MAX`). Without one the row shows the name split into words ("degrees per second").
+   */
+  label?: string;
+  /** What the parameter does – the row's help in the editor's Info view */
+  description: string;
+}
+
+/** The longest label a parameter may carry (the editor's label column is narrow; the description is the help) */
+export const PARAM_LABEL_MAX = 24;
+
+/** A parameter's name as words: `degreesPerSecond` → "degrees per second", `playOn` → "play on", `uvScale2` → "uv scale 2" */
+export const paramWords = (name: string): string =>
+  name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/([a-zA-Z])([0-9])/g, "$1 $2")
+    .toLowerCase();
+
+/** What the editor's row shows for a parameter: its spec's label, else its name as words */
+export const paramLabel = (name: string, spec?: { label?: string }): string => spec?.label?.trim() || paramWords(name);
 
 export interface ComponentSpec {
   description: string;
@@ -39,17 +70,17 @@ export const COMPONENTS = {
     description: "Plays one of the model's animation clips (glTF). Without this component every clip plays in a loop.",
     nodeTypes: ["model"],
     params: {
-      clip: { kind: "string", default: "", description: "The clip's name – empty plays the first clip." },
+      clip: { kind: "string", default: "", label: "clip", description: "The clip's name – empty plays the first clip." },
       playOn: {
-        kind: "choice", options: ["found", "tap", "never"], default: "found",
+        kind: "choice", options: ["found", "tap", "never"], default: "found", label: "plays on",
         description: "When the clip starts: when the page is found, when the entity is tapped, or never (the editor's timeline only).",
       },
       stopOn: {
-        kind: "choice", options: ["lost", "never"], default: "lost",
+        kind: "choice", options: ["lost", "never"], default: "lost", label: "stops on",
         description: "When it stops: when the page is lost, or never (it keeps its time while the page is away).",
       },
-      loop: { kind: "boolean", default: true, description: "Repeat the clip; off = play it once and hold the last frame." },
-      speed: { kind: "number", default: 1, min: 0.1, max: 4, step: 0.1, unit: "×", description: "Playback speed." },
+      loop: { kind: "boolean", default: true, label: "loop", description: "Repeat the clip; off = play it once and hold the last frame." },
+      speed: { kind: "number", default: 1, min: 0.1, max: 4, step: 0.1, unit: "×", label: "speed", description: "Playback speed." },
     },
   },
 } as const satisfies Record<string, ComponentSpec>;
@@ -140,6 +171,9 @@ export const paramSpecProblems = (type: string, params: Record<string, unknown>)
       continue;
     }
     if (typeof p.description !== "string") problems.push(`${at}: description must be a string`);
+    if (p.label !== undefined && !(typeof p.label === "string" && p.label.trim() && p.label.length <= PARAM_LABEL_MAX)) {
+      problems.push(`${at}: label must be a short text (1–${PARAM_LABEL_MAX} characters)`);
+    }
     switch (p.kind) {
       case "color": if (!isColor(p.default)) problems.push(`${at}: default must be a color "#rrggbb"`); break;
       case "number":

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { clampSheet, clampWidth, LIMITS, SHEET_INITIAL, SHEET_MAX, snapSheet, STAGE_MIN, widths } from "../widths.svelte";
+import {
+  clampSheet, clampWidth, LIMITS, SHEET_INITIAL, SHEET_MAX, snapSheet, STAGE_MIN, TREE_OPEN_MIN, treeStartsOpen, widths, WORD_TABS_MIN, wordTabs,
+} from "../widths.svelte";
 
 const KEY = "osct-editor-widths";
 
@@ -109,5 +111,33 @@ describe("the phone's sheet: its height as a share of the screen (#155)", () => 
     localStorage.setItem(KEY, JSON.stringify({ sheet: 0.7 }));
     widths.reload();
     expect(widths.sheet()).toBe(0.7);
+  });
+});
+
+describe("a tablet in portrait (#172)", () => {
+  it("starts with the tree collapsed below 64rem, unless it was opened on this device", () => {
+    expect(treeStartsOpen(768, null)).toBe(false);
+    expect(treeStartsOpen(1023, null)).toBe(false);
+    expect(treeStartsOpen(TREE_OPEN_MIN, null)).toBe(true);
+    expect(treeStartsOpen(1280, null)).toBe(true);
+    expect(treeStartsOpen(768, "open")).toBe(true);
+    expect(treeStartsOpen(1280, "closed")).toBe(false);
+  });
+
+  it("gives the panel its 25rem and the stage over 20rem at 768 px with the tree collapsed", () => {
+    const panel = widths.width("panel", 768);
+    expect(panel).toBe(LIMITS.panel.initial);
+    expect(768 - panel).toBeGreaterThan(20 * 16);
+    // its tab row fits as words with a mouse; a finger's larger buttons take the icons
+    expect(wordTabs(panel, false)).toBe(true);
+    expect(wordTabs(panel, true)).toBe(false);
+  });
+
+  it("shows the tabs as icons in a panel narrower than their words (the tree open at 768 px)", () => {
+    const panel = widths.width("panel", 768, widths.width("tree", 768));
+    expect(panel).toBe(768 - LIMITS.tree.initial - STAGE_MIN);
+    expect(wordTabs(panel, false)).toBe(false);
+    expect(wordTabs(WORD_TABS_MIN.fine, false)).toBe(true);
+    expect(wordTabs(WORD_TABS_MIN.coarse - 1, true)).toBe(false);
   });
 });

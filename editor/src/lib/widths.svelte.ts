@@ -33,6 +33,24 @@ export const LIMITS: Record<Column, Limits> = {
   code: { initial: 36 * REM, min: 16 * REM, maxShare: 0.7 },
 };
 
+/**
+ * Below this window width the tree starts collapsed to its bar (#172): a tablet in portrait (768 px) then gives the
+ * panel its default 25rem – the tab row on one line, three digits in the axis fields – and the stage the rest
+ */
+export const TREE_OPEN_MIN = 64 * REM;
+
+/** Whether the tree column starts open: as it was left on this device (`stored`), else in a window of TREE_OPEN_MIN or more */
+export const treeStartsOpen = (viewport: number, stored: string | null): boolean =>
+  stored === "open" || (stored !== "closed" && viewport >= TREE_OPEN_MIN);
+
+/**
+ * The panel's tabs show as words in a panel at least this wide (px), × ‹ › included; narrower, they are icons as on the
+ * phone, so the head stays one line (#172, RULES #32). With a finger every button is the touch height, wider too.
+ */
+export const WORD_TABS_MIN = { fine: 24 * REM, coarse: 28 * REM } as const;
+
+export const wordTabs = (panelWidth: number, coarse: boolean): boolean => panelWidth >= WORD_TABS_MIN[coarse ? "coarse" : "fine"];
+
 /** The highest the phone's sheet may be, as a share of the screen */
 export const SHEET_MAX = 0.85;
 /** The sheet's height until it is dragged (or after a double tap on its grip) */

@@ -8,7 +8,7 @@
     backToBooks, draftPasses, editInEffect, effectivePasses, ownPasses, passesSource, passesStatus, pendingSaves,
     type PassesDraft, type PassesSource,
   } from "$lib/passes-edit";
-  import { passOptionLabels, passRows, passValue, setPassValue, type ValueRow } from "$lib/values";
+  import { helpName, passOptionLabels, passRows, passValue, setPassValue, type ValueRow } from "$lib/values";
   import ColourField from "$lib/components/ColourField.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
   import ScrubNumber from "$lib/components/ScrubNumber.svelte";
@@ -123,16 +123,16 @@
       <button type="button" class="text-link" onclick={() => remove(i)}>remove</button>
     </span></div>
   {#each passRows(pass, i) as row (row.id)}
-    {@const name = row.id.split(".")[2]}
-    <div class="row" class:changed={passValue(pass, row) !== (savedShown[i]?.type === pass.type ? passValue(savedShown[i], row) : row.default)} data-help-name="{pass.type} · {name}" data-help="{row.description} – default {row.default}">
-      <span class="label sub">{name}</span>
+    <!-- The parameter's words (#173): its spec's label, else its name split into words -->
+    <div class="row" class:changed={passValue(pass, row) !== (savedShown[i]?.type === pass.type ? passValue(savedShown[i], row) : row.default)} data-help-name="{pass.type} · {helpName(row)}" data-help="{row.description} – default {row.default}">
+      <span class="label sub">{row.label}</span>
       {#if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(passValue(pass, row))} labels={passOptionLabels(pass, row)} onchange={v => set(i, row, v)} /></span>
       {:else if row.kind === "color"}
-        <ColourField value={String(passValue(pass, row))} label={row.id} onchange={hex => set(i, row, hex)} />
+        <ColourField value={String(passValue(pass, row))} label={row.label} onchange={hex => set(i, row, hex)} />
       {:else}
         <span class="w"><ScrubNumber value={Number(passValue(pass, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-          unit={row.unit ?? ""} label={row.id} strict={row.strict} oninput={v => set(i, row, v)} /></span>
+          unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(i, row, v)} /></span>
       {/if}
     </div>
   {/each}

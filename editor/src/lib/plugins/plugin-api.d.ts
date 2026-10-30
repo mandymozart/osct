@@ -20,6 +20,7 @@ declare const FILTERS: {
 			readonly color: {
 				readonly kind: "color";
 				readonly default: "#00ff00";
+				readonly label: "key color";
 				readonly description: "Key color (#rrggbb) that becomes transparent.";
 			};
 			readonly mode: {
@@ -30,6 +31,7 @@ declare const FILTERS: {
 					"luma"
 				];
 				readonly default: "auto";
+				readonly label: "compare by";
 				readonly description: string;
 			};
 			readonly threshold: {
@@ -38,6 +40,7 @@ declare const FILTERS: {
 				readonly lumaDefault: 0.06;
 				readonly min: 0;
 				readonly max: 1;
+				readonly label: "threshold";
 				readonly description: "How close to the key color a pixel must be to disappear. Higher = more is removed.";
 			};
 			readonly softness: {
@@ -46,6 +49,7 @@ declare const FILTERS: {
 				readonly lumaDefault: 0.1;
 				readonly min: 0.001;
 				readonly max: 1;
+				readonly label: "soft edge";
 				readonly description: "Width of the soft edge between transparent and visible. Higher = softer, more see-through edges.";
 			};
 			readonly spill: {
@@ -53,6 +57,7 @@ declare const FILTERS: {
 				readonly default: 0.1;
 				readonly min: 0.001;
 				readonly max: 1;
+				readonly label: "spill";
 				readonly description: "Removes the key color's tint on edges (chroma only). Higher = more grey on edges.";
 			};
 			readonly opacity: {
@@ -60,6 +65,7 @@ declare const FILTERS: {
 				readonly default: 1;
 				readonly min: 0;
 				readonly max: 1;
+				readonly label: "opacity";
 				readonly description: "Opacity of the whole video after keying. 1 = fully visible.";
 			};
 		};
@@ -70,10 +76,9 @@ interface FilterData {
 	type: FilterType;
 	[param: string]: string | number;
 }
-type ComponentParamSpec = {
+type ComponentParamSpec = ParamText & ({
 	kind: "color";
 	default: string;
-	description: string;
 } | {
 	kind: "number";
 	default: number;
@@ -81,21 +86,26 @@ type ComponentParamSpec = {
 	max: number;
 	step?: number;
 	unit?: string;
-	description: string;
 } | {
 	kind: "choice";
 	options: readonly string[];
 	default: string;
-	description: string;
 } | {
 	kind: "boolean";
 	default: boolean;
-	description: string;
 } | {
 	kind: "string";
 	default: string;
+});
+interface ParamText {
+	/**
+	 * The few words the editor's row shows (schema 2.15, plugin API 1.3), e.g. `"speed"` for `degreesPerSecond` – 1 to
+	 * 24 characters (`PARAM_LABEL_MAX`). Without one the row shows the name split into words ("degrees per second").
+	 */
+	label?: string;
+	/** What the parameter does – the row's help in the editor's Info view */
 	description: string;
-};
+}
 export interface ComponentSpec {
 	description: string;
 	/** The node types it applies to (none = every type) – built-in types or a plugin's (`registerNodeType`) */

@@ -172,7 +172,9 @@ is involved.
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
-  spreads, the spread's title, the tabs.
+  spreads, the tabs – as words, or as icons in a panel too narrow for them (under 24rem, 28rem with a finger), so the
+  head stays one line (#172). On a phone the head is the six tab icons alone, sharing its width (#171): ‹ › sit at the
+  stage's lower corners, and the top bar's book link is the way back to the spreads.
   - **Tree** – the spread in the style of Blender's outliner: a chevron column, a type icon before every name (book,
     entry, target, group / model / video / image / text / light), guide lines per depth, zebra rows, and the **eye** in a
     column at the right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its
@@ -190,7 +192,9 @@ is involved.
     **right click** on a node row opens the menu with *Move up / down*, *Into the node above*, *Out of its parent*
     and *Remove node* / *Remove entity*. Removing is live on the stage;
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
-    the column collapses to its bar (‹ ›, kept on the device).
+    the column collapses to its bar (‹ ›, kept on the device; until it is toggled there, it starts collapsed in a
+    window under 64rem – a tablet in portrait gives the panel its 25rem and the stage the rest, #172). With a finger
+    the rows are the touch control height, the chevrons and the eye as tall as the row (#171).
   - **Selection** (#162) – one selection for the tree, the stage and the Entity panel
     (`editor/src/lib/selection.svelte.ts`, the rules in `selection.ts`): a **target** (a tap on its row or its entry's,
     a pick of its printed image), its **entity** (the root node) or a **node**; selecting in one selects in the
@@ -209,7 +213,8 @@ is involved.
     *name* row) and its type as the icon; without a name the type.
   - **Column edges** – the tree's right edge and the panel's left edge are dragged to resize the columns (#144; the
     panel 16rem to 70% of the window – 25rem by default, so its tab row fits one line (#170) –, the tree 10rem to 40%, the stage keeps at least 16rem, so a 768 px tablet in
-    portrait still shows a stage; a focused edge also moves with ← →; with a finger (`pointer: coarse`) the edge's hit
+    portrait still shows a stage with the tree open – the panel's rows of position, rotation and scale then put their
+    label above the X / Y / Z fields (`@container panel`, #172); a focused edge also moves with ← →; with a finger (`pointer: coarse`) the edge's hit
     area is wider). The stage's view follows live. The widths are kept on the device (`editor/src/lib/widths.svelte.ts`);
     the Code tab has its own, wider width; a double-click on an edge restores the default.
   - **Sheet height (phone)** – the panel is a sheet at the bottom; its head (a grip and the tab row) is dragged up or
@@ -328,8 +333,10 @@ is involved.
     always takes the file's proportions),
     **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
     text and colour, a light node's **light** rows (kind as a segmented group, colour, intensity, distance and decay
-    for a point or spot, angle and penumbra for a spot), a plugin node type's parameters (*node type · sparkle*, from its
-    spec), and every filter parameter of the node as rows of one control height: position, rotation and scale with X, Y, Z side
+    for a point or spot, cone angle and soft edge for a spot), a plugin node type's parameters (*node type · sparkle*, from its
+    spec), and every filter parameter of the node as rows of one control height – each labelled in words (#173): its
+    spec's `label` (*plays on*, *key color*), else its name split into words (`degreesPerSecond` → *degrees per second*);
+    the Info view names it with the content's name too (*speed · degreesPerSecond*): position, rotation and scale with X, Y, Z side
     by side as in Blender (the chain icon at the end of the scale row links the axes: pressed = one `scale` field, as
     Blender's lock), choices as a segmented group, colours as a
     swatch + hex whose swatch opens the editor's **colour popover** (after Scutoons': a palette of the usual keys and
@@ -371,10 +378,11 @@ is involved.
 The editor follows the Scutoons UI dogma (`scutoons/agents/DESIGN.md`) in its own CSS (`editor/src/app.css`), not
 the reader's design tokens: a design tool's default palette – day (white, light greys, near-black text) and night
 (dark greys, white text), following the system, forced with `data-scheme` on `<html>` – and **no colour** but the
-danger red; one control height (`--control-height`, 1.75rem), square corners (`--control-radius: 0`), compact system
+danger red; one control height (`--control-height`, 1.75rem with a mouse, 2.75rem – the dogma's 44 px – with a finger,
+`pointer: coarse`, #171; the top bar grows with it), square corners (`--control-radius: 0`), compact system
 type, muted text at least 4.5:1 against its background, one focus ring for every control (2px in the text colour – a
 field marks its focus by its border); rows with a label
-column; numbers as `ScrubNumber` (the whole field is the gesture: press and slide – **up or right raises, down or left
+column, labelled in words (a spec's `label`, else the name split into words – #173); numbers as `ScrubNumber` (the whole field is the gesture: press and slide – **up or right raises, down or left
 lowers** the value, the two directions add up (the quadrant rule, Tilman 2026-10-29; Scutoons' fields should follow) –
 Shift ×10, Alt ×0.1, tap to type,
 ↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders, no native colour picker: the colour popover
@@ -415,7 +423,7 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   target are phase 15 step 3; the book's own code is the Code tab (above).
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
-- The plugin API 1.2 has components, material layers, passes, node types, events, variables in scopes, the progress
+- The plugin API 1.3 has components, material layers, passes, node types, parameter labels, events, variables in scopes, the progress
   and the spread (`registerComponent`, `registerLayer`, `registerPass`, `registerNodeType`, `api.three`, `api.events`,
   `api.vars`, `api.progress`, `api.spread`); declared variables and a `behaviour` component without code come when a work needs them. The Code
   tab has no completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind
@@ -427,5 +435,6 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
 - The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with the plugin as
   owner, and `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade); the
   build and the guard do not accept a spread naming a plugin's pass yet (#97).
-- The phone layout of the workspace (the sheet) is built but was checked on the desktop only; the bunny store against
+- The phone layout of the workspace (the sheet, its touch heights – #171) was last checked in a desktop browser
+  emulating a 360 px touch phone; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

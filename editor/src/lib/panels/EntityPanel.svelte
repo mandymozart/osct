@@ -12,7 +12,7 @@
   import { getPreview, subscribePreview } from "$lib/stage/preview";
   import {
     addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
-    sameValue, setValue, valueRows, withNode, type ValueRow,
+    helpName, sameValue, setValue, valueRows, withNode, type ValueRow,
   } from "$lib/values";
   import { selection } from "$lib/selection.svelte";
   import { breadcrumb } from "$lib/selection";
@@ -384,8 +384,9 @@
 {#snippet specRow(row: ValueRow, name: string)}
   <!-- A parameter of a spec (a component's, the light's) by its kind: choice, on / off, string, colour, number -->
   {#if current}
-    <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default || (name === 'clip' ? '(first clip)' : row.default)}">
-      <span class="label">{name}</span>
+    <!-- The label is the spec's words (#173); the Info view names it with the content's name too -->
+    <div class="row" class:changed={changed(row)} data-help-name={helpName(row)} title="{row.description} – default {row.default || (name === 'clip' ? '(first clip)' : row.default)}">
+      <span class="label">{row.label}</span>
       {#if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
       {:else if row.kind === "boolean"}
@@ -397,12 +398,12 @@
           {#each clipNames as clip (clip)}<option value={clip}>{clip}</option>{/each}
         </select>
       {:else if row.kind === "string"}
-        <input class="field" value={String(getValue(current, row))} aria-label={name} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
+        <input class="field" value={String(getValue(current, row))} aria-label={row.label} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
       {:else if row.kind === "color"}
-        <ColourField value={String(getValue(current, row))} label={row.id} onchange={hex => set(row, hex)} onpick={pickColour} />
+        <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />
       {:else}
         <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-          unit={row.unit ?? ""} label={row.id} strict={row.strict} oninput={v => set(row, v)} /></span>
+          unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(row, v)} /></span>
       {/if}
     </div>
   {/if}
@@ -516,7 +517,7 @@
     {#each ["position", "rotation", "scale"] as key (key)}
       {@const axes = rows.filter(r => r.id === key || r.id.startsWith(`${key}.`))}
       {#if axes.length}
-        <div class="row" class:changed={anyChanged(axes)} title="{axes[0].description}{axes[0].unit ? ` (${axes[0].unit})` : ''} – default {axes.map(r => r.default).join(', ')}">
+        <div class="row axis" class:changed={anyChanged(axes)} title="{axes[0].description}{axes[0].unit ? ` (${axes[0].unit})` : ''} – default {axes.map(r => r.default).join(', ')}">
           <span class="label">{key}</span>
           <span class="axes">
             <span class="fields">
@@ -580,15 +581,15 @@
       <div class="section"><span class="section-label">filter {i + 1} · {filter.type}</span>
         <button type="button" class="text-link" onclick={() => current && applyNode(removeFilter(current, i))}>remove</button></div>
       {#each rows.filter(r => r.id.startsWith(`filters.${i}.`)) as row (row.id)}
-        <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default}">
-          <span class="label">{row.id.replace(/^filters\.\d+\./, "")}</span>
+        <div class="row" class:changed={changed(row)} data-help-name={helpName(row)} title="{row.description} – default {row.default}">
+          <span class="label">{row.label}</span>
           {#if row.kind === "color"}
-            <ColourField value={String(getValue(current, row))} label={row.id} onchange={hex => set(row, hex)} onpick={pickColour} />
+            <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />
           {:else if row.kind === "choice"}
             <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
           {:else}
             <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-              unit={row.unit ?? ""} label={row.id} strict={row.strict} oninput={v => set(row, v)} /></span>
+              unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(row, v)} /></span>
           {/if}
         </div>
       {/each}
@@ -658,6 +659,8 @@
       linear-gradient(135deg, var(--muted) 50%, transparent 50%) calc(50% + 2px) 55% / 4px 4px no-repeat; }
   .crumb-switch:hover { background-color: var(--hover-background); }
   .crumb-switch option { color: var(--text); background: var(--surface); }
+  /* A finger: ▾ as wide as the touch height (#171) */
+  @media (pointer: coarse) { .crumb-switch { width: var(--control-height); } }
   /* A narrow panel (#159): the source goes below the breadcrumb */
   @container panel (max-width: 20rem) {
     .head { flex-wrap: wrap; gap: 0 .5rem; }
@@ -671,6 +674,11 @@
   .axes { display: flex; align-items: center; gap: .25rem; min-width: 0; }
   .axes .fields { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .link-slot { flex: none; width: var(--control-height); }
+  /* A narrow panel (a tablet in portrait with the tree open – #172): the label goes above the X / Y / Z fields, so
+     each field still shows "-180°" with its reset arrow */
+  @container panel (max-width: 23rem) {
+    .row.axis { grid-template-columns: minmax(0, 1fr); gap: .125rem; padding-bottom: .125rem; }
+  }
   .row > .field { width: 100%; }
   .tabular { font-variant-numeric: tabular-nums; }
   .time { width: 100%; margin: 0; accent-color: var(--text); }

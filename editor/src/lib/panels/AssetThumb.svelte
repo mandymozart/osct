@@ -72,4 +72,6 @@
   @media (prefers-reduced-motion: reduce) { .thumb.pending::before { animation: none; transform: none; background: var(--hover-background); } }
   .play { position: absolute; right: .25rem; bottom: .25rem; display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; padding: 0; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); opacity: .85; }
   .play.on { background: var(--pressed-background); color: var(--pressed-color); }
+  /* A finger: a touch target of the control height (#171) */
+  @media (pointer: coarse) { .play { width: var(--control-height); height: var(--control-height); } }
 </style>

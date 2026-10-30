@@ -28,8 +28,11 @@ nodes and pages, four more ("Across nodes and pages" below):
   the app has one three.js and a plugin that brings another is refused by the build.
 
 A `spec` describes the parameters the author sets in the editor: every one with a `kind` (`number` with `min`
-and `max`, `color`, `choice` with `options`, `boolean`, `string`), a `default` and a `description`, and `nodeTypes`
-when it only makes sense on some nodes. The Entity panel builds its rows from it – no other code needed.
+and `max`, `color`, `choice` with `options`, `boolean`, `string`), a `default`, a `description` (the row's help in the
+editor's Info view) and, if you like, a `label` (API 1.3, 1–24 characters): the few words the row shows –
+`degreesPerSecond` with `label: "speed"` reads *speed*; without a label the row shows the name split into words
+(*degrees per second*). Add `nodeTypes` when the spec only makes sense on some nodes. The Entity panel builds its rows
+from it – no other code needed.
 
 ## A layer: tint (the fixture's template)
 
@@ -74,7 +77,7 @@ freely for a few; the content build warns when a node carries more than three. A
 api.registerComponent("spin", {
   description: "Turns the node around its own y axis.",
   params: {
-    degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, description: "Speed." },
+    degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, unit: "°/s", label: "speed", description: "Speed." },
   },
 }, ({ object, params }) => {
   let speed = Number(params.degreesPerSecond);

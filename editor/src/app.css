@@ -32,6 +32,14 @@
   --stage-background: #0c0c0c;
   color-scheme: light;
 }
+/* A finger (phones, tablets): one touch control height, the Scutoons dogma's 44px (2.75rem) – a mouse keeps the
+   compact 1.75rem. Every control takes its height from the token; the top bar grows with it (#171) */
+@media (pointer: coarse) {
+  :root {
+    --control-height: 2.75rem;
+    --top-height: 3rem;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root:not([data-scheme="light"]) {
     --text: #ffffff;

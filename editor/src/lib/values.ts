@@ -12,6 +12,7 @@ import {
   LIGHT_PARAMS,
   LightData,
   nodeTypeSpec,
+  paramLabel,
   PassData,
   PASSES,
   PassSpec,
@@ -44,8 +45,19 @@ export interface ValueRow {
   strict?: boolean;
   options?: readonly string[];
   unit?: string;
+  /** The row's words (#173): the spec's `label`, else the parameter's name split into words (`paramLabel`) */
+  label: string;
   description: string;
 }
+
+/** The parameter's name in the content (`threshold` of `filters.0.threshold`, `speed` of `components.1.speed`) */
+export const paramName = (row: ValueRow): string => row.id.split(".").at(-1)!;
+
+/** The row's name in the Info view: its words and, when they differ, the content's name (`speed · degreesPerSecond`) */
+export const helpName = (row: ValueRow): string => {
+  const name = paramName(row);
+  return row.label === name ? row.label : `${row.label} · ${name}`;
+};
 
 const AXES = ["x", "y", "z"] as const;
 
@@ -61,7 +73,7 @@ export const placementRows = (entity: EntityData, uniformScale: boolean): ValueR
     const spec = PLACEMENT_PARAMS[key];
     const row = (id: string, axis: number): ValueRow => ({
       id, kind: "number", default: defaults[key][axis], min: spec.min, max: spec.max, step: spec.step,
-      unit: spec.unit, description: spec.description,
+      unit: spec.unit, label: key, description: spec.description,
     });
     if (key === "scale" && uniformScale) return [row("scale", 0)];
     return AXES.map((axis, i) => row(`${key}.${axis}`, i));
@@ -79,12 +91,13 @@ export const filterRows = (filter: FilterData, index: number): ValueRow[] => {
   const specs = FILTERS[filter.type]?.params ?? {};
   return Object.entries(specs).map(([name, spec]): ValueRow => {
     const id = `filters.${index}.${name}`;
-    if (spec.kind === "color") return { id, kind: "color", default: spec.default, description: spec.description };
-    if (spec.kind === "choice") return { id, kind: "choice", default: spec.default, options: spec.options, description: spec.description };
+    const label = paramLabel(name, spec);
+    if (spec.kind === "color") return { id, kind: "color", default: spec.default, label, description: spec.description };
+    if (spec.kind === "choice") return { id, kind: "choice", default: spec.default, options: spec.options, label, description: spec.description };
     const luma = "lumaDefault" in spec && spec.lumaDefault !== undefined && filterMode(filter) === "luma";
     return {
       id, kind: "number", default: luma ? spec.lumaDefault! : spec.default, min: spec.min, max: spec.max,
-      step: spec.max - spec.min <= 1 ? 0.001 : 0.01, strict: true, description: spec.description,
+      step: spec.max - spec.min <= 1 ? 0.001 : 0.01, strict: true, label, description: spec.description,
     };
   });
 };
@@ -108,14 +121,15 @@ export const nodeTypeRows = (type: string): ValueRow[] => {
 const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): ValueRow[] =>
   Object.entries(params).map(([name, param]): ValueRow => {
     const id = `${prefix}.${name}`;
+    const label = paramLabel(name, param);
     switch (param.kind) {
-      case "color": return { id, kind: "color", default: param.default, description: param.description };
-      case "choice": return { id, kind: "choice", default: param.default, options: param.options, description: param.description };
-      case "boolean": return { id, kind: "boolean", default: param.default ? "true" : "false", description: param.description };
-      case "string": return { id, kind: "string", default: param.default, description: param.description };
+      case "color": return { id, kind: "color", default: param.default, label, description: param.description };
+      case "choice": return { id, kind: "choice", default: param.default, options: param.options, label, description: param.description };
+      case "boolean": return { id, kind: "boolean", default: param.default ? "true" : "false", label, description: param.description };
+      case "string": return { id, kind: "string", default: param.default, label, description: param.description };
       default: return {
         id, kind: "number", default: param.default, min: param.min, max: param.max, step: param.step ?? (param.max - param.min <= 1 ? 0.001 : 0.01),
-        unit: param.unit, strict: true, description: param.description,
+        unit: param.unit, strict: true, label, description: param.description,
       };
     }
   });

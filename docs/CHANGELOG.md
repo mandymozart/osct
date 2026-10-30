@@ -12,6 +12,29 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.35.0 – 2026-10-30
+
+### Added
+- **Words as labels in the Entity panel** (#173, content schema 2.15, plugin API 1.3): a parameter spec may carry a
+  `label` – the few words its row shows (1–24 characters). The built-in component (*plays on*, *stops on* …), the chroma
+  key (*key color*, *compare by*, *soft edge* …) and the light (*cone angle*, *soft edge* …) have them; a parameter
+  without one shows its name split into words (`degreesPerSecond` → *degrees per second*), also in the Stage panel's
+  passes. The Info view names a row by its words and the content's name (*speed · degreesPerSecond*). The demo's
+  `spin` plugin labels its speed. In the content a label only appears in a plugin's recorded specs (`registered`),
+  which a 2.14 app ignores; a plugin built against 1.3 loads in any 1.x app.
+
+### Changed
+- **Touch control height** (#171): with a finger (`pointer: coarse`) every control of the editor is 2.75rem (44 px –
+  the Scutoons dogma's touch height) instead of 1.75rem, and the top bar grows with it; the tree's rows, chevrons and
+  eyes, the Library's actions, the video's play button and the target switch too; the origin square's points are
+  finger-sized cells. On a phone the sheet's head is the six tab icons alone, sharing its width: ‹ › moved to the
+  stage's lower corners, and the top bar's book link leads back to the spreads (no × in the sheet). The stage's
+  toolbar wraps as whole groups (gizmo, pick, shading).
+- **Tablet in portrait** (#172): below 64rem (1024 px) the tree starts collapsed until it is opened on the device, so
+  at 768 px the panel keeps its 25rem and the stage over 20rem. A panel too narrow for the tab words (24rem, 28rem
+  with a finger) shows the tabs as icons, so its head stays one line; in a narrow panel the position, rotation and
+  scale rows put their label above the X / Y / Z fields, so `-180°` shows beside the reset arrow.
+
 ## 1.34.0 – 2026-10-30
 
 ### Added
