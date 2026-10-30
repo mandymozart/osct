@@ -20,7 +20,7 @@
    * Over a book that exists the API answers with a version comparison first (#183): the form shows what comes in
    * against what the draft is based on and its edits since, and imports only when the person confirms here.
    */
-  let { ondone, oncancel }: { ondone: (bookId: string) => void; oncancel?: () => void } = $props();
+  let { ondone }: { ondone: (bookId: string) => void } = $props();
 
   // Only on a developer's machine is the reader's dev server next door (port 5174, serving its bundled configuration at
   // /src/game.config.json). On an instance the fields start empty and the instance's published content is the default
@@ -250,7 +250,6 @@
   {#if error}<p class="danger small">{error}</p>{/if}
   <p class="actions">
     <button type="submit" class="pill primary" disabled={busy || !current || previewing === key}>{busy ? "Importing…" : current ? importLabel(current.preview) : "Import"}</button>
-    {#if oncancel}<button type="button" class="text-link" onclick={oncancel}>Cancel</button>{/if}
   </p>
 </form>
 {/if}

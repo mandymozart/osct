@@ -70,8 +70,6 @@ export interface User {
   options: Record<string, boolean>;
   hasPassword: boolean;
   roles: string[];
-  /** `editor` when the roles hold it, else `reader` – older field, prefer `roles` */
-  role?: string;
   createdAt: string;
 }
 
@@ -221,11 +219,6 @@ export interface OtherBook {
   title: string | null;
   build: string | null;
   since: string | null;
-}
-
-export interface Version extends PublishResult {
-  note?: string | null;
-  publishedBy?: string | null;
 }
 
 // ── Accounts ────────────────────────────────────────────────────────────────────────────────────
@@ -380,8 +373,6 @@ export const putTargetEntity = (bookId: string, targetId: string, entity: Entity
 /** `replace` = publish although the environment serves another book (else 409 other-book) */
 export const publishBook = (bookId: string, env: string, options: { note?: string; replace?: boolean } = {}) =>
   api<PublishResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/publish`, { env, ...options });
-
-export const listVersions = (bookId: string) => api<{ versions: Version[] }>("GET", `/editor/books/${encodeURIComponent(bookId)}/versions`);
 
 /** The draft as a content version – the engine's `loadGameConfiguration({ baseUrl, fetch: authFetch })` reads it */
 export const draftBaseUrl = (bookId: string): string => `${API_URL}/editor/books/${encodeURIComponent(bookId)}/draft`;

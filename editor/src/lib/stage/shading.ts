@@ -1,14 +1,5 @@
 import { Box3, BoxGeometry, type BufferGeometry, EdgesGeometry, LineBasicMaterial, LineSegments, type Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Points, Vector3 } from "three";
-
-/**
- * The viewport's shading, after Blender's: **wireframe** (every entity as lines), **solid** (one matte grey, the
- * scene's lights), **textured** (the content's materials, the scene's lights, no sky) and **rendered** (the
- * content's materials under the HDRI's sky and light). Applied per entity mesh – the originals are kept and come
- * back – so the stage, the gizmo and the outlines keep their own materials.
- */
-export const SHADING_MODES = ["wireframe", "solid", "textured", "rendered"] as const;
-export type ShadingMode = (typeof SHADING_MODES)[number];
-export const isShadingMode = (value: unknown): value is ShadingMode => SHADING_MODES.includes(value as ShadingMode);
+import type { ShadingMode } from "./preview";
 
 const WIRE = new MeshBasicMaterial({ color: 0xd8d8d8, wireframe: true });
 const SOLID = new MeshStandardMaterial({ color: 0xb4b4b4, roughness: 0.85, metalness: 0 });

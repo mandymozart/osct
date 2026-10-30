@@ -285,17 +285,6 @@ export const parseNumber = (text: string): number | null => {
   return Number.isFinite(value) ? value : null;
 };
 
-/** Why a typed value is refused, or null when it can be applied */
-export const valueProblem = (row: ValueRow, text: string): string | null => {
-  if (row.kind === "color") return /^#[0-9a-f]{6}$/i.test(text.trim()) ? null : "expected #rrggbb";
-  if (row.kind === "choice") return row.options?.includes(text) ? null : `expected ${row.options?.join(" / ")}`;
-  const value = parseNumber(text);
-  if (value === null) return "not a number";
-  if (row.strict && (value < row.min! || value > row.max!)) return `${row.min} … ${row.max}`;
-  if (row.id.startsWith("scale") && value <= 0) return "must be > 0";
-  return null;
-};
-
 export const addFilter = (entity: EntityData, type: FilterType): EntityData =>
   ({ ...entity, filters: [...(entity.filters ?? []), { type }] });
 
@@ -417,12 +406,6 @@ export const withNode = (root: EntityData, path: number[], node: EntityData): En
   path.length
     ? { ...root, children: (root.children ?? []).map((child, i) => (i === path[0] ? withNode(child, path.slice(1), node) : child)) }
     : node;
-
-/** A copy of the tree with `child` appended to the node at `path` */
-export const addChild = (root: EntityData, path: number[], child: EntityData): EntityData => {
-  const parent = nodeAt(root, path) ?? root;
-  return withNode(root, path, { ...parent, children: [...(parent.children ?? []), child] });
-};
 
 /** A copy of the tree without the node at `path` (never the root) */
 export const removeNode = (root: EntityData, path: number[]): EntityData => {
