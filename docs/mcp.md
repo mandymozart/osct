@@ -43,12 +43,16 @@ The server talks to one API (`OSCT_API_URL`, default `http://127.0.0.1:8080/api`
   (`list_changes` → `token`). It expires after 182 days unless renewed on the books page (401 `token-expired` – renewed,
   the same token works again); revoked there it stops at once (401 `token-revoked`). [Server, "AI
   connections"](server.md#ai-connections).
-- **A session token** – `OSCT_EDITOR_TOKEN` may also be an editor's session token (the editor app keeps it in
-  `localStorage` under `osct-editor-session`; a `POST /auth/verify` or `/auth/password` answers it): the person's full
-  rights, publish to the instance's own environment (local / staging) included; `whoami` says `signedIn: { with: "session" }`.
+- **A session token** – `OSCT_EDITOR_TOKEN` may also be an editor's session token: a `POST /auth/verify` or
+  `/auth/password` without `"session": "cookie"` answers it (a non-browser sign-in – [server, "Sessions, cookies and
+  CSRF"](server.md#sessions-cookies-and-csrf)). The editor app has none to copy any more: its session is an HttpOnly
+  cookie (#207). The person's full rights, publish to the instance's own environment (local / staging) included;
+  `whoami` says `signedIn: { with: "session" }`.
 - **The sign-in pair** – for people without a token: without one the server starts with `whoami`, `sign_in_request { email }` and
   `sign_in_verify { requestId, code }`: the API mails a 6-digit code (locally `MAIL_TRANSPORT=log` writes it to the mail
-  log), the person gives it to the session, the token is kept for the process and never shown. With the role `editor`
+  log), the person gives it to the session, the token is kept for the process and never shown – a non-browser sign-in:
+  `sign_in_verify` sends no `"session": "cookie"`, so the API answers the session token for `Authorization: Bearer`
+  rather than set a cookie, and the server needs no CSRF token. With the role `editor`
   the tools, prompts and rules appear (the client is told the list changed).
 
 A signed-in user without the editor role gets `whoami`'s hint and no tools: an admin grants the role on the admin page

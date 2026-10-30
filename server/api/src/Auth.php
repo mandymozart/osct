@@ -6,9 +6,24 @@ declare(strict_types=1);
  * confirming either one signs in the device. The first confirmation creates the user with the options chosen
  * in the form (double opt-in). Tokens and codes are stored as hashes. A user may add a password later
  * (Passwords); the email sign-in keeps working either way.
+ *
+ * Where the session lives (docs/server.md "Sessions, cookies and CSRF", #207): a browser asks for it as a cookie
+ * (`"session": "cookie"` in the sign-in's body) – an HttpOnly, SameSite=Strict cookie on the API's path that no
+ * script on the page can read – and sends the CSRF token it was given in `X-CSRF-Token` with every write. Any other
+ * client (the MCP server's sign-in pair, scripts) gets the token in the answer and sends `Authorization: Bearer`, as do
+ * the AI connections' tokens (ApiTokens), which never come from a cookie.
  */
 final class Auth
 {
+    /** The browser session's cookie – one for the whole site: the reader and the editor share the sign-in */
+    public const COOKIE = 'osct_session';
+
+    /** The header a cookie session's writes carry the CSRF token in */
+    public const CSRF_HEADER = 'X-CSRF-Token';
+
+    /** The session row of a request that signed in by cookie (its CSRF token is answered by GET /user) */
+    private static ?array $cookieSession = null;
+
     /** The sign-up options (the progress is always kept – it can be reset in the app) */
     public const OPTIONS = ['bookUpdates' => 'book_updates', 'artistUpdates' => 'artist_updates', 'publisherUpdates' => 'publisher_updates'];
 
@@ -74,7 +89,8 @@ final class Auth
     }
 
     /**
-     * POST /auth/verify { token } (the link) or { requestId, code } → 200 { session, user, created }
+     * POST /auth/verify { token } (the link) or { requestId, code }, `session: "cookie"` from a browser →
+     * 200 { session, user, created } – a browser gets { csrfToken, user, created } and the cookie instead (sessionAnswer)
      */
     public static function verify(array $body): never
     {
@@ -126,15 +142,131 @@ final class Auth
             return [$user, $created, self::createSession($user['id'], 'email')];
         });
 
-        Http::json(200, ['session' => $session, 'user' => Users::toJson(Roles::grantConfigured($user)), 'created' => $created]);
+        Http::json(200, self::sessionAnswer($session, $body) + ['user' => Users::toJson(Roles::grantConfigured($user)), 'created' => $created]);
     }
 
-    /** POST /auth/logout → 204 (this device only) */
+    /**
+     * POST /auth/logout → 204 (this device only). A Bearer session ends as before; the cookie session ends like any
+     * write of it – with the CSRF token (403 `csrf` without) – and the cookie is cleared. A cookie whose session is gone
+     * is cleared too.
+     */
     public static function logout(): never
     {
         $token = Http::bearerToken();
-        if ($token !== null) Db::run('DELETE FROM sessions WHERE token_hash = :hash', ['hash' => hash('sha256', $token)]);
+        if ($token !== null) {
+            Db::run('DELETE FROM sessions WHERE token_hash = :hash', ['hash' => hash('sha256', $token)]);
+        } elseif (Http::cookie(self::COOKIE) !== null) {
+            try {
+                [, $session] = self::signedIn();
+            } catch (ApiError $error) {
+                if ($error->status !== 401) throw $error;
+                $session = null; // already gone: signedIn cleared the cookie
+            }
+            if ($session !== null) {
+                Db::run('DELETE FROM sessions WHERE id = :id', ['id' => $session['id']]);
+                self::clearCookie();
+            }
+        }
         Http::json(204, null);
+    }
+
+    /**
+     * POST /auth/cookie with `Authorization: Bearer <session token>` → 200 { user, csrfToken } and the session cookie.
+     * TEMPORARY (#207, remove in a later release – MEMORY): the one-time move of a session token that a browser kept in
+     * localStorage before the cookie into the cookie, so nobody signed in is thrown out by the update. The session row
+     * stays (its sign-in method and time), its token is replaced: the stored one stops working at once. Bearer only (401
+     * without one); an AI connection's token gets 403 `not-for-ai` – those never become a cookie.
+     */
+    public static function exchange(): never
+    {
+        if (Http::bearerToken() === null) throw new ApiError(401, 'unauthorized', 'Send the stored session token as Authorization: Bearer.');
+        [$user, $session] = self::session();
+        $token = self::randomToken();
+        Db::run('UPDATE sessions SET token_hash = :hash, last_used_at = :now WHERE id = :id',
+            ['hash' => hash('sha256', $token), 'now' => Db::now(), 'id' => $session['id']]);
+        self::replaceCookie($token);
+        Http::json(200, ['user' => Users::toJson($user), 'csrfToken' => self::csrfToken($session)]);
+    }
+
+    /**
+     * How a sign-in hands out its new session (`$token`): a browser asks for the cookie with `"session": "cookie"` in
+     * the body and gets `csrfToken` – the token itself is in no answer a script could read; any other client (the MCP
+     * server's sign-in pair, scripts, readers' apps from before #207) gets `session`, the token for `Authorization: Bearer`.
+     * @return array<string, string>
+     */
+    public static function sessionAnswer(string $token, array $body): array
+    {
+        if (($body['session'] ?? null) !== 'cookie') return ['session' => $token];
+        $row = Db::one('SELECT * FROM sessions WHERE token_hash = :hash', ['hash' => hash('sha256', $token)]);
+        if (!$row) throw new RuntimeException('The new session is missing');
+        self::replaceCookie($token);
+        return ['csrfToken' => self::csrfToken($row)];
+    }
+
+    /**
+     * The CSRF token of a session: an HMAC of the session's id with SECRET – bound to the session, nothing stored. A
+     * browser keeps it in memory and sends it in `X-CSRF-Token` with every write; another site can neither read it nor
+     * forge it.
+     * @param array<string, mixed> $session
+     */
+    public static function csrfToken(array $session): string
+    {
+        return rtrim(strtr(base64_encode(hash_hmac('sha256', 'csrf:' . $session['id'], self::secret(), true)), '+/', '-_'), '=');
+    }
+
+    /** This request's CSRF token when it signed in by cookie (after `user()`), else null – GET /user answers it */
+    public static function csrf(): ?string
+    {
+        return self::$cookieSession === null ? null : self::csrfToken(self::$cookieSession);
+    }
+
+    /**
+     * A write (anything but GET / HEAD / OPTIONS) of a cookie session needs the session's CSRF token in `X-CSRF-Token`,
+     * else 403 `csrf`. Defence in depth: a browser that names the request's site (`Sec-Fetch-Site`) must name it
+     * `same-origin` – the cookie is SameSite=Strict, but a sibling subdomain counts as the same site for that.
+     * @param array<string, mixed> $session
+     */
+    private static function checkCsrf(array $session): void
+    {
+        if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD', 'OPTIONS'], true)) return;
+        $site = Http::header('Sec-Fetch-Site');
+        if ($site !== '' && $site !== 'same-origin') throw new ApiError(403, 'csrf', 'This request came from another site.');
+        $given = Http::header(self::CSRF_HEADER);
+        if ($given === '' || !hash_equals(self::csrfToken($session), $given)) {
+            throw new ApiError(403, 'csrf', 'The CSRF token is missing or wrong – reload the page.');
+        }
+    }
+
+    /** Sets the session cookie; the session this browser's cookie held before ends (one cookie, one session) */
+    private static function replaceCookie(string $token): void
+    {
+        $previous = Http::cookie(self::COOKIE);
+        if ($previous !== null && $previous !== $token) Db::run('DELETE FROM sessions WHERE token_hash = :hash', ['hash' => hash('sha256', $previous)]);
+        setcookie(self::COOKIE, $token, self::cookieOptions(86400 * Config::int('SESSION_TTL_DAYS')));
+    }
+
+    private static function clearCookie(): void
+    {
+        setcookie(self::COOKIE, '', self::cookieOptions(0));
+    }
+
+    /**
+     * HttpOnly (no script reads it), SameSite=Strict (no other site's request carries it), Secure (on every instance
+     * but a local one over plain http), on the API's path only (`/api` – the app's pages never send it), Max-Age = the
+     * session's lifetime (renewed as the session is used). Strict suffices: every request that needs the session is a
+     * `fetch` from the site's own pages – the email link opens the reader, which then confirms with a `fetch`.
+     * @return array<string, mixed>
+     */
+    private static function cookieOptions(int $maxAge): array
+    {
+        $path = rtrim((string) ($GLOBALS['osctApiBase'] ?? '/api'), '/');
+        return [
+            'expires' => $maxAge > 0 ? time() + $maxAge : 1,
+            'path' => $path === '' ? '/' : $path,
+            'secure' => Config::env() !== 'local' || Http::isHttps(),
+            'httponly' => true,
+            'samesite' => 'Strict',
+        ];
     }
 
     /**
@@ -155,7 +287,8 @@ final class Auth
     private static ?array $token = null;
 
     /**
-     * The signed-in user (Bearer token: a session, or an AI connection's token – ApiTokens), else 401.
+     * The signed-in user (the session cookie, or a Bearer token: a session, or an AI connection's token – ApiTokens),
+     * else 401; a cookie session's write without its CSRF token 403 `csrf`.
      * @return array<string, mixed>
      */
     public static function user(): array
@@ -197,17 +330,41 @@ final class Auth
 
     /**
      * The user and the session row (null for an AI connection's token), else 401. Sessions end after SESSION_TTL_DAYS
-     * without use.
+     * without use. A Bearer token wins over the cookie and needs no CSRF token (no browser sends it by itself); the cookie
+     * is looked up among the sessions only – an AI connection's token is never a cookie – and its writes need the CSRF
+     * token (`checkCsrf`).
      * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
      */
     private static function signedIn(): array
     {
         $token = Http::bearerToken();
-        if ($token === null) throw new ApiError(401, 'unauthorized', 'Not signed in.');
-        if (ApiTokens::isToken($token)) {
-            [$user, self::$token] = ApiTokens::authenticate($token);
-            return [$user, null];
+        if ($token !== null) {
+            if (ApiTokens::isToken($token)) {
+                [$user, self::$token] = ApiTokens::authenticate($token);
+                return [$user, null];
+            }
+            return self::sessionOf($token, false);
         }
+        $cookie = Http::cookie(self::COOKIE);
+        if ($cookie === null) throw new ApiError(401, 'unauthorized', 'Not signed in.');
+        try {
+            [$user, $session] = self::sessionOf($cookie, true);
+        } catch (ApiError $error) {
+            if ($error->status === 401) self::clearCookie(); // a cookie of a session that is gone: the browser forgets it
+            throw $error;
+        }
+        self::$cookieSession = $session;
+        self::checkCsrf($session);
+        return [$user, $session];
+    }
+
+    /**
+     * The user and the session row of a session token, else 401; `last_used_at` written at most once an hour – and then
+     * a cookie's Max-Age renewed, so a session in use keeps its cookie
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    private static function sessionOf(string $token, bool $cookie): array
+    {
         $session = Db::one('SELECT * FROM sessions WHERE token_hash = :hash', ['hash' => hash('sha256', $token)]);
         if (!$session) throw new ApiError(401, 'unauthorized', 'Not signed in.');
         if ($session['last_used_at'] < Db::now(-86400 * Config::int('SESSION_TTL_DAYS'))) {
@@ -216,6 +373,7 @@ final class Auth
         }
         if ($session['last_used_at'] < Db::now(-3600)) {
             Db::run('UPDATE sessions SET last_used_at = :now WHERE id = :id', ['now' => Db::now(), 'id' => $session['id']]);
+            if ($cookie) setcookie(self::COOKIE, $token, self::cookieOptions(86400 * Config::int('SESSION_TTL_DAYS')));
         }
         $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $session['user_id']]);
         if (!$user) throw new ApiError(401, 'unauthorized', 'Not signed in.');

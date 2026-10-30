@@ -57,10 +57,11 @@ server/db-dumps/                 the dumps it keeps (not committed)
 | | | |
 |---|---|---|
 | `POST /auth/request` | `{ email, language?, options? }` | 202 `{ requestId, expiresAt }` – sends the email |
-| `POST /auth/verify` | `{ token }` or `{ requestId, code }` | `{ session, user, created }` |
-| `POST /auth/password` | `{ email, password }` | `{ session, user, created: false }`; 401 `invalid-credentials` (also for unknown addresses and users without a password) |
-| `POST /auth/logout` | | 204 – this device only |
-| `GET /user` | | `{ user }` – `{ email, language, options, hasPassword, roles, role, createdAt }`; `roles` holds `reader` for everyone, `editor`, `admin` ([Roles](#roles)) |
+| `POST /auth/verify` | `{ token }` or `{ requestId, code }`, `session?` | `{ session, user, created }` – with `"session": "cookie"` (a browser) `{ csrfToken, user, created }` and the session cookie instead ([Sessions](#sessions-cookies-and-csrf)) |
+| `POST /auth/password` | `{ email, password, session? }` | `{ session, user, created: false }` – a browser the same as above; 401 `invalid-credentials` (also for unknown addresses and users without a password) |
+| `POST /auth/logout` | | 204 – this device only; a cookie session needs its CSRF token like any write, and the cookie is cleared |
+| `POST /auth/cookie` | Bearer: a session token | **temporary** (#207): `{ user, csrfToken }` and the cookie – a token a browser kept before the cookie, exchanged once ([Sessions](#sessions-cookies-and-csrf)) |
+| `GET /user` | | `{ user }` – `{ email, language, options, hasPassword, roles, role, createdAt }`; `roles` holds `reader` for everyone, `editor`, `admin` ([Roles](#roles)); with the cookie also `csrfToken` |
 | `PATCH /user` | `{ options?, language? }` | `{ user }` – the person's own sign-in only (an AI connection's token: 403 `not-for-ai`) |
 | `DELETE /user` | | 204 – user, sessions, progress, open requests |
 | `PUT /user/password` | `{ password, currentPassword? }` | `{ user }` – sets or changes the password (`user.hasPassword`) |
@@ -83,15 +84,65 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 | `GET /editor/books/{id}/entities` | | `{ entities: { ref: EntityData } }` – the shared entities |
 | `PUT /editor/books/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in a book with plugins – "Plugin sources"), no `assets` list |
 | `PUT /editor/books/{id}/targets/{targetId}` | `{ entity }` or `{ ref }` | `{ target }` – the target's entity: inline (`entity`, null removes it) or a shared one (`ref`, 400 `unknown-entity` when there is none); records a change. 404 for an unknown target |
-| `GET /editor/books/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN with the token in its `fetchFn`. The build in the path is not checked against the current draft – an edit between the two requests is no error |
+| `GET /editor/books/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN, its `fetchFn` sending the session cookie. The build in the path is not checked against the current draft – an edit between the two requests is no error |
 | `POST /editor/books/{id}/publish` | `{ env, note?, replace? }` | `{ env, store, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env`, which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the book); a row in the publish log. An environment serves one book: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-book` with `current` `{ env, book, title, build, since }`; `replaced` `{ book, build }` names the book replaced, null when none; `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name), `invalid-replace`; 502 `content-store-failed` |
 | `GET /editor/books/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
 | `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `spread`, `environment`, `passes`, `plugin`, `asset` (a Library file a removal deleted); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `limit` default 50, at most 500 |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
 
-Signed-in calls send `Authorization: Bearer <session>` – or an AI connection's token `osct_…` ([AI
-connections](#ai-connections)). Errors: `{ "error": { "code", "message" } }`. The app translates the codes
-(`account:errors.*`).
+Signed-in calls from a browser send the session cookie and, with every write, its CSRF token; other clients send
+`Authorization: Bearer <session>` – or an AI connection's token `osct_…` ([AI connections](#ai-connections)) –
+[Sessions, cookies and CSRF](#sessions-cookies-and-csrf). Errors: `{ "error": { "code", "message" } }`. The app
+translates the codes (`account:errors.*`).
+
+### Sessions, cookies and CSRF
+
+Tilman, 2026-10-30 (#207): the browser's session is an **HttpOnly cookie** with a CSRF token, so no script on the page –
+a book's plugin in the editor, anything injected – can read the session and carry it off. `Auth.php` holds it all.
+
+- **Browser and non-browser sign-ins.** A sign-in (`POST /auth/verify`, `POST /auth/password`) with
+  `"session": "cookie"` in its body is a browser's: the API sets the cookie and answers `csrfToken` – the session token
+  is in no answer. The reader and the editor always send it. Without it the answer carries the token as `session`, for
+  `Authorization: Bearer` – the MCP server's `sign_in_verify`, scripts, and reader apps from before #207 still cached
+  on a phone. The field is explicit rather than guessed from browser headers so those older apps keep working.
+- **The cookie** `osct_session`: `HttpOnly`; `SameSite=Strict`; `Path=/api` (the API's base – the app's pages never
+  send it); `Secure` on every instance but a local one reached over plain http (`ENV=local` without https); `Max-Age`
+  = the session's lifetime (`SESSION_TTL_DAYS`), renewed whenever the session's `last_used_at` is (at most hourly). The
+  value is the session token (stored as a hash, like before). Strict, not Lax: everything that needs the session is a
+  `fetch` from the site's own pages – the sign-in mail's link opens the reader, which then confirms with a `fetch` – so no
+  flow needs the cookie on a navigation from another site.
+- **One cookie for the site.** The reader at `/` and the editor at `/editor/` share it – one sign-in per browser:
+  signing in or out in one does the same in the other. Separate cookies would isolate nothing (the pages share an
+  origin, and a script there could use either) and would need a client marker on every request. A browser that signs in
+  again ends the session its cookie held before.
+- **CSRF.** Every write (POST, PUT, PATCH, DELETE) that signs in by cookie needs `X-CSRF-Token`: an HMAC of the
+  session's id with `SECRET` (`Auth::csrfToken`) – bound to the session, nothing stored. The API hands it out in the
+  sign-in's answer, the exchange's and `GET /user`'s; the reader and the editor keep it in memory only (never in
+  storage) and send it. Missing or wrong: **403 `csrf`**. A browser that names the request's site (`Sec-Fetch-Site`)
+  must name it `same-origin`, else 403 `csrf` too – SameSite counts a sibling subdomain as the same site. Reads need
+  no token. A client refused 403 `csrf` reads the token again from `GET /user` and sends the write once more (the
+  cookie may have been replaced by a sign-in in the other app).
+- **Bearer stays for everything else.** An `Authorization: Bearer` header wins over the cookie and needs no CSRF token
+  (no browser sends it by itself). **AI connections' tokens (`osct_…`) are Bearer only**: the cookie is looked up among
+  the sessions only, so an AI token sent as a cookie is no session (401); `POST /auth/cookie` refuses one (403
+  `not-for-ai`); and `Auth::session()` – the person's own account actions (RULES #33) – still refuses them.
+- **Logout** (`POST /auth/logout`) by cookie ends the session and clears the cookie (`Max-Age=0` on the same path); it
+  takes the CSRF token like any write. A cookie whose session is gone (expired, signed out elsewhere) is cleared by the
+  401 that answers it.
+- **The exchange – temporary.** A browser signed in before #207 kept a session token in `localStorage` (the editor:
+  `osct-editor-session`, the reader: `session` in `osct-user`). Its first start after the update sends it once to
+  `POST /auth/cookie` as Bearer: the API keeps the session row (its sign-in method and time – the password-change rule
+  reads them), gives it a new token, sets that as the cookie and answers `{ user, csrfToken }`; the old token stops
+  working at once. The client then deletes the stored token; a refused one (401) means signing in as usual; unreachable,
+  it waits for the next start. The endpoint goes once those browsers have had their chance (MEMORY open item).
+- **What the cookie does not do.** It stops the session from being **read and carried off**. It does not sandbox code
+  that runs on the site's own pages: a book's plugin (the editor's Code tab, a draft's plugins, the reader's AR scene)
+  runs in the same origin and can still make requests that go with the cookie while the page is open – and read the
+  CSRF token from `GET /user` like the app does. Separating plugin code from the session needs a sandbox (an
+  opaque-origin iframe or a worker) – raised with Tilman as a follow-up of #207.
+- **Same origin only.** The cookie sessions need the app and `/api` on the same origin (staging and production
+  serve them so; locally the dev servers proxy `/api`). CORS (`ALLOWED_ORIGINS`) sends no credentials: another origin
+  can call the API with a Bearer token only.
 
 Security notes:
 - The link token, the code and the session tokens are stored only as hashes.

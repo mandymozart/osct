@@ -1,5 +1,5 @@
 import { resolve } from "$app/paths";
-import { ApiError, errorText, getToken, logout, me, onSessionEnd, requestCode, setToken, signInWithPassword, verifyCode, type User } from "./api";
+import { ApiError, errorText, exchangeStoredToken, logout, me, onSessionEnd, requestCode, setSession, signInWithPassword, verifyCode, type SignedIn, type User } from "./api";
 
 /** The sign-in form's note after the session ended under the page */
 export const SESSION_ENDED = "Your session ended – sign in again.";
@@ -8,12 +8,14 @@ export const SESSION_ENDED = "Your session ended – sign in again.";
  * Who is signed in: the instance user of the accounts API (sign-in by email code or password, as the reader's
  * account). The editor needs the role `editor`, the admin page (`/admin`) the role `admin` – an admin grants them
  * there, or the deployment's `EDITORS` / `ADMINS` lists at sign-in (docs/server.md "Roles").
- * A session that ends under the page (any API call answers 401 to the stored token – `api.ts`) goes back to the
- * sign-in form with a note; the page the person was on stays the route, so signing in again returns there.
+ * The session is the API's HttpOnly cookie (#207) – shared with the reader on the same site; the editor holds only its
+ * CSRF token, in memory (`api.ts`). A session that ends under the page (any API call answers 401 while signed in)
+ * goes back to the sign-in form with a note; the page the person was on stays the route, so signing in again returns
+ * there.
  */
 class Session {
   user = $state<User | null>(null);
-  /** `unknown` until the stored token was checked */
+  /** `unknown` until the browser's session was checked */
   status = $state<"unknown" | "out" | "in">("unknown");
   error = $state<string | null>(null);
   busy = $state(false);
@@ -38,20 +40,23 @@ class Session {
     return this.user?.roles?.includes(role) ?? false;
   }
 
-  /** The stored token, checked once at startup (`again`: reload the user, e.g. after their own roles changed) */
+  /**
+   * The browser's session (its cookie), checked once at startup – a token stored by an editor from before the cookie
+   * is exchanged for it first (`exchangeStoredToken`, temporary) – or again (`again`: reload the user, e.g. after their
+   * own roles changed). Signed out, the API answers 401: the sign-in form, without a note.
+   */
   async restore(again = false): Promise<void> {
     if (this.status !== "unknown" && !again) return;
-    if (!getToken()) {
-      this.status = "out";
-      return;
-    }
     try {
-      this.user = (await me()).user;
+      const exchanged = again ? null : await exchangeStoredToken();
+      const { user, csrfToken } = exchanged ?? (await me());
+      setSession({ csrfToken: csrfToken ?? "", email: user.email });
+      this.user = user;
       this.status = "in";
     } catch (error) {
       // A reload of the signed-in user (`again`) that answers 401: the session ended under the page
       if (error instanceof ApiError && error.status === 401 && this.status === "in") return this.ended();
-      if (error instanceof ApiError && error.status === 401) setToken(null);
+      setSession(null);
       this.status = "out";
       this.error = error instanceof ApiError && error.status !== 401 ? error.message : null;
     }
@@ -67,35 +72,30 @@ class Session {
   async confirmCode(code: string): Promise<void> {
     const pending = this.pending;
     if (!pending) return;
-    await this.run(async () => {
-      const { session, user } = await verifyCode(pending.requestId, code);
-      this.signedIn(session, user);
-    });
+    await this.run(async () => this.signedIn(await verifyCode(pending.requestId, code)));
   }
 
   async signInPassword(email: string, password: string): Promise<void> {
-    await this.run(async () => {
-      const { session, user } = await signInWithPassword(email, password);
-      this.signedIn(session, user);
-    });
+    await this.run(async () => this.signedIn(await signInWithPassword(email, password)));
   }
 
+  /** Ends the session: the API deletes it and clears the cookie (with the CSRF token, like any write) */
   async signOut(): Promise<void> {
     try {
       await logout();
     } catch {
-      // the token may be gone already
+      // the session may be gone already
     }
-    setToken(null);
+    setSession(null);
     this.user = null;
     this.pending = null;
     this.notice = null;
     this.status = "out";
   }
 
-  /** The session ended under the page: the token is cleared and the sign-in form shows with a note */
+  /** The session ended under the page: it is forgotten and the sign-in form shows with a note */
   ended(): void {
-    setToken(null);
+    setSession(null);
     this.user = null;
     this.pending = null;
     this.error = null;
@@ -103,8 +103,8 @@ class Session {
     this.status = "out";
   }
 
-  private signedIn(token: string, user: User) {
-    setToken(token);
+  private signedIn({ csrfToken, user }: SignedIn) {
+    setSession({ csrfToken, email: user.email });
     this.user = user;
     this.pending = null;
     this.notice = null;

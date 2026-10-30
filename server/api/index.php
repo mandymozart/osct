@@ -6,9 +6,11 @@ declare(strict_types=1);
  *
  *   GET    /health                   { status, version, env, db }
  *   POST   /auth/request             send the confirmation email (link + code)
- *   POST   /auth/verify              link token or request id + code → session token
- *   POST   /auth/password            email + password → session token (users who set a password)
- *   POST   /auth/logout              end this device's session
+ *   POST   /auth/verify              link token or request id + code → session token, or with `session: "cookie"` (a
+ *                                    browser) the session cookie and its CSRF token
+ *   POST   /auth/password            email + password → the same (users who set a password)
+ *   POST   /auth/logout              end this device's session (and clear the cookie)
+ *   POST   /auth/cookie              TEMPORARY (#207): a session token kept in localStorage before → the cookie (Bearer)
  *   GET    /user                     the signed-in user (`roles`: reader for every account, editor, admin)
  *   PATCH  /user                     change the options / language
  *   DELETE /user                     delete the user and everything stored with it
@@ -64,7 +66,9 @@ declare(strict_types=1);
  *                                               the Code tab's plugin sources (docs/server.md "Plugin sources")
  *   GET    /content/{env}/{path}                the local content store (json files, and the assets' files; public)
  *
- * Signed-in requests send `Authorization: Bearer <session token>` – or an AI connection's token `osct_…` (ApiTokens).
+ * Signed-in requests from a browser send the session cookie `osct_session` and, with every write, its CSRF token in
+ * `X-CSRF-Token`; other clients send `Authorization: Bearer <session token>` – or an AI connection's token `osct_…`
+ * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
 foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
@@ -128,6 +132,7 @@ try {
         $route === 'POST /auth/verify' => Auth::verify(Http::body()),
         $route === 'POST /auth/password' => Passwords::signIn(Http::body()),
         $route === 'POST /auth/logout' => Auth::logout(),
+        $route === 'POST /auth/cookie' => Auth::exchange(),
         $route === 'GET /user' => Users::get(),
         $route === 'PATCH /user' => Users::update(Http::body()),
         $route === 'DELETE /user' => Users::delete(),

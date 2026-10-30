@@ -58,6 +58,25 @@ final class Http
         return preg_match('/^Bearer\s+([A-Za-z0-9_-]{20,})$/', $header, $match) ? $match[1] : null;
     }
 
+    /** A request cookie's value, null when it is missing or empty */
+    public static function cookie(string $name): ?string
+    {
+        $value = $_COOKIE[$name] ?? null;
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /** A request header by its name (`X-CSRF-Token` → HTTP_X_CSRF_TOKEN), '' when missing */
+    public static function header(string $name): string
+    {
+        return (string) ($_SERVER['HTTP_' . strtoupper(str_replace('-', '_', $name))] ?? '');
+    }
+
+    /** Whether the request reached the site over HTTPS (directly, or behind kamal-proxy: X-Forwarded-Proto) */
+    public static function isHttps(): bool
+    {
+        return (($_SERVER['HTTPS'] ?? '') !== '' && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+    }
+
     public static function origin(): ?string
     {
         $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -108,7 +127,7 @@ final class Http
             if ($origin === null) throw new ApiError(500, 'not-configured', 'APP_URL is not set – the URLs of stored files are built from it.');
             return $origin . $base;
         }
-        $https = (($_SERVER['HTTPS'] ?? '') !== '' && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+        $https = self::isHttps();
         $host = (string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost');
         return ($https ? 'https' : 'http') . "://$host" . $base;
     }

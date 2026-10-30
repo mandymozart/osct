@@ -20,6 +20,8 @@ class FakeApi extends ApiService {
   progress: { record: ProgressRecord | null; updatedAt: number | null } = { record: null, updatedAt: null };
   offline = false;
   sessionValid = true;
+  /** The browser's session cookie (#207): set by a sign-in with `session: "cookie"` or the exchange, read by the API */
+  cookie: string | null = null;
   calls: Array<{ method: string; path: string; body?: any }> = [];
 
   constructor() {
@@ -36,15 +38,21 @@ class FakeApi extends ApiService {
       if (body.code && body.code !== "123456") throw new ApiError(400, "invalid-code");
       if (body.token && body.token !== "good-token") throw new ApiError(400, "invalid-link");
       this.freshEmailSession = true;
-      return { session: "session-token", user: this.user, created: true };
+      return this.signIn(body, true);
     }
     if (route === "POST /auth/password") {
       if (this.password === null || body.password !== this.password) throw new ApiError(401, "invalid-credentials");
       this.user = { ...this.user, hasPassword: true };
-      return { session: "session-token", user: this.user, created: false };
+      return this.signIn(body, false);
     }
-    if (!token || !this.sessionValid) throw new ApiError(401, "unauthorized");
-    if (route === "GET /user") return { user: this.user };
+    if (route === "POST /auth/cookie") {
+      if (token !== "session-token" || !this.sessionValid) throw new ApiError(401, "unauthorized");
+      this.cookie = "cookie-session";
+      return { csrfToken: "csrf-1", user: this.user };
+    }
+    if (route === "POST /auth/logout" && token) return null;
+    if (!this.cookie || !this.sessionValid) throw new ApiError(401, "unauthorized");
+    if (route === "GET /user") return { user: this.user, csrfToken: "csrf-1" };
     if (route === "PATCH /user") {
       this.user = { ...this.user, options: { ...this.user.options, ...body.options } };
       return { user: this.user };
@@ -58,7 +66,10 @@ class FakeApi extends ApiService {
       this.user = { ...this.user, hasPassword: true };
       return { user: this.user };
     }
-    if (route === "POST /auth/logout" || route === "DELETE /user") return null;
+    if (route === "POST /auth/logout" || route === "DELETE /user") {
+      this.cookie = null;
+      return null;
+    }
     if (route === `GET /progress/${bookId}`) return structuredClone(this.progress);
     if (route === `PUT /progress/${bookId}`) {
       if (body.baseUpdatedAt !== this.progress.updatedAt) throw new ApiError(409, "conflict", structuredClone(this.progress));
@@ -66,6 +77,13 @@ class FakeApi extends ApiService {
       return { updatedAt: this.progress.updatedAt };
     }
     throw new ApiError(404, "not-found");
+  }
+
+  /** A browser's sign-in sets the cookie and answers its CSRF token; any other the token itself */
+  private signIn(body: any, created: boolean) {
+    if (body.session !== "cookie") return { session: "session-token", user: this.user, created };
+    this.cookie = "cookie-session";
+    return { csrfToken: "csrf-1", user: this.user, created };
   }
 
   puts() {
@@ -80,13 +98,15 @@ const remoteRecord = (consulted: Record<string, number>): ProgressRecord => ({
 // happy-dom's history API doesn't move window.location (see LinkService.test.ts)
 const setUrl = (url: string) => (window as any).happyDOM.setURL(new URL(url, window.location.origin).href);
 
-const signedInStorage = () =>
-  localStorage.setItem("osct-user", JSON.stringify({ session: "session-token", user: new FakeApi().user }));
-
 describe("UserService", () => {
   let game: IGame;
   let api: FakeApi;
   const service = () => new UserService(api, 0);
+  /** Signed in on this device: the user as last seen in localStorage, the session in the browser's cookie */
+  const signedInStorage = () => {
+    localStorage.setItem("osct-user", JSON.stringify({ user: new FakeApi().user }));
+    api.cookie = "cookie-session";
+  };
 
   beforeEach(() => {
     localStorage.clear();
@@ -240,7 +260,7 @@ describe("UserService", () => {
     expect(users.getSnapshot()).toMatchObject({ status: "signed-out", notice: { error: "invalid-credentials" } });
 
     expect(await users.signInWithPassword(" reader@example.com ", "a good password")).toBe(true);
-    expect(api.calls.filter(c => c.path === "/auth/password").at(-1)!.body).toEqual({ email: "reader@example.com", password: "a good password" });
+    expect(api.calls.filter(c => c.path === "/auth/password").at(-1)!.body).toEqual({ email: "reader@example.com", password: "a good password", session: "cookie" });
     expect(users.getSnapshot()).toMatchObject({ status: "signed-in", notice: "signed-in" });
     expect(stored).toEqual([{ id: "reader@example.com", password: "a good password" }]);
     // Signed in with the password: changing it asks for the current one
@@ -272,6 +292,73 @@ describe("UserService", () => {
     expect(await users.setPassword("another one")).toBe(false);
     expect(users.getSnapshot().notice).toEqual({ error: "current-password-required" });
     expect(await users.setPassword("another one", "a good password")).toBe(true);
+  });
+
+  describe("the session is the API's cookie (#207)", () => {
+    it("a sign-in asks for the cookie, keeps its CSRF token in memory and stores no session token", async () => {
+      const csrf = vi.spyOn(api, "setCsrfToken");
+      const users = service();
+      await users.start(game);
+      await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
+      expect(await users.confirmCode("123456")).toBe(true);
+      expect(api.calls.find(c => c.path === "/auth/verify")!.body).toEqual({ requestId: "r1", code: "123456", session: "cookie" });
+      expect(csrf).toHaveBeenCalledWith("csrf-1");
+      const stored = JSON.parse(localStorage.getItem("osct-user")!);
+      expect(stored).not.toHaveProperty("session");
+      expect(JSON.stringify(stored)).not.toContain("cookie-session");
+      expect(users.getSnapshot()).toMatchObject({ status: "signed-in", sync: "synced" });
+    });
+
+    it("the link from the email asks for the cookie too", async () => {
+      setUrl(`/about?${LOGIN_PARAM}=good-token`);
+      await service().start(game);
+      expect(api.calls.find(c => c.path === "/auth/verify")!.body).toEqual({ token: "good-token", session: "cookie" });
+      expect(api.cookie).toBe("cookie-session");
+    });
+
+    it("at startup GET /user hands over the CSRF token; signing out ends the cookie and forgets it", async () => {
+      signedInStorage();
+      const csrf = vi.spyOn(api, "setCsrfToken");
+      const users = service();
+      await users.start(game);
+      expect(csrf).toHaveBeenLastCalledWith("csrf-1");
+      await users.signOut();
+      expect(api.calls.at(-1)).toMatchObject({ method: "POST", path: "/auth/logout" });
+      expect(api.cookie).toBeNull();
+      expect(csrf).toHaveBeenLastCalledWith(null);
+    });
+
+    it("a token stored by an app from before the cookie is exchanged once, then the stored session keeps none", async () => {
+      localStorage.setItem("osct-user", JSON.stringify({ session: "session-token", user: new FakeApi().user, method: "password", signedInAt: 5 }));
+      const users = service();
+      await users.start(game);
+      expect(api.calls[0]).toMatchObject({ method: "POST", path: "/auth/cookie" });
+      expect(api.cookie).toBe("cookie-session");
+      expect(JSON.parse(localStorage.getItem("osct-user")!)).toEqual({ user: api.user, method: "password", signedInAt: 5 });
+      expect(users.getSnapshot()).toMatchObject({ status: "signed-in", sync: "synced" });
+      expect(api.calls.some(c => c.path === `/progress/${bookId}`)).toBe(true);
+    });
+
+    it("a stored token the API no longer knows signs out: sign in as usual", async () => {
+      localStorage.setItem("osct-user", JSON.stringify({ session: "old-token", user: new FakeApi().user }));
+      const users = service();
+      await users.start(game);
+      expect(users.getSnapshot()).toMatchObject({ status: "signed-out", notice: "signed-out" });
+      expect(localStorage.getItem("osct-user")).toBeNull();
+    });
+
+    it("offline, the stored token waits for the next start – and nothing syncs without the cookie", async () => {
+      localStorage.setItem("osct-user", JSON.stringify({ session: "session-token", user: new FakeApi().user }));
+      api.offline = true;
+      const users = service();
+      await users.start(game);
+      expect(JSON.parse(localStorage.getItem("osct-user")!).session).toBe("session-token");
+      expect(users.getSnapshot().status).toBe("signed-in");
+      game.history.consultEntry(entryA);
+      api.offline = false;
+      await users.pushNow();
+      expect(api.calls.filter(c => c.path.startsWith("/progress/"))).toHaveLength(0);
+    });
   });
 
   describe("data from outside the app is checked", () => {
@@ -308,7 +395,7 @@ describe("UserService", () => {
       expect(api.puts()).toHaveLength(1);
     });
 
-    it("a sign-in answer without a session is a server error, not a broken session", async () => {
+    it("a sign-in answer without a CSRF token is a server error, not a broken session", async () => {
       const request = api.request.bind(api);
       vi.spyOn(api, "request").mockImplementation(async (method, path, options) =>
         path === "/auth/password" ? { user: api.user } : request(method, path, options));
