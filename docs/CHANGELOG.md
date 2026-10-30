@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.36.2 – 2026-10-30
 
 ### Added
 - **The tutorial shows the Stage panel's tap, variables and timeline** (#148, #88): chapter 4 of `/docs/tutorials/` has a
