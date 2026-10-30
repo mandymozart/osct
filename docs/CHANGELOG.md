@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.35.2 – 2026-10-30
 
 ### Changed
 - **The editor on SvelteKit 3** (#157, Dependabot 195 and 196): SvelteKit 3.1 with adapter-static 4, TypeScript 6,
