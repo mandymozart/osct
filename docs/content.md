@@ -602,7 +602,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.15 | 1.35.0 | in develop | a parameter spec's optional `label` (plugin API 1.3) – the editor's row; in the content only inside a plugin's recorded specs |
 | 2.16 | 1.36.1 | unreleased | nothing new in the content – shared/ imports its types type-only (`verbatimModuleSyntax`, #176) |
 | 2.17 | 1.41.0 | unreleased | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) – a 2.16 app refuses a recorded spec with a `texture` parameter |
-| 2.18 | next | unreleased | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
+| 2.18 | 1.49.0 | unreleased | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

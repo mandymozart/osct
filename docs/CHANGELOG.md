@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.49.0 – 2026-10-30
 
 ### Added
 - **Editor: code files in the Library** (#186, Tilman: "the Library needs a file view for scripts and shaders"): the
