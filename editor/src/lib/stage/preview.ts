@@ -30,8 +30,8 @@ export type HdriId = (typeof HDRIS)[number]["id"];
 export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.id === value);
 
 /**
- * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; Tilman: the tool is for
- * designers, they should feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
+ * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; designers' furniture, so
+ * the designers who use the tool feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
  * Schöpfer's desk (linoleum and oak on a black steel frame)
  */
 export const DESKS = [

@@ -44,7 +44,7 @@
   const TABS = ["tree", "stage", "entity", "environment", "library", "code"] as const;
   type Tab = (typeof TABS)[number];
   const TAB_KEY = "osct-editor-tab";
-  /** The tab row: the word on a desktop, the icon on a phone (Tilman 2026-10-30) */
+  /** The tab row: the word on a desktop, the icon on a phone */
   const TAB_BUTTONS: { tab: Tab; label: string; icon: IconName; title?: string }[] = [
     { tab: "tree", label: "Tree", icon: "list" },
     { tab: "stage", label: "Stage", icon: "sliders" },

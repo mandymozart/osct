@@ -1,5 +1,5 @@
 /**
- * Colour maths for the colour popover (after Scutoons' `@scutoons/ui` colour.ts): hex ⟷ HSV, the editor's palette,
+ * Colour maths for the colour popover: hex ⟷ HSV, the editor's palette,
  * this browser's recent colours. No Svelte.
  */
 

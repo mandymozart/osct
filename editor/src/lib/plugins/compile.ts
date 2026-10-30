@@ -1,5 +1,5 @@
 /**
- * The Code tab's compiler, the browser half of the plugin story (agents/research/2026-10-29-code-in-the-editor.md):
+ * The Code tab's compiler, the browser half of the plugin story (docs/plugins.md):
  * TypeScript → an ES module, types erased, no type check (that is the content build's half), imported from a blob
  * URL and installed in the stage's registry. The content build compiles what readers get; this only serves the
  * preview.

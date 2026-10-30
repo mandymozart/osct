@@ -2,7 +2,7 @@
  * The stage toolbar's **groups** (#180): transform (move / rotate / scale), pick (entities / nodes / targets) and
  * shading (wire / solid / textured / rendered). A group is one button showing its active option's icon; a tap opens
  * its options in a menu attached to the button. Where the toolbar has room (decided by the room it has, never by the
- * device) a group stays expanded – its options side by side, as before.
+ * device) a group stays expanded – its options side by side.
  *
  * This module is the pure part: the active option, the menu's arrow keys and which groups fit expanded. The page
  * (`routes/[book]/[spread]/+page.svelte`) holds the groups' options and `components/ToolGroup.svelte` draws one.

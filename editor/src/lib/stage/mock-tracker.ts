@@ -18,7 +18,7 @@ const NEAR = 0.01;
 const FAR = 100;
 
 /**
- * The page of the book the stage shows (mm) when the content has no layout (`utils/stage-layout.ts`): one page of
+ * The page of the book the stage shows (mm) when the content has no layout (`stage/stage-layout.ts`): one page of
  * the double page, the spread is two of them side by side. This book's print format.
  */
 export const BOOK_PAGE_MM = { width: 230, height: 320 } as const;

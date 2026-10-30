@@ -11,7 +11,7 @@ the rim (a Y seen from the front).
 Writes `desk-eiermann.glb` and `desk-schoepfer.glb` into `editor/static/models/` (next to this script's folder) unless
 another folder follows `--`.
 
-The Eiermann frame's measurements (mm) come from a 3ds Max model of the frame Tilman supplied
+The Eiermann frame's measurements (mm) come from a 3ds Max model of the frame
 (`01_E1_1100x660-exzentrisch`, not in the repository, 17 000 triangles): round tube Ø 20, four vertical legs with the
 thinner Ø 17 inner tube of the height adjustment showing under the top, an upper and a lower cross tube per end
 frame, and two diagonal struts that cross between the ends – from the back of one lower cross tube to the front of

@@ -349,13 +349,13 @@ export const getBook = (bookId: string) => api<BookTree>("GET", `/editor/books/$
 export type ImportSource = { configuration: GameConfiguration; files?: unknown; assetsBase?: string } | { source: "cdn" };
 export type ImportBody = ImportSource & { confirm?: string };
 
+/** What the import of this body would bring in and replace – read-only; 502 content-fetch-failed names the `url` */
+export const previewImport = (body: ImportSource) => api<ImportPreview>("POST", "/editor/import/preview", body);
+
 /**
  * Imports into the book. Over a book that exists the API answers 409 `confirm-import` (or `confirmation-void`) with
  * `details.comparison` (an `ImportComparison`) and `details.confirmation` – the same call with `confirm` then imports.
  */
-/** What the import of this body would bring in and replace – read-only; 502 content-fetch-failed names the `url` */
-export const previewImport = (body: ImportSource) => api<ImportPreview>("POST", "/editor/import/preview", body);
-
 export const importBook = (bookId: string, body: ImportBody) =>
   api<{ book: BookSummary; imported?: ImportedBuild | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/import`, body);
 

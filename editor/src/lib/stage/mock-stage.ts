@@ -35,9 +35,8 @@ const DESK_EDGE_ROUGHNESS = 0.8;
 const LINOLEUM_ROUGHNESS = 0.85;
 const OAK_ROUGHNESS = 0.65;
 /**
- * The plies in one stack of the edges' texture: 18 mm birch plywood has 13 plies of about 1.4 mm (Tilman, 2026-10-30:
- * "we are 18 mm thick" – the trade's 18 mm birch, phenolic-faced like the Eiermann top, is 13-ply). The Eiermann board is
- * one stack (the model's UVs)
+ * The plies in one stack of the edges' texture: the desk tops are 18 mm birch plywood, phenolic-faced like the Eiermann
+ * top – 13 plies of about 1.4 mm. The Eiermann board is one stack (the model's UVs)
  */
 const DESK_EDGE_PLIES = 13;
 const PAGE_COLOR = 0xf3efe6;
