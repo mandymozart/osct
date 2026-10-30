@@ -107,7 +107,7 @@ stage every frame so the room stays put while the camera orbits – the **desk**
 (Tilman: the tool is for designers, they should feel at home): a 1.8 × 0.8 m screen-printed plywood top (18 mm; Poly
 Haven's plywood texture tinted to the phenolic brown on the faces) on a steel tube frame after Egon Eiermann's table
 frame (1953, the default), or Philipp Camille Schöpfer's white desk (a thick top with three drawer cutouts in its front
-edge on four slender legs splayed outward); both tops show cut plywood on their edges – seven plies of birch,
+edge on four slender legs splayed outward); both tops show cut plywood on their edges – 13 plies of birch per 18 mm board (as the trade's 18 mm birch plywood),
 alternating long grain and darker cross grain, parted by glue lines, drawn in code once (`plywood.ts`, a 512 × 128
 data texture, no image file): one stack through the Eiermann board, three through Schöpfer's 60 mm top. Both 72 cm high and our
 own low-poly models (`editor/static/models/`, 236 and 124 triangles, built by `editor/tools/desk-eiermann.py` in

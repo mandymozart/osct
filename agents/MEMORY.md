@@ -8,7 +8,7 @@ outcome in the line (or move it into a dated decision block).
 
 - **The plies are drawn in code, not downloaded**: the issue proposed a CC0 plywood texture with a visible edge (Poly
   Haven, ambientCG), but downloads need Tilman's OK (workspace `ORCHESTRATION.md` §7). `editor/src/lib/stage/plywood.ts`
-  draws one stack of seven plies (birch long grain / darker cross grain, glue lines) into a 512 × 128 `DataTexture`
+  draws one stack of 13 plies (since 1.37.1; 1.37.0 had 7 – Tilman: "more layers, we are 18 mm"; 18 mm birch plywood is 13-ply) (birch long grain / darker cross grain, glue lines) into a 512 × 128 `DataTexture`
   once (≈ 5 ms warm, no per-frame cost); a CC0 photo can still replace it later if wanted.
 - **Edge UVs**: u along the edge (250 mm a repeat), v one stack through the thickness – the Eiermann board one stack,
   Schöpfer's 60 mm top three (a 60 mm board with seven plies would read as stripes). Schöpfer's model now has an `edge`
