@@ -9,7 +9,7 @@ Before working, read:
 - `agents/PLAN.md` – the restructuring plan (phases, checkboxes, open decisions)
 - `agents/MEMORY.md` – dated decisions and open items
 - `agents/STRATEGY.md` – where this goes: scutoons-animus-ar, a white-label core; data sovereignty (milestone 2)
-- `agents/ORCHESTRATION.md` – OSCT's specifics for orchestrating sessions and night shifts (the general rules: `C:DevelopmentORCHESTRATION.md`)
+- `agents/ORCHESTRATION.md` – OSCT's specifics for orchestrating sessions and night shifts (the general rules: `C:\Development\ORCHESTRATION.md`)
 - `agents/DESIGN.md` – measured design spec (colors, gold gradient, sizes, buttons) – before any styling
 - `agents/reference/README.md` – design PDF, rendered frames and extracted placeholder images
 - `README.md` – the index of `docs/` (architecture, content, CDN, server, deploy, i18n, tests)
