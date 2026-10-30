@@ -1,7 +1,8 @@
 import type { AssetData, EntityData, EntityRefData } from '../../../shared/types/game-config';
 import { isKnownNodeType, nodeAssetTypes, nodeParamProblems, nodeTypes, nodeTypeSpec } from '../../../shared/types/node-types';
 import { type FilterData, filterProblems } from '../../../shared/types/filters';
-import { componentProblems, type ComponentData } from '../../../shared/types/components';
+import { componentProblems, componentSpec, paramProblems, textureSource, type ComponentData, type ComponentParamSpec } from '../../../shared/types/components';
+import { materialProblems, materialSpec, textureSpec, type MaterialData } from '../../../shared/types/materials';
 import { lightProblems, type LightData } from '../../../shared/types/lights';
 import { placementProblems } from '../../../shared/types/placement';
 import fs from 'fs';
@@ -32,7 +33,9 @@ export function buildEntities(): Record<string, EntityData> {
 /**
  * One node of an entity's tree (content schema 2.0), its children recursively. `assets: [{ id?, src }]` (the root
  * of a shared entity) or `src` (inline nodes) name the node's files; `group`, `text` and `light` have none. A plugin's
- * node type (schema 2.13) takes the file its spec names and has its parameters checked in `params`. Asset ids:
+ * node type (schema 2.13) takes the file its spec names and has its parameters checked in `params`; a node's `material`
+ * (schema 2.17) names a plugin's material. A `texture` parameter (of a node type, a component, a material) that names a
+ * file next to the node becomes its content path; one that names a procedural texture must be a plugin's. Asset ids:
  * `<idBase>-<n>` for a shared root, `<targetId>-media` for an inline root, `<parent id>-<index>` below.
  */
 export function buildNode(
@@ -103,8 +106,24 @@ export function buildNode(
   if (raw.components !== undefined) {
     const problems = componentProblems(raw.components, 'components', type);
     problems.forEach(problem => buildErrors.push(`${label}: ${problem}`));
-    if (!problems.length) components = raw.components as ComponentData[];
+    if (!problems.length) {
+      components = (raw.components as ComponentData[]).map((component, i) => {
+        const spec = componentSpec(component.type);
+        return spec ? { ...component, ...resolveTextureParams(spec.params, component, `${label}: components[${i}]`, file) } as ComponentData : component;
+      });
+    }
   }
+  let material: MaterialData | undefined;
+  if (raw.material !== undefined) {
+    const problems = materialProblems(raw.material, 'material', type);
+    problems.forEach(problem => buildErrors.push(`${label}: ${problem}`));
+    if (!problems.length) {
+      const data = raw.material as MaterialData;
+      const spec = materialSpec(data.type)!;
+      material = { type: data.type, ...(data.params ? { params: resolveTextureParams(spec.params, data.params, `${label}: material`, file) } : {}) };
+    }
+  }
+  const params = isMapping(raw.params) && pluginSpec ? resolveTextureParams(pluginSpec.params, raw.params, `${label}: params`, file) : raw.params;
   let children: EntityData[] | undefined;
   if (raw.children !== undefined) {
     if (!Array.isArray(raw.children)) buildErrors.push(`${label}: children must be a list`);
@@ -120,13 +139,48 @@ export function buildNode(
     ...(typeof raw.name === 'string' && raw.name.trim() ? { name: raw.name.trim() } : {}),
     type,
     assets,
-    ...(isMapping(raw.params) ? { params: raw.params } : {}),
+    ...(isMapping(params) ? { params } : {}),
     ...(filters ? { filters } : {}),
     ...(components?.length ? { components } : {}),
+    ...(material ? { material } : {}),
     ...(children?.length ? { children } : {}),
     ...(type === 'text' ? { text: String(raw.text ?? ''), ...(typeof raw.color === 'string' && raw.color ? { color: raw.color } : {}) } : {}),
     ...(type === 'light' && light ? { light } : {}),
   };
+}
+
+/** A texture file of the content: an image or a video */
+const TEXTURE_ASSET_TYPES = ['image', 'video'];
+
+/**
+ * The `texture` parameters of a spec in `values` (schema 2.17): a file next to the node (`sand.jpg`) becomes its content
+ * path (an image or a video); a URL or a `/assets/content/…` path stays as it is; a procedural texture must be one a
+ * plugin of the book registers, its own parameters checked. Every other value is returned as it is.
+ */
+export function resolveTextureParams(
+  specParams: Record<string, ComponentParamSpec>,
+  values: Record<string, unknown>,
+  label: string,
+  file: (src: string) => string,
+): Record<string, unknown> {
+  const resolved = { ...values };
+  for (const [name, param] of Object.entries(specParams)) {
+    if (param.kind !== 'texture' || values[name] === undefined) continue;
+    const source = textureSource(values[name]);
+    if (source.kind === 'file') {
+      if (/^[a-z]+:\/\//i.test(source.src) || source.src.startsWith('/')) continue;
+      if (!TEXTURE_ASSET_TYPES.includes(assetType(source.src, `${label}.${name}`))) {
+        buildErrors.push(`${label}.${name}: a texture is an image or a video, not "${source.src}"`);
+        continue;
+      }
+      resolved[name] = file(source.src);
+    } else if (source.kind === 'procedural') {
+      const spec = textureSpec(source.type);
+      if (!spec) buildErrors.push(`${label}.${name}: "${source.type}" is no texture a plugin of the book registers (nor a file – a file has its extension)`);
+      else paramProblems(spec.params, source.params, `${label}.${name}`, source.type).forEach(problem => buildErrors.push(problem));
+    }
+  }
+  return resolved;
 }
 
 /**

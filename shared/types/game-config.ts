@@ -13,6 +13,7 @@ import type { EnvironmentData } from "./environment";
 import type { LightData } from "./lights";
 import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
+import type { MaterialData } from "./materials";
 
 export * from "./filters";
 export * from "./placement";
@@ -21,6 +22,7 @@ export * from "./lights";
 export * from "./passes";
 export * from "./plugins";
 export * from "./node-types";
+export * from "./materials";
 
 /**
  * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text,
@@ -52,11 +54,15 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   children), and since 2.14 a plugin's recorded `registered` (the specs of what it registers; a 2.13 app ignores
  *   it), and since 2.15 a parameter spec's optional `label` (the words the editor's row shows, plugin API 1.3 – in the
  *   content only inside a plugin's recorded specs; a 2.14 app ignores it), and 2.16 adds nothing to the content (shared/
- *   imports its types type-only, verbatimModuleSyntax – #176). Any MINOR of the same MAJOR loads.
+ *   imports its types type-only, verbatimModuleSyntax – #176), and since 2.17 a node's optional `material` (a plugin's
+ *   `registerMaterial`, plugin API 1.4 – a 2.16 app keeps the node's own material), and a plugin's recorded materials and
+ *   textures (a 2.16 app ignores them) – but a recorded spec with a parameter of the new kind `texture` is refused by a
+ *   2.16 guard (it knows no such kind): a book whose plugins take textures needs a 2.17 app. Any MINOR of the same MAJOR
+ *   loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.16";
+export const CONTENT_SCHEMA_VERSION = "2.17";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -135,6 +141,11 @@ export interface EntityData {
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
   /** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.4) */
   components?: ComponentData[];
+  /**
+   * Optional (schema 2.17): a material a plugin registered (`registerMaterial`) that replaces the material of the node's
+   * meshes – its type and values (`./materials.ts`); the node's material layers still add on top
+   */
+  material?: MaterialData;
   /** Child nodes, placed relative to this one */
   children?: EntityData[];
   /** `text` nodes: the line shown; `{{entry.title}}` and `{{book.title}}` are replaced */

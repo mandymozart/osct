@@ -106,6 +106,7 @@ async function checkWrite(entity: unknown, path: string, book: () => Promise<Boo
   const warnings = [
     ...(check.unknownComponents.length ? [`component types no built-in or known plugin provides: ${check.unknownComponents.join(", ")} – a plugin must register them, else the publish is refused`] : []),
     ...(check.unverifiedNodeTypes.length ? [`node types no known plugin registers: ${check.unverifiedNodeTypes.join(", ")} – a plugin of the book whose types are not recorded must register them, else the publish is refused`] : []),
+    ...(check.unknownMaterials.length ? [`materials no known plugin registers: ${check.unknownMaterials.join(", ")} – a plugin of the book must register them, else the publish is refused`] : []),
   ];
   return { refused: null, warnings: warnings.length ? { warnings } : {} };
 }

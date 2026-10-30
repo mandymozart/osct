@@ -1,7 +1,10 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
-  import { ENTITY_TYPES, FILTER_TYPES, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType, type NodeType, type Target } from "@engine/types";
+  import {
+    ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, textureTypes, type AssetData, type EntityData, type FilterType, type NodeType,
+    type Target,
+  } from "@engine/types";
   import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
@@ -13,8 +16,9 @@
   import { getPreview, subscribePreview } from "#lib/stage/preview.js";
   import {
     addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
-    helpName, sameValue, setValue, valueRows, withNode, type ValueRow,
+    helpName, sameValue, setMaterial, setValue, valueRows, withNode, type ValueRow,
   } from "#lib/values.js";
+  import { materialCode, nodeTypeCode, takesMaterial } from "#lib/plugins/make-code.js";
   import { selection } from "#lib/selection.svelte.js";
   import { breadcrumb } from "#lib/selection.js";
   import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "#lib/tree.js";
@@ -36,8 +40,12 @@
    * light, or a node type the book's plugins registered – #77; files from the Library) next to the selected one or
    * inside it (#163); a plugin type's parameters are rows from its spec, like a component's. **remove node** drops the
    * selected node and its children. Rows come from the content contract's definitions (one `specRow` snippet draws a
-   * parameter of any kind). It opens at the level of the workspace's selection (#162): a selected target shows its
-   * target fields, its entity or a node that node's rows; the breadcrumb in the head steps up.
+   * parameter of any kind – a `texture` as a choice of the book's procedural textures and Library pictures, #188). A node
+   * with meshes may carry a plugin's **material** (#188): its rows follow the node type's. **make it code** turns the
+   * node into a node type of the book's own, **make code** beside the material does it for its look
+   * (`plugins/make-code.ts`): the plugin is saved to the Code tab and run, the node switched to it. It opens at the level
+   * of the workspace's selection (#162): a selected target shows its target fields, its entity or a node that node's
+   * rows; the breadcrumb in the head steps up.
    */
   let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, ontargetchanged }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
@@ -125,6 +133,42 @@
   const fileKinds = $derived.by(() => { void plugins.version; return current ? nodeAssetKinds(current.type) : undefined; });
   /** The selected node's plugin node type: its description heads its rows; null for a built-in type */
   const nodeSpec = $derived.by(() => { void plugins.version; return current ? nodeTypeSpec(current.type) ?? null : null; });
+  /** The selected node's plugin material (#188): its spec heads its rows; the materials it may take instead */
+  const materialOf = $derived.by(() => { void plugins.version; return current?.material ? materialSpec(current.material.type) ?? null : null; });
+  const materialChoices = $derived.by(() => { void plugins.version; return current ? materialTypesFor(current.type) : []; });
+  /** What a texture row offers: the procedural textures of the book's plugins, the Library's pictures and videos */
+  const textureChoices = $derived.by(() => { void plugins.version; return textureTypes(); });
+  const pictureChoices = $derived.by(() => {
+    const seen = new Map<string, string>();
+    library.ofKinds(["image", "video"]).forEach(a => seen.set(a.url, a.name));
+    getAssets().filter(a => a.assetType === "image" || a.assetType === "video").forEach(a => { if (!seen.has(a.src)) seen.set(a.src, fileName(a.src)); });
+    return [...seen.entries()].map(([src, name]) => ({ src, name }));
+  });
+
+  // ── make it code (#188): the node, or its look, becomes the book's own code in the Code tab ──
+  let making = $state(false);
+  const makeCode = async (kind: "node" | "material") => {
+    const n = current;
+    if (!n || making) return;
+    making = true;
+    error = null;
+    try {
+      if (plugins.bookId !== bookId) await plugins.load(bookId);
+      const taken = { plugins: [...plugins.stored.map(p => p.id), ...plugins.declared().map(p => p.id)] };
+      const made = kind === "node" ? nodeTypeCode(n, taken) : materialCode(n, taken);
+      await plugins.save(bookId, made.plugin, made.source);
+      if (!(await plugins.run(made.plugin, made.source, stage))) {
+        error = `${made.plugin}: ${plugins.runError?.message ?? "the code did not run"}`;
+        return;
+      }
+      applyNode(made.node);
+      saved = `made ${made.type} – the plugin ${made.plugin} in the Code tab`;
+    } catch (e) {
+      error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
+    } finally {
+      making = false;
+    }
+  };
   const ref = $derived(target ? getEntityRef(target.id) : undefined);
   const source = $derived(ref ? `shared: ${ref} (${getTargetsUsingEntity(ref).length}×)` : target ? `entry: ${target.entryId}` : "");
   const dirty = $derived(!!target && JSON.stringify(entity ? contentTree(entity) : null) !== JSON.stringify(target.entity ? contentTree(target.entity) : null));
@@ -412,6 +456,19 @@
         </select>
       {:else if row.kind === "string"}
         <input class="field" value={String(getValue(current, row))} aria-label={row.label} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
+      {:else if row.kind === "texture"}
+        {@const value = String(getValue(current, row))}
+        <!-- A texture (#188): none, a procedural texture of the book's plugins, or a Library picture or video -->
+        <select class="field" aria-label={row.label} {value} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
+          <option value="">none</option>
+          {#if textureChoices.length}
+            <optgroup label="procedural">{#each textureChoices as type (type)}<option value={type}>{type}</option>{/each}</optgroup>
+          {/if}
+          {#if pictureChoices.length}
+            <optgroup label="files">{#each pictureChoices as picture (picture.src)}<option value={picture.src}>{picture.name}</option>{/each}</optgroup>
+          {/if}
+          {#if value && !textureChoices.includes(value) && !pictureChoices.some(p => p.src === value)}<option {value}>{fileName(value)}</option>{/if}
+        </select>
       {:else if row.kind === "color"}
         <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />
       {:else}
@@ -478,6 +535,8 @@
   {#if !atTarget}
   <div class="section"><span class="section-label">{node.length ? "node" : "entity"}{current ? ` · ${current.type}` : ""}</span>
     <span class="controls">
+      {#if current}<button type="button" class="text-link" onclick={() => void makeCode("node")} disabled={making}
+        data-help-name="Make it code" data-help="Turns this node into a node type of the book's own: a plugin in the Code tab whose build reproduces the node (its type's builder as a starting point, its values as parameters), saved and run – the node switches to it. From then on it is your code.">make it code</button>{/if}
       {#if entity}<button type="button" class="text-link" onclick={remove} title="Delete removes the selected node too">{node.length ? "remove node" : "remove entity"}</button>{/if}
     </span></div>
   {#if current}
@@ -566,6 +625,26 @@
       {#each rows.filter(r => r.id.startsWith("params.")) as row (row.id)}
         {@render specRow(row, row.id.split(".")[1])}
       {/each}
+    {/if}
+    {#if takesMaterial(current.type)}
+      {#if current.material}
+        <!-- A plugin's material (#188): it replaces the node's own; its parameters from its spec -->
+        <div class="section" title={materialOf?.description}><span class="section-label">material · {current.material.type}</span>
+          <button type="button" class="text-link" onclick={() => current && applyNode(setMaterial(current, null))}>remove</button></div>
+        {#each rows.filter(r => r.id.startsWith("material.")) as row (row.id)}
+          {@render specRow(row, row.id.split(".")[1])}
+        {/each}
+      {:else}
+        <div class="row" data-help-name="Material" data-help="The material of the node's meshes: its own (what its type draws), or a material a plugin of the book registers – it replaces the node's own; the layers still add on top. make code turns the node's own look into a material of the book's own in the Code tab.">
+          <span class="label">material</span>
+          <span class="controls">
+            <select class="field grow" aria-label="Material" value="" onchange={e => { const type = (e.currentTarget as HTMLSelectElement).value; if (type && current) applyNode(setMaterial(current, type)); }}>
+              <option value="">its own</option>
+              {#each materialChoices as type (type)}<option value={type} title={materialSpec(type)?.description}>{type}</option>{/each}
+            </select>
+            <button type="button" class="pill framed" disabled={making} onclick={() => void makeCode("material")} title="Make the node's own look a material of the book's own (Code tab)">make code</button>
+          </span></div>
+      {/if}
     {/if}
     {#if current.type === "text"}
       <div class="section"><span class="section-label">text</span></div>

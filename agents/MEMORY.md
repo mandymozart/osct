@@ -4,6 +4,28 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Plugins everywhere: materials, textures, make it code; the aquarium; the zero plane (#188, #189)
+
+- **The variant** (Tilman's request in #188, the table now in docs/plugins.md "Where a plugin can go"): plugin API 1.4
+  adds `registerMaterial` (a whole material – the 8th Wall `registerShader` / Unreal custom material place) and
+  `registerTexture` (procedural textures) and the parameter kind `texture`; "make it code" is Unreal's *Create Blueprint
+  from component* – the Entity panel writes a Code tab plugin from a node (or its look) and switches the node to it.
+- **A node's material replaces every mesh's material of its own object**; a node type opts a mesh out with
+  `userData.keepMaterial` (the aquarium's water takes the material, its glass and fish keep theirs). Layers patch a plugin
+  material in place (marked `userData.osctOwned`), never a clone – a clone would cut its `time` uniform off.
+- **Texture values are strings or `{ type, …params }`**: `""` none, a camelCase name a procedural texture, anything with
+  a dot or slash a file. No schema field for texture assets: the engine loads a file texture itself (shared per URL,
+  counted), the build turns a file next to the node into its content path. A Library file's URL in `data_json` counts as
+  a use of the asset already (`Assets::usagesOf` searches the JSON).
+- **Schema 2.17 is a MINOR, with one caveat**: a 2.16 guard refuses a recorded spec whose parameter kind is `texture` (it
+  knows no such kind) – a book whose plugins take textures needs a 2.17 app. Nothing was released with 2.16.
+- **The zero plane check warns, never refuses**: a model may float on purpose. Only models are checked (bounding box from
+  the glTF accessors' min/max through the node transforms); upright videos are not – the build does not know a video's
+  height. The test fixture (`fixtures/content`) has many pivot-centred models that now warn; they were left as they are
+  (tests read their placements) – open: fix them or keep the warnings.
+- Make it code copies a plugin node type's `build` by `Function.toString()` (the compiled code): a name the build took
+  from its own file (a helper, a constant) must be brought along by hand – the generated comment says so.
+
 ## 2026-10-30 – Connect an AI agent: the guide for any MCP client (#194)
 
 - **Tilman** (issue): "Claude is one – OpenCode, Codex etc. Keep it more general." The guide shows the generic four

@@ -805,6 +805,44 @@ try {
     [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the recorded plugins');
 
+    echo "editor: a plugin's material (#188)\n";
+    // A node's material (schema 2.17) is a plugin's: the recorded materials pass, any other is a typo; the publish checks
+    $watery = $configuration;
+    $watery['plugins'][0]['registered']['materials'] = ['water' => ['description' => 'Water.', 'params' => [
+        'caustics' => ['kind' => 'texture', 'default' => '', 'description' => 'The caustics.'],
+    ]]];
+    $watery['plugins'][0]['registered']['textures'] = ['caustics' => ['description' => 'Light on the floor.', 'params' => new stdClass()]];
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $watery, 'files' => $files], $flags));
+    check($status === 200, 'import: a plugin with recorded materials and textures → 200');
+    $tank = $configuration['entities']['castle'];
+    $tank['material'] = ['type' => 'water', 'params' => ['caustics' => 'caustics']];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $tank, $editor);
+    check($status === 200 && $data['entity']['material']['type'] === 'water' && $data['entity']['material']['params']['caustics'] === 'caustics', 'a recorded material passes, its params kept');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'group', 'assets' => [], 'material' => ['type' => 'lava']], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entity' && str_contains($data['error']['message'], 'material.type') && str_contains($data['error']['message'], '(water)'), 'a material no declared plugin recorded → 400 naming the plugins\' materials');
+    foreach ([['type' => 'Water'], ['params' => new stdClass()], 'water', ['type' => 'water', 'params' => [1, 2]]] as $badMaterial) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'group', 'assets' => [], 'material' => $badMaterial], $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-entity', 'a material that is no { type, params? } (' . json_encode($badMaterial) . ') → 400');
+    }
+    [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $tank, $editor);
+    [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200, 'publish: a node with a recorded material → 200');
+    // A Code tab source may register anything: the save passes, the publish refuses a material no compiled plugin provides
+    call($api, 'PUT', '/editor/books/osct/plugins/lava', ['source' => "export const register = (api) => api.registerMaterial('lava', { description: 'x', params: {} }, ({ three }) => new three.MeshBasicMaterial());\n"], $editor);
+    $lava = $tank;
+    $lava['material'] = ['type' => 'lava'];
+    [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', $lava, $editor);
+    check($status === 200, 'with a source in the Code tab, a material it may register passes');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-materials' && $data['error']['materials'] === ['lava'], 'publish: a material no compiled plugin provides → 409 unknown-materials naming it');
+    call($api, 'DELETE', '/editor/books/osct/plugins/lava', null, $editor);
+    $dry = $noPlugins;
+    $dry['entities']['castle'] = $tank;
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $dry, 'files' => $files], $flags));
+    check($status === 400 && $data['error']['code'] === 'invalid-entity' && str_contains($data['error']['message'], 'no plugins'), 'import: a material in a book without plugins → 400');
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'import again with the recorded plugins');
+
     echo "editor: assets\n";
     // A 1×1 PNG and a tiny glb-like file (the API checks the type by the name, not the bytes)
     $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');

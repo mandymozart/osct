@@ -1,5 +1,7 @@
 # The shared entity of the twins: a tall model turned a quarter and spinning, a line of text under it, a sparkle around
 # it – a node type of a plugin's own (plugins/sparkle, `registerNodeType`), its parameters in params next to the placement.
+# The page is the zero plane (#189): the model's pivot is its middle, so it is lifted by its lower half (1.2466 × 0.8),
+# and the sparkle's ball (radius 0.35) rests on the page.
 type: group
 params:
   position: [0, 0.05, 0]
@@ -9,7 +11,7 @@ children:
       - src: beacon.glb
     params:
       rotation: [90, 90, 0]
-      position: [0, 0, 0.05]
+      position: [0, 0, 0.9973]
       scale: 0.8
     components:
       - type: spin
@@ -24,7 +26,7 @@ children:
   - type: sparkle
     name: Sparkle
     params:
-      position: [0, 0.1, 0.25]
+      position: [0, 0.1, 0.35]
       count: 120
       radius: 0.35
       color: "#ffe2a8"

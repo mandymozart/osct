@@ -8,6 +8,7 @@ import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma
 import { composeLayers, layerObject, tuneLayers } from "../utils/layers";
 import type { LoadedAsset } from "./assets";
 import { applyComponents, buildPluginNode, nodeTypeRegistration, unknownComponentTypes } from "./plugins";
+import { applyMaterial } from "./materials";
 import { getBook, getEntry } from "../content/game-config";
 
 /**
@@ -19,8 +20,9 @@ import { getBook, getEntry } from "../content/game-config";
  * right, y up the page, z out of the page, 1 unit = target width, origin in its centre) relative to its parent, the
  * root on the target's anchor. A node of a type without a builder renders nothing (logged) but keeps its children.
  * A node's **components** are the built-in ones its builder knows (`animation` on a model) and the ones a plugin
- * registered (`plugins.ts`): applied after the node's object exists, with their hooks joined to the node's; a
- * node's **material layers** (a plugin's GLSL) are composed into its materials (`utils/layers.ts`).
+ * registered (`plugins.ts`): applied after the node's object exists, with their hooks joined to the node's; a node's
+ * **material** of a plugin (`material: { type, params }`, `materials.ts`) replaces the material of its meshes first, then
+ * its **material layers** (a plugin's GLSL) are composed into its materials (`utils/layers.ts`).
  */
 
 export interface EntityInstance {
@@ -88,11 +90,13 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
   children.forEach(child => placed.add(child.object));
   // The plugin's components and material layers of this node
   unknownComponentTypes(node, COMPONENT_TYPES).forEach(type => console.warn(`[entities] No component "${type}" registered (target ${target.id}) – ignored`));
+  // The node's material of a plugin replaces its meshes' own; the layers then add on top of it
+  const material = own && node.material ? applyMaterial(node, own.object, target) : null;
   const components = applyComponents({ node, object: own?.object ?? placed, placed, children: children.map(child => child.object), target });
   const layers = own ? composeLayers(node) : null;
   const layered = own && layers ? layerObject(own.object, layers) : null;
   const all: Array<Pick<EntityInstance, "onTap" | "onFound" | "onLost" | "onUnlocked" | "onPause" | "update" | "dispose">> = [
-    ...(own ? [own] : []), ...components.parts, ...children,
+    ...(own ? [own] : []), ...(material ? [material] : []), ...components.parts, ...children,
   ];
   const nodes: Record<string, Object3D> = { "": placed };
   const timelines: Record<string, NodeTimeline> = {};
@@ -111,12 +115,16 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
     onUnlocked: () => all.forEach(part => part.onUnlocked?.()),
     onPause: () => all.forEach(part => part.onPause?.()),
     update: delta => {
-      if (layers) (layers.time.value as number) += delta;
+      if (layers) {
+        (layers.time.value as number) += delta;
+        layers.textures.forEach(textures => textures.update(delta));
+      }
       all.forEach(part => part.update?.(delta));
     },
     dispose: () => {
       all.forEach(part => part.dispose?.());
       layered?.dispose();
+      layers?.textures.forEach(textures => textures.dispose());
     },
     // The same tree shape with other values: every node tunes in place and is placed again; else rebuild
     tune: tuned => {
@@ -124,6 +132,8 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
       const next = tuned.children ?? [];
       if (next.length !== children.length || (node.children ?? []).length !== next.length) return false;
       if (own && !(own.tune?.(tuned) ?? true)) return false;
+      // A material added, removed or of another type (or one that did not apply): built anew
+      if (material ? !material.tune(tuned) : !!own && JSON.stringify(tuned.material ?? null) !== JSON.stringify(node.material ?? null)) return false;
       if (!components.tune(tuned)) return false;
       if (own && (layers ? !tuneLayers(layers, tuned) : composeLayers(tuned) !== null)) return false;
       for (let i = 0; i < children.length; i++) {

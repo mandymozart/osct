@@ -56,6 +56,8 @@
     .with-phone.tablet { grid-template-columns: minmax(0, 1fr) 17rem; }
     .phones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; max-width: 30rem; margin: 1.25rem 0 1.5rem; }
     .phones figure.shot { margin: 0; }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin: 1.25rem 0 1.5rem; }
+    .pair figure.shot { margin: 0; }
     dl.sources { margin: 0 0 1rem; }
     dl.sources dt { font-weight: 500; margin-top: 1rem; }
     dl.sources dd { margin: .25rem 0 0; max-width: 62ch; color: var(--inactive); }
@@ -135,6 +137,8 @@
           <li><a href="#tools-spreads">Adding and removing spreads</a></li>
           <li><a href="#tools-post">Post-processing: the book's and a spread's own</a></li>
           <li><a href="#tools-stage-vars">Tap, variables and the timeline</a></li>
+          <li><a href="#tools-code">Code everywhere: a node type, a material, a texture</a></li>
+          <li><a href="#tools-zero-plane">The page is the zero plane</a></li>
           <li><a href="#tools-labels">Words as labels</a></li>
           <li><a href="#tools-phone">The editor on a phone</a></li>
           <li><a href="#tools-tablet">The editor on a tablet</a></li>
@@ -575,6 +579,36 @@ npm run osct -- content status --env staging</code></pre>
     <img src="/docs/tutorials/tools/13-stage-vars.webp" width="1280" height="800" loading="lazy" alt="The key spread with the Stage panel's vars and events open: the tap row with The key, just tapped, and The tally; vars with tries (stage · number, 2), set by hand, and hasKey (book · boolean, true), each with a cross; the set row with an empty name, the scope stage, number pressed and the value 2; events 10 with clear, then the timeline: 11.61 s targetTapped key and keyRattled, 9.67 s varChanged tries, 0.14 s the finds and the key's varChanged hasKey, 0.00 s spreadChanged; the Info view explains the tap row.">
     <figcaption><em>The key</em> tapped from the panel: <code>targetTapped</code> and the plugin's own <code>keyRattled</code> top the timeline. <code>tries</code> was set by hand as a <em>stage</em> number.</figcaption>
   </figure>
+
+  <h3 class="sec" id="tools-code">Code everywhere: a node type, a material, a texture</h3>
+  <p>A book's plugins can go where the big engines let code in. A <b>component</b> says what a node does, a <b>node type</b> what it is, a <b>material</b> how it looks – the whole material, or a <b>layer</b> of GLSL over its own –, a <b>procedural texture</b> what it shows, a <b>pass</b> what happens to the whole picture. Every one has a spec, so the Entity panel shows its rows without any panel code.</p>
+  <p>The demo's <em>Aquarium</em> on page 2 uses three at once: the node type <code>aquarium</code> builds the glass tank and its fish, the material <code>water</code> is a shader with waves on its surface and a tint that deepens with the angle, the floor's light is the procedural texture <code>caustics</code>. Select <em>Tank</em> in the tree: under <b>node type · aquarium</b> are the tank's rows – the <em>floor light</em> is a texture row, a list of <em>none</em>, the plugins' procedural textures and the Library's pictures and videos – and under <b>material · water</b> the water's rows, with <em>remove</em>. A node without a plugin material shows <b>material</b> <em>its own</em>, a list of the materials that fit it.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/14-aquarium-material.webp" width="1280" height="800" loading="lazy" alt="The key spread seen low over the right page: a glass tank with water, a sandy floor with dancing light and five small fish stands on the aquarium's printed target, selected with its gizmo; the tree shows The aquarium › Aquarium › Tank selected; the Entity panel shows node type · aquarium with width 0.7, depth 0.4, height 0.45, water level 0.85, fish 5, fish speed 1, sand and floor light caustics, then material · water with remove and the rows shallow, deep, opacity 0.45, wave height 0.012, wave speed 1 and ripples none.">
+    <figcaption>The aquarium: a plugin's node type carrying a plugin's material, its floor lit by a procedural texture.</figcaption>
+  </figure>
+  <p><b>make it code</b>, in the head of any node, turns the node into a node type of the book's own – Unreal's <em>Create Blueprint class from a component</em>. The editor writes a plugin into the Code tab whose <code>registerNodeType</code> reproduces the node: its type's builder as a readable starting point (here a model: a copy of its scene, its clips playing), its values as the spec's parameters. It saves the plugin, runs it and switches the node to the new type, where it was. From then on it is your code: change the build, <b>Run</b>, <b>Save</b>. <b>make code</b> beside the material row does the same for the node's look, as a <code>registerMaterial</code>. The draft changes only when you press <b>Save</b> in the Entity panel.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/15-make-it-code-before.webp" width="1280" height="800" loading="lazy" alt="The key spread with the brass key's model selected: the Entity panel's head reads entity · model with make it code and remove entity; below, placement, the file key.glb, material its own with make code, and the components spin, key and animation with the model's timeline.">
+    <figcaption>Before: the key is a <em>model</em>; <b>make it code</b> sits in the node's head.</figcaption>
+  </figure>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/16-make-it-code-after.webp" width="1280" height="800" loading="lazy" alt="After make it code: the tree shows the key's node as myModelCode with a dot for the unsaved change; the Code tab is open on the plugin my-model-code – import type PluginApi, a comment saying it was made with make it code from a model node, register calling api.registerNodeType myModelCode with src glb and a build that clones the shared scene, plays every clip in a loop and returns object, update and dispose; Download, Run and Save at the bottom.">
+    <figcaption>After: the node is the type <code>myModelCode</code>, and its plugin is in the Code tab.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-zero-plane">The page is the zero plane</h3>
+  <p>Whatever stands on the page has its lowest point on the paper. A model whose origin is its middle sinks half into the page unless its position lifts it by its lower half; the content build reads every model's bounding box, follows it through the placements above it and warns when it floats or sinks, naming the position that stands it on the page. The demo's beacon was such a model.</p>
+  <div class="pair">
+    <figure class="shot">
+      <img src="/docs/tutorials/tools/17-zero-plane-before.webp" width="1280" height="800" loading="lazy" alt="The twins spread seen from the page's edge at eye level: of the beacon, a low-poly tree, only the crown sticks out of the page; the sparkle's points hang behind it.">
+      <figcaption>Before: the beacon's tree sinks into the page up to its crown.</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="/docs/tutorials/tools/18-zero-plane-after.webp" width="1280" height="800" loading="lazy" alt="The same view after the fix: the low-poly tree stands on the page with its trunk on the paper; the sparkle's ball rests on the page in front of it.">
+      <figcaption>After: lifted by its lower half, it stands on the page.</figcaption>
+    </figure>
+  </div>
 
   <h3 class="sec" id="tools-labels">Words as labels</h3>
   <p>Every row in the Entity panel is labelled in words: a parameter's <code>label</code> from its spec (<em>key color</em>, <em>compare by</em>, <em>soft edge</em>), or else its name split into words (<code>degreesPerSecond</code> → <em>degrees per second</em>). The Info view names the row by its words and by the name the content uses – <em>key color · color</em> – so a row can still be found in the YAML or a plugin's code. A plugin gives its own parameters a <code>label</code> the same way.</p>

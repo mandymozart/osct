@@ -20,6 +20,7 @@ target:
         src: door.glb
         params:
           rotation: [90, 0, 0]
+          position: [0, 0, -0.0103]  # the model's floor is 0.0188 above its origin: down onto the page (#189)
           scale: 0.55
       - type: text
         text: "Find the key on page 1"

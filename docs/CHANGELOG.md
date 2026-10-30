@@ -12,6 +12,41 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.41.0 – 2026-10-30
+
+### Added
+- **Plugins: a whole material, a procedural texture, textures as parameters** (#188, plugin API 1.4, content schema
+  2.17): `api.registerMaterial(type, spec, build)` builds a three.js material (a `ShaderMaterial` with its own GLSL, a
+  `MeshStandardMaterial` …); any node with meshes – a model, an image, a video, a text, a plugin's node – carries it as
+  `material: { type, params }` and it replaces the node's own (a mesh with `userData.keepMaterial` keeps its own), the
+  node's material layers still add on top. `build` gets the values, a `time` uniform the engine advances and the
+  picture of the material it replaces. `api.registerTexture(type, spec, draw)` draws a texture in code (a canvas or a
+  data texture, animated or not). The new parameter kind `texture` takes a Library picture or video, a file next to the
+  node in the YAML, or a procedural texture – in a material, a layer (a `sampler2D`), a component or a node type, whose
+  code gets a three.js texture.
+- **Recorded and checked like node types**: the content build records a plugin's materials and textures
+  (`registered.materials` / `.textures`) and checks every node's material and every texture value; the guard checks a
+  node's material against the recorded specs; the API refuses a material no plugin of the book registers (400) and a
+  publish whose nodes use one no compiled plugin provides (409 `unknown-materials`); the MCP server checks it before a
+  save and lists the materials and textures in `describe_content_model`.
+- **Editor: the material row and make it code** (#188): the Entity panel shows a node's material – *its own* or one of
+  the book's plugins, then its rows (labels as #173) –, texture rows as a list of procedural textures and Library files,
+  and **make it code** on any node (Unreal's *Create Blueprint from component*): a Code tab plugin whose
+  `registerNodeType` reproduces the node – its type's builder as a readable starting point, its values as parameters –
+  saved, run and the node switched to it. **make code** beside the material does it for the node's look
+  (`registerMaterial`).
+- **The demo book's aquarium** (#188): on page 2 a glass tank with water, a sandy floor and fish – a plugin's node type
+  (`aquarium`) carrying a plugin's material (`water`: waves, a tint by angle and depth), its floor lit by a procedural
+  texture (`caustics`). About 0.2 ms of main-thread work per frame on the editor's stage, 14 draw calls.
+- **Docs**: *Where a plugin can go* (Unreal, 8th Wall and OSCT compared) and *An aquarium, step by step* in
+  docs/plugins.md; the tutorial's chapter 4 gets *Code everywhere* and *The page is the zero plane*.
+
+### Fixed
+- **The demo book: every model stands on the page** (#189): the beacon (its origin in its middle) sank to its crown,
+  the door floated, the standing videos sat a little high or low – each now has its lowest point on the paper. The
+  content build warns when a model floats or sinks (its bounding box from the glTF through the placements above it),
+  with the position that stands it on the page.
+
 ## 1.40.0 – 2026-10-30
 
 ### Changed

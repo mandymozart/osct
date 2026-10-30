@@ -1,0 +1,35 @@
+# The aquarium (#188): a node type of a plugin's own (plugins/aquarium, `registerNodeType`) placed as a child of this
+# target – a glass tank standing on the page (built y up with its floor at y = 0, so `rotation: [90, 0, 0]` stands it
+# up like a model and its lowest point is the page). Its water carries the plugin's material `water`
+# (`registerMaterial`, a ShaderMaterial), the floor's light is the procedural texture `caustics` (`registerTexture`).
+category: glossary
+title: The aquarium
+page: 2
+body: "A plugin's own node type with a material and a texture of its own: the glass tank is `registerNodeType`, the water a `registerMaterial` shader (waves on its surface, a tint that deepens with the angle), the light on the floor the procedural texture `caustics` from `registerTexture`. In the editor, the Entity panel shows the tank's rows and the water's material row; make it code turns any node into a node type of your own."
+tags: [plugin, material, texture]
+target:
+  image: target.jpg
+  print:
+    surface: right
+    x: 120
+    y: 20
+    width: 80
+  entity:
+    type: group
+    name: Aquarium
+    children:
+      - type: aquarium
+        name: Tank
+        params:
+          rotation: [90, 0, 0]
+          fish: 5
+        material:
+          type: water
+          params:
+            opacity: 0.45
+      - type: text
+        text: "{{entry.title}}"
+        color: "#0b4f6c"
+        params:
+          position: [0, -0.31, 0.01]
+          scale: 0.6

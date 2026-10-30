@@ -271,7 +271,7 @@ describe("the content tools", () => {
     expect(book.data.components.plugins.tint).toMatchObject({ plugin: "tint", params: { opacity: { min: 0, max: 1 } } });
     expect(book.data.entity.pluginNodeTypes.recorded.sparkle).toMatchObject({ plugin: "tint", params: { count: { max: 500 } } });
     expect(book.data.entity.pluginNodeTypes.known).toEqual(["sparkle", "beam"]);
-    expect(book.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [] }]);
+    expect(book.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [], materials: [], textures: [] }]);
   });
 
   it("add_spread: a double page after a spread, a cover; the link opens the new spread", async () => {

@@ -18,6 +18,7 @@ import {
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, type EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
+import { materialProblems } from "../types/materials";
 import { type PassCheckOptions, passProblems } from "../types/passes";
 import { environmentProblems } from "../types/environment";
 import { pluginProblems, recordedRegistrations } from "../types/plugins";
@@ -156,6 +157,11 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     }
     if (e.components !== undefined) {
       componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: allowUnknown ? "allow" : "refuse", specs: recorded.components })
+        .forEach(problem => problems.push(problem));
+    }
+    // A plugin's material (schema 2.17): checked against the registry or the declared plugins' recorded specs, like a component
+    if (e.material !== undefined) {
+      materialProblems(e.material, `${path}.material`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: allowUnknown ? "allow" : "refuse", specs: recorded.materials })
         .forEach(problem => problems.push(problem));
     }
   };

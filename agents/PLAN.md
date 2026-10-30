@@ -1133,7 +1133,10 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        configuration (#90, schema 2.14: `plugins[].registered` – the guard, the API, the MCP server and the Entity panel
        know a plugin's components, node types and passes without running it), [x] the MCP tools for spreads, the book's
        passes and the environment (#174: `add_spread`, `put_spread`, `delete_spread`, `put_book_passes`,
-       `put_environment`).
+       `put_environment`), [x] plugins everywhere (#188, plugin API 1.4, schema 2.17: `registerMaterial` – a node's
+       `material` –, `registerTexture` and the parameter kind `texture`, recorded and checked like node types; the Entity
+       panel's material row and **make it code**; the demo's aquarium), [x] the demo's zero plane (#189: every model
+       on its page, the content build warns when one floats or sinks).
 5. [~] Spread **formats** (Tilman 2026-10-29: "Format als assignable ins Modell … default Spread, special Front und
        Back, Bonus Museumswand") and the geometry import (#60): [x] the import from the designed PDFs (`npm run
        layout`, 1.10.0); [x] `format` on a spread (schema 2.3): `spread`, `cover`, `back` – the covers as spreads of

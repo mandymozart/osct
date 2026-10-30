@@ -91,7 +91,7 @@ describe("plugins in the configuration", () => {
         "plugins[0].registered.nodeTypes: expected an object of type → spec",
         "plugins[0].registered.passes: scan: description must be a string",
       ]);
-      expect(pluginProblems([{ ...recorded, registered: "all" }])).toEqual(["plugins[0].registered: expected { components?, nodeTypes?, passes? }"]);
+      expect(pluginProblems([{ ...recorded, registered: "all" }])).toEqual(["plugins[0].registered: expected { components?, nodeTypes?, passes?, materials?, textures? }"]);
     });
   });
 
@@ -111,7 +111,7 @@ describe("plugins in the configuration", () => {
       "tint: description must be a string",
       "tint.Bad: a parameter name is camelCase letters and digits",
       "tint.Bad: description must be a string",
-      "tint.Bad: kind must be color, number, choice, boolean or string",
+      "tint.Bad: kind must be color, number, choice, boolean, string or texture",
       "tint.c: a choice needs options (strings) and a default among them",
     ]);
   });

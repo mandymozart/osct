@@ -211,13 +211,13 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     const source = `export const register = (api) => {\n  api.registerLayer("glow", { description: "Glows.", nodeTypes: ["video"], params: {} }, { glsl: "return rgba;" });\n};\n`;
     const saved = await call("put_plugin", { book: "osct", plugin: "glow", source });
     expect(saved.ok).toBe(true);
-    expect(saved.data.registers).toEqual({ components: [], layers: ["glow"], nodeTypes: [], passes: [] });
+    expect(saved.data.registers).toEqual({ components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [] });
     expect(saved.data.plugin.updatedBy).toBe("editor@example.test");
     const read = await call("get_plugin", { book: "osct", plugin: "glow" });
     expect(read.data.plugin.source).toBe(source);
     const model = await call("describe_content_model", { book: "osct" });
     expect(model.data.components.declaredPlugins[0].id).toBe("tint");
-    expect(model.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: [], passes: [] }]);
+    expect(model.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [] }]);
     expect((await call("list_plugins", { book: "osct" })).data.plugins).toHaveLength(1);
   });
 

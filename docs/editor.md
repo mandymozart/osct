@@ -374,10 +374,15 @@ is involved.
     right after the selected node – the default for a model, video or image) or *inside it* (its last child); a video
     whose size the Library knows starts scaled so a portrait file stays within one target width – the plane itself
     always takes the file's proportions),
-    **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
+    **make it code** (#188 – Unreal's *Create Blueprint from component*: a Code tab plugin whose `registerNodeType`
+    reproduces the node, its type's builder as the starting point and its values as parameters, saved, run, and the node
+    switched to it – [plugins](plugins.md) "An aquarium, step by step"), **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
     text and colour, a light node's **light** rows (kind as a segmented group, colour, intensity, distance and decay
     for a point or spot, cone angle and soft edge for a spot), a plugin node type's parameters (*node type · sparkle*, from its
-    spec), and every filter parameter of the node as rows of one control height – each labelled in words (#173): its
+    spec), for a node with meshes its **material** (#188: *its own*, or a material the book's plugins register – then
+    *material · water* with its rows and *remove*; **make code** beside it turns the node's own look into a
+    `registerMaterial` in the Code tab), a `texture` parameter as a list of *none*, the plugins' procedural textures and
+    the Library's pictures and videos, and every filter parameter of the node as rows of one control height – each labelled in words (#173): its
     spec's `label` (*plays on*, *key color*), else its name split into words (`degreesPerSecond` → *degrees per second*);
     the Info view names it with the content's name too (*speed · degreesPerSecond*): position, rotation and scale with X, Y, Z side
     by side as in Blender (the chain icon at the end of the scale row links the axes: pressed = one `scale` field, as

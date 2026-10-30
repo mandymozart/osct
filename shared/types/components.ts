@@ -20,9 +20,12 @@
 import type { NodeType } from "./game-config";
 
 /**
- * A parameter of a spec (a component's, a material layer's, a pass's, a light's, a plugin node type's): its kind with
- * default and range, a `description` (the editor's help) and an optional `label` (schema 2.15, plugin API 1.3) – the
- * few words the editor's row shows. Without a label the row shows the name split into words (`paramLabel`).
+ * A parameter of a spec (a component's, a material layer's, a pass's, a light's, a plugin node type's, a material's, a
+ * procedural texture's): its kind with default and range, a `description` (the editor's help) and an optional `label`
+ * (schema 2.15, plugin API 1.3) – the few words the editor's row shows. Without a label the row shows the name split
+ * into words (`paramLabel`). A `texture` (schema 2.17, plugin API 1.4) takes a picture: a file (a Library image or
+ * video, a file of the content) or a procedural texture a plugin registers (`registerTexture`) – its value is a
+ * `TextureValue` (below); the engine hands the plugin's code a three.js texture.
  */
 export type ComponentParamSpec = ParamText & (
   | { kind: "color"; default: string }
@@ -30,7 +33,45 @@ export type ComponentParamSpec = ParamText & (
   | { kind: "choice"; options: readonly string[]; default: string }
   | { kind: "boolean"; default: boolean }
   | { kind: "string"; default: string }
+  | { kind: "texture"; default: string }
 );
+
+/**
+ * A texture parameter's value (schema 2.17): `""` = none; a procedural texture's type (`caustics` – camelCase, what a
+ * plugin registers with `registerTexture`, with its defaults); `{ type, …parameters }` = a procedural texture with other
+ * values; any other string = a file (a Library file's URL or a `/assets/content/…` path – in the content's YAML a file
+ * next to the node, which the content build resolves to its path).
+ */
+export type TextureValue = string | { type: string; [param: string]: unknown };
+
+/** A procedural texture's type: camelCase letters and digits (a file always has a dot or a slash) */
+export const TEXTURE_TYPE_PATTERN = /^[a-z][a-zA-Z0-9]{0,39}$/;
+
+const TEXTURE_VALUE_EXPECTED = "expected a texture: a file, a procedural texture's type or { type, …parameters }";
+
+export const isTextureValue = (value: unknown): value is TextureValue =>
+  typeof value === "string" ||
+  (typeof value === "object" && value !== null && !Array.isArray(value) && typeof (value as { type?: unknown }).type === "string"
+    && TEXTURE_TYPE_PATTERN.test((value as { type: string }).type));
+
+/** What a texture value names: nothing, a file, or a procedural texture (its type and parameters) */
+export type TextureSource =
+  | { kind: "none" }
+  | { kind: "file"; src: string }
+  | { kind: "procedural"; type: string; params: Record<string, unknown> };
+
+export const textureSource = (value: unknown): TextureSource => {
+  if (typeof value === "string") {
+    if (!value.trim()) return { kind: "none" };
+    if (TEXTURE_TYPE_PATTERN.test(value)) return { kind: "procedural", type: value, params: {} };
+    return { kind: "file", src: value };
+  }
+  if (typeof value === "object" && value !== null && isTextureValue(value)) {
+    const { type, ...params } = value as { type: string; [param: string]: unknown };
+    return { kind: "procedural", type, params };
+  }
+  return { kind: "none" };
+};
 
 /** What every parameter says about itself, whatever its kind */
 export interface ParamText {
@@ -136,6 +177,8 @@ export const paramProblems = (specs: Record<string, ComponentParamSpec>, params:
       problems.push(`${at}.${name}: expected true or false, got ${JSON.stringify(value)}`);
     } else if (param.kind === "string" && typeof value !== "string") {
       problems.push(`${at}.${name}: expected a string, got ${JSON.stringify(value)}`);
+    } else if (param.kind === "texture" && !isTextureValue(value)) {
+      problems.push(`${at}.${name}: ${TEXTURE_VALUE_EXPECTED}, got ${JSON.stringify(value)}`);
     }
   }
   return problems;
@@ -188,7 +231,8 @@ export const paramSpecProblems = (type: string, params: Record<string, unknown>)
         break;
       case "boolean": if (typeof p.default !== "boolean") problems.push(`${at}: default must be true or false`); break;
       case "string": if (typeof p.default !== "string") problems.push(`${at}: default must be a string`); break;
-      default: problems.push(`${at}: kind must be color, number, choice, boolean or string`);
+      case "texture": if (typeof p.default !== "string") problems.push(`${at}: a texture's default is a string (empty = none, or a procedural texture's type)`); break;
+      default: problems.push(`${at}: kind must be color, number, choice, boolean, string or texture`);
     }
   }
   return problems;
@@ -252,6 +296,7 @@ export const paramProblem = (param: ComponentParamSpec, value: unknown): string 
   }
   if (param.kind === "boolean" && typeof value !== "boolean") return `expected true or false, got ${JSON.stringify(value)}`;
   if (param.kind === "string" && typeof value !== "string") return `expected a string, got ${JSON.stringify(value)}`;
+  if (param.kind === "texture" && !isTextureValue(value)) return `${TEXTURE_VALUE_EXPECTED}, got ${JSON.stringify(value)}`;
   return null;
 };
 

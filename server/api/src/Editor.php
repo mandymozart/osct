@@ -17,6 +17,8 @@ final class Editor
     public const COMPONENT_TYPES = ['animation'];
     /** A plugin's node type (shared/types/node-types.ts `NODE_TYPE_PATTERN`): camelCase letters and digits, at most 32 (entities.type) */
     public const PLUGIN_NODE_TYPE = '[a-z][a-zA-Z0-9]{0,31}';
+    /** A plugin's material type (shared/types/materials.ts `MATERIAL_TYPE_PATTERN`): camelCase letters and digits, at most 40 */
+    public const MATERIAL_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
     /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
@@ -59,9 +61,11 @@ final class Editor
      * typo); `true` = any named like a plugin's (camelCase), because a plugin of the book is unknown until it runs (a
      * declared one without recorded specs, a Code tab source – the editor's stage and the content build run the code,
      * the publish refuses one without compiled plugins); `false` = none (the book has no plugins).
+     * `$pluginMaterials` – the material types (schema 2.17) the same way: a list = the recorded ones, `true` = any camelCase name.
      * @param bool|list<string> $pluginTypes
+     * @param bool|list<string> $pluginMaterials
      */
-    public static function entity(mixed $value, string $path = 'entity', int $depth = 0, bool|array $pluginTypes = false): stdClass
+    public static function entity(mixed $value, string $path = 'entity', int $depth = 0, bool|array $pluginTypes = false, bool|array $pluginMaterials = true): stdClass
     {
         if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path must be an object.");
         $type = $value->type ?? null;
@@ -94,10 +98,23 @@ final class Editor
             if ($value->type !== 'light') throw new ApiError(400, 'invalid-entity', "$path.light: only a light node has a light.");
             if (!$value->light instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path.light must be an object.");
         }
+        // A plugin's material (schema 2.17): its type and values – which types exist the publish checks (409 unknown-materials)
+        if (property_exists($value, 'material')) {
+            $material = $value->material;
+            if (!$material instanceof stdClass || !is_string($material->type ?? null) || !preg_match('/^' . self::MATERIAL_TYPE . '$/', $material->type)) {
+                throw new ApiError(400, 'invalid-entity', "$path.material must be { type, params? } with a material type (camelCase letters and digits).");
+            }
+            if (property_exists($material, 'params') && !$material->params instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path.material.params must be an object.");
+            if ($pluginTypes === false) throw new ApiError(400, 'invalid-entity', "$path.material: a material is a plugin's – the book has no plugins.");
+            if (is_array($pluginMaterials) && !in_array($material->type, $pluginMaterials, true)) {
+                $known = $pluginMaterials === [] ? ' – the book\'s plugins register none.' : ' (' . implode(', ', $pluginMaterials) . ').';
+                throw new ApiError(400, 'invalid-entity', "$path.material.type must be a material a plugin of the book registers$known");
+            }
+        }
         if (property_exists($value, 'children')) {
             if (!is_array($value->children)) throw new ApiError(400, 'invalid-entity', "$path.children must be an array.");
             if ($depth >= self::MAX_NODE_DEPTH) throw new ApiError(400, 'invalid-entity', "$path.children: nodes nest deeper than " . self::MAX_NODE_DEPTH . ' levels.');
-            foreach ($value->children as $i => $child) self::entity($child, "$path.children[$i]", $depth + 1, $pluginTypes);
+            foreach ($value->children as $i => $child) self::entity($child, "$path.children[$i]", $depth + 1, $pluginTypes, $pluginMaterials);
         }
         return $value;
     }
@@ -124,9 +141,32 @@ final class Editor
      */
     public static function nodeTypesOf(array $declared, bool $hasSources): bool|array
     {
+        return self::typesOf($declared, $hasSources, 'nodeTypes');
+    }
+
+    /**
+     * The material types a save in this book accepts (schema 2.17, `Editor::entity`'s `$pluginMaterials`), as `pluginNodeTypes`
+     * @return bool|list<string>
+     */
+    public static function pluginMaterials(string $bookId): bool|array
+    {
+        $json = Db::value('SELECT plugins_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $declared = self::decode(is_string($json) ? $json : null);
+        return self::typesOf(is_array($declared) ? $declared : [], Plugins::hasSources($bookId), 'materials');
+    }
+
+    /**
+     * The types of a kind (`nodeTypes`, `materials`) the declared plugins and Code tab sources may register: the recorded
+     * ones when every declared plugin recorded what it registers and there are no sources; `true` when a plugin is unknown
+     * until it runs; `false` without plugins
+     * @param array<mixed> $declared
+     * @return bool|list<string>
+     */
+    public static function typesOf(array $declared, bool $hasSources, string $kind): bool|array
+    {
         if ($hasSources) return true;
         if ($declared === []) return false;
-        return self::recorded($declared)['nodeTypes'] ?? true;
+        return self::recorded($declared)[$kind] ?? true;
     }
 
     /**
@@ -134,11 +174,11 @@ final class Editor
      * shared/types/plugins.ts `recordedRegistrations`) – null when one of them recorded nothing (an older build: what it
      * registers is known only when it runs). No plugins: nothing registered.
      * @param array<mixed> $declared
-     * @return array{components: list<string>, nodeTypes: list<string>, passes: list<string>}|null
+     * @return array{components: list<string>, nodeTypes: list<string>, passes: list<string>, materials: list<string>, textures: list<string>}|null
      */
     public static function recorded(array $declared): ?array
     {
-        $recorded = ['components' => [], 'nodeTypes' => [], 'passes' => []];
+        $recorded = ['components' => [], 'nodeTypes' => [], 'passes' => [], 'materials' => [], 'textures' => []];
         foreach ($declared as $plugin) {
             $registered = $plugin instanceof stdClass ? ($plugin->registered ?? null) : null;
             if (!$registered instanceof stdClass) return null;
