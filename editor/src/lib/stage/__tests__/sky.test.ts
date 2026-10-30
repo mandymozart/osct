@@ -36,17 +36,26 @@ describe("sky: when the world is drawn", () => {
 });
 
 describe("sky: which sky and which light", () => {
-  it("the world: no HDRI, the scene's own lights as in the reader", () => {
-    for (const shading of SHADING_MODES) expect(stageLook({ shading, hdri: "wooden_studio_17", world: true })).toEqual({ sky: "world", light: "scene", hdri: null });
+  it("the world: the scene's own lights as in the reader – the HDRI only behind it, in its camera window, while rendered", () => {
+    expect(stageLook({ shading: "rendered", hdri: "wooden_studio_17", world: true })).toEqual({ sky: "world", light: "scene", hdri: "wooden_studio_17", behindWorld: true });
+    for (const shading of ["wireframe", "solid", "textured"] as const) {
+      expect(stageLook({ shading, hdri: "wooden_studio_17", world: true })).toEqual({ sky: "world", light: "scene", hdri: null, behindWorld: false });
+    }
+  });
+
+  it("the world never takes the HDRI's light, in any shading", () => {
+    for (const shading of SHADING_MODES) expect(stageLook({ shading, hdri: "ferndale_studio_04", world: true }).light).toBe("scene");
   });
 
   it("without a world the HDRI shows and lights while rendered, as before", () => {
-    expect(stageLook({ shading: "rendered", hdri: "ferndale_studio_04", world: false })).toEqual({ sky: "hdri", light: "hdri", hdri: "ferndale_studio_04" });
+    expect(stageLook({ shading: "rendered", hdri: "ferndale_studio_04", world: false })).toEqual({ sky: "hdri", light: "hdri", hdri: "ferndale_studio_04", behindWorld: false });
   });
 
   it("other shadings: no sky, the scene's lights", () => {
-    for (const shading of ["wireframe", "solid", "textured"] as const) expect(stageLook({ shading, hdri: "wooden_studio_17", world: false })).toEqual({ sky: "none", light: "scene", hdri: null });
-    expect(stageLook({ shading: "rendered", hdri: null, world: false })).toEqual({ sky: "none", light: "scene", hdri: null });
+    for (const shading of ["wireframe", "solid", "textured"] as const) {
+      expect(stageLook({ shading, hdri: "wooden_studio_17", world: false })).toEqual({ sky: "none", light: "scene", hdri: null, behindWorld: false });
+    }
+    expect(stageLook({ shading: "rendered", hdri: null, world: false })).toEqual({ sky: "none", light: "scene", hdri: null, behindWorld: false });
   });
 });
 

@@ -7,8 +7,11 @@
  *   every shading (the tab's preview, as before). Without one: the HDRI while rendered, as before.
  * - **The light** follows the reader: the reader lights the AR content with the engine's own lights (ambient and sun,
  *   `engine/src/scene/view.ts`) and the content's light nodes – its look-around world is a full-screen pass under the
- *   scene and lights nothing. So while the world is the sky, the HDRI neither shows nor lights: the scene's own lights
+ *   scene and lights nothing. So while the world is the sky, the HDRI does not light: the scene's own lights
  *   at full strength, as in the reader. Without a world the HDRI lights the stage while rendered (the studio's light).
+ * - **The camera window.** The world leaves a window around the book (and the open roof) where the reader shows its
+ *   camera picture; on the stage the HDRI fills it while rendered, drawn behind the world – a stand-in for the camera
+ *   picture, as the desk is, not a light. The reader is unchanged (camera picture there, no HDRI).
  */
 
 import type { EnvironmentData } from "@shared/types/environment";
@@ -23,8 +26,13 @@ export type StageLight = "hdri" | "scene";
 export interface StageLook {
   sky: StageSky;
   light: StageLight;
-  /** The HDRI to load – null when it neither shows nor lights */
+  /** The HDRI to load – null when it neither shows (as sky or behind the world) nor lights */
   hdri: HdriId | null;
+  /**
+   * The HDRI fills the world's window behind it – the stage's stand-in for the reader's camera picture there (the
+   * world's pass leaves it transparent) – as a background only, no light
+   */
+  behindWorld: boolean;
 }
 
 /**
@@ -41,11 +49,16 @@ export const bookEnvironment = (saved: EnvironmentData | undefined, edited: Envi
 export const showsWorld = (input: { environment: boolean; previewing: boolean; shading: ShadingMode }): boolean =>
   input.environment && (input.previewing || input.shading === "rendered");
 
-/** Which sky and which light, from the shading, the chosen HDRI and whether the world is drawn */
+/**
+ * Which sky and which light, from the shading, the chosen HDRI and whether the world is drawn. While rendered, the
+ * world's window – where the reader shows the camera picture (around the book, the open roof) – shows the HDRI as a
+ * stand-in for the camera picture (`behindWorld`): a background behind the world, never its light.
+ */
 export const stageLook = (input: { shading: ShadingMode; hdri: HdriId | null; world: boolean }): StageLook => {
-  if (input.world) return { sky: "world", light: "scene", hdri: null };
-  if (input.shading === "rendered" && input.hdri) return { sky: "hdri", light: "hdri", hdri: input.hdri };
-  return { sky: "none", light: "scene", hdri: null };
+  const rendered = input.shading === "rendered" && !!input.hdri;
+  if (input.world) return rendered ? { sky: "world", light: "scene", hdri: input.hdri, behindWorld: true } : { sky: "world", light: "scene", hdri: null, behindWorld: false };
+  if (rendered) return { sky: "hdri", light: "hdri", hdri: input.hdri, behindWorld: false };
+  return { sky: "none", light: "scene", hdri: null, behindWorld: false };
 };
 
 /** A reference's file name (the URL's last part), for a world or sky file without a Library name */

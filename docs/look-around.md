@@ -19,7 +19,9 @@ book without an `environment` keeps today's look. Not yet in the content: per-sp
 editor edits it on the stage, in the workspace's Environment tab ([editor](editor.md)), which previews this very pass.
 **On the editor's stage the environment replaces the HDRI sky box** (#185): once the book has one, the stage shows this
 pass as its sky while rendered, in every tab, and lights the content as the reader does – the engine's ambient and sun,
-no HDRI (the pass lights nothing in the reader either). A book without one shows the studio HDRI on the stage.
+no HDRI light (the pass lights nothing in the reader either). The window the pass leaves for the camera picture shows
+the studio HDRI there, behind the world, as the camera picture's stand-in. A book without one shows the studio HDRI on
+the stage as sky and light.
 
 ## How it works
 

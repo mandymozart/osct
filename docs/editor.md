@@ -445,9 +445,12 @@ is involved.
     **The environment replaces the HDRI sky box** (#185, Tilman: *"Environment replaces the HDRI sky box."*): once the
     book has an environment – the draft's, or edits that start one – the stage shows its world as the sky in every tab
     while the shading is rendered (the same pass, *look up* stays the tab's), so the author sees the world the reader
-    will see, not a studio behind it. The HDRI then neither shows nor lights: the reader lights the AR content with the
+    will see, not a studio behind it. The HDRI then no longer lights: the reader lights the AR content with the
     engine's own ambient and sun (and the content's light nodes) – its world is a pass under the scene and lights
-    nothing –, so the stage does too. A book without one keeps the HDRI. The decision is one pure function,
+    nothing –, so the stage does too. Where the reader shows its camera picture – the window around the book, the open
+    roof – the world's pass leaves the frame transparent; the stage fills it with the HDRI, drawn behind the world
+    (destination-alpha blending, `behindWorld` in `mock-stage.ts`) as a background only – the camera picture's stand-in,
+    like the desk. A book without one keeps the HDRI as sky and light. The decision is one pure function,
     `editor/src/lib/stage/sky.ts` (`bookEnvironment`, `showsWorld`, `stageLook` – which sky, which light); the Stage
     panel's *sky* row then names the environment's (*the environment's (world café)*), the HDRI picker stays below it
     for books without one, and the closed *stage* head adds *· the environment's sky*.
