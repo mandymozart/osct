@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Fixed
+- **The Eiermann desk's frame no longer disappears, on a phone above all** (#184): the steel tubes were a dark mirror
+  that showed only what they reflected – before the dark parts of the studio, and in *textured* shading (no studio
+  light at all), whole tubes went as dark as the room behind them, and the one strut that caught a bright reflection
+  stood out alone like a stray bar. The frame is now satin graphite powder-coated steel, which the scene's lights show
+  from every side; the model's shape is unchanged. A new test checks both desk models: their meshes, that every face
+  points outward, no duplicate or overlapping faces, and a frame material that does not depend on reflections.
+
 ## 1.38.0 – 2026-10-30
 
 ### Changed
