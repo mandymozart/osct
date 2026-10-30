@@ -38,7 +38,6 @@
   .head { display: inline-flex; align-items: center; gap: .25rem; flex: 1; min-width: 0; height: var(--control-height); margin-left: -.25rem; padding: 0 .25rem;
     border: none; border-radius: var(--control-radius); background: none; color: var(--muted); cursor: pointer; text-align: left; }
   .head > :global(svg) { flex: none; }
-  /* A narrow panel: a long head (a summary) ends in an ellipsis instead of wrapping */
   .head .section-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   @media (hover: hover) {
     .head:hover { color: var(--text); }

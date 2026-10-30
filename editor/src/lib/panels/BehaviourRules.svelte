@@ -157,10 +157,8 @@
   .end { margin-left: auto; }
   .row.top { align-items: start; }
   .row.top > .label { line-height: var(--control-height); }
-  /* A condition's or an action's fields wrap among themselves; its cross stays at the end of the first line */
   .line { flex-wrap: nowrap; align-items: flex-start; }
   .args { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: .25rem; }
-  /* The fields share the row and grow into it; what does not fit goes to the next line (a phone) */
   .field { padding: 0 .375rem; }
   .verb { flex: none; width: 3.75rem; }
   .name { flex: 1 1 4rem; min-width: 3rem; }

@@ -801,7 +801,6 @@
 <style>
   .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
   .head .small { overflow-wrap: anywhere; }
-  /* The breadcrumb: the crumbs as quiet buttons, the selected level marked as in the tree; ▾ picks another target */
   .crumbs { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0 .125rem; }
   .crumb { max-width: 10rem; height: var(--control-height); padding: 0 .375rem; border: none; border-radius: var(--control-radius); background: none; color: var(--muted);
     cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -810,7 +809,7 @@
   }
   .crumb.current { display: inline-flex; align-items: center; background: var(--selected-background); color: var(--pressed-color); cursor: default; }
   .crumb-sep { color: var(--muted); }
-  /* Only the select's arrow shows (its options name the targets) */
+  /* Only the select's arrow shows; its options name the targets */
   .crumb-switch { width: 1.25rem; height: var(--control-height); padding: 0; border: none; border-radius: var(--control-radius); color: transparent; cursor: pointer; appearance: none;
     background: linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(50% - 2px) 55% / 4px 4px no-repeat,
       linear-gradient(135deg, var(--muted) 50%, transparent 50%) calc(50% + 2px) 55% / 4px 4px no-repeat; }
@@ -818,9 +817,7 @@
     .crumb-switch:hover { background-color: var(--hover-background); }
   }
   .crumb-switch option { color: var(--text); background: var(--surface); }
-  /* A finger: ▾ as wide as the touch height (#171) */
   @media (pointer: coarse) { .crumb-switch { width: var(--control-height); } }
-  /* A narrow panel (#159): the source goes below the breadcrumb */
   @container panel (max-width: 20rem) {
     .head { flex-wrap: wrap; gap: 0 .5rem; }
   }
@@ -833,8 +830,7 @@
   .axes { display: flex; align-items: center; gap: .25rem; min-width: 0; }
   .axes .fields { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .link-slot { flex: none; width: var(--control-height); }
-  /* A narrow panel (a tablet in portrait with the tree open – #172): the label goes above the X / Y / Z fields, so
-     each field still shows "-180°" with its reset arrow */
+  /* Narrow: the label goes above the X / Y / Z fields, so each still shows "-180°" and its reset */
   @container panel (max-width: 23rem) {
     .row.axis { grid-template-columns: minmax(0, 1fr); gap: .125rem; padding-bottom: .125rem; }
   }

@@ -3,7 +3,7 @@
   import { API_URL, ApiError, createApiToken, getHealth, listApiTokens, renewApiToken, revokeApiToken, type ApiToken } from "#lib/api.js";
   import Segmented from "#lib/components/Segmented.svelte";
   import {
-    ago, apiUrlFor, CLIENT_INFO, CLIENTS, commandLine, day, expiresSoon, FILE_PLACEHOLDER, SERVER_FILE, serverFileFrom, serverNameFor,
+    ago, apiUrlFor, CLIENT_INFO, CLIENTS, commandLine, day, expiresSoon, FILE_PLACEHOLDER, SERVER_FILE, SERVER_NAME_PLACEHOLDER, serverFileFrom, serverNameFor,
     snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, type McpClient, type McpSetup,
   } from "#lib/mcp-setup.js";
 
@@ -25,7 +25,7 @@
   let client = $state<McpClient>("claude-code");
   /** Which copy button just copied (its label says so for a moment) */
   let copied = $state<string | null>(null);
-  /** This instance's environment from GET /health (null until known, or from an older API) */
+  /** This instance's environment from GET /health (null until known) */
   let env = $state<string | null>(null);
 
   const FILE_KEY = "osct-editor-mcp-file";
@@ -48,8 +48,7 @@
   };
 
   const apiUrl = typeof location === "undefined" ? API_URL : apiUrlFor(API_URL, location.origin);
-  const host = typeof location === "undefined" ? "" : location.host;
-  const setup = $derived<McpSetup>({ name: serverNameFor(env, host), api: apiUrl, token: fresh?.token ?? null, file: serverFileFrom(fileInput) });
+  const setup = $derived<McpSetup>({ name: env ? serverNameFor(env) : SERVER_NAME_PLACEHOLDER, api: apiUrl, token: fresh?.token ?? null, file: serverFileFrom(fileInput) });
   const snippet = $derived(snippetFor(client, setup));
   const generic = $derived([
     { key: "name", label: "name", value: setup.name, help: "The name the client lists the server under – one per instance, so several sit side by side." },
@@ -69,7 +68,7 @@
   };
   onMount(() => {
     void load();
-    getHealth().then(h => (env = h.env ?? null), () => (env = null));
+    getHealth().then(h => (env = h.env), () => (env = null));
   });
 
   const run = async (action: () => Promise<void>) => {
@@ -225,7 +224,6 @@
 </section>
 
 <style>
-  /* Two columns where there is room, one on a phone; the section sits under the books */
   .ai { display: grid; gap: 1.5rem 2.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); align-items: start;
     margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
   h2 { font-size: .875rem; font-weight: 600; margin: 0 0 .75rem; }

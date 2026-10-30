@@ -38,17 +38,17 @@ export function apiUrlFor(apiUrl: string, origin: string): string {
   return new URL(apiUrl, `${origin.replace(/\/+$/, "")}/`).href.replace(/\/+$/, "");
 }
 
-const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32).replace(/-+$/, "");
-
 /**
  * The name a client lists this instance's server under: `osct-<env>` after the environment `GET /health` names
- * (`osct-local`, `osct-staging`, `osct-production`), so the servers of several instances sit side by side and none
- * takes the name `osct` of the repository's own `.mcp.json` (the local dev API) – in Claude Code a project's server
- * hides a user server of the same name. Without an environment (an older API) the host names it.
+ * (`osct-local`, `osct-staging`, `osct-production` – the API's environment-name rule makes it a valid name), so the
+ * servers of several instances sit side by side and none takes the name `osct` of the repository's own `.mcp.json`
+ * (the local dev API) – in Claude Code a project's server hides a user server of the same name.
  */
-export function serverNameFor(env: string | null | undefined, host = ""): string {
-  return `osct-${slug(env ?? "") || slug(host.replace(/:\d+$/, "")) || "local"}`;
+export function serverNameFor(env: string): string {
+  return `osct-${env}`;
 }
+/** Shown in every snippet until `GET /health` has named the environment */
+export const SERVER_NAME_PLACEHOLDER = "osct-…";
 
 /**
  * The server file from what the person typed: surrounding quotes go (a copied Windows path has them); a folder – the

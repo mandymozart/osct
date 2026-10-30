@@ -158,7 +158,6 @@
   .tool-group { flex: none; display: inline-flex; align-items: center; }
   .group-button { position: relative; }
   .group-button::after { content: ""; position: absolute; right: 2px; bottom: 2px; border: 2.5px solid transparent; border-right-color: var(--muted); border-bottom-color: var(--muted); }
-  /* Snapping on: a dot in the top corner */
   .group-button.snapping::before { content: ""; position: absolute; right: 3px; top: 3px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
   .group-button.open { background: var(--pressed-background); color: var(--pressed-color); }
   .backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }

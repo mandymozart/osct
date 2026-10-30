@@ -77,7 +77,6 @@
 </div>
 
 <style>
-  /* Two halves under the top bar, each scrolling on its own; stacked on a narrow screen */
   .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(20rem, 1fr); height: calc(100dvh - var(--top-height)); }
   .shelf { overflow-y: auto; padding: 2rem clamp(1rem, 4vw, 3.5rem) 3rem; }
   .side { display: flex; flex-direction: column; min-height: 0; background: var(--surface-head); border-left: 1px solid var(--line); }
@@ -94,7 +93,6 @@
   .empty { font-size: .875rem; max-width: 32rem; }
   .empty a { white-space: nowrap; }
   .covers { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: 2.25rem 1.75rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
-  /* A phone shows two covers a row, not one cover as wide as the screen (#170) */
   @media (max-width: 47.9rem) { .covers { gap: 1.5rem 1rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); } }
   .book { display: grid; gap: .1875rem; text-decoration: none; }
   .cover-box { display: block; aspect-ratio: 230 / 320; margin-bottom: .5rem; border-radius: 2px; overflow: hidden; background: var(--surface-head);

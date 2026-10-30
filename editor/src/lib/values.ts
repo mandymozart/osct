@@ -277,12 +277,14 @@ export const setValue = (entity: EntityData, row: ValueRow, value: RowValue): En
   return { ...entity, params };
 };
 
-/** Parse a typed number: a comma works as the decimal point (German keyboards) */
+/**
+ * The editor's one parser for a typed number (every `ScrubNumber`, a behaviour rule's value): an optional sign, digits
+ * and one decimal point – a comma or a dot, so `1,5` is 1.5 on a German keyboard. No exponent (`1e3` is not a number:
+ * a number field refuses it, a rule's value keeps it as text) and no thousands separators. Null for anything else.
+ */
 export const parseNumber = (text: string): number | null => {
   const trimmed = text.trim().replace(",", ".");
-  if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(trimmed)) return null;
-  const value = Number(trimmed);
-  return Number.isFinite(value) ? value : null;
+  return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(trimmed) ? Number(trimmed) : null;
 };
 
 export const addFilter = (entity: EntityData, type: FilterType): EntityData =>

@@ -258,9 +258,7 @@ is involved.
   names; the files used elsewhere are listed as kept. *Remove spread 4–5* sends the confirmation (with the option),
   *Keep* or Esc keeps it – no browser dialog. Should the book have changed meanwhile, the card shows the fresh impact to
   confirm again. A double page's later pages are numbered back by its pages, a cover moves nothing; the spread the book
-  opens on (`initialSpreadId`) cannot go – the reason is shown under the disabled item. Should the API know only the
-  covers (an older server), the page says *New spreads come in with an import for now* instead of offering double
-  pages. **+ cover** / **+ back
+  opens on (`initialSpreadId`) cannot go – the reason is shown under the disabled item. **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
   the last) when the book has none; **Publish** to the instance's own environment, named with its backend
   (`staging · CDN`, `local · this server` – [above](#publish-the-instances-own-environment)), through a step in the page,
@@ -308,12 +306,15 @@ is involved.
     text, group or light, with its file or line), the **entry category** (where the reader's consultation menu lists
     it – it follows what appears, a video makes a Videos entry, until set by hand; #165), and where it is printed
     (surface, x / y, width in mm) – the API makes entry and target, the stage shows it at once (and the reader tracks it after
-    a publish: the engine makes the image-target data from the image at runtime); the target row's right-click
-    menu has **Remove target** – the entry with its target, its entity and (only with the option) the Library files used
-    only there go, after the same confirmation as a spread's, shown in the panel. **Delete** (or Backspace)
-    removes the selected node – its children with it, the root leaves the target without AR content – and a
-    **right click** on a node row opens the menu with *Move up / down*, *Into the node above*, *Out of its parent*
-    and *Remove node* / *Remove entity*. Removing is live on the stage;
+    a publish: the engine makes the image-target data from the image at runtime). **A row's menu** (#212) – a **right
+    click**, a **long press** (the row lightens while the finger is held), or the **menu key / Shift+F10** on the tree
+    for its selected row – is the editor's one context menu (`ContextMenu.svelte`, the keys as on the book page's
+    cards), each item with its icon: on a target row **Remove target** – the entry with its target, its entity and
+    (only with the option) the Library files used only there go, after the same confirmation as a spread's, shown in
+    the panel; on a node row *Move up / down*, *Into the node above*, *Out of its parent* and *Remove node* / *Remove
+    entity*, each with its key at the right (not with a finger; a move that cannot be made is disabled with its reason). **Delete** (or
+    Backspace) removes the selected node – its children with it, the root leaves the target without AR content.
+    Removing is live on the stage;
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device; until it is toggled there, it starts collapsed in a
     window under 64rem – a tablet in portrait gives the panel its 25rem and the stage the rest, #172). With a finger
@@ -415,7 +416,7 @@ is involved.
     there – the mode's pick, else the printed image under the pointer: on a target *Add node… / Add AR content…*,
     *Remove node / entity*, *Placement on the page…*, *Library…*, *Remove target*; on the page or the table
     *+ target…* and *Stage settings…* (the editor's one context menu, `ContextMenu.svelte` – the keys as on the book
-    page's cards). While a target's placement is edited (the Entity panel's rows) **the target
+    page's cards; while it is open no key reaches the stage's shortcuts). While a target's placement is edited (the Entity panel's rows) **the target
     itself lies at the edited place** – its printed image, its outline and its AR content move together, so it never
     shows twice (#191) – with **handles**: drag the image to move it (across the spine it changes the page), drag the
     small square at its bottom right corner to set the printed width – the fields follow, Save placement writes them;
@@ -588,7 +589,8 @@ type, muted text at least 4.5:1 against its background, one focus ring for every
 field marks its focus by its border); rows with a label
 column, labelled in words (a spec's `label`, else the name split into words – #173); numbers as `ScrubNumber` (the whole field is the gesture: press and slide – **up or right raises, down or left
 lowers** the value, the two directions add up (the quadrant rule, Tilman 2026-10-29; Scutoons' fields should follow) –
-Shift ×10, Alt ×0.1, tap to type,
+Shift ×10, Alt ×0.1, tap to type – a comma or a dot as the decimal point (`1,5` is 1.5), no exponent (`1e3` is
+refused) and no thousands separators; a behaviour rule's value is read the same way (`parseNumber` in `values.ts`) –,
 ↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders, no native colour picker: the colour popover
 in the top layer); small enums as segmented pressed pills;
 on / off per item as a pressed chip; a **disabled** control looks it at a glance – dimmed, a not-allowed cursor, a
@@ -615,7 +617,7 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
   other MCP client – works in this editor as you, saves drafts, never publishes), then **Any MCP client (stdio)**: a
   field for *the path to `mcp/bin/osct-mcp.mjs` in your osct checkout* (typed once, kept in this browser under
   `osct-editor-mcp-file`; a folder gets the file appended, quotes of a copied path go) and four rows with **Copy** – the
-  **name** `osct-<env>` after the environment `GET /health` names (`osct-staging` on staging), the **command**
+  **name** `osct-<env>` after the environment `GET /health` names (`osct-staging` on staging; `osct-…` until it answers), the **command**
   `node <file>`, **OSCT_API_URL** (the editor's `/api` as an absolute URL) and **OSCT_EDITOR_TOKEN**. Under it the same
   as each client's snippet, segmented pills **Claude Code** (`claude mcp add …`) / **Claude Desktop**
   (`claude_desktop_config.json`) / **Codex CLI** (`~/.codex/config.toml`) / **OpenCode** (`opencode.json`) / **Cursor**

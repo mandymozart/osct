@@ -262,16 +262,14 @@
 </div>
 
 <style>
-  /* The library answers its own width (#159): the panel is narrow on a phone and when dragged small on a desktop (#144) */
   .library { position: relative; display: flex; flex-direction: column; gap: .125rem; min-height: 100%; container: library / inline-size; }
   .library.dragging { outline: 1px dashed var(--text); outline-offset: -2px; }
-  /* The drop hint lies over the panel and takes no pointer: a hint under the cursor would end the drag */
+  /* No pointer on the drop hint: a hint under the cursor would end the drag */
   .drop { position: absolute; inset: .25rem; z-index: 1; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center;
     pointer-events: none; background: var(--surface); opacity: .92; border-radius: var(--control-radius); }
   .controls .grow { flex: 1; min-width: 6rem; }
   .grid { list-style: none; margin: .375rem 0 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
   .card { display: flex; flex-direction: column; gap: .2rem; padding: .375rem; border: 1px solid var(--line); border-radius: var(--control-radius); min-width: 0; }
-  /* Picking: a fitting card is one click; the chosen file is framed, what does not fit fades */
   .card.picking:not(.unfit) { cursor: pointer; }
   @media (hover: hover) {
     .card.picking:not(.unfit):hover { background: var(--hover-background); }
@@ -300,12 +298,9 @@
   .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; margin-top: .125rem; }
   .actions .pill { padding: 0 .5rem; height: 1.5rem; border-color: var(--line); }
-  /* A finger: the actions at the touch control height (#171) */
   @media (pointer: coarse) { .actions .pill { height: var(--control-height); } }
   .text-link.danger { color: var(--danger); }
   .list .unit { display: none; }
-  /* Narrow: the table becomes stacked rows – name and kind on one line, place, size and uses on the next; a tap opens
-     the actions below (#159) */
   @container library (max-width: 26rem) {
     .list, .list tbody { display: block; }
     .list thead { display: none; }
@@ -322,7 +317,6 @@
     .list td.uses { grid-area: uses; font-size: var(--text-small); }
     .list .unit { display: inline; }
   }
-  /* The controls' search field and Upload share a line down to the narrowest panel */
   @container library (max-width: 20rem) {
     .controls .grow { min-width: 0; flex-basis: 5rem; }
   }

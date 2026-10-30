@@ -2,6 +2,7 @@ import {
   BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_TYPE, type BehaviourAction, type BehaviourRule, type BehaviourTest, type BehaviourValue, type BehaviourVerb,
   behaviourData, behaviourEvents, behaviourRules, behaviourVariables, componentProblems, type ComponentData, type EntityData,
 } from "@engine/types";
+import { parseNumber } from "#lib/values.js";
 
 /**
  * The Entity panel's rule editor of a `behaviour` component (content schema 2.19, `shared/types/behaviour.ts`) – the
@@ -56,15 +57,14 @@ export const withAction = (rule: BehaviourRule, index: number, action: Behaviour
 });
 
 /**
- * A value typed as text: `true` / `false` → a boolean, a number → a number, empty → null (a condition: not set; a set:
- * delete), anything else the text itself
+ * A value typed as text: `true` / `false` → a boolean, a number (`parseNumber`, as in every number field) → a number,
+ * empty → null (a condition: not set; a set: delete), anything else the text itself
  */
 export const parseValue = (text: string): BehaviourValue | null => {
   const trimmed = text.trim();
   if (!trimmed) return null;
   if (trimmed === "true" || trimmed === "false") return trimmed === "true";
-  if (/^[-+]?(\d+\.?\d*|\.\d+)$/.test(trimmed)) return Number(trimmed);
-  return text;
+  return parseNumber(trimmed) ?? text;
 };
 
 /** A value as its text field shows it (null = empty) */

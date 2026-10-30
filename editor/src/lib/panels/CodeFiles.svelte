@@ -227,7 +227,6 @@
   .actions .pill { padding: 0 .5rem; height: 1.5rem; border-color: var(--line); }
   @media (pointer: coarse) { .actions .pill { height: var(--control-height); } }
   .text-link.danger { color: var(--danger); }
-  /* Narrow: name and kind on one line, size and uses on the next (as the media list) */
   @container library (max-width: 26rem) {
     .list, .list tbody { display: block; }
     .list thead { display: none; }

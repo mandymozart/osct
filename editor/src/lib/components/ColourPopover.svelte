@@ -116,7 +116,6 @@
   .section { display: flex; flex-direction: column; gap: .25rem; }
   .section .section-label { font-size: var(--text-small); }
   .swatches { display: flex; flex-wrap: wrap; gap: .25rem; }
-  /* a swatch: a control-height square, a line frame, the colour inside; the current one framed in the text colour */
   .swatch { width: var(--control-height); height: var(--control-height); margin: 0; padding: 2px; border: 1px solid var(--line); border-radius: var(--control-radius);
     background: linear-gradient(var(--c), var(--c)) content-box, var(--surface); cursor: pointer; }
   .swatch[aria-pressed="true"] { border-color: var(--text); border-width: 2px; padding: 1px; }

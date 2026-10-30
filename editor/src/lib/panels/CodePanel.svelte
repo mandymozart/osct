@@ -250,7 +250,7 @@
 
 <style>
   .controls .grow { flex: 1; min-width: 6rem; }
-  /* The editor takes the panel's remaining height; Monaco fills it and follows its size */
+  /* Monaco fills this box and follows its size: it needs a definite height */
   .editor { position: relative; flex: 1 1 0; min-height: 10rem; margin-top: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); overflow: hidden; }
   .editor.has-error { border-color: var(--danger); }
   .monaco { position: absolute; inset: 0; }

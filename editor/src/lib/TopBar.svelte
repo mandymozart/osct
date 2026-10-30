@@ -70,8 +70,7 @@
   .crumb[aria-current="page"] { font-weight: 600; }
   .sep { flex: none; color: var(--muted); }
   .crumb.spread { flex: none; }
-  /* A finger: a crumb link is a touch target of the full control height – on a phone the book's crumb is the way
-     back to the spreads (the sheet's head has no × there, #171) */
+  /* On a phone the book's crumb is the way back to the spreads: a full-height touch target */
   @media (pointer: coarse) { a.crumb { line-height: var(--control-height); } }
   @media (max-width: 47.9rem) {
     .top { gap: .375rem; padding: 0 .5rem; }

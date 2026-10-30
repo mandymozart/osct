@@ -4,7 +4,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { addSpread, ApiError, deleteSpread, getBook, type BookTree } from "#lib/api.js";
-  import { followBlockedBy, isAddRefused, removeBlockedBy } from "#lib/spread-edit.js";
+  import { followBlockedBy, removeBlockedBy } from "#lib/spread-edit.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
@@ -29,8 +29,6 @@
 
   const hasFormat = (format: string) => !!tree?.spreads.some(s => s.format === format);
   let adding = $state(false);
-  /** The API takes no double page (an older server): new spreads come only with an import, the page says so */
-  let addRefused = $state(false);
   /** One change to the spreads, then the tree again (the pages may have been numbered anew) */
   const change = async (work: () => Promise<unknown>) => {
     adding = true;
@@ -39,8 +37,7 @@
       await work();
       tree = await getBook(bookId);
     } catch (e) {
-      if (isAddRefused(e)) addRefused = true;
-      else error = e instanceof ApiError ? e.message : String(e);
+      error = e instanceof ApiError ? e.message : String(e);
     } finally {
       adding = false;
     }
@@ -62,7 +59,7 @@
     const busy = adding ? "A change to the spreads is under way." : null;
     return [
       { label: "Open", icon: "open", help: "Opens the spread's stage.", select: () => openCard(spread) },
-      { label: "Add a double page after", icon: "plus", disabled: busy ?? followBlockedBy(spread, addRefused), select: () => void addDoublePage(spread.id),
+      { label: "Add a double page after", icon: "plus", disabled: busy ?? followBlockedBy(spread), select: () => void addDoublePage(spread.id),
         help: "A double page right after this spread. The pages after it are numbered on by two, their entries move with them." },
       { label: "Remove", icon: "trash", danger: true, disabled: busy ?? removeBlockedBy(spread, tree?.book.initialSpreadId), select: () => void askRemove(spread),
         help: "Removes this spread with its entries, targets and the entities used only there – it shows what goes and asks first; the pages after a double page are numbered back. Library files are kept unless you choose to delete the ones used only here. The spread the book opens on stays." },
@@ -73,14 +70,12 @@
   let confirming = $state<{ id: string; step: RemovalStep } | null>(null);
   let removing = $state(false);
   let removeError = $state<string | null>(null);
-  /** The first step: the API answers what the removal takes and a confirmation id, and removes nothing */
+  /** The first step: the API answers 409 with what the removal takes and a confirmation id, and removes nothing */
   const askRemove = async (spread: Spread) => {
     error = null;
     removeError = null;
     try {
       await deleteSpread(bookId, spread.id);
-      // An API without the two steps removed it at once
-      tree = await getBook(bookId);
     } catch (e) {
       const step = removalStep(e);
       if (step) confirming = { id: spread.id, step };
@@ -132,9 +127,8 @@
   {#if error}<p class="danger">{error}</p>{/if}
   {#if tree}
     <p class="muted small">{tree.book.author} · {tree.spreads.length} spreads · assets at {tree.book.assetsBase || "the draft's origin"}
-      {#if addRefused}· <span>New spreads come in with an import for now.</span>
-      {:else}· <button type="button" class="text-link" disabled={adding} onclick={() => void addDoublePage()}
-        data-help="A double page after the last one (before the back cover). Its pages are numbered on from there.">+ double page</button>{/if}
+      · <button type="button" class="text-link" disabled={adding} onclick={() => void addDoublePage()}
+        data-help="A double page after the last one (before the back cover). Its pages are numbered on from there.">+ double page</button>
       {#if !hasFormat("cover")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("cover")}>+ cover</button>{/if}
       {#if !hasFormat("back")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("back")}>+ back cover</button>{/if}
     </p>
@@ -199,18 +193,15 @@
 
 <style>
   main { padding: 1rem 1.5rem; }
-  /* One column is one page. The columns follow the width (#159): the repeated track is a *pair* of pages, so the
-     count is always even and a double page never wraps (gridCells' layout holds for any even count); a page is at
-     least --page-min wide (but a pair never wider than the grid), the rest is shared out */
+  /* The repeated track is a pair of pages: the column count stays even, a double page never wraps */
   .spreads { --page-min: 9rem; list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0;
     grid-template-columns: repeat(auto-fill, minmax(min(var(--page-min), 50%), 1fr) minmax(min(var(--page-min), 50%), 1fr)); }
   @media (min-width: 96rem) { .spreads { --page-min: 10rem; } }
-  /* A held finger opens the card's menu: no text selection, no callout, no dragged link or picture */
+  /* A held finger opens the card's menu: no text selection, no callout, no dragged link */
   .spread { display: block; text-decoration: none; border-radius: var(--control-radius);
     -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
   .spread :global(img) { -webkit-user-drag: none; }
-  /* No column gap: half a gap on each side of a card, none on a single page's gutter side – so a single page is
-     exactly half a double page and every sheet has the same height (#115) */
+  /* Half a gap on each side, none on a single page's gutter: every sheet has the same height */
   .spreads > li { position: relative; padding: 0 .5rem; min-width: 0; }
   .pressing .frame, .menu-open .frame { border-color: var(--text); }
   .pressing .frame { transform: scale(.98); transition: transform .5s ease-out, border-color .15s; }
@@ -222,17 +213,14 @@
     .spread:hover .frame { border-color: var(--text); }
   }
   .frame { display: block; border: 1px solid var(--line); transition: border-color .15s, transform .15s; }
-  /* The caption wraps instead of cutting off (#159): the title takes up to two lines (the whole of it in its tooltip),
-     the format and the stats keep together and move to the next line when the card is narrow */
   .caption { display: flex; flex-wrap: wrap; align-items: center; gap: .125rem .5rem; padding: .25rem 0; }
   .text { flex: 1 1 6rem; min-width: 0; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
   .format { border: 1px solid var(--line); padding: 0 .25rem; font-size: .75em; text-transform: uppercase; white-space: nowrap; }
   .stats { margin-left: auto; display: inline-flex; gap: .5rem; white-space: nowrap; }
-  /* The page has no sidebar: the Info view sits at the bottom left, over the page */
   .info-dock { position: fixed; left: 0; bottom: 0; z-index: 2; width: var(--tree-width); border-right: 1px solid var(--line); }
-  /* The dock covers the bottom left: room below the last row so its caption can be scrolled clear of it */
+  /* Room below the last row: its caption scrolls clear of the Info dock */
   @media (min-width: 48rem) { main { padding-bottom: 13rem; } }
-  /* A phone has no pointer to describe controls for, and the dock would cover a third of the screen */
+  /* A phone has no pointer to describe controls for */
   @media (max-width: 47.9rem) { .info-dock { display: none; } main { padding: .75rem 1rem; } }
   .stats span { display: inline-flex; align-items: center; gap: .125rem; }
 </style>
