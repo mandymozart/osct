@@ -1,4 +1,4 @@
-import { MathUtils, type Object3D } from "three";
+import { MathUtils, type Object3D, Quaternion, Vector3 } from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import type { SceneInspection, Vector3Data } from "@engine/types";
 import { outline, SELECTION_COLOR, type Outline } from "./shading";
@@ -7,16 +7,16 @@ import { outline, SELECTION_COLOR, type Outline } from "./shading";
  * The transform gizmo of the editor's stage: three.js `TransformControls` on the selected node's object (the
  * placement group the engine builds per node), in the node's own space – a drag changes the node's position,
  * rotation or scale **relative to its parent**, exactly the values the Entity panel shows. Modes move / rotate /
- * scale (W / E / R, the toolbar); Ctrl snaps (0.05 target widths, 15°, 0.1). The hover is the stage's (it follows the
- * pick mode). The tracker ignores pointer gestures while an axis is hovered or dragged (`busy`), and a tap right after
- * a drag is no selection (`recentlyDragged`).
+ * scale (W / E / R, the toolbar). Snapping (the toolbar's *grid & snap*, Shift or Ctrl held turns it around) is the
+ * snapper's (`snap-scene.ts`): a move snaps to the grid, the axes, other objects and outlines, a rotation's angle to
+ * whole steps of degrees, a scale to whole steps. The hover is the stage's (it follows the pick mode). The tracker
+ * ignores pointer gestures while an axis is hovered or dragged (`busy`), and a tap right after a drag is no selection
+ * (`recentlyDragged`).
  */
 
 export type GizmoMode = "translate" | "rotate" | "scale";
 export const GIZMO_MODES: readonly GizmoMode[] = ["translate", "rotate", "scale"];
 export const GIZMO_KEYS: Record<string, GizmoMode> = { w: "translate", e: "rotate", r: "scale" };
-/** Snap steps while Ctrl is held: target widths, degrees, scale */
-export const SNAP = { translate: 0.05, rotate: 15, scale: 0.1 } as const;
 /** A click this soon after a drag ended is the drag's own click, not a tap */
 const DRAG_CLICK_MS = 300;
 
@@ -45,6 +45,31 @@ export interface GizmoSelection {
   path: number[];
 }
 
+/** What the gizmo asks while it snaps (`SceneSnapper`) */
+export interface GizmoSnapper {
+  active(): boolean;
+  angle(degrees: number): number;
+  scale(value: number): number;
+  beginMove(object: Object3D, axis: string | null): void;
+  move(object: Object3D): void;
+  end(): void;
+}
+
+/**
+ * A rotation dragged from `start` to `now` (the node's own space) with its angle snapped: the turn between them, about
+ * its own axis, by the snapped angle
+ */
+export const snappedRotation = (start: Quaternion, now: Quaternion, snapDegrees: (degrees: number) => number): Quaternion => {
+  const delta = start.clone().invert().multiply(now).normalize();
+  if (delta.w < 0) delta.set(-delta.x, -delta.y, -delta.z, -delta.w);
+  const half = Math.acos(Math.min(1, delta.w));
+  const sin = Math.sin(half);
+  if (sin < 1e-9) return start.clone();
+  const axis = new Vector3(delta.x / sin, delta.y / sin, delta.z / sin);
+  const angle = MathUtils.degToRad(snapDegrees(MathUtils.radToDeg(2 * half)));
+  return start.clone().multiply(new Quaternion().setFromAxisAngle(axis, angle)).normalize();
+};
+
 export class Gizmo {
   private controls: TransformControls;
   private helper: Object3D;
@@ -53,12 +78,15 @@ export class Gizmo {
   private attached: Object3D | null = null;
   private dragging = false;
   private dragEndedAt = 0;
+  /** The node's rotation when the drag started (a rotation snaps its angle from here) */
+  private startQuaternion = new Quaternion();
   private offFrame: () => void;
 
   constructor(
     private inspection: SceneInspection,
     /** A drag changed the selected node's placement */
     private onchange: (selection: GizmoSelection, placement: GizmoPlacement) => void,
+    private snapper: GizmoSnapper | null = null,
   ) {
     const { camera, domElement, scene } = inspection;
     this.controls = new TransformControls(camera, domElement);
@@ -69,10 +97,19 @@ export class Gizmo {
     scene.add(this.helper);
     this.controls.addEventListener("dragging-changed", event => {
       this.dragging = !!event.value;
-      if (!this.dragging) this.dragEndedAt = performance.now();
+      if (this.dragging && this.attached) {
+        this.startQuaternion.copy(this.attached.quaternion);
+        if (this.mode === "translate") this.snapper?.beginMove(this.attached, this.controls.axis);
+      }
+      if (!this.dragging) {
+        this.dragEndedAt = performance.now();
+        this.snapper?.end();
+      }
     });
     this.controls.addEventListener("objectChange", () => {
-      if (this.selection && this.attached) this.onchange(this.selection, placementOf(this.attached));
+      if (!this.selection || !this.attached) return;
+      this.snapDrag(this.attached);
+      this.onchange(this.selection, placementOf(this.attached));
     });
     // A rebuilt node (the scene built the spread again) is attached and outlined again
     this.offFrame = inspection.onFrame(() => {
@@ -88,11 +125,17 @@ export class Gizmo {
     this.controls.setMode(mode);
   }
 
-  /** Ctrl held: snap */
-  snap(on: boolean): void {
-    this.controls.setTranslationSnap(on ? SNAP.translate : null);
-    this.controls.setRotationSnap(on ? MathUtils.degToRad(SNAP.rotate) : null);
-    this.controls.setScaleSnap(on ? SNAP.scale : null);
+  /** The drag moved the node: snapped by the mode while snapping is on (a move asks the snapper even then: it clears its guides) */
+  private snapDrag(object: Object3D): void {
+    const snapper = this.snapper;
+    if (!snapper) return;
+    if (this.mode === "translate") return snapper.move(object);
+    if (!snapper.active()) return;
+    if (this.mode === "rotate") {
+      object.quaternion.copy(snappedRotation(this.startQuaternion, object.quaternion, degrees => snapper.angle(degrees)));
+    } else {
+      object.scale.set(snapper.scale(object.scale.x), snapper.scale(object.scale.y), snapper.scale(object.scale.z));
+    }
   }
 
   /** An axis is hovered or dragged: the gesture belongs to the gizmo, not to the stage's orbit */

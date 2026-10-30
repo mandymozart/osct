@@ -9,6 +9,7 @@
   import { updatePreview, type ShadingMode } from "#lib/stage/preview.js";
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
   import ToolGroup, { type ToolGroupOption } from "#lib/components/ToolGroup.svelte";
+  import GridSnapMenu from "#lib/components/GridSnapMenu.svelte";
   import { expandedGroups, type GroupShape } from "#lib/tool-groups.js";
   import StagePanel from "#lib/panels/StagePanel.svelte";
   import EntityPanel from "#lib/panels/EntityPanel.svelte";
@@ -381,13 +382,14 @@
     stage?.selectTarget(level === "target" ? id : null);
   });
   // ── the stage toolbar (#180): three groups – transform, pick, shading – each one button with its active option's
-  // icon and a menu, or its options side by side where the toolbar has room ──
+  // icon and a menu, or its options side by side where the toolbar has room; then grid & snap (#190), always one
+  // button and its menu ──
   const GIZMO_NAMES: Record<GizmoMode, string> = { translate: "Move", rotate: "Rotate", scale: "Scale" };
   const GIZMO_ICONS: Record<GizmoMode, IconName> = { translate: "move", rotate: "rotate", scale: "scale" };
   /** W / E / R, from the gizmo's own keys */
   const gizmoKey = (mode: GizmoMode) => Object.entries(GIZMO_KEYS).find(([, m]) => m === mode)?.[0].toUpperCase();
   const TRANSFORM_OPTIONS: ToolGroupOption[] = GIZMO_MODES.map(mode => ({
-    value: mode, name: GIZMO_NAMES[mode], key: gizmoKey(mode), icon: GIZMO_ICONS[mode], label: `${GIZMO_NAMES[mode]} (${gizmoKey(mode)}) – Ctrl snaps`,
+    value: mode, name: GIZMO_NAMES[mode], key: gizmoKey(mode), icon: GIZMO_ICONS[mode], label: `${GIZMO_NAMES[mode]} (${gizmoKey(mode)}) – Shift or Ctrl turns snapping around`,
   }));
   const PICK_OPTIONS: ToolGroupOption[] = [
     { value: "entity", name: "Entities", icon: "package", label: "Select entities – a click picks the entity (its root)" },
@@ -400,8 +402,8 @@
     { value: "textured", name: "Textured", icon: "shade-textured", label: "Textured – the content's materials, no sky" },
     { value: "rendered", name: "Rendered", icon: "shade-rendered", label: "Rendered – the HDRI's sky and light" },
   ] satisfies (ToolGroupOption & { value: ShadingMode })[];
-  /** The groups' shapes in the toolbar's order (the shading spheres sit shoulder to shoulder) */
-  const TOOL_SHAPES: GroupShape[] = [{ options: TRANSFORM_OPTIONS.length }, { options: PICK_OPTIONS.length }, { options: SHADING_OPTIONS.length, tight: true }];
+  /** The groups' shapes in the toolbar's order (the shading spheres sit shoulder to shoulder; grid & snap is one button) */
+  const TOOL_SHAPES: GroupShape[] = [{ options: TRANSFORM_OPTIONS.length }, { options: PICK_OPTIONS.length }, { options: SHADING_OPTIONS.length, tight: true }, { options: 1 }];
 
   // ── the stage's menu (right click): what lies there decides the actions ──
   let stageMenu = $state<{ hit: StagePick | null; x: number; y: number } | null>(null);
@@ -448,7 +450,7 @@
   let stageWidth = $state(0);
   let stageHeight = $state(0);
   let stepsUp = $state(false);
-  let expanded = $state<boolean[]>([false, false, false]);
+  let expanded = $state<boolean[]>([false, false, false, false]);
   /** Slack (px) against rounding: a toolbar that only just fits would wrap on a subpixel */
   const ROOM_SLACK = 4;
   $effect(() => {
@@ -472,8 +474,10 @@
     const next = content.neighbour(spreadId, direction);
     if (next) void goto(resolve(`${bookId}/${next.id}/`), { replace: true });
   };
+  /** Shift or Ctrl held turns snapping around while dragging (#190) */
+  const snapKey = (event: KeyboardEvent) => stage?.setSnapModifier(event.shiftKey || event.ctrlKey);
   const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Control") stage?.setSnap(true);
+    if (event.key === "Shift" || event.key === "Control") snapKey(event);
     if ((event.target as HTMLElement).closest("input, textarea, select")) return;
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);
@@ -483,7 +487,7 @@
     if ((event.key === "Delete" || event.key === "Backspace") && removeSelectedNode()) event.preventDefault();
   };
   const onKeyUp = (event: KeyboardEvent) => {
-    if (event.key === "Control") stage?.setSnap(false);
+    if (event.key === "Shift" || event.key === "Control") snapKey(event);
   };
 
   // ── Pick a colour from the stage (the colour field's eyedropper): an overlay over the stage shows the colour under
@@ -510,7 +514,7 @@
   };
 </script>
 
-<svelte:window bind:innerWidth={viewport} bind:innerHeight={screenHeight} onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnap(false)} />
+<svelte:window bind:innerWidth={viewport} bind:innerHeight={screenHeight} onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnapModifier(false)} />
 
 {#snippet edge(column: Column, name: string)}
   <!-- A focusable separator is a control (a window splitter): it takes the pointer, a double-click and the arrow keys -->
@@ -542,8 +546,8 @@
   <div class="stage" class:steps-up={narrow && stepsUp} bind:this={container} bind:clientWidth={stageWidth} bind:clientHeight={stageHeight}
     data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
-      <!-- Three groups, each one button and its menu or – where the toolbar has room – its options side by side;
-           always one row (#180) -->
+      <!-- Three groups, each one button and its menu or – where the toolbar has room – its options side by side, and
+           grid & snap; always one row (#180, #190) -->
       <div class="tools" role="toolbar" data-app-ui aria-label="Stage tools" bind:this={tools}>
         <ToolGroup label="Transform" options={TRANSFORM_OPTIONS} value={stage.gizmoMode} expanded={expanded[0]}
           onchoose={mode => stage?.setGizmoMode(mode as GizmoMode)} />
@@ -551,6 +555,7 @@
           onchoose={mode => stage?.setPickMode(mode as PickMode)} />
         <ToolGroup label="Shading" options={SHADING_OPTIONS} value={stage.shading} expanded={expanded[2]} tight stroke={1.75}
           onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
+        <GridSnapMenu />
       </div>
       {#if narrow}
         <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171); on a short

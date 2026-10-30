@@ -104,6 +104,36 @@ const GHOST_HANDLE = 8;
 const SHARP_DISTANCE_MM = 500;
 const GRID_COLOR = 0x2d7ff9;
 const GRID_ZERO_COLOR = 0xe5484d;
+/** The vertical axis: the height's line through the origin, in the 3D tools' colour for the up axis, this tall (mm) */
+const GRID_AXIS_COLOR = 0x30a46c;
+const GRID_AXIS_MM = 150;
+/** A snap guide: the line a drag snapped to, across the spread and this far beyond it (mm) */
+const GUIDE_COLOR = 0xd23cf0;
+const GUIDE_OVERHANG_MM = 20;
+
+/** Frees and removes a group's lines (the grid, the guides) */
+const clearLines = (group: Group): void => {
+  group.children.forEach(child => {
+    if (child instanceof LineSegments) {
+      child.geometry.dispose();
+      (child.material as Material).dispose();
+    }
+  });
+  group.clear();
+};
+
+/**
+ * Adds line segments (pairs of points, stage metres) to a group, drawn over what lies under them without hiding it;
+ * `throughAll` draws them through everything (the guides, which an entity must not cover)
+ */
+const addLines = (group: Group, positions: number[], color: number, opacity: number, throughAll = false): void => {
+  if (!positions.length) return;
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  const lines = new LineSegments(geometry, new LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false, depthTest: !throughAll }));
+  if (throughAll) lines.renderOrder = 1;
+  group.add(lines);
+};
 
 /** The Eiermann top's plywood faces, repeated over the top */
 interface DeskTextures {
@@ -158,7 +188,9 @@ export class MockStage implements StageView {
   private format: StageBook["format"] = "spread";
   private ghostGroup = new Group();
   private gridGroup = new Group();
-  private grid = { on: false, mm: 10, origin: "top-left" as OriginId };
+  private grid = { on: false, mm: 10, origin: "top-left" as OriginId, axis: true };
+  /** The snap guides of the drag going on */
+  private guideGroup = new Group();
   /** The current sheet's page plane and its sharper image, fetched on demand (see `setDetail`) */
   private sheetPaper: Mesh<PlaneGeometry, MeshBasicMaterial> | null = null;
   private sharpSource: string | null = null;
@@ -204,7 +236,8 @@ export class MockStage implements StageView {
     this.table.position.z = -BLOCK_MIN - COVER_THICKNESS - 6 * LAYER;
     this.ghostGroup.name = "mock-ghost";
     this.gridGroup.name = "mock-grid";
-    this.group.add(this.table, this.book, this.pages, this.gridGroup, this.ghostGroup);
+    this.guideGroup.name = "mock-guides";
+    this.group.add(this.table, this.book, this.pages, this.gridGroup, this.guideGroup, this.ghostGroup);
     scene.add(this.group);
     this.showDesk();
   }
@@ -452,8 +485,14 @@ export class MockStage implements StageView {
     }, undefined, error => console.warn("[mock-stage] the sharper sheet image could not be loaded:", error));
   }
 
-  /** The grid over the page, counted from the chosen origin; off = none */
-  setGrid(grid: { on: boolean; mm: number; origin: OriginId }): void {
+  /** The stage's frame (metres, origin in the middle of the book, z out of the page) – snapping counts in it */
+  frame(): Object3D {
+    this.group.updateMatrixWorld(true);
+    return this.group;
+  }
+
+  /** The grid over the page, counted from the chosen origin, and its vertical axis; off = none */
+  setGrid(grid: { on: boolean; mm: number; origin: OriginId; axis: boolean }): void {
     this.grid = grid;
     this.drawGrid();
     this.toBackdropLayer();
@@ -461,16 +500,11 @@ export class MockStage implements StageView {
 
   /**
    * Lines every `mm` from the origin's zero (per page for a corner origin, over both pages for the book's centre),
-   * the zero lines in another colour; they lie just above the prints and below the entities
+   * the zero lines in another colour; they lie just above the prints and below the entities. The vertical axis rises
+   * from each zero, out of the page.
    */
   private drawGrid(): void {
-    this.gridGroup.children.forEach(child => {
-      if (child instanceof LineSegments) {
-        child.geometry.dispose();
-        (child.material as Material).dispose();
-      }
-    });
-    this.gridGroup.clear();
+    clearLines(this.gridGroup);
     if (!this.grid.on) return;
     const page = this.page;
     const spread = { page, format: this.format };
@@ -479,6 +513,7 @@ export class MockStage implements StageView {
     const top = page.height / 2;
     const lines: number[] = [];
     const zeros: number[] = [];
+    const verticals: number[] = [];
     // spread frame (mm, top left, y down) -> stage metres
     const point = (target: number[], x: number, y: number) => target.push((left + x) / 1000, (top - y) / 1000, -LAYER / 2);
     for (const area of gridAreas(this.grid.origin, spread)) {
@@ -492,15 +527,31 @@ export class MockStage implements StageView {
         point(target, area.left, y);
         point(target, area.left + area.width, y);
       }
+      if (this.grid.axis) {
+        const [x, y] = [(left + area.zeroX) / 1000, (top - area.zeroY) / 1000];
+        verticals.push(x, y, -LAYER / 2, x, y, GRID_AXIS_MM / 1000);
+      }
     }
-    const add = (positions: number[], color: number, opacity: number) => {
-      if (!positions.length) return;
-      const geometry = new BufferGeometry();
-      geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-      this.gridGroup.add(new LineSegments(geometry, new LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false })));
-    };
-    add(lines, GRID_COLOR, 0.45);
-    add(zeros, GRID_ZERO_COLOR, 0.9);
+    addLines(this.gridGroup, lines, GRID_COLOR, 0.45);
+    addLines(this.gridGroup, zeros, GRID_ZERO_COLOR, 0.9);
+    addLines(this.gridGroup, verticals, GRID_AXIS_COLOR, 0.9);
+  }
+
+  /**
+   * The snap guides: a line across the spread for each line a drag snapped to (x = a line up the page, y = one across
+   * it, in mm of the stage frame); an empty list clears them. They lie on the page and show through the entities.
+   */
+  setGuides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void {
+    clearLines(this.guideGroup);
+    const half = (this.format === "spread" ? this.page.width : this.page.width / 2) + GUIDE_OVERHANG_MM;
+    const high = this.page.height / 2 + GUIDE_OVERHANG_MM;
+    const positions: number[] = [];
+    for (const { axis, at } of guides) {
+      if (axis === 0) positions.push(at / 1000, -high / 1000, 0, at / 1000, high / 1000, 0);
+      if (axis === 1) positions.push(-half / 1000, at / 1000, 0, half / 1000, at / 1000, 0);
+    }
+    addLines(this.guideGroup, positions, GUIDE_COLOR, 1, true);
+    this.toBackdropLayer();
   }
 
   /**
@@ -690,6 +741,7 @@ export class MockStage implements StageView {
     this.clear(this.ghostGroup);
     this.grid = { ...this.grid, on: false };
     this.drawGrid();
+    clearLines(this.guideGroup);
     this.ghostTextures.forEach(texture => texture.dispose());
     this.ghostTextures.clear();
     this.clear(this.table);
