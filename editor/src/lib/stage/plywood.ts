@@ -43,7 +43,8 @@ const GLUE_HALF_WIDTH = 0.9;
 const WAVE = 0.6;
 const THICKNESS_JITTER = 0.12;
 
-const random = (seed: number) => {
+/** A seeded sequence of numbers in 0..1 (the drawn textures of the desks: `plywood.ts`, `oak.ts`, `linoleum.ts`) */
+export const random = (seed: number) => {
   let state = seed >>> 0 || 1;
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;
@@ -55,7 +56,7 @@ const random = (seed: number) => {
 };
 
 /** Noise in -1..1 along a line of `count`, smoothed over `radius` neighbours and wrapping (so it tiles) */
-const smoothNoise = (count: number, radius: number, next: () => number): Float32Array => {
+export const smoothNoise = (count: number, radius: number, next: () => number): Float32Array => {
   const raw = Float32Array.from({ length: count }, () => next() * 2 - 1);
   const out = new Float32Array(count);
   let peak = 0;
@@ -138,8 +139,13 @@ export function plywoodEdge(options: PlywoodOptions = {}): PlywoodEdge {
 /** The plies as a texture for the edges' material: sRGB, repeating both ways, mipmapped */
 export function plywoodEdgeTexture(options: PlywoodOptions = {}): DataTexture {
   const edge = plywoodEdge(options);
-  const texture = new DataTexture(edge.data, edge.width, edge.height, RGBAFormat, UnsignedByteType);
-  texture.name = "plywood-edge";
+  return repeatingTexture("plywood-edge", edge.width, edge.height, edge.data);
+}
+
+/** Drawn RGBA pixels (sRGB, row 0 at v = 0) as a texture: repeating both ways, mipmapped */
+export function repeatingTexture(name: string, width: number, height: number, data: Uint8Array): DataTexture {
+  const texture = new DataTexture(data, width, height, RGBAFormat, UnsignedByteType);
+  texture.name = name;
   texture.colorSpace = SRGBColorSpace;
   texture.wrapS = texture.wrapT = RepeatWrapping;
   texture.magFilter = LinearFilter;
