@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  backToBooks, draftPasses, editInEffect, effectivePasses, ownPasses, passesSource, passesStatus, pendingSaves,
+  backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, pendingSaves, saveLabel, spreadsOnBooks,
 } from "../passes-edit";
 
 const BOOK = [{ type: "grade", reach: "all", exposure: 0.5 }, { type: "vignette" }];
@@ -11,8 +11,8 @@ describe("the book's passes and a spread's override", () => {
     const draft = draftPasses(BOOK, undefined);
     expect(passesSource(draft)).toBe("book");
     expect(effectivePasses(draft)).toEqual(BOOK);
-    expect(passesStatus(draft)).toBe("the book's");
-    expect(passesStatus(draftPasses(null, undefined))).toBe("none");
+    expect(passesHeading(draft)).toBe("post-processing · the whole book");
+    expect(passesHeading(draftPasses(null, undefined))).toBe("post-processing · the whole book · none");
   });
 
   it("starts from copies – the loaded content is never edited", () => {
@@ -26,8 +26,8 @@ describe("the book's passes and a spread's override", () => {
     expect(passesSource(own)).toBe("spread");
     expect(own.own).toEqual(BOOK);
     expect(own.own![0]).not.toBe(own.book[0]);
-    expect(passesStatus(own)).toBe("this spread's");
-    expect(passesStatus({ ...own, own: [] })).toBe("off");
+    expect(passesHeading(own)).toBe("post-processing · only this spread");
+    expect(passesHeading({ ...own, own: [] })).toBe("post-processing · only this spread · off");
   });
 
   it("editing changes the list in effect: the book's while the spread uses them, else the spread's own", () => {
@@ -57,5 +57,33 @@ describe("the book's passes and a spread's override", () => {
     expect(pendingSaves(backToBooks(withOwn), withOwn)).toEqual({ spread: null });
     // An empty list of its own is kept: post-processing off for this spread
     expect(pendingSaves(editInEffect(withOwn, () => []), withOwn)).toEqual({ spread: [] });
+  });
+});
+
+// The level at a glance (#181): what editing changes, and what Save saves
+describe("the level in words", () => {
+  const SPREADS = [{ id: "a" }, { id: "b", passes: [{ type: "bloom" }] }, { id: "c", passes: null }, { id: "d", passes: [] }];
+
+  it("counts the spreads that use the book's – an empty list of its own is an override too", () => {
+    expect(spreadsOnBooks(SPREADS, "a", null)).toBe(2);
+    expect(spreadsOnBooks([], "a", null)).toBe(0);
+  });
+
+  it("counts the spread on the stage as the panel holds it, saved or not", () => {
+    expect(spreadsOnBooks(SPREADS, "a", [])).toBe(1);
+    expect(spreadsOnBooks(SPREADS, "b", null)).toBe(3);
+  });
+
+  it("says what editing the list changes", () => {
+    const book = draftPasses(BOOK, undefined);
+    expect(levelLine(book, 4)).toBe("changes all 4 spreads that use the book's");
+    expect(levelLine(book, 1)).toBe("changes the 1 spread that uses the book's");
+    expect(levelLine(ownPasses(book), 4)).toBe("overrides the book's for this spread");
+  });
+
+  it("Save says what it saves", () => {
+    expect(saveLabel({ book: [] })).toBe("Save for the whole book");
+    expect(saveLabel({ spread: null })).toBe("Save for this spread");
+    expect(saveLabel({ book: null, spread: [] })).toBe("Save for the book and this spread");
   });
 });

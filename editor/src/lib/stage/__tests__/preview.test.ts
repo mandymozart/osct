@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clampGrid, getPreview, setPreviewActive, setTargetHidden, subscribePreview, updatePreview } from "../preview";
+import { clampGrid, getPreview, setPreviewActive, setTargetHidden, stageSummary, subscribePreview, updatePreview } from "../preview";
 
 describe("editor preview settings", () => {
   beforeEach(() => {
@@ -63,5 +63,13 @@ describe("editor preview settings", () => {
     vi.resetModules();
     const fresh = await import("../preview");
     expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, hdri: "wooden_studio_17", desk: "eiermann", orbit: null, active: false, grid: false, gridMm: 10, origin: "top-left" });
+  });
+});
+
+// The Stage panel's stage section closed (#193): its head names the desk and the grid
+describe("the stage section's summary", () => {
+  it("names the desk and the grid, off or with its spacing", () => {
+    expect(stageSummary({ desk: "eiermann", grid: false, gridMm: 10 })).toBe("Eiermann · grid off");
+    expect(stageSummary({ desk: "schoepfer", grid: true, gridMm: 25 })).toBe("Schöpfer · grid 25 mm");
   });
 });

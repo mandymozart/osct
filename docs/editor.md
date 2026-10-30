@@ -297,7 +297,12 @@ is involved.
   - **Stage panel** – collapsible sections, each with a header, the open state kept per section on the device
     (`editor/src/lib/sections.svelte.ts`, `components/Section.svelte`): *spread* (the format), *stage* (shake, grid,
     origin – a 3 × 3 alignment square –, desk, sky), *post-processing*
-    and *vars and events* (closed by default). Every row is the panel's label / control grid (`.row` in `app.css`).
+    and *vars and events*. On a first visit all four are closed (#193); a closed header carries a short summary where
+    it helps – *stage · Eiermann · grid off*, *post-processing · the whole book* –, so closed hides nothing that
+    matters. The first section of any panel draws no divider under the tab row (`.section:first-child` in `app.css`).
+    Every row is the panel's label / control grid (`.row` in `app.css`).
+  - **Environment panel** – two collapsible sections: *environment* (world, sky, onion sky – open on a first visit) and
+    *preview* (look up – closed, its header naming the angle).
   - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
     selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own
     space, so a drag changes the node's placement **relative to its parent** – the Entity panel's rows follow live,
@@ -307,12 +312,16 @@ is involved.
     hit test) – the reader never calls it.
   - **Post-processing** – the Stage panel's *post-processing* section (content schema 2.5, [content guide](content.md)
     "Post-processing"). **The book's passes are the master**: edited once, every spread without a list of its own
-    shows them. The row **uses** says which list is in effect for the spread on the stage (the section's header repeats
-    it: *the book's*, *this spread's*, *off*, *none*): *the book's* – the default; the list below is then the book's,
-    and editing it changes it for every such spread – or *own* – an override for this spread alone, starting as a copy
-    of the book's (removing every pass turns post-processing off there); choosing *the book's* again drops the
-    override. The list has a row per parameter from the contract's specs; **+ bloom / + vignette / + grade** adds one,
-    *remove* drops one, changes show live on the stage. **Save** writes what changed – the book's list
+    shows them. The section's header names the level in words (#181): **post-processing · the whole book** while the
+    spread on the stage uses the book's list (the default; editing it changes it for every such spread), **post-processing
+    · only this spread** while it has its own – an override for this spread alone, starting as a copy of the book's
+    (removing every pass turns post-processing off there: *· off*; a book without passes reads *· none*). The line under
+    the header says what editing changes – *changes all N spreads that use the book's* (N counted from the draft's
+    spreads without a list of their own, this one as the panel holds it) with **own for this spread**, or *overrides
+    the book's for this spread* with **back to the book's**, which drops the override. The list has a row per
+    parameter from the contract's specs; **+ bloom / + vignette / + grade** adds one, *remove* drops one, changes show
+    live on the stage. **Save** says what it saves – *Save for the whole book*, *Save for this spread* or *Save for the
+    book and this spread* – and writes what changed: the book's list
     (`PUT /editor/books/{id}/passes`, an empty one removes it) and / or the spread's (`PUT …/spreads/{id} { passes }`,
     `null` = back to the book's) –, *Back to the draft* undoes both (`editor/src/lib/passes-edit.ts`). The stage shows
     the passes under **rendered** only (like the HDRI's sky): the mock stage's table, book, printed images and sky lie

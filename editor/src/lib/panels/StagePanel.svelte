@@ -8,7 +8,7 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import Section from "#lib/components/Section.svelte";
   import {
-    DESKS, getPreview, HDRIS, isDeskId, isHdriId, subscribePreview, updatePreview, type PreviewState,
+    DESKS, getPreview, HDRIS, isDeskId, isHdriId, stageSummary, subscribePreview, updatePreview, type PreviewState,
   } from "#lib/stage/preview.js";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Icon from "#lib/components/Icon.svelte";
@@ -18,10 +18,11 @@
   import PassesPanel from "./PassesPanel.svelte";
 
   /**
-   * The stage's settings in collapsible sections (open state kept per section): the **spread** (its format), the
-   * **stage** (hand shake, the grid over the page, the origin every position is counted from, the desk and the sky),
-   * the **post-processing** (the book's passes, a spread's own as an override), and the **narrative** of the book's
-   * plugins – closed by default: a tap button per target (the reader's tap without aiming), the variables with scope
+   * The stage's settings in collapsible sections (open state kept per section, all closed on the first visit): the
+   * **spread** (its format), the **stage** (hand shake, the grid over the page, the origin every position is counted
+   * from, the desk and the sky – closed, its head names the desk and the grid), the **post-processing** (the book's
+   * passes, a spread's own as an override – its head names the level), and the **narrative** of the book's plugins:
+   * a tap button per target (the reader's tap without aiming), the variables with scope
    * and type, editable and deletable, a form to set one by hand (both written through the plugin API), *reset* for a
    * new game, and the stage's event timeline (time since the spread opened, event, payload) with *clear*. The camera
    * is moved on the stage itself; found / lost per target is the tree's eye, the first find is replayed from the
@@ -67,7 +68,7 @@
   };
 </script>
 
-<Section id="stage.spread" label="spread" help="The spread's own settings, saved to the draft.">
+<Section id="stage.spread" label="spread" open={false} help="The spread's own settings, saved to the draft.">
   <div class="row" data-help="What this spread is: a double page, the front cover or the back cover. Only a one-page spread can be a cover; the stage shows the closed book for one.">
     <span class="label">format</span>
     <span class="controls">
@@ -79,7 +80,7 @@
     </span></div>
 </Section>
 
-<Section id="stage.stage" label="stage" help="How the editor shows the spread – stored in this browser, not in the content.">
+<Section id="stage.stage" label="stage" open={false} summary={stageSummary(preview)} help="How the editor shows the spread – stored in this browser, not in the content.">
   <div class="row" data-help="Hand shake: 0 = still, 1 = a hand holding the phone. The stage wobbles like a reader's camera.">
     <span class="label">shake</span>
     <span class="controls"><span class="w"><ScrubNumber value={preview.wobble} min={0} max={1} step={0.05} fallback={0} strict label="Hand shake" oninput={wobble => updatePreview({ wobble })} /></span></span></div>

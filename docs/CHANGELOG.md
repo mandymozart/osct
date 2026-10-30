@@ -12,6 +12,25 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.45.0 – 2026-10-30
+
+### Changed
+- **Post-processing names its level** (#181): the section's head reads *post-processing · the whole book* or
+  *post-processing · only this spread* instead of a small muted label at the right. A line under it says what editing
+  changes – *changes all 5 spreads that use the book's* (counted) or *overrides the book's for this spread* – and ends
+  in the switch, *own for this spread* or *back to the book's* (it replaces the *uses* pill pair). Save says what it
+  saves: *Save for the whole book*, *Save for this spread*, or both. The book's list stays in the Stage tab.
+- **Sections start closed** (#193): on a first visit the Stage tab's *spread*, *stage*, *post-processing* and *vars and
+  events* are closed, the Environment tab's *preview* too (its *environment* stays open). A closed head shows what
+  matters – *stage · Eiermann · grid off*, *preview · look up 0°*, the post-processing level. Sections someone has
+  opened or closed in this browser keep their state.
+- The tutorial's post-processing section and its shots show the new wording; its paragraph on removing a spread
+  describes the card's menu and the confirmation with the impact.
+
+### Fixed
+- **No divider above the first section** (#193): the first section of a panel no longer draws a line right under the
+  tab row, in every tab, on a phone and a desktop.
+
 ## 1.44.0 – 2026-10-30
 
 ### Added

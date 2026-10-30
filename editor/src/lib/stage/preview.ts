@@ -39,6 +39,10 @@ export const DESKS = [
 export type DeskId = (typeof DESKS)[number]["id"];
 export const isDeskId = (value: unknown): value is DeskId => DESKS.some(d => d.id === value);
 
+/** The Stage panel's *stage* section closed, in a few words: the desk and the grid – "Eiermann · grid off", "Schöpfer · grid 10 mm" */
+export const stageSummary = (settings: Pick<PreviewSettings, "desk" | "grid" | "gridMm">): string =>
+  `${DESKS.find(d => d.id === settings.desk)?.name ?? settings.desk} · ${settings.grid ? `grid ${settings.gridMm} mm` : "grid off"}`;
+
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
 export interface PreviewOrbit {
   distance: number;
