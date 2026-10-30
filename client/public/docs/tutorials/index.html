@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>OSCT tutorials</title>
-  <meta name="description" content="How the book's content moves between the content folder, the CDN and the editor – and a walk through the demo book, with screenshots, that shows what the editor can do.">
+  <meta name="description" content="How the book's content moves between the content folder, the CDN and the editor, how a book is brought into the editor, a walk through the demo book, and the editor's tools – with screenshots.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <style>
@@ -53,6 +53,14 @@
     figure.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
     .with-phone { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.5rem; align-items: start; }
     .with-phone figure.shot { margin-top: 0; }
+    .with-phone.tablet { grid-template-columns: minmax(0, 1fr) 17rem; }
+    .phones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; max-width: 30rem; margin: 1.25rem 0 1.5rem; }
+    .phones figure.shot { margin: 0; }
+    dl.sources { margin: 0 0 1rem; }
+    dl.sources dt { font-weight: 500; margin-top: 1rem; }
+    dl.sources dd { margin: .25rem 0 0; max-width: 62ch; color: var(--inactive); }
+    ul { max-width: 62ch; padding-left: 1.25rem; }
+    ul li { margin: .25rem 0; }
     .places { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 1.5rem 0; }
     .place { min-width: 0; padding: .875rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
     .place b { display: block; font-weight: 500; margin-bottom: .25rem; }
@@ -74,6 +82,8 @@
       .places { grid-template-columns: 1fr; }
       .with-phone { grid-template-columns: 1fr; }
       .with-phone figure.shot { max-width: 16rem; }
+      .with-phone.tablet { grid-template-columns: 1fr; }
+      .with-phone.tablet figure.shot { max-width: 20rem; }
       h2.chapter { font-size: 1.25rem; }
       h1 { font-size: 1.5rem; }
     }
@@ -83,7 +93,7 @@
 <main>
   <p class="kicker">OSCT tutorials</p>
   <h1><span class="gold">The content and the editor</span></h1>
-  <p>Two chapters. The first explains where the book's content lives and how it moves. The second walks through the demo book and shows what the editor can do.</p>
+  <p>Four chapters. The first explains where the book's content lives and how it moves. The second brings an existing book into the editor and shows how to see what is on the CDN. The third walks through the demo book and shows what the editor can do. The fourth is a tour of the editor's tools, on a desktop, a phone and a tablet.</p>
 
   <nav class="toc" aria-label="Contents">
     <ol>
@@ -92,6 +102,15 @@
           <li><a href="#bringing-a-book">Bringing a book onto an instance</a></li>
           <li><a href="#things-to-know">Things to know</a></li>
           <li><a href="#where-things-are">Where things are</a></li>
+        </ol>
+      </li>
+      <li><a href="#bringing-in">Bringing a book in</a>
+        <ol>
+          <li><a href="#import-empty">An empty instance</a></li>
+          <li><a href="#import-sources">Three ways in: the CDN, a URL, a file</a></li>
+          <li><a href="#assets-base">The assets base</a></li>
+          <li><a href="#cdn-contents">What is on the CDN</a></li>
+          <li><a href="#missing-media">When the media is missing</a></li>
         </ol>
       </li>
       <li><a href="#demo">The demo book</a>
@@ -105,6 +124,19 @@
           <li><a href="#demo-environment">Environment and sky</a></li>
           <li><a href="#demo-shading">Shading</a></li>
           <li><a href="#demo-phone">On a phone</a></li>
+        </ol>
+      </li>
+      <li><a href="#tools">The editor's tools</a>
+        <ol>
+          <li><a href="#tools-selection">One selection: tree, stage and inspector</a></li>
+          <li><a href="#tools-hierarchy">Building a hierarchy</a></li>
+          <li><a href="#tools-library">The Library as the picker</a></li>
+          <li><a href="#tools-new-target">A new target</a></li>
+          <li><a href="#tools-spreads">Adding and removing spreads</a></li>
+          <li><a href="#tools-post">Post-processing: the book's and a spread's own</a></li>
+          <li><a href="#tools-labels">Words as labels</a></li>
+          <li><a href="#tools-phone">The editor on a phone</a></li>
+          <li><a href="#tools-tablet">The editor on a tablet</a></li>
         </ol>
       </li>
     </ol>
@@ -215,7 +247,7 @@ npm run osct -- content sync --env staging</code></pre>
     </li>
     <li>
       <h3>Import the book <span class="who">editor</span></h3>
-      <p>Open the editor, sign in, <b>Import a book…</b>, source <b>the CDN</b>, <b>Import</b>. The current version becomes the draft: its spreads, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the spread cards show their sheets.</p>
+      <p>Open the editor, sign in, <b>Import a book…</b>, source <b>the CDN</b>, <b>Import</b>. The current version becomes the draft: its spreads, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the spread cards show their sheets. The other ways in – a URL or a file – are in <a href="#bringing-in">Bringing a book in</a>.</p>
     </li>
     <li>
       <h3>Edit and save <span class="who">editor</span></h3>
@@ -247,8 +279,85 @@ npm run osct -- content sync --env staging</code></pre>
   </table>
   <p class="muted">The reference for every detail: the repository's <code>docs/content.md</code> (writing content, the layout import), <code>docs/content-cdn.md</code> (versions, the osct CLI), <code>docs/editor.md</code> (the editor).</p>
 
-  <h2 class="chapter" id="demo"><span class="gold">2 · The demo book</span></h2>
-  <p>The demo book is a sandbox, not the book. It uses every node type, every placement, a filter and every component the content model has. Six plugins use every part of the plugin API. And its spreads tell a small story: a key found on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.</p>
+  <h2 class="chapter" id="bringing-in"><span class="gold">2 · Bringing a book in</span></h2>
+  <p>A book gets into an instance's editor by an <b>import</b>. The import reads a <b>game configuration</b> – <code>game.config.json</code>, what the content build makes from the content folder – and turns it into the book's draft: spreads, entries, targets and AR nodes as rows in the database. One file is enough. The images, videos and models are not in it: they stay where they are, and the draft points at them.</p>
+
+  <h3 class="sec" id="import-empty">An empty instance</h3>
+  <p>A new instance has no book. The Books page says so, names the three ways in and links to this chapter. The form <b>Import a book</b> sits beside the list (under it on a phone).</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/import/01-empty.webp" width="1280" height="800" loading="lazy" alt="The editor's Books page with no book: the text No book yet, import one with Import a book – the CDN, a URL or a file, and the link How to bring a book in; on the right the Import a book form with the source the CDN selected and the Import button; the Info view names the CDN source.">
+    <figcaption>No book yet. On an instance the form starts on <b>the CDN</b>, and its fields are empty.</figcaption>
+  </figure>
+  <p>Since 1.26.7 the form fills in addresses only on a developer's machine: on <code>localhost</code> it suggests the reader's dev server (<code>http://localhost:5174/src/game.config.json</code>, assets at <code>http://localhost:5174</code>). On staging or production nothing is filled in, and <b>the CDN</b> is selected – the instance's own published content is the usual way in.</p>
+
+  <h3 class="sec" id="import-sources">Three ways in: the CDN, a URL, a file</h3>
+  <dl class="sources">
+    <dt>The CDN – the instance's published content</dt>
+    <dd>The server reads its own content address (<code>OSCT_CONTENT_BASE_URL</code>; on staging <code>https://buildingfictions.b-cdn.net/staging</code>): <code>latest.json</code> names the current version, and the server fetches that version's <code>game.config.json</code> and <code>files.json</code>. <b>Import</b> asks for a <b>book id</b>: type the configuration's <code>book.id</code> – <code>osct</code> for the book. The id names the book in this database, so an id that is already there replaces that book's draft. The assets base is set to the version's folder, and the version's files show in the Library.</dd>
+    <dt>URL – a game configuration, or a content folder</dt>
+    <dd>Either the address of a <code>game.config.json</code> – then fill in <b>assets at</b> yourself – or a <b>content base</b>: a folder with a <code>latest.json</code>, such as <code>https://buildingfictions.b-cdn.net/demo</code>. For a content base the form reads <code>latest.json</code>, takes <code>&lt;build&gt;/game.config.json</code> and fills in <b>assets at</b> with the version's folder. The browser fetches the file, so the address must allow it (the CDN does).</dd>
+    <dt>File – a game configuration from this computer</dt>
+    <dd>A <code>game.config.json</code> on disk – a local build (<code>client/src/game.config.json</code> after <code>npm run content</code>) or one saved from the CDN. The file has no address of its own, so <b>assets at</b> must name where its media are.</dd>
+  </dl>
+  <p>For a URL and a file the book id is the configuration's <code>book.id</code>. Every way in replaces the draft of a book with the same id – see <a href="#things-to-know">Things to know</a>.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/import/03-cdn.webp" width="1280" height="800" loading="lazy" alt="The Import a book form with the source the CDN: a line says the server fetches the current version of its content CDN, and the Import button; the Info view says the server fetches OSCT_CONTENT_BASE_URL and asks for the book's id.">
+    <figcaption><b>The CDN</b>: no fields. Point at a source and the Info view at the bottom says what it does.</figcaption>
+  </figure>
+  <figure class="shot">
+    <img src="/docs/tutorials/import/02-url.webp" width="1280" height="800" loading="lazy" alt="The Import a book form with the source URL: the URL https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd/game.config.json and assets at https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd; the Info view explains assets at.">
+    <figcaption><b>URL</b> with one version's <code>game.config.json</code> on staging, and <b>assets at</b> that version's folder.</figcaption>
+  </figure>
+  <figure class="shot">
+    <img src="/docs/tutorials/import/04-file.webp" width="1280" height="800" loading="lazy" alt="The Import a book form with the source file: a file chooser with no file chosen, and assets at https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd.">
+    <figcaption><b>File</b>: choose the <code>game.config.json</code>, and say where its media are.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="assets-base">The assets base</h3>
+  <p>Every file in a configuration is named by a path that starts with <code>/assets/content/</code>, for example <code>/assets/content/entries/key/key.glb</code>. The <b>assets base</b> – the form's <b>assets at</b> – is the address put in front of those paths:</p>
+  <table>
+    <tr><th>Assets base</th><th>The key's model is read from</th></tr>
+    <tr><td>a version on the CDN<br><code>https://buildingfictions.b-cdn.net/demo/7a5254b5a4f6</code></td><td><code>https://buildingfictions.b-cdn.net/demo/7a5254b5a4f6/assets/content/entries/key/key.glb</code></td></tr>
+    <tr><td>the reader's dev server<br><code>http://localhost:5174</code></td><td><code>http://localhost:5174/assets/content/entries/key/key.glb</code></td></tr>
+  </table>
+  <p>Nothing is copied. The draft and every publish point at that address, so the media must stay reachable there. A version folder on the CDN never changes and is kept while it is current or recent (<code>osct content purge</code> removes only versions provably out of use), which makes it a safe assets base. The book page names it in its first line: <em>6 spreads · assets at …</em>. Files uploaded in the editor are different: they live in the Library and are named by their own full address.</p>
+
+  <h3 class="sec" id="cdn-contents">What is on the CDN</h3>
+  <p>Each environment has its own folder on the CDN – <code>staging</code>, <code>production</code>, <code>demo</code> – and every content version is a folder of its own inside it. Everything under <code>https://buildingfictions.b-cdn.net/</code> can be opened in a browser:</p>
+  <pre><code>&lt;env&gt;/latest.json                 the current version
+&lt;env&gt;/versions.json               every version, when it was current
+&lt;env&gt;/&lt;build&gt;/game.config.json    that version's configuration
+&lt;env&gt;/&lt;build&gt;/files.json          size and checksum of its files
+&lt;env&gt;/&lt;build&gt;/assets/content/…    the files themselves</code></pre>
+  <p><code>latest.json</code> is the only file that is ever overwritten; a version's folder never changes.</p>
+  <p><b><code>latest.json</code></b> says what readers load. The demo's, on 30 October:</p>
+  <pre><code>{
+  "build": "7a5254b5a4f6",
+  "hash": "7a5254b5a4f6ff56150c5dcf360470284d9c4908762940a29f3c4c3e4f957633",
+  "schema": "2.15",
+  "version": "1.35.0",
+  "activatedAt": "2026-10-30T01:32:57.404Z",
+  "book": "demo"
+}</code></pre>
+  <p><code>build</code> is the version's folder (the first twelve digits of the content checksum <code>hash</code>), <code>schema</code> the content schema it was built for, <code>version</code> the app version that built it (information only), <code>book</code> the book the environment serves. <b><code>versions.json</code></b> lists every version with <code>uploadedAt</code>, <code>activatedAt</code> and <code>retiredAt</code> – the current one has <code>retiredAt: null</code>. <b><code>&lt;build&gt;/game.config.json</code></b> shows what is in a version: the book's title, its spreads and entries.</p>
+  <p>To check an environment: open <code>latest.json</code>, find its <code>build</code> as the last entry of <code>versions.json</code>, and open <code>&lt;build&gt;/game.config.json</code>. With the storage key, the osct CLI shows the same in one line per version, and what the CDN serves:</p>
+  <pre><code>cd scripts
+npm run osct -- content status --env staging</code></pre>
+  <div class="note">
+    <p><b>Trust <code>latest.json</code>.</b> On 30 October staging's <code>latest.json</code> named <code>b6b0ebaabcfd</code>, while its <code>versions.json</code> still listed only <code>6448aacb4ab7</code>: that list is out of date, and <code>osct content purge</code> refuses to run until the two agree. Finding out why is part of #95.</p>
+  </div>
+
+  <h3 class="sec" id="missing-media">When the media is missing</h3>
+  <p>The draft imported, but the stage shows the pages without their entities, the spread cards are text instead of sheets, and the Library's previews stay grey. The configuration arrived; its files did not. The assets base is wrong, or the version it names is gone.</p>
+  <ol>
+    <li>Open the book page and read <em>assets at</em> in its first line.</li>
+    <li>Put a path from the configuration behind it and open it in the browser, for example <code>&lt;assets base&gt;/assets/content/book.yaml</code> or an entry's image. A 404 means the files are not there.</li>
+    <li>Find the right folder – usually the version's folder on the CDN, <code>…/&lt;env&gt;/&lt;build&gt;</code> – and import again with that <b>assets at</b>, or by the content base URL, which fills it in itself.</li>
+  </ol>
+  <p>Importing again replaces the draft. When it already holds work that was not published, publish first (see <a href="#things-to-know">Things to know</a>).</p>
+
+  <h2 class="chapter" id="demo"><span class="gold">3 · The demo book</span></h2>
+  <p>The demo book is a sandbox, not the book. It uses every node type, every placement, a filter and every component the content model has. Seven plugins use every part of the plugin API, a node type of their own among them. And its spreads tell a small story: a key found on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.</p>
   <p>The files are the test fixture's small stand-ins. The "key" is a dragon, the "door" is a stack of boxes. The demo shows mechanics, not art.</p>
 
   <h3 class="sec" id="demo-getting-it-in">Getting it in</h3>
@@ -269,13 +378,13 @@ npm run osct -- content sync --env staging</code></pre>
   </ol>
 
   <figure class="shot">
-    <img src="/docs/tutorials/demo/01-books.webp" width="1280" height="800" loading="lazy" alt="The editor's Books page: the demo book's cover on the left, marked draft, and the Import a book form on the right with the sources URL, file and the CDN.">
-    <figcaption>The Books page. The demo's cover is a real sheet from its layout. The import form is on the right.</figcaption>
+    <img src="/docs/tutorials/demo/01-books.webp" width="1280" height="800" loading="lazy" alt="The editor's Books page: the demo book's cover on the left, marked draft; on the right the Import a book form with the source URL, the URL https://buildingfictions.b-cdn.net/demo and an empty assets at field; the Info view explains the URL field.">
+    <figcaption>The Books page with the demo's content base typed in. <b>assets at</b> stays empty: the form fills it in from <code>latest.json</code>. The demo's cover is a real sheet from its layout.</figcaption>
   </figure>
 
   <figure class="shot">
     <img src="/docs/tutorials/demo/02-spreads.webp" width="1280" height="800" loading="lazy" alt="The demo book's page in the editor: six cards – cover, 1–2 The key, 3–4 The door, 5–6 The switch, 7–8 The twins and the back cover – each showing its rendered sheet and counts of entries, targets and entities.">
-    <figcaption>The book page: six spreads with their rendered sheets. The numbers under each card count entries, targets and entities. The line above names the environment.</figcaption>
+    <figcaption>The book page: six spreads with their rendered sheets. The numbers under each card count entries, targets and entities. The first line names the assets base and has <b>+ double page</b>; the second names the environment.</figcaption>
   </figure>
 
   <h3 class="sec" id="demo-spreads">A walk through the spreads</h3>
@@ -288,7 +397,7 @@ npm run osct -- content sync --env staging</code></pre>
     <tr><td>1–2 · The key</td><td>key, tally</td><td><code>spin</code>, <code>key</code> (sets <code>hasKey</code>), <code>animation</code>; <code>tally</code> writes "n of N pages found"</td></tr>
     <tr><td>3–4 · The door</td><td>door, lamp</td><td><code>door</code> opens with the key; <code>lamp</code> stays dark until the door opened</td></tr>
     <tr><td>5–6 · The switch</td><td>stage, screen</td><td><code>scenes</code>: a tap shows the next child; an upright video that spins slowly</td></tr>
-    <tr><td>7–8 · The twins</td><td>twin-a, twin-b</td><td>one shared entity, <code>beacon</code>, used by two targets</td></tr>
+    <tr><td>7–8 · The twins</td><td>twin-a, twin-b</td><td>one shared entity, <code>beacon</code>, used by two targets; its <code>sparkle</code> is a node type a plugin registers</td></tr>
     <tr><td>Back cover</td><td>colophon</td><td><code>{{book.title}}</code> as text and the whole book's <code>tally</code></td></tr>
   </table>
 
@@ -299,15 +408,15 @@ npm run osct -- content sync --env staging</code></pre>
   <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>key</code> sets the book variable <code>hasKey</code> on the first find – it is kept with the reader's progress – and a tap sends the event <code>keyRattled</code>. <code>animation</code> would play a clip on a tap; the stand-in model has none, so it waits for a real one.</p>
   <p>The <em>tally</em> is a group with a text. Its <code>tally</code> component draws "n of N pages found" and updates it on every new find, on any spread.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key spread in the editor: the key model selected on the stage with its orange outline and the move gizmo; the Entity panel lists the placement, the file key.glb and three components – spin with degrees per second and axis, key, and animation with play on tap.">
-    <figcaption>The key selected. Every component is a block in the Entity panel: <code>spin</code> with its speed and axis, <code>key</code> without settings, <code>animation</code> with <em>playOn: tap</em>.</figcaption>
+    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key spread in the editor: the whole open book on the desk, the key model selected with its orange outline and the move gizmo; the tree marks the model row; the Entity panel's breadcrumb reads key › model, then name, + node, placement, the file key.glb and three components – spin with its speed in degrees per second and its axis, key, and animation with plays on tap; the Info view describes the speed row.">
+    <figcaption>The key selected. Every component is a block in the Entity panel: <code>spin</code> with its speed and axis, <code>key</code> without settings, <code>animation</code> with <em>plays on: tap</em>. Pointing at a row shows its help in the Info view.</figcaption>
   </figure>
 
   <h4>3–4 · The door</h4>
   <p>The <em>door</em> is a group with two children: the door model and a hint, "Find the key on page 1". When the page is found, the <code>door</code> component reads <code>hasKey</code>. With the key, the door lifts and turns, the variable <code>doorOpen</code> is set and the event <code>doorOpened</code> goes out. Without it, the hint shows.</p>
   <p>The <em>lamp</em> is a video with a chroma key and a <code>pulse</code> layer. Its <code>lamp</code> component keeps it hidden until <code>doorOpen</code> is set.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/04-door-entity.webp" width="1280" height="800" loading="lazy" alt="The door spread: the door group selected on the left page, closed, with the hint text under it; the Entity panel shows the group's placement and the door component with the rows lift 0.35 and seconds 1.2.">
+    <img src="/docs/tutorials/demo/04-door-entity.webp" width="1280" height="800" loading="lazy" alt="The door spread: the door group selected on the left page, closed, with the hint text under it; the Entity panel's breadcrumb reads door › group, then the group's placement and the door component with the rows lift 0.35 and seconds 1.2; the Info view explains lift.">
     <figcaption>The door, still closed: no key yet. The <code>door</code> component has two rows, <em>lift</em> and <em>seconds</em>. They come straight from the plugin (see <a href="#demo-component">How a component works</a>).</figcaption>
   </figure>
 
@@ -317,7 +426,7 @@ npm run osct -- content sync --env staging</code></pre>
   <h4>7–8 · The twins</h4>
   <p><em>twin-a</em> and <em>twin-b</em> are two targets with the same entity: <code>beacon</code>, a model with a text and <code>spin</code>. The tree marks it as <em>group · beacon</em>. Change it once and both pages change.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/08-environment.webp" width="1280" height="800" loading="lazy" alt="The twins spread seen from further away: the open book on a brown desk, a beacon on each page, the café world behind it with a purple grid sky; the Environment panel shows world café (built-in), sky the world's, onion sky on, and the preview row look up.">
+    <img src="/docs/tutorials/demo/08-environment.webp" width="1280" height="800" loading="lazy" alt="The twins spread seen from further away and lower: the open book on a brown desk, a beacon on each page, the café world behind it with a purple grid sky; the Environment panel shows world café (built-in) and sky the world's, each with Library… and Upload…, onion sky on, and the preview row look up 0°.">
     <figcaption>The twins: the shared <code>beacon</code> on both pages. Behind the book is the environment – the built-in café and its sky – with the Environment panel open.</figcaption>
   </figure>
 
@@ -333,8 +442,8 @@ npm run osct -- content sync --env staging</code></pre>
   </ol>
   <p>The tree's eye switches a target off and on (lost, found again). Variables have scopes: <em>spread</em> lives while the spread is shown, <em>stage</em> while the scene exists, <em>book</em> is kept with the reader's progress. That is why <code>hasKey</code> survives the walk from page 1 to page 3.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/05-door-open.webp" width="1280" height="800" loading="lazy" alt="The door spread after the key was found: the door model lifted and turned, the lamp video showing on the right page; the Stage panel's vars and events block lists stage · doorOpen = true, book · hasKey = true and the events targetFound, targetUnlocked and doorOpened by key.">
-    <figcaption>After the key: the door is open, the lamp video shows. <em>vars and events</em> lists <code>stage · doorOpen = true</code>, <code>book · hasKey = true</code> and the events, newest first.</figcaption>
+    <img src="/docs/tutorials/demo/05-door-open.webp" width="1280" height="800" loading="lazy" alt="The door spread after the key was found: the door model lifted and turned, the lamp video showing on the right page; the Stage panel's vars and events section lists stage · doorOpen = true, book · hasKey = true and the events targetFound, targetUnlocked, doorOpened by key, varChanged and spreadChanged from the key to the door.">
+    <figcaption>After the key: the door is open, the lamp video shows. <em>vars and events</em> lists <code>stage · doorOpen = true</code>, <code>book · hasKey = true</code> and the events, newest first – down to <code>spreadChanged</code> from the key to the door.</figcaption>
   </figure>
 
   <h3 class="sec" id="demo-component">How a component works</h3>
@@ -360,12 +469,12 @@ npm run osct -- content sync --env staging</code></pre>
   <p><b>Components can work against each other.</b> The Entity panel lets you put <code>lamp</code> on the door. It fits – <code>lamp</code> works on any node. But <code>lamp</code> hides its node until <code>doorOpen</code> is set, and the door is the one that sets it. Without the key, the door hides itself and the hint with it.</p>
   <p><b>Back to the draft</b> undoes every change since the last save. Nothing is stored until you press <b>Save</b>.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/07-pitfall.webp" width="1280" height="800" loading="lazy" alt="The door group selected with a second component added: the Entity panel lists components door (lift, seconds) and lamp; the entity's name carries an asterisk, Save is active and Back to the draft is underlined below.">
-    <figcaption><code>lamp</code> added to the door. The star after <em>door · group</em> marks an unsaved change. <b>Back to the draft</b> takes it away again.</figcaption>
+    <img src="/docs/tutorials/demo/07-pitfall.webp" width="1280" height="800" loading="lazy" alt="The door group selected with a second component added: the Entity panel lists component · door (lift, seconds) and component · lamp, + door and + lamp are greyed out under add component; the tree's group row carries a dot, Save is active and Back to the draft is underlined below.">
+    <figcaption><code>lamp</code> added to the door. The dot on the group's row in the tree marks an unsaved change, and <b>Save</b> is active. <b>Back to the draft</b> takes it away again.</figcaption>
   </figure>
 
   <h3 class="sec" id="demo-post">Post-processing</h3>
-  <p>The Stage tab's <b>post-processing</b> adds passes over the picture: <b>+ bloom</b>, <b>+ vignette</b>, <b>+ grade</b>. Each has its rows, and changes show live. The stage shows them only in the <em>rendered</em> shading. The grade has a <b>reach</b> row: <em>AR layer</em> grades only the AR content, <em>whole picture</em> grades the desk too, as the reader grades the camera picture. Save writes the passes to the spread.</p>
+  <p>The Stage tab's <b>post-processing</b> adds passes over the picture: <b>+ bloom</b>, <b>+ vignette</b>, <b>+ grade</b>. Each has its rows, and changes show live. The stage shows them only in the <em>rendered</em> shading. The grade has a <b>reach</b> row: <em>AR layer</em> grades only the AR content, <em>whole picture</em> grades the desk too, as the reader grades the camera picture. The passes belong to the book, and a spread can have its own – see <a href="#tools-post">Post-processing: the book's and a spread's own</a>.</p>
 
   <h3 class="sec" id="demo-environment">Environment and sky</h3>
   <p>The <b>Environment</b> tab sets the world around the book: <b>world</b> (the built-in café or a glTF model), <b>sky</b> (the world's own or an image) and <b>onion sky</b> on or off. The onion sky needs a camera picture, so only the reader shows it. <b>look up</b> lifts the camera from the book towards the horizon, to see the world as a reader will. The twins' figure above shows it.</p>
@@ -381,17 +490,112 @@ npm run osct -- content sync --env staging</code></pre>
   <h3 class="sec" id="demo-phone">On a phone</h3>
   <div class="with-phone">
     <div>
-      <p>The editor works on a phone too. The stage takes the top. The panel becomes a sheet at the bottom: drag its handle, and the tabs turn into icons – tree, Stage, Entity, Environment, Library, Code.</p>
-      <p>Drag to orbit, two fingers to pan, pinch to zoom. A double tap returns to the reader's view. <kbd>‹</kbd> and <kbd>›</kbd> walk through the spreads.</p>
+      <p>The editor works on a phone too. The stage takes the top. The panel becomes a sheet at the bottom whose head is six icons – tree, Stage, Entity, Environment, Library, Code. Tap the tree's icon and tap a row to select it: the Entity sheet opens.</p>
+      <p>Drag to orbit, two fingers to pan, pinch to zoom. A double tap returns to the reader's view. <kbd>‹</kbd> and <kbd>›</kbd> at the stage's lower corners walk through the spreads. More in <a href="#tools-phone">The editor on a phone</a>.</p>
       <p>To see the demo as a reader, open the staging reader with <code style="white-space: nowrap">?content=</code> (see <a href="#demo-getting-it-in">Getting it in</a>) and point the camera at the printed pages.</p>
     </div>
     <figure class="shot">
-      <img src="/docs/tutorials/demo/10-phone.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone: the key spread on the stage at the top with the key selected; below it a sheet with icon tabs and the Entity panel for key · model – target image, placement and file.">
-      <figcaption>The key on a phone, with the Entity sheet.</figcaption>
+      <img src="/docs/tutorials/demo/10-phone.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone: the key spread on the stage at the top with the key selected and the toolbar in two rows, ‹ and › at the stage's lower corners; below it the sheet with its grip and six icon tabs, the Entity panel for the key's model – the breadcrumb key › model, name, + node, add as and the placement – in finger-sized rows.">
+      <figcaption>The key on a phone, with the Entity sheet. Every control is finger-sized.</figcaption>
     </figure>
   </div>
 
   <p class="muted">The reference for every detail: the repository's <code>fixtures/demo/</code> (the demo itself), <code>docs/plugins.md</code> (writing a plugin) and <code>docs/editor.md</code> (the editor).</p>
+
+  <h2 class="chapter" id="tools"><span class="gold">4 · The editor's tools</span></h2>
+  <p>The tools that came with versions 1.27 to 1.35, each shown on the demo book. None of these shots was saved: every change in them was taken back with <b>Back to the draft</b>. Nothing reaches the draft until you press <b>Save</b>, and nothing reaches readers until you <b>Publish</b>.</p>
+
+  <h3 class="sec" id="tools-selection">One selection: tree, stage and inspector</h3>
+  <p>There is one selection, and it lives at a level: a <b>target</b> (the printed image), its <b>entity</b> (the root of its AR content) or a <b>node</b> inside it. Select in any of the three places and the other two follow:</p>
+  <ul>
+    <li><b>The tree</b> marks the selected row with its own grey and a bar at its start; the rows above it are lighter.</li>
+    <li><b>The stage</b> outlines it in orange – a target around its printed image – and puts the gizmo on an entity or a node. The pick mode in the toolbar decides what a click picks: the entity, the node under the pointer, or the target.</li>
+    <li><b>The Entity panel</b> opens at that level. Its head is a <b>breadcrumb</b>, <em>target › entity › group › node</em>: a crumb steps up to that level, ▾ after the target picks another target of the spread.</li>
+  </ul>
+  <p>In the tree, <kbd>↑</kbd> <kbd>↓</kbd> walk every row, <kbd>←</kbd> <kbd>→</kbd> fold and unfold, and <kbd>←</kbd> on a node steps up a level.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/01-selection.webp" width="1280" height="800" loading="lazy" alt="The door spread with the door's model selected: in the tree the model row is dark grey with a bar at its start; on the stage the boxes are outlined in orange with the move gizmo; the Entity panel's breadcrumb reads door ▾ › group › model, followed by node · model with its name, + node, add as, placement and file; the Info view says group – select the entity.">
+    <figcaption>The door's model selected in the tree. The stage outlines it, the breadcrumb reads <em>door › group › model</em>. Pointing at <em>group</em> in the breadcrumb: the Info view says a click selects the entity.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-hierarchy">Building a hierarchy</h3>
+  <p><b>Drag a node row</b> in the tree onto another row to make it that node's child – the row shows a frame – or between two rows to make it a sibling there – a line shows where. With a finger, drag the row by its icon. Keys do the same: <kbd>Alt</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> move a node among its siblings, <kbd>Tab</kbd> indents it into the node above, <kbd>Shift</kbd> + <kbd>Tab</kbd> outdents it. A moved node keeps its placement values, now relative to its new parent.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/02-drag.webp" width="1280" height="800" loading="lazy" alt="The door's model row being dragged in the tree: the row is dimmed, and a black line under the hint row Find the key shows where it would land, as a sibling after the hint; the Info view explains the tree's drag and keys.">
+    <figcaption>The model dragged below the hint: the line says it would land after it, still inside the group. Let go elsewhere and nothing moves.</figcaption>
+  </figure>
+  <p><b>+ node</b> in the Entity panel adds a node of a type – group, model, video, image, text, light, and the book's own node types – and <b>add as</b> says where: <em>next to it</em> (the same parent, right after the selected node; the default for a model, video or image) or <em>inside it</em> (its last child). Next to the root, both go into a new group. Every node has a <b>name</b>: the tree shows it, with the type as the icon.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/03-add-as.webp" width="1280" height="800" loading="lazy" alt="The Entity panel of the door's model: the name row, + node with the type text chosen and the add button, and add as with next to it pressed and inside it under the pointer; the Info view explains add as.">
+    <figcaption>A text about to be added next to the model. The Info view explains <b>add as</b>.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-library">The Library as the picker</h3>
+  <p>Every file field – a target's printed image, a node's file, a new node's file, the new target's files, the environment's world and sky – has <b>Library…</b> next to <b>Upload…</b>. <b>Library…</b> opens the Library in place of the panel: its filter starts at the kind being picked, a click on a card takes that file for this one field and returns, an upload that fits is taken at once, and <b>cancel</b> or <kbd>Esc</kbd> returns without one. The panel underneath keeps its values. The <b>target image</b> filter lists the pictures printed in the book, apart from the other images.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/04-library-picker.webp" width="1280" height="800" loading="lazy" alt="The Library opened as the picker for the printed image of the door: the head reads Library · the printed image of door with cancel; the kind filter target image is pressed; cards show the target images colophon · target, door · target (marked Chosen), key · target and lamp · target with their size and uses, each with Pick; on the stage the door's printed image is outlined.">
+    <figcaption>The picker for the door's printed image, filtered to target images. The door's own is marked <em>Chosen</em>; a click on another card would replace it. (The demo here was imported by URL, whose Library is empty; this shot lists the files the same book brings in when it is imported from the CDN.)</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-new-target">A new target</h3>
+  <p><b>+ target</b> at the end of the tree opens the form for a new target on the spread. It keeps two choices apart: <b>what appears on the page</b> – none, model, video, image, text, group or light, with its file – and the <b>entry category</b>, where the reader's consultation menu lists the entry. The category follows what appears – a video makes a video entry, everything else a glossary term – until you set it by hand. Below them, where it is printed: the surface, x and y, and the width in millimetres; the stage shows a ghost of the image there, with handles to drag.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/05-new-target.webp" width="1280" height="800" loading="lazy" alt="The new target form on the switch spread: title, page 5 or 6, the image with Library… and Upload…; What appears on the page with video pressed and its file; Entry category with video pressed; Printed on the page with the surface left, x 40 mm, y 60 mm and width 80 mm, and Create target; the Info view explains What appears on the page.">
+    <figcaption><em>video</em> chosen under <b>What appears on the page</b>: the <b>Entry category</b> followed it to <em>video</em>.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-spreads">Adding and removing spreads</h3>
+  <p>The book page has <b>+ double page</b> in its first line: a new, empty double page after the last one, before the back cover. Point at a card for <b>+ after</b> (a double page right after that spread) and <b>remove</b>. A new double page takes the two pages after the spread before it, and every later page is numbered on by two – the later spreads, their entries and their targets' printed pages move with them. <b>remove</b> takes out an empty spread and numbers the later pages back. A spread with entries, or the one the book opens on, cannot be removed: the button is disabled, and the Info view says why.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/06-spreads.webp" width="1280" height="800" loading="lazy" alt="The demo book's page with the pointer on the card 5–6 · The switch: + after and a greyed-out remove show over its sheet; the first line reads OSCT · 6 spreads · assets at … · + double page; the Info view says remove removes this spread from the draft, and that it has 3 entries, delete them first.">
+    <figcaption><b>remove</b> on <em>5–6 · The switch</em> is disabled: the spread has three entries. <b>+ after</b> would add a double page after it.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-post">Post-processing: the book's and a spread's own</h3>
+  <p>The passes in the Stage tab's <b>post-processing</b> belong to the <b>book</b>: edited once, every spread without a list of its own shows them. The row <b>uses</b> says which list is in effect for the spread on the stage, and the section's head repeats it. <em>the book's</em> is the default – changing the list then changes it for every such spread. <em>own</em> gives this spread an override that starts as a copy of the book's; choosing <em>the book's</em> again drops it. <b>Save</b> writes what changed: the book's list, the spread's, or both.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/07-post-book.webp" width="1280" height="800" loading="lazy" alt="The twins spread in the rendered shading with a soft bloom and a dark vignette at the edges; the Stage panel's post-processing section reads the book's: uses the book's, a bloom with strength 0.35, radius 0.4 and threshold 0.97, a vignette with strength 0.8; Back to the draft and Save, with the book's beside Save.">
+    <figcaption>A bloom and a vignette in the book's list – every spread without its own shows them. Beside <b>Save</b>: what it would write, <em>the book's</em>.</figcaption>
+  </figure>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/08-post-own.webp" width="1280" height="800" loading="lazy" alt="The same spread with uses set to own: the section's head reads this spread's, the list holds the copied bloom and vignette and a new grade with reach AR layer, exposure, contrast, saturation and tint; beside Save: the book's + this spread's; the Info view says own passes for this spread.">
+    <figcaption><em>own</em>: the spread's list starts as a copy of the book's, here with a grade added. <b>Save</b> would write both lists.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-labels">Words as labels</h3>
+  <p>Every row in the Entity panel is labelled in words: a parameter's <code>label</code> from its spec (<em>key color</em>, <em>compare by</em>, <em>soft edge</em>), or else its name split into words (<code>degreesPerSecond</code> → <em>degrees per second</em>). The Info view names the row by its words and by the name the content uses – <em>key color · color</em> – so a row can still be found in the YAML or a plugin's code. A plugin gives its own parameters a <code>label</code> the same way.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/09-labels.webp" width="1280" height="800" loading="lazy" alt="The lamp's video selected on the door spread: the Entity panel shows filter 1 · chromakey with the rows key color #00ff00, compare by auto / chroma / luma, threshold, soft edge, spill and opacity, then component · lamp and component · pulse with color, amount and speed; the Info view reads key color · color and its description.">
+    <figcaption>The lamp's chroma key in words. The Info view adds the content's name: <em>key color · color</em>.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="tools-phone">The editor on a phone</h3>
+  <p>With a finger every control is 44 px high (2.75rem), the tree's rows, chevrons and eyes too. The panel is a sheet at the bottom whose head is six tab icons sharing the width – tree, Stage, Entity, Environment, Library, Code. Tap the open tab to close the sheet down to its head; tap another to open it. <b>Drag the head</b> to any height, from the tab row alone to almost the whole screen; let go and it snaps to closed, a third, half or almost full, and a flick carries it on. While it is dragged, the stage keeps its size and the sheet slides over it. A double tap on the grip restores half.</p>
+  <p><kbd>‹</kbd> and <kbd>›</kbd> sit at the stage's lower corners and walk through the spreads. The book's name in the top bar leads back to the spreads. The toolbar wraps by whole groups: gizmo, pick, shading.</p>
+  <div class="phones">
+    <figure class="shot">
+      <img src="/docs/tutorials/tools/10-phone-closed.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone with the sheet closed: the door spread fills the screen, the toolbar in two rows at the top, ‹ and › at the stage's lower corners, and at the bottom only the grip and the six tab icons.">
+      <figcaption>The sheet closed: the head alone.</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="/docs/tutorials/tools/11-phone-drag.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone while the sheet is dragged up: the grip is dark, the tree tab is open and shows the door spread's rows – The door, door, group, model, Find the key on page 1, The lamp – in finger-sized rows; the stage above keeps its size.">
+      <figcaption>The sheet dragged up by its grip, the tree open.</figcaption>
+    </figure>
+  </div>
+
+  <h3 class="sec" id="tools-tablet">The editor on a tablet</h3>
+  <div class="with-phone tablet">
+    <div>
+      <p>On a tablet in portrait – a window under 1024 px – the tree starts collapsed to its bar, so the panel keeps its 25rem and the stage the rest. Open the tree with <kbd>›</kbd> at the left; the choice is kept on the device. A panel too narrow for the tab words shows the tabs as icons, so its head stays one line. With the tree open as well, the panel narrows, and its position, rotation and scale rows put their label above the X, Y, Z fields.</p>
+      <p>The column edges can be dragged on a tablet too: the panel from 16rem to 70% of the window, the tree from 10rem to 40%. A double tap on an edge restores its width.</p>
+    </div>
+    <figure class="shot">
+      <img src="/docs/tutorials/tools/12-tablet.webp" width="768" height="1024" loading="lazy" alt="The editor on a 768 px tablet in portrait: the tree collapsed to a narrow bar with › at the left, the key spread on the stage in the middle with the key selected, and the panel on the right with icon tabs and the Entity panel of the key's model – breadcrumb key › model, name, + node, add as, placement, file, the spin component and the animation component – in finger-sized rows.">
+      <figcaption>A 768 px tablet: the tree collapsed, the tabs as icons.</figcaption>
+    </figure>
+  </div>
+
+  <p class="muted">The reference for every detail: the repository's <code>docs/editor.md</code> (the editor, its keys and rules) and <code>docs/server.md</code> (the API behind it).</p>
 
   <footer>OSCT · Onion Skin &amp; Crocodile Tears · Building Fictions</footer>
 </main>

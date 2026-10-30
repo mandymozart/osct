@@ -61,8 +61,10 @@ with SQLite and the local content store:
    `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` (`latest.json` names the new build).
 
 The one-page version of this flow for editors, with the diagram, ships with the app at `/docs/tutorials/`
-(`client/public/docs/tutorials/index.html` – a static page, served by the site's `.htaccess` like any file). Its second
-chapter walks through the demo book with screenshots of the editor (`client/public/docs/tutorials/demo/`, #148).
+(`client/public/docs/tutorials/index.html` – a static page, served by the site's `.htaccess` like any file). Its other
+chapters bring a book in (the CDN, a URL or a file, the assets base, what is on the CDN – #95), walk through the demo
+book (#148) and tour the editor's tools, with screenshots of the editor (`client/public/docs/tutorials/import/`,
+`demo/`, `tools/`).
 
 On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the storage zone's credentials in the
 `staging` GitHub environment ([deploy](deploy.md)); *Import a book… → the CDN* takes the current version, publishing
