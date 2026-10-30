@@ -167,6 +167,14 @@ export class ArScene implements IArScene {
     return this.view?.sample(x, y) ?? null;
   }
 
+  /**
+   * The colours along a row of the canvas (CSS px from its top) in `segments` averaged parts, left to right (not part of
+   * `IArScene` – the editor paints the room its sheet uncovers with the stage's bottom edge); empty while nothing renders
+   */
+  sampleRow(y: number, segments: number): string[] {
+    return this.view?.sampleRow(y, segments) ?? [];
+  }
+
   overrideEntity(targetId: string, entity: EntityData | null): void {
     if (entity) this.overrides.set(targetId, entity);
     else this.overrides.delete(targetId);

@@ -550,6 +550,11 @@ export class Stage {
     return this.scene.sampleColor(x, y);
   }
 
+  /** The colours along the stage's bottom edge, in `segments` averaged parts from left to right (empty while nothing renders) */
+  sampleBottom(segments: number): string[] {
+    return this.scene.sampleRow(Math.max(0, this.container.clientHeight - 1), segments);
+  }
+
   /** The ghost shown (the placement being edited) and who follows its handles */
   private ghostPlace: GhostPlace | null = null;
   /** A drag of the ghost: the image (move) or its corner (width), with the grab point inside the image */

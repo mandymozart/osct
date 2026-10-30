@@ -82,6 +82,8 @@ body {
   overscroll-behavior: none;
 }
 * { box-sizing: border-box; }
+/* No browser tap highlight (Android's blue box): a tap shows the editor's own pressed and focus states (#201) */
+:root { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
 ::selection { background: var(--text); color: var(--surface); }
@@ -110,6 +112,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pill.framed, .icon-button.framed { border-color: var(--line); background: var(--control-background); }
 /* a framed toggle that is on: after .framed, which would otherwise win and hide the state (#99) */
 .pill.framed.on, .icon-button.framed.on { background: var(--pressed-background); color: var(--pressed-color); }
+.pill:active:not(:disabled):not(.on), .icon-button:active:not(:disabled):not(.on) { background: var(--hover-background); }
 .field {
   padding: 0 .6rem;
   border-color: var(--line);
@@ -123,6 +126,7 @@ select.field { cursor: pointer; }
 @media (hover: hover) {
   .text-link:hover { color: var(--text); }
 }
+.text-link:active:not(:disabled) { color: var(--text); }
 /* Disabled at a glance (#166): dimmed, a not-allowed cursor, a select without its arrow – the reason is the control's help */
 .pill:disabled, .icon-button:disabled, .field:disabled, .text-link:disabled, select:disabled, textarea:disabled, input[type="range"]:disabled { opacity: .45; cursor: not-allowed; }
 select:disabled { appearance: none; }

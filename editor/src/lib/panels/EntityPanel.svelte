@@ -18,7 +18,7 @@
     addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
     helpName, sameValue, setMaterial, setValue, valueRows, withNode, type ValueRow,
   } from "#lib/values.js";
-  import { materialCode, nodeTypeCode, takesMaterial } from "#lib/plugins/make-code.js";
+  import { MakeCodeError, materialCode, nodeTypeCode, nodeTypeOwner, takesMaterial, type MadeCode } from "#lib/plugins/make-code.js";
   import { selection } from "#lib/selection.svelte.js";
   import { breadcrumb } from "#lib/selection.js";
   import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "#lib/tree.js";
@@ -43,12 +43,15 @@
    * parameter of any kind – a `texture` as a choice of the book's procedural textures and Library pictures, #188). A node
    * with meshes may carry a plugin's **material** (#188): its rows follow the node type's. **make it code** turns the
    * node into a node type of the book's own, **make code** beside the material does it for its look
-   * (`plugins/make-code.ts`): the plugin is saved to the Code tab and run, the node switched to it. It opens at the level
+   * (`plugins/make-code.ts`): the plugin is saved to the Code tab and run, the node switched to it once its code builds on
+   * the stage (until then it shows as it was, the error is the Code tab's – #199). It opens at the level
    * of the workspace's selection (#162): a selected target shows its target fields, its entity or a node that node's
    * rows; the breadcrumb in the head steps up.
    */
-  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, ontargetchanged }: {
+  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, ontargetchanged, oncode }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
+    /** Show the Code tab (a made plugin's error is there) */
+    oncode?: () => void;
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
     pickColour?: () => Promise<string | null>;
     /** The target's image or print placement changed in the draft: reload the content and the stage */
@@ -147,24 +150,42 @@
 
   // ── make it code (#188): the node, or its look, becomes the book's own code in the Code tab ──
   let making = $state(false);
+  /** The error shown is a made plugin's: the Code tab has it too */
+  let codeError = $state(false);
+  /** A plugin node type is copied with its plugin's whole source (the source as it runs on the stage) */
+  const ownerSource = async (type: string) => {
+    const owner = nodeTypeOwner(type);
+    if (!owner) return undefined;
+    try {
+      return { plugin: owner, source: await plugins.sourceOf(bookId, owner) };
+    } catch (e) {
+      throw new MakeCodeError(`Make it code copies the whole plugin ${owner}, and its source could not be read – ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
   const makeCode = async (kind: "node" | "material") => {
     const n = current;
-    if (!n || making) return;
+    const t = target;
+    if (!n || !t || making) return;
     making = true;
     error = null;
+    codeError = false;
     try {
       if (plugins.bookId !== bookId) await plugins.load(bookId);
       const taken = { plugins: [...plugins.stored.map(p => p.id), ...plugins.declared().map(p => p.id)] };
-      const made = kind === "node" ? nodeTypeCode(n, taken) : materialCode(n, taken);
+      const made: MadeCode = kind === "node" ? nodeTypeCode(n, taken, await ownerSource(n.type)) : materialCode(n, taken);
       await plugins.save(bookId, made.plugin, made.source);
+      // The Run switches the node once the made code builds it on the stage; until then it shows as it was
+      plugins.pending = { plugin: made.plugin, type: made.type, targetId: t.id, path: [...node], from: n.type, node: made.node };
       if (!(await plugins.run(made.plugin, made.source, stage))) {
         error = `${made.plugin}: ${plugins.runError?.message ?? "the code did not run"}`;
+        codeError = true;
+        // The Code tab opens the made plugin with its error
+        plugins.focus = made.plugin;
         return;
       }
-      applyNode(made.node);
       saved = `made ${made.type} – the plugin ${made.plugin} in the Code tab`;
     } catch (e) {
-      error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
+      error = e instanceof ApiError ? `${e.message} (${e.code})` : e instanceof MakeCodeError ? e.message : String(e);
     } finally {
       making = false;
     }
@@ -434,6 +455,7 @@
     <span class="grow"></span>
     {#if saved}<span class="small muted">{saved}</span>{/if}
     {#if error}<span class="small danger">{error}</span>{/if}
+    {#if error && codeError && oncode}<button type="button" class="text-link" onclick={oncode}>Code tab</button>{/if}
     <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
   </div>
 {/snippet}
@@ -536,7 +558,7 @@
   <div class="section"><span class="section-label">{node.length ? "node" : "entity"}{current ? ` · ${current.type}` : ""}</span>
     <span class="controls">
       {#if current}<button type="button" class="text-link" onclick={() => void makeCode("node")} disabled={making}
-        data-help-name="Make it code" data-help="Turns this node into a node type of the book's own: a plugin in the Code tab whose build reproduces the node (its type's builder as a starting point, its values as parameters), saved and run – the node switches to it. From then on it is your code.">make it code</button>{/if}
+        data-help-name="Make it code" data-help="Turns this node into a node type of the book's own: a plugin in the Code tab whose build reproduces the node (its type's builder as a starting point, its values as parameters), saved and run – the node switches to it once the code builds (a plugin's node type comes with its plugin's whole source). From then on it is your code.">make it code</button>{/if}
       {#if entity}<button type="button" class="text-link" onclick={remove} title="Delete removes the selected node too">{node.length ? "remove node" : "remove entity"}</button>{/if}
     </span></div>
   {#if current}
@@ -730,6 +752,7 @@
       <span class="grow"></span>
       {#if saved}<span class="small muted">{saved}</span>{/if}
       {#if error}<span class="small danger">{error}</span>{/if}
+      {#if error && codeError && oncode}<button type="button" class="text-link" onclick={oncode}>Code tab</button>{/if}
       <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
     </div>
   {/if}

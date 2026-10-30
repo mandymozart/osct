@@ -1,9 +1,26 @@
-import { installPlugin, PluginError, type PluginModule } from "@engine/scene/plugins";
+import { installPlugin, nodeTypeFailure, PluginError, pluginNodeTypesOf, type PluginModule } from "@engine/scene/plugins";
 import { getPlugins } from "@engine/content/game-config";
+import type { EntityData } from "@engine/types";
 import { ApiError, deletePlugin, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
 import { library } from "./library.svelte";
 import { importPluginCode, transpilePlugin, type CompileError } from "./plugins/compile";
 import type { Stage } from "./stage/stage.svelte";
+import { nodeAt, withNode } from "./values";
+
+/** A node made code whose new type has not built yet: it shows as it was until its plugin's code builds it (#199) */
+export interface PendingSwitch {
+  /** The made plugin */
+  plugin: string;
+  /** The node type it registers */
+  type: string;
+  targetId: string;
+  /** The node in the target's tree */
+  path: number[];
+  /** The node's type before – a tree whose node at `path` is no longer of it drops the switch */
+  from: string;
+  /** The node switched to the new type */
+  node: EntityData;
+}
 
 /**
  * The Code tab's plugins (agents/research/2026-10-29-code-in-the-editor.md): the sources stored for the book (the
@@ -12,6 +29,8 @@ import type { Stage } from "./stage/stage.svelte";
  * build the spread again. `version` counts the runs: the Entity panel's rows follow the registry through it.
  * The Library lists the same sources as its scripts (#186): it uploads a script file as a new source, replaces one
  * from a file, and asks the Code tab to open one (`focus`).
+ * A Run also reports a node type of the plugin that did not build on the stage (its error, as a Run's), and switches a
+ * node made code (`pending`) once its type builds – until then the node keeps its old type on the stage.
  */
 class Plugins {
   bookId = $state<string | null>(null);
@@ -26,14 +45,22 @@ class Plugins {
   runError = $state<(CompileError & { plugin: string }) | null>(null);
   /** The last good Run: the plugin and the component types it registered */
   lastRun = $state<{ plugin: string; types: string[] } | null>(null);
-  /** A plugin the Code tab should open (the Library's *Open in Code*); the tab clears it once open */
+  /** A plugin the Code tab should open (the Library's *Open in Code*, a node made code that did not build); the tab clears it once open */
   focus = $state<string | null>(null);
+  /** A node made code that switches to its type once that builds (#199) */
+  pending = $state<PendingSwitch | null>(null);
+  /** The sources run here, by plugin id: what is installed, saved or not */
+  private ran = new Map<string, string>();
 
   async load(bookId: string): Promise<void> {
     this.loading = true;
     this.error = null;
     try {
       this.stored = (await listPlugins(bookId)).plugins;
+      if (this.bookId !== bookId) {
+        this.ran.clear();
+        this.pending = null;
+      }
       this.bookId = bookId;
     } catch (e) {
       this.error = e instanceof ApiError ? e.message : String(e);
@@ -57,6 +84,17 @@ class Plugins {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`${response.status} ${response.statusText} (${url})`);
     return response.text();
+  }
+
+  /** The source of a plugin as it runs on the stage: the source last run here, else the stored one, else the declared one's */
+  async sourceOf(bookId: string, id: string): Promise<string> {
+    const ran = this.ran.get(id);
+    if (ran !== undefined) return ran;
+    if (this.bookId !== bookId) await this.load(bookId);
+    if (this.stored.some(p => p.id === id)) return this.source(bookId, id);
+    const declared = this.declared().find(p => p.id === id);
+    if (declared) return this.declaredSource(declared.src);
+    throw new Error(`the plugin ${id} has no source in this book`);
   }
 
   async save(bookId: string, id: string, source: string): Promise<PluginSummary> {
@@ -125,13 +163,51 @@ class Plugins {
         return false;
       }
       const { pluginTypes } = await import("@engine/scene/plugins");
+      this.ran.set(id, source);
       this.lastRun = { plugin: id, types: pluginTypes(id) };
       this.version += 1;
+      // The spread is built again from the new registrations: a node whose type failed before builds anew
       await stage?.refresh();
-      return true;
+      return this.switchPending(id, stage) && this.builtOnStage(id);
     } finally {
       this.running = false;
     }
+  }
+
+  /**
+   * The pending node made code of this plugin takes its new type on the stage – unless the type's build fails: then the
+   * node shows as it was, the switch waits for the next Run and the failure is the Run's error. False when it failed.
+   */
+  private switchPending(id: string, stage: Stage | null): boolean {
+    const pending = this.pending;
+    if (!pending || pending.plugin !== id || !stage) return true;
+    const tree = stage.treeOf(pending.targetId);
+    if (!tree || nodeAt(tree, pending.path)?.type !== pending.from) {
+      this.pending = null;
+      return true;
+    }
+    const before = stage.overrideOf(pending.targetId) ?? null;
+    stage.override(pending.targetId, withNode(tree, pending.path, pending.node));
+    const failure = nodeTypeFailure(pending.type);
+    if (!failure) {
+      this.pending = null;
+      return true;
+    }
+    stage.override(pending.targetId, before);
+    this.runError = { plugin: id, message: `${pending.type} did not build – ${failure}. The node stays a ${pending.from} until it builds: fix the code, Run.`, line: null };
+    return false;
+  }
+
+  /** The plugin's node types built on the stage; a failed one is the Run's error. False when one failed */
+  private builtOnStage(id: string): boolean {
+    for (const type of pluginNodeTypesOf(id)) {
+      const failure = nodeTypeFailure(type);
+      if (failure) {
+        this.runError = { plugin: id, message: `${type} did not build on the stage – ${failure}`, line: null };
+        return false;
+      }
+    }
+    return true;
   }
 }
 

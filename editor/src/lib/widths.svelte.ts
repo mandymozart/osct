@@ -74,6 +74,14 @@ export const snapSheet = (share: number, velocity = 0): number => {
 };
 
 /**
+ * What fills the room a phone's sheet uncovers while it is dragged down (#200): the stage keeps its size until the sheet
+ * is let go, so the row under it continues the stage's bottom edge – its colours, left to right, as a CSS background
+ * (one colour flat, several a gradient); null without colours (the workspace's own background shows)
+ */
+export const sheetFill = (colours: readonly string[]): string | null =>
+  colours.length > 1 ? `linear-gradient(to right, ${colours.join(", ")})` : colours[0] ?? null;
+
+/**
  * Whether the phone's ‹ › leave the stage's lower corners for its top row, next to the toolbar (#177): at the lower
  * corners they need the toolbar's height (`toolbar`, px – one row since its groups collapse, #180) above them, their
  * own row (`step`) and a `margin` above, between and below; a shorter stage – the sheet almost full – would put them

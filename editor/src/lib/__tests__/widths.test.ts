@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  clampSheet, clampWidth, LIMITS, SHEET_INITIAL, SHEET_MAX, snapSheet, STAGE_MIN, stepsOnTop, TREE_OPEN_MIN, treeStartsOpen, widths, WORD_TABS_MIN,
+  clampSheet, clampWidth, LIMITS, SHEET_INITIAL, SHEET_MAX, sheetFill, snapSheet, STAGE_MIN, stepsOnTop, TREE_OPEN_MIN, treeStartsOpen, widths, WORD_TABS_MIN,
   wordTabs,
 } from "../widths.svelte";
+
+describe("the room the phone's sheet uncovers while dragged down (#200)", () => {
+  it("continues the stage's bottom edge: one colour flat, several as a gradient left to right, none leaves the background", () => {
+    expect(sheetFill(["#334455"])).toBe("#334455");
+    expect(sheetFill(["#111111", "#222222", "#333333"])).toBe("linear-gradient(to right, #111111, #222222, #333333)");
+    expect(sheetFill([])).toBeNull();
+  });
+});
 
 describe("the phone's ‹ › and the stage's toolbar (#177, #180)", () => {
   it("keeps ‹ › at the lower corners while the stage holds the toolbar and their row, else moves them up", () => {

@@ -27,7 +27,7 @@
   import { selection } from "#lib/selection.svelte.js";
   import InfoView from "#lib/components/InfoView.svelte";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
-  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
+  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, sheetFill, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -148,6 +148,9 @@
   let sheetDragging = $state(false);
   /** The sheet's row while it is dragged (px): the stage keeps its size and the sheet slides over it; let go, it resizes once */
   let sheetRow = $state(0);
+  /** Dragged down, the sheet uncovers part of its row: the stage's bottom edge continued there, sampled once at the drag's start (#200) */
+  let sheetBackground = $state<string | null>(null);
+  const SHEET_FILL_SEGMENTS = 12;
   const sheetMin = $derived(Math.min(SHEET_MAX, (headHeight + SHEET_BODY_MIN) / Math.max(1, screenHeight)));
   const sheetShare = $derived(widths.sheet(sheetMin));
   const sheetHeight = $derived(Math.round(sheetShare * screenHeight));
@@ -170,6 +173,7 @@
       if (Math.abs(event.clientY - d.startY) < DRAG_PX) return;
       d.moved = true;
       sheetRow = ((event.currentTarget as HTMLElement).closest(".panel") as HTMLElement | null)?.offsetHeight ?? d.startHeight;
+      sheetBackground = sheetFill(stage?.sampleBottom(SHEET_FILL_SEGMENTS) ?? []);
       sheetDragging = true;
       (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     }
@@ -538,7 +542,8 @@
 
 <div class="workspace" class:closed={shown === null} class:tree-closed={!treeOpen} class:dragging class:sheet-dragging={sheetDragging} bind:this={workspace}
   style:--panel-width="{panelWidth}px" style:--tree-width={treeShown ? `${treeWidth}px` : undefined}
-  style:--sheet-height={narrow && shown !== null ? `${sheetHeight}px` : undefined} style:--sheet-row={sheetDragging ? `${sheetRow}px` : undefined}>
+  style:--sheet-height={narrow && shown !== null ? `${sheetHeight}px` : undefined} style:--sheet-row={sheetDragging ? `${sheetRow}px` : undefined}
+  style:--sheet-fill={sheetDragging ? sheetBackground ?? undefined : undefined}>
   <aside class="tree" data-app-ui>
     <div class="bar">
       {#if treeOpen}<span class="section-label grow">tree</span>{/if}
@@ -651,7 +656,7 @@
     {:else if shown === "stage"}
       <div class="body"><StagePanel {stage} {bookId} {spreadId} /></div>
     {:else if shown === "entity"}
-      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} /></div>
+      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} /></div>
     {:else if shown === "environment"}
       <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
     {:else if shown === "library"}
@@ -726,7 +731,7 @@
   @media (max-width: 47.9rem) {
     .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
     .tree { display: none; }
-    .workspace.sheet-dragging { cursor: row-resize; user-select: none; grid-template-rows: minmax(0, 1fr) var(--sheet-row); }
+    .workspace.sheet-dragging { cursor: row-resize; user-select: none; grid-template-rows: minmax(0, 1fr) var(--sheet-row); background: var(--sheet-fill, var(--stage-background)); }
     /* Dragged, the sheet grows over the stage from its frozen row: the stage (a WebGL canvas) resizes once, on release */
     .workspace.sheet-dragging .panel { align-self: end; position: relative; z-index: 4; }
     .panel { height: var(--sheet-height, auto); border-left: none; border-top: 1px solid var(--line); }
