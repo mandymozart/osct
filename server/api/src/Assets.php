@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -85,7 +84,7 @@ final class Assets
             $file = $files->{$path};
             $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
             if (!isset(self::KINDS[$extension]) || ($kind !== null && self::KINDS[$extension] !== $kind)) continue;
-            // the book's rows read once: a build has hundreds of files, three queries per file timed out (#116)
+            // the book's rows read once: a build has hundreds of files, and three queries per file are too slow
             $rows ??= self::usageRows($bookId);
             $result[] = [
                 'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
@@ -216,8 +215,7 @@ final class Assets
             $store->delete($version['path']);
         }
         Db::run('DELETE FROM assets WHERE id = :id', ['id' => $assetId]);
-        http_response_code(204);
-        exit;
+        Http::json(204, null);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────────────────────

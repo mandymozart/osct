@@ -93,9 +93,9 @@ if ($base !== '' && str_starts_with($path, $base . '/')) $path = substr($path, s
 $path = '/' . trim($path, '/');
 $GLOBALS['osctApiBase'] = $base !== '' ? $base : '/api';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-// Ids in the editor's paths (books, entities, targets); assets have uuids
+// Uuids in paths: users, AI connections' tokens, assets
 $uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-// Ids in the editor's paths (books, entities, targets)
+// Ids in the editor's paths (books, spreads, entries, entities, targets, plugins)
 $id = Editor::ID;
 
 /** POST /admin/migrate needs the SECRET in X-Admin-Secret, else 403 (the other admin endpoints: Admin::actor()) */
