@@ -18,19 +18,9 @@ export interface EditableSpread {
 export const canFollow = (spread: EditableSpread): boolean => spread.format !== "back";
 
 /** Why no double page can be added after the spread (the card's menu shows it), or null when one can */
-export const followBlockedBy = (spread: EditableSpread, addRefused = false): string | null => {
-  if (!canFollow(spread)) return "Nothing follows the back cover.";
-  if (addRefused) return "New spreads come in with an import for now.";
-  return null;
-};
+export const followBlockedBy = (spread: EditableSpread): string | null =>
+  canFollow(spread) ? null : "Nothing follows the back cover.";
 
 /** Why the spread cannot be removed, or null when it can: only the spread the book opens on stays */
 export const removeBlockedBy = (spread: EditableSpread, initialSpreadId: string | null | undefined): string | null =>
   spread.id === initialSpreadId ? "The book opens on this spread." : null;
-
-/**
- * The API refuses a double page (it knows only the covers): an API from before `format: "spread"`, e.g. the editor
- * against an older server – then new spreads come only with an import
- */
-export const isAddRefused = (error: unknown): boolean =>
-  !!error && typeof error === "object" && (error as { code?: unknown }).code === "invalid-spread" && /cover or back/.test(String((error as { message?: unknown }).message));

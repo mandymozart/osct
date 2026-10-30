@@ -288,11 +288,11 @@ export const renewApiToken = (id: string) => api<{ apiToken: ApiToken }>("POST",
 
 export const revokeApiToken = (id: string) => api<void>("DELETE", `/user/tokens/${encodeURIComponent(id)}`);
 
-/** The instance's health: its version and its environment (`local`, `staging`, `production`; absent from an older API) */
+/** The instance's health: its version and its environment (`local`, `staging`, `production`, …) */
 export interface Health {
   status: string;
   version: string;
-  env?: string;
+  env: string;
   db: string;
 }
 

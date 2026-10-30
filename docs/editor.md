@@ -258,9 +258,7 @@ is involved.
   names; the files used elsewhere are listed as kept. *Remove spread 4–5* sends the confirmation (with the option),
   *Keep* or Esc keeps it – no browser dialog. Should the book have changed meanwhile, the card shows the fresh impact to
   confirm again. A double page's later pages are numbered back by its pages, a cover moves nothing; the spread the book
-  opens on (`initialSpreadId`) cannot go – the reason is shown under the disabled item. Should the API know only the
-  covers (an older server), the page says *New spreads come in with an import for now* instead of offering double
-  pages. **+ cover** / **+ back
+  opens on (`initialSpreadId`) cannot go – the reason is shown under the disabled item. **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
   the last) when the book has none; **Publish** to the instance's own environment, named with its backend
   (`staging · CDN`, `local · this server` – [above](#publish-the-instances-own-environment)), through a step in the page,
@@ -615,7 +613,7 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
   other MCP client – works in this editor as you, saves drafts, never publishes), then **Any MCP client (stdio)**: a
   field for *the path to `mcp/bin/osct-mcp.mjs` in your osct checkout* (typed once, kept in this browser under
   `osct-editor-mcp-file`; a folder gets the file appended, quotes of a copied path go) and four rows with **Copy** – the
-  **name** `osct-<env>` after the environment `GET /health` names (`osct-staging` on staging), the **command**
+  **name** `osct-<env>` after the environment `GET /health` names (`osct-staging` on staging; `osct-…` until it answers), the **command**
   `node <file>`, **OSCT_API_URL** (the editor's `/api` as an absolute URL) and **OSCT_EDITOR_TOKEN**. Under it the same
   as each client's snippet, segmented pills **Claude Code** (`claude mcp add …`) / **Claude Desktop**
   (`claude_desktop_config.json`) / **Codex CLI** (`~/.codex/config.toml`) / **OpenCode** (`opencode.json`) / **Cursor**

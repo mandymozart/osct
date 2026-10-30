@@ -277,13 +277,11 @@
     if (selection.target === targetId) selection.reset();
     await reloadContent();
   };
-  /** The tree's or the stage's "Remove target": first the impact (the API removes nothing), shown in the panel */
+  /** The tree's or the stage's "Remove target": first the impact (409, the API removes nothing), shown in the panel */
   const removeTarget = async (target: { id: string; entryId: string }) => {
     removalError = null;
     try {
-      // An API without the two steps removes it at once
       await deleteEntry(bookId, target.entryId);
-      await removed(target.id);
     } catch (e) {
       const step = removalStep(e);
       if (!step) return failed(e);

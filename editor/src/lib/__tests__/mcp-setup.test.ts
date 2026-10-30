@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ago, apiUrlFor, CLIENTS, claudeCodeCommand, claudeDesktopConfig, codexConfig, commandLine, cursorConfig, day, envOf, expiresSoon,
-  FILE_PLACEHOLDER, opencodeConfig, serverFileFrom, serverNameFor, shellArg, snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, tomlString,
+  FILE_PLACEHOLDER, opencodeConfig, SERVER_NAME_PLACEHOLDER, serverFileFrom, serverNameFor, shellArg, snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, tomlString,
   type McpSetup,
 } from "../mcp-setup";
 
@@ -21,12 +21,10 @@ describe("connecting an AI agent (#142, #194)", () => {
   it("names the server after the instance's environment, never the repository's own osct", () => {
     expect(serverNameFor("staging")).toBe("osct-staging");
     expect(serverNameFor("production")).toBe("osct-production");
-    expect(serverNameFor("local", "127.0.0.1:5185")).toBe("osct-local");
-    expect(serverNameFor(null, "osct.porschuetz.de")).toBe("osct-osct-porschuetz-de");
-    expect(serverNameFor(undefined, "127.0.0.1:5185")).toBe("osct-127-0-0-1");
-    expect(serverNameFor("  Stage 2! ")).toBe("osct-stage-2");
-    expect(serverNameFor("", "")).toBe("osct-local");
-    for (const env of ["local", "staging", "production", null]) expect(serverNameFor(env, "osct.example")).not.toBe("osct");
+    expect(serverNameFor("local")).toBe("osct-local");
+    expect(serverNameFor("demo-2")).toBe("osct-demo-2");
+    for (const env of ["local", "staging", "production"]) expect(serverNameFor(env)).not.toBe("osct");
+    expect(SERVER_NAME_PLACEHOLDER).not.toBe("osct");
   });
 
   it("takes the server file as typed, or the checkout's folder", () => {
