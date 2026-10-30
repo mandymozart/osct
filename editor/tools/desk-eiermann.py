@@ -212,8 +212,10 @@ def build_schoepfer():
 
 # ── Build and export ───────────────────────────────────────────────────────────────────────────────────────────────
 
+# Materials: (base colour, metallic, roughness). The frames are powder-coated steel, not bare metal: a metal shows
+# almost only what it reflects, and thin dark tubes would vanish before a dark studio or under the stage's own lights.
 DESKS = {
-    "desk-eiermann": (build_eiermann, {"top": ((0.23, 0.14, 0.09), 0.0, 0.5), "edge": ((0.78, 0.64, 0.46), 0.0, 0.7), "steel": ((0.16, 0.16, 0.17), 0.85, 0.4)}),
+    "desk-eiermann": (build_eiermann, {"top": ((0.23, 0.14, 0.09), 0.0, 0.5), "edge": ((0.78, 0.64, 0.46), 0.0, 0.7), "steel": ((0.16, 0.16, 0.17), 0.15, 0.45)}),
     "desk-schoepfer": (build_schoepfer, {"top": ((0.92, 0.92, 0.9), 0.0, 0.6), "edge": ((0.78, 0.64, 0.46), 0.0, 0.7), "drawer": ((0.12, 0.12, 0.12), 0.0, 0.9), "steel": ((0.9, 0.9, 0.89), 0.3, 0.5)}),
 }
 

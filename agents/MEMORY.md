@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The desks on a phone (#184)
+
+- **Reproduced in emulation only**: the S22 was not connected; headless Edge at 360 × 780 @3 and 390 × 844 @2 with
+  touch, on D3D11, Vulkan and SwiftShader, rendered all three alike.
+- **The frame vanished because the Eiermann steel was a dark mirror** (metallic 0.85, base 0.16): measured on the 360 px
+  phone shot, 30 % of the frame's pixels lay within 10 grey levels of the background behind them in rendered shading,
+  and in textured shading (no environment, so a metal gets almost no light) the frame's median was 23 on a background
+  of 12. The single strut that catches a bright reflection then reads as a stray bar under the top – the most likely
+  "extra plane". Now satin graphite powder coat (metallic 0.15, roughness 0.45): textured 0 % within 20 levels,
+  rendered frame median 99 on 76.
+- **Ruled out with evidence**: the GLBs (normals and winding agree, every face outward, no duplicate or overlapping
+  coplanar faces, 236 / 124 triangles – `desk-models.test.ts`), depth precision (24 bits; a 16-bit buffer emulated by a
+  256× smaller near plane makes the page's printed layers fight, not the desk), no pixel-ratio or LOD code, no shadow
+  catcher (the book's soft shadow is intended).
+- **The tubes stay double-sided**: they are open, and single-sided tubes would show holes where an end faces the camera.
+- Open: confirm on the S22 itself (a GPU-specific cause cannot be excluded without it).
+
 ## 2026-10-30 – The stage toolbar in groups (#180)
 
 - **Groups expand by the toolbar's room, greedy from the first**: all collapsed, then transform, pick, shading expanded
