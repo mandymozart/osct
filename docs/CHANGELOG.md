@@ -12,6 +12,26 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **The behaviour component: rules without code** (#88, content schema 2.19). Any node can carry a `behaviour` – a list
+  of rules: *on* an event (the page found or lost, a tap, the first find, or a named event of the stage), *when*
+  variables have values (all or any, equal or not, `null` for not set), *do* actions in order – play, pause or stop a
+  model's clip, show or hide a node of the subtree by its name, set a variable in a scope, emit a scene event. The
+  engine runs the rules on the same event bus and variables as the plugins' code, so rules and plugins hear each other.
+  The content build, the reader's check, the MCP server's content model and the API's publish know the component.
+- **Editor: the rule editor** in the Entity panel – **+ behaviour** on any node, then per rule its event as pills,
+  conditions and actions as rows of pickers: the clips read from the node's model, the subtree's node names, the book's
+  variables and events offered. Changes run on the stage at once; an incomplete rule is listed and keeps Save off. The
+  Stage panel's timeline marks every rule that ran (`behaviour`, with the target, the rule, its event and what it did).
+
+### Changed
+- **The demo book uses behaviours**: a tap on the key plays its clip `rattle`, sets `hasKey` and emits `keyRattled`
+  (the plugin component `key` is gone – the rule does its job); the door's rules show its hint and, with the key, hide
+  it and emit `openDoor`, which the `door` plugin hears to lift the door. The key is now taken with a tap, not on the
+  first find.
+
 ## 1.49.2 – 2026-10-30
 
 ### Fixed

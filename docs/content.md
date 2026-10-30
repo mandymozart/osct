@@ -237,6 +237,69 @@ target:
         loop: false
 ```
 
+**Behaviour – rules without code** (content schema 2.19, #88): a node of any type may carry one `behaviour`
+component, a list of **rules**. Each rule reacts to an event (`on`), may ask for variables (`when`) and runs its
+actions (`do`) in order. It runs on the same event bus and variables as a plugin's code (`api.events`, `api.vars` –
+below), so rules and plugins hear each other.
+
+```yaml
+target:
+  image: key.jpg
+  entity:
+    type: model
+    src: key.glb
+    components:
+      - type: animation        # how the clip plays: once, never by itself
+        clip: rattle
+        playOn: never
+        loop: false
+      - type: behaviour
+        rules:
+          - on: tap            # the reader taps the key
+            do:
+              - play: rattle
+              - set: { hasKey: true }
+                scope: book    # kept with the reader's progress
+              - emit: keyRattled
+```
+
+| Part | Values | What it does |
+|---|---|---|
+| `on` | `found`, `lost`, `tap`, `unlocked`, or an event's name | The node's own events – its page found, lost, the AR content tapped, the page's first find – or any other camelCase name: an event of the stage, a scene event a plugin or another behaviour emits (`doorOpened`) or a core event (`targetFound`, `varChanged`, …) |
+| `when` | `{ hasKey: true, tries: 3 }` · `{ any: { … } }` | Optional. Every variable named must equal its value; under `any:` one of them is enough. `{ not: value }` turns a test round, `null` means *not set*. A variable is read from the innermost scope that has it (spread, stage, session, book) |
+| `play` | a clip's name, `""` | Plays a clip of a model – `""` its own clip (the `animation` component's, else the first). `node: <name>` plays another model of the subtree. The `animation` component still says how (loop, speed) |
+| `pause`, `stop` | a node's name, `""` | Pauses the clip, or stops it at its start – `""` the behaviour's own node |
+| `show`, `hide` | a node's name, `""` | Shows or hides a node of the subtree by its `name` – `""` the behaviour's own node |
+| `set` | `{ name: value }`, `scope` | Sets variables (`null` deletes one) in `scope`: `spread` (the default), `stage`, `session` or `book` |
+| `emit` | an event's name | Sends a scene event to the stage (`{ targetId, node }` as its payload); never a core event or a node event |
+
+`do` takes one action or a list; a plain word runs a verb on the own node: `do: play`, `do: hide`. Nodes are named with
+their `name` (schema 2.12) – the door's rules below show and hide its child `hint`. On one event every rule's condition
+is read first, then the rules that matched run in their order, so two rules can toggle a variable without the second
+undoing the first. A rule that emits an event other rules hear sets them off at once; a chain deeper than 8 events is
+cut (logged). An action that cannot run – a node or a clip that is not there – is logged and the next one runs.
+
+```yaml
+  entity:
+    type: group
+    children:
+      - { type: model, name: door, src: door.glb }
+      - { type: text, name: hint, text: "Tap the key on page 1" }
+    components:
+      - type: behaviour
+        rules:
+          - on: found
+            do: { show: hint }
+          - on: found
+            when: { hasKey: true }
+            do: [{ hide: hint }, { emit: openDoor }]
+```
+
+The editor's Entity panel edits the rules without YAML ([editor](editor.md)), and its Stage panel's timeline shows
+each rule that ran. What a rule cannot do – move a node over time, draw text, count the progress – is a plugin's job;
+the demo's `door` plugin hears the rule's `openDoor` and lifts the door ([plugins](plugins.md) "Behaviour and plugins").
+Variables are not declared yet: a rule names them, a missing one is *not set* (`null`).
+
 **Plugins – the book's own code** (content schema 2.4, `agents/research/2026-10-29-code-in-the-editor.md`): a
 folder `content/plugins/<id>/` with an `index.ts` that exports `register(api)`. The content build type-checks it
 against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin imports nothing but types – three.js is
@@ -603,6 +666,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.16 | 1.36.1 | unreleased | nothing new in the content – shared/ imports its types type-only (`verbatimModuleSyntax`, #176) |
 | 2.17 | 1.41.0 | unreleased | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) – a 2.16 app refuses a recorded spec with a `texture` parameter |
 | 2.18 | 1.49.0 | unreleased | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
+| 2.19 | next | unreleased | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) – a 2.18 app refuses a node that carries one |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

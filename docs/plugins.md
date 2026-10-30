@@ -345,7 +345,7 @@ And two more things in a component: the context's **`children`** – the placeme
 content order, so a component on a `group` can show, hide or move them – and the hook **`onUnlocked`**, the first
 find of the target (`onFound` is every find).
 
-The key, the door and the lamp of the demo, shortened (`fixtures/demo/plugins/narrative/index.ts`):
+A key remembered in the book, as a component (the demo's key does the same without code – its `behaviour`, below):
 
 ```ts
 export const register = (api: PluginApi): void => {
@@ -353,19 +353,27 @@ export const register = (api: PluginApi): void => {
   api.registerComponent("key", { description: "Finding this node gives the reader the key.", params: {} }, () => ({
     onUnlocked: () => api.vars.set("hasKey", true, "book"),
   }));
+};
+```
 
-  // The door: on another page. With the key it opens and tells the stage; without it the hint shows
-  api.registerComponent("door", { description: "Opens when the reader has the key.", nodeTypes: ["group"], params: {} }, ({ children }) => {
-    const [door, hint] = children;
+The door and the lamp of the demo, shortened (`fixtures/demo/plugins/narrative/index.ts`). The door's `behaviour`
+decides when it opens and emits `openDoor`; the plugin does what a rule cannot – it moves the door over time:
+
+```ts
+export const register = (api: PluginApi): void => {
+  // The door: opens when the door's rules emit openDoor for its target, and tells the stage
+  api.registerComponent("door", { description: "Opens on openDoor.", nodeTypes: ["group"], params: {} }, ({ children, target }) => {
+    const [door] = children;
+    let opening = false;
+    const off = api.events.on("openDoor", payload => {
+      if ((payload as { targetId?: string })?.targetId !== target.id || opening) return;
+      opening = true;
+      api.vars.set("doorOpen", true, "stage");
+      api.events.emit("doorOpened", { by: "key" });
+    });
     return {
-      onFound: () => {
-        const hasKey = api.vars.get("hasKey") === true;
-        if (hint) hint.visible = !hasKey;
-        if (hasKey) {
-          api.vars.set("doorOpen", true, "stage");
-          api.events.emit("doorOpened", { by: "key" });
-        }
-      },
+      update: delta => { if (opening && door) door.rotation.z = Math.min(Math.PI / 2, door.rotation.z + delta); },
+      dispose: off,
     };
   });
 
@@ -378,13 +386,30 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-Try it in the editor: find the key (the first find sets `hasKey` – the Stage panel's *vars and events* lists it, book
-scope, a boolean), walk to the door's spread with › – the door opens, the timeline shows `doorOpened` with the time
-since the spread opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
+Try it in the editor: tap the key (its rule sets `hasKey` – the Stage panel's *vars and events* lists it, book
+scope, a boolean), walk to the door's spread with › – the door's rules emit `openDoor`, the door opens, the timeline
+shows `openDoor` and `doorOpened` with the time since the spread opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
 To test a branch without playing up to it, change a variable in the panel or **set** one (name, scope, type, value):
 it is written through `api.vars.set`, so your `api.vars.on` listeners and `varChanged` fire as for a plugin's write.
 **tap** taps a found target as a reader would – your component's `onTap` and `targetTapped` – without aiming at it
 ([editor](editor.md) "Stage").
+
+## Behaviour and plugins
+
+Not every narrative needs code. The built-in **`behaviour`** component (content schema 2.19, [content](content.md)
+"Behaviour") is a list of rules an author makes in the editor's Entity panel: *on* an event (the node's `found`,
+`lost`, `tap`, `unlocked`, or any event of the bus), *when* variables have values, *do* actions – play, pause or stop a
+clip, show or hide a node, set a variable, emit an event. It is no second system: the engine runs it on the same
+runtime as your code (`engine/src/scene/behaviour.ts` on `plugin-runtime.ts`). A rule's `set` is `api.vars.set` – your
+`api.vars.on` and `varChanged` fire; its `emit` is `api.events.emit` with `{ targetId, node }` as the payload – your
+`api.events.on` hears it; a rule's `on` hears your scene events and the core events like a listener of yours; its
+`when` reads like `api.vars.get` (the innermost scope). So the split is: the **rules decide** (which event, which
+state, what follows), **a plugin does** what a rule cannot – move or animate a node over time, draw, compute, count the
+progress – and the two meet on the bus with named events. The demo shows it: the key is only a rule now (a tap plays
+its clip, sets `hasKey`, emits `keyRattled`), the door's rules emit `openDoor` and the `door` plugin lifts the door.
+
+Reach for a rule first; write a component when a rule would need a verb it does not have. The editor's timeline
+marks every rule that ran with a `behaviour` line – it is the log's own (your listeners never hear it).
 
 ## Trying it: the Code tab
 
@@ -425,8 +450,8 @@ characters), keep it small
 ## The demo book: everything at once
 
 `fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and eight plugins that
-together use every part of the API – a narrative across its spreads (the key, the door, the lamp, a tally of the
-pages found, a tap that switches a scene, a sparkle of its own node type) and the aquarium with its material and
-texture. Build it with
+together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
+the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
+own node type) and the aquarium with its material and texture. Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

@@ -1,10 +1,11 @@
-# The door: a group of two children – the door (a model) and a hint (a text). The `door` component
-# (plugins/narrative) reads hasKey when the page is found: with the key the door lifts and turns, doorOpen is set in
-# the stage scope and doorOpened is emitted; without it the hint shows.
+# The door: a group of two children – the door (a model) and a hint (a text). Its `behaviour` (rules without code, #88)
+# decides: found, the hint shows; found with hasKey, the hint hides and the scene event openDoor goes out. The `door`
+# component (plugins/narrative) is the code a rule cannot be: it hears openDoor, lifts and turns the door, sets doorOpen
+# in the stage scope and emits doorOpened.
 category: glossary
 title: The door
 page: 3
-body: "A door on another page than its key. Found with `hasKey` set, it opens (the child lifts and turns), sets `doorOpen` in the stage scope and emits `doorOpened`; found without the key, the hint child shows. Switch the page off and on in the editor's Stage panel after finding the key on page 1."
+body: "A door on another page than its key. Its `behaviour` rules: found, the hint shows; found with `hasKey` set, the hint hides and `openDoor` goes out – the `door` plugin hears it, lifts and turns the door, sets `doorOpen` in the stage scope and emits `doorOpened`. Tap the key on page 1, then come here – or set `hasKey` in the editor's Stage panel and switch the page off and on."
 tags: [narrative, door]
 target:
   image: target.jpg
@@ -17,13 +18,15 @@ target:
     type: group
     children:
       - type: model
+        name: door
         src: door.glb
         params:
           rotation: [90, 0, 0]
           position: [0, 0, -0.0103]  # the model's floor is 0.0188 above its origin: down onto the page (#189)
           scale: 0.55
       - type: text
-        text: "Find the key on page 1"
+        name: hint
+        text: "Tap the key on page 1"
         color: "#f3cc94"
         params:
           position: [0, -0.4, 0.01]
@@ -32,3 +35,12 @@ target:
       - type: door
         lift: 0.35
         seconds: 1.2
+      - type: behaviour
+        rules:
+          - on: found
+            do: { show: hint }
+          - on: found
+            when: { hasKey: true }
+            do:
+              - hide: hint
+              - emit: openDoor

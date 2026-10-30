@@ -234,6 +234,12 @@ describe('the demo book', () => {
     expect([Object.keys(aquarium.nodeTypes ?? {}), Object.keys(aquarium.materials ?? {}), Object.keys(aquarium.textures ?? {})]).toEqual([['aquarium'], ['water'], ['caustics']]);
     const tank = entries.find(e => e.id === 'aquarium')?.target?.entity as { children?: Array<{ type: string; material?: unknown }> } | undefined;
     expect(tank?.children?.[0]).toMatchObject({ type: 'aquarium', material: { type: 'water' } });
+    // The behaviour (#88): the key takes itself on a tap, the door's rules decide when the narrative plugin opens it
+    const componentsOf = (id: string) => (entries.find(e => e.id === id)?.target?.entity as { components?: Array<{ type: string; rules?: unknown[] }> } | undefined)?.components ?? [];
+    expect(componentsOf('key').find(c => c.type === 'behaviour')?.rules).toEqual([
+      { on: 'tap', do: [{ play: 'rattle' }, { set: { hasKey: true }, scope: 'book' }, { emit: 'keyRattled' }] },
+    ]);
+    expect(componentsOf('door').map(c => c.type)).toEqual(['door', 'behaviour']);
     // Every model stands on its page (#189)
     const { contentModelBounds, zeroPlaneFindings } = await import('../src/build/zero-plane');
     const trees = [
