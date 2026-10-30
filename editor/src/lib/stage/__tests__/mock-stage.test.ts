@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { type LineSegments, Scene } from "three";
+import {
+  CustomBlending, DirectionalLight, type LineSegments, type Mesh, type MeshBasicMaterial, NormalBlending, OneFactor, OneMinusDstAlphaFactor, Scene, type SphereGeometry, Texture,
+} from "three";
 import { MockStage } from "../mock-stage";
 
 const page = { width: 230, height: 320 };
@@ -221,5 +223,46 @@ describe("mock stage: the desks' look (#107, #187)", () => {
     expect(looks.oakMaterial.map).toBe(oak);
     stage.setDesk("schoepfer");
     expect(looks.oakMaterial.map).toBe(oak);
+  });
+});
+
+describe("mock stage: the environment replaces the HDRI (#185)", () => {
+  it("takes the HDRI's light away while the world is drawn and keeps it only behind the world's window, and gives both back after", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
+    const scene = new Scene();
+    const sun = new DirectionalLight(0xffffff, 0.6);
+    scene.add(sun);
+    const stage = new MockStage(scene, path => `/${path}`);
+    const texture = new Texture();
+    (stage as unknown as { hdris: Map<string, Texture> }).hdris.set("wooden_studio_17", texture);
+    const sky = () => scene.getObjectByName("mock-sky") as Mesh<SphereGeometry, MeshBasicMaterial> | undefined;
+    stage.setHdri("wooden_studio_17");
+    expect(scene.environment).toBe(texture);
+    expect(sky()?.visible).toBe(true);
+    expect(sky()?.material.blending).toBe(NormalBlending);
+    expect(sun.intensity).toBeCloseTo(0.6 * 0.35);
+
+    stage.setWorld(true);
+    expect(scene.environment).toBeNull();
+    expect(sun.intensity).toBeCloseTo(0.6);
+    // the sphere stays as the camera window's stand-in, added only where the world left the frame uncovered
+    expect(sky()?.visible).toBe(true);
+    expect(sky()?.material.blending).toBe(CustomBlending);
+    expect(sky()?.material.blendSrc).toBe(OneMinusDstAlphaFactor);
+    expect(sky()?.material.blendDst).toBe(OneFactor);
+    // the HDRI chosen meanwhile stays out of the light
+    stage.setHdri("wooden_studio_17");
+    expect(scene.environment).toBeNull();
+    // other shadings: no window stand-in (as no HDRI sky there without a world)
+    stage.setShading("solid");
+    expect(sky()?.visible).toBe(false);
+    stage.setShading("rendered");
+
+    stage.setWorld(false);
+    expect(scene.environment).toBe(texture);
+    expect(sky()?.visible).toBe(true);
+    expect(sky()?.material.blending).toBe(NormalBlending);
+    expect(sun.intensity).toBeCloseTo(0.6 * 0.35);
   });
 });

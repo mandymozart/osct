@@ -15,6 +15,7 @@ import { LightHelpers } from "./light-helper";
 import { applyShading, HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
 import { getPreview, subscribePreview, type ShadingMode } from "./preview";
 import { MockStage } from "./mock-stage";
+import { showsWorld } from "./sky";
 import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { describePayload, logEvent, type StageEvent } from "./event-log";
@@ -81,8 +82,12 @@ export class Stage {
   private scene: ArScene;
   private tracker: MockTracker | null = null;
   private mockStage: MockStage | null = null;
-  /** The environment previewed on the stage (the Environment tab), null = none */
+  /** The book's environment on the stage (its draft's or the values being edited), null = the book has none */
   private environment: EnvironmentData | null = null;
+  /** The Environment tab is open: the world shows in every shading, and *look up* raises the camera */
+  private previewing = false;
+  /** The environment's world is drawn under the stage now (`sky.ts`) – it replaces the HDRI (reactive: the toolbar says so) */
+  world = $state(false);
   private lookUp = 0;
   private orientation = new Quaternion();
   private gizmo: Gizmo | null = null;
@@ -129,9 +134,9 @@ export class Stage {
       createTracker: ({ container, options, scene }) => {
         const tracker = new MockTracker(container, options);
         this.mockStage = new MockStage(scene, path => asset(path as AssetPath)); // static/ files the content names at runtime
-        this.mockStage.setStudioSky(!this.environment);
+        this.mockStage.setWorld(this.world);
         tracker.attachStage(this.mockStage);
-        tracker.setLookUp(this.environment ? this.lookUp : 0);
+        tracker.setLookUp(this.world && this.previewing ? this.lookUp : 0);
         tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
         this.tracker = tracker;
         return tracker;
@@ -154,6 +159,8 @@ export class Stage {
         if (state.shading !== this.shading) {
           this.shading = state.shading;
           this.shade();
+          // The world takes the HDRI's place only while rendered (outside the Environment tab)
+          this.applyEnvironment();
         }
       }),
       scene.on("targetFound", id => {
@@ -333,16 +340,27 @@ export class Stage {
   }
 
   /**
-   * Preview the book's environment on the stage (the Environment tab): the engine's look-around world with these
+   * The book's environment on the stage (#185 – it replaces the HDRI sky box): the engine's look-around world with these
    * values – the reader's pass, not a stand-in – under the stage, turned by the view as a phone's gyroscope would turn
-   * it; the studio's sky steps aside. `null` ends it (the studio again, the camera at the book).
+   * it. Drawn while rendered, in place of the HDRI's sky and light (the scene's own lights, as in the reader); while the
+   * Environment tab is open (`previewing`) in every shading, and *look up* raises the camera. `null`: the book has none –
+   * the HDRI again, the camera at the book.
    */
-  previewEnvironment(environment: EnvironmentData | null): void {
-    const was = this.environment;
+  showEnvironment(environment: EnvironmentData | null, previewing = false): void {
     this.environment = environment;
-    this.mockStage?.setStudioSky(!environment);
-    this.tracker?.setLookUp(environment ? this.lookUp : 0);
-    if (!environment) {
+    this.previewing = previewing;
+    this.applyEnvironment();
+  }
+
+  /** The world drawn or not (`sky.ts`), the mock stage's HDRI stepping aside meanwhile */
+  private applyEnvironment(): void {
+    const environment = this.environment;
+    const world = !!environment && showsWorld({ environment: true, previewing: this.previewing, shading: this.shading });
+    const was = this.world;
+    this.world = world;
+    this.mockStage?.setWorld(world);
+    this.tracker?.setLookUp(world && this.previewing ? this.lookUp : 0);
+    if (!world || !environment) {
       if (was) this.scene.previewEnvironment(null);
       return;
     }
@@ -352,7 +370,7 @@ export class Stage {
   /** How far the previewing camera looks up from the book (degrees) – the world's sky and horizon come into view */
   setLookUp(degrees: number): void {
     this.lookUp = degrees;
-    if (this.environment) this.tracker?.setLookUp(degrees);
+    if (this.world && this.previewing) this.tracker?.setLookUp(degrees);
   }
 
   /** Show a spread on the stage (the scene runs as soon as it is asked to) */

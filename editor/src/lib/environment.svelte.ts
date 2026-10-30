@@ -1,5 +1,6 @@
 import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS, type EnvironmentData } from "@shared/types/environment";
 import { getBook, putEnvironment, type Asset } from "./api";
+import { bookEnvironment } from "./stage/sky";
 
 /** The environment's two files: the world model and the sky image */
 export type EnvironmentSlot = "world" | "sky";
@@ -83,3 +84,14 @@ class EnvironmentEdit {
 }
 
 export const environmentEdit = new EnvironmentEdit();
+
+/**
+ * The book's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the
+ * book has one or the author has started one, null while it has none (the reader's default world is not drawn then –
+ * the HDRI stays). Reactive: the toolbar, the Stage panel and the stage follow it.
+ */
+export const stageEnvironment = {
+  get current(): EnvironmentData | null {
+    return environmentEdit.bookId ? bookEnvironment(environmentEdit.saved, environmentEdit.edited, environmentEdit.dirty) : null;
+  },
+};

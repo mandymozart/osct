@@ -14,6 +14,8 @@
    * The book's **environment** on the stage (content schema 2.8 / 2.10): the world around the reader while scanning, its
    * sky and the onion sky. While this tab is open the stage shows the engine's look-around world with the values being
    * edited, under the desk and the book, turned by the view (*look up* raises the camera from the book to the horizon).
+   * Once the book has an environment (or edits start one) its world is the stage's sky in the other tabs too, while
+   * rendered – it replaces the HDRI, sky and light (#185, `stage/sky.ts`).
    * **World**: the built-in café, or a glTF model from the Library (or uploaded here); **sky**: the world's own, or an
    * equirectangular image. *Library…* opens the Library here as a picker (a glTF model, a sky image – the stage keeps
    * previewing); **Save** writes the
@@ -74,7 +76,7 @@
 <LibraryPanel {bookId} {pick} />
 {:else}
 {#snippet whose()}
-  <span class="small muted">{edit.saved ? "this book's" : "the default"}</span>
+  <span class="small muted">{edit.saved ? "this book's · the stage's sky" : "the default"}</span>
 {/snippet}
 
 {#snippet slotRow(slot: EnvironmentSlot)}
@@ -93,7 +95,7 @@
 {/snippet}
 
 <Section id="environment.world" label="environment" aside={whose}
-  help="The book's world around the reader while scanning, its sky and the onion sky – shown on the stage while this tab is open: the reader's own look-around pass, anchored to the book, turned by the view. The reader's Graphics switches (Info → Settings) still apply on top.">
+  help="The book's world around the reader while scanning, its sky and the onion sky – shown on the stage while this tab is open: the reader's own look-around pass, anchored to the book, turned by the view. Once the book has one, its world replaces the HDRI as the stage's sky (rendered), lit by the scene's own lights as in the reader. The reader's Graphics switches (Info → Settings) still apply on top.">
 {@render slotRow("world")}
 {@render slotRow("sky")}
 <div class="row" class:changed={edit.edited.onionSky !== (edit.saved?.onionSky ?? true)}
