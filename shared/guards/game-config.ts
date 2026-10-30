@@ -20,6 +20,7 @@ import { componentProblems } from "../types/components";
 import { PassCheckOptions, passProblems } from "../types/passes";
 import { environmentProblems } from "../types/environment";
 import { pluginProblems } from "../types/plugins";
+import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/node-types";
 import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
@@ -55,7 +56,8 @@ export class GameConfigurationError extends Error {
 export interface GuardOptions {
   /**
    * Component types the registry does not know: refused unless the configuration declares plugins (the default) –
-   * or always allowed (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run)
+   * or always allowed (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run). With plugins
+   * (declared, or `"allow"`) a node type the registry does not know yet passes without the warning of an unknown type.
    */
   unknownComponentTypes?: "declared" | "allow";
 }
@@ -104,10 +106,18 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       else if (depth >= MAX_NODE_DEPTH) fail(`${path}.children`, `nested deeper than ${MAX_NODE_DEPTH} levels`);
       else e.children.forEach((child, i) => entity(child, `${path}.children[${i}]`, depth + 1));
     }
-    // A node type this contract does not know is a later MINOR's: the engine renders nothing for it and keeps its
-    // children (the content build and the editor's API refuse it – an author's typo never gets this far)
+    // A plugin's node type (schema 2.13): registered – its parameters are checked against its spec; with plugins
+    // declared – the plugin registers it when it loads. Any other type this contract does not know is a later
+    // MINOR's: the engine renders nothing for it and keeps its children (the content build and the editor's API
+    // refuse it – an author's typo never gets this far)
     if (typeof e.type !== "string" || e.type === "") fail(`${path}.type`, `expected a node type (${ENTITY_TYPES.join(", ")})`);
-    else if (!isEntityType(e.type)) console.warn(`[game-config] ${path}.type: "${e.type}" is not a node type this app knows (${ENTITY_TYPES.join(", ")}) – it renders nothing, its children stay`);
+    else if (!isEntityType(e.type)) {
+      const spec = nodeTypeSpec(e.type);
+      if (spec) nodeParamProblems(spec, e.params, `${path}.params`, e.type).forEach(problem => problems.push(problem));
+      else if (!(hasPlugins && NODE_TYPE_PATTERN.test(e.type))) {
+        console.warn(`[game-config] ${path}.type: "${e.type}" is not a node type this app knows (${ENTITY_TYPES.join(", ")}) – it renders nothing, its children stay`);
+      }
+    }
     if (e.light !== undefined) {
       if (e.type !== "light") fail(`${path}.light`, "only light nodes have a light");
       lightProblems(e.light, `${path}.light`).forEach(problem => problems.push(problem));

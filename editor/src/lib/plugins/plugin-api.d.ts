@@ -3,7 +3,7 @@
 //   import type { PluginApi } from "osct-plugin-api";
 
 import * as THREE from 'three';
-import { Object3D, Vector2 } from 'three';
+import { AnimationClip, Group, Object3D, Texture, Vector2, VideoTexture } from 'three';
 import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
@@ -98,8 +98,8 @@ type ComponentParamSpec = {
 };
 export interface ComponentSpec {
 	description: string;
-	/** The node types it applies to (none = every type) */
-	nodeTypes?: readonly EntityType[];
+	/** The node types it applies to (none = every type) – built-in types or a plugin's (`registerNodeType`) */
+	nodeTypes?: readonly NodeType[];
 	params: Record<string, ComponentParamSpec>;
 }
 interface ComponentData {
@@ -129,6 +129,20 @@ interface PassData {
 	type: string;
 	[param: string]: unknown;
 }
+declare const NODE_SRC_KINDS: readonly [
+	"none",
+	"glb",
+	"video",
+	"image"
+];
+export type NodeSrcKind = (typeof NODE_SRC_KINDS)[number];
+export interface NodeTypeSpec {
+	description: string;
+	/** The file its `src` takes (default `none`: the node has no file) */
+	src?: NodeSrcKind;
+	/** Its parameters, set in the node's `params` (never `position`, `rotation` or `scale` – the placement's) */
+	params: Record<string, ComponentParamSpec>;
+}
 declare const ENTITY_TYPES: readonly [
 	"group",
 	"model",
@@ -138,6 +152,7 @@ declare const ENTITY_TYPES: readonly [
 	"light"
 ];
 type EntityType = (typeof ENTITY_TYPES)[number];
+type NodeType = EntityType | (string & {});
 declare const ASSET_TYPES: readonly [
 	"glb",
 	"gltf",
@@ -172,9 +187,11 @@ interface EntityData {
 	id?: string;
 	/** Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; the reader ignores it */
 	name?: string;
-	type: EntityType;
-	/** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` */
+	/** A built-in type (ENTITY_TYPES) or a plugin's (schema 2.13) */
+	type: NodeType;
+	/** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` (a plugin's type: its spec's `src`) */
 	assets: AssetData[];
+	/** Placement: position / rotation / scale (see ./placement.ts); a plugin node type's parameters (schema 2.13, `./node-types.ts`) */
 	params?: Record<string, unknown>;
 	filters?: FilterData[];
 	/** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.4) */
@@ -240,6 +257,21 @@ interface Spread extends SpreadData {
 	/** In entry order (page → title) */
 	targets: Target[];
 }
+type LoadedAsset = {
+	assetType: "glb" | "gltf";
+	scene: Group;
+	animations: AnimationClip[];
+} | {
+	assetType: "image";
+	texture: Texture;
+} | {
+	assetType: "video";
+	element: HTMLVideoElement;
+	texture: VideoTexture;
+} | {
+	assetType: "audio";
+	element: HTMLAudioElement;
+};
 /**
  * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.spread` (plugin API 1.1,
  * agents/research/2026-10-30-demo-book.md): what lets a book's code reach across nodes and pages.
@@ -388,13 +420,16 @@ export type PassFactory = (context: PassContext) => PostPass;
  *   api.registerComponent("spin", SPEC, ({ object, params }) => ({ update: delta => { object.rotation.y += … } }))
  *   api.registerLayer("tint", SPEC, { glsl: "return mix(rgba, vec4(color, rgba.a), opacity);" })
  *   api.registerPass("halo", PASS_SPEC, ({ shaderPass }) => shaderPass(FRAGMENT))
+ *   api.registerNodeType("sparkle", NODE_SPEC, ({ params, three }) => ({ object: new three.Points(…) }))
  *
- * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`), so the editor's Entity panel,
- * the content build and the guard read a plugin's component like the built-in `animation`. A **component** runs code
- * on a node (`applyComponents`, called by the entity registry when a node is built); a **material layer** is a piece
- * of GLSL the engine composes into the node's material (`utils/layers.ts`); a **pass** is a post-processing effect
- * over the rendered AR image (`post/registry.ts`). Components and layers are used in the content as
- * `components: [{ type, … }]`.
+ * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`, a node type:
+ * `shared/types/node-types.ts`), so the editor's Entity panel, the content build and the guard read a plugin's
+ * component like the built-in `animation`. A **component** runs code on a node (`applyComponents`, called by the
+ * entity registry when a node is built); a **material layer** is a piece of GLSL the engine composes into the node's
+ * material (`utils/layers.ts`); a **pass** is a post-processing effect over the rendered AR image
+ * (`post/registry.ts`); a **node type** builds a node's own three.js object (`buildPluginNode`, called by the entity
+ * registry for a type without a built-in builder – the node is placed, holds children, components and layers like
+ * any). Components and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`, API 1.1): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread).
@@ -446,12 +481,52 @@ export type ComponentApply = (context: ComponentContext) => ComponentInstance | 
 export interface LayerDefinition {
 	glsl: string;
 }
+/** What a node type's `build` gets: the node, its parameters resolved, its file loaded, the target, three.js */
+export interface NodeTypeContext {
+	node: EntityData;
+	/** The node type's parameters (from the node's `params`) with the spec's defaults filled in */
+	params: Record<string, unknown>;
+	/**
+	 * The node's file, loaded – a model's `scene` and `animations`, a video's `element` and `texture`, an image's
+	 * `texture` – or undefined (a type without `src`, or the file did not load). It is shared with every node that uses
+	 * the same file: clone what you change (`asset.scene.clone()`), never dispose it.
+	 */
+	asset?: LoadedAsset;
+	target: Target;
+	/** The app's three.js (one instance – plugins never import three themselves) */
+	three: typeof THREE;
+}
+/**
+ * What a node type's `build` returns: the node's own three.js object – the engine puts it into the node's placement
+ * group, next to its children – and the hooks it needs (every one optional, as a component's).
+ */
+export interface NodeTypeInstance {
+	object: Object3D;
+	update?(delta: number): void;
+	onFound?(): void;
+	onLost?(): void;
+	onUnlocked?(): void;
+	onTap?(): void;
+	onPause?(): void;
+	/** Free what the build created (geometries, materials, textures of its own – not the shared asset) */
+	dispose?(): void;
+	/** Apply other parameter values in place (the editor's live edit); false = the node is built anew */
+	tune?(params: Record<string, unknown>): boolean;
+}
+export type NodeTypeBuild = (context: NodeTypeContext) => NodeTypeInstance | null | void;
 export interface PluginApi {
 	/** `PLUGIN_API_VERSION` */
 	readonly version: string;
 	readonly three: typeof THREE;
 	registerComponent(type: string, spec: ComponentSpec, apply: ComponentApply): void;
 	registerLayer(type: string, spec: ComponentSpec, layer: LayerDefinition): void;
+	/**
+	 * A node type of the plugin's own (API 1.2): `build` makes its three.js object with `api.three` (Points, a Sprite,
+	 * a Line, a mesh with its own material); the engine places it like every node – placement, children, components and
+	 * layers come with it. The spec declares its parameters (rows in the Entity panel, values in the node's `params`)
+	 * and the file its `src` takes (`glb`, `video`, `image` or `none`).
+	 */
+	registerNodeType(type: string, spec: NodeTypeSpec, build: NodeTypeBuild): void;
 	/**
 	 * A post-processing pass of the plugin's own: its spec as the built-in passes have it, the factory builds the
 	 * three.js pass (`PassContext`: the resolved parameters, `shaderPass`, the canvas size). The content names it in

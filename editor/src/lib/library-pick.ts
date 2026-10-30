@@ -1,3 +1,4 @@
+import { nodeAssetTypes } from "@engine/types";
 import type { Asset } from "./api";
 import { fitsSlot, type EnvironmentSlot } from "./environment.svelte";
 import { assetPlace } from "./library-place";
@@ -15,8 +16,17 @@ const KIND_MIMES: Partial<Record<AssetKind, readonly string[]>> = { glb: ["model
 export const acceptOf = (kinds: readonly AssetKind[]): string =>
   kinds.flatMap(kind => [...KIND_EXTENSIONS[kind], ...(KIND_MIMES[kind] ?? [])]).join(",");
 
-/** The file kinds a node type takes */
+/** The file kinds a built-in node type takes */
 export const NODE_ASSET_KINDS: Record<string, readonly AssetKind[]> = { model: ["glb", "gltf"], video: ["video"], image: ["image"] };
+
+/**
+ * The file kinds a node type takes – a built-in one's, or what a plugin's node type declares as its `src` (#77) –
+ * undefined when it takes no file
+ */
+export const nodeAssetKinds = (type: string): readonly AssetKind[] | undefined => {
+  const kinds = NODE_ASSET_KINDS[type] ?? nodeAssetTypes(type);
+  return kinds?.length ? kinds : undefined;
+};
 
 /**
  * The Library's filters (#164): target images – the pictures printed in the book – apart from the other images, so a
@@ -65,14 +75,15 @@ export interface LibraryPick {
 /** The kinds that fit the subject */
 export const pickKinds = (subject: PickSubject): readonly AssetKind[] =>
   subject.for === "target-image" ? ["image"]
-    : subject.for === "node" ? NODE_ASSET_KINDS[subject.nodeType] ?? []
+    : subject.for === "node" ? nodeAssetKinds(subject.nodeType) ?? []
       : subject.slot === "world" ? ["glb", "gltf"] : ["image"];
 
 /** The filter the picker starts with */
 export const pickFilter = (subject: PickSubject): LibraryFilter => {
   if (subject.for === "target-image") return "target";
   if (subject.for === "environment") return subject.slot === "world" ? "model" : "image";
-  return subject.nodeType === "model" ? "model" : subject.nodeType === "video" ? "video" : subject.nodeType === "image" ? "image" : "all";
+  const kinds = nodeAssetKinds(subject.nodeType) ?? [];
+  return kinds.includes("glb") ? "model" : kinds.includes("video") ? "video" : kinds.includes("image") ? "image" : "all";
 };
 
 /** The asset fits the subject (the environment's files also by their extension) */

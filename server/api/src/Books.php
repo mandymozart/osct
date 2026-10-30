@@ -72,7 +72,7 @@ final class Books
                 $assetsBase = rtrim($body->assetsBase, '/');
             }
         }
-        $parts = self::parse($configuration);
+        $parts = self::parse($configuration, Plugins::hasSources($bookId));
         $now = Db::now();
 
         Db::transaction(function () use ($bookId, $parts, $files, $assetsBase, $now) {
@@ -166,7 +166,7 @@ final class Books
     {
         $user = Editor::user();
         self::book($bookId);
-        $entity = Editor::entity(Editor::body());
+        $entity = Editor::entity(Editor::body(), 'entity', 0, Editor::hasPlugins($bookId));
         $json = Editor::encode($entity);
         Db::transaction(function () use ($bookId, $ref, $entity, $json, $user) {
             $params = ['book' => $bookId, 'ref' => $ref];
@@ -208,7 +208,7 @@ final class Books
         } elseif (property_exists($body, 'entity')) {
             $ref = null;
             if ($body->entity === null) unset($target->entity);
-            else $target->entity = Editor::entity($body->entity);
+            else $target->entity = Editor::entity($body->entity, 'entity', 0, Editor::hasPlugins($bookId));
             $touched = true;
         }
         // The printed image and where it is printed (docs/server.md "Targets")
@@ -264,7 +264,7 @@ final class Books
                 if (Db::value('SELECT ref FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]) === null) throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this book.");
                 $target->entity = (object) ['ref' => $ref];
             } else {
-                $target->entity = Editor::entity($targetIn->entity, 'target.entity');
+                $target->entity = Editor::entity($targetIn->entity, 'target.entity', 0, Editor::hasPlugins($bookId));
             }
         }
         // Each named parameter once: MySQL with native prepares (no emulation) refuses a name used twice (HY093) – SQLite
@@ -650,6 +650,11 @@ final class Books
         if ($unknown && empty($version['configuration']->plugins)) {
             throw new ApiError(409, 'unknown-components', 'Nodes use components no compiled plugin provides: ' . implode(', ', $unknown) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['components' => $unknown]);
         }
+        // The same for a plugin's node type: without a compiled plugin the reader renders nothing for those nodes
+        $unknownNodes = self::unknownNodeTypes($version['configuration']);
+        if ($unknownNodes && empty($version['configuration']->plugins)) {
+            throw new ApiError(409, 'unknown-node-types', 'Nodes have types no compiled plugin provides: ' . implode(', ', $unknownNodes) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['nodeTypes' => $unknownNodes]);
+        }
         $root = $version['build'];
         $uploaded = $store->exists("$root/game.config.json");
         if (!$uploaded) {
@@ -676,13 +681,37 @@ final class Books
      */
     public static function unknownComponentTypes(stdClass $configuration): array
     {
-        $types = [];
-        $walk = static function (mixed $node) use (&$walk, &$types): void {
-            if (!$node instanceof stdClass) return;
+        return self::typesOfNodes($configuration, static function (stdClass $node): array {
+            $types = [];
             foreach ((array) ($node->components ?? []) as $component) {
                 $type = $component instanceof stdClass ? ($component->type ?? null) : null;
-                if (is_string($type) && !in_array($type, Editor::COMPONENT_TYPES, true)) $types[$type] = true;
+                if (is_string($type) && !in_array($type, Editor::COMPONENT_TYPES, true)) $types[] = $type;
             }
+            return $types;
+        });
+    }
+
+    /**
+     * The node types of the configuration that are not built in (Editor::ENTITY_TYPES) – a plugin's (schema 2.13), sorted
+     * @return list<string>
+     */
+    public static function unknownNodeTypes(stdClass $configuration): array
+    {
+        return self::typesOfNodes($configuration, static fn(stdClass $node): array =>
+            is_string($node->type ?? null) && !in_array($node->type, Editor::ENTITY_TYPES, true) ? [$node->type] : []);
+    }
+
+    /**
+     * What `$of` names for every node of the configuration (shared entities, the targets' own trees), distinct and sorted
+     * @param callable(stdClass): list<string> $of
+     * @return list<string>
+     */
+    private static function typesOfNodes(stdClass $configuration, callable $of): array
+    {
+        $types = [];
+        $walk = static function (mixed $node) use (&$walk, &$types, $of): void {
+            if (!$node instanceof stdClass) return;
+            foreach ($of($node) as $type) $types[$type] = true;
             foreach ((array) ($node->children ?? []) as $child) $walk($child);
         };
         foreach (get_object_vars($configuration->entities ?? new stdClass()) as $entity) $walk($entity);
@@ -690,7 +719,7 @@ final class Books
             $entity = $entry->target->entity ?? null;
             if ($entity instanceof stdClass && !isset($entity->ref)) $walk($entity);
         }
-        $list = array_keys($types);
+        $list = array_map('strval', array_keys($types));
         sort($list);
         return $list;
     }
@@ -783,9 +812,10 @@ final class Books
     /**
      * Checks what the rows need of a configuration and splits it into rows-to-be; every other field stays inside the
      * objects (data_json). An entry belongs to the first spread whose pages include its page, else to none.
+     * `$pluginSources`: the book has Code tab sources (a node type of a plugin may pass – Editor::entity).
      * @return array{book: stdClass, schema: string, hash: ?string, initialSpreadId: string, tutorial: array, plugins: array, spreads: array, entities: array, entries: array, targets: array}
      */
-    private static function parse(stdClass $c): array
+    private static function parse(stdClass $c, bool $pluginSources = false): array
     {
         $fail = static fn(string $message) => throw new ApiError(400, 'invalid-configuration', $message);
         $version = $c->version ?? null;
@@ -811,6 +841,8 @@ final class Books
                 $fail("plugins[$i] needs id, src and api.");
             }
         }
+        // A plugin's node type (schema 2.13) passes when the configuration declares plugins or the book has sources
+        $pluginTypes = $plugins !== [] || $pluginSources;
 
         $spreads = [];
         foreach ($c->spreads as $i => $s) {
@@ -823,7 +855,7 @@ final class Books
         $position = 0;
         foreach (get_object_vars($entitiesIn) as $ref => $e) {
             $ref = Editor::id((string) $ref, 'entities key');
-            Editor::entity($e, "entities.$ref");
+            Editor::entity($e, "entities.$ref", 0, $pluginTypes);
             $entities[$ref] = ['ref' => $ref, 'position' => $position++, 'type' => $e->type, 'data' => $e];
         }
         $entries = [];
@@ -848,7 +880,7 @@ final class Books
             if (!$target instanceof stdClass || !is_string($target->imageSrc ?? null)) $fail("entries[$i].target needs id and imageSrc.");
             $targetId = Editor::id($target->id ?? null, "entries[$i].target.id");
             if (isset($targets[$targetId])) $fail("Duplicate target id \"$targetId\".");
-            $targets[$targetId] = ['id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => self::entityRef($target->entity ?? null, $entities, "entries[$i].target.entity"), 'data' => $target];
+            $targets[$targetId] = ['id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => self::entityRef($target->entity ?? null, $entities, "entries[$i].target.entity", $pluginTypes), 'data' => $target];
         }
         return [
             'book' => $book, 'schema' => $version->schema, 'hash' => is_string($version->hash ?? null) ? $version->hash : null,
@@ -858,7 +890,7 @@ final class Books
     }
 
     /** A target's entity: `{ ref }` naming a shared entity → the ref; an inline entity (checked) or none → null */
-    private static function entityRef(mixed $entity, array $entities, string $path): ?string
+    private static function entityRef(mixed $entity, array $entities, string $path, bool $pluginTypes = false): ?string
     {
         if ($entity === null) return null;
         if ($entity instanceof stdClass && property_exists($entity, 'ref')) {
@@ -866,7 +898,7 @@ final class Books
             if (!isset($entities[$ref])) throw new ApiError(400, 'unknown-entity', "$path.ref: no entity \"$ref\".");
             return $ref;
         }
-        Editor::entity($entity, $path);
+        Editor::entity($entity, $path, 0, $pluginTypes);
         return null;
     }
 

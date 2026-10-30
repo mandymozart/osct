@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getEntityRef } from "@engine/content/game-config";
-  import type { EntityData, Entry, Target } from "@engine/types";
+  import { nodeTypeSpec, type EntityData, type Entry, type Target } from "@engine/types";
   import { content } from "$lib/content.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
   import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "$lib/stage/preview";
@@ -70,7 +70,8 @@
     selection.target === target.id && !selection.onTarget && (path === null || (path.length < selection.node.length && isWithin(selection.node, path)));
 
   const NODE_ICONS: Record<string, IconName> = { group: "layers", model: "model", video: "video", image: "image", text: "type", light: "light" };
-  const nodeIcon = (n: EntityData): IconName => NODE_ICONS[n.type] ?? "layers";
+  /** A plugin's node type (#77): the code icon – its look is the plugin's; a type nobody registered: a plain group */
+  const nodeIcon = (n: EntityData): IconName => NODE_ICONS[n.type] ?? (nodeTypeSpec(n.type) ? "code" : "layers");
   const rowName = (n: EntityData, target: Target, path: number[]) => {
     const ref = path.length ? undefined : getEntityRef(target.id);
     return `${nodeLabel(n)}${ref ? ` · ${ref}` : ""}`;

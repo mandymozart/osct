@@ -15,6 +15,8 @@ final class Editor
     public const ENTITY_TYPES = ['group', 'model', 'video', 'image', 'text', 'light'];
     /** The built-in component types (shared/types/components.ts `COMPONENTS`) – every other type is a plugin's */
     public const COMPONENT_TYPES = ['animation'];
+    /** A plugin's node type (shared/types/node-types.ts `NODE_TYPE_PATTERN`): camelCase letters and digits, at most 32 (entities.type) */
+    public const PLUGIN_NODE_TYPE = '[a-z][a-zA-Z0-9]{0,31}';
     /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
@@ -52,12 +54,18 @@ final class Editor
      * An entity as the content contract describes it (`EntityData`): an object with a `type` from ENTITY_TYPES
      * and an `assets` list of objects with string `id`, `assetType` and `src`. Every other key (params, filters, …)
      * passes through untouched – the reader's guard checks the configuration in depth.
+     * `$pluginTypes`: the book has plugins (`Editor::hasPlugins`) – then a node type outside ENTITY_TYPES passes when
+     * it is named like a plugin's (`registerNodeType`, schema 2.13); which plugin registers it only the editor's stage
+     * and the content build can tell (they run the code), the publish refuses one without compiled plugins.
      */
-    public static function entity(mixed $value, string $path = 'entity', int $depth = 0): stdClass
+    public static function entity(mixed $value, string $path = 'entity', int $depth = 0, bool $pluginTypes = false): stdClass
     {
         if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path must be an object.");
-        if (!is_string($value->type ?? null) || !in_array($value->type, self::ENTITY_TYPES, true)) {
-            throw new ApiError(400, 'invalid-entity', "$path.type must be one of " . implode(', ', self::ENTITY_TYPES) . '.');
+        $type = $value->type ?? null;
+        $builtIn = is_string($type) && in_array($type, self::ENTITY_TYPES, true);
+        if (!$builtIn && !($pluginTypes && is_string($type) && preg_match('/^' . self::PLUGIN_NODE_TYPE . '$/', $type))) {
+            throw new ApiError(400, 'invalid-entity', "$path.type must be one of " . implode(', ', self::ENTITY_TYPES)
+                . ($pluginTypes ? ' or a plugin\'s node type (camelCase letters and digits).' : ' – a plugin\'s node type needs a plugin in the book.'));
         }
         if (!is_array($value->assets ?? null)) throw new ApiError(400, 'invalid-entity', "$path.assets must be an array.");
         foreach ($value->assets as $i => $asset) {
@@ -78,9 +86,18 @@ final class Editor
         if (property_exists($value, 'children')) {
             if (!is_array($value->children)) throw new ApiError(400, 'invalid-entity', "$path.children must be an array.");
             if ($depth >= self::MAX_NODE_DEPTH) throw new ApiError(400, 'invalid-entity', "$path.children: nodes nest deeper than " . self::MAX_NODE_DEPTH . ' levels.');
-            foreach ($value->children as $i => $child) self::entity($child, "$path.children[$i]", $depth + 1);
+            foreach ($value->children as $i => $child) self::entity($child, "$path.children[$i]", $depth + 1, $pluginTypes);
         }
         return $value;
+    }
+
+    /** The book has plugins: compiled ones its configuration declares, or sources of the Code tab */
+    public static function hasPlugins(string $bookId): bool
+    {
+        $json = Db::value('SELECT plugins_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $declared = self::decode(is_string($json) ? $json : null);
+        if (is_array($declared) && $declared) return true;
+        return Plugins::hasSources($bookId);
     }
 
     /** A target's printed placement (`PrintPlacement`): surface left / right, x, y, width (mm), optional height and page */

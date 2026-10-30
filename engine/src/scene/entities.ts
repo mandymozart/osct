@@ -7,13 +7,14 @@ import { COMPONENT_TYPES, EntityData, EntityType, Light as LightValues, NodeTime
 import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma-key";
 import { composeLayers, layerObject, tuneLayers } from "../utils/layers";
 import { LoadedAsset } from "./assets";
-import { applyComponents, unknownComponentTypes } from "./plugins";
+import { applyComponents, buildPluginNode, nodeTypeRegistration, unknownComponentTypes } from "./plugins";
 import { getBook, getEntry } from "../content/game-config";
 
 /**
  * Entity registry: one builder per node type creates the three.js object for a node and may return hooks for
  * found / lost / pause and a per-frame update. New types: `registerEntity("type", builder)` – no logic
- * in the content. `buildEntity` builds the entity's **node tree** (content schema 2.0): every node's object goes
+ * in the content; a book's own types come from its plugins (`registerNodeType`, `plugins.ts` – the same contract: an
+ * object and its hooks). `buildEntity` builds the entity's **node tree** (content schema 2.0): every node's object goes
  * into a group placed by the node's `params` (position / rotation / scale – shared/types/placement.ts; axes: x
  * right, y up the page, z out of the page, 1 unit = target width, origin in its centre) relative to its parent, the
  * root on the target's anchor. A node of a type without a builder renders nothing (logged) but keeps its children.
@@ -71,9 +72,11 @@ export const buildEntity = (target: Target, asset: EntityContext["asset"]): Enti
 
 /** One node: its own object (if its type has a builder) and its children, in a group placed by its params */
 const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset"], name: string): EntityInstance | null => {
-  const builder = registry.get(node.type);
-  if (!builder) console.warn(`[entities] No builder for node type "${node.type}" (target ${target.id})`);
-  const own = builder ? builder({ target, entity: node, asset }) : null;
+  // A built-in type's builder, else a plugin's node type (`registerNodeType`), else nothing (the children stay)
+  const builder = registry.get(node.type as EntityType);
+  const plugin = !builder && nodeTypeRegistration(node.type);
+  if (!builder && !plugin) console.warn(`[entities] No builder for node type "${node.type}" (target ${target.id})`);
+  const own: EntityInstance | null = builder ? builder({ target, entity: node, asset }) : plugin ? buildPluginNode(node, target, asset) : null;
   const children = (node.children ?? [])
     .map((child, i) => buildNode(target, child, asset, `${name}.${i}`))
     .filter((child): child is EntityInstance => child !== null);

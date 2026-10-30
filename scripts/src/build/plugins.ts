@@ -7,6 +7,7 @@ import ts from 'typescript';
 import * as THREE from 'three';
 import { componentSpecProblems, registerComponentSpec, type ComponentSpec } from '../../../shared/types/components';
 import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData } from '../../../shared/types/plugins';
+import { nodeTypeSpecProblems, registerNodeTypeSpec, type NodeTypeSpec } from '../../../shared/types/node-types';
 import type { EntityData } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings } from '../lib/errors';
@@ -19,7 +20,8 @@ import { buildErrors, buildWarnings } from '../lib/errors';
  *   2. bundles it with esbuild into one ES module (`plugin.js`, next to the source in the build output – the
  *      immutable version folder); a plugin imports nothing but types (three.js is `api.three`);
  *   3. runs the module once with a recording API: the components and material layers it registers join the
- *      registry, so the nodes that use them are checked like the built-in `animation`;
+ *      registry, so the nodes that use them are checked like the built-in `animation`; the node types it registers
+ *      join the node type registry, so nodes of that type pass (their parameters and file checked);
  *   4. declares it in `game.config.json`: `plugins: [{ id, src, api }]`.
  * Nothing here runs in the content build without a review: plugins live in the content source like the YAML.
  */
@@ -175,6 +177,20 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         const problems = componentSpecProblems(type, spec);
         if (typeof factory !== 'function') problems.push(`the pass ${type} needs a factory`);
         problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+      },
+      // A node type (API 1.2): its spec joins the registry, so the nodes of that type are checked (params, src)
+      registerNodeType: (type: string, spec: NodeTypeSpec, build: unknown) => {
+        const problems = nodeTypeSpecProblems(type, spec);
+        const key = `node:${type}`;
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the node type "${type}" is registered by the plugin ${taken.get(key)} too`);
+        if (typeof build !== 'function') problems.push(`the node type ${type} needs a build(context) function`);
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        registerNodeTypeSpec(type, spec);
+        registered.push(type);
       },
       // The runtime (events, variables, progress, the spread) belongs to a running scene: here nothing happens
       events: { on: () => () => undefined, emit: () => undefined },

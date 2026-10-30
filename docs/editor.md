@@ -313,15 +313,16 @@ is involved.
     **Save placement** writes it; until then a target made in the editor lies where its form put it, an imported one
     where the book's layout says), and its AR content as a link one level down. A selected entity or node shows
     that **node**: its **name** (empty = the tree shows the type), its **file** (the file field: **Library…** – the Library as the picker, with the filter set – or **Upload…**),
-    **+ node** (type – group, model, video, image, text or light – and for model / video / image a file chosen in
+    **+ node** (type – group, model, video, image, text or light, and under *plugins* the node types the book's plugins
+    registered once they are loaded or Run – and for model / video / image, or a plugin type with a `src`, a file chosen in
     the Library as the picker – the root of a target without AR content, else placed by **add as**: *next to it* (the same parent,
     right after the selected node – the default for a model, video or image) or *inside it* (its last child); a video
     whose size the Library knows starts scaled so a portrait file stays within one target width – the plane itself
     always takes the file's proportions),
     **remove node** / **remove entity**; then every placement value (relative to the parent node), a text node's
     text and colour, a light node's **light** rows (kind as a segmented group, colour, intensity, distance and decay
-    for a point or spot, angle and penumbra for a spot), and every filter parameter of the
-    node as rows of one control height: position, rotation and scale with X, Y, Z side
+    for a point or spot, angle and penumbra for a spot), a plugin node type's parameters (*node type · sparkle*, from its
+    spec), and every filter parameter of the node as rows of one control height: position, rotation and scale with X, Y, Z side
     by side as in Blender (the chain icon at the end of the scale row links the axes: pressed = one `scale` field, as
     Blender's lock), choices as a segmented group, colours as a
     swatch + hex whose swatch opens the editor's **colour popover** (after Scutoons': a palette of the usual keys and
@@ -407,9 +408,9 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   target are phase 15 step 3; the book's own code is the Code tab (above).
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
-- The plugin API 1.1 has components, material layers, events, variables in scopes, the progress and the spread
-  (`registerComponent`, `registerLayer`, `registerPass`, `api.three`, `api.events`, `api.vars`, `api.progress`,
-  `api.spread`); node types are #77, declared variables and a `behaviour` component without code come when a work needs them. The Code
+- The plugin API 1.2 has components, material layers, passes, node types, events, variables in scopes, the progress
+  and the spread (`registerComponent`, `registerLayer`, `registerPass`, `registerNodeType`, `api.three`, `api.events`,
+  `api.vars`, `api.progress`, `api.spread`); declared variables and a `behaviour` component without code come when a work needs them. The Code
   tab has no completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind
   the publish (#78).
 - What the stage cannot simulate of a reader's game: consulted entries (no entry view), a reader's stored progress

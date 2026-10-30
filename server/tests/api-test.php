@@ -508,7 +508,7 @@ try {
     [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => ['book' => []]]));
     check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'a configuration without a schema → 400');
     $bad = $configuration;
-    $bad['entities']['castle']['type'] = 'hologram';
+    $bad['entities']['castle']['type'] = 'holo-gram'; // not even a plugin's (camelCase) – the book declares plugins (#77)
     [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $bad], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'an unknown entity type → 400 invalid-entity');
     $bad = $configuration;
@@ -553,7 +553,7 @@ try {
     $castle['params'] = ['scale' => 2];
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     check($status === 200 && $data['entity']['params']['scale'] === 2, 'PUT entity → saved');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'hologram', 'assets' => []], $editor);
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'holo-gram', 'assets' => []], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'an unknown type → 400 invalid-entity');
     [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'video'], $editor);
     check($status === 400, 'without assets → 400');
@@ -739,6 +739,35 @@ try {
     call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'unknown-components' && $data['error']['components'] === ['tint'], 'without one, publish → 409 unknown-components naming the types');
+
+    echo "editor: a plugin's node type (#77)\n";
+    // A node type outside ENTITY_TYPES passes only in a book with plugins (declared, or sources of the Code tab)
+    $sparkly = $configuration['entities']['castle'];
+    $sparkly['children'] = [['type' => 'sparkle', 'assets' => [], 'params' => ['position' => [0, 0.1, 0], 'count' => 120]]];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $sparkly, $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entity' && str_contains($data['error']['message'], 'children[0].type') && str_contains($data['error']['message'], 'needs a plugin'), 'a book without plugins: a plugin node type → 400 invalid-entity');
+    call($api, 'PUT', '/editor/books/osct/plugins/sparkle', ['source' => "export const register = (api) => api.registerNodeType('sparkle', { description: 'x', params: {} }, ({ three }) => ({ object: new three.Points() }));\n"], $editor);
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $sparkly, $editor);
+    check($status === 200 && $data['entity']['children'][0]['type'] === 'sparkle' && $data['entity']['children'][0]['params']['count'] === 120, 'with a source in the Code tab, the node type passes, its params kept');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['entity' => ['type' => 'sparkle', 'assets' => []]], $editor);
+    check($status === 200 && $data['target']['entity']['type'] === 'sparkle', 'a target\'s own entity may be one too');
+    foreach (['Sparkle', 'spark-le', str_repeat('a', 33), 42] as $badType) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => $badType, 'assets' => []], $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-entity', 'a type not named like a plugin\'s (' . json_encode($badType) . ') → 400 even with plugins');
+    }
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-node-types' && $data['error']['nodeTypes'] === ['sparkle'], 'without a declared plugin, publish → 409 unknown-node-types naming the types');
+    call($api, 'DELETE', '/editor/books/osct/plugins/sparkle', null, $editor);
+    // The import: allowed with plugins declared, refused without (and without sources)
+    $withNodes = $configuration;
+    $withNodes['entities']['castle'] = $sparkly;
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $withNodes, 'files' => $files], $flags));
+    check($status === 200, 'import: a plugin node type with plugins declared → 200');
+    [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200, 'with a plugin declared, a node may have its type');
+    unset($withNodes['plugins']);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $withNodes, 'files' => $files], $flags));
+    check($status === 400 && $data['error']['code'] === 'invalid-entity', 'import: a plugin node type without plugins → 400 invalid-entity');
     [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the plugins');
 

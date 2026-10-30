@@ -15,13 +15,15 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-`register` runs once when the plugin loads. Three things you can do with `api` – and, for a book's logic across
+`register` runs once when the plugin loads. Four things you can do with `api` – and, for a book's logic across
 nodes and pages, four more ("Across nodes and pages" below):
 
 - **`api.registerLayer(type, spec, { glsl })`** – a **material layer**: a few lines of GLSL that run on every
   pixel of a video or image plane after its own shading. Tint, dissolve, scan lines, a pulse.
 - **`api.registerComponent(type, spec, apply)`** – a **component**: code on a node. Spin it, bob it, react to
   found / lost / tap, change it every frame.
+- **`api.registerNodeType(type, spec, build)`** – a **node type** of your own: you build the three.js object (Points,
+  a Sprite, a Line, a mesh with its own material), the engine places it like every node ("A node type" below).
 - **`api.three`** – the app's three.js, for whatever a component builds or changes. Never `import "three"` yourself:
   the app has one three.js and a plugin that brings another is refused by the build.
 
@@ -88,7 +90,59 @@ model's scene, a video's plane), `placed` the group that carries its placement, 
 defaults filled in. It returns the hooks it needs: `update(delta)` every frame, `onFound`, `onLost`, `onTap`,
 `onPause`, `dispose`, and `tune(params)` for the editor's live edit (return `true` when you applied the new values
 in place, `false` to have the node built anew). A component on a `group` node may build anything with
-`api.three` and add it to `placed` – particles, lines, a sprite.
+`api.three` and add it to `placed` – but when the thing *is* the node, a node type says so better.
+
+## A node type: sparkle (API 1.2)
+
+A node type is what a `model` or a `video` is to the engine – a builder that makes the node's own object – written
+by the book. You build the object; the engine puts it into the node's placement group, so the author places it,
+scales it, gives it children, components and layers like any node. `fixtures/demo/plugins/sparkle/index.ts`,
+shortened:
+
+```ts
+api.registerNodeType("sparkle", {
+  description: "A sparkle of points that twinkle around the node.",
+  src: "none",
+  params: {
+    count: { kind: "number", default: 80, min: 1, max: 500, step: 1, description: "How many points." },
+    color: { kind: "color", default: "#f3cc94", description: "Their colour." },
+  },
+}, ({ params, three }) => {
+  const positions = new Float32Array(Number(params.count) * 3).map(() => (Math.random() - 0.5) * 0.6);
+  const geometry = new three.BufferGeometry();
+  geometry.setAttribute("position", new three.BufferAttribute(positions, 3));
+  const material = new three.PointsMaterial({ color: String(params.color), size: 0.02, transparent: true });
+  const points = new three.Points(geometry, material);
+  return {
+    object: points,
+    update: delta => { points.rotation.z += delta * 0.2; },
+    tune: next => { if (Number(next.count) !== Number(params.count)) return false; material.color.set(String(next.color)); return true; },
+    dispose: () => { geometry.dispose(); material.dispose(); },
+  };
+});
+```
+
+The spec says only what the editor and the build must know: the **parameters** (the kinds of a component's – the
+Entity panel shows their rows under *node type · sparkle*; never `position`, `rotation` or `scale`, which are the
+placement's) and **`src`**, the file the node takes: `glb` (a model, also `.gltf`), `video`, `image`, or `none` (the
+default). The content writes the type and puts the parameters into `params`, next to the placement:
+
+```yaml
+- type: sparkle
+  params:
+    position: [0, 0.1, 0.25]
+    count: 120
+    color: "#ffe2a8"
+```
+
+`build` gets `{ node, params, asset, target, three }` – `params` resolved with the defaults, `asset` the node's file
+loaded (a model's `scene` and `animations`, a video's `element` and `texture`, an image's `texture`). The asset is
+shared by every node that uses the same file: clone what you change (`asset.scene.clone()`) and never dispose it. It
+returns `{ object, …hooks }` – the hooks a component has (`update`, `onFound`, `onLost`, `onUnlocked`, `onTap`,
+`onPause`, `dispose`), and `tune(params)` for the editor's live edit. A `build` that throws or returns no object is
+logged; the node then renders nothing and keeps its children. In the editor, **+ node** lists the book's node types
+under *plugins* once the plugins are loaded (or Run); the content build refuses a type no plugin of the book
+registers, and a node's parameters or file that do not fit its spec.
 
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 
@@ -176,18 +230,18 @@ registers (so the nodes that use it are checked), and declares it in the configu
 the CDN with the content version and the reader loads it with the AR scene. A plugin that does not compile fails
 the build with the file and line, like a missing image. The build behind the publish is #78 (decided: it runs on
 the server); until it lands, only the plugins in the content source (`content/plugins/<id>/index.ts`, built with
-`npm run build:content` in `scripts/`) are compiled, and a publish whose nodes use a component no such plugin
-provides is refused.
+`npm run build:content` in `scripts/`) are compiled, and a publish whose nodes use a component or a node type no
+such plugin provides is refused.
 
 Rules of the road: one `index.ts` per plugin (more files next to it are bundled in), no imports but
-`import type`, `camelCase` type names (`tint`, `spin`), keep it small – the build warns above 256 KB, and
-everything a plugin registers runs on the reader's phone. A listener you subscribe in a component: unsubscribe it in
+`import type`, `camelCase` type names (`tint`, `spin`, `sparkle` – a node type at most 32 characters), keep it small
+– the build warns above 256 KB, and everything a plugin registers runs on the reader's phone. A listener you subscribe in a component: unsubscribe it in
 `dispose` (a listener subscribed in `register` lives as long as the plugin). Never emit a core event – the engine does.
 
 ## The demo book: everything at once
 
-`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and six plugins that
+`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and seven plugins that
 together use every part of the API – a narrative across its spreads (the key, the door, the lamp, a tally of the
-pages found, a tap that switches a scene). Build it with `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor
-([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
+pages found, a tap that switches a scene, a sparkle of its own node type). Build it with
+`OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

@@ -1,4 +1,5 @@
-import { ENTITY_TYPES, type AssetData, type EntityData, type EntityRefData } from '../../../shared/types/game-config';
+import { type AssetData, type EntityData, type EntityRefData } from '../../../shared/types/game-config';
+import { isKnownNodeType, nodeAssetTypes, nodeParamProblems, nodeTypes, nodeTypeSpec } from '../../../shared/types/node-types';
 import { FilterData, filterProblems } from '../../../shared/types/filters';
 import { componentProblems, type ComponentData } from '../../../shared/types/components';
 import { lightProblems, type LightData } from '../../../shared/types/lights';
@@ -13,9 +14,6 @@ import { assetType, contentFile, readSection, validate } from '../lib/content';
 type RawNode = Record<string, unknown>;
 
 const isMapping = (value: unknown): value is RawNode => typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/** Node types without a file of their own */
-const FILELESS = new Set(['group', 'text', 'light']);
 
 export const MAX_NODE_DEPTH = 8;
 
@@ -33,7 +31,8 @@ export function buildEntities(): Record<string, EntityData> {
 
 /**
  * One node of an entity's tree (content schema 2.0), its children recursively. `assets: [{ id?, src }]` (the root
- * of a shared entity) or `src` (inline nodes) name the node's files; `group`, `text` and `light` have none. Asset ids:
+ * of a shared entity) or `src` (inline nodes) name the node's files; `group`, `text` and `light` have none. A plugin's
+ * node type (schema 2.13) takes the file its spec names and has its parameters checked in `params`. Asset ids:
  * `<idBase>-<n>` for a shared root, `<targetId>-media` for an inline root, `<parent id>-<index>` below.
  */
 export function buildNode(
@@ -46,15 +45,18 @@ export function buildNode(
   entryId?: string,
 ): EntityData | null {
   const raw: RawNode = isMapping(node) ? node : {};
-  const type = ENTITY_TYPES.find(t => t === raw.type);
+  // A built-in type, or one a plugin registered (recorded by build/plugins.ts before the nodes are built)
+  const type = typeof raw.type === 'string' && isKnownNodeType(raw.type) ? raw.type : undefined;
   if (!type) {
-    buildErrors.push(`${label}: node type "${raw.type}" must be one of ${ENTITY_TYPES.join(', ')}`);
+    buildErrors.push(`${label}: node type "${raw.type}" must be one of ${nodeTypes().join(', ')}`);
     return null;
   }
+  const pluginSpec = nodeTypeSpec(type);
   if (raw.params !== undefined && !isMapping(raw.params)) {
     buildErrors.push(`${label}: params must be a mapping`);
   }
   buildErrors.push(...placementProblems(raw.params, `${label}: params`));
+  if (pluginSpec) buildErrors.push(...nodeParamProblems(pluginSpec, raw.params, `${label}: params`, type));
   // The node's files
   let assets: AssetData[] = [];
   if (Array.isArray(raw.assets) && raw.assets.length) {
@@ -74,9 +76,15 @@ export function buildNode(
     }
     assets = [{ id: depth === 0 && kind === 'entries' ? `${idBase}-media` : idBase, assetType: assetType(raw.src, label), src: file(raw.src) }];
   }
-  if (!assets.length && !FILELESS.has(type)) {
+  // The files a type takes: none (group, text, light, a plugin's type without src), else at least one of its kind
+  const takes = nodeAssetTypes(type) ?? [];
+  if (!assets.length && takes.length) {
     buildErrors.push(`${label}: node type "${type}" needs a src`);
     return null;
+  }
+  if (pluginSpec) {
+    if (!takes.length && assets.length) buildErrors.push(`${label}: node type "${type}" takes no file (its plugin's spec has no src)`);
+    else assets.filter(asset => !takes.includes(asset.assetType)).forEach(asset => buildErrors.push(`${label}: node type "${type}" takes ${takes.join(' / ')} files, not "${asset.assetType}"`));
   }
   if (type === 'text' && typeof raw.text !== 'string') buildErrors.push(`${label}: a text node needs a text`);
   if (raw.name !== undefined && typeof raw.name !== 'string') buildErrors.push(`${label}: name must be a string`);

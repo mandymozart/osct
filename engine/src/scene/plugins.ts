@@ -5,15 +5,21 @@ import {
   ComponentSpec,
   componentSpecProblems,
   EntityData,
+  NodeTypeSpec,
+  nodeTypeSpecProblems,
   PLUGIN_API_VERSION,
   pluginApiCompatible,
   PluginData,
   PassSpec,
   registerComponentSpec,
+  registerNodeTypeSpec,
+  resolveNodeParams,
   resolveParams,
   Target,
   unregisterComponentSpec,
+  unregisterNodeTypeSpec,
 } from "../types/index";
+import type { LoadedAsset } from "./assets";
 import { dropPluginListeners, nextRun, PluginEvents, PluginProgress, PluginSpread, PluginVars, runtimeApi } from "./plugin-runtime";
 import { PassFactory, passRegistration, registerPass, unregisterPassesOf } from "./post/registry";
 
@@ -24,13 +30,16 @@ import { PassFactory, passRegistration, registerPass, unregisterPassesOf } from 
  *   api.registerComponent("spin", SPEC, ({ object, params }) => ({ update: delta => { object.rotation.y += … } }))
  *   api.registerLayer("tint", SPEC, { glsl: "return mix(rgba, vec4(color, rgba.a), opacity);" })
  *   api.registerPass("halo", PASS_SPEC, ({ shaderPass }) => shaderPass(FRAGMENT))
+ *   api.registerNodeType("sparkle", NODE_SPEC, ({ params, three }) => ({ object: new three.Points(…) }))
  *
- * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`), so the editor's Entity panel,
- * the content build and the guard read a plugin's component like the built-in `animation`. A **component** runs code
- * on a node (`applyComponents`, called by the entity registry when a node is built); a **material layer** is a piece
- * of GLSL the engine composes into the node's material (`utils/layers.ts`); a **pass** is a post-processing effect
- * over the rendered AR image (`post/registry.ts`). Components and layers are used in the content as
- * `components: [{ type, … }]`.
+ * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`, a node type:
+ * `shared/types/node-types.ts`), so the editor's Entity panel, the content build and the guard read a plugin's
+ * component like the built-in `animation`. A **component** runs code on a node (`applyComponents`, called by the
+ * entity registry when a node is built); a **material layer** is a piece of GLSL the engine composes into the node's
+ * material (`utils/layers.ts`); a **pass** is a post-processing effect over the rendered AR image
+ * (`post/registry.ts`); a **node type** builds a node's own three.js object (`buildPluginNode`, called by the entity
+ * registry for a type without a built-in builder – the node is placed, holds children, components and layers like
+ * any). Components and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`, API 1.1): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread).
@@ -87,12 +96,55 @@ export interface LayerDefinition {
   glsl: string;
 }
 
+/** What a node type's `build` gets: the node, its parameters resolved, its file loaded, the target, three.js */
+export interface NodeTypeContext {
+  node: EntityData;
+  /** The node type's parameters (from the node's `params`) with the spec's defaults filled in */
+  params: Record<string, unknown>;
+  /**
+   * The node's file, loaded – a model's `scene` and `animations`, a video's `element` and `texture`, an image's
+   * `texture` – or undefined (a type without `src`, or the file did not load). It is shared with every node that uses
+   * the same file: clone what you change (`asset.scene.clone()`), never dispose it.
+   */
+  asset?: LoadedAsset;
+  target: Target;
+  /** The app's three.js (one instance – plugins never import three themselves) */
+  three: typeof THREE;
+}
+
+/**
+ * What a node type's `build` returns: the node's own three.js object – the engine puts it into the node's placement
+ * group, next to its children – and the hooks it needs (every one optional, as a component's).
+ */
+export interface NodeTypeInstance {
+  object: Object3D;
+  update?(delta: number): void;
+  onFound?(): void;
+  onLost?(): void;
+  onUnlocked?(): void;
+  onTap?(): void;
+  onPause?(): void;
+  /** Free what the build created (geometries, materials, textures of its own – not the shared asset) */
+  dispose?(): void;
+  /** Apply other parameter values in place (the editor's live edit); false = the node is built anew */
+  tune?(params: Record<string, unknown>): boolean;
+}
+
+export type NodeTypeBuild = (context: NodeTypeContext) => NodeTypeInstance | null | void;
+
 export interface PluginApi {
   /** `PLUGIN_API_VERSION` */
   readonly version: string;
   readonly three: typeof THREE;
   registerComponent(type: string, spec: ComponentSpec, apply: ComponentApply): void;
   registerLayer(type: string, spec: ComponentSpec, layer: LayerDefinition): void;
+  /**
+   * A node type of the plugin's own (API 1.2): `build` makes its three.js object with `api.three` (Points, a Sprite,
+   * a Line, a mesh with its own material); the engine places it like every node – placement, children, components and
+   * layers come with it. The spec declares its parameters (rows in the Entity panel, values in the node's `params`)
+   * and the file its `src` takes (`glb`, `video`, `image` or `none`).
+   */
+  registerNodeType(type: string, spec: NodeTypeSpec, build: NodeTypeBuild): void;
   /**
    * A post-processing pass of the plugin's own: its spec as the built-in passes have it, the factory builds the
    * three.js pass (`PassContext`: the resolved parameters, `shaderPass`, the canvas size). The content names it in
@@ -120,11 +172,15 @@ export interface PluginModule {
 interface ComponentRegistration { plugin: string; spec: ComponentSpec; apply: ComponentApply }
 interface LayerRegistration { plugin: string; spec: ComponentSpec; layer: LayerDefinition }
 interface PassRegistrationStaged { spec: PassSpec; factory: PassFactory }
+interface NodeTypeRegistration { plugin: string; spec: NodeTypeSpec; build: NodeTypeBuild }
 
 const components = new Map<string, ComponentRegistration>();
 const layers = new Map<string, LayerRegistration>();
+const nodeTypes = new Map<string, NodeTypeRegistration>();
 /** Plugins installed, by id → the component and layer types they registered */
 const installed = new Map<string, string[]>();
+/** Plugins installed, by id → the node types they registered (a namespace of its own) */
+const installedNodeTypes = new Map<string, string[]>();
 /** The compiled modules loaded, by URL (a spread switch never loads a plugin twice) */
 const loaded = new Map<string, Promise<void>>();
 
@@ -147,8 +203,14 @@ const removeRegistrations = (id: string): void => {
     if (layers.get(type)?.plugin === id) layers.delete(type);
     if (components.get(type)?.plugin !== id && layers.get(type)?.plugin !== id) unregisterComponentSpec(type);
   });
+  (installedNodeTypes.get(id) ?? []).forEach(type => {
+    if (nodeTypes.get(type)?.plugin !== id) return;
+    nodeTypes.delete(type);
+    unregisterNodeTypeSpec(type);
+  });
   unregisterPassesOf(id);
   installed.delete(id);
+  installedNodeTypes.delete(id);
 };
 
 /**
@@ -159,10 +221,14 @@ const removeRegistrations = (id: string): void => {
 export const installPlugin = (id: string, module: PluginModule): void => {
   const register = module.register ?? module.default;
   if (typeof register !== "function") throw new PluginError(id, `${id}: the module exports no register(api) function`);
-  const staged: { components: Map<string, ComponentRegistration>; layers: Map<string, LayerRegistration>; passes: Map<string, PassRegistrationStaged> } = {
+  const staged: {
+    components: Map<string, ComponentRegistration>; layers: Map<string, LayerRegistration>; passes: Map<string, PassRegistrationStaged>;
+    nodeTypes: Map<string, NodeTypeRegistration>;
+  } = {
     components: new Map(),
     layers: new Map(),
     passes: new Map(),
+    nodeTypes: new Map(),
   };
   // The listeners this run subscribes replace the previous run's once register succeeded
   const run = nextRun();
@@ -196,7 +262,16 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
       staged.passes.set(type, { spec, factory });
     },
-    log:(...args) => console.info(`[plugin ${id}]`, ...args),
+    registerNodeType: (type, spec, build) => {
+      const problems = nodeTypeSpecProblems(type, spec);
+      const owner = nodeTypes.get(type)?.plugin;
+      if (owner && owner !== id) problems.push(`the node type "${type}" is registered by the plugin ${owner}`);
+      if (staged.nodeTypes.has(type)) problems.push(`the node type "${type}" is registered twice`);
+      if (typeof build !== "function") problems.push(`the node type "${type}" needs a build(context) function`);
+      if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
+      staged.nodeTypes.set(type, { plugin: id, spec, build });
+    },
+    log: (...args) => console.info(`[plugin ${id}]`, ...args),
   };
   try {
     register(api);
@@ -216,7 +291,12 @@ export const installPlugin = (id: string, module: PluginModule): void => {
     registerComponentSpec(type, registration.spec);
   });
   staged.passes.forEach(({ spec, factory }, type) => registerPass(type, spec, factory, id));
+  staged.nodeTypes.forEach((registration, type) => {
+    nodeTypes.set(type, registration);
+    registerNodeTypeSpec(type, registration.spec);
+  });
   installed.set(id, [...staged.components.keys(), ...staged.layers.keys()]);
+  installedNodeTypes.set(id, [...staged.nodeTypes.keys()]);
 };
 
 /** The ids of the plugins installed right now */
@@ -225,8 +305,53 @@ export const installedPlugins = (): string[] => [...installed.keys()];
 /** The component and layer types a plugin registered */
 export const pluginTypes = (id: string): string[] => [...(installed.get(id) ?? [])];
 
+/** The node types a plugin registered */
+export const pluginNodeTypesOf = (id: string): string[] => [...(installedNodeTypes.get(id) ?? [])];
+
 export const componentRegistration = (type: string): ComponentRegistration | undefined => components.get(type);
 export const layerRegistration = (type: string): LayerRegistration | undefined => layers.get(type);
+export const nodeTypeRegistration = (type: string): NodeTypeRegistration | undefined => nodeTypes.get(type);
+
+/**
+ * Build a node of a plugin's type: the registration's `build` with the node's parameters resolved and its file
+ * loaded. Null when the type is nobody's, `build` returns nothing or throws (logged – the node renders nothing and
+ * keeps its children). `tune` applies another node of the same type and file in place: the build's own `tune`, or –
+ * without one – only when the parameters did not change.
+ */
+export const buildPluginNode = (
+  node: EntityData,
+  target: Target,
+  asset: (id: string) => LoadedAsset | undefined,
+): (Omit<NodeTypeInstance, "tune"> & { tune(next: EntityData): boolean }) | null => {
+  const registration = nodeTypes.get(node.type);
+  if (!registration) return null;
+  const params = resolveNodeParams(registration.spec, node.params);
+  const file = node.assets[0];
+  let instance: NodeTypeInstance | null | void;
+  try {
+    instance = registration.build({ node, params, asset: file ? asset(file.id) : undefined, target, three: THREE });
+  } catch (error) {
+    console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) failed on ${target.id}:`, error);
+    return null;
+  }
+  if (!instance || !(instance.object instanceof THREE.Object3D)) {
+    if (instance) console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) returned no three.js object on ${target.id}`);
+    return null;
+  }
+  const built = instance;
+  let applied = params;
+  return {
+    ...built,
+    tune: next => {
+      if (next.type !== node.type || (next.assets[0]?.src ?? "") !== (file?.src ?? "")) return false;
+      const values = resolveNodeParams(registration.spec, next.params);
+      const same = Object.keys(values).every(key => JSON.stringify(values[key]) === JSON.stringify(applied[key]));
+      const ok = same || (built.tune?.(values) ?? false);
+      if (ok) applied = values;
+      return ok;
+    },
+  };
+};
 
 /** Load and install the plugins a configuration declares; a plugin that fails is logged and skipped (RULES #16) */
 export const loadPlugins = async (

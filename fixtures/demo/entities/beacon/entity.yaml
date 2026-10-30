@@ -1,4 +1,5 @@
-# The shared entity of the twins: a tall model turned a quarter and spinning, a line of text under it.
+# The shared entity of the twins: a tall model turned a quarter and spinning, a line of text under it, a sparkle around
+# it – a node type of a plugin's own (plugins/sparkle, `registerNodeType`), its parameters in params next to the placement.
 type: group
 params:
   position: [0, 0.05, 0]
@@ -20,3 +21,10 @@ children:
     params:
       position: [0, -0.42, 0.01]
       scale: 0.7
+  - type: sparkle
+    name: Sparkle
+    params:
+      position: [0, 0.1, 0.25]
+      count: 120
+      radius: 0.35
+      color: "#ffe2a8"

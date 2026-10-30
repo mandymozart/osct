@@ -73,7 +73,7 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 | `POST /editor/books/{id}/import` | `{ configuration, files?, assetsBase? }` or `{ source: "cdn" }` | `{ book, counts, draft: { build, hash } }` – replaces the book's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json`, `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `CONTENT_BASE_URL`. 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` |
 | `GET /editor/books/{id}` | | `{ book, spreads: [{ …SpreadData, entries: [{ id, category, title, page, target }] }], unassigned }` – the tree; `target` = the entry's TargetData (id, imageSrc, entity inline or `{ ref }`) or null; `unassigned` = entries whose page is in no spread |
 | `GET /editor/books/{id}/entities` | | `{ entities: { ref: EntityData } }` – the shared entities |
-| `PUT /editor/books/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types, no `assets` list |
+| `PUT /editor/books/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in a book with plugins – "Plugin sources"), no `assets` list |
 | `PUT /editor/books/{id}/targets/{targetId}` | `{ entity }` or `{ ref }` | `{ target }` – the target's entity: inline (`entity`, null removes it) or a shared one (`ref`, 400 `unknown-entity` when there is none); records a change. 404 for an unknown target |
 | `GET /editor/books/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN with the token in its `fetchFn`. The build in the path is not checked against the current draft – an edit between the two requests is no error |
 | `POST /editor/books/{id}/publish` | `{ env, note?, replace? }` | `{ env, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env` (`local`, `staging`, `production`): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the book); a row in the publish log. An environment serves one book: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-book` with `current` `{ env, book, title, build, since }`; `replaced` `{ book, build }` names the book replaced, null when none. 400 `invalid-env`, `invalid-replace`; 502 `content-store-failed` |
@@ -262,7 +262,12 @@ import – the configuration's `plugins` list (content schema 2.4: `{ id, src, a
 only) is kept in `books.plugins_json` and assembled back after `tutorial`, its `src` below the assets base like
 every other content path. A publish whose nodes use a component type that is neither built in
 (`Editor::COMPONENT_TYPES`) nor possibly a declared plugin's (no `plugins` at all) answers 409 `unknown-components`
-with the types – the reader would refuse such content as a whole.
+with the types – the reader would refuse such content as a whole. The same for a plugin's **node type** (content
+schema 2.13): an entity body may name a type outside `Editor::ENTITY_TYPES` when it is named like one
+(`Editor::PLUGIN_NODE_TYPE`: camelCase, at most 32 characters) and the book has plugins – declared in its configuration
+or sources in the Code tab (`Editor::hasPlugins`; which plugin registers it only the stage and the content build can
+tell, they run the code); without plugins it is 400 `invalid-entity`. A publish whose nodes have such types without
+declared plugins answers 409 `unknown-node-types` with `nodeTypes`.
 
 | Endpoint | Body | Answer |
 |---|---|---|

@@ -4,7 +4,6 @@
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
-import { ENTITY_TYPES } from "../../../shared/types/game-config";
 
 /** `List`: an array of texts, or the texts in one comma-separated string */
 export type FieldType = "String" | "Number" | "Array" | "List" | "Boolean" | "Object";
@@ -82,7 +81,7 @@ export const schemas = {
     fields: {
       id: { type: "String", required: false },
       name: { type: "String", required: false }, // the node's name in the editor's tree (schema 2.12)
-      type: { type: "String", required: true, enum: ENTITY_TYPES },
+      type: { type: "String", required: true }, // ENTITY_TYPES or a plugin's node type (schema 2.13) – checked by the build (build/entities.ts)
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts

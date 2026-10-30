@@ -20,15 +20,19 @@ export * from "./components";
 export * from "./lights";
 export * from "./passes";
 export * from "./plugins";
+export * from "./node-types";
 
 /**
  * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text,
  * a light – or a `group` that only holds children. Links are entries, not entities.
  * The guard lets a node type it does not know pass (the engine renders nothing for it but keeps its children), so
- * a later type is a MINOR addition; the content build and the editor's API still refuse one.
+ * a later type is a MINOR addition; the content build and the editor's API still refuse one – unless a plugin
+ * registers it (schema 2.13, `./node-types.ts`): ENTITY_TYPES stays the built-in list.
  */
 export const ENTITY_TYPES = ["group", "model", "video", "image", "text", "light"] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
+/** A node's type: a built-in one, or one a plugin registers (`registerNodeType`, camelCase – `./node-types.ts`) */
+export type NodeType = EntityType | (string & {});
 
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
 export type AssetType = (typeof ASSET_TYPES)[number];
@@ -43,11 +47,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * - MINOR: an addition older apps ignore – a new optional field (the book's `environment` since 2.8, its world and sky assets since 2.10), and since 2.6 a
  *   new node type (the guard lets an unknown one pass; a 2.5 app refuses it), and since 2.9 a new pass parameter
  *   (the grade's `reach`: the guard ignores a parameter it does not know; a 2.8 app refuses it), and since 2.11 the
- *   content manifest's `book`, and since 2.12 a node's `name`. Any MINOR of the same MAJOR loads.
+ *   content manifest's `book`, and since 2.12 a node's `name`, and since 2.13 a plugin's node type
+ *   (`registerNodeType`, its parameters in the node's `params`; a 2.12 app renders nothing for it and keeps its
+ *   children). Any MINOR of the same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.12";
+export const CONTENT_SCHEMA_VERSION = "2.13";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -117,10 +123,12 @@ export interface EntityData {
   id?: string;
   /** Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; the reader ignores it */
   name?: string;
-  type: EntityType;
-  /** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` */
+  /** A built-in type (ENTITY_TYPES) or a plugin's (schema 2.13) */
+  type: NodeType;
+  /** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` (a plugin's type: its spec's `src`) */
   assets: AssetData[];
-  params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
+  /** Placement: position / rotation / scale (see ./placement.ts); a plugin node type's parameters (schema 2.13, `./node-types.ts`) */
+  params?: Record<string, unknown>;
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
   /** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.4) */
   components?: ComponentData[];
