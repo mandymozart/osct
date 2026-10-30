@@ -204,7 +204,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       schema, RULES #10). Changes only in `agents/`, `docs/` or `*.md` need no bump.
     - **How:** `client/package.json` + lock, `scripts/package.json` + lock, `mcp/package.json` + lock (+ `VERSION` in
       `mcp/src/user.ts`), `server/api/src/Version.php` (`npm version X.Y.Z --no-git-tag-version` in client/, scripts/ and
-      mcp/), then
+      mcp/) – `editor/package.json` stays private at `0.0.0` while the editor ships inside the one release (the check
+      enforces it; Tilman, 2026-10-30, until the editor is decoupled from the single book release, #222), then
       `npm run content` in client/ (the regenerated `game.config.json` is not committed).
       Add `## X.Y.Z – <date>` at the top of `docs/CHANGELOG.md` (Added / Changed / Fixed / Removed), written
       for people, not agents.

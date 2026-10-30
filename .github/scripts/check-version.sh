@@ -11,10 +11,13 @@ v=$(node -p "require('./client/package.json').version")
 scripts=$(node -p "require('./scripts/package.json').version")
 mcp=$(node -p "require('./mcp/package.json').version")
 server=$(sed -n "s/.*APP = '\(.*\)'.*/\1/p" server/api/src/Version.php)
+editor=$(node -p "require('./editor/package.json').version")
 fail() { echo "::error::$1"; exit 1; }
 
-[ "$scripts" = "$v" ] && [ "$server" = "$v" ] \
-  || fail "Versions disagree: client $v, scripts $scripts, server $server – set all to the same version."
+[ "$scripts" = "$v" ] && [ "$mcp" = "$v" ] && [ "$server" = "$v" ] \
+  || fail "Versions disagree: client $v, scripts $scripts, mcp $mcp, server $server – set all to the same version."
+# The editor ships inside the one release: its package stays private at 0.0.0 until it is released on its own (#222)
+[ "$editor" = "0.0.0" ] || fail "editor/package.json is $editor – it stays 0.0.0 (private) while the editor ships with the one release (#222)."
 grep -q "^## $v " docs/CHANGELOG.md || fail "docs/CHANGELOG.md has no section '## $v – <date>'."
 
 latest=$(git tag -l 'v[0-9]*' | sed 's/^v//' | sort -V | tail -1)
