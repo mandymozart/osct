@@ -4,6 +4,16 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – consent is the person's own: no account change through an AI token or an admin (#203)
+
+- **Decision (Tilman, 2026-10-30):** "keine Einwilligung ändern per mcp. Das ist auch in der admin UI verboten weil user
+  centric data." `PATCH /user` (`Users::update`) takes `Auth::session()` instead of `Auth::user()`: a token gets 403
+  `not-for-ai` for the whole account update – options and language – like the password and the deletion. Rule:
+  RULES #33.
+- **Checked:** no `/admin/*` route writes options or language (`setRole` only roles; `makeEditor` creates a new user with
+  every option off and language `en` – creating, not changing someone's consent; the list and the CSV only read). The
+  MCP server has no tool that calls `PATCH /user` (`mcp/src` reads `GET /user` only); docs/mcp.md says so now.
+
 ## 2026-10-30 – server hardening: forwarded host headers, transactions in admin writes and assets (#209)
 
 - **The public URL of stored files**: `Http::apiUrl()` takes `APP_URL`'s origin (+ the API's base) on every instance

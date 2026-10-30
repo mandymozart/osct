@@ -61,7 +61,7 @@ server/db-dumps/                 the dumps it keeps (not committed)
 | `POST /auth/password` | `{ email, password }` | `{ session, user, created: false }`; 401 `invalid-credentials` (also for unknown addresses and users without a password) |
 | `POST /auth/logout` | | 204 – this device only |
 | `GET /user` | | `{ user }` – `{ email, language, options, hasPassword, roles, role, createdAt }`; `roles` holds `reader` for everyone, `editor`, `admin` ([Roles](#roles)) |
-| `PATCH /user` | `{ options?, language? }` | `{ user }` |
+| `PATCH /user` | `{ options?, language? }` | `{ user }` – the person's own sign-in only (an AI connection's token: 403 `not-for-ai`) |
 | `DELETE /user` | | 204 – user, sessions, progress, open requests |
 | `PUT /user/password` | `{ password, currentPassword? }` | `{ user }` – sets or changes the password (`user.hasPassword`) |
 | `/user/tokens` | | the [AI connections](#ai-connections)' tokens |
@@ -150,9 +150,10 @@ with the browser session they have, and hands it to an AI agent (any MCP client)
 - A token expires **182 days** after it was made or renewed; renewing moves the same token on. Revoked or expired: 401
   `token-revoked` / `token-expired`; an account that has neither the editor nor the admin role any more: 401
   `no-editor-role`.
-- **What a token never does – 403 `not-for-ai`:** make, list, renew or revoke tokens, set the password
-  (`PUT /user/password`), delete the account (`DELETE /user`) – those take the person's own session
-  (`Auth::session()`) – and **publish**, to any environment (`Auth::refuseToken()` in `Books::publish`): readers are
+- **What a token never does – 403 `not-for-ai`:** make, list, renew or revoke tokens, and **change the account** in
+  any way – the update options (the person's consent), the language (`PATCH /user`), the password
+  (`PUT /user/password`), the deletion (`DELETE /user`) – those take the person's own session (`Auth::session()`;
+  consent and update options are user-centric data that no admin route writes either, `agents/RULES.md` #33) – and **publish**, to any environment (`Auth::refuseToken()` in `Books::publish`): readers are
   reached only by a person. Reading and saving drafts, assets and plugin sources – uploading shaders and script files
   included – work as for the person; removing a
   spread or an entry too, but only in the two steps of a [confirmation](#confirmations) – the impact first, then the

@@ -20,6 +20,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **Library files and their rows stay together** (#209): an upload or a replace whose database rows fail removes its
   file again, two replaces at once get two version numbers, and deleting a file – forced or not – is recorded in the
   book's change log.
+- **An AI connection cannot change the account** (#203): `PATCH /api/user` – the update options (newsletter consent)
+  and the language – refuses an AI connection's token with 403 `not-for-ai`, as the password and the account deletion
+  already did; only the person's own sign-in changes them. No admin route writes them either.
 - **Parallel saves no longer overwrite each other** (#209): saving a target, a spread, the book's environment or its
   post-processing reads and writes the row in one locked transaction.
 

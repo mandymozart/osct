@@ -34,8 +34,8 @@ The server talks to one API (`OSCT_API_URL`, default `http://127.0.0.1:8080/api`
   token** ([editor](editor.md#ai-connections)) – best named after the agent and the machine ("Codex on my laptop"); the
   token `osct_…` is shown once, and the setup snippets beside it have it filled in. Set it as `OSCT_EDITOR_TOKEN`: the server skips the mail sign-in, lists the editor's tools from the start,
   and `whoami` answers `signedIn: { with: "token", token: { name, prefix, expiresAt, lastUsedAt } }`. The token is the
-  person with their roles, but the API refuses it every publish (any environment), the tokens, the password and the
-  account (403 `not-for-ai` – the tool's error hints to hand it to the person); every save names it in the change log
+  person with their roles, but the API refuses it every publish (any environment), the tokens, the password and any
+  change of the account – its update options (consent), its language, its deletion; no tool offers one (403 `not-for-ai` – the tool's error hints to hand it to the person); every save names it in the change log
   (`list_changes` → `token`). It expires after 182 days unless renewed on the books page (401 `token-expired` – renewed,
   the same token works again); revoked there it stops at once (401 `token-revoked`). [Server, "AI
   connections"](server.md#ai-connections).

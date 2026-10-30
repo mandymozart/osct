@@ -1708,13 +1708,22 @@ try {
         ['GET', '/user/tokens', null], ['POST', '/user/tokens', ['name' => 'Another']], ['POST', "/user/tokens/{$made['apiToken']['id']}/renew", null],
         ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],
         ['GET', '/admin/users', null], ['GET', '/admin/roles', null], ['POST', '/admin/editors', ['email' => 'robot@example.com']],
+        // Consent (the update options) and the language are the person's own (#203, RULES #33)
+        ['PATCH', '/user', ['options' => ['bookUpdates' => true, 'publisherUpdates' => true], 'language' => 'nl']], ['PATCH', '/user', ['language' => 'nl']],
     ];
+    [, $data] = call($api, 'GET', '/user', null, $editor);
+    $account = $data['user'];
     foreach ($refused as [$method, $path, $body]) {
         [$status, $data] = call($api, $method, $path, $body, $aiToken);
         check($status === 403 && $data['error']['code'] === 'not-for-ai', "a token: $method $path → 403 not-for-ai");
     }
     [$status, $data] = call($api, 'GET', '/user', null, $editor);
     check($status === 200 && $data['user']['hasPassword'] === false, 'the account is still there, its password unchanged');
+    check($data['user']['options'] === $account['options'] && $data['user']['language'] === $account['language'], '#203: the update options and the language unchanged');
+    $flipped = !$account['options']['artistUpdates'];
+    [$status, $data] = call($api, 'PATCH', '/user', ['options' => ['artistUpdates' => $flipped]], $editor);
+    check($status === 200 && $data['user']['options']['artistUpdates'] === $flipped, '#203: the person\'s own session still changes them');
+    call($api, 'PATCH', '/user', ['options' => ['artistUpdates' => !$flipped]], $editor);
 
     // Renew, revoke, expire – the person's own sign-in; another editor's token is as unknown as none
     [$status] = call($api, 'POST', "/user/tokens/{$made['apiToken']['id']}/renew", null, $otherEditor);
