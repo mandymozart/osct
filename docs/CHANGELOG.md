@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.51.0 – 2026-10-30
 
 ### Changed
 - **Signing in keeps the session in a cookie** (#207): in the reader and the editor, the sign-in is now an HttpOnly
