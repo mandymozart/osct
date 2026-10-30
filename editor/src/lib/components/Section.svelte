@@ -34,7 +34,9 @@
   .section { justify-content: flex-start; }
   .head { display: inline-flex; align-items: center; gap: .25rem; flex: 1; min-width: 0; height: var(--control-height); margin-left: -.25rem; padding: 0 .25rem;
     border: none; border-radius: var(--control-radius); background: none; color: var(--muted); cursor: pointer; text-align: left; }
-  .head:hover { color: var(--text); }
-  .head:hover .section-label { color: var(--text); }
+  @media (hover: hover) {
+    .head:hover { color: var(--text); }
+    .head:hover .section-label { color: var(--text); }
+  }
   .aside { display: inline-flex; align-items: center; gap: .375rem; }
 </style>

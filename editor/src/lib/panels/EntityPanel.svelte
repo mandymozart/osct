@@ -651,14 +651,18 @@
   .crumbs { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0 .125rem; }
   .crumb { max-width: 10rem; height: var(--control-height); padding: 0 .375rem; border: none; border-radius: var(--control-radius); background: none; color: var(--muted);
     cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  button.crumb:hover { background: var(--hover-background); color: var(--text); }
+  @media (hover: hover) {
+    button.crumb:hover { background: var(--hover-background); color: var(--text); }
+  }
   .crumb.current { display: inline-flex; align-items: center; background: var(--selected-background); color: var(--pressed-color); cursor: default; }
   .crumb-sep { color: var(--muted); }
   /* Only the select's arrow shows (its options name the targets) */
   .crumb-switch { width: 1.25rem; height: var(--control-height); padding: 0; border: none; border-radius: var(--control-radius); color: transparent; cursor: pointer; appearance: none;
     background: linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(50% - 2px) 55% / 4px 4px no-repeat,
       linear-gradient(135deg, var(--muted) 50%, transparent 50%) calc(50% + 2px) 55% / 4px 4px no-repeat; }
-  .crumb-switch:hover { background-color: var(--hover-background); }
+  @media (hover: hover) {
+    .crumb-switch:hover { background-color: var(--hover-background); }
+  }
   .crumb-switch option { color: var(--text); background: var(--surface); }
   /* A finger: ▾ as wide as the touch height (#171) */
   @media (pointer: coarse) { .crumb-switch { width: var(--control-height); } }

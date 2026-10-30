@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -66,5 +66,53 @@ describe("a finger gets the touch control height (#171, the Scutoons dogma's 44p
     expect(touch).toMatch(/\.node\s*\{\s*height:\s*var\(--control-height\)/);
     expect(touch).toMatch(/button\.chevron, button\.eye\s*\{\s*height:\s*100%/);
     expect(touch).toMatch(/\.eye\s*\{\s*width:\s*var\(--control-height\)/);
+  });
+});
+
+/** Every stylesheet of the editor: app.css and each component's file (only its <style> has `:hover`) */
+const sheets = (): [string, string][] => {
+  const files = readdirSync(resolve(process.cwd(), "src"), { recursive: true, encoding: "utf8" })
+    .filter(file => file.endsWith(".svelte"))
+    .map(file => `src/${file.replaceAll("\\", "/")}`);
+  return [["src/app.css", css], ...files.map((file): [string, string] => [file, styleOf(file)])];
+};
+/** The CSS outside every `@media (hover: hover) { … }` block (its braces matched) */
+const outsideHover = (source: string) => {
+  let rest = source;
+  for (let at = rest.indexOf("@media (hover: hover)"); at >= 0; at = rest.indexOf("@media (hover: hover)")) {
+    let depth = 0;
+    let end = rest.indexOf("{", at);
+    for (; end < rest.length; end++) {
+      if (rest[end] === "{") depth++;
+      else if (rest[end] === "}" && --depth === 0) break;
+    }
+    rest = rest.slice(0, at) + rest.slice(end + 1);
+  }
+  return rest;
+};
+
+describe("a finger leaves no hover behind (#178)", () => {
+  it("finds a :hover outside the block", () => {
+    expect(outsideHover(".a { color: red; }\n@media (hover: hover) {\n  .a:hover { color: blue; }\n}\n")).not.toContain(":hover");
+    expect(outsideHover("@media (hover: hover) { .a:hover { color: blue; } }\n.b:hover { color: red; }")).toContain(".b:hover");
+  });
+
+  it("puts every :hover rule of app.css and the components behind @media (hover: hover)", () => {
+    const all = sheets();
+    expect(all.length).toBeGreaterThan(10);
+    expect(all.filter(([, source]) => outsideHover(source).includes(":hover")).map(([file]) => file)).toEqual([]);
+  });
+
+  it("keeps the hover of pills and icon buttons for a mouse", () => {
+    expect(css).toMatch(/@media \(hover: hover\)\s*\{\s*\.pill:hover, \.icon-button:hover\s*\{\s*background:\s*var\(--hover-background\)/);
+  });
+
+  it("leaves the pressed and focus states unconditional", () => {
+    const always = outsideHover(css);
+    expect(always).toMatch(/\.pill\.on, \.icon-button\.on\s*\{[^}]*background:\s*var\(--pressed-background\)/);
+    expect(always).toMatch(/\.pill\.framed\.on, \.icon-button\.framed\.on\s*\{[^}]*background:\s*var\(--pressed-background\)/);
+    expect(always).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--text\)/);
+    expect(outsideHover(styleOf("src/lib/panels/TreePanel.svelte"))).toMatch(/button\.eye\[aria-pressed="true"\]\s*\{\s*color:\s*var\(--text\)/);
+    expect(outsideHover(styleOf("src/lib/components/ScrubNumber.svelte"))).toMatch(/\.reset:focus-visible\s*\{/);
   });
 });

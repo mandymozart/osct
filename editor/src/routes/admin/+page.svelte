@@ -225,7 +225,9 @@
   .users td { padding: .25rem .5rem .25rem 0; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
   .users .email { font-weight: 500; }
   .pill.fixed { cursor: default; padding: 0 .375rem; }
-  .pill.fixed:hover { background: none; }
+  @media (hover: hover) {
+    .pill.fixed:hover { background: none; }
+  }
   .invite .search { margin-top: .25rem; }
   @media (max-width: 40rem) {
     .users thead { display: none; }

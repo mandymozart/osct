@@ -95,8 +95,12 @@
   .book { display: grid; gap: .1875rem; text-decoration: none; }
   .cover-box { display: block; aspect-ratio: 230 / 320; margin-bottom: .5rem; border-radius: 2px; overflow: hidden; background: var(--surface-head);
     box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / .06), 0 8px 20px -8px rgb(0 0 0 / .18); transition: transform .2s, box-shadow .2s; }
-  .book:hover .cover-box, .book:focus-visible .cover-box { transform: translateY(-3px);
+  .book:focus-visible .cover-box { transform: translateY(-3px);
     box-shadow: 0 0 0 1px var(--text), 0 2px 4px rgb(0 0 0 / .08), 0 16px 28px -10px rgb(0 0 0 / .28); }
+  @media (hover: hover) {
+    .book:hover .cover-box { transform: translateY(-3px);
+      box-shadow: 0 0 0 1px var(--text), 0 2px 4px rgb(0 0 0 / .08), 0 16px 28px -10px rgb(0 0 0 / .28); }
+  }
   .book:focus-visible { outline: none; }
   .title { font-size: .875rem; font-weight: 600; line-height: 1.25; }
   .author { font-size: var(--text-size); }

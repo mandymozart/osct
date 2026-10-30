@@ -100,7 +100,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .pill { display: inline-flex; align-items: center; gap: .375rem; padding: 0 .625rem; white-space: nowrap; }
 .icon-button { display: inline-flex; align-items: center; justify-content: center; width: var(--control-height); padding: 0; }
-.pill:hover, .icon-button:hover { background: var(--hover-background); }
+/* Hover only where a pointer hovers: a finger's tap would leave it behind, and a tapped button would look pressed (#178) */
+@media (hover: hover) {
+  .pill:hover, .icon-button:hover { background: var(--hover-background); }
+}
 .pill.on, .icon-button.on { background: var(--pressed-background); color: var(--pressed-color); }
 .pill.primary { border-color: var(--text); }
 .pill:disabled, .icon-button:disabled { background: none; }
@@ -117,11 +120,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .field:focus { outline: none; border-color: var(--text); }
 select.field { cursor: pointer; }
 .text-link { background: none; border: none; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; }
-.text-link:hover { color: var(--text); }
+@media (hover: hover) {
+  .text-link:hover { color: var(--text); }
+}
 /* Disabled at a glance (#166): dimmed, a not-allowed cursor, a select without its arrow – the reason is the control's help */
 .pill:disabled, .icon-button:disabled, .field:disabled, .text-link:disabled, select:disabled, textarea:disabled, input[type="range"]:disabled { opacity: .45; cursor: not-allowed; }
 select:disabled { appearance: none; }
-.text-link:disabled:hover { color: var(--muted); }
+@media (hover: hover) {
+  .text-link:disabled:hover { color: var(--muted); }
+}
 .muted { color: var(--muted); }
 .small { font-size: var(--text-small); }
 .danger { color: var(--danger); }

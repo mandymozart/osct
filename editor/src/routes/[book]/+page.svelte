@@ -144,12 +144,21 @@
   .spreads > li { position: relative; padding: 0 .5rem; min-width: 0; }
   .actions { position: absolute; top: .25rem; right: .75rem; display: flex; gap: .25rem; opacity: 0; transition: opacity .15s; }
   .spreads > li.left .actions { right: .25rem; }
-  .spreads > li:hover .actions, .spreads > li:focus-within .actions { opacity: 1; }
+  .spreads > li:focus-within .actions { opacity: 1; }
+  @media (hover: hover) {
+    .spreads > li:hover .actions { opacity: 1; }
+  }
   @media (hover: none) { .actions { opacity: 1; } }
-  .actions .pill:not(:hover) { background: var(--surface); }
+  .actions .pill { background: var(--surface); }
+  @media (hover: hover) {
+    .actions .pill:hover:not(:disabled) { background: var(--hover-background); }
+  }
   .spreads > li.right { padding-left: 0; }
   .spreads > li.left { padding-right: 0; }
-  .spread:hover .frame, .spread:focus-visible .frame { border-color: var(--text); }
+  .spread:focus-visible .frame { border-color: var(--text); }
+  @media (hover: hover) {
+    .spread:hover .frame { border-color: var(--text); }
+  }
   .frame { display: block; border: 1px solid var(--line); transition: border-color .15s; }
   /* The caption wraps instead of cutting off (#159): the title takes up to two lines (the whole of it in its tooltip),
      the format and the stats keep together and move to the next line when the card is narrow */

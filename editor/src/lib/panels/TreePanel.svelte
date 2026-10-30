@@ -369,14 +369,18 @@
   .menu-backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }
   .menu { position: fixed; z-index: 10; display: flex; flex-direction: column; min-width: 12rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
   .menu-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; height: var(--control-height); padding: 0 .625rem; border: none; border-radius: var(--control-radius); background: none; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
-  .menu-item:hover:not(:disabled) { background: var(--hover-background); }
+  @media (hover: hover) {
+    .menu-item:hover:not(:disabled) { background: var(--hover-background); }
+  }
   .menu-item:disabled { opacity: .45; cursor: not-allowed; }
   .menu-item.danger { color: var(--danger); }
   .node { position: relative; display: flex; align-items: center; gap: .25rem; height: 1.5rem; padding: 0 .25rem; }
   .node:nth-child(even) { background: var(--surface-head); }
   /* The rows above the selected node (its target, its parents): the level stays readable */
   .node.within { background: var(--within-background); }
-  .node:hover { background: var(--hover-background); }
+  @media (hover: hover) {
+    .node:hover { background: var(--hover-background); }
+  }
   /* The selected row: its own background over the whole width and a bar at its start (no colour – RULES #32) */
   .node.on { background: var(--selected-background); color: var(--pressed-color); box-shadow: inset 2px 0 0 var(--text); }
   .tree:focus-visible .node.on { box-shadow: inset 2px 0 0 var(--text), inset 0 0 0 1px var(--text); }
@@ -393,7 +397,9 @@
   /* A movable node's icon is its handle: a finger drags it there without scrolling the tree */
   .type.handle { cursor: grab; touch-action: none; }
   button.chevron, button.eye { padding: 0; border: none; background: none; color: var(--muted); cursor: pointer; border-radius: var(--control-radius); }
-  button.chevron:hover, button.eye:hover { color: var(--text); }
+  @media (hover: hover) {
+    button.chevron:hover, button.eye:hover { color: var(--text); }
+  }
   button.eye[aria-pressed="true"] { color: var(--text); }
   .on .chevron, .on .type { color: var(--pressed-color); }
   .pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: .375rem; height: var(--cell); padding: 0; border: none; background: none; color: inherit; text-align: left; cursor: pointer; }
@@ -402,7 +408,9 @@
   .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dot { font-size: .6em; }
   .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); }
-  .add-target:hover { color: var(--text); }
+  @media (hover: hover) {
+    .add-target:hover { color: var(--text); }
+  }
   @media (pointer: coarse) {
     /* A finger: rows of the touch control height (#171); the chevron and the eye take the row's full height, the eye
        as wide as high, the chevron a wider cell (the guides follow --cell) */

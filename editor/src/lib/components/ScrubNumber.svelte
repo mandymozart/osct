@@ -191,7 +191,10 @@
   .unit:has(+ .reset) { padding-right: .125rem; }
   .reset { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 100%;
     border: none; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0; }
-  .reset:hover, .reset:focus-visible { color: var(--text); outline: none; }
+  .reset:focus-visible { color: var(--text); outline: none; }
+  @media (hover: hover) {
+    .reset:hover { color: var(--text); }
+  }
   .problem { color: var(--danger); font-size: var(--text-small); line-height: 1rem; padding: 0 .6rem; }
   .disabled { cursor: not-allowed; }
   .disabled .frame { opacity: .45; pointer-events: none; }

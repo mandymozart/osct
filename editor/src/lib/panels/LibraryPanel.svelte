@@ -227,7 +227,9 @@
   .card { display: flex; flex-direction: column; gap: .2rem; padding: .375rem; border: 1px solid var(--line); border-radius: var(--control-radius); min-width: 0; }
   /* Picking: a fitting card is one click; the chosen file is framed, what does not fit fades */
   .card.picking:not(.unfit) { cursor: pointer; }
-  .card.picking:not(.unfit):hover { background: var(--hover-background); }
+  @media (hover: hover) {
+    .card.picking:not(.unfit):hover { background: var(--hover-background); }
+  }
   .card.current { border-color: var(--text); }
   .unfit { opacity: .45; }
   .list tbody tr.unfit { cursor: default; }
@@ -240,7 +242,10 @@
   .list th:nth-child(4) { width: 16%; }
   .list th:nth-child(5) { width: 10%; }
   .list tbody tr { cursor: pointer; }
-  .list tbody tr:hover, .list tr.on { background: var(--hover-background); }
+  @media (hover: hover) {
+    .list tbody tr:hover { background: var(--hover-background); }
+  }
+  .list tr.on { background: var(--hover-background); }
   .list tr.on td { border-bottom-color: transparent; }
   .list tr.more { cursor: default; background: var(--hover-background); }
   .list .num { text-align: right; white-space: nowrap; }

@@ -178,7 +178,9 @@ is involved.
   (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
   spreads, the tabs – as words, or as icons in a panel too narrow for them (under 24rem, 28rem with a finger), so the
   head stays one line (#172). On a phone the head is the six tab icons alone, sharing its width (#171): ‹ › sit at the
-  stage's lower corners, and the top bar's book link is the way back to the spreads.
+  stage's lower corners, and the top bar's book link is the way back to the spreads. On a stage too short for them below
+  the toolbar (the sheet almost full) they move to its top right, and the toolbar keeps to one row beside them that
+  scrolls sideways – every tool stays reachable at every sheet height (#177).
   - **Tree** – the spread in the style of Blender's outliner: a chevron column, a type icon before every name (book,
     entry, target, group / model / video / image / text / light), guide lines per depth, zebra rows, and the **eye** in a
     column at the right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its
@@ -403,7 +405,9 @@ Shift ×10, Alt ×0.1, tap to type,
 ↑ ↓, Enter, Escape, the reset arrow inside the field – no native sliders, no native colour picker: the colour popover
 in the top layer); small enums as segmented pressed pills;
 on / off per item as a pressed chip; a **disabled** control looks it at a glance – dimmed, a not-allowed cursor, a
-select without its arrow (`app.css`) – and says why in its help, never in a hint beside it; Feather icons only where a word makes no sense (step, replay, photo, close, the
+select without its arrow (`app.css`) – and says why in its help, never in a hint beside it; hover styles only under
+`@media (hover: hover)`, so a finger's tap leaves no hover grey that looks pressed (#178; pressed and focus states
+stay unconditional, a test checks every stylesheet); Feather icons only where a word makes no sense (step, replay, photo, close, the
 chain that links the scale axes) – and in the tree, where type icons and the eye are every outliner's convention
 (Blender, Unity, Figma); each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
 itself renders the reader's content unchanged. Texts are English (RULES #20).
