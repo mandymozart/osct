@@ -54,18 +54,29 @@ final class Editor
      * An entity as the content contract describes it (`EntityData`): an object with a `type` from ENTITY_TYPES
      * and an `assets` list of objects with string `id`, `assetType` and `src`. Every other key (params, filters, …)
      * passes through untouched – the reader's guard checks the configuration in depth.
-     * `$pluginTypes`: the book has plugins (`Editor::hasPlugins`) – then a node type outside ENTITY_TYPES passes when
-     * it is named like a plugin's (`registerNodeType`, schema 2.13); which plugin registers it only the editor's stage
-     * and the content build can tell (they run the code), the publish refuses one without compiled plugins.
+     * `$pluginTypes` (`Editor::pluginNodeTypes`) – which node types outside ENTITY_TYPES (a plugin's, `registerNodeType`,
+     * schema 2.13) pass: a list = the node types the book's declared plugins recorded (schema 2.14 – anything else is a
+     * typo); `true` = any named like a plugin's (camelCase), because a plugin of the book is unknown until it runs (a
+     * declared one without recorded specs, a Code tab source – the editor's stage and the content build run the code,
+     * the publish refuses one without compiled plugins); `false` = none (the book has no plugins).
+     * @param bool|list<string> $pluginTypes
      */
-    public static function entity(mixed $value, string $path = 'entity', int $depth = 0, bool $pluginTypes = false): stdClass
+    public static function entity(mixed $value, string $path = 'entity', int $depth = 0, bool|array $pluginTypes = false): stdClass
     {
         if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path must be an object.");
         $type = $value->type ?? null;
         $builtIn = is_string($type) && in_array($type, self::ENTITY_TYPES, true);
-        if (!$builtIn && !($pluginTypes && is_string($type) && preg_match('/^' . self::PLUGIN_NODE_TYPE . '$/', $type))) {
-            throw new ApiError(400, 'invalid-entity', "$path.type must be one of " . implode(', ', self::ENTITY_TYPES)
-                . ($pluginTypes ? ' or a plugin\'s node type (camelCase letters and digits).' : ' – a plugin\'s node type needs a plugin in the book.'));
+        $plugin = is_string($type) && (is_array($pluginTypes)
+            ? in_array($type, $pluginTypes, true)
+            : $pluginTypes && preg_match('/^' . self::PLUGIN_NODE_TYPE . '$/', $type) === 1);
+        if (!$builtIn && !$plugin) {
+            $plugins = match (true) {
+                is_array($pluginTypes) && $pluginTypes !== [] => ' or a node type a plugin of the book registers (' . implode(', ', $pluginTypes) . ').',
+                is_array($pluginTypes) => ' – the book\'s plugins register no node type.',
+                $pluginTypes => ' or a plugin\'s node type (camelCase letters and digits).',
+                default => ' – a plugin\'s node type needs a plugin in the book.',
+            };
+            throw new ApiError(400, 'invalid-entity', "$path.type must be one of " . implode(', ', self::ENTITY_TYPES) . $plugins);
         }
         if (!is_array($value->assets ?? null)) throw new ApiError(400, 'invalid-entity', "$path.assets must be an array.");
         foreach ($value->assets as $i => $asset) {
@@ -91,13 +102,52 @@ final class Editor
         return $value;
     }
 
-    /** The book has plugins: compiled ones its configuration declares, or sources of the Code tab */
-    public static function hasPlugins(string $bookId): bool
+    /**
+     * The plugin node types a save in this book accepts (`Editor::entity`'s `$pluginTypes`): from the compiled plugins
+     * its configuration declares (`books.plugins_json`) and its Code tab sources
+     * @return bool|list<string>
+     */
+    public static function pluginNodeTypes(string $bookId): bool|array
     {
         $json = Db::value('SELECT plugins_json FROM books WHERE id = :id', ['id' => $bookId]);
         $declared = self::decode(is_string($json) ? $json : null);
-        if (is_array($declared) && $declared) return true;
-        return Plugins::hasSources($bookId);
+        return self::nodeTypesOf(is_array($declared) ? $declared : [], Plugins::hasSources($bookId));
+    }
+
+    /**
+     * The plugin node types of declared plugins and Code tab sources: the recorded ones when every declared plugin
+     * recorded what it registers and there are no sources; `true` (any camelCase name) when a plugin is unknown until it
+     * runs – a Code tab source has no recorded specs (it is never built here), nor has a plugin of an older build;
+     * `false` without plugins
+     * @param array<mixed> $declared
+     * @return bool|list<string>
+     */
+    public static function nodeTypesOf(array $declared, bool $hasSources): bool|array
+    {
+        if ($hasSources) return true;
+        if ($declared === []) return false;
+        return self::recorded($declared)['nodeTypes'] ?? true;
+    }
+
+    /**
+     * What the declared plugins registered, from their recorded `registered` (content schema 2.14,
+     * shared/types/plugins.ts `recordedRegistrations`) – null when one of them recorded nothing (an older build: what it
+     * registers is known only when it runs). No plugins: nothing registered.
+     * @param array<mixed> $declared
+     * @return array{components: list<string>, nodeTypes: list<string>, passes: list<string>}|null
+     */
+    public static function recorded(array $declared): ?array
+    {
+        $recorded = ['components' => [], 'nodeTypes' => [], 'passes' => []];
+        foreach ($declared as $plugin) {
+            $registered = $plugin instanceof stdClass ? ($plugin->registered ?? null) : null;
+            if (!$registered instanceof stdClass) return null;
+            foreach (array_keys($recorded) as $kind) {
+                if (!($registered->{$kind} ?? null) instanceof stdClass) continue;
+                foreach (array_keys(get_object_vars($registered->{$kind})) as $type) $recorded[$kind][] = (string) $type;
+            }
+        }
+        return array_map(static fn(array $types): array => array_values(array_unique($types)), $recorded);
     }
 
     /** A target's printed placement (`PrintPlacement`): surface left / right, x, y, width (mm), optional height and page */

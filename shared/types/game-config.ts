@@ -49,11 +49,12 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   (the grade's `reach`: the guard ignores a parameter it does not know; a 2.8 app refuses it), and since 2.11 the
  *   content manifest's `book`, and since 2.12 a node's `name`, and since 2.13 a plugin's node type
  *   (`registerNodeType`, its parameters in the node's `params`; a 2.12 app renders nothing for it and keeps its
- *   children). Any MINOR of the same MAJOR loads.
+ *   children), and since 2.14 a plugin's recorded `registered` (the specs of what it registers; a 2.13 app ignores
+ *   it). Any MINOR of the same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.13";
+export const CONTENT_SCHEMA_VERSION = "2.14";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 

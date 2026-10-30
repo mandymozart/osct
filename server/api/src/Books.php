@@ -166,7 +166,7 @@ final class Books
     {
         $user = Editor::user();
         self::book($bookId);
-        $entity = Editor::entity(Editor::body(), 'entity', 0, Editor::hasPlugins($bookId));
+        $entity = Editor::entity(Editor::body(), 'entity', 0, Editor::pluginNodeTypes($bookId));
         $json = Editor::encode($entity);
         Db::transaction(function () use ($bookId, $ref, $entity, $json, $user) {
             $params = ['book' => $bookId, 'ref' => $ref];
@@ -208,7 +208,7 @@ final class Books
         } elseif (property_exists($body, 'entity')) {
             $ref = null;
             if ($body->entity === null) unset($target->entity);
-            else $target->entity = Editor::entity($body->entity, 'entity', 0, Editor::hasPlugins($bookId));
+            else $target->entity = Editor::entity($body->entity, 'entity', 0, Editor::pluginNodeTypes($bookId));
             $touched = true;
         }
         // The printed image and where it is printed (docs/server.md "Targets")
@@ -264,7 +264,7 @@ final class Books
                 if (Db::value('SELECT ref FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]) === null) throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this book.");
                 $target->entity = (object) ['ref' => $ref];
             } else {
-                $target->entity = Editor::entity($targetIn->entity, 'target.entity', 0, Editor::hasPlugins($bookId));
+                $target->entity = Editor::entity($targetIn->entity, 'target.entity', 0, Editor::pluginNodeTypes($bookId));
             }
         }
         // Each named parameter once: MySQL with native prepares (no emulation) refuses a name used twice (HY093) – SQLite
@@ -668,14 +668,16 @@ final class Books
 
         $version = ContentVersion::assemble($bookId);
         // A component type no plugin can register would make the reader refuse the whole content: a plugin written
-        // in the editor reaches readers through the content source, not through a publish
-        $unknown = self::unknownComponentTypes($version['configuration']);
-        if ($unknown && empty($version['configuration']->plugins)) {
+        // in the editor reaches readers through the content source, not through a publish. What the compiled plugins
+        // register is known when they recorded it (schema 2.14; none declared: nothing) – else they may register anything
+        $recorded = Editor::recorded((array) ($version['configuration']->plugins ?? []));
+        $unknown = $recorded === null ? [] : array_values(array_diff(self::unknownComponentTypes($version['configuration']), $recorded['components']));
+        if ($unknown) {
             throw new ApiError(409, 'unknown-components', 'Nodes use components no compiled plugin provides: ' . implode(', ', $unknown) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['components' => $unknown]);
         }
         // The same for a plugin's node type: without a compiled plugin the reader renders nothing for those nodes
-        $unknownNodes = self::unknownNodeTypes($version['configuration']);
-        if ($unknownNodes && empty($version['configuration']->plugins)) {
+        $unknownNodes = $recorded === null ? [] : array_values(array_diff(self::unknownNodeTypes($version['configuration']), $recorded['nodeTypes']));
+        if ($unknownNodes) {
             throw new ApiError(409, 'unknown-node-types', 'Nodes have types no compiled plugin provides: ' . implode(', ', $unknownNodes) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['nodeTypes' => $unknownNodes]);
         }
         $root = $version['build'];
@@ -835,7 +837,7 @@ final class Books
     /**
      * Checks what the rows need of a configuration and splits it into rows-to-be; every other field stays inside the
      * objects (data_json). An entry belongs to the first spread whose pages include its page, else to none.
-     * `$pluginSources`: the book has Code tab sources (a node type of a plugin may pass – Editor::entity).
+     * `$pluginSources`: the book has Code tab sources (any node type named like a plugin's may pass – Editor::entity).
      * @return array{book: stdClass, schema: string, hash: ?string, initialSpreadId: string, tutorial: array, plugins: array, spreads: array, entities: array, entries: array, targets: array}
      */
     private static function parse(stdClass $c, bool $pluginSources = false): array
@@ -863,9 +865,18 @@ final class Books
                 || !is_string($plugin->src ?? null) || !is_string($plugin->api ?? null)) {
                 $fail("plugins[$i] needs id, src and api.");
             }
+            // What it registered (schema 2.14, optional): the specs by kind – the app's guard checks them in depth
+            if (property_exists($plugin, 'registered')) {
+                $registered = $plugin->registered;
+                if (!$registered instanceof stdClass) $fail("plugins[$i].registered must be an object { components?, nodeTypes?, passes? }.");
+                foreach (['components', 'nodeTypes', 'passes'] as $kind) {
+                    if (property_exists($registered, $kind) && !$registered->{$kind} instanceof stdClass) $fail("plugins[$i].registered.$kind must be an object of type → spec.");
+                }
+            }
         }
-        // A plugin's node type (schema 2.13) passes when the configuration declares plugins or the book has sources
-        $pluginTypes = $plugins !== [] || $pluginSources;
+        // A plugin's node type (schema 2.13): the ones the declared plugins recorded (2.14), any camelCase name while a
+        // plugin is unknown until it runs (a Code tab source, a declared plugin of an older build), none without plugins
+        $pluginTypes = Editor::nodeTypesOf($plugins, $pluginSources);
 
         $spreads = [];
         foreach ($c->spreads as $i => $s) {
@@ -912,8 +923,11 @@ final class Books
         ];
     }
 
-    /** A target's entity: `{ ref }` naming a shared entity → the ref; an inline entity (checked) or none → null */
-    private static function entityRef(mixed $entity, array $entities, string $path, bool $pluginTypes = false): ?string
+    /**
+     * A target's entity: `{ ref }` naming a shared entity → the ref; an inline entity (checked) or none → null
+     * @param bool|list<string> $pluginTypes
+     */
+    private static function entityRef(mixed $entity, array $entities, string $path, bool|array $pluginTypes = false): ?string
     {
         if ($entity === null) return null;
         if ($entity instanceof stdClass && property_exists($entity, 'ref')) {

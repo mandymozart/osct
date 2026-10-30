@@ -1,6 +1,8 @@
-import { getBook as getConfigBook, getConfigVersion, getSpreads, loadGameConfiguration } from "@engine/content/game-config";
+import { getBook as getConfigBook, getConfigVersion, getPlugins, getSpreads, loadGameConfiguration } from "@engine/content/game-config";
 import type { ErrorInfo, PassData, Spread } from "@engine/types";
 import { authFetch, draftBaseUrl, getBook } from "./api";
+import { adoptRecordedSpecs } from "./plugins/recorded";
+import { plugins } from "./plugins.svelte";
 
 /**
  * The book's draft as the engine sees it: `loadGameConfiguration` reads the draft endpoint like the CDN
@@ -31,6 +33,9 @@ class Content {
       this.spreads = error ? [] : getSpreads();
       this.bookPasses = error ? null : getConfigBook().passes ?? null;
       this.hash = error ? null : getConfigVersion().hash ?? null;
+      // What the declared plugins recorded (schema 2.14): the Entity panel's rows before they load or run
+      adoptRecordedSpecs(error ? [] : getPlugins());
+      plugins.version += 1;
       return error;
     } finally {
       this.loading = false;

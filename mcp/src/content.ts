@@ -1,17 +1,19 @@
 // The editor's content tools over the API (`/api/editor/*`, docs/server.md "Editor data", "Assets"): the book's tree
-// and spreads, entities and targets, entries, assets, the draft, publishing to local / staging, the logs. Every write
-// is checked against the shared content contract first and answers with the editor's link, where the person checks
-// the draft on the stage. Production stays with the person – the tool refuses it.
+// and spreads, entities and targets, entries, the spreads themselves, the book's passes and environment, assets, the
+// draft, publishing to local / staging, the logs. Every write is checked against the shared content contract first and
+// answers with the editor's link, where the person checks the draft on the stage. Production stays with the person –
+// the tool refuses it.
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import type { OsctApi } from "./api.ts";
-import { checkEntity, describeContentModel, pluginTypes, type BookModel } from "./model.ts";
-import { fail, guard, text } from "./result.ts";
+import { checkEntity, describeContentModel, pluginTypes, usesPluginTypes, type BookModel } from "./model.ts";
+import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
-import type { EntityData, EntityRefData, PluginData, PrintPlacement } from "../../shared/types/game-config";
-import { PRINT_SURFACES } from "../../shared/types/game-config";
+import type { EntityData, EntityRefData, PassData, PluginData, PrintPlacement } from "../../shared/types/game-config";
+import { PASS_TYPES, passProblems, PRINT_SURFACES, SPREAD_FORMATS } from "../../shared/types/game-config";
+import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 
 type Json = Record<string, unknown>;
 
@@ -73,20 +75,40 @@ const printSchema = z
 const read = { readOnlyHint: true, openWorldHint: false };
 const write = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
-/** The guard's verdict as a tool error, or null when the entity may be sent */
-function refuseInvalid(entity: unknown, path = "entity") {
-  const check = checkEntity(entity, path);
-  if (check.problems.length === 0) return null;
+const passSchema = z.object({ type: z.string().min(1) }).catchall(z.union([z.number(), z.string(), z.boolean()])).describe("a pass: { type, …parameters } (describe_content_model passes)");
+const passesSchema = z.array(passSchema);
+
+/** The contract's verdict over a passes list (built-in types, every parameter in range) as a tool error, or null */
+function refusePasses(passes: unknown, path: string): Result | null {
+  const problems = passProblems(passes, path);
+  if (!problems.length) return null;
   return fail({
-    error: { code: "invalid-entity", message: `${path} does not match the content contract (nothing was sent).`, problems: check.problems },
-    hint: "describe_content_model lists the node types, placement, filters and components.",
+    error: { code: "invalid-passes", message: `${path} does not match the content contract (nothing was sent).`, problems },
+    hint: `describe_content_model lists the passes (${PASS_TYPES.join(", ")}) with their parameters.`,
   });
 }
 
-const warnings = (entity: unknown) => {
-  const unknown = checkEntity(entity).unknownComponents;
-  return unknown.length ? { warnings: [`component types no built-in provides: ${unknown.join(", ")} – a plugin must register them, else the publish is refused`] } : {};
-};
+/**
+ * Checks an entity against the content contract before it is sent: the guard's verdict as a tool error (`refused`),
+ * else the warnings for the answer. The book's plugins are read only when the tree names a type that is not built in.
+ */
+async function checkWrite(entity: unknown, path: string, book: () => Promise<BookModel>): Promise<{ refused: Result | null; warnings: { warnings?: string[] } }> {
+  const check = checkEntity(entity, path, usesPluginTypes(entity) ? await book() : undefined);
+  if (check.problems.length) {
+    return {
+      refused: fail({
+        error: { code: "invalid-entity", message: `${path} does not match the content contract (nothing was sent).`, problems: check.problems },
+        hint: "describe_content_model { book } lists the node types, placement, filters and components – the book's plugins' too.",
+      }),
+      warnings: {},
+    };
+  }
+  const warnings = [
+    ...(check.unknownComponents.length ? [`component types no built-in or known plugin provides: ${check.unknownComponents.join(", ")} – a plugin must register them, else the publish is refused`] : []),
+    ...(check.unverifiedNodeTypes.length ? [`node types no known plugin registers: ${check.unverifiedNodeTypes.join(", ")} – a plugin of the book whose types are not recorded must register them, else the publish is refused`] : []),
+  ];
+  return { refused: null, warnings: warnings.length ? { warnings } : {} };
+}
 
 export function registerContentTools(server: McpServer, api: OsctApi, links: AppLinks): void {
   const tree = (book: string) => api.call<BookTree>("GET", `/editor/books/${encodeURIComponent(book)}`);
@@ -98,6 +120,17 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   };
   /** the spread an entry's page belongs to – for the link of a target write */
   const spreadOf = (t: BookTree, targetId: string) => t.spreads.find(s => s.entries.some(e => e.target?.id === targetId))?.id ?? null;
+  /** the book's plugins: the declared ones with what they recorded (the draft), the Code tab's sources with the types read from them */
+  const bookModel = async (book: string): Promise<BookModel> => {
+    const [{ configuration }, { plugins }] = await Promise.all([draft(book), api.call<{ plugins: { id: string }[] }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins`)]);
+    const sources = await Promise.all(
+      plugins.map(async p => {
+        const { plugin } = await api.call<{ plugin: { id: string; source: string } }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins/${encodeURIComponent(p.id)}`);
+        return { id: plugin.id, ...pluginTypes(plugin.source) };
+      }),
+    );
+    return { declared: configuration.plugins ?? [], sources };
+  };
 
   // ── reading ──
 
@@ -209,22 +242,11 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "describe_content_model",
     {
       description:
-        "What you may write: node types, placement (units, defaults), filters, components with their parameters, printed placement, entry categories, spread formats – from the shared content contract. With `book`: also the compiled plugins its configuration declares and the Code tab's sources with the component / layer types read from them.",
+        "What you may write: node types (and node names), placement (units, defaults), filters, components with their parameters, post-processing passes, the environment, printed placement, entry categories, spread formats – from the shared content contract. With `book`: also the compiled plugins its configuration declares with the components, layers, node types and passes they recorded (their parameters), and the Code tab's sources with the types read from them.",
       inputSchema: z.object({ book: BOOK.optional() }),
       annotations: read,
     },
-    guard(async ({ book }) => {
-      if (!book) return text(describeContentModel());
-      const [{ configuration }, { plugins }] = await Promise.all([draft(book), api.call<{ plugins: { id: string }[] }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins`)]);
-      const sources = await Promise.all(
-        plugins.map(async p => {
-          const { plugin } = await api.call<{ plugin: { id: string; source: string } }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins/${encodeURIComponent(p.id)}`);
-          return { id: plugin.id, ...pluginTypes(plugin.source) };
-        }),
-      );
-      const model: BookModel = { declared: configuration.plugins ?? [], sources };
-      return text(describeContentModel(model));
-    }),
+    guard(async ({ book }) => text(describeContentModel(book ? await bookModel(book) : undefined))),
   );
 
   // ── writing: entities, targets, entries ──
@@ -238,10 +260,10 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       annotations: write,
     },
     guard(async ({ book, ref, entity }) => {
-      const refused = refuseInvalid(entity);
+      const { refused, warnings } = await checkWrite(entity, "entity", () => bookModel(book));
       if (refused) return refused;
       const result = await api.call<{ ref: string; entity: EntityData }>("PUT", `/editor/books/${encodeURIComponent(book)}/entities/${encodeURIComponent(ref)}`, entity);
-      return text({ ...result, ...warnings(entity), open: editorHref(links, book) });
+      return text({ ...result, ...warnings, open: editorHref(links, book) });
     }),
   );
 
@@ -267,12 +289,10 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       if (imageSrc !== undefined) body.imageSrc = imageSrc;
       if (print !== undefined) body.print = print;
       if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc or print" } });
-      if (entity) {
-        const refused = refuseInvalid(entity);
-        if (refused) return refused;
-      }
+      const { refused, warnings } = entity ? await checkWrite(entity, "entity", () => bookModel(book)) : { refused: null, warnings: {} };
+      if (refused) return refused;
       const [result, t] = await Promise.all([api.call<{ target: TreeTarget }>("PUT", `/editor/books/${encodeURIComponent(book)}/targets/${encodeURIComponent(target)}`, body), tree(book)]);
-      return text({ ...result, ...(entity ? warnings(entity) : {}), open: editorHref(links, book, spreadOf(t, target)) });
+      return text({ ...result, ...warnings, open: editorHref(links, book, spreadOf(t, target)) });
     }),
   );
 
@@ -299,12 +319,11 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     },
     guard(async ({ book, target, ...entry }) => {
       const entity = target.entity;
-      if (entity && !("ref" in entity && Object.keys(entity).length === 1)) {
-        const refused = refuseInvalid(entity, "target.entity");
-        if (refused) return refused;
-      }
+      const inline = entity && !("ref" in entity && Object.keys(entity).length === 1);
+      const { refused, warnings } = inline ? await checkWrite(entity, "target.entity", () => bookModel(book)) : { refused: null, warnings: {} };
+      if (refused) return refused;
       const result = await api.call<{ entry: Json; spreadId: string | null }>("POST", `/editor/books/${encodeURIComponent(book)}/entries`, { ...entry, target });
-      return text({ ...result, ...(entity ? warnings(entity) : {}), open: editorHref(links, book, result.spreadId) });
+      return text({ ...result, ...warnings, open: editorHref(links, book, result.spreadId) });
     }),
   );
 
@@ -314,6 +333,120 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     guard(async ({ book, entry }) => {
       await api.call<void>("DELETE", `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`);
       return text({ deleted: entry, open: editorHref(links, book) });
+    }),
+  );
+
+  // ── writing: the spreads, the book's passes and environment ──
+
+  server.registerTool(
+    "add_spread",
+    {
+      description:
+        "Adds a spread to the book (a change recorded for each row it moves): `format: \"spread\"` = a double page after the spread `after` (default: the last one before the back cover) – its pages are the two after that spread's last page, and every later page is numbered on by two (the later spreads, the entries on those pages and their targets' print.page move with them; `moved` counts them); `id` (default spread-<n>) and `title` optional. `format: \"cover\"` = the front cover (page 0, first), `\"back\"` = the back cover (the page after the last) – nothing moves; 409 duplicate-id when the book has one.",
+      inputSchema: z.object({
+        book: BOOK,
+        format: z.enum(SPREAD_FORMATS).describe("spread = a double page, cover = the front cover, back = the back cover"),
+        after: ID.optional().describe("a double page only: the spread it follows (get_book)"),
+        id: ID.optional().describe("a double page only: its id (default: the first free spread-<n>)"),
+        title: z.string().min(1).optional(),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    guard(async ({ book, format, after, id, title }) => {
+      if (format !== "spread" && (after !== undefined || id !== undefined)) {
+        return fail({ error: { code: "mcp", message: "after and id are for a double page – the covers have their places and ids (cover, back)" } });
+      }
+      const body: Json = { format, ...(after ? { after } : {}), ...(id ? { id } : {}), ...(title ? { title } : {}) };
+      const result = await api.call<{ spread: TreeSpread; moved: Json }>("POST", `/editor/books/${encodeURIComponent(book)}/spreads`, body);
+      return text({ ...result, open: editorHref(links, book, result.spread.id) });
+    }),
+  );
+
+  server.registerTool(
+    "put_spread",
+    {
+      description:
+        "Changes a spread: `title`, `format` (spread | cover | back – a cover is page 0, so a spread with other pages cannot become one: add_spread makes covers), `passes` = the spread's own post-processing that replaces the book's for this spread ([{ type, …parameters }], built-in types – describe_content_model passes; [] turns post-processing off here, null gives the spread the book's passes again). Send what changes; checked against the contract; a change is recorded.",
+      inputSchema: z.object({
+        book: BOOK,
+        spread: ID.describe("the spread's id (get_book)"),
+        title: z.string().min(1).optional(),
+        format: z.enum(SPREAD_FORMATS).optional(),
+        passes: passesSchema.nullable().optional(),
+      }),
+      annotations: write,
+    },
+    guard(async ({ book, spread, title, format, passes }) => {
+      const body: Json = {};
+      if (title !== undefined) body.title = title;
+      if (format !== undefined) body.format = format;
+      if (passes !== undefined) {
+        const refused = passes === null ? null : refusePasses(passes, "passes");
+        if (refused) return refused;
+        body.passes = passes;
+      }
+      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send title, format or passes" } });
+      const result = await api.call<{ spread: Json }>("PUT", `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`, body);
+      return text({ ...result, open: editorHref(links, book, spread) });
+    }),
+  );
+
+  server.registerTool(
+    "delete_spread",
+    {
+      description:
+        "Removes a spread without entries (a change recorded): a double page takes its pages with it – every later page is numbered back (the later spreads, the entries on those pages, their targets' print.page); a cover moves nothing. 409 spread-not-empty (with `entries`) while entries are on it – delete them first with delete_entry, never the spread with them; 409 initial-spread for the spread the book opens on.",
+      inputSchema: z.object({ book: BOOK, spread: ID.describe("the spread's id (get_book)") }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ book, spread }) => {
+      await api.call<void>("DELETE", `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`);
+      return text({ deleted: spread, open: editorHref(links, book) });
+    }),
+  );
+
+  server.registerTool(
+    "put_book_passes",
+    {
+      description:
+        "Sets the book's post-processing – the master chain every spread without its own passes shows: [{ type, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade – describe_content_model passes); [] = none; null removes it. A spread's own passes (put_spread) still replace it there. Checked against the contract; a change is recorded.",
+      inputSchema: z.object({ book: BOOK, passes: passesSchema.nullable() }),
+      annotations: write,
+    },
+    guard(async ({ book, passes }) => {
+      const refused = passes === null ? null : refusePasses(passes, "passes");
+      if (refused) return refused;
+      const result = await api.call<{ passes: PassData[] | null }>("PUT", `/editor/books/${encodeURIComponent(book)}/passes`, { passes });
+      return text({ ...result, open: editorHref(links, book) });
+    }),
+  );
+
+  server.registerTool(
+    "put_environment",
+    {
+      description:
+        "Sets the book's environment – the world around the reader while scanning and the onion sky: { world, onionSky, worldSrc?, skySrc? } – worldSrc a glTF model (an uploaded asset's url: .glb / .gltf) in place of the built-in world's scenery, skySrc an equirectangular image (.jpg / .png / .webp) for the sky; null removes it (the default world, the onion sky on). Book-level; the reader's Graphics switches still apply on top. Checked against the contract; a change is recorded.",
+      inputSchema: z.object({
+        book: BOOK,
+        environment: z
+          .object({
+            world: z.enum(ENVIRONMENT_WORLDS),
+            onionSky: z.boolean().describe("looking up, the camera picture's sky shows the world's sky"),
+            worldSrc: z.string().min(1).optional().describe("a glTF model: the scenery around the reader"),
+            skySrc: z.string().min(1).optional().describe("an equirectangular image (2:1): the sky"),
+          })
+          .strict()
+          .nullable(),
+      }),
+      annotations: write,
+    },
+    guard(async ({ book, environment }) => {
+      const problems = environment === null ? [] : environmentProblems(environment);
+      if (problems.length) {
+        return fail({ error: { code: "invalid-environment", message: "environment does not match the content contract (nothing was sent).", problems }, hint: "describe_content_model lists the worlds and the files worldSrc and skySrc may be." });
+      }
+      const result = await api.call<{ environment: Json | null }>("PUT", `/editor/books/${encodeURIComponent(book)}/environment`, { environment });
+      return text({ ...result, open: editorHref(links, book) });
     }),
   );
 
