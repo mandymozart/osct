@@ -4,15 +4,15 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
-  Light,
-  Material,
+  type Light,
+  type Material,
   Matrix4,
-  Mesh,
-  Object3D,
+  type Mesh,
+  type Object3D,
   Points,
   ShaderMaterial,
   Vector3,
-  WebGLProgramParametersWithUniforms,
+  type WebGLProgramParametersWithUniforms,
 } from "three";
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
 import { ENTITY_UNLOCK_MS } from "../types/index";

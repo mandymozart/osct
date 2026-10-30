@@ -1,10 +1,10 @@
-import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from "three";
+import { Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type Raycaster, Vector3 } from "three";
 import type { SpreadFormat, Target } from "@engine/types";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
-import { fetchTriggerInfos, TriggerInfos } from "@engine/utils/trigger-protocol";
-import { fetchStageLayout, LayoutSheet, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, StageLayout } from "./stage-layout";
-import { getPreview, PreviewOrbit, PreviewState, PreviewView, subscribePreview, updatePreview } from "./preview";
+import { fetchTriggerInfos, type TriggerInfos } from "@engine/utils/trigger-protocol";
+import { fetchStageLayout, type LayoutSheet, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type StageLayout } from "./stage-layout";
+import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
 

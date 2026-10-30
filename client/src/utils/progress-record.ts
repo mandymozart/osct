@@ -1,4 +1,4 @@
-import { ProgressRecord, ProgressVariable } from "@/types";
+import type { ProgressRecord, ProgressVariable } from "@/types";
 import { isEntryCategory, isObject } from "@shared/guards/game-config";
 import { parseVersion } from "./version";
 

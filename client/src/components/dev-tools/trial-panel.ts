@@ -1,10 +1,10 @@
-import { IGame } from "@/types";
+import type { IGame } from "@/types";
 import { GameStoreService } from "@/services";
 import {
   cameraLine, fetchTriggerInfos, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
 } from "@/components/ar-bridges";
 import { getBook, getConfigVersion, getSpreads } from "@/utils/game-config";
-import { countResults, trialReport, trialRows, TrialRow, TriggerInfos } from "./trial-report";
+import { countResults, trialReport, trialRows, type TrialRow, type TriggerInfos } from "./trial-report";
 import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 
 const escapeHtml = (text: string) =>

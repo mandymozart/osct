@@ -1,4 +1,4 @@
-import { EdgesGeometry, LineBasicMaterial, LineSegments, Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D } from "three";
+import { EdgesGeometry, LineBasicMaterial, LineSegments, type Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D } from "three";
 
 /**
  * The viewport's shading, after Blender's: **wireframe** (every entity as lines), **solid** (one matte grey, the

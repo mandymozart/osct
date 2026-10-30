@@ -16,7 +16,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { PassData } from "../types/index";
+import type { PassData } from "../types/index";
 import { PostChain } from "./post/index";
 
 /** Bloom: only what is brighter than white glows; rendered at half resolution */

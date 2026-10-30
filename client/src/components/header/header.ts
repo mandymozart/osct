@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { IGame } from "@/types";
+import type { IGame } from "@/types";
 import "./entries-counter";
 import "./mark-the-page";
 import { adoptDesignStyles } from "@/styles";

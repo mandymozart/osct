@@ -1,5 +1,5 @@
-import { Color, DoubleSide, ShaderMaterial, Texture } from "three";
-import { FilterData, FILTERS, FilterParamSpec, keyMode } from "../types/index";
+import { Color, DoubleSide, ShaderMaterial, type Texture } from "three";
+import { type FilterData, FILTERS, type FilterParamSpec, keyMode } from "../types/index";
 
 /**
  * Chroma key filter for AR videos: one key color (e.g. neon green, purple or black) in the video becomes

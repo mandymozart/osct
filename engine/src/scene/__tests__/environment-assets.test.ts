@@ -1,6 +1,6 @@
-import { Group, Object3D, Texture, WebGLCubeRenderTarget, WebGLRenderer } from "three";
+import { Group, type Object3D, Texture, WebGLCubeRenderTarget, type WebGLRenderer } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EnvironmentAssets, EnvironmentLoaders } from "../look-around/environment-assets";
+import { EnvironmentAssets, type EnvironmentLoaders } from "../look-around/environment-assets";
 
 const BASE = { world: "cafe", onionSky: true } as const;
 

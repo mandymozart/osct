@@ -6,7 +6,7 @@
  * address – `?content=<base url>` – and keeps it for the tab, so another book (the demo) opens in the same reader.
  */
 import { t } from "i18next";
-import { loadGameConfiguration as load, LoadOptions } from "@engine/content/game-config";
+import { loadGameConfiguration as load, type LoadOptions } from "@engine/content/game-config";
 
 export * from "@engine/content/game-config";
 

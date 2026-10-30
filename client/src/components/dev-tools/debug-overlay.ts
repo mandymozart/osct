@@ -1,4 +1,4 @@
-import { IGame, Target } from "@/types";
+import type { IGame, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
 import { getConfigVersion, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";

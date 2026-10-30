@@ -16,9 +16,9 @@ import fs from 'fs';
 import path from 'path';
 import {
   CONTENT_BUILD,
-  ContentFiles,
-  ContentManifest,
-  ContentVersion,
+  type ContentFiles,
+  type ContentManifest,
+  type ContentVersion,
   contentBuildName,
   isContentFiles,
   isContentManifest,
@@ -28,7 +28,7 @@ import { assertGameConfiguration, GameConfigurationError } from '../../../shared
 import { parseContentSchema } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE } from '../config';
 import { listFiles } from './files';
-import { contentTypeOf, StorageClient, StoredFile } from './storage';
+import { contentTypeOf, type StorageClient, type StoredFile } from './storage';
 
 const PARALLEL_UPLOADS = 4;
 /** The CDN check waits this long for the new latest.json to show at the edge */

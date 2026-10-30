@@ -1,4 +1,4 @@
-import { IProgressStorage, ProgressRecord } from "@/types";
+import type { IProgressStorage, ProgressRecord } from "@/types";
 
 /**
  * Progress storage adapter backed by localStorage, one key per book. Another store (DB/API) can replace

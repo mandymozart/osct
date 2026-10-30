@@ -1,10 +1,10 @@
-import { Camera, Color, CustomBlending, HalfFloatType, OneFactor, OneMinusSrcAlphaFactor, Scene, Vector2, WebGLRenderer, WebGLRenderTarget } from "three";
+import { type Camera, Color, CustomBlending, HalfFloatType, OneFactor, OneMinusSrcAlphaFactor, type Scene, Vector2, type WebGLRenderer, WebGLRenderTarget } from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { Pass } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { PassData } from "../../types/index";
-import { MaskUsage, passContext, passRegistration, PostPass } from "./registry";
+import type { PassData } from "../../types/index";
+import { type MaskUsage, passContext, passRegistration, type PostPass } from "./registry";
 
 /** Anti-aliasing of the chain's buffer – as the canvas itself has it (clamped to what the GPU offers) */
 const SAMPLES = 4;

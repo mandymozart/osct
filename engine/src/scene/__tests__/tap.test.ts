@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Group } from "three";
-import { EntityData, Target } from "../../types/index";
+import type { Group } from "three";
+import type { EntityData, Target } from "../../types/index";
 import { ArScene } from "../ar-scene";
 import { observeEvents } from "../plugin-runtime";
 

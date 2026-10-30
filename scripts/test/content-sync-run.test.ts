@@ -3,7 +3,7 @@ import type { ContentManifest, ContentVersion } from '../../shared/types/content
 import {
   cdnManifest,
   checkCdn,
-  ContentBuild,
+  type ContentBuild,
   DEFAULT_PURGE,
   planPurge,
   planSync,
@@ -11,7 +11,7 @@ import {
   runPurge,
   runSync,
 } from '../src/lib/content-sync';
-import { StorageClient, StoredFile } from '../src/lib/storage';
+import { StorageClient, type StoredFile } from '../src/lib/storage';
 
 /** A storage zone in memory: files by path, folders implied by the paths */
 class MemoryStorage extends StorageClient {

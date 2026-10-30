@@ -12,24 +12,24 @@
  * `Target`, `Step`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the
  * loaded version, so the rest of the app never knows where the content comes from.
  */
-import { assertGameConfiguration, GameConfigurationError, GuardOptions, isEntityRef } from '@shared/guards/game-config';
+import { assertGameConfiguration, GameConfigurationError, type GuardOptions, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
-import { ContentFiles, ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
+import { type ContentFiles, type ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
-  AssetData,
-  BookData,
-  ConfigurationVersion,
-  EntityData,
-  EntityRefData,
-  Entry,
+  type AssetData,
+  type BookData,
+  type ConfigurationVersion,
+  type EntityData,
+  type EntityRefData,
+  type Entry,
   ErrorCode,
-  ErrorInfo,
-  GameConfiguration,
-  PassData,
-  PluginData,
-  Spread,
-  Step,
-  Target,
+  type ErrorInfo,
+  type GameConfiguration,
+  type PassData,
+  type PluginData,
+  type Spread,
+  type Step,
+  type Target,
 } from "../types/index";
 
 /** Used until the configuration is loaded, and when it is invalid, so the app can show the error */

@@ -1,20 +1,20 @@
-import { PerspectiveCamera } from "three";
+import type { PerspectiveCamera } from "three";
 import { CAMERA_NOT_RESPONDING } from "../types/index";
 import { getTargetBudget } from "../utils/prepared-spreads";
 import { publishEngineState, EMPTY_ENGINE_STATE, registerLoadTest } from "../utils/tracker-debug";
 import { setCameraTrack } from "../utils/camera-debug";
 import { applyCameraDefaults, releaseCameraRequest, wrapCameraRequest } from "../utils/camera-request";
 import { runLoadTest } from "./load-test";
-import { CAMERA_START_TIMEOUT_MS, IImageTracker, ImageTrackerOptions, TrackedSpread } from "./tracker-types";
+import { CAMERA_START_TIMEOUT_MS, type IImageTracker, type ImageTrackerOptions, type TrackedSpread } from "./tracker-types";
 import {
   anchorMatrix,
   loadXr8,
   makeImageTarget,
-  PreparedImageTarget,
-  XR8Tracking,
-  XrImageDetail,
-  XrPipelineModule,
-  XrReality,
+  type PreparedImageTarget,
+  type XR8Tracking,
+  type XrImageDetail,
+  type XrPipelineModule,
+  type XrReality,
 } from "./xr8";
 
 /** The engine's own shader for the camera picture (8th Wall `GlTextureRenderer`'s default) – restored when no grade reaches it */

@@ -1,4 +1,4 @@
-import { LoadingState, Step } from "@/types";
+import { LoadingState, type Step } from "@/types";
 import { getTutorial } from "@/utils/game-config";
 import { Page } from "./page";
 import { goToScan, goToStep } from "@/components/tutorial";

@@ -160,8 +160,10 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     - Exceptions: `@/utils/game-config` (not in the `@/utils` barrel – it loads and checks the config on
       import, RULES #14); `store/` imports `@/services/ProgressStorage` by file (the barrel would cycle
       GameStoreService → GameStore → managers). Tests may import their subject as `../file`.
-    - An import used only for types is dropped when compiled: keep a separate side-effect import
-      (`import "@/pages"`) where registration matters.
+    - An import used only for types is written as one (`import type { … }`, or `type` on the name – also a class or
+      enum used only as a type): `verbatimModuleSyntax` is on in every TypeScript config (#176), so the compiler
+      flags a missing one and keeps every other import as written. A type import is dropped when compiled: keep a
+      separate side-effect import (`import "@/pages"`) where registration matters.
 
 20. **UI texts**: never hard-coded – every text shown to readers (incl. aria labels and notices) comes from
     i18next directly (`import { t } from "i18next"`, then `t("namespace:key")`; en default, fr, nl, de; one

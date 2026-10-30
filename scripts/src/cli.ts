@@ -37,7 +37,7 @@ import {
   runPurge,
   runSync,
 } from './lib/content-sync';
-import { CliArgs, parseArgs } from './lib/cli-args';
+import { type CliArgs, parseArgs } from './lib/cli-args';
 import { StorageClient } from './lib/storage';
 import { DEMO_ENV } from './config';
 

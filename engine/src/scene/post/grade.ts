@@ -1,6 +1,6 @@
-import { Color, Texture } from "three";
-import { PassData, PASSES, resolvePass } from "../../types/index";
-import { MaskUsage, PassFactory, PostPass } from "./registry";
+import { Color, type Texture } from "three";
+import { type PassData, PASSES, resolvePass } from "../../types/index";
+import type { MaskUsage, PassFactory, PostPass } from "./registry";
 
 /**
  * The built-in `grade`: exposure, contrast, saturation and a tint. The layer is premultiplied: the colour is divided

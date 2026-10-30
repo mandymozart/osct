@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createGameStore } from "@/store/GameStore";
 import { RouteResolver } from "@/store/managers/router/helpers";
-import { GameMode, IGame, Pages } from "@/types";
+import { GameMode, type IGame, Pages } from "@/types";
 import { router } from "@/router";
 
 describe("RouteResolver", () => {

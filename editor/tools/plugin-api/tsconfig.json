@@ -9,6 +9,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "noEmit": true,
+    "verbatimModuleSyntax": true,
     "types": ["three"],
     "typeRoots": ["../../node_modules/@types"],
     "paths": {

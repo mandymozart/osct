@@ -1,6 +1,6 @@
 import { goldButton } from "@/components/buttons";
 import i18next, { t } from "i18next";
-import { BookDownload, InstallService, PreloaderService } from "@/services";
+import { type BookDownload, InstallService, PreloaderService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
 /**

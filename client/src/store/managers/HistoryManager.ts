@@ -1,5 +1,5 @@
 import { LocalProgressStorage } from '@/services/ProgressStorage';
-import {
+import type {
   EntryCategory,
   IGame,
   IHistoryManager,
@@ -8,7 +8,7 @@ import {
   ProgressVariable,
 } from '@/types';
 import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
-import { ProgressReadStatus, createProgressRecord, mergeProgress, readProgress } from '@/utils';
+import { type ProgressReadStatus, createProgressRecord, mergeProgress, readProgress } from '@/utils';
 import { t } from "i18next";
 
 /**

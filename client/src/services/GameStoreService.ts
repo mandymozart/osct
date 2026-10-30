@@ -1,4 +1,4 @@
-import { IGame } from "@/types";
+import type { IGame } from "@/types";
 import { createGameStore } from "@/store/GameStore";
 
 /** Global access to the single game store instance (created on first use). */

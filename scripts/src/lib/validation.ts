@@ -2,7 +2,7 @@
  * Field-level validation of authored YAML against `schemas`: required fields, defaults, type coercion.
  * Cross-file checks (references, targets, page ranges) live in the build script.
  */
-import { Authored, ContentType, SchemaField, schemas } from './schema.js';
+import { type Authored, type ContentType, type SchemaField, schemas } from './schema.js';
 
 const isContentType = (type: string): type is ContentType => Object.hasOwn(schemas, type);
 

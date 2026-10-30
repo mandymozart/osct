@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Group, MathUtils } from "three";
-import { EntityData, Target } from "../../types/index";
+import { type Group, MathUtils } from "three";
+import type { EntityData, Target } from "../../types/index";
 import { ArScene } from "../ar-scene";
 
 const image: EntityData = { type: "image", assets: [{ id: "picture", assetType: "image", src: "/picture.jpg" }] };

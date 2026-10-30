@@ -1,5 +1,5 @@
 import type { Camera, Object3D, Scene } from "three";
-import { EntityData, PassData } from "./content";
+import type { EntityData, PassData } from "./content";
 
 /**
  * What the AR scene (three.js / 8th Wall) should be doing. Derived from the game mode and the current

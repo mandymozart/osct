@@ -1,4 +1,4 @@
-import { Matrix4, PerspectiveCamera, Quaternion, Vector3, WebGLRenderer } from "three";
+import { Matrix4, PerspectiveCamera, Quaternion, Vector3, type WebGLRenderer } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { deviceQuaternion } from "../look-around/orientation";
 import { BookAnchor, lerpAngle, windowRadii, yawTowards } from "../look-around/book-anchor";

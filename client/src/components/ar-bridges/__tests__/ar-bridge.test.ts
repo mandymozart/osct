@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArSceneEvents, ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { type ArSceneEvents, type ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 import { getPreparedWindow } from "@engine/utils/prepared-spreads";

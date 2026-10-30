@@ -1,5 +1,5 @@
-import { Color, Material, Mesh, Object3D, ShaderMaterial, WebGLProgramParametersWithUniforms } from "three";
-import { ComponentParamSpec, ComponentSpec, EntityData } from "../types/index";
+import { Color, type Material, Mesh, type Object3D, ShaderMaterial, type WebGLProgramParametersWithUniforms } from "three";
+import type { ComponentParamSpec, ComponentSpec, EntityData } from "../types/index";
 import { layersOf } from "../scene/plugins";
 
 /**

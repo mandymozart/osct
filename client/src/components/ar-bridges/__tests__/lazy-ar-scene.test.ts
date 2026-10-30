@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ArSceneEvents, ArStatus, SceneState } from "@/types";
+import { type ArSceneEvents, type ArStatus, SceneState } from "@/types";
 
 /** The real ArScene (three.js + 8th Wall) replaced: records what the lazy wrapper hands on */
 const created: FakeScene[] = [];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createProgressRecord, mergeProgress, PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "../progress-record";
-import { ENTRY_CATEGORIES, ProgressRecord } from "@/types";
+import { ENTRY_CATEGORIES, type ProgressRecord } from "@/types";
 
 const bookId = "book";
 

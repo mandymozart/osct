@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { Color, PerspectiveCamera, Scene, Vector2 } from "three";
+import { type Color, PerspectiveCamera, Scene, Vector2 } from "three";
 import { passesFor } from "../../content/game-config";
 import { PostChain } from "../post/chain";
 import { drawPlan } from "../view";

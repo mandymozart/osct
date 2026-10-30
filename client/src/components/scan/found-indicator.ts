@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { ENTITY_UNLOCK_MS, GameMode, IGame, Target, TARGET_UNLOCKED_EVENT } from "@/types";
+import { ENTITY_UNLOCK_MS, GameMode, type IGame, type Target, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import { t } from "i18next";

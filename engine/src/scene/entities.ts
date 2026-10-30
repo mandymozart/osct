@@ -1,12 +1,12 @@
 import {
-  AnimationAction, AnimationMixer, CanvasTexture, DirectionalLight, DoubleSide, Group, Light, LoopOnce, LoopRepeat, MathUtils, Mesh, MeshBasicMaterial,
-  Object3D, PlaneGeometry, PointLight, ShaderMaterial, SpotLight, SRGBColorSpace, Vector3,
+  type AnimationAction, AnimationMixer, CanvasTexture, DirectionalLight, DoubleSide, Group, type Light, LoopOnce, LoopRepeat, MathUtils, Mesh, MeshBasicMaterial,
+  type Object3D, PlaneGeometry, PointLight, ShaderMaterial, SpotLight, SRGBColorSpace, Vector3,
 } from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { COMPONENT_TYPES, EntityData, EntityType, Light as LightValues, NodeTimeline, resolveComponent, resolveLight, resolvePlacement, Target } from "../types/index";
+import { COMPONENT_TYPES, type EntityData, type EntityType, type Light as LightValues, type NodeTimeline, resolveComponent, resolveLight, resolvePlacement, type Target } from "../types/index";
 import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma-key";
 import { composeLayers, layerObject, tuneLayers } from "../utils/layers";
-import { LoadedAsset } from "./assets";
+import type { LoadedAsset } from "./assets";
 import { applyComponents, buildPluginNode, nodeTypeRegistration, unknownComponentTypes } from "./plugins";
 import { getBook, getEntry } from "../content/game-config";
 

@@ -2,19 +2,19 @@ import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { DEMO_DIR, DEMO_MARKER, FIXTURE_DIR, FIXTURE_MARKER } from '../src/config';
-import { ContentVersion, isContentManifest } from '../../shared/types/content-manifest';
+import { type ContentVersion, isContentManifest } from '../../shared/types/content-manifest';
 import {
   activate,
-  ContentBuild,
+  type ContentBuild,
   DEFAULT_PURGE,
-  EnvironmentState,
+  type EnvironmentState,
   fileIndex,
   isDemoBuild,
   isFixtureBuild,
   planPurge,
   videosMissing,
 } from '../src/lib/content-sync';
-import { StoredFile } from '../src/lib/storage';
+import type { StoredFile } from '../src/lib/storage';
 
 /**
  * Content versions on the CDN: every content build is its own immutable folder, latest.json names the current one,

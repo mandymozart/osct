@@ -1,10 +1,10 @@
 import {
-  CubeCamera, CubeTexture, DirectionalLight, EquirectangularReflectionMapping, HalfFloatType, HemisphereLight, LinearFilter, Material, Mesh, Object3D,
-  Scene, SRGBColorSpace, Texture, TextureLoader, Color, WebGLCubeRenderTarget, WebGLRenderer,
+  CubeCamera, type CubeTexture, DirectionalLight, EquirectangularReflectionMapping, HalfFloatType, HemisphereLight, LinearFilter, type Material, Mesh, type Object3D,
+  Scene, SRGBColorSpace, Texture, TextureLoader, Color, WebGLCubeRenderTarget, type WebGLRenderer,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { EnvironmentData, WORLD_EYE_HEIGHT } from "@shared/types/environment";
+import { type EnvironmentData, WORLD_EYE_HEIGHT } from "@shared/types/environment";
 import { loadCompressed } from "../../content/compressed";
 import { contentUrl } from "../../content/game-config";
 

@@ -11,7 +11,7 @@
  * docs/content.md.
  */
 
-import { ComponentParamSpec, paramProblems } from "./components";
+import { type ComponentParamSpec, paramProblems } from "./components";
 
 export interface PassSpec {
   description: string;

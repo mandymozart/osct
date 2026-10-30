@@ -1,6 +1,6 @@
-import { Entry, EntryCategory, Pages } from "@/types";
+import { type Entry, type EntryCategory, Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
-import { DEFAULT_CATEGORY, EntriesFilterElement, EntriesList, isCategory, showLockedEntries } from "@/components/consultation";
+import { DEFAULT_CATEGORY, type EntriesFilterElement, type EntriesList, isCategory, showLockedEntries } from "@/components/consultation";
 import { ConsultationPage } from "./consultation-page";
 import { t } from "i18next";
 

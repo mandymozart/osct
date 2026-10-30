@@ -1,4 +1,4 @@
-import { LoadTestOptions, LoadTestResult, median } from "@engine/utils/tracker-debug";
+import { type LoadTestOptions, type LoadTestResult, median } from "@engine/utils/tracker-debug";
 
 export interface LoadTestMeta {
   bookTitle: string;

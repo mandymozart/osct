@@ -1,4 +1,4 @@
-import { LoadOptions, LoadResult } from "@/types";
+import type { LoadOptions, LoadResult } from "@/types";
 import { contentUrl, getAssets, getContentSizes, getNeighbourSpreads, getSpread, getSpreads, getTargets, isContentUrl } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed";
 
