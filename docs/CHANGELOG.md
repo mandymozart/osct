@@ -12,6 +12,18 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **The environment replaces the HDRI sky box** (#185): once a book has an environment (the draft's, or edits that start
+  one), the editor's stage shows its look-around world as the sky in every tab while the shading is *rendered* – the
+  author sees the world the reader will see, not a studio behind it. The stage is then lit as the reader lights the AR
+  content – the engine's own ambient and sun, no HDRI (the reader's world lights nothing). Post-processing still shades
+  the world. A book without an environment keeps the HDRI as before. The Stage panel's *sky* row names the
+  environment's (*the environment's (world café)*), the HDRI picker stays below it for books without one, the closed
+  *stage* head adds *· the environment's sky*, and the *rendered* button's tooltip says so. The Environment tab's
+  preview now also takes the HDRI's light away (before, only its sky).
+
 ## 1.47.0 – 2026-10-30
 
 ### Added

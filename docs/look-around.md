@@ -17,6 +17,9 @@ café's part is drawn. The reader's switches apply on top (`effectiveGraphics` i
 part off, the content cannot turn on what the reader has off – and the files are only fetched once a switch is on. A
 book without an `environment` keeps today's look. Not yet in the content: per-spread overrides, tuning values. The
 editor edits it on the stage, in the workspace's Environment tab ([editor](editor.md)), which previews this very pass.
+**On the editor's stage the environment replaces the HDRI sky box** (#185): once the book has one, the stage shows this
+pass as its sky while rendered, in every tab, and lights the content as the reader does – the engine's ambient and sun,
+no HDRI (the pass lights nothing in the reader either). A book without one shows the studio HDRI on the stage.
 
 ## How it works
 

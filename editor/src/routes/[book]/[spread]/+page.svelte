@@ -17,7 +17,7 @@
   import LibraryPanel from "#lib/panels/LibraryPanel.svelte";
   import CodePanel from "#lib/panels/CodePanel.svelte";
   import EnvironmentPanel from "#lib/panels/EnvironmentPanel.svelte";
-  import { environmentEdit } from "#lib/environment.svelte.js";
+  import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
   import { deleteEntry, putTarget, type Asset } from "#lib/api.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
@@ -295,9 +295,15 @@
       removalBusy = false;
     }
   };
-  // ── the environment: previewed on the stage while its tab is open (its Library picker included) ──
+  // ── the environment (#185): the book's replaces the HDRI as the stage's sky (rendered); previewed while its tab is open
+  // (its Library picker included) – in every shading, the default's world too ──
   $effect(() => {
-    stage?.previewEnvironment(shown === "environment" ? $state.snapshot(environmentEdit.edited) : null);
+    void environmentEdit.load(bookId);
+  });
+  $effect(() => {
+    const previewing = shown === "environment";
+    const environment = previewing ? environmentEdit.edited : stageEnvironment.current;
+    stage?.showEnvironment(environment ? $state.snapshot(environment) : null, previewing);
   });
   $effect(() => {
     if (shown !== "environment") environmentEdit.picking = null;
@@ -402,6 +408,10 @@
     { value: "textured", name: "Textured", icon: "shade-textured", label: "Textured – the content's materials, no sky" },
     { value: "rendered", name: "Rendered", icon: "shade-rendered", label: "Rendered – the HDRI's sky and light" },
   ] satisfies (ToolGroupOption & { value: ShadingMode })[];
+  /** With the book's environment, *rendered* shows its world instead of the HDRI (#185) – the button's label says so */
+  const shadingOptions = $derived<ToolGroupOption[]>(stageEnvironment.current
+    ? SHADING_OPTIONS.map(option => (option.value === "rendered" ? { ...option, label: "Rendered – the environment's world as sky, the reader's light" } : option))
+    : SHADING_OPTIONS);
   /** The groups' shapes in the toolbar's order (the shading spheres sit shoulder to shoulder; grid & snap is one button) */
   const TOOL_SHAPES: GroupShape[] = [{ options: TRANSFORM_OPTIONS.length }, { options: PICK_OPTIONS.length }, { options: SHADING_OPTIONS.length, tight: true }, { options: 1 }];
 
@@ -553,7 +563,7 @@
           onchoose={mode => stage?.setGizmoMode(mode as GizmoMode)} />
         <ToolGroup label="Pick" options={PICK_OPTIONS} value={stage.pickMode} expanded={expanded[1]}
           onchoose={mode => stage?.setPickMode(mode as PickMode)} />
-        <ToolGroup label="Shading" options={SHADING_OPTIONS} value={stage.shading} expanded={expanded[2]} tight stroke={1.75}
+        <ToolGroup label="Shading" options={shadingOptions} value={stage.shading} expanded={expanded[2]} tight stroke={1.75}
           onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
         <GridSnapMenu />
       </div>

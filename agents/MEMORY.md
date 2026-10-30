@@ -4,6 +4,26 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The environment replaces the HDRI sky box (#185)
+
+- Tilman: "Environment replaces the HDRI sky box." – once the book has an environment, the stage's sky (shading
+  *rendered*) is its look-around world, in every tab; while the Environment tab is open, in every shading as before.
+- **Lighting: the reader's, not the HDRI's.** Decided by what the reader does: it lights the AR content with the
+  engine's fixed ambient (#BBB, 1) and sun (0.6) in `engine/src/scene/view.ts` plus the content's light nodes; there is
+  no image-based light anywhere in the reader (`scene.environment` is never set), and the look-around world is a
+  full-screen underlay that lights nothing (the world model's bake has its own lights, for the cube only). So with the
+  world as the sky the HDRI neither shows nor lights – the scene's own lights at full strength. Without an environment
+  the HDRI lights the stage as before (a studio stand-in for the camera picture's room, the editor's own look). The
+  Environment tab's preview follows the same rule (it used to keep the HDRI's light).
+- "Has an environment" = the draft's `book.environment` is set, or the author's edits in the Environment tab start one
+  (edited away from the default, unsaved) – the stage shows unsaved values as it shows unsaved entity overrides. A book
+  without one is *not* shown with the reader's default café outside the tab: the issue keeps the HDRI there.
+- The HDRI picker stays (labelled *HDRI*, dimmed, "without an environment"): it is the device's setting for every book,
+  used again for books without an environment.
+- Per-spread environments: not in the content schema (`shared/types/environment.ts`: book-level only), so the stage
+  follows the book's. When a spread level comes, `bookEnvironment` in `editor/src/lib/stage/sky.ts` is where the
+  spread's wins.
+
 ## 2026-10-30 – The vertical axis and snapping (#190)
 
 - **Snapping is off by default** and the toolbar switch turns it on; Shift or Ctrl held turns it around for one drag.

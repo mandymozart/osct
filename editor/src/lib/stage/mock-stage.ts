@@ -13,6 +13,7 @@ import { oakTexture } from "./oak";
 import { plywoodEdgeTexture } from "./plywood";
 import { applyShading, ownMaterial } from "./shading";
 import type { DeskId, HdriId, ShadingMode } from "./preview";
+import { stageLook, type StageLook } from "./sky";
 
 /**
  * A plane sits a hair below the one above it, so nothing flickers: the entities' plane is the target's (z = 0, as
@@ -145,8 +146,9 @@ interface DeskTextures {
  * The mock stage: what the camera would show – a desk, the open book in its page format (the sheet as laid out when
  * the content has the book's layout, blank pages otherwise), the current spread's printed images where they are
  * printed (or in a row), all in the same three.js scene as the entities, moved as one group by the tracker's camera
- * (the three.js camera stays at the origin, as in AR). The sky and the light: the chosen HDRI while the shading is
- * rendered, the scene's own lights otherwise. The desk keeps its own materials under every viewport shading
+ * (the three.js camera stays at the origin, as in AR). The sky and the light (`sky.ts`, #185): the chosen HDRI while the
+ * shading is rendered, the scene's own lights otherwise – and while the book's environment is drawn under the stage,
+ * its world as the sky and the scene's own lights, as in the reader. The desk keeps its own materials under every viewport shading
  * (`shading.ts` applies to the entities), like the gizmo and the outlines.
  */
 export class MockStage implements StageView {
@@ -204,13 +206,19 @@ export class MockStage implements StageView {
   private sky: Mesh<SphereGeometry, MeshBasicMaterial> | null = null;
   private shading: ShadingMode = "rendered";
   private hdri: HdriId | null = null;
-  /** The studio's sky is shown (off while the environment is previewed: the book's world lies under the stage) */
-  private studioSky = true;
+  /** The book's environment is drawn under the stage (the engine's look-around world): it replaces the HDRI (#185) */
+  private world = false;
 
-  /** Show the studio's sky (the HDRI on its sphere) or not – its light stays either way */
-  setStudioSky(visible: boolean): void {
-    this.studioSky = visible;
-    if (this.sky) this.sky.visible = visible && !!this.wantedHdri && !!this.sky.material.map;
+  /** The environment's world is drawn under the stage (true) or not: the HDRI steps aside – sky and light – while it is */
+  setWorld(world: boolean): void {
+    if (this.world === world) return;
+    this.world = world;
+    this.setHdri(this.hdri);
+  }
+
+  /** Which sky and which light now (`sky.ts`) */
+  private look(): StageLook {
+    return stageLook({ shading: this.shading, hdri: this.hdri, world: this.world });
   }
 
   /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only; wireframe and solid reach the book and the desk too (#137) */
@@ -564,10 +572,13 @@ export class MockStage implements StageView {
     this.shadeStage();
   }
 
-  /** The sky and the light: the HDRI while rendered, else the scene's own lights over the editor's dark ground */
+  /**
+   * The sky and the light: the HDRI while rendered, else the scene's own lights over the editor's dark ground – or the
+   * environment's world (drawn by the engine under the stage) with the scene's own lights (`sky.ts`)
+   */
   setHdri(hdri: HdriId | null): void {
     this.hdri = hdri;
-    this.wantedHdri = hdri && this.shading === "rendered" ? hdri : null;
+    this.wantedHdri = this.look().hdri;
     if (!this.wantedHdri) {
       this.scene.background = null;
       this.scene.environment = null;
@@ -690,7 +701,7 @@ export class MockStage implements StageView {
     this.sky.material.map = map;
     this.sky.material.color.setScalar(exposure);
     this.sky.material.needsUpdate = true;
-    this.sky.visible = this.studioSky;
+    this.sky.visible = this.look().sky === "hdri";
     this.dimLights(true);
   }
 

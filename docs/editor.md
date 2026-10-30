@@ -145,8 +145,9 @@ visible and safe (#143):
 
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: the
 **sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's *sky*, Wooden Studio 17 by default,
-shown while the shading is rendered), the equirectangular image as `scene.background` and `scene.environment`, turned with the
-stage every frame so the room stays put while the camera orbits – the **desk**, the Stage panel's choice of two
+shown while the shading is rendered), the equirectangular image on a sphere around the stage and as `scene.environment`, turned with the
+stage every frame so the room stays put while the camera orbits; **a book with an environment replaces it** (#185, below) –
+the **desk**, the Stage panel's choice of two
 (Tilman: the tool is for designers, they should feel at home): a 1.8 × 0.8 m screen-printed plywood top (18 mm; Poly
 Haven's plywood texture tinted to the phenolic brown on the faces) on a steel tube frame after Egon Eiermann's table
 frame (1953, the default; its board shows cut plywood on its edges – 13 plies of birch per 18 mm board, as the trade's
@@ -374,14 +375,15 @@ is involved.
     on the engine's **backdrop layer** and stand in for the camera picture: bloom and vignette run over them as they
     run over the camera picture in the reader; the grade's **reach** row (*AR layer / whole picture*) keeps it on the
     AR layer (it gets the layer's coverage as a mask) or grades the desk too, as the reader grades the camera picture.
-    The **environment** (the look-around world and its sky, shown while the Environment tab is open) goes through the
-    same passes, as it does in the reader.
+    The **environment** (the look-around world and its sky – the stage's sky once the book has one, and while the
+    Environment tab is open) goes through the same passes, as it does in the reader.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), a selected target the same
     orange around its printed image (it follows the image as loaded and a move), and what a click would pick a light
     grey one (below). The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
     side (or in the group's menu where the toolbar is short of room, #180): *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
-    materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
+    materials, no sky) and *rendered* (the HDRI's sky and light, the default – or the book's environment as the sky,
+    its tooltip then says so); stored on the device. The toolbar is
     icons only (its menus add the names), every button's label is its tooltip. The stage and the gizmo keep their own look.
     **Light nodes** (content schema 2.6) have no mesh: the stage draws a **helper** for each, after Blender's – a
     small bulb at the node's origin and lines for what the light does (short rays for a point light, the cone of a
@@ -431,7 +433,7 @@ is involved.
   - **Environment** – the book's world around the reader and its sky (content schema 2.8 / 2.10,
     [content guide](content.md) "Environment", [look-around](look-around.md)). While the tab is open the stage shows the
     **engine's own look-around pass** with the values being edited – the world anchored to the book, the window around
-    it and the clear floor – under the desk and the book (the studio's HDRI sky steps aside, its light stays), turned by
+    it and the clear floor – under the desk and the book (the studio's HDRI steps aside, sky and light), turned by
     the view as a phone's gyroscope would turn it (`MockTracker.worldOrientation`, `ArScene.previewEnvironment` – an
     editor-only method, not part of `IArScene`). **look up** raises the camera from the book towards the horizon and the
     sky (the targets stay found, as the reader's world stays for 45 s). Rows: **world** – the built-in *café*, or a glTF
@@ -440,9 +442,19 @@ is involved.
     needs a camera picture, so only the reader shows it). Changes show at once; **Save** writes the environment to the
     draft (`PUT /editor/books/{id}/environment`), *Back to the draft* undoes, *Use the default* removes it. The book page
     shows the environment as one line with *Edit on the stage* (the first spread, `?tab=environment`).
+    **The environment replaces the HDRI sky box** (#185, Tilman: *"Environment replaces the HDRI sky box."*): once the
+    book has an environment – the draft's, or edits that start one – the stage shows its world as the sky in every tab
+    while the shading is rendered (the same pass, *look up* stays the tab's), so the author sees the world the reader
+    will see, not a studio behind it. The HDRI then neither shows nor lights: the reader lights the AR content with the
+    engine's own ambient and sun (and the content's light nodes) – its world is a pass under the scene and lights
+    nothing –, so the stage does too. A book without one keeps the HDRI. The decision is one pure function,
+    `editor/src/lib/stage/sky.ts` (`bookEnvironment`, `showsWorld`, `stageLook` – which sky, which light); the Stage
+    panel's *sky* row then names the environment's (*the environment's (world café)*), the HDRI picker stays below it
+    for books without one, and the closed *stage* head adds *· the environment's sky*.
   - **Stage** – the stage's settings: **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the
     default) or *Schöpfer*. **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is
-    rendered). All stored on the device. The camera is moved on the stage itself: **drag** orbits, **Shift + drag**,
+    rendered); with the book's environment the row names it and the HDRI waits below for a book without one. All stored
+    on the device. The camera is moved on the stage itself: **drag** orbits, **Shift + drag**,
     the **middle button** or **two fingers** pan (the looked-at point moves in the page plane), **wheel / pinch**
     change the distance, **double tap** returns to the reader's view (35 cm above the page, tilted 30°; the free orbit
     is kept on the device). Found / lost per target is the tree's eye (off reports it lost → outro, on found again →

@@ -16,11 +16,15 @@
   import { formatVar, initialValue, numberStep, tapTargets, VAR_TYPES, withTypes, type VarType } from "#lib/stage/narrative.js";
   import { VAR_SCOPES, type VarScope, type VarValue } from "@engine/scene/plugin-runtime";
   import PassesPanel from "./PassesPanel.svelte";
+  import { stageEnvironment } from "#lib/environment.svelte.js";
+  import { library } from "#lib/library.svelte.js";
+  import { environmentSkyLabel } from "#lib/stage/sky.js";
 
   /**
    * The stage's settings in collapsible sections (open state kept per section, all closed on the first visit): the
    * **spread** (its format), the **stage** (hand shake, the grid over the page, the origin every position is counted
-   * from, the desk and the sky – closed, its head names the desk and the grid), the **post-processing** (the book's
+   * from, the desk and the sky – closed, its head names the desk and the grid; with the book's environment the sky is its
+   * world, the HDRI waits for a book without one, #185), the **post-processing** (the book's
    * passes, a spread's own as an override – its head names the level), and the **narrative** of the book's plugins:
    * a tap button per target (the reader's tap without aiming), the variables with scope
    * and type, editable and deletable, a form to set one by hand (both written through the plugin API), *reset* for a
@@ -51,6 +55,9 @@
   };
   const format = $derived(spread?.format ?? "spread");
 
+  /** The book's environment replaces the HDRI as the sky (#185): the picker says so and stays for books without one */
+  const environment = $derived(stageEnvironment.current);
+
   const vars = $derived(withTypes(stage?.vars ?? []));
   const events = $derived(stage?.events ?? []);
   /** A target takes a tap when it is found and shows AR content (the stage's live tree: an override, or the draft's) */
@@ -80,7 +87,7 @@
     </span></div>
 </Section>
 
-<Section id="stage.stage" label="stage" open={false} summary={stageSummary(preview)} help="How the editor shows the spread – stored in this browser, not in the content.">
+<Section id="stage.stage" label="stage" open={false} summary={`${stageSummary(preview)}${environment ? " · the environment's sky" : ""}`} help="How the editor shows the spread – stored in this browser, not in the content.">
   <div class="row" data-help="Hand shake: 0 = still, 1 = a hand holding the phone. The stage wobbles like a reader's camera.">
     <span class="label">shake</span>
     <span class="controls"><span class="w"><ScrubNumber value={preview.wobble} min={0} max={1} step={0.05} fallback={0} strict label="Hand shake" oninput={wobble => updatePreview({ wobble })} /></span></span></div>
@@ -113,12 +120,20 @@
       </select>
     </span></div>
 
-  <div class="row" data-help="The sky and its light: a studio HDRI, shown while the shading is rendered.">
+  {#if environment}
+  <div class="row" data-help="The sky: the book's environment (the Environment tab) – while rendered its world replaces the HDRI, and the scene's own lights light the stage, as in the reader.">
     <span class="label">sky</span>
+    <span class="controls"><span class="small">{environmentSkyLabel(environment, url => library.byUrl(url)?.name)}</span></span></div>
+  {/if}
+  <div class="row" data-help={environment
+    ? "The studio HDRI – overridden by the book's environment, used again for a book without one (Environment tab → Use the default)."
+    : "The sky and its light: a studio HDRI, shown while the shading is rendered. A book's environment replaces it (the Environment tab)."}>
+    <span class="label">{environment ? "HDRI" : "sky"}</span>
     <span class="controls">
-      <select class="field wide" aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
+      <select class="field wide" class:overridden={!!environment} aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
         {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
       </select>
+      {#if environment}<span class="small muted">without an environment</span>{/if}
     </span></div>
 </Section>
 
@@ -192,6 +207,7 @@
   .w { width: 5rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .wide { width: 100%; }
+  .overridden { opacity: .6; }
   .row.top { align-items: start; }
   .row.top > .label { line-height: var(--control-height); }
   .label.var { padding-left: 1rem; color: var(--text); }

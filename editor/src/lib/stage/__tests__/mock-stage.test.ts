@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { type LineSegments, Scene } from "three";
+import { DirectionalLight, type LineSegments, Scene, Texture } from "three";
 import { MockStage } from "../mock-stage";
 
 const page = { width: 230, height: 320 };
@@ -221,5 +221,36 @@ describe("mock stage: the desks' look (#107, #187)", () => {
     expect(looks.oakMaterial.map).toBe(oak);
     stage.setDesk("schoepfer");
     expect(looks.oakMaterial.map).toBe(oak);
+  });
+});
+
+describe("mock stage: the environment replaces the HDRI (#185)", () => {
+  it("hides the HDRI's sky and takes its light away while the world is drawn, and gives both back after", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
+    const scene = new Scene();
+    const sun = new DirectionalLight(0xffffff, 0.6);
+    scene.add(sun);
+    const stage = new MockStage(scene, path => `/${path}`);
+    const texture = new Texture();
+    (stage as unknown as { hdris: Map<string, Texture> }).hdris.set("wooden_studio_17", texture);
+    const sky = () => scene.getObjectByName("mock-sky");
+    stage.setHdri("wooden_studio_17");
+    expect(scene.environment).toBe(texture);
+    expect(sky()?.visible).toBe(true);
+    expect(sun.intensity).toBeCloseTo(0.6 * 0.35);
+
+    stage.setWorld(true);
+    expect(scene.environment).toBeNull();
+    expect(sky()?.visible).toBe(false);
+    expect(sun.intensity).toBeCloseTo(0.6);
+    // the HDRI chosen meanwhile stays out of the way
+    stage.setHdri("wooden_studio_17");
+    expect(scene.environment).toBeNull();
+
+    stage.setWorld(false);
+    expect(scene.environment).toBe(texture);
+    expect(sky()?.visible).toBe(true);
+    expect(sun.intensity).toBeCloseTo(0.6 * 0.35);
   });
 });
