@@ -25,6 +25,8 @@
   import { library } from "#lib/library.svelte.js";
   import { nodeAt } from "#lib/values.js";
   import { selection } from "#lib/selection.svelte.js";
+  import { sections } from "#lib/sections.svelte.js";
+  import type { TreeRow } from "#lib/tree-rows.js";
   import InfoView from "#lib/components/InfoView.svelte";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
   import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, sheetFill, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
@@ -101,6 +103,15 @@
   /** The tab the panel shows: on a desktop the tree has its own column, so a stored "tree" shows the stage */
   const shown = $derived<Tab | null>(tab === "tree" && !narrow ? "stage" : tab);
   const select = () => { if (shown !== "entity") setTab("entity"); };
+  /** The spread's settings (#227): the Stage tab, its spread section open and scrolled into view */
+  const showSpread = async () => {
+    sections.setOpen("stage.spread", true);
+    if (shown !== "stage") setTab("stage");
+    await tick();
+    document.querySelector('.panel [data-section="stage.spread"]')?.scrollIntoView({ block: "start" });
+  };
+  /** A row chosen in the tree (a tap, Enter): the spread shows in the Stage tab, an entry, a target or a node in the Entity panel */
+  const selectFromTree = (kind: TreeRow["kind"]) => (kind === "spread" ? void showSpread() : select());
 
   // ── the columns' widths: the edges are dragged (pointer or arrow keys), a double-click restores the default ──
   let workspace = $state<HTMLDivElement>();
@@ -271,24 +282,27 @@
     setTab("entity");
   };
   /** An entry's removal waiting for the person's confirmation in the panel, with the API's impact (#198) – no browser dialog */
-  let removal = $state<{ targetId: string; entryId: string; step: RemovalStep } | null>(null);
+  let removal = $state<{ targetId: string | null; entryId: string; step: RemovalStep } | null>(null);
   let removalBusy = $state(false);
   let removalError = $state<string | null>(null);
-  const removed = async (targetId: string) => {
+  const removed = async (targetId: string | null, entryId: string) => {
     removal = null;
-    if (selection.target === targetId) selection.reset();
+    if ((targetId && selection.target === targetId) || selection.entry === entryId) selection.reset();
     await reloadContent();
   };
-  /** The tree's or the stage's "Remove target": first the impact (409, the API removes nothing), shown in the panel */
-  const removeTarget = async (target: { id: string; entryId: string }) => {
+  /**
+   * The tree's or the stage's "Remove target", the tree's "Remove entry" and Delete on an entry row (#227): first the
+   * impact (409, the API removes nothing), shown in the panel
+   */
+  const removeEntry = async (entryId: string, targetId: string | null) => {
     removalError = null;
     try {
-      await deleteEntry(bookId, target.entryId);
+      await deleteEntry(bookId, entryId);
     } catch (e) {
       const step = removalStep(e);
       if (!step) return failed(e);
       addingTarget = false;
-      removal = { targetId: target.id, entryId: target.entryId, step };
+      removal = { targetId, entryId, step };
       if (shown === null) setTab(lastTab);
     }
   };
@@ -300,7 +314,7 @@
     removalError = null;
     try {
       await deleteEntry(bookId, entryId, removal.step.confirmation.id, deleteFiles);
-      await removed(targetId);
+      await removed(targetId, entryId);
     } catch (e) {
       const step = removalStep(e);
       if (step) removal = { targetId, entryId, step };
@@ -577,7 +591,7 @@
       </button>
     </div>
     {#if treeOpen}
-      <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingTarget = true; }} onremovetarget={removeTarget} /></div>
+      <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={selectFromTree} onaddtarget={() => { addingTarget = true; }} onremoveentry={removeEntry} /></div>
       <InfoView />
       {#if treeShown}{@render edge("tree", "Tree edge")}{/if}
     {/if}
@@ -614,7 +628,7 @@
           { label: "Placement on the page…", select: menuPlacement },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
           { label: "Library…", select: () => setTab("library") },
-          { label: "Remove target", danger: true, select: () => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); if (t) void removeTarget(t); } },
+          { label: "Remove target", danger: true, select: () => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
         ]} />
       {:else if stageMenu}
         <ContextMenu at={stageMenu} label="Stage" head={spread?.title ?? spreadId} onclose={() => (stageMenu = null)} items={[
@@ -679,11 +693,11 @@
     {:else if addingTarget && spread}
       <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
     {:else if shown === "tree"}
-      <div class="body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => (addingTarget = true)} onremovetarget={removeTarget} /></div>
+      <div class="body"><TreePanel {stage} {spreadId} onselect={selectFromTree} onaddtarget={() => (addingTarget = true)} onremoveentry={removeEntry} /></div>
     {:else if shown === "stage"}
-      <div class="body"><StagePanel {stage} {bookId} {spreadId} /></div>
+      <div class="body"><StagePanel {stage} {bookId} {spreadId} onenvironment={() => openTab("environment")} /></div>
     {:else if shown === "entity"}
-      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} /></div>
+      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onspread={() => void showSpread()} /></div>
     {:else if shown === "environment"}
       <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
     {:else if shown === "library"}

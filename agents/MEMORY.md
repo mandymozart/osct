@@ -4,6 +4,26 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – the tree's spread and entry rows select (#227)
+
+- **The spread lives in one place: the Stage panel's *spread* section.** A tap on the spread row selects the spread,
+  opens the Stage tab and that section and scrolls it into view. Rejected: a spread view in the Entity panel's place –
+  the Stage panel already holds the spread's format (its one control) and its passes (the post-processing section right
+  below), so a second view would show the same control twice. The Entity panel names a selected spread with *settings*
+  to the section.
+- **An entry is a selection of its own** (`selection.entry`, `selection.spread` beside target / node; the rows' rules in
+  `editor/src/lib/tree-rows.ts`). An entry with a target also sets `selection.target` to it with `onTarget`, so the
+  stage outlines its print exactly as for a selected target – no second outline path. The Entity panel's fallback (a
+  target standing in while nothing is selected) is off while the spread or an entry is selected.
+- **The entry view is its own component** (`EntryView.svelte`, the words in `entry-view.ts`), in the Entity panel's
+  place, read-only: #223's entry form replaces its rows in the same place and order. The body uses the reader's
+  paragraph rule (blank lines), copied as a pure helper – the editor never imports the reader (RULES #32). A link's
+  URL is a link only over http(s).
+- **Delete on an entry row opens #198's confirmation** (the same as *Remove target*; `removeEntry(entryId, targetId)`
+  on the page now takes an entry without a target too). The spread row has no menu and Delete does nothing on it or
+  on a target row, as before.
+- `Selection.up()` spread `this` into `parentSelection`, which copies none of a class's `$state` accessors; it now
+  passes a plain snapshot.
 ## 2026-10-30 – one desk on the stage: the Eiermann frame with two tops; Schöpfer's desk removed (#226)
 
 - **Tilman decided** (#226, on a screenshot of Schöpfer's drawers hanging open beside its frame): "only one type of

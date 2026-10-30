@@ -310,8 +310,13 @@ is involved.
     column at the right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its
     entries in page order, each entry's target ("in view" while the camera sees it) and the target's entity as its
     **node tree** – the root node (● while the stage shows it with other values than the draft's; the shared ref) and
-    its children, as deep as the content nests them. A tap on a node selects it and opens the Entity panel; a tap on
-    the stage selects the root. **+ target** at the end of the tree opens the form for a new target on the spread:
+    its children, as deep as the content nests them. **Every row selects** (#227) and a tap always shows it – the row
+    highlighted, the panel switching: the **spread** row opens the Stage tab at its *spread* section (opened and
+    scrolled into view) and clears the node selection on the stage; an **entry** row selects the entry itself – with
+    or without a target – and the Entity panel shows it (below), an entry with a target outlines that target's print on
+    the stage as a target selection does; a **target** row selects the target, a **node** row the node, both in the
+    Entity panel; a tap on the stage selects the root. Every row's help in the Info view says what its tap does.
+    **+ target** at the end of the tree opens the form for a new target on the spread:
     title, page, the printed image (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image,
     text, group or light, with its file or line), the **entry category** (where the reader's consultation menu lists
     it – it follows what appears, a video makes a Videos entry, until set by hand; #165), and where it is printed
@@ -321,22 +326,36 @@ is involved.
     for its selected row – is the editor's one context menu (`ContextMenu.svelte`, the keys as on the book page's
     cards), each item with its icon: on a target row **Remove target** – the entry with its target, its entity and
     (only with the option) the Library files used only there go, after the same confirmation as a spread's, shown in
-    the panel; on a node row *Move up / down*, *Into the node above*, *Out of its parent* and *Remove node* / *Remove
+    the panel; on an entry row *Select the target* (with a printed target) and **Remove entry**, the same removal and
+    confirmation – an entry without a target too; the spread row has no menu; on a node row *Move up / down*, *Into the node above*, *Out of its parent* and *Remove node* / *Remove
     entity*, each with its key at the right (not with a finger; a move that cannot be made is disabled with its reason). **Delete** (or
-    Backspace) removes the selected node – its children with it, the root leaves the target without AR content.
+    Backspace) removes the selected node – its children with it, the root leaves the target without AR content; on an
+    entry row it removes nothing silently but opens the entry's removal confirmation (#198); on the spread or a target
+    row it does nothing.
     Removing is live on the stage;
     Save writes it, Back to the draft undoes it. Entries and nodes fold;
     the column collapses to its bar (‹ ›, kept on the device; until it is toggled there, it starts collapsed in a
     window under 64rem – a tablet in portrait gives the panel its 25rem and the stage the rest, #172). With a finger
     the rows are the touch control height, the chevrons and the eye as tall as the row (#171).
   - **Selection** (#162) – one selection for the tree, the stage and the Entity panel
-    (`editor/src/lib/selection.svelte.ts`, the rules in `selection.ts`): a **target** (a tap on its row or its entry's,
-    a pick of its printed image), its **entity** (the root node) or a **node**; selecting in one selects in the
-    others. The tree highlights the selected row over its whole width (its own grey and a bar at its start), the
-    rows above a selected node lighter, the hovered row lighter still; the stage outlines a selected target's print
-    and puts the gizmo on a selected entity or node; the Entity panel opens at that level (below). Keys in the tree:
-    ↑ ↓ walk every row, ← → fold and unfold (← on a folded or childless node steps up a level), Enter opens the
-    Entity panel.
+    (`editor/src/lib/selection.svelte.ts`, the rules in `selection.ts`, the tree's rows in `tree-rows.ts`): a
+    **target** (a tap on its row, a pick of its printed image), its **entity** (the root node) or a **node**;
+    selecting in one selects in the others. The tree's top rows select too (#227): the **spread** (no target, no node)
+    and an **entry** (its own selection, its target outlined on the stage when it has one). The tree highlights the
+    selected row over its whole width (its own grey and a bar at its start), the rows above a selected node lighter,
+    the hovered row lighter still; the stage outlines a selected target's print (an entry's target too) and puts the
+    gizmo on a selected entity or node; the Entity panel opens at that level (below). Keys in the tree: ↑ ↓ walk
+    every row – the spread, the entries, the targets and the nodes –, ← → fold and unfold (← on a folded or childless
+    row steps up a level: node → parent → entity → target → entry → spread), Enter opens the row's panel.
+  - **The spread and an entry in the panel** (#227) – the spread lives in **one place**, the Stage panel's *spread*
+    section: its title, pages, format (the one control, saved to the draft), the post-processing in effect (the whole
+    book's passes or the spread's own, and which) and the book's environment (or none – the stage's HDRI – with *edit*
+    to the Environment tab). The Stage panel already held the spread's format and its passes, so a spread view in the
+    Entity panel would have shown the same control twice; the Entity panel names a selected spread with *settings*
+    to that section. A selected **entry** takes the Entity panel's place (`EntryView.svelte`, the words in
+    `entry-view.ts`), read-only: category, title, access page, author and tags (where set), the body in the reader's
+    paragraphs, the image, a link's URL (a link only over http(s)) and its target with *select the target*. Content
+    editing (#223) turns these rows into its form in the same place.
   - **Hierarchy** (#163) – a node row is **dragged** onto another row of the same entity (it becomes that node's last
     child; the row shows a frame) or between two rows (a sibling there, the order set; a line shows where) – a mouse
     drags the whole row, a finger the row's type icon. **Alt + ↑ ↓** move the selected node among its siblings,
@@ -363,7 +382,7 @@ is involved.
     the innermost one wins. New explanations go there, never as a hint line in a panel. On a phone (no tree column, no
     pointer) there is no Info view.
   - **Stage panel** – collapsible sections, each with a header, the open state kept per section on the device
-    (`editor/src/lib/sections.svelte.ts`, `components/Section.svelte`): *spread* (the format), *stage* (shake, grid,
+    (`editor/src/lib/sections.svelte.ts`, `components/Section.svelte`): *spread* (title, pages, the format, the post-processing in effect and the environment – the spread row's place, #227), *stage* (shake, grid,
     origin – a 3 × 3 alignment square –, desk, sky), *post-processing*
     and *vars and events*. On a first visit all four are closed (#193); a closed header carries a short summary where
     it helps – *stage · Eiermann · grid off*, *post-processing · the whole book* –, so closed hides nothing that
@@ -517,7 +536,7 @@ is involved.
       that ran (#88): the target, the node's name, the rule's number, its event and what it did (`play rattle · set
       hasKey = true (book) · emit keyRattled`) – the log's own line, not an event of the stage (plugins never hear it);
       the events its actions caused follow above it. **clear** empties it.
-  - **Entity** – opens at the selected level (#162): its head is the **breadcrumb** *target › entity › group › node*
+  - **Entity** – opens at the selected level (#162; a selected entry or spread: above, #227): its head is the **breadcrumb** *target › entity › group › node*
     (a crumb selects that level, ▾ after the target picks another target of the spread). A selected target shows the
     **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;
@@ -646,7 +665,7 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts` |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry in `EntryView.svelte` (its words in `entry-view.ts`), the spread section's in `spread-view.ts` (#227) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |

@@ -522,7 +522,7 @@ npm run osct -- content status --env staging</code></pre>
   <h3 class="sec" id="demo-phone">On a phone</h3>
   <div class="with-phone">
     <div>
-      <p>The editor works on a phone too. The stage takes the top. The panel becomes a sheet at the bottom whose head is six icons – tree, Stage, Entity, Environment, Library, Code. Tap the tree's icon and tap a row to select it: the Entity sheet opens.</p>
+      <p>The editor works on a phone too. The stage takes the top. The panel becomes a sheet at the bottom whose head is six icons – tree, Stage, Entity, Environment, Library, Code. Tap the tree's icon and tap a row to select it: the spread's row opens the Stage sheet at the spread's settings, any other row the Entity sheet.</p>
       <p>Drag to orbit, two fingers to pan, pinch to zoom. A double tap returns to the reader's view. <kbd>‹</kbd> and <kbd>›</kbd> at the stage's lower corners walk through the spreads. More in <a href="#tools-phone">The editor on a phone</a>.</p>
       <p>To see the demo as a reader, open the staging reader with <code style="white-space: nowrap">?content=</code> (see <a href="#demo-getting-it-in">Getting it in</a>) and point the camera at the printed pages.</p>
     </div>
@@ -544,10 +544,16 @@ npm run osct -- content status --env staging</code></pre>
     <li><b>The stage</b> outlines it in orange – a target around its printed image – and puts the gizmo on an entity or a node. The pick mode in the toolbar decides what a click picks: the entity, the node under the pointer, or the target.</li>
     <li><b>The Entity panel</b> opens at that level. Its head is a <b>breadcrumb</b>, <em>target › entity › group › node</em>: a crumb steps up to that level, ▾ after the target picks another target of the spread.</li>
   </ul>
-  <p>In the tree, <kbd>↑</kbd> <kbd>↓</kbd> walk every row, <kbd>←</kbd> <kbd>→</kbd> fold and unfold, and <kbd>←</kbd> on a node steps up a level.</p>
+  <p>In the tree, <kbd>↑</kbd> <kbd>↓</kbd> walk every row – the spread, the entries, the targets and the nodes –, <kbd>←</kbd> <kbd>→</kbd> fold and unfold, and <kbd>←</kbd> on a row that does not fold steps up a level.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/01-selection.webp" width="1280" height="800" loading="lazy" alt="The door spread with the door's model selected: in the tree the model row is dark grey with a bar at its start; on the stage the boxes are outlined in orange with the move gizmo; the Entity panel's breadcrumb reads door ▾ › group › model, followed by node · model with its name, + node, add as, placement and file; the Info view says group – select the entity.">
     <figcaption>The door's model selected in the tree. The stage outlines it, the breadcrumb reads <em>door › group › model</em>. Pointing at <em>group</em> in the breadcrumb: the Info view says a click selects the entity.</figcaption>
+  </figure>
+  <p>Every row of the tree selects something, and a tap always shows it: the row turns grey and the panel follows. The <b>spread</b> row – the book icon at the top – opens the <b>Stage</b> tab at its <em>spread</em> section: the title, the pages, the format, the post-processing in effect and the book's environment; nothing stays selected on the stage. An <b>entry</b> row selects the entry, also one without a target such as <em>About the demo</em>: the Entity panel shows it as the reader reads it – category, title, access page, author and tags, the text in paragraphs, the image, a link's URL – and its target with <em>select the target</em>. An entry with a target has that target outlined on the stage. The Info view says for every row what its tap does.</p>
+  <p><kbd>Delete</kbd> on an entry row removes nothing at once: it shows what goes with the entry and asks first, as <em>Remove entry</em> in the row's menu does.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/01-selection-entry.webp" width="1280" height="800" loading="lazy" alt="The key spread with the entry The key selected in the tree: its row is grey with a bar at its start; on the stage the key's printed image on the left page is outlined in orange; the Entity panel shows entry · The key – category glossary, title The key, access page p. 1, tags narrative, key, the text about finding the key, and target key with select the target; the Info view says glossary · p. 1 – a tap selects the entry: the Entity panel shows its text, the stage outlines its target.">
+    <figcaption>The entry <em>The key</em> selected in the tree. The Entity panel shows the entry, the stage outlines its target, the Info view says what the tap did.</figcaption>
   </figure>
 
   <h3 class="sec" id="tools-hierarchy">Building a hierarchy</h3>
