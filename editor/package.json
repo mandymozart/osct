@@ -1,6 +1,6 @@
 {
   "name": "osct-editor",
-  "version": "1.10.1",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "description": "The authors' editor of OSCT (docs/editor.md): the engine over the mock stage, served at /editor",
