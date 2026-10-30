@@ -134,7 +134,7 @@
 {/snippet}
 
 <Section id="stage.narrative" label="vars and events" open={false} help="The narrative of the book's plugins on the stage: tap a target, set their variables by hand, read the stage's timeline.">
-  <div class="row" data-help="Taps a target's AR content without aiming at it, as a reader's tap would: the entity's onTap (a plugin component's, the animation's playOn: tap) and the event targetTapped. Only a found target with AR content takes a tap.">
+  <div class="row top" data-help="Taps a target's AR content without aiming at it, as a reader's tap would: the entity's onTap (a plugin component's, the animation's playOn: tap) and the event targetTapped. Only a found target with AR content takes a tap.">
     <span class="label">tap</span>
     <span class="controls">
       {#each taps as t (t.id)}
@@ -152,7 +152,7 @@
       {#if varError}<span class="small danger">{varError}</span>{/if}
     </span></div>
   {#each vars as v (v.scope + ":" + v.name)}
-    <div class="row" data-help-name="{v.scope} · {v.name}" data-help="A variable of the {v.scope} scope, a {v.type}. Change it to test a branch: it is written through the plugin API, so the plugins hear varChanged as from a plugin's set. The cross deletes it.">
+    <div class="row top" data-help-name="{v.scope} · {v.name}" data-help="A variable of the {v.scope} scope, a {v.type}. Change it to test a branch: it is written through the plugin API, so the plugins hear varChanged as from a plugin's set. The cross deletes it.">
       <span class="label var" title="{v.scope} · {v.name}">{v.name}</span>
       <span class="controls">
         <span class="small muted tag">{v.scope} · {v.type}</span>
@@ -160,7 +160,7 @@
         <button type="button" class="icon-button" aria-label="Delete {v.name}" title="Delete {v.name}" onclick={() => write(v.name, null, v.scope)}><Icon name="close" /></button>
       </span></div>
   {/each}
-  <div class="row" data-help="Sets a variable by hand, as a plugin's api.vars.set(name, value, scope) would – a camelCase name, a scope and a value of a type. An existing variable of that name and scope takes the new value.">
+  <div class="row top" data-help="Sets a variable by hand, as a plugin's api.vars.set(name, value, scope) would – a camelCase name, a scope and a value of a type. An existing variable of that name and scope takes the new value.">
     <span class="label">set</span>
     <span class="controls">
       <input class="field name" aria-label="Variable name" placeholder="name" bind:value={newName} />
@@ -191,12 +191,14 @@
   .w { width: 5rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .wide { width: 100%; }
+  .row.top { align-items: start; }
+  .row.top > .label { line-height: var(--control-height); }
   .label.var { padding-left: 1rem; color: var(--text); }
   .tag { white-space: nowrap; }
   .name { width: 6rem; }
   .text { width: 8rem; }
-  .timeline { list-style: none; margin: 0 0 .25rem; padding: 0; max-height: 12rem; overflow: auto; overflow-x: hidden; font-size: var(--text-small); }
-  .timeline li { display: grid; grid-template-columns: 4rem auto minmax(0, 1fr); gap: .375rem; align-items: baseline; padding: .0625rem 0; }
+  .timeline { flex-shrink: 0; list-style: none; margin: 0 0 .25rem; padding: 0; max-height: 12rem; overflow: auto; overflow-x: hidden; font-size: var(--text-small); }
+  .timeline li { display: grid; grid-template-columns: 4.75rem auto minmax(0, 1fr); gap: .375rem; align-items: baseline; padding: .0625rem 0; }
   .at { font-variant-numeric: tabular-nums; text-align: right; }
   .detail { overflow-wrap: anywhere; }
   .origin { display: inline-grid; grid-template-columns: repeat(3, .75rem); grid-template-rows: repeat(3, .75rem); gap: .125rem; padding: .125rem;

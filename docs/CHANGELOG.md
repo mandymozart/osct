@@ -12,6 +12,29 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.36.2 – 2026-10-30
+
+### Added
+- **The tutorial shows the Stage panel's tap, variables and timeline** (#148, #88): chapter 4 of `/docs/tutorials/` has a
+  section *Tap, variables and the timeline* with a new screenshot – a target tapped from the panel, a variable set by
+  hand, the timeline with its times.
+
+### Changed
+- **The tutorial's key shots show the brass key** (#148): the key spread on the desktop, the phone and the tablet, and the
+  door after the walk from the key, re-shot with the demo's animated key instead of the dragon; the post-processing shots
+  show the panel as it is now. Captions and alt texts follow.
+
+### Fixed
+- **Selecting a model with an animation clip broke the Entity panel** (#148): the timeline's first look inside its
+  effect read and wrote the same state, so selecting the demo's key ended in Svelte's *maximum update depth exceeded*
+  and the error page. The timeline is now kept as a raw value and looked up untracked.
+- **The Stage panel's timeline vanished in a short panel** (#148): in the phone's sheet the list of events was squeezed
+  to no height under *events*; it keeps its height now and scrolls in itself.
+- **Wrapping rows in *vars and events* keep their label on the first line** (#148): *tap*, a variable and *set* no longer
+  centre the label across two or three lines of controls, and the timeline's times line up with the label column.
+- **Pass rows keep their words with the changed dot** (#148): the post-processing rows are indented less, so
+  *● saturation* and *● threshold* are no longer cut off.
+
 ## 1.36.1 – 2026-10-30
 
 ### Changed

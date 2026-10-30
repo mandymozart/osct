@@ -158,7 +158,7 @@
 <style>
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
-  .label.sub { padding-left: 1rem; }
+  .label.sub { padding-left: .5rem; }
   .label.pass { color: var(--text); }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }

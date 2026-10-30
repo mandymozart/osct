@@ -301,7 +301,7 @@
   // ── the timeline of a model node (the animation component drives the same clip) ──
   // The scene builds a node once its model is loaded: the panel looks every frame until the timeline is there, then
   // reads its state every frame (the time runs)
-  let timeline = $state<NodeTimeline | null>(null);
+  let timeline = $state.raw<NodeTimeline | null>(null);
   let timelineState = $state<{ clip: string; time: number; playing: boolean; duration: number } | null>(null);
   $effect(() => {
     const t = target;
@@ -318,7 +318,8 @@
       timelineState = tl ? tl.state() : null;
       frame = requestAnimationFrame(tick);
     };
-    tick();
+    // Untracked: the first look runs inside the effect, and reading `timeline` there would rerun it endlessly
+    untrack(tick);
     return () => cancelAnimationFrame(frame);
   });
   const clipNames = $derived(timeline?.clips.map(c => c.name) ?? []);
