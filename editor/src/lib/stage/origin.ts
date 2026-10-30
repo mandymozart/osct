@@ -1,3 +1,5 @@
+import type { PrintSurface, SpreadFormat } from "@shared/types/game-config";
+
 /**
  * The coordinate origin of the editor's positions (three-free). A position on a page is stored as the content has it:
  * mm from the top left corner of its surface (`left` / `right` page, the cover's `front` / `back`). The author may
@@ -46,13 +48,13 @@ export const originHelp = (origin: OriginId, format: OriginFrame["format"]): str
     ? format === "spread" ? "The book's centre: the spine's middle, one zero for both pages." : "The page's centre."
     : `The ${ORIGIN_LABELS[origin]} ${ORIGIN_SPOTS[origin].col === 1 || ORIGIN_SPOTS[origin].row === 1 ? "point" : "corner"} of the page a position lies on.`;
 
-export type SurfaceId = "left" | "right" | "front" | "back";
+export type SurfaceId = PrintSurface;
 
 export interface OriginFrame {
   /** The base format: one page (mm) */
   page: { width: number; height: number };
   /** The spread is the open book (two pages) or a cover (one) */
-  format: "spread" | "cover" | "back";
+  format: SpreadFormat;
 }
 
 /** Where a surface's left edge lies from the spread's left edge (mm) */

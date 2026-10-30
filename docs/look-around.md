@@ -40,7 +40,7 @@ the stage as sky and light.
 
 ## Code
 
-`client/src/components/ar-bridges/ar/look-around/`
+`engine/src/scene/look-around/`
 
 | File | |
 |---|---|

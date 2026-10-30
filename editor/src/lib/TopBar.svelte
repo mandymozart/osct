@@ -4,7 +4,7 @@
   import { page } from "$app/state";
   import { getBook } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
-  import { session } from "#lib/session.svelte.js";
+  import { isAdminPath, session } from "#lib/session.svelte.js";
   import { captionOf, formatLabelOf, pagesOf } from "#lib/spread-grid.js";
   import PublishButton from "#lib/PublishButton.svelte";
 
@@ -14,7 +14,7 @@
    */
   const bookId = $derived(page.params.book ?? null);
   const spreadId = $derived(page.params.spread ?? null);
-  const isAdminRoute = $derived(page.url.pathname.startsWith(resolve("admin/")) || `${page.url.pathname}/` === resolve("admin/"));
+  const isAdminRoute = $derived(isAdminPath(page.url.pathname));
 
   /** Book titles by id, read once per book */
   const titles = $state<Record<string, string>>({});

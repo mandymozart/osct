@@ -30,8 +30,8 @@ export type HdriId = (typeof HDRIS)[number]["id"];
 export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.id === value);
 
 /**
- * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; Tilman: the tool is for
- * designers, they should feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
+ * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; designers' furniture, so
+ * the designers who use the tool feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
  * Schöpfer's desk (linoleum and oak on a black steel frame)
  */
 export const DESKS = [
@@ -57,8 +57,15 @@ export interface PreviewOrbit {
   pan?: { x: number; y: number };
 }
 
+/**
+ * The viewport's shading, after Blender's: **wireframe** (every entity as lines), **solid** (one matte grey, the
+ * scene's lights), **textured** (the content's materials, the scene's lights, no sky) and **rendered** (the
+ * content's materials under the HDRI's sky and light). Applied per entity mesh – the originals are kept and come
+ * back – so the stage, the gizmo and the outlines keep their own materials.
+ */
 export const SHADING_MODES = ["wireframe", "solid", "textured", "rendered"] as const;
 export type ShadingMode = (typeof SHADING_MODES)[number];
+export const isShadingMode = (value: unknown): value is ShadingMode => SHADING_MODES.includes(value as ShadingMode);
 
 export interface PreviewSettings {
   view: PreviewView;
@@ -112,7 +119,7 @@ const readSettings = (): PreviewSettings => {
     const stored = JSON.parse(raw) as Partial<PreviewSettings>;
     return {
       view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
-      shading: SHADING_MODES.includes(stored.shading as ShadingMode) ? (stored.shading as ShadingMode) : DEFAULTS.shading,
+      shading: isShadingMode(stored.shading) ? stored.shading : DEFAULTS.shading,
       orbit: isOrbit(stored.orbit) ? stored.orbit : null,
       hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
       desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
@@ -156,8 +163,6 @@ const publish = (): void => {
 };
 
 export const getPreview = (): PreviewState => state;
-
-export const isPreviewActive = (): boolean => state.active;
 
 /** The editor page is open (true) or left (false) */
 export const setPreviewActive = (active: boolean): void => {

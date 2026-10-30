@@ -127,7 +127,8 @@ export async function readEnvironment(storage: StorageClient, env: string): Prom
   };
 }
 
-const nameOf = (item: StoredFile) => item.path.split('/').pop() ?? '';
+/** The last segment of a stored path (a version folder's build, a file's name) */
+export const nameOf = (item: StoredFile) => item.path.split('/').pop() ?? '';
 
 /** Version folders on the storage (direct children of the environment named like a build) */
 const versionFolders = (state: EnvironmentState): string[] =>

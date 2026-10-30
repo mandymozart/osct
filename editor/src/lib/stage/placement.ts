@@ -1,3 +1,5 @@
+import type { PrintSurface } from "@shared/types/game-config";
+
 /**
  * The placement math of a target's printed image on the stage (three-free). A place is stored as the content has it:
  * the surface (`left` / `right` page, the cover's `front` / `back`) and the box in mm from that surface's top left
@@ -7,7 +9,7 @@
  * placement handles all count from here, so the print, its outline, its entity and the inspector cannot drift apart.
  */
 
-export type PrintSurface = "left" | "right" | "front" | "back";
+export type { PrintSurface };
 
 /** A printed image's place: its surface and its box (mm from the surface's top left corner) */
 export interface PrintBox {

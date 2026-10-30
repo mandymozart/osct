@@ -27,7 +27,7 @@
   let layout = $state<StageLayout | null>(null);
   let error = $state<string | null>(null);
 
-  const hasFormat = (format: string) => !!tree?.spreads.some(s => (s as { format?: string }).format === format);
+  const hasFormat = (format: string) => !!tree?.spreads.some(s => s.format === format);
   let adding = $state(false);
   /** The API takes no double page (an older server): new spreads come only with an import, the page says so */
   let addRefused = $state(false);

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { EntityData, EntityType, EntryCategory, Spread } from "@engine/types";
+  import type { PrintSurface } from "@shared/types/game-config";
   import { addEntry, ApiError, isMediaAsset, type Asset } from "#lib/api.js";
   import { library, NODE_ASSET_KINDS } from "#lib/library.svelte.js";
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
@@ -38,9 +39,9 @@
   let imageUrl = $state("");
   const format = $derived(spread.format ?? "spread");
   const closed = $derived(format === "cover" || format === "back");
-  const surfaces = $derived<readonly ("left" | "right" | "front" | "back")[]>(closed ? [format === "cover" ? "front" : "back"] : ["left", "right"]);
+  const surfaces = $derived<readonly PrintSurface[]>(closed ? [format === "cover" ? "front" : "back"] : ["left", "right"]);
   const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : String(p));
-  let surface = $state<"left" | "right" | "front" | "back">("right");
+  let surface = $state<PrintSurface>("right");
   let x = $state(40);
   let y = $state(60);
   // The x / y rows are read and entered from the stage's origin (Stage panel); x / y keep the content's frame

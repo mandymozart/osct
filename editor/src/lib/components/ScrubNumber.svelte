@@ -78,7 +78,7 @@
   };
   const onPointerMove = (event: PointerEvent) => {
     if (!press || press.pointerId !== event.pointerId) return;
-    // The quadrant rule (dogma, Tilman 2026-10-29): sliding up or right raises the value, down or left lowers it –
+    // The quadrant rule of the UI dogma: sliding up or right raises the value, down or left lowers it –
     // the two directions add up, so a diagonal towards the top right is the fastest way up
     const dx = event.clientX - press.x;
     const dy = press.y - event.clientY;

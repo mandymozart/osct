@@ -4,7 +4,7 @@
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library, NODE_ASSET_KINDS } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
-  import { assetPlace, formatDuration, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
+  import { assetPlace, formatDuration, formatSize, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
   import {
     FILTER_LABELS, LIBRARY_FILTERS, matchesFilter, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryPick,
   } from "#lib/library-pick.js";
@@ -75,7 +75,6 @@
   const uploading = $derived([...library.uploading, ...scriptUploads]);
   const fits = (asset: Asset) => !!nodeType && (NODE_ASSET_KINDS[nodeType] ?? []).includes(asset.kind);
   const pickable = (asset: Asset) => !!pick && pickFits(pick.subject, asset);
-  const size = (bytes: number) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`);
 
   const choose = (asset: Asset) => {
     if (pick && pickFits(pick.subject, asset)) void pick.onpick(asset);
@@ -233,7 +232,7 @@
             <td class="name" title={asset.url}>{#if pick}<button type="button" class="open" disabled={!pickable(asset)} onclick={() => choose(asset)}>{asset.name}</button>{:else}<button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{/if}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</td>
             <td class="name place" title={place.place ?? ""}>{place.place ?? "upload"}</td>
             <td class="muted kind">{asset.kind}</td>
-            <td class="num muted size">{size(asset.size)}</td>
+            <td class="num muted size">{formatSize(asset.size)}</td>
             <td class="num muted uses">{asset.usages}<span class="unit"> use{asset.usages === 1 ? "" : "s"}</span></td>
           </tr>
           {#if opened === asset.id && !pick}
@@ -251,7 +250,7 @@
           onclick={pick ? e => pickFrom(e, asset) : undefined}>
           {#key asset.url}<AssetThumb {asset} />{/key}
           <div class="name" title={asset.url}>{place.label}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</div>
-          <div class="small muted">{asset.kind} · {size(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if}{#if asset.durationMs} · {formatDuration(asset.durationMs)}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}</div>
+          <div class="small muted">{asset.kind} · {formatSize(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if}{#if asset.durationMs} · {formatDuration(asset.durationMs)}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}</div>
           <div class="actions">{@render actions(asset)}</div>
         </li>
       {/each}

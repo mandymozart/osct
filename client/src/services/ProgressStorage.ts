@@ -2,7 +2,7 @@ import type { IProgressStorage, ProgressRecord } from "@/types";
 
 /**
  * Progress storage adapter backed by localStorage, one key per book. Another store (DB/API) can replace
- * it with the same record shape (RULES.md #17).
+ * it with the same record shape (`IProgressStorage`).
  */
 export class LocalProgressStorage implements IProgressStorage {
   static key(bookId: string): string {

@@ -79,9 +79,6 @@ export const ANIMATIONS: Record<AnimationKind, AnimationPreset> = {
   outro: { ms: 700, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: true },
 };
 
-/** The unlock's length (the found indicator's label runs alongside) */
-export const CELEBRATION_MS = ANIMATIONS.unlock.ms;
-
 const smoothstep = (x: number) => {
   const t = Math.min(1, Math.max(0, x));
   return t * t * (3 - 2 * t);

@@ -3,8 +3,8 @@ import { getPlugins } from "@engine/content/game-config";
 import type { EntityData } from "@engine/types";
 import { ApiError, deletePlugin, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
 import { library } from "./library.svelte";
-import { importPluginCode, transpilePlugin, type CompileError } from "./plugins/compile";
-import type { Stage } from "./stage/stage.svelte";
+import { importPluginCode, transpilePlugin, type CompileError } from "#lib/plugins/compile.js";
+import type { Stage } from "#lib/stage/stage.svelte.js";
 import { nodeAt, withNode } from "./values";
 
 /** A node made code whose new type has not built yet: it shows as it was until its plugin's code builds it (#199) */
@@ -23,7 +23,7 @@ export interface PendingSwitch {
 }
 
 /**
- * The Code tab's plugins (agents/research/2026-10-29-code-in-the-editor.md): the sources stored for the book (the
+ * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the book (the
  * API's `plugins`), the plugins the content declares (compiled by the content build, loaded by the engine with the
  * spread), and **Run** – transpile in the browser, import, install in the stage's registry under the plugin's id,
  * build the spread again. `version` counts the runs: the Entity panel's rows follow the registry through it.

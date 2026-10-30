@@ -1,5 +1,6 @@
+import { CONTENT_PATH } from "@engine/content/game-config";
 import type { PrintPlacement } from "./api";
-import type { LayoutSheet, StageLayout } from "./stage/stage-layout";
+import { LAYOUT_PATH, layoutFrom, type LayoutSheet, type StageLayout } from "#lib/stage/stage-layout.js";
 
 /**
  * Pictures of a book's pages outside the stage (#153): the books page's covers and the book page's spread cards.
@@ -8,8 +9,6 @@ import type { LayoutSheet, StageLayout } from "./stage/stage-layout";
  * rendered by `scripts/layout/render-layout.py` (the demo book) leave the targets out for exactly this reason.
  */
 
-export const LAYOUT_PATH = "/assets/content/layout/";
-const CONTENT_PATH = "/assets/content/";
 /** The page the stage assumes without a layout (mock-tracker's BOOK_PAGE_MM) */
 const DEFAULT_PAGE = { width: 230, height: 320 } as const;
 
@@ -25,8 +24,7 @@ export const fetchBookLayout = async (assetsBase: string | null | undefined): Pr
   if (!root) return null;
   try {
     const response = await fetch(`${root}${LAYOUT_PATH}layout.json`);
-    const data = response.ok ? await response.json() : null;
-    return data && Array.isArray(data.sheets) && data.targets ? (data as StageLayout) : null;
+    return response.ok ? layoutFrom(await response.json()) : null;
   } catch {
     return null;
   }

@@ -443,8 +443,8 @@ final class Books
                 $target->entity = Editor::entity($targetIn->entity, 'target.entity', 0, Editor::pluginNodeTypes($bookId), Editor::pluginMaterials($bookId));
             }
         }
-        // Each named parameter once: MySQL with native prepares (no emulation) refuses a name used twice (HY093) – SQLite
-        // allows it, so the local API never showed the 500 that staging gave on every new target
+        // Each named parameter once: MySQL with native prepares (no emulation) refuses a name used twice (HY093), SQLite
+        // allows it (RULES #25)
         $spreadId = Db::value('SELECT id FROM spreads WHERE book_id = :book AND first_page <= :first AND last_page >= :last ORDER BY position LIMIT 1', ['book' => $bookId, 'first' => $page, 'last' => $page]);
         $entry = (object) ['id' => $id, 'category' => $category, 'title' => trim($title), 'page' => $page, 'body' => is_string($body->body ?? null) ? $body->body : '', 'tags' => []];
         $position = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM entries WHERE book_id = :book', ['book' => $bookId]);

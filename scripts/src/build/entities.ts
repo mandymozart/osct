@@ -5,6 +5,7 @@ import { componentProblems, componentSpec, paramProblems, textureSource, type Co
 import { materialProblems, materialSpec, textureSpec, type MaterialData } from '../../../shared/types/materials';
 import { lightProblems, type LightData } from '../../../shared/types/lights';
 import { placementProblems } from '../../../shared/types/placement';
+import { isObject, MAX_NODE_DEPTH } from '../../../shared/guards/game-config';
 import fs from 'fs';
 import path from 'path';
 import { CONTENT_DIR } from '../config';
@@ -14,9 +15,7 @@ import { assetType, contentFile, readSection, validate } from '../lib/content';
 /** A node of the content's YAML: `type`, a `src` (or `assets`) for model / video / image, `text` / `color`, `light`, `children` */
 type RawNode = Record<string, unknown>;
 
-const isMapping = (value: unknown): value is RawNode => typeof value === 'object' && value !== null && !Array.isArray(value);
-
-export const MAX_NODE_DEPTH = 8;
+const isMapping: (value: unknown) => value is RawNode = isObject;
 
 export function buildEntities(): Record<string, EntityData> {
   const entities: Record<string, EntityData> = {};

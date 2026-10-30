@@ -2,8 +2,8 @@ import type { Camera, Object3D, Scene } from "three";
 import type { EntityData, PassData } from "./content";
 
 /**
- * What the AR scene (three.js / 8th Wall) should be doing. Derived from the game mode and the current
- * route (`ar-bridges/utils/scene-state.ts`), applied by `<ar-bridge>`. Ordered from least to most active.
+ * What the AR scene (three.js / 8th Wall) should be doing – the app derives it from its own state and sets it.
+ * Ordered from least to most active.
  * STOPPED: camera released · PAUSED: tracking + video paused, camera stream kept (instant resume,
  * last frame frozen behind the UI) · RUNNING: camera, tracking and rendering.
  */
@@ -14,10 +14,10 @@ export enum SceneState {
 }
 
 /**
- * What the AR scene is doing. Reported to the store as `arStatus`.
+ * What the AR scene is doing, reported to the app.
  * idle: no scene · loading: building the spread's scene · ready: scene loaded, camera off ·
  * starting: camera requested, targets loading · running: tracking · paused: tracking + camera video
- * paused (stream kept) · error: camera or AR failed (see `arError`).
+ * paused (stream kept) · error: camera or AR failed (the message comes with it).
  */
 export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "paused" | "error";
 

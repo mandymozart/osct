@@ -14,9 +14,6 @@ export const CODE_EXTENSIONS: Record<CodeKind, readonly string[]> = { script: ["
 /** A code file larger than this is refused by the API (`Plugins::MAX_SOURCE_BYTES`, `Assets::TEXT_MAX_BYTES`) */
 export const CODE_MAX_BYTES = 262144;
 
-/** The file input's `accept` for code files */
-export const CODE_ACCEPT = [...CODE_EXTENSIONS.script, ...CODE_EXTENSIONS.shader].join(",");
-
 const extensionOf = (name: string): string => (name.includes(".") ? name.slice(name.lastIndexOf(".")).toLowerCase() : "");
 
 /** The code kind of a file name, null for any other file */

@@ -1,5 +1,5 @@
 /**
- * Colour maths for the colour popover (after Scutoons' `@scutoons/ui` colour.ts): hex ⟷ HSV, the editor's palette,
+ * Colour maths for the colour popover: hex ⟷ HSV, the editor's palette,
  * this browser's recent colours. No Svelte.
  */
 
@@ -36,10 +36,6 @@ export const hsvToHex = ({ h, s, v }: Hsv): string => {
   };
   return `#${[f(5), f(3), f(1)].map(x => x.toString(16).padStart(2, "0")).join("")}`;
 };
-
-/** Three bytes (0–255) → `#rrggbb` */
-export const rgbToHex = (r: number, g: number, b: number): string =>
-  `#${[r, g, b].map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join("")}`;
 
 /**
  * The palette offered first: the keys a chroma key usually meets (green and blue screen, white, black) and the

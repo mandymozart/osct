@@ -25,6 +25,7 @@ import { spawnSync } from 'child_process';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
+import { isObject } from '../../shared/guards/game-config';
 import { CONTENT_DIR } from './config';
 import { isMainModule } from './lib/entry';
 import { toJpeg } from './lib/optimize-media';
@@ -66,15 +67,12 @@ export interface ImportReport {
   warnings: string[];
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const OPTIONAL_TEXTS = ['author', 'body', 'media', 'target', 'image', 'video', 'note'] as const;
 
 /** One entry of the mapping, read field by field; null (and why in `problems`) when it cannot be imported */
 function readMappedEntry(id: string, value: unknown, problems: string[]): MappedEntry | null {
   const required = `${id}: category, title and page are required`;
-  if (!isRecord(value)) {
+  if (!isObject(value)) {
     problems.push(required);
     return null;
   }
@@ -89,7 +87,7 @@ function readMappedEntry(id: string, value: unknown, problems: string[]): Mapped
     if (typeof text === 'string') entry[key] = text;
     else if (text !== undefined && text !== null) problems.push(`${id}.${key}: expected a text`);
   }
-  if (isRecord(printed) && typeof printed.width === 'number' && typeof printed.height === 'number' && typeof printed.position === 'string') {
+  if (isObject(printed) && typeof printed.width === 'number' && typeof printed.height === 'number' && typeof printed.position === 'string') {
     entry.printed = { ...printed, width: printed.width, height: printed.height, position: printed.position };
   } else if (printed !== undefined && printed !== null) {
     problems.push(`${id}.printed: expected { width, height, position } (mm and the place on the page)`);
@@ -103,7 +101,7 @@ function readMappedEntry(id: string, value: unknown, problems: string[]): Mapped
  */
 export function readMapping(file: string, problems: string[] = []): Mapping {
   const data: unknown = yaml.load(fs.readFileSync(file, 'utf8'));
-  if (!isRecord(data) || !isRecord(data.entries)) throw new Error(`${file}: expected a mapping with "entries"`);
+  if (!isObject(data) || !isObject(data.entries)) throw new Error(`${file}: expected a mapping with "entries"`);
   const entries: Record<string, MappedEntry> = {};
   for (const [id, value] of Object.entries(data.entries)) {
     const entry = readMappedEntry(id, value, problems);

@@ -42,7 +42,8 @@ export function hashBuildInputs(): string {
  */
 export function readPreviousHash(): string | null {
   try {
-    return JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf8')).version?.hash ?? null;
+    const hash: unknown = (JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf8')) as { version?: { hash?: unknown } }).version?.hash;
+    return typeof hash === 'string' ? hash : null;
   } catch {
     return null;
   }

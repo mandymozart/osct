@@ -31,7 +31,7 @@ deploys) get the role when they sign in.
 ## Try it (the demo book, or the fixture's studio spreads)
 
 The **demo book** (`fixtures/demo/`, `DEMO.md`): six spreads that use every node type, placement, filter and
-component, six plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
+component, eight plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
 lights when the door opened, a tally counts the pages found, a tap switches a scene ([plugins](plugins.md) "The demo
 book", the note `agents/research/2026-10-30-demo-book.md`). The fixture's **studio spreads**
 (`fixtures/content/FIXTURE.md`, pages 28–31) are the smaller scene of every entity type, placement and filter. Locally,
@@ -58,7 +58,7 @@ with SQLite and the local content store:
    tree's eye (lost, found again), *Replay the first find* in the stage's right-click menu plays it again, *reset* in
    the Stage tab starts a new game – on *The door* the hint shows then; *set* `hasKey` (book, true), switch the door
    off and on, and it opens without a visit to the key's page. Open *The switch*
-   and click the entity on the stage: the next scene shows. The **Code** tab lists the six plugins (compiled by the
+   and click the entity on the stage: the next scene shows. The **Code** tab lists the eight plugins (compiled by the
    content build, their sources next to them): change one, **Run**, and the stage shows it. Move a node in the
    **Entity** tab (type a scale, or press and slide), **Save**, then **Publish** – it goes to `local · this server`,
    the local API's own environment.
@@ -563,8 +563,8 @@ is involved.
     **Nothing run here reaches readers**: a plugin gets there through the content build – today as a folder
     `plugins/<id>/index.ts` of the content source and the import, soon compiled by the publish itself on the server
     (#78, Tilman 2026-10-29) – and a publish whose nodes use a component no compiled plugin can provide is refused
-    (409 `unknown-components`). The plugin API (`api.three`, `registerComponent`, `registerLayer`, the component
-    context) is described in [content](content.md) "Plugins", the guide for authors is [plugins](plugins.md).
+    (409 `unknown-components`). The plugin API (`api.three`, the `register…` calls, the component
+    context) and the guide for authors are [plugins](plugins.md).
 - Settings (view, orbit, sky, desk, shake, the open tab, the tree open or collapsed) are stored per device; the
   session token too.
 
@@ -623,7 +623,7 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, the desks' cut edges), `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts` |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts` |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |
@@ -638,8 +638,8 @@ the file's extension (`#lib/api.js`, `#lib/TopBar.svelte` – `imports` in `edit
 engine's own files import `@shared/…` too. Links and static files go through `resolve()` and `asset()` of
 `$app/paths`, never a hand-built base path.
 
-Tests: the engine's next to its code (`engine/src/**/__tests__`, run by the reader's vitest), the editor's stage tests
-(`editor/src/lib/stage/__tests__`, `npm test` in editor/), the API test (`server/tests/api-test.php`, the editor flow
+Tests: the engine's next to its code (`engine/src/**/__tests__`, run by the reader's vitest), the editor's tests
+(`editor/src/**/__tests__`, `npm test` in editor/), the API test (`server/tests/api-test.php`, the editor flow
 included). CI builds and checks the editor (`checks.yml`, job *Editor*); the image builds it next to the reader
 (`Dockerfile`), Apache sends `/editor/*` to its `index.html` (`client/public/.htaccess`).
 
@@ -649,16 +649,15 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   image and placement: texts and the entries' own fields are still edited in the content source and imported again
   (the import keeps the logs). Renditions and transcoding stay with the content build. A target made in the editor
   tracks in the reader after a publish: the 8th Wall engine makes its image-target data from the printed image at
-  runtime (`engine/src/scene/xr8.ts`), nothing has to be compiled. Events between entities and nodes without a
-  target are phase 15 step 3; the book's own code is the Code tab (above).
+  runtime (`engine/src/scene/xr8.ts`), nothing has to be compiled. Events between nodes and pages are the plugin
+  API's (`api.events`, since 1.1) and the `behaviour` component's; the book's own code is the Code tab (above).
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
-- The plugin API 1.3 has components, material layers, passes, node types, parameter labels, events, variables in scopes, the progress
-  and the spread (`registerComponent`, `registerLayer`, `registerPass`, `registerNodeType`, `api.three`, `api.events`,
-  `api.vars`, `api.progress`, `api.spread`), and rules without code are the `behaviour` component (#88); declared
-  variables (with a type, a default and a write list) and bubbling event scopes come when a work needs them. The Code
-  tab has no completion from the API's types and no type check (#76); the build runs locally or in CI, not yet behind
-  the publish (#78).
+- The plugin API 1.5 has components, material layers, materials, procedural textures, passes, node types, parameter
+  labels, text files, events, variables in scopes, the progress and the spread ([plugins](plugins.md)), and rules
+  without code are the `behaviour` component (#88); declared variables (with a type, a default and a write list) and
+  bubbling event scopes come when a work needs them. The plugins' build runs locally or in CI, not yet behind the
+  publish (#78).
 - What the stage cannot simulate of a reader's game: consulted entries (no entry view), a reader's stored progress
   (the stage's progress lives while the workspace is open – leaving to the spread list starts a new game), two
   spreads on one stage (the mock tracker reports the current spread's targets only; a `stage` variable survives the

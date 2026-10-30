@@ -1,8 +1,8 @@
 import { isObject } from "@shared/guards/game-config";
 
 /**
- * Base URL of the accounts API (`server/`, PHP + MySQL), from the build flag `VITE_API_URL` (set per deploy,
- * see RULES.md #11: `/api` on the production host, the full URL on staging). `npm run dev` defaults to `/api`,
+ * Base URL of the accounts API (`server/`, PHP + MySQL), from the build flag `VITE_API_URL` (set per Kamal
+ * destination, RULES #11 – `/api` next to the app). `npm run dev` defaults to `/api`,
  * which Vite proxies to `npm run dev:api`. Empty = account features disabled.
  */
 export const API_URL: string = (import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "/api" : "")).replace(/\/$/, "");

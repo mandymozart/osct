@@ -36,7 +36,8 @@ browser's back button goes back through the views:
 Every link carries `?osct=<version>` (the app version it was made with). Opening a link only routes:
 
 - unknown route, spread, entry, category or step → not-found page with "Go to start";
-- the version in a link is informative only – links of any version just route;
+- the version in a link is informative only – links of any version just route; nothing from before 1.1.0 is supported
+  (no old `?code=` links);
 - a link to an entry the reader hasn't found yet opens scan mode on that entry's spread (no shortcut past
   the game); entries already consulted open directly;
 - a link skips the onboarding (it still comes on the next plain visit).
@@ -44,7 +45,6 @@ Every link carries `?osct=<version>` (the app version it was made with). Opening
 There is no resume prompt: the app opens the requested view (a link, or the view that was open on reload),
 and a plain start opens scan mode on the last spread. Stored progress of another format: a reader for it
 exists → converted, with a notice that parts may be missing; none exists → progress reset, with a notice.
-- nothing from before 1.1.0 is supported (no old `?code=` links).
 
 Printed QR codes: `https://osct.buildingfictions.com/spread/<spreadId>?osct=<version>` – the dev QR
 generator in the debug overlay makes them for the current spread. The server has to answer every path

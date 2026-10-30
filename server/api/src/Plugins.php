@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * The editor's plugin sources (docs/server.md "Plugin sources", agents/research/2026-10-29-code-in-the-editor.md):
+ * The editor's plugin sources (docs/server.md "Plugin sources", docs/plugins.md):
  * the TypeScript a book's author writes in the editor's Code tab, one row per plugin id. The editor transpiles and
  * runs it on its own stage; nothing here reaches a publish – the configuration's `plugins` list (the compiled
  * modules) has one writer, the content build, and comes in with the import. Every save records a change.

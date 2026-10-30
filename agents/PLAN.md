@@ -408,7 +408,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   - ~~Decide which version `osct` carries (app or content)~~ → resolved by "one version": `osct` = the
     one semver. Since 2026-09-25 links also carry `h` = short content build hash (first 12 hex chars of
     `version.hash`): `/?code=c-<spread>&osct=<semver>&h=<hash12>`.
-  - [ ] **Handle version conflicts on incoming links** (later phase, with the deep link reader): other
+  - [x] *(obsolete – RULES #10: no content hash in links, no old link formats; `LinkService` routes any version)*
+    **Handle version conflicts on incoming links** (later phase, with the deep link reader): other
     MAJOR in `osct`, other `h` (content changed since the code was generated – e.g. the spread/entry no
     longer exists), missing `h` (links printed before 2026-09-25).
   - Dev QR generator (`dev-tools/qr-generator.ts`) produces these URLs for testing
@@ -420,7 +421,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   `arReady` of the active spread (`static-scene-bridge.ts`) it preloads the **neighbouring** spreads
   (±1 in book order): their `.mind` first, then (Tilman) their content – entity assets and entry images,
   videos last; external URLs skipped. Browser: MindAR's later `.mind` request came from the cache (4 ms).
-  - [ ] Production cache headers (Netlify / FTP server) for `/assets/content/**` – today the dev server and
+  - [x] *(obsolete – content comes from the CDN, the app's headers are `server/docker/apache.conf`)* Production cache
+    headers (Netlify / FTP server) for `/assets/content/**` – today the dev server and
     Netlify's default revalidate (304), which works but costs a round trip per file.
   - [ ] Device check (Phase 7): preloaded videos vs. the `<video>` element's range requests (iOS Safari).
 
@@ -869,9 +871,9 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
 
 - [ ] **Concept: tap vs. pin** (Tilman is working it out first – see the concept notes of 2026-09-26 in
   MEMORY): what a tap does (unlock only / open the entry), what keeps an object in space, how it ends.
-- [ ] Pinning with the gyroscope (3DoF, works with MindAR, Android + iOS) – if the concept keeps it.
+- [ ] Pinning with the gyroscope (3DoF, works with the 8th Wall engine, Android + iOS) – if the concept keeps it.
 - [ ] Floor / surface tracking (6DoF): WebXR `immersive-ar` (hit test, anchors) – Android Chrome only,
-  the WebXR session takes over the camera (MindAR stops while it runs); iOS Safari has no WebXR AR.
+  the WebXR session takes over the camera (the image tracking stops while it runs); iOS Safari has no WebXR AR.
   Alternatives: a commercial web SDK with world tracking (licence), or a native app later.
   8th Wall's engine binary has SLAM + image targets + Sky Effects together, but its licence (no paid products
   whose value comes substantially from it, no changes, credit, 5-day termination) rules it out; the MIT engine
@@ -882,7 +884,8 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
   - Built: world anchored to the book + gyroscope (3DoF), book and table stay clear, open roof, fades 45 s after the
     last page; onion sky = sky test on a small camera copy; one full-screen pass, placeholder café in the shader.
   - [x] S22 check (2026-09-28): orientation right, world stays with the book, book + table clear, ~27 fps (dev server).
-  - [ ] Merge `spatialisation` into `develop` when Tilman says so (1.5.0 is only on the branch).
+  - [x] Merge `spatialisation` into `develop` – done: the look-around world is `engine/src/scene/look-around/`, the
+    book's environment (schema 2.8, 2.10) is built on it.
   - **To decide with Kévin (content):**
     - [ ] What the world is: one for the book or one per spread? A still panorama (equirectangular image), a video,
           or 3D (heavier – then the pass needs a render target again)?
@@ -950,7 +953,7 @@ Sign-in by email: link + 6-digit code; PHP API + MySQL in `server/` (docs/server
       no top padding; in Sound & vibration the first switch row's text (not its 4rem box) starts there.
 - Review done 2026-09-27 – develop merged into main.
 - [x] Progress text without an accounts API doesn't point to the (hidden) account section.
-- [~] Production (osct.netlify.app, `main`) uses the dev API for now (Tilman): `VITE_API_URL=https://osct.porschuetz.de/api`
+- [x] *(obsolete – Netlify dropped 2026-10-27, production is the Kamal deploy)* Production (osct.netlify.app, `main`) used the dev API (Tilman): `VITE_API_URL=https://osct.porschuetz.de/api`
       on the production Netlify site + https://osct.netlify.app in ALLOWED_ORIGINS (GitHub environment `staging`).
 - [x] Update switches before sign-up stay **off** (opt-in) – confirmed by Tilman.
 - [x] Entry view like Info (Tilman): "Entries" in the page at the category pill's height, content where the list starts –
@@ -1048,8 +1051,10 @@ The final content goes in and the app is tuned on it, on the devices readers wil
 - [x] Tune panel for the content session (1.5.1, 2026-10-03 – Tilman): debug overlay → tune; every placement value
       and filter parameter as slider + number field (three.js names), live on the page, "Copy YAML" (only non-defaults,
       with the file path) to paste into the content / a Claude session – no USB tunnel needed on staging.
-  - [ ] Phone check on staging (S22, iPhone): sliders and fields with the on-screen keyboard, copy to the Claude app.
-  - [ ] Later: look-around values (`window.osctLookAround`) as a section of the panel (copy → code defaults).
+  - [x] *(obsolete – the tune panel was removed in 1.10.0, RULES #32; the editor took its place)* Phone check on staging
+    (S22, iPhone): sliders and fields with the on-screen keyboard, copy to the Claude app.
+  - [x] *(obsolete – the panel is gone; the book's environment is edited in the editor)* Later: look-around values
+    (`window.osctLookAround`) as a section of the panel (copy → code defaults).
 
 ---
 

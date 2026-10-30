@@ -62,6 +62,6 @@ final class Confirmation
 
     private static function sign(string $subject, int $expires): string
     {
-        return substr(hash_hmac('sha256', "$subject|$expires", Config::get('SECRET')), 0, 32);
+        return substr(hash_hmac('sha256', "$subject|$expires", Auth::secret()), 0, 32);
     }
 }

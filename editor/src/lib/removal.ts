@@ -1,4 +1,5 @@
 import { ApiError, type ImportConfirmation, type RemovalImpact } from "./api";
+import { count } from "./import-preview";
 
 /**
  * Removing a spread or an entry with everything on it (#198, docs/server.md "Removing a spread or an entry"): the API
@@ -24,7 +25,6 @@ export const removalStep = (error: unknown): RemovalStep | null => {
   return { impact, confirmation, changed: error.code === "confirmation-void" };
 };
 
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** "3 entries, 3 targets, 2 entities" – the parts that are not zero */
 const takes = (impact: RemovalImpact, withEntries: boolean): string =>

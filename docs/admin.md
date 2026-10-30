@@ -11,7 +11,7 @@ SCUTOONS' roles so the two can be unified later ([server, "Roles"](server.md#rol
 
 An account with the role **`admin`** ([server, "Roles"](server.md#roles)). The first admins of an instance come
 from the deployment: the addresses in the GitHub environment variable **`ADMINS`** (comma-separated; `staging` and
-`production`, written into the API's config by both deploys like `EDITORS`, [deploy](deploy.md#settings)) get the
+`production`, written into the API's config by both deploys like `EDITORS`, [deploy](deploy.md#configuration)) get the
 role when they sign in. Every further admin or editor is made on the page. Signing in works like the editor and the
 reader: a code by e-mail, or the account's password. An admin who is no editor sees only this page; an editor who is
 no admin sees "No admin access" at `/editor/admin`.

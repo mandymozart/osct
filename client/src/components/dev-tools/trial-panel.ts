@@ -11,7 +11,7 @@ const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** While the trial is open the tracker holds the current spread and its neighbours (±1): scanning the next image on
- * the sheet switches the spread by itself (Tilman, 2026-10-28 – was ±0 since 1.7.8) */
+ * the sheet switches the spread by itself */
 export const TRIAL_WINDOW = 1;
 
 /** Book order of the printout (page, then the target's number on the page): `p038-2` → [38, 2] */

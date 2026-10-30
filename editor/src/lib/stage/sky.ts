@@ -1,10 +1,9 @@
 /**
- * The stage's sky and light (#185, three-free): an environment replaces the HDRI sky box. Tilman, 2026-10-30:
- * "Environment replaces the HDRI sky box."
+ * The stage's sky and light (#185, three-free): an environment replaces the HDRI sky box.
  *
  * - **The world.** With a book's environment (its draft's, or edits not yet saved) the stage shows the reader's
  *   look-around world as its sky while the shading is rendered; while the Environment tab is open it shows the world in
- *   every shading (the tab's preview, as before). Without one: the HDRI while rendered, as before.
+ *   every shading (the tab's preview). Without one: the HDRI while rendered.
  * - **The light** follows the reader: the reader lights the AR content with the engine's own lights (ambient and sun,
  *   `engine/src/scene/view.ts`) and the content's light nodes – its look-around world is a full-screen pass under the
  *   scene and lights nothing. So while the world is the sky, the HDRI does not light: the scene's own lights

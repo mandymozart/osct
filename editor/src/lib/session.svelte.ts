@@ -1,3 +1,4 @@
+import { resolve } from "$app/paths";
 import { ApiError, getToken, logout, me, requestCode, setToken, signInWithPassword, verifyCode, type User } from "./api";
 
 /**
@@ -99,3 +100,6 @@ class Session {
 }
 
 export const session = new Session();
+
+/** The admin page (docs/admin.md) and below – for admins; every other page is for editors */
+export const isAdminPath = (pathname: string): boolean => `${pathname}/` === resolve("admin/") || pathname.startsWith(resolve("admin/"));

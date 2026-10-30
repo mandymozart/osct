@@ -298,7 +298,7 @@
     const t = target;
     const type = current?.type;
     if (!t || !type) return;
-    // The picker's head names the node as the tree does: its name, else where it sits (#170 – was "of node root")
+    // The picker's head names the node as the tree does: its name, else where it sits (#170)
     const which = current?.name ? `“${current.name}”` : node.length ? `node ${pathLabel}` : "the root node";
     pickFor({ subject: { for: "node", nodeType: type }, label: `the ${type} of ${which}`, current: current?.assets[0]?.src,
       onpick: asset => { if (isMediaAsset(asset)) useAsset(asset.kind, asset.url, asset.id); } });

@@ -19,7 +19,7 @@
  *   .section-title  muted title between two rules
  *   .gold-spinner   gold loader ring (from styles/gold-spinner.css, shared with the startup loader)
  *
- * Token variants (Tilman, 2026-10-29: "debugging looks like debugging … brand UI only in reader-facing elements"):
+ * Token variants (debugging looks like debugging, brand UI only in reader-facing elements – RULES #32):
  * **branded** = the reader's UI, the tokens of main.css (the default, no attribute); **debug** = the dev tools' green
  * terminal. A host sets `data-theme="debug"` on itself; the tokens cascade into its shadow tree and every primitive
  * inside follows – one set of components, two looks. (The editor's neutral day/night palette lives in the editor app.)

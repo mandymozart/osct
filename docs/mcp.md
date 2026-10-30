@@ -117,7 +117,7 @@ against the local dev API:
   "env": { "OSCT_API_URL": "${OSCT_API_URL:-http://127.0.0.1:8080/api}", "OSCT_EDITOR_TOKEN": "${OSCT_EDITOR_TOKEN:-}" } } } }
 ```
 
-Start the API (`cd client && npm run dev:api`, [editor, "Try it"](editor.md#try-it-the-morning-test-with-the-demo-scene))
+Start the API (`cd client && npm run dev:api`, [editor, "Try it"](editor.md#try-it-the-demo-book-or-the-fixtures-studio-spreads))
 and ask `whoami`. Against staging for one session: `OSCT_API_URL=https://osct.porschuetz.de/api
 OSCT_EDITOR_TOKEN=osct_… claude`; for good, the `osct-staging` server above.
 

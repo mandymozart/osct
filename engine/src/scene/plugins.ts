@@ -35,7 +35,7 @@ import { deleteMaterialRegistration, type MaterialBuild, materialRegistration, s
 import { deleteTextureRegistration, resolveTextures, sameTextures, setTextureRegistration, type TextureDraw, textureRegistration } from "./textures";
 
 /**
- * The plugin API (version `PLUGIN_API_VERSION`, agents/research/2026-10-29-code-in-the-editor.md): a book's own code
+ * The plugin API (version `PLUGIN_API_VERSION`, docs/plugins.md): a book's own code
  * extends the engine without touching it. A plugin module exports `register(api)` and calls the registries –
  *
  *   api.registerComponent("spin", SPEC, ({ object, params }) => ({ update: delta => { object.rotation.y += … } }))
@@ -416,8 +416,6 @@ export const pluginNodeTypesOf = (id: string): string[] => [...(installedNodeTyp
 export const pluginMaterialsOf = (id: string): string[] => [...(installedMaterials.get(id) ?? [])];
 export const pluginTexturesOf = (id: string): string[] => [...(installedTextures.get(id) ?? [])];
 
-export const componentRegistration = (type: string): ComponentRegistration | undefined => components.get(type);
-export const layerRegistration = (type: string): LayerRegistration | undefined => layers.get(type);
 export const nodeTypeRegistration = (type: string): NodeTypeRegistration | undefined => nodeTypes.get(type);
 
 /** The node types whose last build failed, with why (a build that works, or the type registered anew, clears it) */

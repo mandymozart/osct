@@ -31,6 +31,7 @@ import {
   describeSync,
   isDemoBuild,
   isFixtureBuild,
+  nameOf,
   planPurge,
   planSync,
   readContentBuild,
@@ -95,7 +96,7 @@ async function status(env: string): Promise<void> {
   }
   const recorded = new Set(versions.map(v => v.build));
   state.listing
-    .filter(i => !(i.isDirectory && recorded.has(i.path.split('/').pop()!)) && !/\/(latest|versions)\.json$/.test(i.path))
+    .filter(i => !(i.isDirectory && recorded.has(nameOf(i))) && !/\/(latest|versions)\.json$/.test(i.path))
     .forEach(i => console.log(`   ? ${i.path}${i.isDirectory ? '/' : ''} (not a version on record)`));
   // The bookkeeping on the storage: latest.json must name a build versions.json records as current (#175)
   const bullets = (items: string[]) => items.map(item => `\n   - ${item}`).join('');

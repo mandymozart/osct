@@ -1,4 +1,5 @@
 import type { ImportComparison, ImportedBuild } from "./api";
+import { date } from "./import-preview";
 
 /**
  * The import's version comparison (#183): before an import overwrites a book's draft, the page shows what comes in
@@ -14,11 +15,7 @@ export interface ComparisonRow {
   differs: boolean;
 }
 
-const date = (iso: string | null | undefined): string => {
-  if (!iso) return "–";
-  const at = new Date(iso);
-  return Number.isNaN(at.getTime()) ? iso : at.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-};
+const shown = (iso: string | null | undefined): string => date(iso) ?? "–";
 
 const value = (text: string | null | undefined): string => text || "–";
 
@@ -28,7 +25,7 @@ export const comparisonRows = (c: ImportComparison): ComparisonRow[] => {
   const row = (label: string, incoming: string, draft: string): ComparisonRow => ({ label, incoming, draft, differs: incoming !== draft });
   return [
     row("Build", value(c.incoming.build), value(base.build)),
-    row("Built", date(c.incoming.date), date(base.date)),
+    row("Built", shown(c.incoming.date), shown(base.date)),
     row("App version", value(c.incoming.appVersion), value(base.appVersion)),
     row("Schema", value(c.incoming.schema), value(base.schema)),
   ];
@@ -38,7 +35,7 @@ export const comparisonRows = (c: ImportComparison): ComparisonRow[] => {
 export const importedLine = (c: ImportComparison): string => {
   const base = c.draft.basedOn;
   if (!base?.importedAt) return "The draft's import was not recorded.";
-  return `Imported ${date(base.importedAt)}${base.importedBy ? ` by ${base.importedBy}` : ""}.`;
+  return `Imported ${shown(base.importedAt)}${base.importedBy ? ` by ${base.importedBy}` : ""}.`;
 };
 
 /** The draft's edits since its import – what the import replaces */
@@ -51,7 +48,7 @@ export const editsLine = (c: ImportComparison): string => {
 
 /** One edit in short: `entity castle · author@example.com · 30 Oct 2026, 10:00` */
 export const editLabel = (edit: ImportComparison["draft"]["recentEdits"][number]): string =>
-  [`${edit.kind} ${edit.ref}`, edit.token ? `${edit.user ?? "?"} (AI: ${edit.token})` : edit.user, date(edit.at)].filter(Boolean).join(" · ");
+  [`${edit.kind} ${edit.ref}`, edit.token ? `${edit.user ?? "?"} (AI: ${edit.token})` : edit.user, shown(edit.at)].filter(Boolean).join(" · ");
 
 /** Where the draft as it is now is live – unpublished edits are lost for good */
 export const liveLine = (c: ImportComparison): string => {

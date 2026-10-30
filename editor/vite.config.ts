@@ -11,7 +11,7 @@ const sibling = (folder: string) => fileURLToPath(new URL(`../${folder}/`, impor
 // Dev server on 5175 (the reader runs on 5174); /api goes to the PHP dev API (`npm run dev:api` in client/).
 export default defineConfig({
   plugins: [
-    // SvelteKit 3 reads its configuration here (svelte.config.js is gone). The editor is a single-page app served at
+    // SvelteKit 3 reads its configuration here. The editor is a single-page app served at
     // /editor next to the reader (Dockerfile, client/public/.htaccess): every route renders in the browser (the sign-in
     // gate, the instance's API), index.html is the fallback. src/lib is `#lib` (package.json "imports").
     sveltekit({

@@ -4,6 +4,7 @@ import yaml from 'js-yaml';
 import path from 'path';
 import { CONTENT_DIR } from '../config';
 import type { AssetType } from '../../../shared/types/game-config';
+import { isObject } from '../../../shared/guards/game-config';
 import { buildErrors } from './errors';
 import type { Authored, ContentType } from './schema';
 import { validateContent } from './validation';
@@ -29,16 +30,13 @@ export interface SourceItem {
   data: Record<string, unknown>;
 }
 
-const isMapping = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 /**
  * Read a YAML file; records an error and returns null if it can't be read
  */
 export function readYaml(file: string): Record<string, unknown> | null {
   try {
     const data: unknown = yaml.load(fs.readFileSync(file, 'utf8'));
-    if (isMapping(data)) return data;
+    if (isObject(data)) return data;
     buildErrors.push(`${path.relative(CONTENT_DIR, file)}: expected a YAML mapping`);
   } catch (error) {
     buildErrors.push(`${path.relative(CONTENT_DIR, file)}: ${(error as Error).message}`);

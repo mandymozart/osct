@@ -110,7 +110,7 @@ clips.forEach((c, i) => {
 });
 const encode = ["-c:v", "libx264", "-preset", "slow", "-profile:v", "high", "-level:v", "4.1", "-crf", crf, "-maxrate", maxrate,
   "-bufsize", "7M", "-pix_fmt", "yuv420p", "-r", String(FPS), "-g", String(FPS * 2), "-movflags", "+faststart", "-an"];
-// The end: a short fade to black (no end card – no text at all, Tilman #195)
+// The end: a short fade to black (no end card – the video carries no text at all, #195)
 const END_FADE = 0.4;
 filter += `${last}fade=t=out:st=${(offset - END_FADE).toFixed(4)}:d=${END_FADE}[v]`;
 ffmpeg([...inputs, "-filter_complex", filter, "-map", "[v]", ...encode, output]);

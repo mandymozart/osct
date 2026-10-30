@@ -32,7 +32,9 @@ server/api/
   src/                    Version, Config, Db, Http, Auth, ApiTokens (AI connections), Passwords, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de);
                           Roles (reader / editor / admin, the tables roles + user_roles), Admin (the admin endpoints, who may call them);
                           the editor: Editor (access, checks), Books (import, tree, entities, targets, publish, logs),
-                          ContentVersion (rows → a content version), ContentStore (local directory / bunny.net storage);
+                          ContentVersion (rows → a content version), ContentStore (local directory / bunny.net storage),
+                          Confirmation (the second step of an import or a removal), Removal (what a removal takes),
+                          Assets (the Library's files), VideoInfo (a video's size and length), Plugins (the Code tab's sources);
                           Paths (where the content store and var/ are, the move out of db/)
   db/schema.mysql.sql     tables (CREATE TABLE IF NOT EXISTS, later columns as ALTER TABLE … ADD COLUMN – POST /admin/migrate runs it)
   db/schema.sqlite.sql    the same for local development / tests – db/ holds the schema only
@@ -217,7 +219,8 @@ The editor's keys:
 - `CONTENT_BASE_URL` (empty): this instance's content CDN – what `{ "source": "cdn" }` imports (the same value as
   the reader's build flag `VITE_CONTENT_BASE_URL`, [content-cdn](content-cdn.md)).
 - `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (`storage.bunnycdn.com`), `BUNNY_STORAGE_PASSWORD` (the zone's access
-  key – a secret): the storage zone the osct CLI syncs to (`scripts/.env` has the same values). The endpoint is a
+  key – a secret): the storage zone the osct CLI syncs to (`scripts/.env` holds the same values, the endpoint there as
+  `BUNNY_STORAGE_ZONE_ENDPOINT`). The endpoint is a
   host name; a full `http://host:port` origin is for a local test double only.
 
 ## Content store and var
@@ -462,6 +465,7 @@ its spread and the contract stays as the content build writes it. Every moved ro
 | `POST /editor/books/{id}/spreads` | `{ format: "spread", after?, id?, title? }` | 201 `{ spread, moved: { spreads, entries, targets } }` – a double page right after the spread `after` (default: the last one before the back cover; a book without one starts on page 1). Its pages are the two after that spread's `lastPage`, its position the next; every later page is numbered on by two. `id` defaults to the first free `spread-<n>`, `title` to *New spread*. 400 `unknown-spread` (no such `after`), `invalid-spread` (after the back cover, an unknown format), `invalid-id`; 409 `duplicate-id` |
 | `POST /editor/books/{id}/spreads` | `{ format: "cover" \| "back", title? }` | 201 `{ spread, moved }` – the front cover (page 0, first) or the back cover (the page after the last, last); nothing moves. 400 `invalid-spread` with an `after`; 409 `duplicate-id` when the book has one |
 | `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes? }` | `{ spread }` – title, format (`cover` only on page 0) and the spread's own post-processing (an override of the book's: `null` removes it so the book's apply, `[]` turns them off there); the pages stay |
+| `PUT /editor/books/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the book's world and onion sky (`book.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
 | `PUT /editor/books/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the book's post-processing (`book.passes`, content schema 2.5), the master every spread without a list of its own shows; `null` removes it. Checked as a spread's list (a built-in `type`, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
 | `DELETE /editor/books/{id}/spreads/{sid}` | `{ confirm?, deleteFiles? }` | the spread with everything on it, in two steps ([below](#removing-a-spread-or-an-entry)): 409 `confirm-delete` with `impact` and `confirmation`, then with `confirm` 200 `{ deleted, moved }` – a double page's later pages are numbered back by its pages (the reverse of adding it), a cover moves nothing. 409 `initial-spread` for the spread the book opens on (it never goes); 404 |
 

@@ -1,16 +1,21 @@
 # Changelog
 
 Every versioned change is listed here, newest first. Versions follow [semver](https://semver.org/) and
-are the same for app, content build and server (`agents/RULES.md` #10, #23):
-
-- **PATCH** – fixes, refactors, comments, styling tweaks, tooling; nothing a reader or editor has to act on.
-  Changes only to `agents/`, `docs/` or Markdown need no version.
-- **MINOR** – new features or content-build options that work with existing content and progress.
-- **MAJOR** – content must be rebuilt, or the progress storage format changes (needs a reader in
-  `utils/progress-record.ts`).
+are the same for the app, the content build, the server and the MCP server. What bumps which part is
+`agents/RULES.md` #23 (content compatibility is the content schema, #10 – docs/content.md "Schema and app versions").
 
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
+
+## 1.50.2 – 2026-10-30
+
+### Changed
+- **A second review of the code base** (#19): unused exports and props removed from the editor and the engine; the
+  editor and the content tooling take their types, constants and small helpers from `shared/` or write them once;
+  comments explain the code instead of telling its history; the API answers its one hand-made 204 like every other
+  and signs confirmations only with a valid secret; the docs and the project rules name the engine's files where the
+  AR code moved, the demo's eight plugins, every API class and route, and the right schema rule. Nothing changes for
+  readers or editors.
 
 ## 1.50.1 – 2026-10-30
 

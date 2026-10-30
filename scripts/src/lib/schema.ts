@@ -4,6 +4,7 @@
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
+import { SPREAD_FORMATS, STEP_ACTIONS } from "../../../shared/types/game-config";
 
 /** `List`: an array of texts, or the texts in one comma-separated string */
 export type FieldType = "String" | "Number" | "Array" | "List" | "Boolean" | "Object";
@@ -42,7 +43,7 @@ export const schemas = {
       order: { type: "Number", required: false, default: 0 },
       firstPage: { type: "Number", required: true },
       lastPage: { type: "Number", required: true },
-      format: { type: "String", required: false, enum: ["spread", "cover", "back"] }, // the covers: page 0, and the page after the last
+      format: { type: "String", required: false, enum: SPREAD_FORMATS }, // the covers: page 0, and the page after the last
       passes: { type: "Array", required: false }, // post-processing over the rendered image: [{ type, ...parameters }], see shared/types/passes.ts
     },
   },
@@ -103,7 +104,7 @@ export const schemas = {
       footer: { type: "String", required: false },
       illustration: { type: "String", required: false },
       button: { type: "String", required: false },
-      action: { type: "String", required: false, enum: ["next", "camera", "scan"] },
+      action: { type: "String", required: false, enum: STEP_ACTIONS },
       fadeIn: { type: "Number", required: false },
       stagger: { type: "Number", required: false },
       advance: { type: "Number", required: false },

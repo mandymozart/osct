@@ -10,7 +10,7 @@
   import type { Stage } from "#lib/stage/stage.svelte.js";
 
   /**
-   * The **Code** tab: the book's own code (agents/research/2026-10-29-code-in-the-editor.md). The plugins stored for
+   * The **Code** tab: the book's own code (docs/plugins.md "Trying it: the Code tab"). The plugins stored for
    * the book and the ones the content declares (compiled by the content build), one open in Monaco (`plugins/monaco.ts`,
    * loaded with this tab only): TypeScript against the plugin API's types – completion and type errors inline as the
    * content build reports them; Tab indents, Ctrl+Enter runs, Ctrl+S saves. **Run** transpiles the TypeScript in

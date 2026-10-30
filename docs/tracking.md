@@ -81,7 +81,7 @@ browser whose user agent names no maker – Chrome's reduced user agent) it pick
 picks a back lens itself – on the Galaxy S22 the **ultra-wide**, which has a fixed focus (camera test 2026-10-28,
 `docs/trigger-tests/2026-10-28-camera.md`).
 
-What the app sets (`ar-bridges/utils/camera-request.ts`; the tracker wraps `getUserMedia` while the engine starts):
+What the app sets (`engine/src/utils/camera-request.ts`; the tracker wraps `getUserMedia` while the engine starts):
 
 - **Lens** (Android only): the engine's request for "the back camera" gets the device id of `camera 0, facing back`
   (old or new label) – camera id 0 is Android's main back lens. Labels are listed only once the camera is allowed;
@@ -103,7 +103,7 @@ iPhone 7, 6s and SE 1st generation end at iOS 15). The camera manager checks it 
 Safari 15 reports no focus, focus distance or zoom for the camera at all. A SIMD-free engine build: proposal #39.
 
 **Debug camera panel** (overlay → *camera*, `dev-tools/camera-panel.ts`; the readout in
-`ar-bridges/utils/camera-debug.ts`): lens label, resolution and frame rate, focus mode (bold) / distance / range, zoom
+`engine/src/utils/camera-debug.ts`): lens label, resolution and frame rate, focus mode (bold) / distance / range, zoom
 and range, and the current spread's targets (yellow in view, ✓ found since the panel opened). While open the tracker
 holds the current spread only, as in the trial. Why AR could not start shows here and after "AR: error" in the
 overlay. Switches:

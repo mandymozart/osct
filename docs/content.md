@@ -189,7 +189,7 @@ build does not know a video's height): half the plane's height (the video's heig
 **Tuning placement and filters:** the [editor](editor.md) (`/editor`) shows the spread on a simulated page and has a
 field for every placement value and every filter parameter – the names are three.js's (`position.x`, `rotation.y`,
 `scale`; rotation in degrees). Changes show on the stage at once; **Save** writes them to the instance's database and
-**Publish** makes a content version of the draft. The content source in git is imported into the editor, not written
+**Publish** makes a content version of the draft. The content source is imported into the editor, not written
 by it: carry a saved value back into `entry.yaml` (or the shared `entity.yaml`) when the source should keep it.
 
 **Unlock and consult:** finding a target for the first time unlocks its entry – "New entry unlocked"
@@ -639,7 +639,8 @@ Then look at the result in the app – see the quick start in the [README](../RE
 
 The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
 (`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
-every MINOR of its schema MAJOR; a content file of another MAJOR is refused at startup. This table names, per schema,
+every MINOR of its schema MAJOR and every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR`; content of a newer
+MAJOR is refused at startup. This table names, per schema,
 the app version that first ships it. The last row is the current schema (a test checks that it matches
 `CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
 
@@ -647,15 +648,15 @@ the app version that first ships it. The last row is the current schema (a test 
 |---|---|---|---|
 | 1.1 | 1.7.6 | released | content on the CDN |
 | 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 |
-| 2.0 | 1.10.0 | unreleased | the entity as a tree of nodes |
-| 2.1 | 1.10.0 | unreleased | print placement of targets (`print`) |
-| 2.2 | 1.10.0 | unreleased | components (animation) |
-| 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
-| 2.4 | 1.11.0 | in develop | plugins – the book's own code, compiled by the content build (plugin API 1.0) |
-| 2.5 | 1.12.0 | in develop | post-processing passes |
-| 2.6 | 1.13.0 | in develop | light nodes: point, spot and directional lights as a node type |
-| 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
-| 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
+| 2.0 | 1.10.0 | released | the entity as a tree of nodes |
+| 2.1 | 1.10.0 | released | print placement of targets (`print`) |
+| 2.2 | 1.10.0 | released | components (animation) |
+| 2.3 | 1.10.0 | released | spread formats (cover, back) and the plugins list |
+| 2.4 | 1.11.0 | released | plugins – the book's own code, compiled by the content build (plugin API 1.0) |
+| 2.5 | 1.12.0 | released | post-processing passes |
+| 2.6 | 1.13.0 | released | light nodes: point, spot and directional lights as a node type |
+| 2.7 | 1.15.0 | released | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
+| 2.8 | 1.17.0 | released | the book's environment: the world and the onion sky |
 | 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know |
 | 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) |
 | 2.11 | 1.22.0 | in develop | the content manifest names its book (`latest.json` / `versions.json` `book`) |
@@ -663,13 +664,13 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.13 | 1.32.0 | in develop | a plugin's node type (`registerNodeType`, plugin API 1.2): its parameters in the node's `params` |
 | 2.14 | 1.34.0 | in develop | a plugin's recorded `registered` (the specs of its components, layers, node types and passes – the guard checks them) |
 | 2.15 | 1.35.0 | in develop | a parameter spec's optional `label` (plugin API 1.3) – the editor's row; in the content only inside a plugin's recorded specs |
-| 2.16 | 1.36.1 | unreleased | nothing new in the content – shared/ imports its types type-only (`verbatimModuleSyntax`, #176) |
-| 2.17 | 1.41.0 | unreleased | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) – a 2.16 app refuses a recorded spec with a `texture` parameter |
-| 2.18 | 1.49.0 | unreleased | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
-| 2.19 | 1.50.0 | unreleased | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) – a 2.18 app refuses a node that carries one |
+| 2.16 | 1.36.1 | in develop | nothing new in the content – shared/ imports its types type-only (`verbatimModuleSyntax`, #176) |
+| 2.17 | 1.41.0 | in develop | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) – a 2.16 app refuses a recorded spec with a `texture` parameter |
+| 2.18 | 1.49.0 | in develop | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
+| 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) – a 2.18 app refuses a node that carries one |
 
-Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
-bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
+Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
+another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.
 
 ## Content build
 
@@ -752,7 +753,7 @@ page, each printed trigger as an image where it is printed):
 
 ```bash
 cd scripts
-npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content ../content
+npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content "$OSCT_CONTENT_DIR"
 ```
 
 `scripts/layout/extract-layout.py` (Python 3 with PyMuPDF – an external tool like ffmpeg) renders every sheet
@@ -762,15 +763,15 @@ numbers printed at the foot), and per target its page, surface (`left` / `right`
 mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)
 by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed (the
 trial delivery has ten targets that are not on the printout). The content build copies `layout/` with the rest of
-the content; the folder is generated and git-ignored. Run it again when the PDFs change, and rebuild the content
+the content; the folder is generated. Run it again when the PDFs change, and rebuild the content
 with `--force` (the layout is not part of the build hash).
 
-### Videos are not in git
+### Videos
 
-The imported entry videos (`content/entries/<id>/video.mp4`) are git-ignored – they are large and come to the servers
-through the CDN sync: `osct content sync` uploads whatever the local content build holds, videos included
-([content on the CDN](content-cdn.md); #15). Keep them in the local `content/` folder: the local build uses them. A build on a machine without them (CI, a deploy, a fresh clone) prints a warning per missing video and builds
-those targets without their AR video.
+The imported entry videos (`entries/<id>/video.mp4` in the content source) are large and reach the servers through
+the CDN sync: `osct content sync` uploads whatever the local content build holds, videos included
+([content on the CDN](content-cdn.md); #15). A build on a machine without them prints a warning per missing video and
+builds those targets without their AR video.
 
 ### Trigger test protocol
 
