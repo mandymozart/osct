@@ -7,7 +7,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 ## Stack (do not swap)
 - Build: vite · Tests: vitest (happy-dom)
 - 3D: three.js · Image tracking: the **8th Wall engine** (`@8thwall/engine`, MIT, image targets; served from
-  `assets/xr8/` with its LICENSE) behind `IImageTracker` (`ar/tracker-types.ts`). Image targets are made from the
+  `assets/xr8/` with its LICENSE) behind `IImageTracker` (`engine/src/scene/tracker-types.ts`). Image targets are made from the
   target images in the app – nothing precompiled.
 - State: custom monolithic game store (`IGame`, `BaseStore`) with immer drafts, split into managers
 - UI: vanilla custom web components (shadow DOM), no framework
@@ -18,7 +18,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 
 ## Working rules
 1. **Ask before removing any feature, page, component or manager.** We are restructuring,
-   not deleting. Agreed removals so far: QR scanning; MindAR; A-Frame.
+   not deleting. Agreed removals so far: QR scanning; MindAR; A-Frame; the reader's tune panel and in-reader editor
+   (rule 32).
 2. Naming: page group = **spread** (not chapter), opened entry = **consulted** (not visited).
    Use these terms in code, content and UI.
    Modes: `IDLE`, `SCAN`, `CONSULTATION` (UI context). "About" and "Info" are the same page (`about`).
@@ -32,9 +33,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
    whole-book download (Info) goes through the same `preload()` – no second download path. Never modify the AR
    scene before a spread is actually activated. No second scene / WebGL context – except the engine's own
    camera canvas under the three.js canvas. (The look-around world is one full-screen pass of the same renderer
-   under the AR scene, `ar/look-around/` – no scene of its own; a book's world model is rendered once into a cube
-   when it loads, `look-around/environment-assets.ts`, never per frame.) The tracker keeps the neighbouring spreads'
-   image targets loaded (`prepareTargets()`, ±1 by default – `components/ar-bridges/utils/prepared-spreads.ts`);
+   under the AR scene, `engine/src/scene/look-around/` – no scene of its own; a book's world model is rendered once into
+   a cube when it loads, `look-around/environment-assets.ts`, never per frame.) The tracker keeps the neighbouring
+   spreads' image targets loaded (`prepareTargets()`, ±1 by default – `engine/src/utils/prepared-spreads.ts`);
    that is the engine's state, not the scene's. The AR code (three.js, the 8th Wall engine) is only imported
    lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may import `ar-bridges/ar/` statically;
    the scene is built on the first scan (RUNNING).
@@ -49,7 +50,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 8. Content (YAML + media) → built by `scripts/` into `client/src/game.config.json`
    and `client/public/assets/content`. **The output is not in git.** **The book content is not in git either**
    (history included – `docs/content-out-of-git.md`): its source is a folder of its own named by
-   `OSCT_CONTENT_DIR` (scripts/.env). Until `content/` has left the repository the build still falls back to it;
+   `OSCT_CONTENT_DIR` (scripts/.env). Without it the build still falls back to a `content/` folder;
    that fallback goes with #5 – never add another. The repository keeps only the test fixture `fixtures/content/`
    (marked by `FIXTURE.md`, refused by `osct content sync`): CI and the tests build it – never write tests that
    need the book's own entries. Never add book content, its media or a build of it to the repository.
@@ -89,14 +90,16 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     (https://osct.buildingfictions.com, no debug bar); merge `develop` into `main` only when Tilman says so – the
     push deploys (docs/deploy.md). Build flags (`VITE_*`) are set per Kamal destination
     (`config/deploy.<destination>.yml` → `builder.args`), never committed in `client/.env`.
-12. AR: only `components/ar-bridges/ar/` touches three.js / the 8th Wall engine, behind `IArScene`
-    (`types/scene.ts`). `<ar-bridge>` is the only glue to the store. `ArScene` keeps **one** renderer
-    (`ar/view.ts`) and one camera stream and swaps a spread's targets, assets and entities in place.
-    Tracking: `ar/tracker.ts` + `ar/xr8.ts` (engine loader, image targets, anchor math – re-check the anchor
+12. AR: three.js and the 8th Wall engine live in the engine (`engine/src/scene/`, behind `IArScene` –
+    `engine/src/types/scene.ts`); in the reader only `components/ar-bridges/ar/` imports it (the editor's stage,
+    `editor/src/lib/stage/`, uses three.js for its own desk, gizmo and helpers – RULES #32). `<ar-bridge>` is the
+    reader's only glue to the store. `ArScene` keeps **one** renderer (`scene/view.ts`) and one camera stream and swaps a
+    spread's targets, assets and entities in place.
+    Tracking: `scene/tracker.ts` + `scene/xr8.ts` (engine loader, image targets, anchor math – re-check the anchor
     convention and the engine's `imageTargetData` diffing on an engine upgrade). A spread switch changes only
     which targets are reported; a neighbour's page held in view switches the spread (`spreadSeen`). Assets:
-    `ar/assets.ts` (loaded per id, disposed when released – free GPU memory). Entity registry
-    `ar/entities.ts` (add entity types with `registerEntity`, a book's own with `registerNodeType`, its materials and
+    `scene/assets.ts` (loaded per id, disposed when released – free GPU memory). Entity registry
+    `scene/entities.ts` (add entity types with `registerEntity`, a book's own with `registerNodeType`, its materials and
     textures with `registerMaterial` / `registerTexture` – `materials.ts`, `textures.ts`; no logic in
     content; entities dispose what they create). Camera only in scan mode.
 13. Type naming: the per-entity game-configuration (JSON) types are `*Data` (`SpreadData`, `EntityData`, …,
@@ -104,8 +107,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     their names (`GameConfiguration`, `ContentManifest`). App-internal objects have plain names (`Spread`,
     `Target`, `Entry`, `Step`), services and controllers `I*` interfaces, runtime state `*State`. No second copy
     of a type in another package.
-14. Only `client/src/utils/game-config.ts` imports `game.config.json` (type guard, then map). Everything
-    else asks `utils/game-config.ts`. Vocabulary: *content* = authored input (the content source),
+14. In the reader only `client/src/utils/game-config.ts` imports the bundled `game.config.json` and hands it to the
+    engine's loader (`engine/src/content/game-config.ts`: type guard, then map). Everything else asks
+    `utils/game-config.ts`. Vocabulary: *content* = authored input (the content source),
     *game configuration* = build output (`game.config.json`).
 15. Unused types, methods, functions etc. are removed unless a planning document (`PLAN.md`, open
     items in `MEMORY.md`) still needs them (future phase or unfinished item). Before removing, check
@@ -116,9 +120,10 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     boundary maps them to an `ErrorCode`. The app never hangs silently on a startup error.
 17. Where code lives:
     - **Store managers** (`store/managers`): app state.
-    - **AR context** (`components/ar-bridges`): the bridge connects the AR scene to the game state;
-      everything three.js/8th Wall specific lives in `ar/` (scene, view, tracker, assets, entity registry)
-      and `utils/chroma-key.ts`; `utils/` also holds the three-free helpers (scene state policy, emitter).
+    - **AR context** (`components/ar-bridges`): the bridge connects the AR scene to the game state; `ar/` makes the
+      reader's scene from the engine, where everything three.js/8th Wall specific lives (`engine/src/scene/`: scene,
+      view, tracker, assets, entity registry; `engine/src/utils/chroma-key.ts`); `utils/` holds the three-free
+      helpers (the scene state policy, the engine's utils re-exported for the dev tools).
     - **Services** (`services/`): singletons giving app-wide access (`GameStoreService`: the store;
       the generated API, feedback, preloading). Naming: class and file `*Service` (`GameStoreService`,
       `PreloaderService`).
@@ -221,7 +226,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     Where the sync is triggered (by hand in `content.yml`, a local run, later a content repository) is not fixed –
     keep the CLI the one way. An app build with `VITE_CONTENT_BASE_URL` must never read content (no content build,
     no `game.config.json`, no `assets/content/`). Every content path stays `/assets/content/…` in the
-    configuration; only `utils/game-config.ts` turns it into a URL (`contentUrl`). Never hardcode a CDN URL or a
+    configuration; only `contentUrl` (`engine/src/content/game-config.ts`) turns it into a URL. Never hardcode a CDN URL or a
     site's origin in code. The zone's access key only in GitHub environments or an untracked `scripts/.env`.
 
 25. **Server**: the accounts API is plain **PHP 8.1+ with PDO/MySQL** in `server/api/` (no framework, no
@@ -249,8 +254,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     one tracked exception (the type check needs them).
 
 27. **CI**: `.github/workflows/checks.yml` ("Checks") runs on every push/PR: the version check (strict into
-    `develop`/`main`), scripts type-check + build + tests + fixture build (+ the book content while it is in
-    git), the Accounts API test (PHP 8.3, SQLite and MariaDB), client fixture build + `tsc` (app and service worker) +
+    `develop`/`main`), scripts type-check + build + tests + fixture build, the Accounts API
+    test (PHP 8.3, SQLite and MariaDB), client fixture build + `tsc` (app and service worker) +
     translations status + `vitest`, the editor, the MCP server (`mcp/`: `tsc` + vitest with the end-to-end test against
     the PHP API). All jobs must be green before a merge.
     **Actions minutes** (Tilman, 2026-10-28, #42): every push starts runners. Runs on this public repository are
@@ -321,18 +326,18 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     OSCT's own primitives – one control height (with a finger, `pointer: coarse`, the dogma's touch height of 44 px,
     #171), rows with a label column whose labels are words (a parameter spec's `label`, else its name split into words,
     #173 – never a contract id), numbers as `<scrub-number>` (never a native
-    slider or checkbox), small enums as segmented pressed pills, icons (Feather, `editor/icons.ts`, with a name and a
+    slider or checkbox), small enums as segmented pressed pills, icons (Feather, `editor/src/lib/components/Icon.svelte`, with a name and a
     tooltip) only where a word makes no sense – and the sheet's tabs on a phone (Tilman, 2026-10-30: "Mobile bitte
     die tabs auch mit icons statt text"), so its head stays one line, and in any panel too narrow for the words (#172) –,
     the drawn close cross, one sheet whose head is the tab row and whose
-    closed state is that row alone. A control the editor needs is built once in `components/common/` or
-    `components/dev-tools/` and used by both the editor and the dev tools (`<tune-inspector>`), never twice.
+    closed state is that row alone. A control the editor needs is built once (`editor/src/lib/components/`) and used
+    wherever it is needed, never twice.
     **Three token variants** (Tilman, 2026-10-29: "debugging looks like debugging, the editor neutral like Figma,
     brand UI only in reader-facing elements"): **branded** = the reader's UI (the tokens of `main.css`, the default),
     **editor** = a neutral tool in a design tool's default colours, day and night, no colour at all (Tilman: "Blau gar
     nicht"), square corners, compact system type, **debug** = the dev
-    tools' green terminal. The variants live once in `styles/design-styles.ts`; a host sets `data-theme` on itself and
-    every primitive inside follows. Components carry structure only – never a colour that belongs to one variant.
+    tools' green terminal. The branded and debug variants live once in `client/src/styles/design-styles.ts` (a host sets
+    `data-theme` on itself and every primitive inside follows), the editor's in `editor/src/app.css`. Components carry structure only – never a colour that belongs to one variant.
     **Explanations are help, not panel text** (Tilman, 2026-10-30, #133): what a control does is its help in the
     **Info view** (`data-help` / `data-help-name`, or its `title` – `editor/src/lib/help.svelte.ts`), never a hint line
     in a panel; panels show values, states and errors only. Long panels are collapsible sections (`Section.svelte`,
