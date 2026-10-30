@@ -1,5 +1,5 @@
-import { getConfigVersion, getSpreads, loadGameConfiguration } from "@engine/content/game-config";
-import type { ErrorInfo, Spread } from "@engine/types";
+import { getBook as getConfigBook, getConfigVersion, getSpreads, loadGameConfiguration } from "@engine/content/game-config";
+import type { ErrorInfo, PassData, Spread } from "@engine/types";
 import { authFetch, draftBaseUrl, getBook } from "./api";
 
 /**
@@ -10,6 +10,8 @@ import { authFetch, draftBaseUrl, getBook } from "./api";
 class Content {
   bookId = $state<string | null>(null);
   spreads = $state<Spread[]>([]);
+  /** The book's post-processing (`book.passes`, the master of every spread without its own); null = the book has none */
+  bookPasses = $state<PassData[] | null>(null);
   hash = $state<string | null>(null);
   error = $state<ErrorInfo | null>(null);
   loading = $state(false);
@@ -27,6 +29,7 @@ class Content {
       this.bookId = bookId;
       this.error = error;
       this.spreads = error ? [] : getSpreads();
+      this.bookPasses = error ? null : getConfigBook().passes ?? null;
       this.hash = error ? null : getConfigVersion().hash ?? null;
       return error;
     } finally {

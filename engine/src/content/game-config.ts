@@ -298,8 +298,15 @@ export const getConfigVersion = (): ConfigurationVersion => config.version;
 
 export const getBook = (): BookData => config.book;
 
+/**
+ * The passes a spread shows: its own list (an override – `[]` turns the book's off there), else the book's (the master
+ * for every spread), else none. Pure, for the tests.
+ */
+export const passesFor = (spread: { passes?: PassData[] } | undefined, book: { passes?: PassData[] }): PassData[] =>
+  spread?.passes ?? book.passes ?? [];
+
 /** The post-processing passes over a spread's rendered image: the spread's own list, else the book's, else none */
-export const getPasses = (spreadId: string): PassData[] => spreadById.get(spreadId)?.passes ?? config.book.passes ?? [];
+export const getPasses = (spreadId: string): PassData[] => passesFor(spreadById.get(spreadId), config.book);
 
 
 export const getInitialSpreadId = (): string => config.initialSpreadId;

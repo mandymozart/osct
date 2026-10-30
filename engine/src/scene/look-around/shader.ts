@@ -196,7 +196,10 @@ const COMPOSITE = /* glsl */ `
   }
 `;
 
-/** The look-around pass: one full-screen material (`FullScreenQuad`), drawn into the cleared screen */
+/**
+ * The look-around pass: one full-screen material (`FullScreenQuad`), drawn into the cleared screen or, while passes
+ * run, into the post chain's buffer (linear there: three picks the output colour space by the render target)
+ */
 export const lookAroundMaterial = (): ShaderMaterial => new ShaderMaterial({
   uniforms: {
     uTime: { value: 0 },

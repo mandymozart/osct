@@ -989,6 +989,34 @@ try {
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => null], $editor);
     check($status === 200 && !isset($data['environment']), 'environment: null removes it – the default applies');
 
+    echo "editor: the book's passes – the master, spreads override (#149)\n";
+    $bookPasses = [['type' => 'grade', 'reach' => 'all', 'exposure' => 0.5], ['type' => 'vignette', 'strength' => 0.4]];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => $bookPasses], $editor);
+    check($status === 200 && $data['passes'] === $bookPasses, 'PUT book passes');
+    [$status] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => []], $editor);
+    check($status === 200, 'a spread turns them off with a list of its own');
+    [, $draftNow] = $draftOf();
+    $draftSpreads = array_column($draftNow['spreads'], null, 'id');
+    check(($draftNow['book']['passes'] ?? null) === $bookPasses, 'the draft carries the book passes');
+    check(!array_key_exists('passes', $draftSpreads['s1']) && ($draftSpreads['s2']['passes'] ?? null) === [], 'the draft: s1 has no list (the book’s apply), s2 its own empty one');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'glow']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-passes', 'an unknown pass type is refused');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => ['type' => 'bloom']], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-passes', 'passes must be a list');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'bloom', 'strength' => [1]]]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-passes', 'a parameter must be a scalar');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['type' => 'bloom'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-passes', 'the body needs passes');
+    [$status] = call($api, 'PUT', '/editor/books/nowhere/passes', ['passes' => null], $editor);
+    check($status === 404, 'an unknown book → 404');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => null], $editor);
+    [, $draftNow] = $draftOf();
+    check($status === 200 && $data['passes'] === null && !array_key_exists('passes', $draftNow['book']), 'passes: null removes them from the book');
+    [$status] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => null], $editor);
+    check($status === 200, 'the spread back to the book’s');
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
+    check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'passes' && $c['ref'] === 'osct')) === 2, 'the change log has both book passes edits');
+
     echo "editor: the environment's world and sky as assets (content schema 2.10)
 ";
     [, $sky] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'sky', 'sky.png', $editor);

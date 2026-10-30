@@ -1,10 +1,13 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { getBook } from "@engine/content/game-config";
   import { PASS_TYPES, PASSES, type PassData } from "@engine/types";
-  import { putSpread } from "$lib/api";
+  import { putBookPasses, putSpread } from "$lib/api";
   import { content } from "$lib/content.svelte";
   import type { Stage } from "$lib/stage/stage.svelte";
+  import {
+    backToBooks, draftPasses, editInEffect, effectivePasses, ownPasses, passesSource, passesStatus, pendingSaves,
+    type PassesDraft, type PassesSource,
+  } from "$lib/passes-edit";
   import { passOptionLabels, passRows, passValue, setPassValue, type ValueRow } from "$lib/values";
   import ColourField from "$lib/components/ColourField.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
@@ -12,71 +15,88 @@
   import Section from "$lib/components/Section.svelte";
 
   /**
-   * The spread's **post-processing** (content schema 2.5): the passes over the rendered image in order – the built-in
-   * bloom, vignette and grade with their rows from the contract's specs. Changes show live on the stage (under
-   * *rendered*), the draft stays unchanged until **Save** writes the list to the spread. Without a list of its own the
-   * spread shows the book's passes; *+ type* starts a list of its own, removing the last pass leaves an empty list
-   * (none), **Back to the book's** drops the list. A collapsible section of the Stage panel; the passes' descriptions
-   * are their help in the Info view.
+   * The **post-processing** (content schema 2.5): the passes over the rendered image in order – the built-in bloom,
+   * vignette and grade with their rows from the contract's specs. The book's passes are the master every spread shows;
+   * a spread uses them until it has **own** passes (an override, starting as a copy of the book's; an empty list turns
+   * them off there), *the book's* drops the override again. The list shown is the one in effect – while the spread uses
+   * the book's, editing it edits the book's (every spread without its own). Changes show live on the stage (under
+   * *rendered*), the draft stays unchanged until **Save** writes what changed: the book's list
+   * (`PUT …/passes`) and / or the spread's (`PUT …/spreads/{id}`). A collapsible section of the Stage panel; the
+   * passes' descriptions are their help in the Info view.
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
-  const spread = $derived(content.spread(spreadId));
-  /** The draft's list: the spread's own, or null = the book's apply */
-  const draft = $derived<PassData[] | null>(spread?.passes ?? null);
-  const bookPasses = $derived<PassData[]>(getBook().passes ?? []);
+  const SOURCES = ["book", "spread"] as const satisfies readonly PassesSource[];
 
-  let passes = $state<PassData[] | null>(null);
-  /** The draft list the panel started from (by identity: a reload makes a new one) */
-  let seen = $state<{ id: string; draft: PassData[] | null } | null>(null);
+  const spread = $derived(content.spread(spreadId));
+  /** The draft's lists: the book's (the master) and the spread's own (null = the book's apply) */
+  const saved = $derived<PassesDraft>(draftPasses(content.bookPasses, spread?.passes));
+
+  let edit = $state<PassesDraft>({ book: [], own: null });
+  /** The draft lists the panel started from (by identity: a reload makes new ones) */
+  let seen = $state<{ id: string; book: PassData[] | null; own: PassData[] | undefined; draft: PassesDraft } | null>(null);
   let saving = $state(false);
-  let saved = $state<string | null>(null);
+  let notice = $state<string | null>(null);
   let error = $state<string | null>(null);
 
-  const shown = $derived<PassData[]>(passes ?? bookPasses);
-  const dirty = $derived(JSON.stringify(passes) !== JSON.stringify(draft));
+  const shown = $derived<PassData[]>(effectivePasses(edit));
+  const source = $derived<PassesSource>(passesSource(edit));
+  const pending = $derived(pendingSaves(edit, saved));
+  const pendingWhat = $derived((["book", "spread"] as const).filter(key => key in pending).map(key => (key === "book" ? "the book's" : "this spread's")).join(" + "));
+  const dirty = $derived(pendingWhat !== "");
+  /** The list in effect as the draft holds it – what a changed row is compared with */
+  const savedShown = $derived<PassData[]>(source === "book" ? saved.book : saved.own ?? saved.book);
 
   // A spread switch, the draft arriving or reloading: start from the draft – unless the same spread has unsaved edits
   $effect(() => {
     const id = spreadId;
-    const d = draft;
+    const book = content.bookPasses;
+    const own = spread?.passes;
     const previous = seen;
-    if (previous && previous.id === id && previous.draft === d) return;
+    if (previous && previous.id === id && previous.book === book && previous.own === own) return;
     const switching = !previous || previous.id !== id;
-    // Edited = the panel's list differs from the draft it started from (not from the one arriving now)
-    const edited = !!previous && JSON.stringify(untrack(() => passes)) !== JSON.stringify(previous.draft);
-    seen = { id, draft: d };
+    // Edited = the panel's lists differ from the draft they started from (not from the one arriving now)
+    const edited = !!previous && JSON.stringify(untrack(() => edit)) !== JSON.stringify(previous.draft);
+    seen = { id, book, own, draft: draftPasses(book, own) };
     if (!switching && edited) return;
-    passes = d ? d.map(p => ({ ...p })) : null;
-    saved = null;
+    edit = draftPasses(book, own);
+    notice = null;
     error = null;
+    // A live preview belongs to the spread it was made on
+    if (previous && switching) untrack(() => stage)?.overridePasses(null);
   });
 
-  const apply = (next: PassData[] | null) => {
-    passes = next;
-    saved = null;
-    stage?.overridePasses(next);
+  const apply = (next: PassesDraft) => {
+    edit = next;
+    notice = null;
+    stage?.overridePasses($state.snapshot(effectivePasses(next)) as PassData[]);
   };
-  const set = (index: number, row: ValueRow, value: number | string) => {
-    const list = passes ?? bookPasses.map(p => ({ ...p }));
-    apply(list.map((pass, i) => (i === index ? setPassValue(pass, row, value) : pass)));
+  const set = (index: number, row: ValueRow, value: number | string) =>
+    apply(editInEffect(edit, list => list.map((pass, i) => (i === index ? setPassValue(pass, row, value) : pass))));
+  const add = (type: string) => apply(editInEffect(edit, list => [...list, { type }]));
+  const remove = (index: number) => apply(editInEffect(edit, list => list.filter((_, i) => i !== index)));
+  const choose = (next: PassesSource) => {
+    if (next !== source) apply(next === "spread" ? ownPasses(edit) : backToBooks(edit));
   };
-  const add = (type: string) => apply([...(passes ?? bookPasses.map(p => ({ ...p }))), { type }]);
-  const remove = (index: number) => apply((passes ?? bookPasses).filter((_, i) => i !== index));
-  const revert = () => apply(draft ? draft.map(p => ({ ...p })) : null);
-  const useBooks = () => apply(null);
+  const revert = () => {
+    edit = draftPasses(content.bookPasses, spread?.passes);
+    notice = null;
+    stage?.overridePasses(null);
+  };
 
   const save = async () => {
     if (!spread) return;
     saving = true;
     error = null;
     try {
-      await putSpread(bookId, spreadId, { passes });
-      // The draft reloads with the list; the stage builds the spread from it, so the live override goes
+      const todo = $state.snapshot(pending) as ReturnType<typeof pendingSaves>;
+      if ("book" in todo) await putBookPasses(bookId, todo.book ?? null);
+      if ("spread" in todo) await putSpread(bookId, spreadId, { passes: todo.spread ?? null });
+      // The draft reloads with the lists; the stage builds the spread from it, so the live override goes
       stage?.overridePasses(null);
       await content.load(bookId);
       await stage?.refresh();
-      saved = "Saved";
+      notice = "Saved";
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -86,10 +106,16 @@
 </script>
 
 {#snippet status()}
-  <span class="small muted">{passes === null ? (bookPasses.length ? "the book's" : "none") : passes.length ? "this spread's" : "off"}</span>
+  <span class="small muted">{passesStatus(edit)}</span>
 {/snippet}
 <Section id="stage.passes" label="post-processing" aside={status}
-  help="The passes over the rendered image, in order. Changes show live on the stage (rendered shading); Save writes the list to the spread. Without a list of its own the spread uses the book's.">
+  help="The passes over the rendered image, in order – the look-around world and its sky included. The book's passes are the master every spread shows; a spread may have its own instead. Changes show live on the stage (rendered shading); Save writes them to the draft.">
+<div class="row" data-help="Which passes this spread shows. The book's: the book's own list, the master every spread without a list of its own shows – the list below is then the book's, and editing it changes every such spread. Own: an override for this spread alone, starting as a copy of the book's; removing every pass turns post-processing off here. Choosing the book's again drops the override.">
+  <span class="label">uses</span>
+  <span class="controls">
+    <Segmented options={SOURCES} value={source} labels={{ book: "the book's", spread: "own" }}
+      titles={{ book: "Back to the book's", spread: "Own passes for this spread" }} onchange={choose} />
+  </span></div>
 {#each shown as pass, i (i)}
   <div class="row" data-help-name={pass.type} data-help={(PASSES as Record<string, { description: string }>)[pass.type]?.description ?? "A plugin's pass."}>
     <span class="label pass">{pass.type}</span>
@@ -98,7 +124,7 @@
     </span></div>
   {#each passRows(pass, i) as row (row.id)}
     {@const name = row.id.split(".")[2]}
-    <div class="row" class:changed={passValue(pass, row) !== (draft?.[i] ? passValue(draft[i], row) : row.default)} data-help-name="{pass.type} · {name}" data-help="{row.description} – default {row.default}">
+    <div class="row" class:changed={passValue(pass, row) !== (savedShown[i]?.type === pass.type ? passValue(savedShown[i], row) : row.default)} data-help-name="{pass.type} · {name}" data-help="{row.description} – default {row.default}">
       <span class="label sub">{name}</span>
       {#if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(passValue(pass, row))} labels={passOptionLabels(pass, row)} onchange={v => set(i, row, v)} /></span>
@@ -111,18 +137,18 @@
     </div>
   {/each}
 {/each}
-<div class="row" data-help="Adds a pass at the end of the list; a spread without a list of its own starts one from the book's."><span class="label">add pass</span>
+<div class="row" data-help="Adds a pass at the end of the list in effect: the book's while the spread uses them, else the spread's own."><span class="label">add pass</span>
   <span class="controls">
     {#each PASS_TYPES as type (type)}
       <button type="button" class="pill" onclick={() => add(type)}>+ {type}</button>
     {/each}
   </span></div>
-{#if dirty || saved || error}
+{#if dirty || notice || error}
   <div class="actions">
     <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
-    {#if passes !== null && bookPasses.length}<button type="button" class="text-link" onclick={useBooks}>Use the book's</button>{/if}
     <span class="grow"></span>
-    {#if saved}<span class="small muted">{saved}</span>{/if}
+    {#if dirty}<span class="small muted">{pendingWhat}</span>{/if}
+    {#if notice}<span class="small muted">{notice}</span>{/if}
     {#if error}<span class="small danger">{error}</span>{/if}
     <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
   </div>

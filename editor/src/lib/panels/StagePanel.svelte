@@ -16,7 +16,7 @@
   /**
    * The stage's settings in collapsible sections (open state kept per section): the **spread** (its format), the
    * **stage** (hand shake, the grid over the page, the origin every position is counted from, the desk and the sky),
-   * the spread's **post-processing**, and the **narrative** of the book's plugins (their variables with scopes, the
+   * the **post-processing** (the book's passes, a spread's own as an override), and the **narrative** of the book's plugins (their variables with scopes, the
    * last events of the stage, *reset* for a new game) – closed by default. The camera is moved on the stage itself;
    * found / lost per target is the tree's eye, the first find is replayed from the stage's menu. Explanations are the
    * controls' help in the Info view.

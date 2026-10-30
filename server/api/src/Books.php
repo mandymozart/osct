@@ -364,6 +364,29 @@ final class Books
         Http::json(200, ['environment' => $book->environment ?? null]);
     }
 
+    /**
+     * PUT /editor/books/{id}/passes { passes: [{ type, …parameters }] | null } → 200 { passes }: the book's post-processing
+     * (content schema 2.5, `book.passes`) – the master every spread without a list of its own shows (a spread's
+     * `passes` override it, `PUT …/spreads/{sid}`). `null` removes it; the shape is checked as for a spread's.
+     */
+    public static function putPasses(string $bookId): never
+    {
+        $user = Editor::user();
+        $row = self::book($bookId);
+        $body = Editor::body();
+        if (!property_exists($body, 'passes')) throw new ApiError(400, 'invalid-passes', 'Send { passes: [{ type, …parameters }] } or { passes: null }.');
+        $book = Editor::decode($row['book_json']);
+        if ($body->passes === null) unset($book->passes);
+        else $book->passes = self::passes($body->passes, 'invalid-passes');
+        $json = Editor::encode($book);
+        Db::transaction(function () use ($bookId, $json, $row, $user) {
+            Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
+            self::touch($bookId);
+            self::change($bookId, $user, 'passes', $bookId, $row['book_json'], $json);
+        });
+        Http::json(200, ['passes' => $book->passes ?? null]);
+    }
+
     /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`, strict); [] when valid */
     public static function environmentProblems(mixed $value): array
     {
@@ -569,15 +592,15 @@ final class Books
      * engine and the guard check the parameters against the specs; the API keeps the shape)
      * @return list<stdClass>
      */
-    private static function passes(mixed $value): array
+    private static function passes(mixed $value, string $code = 'invalid-spread'): array
     {
-        if (!is_array($value)) throw new ApiError(400, 'invalid-spread', 'passes must be a list of { type, …parameters }.');
+        if (!is_array($value)) throw new ApiError(400, $code, 'passes must be a list of { type, …parameters }.');
         $passes = [];
         foreach ($value as $i => $pass) {
-            if (!$pass instanceof stdClass || !is_string($pass->type ?? null)) throw new ApiError(400, 'invalid-spread', "passes[$i] needs a type.");
-            if (!in_array($pass->type, self::PASS_TYPES, true)) throw new ApiError(400, 'invalid-spread', "passes[$i].type must be one of " . implode(', ', self::PASS_TYPES) . '.');
+            if (!$pass instanceof stdClass || !is_string($pass->type ?? null)) throw new ApiError(400, $code, "passes[$i] needs a type.");
+            if (!in_array($pass->type, self::PASS_TYPES, true)) throw new ApiError(400, $code, "passes[$i].type must be one of " . implode(', ', self::PASS_TYPES) . '.');
             foreach (get_object_vars($pass) as $name => $param) {
-                if (!is_scalar($param)) throw new ApiError(400, 'invalid-spread', "passes[$i].$name must be a number, a string or true / false.");
+                if (!is_scalar($param)) throw new ApiError(400, $code, "passes[$i].$name must be a number, a string or true / false.");
             }
             $passes[] = $pass;
         }

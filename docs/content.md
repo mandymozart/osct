@@ -293,10 +293,17 @@ all of it on the stage, in the workspace's **Environment** tab (`PUT /editor/boo
 
 **Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
 whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
-`passes` too: they apply to every spread without a list of its own (`passes: []` on a spread turns them off there).
-Every built-in type is defined once in `shared/types/passes.ts` with its parameters, so the editor's Stage panel,
-the build and the guard read one definition; missing parameters take the defaults. A spread without passes costs
-nothing – the scene renders straight to the canvas as before.
+`passes` too – **the master**: they apply to every spread without a list of its own; a spread's `passes` override
+them (`passes: []` on a spread turns them off there). The editor edits both in the Stage panel's *post-processing*
+section ([editor](editor.md)): the book's with `PUT /editor/books/{id}/passes`, a spread's own with
+`PUT …/spreads/{sid} { passes }`. Every built-in type is defined once in `shared/types/passes.ts` with its parameters,
+so the editor's Stage panel, the build and the guard read one definition; missing parameters take the defaults. A
+spread without passes costs nothing – the scene renders straight to the canvas as before, the look-around world too.
+
+**The look-around world goes through the passes** ([look-around](look-around.md)): while passes run, the world around
+the reader and its sky (the onion sky included) are drawn into the chain's image under the AR layer, so a bloom
+glows on them, a vignette darkens them and a grade with `reach: all` grades them – on the phone and on the editor's
+stage alike; a grade with `reach: ar` stays on the AR layer (it gets the layer's coverage as a mask).
 
 | Type | What it does | Parameters |
 |---|---|---|
@@ -310,8 +317,8 @@ so no pass of the chain can read it. The engine's camera renderer (`GlTextureRen
 its own, though: the scene gives the tracker one that decodes the picture to linear, applies the same exposure ×
 tint, contrast and saturation as the AR layer's grade and encodes it again (`cameraGradeShader`,
 `engine/src/scene/post/grade.ts`). So the camera picture is graded *before* the AR layer lies over it, and the passes
-before a grade (a vignette, a bloom) are not graded on the camera picture the way they are on the AR layer; a grade
-also does not reach the look-around world (drawn under the chain). Several `all` grades apply in order. The guard
+before a grade (a vignette, a bloom) are not graded on the camera picture the way they are on the AR layer; the
+look-around world is part of the chain's image, so it is graded with the AR layer. Several `all` grades apply in order. The guard
 ignores a pass parameter it does not know (since 2.9), the build and the API refuse it – a 2.8 app refuses `reach`.
 
 ```yaml

@@ -12,6 +12,22 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.33.0 – 2026-10-30
+
+### Added
+- **Post-processing for the whole book** (#149): the editor edits the book's passes – the master every spread shows –
+  in the Stage panel's *post-processing* section. A spread *uses the book's* by default; *own* gives it an override
+  that starts as a copy of the book's, choosing *the book's* again removes it, and the panel says which one is in
+  effect. Save writes the book's list (new `PUT /editor/books/{id}/passes`) and / or the spread's. No content schema
+  change: `book.passes` has been part of the contract since 2.5.
+
+### Changed
+- **The look-around world and its sky go through the passes** (#149): while passes run, the world around the reader,
+  its sky and the onion sky are drawn into the post chain's image under the AR layer, so bloom, vignette and a grade
+  with `reach: all` reach them – on the phone and on the editor's stage; a grade with `reach: ar` stays on the AR layer.
+  Without passes nothing changes (the world is drawn straight onto the screen, no extra cost), and the AR layer's mask
+  is only drawn while a pass uses it.
+
 ## 1.32.0 – 2026-10-30
 
 ### Added

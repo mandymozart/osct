@@ -178,7 +178,7 @@ export class LookAround {
     this.skyInView = pitch + (this.camera.fov / 2) * 1.3 * DEG > 2 * DEG; // 1.3: the diagonal reaches higher
   }
 
-  /** Draw into the cleared screen, before the AR scene */
+  /** Draw into the bound target (the cleared screen, or the post chain's buffer while passes run), before the AR scene */
   render(): void {
     if (!this.active) return;
     const size = this.renderer.getDrawingBufferSize(this.size);
