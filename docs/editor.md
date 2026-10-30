@@ -163,17 +163,25 @@ is involved.
   guide ([below](#ai-connections)).
 - **Spreads** (`/editor/<book>/`): the spreads as cards with the sheet of each as its preview (from the book's layout
   at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ double page** adds a
-  double page after the last one (before the back cover), a card's **+ after** (on hover, over its sheet) one right
-  after that spread – a cover included, the back cover not. A new double page is empty (*New spread*, id `spread-<n>`)
+  double page after the last one (before the back cover), a card's *Add a double page after* one right after that
+  spread – a cover included, the back cover not. **A card's menu** (#196): the card itself carries no buttons – the
+  sheet is the content; a **right click** (a mouse), a **long press** (a finger held still for half a second – the card's
+  frame darkens and shrinks a little while it is held; moving more than a few pixels is a scroll and cancels it, a
+  tap still opens the spread) or the **menu key / Shift+F10** on a focused card opens a small menu with *Open*, *Add a
+  double page after* and *Remove*, each with its icon. It is a WAI-ARIA menu: the first item has the focus, ↑ ↓ wrap,
+  Home / End, a first letter jumps, Enter or Space chooses, Esc, Tab, a click beside it or scrolling the page away close
+  it, and the focus goes back to the card. A disabled item stays in the menu with its reason under its word. The
+  long press and the keys are `editor/src/lib/context-menu.ts` (pure, tested) and `menu-trigger.ts`. A new double page is empty (*New spread*, id `spread-<n>`)
   and takes the two pages after the spread before it: **every later page is numbered on by two**, and the entries on
   those pages (their `page`) and their targets' printed page (`print.page`) move with them, so each entry stays on its
   spread. The book's layout does not move – a laid-out sheet is matched by its pages, so after an insertion every card
   from the new spread on shows the sheet of its new page numbers (the new one the sheet the next spread had) until a
   layout with the new pages is imported.
-  A card's **remove** takes out a spread **without entries** (it asks first): a double page's later pages are numbered
+  A card's **Remove** takes out a spread **without entries** (it asks first, in the card under its caption – *Remove*
+  or *keep*, Esc keeps): a double page's later pages are numbered
   back by its pages, a cover moves nothing. A spread with entries is not removed with them – their targets and AR are
-  work – so *remove* is disabled until they are deleted (in the workspace's tree); the spread the book opens on
-  (`initialSpreadId`) cannot go either; the reason is the button's tooltip and help. Should the API know only the
+  work – so *Remove* is disabled until they are deleted (in the workspace's tree); the spread the book opens on
+  (`initialSpreadId`) cannot go either; the reason is shown under the disabled item. Should the API know only the
   covers (an older server), the page says *New spreads come in with an import for now* instead of offering double
   pages. **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
@@ -304,7 +312,8 @@ is involved.
     tap selects at once and shows the orange outline. A **right click** on the stage opens the menu for what lies
     there – the mode's pick, else the printed image under the pointer: on a target *Add node… / Add AR content…*,
     *Remove node / entity*, *Placement on the page…*, *Library…*, *Remove target*; on the page or the table
-    *+ target…* and *Stage settings…*. While a target's placement is edited (the Entity panel's rows) **the target
+    *+ target…* and *Stage settings…* (the editor's one context menu, `ContextMenu.svelte` – the keys as on the book
+    page's cards). While a target's placement is edited (the Entity panel's rows) **the target
     itself lies at the edited place** – its printed image, its outline and its AR content move together, so it never
     shows twice (#191) – with **handles**: drag the image to move it (across the spine it changes the page), drag the
     small square at its bottom right corner to set the printed width – the fields follow, Save placement writes them;

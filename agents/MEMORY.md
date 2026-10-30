@@ -4,6 +4,20 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – A spread card's menu: right click, long press, menu key (#196)
+
+- Tilman (from his phone): *"+ after / remove – should on desktop only appear on right click and on mobile on long
+  tap. Icons included."* The cards carry no buttons; one menu for all three ways in (`ContextMenu.svelte`, the logic in
+  `context-menu.ts` / `menu-trigger.ts`). The stage's right-click menu moved onto the same component (RULES #32: a
+  control is built once), so it gained the keys and stays on the screen.
+- Order *Open*, *Add a double page after*, *Remove*: the default action first, the destructive one last.
+- Disabled items stay focusable (`aria-disabled`, WAI-ARIA APG) and show their reason under the word – the menu has no
+  Info view of its own, and on a phone there is none at all.
+- The remove question moved from `window.confirm` into the card (*Remove* / *keep*, as the Library and Code panels ask);
+  adding asks nothing, as before.
+- The long press opens at 500 ms or at Android's own `contextmenu`, whichever comes first; 8 px of movement cancels it.
+  Not yet tried on the real S22 – only CDP touch emulation in headless Edge.
+
 ## 2026-10-30 – Schöpfer's desk from the catalogue (#187)
 
 - **Tilman** (issue, with two catalogue photos kept outside the repo): "Das ist kein Plywood … Und Material echt

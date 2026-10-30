@@ -12,6 +12,20 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.42.0 – 2026-10-30
+
+### Changed
+- **Editor: a spread card's actions are in its menu, not over its sheet** (#196): the book page's cards carry no
+  buttons any more – the sheet is the content. A right click, a long press with a finger (half a second, with a light
+  cue while held; a tap still opens the spread, a scroll cancels the press) or the menu key / Shift+F10 opens a small
+  menu: *Open*, *Add a double page after* and *Remove*, each with an icon. A disabled item says why under its word
+  (the spread has entries, the book opens on it, nothing follows the back cover). The menu works with the keys (arrows,
+  Home / End, a first letter, Enter, Esc – the focus goes back to the card) and its items have the touch height on a
+  phone. Removing asks in the card (*Remove* / *keep*) instead of a browser dialog; *+ double page* above the cards
+  stays.
+- **The stage's right-click menu is the same menu** (`ContextMenu.svelte`): it stays on the screen, takes the focus
+  and works with the keys too.
+
 ## 1.41.2 – 2026-10-30
 
 ### Changed
