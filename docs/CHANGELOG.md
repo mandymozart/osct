@@ -7,6 +7,27 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Fixed
+- **Every row of the editor's tree selects** (#227): a tap on the spread row (the book icon) selects the spread – the
+  row is highlighted, the Stage tab opens at its *spread* section and nothing stays selected on the stage; a tap on an
+  entry row selects the entry itself, also an entry without a target (no more disabled rows) – the Entity panel shows
+  it read-only (category, title, access page, author, tags, the text in the reader's paragraphs, the image, a link's
+  URL, and its target with *select the target*), and an entry with a target has that target outlined on the stage. On
+  a phone the sheet opens the matching tab.
+- **The tree's keys reach every row** (#227): ↑ ↓ walk over the spread and the entry rows too, ← steps up a level from
+  any row that does not fold (node → entity → target → entry → spread), Enter opens the row's panel. **Delete on an
+  entry row** removes nothing at once: it opens the entry's removal confirmation (#198), as the entry row's new menu
+  (*Select the target*, *Remove entry*) does.
+- **The tree's help says what a tap does** (#227): every row's help in the Info view names the result of its tap, the
+  tree's own help starts "A tap selects the spread, an entry, a target, its entity or a node"; the spread row's
+  chevron, which looked like a fold button and did nothing, is gone.
+
+### Changed
+- The Stage panel's *spread* section shows the whole spread (#227): its title and pages, the format, the
+  post-processing in effect (the whole book's passes or the spread's own, and which) and the book's environment with
+  *edit* to the Environment tab; closed, its head names the title and the format.
 ## 1.51.1 – 2026-10-30
 
 ### Changed

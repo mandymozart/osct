@@ -32,6 +32,7 @@
   import FileField from "#lib/components/FileField.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
   import BehaviourRules from "./BehaviourRules.svelte";
+  import EntryView from "./EntryView.svelte";
   import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
@@ -50,10 +51,13 @@
    * (`plugins/make-code.ts`): the plugin is saved to the Code tab and run, the node switched to it once its code builds on
    * the stage (until then it shows as it was, the error is the Code tab's – #199). It opens at the level
    * of the workspace's selection (#162): a selected target shows its target fields, its entity or a node that node's
-   * rows; the breadcrumb in the head steps up.
+   * rows; the breadcrumb in the head steps up. A selected **entry** (#227) shows the entry instead (`EntryView`), a
+   * selected **spread** names it and links its settings, which live in the Stage panel's spread section.
    */
-  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, ontargetchanged, oncode }: {
+  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, ontargetchanged, oncode, onspread }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
+    /** The spread is selected: show its settings (the Stage panel's spread section) */
+    onspread?: () => void;
     /** Show the Code tab (a made plugin's error is there) */
     oncode?: () => void;
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
@@ -67,9 +71,13 @@
   });
 
   const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
-  // Nothing selected yet: a target stands in (the first found one with AR content); cleared on purpose: none
+  // Nothing selected yet: a target stands in (the first found one with AR content); cleared on purpose, the spread or
+  // an entry selected: none
   const target = $derived<Target | undefined>(targets.find(t => t.id === selected)
-    ?? (selection.cleared ? undefined : targets.find(t => t.entity && stage?.found.includes(t.id)) ?? targets.find(t => t.entity) ?? targets[0]));
+    ?? (selection.cleared || selection.spread || selection.entry ? undefined : targets.find(t => t.entity && stage?.found.includes(t.id)) ?? targets.find(t => t.entity) ?? targets[0]));
+  /** The entry selected in the tree (#227): shown instead of its target */
+  const entry = $derived(selection.entry ? content.spread(spreadId)?.entries.find(e => e.id === selection.entry) : undefined);
+  const spreadTitle = $derived(content.spread(spreadId)?.title ?? spreadId);
 
   /** The whole tree being edited (null = the target has no entity yet) */
   let entity = $state<EntityData | null>(null);
@@ -536,6 +544,12 @@
 
 {#if picking}
   <LibraryPanel {bookId} pick={picking} />
+{:else if entry}
+  <EntryView {entry} onselecttarget={id => selection.selectTarget(id)} />
+{:else if selection.spread}
+  <div class="section"><span class="section-label">spread · {spreadTitle}</span>
+    {#if onspread}<span class="controls"><button type="button" class="text-link" onclick={onspread}
+      data-help-name="Spread settings" data-help="Opens the Stage tab at the spread's section: its title, pages, format, post-processing and environment.">settings</button></span>{/if}</div>
 {:else if !target}
   <p class="muted">{targets.length ? "Nothing selected." : "No target on this spread."}</p>
 {:else}

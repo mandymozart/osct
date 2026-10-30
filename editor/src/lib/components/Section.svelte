@@ -7,7 +7,8 @@
    * A collapsible section of a panel: a header (chevron, label, optional `aside` at the right) that opens and closes
    * its rows. The open state is kept per `id` (`sections`); `open` is the first-visit default until the author toggles
    * it. While closed, `summary` follows the label ("stage · Eiermann · grid off"), so closed hides nothing that matters.
-   * `help` is the section's description for the Info view.
+   * `help` is the section's description for the Info view. `data-section` carries the id, so a link from elsewhere
+   * (the tree's spread row, #227) can scroll the section into view.
    */
   interface Props {
     id: string;
@@ -24,7 +25,7 @@
   const head = $derived(!isOpen && summary ? `${label} · ${summary}` : label);
 </script>
 
-<div class="section" class:closed={!isOpen}>
+<div class="section" class:closed={!isOpen} data-section={id}>
   <button type="button" class="head" aria-expanded={isOpen} data-help={help} data-help-name={label} onclick={() => sections.toggle(id, open)}>
     <Icon name={isOpen ? "down" : "next"} size=".875rem" />
     <span class="section-label">{head}</span>

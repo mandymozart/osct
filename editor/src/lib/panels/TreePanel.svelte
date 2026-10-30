@@ -6,7 +6,10 @@
   import { Stage } from "#lib/stage/stage.svelte.js";
   import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
   import { selection } from "#lib/selection.svelte.js";
-  import { indentNode, isWithin, moveNode, nodeLabel, outdentNode, samePath, shiftNode, visiblePaths, type DropZone, type TreeEdit } from "#lib/tree.js";
+  import { indentNode, isWithin, moveNode, nodeLabel, outdentNode, shiftNode, visiblePaths, type DropZone, type TreeEdit } from "#lib/tree.js";
+  import { isRowOn, parentRow, rowSelection, stepRow, treeRows, type TreeRow } from "#lib/tree-rows.js";
+  import { entryRowHelp } from "#lib/entry-view.js";
+  import { spreadPages } from "#lib/spread-view.js";
   import { nodeAt } from "#lib/values.js";
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
@@ -19,35 +22,38 @@
    * panel's chips do the same). Rows: the spread, its entries in page order, each entry's target, and the target's
    * entity as its **node tree** (content schema 2.0: the root node and its children, as deep as the content nests
    * them), each node by its name (schema 2.12) or its type. It reads and writes the workspace's one selection
-   * (`selection.svelte.ts`, #162): a tap on a target row selects the target, a tap on a node row the node; the
+   * (`selection.svelte.ts`, #162; the rows' rules in `tree-rows.ts`): every row is selectable (#227) – a tap on the
+   * spread row selects the spread (the workspace opens the Stage panel's spread section), on an entry row the entry (the
+   * Entity panel shows it, the stage outlines its target), on a target row the target, on a node row the node; the
    * selected row is highlighted over its whole width, the hovered one lighter, the rows above a selected node marked.
    * Hierarchy (#163): a node row is dragged onto another row (its child) or between two rows (its sibling, the
-   * order set) – with a finger by its type icon; the keys: ↑ ↓ walk the rows, ← → fold / unfold (← on an open row
-   * steps up a level), Alt + ↑ ↓ move the node among its siblings, Tab / Shift + Tab indent / outdent, Enter opens the
-   * Entity panel, Delete removes the node. A target or node row's menu (`ContextMenu`: a right click, a long press, or
-   * the menu key for the selected row) has the same moves and the removal. Changes are live on the stage
+   * order set) – with a finger by its type icon; the keys: ↑ ↓ walk all rows, ← → fold / unfold (← elsewhere steps up
+   * a level), Alt + ↑ ↓ move the node among its siblings, Tab / Shift + Tab indent / outdent, Enter opens the row's
+   * panel, Delete removes the node – on an entry row it asks first (#198's confirmation). An entry, target or node
+   * row's menu (`ContextMenu`: a right click, a long press, or the menu key for the selected row) has the same moves
+   * and the removal. Changes are live on the stage
    * (`stage.editTree`); Save in the Entity panel writes them. Folding is per entry and per node and not stored. ● after a name: the stage shows it with other
    * values than the draft's.
    */
-  let { stage, spreadId, onselect, onaddtarget, onremovetarget }: {
+  let { stage, spreadId, onselect, onaddtarget, onremoveentry }: {
     stage: Stage | null; spreadId: string;
-    /** A row was chosen (a tap, Enter): the workspace shows the Entity panel */
-    onselect?: (targetId: string) => void;
+    /** A row was chosen (a tap, Enter): the workspace shows its panel – the spread's section, else the Entity panel */
+    onselect?: (kind: TreeRow["kind"]) => void;
     /** "+ target": the workspace opens the form */
     onaddtarget?: () => void;
-    /** The menu's "Remove target": the entry with everything on it, after the confirmation the workspace shows (#198) */
-    onremovetarget?: (target: Target) => Promise<void>;
+    /** "Remove target" / "Remove entry", Delete on an entry row: the entry with everything on it, after the confirmation the workspace shows (#198) */
+    onremoveentry?: (entryId: string, targetId: string | null) => Promise<void>;
   } = $props();
 
   const spread = $derived(content.spread(spreadId));
   /** "28–29"; a spread title that only repeats it (the import's default) is not shown twice */
-  const pages = $derived(spread ? (spread.format === "cover" ? "cover" : spread.format === "back" ? "back" : `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}`) : "");
+  const pages = $derived(spread ? spreadPages(spread) : "");
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
   let folded = $state<Record<string, boolean>>({});
   const fold = (key: string, to?: boolean) => (folded = { ...folded, [key]: to ?? !folded[key] });
-  const nodeKey = (target: Target, path: number[]) => `${target.id}:${path.join(".")}`;
+  const nodeKey = (target: Target | string, path: number[]) => `${typeof target === "string" ? target : target.id}:${path.join(".")}`;
 
   /** The targets that can be selected (with an image), in tree order */
   const selectable = $derived((spread?.entries ?? []).map(entry => entry.target).filter((t): t is Target => !!t?.imageSrc));
@@ -59,19 +65,24 @@
     return override ?? target.entity;
   };
 
-  const pickTarget = (target: Target) => {
-    selection.selectTarget(target.id);
-    onselect?.(target.id);
+  /** A tap (or Enter) on a row: it is selected, the workspace shows its panel */
+  const pick = (row: TreeRow) => {
+    selection.set(rowSelection(row));
+    onselect?.(row.kind);
   };
-  const pickNode = (target: Target, path: number[]) => {
-    selection.selectNode(target.id, path);
-    onselect?.(target.id);
+  const entryRow = (entry: Entry): TreeRow => ({ kind: "entry", entryId: entry.id, targetId: entry.target?.id ?? null });
+  const hasTree = (targetId: string) => {
+    const target = selectable.find(t => t.id === targetId);
+    return !!target && !!treeOf(target);
   };
-  const isTargetOn = (target: Target) => selection.target === target.id && (selection.onTarget || !treeOf(target));
-  const isNodeOn = (target: Target, path: number[]) => selection.target === target.id && !selection.onTarget && samePath(selection.node, path);
+  const isOn = (row: TreeRow) => isRowOn(row, selection, hasTree);
+  const spreadOn = $derived(isOn({ kind: "spread" }));
+  const isTargetOn = (target: Target) => isOn({ kind: "target", targetId: target.id });
+  const isNodeOn = (target: Target, path: number[]) => isOn({ kind: "node", targetId: target.id, path });
   /** A row above the selected node (its target, its parents): marked lighter, so the level is clear */
   const isWithinOn = (target: Target, path: number[] | null) =>
-    selection.target === target.id && !selection.onTarget && (path === null || (path.length < selection.node.length && isWithin(selection.node, path)));
+    !selection.spread && !selection.entry && selection.target === target.id && !selection.onTarget
+    && (path === null || (path.length < selection.node.length && isWithin(selection.node, path)));
 
   const NODE_ICONS: Record<string, IconName> = { group: "layers", model: "model", video: "video", image: "image", text: "type", light: "light" };
   /** A plugin's node type (#77): the code icon – its look is the plugin's; a type nobody registered: a plain group */
@@ -100,7 +111,7 @@
   };
   /** The selected node and its target, while a node (not the target) is selected */
   const selectedNode = (): { target: Target; path: number[] } | null => {
-    const target = selection.target ? selectable.find(t => t.id === selection.target) : undefined;
+    const target = selection.target && !selection.entry && !selection.spread ? selectable.find(t => t.id === selection.target) : undefined;
     return target && !selection.onTarget && treeOf(target) ? { target, path: selection.node } : null;
   };
   const shift = (direction: -1 | 1) => { const s = selectedNode(); return !!s && edit(s.target, tree => shiftNode(tree, s.path, direction)); };
@@ -108,7 +119,7 @@
   const outdent = () => { const s = selectedNode(); return !!s && edit(s.target, tree => outdentNode(tree, s.path)); };
 
   // ── a row's context menu (a right click, a long press, the menu key): remove, and the hierarchy's moves ──
-  type Menu = { at: Point; target: Target; path: number[]; kind: "node" | "target" };
+  type Menu = { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
   let menu = $state<Menu | null>(null);
   /** The row a finger is held on: its light cue until the menu opens */
   let pressing = $state<string | null>(null);
@@ -118,17 +129,29 @@
     else selection.selectNode(target.id, path);
     menu = { at, target, path, kind };
   };
-  const rowMenu = (target: Target, path: number[], kind: "node" | "target") => {
-    const key = kind === "target" ? target.id : nodeKey(target, path);
-    return menuTrigger({
-      open: at => openMenu(at, target, path, kind),
-      pressing: on => (pressing = on ? key : pressing === key ? null : pressing),
-    });
+  const openEntryMenu = (at: Point, entry: Entry) => {
+    selection.set(rowSelection(entryRow(entry)));
+    menu = { at, kind: "entry", entry };
   };
+  const pressed = (key: string) => (on: boolean) => (pressing = on ? key : pressing === key ? null : pressing);
+  const rowMenu = (target: Target, path: number[], kind: "node" | "target") =>
+    menuTrigger({ open: at => openMenu(at, target, path, kind), pressing: pressed(kind === "target" ? target.id : nodeKey(target, path)) });
+  const entryMenu = (entry: Entry) => menuTrigger({ open: at => openEntryMenu(at, entry), pressing: pressed(`entry:${entry.id}`) });
+  /** Remove an entry with everything on it: the workspace shows the API's impact and asks first (#198) */
+  const removeEntry = (entry: Entry) => void onremoveentry?.(entry.id, entry.target?.id ?? null);
+  const REMOVE_ENTRY_HELP = "Removes the entry with its target, its entity and – only if you choose it – the Library files used only there. It shows what goes and asks first.";
   const menuItems = (m: Menu): MenuItem[] => {
+    if (m.kind === "entry") {
+      const target = m.entry.target;
+      const select: MenuItem[] = target?.imageSrc
+        ? [{ label: "Select the target", icon: "target", select: () => pick({ kind: "target", targetId: target.id }),
+            help: "Selects the entry's target: the Entity panel shows its printed image and placement, the stage outlines its print." }]
+        : [];
+      return [...select, { label: "Remove entry", icon: "trash", keys: "Delete", danger: true, select: () => removeEntry(m.entry), help: REMOVE_ENTRY_HELP }];
+    }
     if (m.kind === "target") {
-      return [{ label: "Remove target", icon: "trash", danger: true, select: () => void onremovetarget?.(m.target),
-        help: "Removes the entry with its target, its entity and – only if you choose it – the Library files used only there. It shows what goes and asks first." }];
+      const entry = entryOf(m.target.id);
+      return [{ label: "Remove target", icon: "trash", danger: true, select: () => { if (entry) removeEntry(entry); }, help: REMOVE_ENTRY_HELP }];
     }
     const tree = treeOf(m.target);
     const siblings = m.path.length && tree ? (nodeAt(tree, m.path.slice(0, -1))?.children?.length ?? 0) : 0;
@@ -148,20 +171,28 @@
     return [...moves, { label: m.path.length ? "Remove node" : "Remove entity", icon: "trash", keys: "Delete", danger: true, select: removeSelected,
       help: m.path.length ? "Removes the node with its children – live on the stage, Save writes it." : "Removes the entity: the target keeps no AR content – live on the stage, Save writes it." }];
   };
-  /** What the menu is for: the target's id, or the node's name */
+  /** What the menu is for: the entry's title, the target's id, or the node's name */
   const menuHead = (m: Menu): string => {
+    if (m.kind === "entry") return m.entry.title;
     if (m.kind === "target") return m.target.id;
     const tree = treeOf(m.target);
     const node = tree ? nodeAt(tree, m.path) : undefined;
     return node ? rowName(node, m.target, m.path) : m.target.id;
   };
-  /** The menu key on the tree: the selected row's menu, at its name */
+  /** The menu key on the tree: the selected row's menu, at its name (the spread row has none) */
   const openKeyMenu = () => {
     const row = rows[currentRow()];
-    const pick = treeElement?.querySelector<HTMLElement>(".node.on .pick");
-    if (!row || !pick) return;
-    const rect = pick.getBoundingClientRect();
-    openMenu({ x: rect.left + Math.min(16, rect.width / 2), y: rect.top + rect.height / 2 }, row.target, row.path ?? [], row.path === null ? "target" : "node");
+    const button = treeElement?.querySelector<HTMLElement>(".node.on .pick");
+    if (!row || !button || row.kind === "spread") return;
+    const rect = button.getBoundingClientRect();
+    const at = { x: rect.left + Math.min(16, rect.width / 2), y: rect.top + rect.height / 2 };
+    if (row.kind === "entry") {
+      const entry = spread?.entries.find(e => e.id === row.entryId);
+      if (entry) openEntryMenu(at, entry);
+      return;
+    }
+    const target = selectable.find(t => t.id === row.targetId);
+    if (target) openMenu(at, target, row.kind === "node" ? row.path : [], row.kind);
   };
   /** Remove the selected node (the tree's menu, Delete / Backspace): the parent is selected next, the target after the root */
   const removeSelected = () => {
@@ -173,22 +204,30 @@
   };
   const entryOf = (targetId: string): Entry | undefined => spread?.entries.find(entry => entry.target?.id === targetId);
 
-  // ── the keys: the rows as they are shown, in order ──
-  type Row = { target: Target; path: number[] | null };
-  const rows = $derived.by<Row[]>(() =>
-    selectable.flatMap(target => {
-      const entry = entryOf(target.id);
-      const tree = treeOf(target);
-      const open = !entry || !folded[entry.id];
-      const nodes = tree && open ? visiblePaths(tree, path => !folded[nodeKey(target, path)]).map(path => ({ target, path })) : [];
-      return [{ target, path: null } as Row, ...nodes];
+  // ── the keys: the rows as they are shown, in order – the spread, the entries, their targets and nodes (#227) ──
+  const rows = $derived.by<TreeRow[]>(() =>
+    treeRows(spread?.entries ?? [], {
+      isOpen: entryId => !folded[entryId],
+      nodes: targetId => {
+        const target = selectable.find(t => t.id === targetId);
+        const tree = target ? treeOf(target) : undefined;
+        return tree ? visiblePaths(tree, path => !folded[nodeKey(targetId, path)]) : [];
+      },
     }),
   );
-  const currentRow = () => rows.findIndex(row => (row.path === null ? isTargetOn(row.target) : isNodeOn(row.target, row.path)));
-  const selectRow = (row: Row | undefined) => {
-    if (!row) return;
-    if (row.path === null) selection.selectTarget(row.target.id);
-    else selection.selectNode(row.target.id, row.path);
+  const currentRow = () => rows.findIndex(isOn);
+  const selectRow = (row: TreeRow | undefined) => {
+    if (row) selection.set(rowSelection(row));
+  };
+  /** A row's fold key and whether rows hang below it: an entry folds its target, a node its children */
+  const foldOf = (row: TreeRow | undefined): { key?: string; children: boolean } => {
+    if (!row) return { children: false };
+    if (row.kind === "spread") return { children: !!spread?.entries.length };
+    if (row.kind === "entry") return { key: row.entryId, children: !!row.targetId && selectable.some(t => t.id === row.targetId) };
+    const target = selectable.find(t => t.id === row.targetId);
+    const tree = target ? treeOf(target) : undefined;
+    if (row.kind === "target") return { children: !!tree };
+    return { key: nodeKey(row.targetId, row.path), children: !!(tree && nodeAt(tree, row.path)?.children?.length) };
   };
 
   const onKey = (event: KeyboardEvent) => {
@@ -200,24 +239,21 @@
     }
     const index = currentRow();
     const row = rows[index];
-    const tree = row ? treeOf(row.target) : undefined;
-    const node = row?.path && tree ? nodeAt(tree, row.path) : undefined;
-    const key = row?.path ? nodeKey(row.target, row.path) : row ? entryOf(row.target.id)?.id : undefined;
+    const { key, children: hasChildren } = foldOf(row);
     const open = !!key && !folded[key];
-    const hasChildren = row?.path ? !!node?.children?.length : !!tree;
     switch (event.key) {
       case "ArrowDown":
         if (event.altKey) { if (!shift(1)) return; break; }
-        selectRow(rows[index < 0 ? 0 : Math.min(rows.length - 1, index + 1)]);
+        selectRow(stepRow(rows, index, 1));
         break;
       case "ArrowUp":
         if (event.altKey) { if (!shift(-1)) return; break; }
-        selectRow(rows[index < 0 ? 0 : Math.max(0, index - 1)]);
+        selectRow(stepRow(rows, index, -1));
         break;
       case "ArrowLeft":
         if (event.altKey) return;
         if (key && hasChildren && open) fold(key, true);
-        else if (row?.path) selection.up();
+        else selectRow(parentRow(rows, index));
         break;
       case "ArrowRight":
         if (event.altKey) return;
@@ -228,8 +264,14 @@
         // Only while it moves a node: else Tab leaves the tree as everywhere
         if (!(event.shiftKey ? outdent() : indent())) return;
         break;
-      case "Enter": case " ": if (row) onselect?.(row.target.id); break;
-      case "Delete": case "Backspace": removeSelected(); break;
+      case "Enter": case " ": if (row) onselect?.(row.kind); break;
+      case "Delete": case "Backspace": {
+        // An entry goes only after the confirmation (#198); a node at once (live on the stage, Save writes it)
+        const entry = row?.kind === "entry" ? spread?.entries.find(e => e.id === row.entryId) : undefined;
+        if (entry) removeEntry(entry);
+        else removeSelected();
+        break;
+      }
       default: return;
     }
     event.preventDefault();
@@ -319,7 +361,10 @@
       <span class="chevron"></span>
     {/if}
     <span class="type" class:handle={path.length > 0} title={path.length ? "Drag to move the node: onto a row = its child, between rows = its sibling" : undefined}><Icon name={nodeIcon(n)} size="1em" stroke={2} /></span>
-    <button type="button" class="pick" class:muted={!shown} onclick={() => pickNode(target, path)} aria-haspopup="menu" {@attach rowMenu(target, path, "node")} title={path.length ? `${n.type} – select this node` : `${n.type} – select the entity (its root node)`}>
+    <button type="button" class="pick" class:muted={!shown} onclick={() => pick({ kind: "node", targetId: target.id, path })} aria-haspopup="menu" {@attach rowMenu(target, path, "node")}
+      title={path.length
+        ? `${n.type} – a tap selects this node: the Entity panel shows its values, the gizmo sits on it on the stage`
+        : `${n.type} – a tap selects the entity (its root node): the Entity panel shows its values, the gizmo sits on it on the stage`}>
       <span class="name">{rowName(n, target, path)}</span>
       {#if !path.length && stage?.overrideOf(target.id)}<span class="dot" title="Shown with other values than the draft's">●</span>{/if}
     </button>
@@ -339,12 +384,15 @@
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div class="tree" class:dragging={!!drag?.active} role="tree" aria-label="Spread tree" tabindex="0" onkeydown={onKey} bind:this={treeElement}
     onpointerdown={dragDown} onpointermove={dragMove} onpointerup={dragUp} onpointercancel={dragUp} onlostpointercapture={dragUp} onclickcapture={dragClick}
-    data-help-name="Tree" data-help="A tap selects a target, its entity or a node; the Entity panel and the stage follow. Drag a node onto a row to make it that node's child, between two rows to make it a sibling there (with a finger, drag its icon). Keys: ↑ ↓ walk, ← → fold, Alt + ↑ ↓ move, Tab / Shift + Tab indent / outdent, Delete removes. A row's menu – a right click, a long press, or the menu key – has the moves and the removal.">
-    <div class="node" role="treeitem" aria-expanded="true" aria-selected="false">
-      <span class="chevron"><Icon name="down" size="1em" /></span>
+    data-help-name="Tree" data-help="A tap selects the spread, an entry, a target, its entity or a node: the row is highlighted and the panel follows – the spread opens the Stage tab at its section, the others the Entity panel; an entry with a target and a target are outlined on the stage, a node carries the gizmo. Drag a node onto a row to make it that node's child, between two rows to make it a sibling there (with a finger, drag its icon). Keys: ↑ ↓ walk the rows, ← → fold or step a level up and down, Alt + ↑ ↓ move a node, Tab / Shift + Tab indent / outdent, Enter opens the row's panel, Delete removes a node – on an entry it shows what goes and asks first. A row's menu – a right click, a long press, or the menu key – has the moves and the removal.">
+    <div class="node" class:on={spreadOn} role="treeitem" aria-expanded="true" aria-selected={spreadOn} aria-level={1}>
+      <span class="chevron"></span>
       <span class="type"><Icon name="book" size="1em" stroke={2} /></span>
-      <span class="name">{spread.title}</span>
-      {#if spread.title.replace(/[-–—]/g, "–") !== pages}<span class="small muted">{pages}</span>{/if}
+      <button type="button" class="pick" onclick={() => pick({ kind: "spread" })}
+        title="The spread – a tap selects it: the Stage tab opens at its section – title, pages, format, post-processing and environment">
+        <span class="name">{spread.title}</span>
+        {#if spread.title.replace(/[-–—]/g, "–") !== pages}<span class="small muted">{pages}</span>{/if}
+      </button>
       <span class="eye"></span>
     </div>
     {#each spread.entries as entry (entry.id)}
@@ -352,7 +400,9 @@
       {@const open = !folded[entry.id]}
       {@const shown = !!target && !preview.hidden.includes(target.id)}
       {@const tree = target ? treeOf(target) : undefined}
-      <div class="node depth-1" class:within={!!target && (isTargetOn(target) || isWithinOn(target, null))} role="treeitem" aria-expanded={target ? open : undefined} aria-selected="false">
+      {@const entryOn = isOn(entryRow(entry))}
+      <div class="node depth-1" class:on={entryOn} class:within={!!target && (isTargetOn(target) || isWithinOn(target, null))} class:pressing={pressing === `entry:${entry.id}`}
+        role="treeitem" aria-expanded={target ? open : undefined} aria-selected={entryOn} aria-level={2}>
         {@render guides(1)}
         {#if target}
           <button type="button" class="chevron" onclick={() => fold(entry.id)} title={open ? "Fold" : "Unfold"} aria-label={open ? "Fold" : "Unfold"}><Icon name={open ? "down" : "next"} size="1em" /></button>
@@ -360,7 +410,8 @@
           <span class="chevron"></span>
         {/if}
         <span class="type"><Icon name="entry" size="1em" stroke={2} /></span>
-        <button type="button" class="pick" class:muted={!!target && !shown} disabled={!target?.imageSrc} onclick={() => target && pickTarget(target)} title="{entry.category} · p.{entry.page}{target ? ' – select its target' : ' – no target'}">
+        <button type="button" class="pick" class:muted={!!target && !shown} onclick={() => pick(entryRow(entry))} aria-haspopup="menu" {@attach entryMenu(entry)}
+          title={entryRowHelp(entry, !!target?.imageSrc)}>
           <span class="name">{entry.title}</span>
         </button>
         {#if target}
@@ -375,7 +426,10 @@
           {@render guides(2)}
           <span class="chevron"></span>
           <span class="type"><Icon name="target" size="1em" stroke={2} /></span>
-          <button type="button" class="pick" class:muted={!shown} onclick={() => pickTarget(target)} aria-haspopup="menu" {@attach rowMenu(target, [], "target")} title={tree ? "Select the target: its printed image and placement" : "Select the target – no AR content yet, add a node in the Entity panel"}>
+          <button type="button" class="pick" class:muted={!shown} onclick={() => pick({ kind: "target", targetId: target.id })} aria-haspopup="menu" {@attach rowMenu(target, [], "target")}
+            title={tree
+              ? "The target – a tap selects it: the Entity panel shows its printed image and placement, the stage outlines its print"
+              : "The target, no AR content yet – a tap selects it: the Entity panel shows its printed image and placement and adds a node, the stage outlines its print"}>
             <span class="name">{target.id}</span>
             {#if stage?.found.includes(target.id)}<span class="small muted" title="In view now">in view</span>{/if}
           </button>
@@ -390,14 +444,14 @@
       <div class="node add-target">
         <span class="chevron"></span>
         <span class="type"><Icon name="plus" size="1em" /></span>
-        <button type="button" class="pick" onclick={onaddtarget} title="A new entry with a printed image on this spread"><span class="name">+ target</span></button>
+        <button type="button" class="pick" onclick={onaddtarget} title="A tap opens the form for a new entry with a printed image on this spread"><span class="name">+ target</span></button>
       </div>
     {/if}
   </div>
 {/if}
 
 {#if menu}
-  <ContextMenu at={menu.at} label={menu.kind === "target" ? `Target ${menu.target.id}` : "Node"} head={menuHead(menu)} items={menuItems(menu)}
+  <ContextMenu at={menu.at} label={menu.kind === "entry" ? "Entry" : menu.kind === "target" ? `Target ${menu.target.id}` : "Node"} head={menuHead(menu)} items={menuItems(menu)}
     returnFocus={treeElement} onclose={() => (menu = null)} />
 {/if}
 

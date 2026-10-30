@@ -19,10 +19,12 @@
   import { stageEnvironment } from "#lib/environment.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { environmentSkyLabel } from "#lib/stage/sky.js";
+  import { passesState, spreadPages } from "#lib/spread-view.js";
 
   /**
    * The stage's settings in collapsible sections (open state kept per section, all closed on the first visit): the
-   * **spread** (its format), the **stage** (hand shake, the grid over the page, the origin every position is counted
+   * **spread** – the one place that shows the spread the tree's top row selects (#227): its title, pages, format, the
+   * post-processing in effect and the book's environment – the **stage** (hand shake, the grid over the page, the origin every position is counted
    * from, the desk's top and the sky – closed, its head names the desk, its top and the grid; with the book's environment the sky is its
    * world, the HDRI waits for a book without one, #185), the **post-processing** (the book's
    * passes, a spread's own as an override – its head names the level), and the **narrative** of the book's plugins:
@@ -32,7 +34,11 @@
    * is moved on the stage itself; found / lost per target is the tree's eye, the first find is replayed from the
    * stage's menu. Explanations are the controls' help in the Info view.
    */
-  let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
+  let { stage, bookId, spreadId, onenvironment }: {
+    stage: Stage | null; bookId: string; spreadId: string;
+    /** The environment row's link: the workspace opens the Environment tab */
+    onenvironment?: () => void;
+  } = $props();
 
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
@@ -75,7 +81,14 @@
   };
 </script>
 
-<Section id="stage.spread" label="spread" open={false} help="The spread's own settings, saved to the draft.">
+<Section id="stage.spread" label="spread" open={false} summary={spread ? `${spread.title} · ${format}` : undefined}
+  help="The spread the stage shows: its title and pages, its format (saved to the draft), the post-processing in effect and the book's environment. A tap on the tree's top row selects the spread and opens this section.">
+  <div class="row" data-help="The spread's title in the book.">
+    <span class="label">title</span>
+    <span class="value">{spread?.title ?? spreadId}</span></div>
+  <div class="row" data-help="The book's pages this spread shows – a cover has its face only.">
+    <span class="label">pages</span>
+    <span class="value">{spread ? spreadPages(spread) : ""}</span></div>
   <div class="row" data-help="What this spread is: a double page, the front cover or the back cover. Only a one-page spread can be a cover; the stage shows the closed book for one.">
     <span class="label">format</span>
     <span class="controls">
@@ -84,6 +97,15 @@
         {#each FORMATS as f (f)}<option value={f}>{f}</option>{/each}
       </select>
       {#if formatError}<span class="small danger">{formatError}</span>{/if}
+    </span></div>
+  <div class="row" data-help="The post-processing in effect on this spread: the book's passes (the whole book) or its own (only this spread), and which passes. They are edited in the post-processing section below.">
+    <span class="label">passes</span>
+    <span class="value">{passesState(content.bookPasses, spread?.passes)}</span></div>
+  <div class="row" data-help="The world around the reader and its sky: the book's environment, or none – then the stage's HDRI is the sky. It is edited in the Environment tab.">
+    <span class="label">environment</span>
+    <span class="controls">
+      <span class="value">{environment ? environmentSkyLabel(environment, url => library.byUrl(url)?.name) : "none – the stage's HDRI"}</span>
+      {#if onenvironment}<button type="button" class="text-link" onclick={onenvironment} data-help-name="Environment tab" data-help="Opens the Environment tab, where the book's environment is set.">edit</button>{/if}
     </span></div>
 </Section>
 
@@ -203,6 +225,7 @@
 
 <style>
   .w { width: 5rem; display: inline-flex; }
+  .value { min-width: 0; overflow-wrap: anywhere; }
   .w :global(.scrub) { width: 100%; }
   .wide { width: 100%; }
   .overridden { opacity: .6; }
