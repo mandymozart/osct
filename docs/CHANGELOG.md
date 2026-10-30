@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.40.0 – 2026-10-30
 
 ### Changed
 - **Connect an AI agent, not only Claude** (#194): the guide beside the AI connections on the editor's books page is
