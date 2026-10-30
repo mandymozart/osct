@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.41.1 – 2026-10-30
 
 ### Changed
 - **Schöpfer's desk as it really is** (#187, Tilman: "Das ist kein Plywood … Und Material echt heißt"; "Die Fächer sind
