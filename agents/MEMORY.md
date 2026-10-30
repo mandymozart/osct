@@ -4,6 +4,36 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – editor cleanup: no paths for older APIs, controls built once, one number parser (#211 #212)
+
+- **No compatibility paths for an older API (#211, RULES #10)**: editor and API ship in one image, so the editor no
+  longer guesses what an older server answers. Checked against the PHP before removing: `POST …/spreads` takes
+  `format: "spread"` (`Books::FORMATS`), so `isAddRefused` and the book page's "New spreads come in with an import"
+  are gone; both DELETEs without `confirm` always answer 409 `confirm-delete` (`Confirmation::require` throws for a
+  null `confirm`), so the book page and the workspace no longer treat a resolved first call as "removed at once";
+  `GET /health` always sends `env` (`Config::env()`, `local` by default, valid by the environment-name rule), so
+  `Health.env` is required and the MCP guide's server name is `osct-<env>` – `osct-…` until `/health` answers,
+  no host-derived name. Nothing else in `editor/src` was labelled as being for an older server. Left alone: the
+  server's `role` field (open item below) and the loose optional response fields in `api.ts` such as
+  `listBooks().environments?` – they are #210's (one place for the response types).
+- **Controls built once (#212, RULES #32)**: the admin page's filter is `Segmented` (which got an optional `label`
+  for its group's accessible name); the tree's row menu is `ContextMenu` with `menuTrigger` – right click, long
+  press, and the menu key / Shift+F10 on the tree for the selected row (the tree keeps its own focus, so the tree's
+  key handler opens it at the selected row's name). Every action stays (Move up / down, Into the node above, Out of
+  its parent, Remove node / entity, Remove target); `MenuItem.keys` shows each move's shortcut at the right, a move
+  that cannot be made is disabled with its reason, and "shows what goes" moved into the item's help. While a
+  `ContextMenu` is open it owns the keys (it stops their propagation): before, ← → in the stage's menu also stepped
+  to another spread and Delete reached the workspace's shortcut.
+- **CSS comments (#212, RULES #22)**: 71 → 28 in `editor/src` – labels dropped, the kept ones are one line each and
+  guard a rule that would otherwise be "fixed" wrongly (or describe the file, as `app.css`'s head does).
+- **One number parser (#212)**: `parseNumber` (`values.ts`) for every `ScrubNumber` and a behaviour rule's value.
+  Decision: a comma or a dot is the decimal point (`1,5` = 1.5 – a German keyboard), **no exponent** (`1e3` is no
+  number: a number field refuses it, a rule's value keeps it as text) and no thousands separators. Why no exponent:
+  nobody types scientific notation into mm, degrees or factors, and a rule's value field would otherwise turn the
+  text `1e3` into 1000 behind the author's back; the fields themselves never show an exponent (`ScrubNumber` rounds
+  to its decimals). Before, the number fields took both `1,5` and `1e3`, a rule's value neither (it kept them as
+  text).
+
 ## 2026-10-30 – consent is the person's own: no account change through an AI token or an admin (#203)
 
 - **Decision (Tilman, 2026-10-30):** "keine Einwilligung ändern per mcp. Das ist auch in der admin UI verboten weil user
@@ -88,8 +118,8 @@ outcome in the line (or move it into a dated decision block).
   `server/api/db/` (`Paths.php`, `index.php`); a `latest.json` without `book` (`ContentStore::live`); a book imported
   before `imported_json` (`Books::comparison`, `editsSince`); a declared plugin of a build without recorded specs
   (`Editor.php`, `Books::parse`).
-- [ ] Legacy in the editor: compatibility paths for an older API although both ship in one image (`isAddRefused`, the
-  single-step deletes, `Health.env?`, the `mcp-setup.ts` host fallback) – proposed as an issue.
+- [x] Legacy in the editor: compatibility paths for an older API although both ship in one image (`isAddRefused`, the
+  single-step deletes, `Health.env?`, the `mcp-setup.ts` host fallback) – removed in #211 (2026-10-30 entry above).
 - [ ] `editor/package.json` carries 1.10.1 while the app is 1.50.x – RULES #10 does not list the editor (proposed).
 
 ## 2026-10-30 – the behaviour component: rules without code (#88, schema 2.19)

@@ -9,6 +9,8 @@
     danger?: boolean;
     /** Its description in the Info view (`data-help`) */
     help?: string;
+    /** The keys that do the same outside the menu, shown at its right ("Alt ↑", "Delete") – not to a finger */
+    keys?: string;
     select: () => void;
   }
 </script>
@@ -19,10 +21,11 @@
   import { nextMenuIndex, placeMenu, typeaheadIndex, type Point } from "#lib/context-menu.js";
 
   /**
-   * The editor's context menu (the stage's right click, a spread card's right click / long press / menu key): a WAI-ARIA
-   * menu at a point of the viewport, kept on the screen. The first item takes the focus; arrows, Home / End and the
-   * first letter move it, Enter or Space chooses, Esc, Tab, a click beside it or a scroll close it, and the focus goes
-   * back to `returnFocus` (by default what had it before). Choosing an item closes the menu first, then runs it.
+   * The editor's context menu (the stage's right click; a spread card's or a tree row's right click / long press / menu
+   * key): a WAI-ARIA menu at a point of the viewport, kept on the screen. The first item takes the focus; arrows, Home /
+   * End and the first letter move it, Enter or Space chooses, Esc, Tab, a click beside it or a scroll close it, and the
+   * focus goes back to `returnFocus` (by default what had it before). Choosing an item closes the menu first, then runs
+   * it. While it is open the menu owns the keys: none reaches the page's shortcuts.
    */
   let { at, items, label, head, returnFocus, onclose }: {
     at: Point;
@@ -77,6 +80,7 @@
   };
 
   const onKeydown = (e: KeyboardEvent) => {
+    e.stopPropagation();
     const moved = nextMenuIndex(e.key, current, items.length);
     if (moved !== null) {
       e.preventDefault();
@@ -84,7 +88,6 @@
     }
     if (e.key === "Escape" || e.key === "Tab") {
       e.preventDefault();
-      e.stopPropagation();
       return close();
     }
     if (e.key === "Enter" || e.key === " ") {
@@ -112,12 +115,13 @@
   {#each items as item, i (item.label)}
     <button type="button" role="menuitem" class="menu-item" class:danger={item.danger} tabindex={i === current ? 0 : -1}
       aria-disabled={item.disabled ? "true" : undefined} aria-describedby={item.disabled ? `${id}-${i}` : undefined}
-      data-help={item.help} onclick={() => choose(i)} onfocus={() => (current = i)}>
+      data-help-name={item.label} data-help={item.help} onclick={() => choose(i)} onfocus={() => (current = i)}>
       {#if item.icon}<Icon name={item.icon} size="1em" stroke={2} />{/if}
       <span class="words">
         <span>{item.label}</span>
         {#if item.disabled}<span class="reason small muted" id="{id}-{i}">{item.disabled}</span>{/if}
       </span>
+      {#if item.keys}<span class="keys small muted" aria-hidden="true">{item.keys}</span>{/if}
     </button>
   {/each}
 </div>
@@ -139,4 +143,8 @@
   .menu-item :global(svg) { flex: none; }
   .words { display: flex; flex-direction: column; padding: .25rem 0; white-space: nowrap; }
   .reason { white-space: normal; }
+  .keys { margin-left: auto; padding-left: 1rem; white-space: nowrap; }
+  @media (pointer: coarse) {
+    .keys { display: none; }
+  }
 </style>

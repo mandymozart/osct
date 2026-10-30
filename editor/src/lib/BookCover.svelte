@@ -48,7 +48,7 @@
 <style>
   .cover { display: block; opacity: 0; transition: opacity .25s; }
   .cover.loaded { opacity: 1; }
-  /* The printed cover's look (agents/DESIGN.md): white, a faint halftone, the title at the top and the author at the foot in the gold gradient */
+  /* The printed cover's measured look (agents/DESIGN.md) */
   .type { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; align-items: center;
     padding: 9cqw 8cqw 10cqw; text-align: center;
     background: radial-gradient(circle, #ececec 0.5px, transparent 0.8px) 0 0 / 1cqw 1cqw, #fff; }

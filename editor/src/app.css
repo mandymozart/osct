@@ -9,14 +9,13 @@
   --text-size: .75rem;
   --text-small: .6875rem;
   --control-height: 1.75rem;
-  /* Square corners (RULES #32, the Scutoons dogma's radius-none) – #170 */
   --control-radius: 0;
   --panel-width: 25rem;
   --tree-width: 15rem;
   --top-height: 2.5rem;
 
   --text: #1e1e1e;
-  /* 5.3:1 on white, 4.9:1 on the heads' grey – small muted text stays readable (#170; was #7f7f7f, 3.9:1) */
+  /* 5.3:1 on white, 4.9:1 on the heads' grey: small muted text stays readable */
   --muted: #6b6b6b;
   --line: #e6e6e6;
   --surface: #ffffff;
@@ -25,15 +24,13 @@
   --pressed-background: #e0e0e0;
   --pressed-color: #1e1e1e;
   --hover-background: #ebebeb;
-  /* The tree's selected row and the rows above it (#162) */
   --selected-background: #d2d2d2;
   --within-background: #efefef;
   --danger: #c0392b;
   --stage-background: #0c0c0c;
   color-scheme: light;
 }
-/* A finger (phones, tablets): one touch control height, the Scutoons dogma's 44px (2.75rem) – a mouse keeps the
-   compact 1.75rem. Every control takes its height from the token; the top bar grows with it (#171) */
+/* A finger: the dogma's 44px touch height; every control takes its height from the token */
 @media (pointer: coarse) {
   :root {
     --control-height: 2.75rem;
@@ -82,16 +79,13 @@ body {
   overscroll-behavior: none;
 }
 * { box-sizing: border-box; }
-/* No browser tap highlight (Android's blue box): a tap shows the editor's own pressed and focus states (#201) */
 :root { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; color: inherit; }
 ::selection { background: var(--text); color: var(--surface); }
-/* One focus ring for every control, in the text colour and square – not the browser's own (blue in Firefox and
-   Safari); fields mark their focus by the border instead (#170) */
+/* Fields mark their focus by their border instead (.field:focus) */
 :where(button, a, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 
-/* ── Controls: one height, square corners ───────────────────────────────────────────────── */
 .pill, .icon-button, .field {
   height: var(--control-height);
   border: 1px solid transparent;
@@ -102,7 +96,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .pill { display: inline-flex; align-items: center; gap: .375rem; padding: 0 .625rem; white-space: nowrap; }
 .icon-button { display: inline-flex; align-items: center; justify-content: center; width: var(--control-height); padding: 0; }
-/* Hover only where a pointer hovers: a finger's tap would leave it behind, and a tapped button would look pressed (#178) */
+/* Hover only where a pointer hovers: a tap would leave it behind and look pressed */
 @media (hover: hover) {
   .pill:hover, .icon-button:hover { background: var(--hover-background); }
 }
@@ -110,7 +104,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pill.primary { border-color: var(--text); }
 .pill:disabled, .icon-button:disabled { background: none; }
 .pill.framed, .icon-button.framed { border-color: var(--line); background: var(--control-background); }
-/* a framed toggle that is on: after .framed, which would otherwise win and hide the state (#99) */
+/* After .framed, which would otherwise hide the on state */
 .pill.framed.on, .icon-button.framed.on { background: var(--pressed-background); color: var(--pressed-color); }
 .pill:active:not(:disabled):not(.on), .icon-button:active:not(:disabled):not(.on) { background: var(--hover-background); }
 .field {
@@ -127,7 +121,6 @@ select.field { cursor: pointer; }
   .text-link:hover { color: var(--text); }
 }
 .text-link:active:not(:disabled) { color: var(--text); }
-/* Disabled at a glance (#166): dimmed, a not-allowed cursor, a select without its arrow – the reason is the control's help */
 .pill:disabled, .icon-button:disabled, .field:disabled, .text-link:disabled, select:disabled, textarea:disabled, input[type="range"]:disabled { opacity: .45; cursor: not-allowed; }
 select:disabled { appearance: none; }
 @media (hover: hover) {
@@ -137,10 +130,8 @@ select:disabled { appearance: none; }
 .small { font-size: var(--text-small); }
 .danger { color: var(--danger); }
 
-/* ── Rows: a label column and the controls ─────────────────────────────────────────────────── */
 .row { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr); gap: .375rem; align-items: center; min-height: calc(var(--control-height) + .25rem); }
-/* A panel's body is a scrolling flex column: its rows keep their height instead of being squeezed to the minimum
-   (the origin square overlapped the desk row in the phone's sheet – #170) */
+/* A panel's body is a scrolling flex column: rows keep their height instead of being squeezed */
 .row, .section { flex-shrink: 0; }
 .row > .label { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row.changed > .label { color: var(--text); }
@@ -148,7 +139,6 @@ select:disabled { appearance: none; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; min-width: 0; }
 .section { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 .5rem; min-height: var(--control-height);
   margin-top: .25rem; border-top: 1px solid var(--line); padding-top: .25rem; }
-/* A divider separates a section from the one above: the first one in its panel (right under the tab row) has none (#193) */
 .section:first-child { margin-top: 0; border-top: none; padding-top: 0; }
 .section-label { color: var(--muted); font-size: var(--text-small); letter-spacing: .08em; text-transform: uppercase; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.75rem, 1fr)); gap: .25rem; min-width: 0; }

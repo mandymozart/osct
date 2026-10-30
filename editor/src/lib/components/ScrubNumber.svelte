@@ -187,7 +187,7 @@
   .unit:empty { padding-right: .4rem; }
   .prefix { flex: none; padding-left: .5rem; color: var(--muted); font-size: var(--text-small); letter-spacing: .08em; }
   .prefix + input { padding-left: .25rem; }
-  /* Narrow, with the unit moved up to it: an axis field (X / Y / Z side by side) still shows three digits (#170) */
+  /* Narrow: the unit moves up, so an axis field still shows three digits */
   .unit:has(+ .reset) { padding-right: .125rem; }
   .reset { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 100%;
     border: none; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0; }

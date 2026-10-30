@@ -224,7 +224,6 @@
 </section>
 
 <style>
-  /* Two columns where there is room, one on a phone; the section sits under the books */
   .ai { display: grid; gap: 1.5rem 2.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); align-items: start;
     margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
   h2 { font-size: .875rem; font-weight: 600; margin: 0 0 .75rem; }

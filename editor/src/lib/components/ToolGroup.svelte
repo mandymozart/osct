@@ -133,15 +133,12 @@
 
 <style>
   .tool-group { flex: none; display: inline-flex; align-items: center; gap: .125rem; }
-  /* Blender's shading spheres sit shoulder to shoulder */
   .tool-group.tight { gap: 0; }
-  /* A collapsed group: a small corner mark, as a 3D tool marks a button that opens its group */
   .group-button { position: relative; }
   .group-button::after { content: ""; position: absolute; right: 2px; bottom: 2px; border: 2.5px solid transparent; border-right-color: var(--muted); border-bottom-color: var(--muted); }
   .group-button.open { background: var(--pressed-background); color: var(--pressed-color); }
   .backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }
   .flyout { position: fixed; z-index: 10; display: flex; flex-direction: column; min-width: 9rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); outline: none; }
-  /* The touch height with a finger (#171): the token is 44 px under (pointer: coarse) */
   .item { display: flex; align-items: center; gap: .5rem; height: var(--control-height); padding: 0 .625rem; border: none; border-radius: var(--control-radius); background: none; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
   .item.on { background: var(--pressed-background); color: var(--pressed-color); }
   .name { flex: 1; }

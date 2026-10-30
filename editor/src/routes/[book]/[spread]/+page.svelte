@@ -704,15 +704,12 @@
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   .stage :global(canvas) { display: block; width: 100%; height: 100%; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
-  /* Above ‹ › (z-index 1), so a group's menu covers them; the page computes the groups' widths from these measures */
+  /* Above ‹ › so a group's menu covers them; the page computes the groups' widths from these sizes */
   .tools { position: absolute; left: .5rem; top: .5rem; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
-  /* Three groups – transform, pick, shading – with a rule between (#180: components/ToolGroup.svelte) */
   .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
-  /* A phone: ‹ › through the spreads at the stage's lower corners (#171) */
   .step { position: absolute; bottom: .5rem; z-index: 1; color: var(--text); }
   .step-previous { left: .5rem; }
   .step-next { right: .5rem; }
-  /* A short stage (#177): toolbar and ‹ › share the top row; the toolbar's groups collapse to leave them room (#180) */
   .steps-up .tools { max-width: calc(100% - 1.375rem - 2 * var(--control-height)); }
   .steps-up .step { top: calc(.5rem + .1875rem); bottom: auto; }
   .steps-up .step-previous { left: auto; right: calc(.625rem + var(--control-height)); }
@@ -726,14 +723,11 @@
   .head { flex: none; }
   .bar .tab { padding: 0 .375rem; }
   .bar .tab.on { background: var(--surface); }
-  /* One line: the tabs as icons (#172); should it still not fit, the row scrolls instead of wrapping */
   .panel .bar.icons { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .bar .tab.icon-tab, .bar.icons .icon-button { padding: 0; width: var(--control-height); justify-content: center; flex: none; }
-  /* A size container: the panels answer their own width (#159), narrow on a phone and when dragged small (#144) */
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; container: panel / inline-size; }
   .body.code { overflow: hidden; }
   .icon-button { text-decoration: none; }
-  /* A column's edge: a strip over the border with a grip in its middle; the border shows while it is hovered or dragged */
   .edge { position: absolute; top: 0; bottom: 0; z-index: 3; width: .5rem; cursor: col-resize; touch-action: none; outline: none; }
   .edge-right { right: -.25rem; }
   .edge-left { left: -.25rem; }
@@ -745,24 +739,23 @@
     .edge:hover::before { opacity: 1; }
     .edge:hover::after { opacity: 1; background: var(--text); }
   }
-  /* A finger catches a wider edge (mostly over the stage, so the panel's first button stays free) */
+  /* A finger gets a wider edge, mostly over the stage, so the panel's first button stays free */
   @media (pointer: coarse) {
     .edge { width: 1.25rem; }
     .edge-right { right: -1rem; }
     .edge-left { left: -1rem; }
   }
 
-  /* A phone: the stage fills the screen, the panel is a sheet at the bottom (closed = the bar only) */
   @media (max-width: 47.9rem) {
     .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
     .tree { display: none; }
     .workspace.sheet-dragging { cursor: row-resize; user-select: none; grid-template-rows: minmax(0, 1fr) var(--sheet-row); background: var(--sheet-fill, var(--stage-background)); }
-    /* Dragged, the sheet grows over the stage from its frozen row: the stage (a WebGL canvas) resizes once, on release */
+    /* The stage (a WebGL canvas) resizes once, on release – not while the sheet is dragged */
     .workspace.sheet-dragging .panel { align-self: end; position: relative; z-index: 4; }
     .panel { height: var(--sheet-height, auto); border-left: none; border-top: 1px solid var(--line); }
-    /* The grip and the tab row take the drag; the panel's own content still scrolls */
+    /* The grip and the tab row take the drag; the panel's content still scrolls */
     .head { touch-action: none; background: var(--surface-head); }
-    /* A finger-sized grip: a drag that starts just above the bar must not land on the stage (and orbit it) */
+    /* A drag that starts just above the bar must not land on the stage and orbit it */
     .grip { position: relative; height: 1.5rem; cursor: row-resize; outline: none; }
     .grip::after { content: ""; position: absolute; top: calc(50% - 2px); left: calc(50% - 1.25rem); width: 2.5rem; height: 4px; border-radius: 2px; background: var(--muted); opacity: .6; }
     .grip:focus-visible::after, .grip.on::after { opacity: 1; background: var(--text); }
@@ -770,10 +763,8 @@
       .grip:hover::after { opacity: 1; background: var(--text); }
     }
     .body { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
-    /* The head is the six tab icons alone (× ‹ › moved out – #171): they share the row, each at least the control
-       height wide, so six of the touch height fit 360 px; the row scrolls rather than wraps */
+    /* Six tabs of the touch height fit 360 px: the row scrolls rather than wraps */
     .bar .tab.icon-tab { flex: 1 1 0; width: auto; min-width: var(--control-height); }
-    /* Closed, the tab row is the bottom of the screen: above the home indicator */
     .workspace.closed .panel .bar { padding-bottom: calc(.25rem + env(safe-area-inset-bottom)); }
   }
 </style>

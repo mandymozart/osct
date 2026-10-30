@@ -225,7 +225,7 @@
     .spot:hover { border-color: var(--text); }
   }
   .spot.on { border-color: var(--text); background: var(--text); }
-  /* A finger (#171): each point a 1.75rem cell to hit, the drawn dot the same size as with a mouse */
+  /* A finger: a bigger cell to hit, the drawn dot keeps its size */
   @media (pointer: coarse) {
     .origin { grid-template-columns: repeat(3, 1.75rem); grid-template-rows: repeat(3, 1.75rem); }
     .spot { position: relative; width: 1.75rem; height: 1.75rem; border: none; border-radius: 0; }

@@ -3,6 +3,7 @@
   import { ApiError, downloadUsersCsv, grantRole, inviteEditor, listRoles, listUsers, revokeRole, type AdminUser, type Role } from "#lib/api.js";
   import { session } from "#lib/session.svelte.js";
   import { csvDownload, type UserFilter } from "#lib/users-csv.js";
+  import Segmented from "#lib/components/Segmented.svelte";
 
   /**
    * The admin page (docs/admin.md): the instance's users found by e-mail, each one's roles as toggles (granted when and
@@ -11,12 +12,8 @@
    * e-mail. Only admins get here (+layout.svelte); the API is docs/server.md "Admin API".
    */
   type Filter = UserFilter;
-  const FILTERS: { id: Filter; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "editor", label: "Editors" },
-    { id: "admin", label: "Admins" },
-    { id: "newsletter", label: "Newsletter" },
-  ];
+  const FILTERS: readonly Filter[] = ["all", "editor", "admin", "newsletter"];
+  const FILTER_LABELS: Record<Filter, string> = { all: "All", editor: "Editors", admin: "Admins", newsletter: "Newsletter" };
   /** The option keys of the account (Auth::OPTIONS) with a short label each */
   const OPTIONS: { key: string; label: string }[] = [
     { key: "bookUpdates", label: "book" },
@@ -142,12 +139,7 @@
       <input class="field" type="search" bind:value={q} placeholder="Search by e-mail" aria-label="Search by e-mail" />
       <button type="submit" class="pill framed">Search</button>
     </form>
-    <div class="segments" role="group" aria-label="Filter">
-      {#each FILTERS as f (f.id)}
-        <!-- A small enum: segmented pressed pills, as Segmented draws them in the panels (#170) -->
-        <button type="button" class="pill" class:on={filter === f.id} aria-pressed={filter === f.id} onclick={() => setFilter(f.id)}>{f.label}</button>
-      {/each}
-    </div>
+    <Segmented options={FILTERS} value={filter} labels={FILTER_LABELS} label="Filter" onchange={setFilter} />
     <span class="grow"></span>
     {#if csv}
       <button type="button" class="pill framed" onclick={download} disabled={downloading} title={csv.title}>{csv.label}</button>
@@ -223,7 +215,6 @@
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .5rem; }
   .search { display: flex; gap: .25rem; }
   .search .field { width: 16rem; max-width: 100%; }
-  .segments { display: inline-flex; gap: .125rem; }
   .users { width: 100%; border-collapse: collapse; margin: .25rem 0 0; }
   .users th { text-align: left; font-weight: normal; color: var(--muted); font-size: var(--text-small); letter-spacing: .08em; text-transform: uppercase; padding: .25rem .5rem .25rem 0; border-bottom: 1px solid var(--line); }
   .users td { padding: .25rem .5rem .25rem 0; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
@@ -237,7 +228,6 @@
     .users thead { display: none; }
     .users tr { display: grid; grid-template-columns: 1fr; padding: .375rem 0; border-bottom: 1px solid var(--line); }
     .users td { border: none; padding: .125rem 0; white-space: normal; }
-    /* Without the head row each value says what it is, in the panels' label column (#170) */
     .users td[data-label] { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr); gap: .375rem; align-items: center; }
     .users td[data-label]::before { content: attr(data-label); color: var(--muted); }
   }

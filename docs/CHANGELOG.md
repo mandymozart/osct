@@ -7,6 +7,23 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **The editor no longer carries paths for an older API** (#211): editor and API ship in one image, so the book page's
+  "New spreads come in with an import for now", the removals that would have taken a spread or a target at once
+  without the confirmation step, and the AI connections' server name taken from the host when `/health` named no
+  environment are gone. The server name reads `osct-…` until `/health` answers.
+- **The tree's menu is the editor's one context menu** (#212): a right click, a long press with a finger or the menu
+  key on the tree opens it for a row – with icons, each move's key at the right, and a disabled move saying why – as
+  on the spread cards and the stage. The same actions as before. While a context menu is open, its keys no longer
+  reach the stage's shortcuts (← → in the stage's menu stepped to another spread).
+- **The admin page's filter is the editor's segmented control** (#212), as in the panels.
+- **One number parser in the editor** (#212): a number field and a behaviour rule's value both take `1,5` as 1.5; an
+  exponent such as `1e3` is not taken as a number by either (a number field refuses it, a rule's value keeps it as
+  text). Before, the rule values read `1,5` as text and the number fields took `1e3`.
+- The editor's stylesheets keep a comment only where a rule would otherwise be changed wrongly (#212).
+
 ## 1.50.4 – 2026-10-30
 
 ### Fixed
