@@ -19,7 +19,15 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    /* The engine's plugin API (build/plugins.ts types its recording API by it): the content contract as @shared/…, three's
+       types from here – as the plugin type check resolves them */
+    "paths": {
+      "@shared/*": ["../shared/*"],
+      "three": ["./node_modules/@types/three/index.d.ts"],
+      "three/*": ["./node_modules/@types/three/*"]
+    }
   },
   "include": ["src", "test", "../shared"]
 }

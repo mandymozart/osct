@@ -9,7 +9,7 @@ import { listFiles } from './files';
 // (a new hash = new content to sync)
 const COMMAND_FILES = [
   'sounds.ts', 'cli.ts', 'schema-lock.ts', 'import-delivery.ts', 'protocol.ts',
-  'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts',
+  'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts', 'lib/cli-args.ts',
 ];
 const isCommandFile = (file: string) => COMMAND_FILES.some(prefix => file.startsWith(prefix));
 

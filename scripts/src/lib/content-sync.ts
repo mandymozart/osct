@@ -12,7 +12,6 @@
  *        retired ones kept, and retired long enough ago (default: the CDN cache time, 30 days). Strict: missing or
  *        inconsistent bookkeeping refuses; folders it does not know stay unless asked for.
  */
-import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -29,7 +28,7 @@ import { assertGameConfiguration, GameConfigurationError } from '../../../shared
 import { parseContentSchema } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE } from '../config';
 import { listFiles } from './files';
-import { contentTypeOf, type StorageClient, type StoredFile } from './storage';
+import { contentTypeOf, sha256, type StorageClient, type StoredFile } from './storage';
 
 const PARALLEL_UPLOADS = 4;
 /** The CDN check waits this long for the new latest.json to show at the edge */
@@ -60,7 +59,8 @@ export const isFixtureBuild = (build: Pick<ContentBuild, 'files'>): boolean => b
 /** A build of the demo book (fixtures/demo) – synced to its own environment only */
 export const isDemoBuild = (build: Pick<ContentBuild, 'files'>): boolean => build.files.some(f => f.file === DEMO_MARKER);
 
-const sha256 = (data: Buffer | string) => createHash('sha256').update(data).digest('hex').toUpperCase();
+/** An environment's name on the storage (`<env>/latest.json`) – the API's `ContentStore::ENV` is the same rule (a test checks it) */
+export const ENV_NAME = /^[a-z][a-z0-9-]{0,31}$/;
 
 /** The local content build (`osct content build`) */
 export function readContentBuild(): ContentBuild {

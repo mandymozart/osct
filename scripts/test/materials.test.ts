@@ -140,4 +140,16 @@ describe('the zero plane (#189)', () => {
     expect(box.min.toArray()).toEqual([-2, 0, -2]);
     expect(box.max.toArray()).toEqual([2, 4, 2]);
   });
+
+  it('a .glb whose JSON chunk is broken reads as no glTF, it does not throw', () => {
+    const text = Buffer.from('{"asset": ');
+    const header = Buffer.alloc(20);
+    header.writeUInt32LE(0x46546c67, 0);
+    header.writeUInt32LE(2, 4);
+    header.writeUInt32LE(20 + text.length, 8);
+    header.writeUInt32LE(text.length, 12);
+    header.writeUInt32LE(0x4e4f534a, 16);
+    expect(readGltfJson(Buffer.concat([header, text]))).toBeNull();
+    expect(readGltfJson(Buffer.from('not json'))).toBeNull();
+  });
 });

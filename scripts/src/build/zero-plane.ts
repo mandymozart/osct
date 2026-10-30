@@ -31,12 +31,12 @@ interface Gltf {
 
 /** The JSON of a glTF file: a .glb's first chunk, or a .gltf as it is; null when it is neither */
 export const readGltfJson = (bytes: Buffer): Gltf | null => {
-  if (bytes.length >= 20 && bytes.readUInt32LE(0) === GLB_MAGIC) {
-    const length = bytes.readUInt32LE(12);
-    if (bytes.readUInt32LE(16) !== JSON_CHUNK) return null;
-    return JSON.parse(bytes.subarray(20, 20 + length).toString('utf8')) as Gltf;
-  }
   try {
+    if (bytes.length >= 20 && bytes.readUInt32LE(0) === GLB_MAGIC) {
+      const length = bytes.readUInt32LE(12);
+      if (bytes.readUInt32LE(16) !== JSON_CHUNK) return null;
+      return JSON.parse(bytes.subarray(20, 20 + length).toString('utf8')) as Gltf;
+    }
     return JSON.parse(bytes.toString('utf8')) as Gltf;
   } catch {
     return null;
