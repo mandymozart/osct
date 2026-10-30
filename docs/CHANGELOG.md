@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.50.0 – 2026-10-30
 
 ### Added
 - **The behaviour component: rules without code** (#88, content schema 2.19). Any node can carry a `behaviour` – a list
