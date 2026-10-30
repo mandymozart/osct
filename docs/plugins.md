@@ -263,9 +263,11 @@ api.registerNodeType("aquarium", {
 });
 ```
 
-It stays light on a phone: a few hundred triangles of fish and some 2 500 of water surface, 14 draw calls, the caustics
-drawn once into 128² pixels and no render target. On the editor's stage (desktop, 1280 × 800) the found aquarium adds
-about 0.2 ms of main-thread work per frame (1.2 ms against 1.0 ms with its target lost) and the stage stays at 60 fps.
+It stays light on a phone: a few hundred triangles of fish, 21 draw calls with the toy fish (14 without it), the caustics
+drawn once into 128² pixels and no render target. The water's top has a vertex per cell of the simulation below (64 × 36
+cells: some 4 600 triangles on top, as many on the box's bottom; 2 500 in all with the simulation off). On the editor's
+stage (desktop, 1280 × 800) the found aquarium adds about 0.2 ms of main-thread work per frame (1.2 ms against 1.0 ms
+with its target lost) and the stage stays at 60 fps.
 
 **4 · Make it code.** Any node can become a node type of the book's own – Unreal's *Create Blueprint class from a
 component*. Select a node, Entity panel, **make it code** (in the node's head): the editor writes a Code tab plugin whose
@@ -278,6 +280,42 @@ the node's look: a `registerMaterial` that draws what the type's material drew (
 `ShaderMaterial` with colour, opacity and another picture; a model's as a `MeshStandardMaterial`), and the node carries
 it. Nothing is saved to the draft until you press **Save**; the plugin is in the Code tab (and reaches readers through
 the content source, as every Code tab plugin until #78).
+
+**5 · A shader study: a toy that displaces the water (#202).** The tank also shows what a node type and a material can
+do together. A plastic toy fish – an ellipsoid body, a tail and a dorsal fin of flattened cones, eyes, a glossy
+`MeshPhysicalMaterial` with a clear coat – hangs above the water (or a ball: *dipping toy*). It plunges in, rests, rises
+slowly and waits on a loop (*loop period*, *dip depth*); a tap (the node type's `onTap`) pushes it in once, deeper.
+
+- **The surface is a heightfield**, simulated on the CPU: a grid of square cells (*grid*: 32, 64 or 96 along the
+  longer side – 64 × 36 for the demo's tank), each with a height above the rest level and a vertical speed. One step of
+  the damped wave equation pulls every cell towards the mean of its four neighbours and keeps a share of its speed
+  (*damping*, per second); the glass reflects (a missing neighbour counts as the cell itself), so the sum of the heights –
+  the water's volume – never changes. Steps run at a fixed rate (60 per second at 64 cells, more on a finer grid, so the
+  rings run as fast), at most four per frame; nothing is allocated per frame.
+- **The toy displaces its volume.** Before each step the tank works out, for every cell under the toy's body (an
+  ellipsoid), how much of the body lies below the rest level. What that column grew since the last step is pushed out
+  of the cell – the height goes down – and spread evenly over the whole surface; what it shrank flows back. So the
+  water's volume stays the same, the surface around the toy is pressed down as it plunges and pulled back as it rises,
+  and the wave equation carries the dent outward as rings. *splash* scales the displaced volume (1 is true to size and
+  faint at this scale; the demo uses 4).
+- **The texture.** After the steps the heights go into a one-channel half-float `DataTexture` (one texel per cell,
+  linear filtering). The tank hands it to its water's material every frame through the material's uniforms
+  (`heightfield`, `hasHeightfield`, `fieldSize`, `fieldTexel`, `surfaceTop`) – only when that material is the `water`
+  shader; another material keeps its own look.
+- **The water shader** displaces the top's vertices (and the upper edge of the sides) by the heightfield and takes the
+  surface normal from the neighbouring heights. The normal drives a relief (patches tilted towards a light fixed above
+  the tank are brighter, those tilted away darker), a refraction-like tint (the view bent by a tilted patch runs a
+  longer way through the water – deeper colour), a fresnel highlight at grazing angles and a glint. Without a
+  heightfield (*simulation* off, or the material on another node) it draws the static waves of *wave height* and
+  *wave speed*, as before.
+- **The caustics follow.** The floor samples the same texture: the light shifts with the surface's slope and gathers
+  where the surface bulges like a lens (a negative curvature – the sum of the four neighbours minus four times the cell)
+  and spreads under a trough. A cheap approximation, not traced light.
+
+On the editor's stage (desktop, headless Edge, 60 fps) the tank's update – toy, simulation steps, the texture upload –
+takes 0.008 ms per frame at 32 cells, 0.04 ms at 64 and 0.14 ms at 96 (0.002 ms with the simulation off), against
+about 1.2 ms of main-thread work of the whole stage per frame. Its pure step is tested through the real plugin
+(`editor/src/lib/plugins/__tests__/aquarium-waves.test.ts`: the built tank's `object.userData.waves`).
 
 ## A shader file (API 1.5)
 

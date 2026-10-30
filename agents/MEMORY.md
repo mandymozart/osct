@@ -45,6 +45,28 @@ outcome in the line (or move it into a dated decision block).
 - **Editor**: the value fields take text (`true`, `false`, a number, else text; empty = null) with suggestions rather
   than a type picker per value – booleans are the common case; the condition's all/any shows from two tests on, the
   rows between read *and* / *or*. Save stays off while a rule is incomplete (the guard would refuse the book otherwise).
+## 2026-10-30 – The demo aquarium's water: a CPU heightfield handed to the material through its uniforms (#202)
+
+- **CPU, not GPU ping-pong.** The plugin API gives a plugin no renderer (no render targets, no `renderer.render`), so a
+  GPU simulation would need an API change (RULES #10 bump) for a demo-only study – and the CPU version is not coarse:
+  64 × 36 cells cost about 0.04 ms per frame on the desktop (0.14 ms at 96), the texture is 64 × 36 half floats.
+- **The node type owns the simulation, the material reads it.** The tank knows the toy and the water's mesh; after the
+  engine put the node's material on the water, the tank's `update` writes the heightfield and its size into that
+  material's uniforms (`heightfield`, `hasHeightfield`, …) when it has them. No plugin API change, no module-level shared
+  state (Make it code copies the whole module, #199), and the water material elsewhere keeps its static waves.
+- **The tap is the node type's own `onTap`**, not a behaviour rule: the push is the tank's internal state (the toy's
+  timeline), nothing another node or a variable needs – the simpler of the two the brief offered.
+- **Volume conserved, not added**: what the toy's submerged column gains is pushed out of its cells and spread evenly
+  over the surface (the level rises a hair), so the sum of the heights stays zero through any loop – the tests check it.
+  `splash` (default 4) exaggerates the displaced volume: true to size (1) the rings are invisible at the tank's scale.
+- **A quick plunge, a slow rise**: a cosine loop made long, flat swells; a fifth of the period for the plunge gives
+  short, visible rings. The fixed light of the relief is in the tank's frame, so the look does not change with the
+  camera's or the page's orientation.
+- The simulation is reachable as `object.userData.waves` (tests, the console) – the plugin's only export stays
+  `register`, which the editor's and the tests' module loaders rely on.
+- **Not measured on a phone** (none attached): the S22 frame rate with the reader's post-processing is open; the
+  desktop numbers above and the grid row (32 for a weak phone, or simulation off) are the levers.
+
 ## 2026-10-30 – staging's versions.json mismatch was the edge cache, not a writer (#175)
 
 - **Cause:** every writer was already right – `osct content sync` (`runSync`), the API's publish (bunny and directory

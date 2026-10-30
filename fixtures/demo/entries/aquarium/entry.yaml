@@ -2,10 +2,12 @@
 # target – a glass tank standing on the page (built y up with its floor at y = 0, so `rotation: [90, 0, 0]` stands it
 # up like a model and its lowest point is the page). Its water carries the plugin's material `water`
 # (`registerMaterial`, a ShaderMaterial), the floor's light is the procedural texture `caustics` (`registerTexture`).
+# A toy fish dips into the water and its rings run outward (#202): the tank's own heightfield simulation, read by the
+# water and the floor. A tap pushes the toy in.
 category: glossary
 title: The aquarium
 page: 2
-body: "A plugin's own node type with a material and a texture of its own: the glass tank is `registerNodeType`, the water a `registerMaterial` shader (waves on its surface, a tint that deepens with the angle), the light on the floor the procedural texture `caustics` from `registerTexture`. In the editor, the Entity panel shows the tank's rows and the water's material row; make it code turns any node into a node type of your own."
+body: "A plugin's own node type with a material and a texture of its own: the glass tank is `registerNodeType`, the water a `registerMaterial` shader (waves on its surface, a tint that deepens with the angle), the light on the floor the procedural texture `caustics` from `registerTexture`. Tap it: the toy fish is pushed into the water, the surface is simulated as a heightfield and the rings run outward, the light on the floor gathering under them. In the editor, the Entity panel shows the tank's rows and the water's material row; make it code turns any node into a node type of your own."
 tags: [plugin, material, texture]
 target:
   image: target.jpg
