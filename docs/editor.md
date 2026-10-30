@@ -101,7 +101,7 @@ visible and safe (#143):
 ## What is on the stage
 
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: the
-**sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's *sky*,
+**sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's *sky*, Wooden Studio 17 by default,
 shown while the shading is rendered), the equirectangular image as `scene.background` and `scene.environment`, turned with the
 stage every frame so the room stays put while the camera orbits – the **desk**, the Stage panel's choice of two
 (Tilman: the tool is for designers, they should feel at home): a 1.8 × 0.8 m screen-printed plywood top (18 mm; Poly

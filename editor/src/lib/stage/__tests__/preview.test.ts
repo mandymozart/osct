@@ -62,6 +62,6 @@ describe("editor preview settings", () => {
     localStorage.setItem("osct-preview", JSON.stringify({ view: "sideways", wobble: 7, hdri: "lava", desk: "ikea", orbit: { distance: "far" }, grid: "yes", gridMm: "x", origin: "middle" }));
     vi.resetModules();
     const fresh = await import("../preview");
-    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, hdri: "ferndale_studio_04", desk: "eiermann", orbit: null, active: false, grid: false, gridMm: 10, origin: "top-left" });
+    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, hdri: "wooden_studio_17", desk: "eiermann", orbit: null, active: false, grid: false, gridMm: 10, origin: "top-left" });
   });
 });

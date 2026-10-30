@@ -12,6 +12,13 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.41.2 – 2026-10-30
+
+### Changed
+- **The stage's default sky is Wooden Studio 17** (Tilman: "Standard-Licht auf 17 wechseln"): Ferndale Studio 04's yellow
+  overhead light tinted the desks (Schöpfer's linoleum looked olive). A sky chosen in the Stage panel stays chosen (stored
+  per browser); only a first visit or a reset starts on 17.
+
 ## 1.41.1 – 2026-10-30
 
 ### Changed
