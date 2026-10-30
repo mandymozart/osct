@@ -1,16 +1,16 @@
 <script lang="ts">
   import type { EntityData, EntityType, EntryCategory, Spread } from "@engine/types";
-  import { addEntry, ApiError, type Asset } from "$lib/api";
-  import { library, NODE_ASSET_KINDS } from "$lib/library.svelte";
-  import { pickAccept, type LibraryPick } from "$lib/library-pick";
-  import { APPEARS, CATEGORIES, categoryFor } from "$lib/new-target";
-  import { newNode } from "$lib/values";
-  import type { Stage } from "$lib/stage/stage.svelte";
-  import { fromOrigin, toOrigin } from "$lib/stage/origin";
-  import { getPreview, subscribePreview } from "$lib/stage/preview";
-  import ScrubNumber from "$lib/components/ScrubNumber.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
-  import FileField from "$lib/components/FileField.svelte";
+  import { addEntry, ApiError, type Asset } from "#lib/api.js";
+  import { library, NODE_ASSET_KINDS } from "#lib/library.svelte.js";
+  import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
+  import { APPEARS, CATEGORIES, categoryFor } from "#lib/new-target.js";
+  import { newNode } from "#lib/values.js";
+  import type { Stage } from "#lib/stage/stage.svelte.js";
+  import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
+  import { getPreview, subscribePreview } from "#lib/stage/preview.js";
+  import ScrubNumber from "#lib/components/ScrubNumber.svelte";
+  import Segmented from "#lib/components/Segmented.svelte";
+  import FileField from "#lib/components/FileField.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
 
   /**

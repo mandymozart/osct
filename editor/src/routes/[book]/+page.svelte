@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import { addSpread, ApiError, deleteSpread, getBook, type BookTree } from "$lib/api";
-  import { canFollow, isAddRefused, removeBlockedBy, removeQuestion } from "$lib/spread-edit";
-  import { sheetForSpread, type StageLayout } from "$lib/stage/stage-layout";
-  import { fetchBookLayout, printBoxes, sheetUrl } from "$lib/sheet-preview";
-  import SheetPreview from "$lib/components/SheetPreview.svelte";
-  import { captionOf, formatLabelOf, gridCells } from "$lib/spread-grid";
-  import Icon from "$lib/components/Icon.svelte";
+  import { addSpread, ApiError, deleteSpread, getBook, type BookTree } from "#lib/api.js";
+  import { canFollow, isAddRefused, removeBlockedBy, removeQuestion } from "#lib/spread-edit.js";
+  import { sheetForSpread, type StageLayout } from "#lib/stage/stage-layout.js";
+  import { fetchBookLayout, printBoxes, sheetUrl } from "#lib/sheet-preview.js";
+  import SheetPreview from "#lib/components/SheetPreview.svelte";
+  import { captionOf, formatLabelOf, gridCells } from "#lib/spread-grid.js";
+  import Icon from "#lib/components/Icon.svelte";
   import { environmentOf } from "@shared/types/environment";
-  import InfoView from "$lib/components/InfoView.svelte";
+  import InfoView from "#lib/components/InfoView.svelte";
 
   /**
    * A book's spreads, each as its picture: the layout's sheet (when the content carries one) with the targets' prints
@@ -82,7 +82,7 @@
     <p class="muted small environment">environment ({tree.book.book?.environment ? "this book's" : "the default"}):
       world {environment.worldSrc ? fileName(environment.worldSrc) : "café"} · sky {environment.skySrc ? fileName(environment.skySrc) : "the world's"} ·
       onion sky {environment.onionSky ? "on" : "off"}
-      {#if tree.spreads[0]}· <a class="text-link" href="{base}/{bookId}/{tree.spreads[0].id}/?tab=environment">Edit on the stage</a>{/if}</p>
+      {#if tree.spreads[0]}· <a class="text-link" href={resolve(`${bookId}/${tree.spreads[0].id}/?tab=environment`)}>Edit on the stage</a>{/if}</p>
     <ul class="spreads" style:--page-ratio={pageRatio}>
       {#each cells as cell, i (cell.spacer ? `spacer-${i}` : cell.spread.id)}
         {#if cell.spacer}
@@ -95,7 +95,7 @@
           {@const format = formatLabelOf(spread)}
           {@const blocked = removeBlockedBy(spread, tree.book.initialSpreadId)}
           <li style:grid-column="span {cell.span}" class:right={cell.side === "right"} class:left={cell.side === "left"}>
-            <a href="{base}/{bookId}/{spread.id}/" class="spread">
+            <a href={resolve(`${bookId}/${spread.id}/`)} class="spread">
               <span class="frame">
                 <SheetPreview ratio={cell.span * pageRatio} image={sheet ? sheetUrl(assetsBase, sheet) : null}
                   single={cell.span === 1 && !!sheet && !!layout && sheet.widthMm > layout.page.width * 1.5}

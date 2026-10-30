@@ -1,6 +1,6 @@
 import type { Spread } from "@engine/types";
 import { contentUrl } from "@engine/content/game-config";
-import type { PrintPlacement } from "$lib/api";
+import type { PrintPlacement } from "#lib/api.js";
 
 const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
 

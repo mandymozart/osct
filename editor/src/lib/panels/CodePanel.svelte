@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { content } from "$lib/content.svelte";
-  import { plugins } from "$lib/plugins.svelte";
-  import { NEW_PLUGIN_SOURCE } from "$lib/plugins/compile";
-  import { downloadFiles, zipFiles } from "$lib/plugins/code-editor";
-  import type { CodeEditor } from "$lib/plugins/monaco";
-  import type { Stage } from "$lib/stage/stage.svelte";
+  import { content } from "#lib/content.svelte.js";
+  import { plugins } from "#lib/plugins.svelte.js";
+  import { NEW_PLUGIN_SOURCE } from "#lib/plugins/compile.js";
+  import { downloadFiles, zipFiles } from "#lib/plugins/code-editor.js";
+  import type { CodeEditor } from "#lib/plugins/monaco.js";
+  import type { Stage } from "#lib/stage/stage.svelte.js";
 
   /**
    * The **Code** tab: the book's own code (agents/research/2026-10-29-code-in-the-editor.md). The plugins stored for
@@ -139,7 +139,7 @@
   const download = async () => {
     const id = adding ? newId || "plugin" : open;
     if (!id) return;
-    const { default: pluginApi } = await import("$lib/plugins/plugin-api.d.ts?raw");
+    const { default: pluginApi } = await import("#lib/plugins/plugin-api.d.ts?raw");
     const zip = zipFiles(downloadFiles(id, source, pluginApi));
     const url = URL.createObjectURL(new Blob([zip as BlobPart], { type: "application/zip" }));
     const link = document.createElement("a");
@@ -155,7 +155,7 @@
   onMount(() => {
     let disposed = false;
     let editor: CodeEditor | null = null;
-    import("$lib/plugins/monaco").then(({ createCodeEditor }) => {
+    import("#lib/plugins/monaco.js").then(({ createCodeEditor }) => {
       if (disposed || !host) return;
       editor = createCodeEditor(host, {
         value: untrack(() => source),

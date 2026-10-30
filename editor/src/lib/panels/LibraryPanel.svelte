@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { ApiError, type Asset } from "$lib/api";
-  import { content } from "$lib/content.svelte";
-  import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
-  import { assetPlace, formatDuration, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "$lib/library-place";
+  import { ApiError, type Asset } from "#lib/api.js";
+  import { content } from "#lib/content.svelte.js";
+  import { ACCEPT, library, NODE_ASSET_KINDS } from "#lib/library.svelte.js";
+  import { assetPlace, formatDuration, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
   import {
     FILTER_LABELS, LIBRARY_FILTERS, matchesFilter, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryPick,
-  } from "$lib/library-pick";
-  import Icon from "$lib/components/Icon.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
+  } from "#lib/library-pick.js";
+  import Icon from "#lib/components/Icon.svelte";
+  import Segmented from "#lib/components/Segmented.svelte";
   import AssetThumb from "./AssetThumb.svelte";
 
   /**

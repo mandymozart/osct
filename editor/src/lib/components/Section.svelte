@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { sections } from "$lib/sections.svelte";
+  import { sections } from "#lib/sections.svelte.js";
   import Icon from "./Icon.svelte";
 
   /**

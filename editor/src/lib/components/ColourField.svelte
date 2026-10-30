@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { HEX, longHex, rememberColour } from "$lib/colour";
+  import { HEX, longHex, rememberColour } from "#lib/colour.js";
   import ColourPopover from "./ColourPopover.svelte";
 
   /**

@@ -1,12 +1,12 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import { getBook } from "$lib/api";
-  import { content } from "$lib/content.svelte";
-  import { session } from "$lib/session.svelte";
-  import { captionOf, formatLabelOf, pagesOf } from "$lib/spread-grid";
-  import PublishButton from "$lib/PublishButton.svelte";
+  import { getBook } from "#lib/api.js";
+  import { content } from "#lib/content.svelte.js";
+  import { session } from "#lib/session.svelte.js";
+  import { captionOf, formatLabelOf, pagesOf } from "#lib/spread-grid.js";
+  import PublishButton from "#lib/PublishButton.svelte";
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › spread` at the left,
@@ -14,7 +14,7 @@
    */
   const bookId = $derived(page.params.book ?? null);
   const spreadId = $derived(page.params.spread ?? null);
-  const isAdminRoute = $derived(page.url.pathname.startsWith(`${base}/admin/`) || page.url.pathname === `${base}/admin`);
+  const isAdminRoute = $derived(page.url.pathname.startsWith(resolve("admin/")) || `${page.url.pathname}/` === resolve("admin/"));
 
   /** Book titles by id, read once per book */
   const titles = $state<Record<string, string>>({});
@@ -33,13 +33,13 @@
 <header class="top" data-app-ui>
   <nav class="crumbs" aria-label="Breadcrumb">
     {#if session.isEditor}
-      <a href="{base}/" class="crumb" aria-current={!bookId && !isAdminRoute ? "page" : undefined}>Books</a>
+      <a href={resolve("/")} class="crumb" aria-current={!bookId && !isAdminRoute ? "page" : undefined}>Books</a>
     {:else}
       <span class="crumb">OSCT</span>
     {/if}
     {#if bookId}
       <span class="sep" aria-hidden="true">›</span>
-      <a href="{base}/{bookId}/" class="crumb" aria-current={spreadId ? undefined : "page"}>{titles[bookId] ?? bookId}</a>
+      <a href={resolve(`${bookId}/`)} class="crumb" aria-current={spreadId ? undefined : "page"}>{titles[bookId] ?? bookId}</a>
       {#if spreadId}
         <span class="sep" aria-hidden="true">›</span>
         <span class="crumb current spread" aria-current="page" title={spreadLabel}>{spreadLabel}</span>
@@ -52,7 +52,7 @@
   {#if bookId}
     {#key bookId}<PublishButton {bookId} />{/key}
   {/if}
-  {#if session.isAdmin && !isAdminRoute}<a href="{base}/admin/" class="pill admin" class:in-book={!!bookId}>Admin</a>{/if}
+  {#if session.isAdmin && !isAdminRoute}<a href={resolve("admin/")} class="pill admin" class:in-book={!!bookId}>Admin</a>{/if}
   <span class="muted small email">{session.user?.email}</span>
   <button type="button" class="pill sign-out" class:in-book={!!bookId} onclick={() => session.signOut()}>Sign out</button>
 </header>

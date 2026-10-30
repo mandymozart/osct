@@ -1,5 +1,5 @@
 /**
- * The editor is served at /editor next to the reader (editor/svelte.config.js), so its pages are inside the
+ * The editor is served at /editor next to the reader (editor/vite.config.ts), so its pages are inside the
  * reader worker's scope (`/`) and their requests reach the worker. The worker leaves them to the browser: its
  * content cache is the reader's offline copy, the editor shows the draft and has no use for it (#122: Firefox
  * broke some of the Library's CDN thumbnails when they went through the worker's CDN rule).

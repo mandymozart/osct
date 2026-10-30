@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { session } from "$lib/session.svelte";
+  import { session } from "#lib/session.svelte.js";
 
   /** Sign in as the instance user: a code by email (the reader's way), or the password of an account that set one */
   let email = $state("");

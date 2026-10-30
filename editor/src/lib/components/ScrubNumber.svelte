@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { parseNumber } from "$lib/values";
+  import { parseNumber } from "#lib/values.js";
 
   /**
    * A number control where the whole field is the gesture (the Scutoons dogma's ScrubNumber): a tap focuses it for

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { ApiError, listBooks, publishBook, type BookSummary, type EnvironmentServing, type OtherBook, type PublishResult } from "$lib/api";
-  import { liveLabels, liveShort, replaceQuestion } from "$lib/live";
+  import { ApiError, listBooks, publishBook, type BookSummary, type EnvironmentServing, type OtherBook, type PublishResult } from "#lib/api.js";
+  import { liveLabels, liveShort, replaceQuestion } from "#lib/live.js";
 
   /**
    * Publish: the draft becomes a content version in the content store (`POST /editor/books/{id}/publish`) – `local`

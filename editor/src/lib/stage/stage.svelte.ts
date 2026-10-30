@@ -1,5 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
-import { base } from "$app/paths";
+import { asset } from "$app/paths";
+import type { AssetPath } from "$app/types";
 import { Object3D, Quaternion, Raycaster, Vector2 } from "three";
 import type { EnvironmentData } from "@shared/types/environment";
 import { entityNodes } from "@engine/content/game-config";
@@ -8,7 +9,7 @@ import { allVars, ArScene, observeEvents, resetVars, type VarScope, type VarValu
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData } from "@engine/types";
-import { nodeAt, removeNode, withNode } from "$lib/values";
+import { nodeAt, removeNode, withNode } from "#lib/values.js";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
 import { LightHelpers } from "./light-helper";
 import { applyShading, outline, SELECTION_COLOR, type Outline } from "./shading";
@@ -17,9 +18,9 @@ import { MockStage } from "./mock-stage";
 import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { logEvent, type StageEvent } from "./event-log";
-import { plugins } from "$lib/plugins.svelte";
+import { plugins } from "#lib/plugins.svelte.js";
 import { setPreviewActive, setTargetHidden } from "./preview";
-import type { PrintPlacement } from "$lib/api";
+import type { PrintPlacement } from "#lib/api.js";
 
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
 const REPLAY_GAP_MS = 900;
@@ -105,7 +106,7 @@ export class Stage {
     const scene = new ArScene(container, {
       createTracker: ({ container, options, scene }) => {
         const tracker = new MockTracker(container, options);
-        this.mockStage = new MockStage(scene, path => `${base}/${path}`);
+        this.mockStage = new MockStage(scene, path => asset(path as AssetPath)); // static/ files the content names at runtime
         this.mockStage.setStudioSky(!this.environment);
         tracker.attachStage(this.mockStage);
         tracker.setLookUp(this.environment ? this.lookUp : 0);

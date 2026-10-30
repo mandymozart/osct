@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The editor on SvelteKit 3 (#157)
+
+- **`@engine/…` and `@shared/…` stay aliases** (Vite `resolve.alias` + `paths` in `editor/tsconfig.json`), not
+  package.json subpath imports: the engine's own files import `@shared/…`, and an editor `#…` import reaches only files
+  of the editor package; Node and TypeScript also refuse `imports` targets outside the package (`./../engine`). Only
+  SvelteKit's deprecated `alias` option is gone. `$lib` (removed in Kit 3) became `#lib/…` with the file's extension.
+- **`verbatimModuleSyntax` stays `false`** in `editor/tsconfig.json` (as under Kit 2): turning it on gives 108
+  "must be a type-only import" errors, most in `engine/` (shared with the reader). Kit 3 prints a `tsconfig_invalid`
+  warning for it; build, check and tests pass. Open: `import type` across engine and editor, then drop the override.
+- **No version polling**: Kit 3 polls `version.json` hourly by default; `version.pollInterval: 0` keeps Kit 2's
+  behaviour (the editor reloads on a stale chunk instead – #160).
+
 ## 2026-10-30 – Touch height, tablet portrait, words as labels (#171, #172, #173)
 
 - **Touch control height = the dogma's 44 px** (2.75rem), not the review's 2.5rem: one token raised under

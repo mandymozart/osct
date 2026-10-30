@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **The editor on SvelteKit 3** (#157, Dependabot 195 and 196): SvelteKit 3.1 with adapter-static 4, TypeScript 6,
+  Svelte 5.57 and Vite 8.3; building the editor needs Node 22.17 or later (CI and the Docker image use the latest
+  Node 22). SvelteKit's configuration moved from `svelte.config.js` into `editor/vite.config.ts`, `$lib` became `#lib`
+  (package.json `imports`), links and static files go through `resolve()` / `asset()` instead of `base`, and
+  `editor/tsconfig.json` extends `$app/tsconfig`. The `cookie` override is gone – SvelteKit 3 brings cookie 2. The
+  editor works as before: same routes under `/editor/`, same `index.html` fallback, no version polling.
+
 ## 1.35.1 – 2026-10-30
 
 ### Added
