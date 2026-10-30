@@ -11,15 +11,21 @@
     DESKS, getPreview, HDRIS, isDeskId, isHdriId, subscribePreview, updatePreview, type PreviewState,
   } from "#lib/stage/preview.js";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import { formatElapsed } from "#lib/stage/event-log.js";
+  import { formatVar, initialValue, numberStep, tapTargets, VAR_TYPES, withTypes, type VarType } from "#lib/stage/narrative.js";
+  import { VAR_SCOPES, type VarScope, type VarValue } from "@engine/scene/plugin-runtime";
   import PassesPanel from "./PassesPanel.svelte";
 
   /**
    * The stage's settings in collapsible sections (open state kept per section): the **spread** (its format), the
    * **stage** (hand shake, the grid over the page, the origin every position is counted from, the desk and the sky),
-   * the **post-processing** (the book's passes, a spread's own as an override), and the **narrative** of the book's plugins (their variables with scopes, the
-   * last events of the stage, *reset* for a new game) – closed by default. The camera is moved on the stage itself;
-   * found / lost per target is the tree's eye, the first find is replayed from the stage's menu. Explanations are the
-   * controls' help in the Info view.
+   * the **post-processing** (the book's passes, a spread's own as an override), and the **narrative** of the book's
+   * plugins – closed by default: a tap button per target (the reader's tap without aiming), the variables with scope
+   * and type, editable and deletable, a form to set one by hand (both written through the plugin API), *reset* for a
+   * new game, and the stage's event timeline (time since the spread opened, event, payload) with *clear*. The camera
+   * is moved on the stage itself; found / lost per target is the tree's eye, the first find is replayed from the
+   * stage's menu. Explanations are the controls' help in the Info view.
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
 
@@ -43,6 +49,22 @@
     }
   };
   const format = $derived(spread?.format ?? "spread");
+
+  const vars = $derived(withTypes(stage?.vars ?? []));
+  const events = $derived(stage?.events ?? []);
+  /** A target takes a tap when it is found and shows AR content (the stage's live tree: an override, or the draft's) */
+  const taps = $derived(tapTargets(spread?.entries ?? [], stage?.found ?? [], target => !!stage?.treeOf(target.id)));
+
+  let varError = $state<string | null>(null);
+  let newName = $state("");
+  let newScope = $state<VarScope>("spread");
+  let newType = $state<VarType>("boolean");
+  let newValue = $state<VarValue>(initialValue("boolean"));
+  /** Write a variable through the plugin API (null deletes); true when it was written */
+  const write = (name: string, value: VarValue | null, scope: VarScope): boolean => {
+    varError = stage ? stage.setVar(name, value, scope) : "the stage is not running";
+    return varError === null;
+  };
 </script>
 
 <Section id="stage.spread" label="spread" help="The spread's own settings, saved to the draft.">
@@ -101,38 +123,82 @@
 
 <PassesPanel {stage} {bookId} {spreadId} />
 
-<Section id="stage.narrative" label="vars and events" open={false} help="The narrative of the book's plugins on the stage: their variables and the stage's latest events.">
-  <div class="row" data-help="The plugins' api.vars with their scope (book, stage, …). Reset starts a new game: every variable cleared, nothing unlocked, the spread found anew.">
-    <span class="label">vars</span>
+{#snippet valueControl(type: VarType, value: VarValue, label: string, commit: (value: VarValue) => void)}
+  {#if type === "boolean"}
+    <Segmented options={["false", "true"] as const} value={value === true ? "true" : "false"} onchange={v => commit(v === "true")} />
+  {:else if type === "number"}
+    <span class="w"><ScrubNumber value={Number(value)} step={numberStep(Number(value))} {label} onchange={commit} /></span>
+  {:else}
+    <input class="field text" aria-label={label} value={formatVar(value)} onchange={e => commit((e.currentTarget as HTMLInputElement).value)} />
+  {/if}
+{/snippet}
+
+<Section id="stage.narrative" label="vars and events" open={false} help="The narrative of the book's plugins on the stage: tap a target, set their variables by hand, read the stage's timeline.">
+  <div class="row" data-help="Taps a target's AR content without aiming at it, as a reader's tap would: the entity's onTap (a plugin component's, the animation's playOn: tap) and the event targetTapped. Only a found target with AR content takes a tap.">
+    <span class="label">tap</span>
     <span class="controls">
-      {#each stage?.vars ?? [] as v (v.scope + ":" + v.name)}
-        <span class="pill framed var" title="{v.scope} scope"><span class="muted">{v.scope} ·</span> {v.name} = {JSON.stringify(v.value)}</span>
+      {#each taps as t (t.id)}
+        <button type="button" class="pill" disabled={!t.tappable} title={t.tappable ? `Tap ${t.label}` : `${t.label} is not found on the stage`} onclick={() => stage?.tap(t.id)}>{t.label}</button>
       {:else}
         <span class="small muted">none</span>
       {/each}
-      <button type="button" class="pill" onclick={() => stage?.resetNarrative()}>reset</button>
     </span></div>
 
-  <div class="row" data-help="The stage's events, newest first: found, lost, unlocked, spreadChanged and the plugins' own.">
-    <span class="label">events</span>
-    <span class="controls events">
-      {#each stage?.events ?? [] as e, i (i)}
-        <span class="small"><strong>{e.event}</strong>{#if e.detail} <span class="muted">{e.detail}</span>{/if}</span>
-      {:else}
-        <span class="small muted">none</span>
-      {/each}
+  <div class="row" data-help="The plugins' api.vars, each with its scope and type. Reset starts a new game: every variable cleared, nothing unlocked, the timeline empty, the spread found anew.">
+    <span class="label">vars</span>
+    <span class="controls">
+      {#if !vars.length}<span class="small muted">none</span>{/if}
+      <button type="button" class="pill" onclick={() => stage?.resetNarrative()}>reset</button>
+      {#if varError}<span class="small danger">{varError}</span>{/if}
     </span></div>
+  {#each vars as v (v.scope + ":" + v.name)}
+    <div class="row" data-help-name="{v.scope} · {v.name}" data-help="A variable of the {v.scope} scope, a {v.type}. Change it to test a branch: it is written through the plugin API, so the plugins hear varChanged as from a plugin's set. The cross deletes it.">
+      <span class="label var" title="{v.scope} · {v.name}">{v.name}</span>
+      <span class="controls">
+        <span class="small muted tag">{v.scope} · {v.type}</span>
+        {@render valueControl(v.type, v.value, `${v.scope} ${v.name}`, value => write(v.name, value, v.scope))}
+        <button type="button" class="icon-button" aria-label="Delete {v.name}" title="Delete {v.name}" onclick={() => write(v.name, null, v.scope)}><Icon name="close" /></button>
+      </span></div>
+  {/each}
+  <div class="row" data-help="Sets a variable by hand, as a plugin's api.vars.set(name, value, scope) would – a camelCase name, a scope and a value of a type. An existing variable of that name and scope takes the new value.">
+    <span class="label">set</span>
+    <span class="controls">
+      <input class="field name" aria-label="Variable name" placeholder="name" bind:value={newName} />
+      <select class="field" aria-label="Scope" bind:value={newScope}>
+        {#each VAR_SCOPES as scope (scope)}<option value={scope}>{scope}</option>{/each}
+      </select>
+      <Segmented options={VAR_TYPES} value={newType} onchange={type => { newType = type; newValue = initialValue(type); }} />
+      {@render valueControl(newType, newValue, "New value", value => (newValue = value))}
+      <button type="button" class="pill" disabled={!newName.trim()} onclick={() => { if (write(newName.trim(), newValue, newScope)) newName = ""; }}>set</button>
+    </span></div>
+
+  <div class="row" data-help="The stage's events, newest first: the time since the spread opened, the event and its payload – found, lost, unlocked, tapped, spreadChanged, varChanged and the plugins' own. Clear empties the list.">
+    <span class="label">events</span>
+    <span class="controls">
+      <span class="small muted">{events.length || "none"}</span>
+      <button type="button" class="text-link" disabled={!events.length} onclick={() => stage?.clearEvents()}>clear</button>
+    </span></div>
+  {#if events.length}
+    <ol class="timeline" aria-label="Events">
+      {#each events as e, i (i)}
+        <li><span class="at muted">{formatElapsed(e.at)}</span><strong>{e.event}</strong>{#if e.detail}<span class="muted detail">{e.detail}</span>{/if}</li>
+      {/each}
+    </ol>
+  {/if}
 </Section>
 
 <style>
   .w { width: 5rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .wide { width: 100%; }
-  .var { font-variant-numeric: tabular-nums; }
-  .events { flex-direction: column; align-items: flex-start; gap: .125rem; max-height: 9rem; overflow: auto; }
-  .events strong { margin-right: .25rem; }
-  .events { overflow-x: hidden; }
-  .events > span { max-width: 100%; overflow-wrap: anywhere; }
+  .label.var { padding-left: 1rem; color: var(--text); }
+  .tag { white-space: nowrap; }
+  .name { width: 6rem; }
+  .text { width: 8rem; }
+  .timeline { list-style: none; margin: 0 0 .25rem; padding: 0; max-height: 12rem; overflow: auto; overflow-x: hidden; font-size: var(--text-small); }
+  .timeline li { display: grid; grid-template-columns: 4rem auto minmax(0, 1fr); gap: .375rem; align-items: baseline; padding: .0625rem 0; }
+  .at { font-variant-numeric: tabular-nums; text-align: right; }
+  .detail { overflow-wrap: anywhere; }
   .origin { display: inline-grid; grid-template-columns: repeat(3, .75rem); grid-template-rows: repeat(3, .75rem); gap: .125rem; padding: .125rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); }
   .spot { width: .75rem; height: .75rem; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: none; cursor: pointer; }

@@ -207,9 +207,13 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-Try it in the editor: find the key (the first find sets `hasKey` – the Stage panel's **vars** row shows `book ·
-hasKey = true`), walk to the door's spread with › – the door opens, the **events** row shows `doorOpened`; the tree's
-eye switches a target off and on (lost, found again). **reset** starts a new game.
+Try it in the editor: find the key (the first find sets `hasKey` – the Stage panel's *vars and events* lists it, book
+scope, a boolean), walk to the door's spread with › – the door opens, the timeline shows `doorOpened` with the time
+since the spread opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
+To test a branch without playing up to it, change a variable in the panel or **set** one (name, scope, type, value):
+it is written through `api.vars.set`, so your `api.vars.on` listeners and `varChanged` fire as for a plugin's write.
+**tap** taps a found target as a reader would – your component's `onTap` and `targetTapped` – without aiming at it
+([editor](editor.md) "Stage").
 
 ## Trying it: the Code tab
 

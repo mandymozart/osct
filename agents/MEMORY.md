@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The Stage panel taps, sets variables, keeps a timeline; the demo's key (#88)
+
+- **The tap button goes through the engine's own tap**: `ArScene.tapTarget` is the one path (the entity's `onTap`, the
+  app's `targetTapped`, the core event); the reader's document click reaches it after the hit test, the editor through
+  `SceneInspection.tap(targetId)` – on the inspection, not `IArScene`, because only editor tools use it (RULES #32: the
+  reader never calls `inspect()`). It taps nothing unless the scene runs and the target is found with an entity, as a
+  reader's tap could not either; the panel disables those buttons.
+- **A manual `set` is a plugin's `set`**: the Stage writes through `runtimeApi("stage").vars` – the same name, scope and
+  value checks and the same `varChanged` – so a branch tested by hand behaves as if a plugin had set it. The scopes are
+  the API's four (spread, stage, session, book); the brief's "entry" scope does not exist in API 1.1. Numbers are
+  committed on change, not on every scrub step, so the timeline does not fill with `varChanged`.
+- **The timeline counts from the spread's opening** (the core `spreadChanged`, or a reset); 100 events kept (was 12).
+- **The key's model is written by a Node script, not Blender** (`editor/tools/key-model.mjs`, glTF binary by hand, 7 KB,
+  one clip `rattle`): reproducible on any machine, so a test rebuilds it and compares it with the committed file. The
+  desks stay Blender models. The tutorial's demo screenshots still show the old stand-in (a dragon) – re-shoot with the
+  next tutorial pass.
+- Still open in #88: the `behaviour` component and declared `variables:`, bubbling scopes, two spreads on one stage.
+
 ## 2026-10-30 – The editor on SvelteKit 3 (#157)
 
 - **`@engine/…` and `@shared/…` stay aliases** (Vite `resolve.alias` + `paths` in `editor/tsconfig.json`), not
@@ -364,8 +382,8 @@ outcome in the line (or move it into a dated decision block).
   staging editor imports a content base URL. Found on the way: **a publish is per environment, not per book** – a
   second book published to `staging` would replace the book's current version once the store is bunny → #87
   (Proposals, decide). Until then the demo's Publish stays `local`.
-- [ ] Open: #88 (an animated GLB for the key, a tap button and editable variables in the Stage panel, the
-  `behaviour` component and declared variables, bubbling scopes, two spreads on one stage); the Entity panel's rows
+- [ ] Open: #88 (~~an animated GLB for the key, a tap button and editable variables in the Stage panel~~ – done
+  2026-10-30, see above; the `behaviour` component and declared variables, bubbling scopes, two spreads on one stage); the Entity panel's rows
   now follow the engine's plugin load (`plugins.version` bumped when the scene runs) – a small fix found by the demo.
 
 ## 2026-10-29 (night) – Light nodes, content schema 2.6 (#71)

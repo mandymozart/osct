@@ -68,6 +68,8 @@ export interface SceneInspection {
   nodeObject(targetId: string, path: number[]): Object3D | null;
   /** The found entity under a point of the screen (client px), as a tap would report it */
   hitTest(clientX: number, clientY: number): string | null;
+  /** Tap a found target's entity without aiming at it – the same path as the reader's tap (`onTap`, `targetTapped`); false when nothing was tapped (not found, no entity, the scene not running) */
+  tap(targetId: string): boolean;
   /** The timeline of a model node (its clips), null for other nodes or before it is built */
   nodeTimeline(targetId: string, path: number[]): NodeTimeline | null;
 }

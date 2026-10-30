@@ -5,7 +5,7 @@ import { Object3D, Quaternion, Raycaster, Vector2 } from "three";
 import type { EnvironmentData } from "@shared/types/environment";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
-import { allVars, ArScene, observeEvents, resetVars, type VarScope, type VarValue } from "@engine/scene";
+import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData } from "@engine/types";
@@ -17,7 +17,7 @@ import { getPreview, subscribePreview, type ShadingMode } from "./preview";
 import { MockStage } from "./mock-stage";
 import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
-import { logEvent, type StageEvent } from "./event-log";
+import { describePayload, logEvent, type StageEvent } from "./event-log";
 import { plugins } from "#lib/plugins.svelte.js";
 import { setPreviewActive, setTargetHidden } from "./preview";
 import type { PrintPlacement } from "#lib/api.js";
@@ -31,7 +31,9 @@ const REPLAY_GAP_MS = 900;
  * found for the first time (the unlock animation plays once per target, *replay* plays it again), and the reader's
  * progress for the book's plugins (`StageProgress`: unlocked targets, book variables – the engine's `api.progress`).
  * The reader's store does none of this here: the editor owns its state. For the Stage panel it keeps the plugins'
- * variables and the last events of the stage (`vars`, `events`).
+ * variables and the stage's event timeline (`vars`, `events` – each event timed from the spread's opening), and
+ * lets the author act like the book's code or a reader would: set a variable through the plugin API (`setVar`), tap
+ * a found target without aiming at it (`tap`).
  */
 
 export type { StageEvent } from "./event-log";
@@ -94,8 +96,12 @@ export class Stage {
   private progress = new StageProgress();
   /** The plugins' variables with their scopes (reactive: the Stage panel lists them) */
   vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
-  /** The last events of the stage, newest first */
+  /** The stage's event timeline, newest first */
   events = $state<StageEvent[]>([]);
+  /** When the spread on the stage opened (or the game was reset): the timeline counts from here */
+  private spreadOpenedAt = performance.now();
+  /** The plugin API's variables, as the Stage panel writes them – the same checks and `varChanged` as a plugin's `set` */
+  private panelVars = runtimeApi("stage").vars;
   /** Entities shown with other values than the draft's, by target id (reactive: the panels mark them) */
   overrides = new SvelteMap<string, EntityData>();
   private replayTimer = 0;
@@ -145,10 +151,9 @@ export class Stage {
       }),
       // The plugins' events and variables for the panel
       observeEvents((event, payload) => {
-        const detail = payload === undefined ? "" : typeof payload === "object" && payload !== null
-          ? Object.entries(payload as Record<string, unknown>).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(" · ")
-          : String(payload);
-        this.events = logEvent(this.events, { event, detail });
+        const now = performance.now();
+        if (event === "spreadChanged") this.spreadOpenedAt = now;
+        this.events = logEvent(this.events, { event, detail: describePayload(payload), at: now - this.spreadOpenedAt });
         if (event === "varChanged" || event === "spreadChanged") this.vars = allVars();
       }),
     );
@@ -521,13 +526,35 @@ export class Stage {
     this.replayTimer = window.setTimeout(() => ids.forEach(id => setTargetHidden(id, false)), REPLAY_GAP_MS);
   }
 
-  /** A new game: every variable of every scope cleared, nothing unlocked, the spread's targets found anew */
+  /** A new game: every variable of every scope cleared, nothing unlocked, the timeline empty and counting from now, the spread's targets found anew */
   resetNarrative(): void {
     resetVars();
     this.progress.reset();
     this.vars = allVars();
     this.events = [];
+    this.spreadOpenedAt = performance.now();
     this.replayUnlock();
+  }
+
+  /** Set (or delete with `null`) a variable by hand, through the plugin API: the plugins hear `varChanged` as from a plugin. The API's refusal as text, null when written */
+  setVar(name: string, value: VarValue | null, scope: VarScope): string | null {
+    try {
+      this.panelVars.set(name, value, scope);
+      this.vars = allVars();
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message.replace(/^stage: /, "") : String(error);
+    }
+  }
+
+  /** Tap a found target's entity without aiming at it – the reader's tap (`onTap`, `targetTapped`); false when nothing was tapped */
+  tap(targetId: string): boolean {
+    return this.scene.inspect()?.tap(targetId) ?? false;
+  }
+
+  /** Empty the timeline (variables and progress stay) */
+  clearEvents(): void {
+    this.events = [];
   }
 
   async dispose(): Promise<void> {
