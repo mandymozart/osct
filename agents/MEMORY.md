@@ -4,6 +4,38 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – the second code review (#19, develop at 1.50.0)
+
+- **Scope**: the editor, the engine, the MCP server, the API's new classes, `shared/` to 2.19, the CLI, `docs/` and
+  `agents/`, with the first pass's rules (findings first, small behaviour-preserving cleanups in commits
+  `Unreleased: …`, everything else proposed as issues – the orchestrator files them). Deploy config left out.
+- **Fixed on the branch**: unused exports and props (editor, engine), types and helpers the editor wrote again
+  (`PrintPlacement`, the surface and format unions, asset kinds, file size, dates, the admin-route test, the layout
+  fetch), the content tooling's copies of `shared/` constants and of `isObject`, comments that told history (names,
+  dates, quotes, "as before", dated research notes – now `docs/plugins.md`), the API's one hand-made 204 and the
+  confirmation signature without the SECRET check, docs and RULES paths from before the engine.
+- **Kept, not removed** (a reason each): the camera debug switches `cycleZoom` / `cameraSummary` (tested, tied to
+  #37), `getContentBaseUrl` and the plugin registry readers (test seams), `ScrubNumber`'s `disabled` and
+  `ColourPopover`'s `palette` (a control's generic props), the engine's own `isRecord` in `trigger-protocol.ts` (the
+  content tooling compiles that file without the `@shared` alias), the duplicated re-exports of the reader's
+  `ar-bridges` barrels (the dev tools import the group barrel, the bridge the utils barrel).
+- **Nothing `shared/` was touched**: every change there bumps the schema; the shared findings wait for the next
+  schema MINOR as one proposed issue.
+- **Found, proposed** (not fixed – each changes behaviour): a token may change the account's update options
+  (`PATCH /user`), an import's `book.id` is not compared with the path, the local store serves no assets of book ids
+  with capitals or `_`, the admin page's CSV button follows every filter but *All*, book plugin code runs in the origin
+  that holds the session token, unhandled rejections and mid-session 401s in the editor.
+
+- [ ] Legacy kept for older data, to remove once no instance needs it (RULES #1/#15 – ask first): the `users.role`
+  mirror and `GET /user`'s `role` field "for older readers" (`Roles.php`, `Users.php`; the column stays, RULES #25);
+  `POST /admin/editors` "the older way to make an editor" (still in docs/editor.md); the one-time move out of
+  `server/api/db/` (`Paths.php`, `index.php`); a `latest.json` without `book` (`ContentStore::live`); a book imported
+  before `imported_json` (`Books::comparison`, `editsSince`); a declared plugin of a build without recorded specs
+  (`Editor.php`, `Books::parse`).
+- [ ] Legacy in the editor: compatibility paths for an older API although both ship in one image (`isAddRefused`, the
+  single-step deletes, `Health.env?`, the `mcp-setup.ts` host fallback) – proposed as an issue.
+- [ ] `editor/package.json` carries 1.10.1 while the app is 1.50.x – RULES #10 does not list the editor (proposed).
+
 ## 2026-10-30 – the behaviour component: rules without code (#88, schema 2.19)
 
 - **One component with a list of rules**, not one component per rule as the concept's Studio C sketched
@@ -584,7 +616,7 @@ outcome in the line (or move it into a dated decision block).
   plugins (declared, or Code tab sources – `Editor::hasPlugins`), and a publish without declared plugins refuses such
   nodes (409 `unknown-node-types`). In a book with plugins a lower-case typo like `hologram` now passes the API; the
   content build still refuses it. A type is at most 32 characters (`entities.type` is `VARCHAR(32)`; no ALTER needed).
-- [ ] The MCP server still refuses a plugin's node type (`mcp/src/model.ts` `unknownNodeTypes`, `pluginTypes` does not
+- [x] *(done – `pluginTypes` reads `registerNodeType`, #19 review)* The MCP server still refuses a plugin's node type (`mcp/src/model.ts` `unknownNodeTypes`, `pluginTypes` does not
   read `registerNodeType`) – it follows when an agent needs one.
 
 ## 2026-10-30 – A video's size and duration on upload (#91)
@@ -625,7 +657,7 @@ outcome in the line (or move it into a dated decision block).
   one already exists in the tree. The spread the book opens on cannot be removed either (`initial-spread`).
 - The hint "New spreads come in with an import for now" shows only where adding is impossible: the API refuses a
   double page (an older server) – then the book page offers no double pages.
-- [ ] The MCP server has no tool for adding or removing spreads yet (RULES #32: a new endpoint is a new tool there).
+- [x] *(done – `add_spread`, `put_spread`, `delete_spread`)* The MCP server has no tool for adding or removing spreads yet (RULES #32: a new endpoint is a new tool there).
 
 ## 2026-10-30 – The Library as the picker; entry category vs what appears (#164, #165)
 
@@ -826,8 +858,8 @@ outcome in the line (or move it into a dated decision block).
   Tilman's call). The start bundles `src/` + `shared/` with esbuild (`shared/` imports without extensions and OSCT has no
   root `package.json`, so Node's own type stripping – SCUTOONS' way – cannot run it). `.mcp.json` at the root gives every
   Claude Code session here the server. RULES #10 / #23: `mcp/package.json` carries the one version too.
-- [ ] Open: personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
-  connects; a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
+- [ ] Open: ~~personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
+  connects~~ (done: `ApiTokens.php`, #142); a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
 - [x] Tilman, 2026-10-30: **"publish soll beim Menschen bleiben … so lassen wie in PR #92"** – the MCP may publish to
   `local` and `staging` (a check), production is the editor's Publish button; the one step more than SCUTOONS is the
   content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
@@ -929,7 +961,7 @@ outcome in the line (or move it into a dated decision block).
   how the content schema links to the app's and the editor's versions is still open.
 - [ ] Open: how the content schema version relates to the app's and the editor's versions (today: MAJOR refused,
   MINOR ignored – RULES #10; the editor reads the same engine).
-- [ ] Open: the plugin API's own version (`PLUGIN_API_VERSION` 1.0) against app releases – bump the MINOR when the
+- [x] *(settled – the API is at 1.5, one MINOR per addition)* Open: the plugin API's own version (`PLUGIN_API_VERSION` 1.0) against app releases – bump the MINOR when the
   API grows (#77 registerNodeType), MAJOR when a hook changes meaning.
 - Schema clash resolved in the merge: the covers took 2.3 on develop while this branch used 2.3 too → the plugins are
   **2.4** (RULES #23's rule for version files, applied to the content schema).
@@ -1100,9 +1132,9 @@ outcome in the line (or move it into a dated decision block).
   chunk, recommended now) or B (a SvelteKit app in the OSCT repo under /editor). Then: "OSCT wird das nie. Das ist für
   Building Fictions im Moment" (the instance is the brand, the editor belongs to it, not to the title) and "Der Editor
   erstmal im OSCT-Repo". Ids without leading zeros: #63 (Backlog). Day / night of the editor: only the flag, no button.
-- [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
+- [x] *(done – the stage simulates its own progress, `editor/src/lib/stage/progress.ts`)* Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
   Kévin's own phone later); comes with accounts / roles in step 2.
-- [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
+- [x] *(obsolete – the in-reader editor is gone, RULES #32)* Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
   loop settling?) – seen once in the browser pane, not reproduced.
 - [ ] Open (Tilman): 35 cm / 30° as the reader's view, or measure; the desktop default could start closer (20 cm).
 
@@ -1224,7 +1256,7 @@ outcome in the line (or move it into a dated decision block).
   documents keep their names. #17: file casing per folder (PascalCase in services/store, kebab-case elsewhere) until
   #27 decides otherwise.
 - Content schema 1.1 → 1.2: only comments changed in `shared/`, but the lock covers the whole folder (RULES #10).
-- [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` and the "while it is in git" CI step go with
+- [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` (the "while it is in git" CI step is gone) goes with
   the content removal; RULES #8 says so.
 - [ ] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
 
@@ -1255,9 +1287,9 @@ outcome in the line (or move it into a dated decision block).
   `targets/`, `.mindar/`, page images, committed build output). `main` still tracks
   `client/public/assets/content/` (build output from before 2026-09-28) → release the content-free tree first.
   The repository is public; GitHub keeps old objects through PR refs until GitHub Support collects them.
-- [ ] Open (Tilman): where `osct-content` is backed up (private repository or the storage zone) – before the
+- [x] *(decided 2026-10-30: kept locally – docs/content-out-of-git.md step 2)* Open (Tilman): where `osct-content` is backed up (private repository or the storage zone) – before the
   rewrite, the history is the only other copy.
-- [x] Deploys build with `VITE_CONTENT_BASE_URL` (1.7.9, #6: Kamal image + FTPS staging). [ ] Open: `Dockerfile`
+- [x] Deploys build with `VITE_CONTENT_BASE_URL` (1.7.9, #6: Kamal image + FTPS staging). [x] Done: `Dockerfile`
   without `COPY content` with the removal commit – then the removal commit, release, freeze, rewrite, force push (Tilman), GitHub Support.
 
 ## 2026-10-28 – Content deployment apart from the app: versions + strict purge; content schema MAJOR.MINOR (#5, Tilman, 1.7.6)
@@ -1301,15 +1333,15 @@ outcome in the line (or move it into a dated decision block).
 - [ ] Open (Tilman): `staging/` still holds the leftovers of the in-place sync of the same day (`game.config.json`,
   `files.json`, `assets/` at the environment root). `npm run osct -- content purge --env staging --unknown`
   (or the Content button with "unknown") removes them – try `--dry-run` first.
-- [ ] Open (dashboard, Tilman): edge rule `*/latest.json` → cache time 0, or "Vary cache → URL query string"
+- [x] *(done – in place 2026-10-30, docs/content-cdn.md)* Open (dashboard, Tilman): edge rule `*/latest.json` → cache time 0, or "Vary cache → URL query string"
   (checked 2026-10-28: query strings still ignored). Until then an edge can hand out the previous version for up
   to 30 days.
 - [x] CORS (checked 2026-10-28): `latest.json`, `game.config.json`, `files.json` and `.jpg` send
   `Access-Control-Allow-Origin: *`. Models and videos not checked – none in the CI sync.
 - [x] 1.7.9 (#6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable `CONTENT_BASE_URL`,
-  `config/deploy.yml` builder.args → `Dockerfile` ARG), the FTPS staging deploy too. [ ] Later `Dockerfile` drops
+  `config/deploy.yml` builder.args → `Dockerfile` ARG), the FTPS staging deploy too. [x] `Dockerfile` dropped
   `COPY content` (with the removal commit, docs/content-out-of-git.md step 1).
-- [~] Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
+- [x] *(done – the history was rewritten 2026-10-29; GitHub's cached views: docs/content-out-of-git.md step 7)* Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
   Repository wieder klein und handelbar wird") – prepared, see the entry above and `docs/content-out-of-git.md`.
 - [ ] Open: #15 – trial videos go through the same sync once they are part of the content folder outside git.
 ## 2026-10-27 – Sessions start with their issue; deploys move issues on the board (Tilman, 1.7.1, #11)
@@ -1526,7 +1558,7 @@ outcome in the line (or move it into a dated decision block).
   content discussion with Kévin (PLAN Phase 10 has the questions). Code split into `book-anchor.ts`, `sky-sample.ts`,
   `shader.ts` (placeholder world in its own GLSL block), `look-around.ts`; the gyroscope is read only while an option is
   on; `ArView.underlay` is an object with `active` (no clear when inactive).
-- [ ] Open: the world is a placeholder in the shader (`PLACEHOLDER_WORLD` in `look-around/shader.ts`) – the real one comes as
+- [x] *(done – the book's environment, schema 2.8 / 2.10)* Open: the world is a placeholder in the shader (`PLACEHOLDER_WORLD` in `look-around/shader.ts`) – the real one comes as
   content in Phase 14 (RULES #5).
 
 ## 2026-09-28 – Content build output not in git (Tilman; branch `build-content-in-ci`)
@@ -2404,7 +2436,7 @@ outcome in the line (or move it into a dated decision block).
 - [x] `services/PreloaderService.ts`: neighbouring spreads (±1) on `arReady` – `.mind`, then (user) their content
       (entity assets, entry images; videos last). Uses the `LoadOptions` / `LoadResult` types kept for this.
       Not all spreads: ~1 MB `.mind` each, the final book has many spreads.
-- [ ] Open: production cache headers for content; iOS range requests for preloaded videos (Phase 7).
+- [ ] Open: ~~production cache headers for content~~ (the CDN's); iOS range requests for preloaded videos (Phase 7).
 - [x] Lesson: PowerShell 5.1 `Get-Content -Raw | Set-Content -Encoding utf8` mangles non-ASCII (reads ANSI)
       and adds a BOM – use the Edit tool (or Bash `sed`) for file edits.
 
@@ -2514,7 +2546,7 @@ outcome in the line (or move it into a dated decision block).
       problem list shown in dev only. Before: the app hung on "Loading book" with the error only in the console.
 - [x] The "page is part of a spread" rule moved into the shared guard (the app model maps entries to
       spreads by page; a config that passes the guard can always be mapped).
-- [ ] Phase 2: the startup compatibility checks (app ↔ content ↔ storage) use the same path, e.g.
+- [x] *(done – `checkContentCompatibility` → `ErrorCode.NOT_SUPPORTED`)* Phase 2: the startup compatibility checks (app ↔ content ↔ storage) use the same path, e.g.
       content ahead of app → `ErrorCode.NOT_SUPPORTED`.
 
 ## 2026-09-24 – Unused types audit (cleanup by Tilman, see RULES #15)
@@ -2637,7 +2669,7 @@ the per-target `bookId`.
       `getUserMedia` call – reusing one stream breaks MindAR restarts because `stop()` ends its tracks):
       5 sequential + 4 rapid switches → right `.mind`, 1 scene, 1 live camera stream, no errors.
       User tested the changes on 2026-09-24 ("tested everything") – no issues reported.
-- [~] (fixed in 1e, section E) Target listeners use the number in the target **id** as "index" (`target-003` → 3), not the
+- [x] *(done – targets are keyed by id since 1.3.2)* (fixed in 1e, section E) Target listeners use the number in the target **id** as "index" (`target-003` → 3), not the
       MindAR index; history is keyed by it. Works but fragile → Phase 2 history rekey.
 
 ## 2026-09-24 – Phase 1d done (entries) + Phase 0 constant
@@ -2697,7 +2729,7 @@ Agent decisions (reversible, flagged for review):
       `HistoryManager` + `TargetManager` (seen/persist/resume/corrupt storage), and a
       **content-config** check on the built `game.config.json` (≤ 5 targets per group, MindAR indices
       0..n-1, unique ids, referenced files exist in `public/`). These guard Phase 1c/1d/2.
-- [ ] Found by the tests: `RouterManager.navigate()` with an unknown slug **throws** in
+- [x] *(done – an unknown slug routes to not-found, `RouterManager.ts`; no `it.fails` left)* Found by the tests: `RouterManager.navigate()` with an unknown slug **throws** in
       `RouteResolver.createRoute`, so the `/not-found` branch is unreachable. Documented in a test;
       fix in Phase 2 together with `isSameRoute` (that one is an `it.fails` test – drop `.fails` when fixed).
 - [x] Browser smoke run (in-app browser, camera blocked there): home, tutorial, scan HUD, index open
