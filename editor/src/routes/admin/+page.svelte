@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { base } from "$app/paths";
-  import { ApiError, downloadUsersCsv, grantRole, inviteEditor, listRoles, listUsers, revokeRole, type AdminUser, type Role } from "$lib/api";
-  import { session } from "$lib/session.svelte";
+  import { ApiError, downloadUsersCsv, grantRole, inviteEditor, listRoles, listUsers, revokeRole, type AdminUser, type Role } from "#lib/api.js";
+  import { session } from "#lib/session.svelte.js";
 
   /**
    * The admin page (docs/admin.md): the instance's users found by e-mail, each one's roles as toggles (granted when and

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { library } from "$lib/library.svelte";
-  import { assetPlace } from "$lib/library-place";
+  import { library } from "#lib/library.svelte.js";
+  import { assetPlace } from "#lib/library-place.js";
 
   /**
    * A file field (#164): the chosen file – a picture as a small preview, every file by where it belongs

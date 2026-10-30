@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { help } from "$lib/help.svelte";
+  import { help } from "#lib/help.svelte.js";
   import Icon from "./Icon.svelte";
 
   /**

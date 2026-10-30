@@ -2,13 +2,13 @@
   import { onMount } from "svelte";
   import { getEntityRef } from "@engine/content/game-config";
   import { nodeTypeSpec, type EntityData, type Entry, type Target } from "@engine/types";
-  import { content } from "$lib/content.svelte";
-  import { Stage } from "$lib/stage/stage.svelte";
-  import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "$lib/stage/preview";
-  import { selection } from "$lib/selection.svelte";
-  import { indentNode, isWithin, moveNode, nodeLabel, outdentNode, samePath, shiftNode, visiblePaths, type DropZone, type TreeEdit } from "$lib/tree";
-  import { nodeAt } from "$lib/values";
-  import Icon, { type IconName } from "$lib/components/Icon.svelte";
+  import { content } from "#lib/content.svelte.js";
+  import { Stage } from "#lib/stage/stage.svelte.js";
+  import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
+  import { selection } from "#lib/selection.svelte.js";
+  import { indentNode, isWithin, moveNode, nodeLabel, outdentNode, samePath, shiftNode, visiblePaths, type DropZone, type TreeEdit } from "#lib/tree.js";
+  import { nodeAt } from "#lib/values.js";
+  import Icon, { type IconName } from "#lib/components/Icon.svelte";
 
   /**
    * The spread as a tree in the style of Blender's outliner: a chevron column, a type icon before every name, guide

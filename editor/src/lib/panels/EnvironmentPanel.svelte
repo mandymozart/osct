@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { environmentEdit, fitsSlot, type EnvironmentSlot } from "$lib/environment.svelte";
-  import { library } from "$lib/library.svelte";
-  import { pickAccept, type LibraryPick } from "$lib/library-pick";
-  import { content } from "$lib/content.svelte";
-  import type { Stage } from "$lib/stage/stage.svelte";
-  import ScrubNumber from "$lib/components/ScrubNumber.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
-  import FileField from "$lib/components/FileField.svelte";
+  import { environmentEdit, fitsSlot, type EnvironmentSlot } from "#lib/environment.svelte.js";
+  import { library } from "#lib/library.svelte.js";
+  import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
+  import { content } from "#lib/content.svelte.js";
+  import type { Stage } from "#lib/stage/stage.svelte.js";
+  import ScrubNumber from "#lib/components/ScrubNumber.svelte";
+  import Segmented from "#lib/components/Segmented.svelte";
+  import FileField from "#lib/components/FileField.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
 
   /**

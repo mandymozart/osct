@@ -2,27 +2,27 @@
   import { untrack } from "svelte";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
   import { ENTITY_TYPES, FILTER_TYPES, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType, type NodeType, type Target } from "@engine/types";
-  import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "$lib/api";
-  import { content } from "$lib/content.svelte";
-  import { library } from "$lib/library.svelte";
-  import { nodeAssetKinds, pickAccept, type LibraryPick } from "$lib/library-pick";
-  import { plugins } from "$lib/plugins.svelte";
-  import { Stage } from "$lib/stage/stage.svelte";
-  import { fromOrigin, toOrigin } from "$lib/stage/origin";
-  import { getPreview, subscribePreview } from "$lib/stage/preview";
+  import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
+  import { content } from "#lib/content.svelte.js";
+  import { library } from "#lib/library.svelte.js";
+  import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
+  import { plugins } from "#lib/plugins.svelte.js";
+  import { Stage } from "#lib/stage/stage.svelte.js";
+  import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
+  import { getPreview, subscribePreview } from "#lib/stage/preview.js";
   import {
     addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
     helpName, sameValue, setValue, valueRows, withNode, type ValueRow,
-  } from "$lib/values";
-  import { selection } from "$lib/selection.svelte";
-  import { breadcrumb } from "$lib/selection";
-  import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "$lib/tree";
+  } from "#lib/values.js";
+  import { selection } from "#lib/selection.svelte.js";
+  import { breadcrumb } from "#lib/selection.js";
+  import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "#lib/tree.js";
   import type { NodeTimeline } from "@engine/types";
-  import ColourField from "$lib/components/ColourField.svelte";
-  import Icon from "$lib/components/Icon.svelte";
-  import ScrubNumber from "$lib/components/ScrubNumber.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
-  import FileField from "$lib/components/FileField.svelte";
+  import ColourField from "#lib/components/ColourField.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import ScrubNumber from "#lib/components/ScrubNumber.svelte";
+  import Segmented from "#lib/components/Segmented.svelte";
+  import FileField from "#lib/components/FileField.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
 
   /**

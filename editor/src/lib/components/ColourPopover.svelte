@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { HEX, PALETTE, hexToHsv, hsvToHex, longHex, recentColours, type Hsv } from "$lib/colour";
+  import { HEX, PALETTE, hexToHsv, hsvToHex, longHex, recentColours, type Hsv } from "#lib/colour.js";
   import Icon from "./Icon.svelte";
 
   /**

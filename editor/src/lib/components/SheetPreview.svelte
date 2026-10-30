@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PrintBox } from "$lib/sheet-preview";
+  import type { PrintBox } from "#lib/sheet-preview.js";
 
   /**
    * A page or a double page as a picture (#153): the sheet's image when there is one, the targets' prints laid over it

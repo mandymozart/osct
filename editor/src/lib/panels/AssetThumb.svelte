@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Asset } from "$lib/api";
-  import Icon, { type IconName } from "$lib/components/Icon.svelte";
+  import type { Asset } from "#lib/api.js";
+  import Icon, { type IconName } from "#lib/components/Icon.svelte";
 
   /**
    * A library file's preview: an image, or a video's first frame (the poster) that plays muted and inline while

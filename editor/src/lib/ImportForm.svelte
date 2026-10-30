@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ApiError, importBook } from "$lib/api";
+  import { ApiError, importBook } from "#lib/api.js";
   import type { GameConfiguration } from "@engine/types";
 
   /**

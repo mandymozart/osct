@@ -1,27 +1,27 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { content } from "$lib/content.svelte";
-  import { Stage, type PickMode, type StagePick } from "$lib/stage/stage.svelte";
-  import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode } from "$lib/stage/gizmo";
-  import { SHADING_MODES, updatePreview, type ShadingMode } from "$lib/stage/preview";
-  import Icon, { type IconName } from "$lib/components/Icon.svelte";
-  import StagePanel from "$lib/panels/StagePanel.svelte";
-  import EntityPanel from "$lib/panels/EntityPanel.svelte";
-  import TreePanel from "$lib/panels/TreePanel.svelte";
-  import LibraryPanel from "$lib/panels/LibraryPanel.svelte";
-  import CodePanel from "$lib/panels/CodePanel.svelte";
-  import EnvironmentPanel from "$lib/panels/EnvironmentPanel.svelte";
-  import { environmentEdit } from "$lib/environment.svelte";
-  import NewTargetForm from "$lib/panels/NewTargetForm.svelte";
-  import { deleteEntry, putTarget, type Asset } from "$lib/api";
-  import { library } from "$lib/library.svelte";
-  import { nodeAt } from "$lib/values";
-  import { selection } from "$lib/selection.svelte";
-  import InfoView from "$lib/components/InfoView.svelte";
-  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, treeStartsOpen, widths, wordTabs, type Column } from "$lib/widths.svelte";
+  import { content } from "#lib/content.svelte.js";
+  import { Stage, type PickMode, type StagePick } from "#lib/stage/stage.svelte.js";
+  import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode } from "#lib/stage/gizmo.js";
+  import { SHADING_MODES, updatePreview, type ShadingMode } from "#lib/stage/preview.js";
+  import Icon, { type IconName } from "#lib/components/Icon.svelte";
+  import StagePanel from "#lib/panels/StagePanel.svelte";
+  import EntityPanel from "#lib/panels/EntityPanel.svelte";
+  import TreePanel from "#lib/panels/TreePanel.svelte";
+  import LibraryPanel from "#lib/panels/LibraryPanel.svelte";
+  import CodePanel from "#lib/panels/CodePanel.svelte";
+  import EnvironmentPanel from "#lib/panels/EnvironmentPanel.svelte";
+  import { environmentEdit } from "#lib/environment.svelte.js";
+  import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
+  import { deleteEntry, putTarget, type Asset } from "#lib/api.js";
+  import { library } from "#lib/library.svelte.js";
+  import { nodeAt } from "#lib/values.js";
+  import { selection } from "#lib/selection.svelte.js";
+  import InfoView from "#lib/components/InfoView.svelte";
+  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -382,7 +382,7 @@
   const spread = $derived(content.spread(spreadId));
   const step = (direction: 1 | -1) => {
     const next = content.neighbour(spreadId, direction);
-    if (next) void goto(`${base}/${bookId}/${next.id}/`, { replaceState: true });
+    if (next) void goto(resolve(`${bookId}/${next.id}/`), { replace: true });
   };
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Control") stage?.setSnap(true);
@@ -533,7 +533,7 @@
     <div class="bar" class:icons={iconTabs}>
       {#if !narrow}
         <!-- A phone has the top bar's book link for ×, and ‹ › on the stage: its head is the tabs alone (#171) -->
-        <a href="{base}/{bookId}/" class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
+        <a href={resolve(`${bookId}/`)} class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
         <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
         <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
         <span class="grow"></span>

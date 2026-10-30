@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { getBook, type BookSummary } from "$lib/api";
-  import { coverSheetOf, fetchBookLayout, pageOf, printBoxes, sheetUrl, type PrintBox } from "$lib/sheet-preview";
-  import type { StageLayout } from "$lib/stage/stage-layout";
-  import SheetPreview from "$lib/components/SheetPreview.svelte";
+  import { getBook, type BookSummary } from "#lib/api.js";
+  import { coverSheetOf, fetchBookLayout, pageOf, printBoxes, sheetUrl, type PrintBox } from "#lib/sheet-preview.js";
+  import type { StageLayout } from "#lib/stage/stage-layout.js";
+  import SheetPreview from "#lib/components/SheetPreview.svelte";
 
   /**
    * A book's front cover as a picture (#153): the layout's `cover-front` sheet with the cover spread's prints over it;

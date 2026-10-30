@@ -1,18 +1,18 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { PASS_TYPES, PASSES, type PassData } from "@engine/types";
-  import { putBookPasses, putSpread } from "$lib/api";
-  import { content } from "$lib/content.svelte";
-  import type { Stage } from "$lib/stage/stage.svelte";
+  import { putBookPasses, putSpread } from "#lib/api.js";
+  import { content } from "#lib/content.svelte.js";
+  import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
     backToBooks, draftPasses, editInEffect, effectivePasses, ownPasses, passesSource, passesStatus, pendingSaves,
     type PassesDraft, type PassesSource,
-  } from "$lib/passes-edit";
-  import { helpName, passOptionLabels, passRows, passValue, setPassValue, type ValueRow } from "$lib/values";
-  import ColourField from "$lib/components/ColourField.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
-  import ScrubNumber from "$lib/components/ScrubNumber.svelte";
-  import Section from "$lib/components/Section.svelte";
+  } from "#lib/passes-edit.js";
+  import { helpName, passOptionLabels, passRows, passValue, setPassValue, type ValueRow } from "#lib/values.js";
+  import ColourField from "#lib/components/ColourField.svelte";
+  import Segmented from "#lib/components/Segmented.svelte";
+  import ScrubNumber from "#lib/components/ScrubNumber.svelte";
+  import Section from "#lib/components/Section.svelte";
 
   /**
    * The **post-processing** (content schema 2.5): the passes over the rendered image in order – the built-in bloom,

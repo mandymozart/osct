@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
-  import { ApiError, listBooks, type BookSummary, type EnvironmentServing } from "$lib/api";
-  import ImportForm from "$lib/ImportForm.svelte";
-  import BookCover from "$lib/BookCover.svelte";
-  import InfoView from "$lib/components/InfoView.svelte";
+  import { ApiError, listBooks, type BookSummary, type EnvironmentServing } from "#lib/api.js";
+  import ImportForm from "#lib/ImportForm.svelte";
+  import BookCover from "#lib/BookCover.svelte";
+  import InfoView from "#lib/components/InfoView.svelte";
 
   /**
    * The editor's start (#153): the books of this instance as their covers on the left, the import of a new one on the
@@ -45,7 +45,7 @@
       <ul class="covers">
         {#each books as book (book.id)}
           <li>
-            <a href="{base}/{book.id}/" class="book">
+            <a href={resolve(`${book.id}/`)} class="book">
               <span class="cover-box"><BookCover {book} /></span>
               <span class="title">{book.title}</span>
               <span class="author muted">{book.author}</span>
@@ -66,7 +66,7 @@
 
   <aside class="side">
     <div class="import">
-      <ImportForm ondone={async id => { await load(); await goto(`${base}/${id}/`); }} />
+      <ImportForm ondone={async id => { await load(); await goto(resolve(`${id}/`)); }} />
     </div>
     <InfoView />
   </aside>

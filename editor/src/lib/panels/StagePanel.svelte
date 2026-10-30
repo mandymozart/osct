@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { putSpread } from "$lib/api";
-  import { content } from "$lib/content.svelte";
-  import type { Stage } from "$lib/stage/stage.svelte";
-  import { clampGrid } from "$lib/stage/preview";
-  import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel } from "$lib/stage/origin";
-  import Segmented from "$lib/components/Segmented.svelte";
-  import Section from "$lib/components/Section.svelte";
+  import { putSpread } from "#lib/api.js";
+  import { content } from "#lib/content.svelte.js";
+  import type { Stage } from "#lib/stage/stage.svelte.js";
+  import { clampGrid } from "#lib/stage/preview.js";
+  import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel } from "#lib/stage/origin.js";
+  import Segmented from "#lib/components/Segmented.svelte";
+  import Section from "#lib/components/Section.svelte";
   import {
     DESKS, getPreview, HDRIS, isDeskId, isHdriId, subscribePreview, updatePreview, type PreviewState,
-  } from "$lib/stage/preview";
-  import ScrubNumber from "$lib/components/ScrubNumber.svelte";
+  } from "#lib/stage/preview.js";
+  import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import PassesPanel from "./PassesPanel.svelte";
 
   /**
