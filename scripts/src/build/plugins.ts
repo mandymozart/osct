@@ -251,6 +251,8 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       vars: { get: () => undefined, set: () => undefined, on: () => () => undefined, all: () => ({}) },
       progress: { unlocked: () => false, consulted: () => false, completion: () => 0, counts: () => ({ unlocked: 0, targets: 0 }) },
       spread: { current: null, get: () => undefined },
+      // A file is loaded where a build runs (a material, a pass, a node type) – never while recording
+      loadText: () => Promise.resolve(''),
       log: () => undefined,
     });
   } catch (error) {

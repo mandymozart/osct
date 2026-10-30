@@ -58,7 +58,9 @@ declare(strict_types=1);
  *   POST   /editor/books/{id}/assets            the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
  *   PUT    /editor/books/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
  *   GET    /editor/books/{id}/assets/{aid}/usages · DELETE /editor/books/{id}/assets/{aid}[?force=1]
- *   GET    /editor/books/{id}/plugins · GET | PUT { source } | DELETE /editor/books/{id}/plugins/{pid}
+ *   GET    /editor/books/{id}/plugins · GET | PUT { source } | DELETE[?force=1] /editor/books/{id}/plugins/{pid}
+ *   POST   /editor/books/{id}/plugins[?id=]     a script file as the body, X-File-Name → 201 { plugin } (the Library, #186)
+ *   PUT    /editor/books/{id}/plugins/{pid}/file a script file as the body → { plugin } · GET …/plugins/{pid}/usages
  *                                               the Code tab's plugin sources (docs/server.md "Plugin sources")
  *   GET    /content/{env}/{path}                the local content store (json files, and the assets' files; public)
  *
@@ -162,6 +164,9 @@ try {
         (bool) preg_match("#^GET /editor/books/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/plugins$#", $route, $match) => Plugins::list($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/plugins$#", $route, $match) => Plugins::upload($match[1]),
+        (bool) preg_match("#^PUT /editor/books/($id)/plugins/($id)/file$#", $route, $match) => Plugins::replaceFile($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/books/($id)/plugins/($id)/usages$#", $route, $match) => Plugins::usages($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::get($match[1], $match[2]),
         (bool) preg_match("#^PUT /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::put($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::delete($match[1], $match[2]),

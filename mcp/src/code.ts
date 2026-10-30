@@ -1,11 +1,14 @@
 // The Code tab's plugin sources over the API (`/api/editor/books/{id}/plugins`, docs/server.md "Plugin sources"): the
 // book's own TypeScript, kept per plugin id. They are the editor's sandbox – Run shows them on the stage; readers get a
 // plugin through the content build only – so this file never runs a source: it reads what a source registers from its text.
+// The editor's Library lists the same sources as its scripts (#186): a script file becomes one with upload_plugin.
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import type { OsctApi } from "./api.ts";
 import { pluginTypes } from "./model.ts";
-import { guard, text } from "./result.ts";
+import { fail, guard, text } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import { PLUGIN_ID_PATTERN } from "../../shared/types/plugins";
 
@@ -16,6 +19,8 @@ interface PluginRow {
   id: string;
   source?: string;
   size: number;
+  /** the draft's rows that use a type it registers (the list's) */
+  usages?: number;
   updatedAt: string;
   updatedBy: string | null;
 }
@@ -25,7 +30,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
 
   server.registerTool(
     "list_plugins",
-    { description: "The book's plugin sources (the Code tab): id, size, who saved it, when – without the source (get_plugin).", inputSchema: z.object({ book: BOOK }), annotations: { readOnlyHint: true, openWorldHint: false } },
+    { description: "The book's plugin sources (the Code tab, the Library's scripts): id, size, usages (the draft's rows that use a type it registers), who saved it, when – without the source (get_plugin).", inputSchema: z.object({ book: BOOK }), annotations: { readOnlyHint: true, openWorldHint: false } },
     guard(async ({ book }) => text(await api.call<{ plugins: PluginRow[] }>("GET", path(book)))),
   );
 
@@ -42,7 +47,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
     "put_plugin",
     {
       description:
-        "Saves a plugin source (new or changed; at most 256 KB; a change is recorded). TypeScript that exports register(api) – see osct://guides/plugins: api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js (never import it). Nothing runs here: the person presses Run in the Code tab to see it on the stage; readers get it through the content build.",
+        "Saves a plugin source (new or changed; at most 256 KB; a change is recorded). TypeScript that exports register(api) – see osct://guides/plugins: api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js (never import it), api.loadText(url) for a shader file of the Library (upload_asset, kind shader – in a material's or pass's build, never a layer's glsl). Nothing runs here: the person presses Run in the Code tab to see it on the stage; readers get it through the content build.",
       inputSchema: z.object({ book: BOOK, plugin: PLUGIN, source: z.string().describe("the TypeScript source") }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -58,10 +63,40 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
   );
 
   server.registerTool(
+    "upload_plugin",
+    {
+      description:
+        "Uploads a script file from this computer (.ts or .js, at most 256 KB, UTF-8 text) as a plugin source – what the editor's Library does with a dropped script. The id is `plugin` or the file's name (`Wobble Effect.ts` → wobble-effect); an id that exists is refused (409 plugin-exists) unless `replace: true`, which makes the file that plugin's new source. A change is recorded. Answers the plugin and the types it registers (read from its text).",
+      inputSchema: z.object({
+        book: BOOK,
+        file: z.string().describe("a local file path (.ts or .js)"),
+        plugin: PLUGIN.optional().describe("the plugin's id (default: from the file's name)"),
+        replace: z.boolean().optional().describe("true: the file replaces the source of an existing plugin"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ book, file, plugin, replace }) => {
+      if (replace && !plugin) return fail({ error: { code: "mcp", message: "replace: true goes with the plugin's id" } });
+      const bytes = new Uint8Array(await readFile(file));
+      const name = basename(file);
+      const { plugin: row } = replace
+        ? await api.upload<{ plugin: PluginRow & { source: string } }>("PUT", `${path(book, plugin)}/file`, bytes, name)
+        : await api.upload<{ plugin: PluginRow & { source: string } }>("POST", `${path(book)}${plugin ? `?id=${encodeURIComponent(plugin)}` : ""}`, bytes, name);
+      return text({ plugin: { ...row, source: undefined }, registers: pluginTypes(row.source), open: editorHref(links, book), next: "Open a spread in the editor → Library → code (or Code) → the plugin → Run shows it on the stage." });
+    }),
+  );
+
+  server.registerTool(
+    "plugin_usages",
+    { description: "Where the draft uses what a plugin source registers – the book's passes, spreads, targets, shared entities and entries that name one of its types – and those types.", inputSchema: z.object({ book: BOOK, plugin: PLUGIN }), annotations: { readOnlyHint: true, openWorldHint: false } },
+    guard(async ({ book, plugin }) => text(await api.call<{ usages: Array<{ kind: string; ref: string }>; registers: Record<string, string[]> }>("GET", `${path(book, plugin)}/usages`))),
+  );
+
+  server.registerTool(
     "delete_plugin",
-    { description: "Removes a plugin source from the Code tab.", inputSchema: z.object({ book: BOOK, plugin: PLUGIN }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
-    guard(async ({ book, plugin }) => {
-      await api.call<void>("DELETE", path(book, plugin));
+    { description: "Removes a plugin source from the Code tab. Refused while the draft uses a type it registers (409 plugin-in-use with the usages) unless `force`.", inputSchema: z.object({ book: BOOK, plugin: PLUGIN, force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
+    guard(async ({ book, plugin, force }) => {
+      await api.call<void>("DELETE", `${path(book, plugin)}${force ? "?force=1" : ""}`);
       return text({ deleted: plugin });
     }),
   );

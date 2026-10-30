@@ -391,7 +391,8 @@ export const draftBaseUrl = (bookId: string): string => `${API_URL}/editor/books
 export interface Asset {
   id: string;
   name: string;
-  kind: "glb" | "gltf" | "video" | "image" | "audio";
+  /** `shader`: a source file a plugin loads by its URL (`api.loadText` – #186) */
+  kind: "glb" | "gltf" | "video" | "image" | "audio" | "shader";
   mime: string;
   size: number;
   /** The picture's size in pixels (images, videos), null when the file does not tell */
@@ -409,18 +410,29 @@ export interface Asset {
   updatedAt: string;
 }
 
+/** The kinds a node's or a target's file can be (the content contract's asset types): every asset kind but `shader` */
+export type MediaKind = Exclude<Asset["kind"], "shader">;
+export const isMediaAsset = (asset: Asset): asset is Asset & { kind: MediaKind } => asset.kind !== "shader";
+
 export const listAssets = (bookId: string, kind?: string) =>
   api<{ assets: Asset[] }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`);
 
-/** The file as the body, its name in a header (no multipart) */
+/** A code file's name (#186): the browser's type for it says nothing true – Windows calls a `.ts` an MPEG stream */
+const CODE_FILE = /\.(ts|js|glsl|frag|vert|wgsl)$/i;
+
+/** The file as the body, its name in a header (no multipart); a code file goes as text */
 const sendFile = async <T>(method: string, path: string, file: File): Promise<T> => {
+  const type = CODE_FILE.test(file.name) ? "text/plain; charset=utf-8" : file.type || "application/octet-stream";
   const response = await authFetch(`${API_URL}${path}`, {
     method,
-    headers: { "Content-Type": file.type || "application/octet-stream", "X-File-Name": encodeURIComponent(file.name) },
+    headers: { "Content-Type": type, "X-File-Name": encodeURIComponent(file.name) },
     body: file,
   });
-  const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
-  if (!response.ok) throw new ApiError(response.status, data?.error?.code ?? "unknown", data?.error?.message ?? `${response.status} ${response.statusText}`);
+  const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } & Record<string, unknown> } | null;
+  if (!response.ok) {
+    const { code, message, ...details } = data?.error ?? { code: "unknown", message: "" };
+    throw new ApiError(response.status, code ?? "unknown", message || `${response.status} ${response.statusText}`, details);
+  }
   return data as T;
 };
 
@@ -430,8 +442,14 @@ export const uploadAsset = async (bookId: string, file: File): Promise<Asset> =>
 export const replaceAsset = (bookId: string, assetId: string, file: File) =>
   sendFile<{ asset: Asset; relinked: number }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/file`, file);
 
+/** Where a file or a plugin is used: a row of the draft (`entity castle`), or a plugin source that loads the file */
+export interface Usage {
+  kind: string;
+  ref: string;
+}
+
 export const assetUsages = (bookId: string, assetId: string) =>
-  api<{ usages: Array<{ kind: string; ref: string }>; asset: Asset }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/usages`);
+  api<{ usages: Usage[]; asset: Asset }>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}/usages`);
 
 export const deleteAsset = (bookId: string, assetId: string, force = false) =>
   api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${assetId}${force ? "?force=1" : ""}`);
@@ -533,6 +551,8 @@ const removalBody = (confirm: string | undefined, deleteFiles: boolean) => (conf
 export interface PluginSummary {
   id: string;
   size: number;
+  /** The draft's rows that use a type it registers (the Library's *uses* – #186) */
+  usages: number;
   updatedAt: string;
   updatedBy: string | null;
 }
@@ -549,5 +569,18 @@ export const getPlugin = (bookId: string, pluginId: string) =>
 export const putPlugin = (bookId: string, pluginId: string, source: string) =>
   api<{ plugin: PluginSource }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}`, { source });
 
-export const deletePlugin = (bookId: string, pluginId: string) =>
-  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}`);
+/** Refused while the draft uses a type it registers (409 plugin-in-use with the usages) unless forced */
+export const deletePlugin = (bookId: string, pluginId: string, force = false) =>
+  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}${force ? "?force=1" : ""}`);
+
+/** A script file becomes a new plugin source, its id from the file's name (409 plugin-exists when taken) */
+export const uploadPlugin = async (bookId: string, file: File): Promise<PluginSource> =>
+  (await sendFile<{ plugin: PluginSource }>("POST", `/editor/books/${encodeURIComponent(bookId)}/plugins`, file)).plugin;
+
+/** A script file replaces a plugin's source */
+export const replacePluginFile = async (bookId: string, pluginId: string, file: File): Promise<PluginSource> =>
+  (await sendFile<{ plugin: PluginSource }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}/file`, file)).plugin;
+
+/** Where the draft uses what a plugin registers, and what that is (read from its source) */
+export const pluginUsages = (bookId: string, pluginId: string) =>
+  api<{ usages: Usage[]; registers: Record<string, string[]> }>("GET", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}/usages`);

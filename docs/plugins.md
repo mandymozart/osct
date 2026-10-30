@@ -15,7 +15,7 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-`register` runs once when the plugin loads. Six things you can do with `api` – and, for a book's logic across
+`register` runs once when the plugin loads. Seven things you can do with `api` – and, for a book's logic across
 nodes and pages, four more ("Across nodes and pages" below):
 
 - **`api.registerLayer(type, spec, { glsl })`** – a **material layer**: a few lines of GLSL that run on every
@@ -31,6 +31,8 @@ nodes and pages, four more ("Across nodes and pages" below):
   draws, animated or not, that every `texture` parameter can take.
 - **`api.three`** – the app's three.js, for whatever a component builds or changes. Never `import "three"` yourself:
   the app has one three.js and a plugin that brings another is refused by the build.
+- **`api.loadText(url)`** (API 1.5) – a **text file** by its URL: a shader you uploaded to the editor's Library ("A
+  shader file" below).
 
 A `spec` describes the parameters the author sets in the editor: every one with a `kind` (`number` with `min`
 and `max`, `color`, `choice` with `options`, `boolean`, `string`, and since API 1.4 `texture` – a picture: a Library
@@ -276,6 +278,45 @@ the node's look: a `registerMaterial` that draws what the type's material drew (
 `ShaderMaterial` with colour, opacity and another picture; a model's as a `MeshStandardMaterial`), and the node carries
 it. Nothing is saved to the draft until you press **Save**; the plugin is in the Code tab (and reaches readers through
 the content source, as every Code tab plugin until #78).
+
+## A shader file (API 1.5)
+
+GLSL that grows past a few lines reads better as a file of its own. Upload it to the editor's **Library** – the
+**Upload** button or a drop: `.glsl`, `.frag`, `.vert` or `.wgsl`, at most 256 KB – and it is listed under *code* as a
+**shader** with a read-only preview. **Copy URL** gives the address a plugin loads it from:
+
+```ts
+const FRAGMENT = "https://…/assets/<book>/<id>/v1.frag"; // the Library's Copy URL
+
+api.registerMaterial("pulse", {
+  description: "A plane that pulses – its fragment shader is a Library file.",
+  params: { speed: { kind: "number", default: 1, min: 0, max: 5, description: "How fast it pulses." } },
+}, ({ params, time, three }) => {
+  const material = new three.ShaderMaterial({
+    uniforms: { time, speed: { value: Number(params.speed) } },
+    vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: "void main() { gl_FragColor = vec4(0.0); }", // until the file is there
+    transparent: true,
+  });
+  api.loadText(FRAGMENT).then(glsl => {
+    material.fragmentShader = glsl;
+    material.needsUpdate = true;
+  }).catch(error => api.log("the shader did not load", error));
+  return material;
+});
+```
+
+`api.loadText(url)` returns a promise of the file's text; it asks for each URL once, however many nodes use it, and
+rejects when the file is not there. It takes a Library URL or a content path (`/assets/content/…`). Use it where a build
+runs – a material's `build`, a pass's factory (`shaderPass(…)` with a placeholder, then the pass's `material`), a node
+type's `build` – and set the shader when the text arrives. A **layer's** `glsl` is a string the engine needs at
+`register` time, so a layer keeps its GLSL inline.
+
+The Library knows which plugin sources name the file: its *uses* count them, **Delete** is refused while one does, and
+**Replace…** uploads a new version at a new URL and rewrites the URL in those sources (a change each – press Run to see
+it). That is why a plugin loads a shader by its URL, not its name: the URL is the one thing the reader – which has no
+Library – can fetch, and the editor keeps it right. Your plugin's own `.ts` / `.js` files go the same way into the
+Library – they become plugin sources, the ones the Code tab lists ([editor](editor.md) "Library").
 
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 

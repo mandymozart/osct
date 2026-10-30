@@ -25,6 +25,8 @@ export function hintFor(error: ApiError): string {
   if (error.status === 403) return `This account lacks the role ${String(error.details.role ?? "editor")} – an admin grants it on the admin page.`;
   if (error.code === "unknown-components") return "A node uses a component type no compiled plugin provides – the publish refuses it; the Code tab's sources reach readers through the content build only.";
   if (error.code === "asset-in-use") return "The asset is used – remove the uses first, or delete with force: true.";
+  if (error.code === "plugin-in-use") return "The draft uses what the plugin registers – remove those uses first (plugin_usages lists them), or delete with force: true.";
+  if (error.code === "plugin-exists") return "A plugin with that id exists – replace its source with replace: true, or give another plugin id.";
   if (error.code === "duplicate-id") return "Pick another id, or delete the entry first.";
   if (error.code === "unknown-node-types") return "A node has a type no compiled plugin provides – the publish refuses it; the Code tab's sources reach readers through the content build only.";
   if (error.code === "unknown-entity") return "No shared entity with that ref – list them with get_book or save one with put_entity.";

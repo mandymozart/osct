@@ -1,10 +1,11 @@
 import { ApiError, deleteAsset, listAssets, replaceAsset, uploadAsset, type Asset } from "./api";
+import { CODE_EXTENSIONS } from "./library-code";
 import { acceptOf, KIND_EXTENSIONS, type AssetKind } from "./library-pick";
 
 export { NODE_ASSET_KINDS } from "./library-pick";
 
-/** The files the library accepts (the API's `Assets::KINDS`) */
-export const ACCEPT = acceptOf(Object.keys(KIND_EXTENSIONS) as AssetKind[]);
+/** The files the library accepts: the API's `Assets::KINDS` and scripts (they become plugin sources – #186) */
+export const ACCEPT = [acceptOf(Object.keys(KIND_EXTENSIONS) as AssetKind[]), ...CODE_EXTENSIONS.script].join(",");
 
 /**
  * The book's library: the files uploaded in the editor (the API's assets – docs/server.md "Assets"), loaded per book,

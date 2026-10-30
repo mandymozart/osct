@@ -424,6 +424,19 @@ is involved.
     it, when its type fits), **Target image** (an image becomes the selected target's printed image), **Replace…** (a
     new version, every use relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces
     it). Nodes name a file by its absolute URL, so draft and every publish point at the same file.
+    **Code files** (#186): the book's **scripts** and **shaders** in a list of their own under the media (the filter
+    **code** shows it alone; `CodeFiles.svelte`, `library-code.ts`) – name, kind (*script* / *shader*), size, uses. A
+    script **is** a plugin source of the Code tab (the same rows, no second copy – its uses are the draft's rows that name
+    a type it registers); a shader is an asset of the kind `shader` (`.glsl`, `.frag`, `.vert`, `.wgsl` – its uses are the
+    plugin sources that name its URL). **Upload** and drop take both: a `.ts` / `.js` becomes a plugin source named
+    after the file (`Wobble Effect.ts` → `wobble-effect`; a taken id is refused – *Replace…* that plugin instead), a
+    shader file a shader asset; a code file is at most 256 KB, and the API checks extension, content type and text. A
+    click on a row opens it: where it is used, a **read-only preview** (Monaco, loaded with the first preview – GLSL
+    highlighted as C, WGSL as itself) and its actions – **Open in Code** (a script: the Code tab opens with it),
+    **Copy URL** (a shader: what a plugin loads with `api.loadText(url)`), **Download**, **Replace…** (a file of the
+    same kind: a script's new source; a shader's new version at a new URL, the plugin sources that name it relinked) and
+    **Delete** (refused while used – *Delete anyway* forces it). How a plugin loads a shader: [plugins](plugins.md)
+    "A shader file".
     **The Library as the picker** (#164): every file field – a target's printed image, a node's file, a new node's
     file, the new target's files, the environment's world and sky – shows the file (a picture as a preview, every file
     by its place) with **Library…** and **Upload…**. *Library…* opens the Library in place of the panel as a picker
@@ -529,7 +542,9 @@ is involved.
     material layer tints the video at once, a component shows under *add component* in the Entity panel. Errors
     show under the editor and as a marker on their line (a transpile error, a plugin that imports a module – plugins import
     nothing, three.js is `api.three` – an invalid spec, an exception in `register`); the previous registration stays.
-    **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it.
+    **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it –
+    refused while the draft uses a type it registers (*used by entity castle – Delete anyway*). The Library lists the
+    stored sources as its scripts and opens one here (**Open in Code**); a script file uploaded there is a source here.
     **Nothing run here reaches readers**: a plugin gets there through the content build – today as a folder
     `plugins/<id>/index.ts` of the content source and the import, soon compiled by the publish itself on the server
     (#78, Tilman 2026-10-29) – and a publish whose nodes use a component no compiled plugin can provide is refused
@@ -593,7 +608,7 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, the desks' cut edges), `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the Library's filters and picks in `library-pick.ts`, the new target's choices in `new-target.ts` |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts` |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |
