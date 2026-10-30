@@ -1,5 +1,5 @@
-import { IBaseStore } from '@/types';
-import { Draft, produce } from 'immer';
+import type { IBaseStore } from '@/types';
+import { type Draft, produce } from 'immer';
 
 /**
  * Minimal observable store: immutable updates via Immer, global listeners and per-property

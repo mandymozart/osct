@@ -1,7 +1,7 @@
 import { SvelteMap } from "svelte/reactivity";
 import { asset } from "$app/paths";
 import type { AssetPath } from "$app/types";
-import { Object3D, Quaternion, Raycaster, Vector2 } from "three";
+import { type Object3D, Quaternion, Raycaster, Vector2 } from "three";
 import type { EnvironmentData } from "@shared/types/environment";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";

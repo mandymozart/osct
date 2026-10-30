@@ -4,7 +4,6 @@
   "compilerOptions": {
     "sourceMap": true,
     "strict": true,
-    "verbatimModuleSyntax": false,
     "types": ["$app/types", "vite/client", "three"],
     "paths": {
       "@engine/*": ["../engine/src/*"],

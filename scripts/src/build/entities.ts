@@ -1,6 +1,6 @@
-import { type AssetData, type EntityData, type EntityRefData } from '../../../shared/types/game-config';
+import type { AssetData, EntityData, EntityRefData } from '../../../shared/types/game-config';
 import { isKnownNodeType, nodeAssetTypes, nodeParamProblems, nodeTypes, nodeTypeSpec } from '../../../shared/types/node-types';
-import { FilterData, filterProblems } from '../../../shared/types/filters';
+import { type FilterData, filterProblems } from '../../../shared/types/filters';
 import { componentProblems, type ComponentData } from '../../../shared/types/components';
 import { lightProblems, type LightData } from '../../../shared/types/lights';
 import { placementProblems } from '../../../shared/types/placement';

@@ -1,9 +1,9 @@
-import { Matrix4, PerspectiveCamera, Quaternion, ShaderMaterial, Vector2, Vector3, WebGLRenderer } from "three";
+import { type Matrix4, PerspectiveCamera, type Quaternion, type ShaderMaterial, Vector2, Vector3, type WebGLRenderer } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
-import { DEFAULT_ENVIRONMENT, EnvironmentData } from "@shared/types/environment";
-import { GraphicsSettings, GraphicsSource, NO_GRAPHICS } from "../../types/index";
+import { DEFAULT_ENVIRONMENT, type EnvironmentData } from "@shared/types/environment";
+import { type GraphicsSettings, type GraphicsSource, NO_GRAPHICS } from "../../types/index";
 import { BookAnchor, yawTowards } from "./book-anchor";
-import { EnvironmentAssets, EnvironmentLoaders } from "./environment-assets";
+import { EnvironmentAssets, type EnvironmentLoaders } from "./environment-assets";
 import { DeviceOrientation } from "./orientation";
 import { lookAroundMaterial } from "./shader";
 import { SkySample } from "./sky-sample";

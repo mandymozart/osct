@@ -6,19 +6,19 @@
  */
 import {
   ASSET_TYPES,
-  AssetType,
+  type AssetType,
   CONTENT_SCHEMA_VERSION,
   ENTITY_TYPES,
-  EntityRefData,
-  EntityType,
-  GameConfiguration,
+  type EntityRefData,
+  type EntityType,
+  type GameConfiguration,
   parseContentSchema,
   STEP_ACTIONS,
-  StepAction,
+  type StepAction,
 } from "../types/game-config";
-import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
+import { ENTRY_CATEGORIES, type EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
-import { PassCheckOptions, passProblems } from "../types/passes";
+import { type PassCheckOptions, passProblems } from "../types/passes";
 import { environmentProblems } from "../types/environment";
 import { pluginProblems, recordedRegistrations } from "../types/plugins";
 import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/node-types";

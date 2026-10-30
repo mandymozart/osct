@@ -3,7 +3,7 @@ import { GameStoreService } from "@/services";
 import { EntryCategory, Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
 import ".."; // registers the elements (the named import below is type-only)
-import { EntriesFilterElement, EntriesList } from "..";
+import type { EntriesFilterElement, EntriesList } from "..";
 
 const game = GameStoreService.getInstance();
 const mount = <T extends HTMLElement>(tag: string): T => document.body.appendChild(document.createElement(tag)) as T;

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GameStoreService } from "@/services";
-import { BaseStore } from "@/store/BaseStore";
-import { ErrorCode, GameState } from "@/types";
+import type { BaseStore } from "@/store/BaseStore";
+import { ErrorCode, type GameState } from "@/types";
 import "../pages-router";
 
 const game = GameStoreService.getInstance();

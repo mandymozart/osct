@@ -11,7 +11,7 @@
  * units (target widths), whatever the target's printed size: the engine scales them to the world.
  */
 
-import { ComponentParamSpec, paramProblem } from "./components";
+import { type ComponentParamSpec, paramProblem } from "./components";
 
 export const LIGHT_KINDS = ["point", "spot", "directional"] as const;
 export type LightKind = (typeof LIGHT_KINDS)[number];

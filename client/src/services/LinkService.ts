@@ -1,5 +1,5 @@
 import { router } from "@/router";
-import { GameState, IGame, PageRoute, Pages } from "@/types";
+import { type GameState, type IGame, type PageRoute, Pages } from "@/types";
 import { getEntry, getSpread, getTutorial } from "@/utils/game-config";
 import { isEntryCategory } from "@shared/guards/game-config";
 

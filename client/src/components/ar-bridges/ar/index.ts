@@ -4,7 +4,7 @@
  * tracking engine's files load with the scene's first start (`prefetchXr8()` fetches them ahead into the HTTP cache).
  */
 import { GameStoreService, GraphicsService } from "@/services";
-import { ArScene, ProgressReader } from "@engine/scene";
+import { ArScene, type ProgressReader } from "@engine/scene";
 import type { IArScene } from "@engine/types/scene";
 import { ImageTracker, prefetchXr8 } from "@engine/scene/xr8-tracker";
 

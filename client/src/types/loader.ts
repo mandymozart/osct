@@ -1,4 +1,4 @@
-import { AssetType } from "./game-config";
+import type { AssetType } from "./game-config";
 
 /**
  * Options for loading assets

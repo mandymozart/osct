@@ -4,9 +4,9 @@ import "@/i18n";
 
 import "@/components";
 import "@/pages";
-import { IErrorPage } from "@/pages";
+import type { IErrorPage } from "@/pages";
 import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, ServiceWorkerService } from "@/services";
-import {
+import type {
   ErrorInfo,
   IGame,
 } from "@/types";

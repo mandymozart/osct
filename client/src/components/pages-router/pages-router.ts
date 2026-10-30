@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import {
+import type {
   IGame,
   IPagesRouter,
   PageRoute,

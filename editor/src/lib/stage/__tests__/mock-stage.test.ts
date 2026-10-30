@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { LineSegments, Scene } from "three";
+import { type LineSegments, Scene } from "three";
 import { MockStage } from "../mock-stage";
 
 const page = { width: 230, height: 320 };

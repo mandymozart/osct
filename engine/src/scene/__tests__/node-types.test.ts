@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Group, Points, Texture } from "three";
+import { Group, type Points, Texture } from "three";
 import { assertGameConfiguration, GameConfigurationError } from "@shared/guards/game-config";
 import {
-  ComponentSpec, EntityData, isKnownNodeType, nodeAssetTypes, NodeTypeSpec, nodeTypeSpec, nodeTypeSpecProblems, nodeTypes, pluginNodeTypes, Target,
+  type ComponentSpec, type EntityData, isKnownNodeType, nodeAssetTypes, type NodeTypeSpec, nodeTypeSpec, nodeTypeSpecProblems, nodeTypes, pluginNodeTypes, type Target,
 } from "../../types/index";
 import { buildEntity } from "../entities";
-import { installedPlugins, installPlugin, NodeTypeContext, PluginError, pluginNodeTypesOf, uninstallPlugin } from "../plugins";
+import { installedPlugins, installPlugin, type NodeTypeContext, PluginError, pluginNodeTypesOf, uninstallPlugin } from "../plugins";
 import type { LoadedAsset } from "../assets";
 
 /** Plugin API 1.2: a plugin's own node type – the plugin builds the object, the engine places it like every node */

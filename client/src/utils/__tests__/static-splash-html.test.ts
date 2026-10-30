@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderStaticSplash, SplashStepSource, staticSplashStep } from "../static-splash-html";
+import { renderStaticSplash, type SplashStepSource, staticSplashStep } from "../static-splash-html";
 
 const book = { title: "Onion Skin & Crocodile Tears", author: "Kévin Bray", publisher: "Building Fictions" };
 const splash: SplashStepSource = { index: 0, title: "{{title}}", description: "{{author}}", footer: "{{publisher}}", fadeIn: 800, stagger: 500, advance: 3800 };

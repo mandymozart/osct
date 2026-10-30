@@ -1,4 +1,4 @@
-import { IGame } from "@/types";
+import type { IGame } from "@/types";
 import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 import { GameStoreService } from "@/services";
 import {

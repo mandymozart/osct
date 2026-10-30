@@ -1,4 +1,4 @@
-import { ISpreadManager, IGame } from '@/types';
+import type { ISpreadManager, IGame } from '@/types';
 import { getSpread, getInitialSpreadId } from '@/utils/game-config';
 
 /**

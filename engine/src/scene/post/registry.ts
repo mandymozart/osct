@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { Vector2 } from "three";
 import type { Pass } from "three/examples/jsm/postprocessing/Pass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { PassData, PassSpec, resolvePass } from "../../types/index";
+import { type PassData, type PassSpec, resolvePass } from "../../types/index";
 
 /**
  * The pass registry: every post-processing type the engine can run – the built-in ones (`./bloom`, `./vignette`,

@@ -12,6 +12,16 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.36.1 – 2026-10-30
+
+### Changed
+- **Type-only imports, `verbatimModuleSyntax` on** (#176): every import that brings in only types says so
+  (`import type`, or `type` on the name) in `engine/`, `shared/`, `client/`, `editor/` and `scripts/` – also
+  the classes and enums a file uses only as types, so the bundles import exactly what they imported before. The flag
+  is on in every TypeScript config (the reader's and its service worker's, the engine's, the editor's and its plugin
+  API's, `scripts/`, `mcp/`); the editor's override is gone, and with it SvelteKit 3's `tsconfig_invalid` warning.
+  Content schema 2.16 (the change touches `shared/`, RULES #10): nothing new in the content. No runtime change.
+
 ## 1.36.0 – 2026-10-30
 
 ### Added

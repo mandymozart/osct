@@ -43,6 +43,8 @@ export default interface Resources {
       "too-many-attempts": "Too many wrong codes. Request a new email.",
       "too-many-password-attempts": "Too many wrong passwords. Try again in an hour, or send a sign-in link.",
       "too-many-requests": "Too many emails in a short time. Try again in an hour.",
+      "too-many-requests-wait_one": "Too many emails in a short time. Try again in {{count}} minute.",
+      "too-many-requests-wait_other": "Too many emails in a short time. Try again in {{count}} minutes.",
       "unauthorized": "You're signed out. Sign in again.",
       "wrong-current-password": "The current password isn't right."
     },

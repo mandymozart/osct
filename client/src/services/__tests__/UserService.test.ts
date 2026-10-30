@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UserService, LOGIN_PARAM } from "../UserService";
-import { ApiError, ApiRequest, ApiService } from "../ApiService";
+import { ApiError, type ApiRequest, ApiService } from "../ApiService";
 import { createGameStore } from "@/store/GameStore";
-import { UserData, IGame, ProgressRecord } from "@/types";
+import type { UserData, IGame, ProgressRecord } from "@/types";
 import { getBook, getEntries } from "@/utils/game-config";
 
 const bookId = getBook().id;

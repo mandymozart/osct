@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { IGame } from "@/types";
+import type { IGame } from "@/types";
 
 export interface IPage extends HTMLElement {
     active: boolean;

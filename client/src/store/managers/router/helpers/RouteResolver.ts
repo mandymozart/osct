@@ -1,4 +1,4 @@
-import { PageRoute, PageRouteDefinition, RouteParam } from "@/types";
+import type { PageRoute, PageRouteDefinition, RouteParam } from "@/types";
 import { router as routerConfig } from "@/router";
 
 /** Static lookups against the route table in `router.ts` */

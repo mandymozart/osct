@@ -1,5 +1,5 @@
 import { getBook, getTutorial } from "@/utils/game-config";
-import { ITutorialContent } from "@/types";
+import type { ITutorialContent } from "@/types";
 import { escapeHtml, paragraphs } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header";
 import "@/components/common";

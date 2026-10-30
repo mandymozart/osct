@@ -1,4 +1,4 @@
-import { GameMode, IGame, LoadingState } from "@/types";
+import { type GameMode, type IGame, LoadingState } from "@/types";
 import { Page } from "./page";
 import { GameStoreService } from "@/services";
 import { adoptDesignStyles } from "@/styles";

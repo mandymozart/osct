@@ -1,4 +1,4 @@
-import { MathUtils, Object3D } from "three";
+import { MathUtils, type Object3D } from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import type { SceneInspection, Vector3Data } from "@engine/types";
 import { HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";

@@ -8,7 +8,7 @@
  * runtime (the active spread is `state.currentSpread`); `spreadId` names it in links.
  */
 
-import { GameMode, PageRouterConfiguration, Pages } from "./types";
+import { GameMode, type PageRouterConfiguration, Pages } from "./types";
 
 export const router: PageRouterConfiguration = {
   baseUrl: "",

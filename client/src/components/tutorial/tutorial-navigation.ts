@@ -1,6 +1,6 @@
 import { GameStoreService } from "@/services";
 import { getTutorial } from "@/utils/game-config";
-import { IGame, ITutorialNavigation, Step } from "@/types";
+import type { IGame, ITutorialNavigation, Step } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 

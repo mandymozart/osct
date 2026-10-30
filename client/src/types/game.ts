@@ -1,12 +1,12 @@
-import { CameraManagerState, ICameraManager } from "./camera";
-import { ErrorInfo, ErrorListener } from "./errors";
-import { HistoryManagerState, IHistoryManager } from "./history";
-import { IRouterManager, RouterManagerState } from "./router";
-import { ArStatus } from "./scene";
-import { ISpreadManager, SpreadManagerState } from "./spreads";
-import { IBaseStore } from "./store";
-import { ITargetManager, TargetManagerState } from "./targets";
-import { LoadingState } from "./common";
+import type { CameraManagerState, ICameraManager } from "./camera";
+import type { ErrorInfo, ErrorListener } from "./errors";
+import type { HistoryManagerState, IHistoryManager } from "./history";
+import type { IRouterManager, RouterManagerState } from "./router";
+import type { ArStatus } from "./scene";
+import type { ISpreadManager, SpreadManagerState } from "./spreads";
+import type { IBaseStore } from "./store";
+import type { ITargetManager, TargetManagerState } from "./targets";
+import type { LoadingState } from "./common";
 
 export interface IGame extends IBaseStore<GameState> {
   version: GameVersion; // the app build (content: getConfigVersion())

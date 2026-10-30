@@ -5,7 +5,7 @@ import type { TriggerInfos } from "@engine/utils/trigger-protocol";
 import { setPreviewActive, setTargetHidden, updatePreview } from "../preview";
 import { getEngineState } from "@engine/utils/tracker-debug";
 import {
-  BOOK_PAGE_MM, cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, StageView, targetCentre, VIEW_PRESETS, wobbled,
+  BOOK_PAGE_MM, cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, type StageView, targetCentre, VIEW_PRESETS, wobbled,
 } from "../mock-tracker";
 
 const target = (id: string): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg` });

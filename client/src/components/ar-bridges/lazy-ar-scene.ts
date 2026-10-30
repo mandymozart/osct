@@ -1,4 +1,4 @@
-import { ArSceneEvents, ArStatus, EntityData, IArScene, PassData, SceneInspection, SceneState } from "@/types";
+import { type ArSceneEvents, type ArStatus, type EntityData, type IArScene, type PassData, type SceneInspection, SceneState } from "@/types";
 import { Emitter } from "@engine/utils/emitter";
 
 type ArModule = typeof import("./ar");

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GameStoreService } from "@/services";
-import { Pages, Step } from "@/types";
+import { Pages, type Step } from "@/types";
 import { getTutorial } from "@/utils/game-config";
 import { getSplashSteps } from "../splash-page";
 

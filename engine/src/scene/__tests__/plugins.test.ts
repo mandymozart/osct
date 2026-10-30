@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene, ShaderMaterial, Vector2 } from "three";
-import { componentProblems, componentSpec, componentTypes, ComponentSpec, EntityData, PassSpec, PLUGIN_API_VERSION, Target } from "../../types/index";
+import { Group, type Mesh, type MeshBasicMaterial, PerspectiveCamera, Scene, type ShaderMaterial, Vector2 } from "three";
+import { componentProblems, componentSpec, componentTypes, type ComponentSpec, type EntityData, type PassSpec, PLUGIN_API_VERSION, type Target } from "../../types/index";
 import { buildEntity } from "../entities";
-import { installedPlugins, installPlugin, loadPlugins, PluginApi, PluginError, pluginTypes, uninstallPlugin } from "../plugins";
+import { installedPlugins, installPlugin, loadPlugins, type PluginApi, PluginError, pluginTypes, uninstallPlugin } from "../plugins";
 import { PostChain } from "../post/chain";
 import { passRegistration, registeredPassTypes } from "../post/registry";
 import "../post/index";

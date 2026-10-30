@@ -1,27 +1,27 @@
 import * as THREE from "three";
 import type { Object3D } from "three";
 import {
-  ComponentData,
-  ComponentSpec,
+  type ComponentData,
+  type ComponentSpec,
   componentSpecProblems,
-  EntityData,
-  NodeTypeSpec,
+  type EntityData,
+  type NodeTypeSpec,
   nodeTypeSpecProblems,
   PLUGIN_API_VERSION,
   pluginApiCompatible,
-  PluginData,
-  PassSpec,
+  type PluginData,
+  type PassSpec,
   registerComponentSpec,
   registerNodeTypeSpec,
   resolveNodeParams,
   resolveParams,
-  Target,
+  type Target,
   unregisterComponentSpec,
   unregisterNodeTypeSpec,
 } from "../types/index";
 import type { LoadedAsset } from "./assets";
-import { dropPluginListeners, nextRun, PluginEvents, PluginProgress, PluginSpread, PluginVars, runtimeApi } from "./plugin-runtime";
-import { PassFactory, passRegistration, registerPass, unregisterPassesOf } from "./post/registry";
+import { dropPluginListeners, nextRun, type PluginEvents, type PluginProgress, type PluginSpread, type PluginVars, runtimeApi } from "./plugin-runtime";
+import { type PassFactory, passRegistration, registerPass, unregisterPassesOf } from "./post/registry";
 
 /**
  * The plugin API (version `PLUGIN_API_VERSION`, agents/research/2026-10-29-code-in-the-editor.md): a book's own code

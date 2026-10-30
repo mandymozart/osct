@@ -1,5 +1,5 @@
 import { GameStoreService, VERSION_PARAM } from "@/services";
-import { IGame, IQRCode } from "@/types";
+import type { IGame, IQRCode } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 

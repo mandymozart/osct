@@ -1,6 +1,6 @@
 import { MEDIA_QUERY } from "@/constants";
 import { GameStoreService } from "@/services";
-import { ErrorInfo, IGame } from "@/types";
+import type { ErrorInfo, IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 import { Page } from "./page";

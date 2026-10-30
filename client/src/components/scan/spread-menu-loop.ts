@@ -1,4 +1,4 @@
-import { Spread } from "@/types";
+import type { Spread } from "@/types";
 import { getSpreads } from "@/utils/game-config";
 
 /**

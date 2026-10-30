@@ -1,7 +1,7 @@
 import { Pages } from "@/types";
 import { getEntry } from "@/utils/game-config";
 import "@/components/consultation"; // registers <entry-detail> (the named import is type-only)
-import { EntryDetail } from "@/components/consultation";
+import type { EntryDetail } from "@/components/consultation";
 import { ConsultationPage } from "./consultation-page";
 import { t } from "i18next";
 

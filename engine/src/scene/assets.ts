@@ -1,7 +1,7 @@
-import { AnimationClip, Group, Material, Mesh, Object3D, SRGBColorSpace, Texture, TextureLoader, VideoTexture } from "three";
+import { type AnimationClip, type Group, type Material, type Mesh, type Object3D, SRGBColorSpace, Texture, TextureLoader, VideoTexture } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { AssetData } from "../types/index";
+import type { AssetData } from "../types/index";
 import { loadCompressed } from "../content/compressed";
 
 /**

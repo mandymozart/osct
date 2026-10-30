@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Type-only imports, `verbatimModuleSyntax` on (#176)
+
+- **The flag is on in every TypeScript config** (client + service worker, engine, editor + its plugin API, scripts,
+  mcp – all ESM, none emits CommonJS); the editor's `false` override is gone, and Kit 3's `tsconfig_invalid` warning
+  with it. Found with the compiler and fixed by TypeScript's own quick fix (whole declaration → `import type` where
+  every name is a type, else `type` on the name), no reformatting.
+- **No runtime change, checked by emitting**: with the flag on, the bundlers (oxc, esbuild) keep every import not
+  marked `type`. So a value a file used only as a type (three.js classes in signatures, enums like `EntryCategory`
+  or `GameMode` in type positions, element classes like `EntryDetail`, a test's `BaseStore`) got `type` too –
+  otherwise `entry-page.ts` would newly import `@/components/consultation`, `types/game.ts` `./common`, … Every
+  program was emitted with the flag off and on and the import lists compared: identical (one cosmetic
+  `import i18next, {} from "i18next"`). An existing `import { type A, type B }` (scripts' `build/entities.ts`) would
+  have become a side-effect import `import {} from …`; it is `import type` now.
+- **Content schema 2.16** only because `shared/` changed (RULES #10: every change there needs a bump) – nothing new in
+  the content; the row's app version in docs/content.md is filled in at the merge.
+- Open: `tsc -p engine` on its own fails before and after (`vite/client` and three's types are not found through
+  `../client/node_modules`) – the engine is checked through the reader's and the editor's configs.
+
 ## 2026-10-30 – The Stage panel taps, sets variables, keeps a timeline; the demo's key (#88)
 
 - **The tap button goes through the engine's own tap**: `ArScene.tapTarget` is the one path (the entity's `onTap`, the
@@ -31,6 +49,7 @@ outcome in the line (or move it into a dated decision block).
 - **`verbatimModuleSyntax` stays `false`** in `editor/tsconfig.json` (as under Kit 2): turning it on gives 108
   "must be a type-only import" errors, most in `engine/` (shared with the reader). Kit 3 prints a `tsconfig_invalid`
   warning for it; build, check and tests pass. Open: `import type` across engine and editor, then drop the override.
+  → done (#176): the flag is on everywhere, the override and the warning are gone.
 - **No version polling**: Kit 3 polls `version.json` hourly by default; `version.pollInterval: 0` keeps Kit 2's
   behaviour (the editor reloads on a stale chunk instead – #160).
 
