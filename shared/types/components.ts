@@ -15,7 +15,7 @@
  * The editor shows its rows without panel code.
  */
 
-import { EntityType } from "./game-config";
+import type { NodeType } from "./game-config";
 
 export type ComponentParamSpec =
   | { kind: "color"; default: string; description: string }
@@ -26,8 +26,8 @@ export type ComponentParamSpec =
 
 export interface ComponentSpec {
   description: string;
-  /** The node types it applies to (none = every type) */
-  nodeTypes?: readonly EntityType[];
+  /** The node types it applies to (none = every type) – built-in types or a plugin's (`registerNodeType`) */
+  nodeTypes?: readonly NodeType[];
   params: Record<string, ComponentParamSpec>;
 }
 
@@ -123,7 +123,13 @@ export const componentSpecProblems = (type: string, spec: unknown): string[] => 
   if (typeof s.description !== "string") problems.push(`${type}: description must be a string`);
   if (s.nodeTypes !== undefined && !(Array.isArray(s.nodeTypes) && s.nodeTypes.every(t => typeof t === "string"))) problems.push(`${type}: nodeTypes must be a list of node types`);
   if (typeof s.params !== "object" || s.params === null || Array.isArray(s.params)) return [...problems, `${type}: params must be an object`];
-  for (const [name, raw] of Object.entries(s.params as Record<string, unknown>)) {
+  return [...problems, ...paramSpecProblems(type, s.params as Record<string, unknown>)];
+};
+
+/** Problems of a spec's parameters (a component's, a layer's, a pass's, a plugin node type's): names, kinds, defaults */
+export const paramSpecProblems = (type: string, params: Record<string, unknown>): string[] => {
+  const problems: string[] = [];
+  for (const [name, raw] of Object.entries(params)) {
     const at = `${type}.${name}`;
     if (!/^[a-z][a-zA-Z0-9]{0,39}$/.test(name)) problems.push(`${at}: a parameter name is camelCase letters and digits`);
     const p = raw as Partial<Record<string, unknown>> | null;

@@ -1,11 +1,11 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
-  import { ENTITY_TYPES, FILTER_TYPES, type AssetData, type EntityData, type EntityType, type FilterType, type Target } from "@engine/types";
+  import { ENTITY_TYPES, FILTER_TYPES, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType, type NodeType, type Target } from "@engine/types";
   import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "$lib/api";
   import { content } from "$lib/content.svelte";
-  import { library, NODE_ASSET_KINDS } from "$lib/library.svelte";
-  import { pickAccept, type LibraryPick } from "$lib/library-pick";
+  import { library } from "$lib/library.svelte";
+  import { nodeAssetKinds, pickAccept, type LibraryPick } from "$lib/library-pick";
   import { plugins } from "$lib/plugins.svelte";
   import { Stage } from "$lib/stage/stage.svelte";
   import { fromOrigin, toOrigin } from "$lib/stage/origin";
@@ -32,7 +32,8 @@
    * node's values, each filter's and component's parameters. Changes show live on the stage (`stage.override` with
    * the whole tree), the draft stays unchanged until **Save** writes the entity to the API (the shared entity when
    * the target refers to one, else the target's own). **+ node** adds a node (group, model, video, image, text,
-   * light – files from the book's assets) next to the selected one or inside it (#163), **remove node** drops the
+   * light, or a node type the book's plugins registered – #77; files from the Library) next to the selected one or
+   * inside it (#163); a plugin type's parameters are rows from its spec, like a component's. **remove node** drops the
    * selected node and its children. Rows come from the content contract's definitions (one `specRow` snippet draws a
    * parameter of any kind). It opens at the level of the workspace's selection (#162): a selected target shows its
    * target fields, its entity or a node that node's rows; the breadcrumb in the head steps up.
@@ -114,6 +115,10 @@
   // The rows and the addable components follow the registry: a plugin's Run registers new types
   const rows = $derived.by(() => { void plugins.version; return current ? valueRows(current, uniformScale) : []; });
   const addable = $derived.by(() => { void plugins.version; return current ? componentTypesFor(current.type) : []; });
+  /** The selected node's file kinds (a plugin's node type declares them – #77), undefined when it takes no file */
+  const fileKinds = $derived.by(() => { void plugins.version; return current ? nodeAssetKinds(current.type) : undefined; });
+  /** The selected node's plugin node type: its description heads its rows; null for a built-in type */
+  const nodeSpec = $derived.by(() => { void plugins.version; return current ? nodeTypeSpec(current.type) ?? null : null; });
   const ref = $derived(target ? getEntityRef(target.id) : undefined);
   const source = $derived(ref ? `shared: ${ref} (${getTargetsUsingEntity(ref).length}×)` : target ? `entry: ${target.entryId}` : "");
   const dirty = $derived(!!target && JSON.stringify(entity ? contentTree(entity) : null) !== JSON.stringify(target.entity ? contentTree(target.entity) : null));
@@ -288,7 +293,7 @@
   /** The selected node takes a file (the library's Use, an upload) */
   export const useAsset = (kind: AssetData["assetType"], src: string, assetId: string) => {
     if (!current || !target) return;
-    const kinds = ASSET_KINDS[current.type];
+    const kinds = nodeAssetKinds(current.type);
     if (!kinds?.includes(kind)) return;
     applyNode({ ...current, assets: [{ id: `${target.id}-${assetId.slice(0, 8)}`, assetType: kind, src }] });
   };
@@ -320,12 +325,13 @@
   const fmt = (seconds: number) => `${seconds.toFixed(2)} s`;
 
   // ── + node ──
-  let addType = $state<EntityType | "">("");
+  let addType = $state<NodeType | "">("");
   let addAsset = $state("");
-  const ASSET_KINDS = NODE_ASSET_KINDS;
+  /** The node types + node offers: the built-in ones, then the ones the book's plugins registered (#77) */
+  const pluginTypes = $derived.by(() => { void plugins.version; return pluginNodeTypes(); });
   /** The files the new node may take: the library's of its kind, and the content's (deduplicated by src) */
   const assetChoices = $derived.by(() => {
-    const kinds = ASSET_KINDS[addType];
+    const kinds = addType ? nodeAssetKinds(addType) : undefined;
     if (!kinds) return [];
     const seen = new Map<string, AssetData>();
     library.ofKinds(kinds).forEach(a => seen.set(a.url, { id: a.id, assetType: a.kind, src: a.url }));
@@ -334,12 +340,12 @@
   });
   const fileLabel = (src: string) => library.byUrl(src)?.name ?? fileName(src);
   const fileName = (src: string) => decodeURIComponent(src.split("/").pop() ?? src);
-  const canAdd = $derived(!!addType && (!ASSET_KINDS[addType] || !!addAsset));
+  const canAdd = $derived(!!addType && (!nodeAssetKinds(addType) || !!addAsset));
   const add = () => {
     if (!target || !canAdd) return;
     const chosen = assetChoices.find(a => a.src === addAsset);
     // a file of the library (picked there or chosen here) brings its size: a video node is sized to it
-    const child = newNode(addType as EntityType, chosen ? { id: `${target.id}-${Date.now().toString(36)}`, assetType: chosen.assetType, src: chosen.src } : undefined,
+    const child = newNode(addType, chosen ? { id: `${target.id}-${Date.now().toString(36)}`, assetType: chosen.assetType, src: chosen.src } : undefined,
       chosen ? library.byUrl(chosen.src) : null);
     // The target's first node is the root; else next to the selected node or inside it
     const placed = addNode(entity, node, child, addPlace);
@@ -469,13 +475,18 @@
   {/if}
   {/if}
   {#if !atTarget || !entity}
-  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several), else next to the selected node or inside it (add as)."><span class="label">+ node</span>
+  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several – or a node type of the book's plugins, listed under plugins once they are loaded), else next to the selected node or inside it (add as)."><span class="label">+ node</span>
     <span class="controls">
-      <select class="field" aria-label="New node type" value={addType} onchange={e => { addType = (e.currentTarget as HTMLSelectElement).value as EntityType | ""; addAsset = ""; }}>
+      <select class="field" aria-label="New node type" value={addType} onchange={e => { addType = (e.currentTarget as HTMLSelectElement).value as NodeType | ""; addAsset = ""; }}>
         <option value="">type…</option>
         {#each ENTITY_TYPES as type (type)}<option value={type}>{type}</option>{/each}
+        {#if pluginTypes.length}
+          <optgroup label="plugins">
+            {#each pluginTypes as type (type)}<option value={type} title={nodeTypeSpec(type)?.description}>{type}</option>{/each}
+          </optgroup>
+        {/if}
       </select>
-      {#if addType && ASSET_KINDS[addType]}
+      {#if addType && nodeAssetKinds(addType)}
         <button type="button" class="pill framed grow file-pick" title="Choose the new node's file in the Library" onclick={pickNewNodeFile}>{addAsset ? fileLabel(addAsset) : "file…"}</button>
       {/if}
       <button type="button" class="pill framed" title={!entity ? "Add as the target's root node" : addPlace === "next" ? "Add next to the selected node" : "Add inside the selected node"} disabled={!canAdd} onclick={add}>add</button>
@@ -529,11 +540,18 @@
       {/if}
     {/each}
 
-    {#if ASSET_KINDS[current.type]}
+    {#if fileKinds}
       <div class="section"><span class="section-label">file</span></div>
       <div class="row"><span class="label">{current.type}</span>
-        <FileField src={current.assets[0]?.src} picture={current.type === "image"} accept={pickAccept({ for: "node", nodeType: current.type })}
+        <FileField src={current.assets[0]?.src} picture={fileKinds.includes("image")} accept={pickAccept({ for: "node", nodeType: current.type })}
           label="the {current.type} file of this node" onlibrary={pickNodeFile} onupload={f => void uploadForNode(f)} /></div>
+    {/if}
+    {#if nodeSpec}
+      <!-- A plugin's node type (#77): its parameters from its spec, in the node's params -->
+      <div class="section" title={nodeSpec.description}><span class="section-label">node type · {current.type}</span></div>
+      {#each rows.filter(r => r.id.startsWith("params.")) as row (row.id)}
+        {@render specRow(row, row.id.split(".")[1])}
+      {/each}
     {/if}
     {#if current.type === "text"}
       <div class="section"><span class="section-label">text</span></div>

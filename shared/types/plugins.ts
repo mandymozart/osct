@@ -7,10 +7,11 @@
  *
  * The API is versioned apart from the content schema: `PLUGIN_API_VERSION` MAJOR.MINOR – a plugin built against
  * another MAJOR is not loaded (logged); MINOR adds. 1.1 added `api.events`, `api.vars`, `api.progress`, `api.spread`,
- * the component context's `children` and the hook `onUnlocked`.
+ * the component context's `children` and the hook `onUnlocked`; 1.2 `api.registerNodeType` (a node type of the
+ * plugin's own, `./node-types.ts`).
  */
 
-export const PLUGIN_API_VERSION = "1.1";
+export const PLUGIN_API_VERSION = "1.2";
 
 /** A plugin as the game configuration declares it */
 export interface PluginData {

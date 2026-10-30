@@ -244,6 +244,11 @@ api }]`); the reader loads it with the AR scene. What a plugin registers is used
   plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
   `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
   in the spec's order (`number` / `boolean` → `float`, `color` → `vec3`, `choice` → `int`, the index in its options).
+- `api.registerNodeType(type, spec, build)` (plugin API 1.2) – a **node type** of the plugin's own. `spec` = `{
+  description, src?, params }`: `src` the file it takes (`glb`, `video`, `image`, or `none`, the default), `params` as a
+  component's (never `position`, `rotation`, `scale`). `build({ node, params, asset, target, three })` returns `{
+  object, …hooks }` – the node's three.js object, which the engine places like every node (children, components and
+  layers included); `asset` is the loaded `src`, shared – clone what you change. Used as the node's `type` (above).
 - **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
   `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
   book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
@@ -353,6 +358,20 @@ below) and `group` (nothing of its own, it only holds children – move or scale
 node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node, drag to
 reparent). Any node may carry a `name` (content schema 2.12, optional) – the editor's tree shows it instead of the
 type, so a tree of several groups and videos stays readable; the reader ignores it.
+
+**A plugin's node type** (content schema 2.13): a plugin of the book may register a node type of its own
+(`api.registerNodeType`, [plugins](plugins.md)) – a sparkle of points, a sprite, a line. Such a node is written like
+any other, `type` the plugin's name for it; its parameters go into `params` next to the placement, and it takes a
+`src` only when its plugin says which kind (a model, a video or an image). The content build checks both once it has
+run the plugin; a type no plugin of the book registers is an error.
+
+```yaml
+- type: sparkle            # the demo book's plugins/sparkle
+  params:
+    position: [0, 0.1, 0.25]
+    count: 120             # the plugin's parameters
+    color: "#ffe2a8"
+```
 
 **A light** (`type: light`, content schema 2.6) lights the entity it belongs to – under a group or a model it moves
 with it; the scene's own ambient light and sun stay. Its values are under `light:` (every one optional):
@@ -526,6 +545,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) |
 | 2.11 | 1.22.0 | in develop | the content manifest names its book (`latest.json` / `versions.json` `book`) |
 | 2.12 | 1.27.0 | in develop | a node's optional `name` (the editor's tree shows it; the reader ignores it) |
+| 2.13 | next | in develop | a plugin's node type (`registerNodeType`, plugin API 1.2): its parameters in the node's `params` |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

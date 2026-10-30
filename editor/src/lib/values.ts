@@ -11,6 +11,7 @@ import {
   keyMode,
   LIGHT_PARAMS,
   LightData,
+  nodeTypeSpec,
   PassData,
   PASSES,
   PassSpec,
@@ -23,10 +24,10 @@ import {
 
 /**
  * The Entity panel's values: one row per adjustable value of an entity, generated from the content contract's
- * definitions (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`, `LIGHT_PARAMS`), reading and writing them on an
- * `EntityData` copy. Row ids use the three.js names: `position.x`, `rotation.y`, `scale` (uniform) or `scale.z`,
- * `filters.0.threshold`, `components.0.speed`, `light.intensity`. A new filter, component, light parameter or
- * parameter in the contract needs no panel code.
+ * definitions (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`, `LIGHT_PARAMS`, `nodeTypeSpec`), reading and writing
+ * them on an `EntityData` copy. Row ids use the three.js names: `position.x`, `rotation.y`, `scale` (uniform) or
+ * `scale.z`, `filters.0.threshold`, `components.0.speed`, `light.intensity`, `params.count` (a plugin node type's). A
+ * new filter, component, light parameter, plugin node type or parameter in the contract needs no panel code.
  */
 
 export type RowValue = number | string;
@@ -97,6 +98,12 @@ export const componentRows = (component: ComponentData, index: number): ValueRow
 /** The rows of a light node (`light.{name}`), from `LIGHT_PARAMS` */
 export const lightRows = (): ValueRow[] => specRows("light", LIGHT_PARAMS);
 
+/** The rows of a plugin's node type (`params.{name}` – the values sit in the node's params next to the placement), from its spec */
+export const nodeTypeRows = (type: string): ValueRow[] => {
+  const spec = nodeTypeSpec(type);
+  return spec ? specRows("params", spec.params) : [];
+};
+
 /** One row per parameter of a spec (a component's – built-in or a plugin's –, a pass's or the light's), ids `{prefix}.{name}` */
 const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): ValueRow[] =>
   Object.entries(params).map(([name, param]): ValueRow => {
@@ -153,6 +160,7 @@ export const componentTypesFor = (type: EntityData["type"]): string[] =>
 export const valueRows = (entity: EntityData, uniformScale: boolean): ValueRow[] => [
   ...placementRows(entity, uniformScale),
   ...(entity.type === "light" ? lightRows() : []),
+  ...nodeTypeRows(entity.type),
   ...(entity.filters ?? []).flatMap(filterRows),
   ...(entity.components ?? []).flatMap(componentRows),
 ];
@@ -173,6 +181,11 @@ export const getValue = (entity: EntityData, row: ValueRow): RowValue => {
     const value = entity.light?.[second as keyof LightData];
     return (value as RowValue | undefined) ?? row.default;
   }
+  if (head === "params") {
+    const value = entity.params?.[second];
+    if (value === undefined) return row.default;
+    return row.kind === "boolean" ? (value ? "true" : "false") : (value as RowValue);
+  }
   const placement = resolvePlacement(entity.type, entity.params);
   return placement[head as PlacementKey][second ? AXES.indexOf(second as "x") : 0];
 };
@@ -191,6 +204,7 @@ export const setValue = (entity: EntityData, row: ValueRow, value: RowValue): En
     return { ...entity, components };
   }
   if (head === "light") return { ...entity, light: { ...entity.light, [second]: value } };
+  if (head === "params") return { ...entity, params: { ...entity.params, [second]: row.kind === "boolean" ? value === "true" : value } };
   const placement = resolvePlacement(entity.type, entity.params);
   const key = head as PlacementKey;
   const vector = [...placement[key]] as Vector3Data;
@@ -252,6 +266,14 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
   const sameVector = (a: Vector3Data, b: Vector3Data) => a.every((v, i) => round(v) === round(b[i]));
   const { position: _p, rotation: _r, scale: _s, ...other } = entity.params ?? {};
   const params: Record<string, unknown> = { ...other };
+  // A plugin node type's parameters only where they differ from its spec's defaults
+  nodeTypeRows(entity.type).forEach(row => {
+    const name = row.id.split(".")[1];
+    if (params[name] === undefined) return;
+    const value = getValue(entity, row);
+    if (sameValue(value, row.default)) delete params[name];
+    else params[name] = row.kind === "boolean" ? value === "true" : typeof value === "number" ? round(value) : value;
+  });
   if (!sameVector(placement.position, defaults.position)) params.position = placement.position.map(round);
   if (!sameVector(placement.rotation, defaults.rotation)) params.rotation = placement.rotation.map(round);
   if (!sameVector(placement.scale, defaults.scale)) {
@@ -341,7 +363,6 @@ export const contentTree = (root: EntityData): EntityData => {
   return node;
 };
 
-/** A new node of a type: fileless types (group, text, light) at once, model / video / image with the asset chosen from the book */
 /** A file's picture size in pixels as the library knows it (null: not known) */
 export interface FileSize {
   width: number | null;
@@ -361,7 +382,10 @@ export const videoNodeScale = (size?: FileSize | null): number | undefined => {
   return Math.round((width / height) * 10000) / 10000;
 };
 
-/** A new node of the type with its file; a video sized to its file when the library knows the file's size (`size`) */
+/**
+ * A new node of the type with its file; a video sized to its file when the library knows the file's size (`size`). A
+ * plugin's node type (#77) takes its file when its spec names a `src`; its parameters start at their defaults.
+ */
 export const newNode = (type: EntityData["type"], asset?: { id: string; assetType: AssetData["assetType"]; src: string }, size?: FileSize | null): EntityData => {
   const scale = type === "video" && asset ? videoNodeScale(size) : undefined;
   return {

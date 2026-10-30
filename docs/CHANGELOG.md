@@ -12,6 +12,21 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **A plugin's own node type** (#77, plugin API 1.2, content schema 2.13): `api.registerNodeType(type, spec, build)` –
+  the plugin builds the node's three.js object with `api.three` (points, a sprite, a line, a mesh of its own), the engine
+  places it like every node, with its children, components and layers. The spec names the parameters (rows in the
+  Entity panel, values in the node's `params` next to the placement) and the file its `src` takes (`glb`, `video`,
+  `image` or none). The content build checks the nodes of a registered type (parameters, file) and refuses a type no
+  plugin registers; the guard checks a registered type's parameters and lets one pass quietly while plugins are
+  declared; the editor's API accepts such a type in a book with plugins and a publish without compiled plugins refuses
+  it (409 `unknown-node-types`). In the editor, **+ node** lists the book's node types under *plugins* once they are
+  loaded or Run, with their Library file and parameter rows; the tree shows them with the code icon. The type stubs
+  (`plugin-api.d.ts`) and `docs/plugins.md` cover it; the demo book's new `sparkle` plugin puts a twinkling sparkle of
+  points into the twins' shared entity.
+
 ## 1.31.0 – 2026-10-30
 
 ### Added

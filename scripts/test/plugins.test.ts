@@ -113,3 +113,106 @@ describe('plugins (the book\'s own code)', () => {
     expect(none.errors).toEqual(['plugins/tint: index.ts exports no register(api) function']);
   }, 30000);
 });
+
+/** A plugin with two node types (API 1.2): a fileless sparkle and a poster that takes an image */
+const NODES = `import type { PluginApi } from "osct-plugin-api";
+export const register = (api: PluginApi): void => {
+  api.registerNodeType("sparkle", {
+    description: "Points.",
+    params: {
+      count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." },
+      color: { kind: "color", default: "#ffffff", description: "Their colour." },
+    },
+  }, ({ params, three }) => ({ object: new three.Points(new three.BufferGeometry(), new three.PointsMaterial({ color: String(params.color) })) }));
+  api.registerNodeType("poster", { description: "A picture on a stand.", src: "image", params: {} }, ({ three }) => ({ object: new three.Group() }));
+};
+`;
+
+const nodeContent = (entity: string, plugin = NODES) => ({
+  'book.yaml': BOOK,
+  'spreads/a/spread.yaml': spread(1, 2),
+  'entries/first/entry.yaml': entry(1, 'x.jpg', `  entity:\n${entity}`),
+  'entries/first/x.jpg': 'image x',
+  'entries/first/p.jpg': 'image p',
+  'entries/first/v.mp4': 'video',
+  'plugins/nodes/index.ts': plugin,
+});
+
+describe('a plugin\'s node types', () => {
+  it('pass the build with their parameters in params, a file of their kind, children and components', async () => {
+    const build = await loadBuild(makeContent(nodeContent([
+      '    type: group',
+      '    children:',
+      '      - type: sparkle',
+      '        params: { position: [0, 0.1, 0], count: 120, color: "#ffe2a8" }',
+      '      - type: poster',
+      '        src: p.jpg',
+      '        children:',
+      '          - type: text',
+      '            text: hello',
+      '',
+    ].join('\n'))));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await build.plugins.buildPlugins();
+    const { entries } = build.buildAll();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    const root = entries[0].target?.entity as { children: unknown[] };
+    expect(root.children[0]).toMatchObject({ type: 'sparkle', assets: [], params: { position: [0, 0.1, 0], count: 120, color: '#ffe2a8' } });
+    expect(root.children[1]).toMatchObject({ type: 'poster', assets: [{ assetType: 'image' }], children: [{ type: 'text' }] });
+  }, 30000);
+
+  it('refuses an unknown parameter, a wrong value, a missing or wrong file, a file on a fileless type', async () => {
+    const build = await loadBuild(makeContent(nodeContent([
+      '    type: group',
+      '    children:',
+      '      - type: sparkle',
+      '        params: { count: 999, glow: 1 }',
+      '      - type: sparkle',
+      '        src: p.jpg',
+      '      - type: poster',
+      '      - type: poster',
+      '        src: v.mp4',
+      '',
+    ].join('\n'))));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await build.plugins.buildPlugins();
+    build.buildAll();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([
+      'entries/first target children[0]: params.count: expected a number from 1 to 500, got 999',
+      'entries/first target children[0]: params.glow: unknown parameter of sparkle (position, rotation, scale, count, color)',
+      'entries/first target children[1]: node type "sparkle" takes no file (its plugin\'s spec has no src)',
+      'entries/first target children[2]: node type "poster" needs a src',
+      'entries/first target children[3]: node type "poster" takes image files, not "video"',
+    ]);
+  }, 30000);
+
+  it('a node type no plugin registers is an error; so are a bad spec and a type two plugins register', async () => {
+    const none = await loadBuild(makeContent(nodeContent('    type: sparkle\n', TINT)));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await none.plugins.buildPlugins();
+    none.buildAll();
+    vi.restoreAllMocks();
+    expect(none.errors).toEqual(['entries/first target: node type "sparkle" must be one of group, model, video, image, text, light']);
+
+    const bad = await loadBuild(makeContent({
+      ...nodeContent('    type: group\n'),
+      // The poster renamed to a built-in type, a src kind that does not exist, a parameter named like the placement
+      'plugins/nodes/index.ts': NODES
+        .replace('src: "image", params: {}', 'src: "audio" as never, params: { position: { kind: "number", default: 0, min: 0, max: 1, description: "x" } }')
+        .replace('"poster"', '"model"'),
+      // The sparkle again (the nodes plugin registered it first)
+      'plugins/other/index.ts': NODES.replace('"poster"', '"stand"'),
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await bad.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(bad.errors).toEqual([
+      'plugins/nodes: "model" is a built-in node type',
+      'plugins/nodes: model: src must be one of none, glb, video, image',
+      'plugins/nodes: model.position: the placement\'s name – a node type\'s parameter needs another',
+      'plugins/other: the node type "sparkle" is registered by the plugin nodes too',
+    ]);
+  }, 60000);
+});

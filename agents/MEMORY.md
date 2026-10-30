@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – A plugin's own node type (#77)
+
+- `api.registerNodeType(type, spec, build)` is the engine's builder contract for a book's code: `build` returns `{ object,
+  …hooks }`, `buildNode` places it like a built-in node (placement, children, components, layers). Plugin API **1.2**,
+  content schema **2.13** (the contract in `shared/types/node-types.ts`; `EntityData.type` widened to `NodeType`).
+- **The parameters live in the node's `params`**, next to the placement – no new field: `params` already passed other
+  keys through, and an older app ignores them. A spec may not name a parameter `position`, `rotation` or `scale`.
+- `src` is one kind (`glb` / `video` / `image` / `none`), not a list: what the issue asked, and enough for the Library
+  picker's filter. A model's loaded asset is handed over shared – the plugin clones what it changes.
+- The server cannot tell which types a plugin registers (only the stage and the content build run the code), so it
+  follows #66's pattern for components: an entity body may name a camelCase type outside `ENTITY_TYPES` when the book has
+  plugins (declared, or Code tab sources – `Editor::hasPlugins`), and a publish without declared plugins refuses such
+  nodes (409 `unknown-node-types`). In a book with plugins a lower-case typo like `hologram` now passes the API; the
+  content build still refuses it. A type is at most 32 characters (`entities.type` is `VARCHAR(32)`; no ALTER needed).
+- [ ] The MCP server still refuses a plugin's node type (`mcp/src/model.ts` `unknownNodeTypes`, `pluginTypes` does not
+  read `registerNodeType`) – it follows when an agent needs one.
+
 ## 2026-10-30 – A video's size and duration on upload (#91)
 
 - Read in plain PHP (`server/api/src/VideoInfo.php`): mp4 / mov boxes (`mvhd`, the `vide` track's `tkhd`, a quarter-turn

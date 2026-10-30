@@ -68,7 +68,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     MAJOR at startup and reads every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` as it is (raise it when a
     MAJOR removes or renames something). MINOR = additions older apps ignore (new optional field, and since 2.6 a
     new **node type**: the guard lets an unknown one pass, the engine renders nothing for it and keeps its children;
-    the content build and the editor's API still refuse it) – any MINOR of the same MAJOR loads.
+    the content build and the editor's API still refuse it, unless a plugin of the book registers it – 2.13,
+    `registerNodeType`) – any MINOR of the same MAJOR loads.
     Every change in `shared/` needs a bump, comments included: `shared/content-schema.json` locks the checksum of
     `shared/` to the schema (`npm run schema:lock` in `scripts/`; a test fails otherwise). The app version recorded
     in the content (`version.version`) is information only. No config migrations. Progress storage: a new MAJOR
@@ -94,8 +95,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     convention and the engine's `imageTargetData` diffing on an engine upgrade). A spread switch changes only
     which targets are reported; a neighbour's page held in view switches the spread (`spreadSeen`). Assets:
     `ar/assets.ts` (loaded per id, disposed when released – free GPU memory). Entity registry
-    `ar/entities.ts` (add entity types with `registerEntity`, no logic in content; entities dispose what
-    they create). Camera only in scan mode.
+    `ar/entities.ts` (add entity types with `registerEntity`, a book's own with `registerNodeType`; no logic in
+    content; entities dispose what they create). Camera only in scan mode.
 13. Type naming: the per-entity game-configuration (JSON) types are `*Data` (`SpreadData`, `EntityData`, …,
     defined once in top-level `shared/types/`, used by the client and `scripts/`); the two root documents keep
     their names (`GameConfiguration`, `ContentManifest`). App-internal objects have plain names (`Spread`,

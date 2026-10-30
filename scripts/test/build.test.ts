@@ -211,7 +211,7 @@ describe('the test fixture', () => {
 });
 
 describe('the demo book', () => {
-  it('builds without errors: every node type, the covers, a shared entity, six plugins', { timeout: 60000 }, async () => {
+  it('builds without errors: every node type, the covers, a shared entity, seven plugins (one with a node type)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
@@ -219,7 +219,7 @@ describe('the demo book', () => {
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(book.id).toBe('demo');
-    expect(plugins.map(p => p.data.id)).toEqual(['narrative', 'pulse', 'scenes', 'spin', 'tally', 'tint']);
+    expect(plugins.map(p => p.data.id)).toEqual(['narrative', 'pulse', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
     expect(spreads.map(s => s.format ?? 'spread')).toEqual(expect.arrayContaining(['cover', 'back', 'spread']));
     const types = new Set<string>();
     const walk = (node: { type: string; children?: Array<{ type: string }> }) => { types.add(node.type); (node.children ?? []).forEach(walk as never); };
@@ -227,5 +227,7 @@ describe('the demo book', () => {
     expect([...types].sort()).toEqual(['group', 'image', 'model', 'text', 'video']);
     expect(entries.some(e => e.target?.entity && 'ref' in e.target.entity)).toBe(true);
     expect(new Set(entries.map(e => e.category))).toEqual(new Set(['glossary', 'video', 'text', 'link']));
+    // The shared entity carries the sparkle plugin's own node type, its parameters in params
+    expect(build.entities.buildEntities().beacon.children?.find(c => c.type === 'sparkle')?.params).toMatchObject({ count: 120, color: '#ffe2a8' });
   });
 });

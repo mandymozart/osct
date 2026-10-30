@@ -75,6 +75,12 @@ final class Plugins
         Http::json(204, null);
     }
 
+    /** The book has at least one source in the Code tab */
+    public static function hasSources(string $bookId): bool
+    {
+        return Db::value('SELECT id FROM plugins WHERE book_id = :book LIMIT 1', ['book' => $bookId]) !== null;
+    }
+
     /** @return array<string, mixed> */
     private static function row(string $bookId, string $pluginId): array
     {
