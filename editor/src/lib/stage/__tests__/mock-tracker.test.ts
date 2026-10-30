@@ -5,7 +5,7 @@ import type { TriggerInfos } from "@engine/utils/trigger-protocol";
 import { setPreviewActive, setTargetHidden, updatePreview } from "../preview";
 import { getEngineState } from "@engine/utils/tracker-debug";
 import {
-  BOOK_PAGE_MM, cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, type StageView, targetCentre, VIEW_PRESETS, wobbled,
+  BOOK_PAGE_MM, cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, type StageTarget, type StageView, targetCentre, VIEW_PRESETS, wobbled,
 } from "../mock-tracker";
 
 const target = (id: string): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg` });
@@ -340,5 +340,75 @@ describe("MockTracker input (#131: the panels are no stage)", () => {
     const distance = tracker.currentOrbit.distance;
     wheel(canvas);
     expect(tracker.currentOrbit.distance).toBeGreaterThan(distance);
+  });
+});
+
+describe("MockTracker: the placement being edited is the target itself (#191)", () => {
+  let updates: Array<[string, Matrix4 | null]>;
+  let moved: StageTarget[];
+  let aspect: number | undefined;
+  let tracker: MockTracker;
+
+  beforeEach(async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    localStorage.clear();
+    setPreviewActive(true);
+    // Straight down: camera space x / y are the stage's, so the anchors' offsets read in mm
+    updatePreview({ view: "top", orbit: null, wobble: 0, hidden: [] });
+    updates = [];
+    moved = [];
+    aspect = undefined;
+    tracker = new MockTracker(document.createElement("div"), { onUpdate: (id, matrix) => updates.push([id, matrix]) }, async () => ({}), () => 0, async () => null);
+    tracker.attachStage({
+      setLayout() {},
+      setHdri() {},
+      update() {},
+      dispose() {},
+      movePrint(target) { moved.push(target); },
+      printedAspect: () => aspect,
+    });
+    await tracker.startCamera();
+    const placed = { ...target("a"), print: { surface: "right", x: 70, y: 100, width: 80 } } as Target;
+    await tracker.loadTargets({ spreadId: "s", targets: [placed, target("b")] });
+  });
+
+  afterEach(() => {
+    tracker.stop();
+    setPreviewActive(false);
+    vi.unstubAllGlobals();
+  });
+
+  const anchorOf = (id: string) => {
+    updates = [];
+    tracker.tick(0);
+    return decompose(updates.find(([at]) => at === id)![1]!).position;
+  };
+
+  it("moves the print and the entity's anchor with the placement, and puts them back without it", () => {
+    const saved = anchorOf("a");
+    tracker.placeTarget("a", { surface: "left", x: 70, y: 100, width: 80 });
+    expect(moved.at(-1)).toMatchObject({ id: "a", surface: "left", x: 70 });
+    const placed = anchorOf("a");
+    expect(placed.x - saved.x).toBeCloseTo(-0.23, 6);
+    expect(placed.y - saved.y).toBeCloseTo(0, 6);
+    // The content's place stays what the inspector falls back to
+    expect(tracker.placeOf("a")).toMatchObject({ surface: "right", x: 70, y: 100, width: 80 });
+    tracker.placeTarget(null, null);
+    expect(moved.at(-1)).toMatchObject({ id: "a", surface: "right", x: 70 });
+    expect(anchorOf("a").distanceTo(saved)).toBeCloseTo(0, 6);
+  });
+
+  it("puts the previous target back when another one is placed", () => {
+    tracker.placeTarget("a", { surface: "left", x: 10, y: 10, width: 40 });
+    const b = tracker.placeOf("b")!;
+    tracker.placeTarget("b", { ...b, x: b.x + 5 });
+    expect(moved.slice(-2).map(t => [t.id, t.surface, t.x])).toEqual([["a", "right", 70], ["b", b.surface, b.x + 5]]);
+  });
+
+  it("anchors the entity at the centre of the printed image, whose height follows the image", () => {
+    const guessed = anchorOf("a"); // the 0.75 box until the image is known
+    aspect = 1.45; // a portrait image: 116 mm high, its centre 28 mm lower
+    expect(anchorOf("a").y - guessed.y).toBeCloseTo(-0.028, 6);
   });
 });

@@ -9,6 +9,11 @@ class Selection implements SelectionState {
   target = $state<string | null>(null);
   node = $state<number[]>([]);
   onTarget = $state(true);
+  /**
+   * The author cleared the selection (a click on the stage that picks nothing): the Entity panel then shows none
+   * instead of falling back to a target, until the next selection. A fresh workspace (`reset`) may fall back.
+   */
+  cleared = $state(false);
 
   /** The target itself (its target fields, the print outlined on the stage) */
   selectTarget(target: string | null): void {
@@ -24,6 +29,13 @@ class Selection implements SelectionState {
     this.target = next.target;
     this.node = next.node;
     this.onTarget = next.onTarget;
+    this.cleared = false;
+  }
+
+  /** Nothing selected, on purpose: the tree, the stage and the Entity panel all show none */
+  clear(): void {
+    this.set({ target: null, node: [], onTarget: true });
+    this.cleared = true;
   }
 
   /** One level up (the breadcrumb, ← in the tree) */

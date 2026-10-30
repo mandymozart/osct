@@ -299,9 +299,13 @@
       }
       if (disposed || !container) return;
       stage = new Stage(container);
+      // A click picks by the pick mode; nothing of its kind there clears the selection (tree, stage and panel alike)
       stage.onPick = hit => {
         stageMenu = null;
-        if (!hit) return;
+        if (!hit) {
+          selection.clear();
+          return;
+        }
         selectHit(hit);
         select();
       };

@@ -5,7 +5,8 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
-import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
+import type { PageFormat, StageBook, StageSheet, StageSurface, StageTarget, StageView } from "./mock-tracker";
+import { printCentre, printedHeight } from "./placement";
 import { gridAreas, gridLines, type OriginId } from "./origin";
 import { plywoodEdgeTexture } from "./plywood";
 import { applyShading, ownMaterial } from "./shading";
@@ -146,6 +147,8 @@ export class MockStage implements StageView {
   private sharpSource: string | null = null;
   private sharpRequested = false;
   private ghostTextures = new Map<string, Texture>();
+  /** Every printed image's height per width by its source, once loaded (the ghost and a moved print know it at once) */
+  private aspects = new Map<string, number>();
   private hdris = new Map<string, Texture>();
   private wantedHdri: string | null = null;
   /** The sky: the HDRI on a sphere inside the stage's group, so it turns with the stage by construction */
@@ -350,15 +353,11 @@ export class MockStage implements StageView {
     }
 
     targets.forEach(target => {
-      const plane = new Mesh(new PlaneGeometry(target.width / 1000, target.height / 1000), new MeshBasicMaterial({ color: 0xffffff }));
+      // A unit plane scaled to the print: a move or the image's own aspect only rescales it, so whatever hangs on it
+      // (the selection's outline) follows
+      const plane = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ color: 0xffffff }));
       plane.userData.targetId = target.id;
-      const pageLeft = surfaceLeft(target.surface, page);
-      // One layer under the target's own plane: the entities sit at z = 0 of the target, the print just below
-      plane.position.set(
-        (pageLeft + target.x + target.width / 2) / 1000,
-        (page.height / 2 - target.y - target.height / 2) / 1000,
-        -LAYER,
-      );
+      this.placePrint(plane, target);
       this.pages.add(plane);
       this.loader.setCrossOrigin("anonymous");
       this.loader.load(target.imageSrc, texture => {
@@ -369,10 +368,8 @@ export class MockStage implements StageView {
         texture.colorSpace = SRGBColorSpace;
         this.textures.push(texture);
         // The printed width is known; the height follows the image, as the print does
-        const aspect = texture.image.height / texture.image.width;
-        plane.geometry.dispose();
-        plane.geometry = new PlaneGeometry(target.width / 1000, (target.width * aspect) / 1000);
-        plane.position.y = (page.height / 2 - target.y - (target.width * aspect) / 2) / 1000;
+        this.aspects.set(target.imageSrc, texture.image.height / texture.image.width);
+        this.placePrint(plane, plane.userData.place as StageTarget);
         const own = ownMaterial<MeshBasicMaterial>(plane);
         own.map = texture;
         own.needsUpdate = true;
@@ -380,6 +377,27 @@ export class MockStage implements StageView {
     });
     this.drawGrid();
     this.toBackdropLayer();
+  }
+
+  /** Lay a print's plane where its target lies: one layer under the target's own plane (the entities sit at its z = 0) */
+  private placePrint(plane: Mesh, target: StageTarget): void {
+    plane.userData.place = target;
+    const aspect = this.aspects.get(target.imageSrc);
+    const centre = printCentre(target, this.page, aspect);
+    plane.scale.set(target.width / 1000, printedHeight(target, aspect) / 1000, 1);
+    plane.position.set(centre.x / 1000, centre.y / 1000, -LAYER);
+  }
+
+  /** A target's print moves (the placement being edited): the same plane, so its texture and outline stay */
+  movePrint(target: StageTarget): void {
+    const plane = this.printedPlanes().find(p => p.userData.targetId === target.id);
+    if (plane) this.placePrint(plane, target);
+  }
+
+  /** A printed image's height per width, once its image has loaded */
+  printedAspect(targetId: string): number | undefined {
+    const place = this.printedPlanes().find(p => p.userData.targetId === targetId)?.userData.place as StageTarget | undefined;
+    return place ? this.aspects.get(place.imageSrc) : undefined;
   }
 
   /** The camera's distance from the page (mm) as last reported */
@@ -529,31 +547,34 @@ export class MockStage implements StageView {
 
   /**
    * A translucent print of `ghost` where it would lie (above the print, below the entities), with a small square at
-   * its bottom right corner – the handles: drag the image to move it, the corner to set its printed width
+   * its bottom right corner – the handles: drag the image to move it, the corner to set its printed width. With
+   * `handlesOnly` the target's own print moves instead (`movePrint`): the image stays a handle but is not drawn, so
+   * the target never shows twice.
    */
-  setGhost(ghost: StageTarget | null): void {
+  setGhost(ghost: StageTarget | null, options: { handlesOnly?: boolean } = {}): void {
     this.clear(this.ghostGroup);
     if (!ghost) return;
-    const page = this.page;
     const material = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false });
-    const height = ghost.height || ghost.width * 0.75;
-    const plane = new Mesh(new PlaneGeometry(ghost.width / 1000, height / 1000), material);
+    material.visible = !options.handlesOnly;
+    const plane = new Mesh(new PlaneGeometry(1, 1), material);
     plane.name = "ghost";
-    const pageLeft = surfaceLeft(ghost.surface, page);
-    plane.position.set((pageLeft + ghost.x + ghost.width / 2) / 1000, (page.height / 2 - ghost.y - height / 2) / 1000, -LAYER / 2);
     const corner = new Mesh(new PlaneGeometry(GHOST_HANDLE / 1000, GHOST_HANDLE / 1000), new MeshBasicMaterial({ color: 0x1e1e1e, transparent: true, opacity: 0.9, depthWrite: false }));
     corner.name = "ghost-corner";
-    const placeCorner = (h: number) => corner.position.set((pageLeft + ghost.x + ghost.width) / 1000, (page.height / 2 - ghost.y - h) / 1000, 0);
-    placeCorner(height);
+    const place = () => {
+      const aspect = this.aspects.get(ghost.imageSrc);
+      const centre = printCentre(ghost, this.page, aspect);
+      const height = printedHeight(ghost, aspect);
+      plane.scale.set(ghost.width / 1000, height / 1000, 1);
+      plane.position.set(centre.x / 1000, centre.y / 1000, -LAYER / 2);
+      corner.position.set((centre.x + ghost.width / 2) / 1000, (centre.y - height / 2) / 1000, 0);
+    };
+    place();
     this.ghostGroup.add(plane, corner);
     this.toBackdropLayer();
     const apply = (texture: Texture) => {
       if (!plane.parent) return;
-      const aspect = texture.image.height / texture.image.width;
-      plane.geometry.dispose();
-      plane.geometry = new PlaneGeometry(ghost.width / 1000, (ghost.width * aspect) / 1000);
-      plane.position.y = (page.height / 2 - ghost.y - (ghost.width * aspect) / 2) / 1000;
-      placeCorner(ghost.width * aspect);
+      this.aspects.set(ghost.imageSrc, texture.image.height / texture.image.width);
+      place();
       material.map = texture;
       material.needsUpdate = true;
     };

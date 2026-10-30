@@ -9,6 +9,7 @@
   import { plugins } from "#lib/plugins.svelte.js";
   import { Stage } from "#lib/stage/stage.svelte.js";
   import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
+  import { withWidth } from "#lib/stage/placement.js";
   import { getPreview, subscribePreview } from "#lib/stage/preview.js";
   import {
     addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
@@ -51,7 +52,9 @@
   });
 
   const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
-  const target = $derived<Target | undefined>(targets.find(t => t.id === selected) ?? targets.find(t => t.entity && stage?.found.includes(t.id)) ?? targets.find(t => t.entity) ?? targets[0]);
+  // Nothing selected yet: a target stands in (the first found one with AR content); cleared on purpose: none
+  const target = $derived<Target | undefined>(targets.find(t => t.id === selected)
+    ?? (selection.cleared ? undefined : targets.find(t => t.entity && stage?.found.includes(t.id)) ?? targets.find(t => t.entity) ?? targets[0]));
 
   /** The whole tree being edited (null = the target has no entity yet) */
   let entity = $state<EntityData | null>(null);
@@ -72,12 +75,15 @@
     if (editingTarget === t.id && entity) return;
     const other = editingTarget !== t.id;
     editingTarget = t.id;
-    // The tree and the stage follow the target shown here (a fallback when nothing is selected yet)
-    if (selected !== t.id) selected = t.id;
+    // The tree and the stage follow the target shown here (a fallback when nothing is selected yet); a target selected
+    // elsewhere keeps the node it was selected at (a node picked on the stage)
+    if (selected !== t.id) {
+      selected = t.id;
+      node = [];
+    }
     const override = stage?.overrideOf(t.id);
     entity = override === Stage.REMOVED ? null : override ?? t.entity ?? null;
     if (other) {
-      node = [];
       saved = null;
       error = null;
     }
@@ -223,11 +229,17 @@
     const format = stage?.format() ?? "spread";
     return format === "cover" ? ["front"] : format === "back" ? ["back"] : ["left", "right"];
   });
-  /** The target's place in the book's layout; without one the ghost stays where it is */
+  /**
+   * A target without a place of its own: where the stage shows it – the book's layout, else the stage's fallback place –
+   * so the rows, the handles and the print agree from the first look
+   */
   const placeFromBookLayout = (t: Target) => {
-    const place = stage?.printedPlace(t.id) ?? null;
-    placeFromLayout = !!place;
-    if (place) print = place;
+    placeFromLayout = !!stage?.printedPlace(t.id);
+    const place = stage?.placeOf(t.id) ?? null;
+    if (!place) return;
+    // The layout's box is the print's; a fallback's height is only a guess (the image's aspect decides)
+    const { height, ...box } = place;
+    print = placeFromLayout && height !== undefined ? { ...box, height } : box;
   };
   // The placement follows the target: its own print; else the book's layout while the placement is open
   $effect(() => {
@@ -239,12 +251,12 @@
     if (!printOpen && target && !target.print) placeFromBookLayout(target);
     printOpen = !printOpen;
   };
-  // While the placement rows are open the stage shows the edited place as a translucent image
+  // While the placement rows are open the target lies at the edited place on the stage (its print and its entity), with handles
   $effect(() => {
     const t = target;
     const open = printOpen;
     const where = { surface: print.surface, x: print.x, y: print.y, width: print.width };
-    stage?.ghost(open && t ? { imageSrc: t.imageSrc, ...where } : null);
+    stage?.ghost(open && t ? { targetId: t.id, imageSrc: t.imageSrc, ...where, ...(print.height !== undefined ? { height: print.height } : {}) } : null);
   });
   $effect(() => () => stage?.ghost(null));
   // The handles on the stage move the ghost: the placement rows follow
@@ -413,7 +425,7 @@
 {#if picking}
   <LibraryPanel {bookId} pick={picking} />
 {:else if !target}
-  <p class="muted">No target on this spread.</p>
+  <p class="muted">{targets.length ? "Nothing selected." : "No target on this spread."}</p>
 {:else}
   <div class="head">
     <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->
@@ -455,7 +467,7 @@
       </span></div>
     <div class="row"><span class="label">width</span>
       <span class="controls">
-        <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => (print = { ...print, width: v })} /></span>
+        <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => (print = withWidth(print, v))} /></span>
         <button type="button" class="pill" disabled={targetBusy} onclick={savePrint}>{targetBusy ? "Saving…" : "Save placement"}</button>
         {#if !target.print}<span class="small muted" data-help-name="Placement" data-help={placeFromLayout ? "Taken from the book's layout until you save a placement of this target's own." : "The target is not in the book's layout: its placement is set by hand and kept once saved."}>{placeFromLayout ? "from the layout" : "by hand"}</span>{/if}
       </span></div>
