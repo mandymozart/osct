@@ -13,7 +13,8 @@ import {
 } from '../../../shared/types/materials';
 import type { EntityData } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
-import { buildErrors, buildWarnings } from '../lib/errors';
+import { buildErrors, buildWarnings, messageOf } from '../lib/errors';
+import type { PluginApi } from '../../../engine/src/scene/plugins';
 
 /**
  * The book's own code (content schema 2.4, docs/plugins.md "Shipping it: the content build"): every folder
@@ -134,7 +135,7 @@ export async function bundlePlugin(id: string, entry: string): Promise<string | 
     if (messages?.length) {
       messages.forEach(m => buildErrors.push(`plugins/${id}${m.location ? `/${path.basename(m.location.file)}(${m.location.line},${m.location.column + 1})` : ''}: ${m.text}`));
     } else {
-      buildErrors.push(`plugins/${id}: ${(error as Error).message}`);
+      buildErrors.push(`plugins/${id}: ${messageOf(error)}`);
     }
     return null;
   }
@@ -179,7 +180,8 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       buildErrors.push(`plugins/${id}: ${ENTRY} exports no register(api) function`);
       return record;
     }
-    register({
+    // The engine's own API type: a method the engine adds or changes fails here first, not in a book's build
+    const recording: PluginApi = {
       version: PLUGIN_API_VERSION,
       three: THREE,
       registerComponent: (type: string, spec: ComponentSpec, apply: unknown) => {
@@ -254,9 +256,10 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       // A file is loaded where a build runs (a material, a pass, a node type) – never while recording
       loadText: () => Promise.resolve(''),
       log: () => undefined,
-    });
+    };
+    (register as (api: PluginApi) => void)(recording);
   } catch (error) {
-    buildErrors.push(`plugins/${id}: register failed – ${(error as Error).message}`);
+    buildErrors.push(`plugins/${id}: register failed – ${messageOf(error)}`);
   } finally {
     fs.rmSync(path.dirname(file), { recursive: true, force: true });
   }

@@ -29,6 +29,7 @@ import {
   DEFAULT_PURGE,
   describePurge,
   describeSync,
+  ENV_NAME,
   isDemoBuild,
   isFixtureBuild,
   nameOf,
@@ -41,6 +42,7 @@ import {
   versionProblems,
 } from './lib/content-sync';
 import { type CliArgs, parseArgs } from './lib/cli-args';
+import { messageOf } from './lib/errors';
 import { StorageClient } from './lib/storage';
 import { DEMO_ENV } from './config';
 
@@ -71,7 +73,9 @@ const required = (name: string): string => {
 
 const environment = (cli: CliArgs): string => {
   const env = cli.option('env') ?? process.env.OSCT_CONTENT_ENV;
-  if (!env || !/^[a-z][a-z0-9-]*$/.test(env)) throw new Error('Name the environment: --env staging | production');
+  if (!env || !ENV_NAME.test(env)) {
+    throw new Error(`Name the environment: --env staging | production, or ${DEMO_ENV} for the demo book – lower-case letters, digits and -, a letter first, at most 32`);
+  }
   return env;
 };
 
@@ -206,6 +210,6 @@ async function main(): Promise<void> {
 }
 
 main().catch(error => {
-  console.error(`❌ ${error instanceof Error ? error.message : error}`);
+  console.error(`❌ ${messageOf(error)}`);
   process.exit(1);
 });

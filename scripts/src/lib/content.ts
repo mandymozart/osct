@@ -5,7 +5,7 @@ import path from 'path';
 import { CONTENT_DIR } from '../config';
 import type { AssetType } from '../../../shared/types/game-config';
 import { isObject } from '../../../shared/guards/game-config';
-import { buildErrors } from './errors';
+import { buildErrors, messageOf } from './errors';
 import type { Authored, ContentType } from './schema';
 import { validateContent } from './validation';
 
@@ -39,7 +39,7 @@ export function readYaml(file: string): Record<string, unknown> | null {
     if (isObject(data)) return data;
     buildErrors.push(`${path.relative(CONTENT_DIR, file)}: expected a YAML mapping`);
   } catch (error) {
-    buildErrors.push(`${path.relative(CONTENT_DIR, file)}: ${(error as Error).message}`);
+    buildErrors.push(`${path.relative(CONTENT_DIR, file)}: ${messageOf(error)}`);
   }
   return null;
 }
@@ -70,7 +70,7 @@ export function validate<T extends ContentType>(data: unknown, type: T, label: s
   try {
     return validateContent(data, type);
   } catch (error) {
-    buildErrors.push(`${label}: ${(error as Error).message}`);
+    buildErrors.push(`${label}: ${messageOf(error)}`);
     return null;
   }
 }

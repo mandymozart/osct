@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { ApiError, downloadUsersCsv, grantRole, inviteEditor, listRoles, listUsers, revokeRole, type AdminUser, type Role } from "#lib/api.js";
   import { session } from "#lib/session.svelte.js";
+  import { csvDownload, type UserFilter } from "#lib/users-csv.js";
 
   /**
    * The admin page (docs/admin.md): the instance's users found by e-mail, each one's roles as toggles (granted when and
@@ -9,7 +10,7 @@
    * a shortcut; the newsletter list (the users with an update option on) as a CSV download; an editor invited by
    * e-mail. Only admins get here (+layout.svelte); the API is docs/server.md "Admin API".
    */
-  type Filter = "all" | "editor" | "admin" | "newsletter";
+  type Filter = UserFilter;
   const FILTERS: { id: Filter; label: string }[] = [
     { id: "all", label: "All" },
     { id: "editor", label: "Editors" },
@@ -118,11 +119,14 @@
   };
 
   let downloading = $state(false);
+  /** The CSV this filter offers – none under Editors or Admins */
+  const csv = $derived(csvDownload(filter));
   const download = async () => {
+    if (!csv) return;
     downloading = true;
     error = null;
     try {
-      await downloadUsersCsv(filter !== "all");
+      await downloadUsersCsv(csv.newsletter);
     } catch (e) {
       fail(e);
     } finally {
@@ -145,9 +149,9 @@
       {/each}
     </div>
     <span class="grow"></span>
-    <button type="button" class="pill framed" onclick={download} disabled={downloading} title={filter === "all" ? "Every user as CSV" : "The users with an update option on, as CSV – the newsletter list"}>
-      {filter === "all" ? "Users CSV" : "Newsletter CSV"}
-    </button>
+    {#if csv}
+      <button type="button" class="pill framed" onclick={download} disabled={downloading} title={csv.title}>{csv.label}</button>
+    {/if}
   </div>
 
   {#if error}<p class="danger">{error}</p>{/if}

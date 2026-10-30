@@ -24,6 +24,9 @@ export interface StoredFile {
 
 const RETRIES = 3;
 
+/** SHA-256 as the Storage API takes and lists it (upper-case hex) – also the content sync's file checksum */
+export const sha256 = (data: Uint8Array | string): string => createHash('sha256').update(data).digest('hex').toUpperCase();
+
 export class StorageError extends Error {
   constructor(message: string, public readonly status?: number) {
     super(message);
@@ -41,9 +44,8 @@ export class StorageClient {
   /** Uploads `data` to `path`, creating folders as needed; the server checks the SHA-256 checksum */
   async put(path: string, data: Uint8Array | string, contentType = 'application/octet-stream'): Promise<void> {
     const bytes = typeof data === 'string' ? Buffer.from(data, 'utf8') : data;
-    const checksum = createHash('sha256').update(bytes).digest('hex').toUpperCase();
     await this.request('PUT', path, {
-      headers: { 'Content-Type': contentType, Checksum: checksum },
+      headers: { 'Content-Type': contentType, Checksum: sha256(bytes) },
       body: bytes,
     }, [201]);
   }

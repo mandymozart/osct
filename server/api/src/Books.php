@@ -61,6 +61,7 @@ final class Books
     /**
      * POST /editor/books/{id}/import { configuration, files?, assetsBase?, confirm? } | { source: "cdn", confirm? }
      * → { book, counts, draft, imported }
+     * The configuration's `book.id` must be `{id}` (400 invalid-configuration naming both, `bookIdOf`).
      * Replaces the book's content rows in one transaction (the logs stay). `assetsBase` is where the configuration's
      * `/assets/content/…` paths resolve; `source: "cdn"` imports the current version of CONTENT_BASE_URL.
      * A book that exists is overwritten only in two steps: without `confirm` the answer is 409 confirm-import with the
@@ -75,6 +76,7 @@ final class Books
         $body = Editor::body();
         [$configuration, $files, $assetsBase, $source] = self::source($body);
         $parts = self::parse($configuration, Plugins::hasSources($bookId));
+        self::bookIdOf($configuration, $bookId);
         $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
         $existing = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
         if ($existing !== null) self::confirmImport($bookId, $existing, $incoming, $user, $body->confirm ?? null);
@@ -141,8 +143,7 @@ final class Books
     {
         Editor::user();
         [$configuration, $files, $assetsBase, $source, $manifest] = self::source(Editor::body());
-        $book = $configuration->book ?? null;
-        $bookId = Editor::id($book instanceof stdClass ? ($book->id ?? null) : null, 'book.id');
+        $bookId = self::bookIdOf($configuration);
         $parts = self::parse($configuration, Plugins::hasSources($bookId));
         $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
         $existing = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
@@ -156,6 +157,22 @@ final class Books
             'counts' => ['spreads' => count($parts['spreads']), 'entries' => count($parts['entries']), 'targets' => count($parts['targets']), 'entities' => count($parts['entities'])],
             'existing' => $comparison,
         ]);
+    }
+
+    /**
+     * The book a configuration is of: its `book.id` (400 invalid-id unless it is an id). The import stores the rows under
+     * the path's id and keeps the configuration's `book` as it is, so the two must agree – else a publish would name one
+     * book in latest.json and another in game.config.json: 400 invalid-configuration naming both. The preview has no
+     * path id; it answers for the configuration's own id, the one the import is then called with.
+     */
+    private static function bookIdOf(stdClass $configuration, ?string $pathId = null): string
+    {
+        $book = $configuration->book ?? null;
+        $id = Editor::id($book instanceof stdClass ? ($book->id ?? null) : null, 'book.id');
+        if ($pathId !== null && $id !== $pathId) {
+            throw new ApiError(400, 'invalid-configuration', "The configuration is of book \"$id\", not \"$pathId\" – import it as $id, or change its book.id.");
+        }
+        return $id;
     }
 
     /**

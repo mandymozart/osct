@@ -66,8 +66,12 @@
     if (!ok) return;
     notice = "Saved";
     // The draft carries it now: the stage builds from it (the preview keeps showing the same values)
-    await content.load(bookId);
-    await stage?.refresh();
+    try {
+      await content.load(bookId);
+      await stage?.refresh();
+    } catch (e) {
+      edit.error = e instanceof Error ? e.message : String(e);
+    }
     void library.refresh();
   };
 </script>

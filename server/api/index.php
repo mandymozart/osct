@@ -170,8 +170,8 @@ try {
         (bool) preg_match("#^GET /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::get($match[1], $match[2]),
         (bool) preg_match("#^PUT /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::put($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::delete($match[1], $match[2]),
-        // The local content store, public like the CDN (the environment name as the osct CLI accepts it)
-        (bool) preg_match('#^GET /content/([a-z][a-z0-9-]{0,31})/(.+)$#', $route, $match) => ContentStore::serve($match[1], $match[2]),
+        // The local content store, public like the CDN (an environment name, ContentStore::ENV)
+        (bool) preg_match('#^GET /content/(' . ContentStore::ENV . ')/(.+)$#', $route, $match) => ContentStore::serve($match[1], $match[2]),
         default => throw new ApiError(404, 'not-found', 'Unknown endpoint.'),
     };
 } catch (ApiError $error) {

@@ -47,13 +47,38 @@ export const authFetch: typeof fetch = (input, init = {}) => {
   return fetch(input, { ...init, headers });
 };
 
-/** A JSON call to the API; errors come back as `ApiError` with the server's code */
-export const api = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+/** Called when the session ended under the page (a 401 to the stored token) – the session store registers it */
+let sessionEnded: (() => void) | null = null;
+
+/** Who hears that the session ended (`session.svelte.ts`); null: nobody */
+export const onSessionEnd = (handler: (() => void) | null): void => {
+  sessionEnded = handler;
+};
+
+/**
+ * A 401 to a call that carried the stored token means the session is gone (expired, signed out elsewhere, the
+ * account's roles revoked): the token is cleared and the session store hears it. Not when the token changed
+ * meanwhile (a new sign-in), nor when no token was sent – then a 401 is only "not signed in".
+ */
+const checkSession = (response: Response, sentToken: string | null): void => {
+  if (response.status !== 401 || sentToken === null || getToken() !== sentToken) return;
+  setToken(null);
+  sessionEnded?.();
+};
+
+/**
+ * A JSON call to the API; errors come back as `ApiError` with the server's code. A 401 ends the session
+ * (`checkSession`) unless `unauthorizedIsAnswer`: the sign-in calls (a wrong code or password), the sign-out and
+ * the startup check of a stored token, where a 401 is the expected answer and the caller handles it.
+ */
+export const api = async <T>(method: string, path: string, body?: unknown, options: { unauthorizedIsAnswer?: boolean } = {}): Promise<T> => {
+  const sentToken = getToken();
   const response = await authFetch(`${API_URL}${path}`, {
     method,
     headers: body === undefined ? {} : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (!options.unauthorizedIsAnswer) checkSession(response, sentToken);
   if (response.status === 204) return undefined as T;
   const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } & Record<string, unknown> } | null;
   if (!response.ok) {
@@ -225,18 +250,21 @@ export interface OtherBook {
 
 // ── Accounts ────────────────────────────────────────────────────────────────────────────────────
 
+// A 401 here is an answer the caller handles (a wrong password, a token checked at startup), not a lost session
+const signIn = { unauthorizedIsAnswer: true };
+
 export const requestCode = (email: string) =>
-  api<{ requestId: string; expiresAt: string }>("POST", "/auth/request", { email, language: "en" });
+  api<{ requestId: string; expiresAt: string }>("POST", "/auth/request", { email, language: "en" }, signIn);
 
 export const verifyCode = (requestId: string, code: string) =>
-  api<{ session: string; user: User }>("POST", "/auth/verify", { requestId, code });
+  api<{ session: string; user: User }>("POST", "/auth/verify", { requestId, code }, signIn);
 
 export const signInWithPassword = (email: string, password: string) =>
-  api<{ session: string; user: User }>("POST", "/auth/password", { email, password });
+  api<{ session: string; user: User }>("POST", "/auth/password", { email, password }, signIn);
 
-export const me = () => api<{ user: User }>("GET", "/user");
+export const me = () => api<{ user: User }>("GET", "/user", undefined, signIn);
 
-export const logout = () => api<void>("POST", "/auth/logout");
+export const logout = () => api<void>("POST", "/auth/logout", undefined, signIn);
 
 // ── AI connections (docs/server.md "AI connections"): personal access tokens for the MCP server ──
 
@@ -325,7 +353,9 @@ export const inviteEditor = (email: string) => api<{ user: AdminUser; created: b
 
 /** The users as CSV (`newsletter` keeps those with an update option on), as a file the browser saves */
 export const downloadUsersCsv = async (newsletter: boolean): Promise<void> => {
+  const sentToken = getToken();
   const response = await authFetch(`${API_URL}/admin/users.csv${newsletter ? "?newsletter=1" : ""}`);
+  checkSession(response, sentToken);
   if (!response.ok) {
     const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
     throw new ApiError(response.status, data?.error?.code ?? "unknown", data?.error?.message ?? `${response.status} ${response.statusText}`);
@@ -416,11 +446,13 @@ const CODE_FILE = /\.(ts|js|glsl|frag|vert|wgsl)$/i;
 /** The file as the body, its name in a header (no multipart); a code file goes as text */
 const sendFile = async <T>(method: string, path: string, file: File): Promise<T> => {
   const type = CODE_FILE.test(file.name) ? "text/plain; charset=utf-8" : file.type || "application/octet-stream";
+  const sentToken = getToken();
   const response = await authFetch(`${API_URL}${path}`, {
     method,
     headers: { "Content-Type": type, "X-File-Name": encodeURIComponent(file.name) },
     body: file,
   });
+  checkSession(response, sentToken);
   const data = (await response.json().catch(() => null)) as { error?: { code: string; message: string } & Record<string, unknown> } | null;
   if (!response.ok) {
     const { code, message, ...details } = data?.error ?? { code: "unknown", message: "" };

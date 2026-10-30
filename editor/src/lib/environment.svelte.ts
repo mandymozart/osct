@@ -41,10 +41,18 @@ class EnvironmentEdit {
     return !sameEnvironment(this.edited, environmentOf({ environment: this.saved }));
   }
 
-  /** Read the draft's environment (a book switch, or after a save); edits in progress for the same book stay */
+  /** Read the draft's environment (a book switch, or after a save); edits in progress for the same book stay. A failed
+   * read is `error` (the Environment tab shows it) – it never rejects, so the workspace's effect may fire and forget */
   async load(bookId: string, force = false): Promise<void> {
     if (this.bookId === bookId && !force) return;
-    const { book } = await getBook(bookId);
+    let book: Awaited<ReturnType<typeof getBook>>["book"];
+    try {
+      ({ book } = await getBook(bookId));
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : String(e);
+      return;
+    }
+    this.error = null;
     const keep = this.bookId === bookId && this.dirty && !force;
     this.bookId = bookId;
     this.saved = book.book?.environment;

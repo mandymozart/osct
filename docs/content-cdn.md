@@ -84,7 +84,7 @@ npm run osct -- content purge --env staging --dry-run  # which old versions woul
 | Variable | Meaning |
 |---|---|
 | `OSCT_CONTENT_DIR` | the content source to build (absolute or relative to the repository; `fixtures/content` for the test fixture) |
-| `OSCT_CONTENT_ENV` | environment when `--env` is not given: `staging`, `production` or `demo` |
+| `OSCT_CONTENT_ENV` | environment when `--env` is not given: `staging`, `production` or `demo` (an environment name: a letter first, then lower-case letters, digits and `-`, at most 32 – the API's `ENV` rule) |
 | `BUNNY_STORAGE_ZONE` | storage zone name (`osct`) |
 | `BUNNY_STORAGE_ZONE_ENDPOINT` | Storage API host (`storage.bunnycdn.com`) |
 | `BUNNY_STORAGE_PASSWORD` | the zone's access key – read/write for sync and purge, read-only is enough for status and `--dry-run`; never in the repository |
