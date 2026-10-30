@@ -2,10 +2,10 @@ import type { DataTexture } from "three";
 import { random, repeatingTexture } from "./plywood";
 
 /**
- * Blue-grey linoleum, drawn in code for Schöpfer's top (#187): no image file, no licence, a seeded sequence so every
- * build is the same. A matt, even colour with a faint mottle (two scales of smooth noise) and a faint speckle of
- * lighter and darker grains (linoleum is pressed from linseed oil, cork and wood flour, pigmented); it tiles both ways
- * (the model's UVs: one repeat every 400 mm – `editor/tools/desk-eiermann.py`).
+ * Blue-grey linoleum, drawn in code for the desk's linoleum top (#226; first Schöpfer's, #187): no image file, no
+ * licence, a seeded sequence so every build is the same. A matt, even colour with a faint mottle (two scales of smooth
+ * noise) and a faint speckle of lighter and darker grains (linoleum is pressed from linseed oil, cork and wood flour,
+ * pigmented); it tiles both ways (the model's UVs: one repeat every 400 mm – `editor/tools/desk-eiermann.py`).
  */
 export interface LinoleumOptions {
   /** The texture's size in pixels (square) */
@@ -69,7 +69,7 @@ export function linoleum(options: LinoleumOptions = {}): LinoleumSheet {
   return { size, data };
 }
 
-/** The linoleum as a texture for Schöpfer's material `linoleum`: sRGB, repeating both ways, mipmapped */
+/** The linoleum as a texture for the linoleum top's material `linoleum`: sRGB, repeating both ways, mipmapped */
 export function linoleumTexture(options: LinoleumOptions = {}): DataTexture {
   const sheet = linoleum(options);
   return repeatingTexture("linoleum", sheet.size, sheet.size, sheet.data);

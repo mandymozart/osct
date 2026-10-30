@@ -8,7 +8,7 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import Section from "#lib/components/Section.svelte";
   import {
-    DESKS, getPreview, HDRIS, isDeskId, isHdriId, stageSummary, subscribePreview, updatePreview, type PreviewState,
+    getPreview, HDRIS, isHdriId, stageSummary, subscribePreview, TOPS, updatePreview, type PreviewState,
   } from "#lib/stage/preview.js";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Icon from "#lib/components/Icon.svelte";
@@ -23,7 +23,7 @@
   /**
    * The stage's settings in collapsible sections (open state kept per section, all closed on the first visit): the
    * **spread** (its format), the **stage** (hand shake, the grid over the page, the origin every position is counted
-   * from, the desk and the sky – closed, its head names the desk and the grid; with the book's environment the sky is its
+   * from, the desk's top and the sky – closed, its head names the desk, its top and the grid; with the book's environment the sky is its
    * world, the HDRI waits for a book without one, #185), the **post-processing** (the book's
    * passes, a spread's own as an override – its head names the level), and the **narrative** of the book's plugins:
    * a tap button per target (the reader's tap without aiming), the variables with scope
@@ -112,12 +112,10 @@
       <span class="small">{originLabel(preview.origin, format)}</span>
     </span></div>
 
-  <div class="row" data-help="The desk the book lies on: Eiermann's steel frame with a plywood top, or Schöpfer's desk – linoleum and oak, open drawers, a black steel frame.">
-    <span class="label">desk</span>
+  <div class="row" data-help="The top of the desk the book lies on (Eiermann's steel frame): its screen-printed plywood, or blue-grey linoleum on oak plywood. Only the top changes – the book, the targets and the camera stay where they are.">
+    <span class="label">top</span>
     <span class="controls">
-      <select class="field wide" aria-label="Desk" value={preview.desk} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isDeskId(id)) updatePreview({ desk: id }); }}>
-        {#each DESKS as desk (desk.id)}<option value={desk.id}>{desk.name}</option>{/each}
-      </select>
+      <Segmented options={TOPS.map(t => t.id)} value={preview.top} label="Desk top" onchange={top => updatePreview({ top })} />
     </span></div>
 
   {#if environment}

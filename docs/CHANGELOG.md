@@ -7,6 +7,25 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.51.1 – 2026-10-30
+
+### Changed
+- **One desk on the editor's stage, with two tops** (#226, Tilman: "only one type of table – the Eiermann, with two
+  types of plates … Just the top, linoleum on oak, and switching the preview switches only the plate"): the stage's
+  desk is always Egon Eiermann's steel frame, and the Stage panel's *desk* row is now **top**: *plywood* (the
+  screen-printed board, as before, the default) or *linoleum* – blue-grey linoleum on an oak-faced 18 mm plywood
+  board, its edges showing the same 13 plies per 18 mm tinted to oak, the oak veneer underneath. Both tops have the
+  same size and surface height, so the book, the targets, the grid and the camera stay put when the top changes; one
+  model holds the frame and both tops (256 triangles), loaded once. The *stage* section's head names the top:
+  *Eiermann · linoleum · grid off*. A stage stored with Schöpfer's desk opens on the linoleum top, one stored with the
+  Eiermann on the plywood top.
+- The tutorial's *Environment and sky* section explains the top, with a new shot of the linoleum top.
+
+### Removed
+- **Schöpfer's desk** (#226, Tilman's decision: its drawers hung open beside the frame and its top floated on them):
+  its model, its entry in the Stage panel and its build in the desk script. Its linoleum and oak live on as the second
+  top.
+
 ## 1.51.0 – 2026-10-30
 
 ### Changed

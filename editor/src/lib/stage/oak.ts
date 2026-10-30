@@ -2,11 +2,11 @@ import type { DataTexture } from "three";
 import { random, repeatingTexture, smoothNoise } from "./plywood";
 
 /**
- * Light oak, drawn in code for Schöpfer's desk (its edge band and drawers, #187): no image file, no licence, a seeded
- * sequence so every build is the same. u runs along the grain, v across it, and the texture tiles both ways (the
- * model's UVs: one repeat every 500 mm along the grain, 125 mm across – `editor/tools/desk-eiermann.py`). The grain is
- * a run of fine, slightly wavy latewood lines of varying strength along u, with faint streaks between them and the
- * short dark dashes of oak's open pores.
+ * Light oak, drawn in code for the linoleum top's oak-veneered underside (#226; first Schöpfer's desk's, #187): no
+ * image file, no licence, a seeded sequence so every build is the same. u runs along the grain, v across it, and the
+ * texture tiles both ways (the model's UVs: one repeat every 500 mm along the grain, 125 mm across –
+ * `editor/tools/desk-eiermann.py`). The grain is a run of fine, slightly wavy latewood lines of varying strength along
+ * u, with faint streaks between them and the short dark dashes of oak's open pores.
  */
 export interface OakOptions {
   /** The texture's size in pixels: along the grain and across it */
@@ -72,7 +72,7 @@ export function oakGrain(options: OakOptions = {}): OakGrain {
   return { width, height, data };
 }
 
-/** The oak as a texture for Schöpfer's material `oak`: sRGB, repeating both ways, mipmapped */
+/** The oak as a texture for the linoleum top's material `oak`: sRGB, repeating both ways, mipmapped */
 export function oakTexture(options: OakOptions = {}): DataTexture {
   const oak = oakGrain(options);
   return repeatingTexture("oak", oak.width, oak.height, oak.data);

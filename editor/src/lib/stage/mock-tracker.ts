@@ -202,8 +202,8 @@ export interface StageView {
   setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null, book: StageBook): void;
   /** The sky and the light: an HDRI (shown while the shading is rendered) */
   setHdri(hdri: PreviewState["hdri"]): void;
-  /** The desk under the book */
-  setDesk?(desk: PreviewState["desk"]): void;
+  /** The desk's top under the book (the frame stays) */
+  setTop?(top: PreviewState["top"]): void;
   /**
    * A translucent image where a target is about to be printed (the new-target form, the placement rows); null = none.
    * `handlesOnly`: the target itself moves with the placement (`movePrint`), the ghost adds only its handles.
@@ -380,7 +380,7 @@ export class MockTracker implements IImageTracker {
     if (this.targets.length) stage.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
     stage.setShading?.(this.preview.shading);
     stage.setHdri(this.preview.hdri);
-    stage.setDesk?.(this.preview.desk);
+    stage.setTop?.(this.preview.top);
     stage.setGrid?.(gridOf(this.preview));
     stage.setGhost?.(this.ghost, this.ghostOptions);
   }
@@ -563,7 +563,7 @@ export class MockTracker implements IImageTracker {
     }
     if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
     if (initial || state.hdri !== previous.hdri) this.stage?.setHdri(state.hdri);
-    if (initial || state.desk !== previous.desk) this.stage?.setDesk?.(state.desk);
+    if (initial || state.top !== previous.top) this.stage?.setTop?.(state.top);
     if (initial || state.grid !== previous.grid || state.gridMm !== previous.gridMm || state.origin !== previous.origin || state.axis !== previous.axis) {
       this.stage?.setGrid?.(gridOf(state));
     }

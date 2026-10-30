@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RepeatWrapping, SRGBColorSpace } from "three";
 import { linoleum, linoleumTexture } from "../linoleum";
 
-describe("linoleum: Schöpfer's top (#187)", () => {
+describe("linoleum: the desk's linoleum top (#187, #226)", () => {
   const sheet = linoleum();
   const n = sheet.size * sheet.size;
   const channel = (c: number) => {
