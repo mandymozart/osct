@@ -12,10 +12,14 @@ final class Users
         Http::json(200, $token === null ? ['user' => $user] : ['user' => $user, 'token' => ApiTokens::toJson($token)]);
     }
 
-    /** PATCH /user { options?, language? } → { user } */
+    /**
+     * PATCH /user { options?, language? } → { user }. The update options are the person's consent and, with the language,
+     * user-centric data (RULES #33): only the person's own sign-in changes them – an AI connection's token gets 403
+     * not-for-ai (`Auth::session()`), and no admin route writes them.
+     */
     public static function update(array $body): never
     {
-        $user = Auth::user();
+        [$user] = Auth::session();
         $options = Auth::options($body['options'] ?? [], false);
         $language = $body['language'] ?? null;
         $set = [];

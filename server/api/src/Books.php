@@ -363,7 +363,7 @@ final class Books
         $json = Editor::encode($entity);
         Db::transaction(function () use ($bookId, $ref, $entity, $json, $user) {
             $params = ['book' => $bookId, 'ref' => $ref];
-            $current = Db::one('SELECT data_json FROM entities WHERE book_id = :book AND ref = :ref', $params);
+            $current = Db::one('SELECT data_json FROM entities WHERE book_id = :book AND ref = :ref' . Db::forUpdate(), $params);
             if ($current) {
                 Db::run('UPDATE entities SET type = :type, data_json = :data WHERE book_id = :book AND ref = :ref', $params + ['type' => $entity->type, 'data' => $json]);
             } else {
@@ -385,42 +385,44 @@ final class Books
         $user = Editor::user();
         self::book($bookId);
         $body = Editor::body();
-        $params = ['book' => $bookId, 'id' => $targetId];
-        $row = Db::one('SELECT data_json, entity_ref FROM targets WHERE book_id = :book AND id = :id', $params);
-        if (!$row) throw new ApiError(404, 'not-found', 'No such target.');
-        $target = Editor::decode($row['data_json']);
-        $ref = $row['entity_ref'];
-        $touched = false;
-        if (property_exists($body, 'ref')) {
-            $ref = Editor::id($body->ref, 'ref');
-            if (Db::value('SELECT ref FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]) === null) {
-                throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this book.");
+        // Read, change and write back in one transaction, the row locked: two saves of the same target never lose one's change
+        $target = Db::transaction(static function () use ($bookId, $targetId, $body, $user) {
+            $params = ['book' => $bookId, 'id' => $targetId];
+            $row = Db::one('SELECT data_json, entity_ref FROM targets WHERE book_id = :book AND id = :id' . Db::forUpdate(), $params);
+            if (!$row) throw new ApiError(404, 'not-found', 'No such target.');
+            $target = Editor::decode($row['data_json']);
+            $ref = $row['entity_ref'];
+            $touched = false;
+            if (property_exists($body, 'ref')) {
+                $ref = Editor::id($body->ref, 'ref');
+                if (Db::value('SELECT ref FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]) === null) {
+                    throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this book.");
+                }
+                $target->entity = (object) ['ref' => $ref];
+                $touched = true;
+            } elseif (property_exists($body, 'entity')) {
+                $ref = null;
+                if ($body->entity === null) unset($target->entity);
+                else $target->entity = Editor::entity($body->entity, 'entity', 0, Editor::pluginNodeTypes($bookId), Editor::pluginMaterials($bookId));
+                $touched = true;
             }
-            $target->entity = (object) ['ref' => $ref];
-            $touched = true;
-        } elseif (property_exists($body, 'entity')) {
-            $ref = null;
-            if ($body->entity === null) unset($target->entity);
-            else $target->entity = Editor::entity($body->entity, 'entity', 0, Editor::pluginNodeTypes($bookId), Editor::pluginMaterials($bookId));
-            $touched = true;
-        }
-        // The printed image and where it is printed (docs/server.md "Targets")
-        if (property_exists($body, 'imageSrc')) {
-            if (!is_string($body->imageSrc) || $body->imageSrc === '') throw new ApiError(400, 'invalid-target', 'imageSrc must be a non-empty string.');
-            $target->imageSrc = $body->imageSrc;
-            $touched = true;
-        }
-        if (property_exists($body, 'print')) {
-            if ($body->print === null) unset($target->print);
-            else $target->print = Editor::print($body->print);
-            $touched = true;
-        }
-        if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc } or { print }.');
-        $json = Editor::encode($target);
-        Db::transaction(function () use ($bookId, $targetId, $params, $ref, $json, $row, $user, $target) {
+            // The printed image and where it is printed (docs/server.md "Targets")
+            if (property_exists($body, 'imageSrc')) {
+                if (!is_string($body->imageSrc) || $body->imageSrc === '') throw new ApiError(400, 'invalid-target', 'imageSrc must be a non-empty string.');
+                $target->imageSrc = $body->imageSrc;
+                $touched = true;
+            }
+            if (property_exists($body, 'print')) {
+                if ($body->print === null) unset($target->print);
+                else $target->print = Editor::print($body->print);
+                $touched = true;
+            }
+            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc } or { print }.');
+            $json = Editor::encode($target);
             Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE book_id = :book AND id = :id', $params + ['ref' => $ref, 'image' => $target->imageSrc, 'data' => $json]);
             self::touch($bookId);
             self::change($bookId, $user, 'target', $targetId, $row['data_json'], $json);
+            return $target;
         });
         Http::json(200, ['target' => $target]);
     }
@@ -492,34 +494,36 @@ final class Books
         $user = Editor::user();
         self::book($bookId);
         $body = Editor::body();
-        $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
-        if (!$row) throw new ApiError(404, 'not-found', 'No such spread.');
-        $spread = Editor::decode($row['data_json']);
-        $touched = false;
-        if (property_exists($body, 'title')) {
-            if (!is_string($body->title) || trim($body->title) === '') throw new ApiError(400, 'invalid-spread', 'title must be a non-empty string.');
-            $spread->title = trim($body->title);
-            $touched = true;
-        }
-        if (property_exists($body, 'format')) {
-            $format = $body->format ?? 'spread';
-            if (!in_array($format, self::FORMATS, true)) throw new ApiError(400, 'invalid-spread', 'format must be one of ' . implode(', ', self::FORMATS) . '.');
-            if ($format === 'cover' && ((int) $row['first_page'] !== 0 || (int) $row['last_page'] !== 0)) throw new ApiError(400, 'invalid-spread', 'A cover is page 0 – add it with POST …/spreads { format: "cover" }.');
-            if ($format === 'spread') unset($spread->format);
-            else $spread->format = $format;
-            $touched = true;
-        }
-        if (property_exists($body, 'passes')) {
-            if ($body->passes === null) unset($spread->passes);
-            else $spread->passes = self::passes($body->passes);
-            $touched = true;
-        }
-        if (!$touched) throw new ApiError(400, 'invalid-spread', 'Send { title }, { format } and / or { passes }.');
-        $json = Editor::encode($spread);
-        Db::transaction(function () use ($bookId, $spreadId, $spread, $json, $row, $user) {
+        // Read, change and write back in one transaction, the row locked: two saves of the same spread never lose one's change
+        $spread = Db::transaction(static function () use ($bookId, $spreadId, $body, $user) {
+            $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id' . Db::forUpdate(), ['book' => $bookId, 'id' => $spreadId]);
+            if (!$row) throw new ApiError(404, 'not-found', 'No such spread.');
+            $spread = Editor::decode($row['data_json']);
+            $touched = false;
+            if (property_exists($body, 'title')) {
+                if (!is_string($body->title) || trim($body->title) === '') throw new ApiError(400, 'invalid-spread', 'title must be a non-empty string.');
+                $spread->title = trim($body->title);
+                $touched = true;
+            }
+            if (property_exists($body, 'format')) {
+                $format = $body->format ?? 'spread';
+                if (!in_array($format, self::FORMATS, true)) throw new ApiError(400, 'invalid-spread', 'format must be one of ' . implode(', ', self::FORMATS) . '.');
+                if ($format === 'cover' && ((int) $row['first_page'] !== 0 || (int) $row['last_page'] !== 0)) throw new ApiError(400, 'invalid-spread', 'A cover is page 0 – add it with POST …/spreads { format: "cover" }.');
+                if ($format === 'spread') unset($spread->format);
+                else $spread->format = $format;
+                $touched = true;
+            }
+            if (property_exists($body, 'passes')) {
+                if ($body->passes === null) unset($spread->passes);
+                else $spread->passes = self::passes($body->passes);
+                $touched = true;
+            }
+            if (!$touched) throw new ApiError(400, 'invalid-spread', 'Send { title }, { format } and / or { passes }.');
+            $json = Editor::encode($spread);
             Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', ['title' => $spread->title, 'data' => $json, 'book' => $bookId, 'id' => $spreadId]);
             self::touch($bookId);
             self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], $json);
+            return $spread;
         });
         Http::json(200, ['spread' => $spread]);
     }
@@ -533,28 +537,32 @@ final class Books
     public static function putEnvironment(string $bookId): never
     {
         $user = Editor::user();
-        $row = self::book($bookId);
+        self::book($bookId);
         $body = Editor::body();
         if (!property_exists($body, 'environment')) throw new ApiError(400, 'invalid-environment', 'Send { environment: { world, onionSky, worldSrc?, skySrc? } } or { environment: null }.');
-        $book = Editor::decode($row['book_json']);
-        if ($body->environment === null) {
-            unset($book->environment);
-        } else {
+        $environment = null;
+        if ($body->environment !== null) {
             $problems = self::environmentProblems($body->environment);
             if ($problems) throw new ApiError(400, 'invalid-environment', $problems[0]);
             $environment = ['world' => $body->environment->world, 'onionSky' => $body->environment->onionSky];
             foreach (['worldSrc', 'skySrc'] as $key) {
                 if (isset($body->environment->{$key})) $environment[$key] = $body->environment->{$key};
             }
-            $book->environment = (object) $environment;
+            $environment = (object) $environment;
         }
-        $json = Editor::encode($book);
-        Db::transaction(function () use ($bookId, $json, $row, $user) {
+        // The book's JSON read, changed and written back in one transaction, the row locked: a parallel save of the
+        // book's passes (or a relink) is never lost
+        Db::transaction(static function () use ($bookId, $environment, $user) {
+            $row = self::book($bookId, true);
+            $book = Editor::decode($row['book_json']);
+            if ($environment === null) unset($book->environment);
+            else $book->environment = $environment;
+            $json = Editor::encode($book);
             Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
             self::touch($bookId);
             self::change($bookId, $user, 'environment', $bookId, $row['book_json'], $json);
         });
-        Http::json(200, ['environment' => $book->environment ?? null]);
+        Http::json(200, ['environment' => $environment]);
     }
 
     /**
@@ -565,19 +573,22 @@ final class Books
     public static function putPasses(string $bookId): never
     {
         $user = Editor::user();
-        $row = self::book($bookId);
+        self::book($bookId);
         $body = Editor::body();
         if (!property_exists($body, 'passes')) throw new ApiError(400, 'invalid-passes', 'Send { passes: [{ type, …parameters }] } or { passes: null }.');
-        $book = Editor::decode($row['book_json']);
-        if ($body->passes === null) unset($book->passes);
-        else $book->passes = self::passes($body->passes, 'invalid-passes');
-        $json = Editor::encode($book);
-        Db::transaction(function () use ($bookId, $json, $row, $user) {
+        $passes = $body->passes === null ? null : self::passes($body->passes, 'invalid-passes');
+        // As putEnvironment: the book's JSON read, changed and written back in one transaction, the row locked
+        Db::transaction(static function () use ($bookId, $passes, $user) {
+            $row = self::book($bookId, true);
+            $book = Editor::decode($row['book_json']);
+            if ($passes === null) unset($book->passes);
+            else $book->passes = $passes;
+            $json = Editor::encode($book);
             Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
             self::touch($bookId);
             self::change($bookId, $user, 'passes', $bookId, $row['book_json'], $json);
         });
-        Http::json(200, ['passes' => $book->passes ?? null]);
+        Http::json(200, ['passes' => $passes]);
     }
 
     /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`, strict); [] when valid */
@@ -1055,12 +1066,12 @@ final class Books
     }
 
     /**
-     * The book row, else 404
+     * The book row, else 404. `$lock` (inside a transaction that writes the row back) locks it – `Db::forUpdate()`.
      * @return array<string, mixed>
      */
-    private static function book(string $bookId): array
+    private static function book(string $bookId, bool $lock = false): array
     {
-        $row = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
+        $row = Db::one('SELECT * FROM books WHERE id = :id' . ($lock ? Db::forUpdate() : ''), ['id' => $bookId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such book – import a configuration first.');
         return $row;
     }

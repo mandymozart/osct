@@ -100,10 +100,17 @@ final class Admin
         if ($on) {
             $changed = Roles::grant($userId, $role, self::by($actor));
         } else {
-            if ($role === Roles::ADMIN && Roles::has($user, $role) && Roles::count(Roles::ADMIN) <= 1) {
-                throw new ApiError(409, 'last-admin', 'The last admin keeps the role – make another admin first.', ['role' => $role]);
-            }
-            $changed = Roles::revoke($userId, $role);
+            // The check and the revoke in one transaction, the admins' grants locked: two admins revoking each other at the
+            // same moment cannot both pass the check – the second waits, then counts one admin and is refused
+            $changed = Db::transaction(static function () use ($userId, $role): bool {
+                if ($role === Roles::ADMIN) {
+                    $admins = Roles::holders(Roles::ADMIN, true);
+                    if (in_array($userId, $admins, true) && count($admins) <= 1) {
+                        throw new ApiError(409, 'last-admin', 'The last admin keeps the role – make another admin first.', ['role' => $role]);
+                    }
+                }
+                return Roles::revoke($userId, $role);
+            });
         }
         Http::json(200, ['changed' => $changed, 'user' => self::userJson($user)]);
     }
@@ -114,22 +121,21 @@ final class Admin
      */
     public static function makeEditor(array $body): never
     {
-        $actor = self::actor();
+        $by = self::by(self::actor());
         $email = Auth::email($body['email'] ?? null);
-        $user = Db::one('SELECT * FROM users WHERE email = :email', ['email' => $email]);
-        $created = $user === null;
-        if ($created) {
+        // The new user, its reader role and the editor role in one transaction: never a user without its roles
+        [$id, $created, $changed] = Db::transaction(static function () use ($email, $by): array {
+            $user = Db::one('SELECT id FROM users WHERE email = :email', ['email' => $email]);
+            if ($user) return [(string) $user['id'], false, Roles::grant((string) $user['id'], Roles::EDITOR, $by)];
             $id = Db::uuid();
             $now = Db::now();
             Db::run(
                 'INSERT INTO users (id, email, language, created_at, confirmed_at, updated_at) VALUES (:id, :email, :language, :now, :now2, :now3)',
                 ['id' => $id, 'email' => $email, 'language' => 'en', 'now' => $now, 'now2' => $now, 'now3' => $now]
             );
-            Roles::grant($id, Roles::READER, self::by($actor));
-        } else {
-            $id = (string) $user['id'];
-        }
-        $changed = Roles::grant($id, Roles::EDITOR, self::by($actor));
+            Roles::grant($id, Roles::READER, $by);
+            return [$id, true, Roles::grant($id, Roles::EDITOR, $by)];
+        });
         Http::json(200, ['user' => self::userJson(Db::one('SELECT * FROM users WHERE id = :id', ['id' => $id])), 'created' => $created, 'changed' => $changed]);
     }
 

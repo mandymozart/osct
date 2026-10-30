@@ -160,10 +160,7 @@ final class Removal
                 array_push($paths, ...array_column($versions, 'path'));
                 Db::run('DELETE FROM asset_versions WHERE asset_id = :id', ['id' => $asset['id']]);
                 Db::run('DELETE FROM assets WHERE id = :id', ['id' => $asset['id']]);
-                $before = ['id' => $asset['id'], 'name' => $asset['name'], 'kind' => $asset['kind'], 'mime' => $asset['mime'], 'size' => (int) $asset['size'],
-                    'sha256' => $asset['sha256'], 'url' => $asset['url'], 'version' => (int) $asset['version'],
-                    'versions' => array_map(static fn(array $v) => ['version' => (int) $v['version'], 'path' => $v['path'], 'url' => $v['url']], $versions)];
-                Books::recordChange($book, $user, 'asset', $asset['id'], Editor::encode($before), 'null');
+                Books::recordChange($book, $user, 'asset', $asset['id'], Editor::encode(Assets::before($asset, $versions)), 'null');
                 $files[] = $asset['id'];
             }
         }

@@ -93,12 +93,24 @@ final class Http
         }
     }
 
-    /** This API's own absolute URL (`https://host/api`), from the request: for the URLs of files the local store serves */
+    /**
+     * This API's own absolute URL (`https://host/api`): for the URLs of files the local store serves, which are stored in
+     * the content. A deployed instance (ENV not local) takes the host from APP_URL – the API is served as /api next to
+     * the app – and never from the request, whose `Host` / `X-Forwarded-Host` the client chooses; without APP_URL it
+     * refuses (500 not-configured) rather than store a guessed URL. A local instance takes the request's host: there
+     * APP_URL names an app's dev server, and the API answers on its own port.
+     */
     public static function apiUrl(): string
     {
+        $base = rtrim((string) ($GLOBALS['osctApiBase'] ?? '/api'), '/');
+        if (Config::env() !== 'local') {
+            $origin = self::originOf((string) Config::explicit('APP_URL'));
+            if ($origin === null) throw new ApiError(500, 'not-configured', 'APP_URL is not set – the URLs of stored files are built from it.');
+            return $origin . $base;
+        }
         $https = (($_SERVER['HTTPS'] ?? '') !== '' && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
         $host = (string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost');
-        return ($https ? 'https' : 'http') . "://$host" . rtrim((string) ($GLOBALS['osctApiBase'] ?? '/api'), '/');
+        return ($https ? 'https' : 'http') . "://$host" . $base;
     }
 
     /** Where links in emails point: the calling app if its origin is allowed, else APP_URL */

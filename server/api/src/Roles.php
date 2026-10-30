@@ -66,30 +66,51 @@ final class Roles
         return $user;
     }
 
-    /** Gives a user a role; false when they had it already. 404 unknown-role for a role that does not exist. */
+    /**
+     * Gives a user a role; false when they had it already – also when a parallel grant of the same role got in first (the
+     * primary key refuses the second row, which answers as already granted instead of a 500). 404 unknown-role for a
+     * role that does not exist. The grant and the `users.role` mirror are one transaction (the caller's, if one is open).
+     */
     public static function grant(string $userId, string $role, string $grantedBy): bool
     {
         $roleId = self::id($role);
         if (self::has($userId, $role)) return false;
-        Db::run('INSERT INTO user_roles (user_id, role_id, granted_at, granted_by) VALUES (:user, :role, :now, :by)',
-            ['user' => $userId, 'role' => $roleId, 'now' => Db::now(), 'by' => substr($grantedBy, 0, 64)]);
-        self::sync($userId);
-        return true;
+        return Db::transaction(static function () use ($userId, $roleId, $grantedBy): bool {
+            try {
+                Db::run('INSERT INTO user_roles (user_id, role_id, granted_at, granted_by) VALUES (:user, :role, :now, :by)',
+                    ['user' => $userId, 'role' => $roleId, 'now' => Db::now(), 'by' => substr($grantedBy, 0, 64)]);
+            } catch (PDOException $error) {
+                if (Db::isDuplicate($error)) return false;
+                throw $error;
+            }
+            self::sync($userId);
+            return true;
+        });
     }
 
-    /** Takes a role away; false when the user did not have it. 404 unknown-role for a role that does not exist. */
+    /**
+     * Takes a role away; false when the user did not have it. 404 unknown-role for a role that does not exist. The
+     * delete and the `users.role` mirror are one transaction (the caller's, if one is open).
+     */
     public static function revoke(string $userId, string $role): bool
     {
         $roleId = self::id($role);
-        $changed = Db::run('DELETE FROM user_roles WHERE user_id = :user AND role_id = :role', ['user' => $userId, 'role' => $roleId])->rowCount() > 0;
-        if ($changed) self::sync($userId);
-        return $changed;
+        return Db::transaction(static function () use ($userId, $roleId): bool {
+            $changed = Db::run('DELETE FROM user_roles WHERE user_id = :user AND role_id = :role', ['user' => $userId, 'role' => $roleId])->rowCount() > 0;
+            if ($changed) self::sync($userId);
+            return $changed;
+        });
     }
 
-    /** How many accounts have the role */
-    public static function count(string $role): int
+    /**
+     * The ids of the accounts that have the role. `$lock` (inside a transaction) locks their grants on MySQL
+     * (`Db::forUpdate`): a parallel revoke waits for this transaction and then reads what it left – the last-admin check.
+     * @return list<string>
+     */
+    public static function holders(string $role, bool $lock = false): array
     {
-        return (int) Db::value('SELECT COUNT(*) FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE r.name = :role', ['role' => $role]);
+        $rows = Db::run('SELECT user_id FROM user_roles WHERE role_id = :role ORDER BY user_id' . ($lock ? Db::forUpdate() : ''), ['role' => self::id($role)])->fetchAll();
+        return array_map(static fn(array $row) => (string) $row['user_id'], $rows);
     }
 
     /**

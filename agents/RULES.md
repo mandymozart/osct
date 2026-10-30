@@ -342,3 +342,10 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     **Info view** (`data-help` / `data-help-name`, or its `title` – `editor/src/lib/help.svelte.ts`), never a hint line
     in a panel; panels show values, states and errors only. Long panels are collapsible sections (`Section.svelte`,
     open state per section).
+
+33. **Consent is the person's own** (Tilman, 2026-10-30, #203: "keine Einwilligung ändern per mcp. Das ist auch in der
+    admin UI verboten weil user centric data"): the update options (newsletter consent) and the rest of the account –
+    language, password, deletion – are user-centric data that only the person changes, in their own signed-in session
+    (`Auth::session()`). Never an AI connection's token (403 `not-for-ai`, no MCP tool for it), never an admin: the admin
+    page and `/admin/*` read them (the list, the newsletter CSV) but write none – a new admin write never takes options
+    or language, and a user an admin creates (`POST /admin/editors`) starts with every option off (RULES #25 opt-in).

@@ -155,9 +155,9 @@ function deleting(string $base, string $path, ?string $token, array $options = [
 }
 
 /** A file upload: the bytes as the body, the name in X-File-Name (sent as `$type`) */
-function upload(string $base, string $method, string $path, string $bytes, string $name, string $token, string $type = 'application/octet-stream'): array
+function upload(string $base, string $method, string $path, string $bytes, string $name, string $token, string $type = 'application/octet-stream', array $extraHeaders = []): array
 {
-    $headers = ['Origin: http://localhost:5173', "Content-Type: $type", "X-File-Name: $name", "Authorization: Bearer $token"];
+    $headers = ['Origin: http://localhost:5173', "Content-Type: $type", "X-File-Name: $name", "Authorization: Bearer $token", ...$extraHeaders];
     $context = stream_context_create(['http' => ['method' => $method, 'header' => implode("\r\n", $headers), 'ignore_errors' => true, 'content' => $bytes]]);
     $response = file_get_contents($base . $path, false, $context);
     $status = (int) explode(' ', $http_response_header[0])[1];
@@ -465,6 +465,14 @@ try {
     $chiefId = $data['users'][0]['id'];
     [$status, $data] = call($api, 'DELETE', "/admin/users/$chiefId/roles/admin", null, $chief);
     check($status === 409 && $data['error']['code'] === 'last-admin', 'the last admin keeps the role → 409 last-admin');
+    // A grant that loses the race to a parallel one: simulated by a trigger that refuses the row as a duplicate (#209)
+    $pdo = connect('test');
+    $pdo->exec($mysql ? "CREATE TRIGGER fake_parallel_grant BEFORE INSERT ON user_roles FOR EACH ROW SIGNAL SQLSTATE '23000' SET MYSQL_ERRNO = 1062, MESSAGE_TEXT = 'Duplicate entry'"
+        : "CREATE TRIGGER fake_parallel_grant BEFORE INSERT ON user_roles BEGIN SELECT RAISE(ABORT, 'UNIQUE constraint failed: user_roles.user_id, user_roles.role_id'); END");
+    [$status, $data] = call($api, 'PUT', "/admin/users/$chiefId/roles/editor", null, $chief);
+    $pdo->exec('DROP TRIGGER fake_parallel_grant');
+    $pdo = null;
+    check($status === 200 && $data['changed'] === false, '#209: a grant whose row a parallel grant wrote first → already granted (changed false), no 500');
     [$status, $data] = call($api, 'PUT', "/admin/users/$authorId/roles/editor", null, $chief);
     check($status === 200 && $data['user']['role'] === 'editor', 'the author is an editor again');
     [$status] = call($api, 'GET', '/editor/books', null, $editor);
@@ -1021,6 +1029,20 @@ try {
     $file = file_get_contents($asset['url']);
     check($file === $png, 'the file is served by the content route');
     check(in_array('Content-Type: image/png', $http_response_header, true) && in_array('Access-Control-Allow-Origin: *', $http_response_header, true), 'with its type and open CORS');
+    // Rows that cannot be written take their file with them (#209): the version row refused by a trigger
+    $storedFiles = static fn() => glob("$storeDir/assets/osct/*/*") ?: [];
+    $filesBefore = $storedFiles();
+    $pdo = connect('test');
+    $pdo->exec($mysql ? "CREATE TRIGGER block_asset_version BEFORE INSERT ON asset_versions FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'blocked'"
+        : "CREATE TRIGGER block_asset_version BEFORE INSERT ON asset_versions BEGIN SELECT RAISE(ABORT, 'blocked'); END");
+    [$uploadStatus] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'other bytes', 'orphan.png', $editor);
+    [$replaceStatus] = upload($api, 'PUT', "/editor/books/osct/assets/{$asset['id']}/file", $png . 'v2', 'Dot.png', $editor);
+    $pdo->exec('DROP TRIGGER block_asset_version');
+    $pdo = null;
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    $dot = array_column($data['assets'], null, 'id')[$asset['id']] ?? [];
+    check($uploadStatus === 500 && $replaceStatus === 500 && $storedFiles() === $filesBefore && !in_array('orphan.png', array_column($data['assets'], 'name'), true) && ($dot['version'] ?? null) === 1,
+        '#209: an upload or a replace whose rows fail leaves no file and no row behind (the asset stays at version 1)');
     // #205: every book id the editor accepts (Editor::ID: capitals, _) has its uploads served by the local store
     $mixed = $configuration;
     $mixed['book']['id'] = 'My_Book';
@@ -1069,6 +1091,10 @@ try {
     check(array_column($data['assets'], 'imported') === [true, true], 'gone from the list (the imported files stay)');
     $gone = @file_get_contents($v2);
     check($gone === false, 'and from the store');
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    $change = $data['changes'][0] ?? [];
+    check(($change['kind'] ?? null) === 'asset' && $change['ref'] === $asset['id'] && $change['after'] === null && ($change['before']['url'] ?? null) === $v2
+        && array_column($change['before']['versions'] ?? [], 'version') === [1, 2], '#209: the forced delete is a change in the log (kind asset, before = the asset with its versions)');
 
     echo "editor: the Library's code files – shaders as assets, scripts as plugin sources (#186)\n";
     $shader = "// a test shader\nuniform float time;\nvoid main() { gl_FragColor = vec4(vec3(0.5 + 0.5 * sin(time)), 1.0); }\n";
@@ -1501,6 +1527,20 @@ try {
     check($data['environments'][0]['env'] === 'staging' && $data['environments'][0]['store'] === 'server' && str_starts_with((string) $data['environments'][0]['warning'], 'No CDN connected'), 'staging without a CDN: staging · this server, with the warning');
     [$status, $data] = call($plainStaging, 'POST', '/editor/books/osct/publish', ['env' => 'staging', 'replace' => true], $editor);
     check($status === 200 && $data['store'] === 'server' && is_file("$storeDir/staging/{$data['build']}/game.config.json"), '… and publishes there');
+    // A deployed instance builds the URLs of stored files from APP_URL, never from the client's host headers (#209)
+    $forged = ['X-Forwarded-Host: evil.example', 'X-Forwarded-Proto: http'];
+    [$status, $data] = upload($plainStaging, 'POST', '/editor/books/osct/assets', $png . 'staging', 'forged.png', $editor, 'application/octet-stream', $forged);
+    $forgedAsset = $data['asset'] ?? [];
+    check($status === 201 && str_starts_with((string) ($forgedAsset['url'] ?? ''), 'https://app.example/api/content/assets/osct/'), '#209: a forged X-Forwarded-Host does not reach a stored URL – APP_URL\'s host');
+    [$status, $data] = upload($plainStaging, 'PUT', "/editor/books/osct/assets/{$forgedAsset['id']}/file", $png . 'staging v2', 'forged.png', $editor, 'application/octet-stream', $forged);
+    check($status === 200 && str_starts_with((string) ($data['asset']['url'] ?? ''), 'https://app.example/api/content/assets/osct/') && str_ends_with($data['asset']['url'], '/v2.png'), '#209: … nor a replaced version\'s');
+    call($plainStaging, 'DELETE', "/editor/books/osct/assets/{$forgedAsset['id']}?force=1", null, $editor);
+    [, $data] = call($plainStaging, 'GET', '/editor/environments', null, $editor, 'http://localhost:5173', null, $forged);
+    check(($data['environments'][0]['url'] ?? null) === 'https://app.example/api/content/staging', '#209: the environments list names APP_URL\'s host for the server store too');
+    $noAppUrl = startApi(['ENV' => 'staging', 'APP_URL' => ''] + $settings);
+    $filesBefore = $storedFiles();
+    [$status, $data] = upload($noAppUrl, 'POST', '/editor/books/osct/assets', $png . 'nowhere', 'nowhere.png', $editor);
+    check($status === 500 && $data['error']['code'] === 'not-configured' && $storedFiles() === $filesBefore, '#209: a deployed instance without APP_URL refuses the upload (500 not-configured) and stores nothing');
     $wrongKey = startApi(['ENV' => 'production', 'BUNNY_STORAGE_PASSWORD' => 'wrong'] + $bunny + $settings);
     [$status, $data] = call($wrongKey, 'POST', '/editor/books/osct/publish', ['env' => 'production'], $editor);
     check($status === 502 && $data['error']['code'] === 'content-store-failed', 'a refused upload → 502 content-store-failed');
@@ -1668,13 +1708,22 @@ try {
         ['GET', '/user/tokens', null], ['POST', '/user/tokens', ['name' => 'Another']], ['POST', "/user/tokens/{$made['apiToken']['id']}/renew", null],
         ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],
         ['GET', '/admin/users', null], ['GET', '/admin/roles', null], ['POST', '/admin/editors', ['email' => 'robot@example.com']],
+        // Consent (the update options) and the language are the person's own (#203, RULES #33)
+        ['PATCH', '/user', ['options' => ['bookUpdates' => true, 'publisherUpdates' => true], 'language' => 'nl']], ['PATCH', '/user', ['language' => 'nl']],
     ];
+    [, $data] = call($api, 'GET', '/user', null, $editor);
+    $account = $data['user'];
     foreach ($refused as [$method, $path, $body]) {
         [$status, $data] = call($api, $method, $path, $body, $aiToken);
         check($status === 403 && $data['error']['code'] === 'not-for-ai', "a token: $method $path → 403 not-for-ai");
     }
     [$status, $data] = call($api, 'GET', '/user', null, $editor);
     check($status === 200 && $data['user']['hasPassword'] === false, 'the account is still there, its password unchanged');
+    check($data['user']['options'] === $account['options'] && $data['user']['language'] === $account['language'], '#203: the update options and the language unchanged');
+    $flipped = !$account['options']['artistUpdates'];
+    [$status, $data] = call($api, 'PATCH', '/user', ['options' => ['artistUpdates' => $flipped]], $editor);
+    check($status === 200 && $data['user']['options']['artistUpdates'] === $flipped, '#203: the person\'s own session still changes them');
+    call($api, 'PATCH', '/user', ['options' => ['artistUpdates' => !$flipped]], $editor);
 
     // Renew, revoke, expire – the person's own sign-in; another editor's token is as unknown as none
     [$status] = call($api, 'POST', "/user/tokens/{$made['apiToken']['id']}/renew", null, $otherEditor);

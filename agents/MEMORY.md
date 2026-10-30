@@ -4,6 +4,39 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – consent is the person's own: no account change through an AI token or an admin (#203)
+
+- **Decision (Tilman, 2026-10-30):** "keine Einwilligung ändern per mcp. Das ist auch in der admin UI verboten weil user
+  centric data." `PATCH /user` (`Users::update`) takes `Auth::session()` instead of `Auth::user()`: a token gets 403
+  `not-for-ai` for the whole account update – options and language – like the password and the deletion. Rule:
+  RULES #33.
+- **Checked:** no `/admin/*` route writes options or language (`setRole` only roles; `makeEditor` creates a new user with
+  every option off and language `en` – creating, not changing someone's consent; the list and the CSV only read). The
+  MCP server has no tool that calls `PATCH /user` (`mcp/src` reads `GET /user` only); docs/mcp.md says so now.
+
+## 2026-10-30 – server hardening: forwarded host headers, transactions in admin writes and assets (#209)
+
+- **The public URL of stored files**: `Http::apiUrl()` takes `APP_URL`'s origin (+ the API's base) on every instance
+  whose `ENV` is not `local`, and refuses with 500 `not-configured` when `APP_URL` is not set explicitly (the default
+  `http://localhost:5173` never counts). A local instance keeps the request's host on purpose – there `APP_URL` names an
+  app's dev server (Tilman's checkout: the editor on 5175, whose proxy rewrites the Host to 127.0.0.1:8080), and the API
+  test sets `APP_URL=https://app.example` while fetching the stored URLs from the API it started. Staging and production
+  set `OSCT_APP_URL` (`config/deploy.staging.yml`, `config/deploy.production.yml`; the FTPS workflow requires it in
+  `server/deploy/write-config.php`). No new config key.
+- **`Db::transaction` joins an open transaction** (`Roles::grant` runs inside sign-in's and `makeEditor`'s) and on
+  SQLite starts `BEGIN IMMEDIATE` by hand (PDO's `beginTransaction` is deferred: two writers that read first deadlock),
+  tracked by its own flag because PDO does not see a hand-written BEGIN. `Db::forUpdate()` is ` FOR UPDATE` on MySQL,
+  nothing on SQLite; `Db::isDuplicate()` tells a unique-key error (MySQL 1062, SQLite 19 + UNIQUE / PRIMARY KEY).
+- **Last admin**: `Roles::holders(admin, lock: true)` inside the revoke's transaction replaces `Roles::count` (no other
+  user). **Grant**: the duplicate key of a parallel grant answers `changed: false`; the API test simulates the race with
+  a trigger that raises the duplicate error (php -S serves one request at a time, so a real race cannot be tested).
+- **Assets**: a replace writes its file inside the transaction, after locking the asset row – deleting the file of a
+  failed replace while the lock is held cannot hit another replace's file at the same path. Every delete (not only a
+  forced one) records a change `asset`, the same `before` as `Removal` (`Assets::before`, shared now); the book is not
+  touched (its rows did not change).
+- Left as is: deleting one's own account (`DELETE /user`) can still remove the last admin; `putEntity` already read
+  inside its transaction and now locks too.
+
 ## 2026-10-30 – the review's fixes: import id, served assets, CSV button, session end, CLI (#204 #205 #206 #208 #215)
 
 - **Import id (#204)**: the import compares the configuration's `book.id` with the path after the configuration's own
