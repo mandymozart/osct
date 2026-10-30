@@ -9,7 +9,9 @@
  * engine implements them in `engine/src/scene/entities.ts`), and the components and material layers a **plugin**
  * registers at runtime (`registerComponentSpec`, called by the engine's plugin API – `engine/src/scene/plugins.ts`).
  * A type nobody registered is refused by the build and the guard, unless the configuration declares plugins: then
- * the plugin registers it when it loads, and the guard lets it pass (`unknownTypes: "allow"`).
+ * the guard checks it against the specs the plugins recorded (schema 2.14, `PluginData.registered`) and refuses a type
+ * none of them registers – or, when a plugin recorded nothing (an older build), lets it pass (`unknownTypes: "allow"`):
+ * the plugin registers it when it loads.
  *
  * Adding a built-in component: define it in COMPONENTS, implement it in the engine, document it in docs/content.md.
  * The editor shows its rows without panel code.
@@ -164,6 +166,11 @@ export interface ComponentCheckOptions {
    * plugins), or allow it with its parameters unchecked (a configuration that declares plugins registers it at load)
    */
   unknownTypes?: "refuse" | "allow";
+  /**
+   * Specs beyond the registry's – the ones the declared plugins recorded (schema 2.14, `PluginData.registered`): a
+   * type found here is checked like a registered one
+   */
+  specs?: ReadonlyMap<string, ComponentSpec>;
 }
 
 /** Problems of a node's `components` list (the content build, the guard); `nodeType` checks that each applies */
@@ -177,10 +184,11 @@ export const componentProblems = (raw: unknown, path: string, nodeType?: string,
       return;
     }
     const { type, ...params } = component as Record<string, unknown>;
-    const spec = typeof type === "string" ? componentSpec(type) : undefined;
+    const spec = typeof type === "string" ? componentSpec(type) ?? options.specs?.get(type) : undefined;
     if (!spec) {
       if (options.unknownTypes === "allow" && typeof type === "string" && COMPONENT_TYPE_PATTERN.test(type)) return;
-      problems.push(`${at}.type: "${type}" is not one of ${componentTypes().join(", ")}`);
+      const known = [...new Set([...componentTypes(), ...(options.specs?.keys() ?? [])])];
+      problems.push(`${at}.type: "${type}" is not one of ${known.join(", ")}`);
       return;
     }
     if (nodeType && spec.nodeTypes && !(spec.nodeTypes as readonly string[]).includes(nodeType)) {

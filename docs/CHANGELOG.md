@@ -12,6 +12,29 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **The plugins' specs in the configuration** (#90, content schema 2.14): the content build writes what each plugin
+  registered – its components and layers, node types and passes with their parameters – into the configuration's
+  plugin list (`registered`, optional; the engine ignores it). The reader's check now checks a plugin component's or
+  node type's parameters like a built-in one's and refuses a type no plugin of the book registers; the editor's Entity
+  panel shows a plugin component's or node type's rows, and **+ node** its node types, before the plugin ran.
+- **MCP tools for spreads, the book's passes and the environment** (#174): `add_spread` (a double page, the front or
+  the back cover), `put_spread` (title, format, the spread's own passes), `delete_spread` (an empty spread),
+  `put_book_passes` and `put_environment` – each checked against the content contract and answering with the editor's
+  link. `describe_content_model` lists the passes, the environment and node names, and with a book the components, node
+  types and passes its plugins recorded, with their parameters.
+
+### Changed
+- **The editor's API tells a typo from a plugin's node type** (#90): in a book whose plugins recorded what they
+  register, a save or an import with a node type none of them registers is refused (400, naming the plugins' node
+  types), and a publish with a component or node type none of them registers is refused too (409). While a plugin of the
+  book is unknown – a source in the Code tab, or a plugin of an older build – any name like a plugin's passes, as before.
+- **The MCP server accepts a plugin's node type** (#90): one the book's plugins recorded or a Code tab source registers
+  (`registerNodeType`), its parameters checked; a name no known plugin registers passes with a warning while a plugin of
+  the book is unknown, and is refused once every plugin is known.
+
 ## 1.33.0 – 2026-10-30
 
 ### Added

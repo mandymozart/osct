@@ -7,6 +7,7 @@
 import {
   ASSET_TYPES,
   AssetType,
+  CONTENT_SCHEMA_VERSION,
   ENTITY_TYPES,
   EntityRefData,
   EntityType,
@@ -19,7 +20,7 @@ import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
 import { PassCheckOptions, passProblems } from "../types/passes";
 import { environmentProblems } from "../types/environment";
-import { pluginProblems } from "../types/plugins";
+import { pluginProblems, recordedRegistrations } from "../types/plugins";
 import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/node-types";
 import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
@@ -55,9 +56,11 @@ export class GameConfigurationError extends Error {
 
 export interface GuardOptions {
   /**
-   * Component types the registry does not know: refused unless the configuration declares plugins (the default) –
-   * or always allowed (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run). With plugins
-   * (declared, or `"allow"`) a node type the registry does not know yet passes without the warning of an unknown type.
+   * Component types the registry does not know (the default, `"declared"`): refused without plugins; with plugins that
+   * all recorded what they register (schema 2.14) checked against those specs and refused when none registers them;
+   * with a plugin that recorded nothing (an older build) allowed – it registers them at load. Or always allowed
+   * (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run). The same for a plugin's node
+   * type: checked against the recorded specs, refused when no declared plugin registers it, allowed where unknown.
    */
   unknownComponentTypes?: "declared" | "allow";
 }
@@ -90,9 +93,17 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     return null;
   };
 
-  // With plugins declared, a component type the registry does not know yet is the plugin's (it registers it at load)
+  // The declared plugins' recorded specs (schema 2.14): what they register is known without running them. A plugin that
+  // recorded nothing registers what it registers at load – a type the registry does not know may be its own
   const root0 = isObject(raw) ? raw : {};
-  const hasPlugins = options.unknownComponentTypes === "allow" || (Array.isArray(root0.plugins) && root0.plugins.length > 0);
+  const declared = Array.isArray(root0.plugins) ? root0.plugins : [];
+  const recorded = recordedRegistrations(declared);
+  const allowUnknown = options.unknownComponentTypes === "allow" || (declared.length > 0 && !recorded.complete);
+  // Content of a newer schema may have built-in node types this app does not know: those only warn (below)
+  const ours = parseContentSchema(CONTENT_SCHEMA_VERSION)!;
+  const theirs = isObject(root0.version) ? parseContentSchema(root0.version.schema) : null;
+  const newerContent = !!theirs && (theirs.major > ours.major || (theirs.major === ours.major && theirs.minor > ours.minor));
+  const refuseUnknownNodes = declared.length > 0 && recorded.complete && !newerContent;
 
   const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
@@ -106,15 +117,21 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       else if (depth >= MAX_NODE_DEPTH) fail(`${path}.children`, `nested deeper than ${MAX_NODE_DEPTH} levels`);
       else e.children.forEach((child, i) => entity(child, `${path}.children[${i}]`, depth + 1));
     }
-    // A plugin's node type (schema 2.13): registered – its parameters are checked against its spec; with plugins
-    // declared – the plugin registers it when it loads. Any other type this contract does not know is a later
-    // MINOR's: the engine renders nothing for it and keeps its children (the content build and the editor's API
-    // refuse it – an author's typo never gets this far)
+    // A plugin's node type (schema 2.13): registered or recorded by a declared plugin (2.14) – its parameters are checked
+    // against its spec; declared plugins recorded what they register and none registers it – refused (unless the content
+    // is of a newer schema, below); a declared plugin recorded nothing – it may register it when it loads. Any other
+    // type this contract does not know is a later MINOR's: the engine renders nothing for it and keeps its children
+    // (the content build and the editor's API refuse it – an author's typo never gets this far)
     if (typeof e.type !== "string" || e.type === "") fail(`${path}.type`, `expected a node type (${ENTITY_TYPES.join(", ")})`);
     else if (!isEntityType(e.type)) {
-      const spec = nodeTypeSpec(e.type);
+      const spec = nodeTypeSpec(e.type) ?? recorded.nodeTypes.get(e.type);
       if (spec) nodeParamProblems(spec, e.params, `${path}.params`, e.type).forEach(problem => problems.push(problem));
-      else if (!(hasPlugins && NODE_TYPE_PATTERN.test(e.type))) {
+      else if (allowUnknown && NODE_TYPE_PATTERN.test(e.type)) {
+        // the plugin registers it when it loads
+      } else if (refuseUnknownNodes) {
+        const plugins = [...recorded.nodeTypes.keys()];
+        fail(`${path}.type`, `"${e.type}" is not a node type – neither built in (${ENTITY_TYPES.join(", ")}) nor registered by a plugin of the book${plugins.length ? ` (${plugins.join(", ")})` : ""}`);
+      } else {
         console.warn(`[game-config] ${path}.type: "${e.type}" is not a node type this app knows (${ENTITY_TYPES.join(", ")}) – it renders nothing, its children stay`);
       }
     }
@@ -138,7 +155,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       filterProblems(e.filters, `${path}.filters`).forEach(problem => problems.push(problem));
     }
     if (e.components !== undefined) {
-      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: hasPlugins ? "allow" : "refuse" })
+      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: allowUnknown ? "allow" : "refuse", specs: recorded.components })
         .forEach(problem => problems.push(problem));
     }
   };

@@ -4,6 +4,30 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The plugins' recorded specs (#90) and the MCP tools for the new endpoints (#174)
+
+- One optional field per declared plugin, `registered: { components?, nodeTypes?, passes? }` (type → spec; layers are
+  components – the content does not tell them apart), schema 2.14. Present = what the plugin registers is known;
+  absent = an older build, unknown until it runs. `recordedRegistrations` merges the declared plugins' specs and says
+  `complete` (every one recorded).
+- The guard: recorded specs are looked up after the registry (`componentProblems`' new `specs` option, the node type
+  spec), so a plugin's parameters are checked before the plugin loads. With every declared plugin recorded, a type none
+  registers is refused – a node type only when the content's schema is not newer than the app's (a later MINOR may add
+  a built-in node type, which must keep loading in an older app). A plugin without `registered` keeps the old leniency.
+- The server reads only the type names (`Editor::recorded`), never the parameters (the guard's job, as before). Code tab
+  sources have no recorded specs (nothing is built on the server until #78), so a book with sources keeps today's
+  behaviour: any camelCase node type passes a save. The publish now also refuses a component / node type the recorded
+  plugins do not register (before: only without any plugins).
+- The editor adopts the recorded specs into the shared registry when a draft loads (`plugins/recorded.ts`); a loaded or
+  run plugin registers over them, and the next load takes back only the specs it added (same object).
+- The MCP server reads the book's plugins only when an entity names a type that is not built in (saves the requests
+  otherwise). Its source scan (`pluginTypes`) now finds `registerNodeType` and `registerPass` too; with any Code tab
+  source a node type no known plugin registers is a warning, not a refusal (the scan reads text and may miss one).
+- [x] The MCP server has tools for the book's passes and the environment (#174: `put_book_passes`, `put_environment`,
+  plus `add_spread`, `put_spread`, `delete_spread`).
+- [ ] Plugin passes: recorded, listed by `describe_content_model`, but the guard, the build and the API still take
+  built-in pass types only (#97).
+
 ## 2026-10-30 – The book's passes as the master; the environment through the chain (#149)
 
 - No content schema change: `book.passes` and the spread override (`getPasses`: spread's own, else the book's) exist
@@ -18,8 +42,8 @@ outcome in the line (or move it into a dated decision block).
   render off when nothing uses it, passes say `usesMask` (the grade: false for `reach: all`). Kept engine-internal
   (`MaskUsage` in `post/registry.ts`, not on `PostPass`), so the plugin API (1.2) does not change; a plugin's pass with
   `setMask` always gets the mask. A plugin's pass now also sees the world in its buffer (documented in the d.ts).
-- [ ] The MCP server has no tool for the book's passes (nor for the environment) – RULES #32 says a new endpoint is a
-  new tool there; left out of #149's scope.
+- [x] The MCP server has no tool for the book's passes (nor for the environment) – RULES #32 says a new endpoint is a
+  new tool there; left out of #149's scope. Done in #174 (`put_book_passes`, `put_environment`).
 
 ## 2026-10-30 – A plugin's own node type (#77)
 

@@ -48,6 +48,53 @@ describe("plugins in the configuration", () => {
     expect(problemsOf(config({ plugins: "no" }))).toEqual(["plugins: expected a list of plugins"]);
   });
 
+  describe("what the plugins recorded (schema 2.14, #90)", () => {
+    const TINT = { description: "Tints.", nodeTypes: ["video"], params: { opacity: { kind: "number", default: 0.3, min: 0, max: 1, description: "How much." } } };
+    const SPARKLE = { description: "Points.", params: { count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." } } };
+    const recorded = { id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.2", registered: { components: { tint: TINT }, nodeTypes: { sparkle: SPARKLE }, passes: {} } };
+    const at2_14 = (extra: Record<string, unknown>, components?: unknown[]) => {
+      const c = config(extra, components);
+      return { ...c, version: { ...c.version, schema: "2.14" } };
+    };
+    const withNode = (node: Record<string, unknown>, plugins: unknown[], schema = "2.14") => ({ ...at2_14({ plugins }), version: { version: "x", timestamp: "t", schema }, entities: { fx: { assets: [], ...node } } });
+
+    it("checks a plugin component's parameters like a built-in one's, and refuses a type no declared plugin registers", () => {
+      expect(problemsOf(at2_14({ plugins: [recorded] }, [{ type: "tint", opacity: 0.4 }]))).toEqual([]);
+      expect(problemsOf(at2_14({ plugins: [recorded] }, [{ type: "tint", opacity: 4, glow: true }]))).toEqual([
+        "entries[0].target.entity.components[0].opacity: expected a number from 0 to 1, got 4",
+        "entries[0].target.entity.components[0].glow: unknown parameter of tint (opacity)",
+      ]);
+      expect(problemsOf(at2_14({ plugins: [recorded] }, [{ type: "tnit" }]))).toEqual(['entries[0].target.entity.components[0].type: "tnit" is not one of animation, tint']);
+    });
+
+    it("checks a plugin node type's parameters, refuses a node type no declared plugin registers – unless the content is newer", () => {
+      expect(problemsOf(withNode({ type: "sparkle", params: { count: 120 } }, [recorded]))).toEqual([]);
+      expect(problemsOf(withNode({ type: "sparkle", params: { count: 0 } }, [recorded]))).toEqual(["entities.fx.params.count: expected a number from 1 to 500, got 0"]);
+      expect(problemsOf(withNode({ type: "sparkel" }, [recorded]))).toEqual([
+        'entities.fx.type: "sparkel" is not a node type – neither built in (group, model, video, image, text, light) nor registered by a plugin of the book (sparkle)',
+      ]);
+      // A later MINOR may add a built-in node type this app does not know: it renders nothing, the content loads
+      expect(problemsOf(withNode({ type: "hologram" }, [recorded], "2.99"))).toEqual([]);
+    });
+
+    it("lets an unknown type pass while a declared plugin recorded nothing (an older build) – what the others recorded is still checked", () => {
+      const older = { id: "old", src: "/assets/content/plugins/old/plugin.js", api: "1.0" };
+      expect(problemsOf(at2_14({ plugins: [recorded, older] }, [{ type: "tnit" }]))).toEqual([]);
+      expect(problemsOf(withNode({ type: "sparkel" }, [recorded, older]))).toEqual([]);
+      expect(problemsOf(withNode({ type: "sparkle", params: { count: 0 } }, [recorded, older]))).toEqual(["entities.fx.params.count: expected a number from 1 to 500, got 0"]);
+    });
+
+    it("checks the recorded specs themselves", () => {
+      expect(pluginProblems([recorded])).toEqual([]);
+      expect(pluginProblems([{ ...recorded, registered: { components: { tint: { ...TINT, params: { opacity: { kind: "number", default: 2, min: 0, max: 1, description: "x" } } } }, nodeTypes: [], passes: { scan: { params: {} } } } }])).toEqual([
+        "plugins[0].registered.components: tint.opacity: a number needs min ≤ default ≤ max",
+        "plugins[0].registered.nodeTypes: expected an object of type → spec",
+        "plugins[0].registered.passes: scan: description must be a string",
+      ]);
+      expect(pluginProblems([{ ...recorded, registered: "all" }])).toEqual(["plugins[0].registered: expected { components?, nodeTypes?, passes? }"]);
+    });
+  });
+
   it("the plugin API is compatible within a MAJOR", () => {
     expect(pluginApiCompatible("1.0")).toBe(true);
     expect(pluginApiCompatible("1.4")).toBe(true);

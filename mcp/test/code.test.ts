@@ -30,7 +30,7 @@ describe("the Code tab's plugin tools", () => {
     expect((await rec.call("list_plugins", { book: "osct" })).data.plugins[0].id).toBe("tint");
     const one = await rec.call("get_plugin", { book: "osct", plugin: "tint" });
     expect(one.data.plugin.source).toBe(SOURCE);
-    expect(one.data.registers).toEqual({ components: [], layers: ["tint"] });
+    expect(one.data.registers).toEqual({ components: [], layers: ["tint"], nodeTypes: [], passes: [] });
   });
 
   it("saves a source and names what it registers, with warnings for a source the engine would refuse", async () => {

@@ -36,7 +36,15 @@ describe('plugins (the book\'s own code)', () => {
     const { entries } = build.buildAll();
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
-    expect(plugins.map(p => p.data)).toEqual([{ id: 'tint', src: '/assets/content/plugins/tint/plugin.js', api: PLUGIN_API_VERSION }]);
+    // What it registered is recorded (schema 2.14): the layer's spec, no node types, no passes
+    expect(plugins.map(p => p.data)).toEqual([{
+      id: 'tint', src: '/assets/content/plugins/tint/plugin.js', api: PLUGIN_API_VERSION,
+      registered: {
+        components: { tint: { description: 'Tints.', nodeTypes: ['video'], params: { opacity: { kind: 'number', default: 0.3, min: 0, max: 1, description: 'How much.' } } } },
+        nodeTypes: {},
+        passes: {},
+      },
+    }]);
     expect(plugins[0].code).toContain('registerLayer("tint"');
     expect(plugins[0].code).not.toContain('osct-plugin-api');
     expect(entries[0].target?.entity).toMatchObject({ components: [{ type: 'tint', opacity: 0.5 }] });
@@ -160,6 +168,37 @@ describe('a plugin\'s node types', () => {
     const root = entries[0].target?.entity as { children: unknown[] };
     expect(root.children[0]).toMatchObject({ type: 'sparkle', assets: [], params: { position: [0, 0.1, 0], count: 120, color: '#ffe2a8' } });
     expect(root.children[1]).toMatchObject({ type: 'poster', assets: [{ assetType: 'image' }], children: [{ type: 'text' }] });
+  }, 30000);
+
+  it('records the node types and a pass in the configuration, which the shared guard then checks', async () => {
+    const withPass = NODES.replace('};\n', '  api.registerPass("scan", { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } }, () => ({}) as never);\n};\n');
+    const build = await loadBuild(makeContent(nodeContent('    type: sparkle\n    params: { count: 10 }\n', withPass)));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const plugins = await build.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    const registered = plugins[0].data.registered!;
+    expect(Object.keys(registered.nodeTypes!)).toEqual(['sparkle', 'poster']);
+    expect(registered.nodeTypes!.poster).toEqual({ description: 'A picture on a stand.', src: 'image', params: {} });
+    expect(registered.passes).toEqual({ scan: { description: 'Scan lines.', params: { lines: { kind: 'number', default: 200, min: 10, max: 800, description: 'How many.' } } } });
+    expect(registered.components).toEqual({});
+    // A fresh guard (no registry: the reader before the plugin loads) checks the recorded node type's parameters
+    const { assertGameConfiguration } = await import('../../shared/guards/game-config');
+    const { unregisterNodeTypeSpec } = await import('../../shared/types/node-types');
+    ['sparkle', 'poster'].forEach(unregisterNodeTypeSpec);
+    const configuration = (entity: Record<string, unknown>) => ({
+      version: { version: '0', timestamp: 't', schema: '2.14' },
+      book: { id: 'b', title: 'B', author: 'A' },
+      initialSpreadId: 'a',
+      spreads: [{ id: 'a', title: 'A', firstPage: 1, lastPage: 2 }],
+      entries: [],
+      entities: { e: { assets: [], ...entity } },
+      tutorial: [],
+      plugins: [plugins[0].data],
+    });
+    expect(() => assertGameConfiguration(configuration({ type: 'sparkle', params: { count: 10 } }))).not.toThrow();
+    expect(() => assertGameConfiguration(configuration({ type: 'sparkle', params: { count: 9999 } }))).toThrow(/entities\.e\.params\.count: expected a number from 1 to 500/);
+    expect(() => assertGameConfiguration(configuration({ type: 'sparkel' }))).toThrow(/"sparkel" is not a node type – neither built in .* nor registered by a plugin of the book \(sparkle, poster\)/);
   }, 30000);
 
   it('refuses an unknown parameter, a wrong value, a missing or wrong file, a file on a fileless type', async () => {

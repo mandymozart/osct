@@ -498,7 +498,12 @@ try {
         ],
         'entities' => ['castle' => ['type' => 'video', 'assets' => [['id' => 'castle-0', 'assetType' => 'video', 'src' => '/assets/content/entities/castle/c.mp4']], 'params' => new stdClass(), 'filters' => [['type' => 'chromaKey', 'color' => '#00ff00']]]],
         'tutorial' => [['id' => 'step-1', 'index' => 0, 'title' => '{{title}}', 'illustration' => '/assets/content/tutorial/mark.svg', 'advance' => 3800]],
-        'plugins' => [['id' => 'tint', 'src' => '/assets/content/plugins/tint/plugin.js', 'api' => '1.0']],
+        // What the plugin registered, recorded by the content build (schema 2.14, #90): the API tells a typo from its node type
+        'plugins' => [['id' => 'tint', 'src' => '/assets/content/plugins/tint/plugin.js', 'api' => '1.0', 'registered' => [
+            'components' => ['tint' => ['description' => 'Tints.', 'params' => ['opacity' => ['kind' => 'number', 'default' => 0.3, 'min' => 0, 'max' => 1, 'description' => 'How much.']]]],
+            'nodeTypes' => ['sparkle' => ['description' => 'Points.', 'params' => ['count' => ['kind' => 'number', 'default' => 50, 'min' => 1, 'max' => 500, 'description' => 'How many.']]]],
+            'passes' => new stdClass(),
+        ]]],
     ];
     $files = ['/assets/content/entries/racoon/racoon.glb' => ['size' => 1234, 'v' => 'abcdef012345'], '/assets/content/entries/racoon/img.jpg' => ['size' => 10, 'v' => '0123456789ab']];
     $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
@@ -508,7 +513,7 @@ try {
     [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => ['book' => []]]));
     check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'a configuration without a schema → 400');
     $bad = $configuration;
-    $bad['entities']['castle']['type'] = 'holo-gram'; // not even a plugin's (camelCase) – the book declares plugins (#77)
+    $bad['entities']['castle']['type'] = 'hologram';
     [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $bad], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'an unknown entity type → 400 invalid-entity');
     $bad = $configuration;
@@ -553,7 +558,7 @@ try {
     $castle['params'] = ['scale' => 2];
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     check($status === 200 && $data['entity']['params']['scale'] === 2, 'PUT entity → saved');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'holo-gram', 'assets' => []], $editor);
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'hologram', 'assets' => []], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'an unknown type → 400 invalid-entity');
     [$status] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'video'], $editor);
     check($status === 400, 'without assets → 400');
@@ -723,7 +728,7 @@ try {
     check($data['changes'][0]['kind'] === 'plugin' && $data['changes'][0]['ref'] === 'glow' && str_ends_with($data['changes'][0]['after'], "// v2\n") && $data['changes'][1]['before'] === null, 'every save is a change with the source before and after');
     [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
     $rawDraft = (string) file_get_contents("$api/editor/books/osct/draft/{$m['build']}/game.config.json", false, $withToken);
-    check(!str_contains($rawDraft, 'glow') && str_contains($rawDraft, '"plugins":[{"id":"tint","src":"' . $base . '/assets/content/plugins/tint/plugin.js","api":"1.0"}]'), 'the draft declares the imported compiled plugins (below the assets base), never an editor source');
+    check(!str_contains($rawDraft, 'glow') && str_contains($rawDraft, '"plugins":[{"id":"tint","src":"' . $base . '/assets/content/plugins/tint/plugin.js","api":"1.0","registered":{"components":{"tint":'), 'the draft declares the imported compiled plugins (below the assets base) with what they recorded, never an editor source');
     [$status] = call($api, 'DELETE', '/editor/books/osct/plugins/glow', null, $editor);
     [$status2] = call($api, 'GET', '/editor/books/osct/plugins/glow', null, $editor);
     check($status === 204 && $status2 === 404, 'DELETE → 204, then 404');
@@ -770,6 +775,34 @@ try {
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'import: a plugin node type without plugins → 400 invalid-entity');
     [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the plugins');
+
+    echo "editor: the plugins' recorded specs (#90)\n";
+    // The declared plugins recorded what they register: their node type passes, any other name is a typo
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', ['type' => 'sparkel', 'assets' => []], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entity' && str_contains($data['error']['message'], 'a plugin of the book registers (sparkle)'), 'a node type no declared plugin recorded → 400 naming the plugins\' node types');
+    [$status] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['entity' => ['type' => 'sparkle', 'assets' => []]], $editor);
+    check($status === 200, 'the recorded node type passes');
+    $typo = $configuration;
+    $typo['entities']['castle'] = ['type' => 'sparkel', 'assets' => []];
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $typo, 'files' => $files], $flags));
+    check($status === 400 && $data['error']['code'] === 'invalid-entity', 'import: a node type the configuration\'s plugins did not record → 400');
+    // A component no declared plugin recorded is refused at publish, although the book declares plugins
+    $glowing = $configuration['entities']['castle'];
+    $glowing['components'] = [['type' => 'glow']];
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $glowing, $editor);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-components' && $data['error']['components'] === ['glow'], 'publish: a component the declared plugins did not record → 409 unknown-components');
+    // A plugin of an older build (nothing recorded) may register anything: a camelCase name passes, as before
+    $older = $typo;
+    unset($older['plugins'][0]['registered']);
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $older, 'files' => $files], $flags));
+    check($status === 200, 'import: a plugin without recorded specs lets a camelCase node type pass');
+    $broken = $configuration;
+    $broken['plugins'][0]['registered'] = ['nodeTypes' => ['sparkle']];
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $broken, 'files' => $files], $flags));
+    check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'import: registered.nodeTypes that is no object → 400');
+    [$status] = call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'import again with the recorded plugins');
 
     echo "editor: assets\n";
     // A 1×1 PNG and a tiny glb-like file (the API checks the type by the name, not the bytes)

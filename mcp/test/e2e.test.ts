@@ -139,7 +139,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(verified.ok, JSON.stringify(verified.data)).toBe(true);
     expect(verified.data.user).toEqual({ email: "editor@example.test", roles: ["reader", "editor"] });
     expect(await names()).toEqual(
-      expect.arrayContaining(["list_books", "import_book", "get_book", "get_spread", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
+      expect.arrayContaining(["list_books", "import_book", "get_book", "get_spread", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "add_spread", "put_spread", "delete_spread", "put_book_passes", "put_environment", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
     );
     expect((await client.listPrompts()).prompts.map(p => p.name).sort()).toEqual(["add-target", "editor"]);
     const resource = await client.readResource({ uri: "osct://rules/content-model" });
@@ -211,13 +211,13 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     const source = `export const register = (api) => {\n  api.registerLayer("glow", { description: "Glows.", nodeTypes: ["video"], params: {} }, { glsl: "return rgba;" });\n};\n`;
     const saved = await call("put_plugin", { book: "osct", plugin: "glow", source });
     expect(saved.ok).toBe(true);
-    expect(saved.data.registers).toEqual({ components: [], layers: ["glow"] });
+    expect(saved.data.registers).toEqual({ components: [], layers: ["glow"], nodeTypes: [], passes: [] });
     expect(saved.data.plugin.updatedBy).toBe("editor@example.test");
     const read = await call("get_plugin", { book: "osct", plugin: "glow" });
     expect(read.data.plugin.source).toBe(source);
     const model = await call("describe_content_model", { book: "osct" });
     expect(model.data.components.declaredPlugins[0].id).toBe("tint");
-    expect(model.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"] }]);
+    expect(model.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: [], passes: [] }]);
     expect((await call("list_plugins", { book: "osct" })).data.plugins).toHaveLength(1);
   });
 
@@ -236,5 +236,34 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect((await call("delete_plugin", { book: "osct", plugin: "glow" })).ok).toBe(true);
     expect((await call("delete_entry", { book: "osct", entry: "p31-shadows" })).ok).toBe(true);
     expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.entries).toHaveLength(1);
+  });
+
+  it("adds a double page and a back cover, sets passes and the environment, removes what is empty (#174)", async () => {
+    const page = await call("add_spread", { book: "osct", format: "spread", after: "s1", title: "Studio A" });
+    expect(page.ok, JSON.stringify(page.data)).toBe(true);
+    expect(page.data.spread).toMatchObject({ id: "spread-1", title: "Studio A", firstPage: 3, lastPage: 4 });
+    expect(page.data.moved.spreads).toBe(1);
+    expect(page.data.open).toBe("http://localhost:5175/editor/osct/spread-1/");
+    expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.spread).toMatchObject({ firstPage: 32, lastPage: 33 });
+    const back = await call("add_spread", { book: "osct", format: "back" });
+    expect(back.data.spread).toMatchObject({ id: "back", format: "back", firstPage: 34 });
+    const own = await call("put_spread", { book: "osct", spread: "spread-1", title: "Studio A – night", passes: [{ type: "vignette", strength: 0.8 }] });
+    expect(own.ok, JSON.stringify(own.data)).toBe(true);
+    expect(own.data.spread).toMatchObject({ title: "Studio A – night", passes: [{ type: "vignette", strength: 0.8 }] });
+    const master = await call("put_book_passes", { book: "osct", passes: [{ type: "grade", reach: "all", saturation: 0.6 }] });
+    expect(master.data.passes).toEqual([{ type: "grade", reach: "all", saturation: 0.6 }]);
+    const environment = await call("put_environment", { book: "osct", environment: { world: "cafe", onionSky: false } });
+    expect(environment.data.environment).toEqual({ world: "cafe", onionSky: false });
+    const draft = (await call("get_draft", { book: "osct" })).data.configuration;
+    expect(draft.book).toMatchObject({ passes: [{ type: "grade", reach: "all", saturation: 0.6 }], environment: { world: "cafe", onionSky: false } });
+    expect(draft.spreads.map((s: any) => s.id)).toEqual(["s1", "spread-1", "studio-b", "back"]);
+    const full = await call("delete_spread", { book: "osct", spread: "studio-b" });
+    expect(full.ok).toBe(false);
+    expect(full.data.error).toMatchObject({ code: "spread-not-empty", entries: ["castle"] });
+    expect((await call("delete_spread", { book: "osct", spread: "back" })).ok).toBe(true);
+    expect((await call("delete_spread", { book: "osct", spread: "spread-1" })).ok).toBe(true);
+    expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.spread).toMatchObject({ firstPage: 30, lastPage: 31 });
+    expect((await call("put_environment", { book: "osct", environment: null })).data.environment).toBeNull();
+    expect((await call("put_book_passes", { book: "osct", passes: null })).data.passes).toBeNull();
   });
 });

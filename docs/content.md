@@ -233,7 +233,12 @@ target:
 folder `content/plugins/<id>/` with an `index.ts` that exports `register(api)`. The content build type-checks it
 against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin imports nothing but types – three.js is
 `api.three`), runs it once to learn what it registers, and declares it in the configuration (`plugins: [{ id, src,
-api }]`); the reader loads it with the AR scene. What a plugin registers is used in the content like `animation`:
+api, registered }]`); the reader loads it with the AR scene. `registered` (content schema 2.14, optional) is what the
+run recorded – `{ components, nodeTypes, passes }`, each a map of type → spec (layers are under `components`) – so the
+app's guard, the editor's API, the MCP server and the editor's Entity panel know a plugin's types and parameters without
+running it: the guard checks a plugin component's or node type's parameters like a built-in one's and refuses a type
+no declared plugin registers. A plugin declared without it (an older build) is unknown until it loads; the guard then
+lets its types pass. The engine ignores the field. What a plugin registers is used in the content like `animation`:
 
 - `api.registerComponent(type, spec, apply)` – code on a node. `spec` = `{ description, nodeTypes?, params }` with
   every parameter's `kind` (`number` with `min` / `max`, `color`, `choice` with `options`, `boolean`, `string`),
@@ -553,6 +558,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.11 | 1.22.0 | in develop | the content manifest names its book (`latest.json` / `versions.json` `book`) |
 | 2.12 | 1.27.0 | in develop | a node's optional `name` (the editor's tree shows it; the reader ignores it) |
 | 2.13 | 1.32.0 | in develop | a plugin's node type (`registerNodeType`, plugin API 1.2): its parameters in the node's `params` |
+| 2.14 | next | in develop | a plugin's recorded `registered` (the specs of its components, layers, node types and passes – the guard checks them) |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

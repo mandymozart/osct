@@ -70,17 +70,28 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `get_entity { book, ref }` · `put_entity { book, ref, entity }` | a shared entity – the whole node tree (`EntityData`) |
 | `put_target { book, target, entity? \| ref?, imageSrc?, print? }` | a target's own entity (null removes it), a shared one instead, its printed image, where it is printed |
 | `add_entry { book, title, page, category?, body?, id?, target: { imageSrc, print?, entity? } }` · `delete_entry` | a new target on the spread of its page; the entry and target go |
+| `add_spread { book, format: spread \| cover \| back, after?, id?, title? }` | a double page after `after` (later pages numbered on by two, `moved` counts the rows), the front or the back cover; the link opens the new spread |
+| `put_spread { book, spread, title?, format?, passes? }` | a spread's title, format and its own post-processing (replaces the book's there; `[]` off, `null` the book's again) |
+| `delete_spread { book, spread }` | an empty spread goes, later pages numbered back; 409 `spread-not-empty` with the entries, 409 `initial-spread` |
+| `put_book_passes { book, passes \| null }` | the book's post-processing – the master chain every spread without its own shows |
+| `put_environment { book, environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | the world around the reader and the onion sky |
 | `list_assets { book, kind? }` · `upload_asset { book, file, name? }` · `delete_asset { book, asset, force? }` | the library: a local file becomes an asset whose `url` nodes and targets name |
 | `list_plugins` · `get_plugin` · `put_plugin { book, plugin, source }` · `delete_plugin` | the Code tab's sources; `put_plugin` names what the source registers and warns about a module the engine would refuse |
 | `get_draft { book, part? }` | the draft as the engine loads it: manifest, configuration or files |
 | `publish { book, env: local \| staging, note? }` | writes the draft into the content store of `env`; **production is refused** – the person's button in the editor |
 | `list_versions` · `list_changes { book, limit? }` | the publish log, the change log |
-| `describe_content_model { book? }` | node types, placement, filters, components, printed placement, categories, formats – from `shared/`; with a book also the declared plugins and the Code tab's sources with the types read from them |
+| `describe_content_model { book? }` | node types and names, placement, filters, components, passes, the environment, printed placement, categories, formats – from `shared/`; with a book also the declared plugins with the components, node types and passes they recorded (with their parameters) and the Code tab's sources with the types read from them |
 
 Before `put_entity`, `put_target` and `add_entry` send an entity, the shared guard (`shared/guards/game-config.ts`) runs over
 it: a body that breaks the contract never reaches the API, the problems come back with their path (`entity.params.scale: …`).
-A component type no built-in provides passes with a warning – a plugin must register it, the publish checks (409
-`unknown-components`). Resources: `osct://rules/content-model` (the same as `describe_content_model`) and
+When the tree names a type that is not built in, the book's plugins are read first (`model.ts` `knownPluginTypes`): the
+declared plugins' recorded specs (content schema 2.14) go into the guard, so a plugin component's or node type's
+parameters are checked like a built-in one's; the Code tab's sources give the types read from their text
+(`registerComponent`, `registerLayer`, `registerNodeType`, `registerPass`). A node type no plugin of the book registers
+is refused – unless a plugin is unknown (a Code tab source, a declared plugin of an older build): then a name like a
+plugin's passes with a warning, as the API lets it through. A component type nobody knows passes with a warning – a
+plugin must register it, the publish checks (409 `unknown-components`, `unknown-node-types`). `put_spread` and
+`put_book_passes` check the passes, `put_environment` the environment against the same contract. Resources: `osct://rules/content-model` (the same as `describe_content_model`) and
 `osct://guides/plugins` ([plugins](plugins.md)). Prompts: `editor` (how to work), `add-target { book, page, what }`.
 
 ## An example session
@@ -110,6 +121,7 @@ uploaded file, a plugin source, publish to local. Skipped with a message when `p
 
 - The stage cannot be seen: the agent reads the draft, the person looks. A headless render of the mock stage is a
   follow-up (#75's note).
-- Entries' texts, spreads and the tutorial are imported, not edited here (as in the editor).
+- Entries' texts and the tutorial are imported, not edited here (as in the editor); spreads are added, renamed and
+  removed (`add_spread`, `put_spread`, `delete_spread`).
 - The server follows the API: a new endpoint is a new tool (`src/content.ts`), nothing else moves. Differences to
   SCUTOONS' server and what an agent still misses: the research note.

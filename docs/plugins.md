@@ -141,7 +141,7 @@ shared by every node that uses the same file: clone what you change (`asset.scen
 returns `{ object, …hooks }` – the hooks a component has (`update`, `onFound`, `onLost`, `onUnlocked`, `onTap`,
 `onPause`, `dispose`), and `tune(params)` for the editor's live edit. A `build` that throws or returns no object is
 logged; the node then renders nothing and keeps its children. In the editor, **+ node** lists the book's node types
-under *plugins* once the plugins are loaded (or Run); the content build refuses a type no plugin of the book
+under *plugins* once the plugins are loaded (or Run) – at once for a compiled plugin whose specs the build recorded; the content build refuses a type no plugin of the book
 registers, and a node's parameters or file that do not fit its spec.
 
 ## Across nodes and pages: events, variables, the progress (API 1.1)
@@ -226,7 +226,11 @@ generated from the engine (`editor/src/lib/plugins/plugin-api.d.ts`, `npm run pl
 
 What runs in the Code tab stays in the editor until a **publish** compiles it: the content build – the same one
 that builds the book from its source – type-checks every plugin, bundles it, runs it once to learn what it
-registers (so the nodes that use it are checked), and declares it in the configuration. From there it travels to
+registers (so the nodes that use it are checked), and declares it in the configuration together with what it
+registered: the specs of its components, layers, node types and passes (`registered`, content schema 2.14). So the
+reader's check, the editor's API and the MCP server know your types and parameters without running your code – a typo
+in a node's type or a parameter out of range is caught at save time – and the editor's Entity panel shows the rows of
+your component or node type before anyone presses Run. From there it travels to
 the CDN with the content version and the reader loads it with the AR scene. A plugin that does not compile fails
 the build with the file and line, like a missing image. The build behind the publish is #78 (decided: it runs on
 the server); until it lands, only the plugins in the content source (`content/plugins/<id>/index.ts`, built with

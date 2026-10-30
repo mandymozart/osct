@@ -6,7 +6,7 @@ import * as esbuild from 'esbuild';
 import ts from 'typescript';
 import * as THREE from 'three';
 import { componentSpecProblems, registerComponentSpec, type ComponentSpec } from '../../../shared/types/components';
-import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData } from '../../../shared/types/plugins';
+import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData, type PluginRegistrations } from '../../../shared/types/plugins';
 import { nodeTypeSpecProblems, registerNodeTypeSpec, type NodeTypeSpec } from '../../../shared/types/node-types';
 import type { EntityData } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
@@ -22,7 +22,9 @@ import { buildErrors, buildWarnings } from '../lib/errors';
  *   3. runs the module once with a recording API: the components and material layers it registers join the
  *      registry, so the nodes that use them are checked like the built-in `animation`; the node types it registers
  *      join the node type registry, so nodes of that type pass (their parameters and file checked);
- *   4. declares it in `game.config.json`: `plugins: [{ id, src, api }]`.
+ *   4. declares it in `game.config.json`: `plugins: [{ id, src, api, registered }]` – `registered` (schema 2.14) the
+ *      specs of the components, layers, node types and passes it registered, so the guard, the editor's API, the MCP
+ *      server and the Entity panel know them without running the plugin.
  * Nothing here runs in the content build without a review: plugins live in the content source like the YAML.
  */
 
@@ -134,14 +136,26 @@ export async function bundlePlugin(id: string, entry: string): Promise<string | 
   }
 }
 
+/** A recorded spec as the configuration holds it: plain JSON (a plugin's spec object may carry more than data) */
+const plain = <T>(spec: T): T => JSON.parse(JSON.stringify(spec)) as T;
+
+/** What one plugin registered: the type names (for the log) and the specs (the configuration's `registered`) */
+export interface PluginRecord {
+  types: string[];
+  registered: Required<PluginRegistrations>;
+}
+
 /**
  * Run the bundled module once with a recording API: what it registers joins the registry (for the checks of the
- * nodes that use it). An exception in register, an invalid spec or a type two plugins register are errors.
+ * nodes that use it) and is recorded – its specs go into the configuration (`registered`, schema 2.14). An exception
+ * in register, an invalid spec or a type two plugins register are errors.
  */
-export async function recordPlugin(id: string, code: string, taken: Map<string, string>): Promise<string[]> {
+export async function recordPlugin(id: string, code: string, taken: Map<string, string>): Promise<PluginRecord> {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'osct-plugin-')), `${id}.mjs`);
   fs.writeFileSync(file, code);
-  const registered: string[] = [];
+  const types: string[] = [];
+  const registered: Required<PluginRegistrations> = { components: {}, nodeTypes: {}, passes: {} };
+  const record: PluginRecord = { types, registered };
   const take = (type: string, spec: ComponentSpec) => {
     const problems = componentSpecProblems(type, spec);
     if (taken.has(type) && taken.get(type) !== id) problems.push(`"${type}" is registered by the plugin ${taken.get(type)} too`);
@@ -151,14 +165,15 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
     }
     taken.set(type, id);
     registerComponentSpec(type, spec);
-    registered.push(type);
+    types.push(type);
+    registered.components[type] = plain(spec);
   };
   try {
     const module = (await import(pathToFileURL(file).href)) as { register?: unknown; default?: unknown };
     const register = module.register ?? module.default;
     if (typeof register !== 'function') {
       buildErrors.push(`plugins/${id}: ${ENTRY} exports no register(api) function`);
-      return registered;
+      return record;
     }
     register({
       version: PLUGIN_API_VERSION,
@@ -170,13 +185,17 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       registerLayer: (type: string, spec: ComponentSpec, layer: { glsl?: unknown }) => {
         if (typeof layer?.glsl !== 'string' || !layer.glsl.trim()) buildErrors.push(`plugins/${id}: the layer ${type} needs its glsl`);
         take(type, spec);
-        if (registered.includes(type)) layerTypes.add(type);
+        if (types.includes(type)) layerTypes.add(type);
       },
-      // The build checks a pass's spec and factory. TODO: a spread may name the pass once the guard takes plugin pass types (#97)
+      // The build checks a pass's spec and factory and records it. TODO: a spread may name the pass once the guard takes plugin pass types (#97)
       registerPass: (type: string, spec: ComponentSpec, factory: unknown) => {
         const problems = componentSpecProblems(type, spec);
         if (typeof factory !== 'function') problems.push(`the pass ${type} needs a factory`);
-        problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        registered.passes[type] = plain({ description: spec.description, params: spec.params });
       },
       // A node type (API 1.2): its spec joins the registry, so the nodes of that type are checked (params, src)
       registerNodeType: (type: string, spec: NodeTypeSpec, build: unknown) => {
@@ -190,7 +209,8 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         }
         taken.set(key, id);
         registerNodeTypeSpec(type, spec);
-        registered.push(type);
+        types.push(type);
+        registered.nodeTypes[type] = plain(spec);
       },
       // The runtime (events, variables, progress, the spread) belongs to a running scene: here nothing happens
       events: { on: () => () => undefined, emit: () => undefined },
@@ -204,7 +224,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
   } finally {
     fs.rmSync(path.dirname(file), { recursive: true, force: true });
   }
-  return registered;
+  return record;
 }
 
 /**
@@ -235,9 +255,9 @@ export async function buildPlugins(): Promise<PluginBuild[]> {
   for (const { id, entry } of folders) {
     const code = await bundlePlugin(id, entry);
     if (code === null) continue;
-    const types = await recordPlugin(id, code, taken);
+    const { types, registered } = await recordPlugin(id, code, taken);
     console.log(`   ${id}: ${Math.round(code.length / 1024)} KB${types.length ? ` – ${types.join(', ')}` : ''}`);
-    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION }, code });
+    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION, registered }, code });
   }
   return builds;
 }

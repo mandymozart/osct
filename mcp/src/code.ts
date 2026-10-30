@@ -31,7 +31,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
 
   server.registerTool(
     "get_plugin",
-    { description: "One plugin source with the component and layer types it registers (read from the text).", inputSchema: z.object({ book: BOOK, plugin: PLUGIN }), annotations: { readOnlyHint: true, openWorldHint: false } },
+    { description: "One plugin source with the component, layer, node and pass types it registers (read from the text).", inputSchema: z.object({ book: BOOK, plugin: PLUGIN }), annotations: { readOnlyHint: true, openWorldHint: false } },
     guard(async ({ book, plugin }) => {
       const { plugin: row } = await api.call<{ plugin: PluginRow & { source: string } }>("GET", path(book, plugin));
       return text({ plugin: row, registers: pluginTypes(row.source) });
@@ -42,7 +42,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
     "put_plugin",
     {
       description:
-        "Saves a plugin source (new or changed; at most 256 KB; a change is recorded). TypeScript that exports register(api) – see osct://guides/plugins: api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.three for three.js (never import it). Nothing runs here: the person presses Run in the Code tab to see it on the stage; readers get it through the content build.",
+        "Saves a plugin source (new or changed; at most 256 KB; a change is recorded). TypeScript that exports register(api) – see osct://guides/plugins: api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js (never import it). Nothing runs here: the person presses Run in the Code tab to see it on the stage; readers get it through the content build.",
       inputSchema: z.object({ book: BOOK, plugin: PLUGIN, source: z.string().describe("the TypeScript source") }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -51,7 +51,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
       const warnings: string[] = [];
       if (!/export\s+(const|function|default)\s+register\b|export\s+default\b|export\s*\{[^}]*\bregister\b/.test(source)) warnings.push("the source exports no register(api) – the engine refuses such a module");
       if (/^\s*import\s+(?!type\b)/m.test(source)) warnings.push("the source imports a module – plugins import nothing but types (three.js is api.three)");
-      if (registers.components.length + registers.layers.length === 0) warnings.push("no registerComponent / registerLayer call found");
+      if (Object.values(registers).every(types => types.length === 0)) warnings.push("no registerComponent / registerLayer / registerNodeType / registerPass call found");
       const { plugin: row } = await api.call<{ plugin: PluginRow }>("PUT", path(book, plugin), { source });
       return text({ plugin: { ...row, source: undefined }, registers, ...(warnings.length ? { warnings } : {}), open: editorHref(links, book), next: "Open a spread in the editor → Code → the plugin → Run shows it on the stage; the content build ships it to readers." });
     }),
