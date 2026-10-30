@@ -74,25 +74,10 @@ export const snapSheet = (share: number, velocity = 0): number => {
 };
 
 /**
- * The rows a wrapping flex row takes (`flex-wrap: wrap`): each item, `widths` its outer widths (px, margins
- * included), stays on the current row while it fits in `available` px with `gap` before it, else starts a new one.
- */
-export const wrapRows = (widths: readonly number[], available: number, gap = 0): number => {
-  let rows = 0;
-  let used = 0;
-  for (const width of widths) {
-    if (rows === 0 || used + gap + width > available) {
-      rows++;
-      used = width;
-    } else used += gap + width;
-  }
-  return rows;
-};
-
-/**
  * Whether the phone's ‹ › leave the stage's lower corners for its top row, next to the toolbar (#177): at the lower
- * corners they need the wrapped toolbar's height (`toolbar`, px) above them, their own row (`step`) and a `margin`
- * above, between and below; a shorter stage – the sheet almost full – would put them over the toolbar's tools.
+ * corners they need the toolbar's height (`toolbar`, px – one row since its groups collapse, #180) above them, their
+ * own row (`step`) and a `margin` above, between and below; a shorter stage – the sheet almost full – would put them
+ * over the toolbar's tools. The toolbar always leaves them that room on its row, so it never scrolls.
  */
 export const stepsOnTop = (stage: number, toolbar: number, step: number, margin: number): boolean =>
   stage < toolbar + step + 3 * margin;

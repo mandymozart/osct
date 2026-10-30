@@ -6,8 +6,10 @@
   import { content } from "#lib/content.svelte.js";
   import { Stage, type PickMode, type StagePick } from "#lib/stage/stage.svelte.js";
   import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode } from "#lib/stage/gizmo.js";
-  import { SHADING_MODES, updatePreview, type ShadingMode } from "#lib/stage/preview.js";
+  import { updatePreview, type ShadingMode } from "#lib/stage/preview.js";
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
+  import ToolGroup, { type ToolGroupOption } from "#lib/components/ToolGroup.svelte";
+  import { expandedGroups, type GroupShape } from "#lib/tool-groups.js";
   import StagePanel from "#lib/panels/StagePanel.svelte";
   import EntityPanel from "#lib/panels/EntityPanel.svelte";
   import TreePanel from "#lib/panels/TreePanel.svelte";
@@ -21,7 +23,7 @@
   import { nodeAt } from "#lib/values.js";
   import { selection } from "#lib/selection.svelte.js";
   import InfoView from "#lib/components/InfoView.svelte";
-  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, wrapRows, type Column } from "#lib/widths.svelte.js";
+  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -336,12 +338,28 @@
     stage?.selectNode(level === "entity" || level === "node" ? id : null, path);
     stage?.selectTarget(level === "target" ? id : null);
   });
-  const GIZMO_LABELS: Record<GizmoMode, string> = { translate: "Move (W)", rotate: "Rotate (E)", scale: "Scale (R)" };
-  const PICK_MODES: readonly PickMode[] = ["entity", "node", "target"];
-  const PICK_LABELS: Record<PickMode, string> = { entity: "Select entities – a click picks the entity (its root)", node: "Select nodes – a click picks the node under the pointer", target: "Select targets – a click picks the printed target" };
-  const SHADING_LABELS: Record<ShadingMode, string> = { wireframe: "Wireframe – the entities as lines", solid: "Solid – one grey, the scene's lights", textured: "Textured – the content's materials, no sky", rendered: "Rendered – the HDRI's sky and light" };
-  const SHADING_ICONS: Record<ShadingMode, IconName> = { wireframe: "shade-wire", solid: "shade-solid", textured: "shade-textured", rendered: "shade-rendered" };
-  const PICK_ICONS: Record<PickMode, IconName> = { entity: "package", node: "node", target: "target" };
+  // ── the stage toolbar (#180): three groups – transform, pick, shading – each one button with its active option's
+  // icon and a menu, or its options side by side where the toolbar has room ──
+  const GIZMO_NAMES: Record<GizmoMode, string> = { translate: "Move", rotate: "Rotate", scale: "Scale" };
+  const GIZMO_ICONS: Record<GizmoMode, IconName> = { translate: "move", rotate: "rotate", scale: "scale" };
+  /** W / E / R, from the gizmo's own keys */
+  const gizmoKey = (mode: GizmoMode) => Object.entries(GIZMO_KEYS).find(([, m]) => m === mode)?.[0].toUpperCase();
+  const TRANSFORM_OPTIONS: ToolGroupOption[] = GIZMO_MODES.map(mode => ({
+    value: mode, name: GIZMO_NAMES[mode], key: gizmoKey(mode), icon: GIZMO_ICONS[mode], label: `${GIZMO_NAMES[mode]} (${gizmoKey(mode)}) – Ctrl snaps`,
+  }));
+  const PICK_OPTIONS: ToolGroupOption[] = [
+    { value: "entity", name: "Entities", icon: "package", label: "Select entities – a click picks the entity (its root)" },
+    { value: "node", name: "Nodes", icon: "node", label: "Select nodes – a click picks the node under the pointer" },
+    { value: "target", name: "Targets", icon: "target", label: "Select targets – a click picks the printed target" },
+  ] satisfies (ToolGroupOption & { value: PickMode })[];
+  const SHADING_OPTIONS: ToolGroupOption[] = [
+    { value: "wireframe", name: "Wire", icon: "shade-wire", label: "Wireframe – the entities as lines" },
+    { value: "solid", name: "Solid", icon: "shade-solid", label: "Solid – one grey, the scene's lights" },
+    { value: "textured", name: "Textured", icon: "shade-textured", label: "Textured – the content's materials, no sky" },
+    { value: "rendered", name: "Rendered", icon: "shade-rendered", label: "Rendered – the HDRI's sky and light" },
+  ] satisfies (ToolGroupOption & { value: ShadingMode })[];
+  /** The groups' shapes in the toolbar's order (the shading spheres sit shoulder to shoulder) */
+  const TOOL_SHAPES: GroupShape[] = [{ options: TRANSFORM_OPTIONS.length }, { options: PICK_OPTIONS.length }, { options: SHADING_OPTIONS.length, tight: true }];
 
   // ── the stage's menu (right click): what lies there decides the actions ──
   let stageMenu = $state<{ hit: StagePick | null; x: number; y: number } | null>(null);
@@ -377,43 +395,35 @@
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("button.placement-toggle")?.click());
   };
   const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · double tap = the reader's view · ← → = the spreads. A click picks what lies there, right click opens its menu.";
-  const GIZMO_ICONS: Record<GizmoMode, "move" | "rotate" | "scale"> = { translate: "move", rotate: "rotate", scale: "scale" };
 
   const spread = $derived(content.spread(spreadId));
 
-  // ── the phone's ‹ › (#177): at the stage's lower corners while the stage holds them below the wrapped toolbar;
-  // on a shorter stage (the sheet almost full) they share the stage's top row with the toolbar, which then keeps
-  // to one row and scrolls sideways – the tools stay reachable at every sheet height ──
+  // ── the toolbar's room (#180) and the phone's ‹ › (#171, #177): the groups stay expanded as far as the toolbar's
+  // room allows – the stage's width less its margins and, on a phone, less ‹ › (they may share the top row) – so the
+  // toolbar is always one row. ‹ › sit at the stage's lower corners; on a stage too short for them below the toolbar
+  // (the sheet almost full) they move to its top right, beside it ──
   let tools = $state<HTMLDivElement>();
   let stageWidth = $state(0);
   let stageHeight = $state(0);
   let stepsUp = $state(false);
-  /** The toolbar's wrapped height and one row's (px) on a stage `width` px wide, from its groups (the same in both layouts) */
-  const wrappedToolbar = (bar: HTMLElement, width: number, rem: number) => {
-    const px = (value: string) => parseFloat(value) || 0;
-    const style = getComputedStyle(bar);
-    const groups = [...bar.children] as HTMLElement[];
-    const outer = groups.map(group => {
-      const s = getComputedStyle(group);
-      return group.getBoundingClientRect().width + px(s.marginLeft) + px(s.marginRight);
-    });
-    const chromeX = px(style.paddingLeft) + px(style.paddingRight) + px(style.borderLeftWidth) + px(style.borderRightWidth);
-    const chromeY = px(style.paddingTop) + px(style.paddingBottom) + px(style.borderTopWidth) + px(style.borderBottomWidth);
-    const row = Math.max(0, ...groups.map(group => group.offsetHeight));
-    // the toolbar's max-width is the stage's less 1rem
-    const rows = wrapRows(outer, width - rem - chromeX, px(style.columnGap));
-    return { height: rows * row + Math.max(0, rows - 1) * px(style.rowGap) + chromeY, row };
-  };
+  let expanded = $state<boolean[]>([false, false, false]);
+  /** Slack (px) against rounding: a toolbar that only just fits would wrap on a subpixel */
+  const ROOM_SLACK = 4;
   $effect(() => {
     const [bar, width, height] = [tools, stageWidth, stageHeight];
     void coarse;
-    if (!narrow || !bar || !height) {
-      stepsUp = false;
-      return;
-    }
+    if (!bar || !width) return;
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const toolbar = wrappedToolbar(bar, width, rem);
-    stepsUp = stepsOnTop(height, toolbar.height, toolbar.row, rem / 2);
+    // The control height (a rem token, 44 px with a finger – #171)
+    const token = getComputedStyle(bar).getPropertyValue("--control-height").trim();
+    const button = token.endsWith("rem") ? parseFloat(token) * rem : parseFloat(token) || 1.75 * rem;
+    // The toolbar's CSS below: gap .125rem, a rule of .125rem margin + .25rem padding + 1px, padding .125rem and a 1px border
+    const metrics = { button, gap: rem / 8, rule: (3 * rem) / 8 + 1, chrome: rem / 4 + 2 };
+    // The toolbar's max-width: the stage's less 1rem; on a phone also less ‹ › (2 buttons and their margins)
+    const room = width - rem - (narrow ? 2 * button + (3 * rem) / 8 : 0) - ROOM_SLACK;
+    const next = expandedGroups(TOOL_SHAPES, room, metrics);
+    if (next.some((e, i) => e !== expanded[i])) expanded = next;
+    stepsUp = narrow && !!height && stepsOnTop(height, bar.offsetHeight, button, rem / 2);
   });
 
   const step = (direction: 1 | -1) => {
@@ -490,24 +500,15 @@
   <div class="stage" class:steps-up={narrow && stepsUp} bind:this={container} bind:clientWidth={stageWidth} bind:clientHeight={stageHeight}
     data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
-      <!-- Three groups that wrap whole when the stage is narrow (a phone with the touch height – #171) -->
-      <div class="tools" role="toolbar" data-app-ui aria-label="Transform" bind:this={tools}>
-        <span class="tool-group" role="group" aria-label="Gizmo">
-          {#each GIZMO_MODES as mode (mode)}
-            <button type="button" class="icon-button" class:on={stage.gizmoMode === mode} aria-pressed={stage.gizmoMode === mode} title="{GIZMO_LABELS[mode]} – Ctrl snaps" aria-label={GIZMO_LABELS[mode]}
-              onclick={() => stage?.setGizmoMode(mode)}><Icon name={GIZMO_ICONS[mode]} stroke={2} /></button>
-          {/each}
-        </span>
-        <span class="tool-group" role="group" aria-label="Pick mode">
-          {#each PICK_MODES as mode (mode)}
-            <button type="button" class="icon-button" class:on={stage.pickMode === mode} aria-pressed={stage.pickMode === mode} title={PICK_LABELS[mode]} aria-label={PICK_LABELS[mode]} onclick={() => stage?.setPickMode(mode)}><Icon name={PICK_ICONS[mode]} stroke={2} /></button>
-          {/each}
-        </span>
-        <span class="tool-group shading" role="group" aria-label="Viewport shading">
-          {#each SHADING_MODES as mode (mode)}
-            <button type="button" class="icon-button" class:on={stage.shading === mode} aria-pressed={stage.shading === mode} title={SHADING_LABELS[mode]} aria-label={SHADING_LABELS[mode]} onclick={() => updatePreview({ shading: mode })}><Icon name={SHADING_ICONS[mode]} stroke={1.75} /></button>
-          {/each}
-        </span>
+      <!-- Three groups, each one button and its menu or – where the toolbar has room – its options side by side;
+           always one row (#180) -->
+      <div class="tools" role="toolbar" data-app-ui aria-label="Stage tools" bind:this={tools}>
+        <ToolGroup label="Transform" options={TRANSFORM_OPTIONS} value={stage.gizmoMode} expanded={expanded[0]}
+          onchoose={mode => stage?.setGizmoMode(mode as GizmoMode)} />
+        <ToolGroup label="Pick" options={PICK_OPTIONS} value={stage.pickMode} expanded={expanded[1]}
+          onchoose={mode => stage?.setPickMode(mode as PickMode)} />
+        <ToolGroup label="Shading" options={SHADING_OPTIONS} value={stage.shading} expanded={expanded[2]} tight stroke={1.75}
+          onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
       </div>
       {#if narrow}
         <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171); on a short
@@ -617,18 +618,16 @@
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   .stage :global(canvas) { display: block; width: 100%; height: 100%; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
-  .tools { position: absolute; left: .5rem; top: .5rem; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
-  /* Three groups – gizmo, pick, shading – with a rule between; on a narrow stage a group wraps whole */
-  .tool-group { flex: none; display: inline-flex; align-items: center; gap: .125rem; }
-  .tool-group + .tool-group { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
-  /* Blender's shading spheres sit shoulder to shoulder */
-  .tools .shading { gap: 0; }
+  /* Above ‹ › (z-index 1), so a group's menu covers them; the page computes the groups' widths from these measures */
+  .tools { position: absolute; left: .5rem; top: .5rem; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  /* Three groups – transform, pick, shading – with a rule between (#180: components/ToolGroup.svelte) */
+  .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
   /* A phone: ‹ › through the spreads at the stage's lower corners (#171) */
   .step { position: absolute; bottom: .5rem; z-index: 1; color: var(--text); }
   .step-previous { left: .5rem; }
   .step-next { right: .5rem; }
-  /* A short stage (#177): toolbar and ‹ › share the top row; the toolbar stops before them and scrolls sideways */
-  .steps-up .tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: calc(100% - 1.375rem - 2 * var(--control-height)); }
+  /* A short stage (#177): toolbar and ‹ › share the top row; the toolbar's groups collapse to leave them room (#180) */
+  .steps-up .tools { max-width: calc(100% - 1.375rem - 2 * var(--control-height)); }
   .steps-up .step { top: calc(.5rem + .1875rem); bottom: auto; }
   .steps-up .step-previous { left: auto; right: calc(.625rem + var(--control-height)); }
   .menu-backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }

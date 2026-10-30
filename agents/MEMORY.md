@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The stage toolbar in groups (#180)
+
+- **Groups expand by the toolbar's room, greedy from the first**: all collapsed, then transform, pick, shading expanded
+  in turn while the toolbar fits one row (`lib/tool-groups.ts` `expandedGroups`, measures from the toolbar's CSS and
+  the `--control-height` token, 4 px slack). On a phone the room always leaves ‹ › their place on the top row, so the
+  layout does not change with the sheet's height. 1280 px: all expanded; 768 px tablet: shading collapsed; 360 px
+  phone with a finger: all collapsed (156 px).
+- **#177's fallback, simplified**: `wrapRows` and the sideways-scrolling toolbar are gone (one row always); ‹ › keep
+  their lower corners (#171) and still move to the top right when the stage is too short (`stepsOnTop`, now with the
+  toolbar's measured one-row height). The sheet's drag code is untouched.
+- **The group menu is fixed to the screen** (a short stage would clip it) with a backdrop that takes the outside tap
+  (it picks nothing on the stage), like the stage's right-click menu; `.tools` is z-index 2 so the menu covers ‹ ›.
+
 ## 2026-10-30 – Plywood on the desks' cut edges (#107)
 
 - **The plies are drawn in code, not downloaded**: the issue proposed a CC0 plywood texture with a visible edge (Poly
