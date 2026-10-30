@@ -31,7 +31,7 @@
     onselect?: (targetId: string) => void;
     /** "+ target": the workspace opens the form */
     onaddtarget?: () => void;
-    /** The menu's "Remove target": entry and target go (the workspace asks the API) */
+    /** The menu's "Remove target": the entry with everything on it, after the confirmation the workspace shows (#198) */
     onremovetarget?: (target: Target) => Promise<void>;
   } = $props();
 
@@ -350,7 +350,7 @@
   <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={closeMenu} oncontextmenu={e => { e.preventDefault(); closeMenu(); }}></button>
   <div class="menu" role="menu" data-app-ui style:left="{m.x}px" style:top="{m.y}px">
     {#if m.kind === "target"}
-      <button type="button" role="menuitem" class="menu-item danger" onclick={() => { menu = null; void onremovetarget?.(m.target); }}>Remove target <span class="menu-hint small muted">entry and target</span></button>
+      <button type="button" role="menuitem" class="menu-item danger" onclick={() => { const target = m.target; menu = null; void onremovetarget?.(target); }}>Remove target <span class="menu-hint small muted">shows what goes</span></button>
     {:else}
       {#if m.path.length}
         <button type="button" role="menuitem" class="menu-item" disabled={last === 0} onclick={() => menuDo(() => shift(-1))}>Move up <span class="menu-hint small muted">Alt ↑</span></button>

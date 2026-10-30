@@ -33,6 +33,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   tell the agent to show the impact to the person and ask before calling again with the id. An AI connection removes
   like its person, only through these two steps, and the change log names it.
 
+### Fixed
+- The tree's *Remove target* did nothing: the menu closed before it read which target it was for.
+
 ## 1.43.0 – 2026-10-30
 
 ### Added
