@@ -1,13 +1,13 @@
 import { Color, Texture } from "three";
 import { PassData, PASSES, resolvePass } from "../../types/index";
-import { PassFactory, PostPass } from "./registry";
+import { MaskUsage, PassFactory, PostPass } from "./registry";
 
 /**
  * The built-in `grade`: exposure, contrast, saturation and a tint. The layer is premultiplied: the colour is divided
  * by the alpha before grading and multiplied again after, so an edge keeps its coverage; a texel with alpha 0 (light
  * added by a bloom) is graded as it is. Contrast pivots on linear mid-grey. `reach`: where the image holds the
- * editor's desk too, `ar` keeps the grade off it with the mask (the AR layer's coverage), `all` grades the desk with
- * it. The phone's camera picture never reaches this buffer (the engine draws it into its own canvas under the
+ * editor's desk or the look-around world too, `ar` keeps the grade off them with the mask (the AR layer's coverage),
+ * `all` grades them with it. The phone's camera picture never reaches this buffer (the engine draws it into its own canvas under the
  * three.js canvas): for `all` the engine's camera renderer grades it with the same steps (`cameraGradeShader`).
  */
 const FRAGMENT = /* glsl */ `
@@ -46,12 +46,13 @@ export const gradePass: PassFactory = ({ params, shaderPass }) => {
     tMask: { value: null as Texture | null },
     uMasked: { value: 0 },
   };
-  const pass = shaderPass(FRAGMENT, initial) as PostPass;
+  const pass = shaderPass(FRAGMENT, initial) as PostPass & MaskUsage;
   // The pass's own uniforms (three clones a shader object's): the live edit writes to these
   const uniforms = (pass as unknown as { uniforms: typeof initial }).uniforms;
   let all = reachesAll(params);
   let mask: Texture | null = null;
   const applyMask = () => {
+    pass.usesMask = !all;
     uniforms.tMask.value = all ? null : mask;
     uniforms.uMasked.value = !all && mask ? 1 : 0;
   };
@@ -67,6 +68,7 @@ export const gradePass: PassFactory = ({ params, shaderPass }) => {
     mask = next;
     applyMask();
   };
+  applyMask();
   return pass;
 };
 

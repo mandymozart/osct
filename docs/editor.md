@@ -235,15 +235,22 @@ is involved.
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
-  - **Post-processing** – the Stage panel's *post-processing* section lists the spread's `passes` (content schema 2.5,
-    [content guide](content.md) "Post-processing") with a row per parameter from the contract's specs; **+ bloom /
-    + vignette / + grade** adds one, *remove* drops one, changes show live on the stage, **Save** writes the list to
-    the spread (`PUT …/spreads/{id} { passes }`), *Back to the draft* undoes, *Use the book's* drops the spread's own
-    list so the book's passes apply. The stage shows the passes under **rendered** only (like the HDRI's sky): the
-    mock stage's table, book, printed images and sky lie on the engine's **backdrop layer** and stand in for the
-    camera picture: bloom and vignette run over them as they run over the camera picture in the reader; the grade's
-    **reach** row (*AR layer / whole picture*) keeps it on the AR layer (it gets the layer's coverage as a mask) or
-    grades the desk too, as the reader grades the camera picture.
+  - **Post-processing** – the Stage panel's *post-processing* section (content schema 2.5, [content guide](content.md)
+    "Post-processing"). **The book's passes are the master**: edited once, every spread without a list of its own
+    shows them. The row **uses** says which list is in effect for the spread on the stage (the section's header repeats
+    it: *the book's*, *this spread's*, *off*, *none*): *the book's* – the default; the list below is then the book's,
+    and editing it changes it for every such spread – or *own* – an override for this spread alone, starting as a copy
+    of the book's (removing every pass turns post-processing off there); choosing *the book's* again drops the
+    override. The list has a row per parameter from the contract's specs; **+ bloom / + vignette / + grade** adds one,
+    *remove* drops one, changes show live on the stage. **Save** writes what changed – the book's list
+    (`PUT /editor/books/{id}/passes`, an empty one removes it) and / or the spread's (`PUT …/spreads/{id} { passes }`,
+    `null` = back to the book's) –, *Back to the draft* undoes both (`editor/src/lib/passes-edit.ts`). The stage shows
+    the passes under **rendered** only (like the HDRI's sky): the mock stage's table, book, printed images and sky lie
+    on the engine's **backdrop layer** and stand in for the camera picture: bloom and vignette run over them as they
+    run over the camera picture in the reader; the grade's **reach** row (*AR layer / whole picture*) keeps it on the
+    AR layer (it gets the layer's coverage as a mask) or grades the desk too, as the reader grades the camera picture.
+    The **environment** (the look-around world and its sky, shown while the Environment tab is open) goes through the
+    same passes, as it does in the reader.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), a selected target the same
     orange around its printed image, the entity under the pointer a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by

@@ -46,8 +46,11 @@ editor edits it on the stage, in the workspace's Environment tab ([editor](edito
 | `shader.ts` | The pass: `SKY_KEY`, `CAFE_WORLD` (`cafeSky`, `cafeScenery`), `WORLD` (`worldColour(dir)`: the sky image or the café's sky, the model's cube or the café's scenery), `COMPOSITE` |
 | `environment-assets.ts` | The book's sky image and world model: loaded when something is drawn, the model baked into a cube (`bakeWorld`), a newer environment wins |
 
-Wiring: `ArScene` creates it and hands it to `ArView` as the `underlay` (drawn before the scene while `active`);
-`ImageTracker.cameraVideo` is the engine's camera video. Options: `services/GraphicsService.ts`, section
+Wiring: `ArScene` creates it and hands it to `ArView` as the `underlay` (drawn before the scene while `active`):
+straight onto the screen while no passes run (no cost), into the post chain's buffer under the scene while the spread
+or the book names passes – so bloom, vignette and a grade with `reach: all` shade the world and its sky too, a grade
+with `reach: ar` stays on the AR layer (`drawPlan`, `engine/src/scene/view.ts`; [content guide](content.md)
+"Post-processing"). `ImageTracker.cameraVideo` is the engine's camera video. Options: `services/GraphicsService.ts`, section
 `components/settings/settings-graphics.ts`.
 
 **The world's frame:** `dir` in `worldColour(dir)` is y up, −z towards the book, the reader at the origin. A sky

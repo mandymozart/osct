@@ -336,11 +336,15 @@ export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: s
 export const addEntry = (bookId: string, body: { id?: string; title: string; page: number; category?: string; body?: string; target: { id?: string; imageSrc: string; print?: PrintPlacement; entity?: EntityData | EntityRefData } }) =>
   api<{ entry: { id: string; target: { id: string } }; spreadId: string | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
 
-/** `passes`: the spread's post-processing (schema 2.5); `null` removes the list (the book's applies), `[]` turns it off */
 /** The book's world and onion sky (content schema 2.8); `null` removes them – the default applies */
 export const putEnvironment = (bookId: string, environment: EnvironmentData | null) =>
   api<{ environment: EnvironmentData | null }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/environment`, { environment });
 
+/** The book's post-processing (schema 2.5) – the master of every spread without a list of its own; `null` removes it */
+export const putBookPasses = (bookId: string, passes: PassData[] | null) =>
+  api<{ passes: PassData[] | null }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/passes`, { passes });
+
+/** `passes`: the spread's post-processing (schema 2.5); `null` removes the list (the book's applies), `[]` turns it off */
 export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: "spread" | "cover" | "back"; passes?: PassData[] | null }) =>
   api<{ spread: unknown }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, body);
 

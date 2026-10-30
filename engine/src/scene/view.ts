@@ -65,11 +65,37 @@ const bloomOverlayMaterial = () => new ShaderMaterial({
 export const BACKDROP_LAYER = 1;
 const AR_LAYER = 0;
 
-/** Something drawn under the scene each frame (the look-around pass) – into the cleared screen, while active */
+/**
+ * Something drawn under the scene each frame (the look-around pass), while active: into the cleared screen, or into
+ * the post chain's buffer while passes run – it draws into whatever render target is bound
+ */
 export interface Underlay {
   readonly active: boolean;
   render(): void;
 }
+
+/** How a frame is drawn (`drawPlan`) */
+export interface DrawPlan {
+  /** Through the post chain: passes are set and post-processing is on */
+  chain: boolean;
+  /**
+   * Where the underlay goes: not drawn, onto the screen under the scene (no chain – as before passes existed, no cost),
+   * or into the chain's buffer under the scene, so bloom, vignette and grade shade the world and its sky too
+   */
+  underlay: "none" | "screen" | "chain";
+  /**
+   * The chain's image holds more than the AR layer (the editor's desk, the underlay): a pass that reaches the AR layer
+   * alone (the grade with `reach: ar`) is given its coverage as a mask
+   */
+  mask: boolean;
+}
+
+/** The frame's plan from what is there: passes running, the underlay active, a backdrop on the stage – pure, for the tests */
+export const drawPlan = ({ passes, underlay, backdrop }: { passes: boolean; underlay: boolean; backdrop: boolean }): DrawPlan => ({
+  chain: passes,
+  underlay: !underlay ? "none" : passes ? "chain" : "screen",
+  mask: passes && (underlay || backdrop),
+});
 
 /**
  * The three.js side of the AR scene: one WebGL renderer (one context for the session), scene, camera,
@@ -198,25 +224,31 @@ export class ArView {
     this.renderer.setAnimationLoop(null);
   }
 
-  /** The scene (through the content's passes while a spread names them), plus the bloom over it while an animation wants it */
+  /**
+   * The underlay (the look-around world and sky) and the scene – through the content's passes while a spread or the
+   * book names them, the underlay then inside the chain – plus the bloom over it while an animation wants it
+   */
   private draw(): void {
     const bloom = this.bloomStrength > 0 ? this.ensureBloom() : null;
     bloom?.composer.render(); // scene → half-size target → bloom (only the part brighter than white)
     const autoClear = this.renderer.autoClear;
     this.renderer.setRenderTarget(null);
-    if (this.underlay?.active) {
+    const post = this.post?.active ? this.post : null;
+    const underlay = this.underlay?.active ? this.underlay : null;
+    const plan = drawPlan({ passes: !!post, underlay: !!underlay, backdrop: !!post && this.hasBackdrop() });
+    if (underlay && plan.underlay === "screen") {
       this.renderer.clear();
-      this.underlay.render();
+      underlay.render();
       this.renderer.setRenderTarget(null);
       this.renderer.clearDepth();
       this.renderer.autoClear = false;
     }
-    if (this.post?.active) {
-      // The whole scene through the passes: the backdrop (the camera picture's stand-ins) is part of the image they
-      // shade, a grade with `reach: ar` is limited to the AR layer by its mask
-      if (!this.underlay?.active) this.renderer.clear();
+    if (post) {
+      // The whole picture through the passes: the backdrop (the camera picture's stand-ins) and the underlay are part
+      // of the image they shade, a grade with `reach: ar` is limited to the AR layer by its mask
+      this.renderer.clear();
       this.renderer.autoClear = false;
-      this.post.render(this.hasBackdrop() ? { arLayers: 1 << AR_LAYER } : null);
+      post.render(plan.mask ? { arLayers: 1 << AR_LAYER } : null, plan.underlay === "chain" ? this.drawUnderlay : null);
     } else {
       this.renderer.render(this.scene, this.camera);
     }
@@ -228,6 +260,9 @@ export class ArView {
     }
     this.renderer.autoClear = autoClear;
   }
+
+  /** The underlay into the bound target (the chain's buffer) – one function for every frame */
+  private drawUnderlay = (): void => this.underlay?.render();
 
   /** Objects stand in for the camera picture (a light does not) */
   private hasBackdrop(): boolean {

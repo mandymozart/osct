@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – The book's passes as the master; the environment through the chain (#149)
+
+- No content schema change: `book.passes` and the spread override (`getPasses`: spread's own, else the book's) exist
+  since 2.5. Only the editor (Stage panel, `passes-edit.ts`) and the API (`PUT /editor/books/{id}/passes`, modelled on
+  `PUT …/environment`, change kind `passes`) were missing. The editor sends `null` for an empty book list (removes the
+  field); a spread's empty own list stays `[]` (off there).
+- The look-around underlay is drawn into the chain's buffer (an `UnderlayPass` before the `RenderPass`, which then does
+  not clear) only while passes run; without passes the old screen path is unchanged, so a phone without passes pays
+  nothing. The look-around shader outputs linear into a render target (three picks the output colour space by target),
+  matching the buffer.
+- With the world in the buffer the reader needs the AR layer's mask for a `reach: ar` grade. To keep that extra scene
+  render off when nothing uses it, passes say `usesMask` (the grade: false for `reach: all`). Kept engine-internal
+  (`MaskUsage` in `post/registry.ts`, not on `PostPass`), so the plugin API (1.2) does not change; a plugin's pass with
+  `setMask` always gets the mask. A plugin's pass now also sees the world in its buffer (documented in the d.ts).
+- [ ] The MCP server has no tool for the book's passes (nor for the environment) – RULES #32 says a new endpoint is a
+  new tool there; left out of #149's scope.
+
 ## 2026-10-30 – A plugin's own node type (#77)
 
 - `api.registerNodeType(type, spec, build)` is the engine's builder contract for a book's code: `build` returns `{ object,
