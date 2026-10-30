@@ -58,7 +58,17 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (method === "DELETE" && path === "/editor/books/osct/spreads/s2") return { status: 409, json: { error: { code: "spread-not-empty", message: "The spread has 2 entries – delete them first.", entries: ["castle", "text"] } } };
   if (method === "PUT" && path === "/editor/books/osct/passes") return { json: { passes: (seen.body as any).passes } };
   if (method === "PUT" && path === "/editor/books/osct/environment") return { json: { environment: (seen.body as any).environment } };
-  if (method === "POST" && path === "/editor/books/osct/publish") return { json: { env: (seen.body as any).env, build: "abcdef012345", hash: "h", publishedAt: "now" } };
+  if (method === "GET" && path === "/editor/environments") return { json: { env: "local", environments: [{ env: "local", store: "server", publish: true, url: "http://127.0.0.1:8080/api/content/local", warning: "No CDN connected – the published content is stored and served by this server only." }, { env: "staging", store: "cdn", publish: false, url: null, warning: null }] } };
+  if (method === "POST" && path === "/editor/books/osct/publish")
+    return (seen.body as any).env === "local"
+      ? { json: { env: "local", store: "server", build: "abcdef012345", hash: "h", publishedAt: "now" } }
+      : { status: 403, json: { error: { code: "other-environment", message: "This instance publishes to local only.", env: "local" } } };
+  if (method === "POST" && path === "/editor/books/demo/import") {
+    const confirm = (seen.body as any).confirm;
+    if (confirm === "1900000000.0123456789abcdef0123456789abcdef") return { json: { book: { id: "demo" }, counts: { spreads: 2 }, imported: { build: "cdcdcdcdcdcd" } } };
+    const details = { comparison: { book: { id: "demo", title: "Demo" }, incoming: { build: "cdcdcdcdcdcd" }, draft: { basedOn: { build: "abababababab" }, edits: 3 } }, confirmation: { id: "1900000000.0123456789abcdef0123456789abcdef", expiresAt: "2030-03-17T17:46:40Z" } };
+    return { status: 409, json: { error: { code: confirm ? "confirmation-void" : "confirm-import", message: confirm ? "The confirmation is void." : "Importing replaces the draft.", ...details } } };
+  }
   if (path === "/editor/books/osct/versions") return { json: { versions: [{ env: "local", build: "abcdef012345" }] } };
   if (path.startsWith("/editor/books/osct/changes")) return { json: { changes: [{ kind: "entity", ref: "castle" }], limit: path } };
   if (path.startsWith("/editor/books/osct/assets") && method === "GET") return { json: { assets: [{ id: "a", kind: "image" }], query: path } };
@@ -341,17 +351,21 @@ describe("the content tools", () => {
     await expect(rec.call("put_environment", { book: "osct", environment: { world: "forest", onionSky: true } })).rejects.toThrow();
   });
 
-  it("publish: local and staging go to the API, production is refused without a request", async () => {
-    const local = await rec.call("publish", { book: "osct", env: "local", note: "check" });
-    expect(local.ok).toBe(true);
-    expect(seen[0].body).toEqual({ env: "local", note: "check" });
-    expect((await rec.call("publish", { book: "osct", env: "staging" })).ok).toBe(true);
+  it("publish: to the instance's own environment (the default), its store and warning in the answer; another env is the API's 403; production is refused without a publish (#183)", async () => {
+    const own = await rec.call("publish", { book: "osct", note: "check" });
+    expect(own.ok).toBe(true);
+    expect(seen.map(s => `${s.method} ${s.path}`)).toEqual(["GET /editor/environments", "POST /editor/books/osct/publish"]);
+    expect(seen[1].body).toEqual({ env: "local", note: "check" });
+    expect(own.data).toMatchObject({ env: "local", store: "server", warning: expect.stringContaining("No CDN connected") });
+    const staging = await rec.call("publish", { book: "osct", env: "staging" });
+    expect(staging.ok).toBe(false);
+    expect(staging.data.error).toMatchObject({ status: 403, code: "other-environment", env: "local", hint: expect.stringContaining("own environment only") });
     seen.length = 0;
     const production = await rec.call("publish", { book: "osct", env: "production" });
     expect(production.ok).toBe(false);
     expect(production.data.error.code).toBe("production-is-a-person");
     expect(production.data.open).toBe("http://localhost:5175/editor/osct/");
-    expect(seen).toHaveLength(0);
+    expect(seen.filter(s => s.method === "POST")).toHaveLength(0);
   });
 
   it("the logs", async () => {
@@ -368,6 +382,21 @@ describe("the content tools", () => {
     expect(seen[1].body).toEqual({ source: "cdn" });
     expect(cdn.ok).toBe(true);
     expect((await rec.call("import_book", { book: "osct" })).ok).toBe(false);
+  });
+
+  it("import_book over an existing book: first the comparison and a confirmation, nothing imported; then with confirm (#183)", async () => {
+    const configuration = { book: { id: "demo" } };
+    const first = await rec.call("import_book", { book: "demo", configuration });
+    expect(first.ok).toBe(true);
+    expect(first.data).toMatchObject({ imported: false, comparison: { incoming: { build: "cdcdcdcdcdcd" }, draft: { basedOn: { build: "abababababab" }, edits: 3 } }, confirmation: { id: "1900000000.0123456789abcdef0123456789abcdef" } });
+    expect(first.data.next).toMatch(/show the person the comparison/i);
+    expect(seen[0].body).toEqual({ configuration });
+    const second = await rec.call("import_book", { book: "demo", configuration, confirm: first.data.confirmation.id });
+    expect(seen[1].body).toEqual({ configuration, confirm: "1900000000.0123456789abcdef0123456789abcdef" });
+    expect(second.ok).toBe(true);
+    expect(second.data).toMatchObject({ counts: { spreads: 2 }, imported: { build: "cdcdcdcdcdcd" }, open: "http://localhost:5175/editor/demo/" });
+    const stale = await rec.call("import_book", { book: "demo", configuration, confirm: "1900000000.ffffffffffffffffffffffffffffffff" });
+    expect(stale.data).toMatchObject({ imported: false, void: "The confirmation is void.", confirmation: { id: expect.any(String) } });
   });
 
   it("API errors come back as the API's { code, message } with a hint", async () => {

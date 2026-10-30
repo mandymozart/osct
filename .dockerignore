@@ -19,4 +19,7 @@ client/.env.local
 server/api/config.local.php
 server/api/db/*.sqlite
 server/api/db/*.log
+server/api/db/content/
+server/api/content-store/
+server/api/var/
 **/.DS_Store

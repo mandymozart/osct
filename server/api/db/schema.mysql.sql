@@ -290,3 +290,7 @@ CREATE TABLE IF NOT EXISTS `api_tokens` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- A save made through an AI connection names its token in the change log
 ALTER TABLE `changes` ADD COLUMN `token_name` VARCHAR(80) NULL DEFAULT NULL;
+
+-- What the draft is based on (Books::import): the imported build, its date, the app and schema version that built it,
+-- where it came from, when and by whom – the import's version comparison reads it, and the change log after `at`
+ALTER TABLE `books` ADD COLUMN `imported_json` TEXT NULL DEFAULT NULL;

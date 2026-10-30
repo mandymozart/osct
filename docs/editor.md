@@ -37,9 +37,10 @@ book", the note `agents/research/2026-10-30-demo-book.md`). The fixture's **stud
 (`fixtures/content/FIXTURE.md`, pages 28–31) are the smaller scene of every entity type, placement and filter. Locally,
 with SQLite and the local content store:
 
-1. `server/api/config.local.php` (not committed, copy of `config.local.php.example`): `DB_SQLITE_PATH`, a `SECRET`,
-   `MAIL_TRANSPORT => 'log'` with `MAIL_LOG_PATH`, `CONTENT_STORE => 'local'`, and the dev servers in
-   `ALLOWED_ORIGINS` (`http://localhost:5175, http://localhost:5174`).
+1. `server/api/config.local.php` (not committed, copy of `config.local.php.example`): `DB_SQLITE_PATH` (in `var/db/`), a
+   `SECRET`, `MAIL_TRANSPORT => 'log'` (the mails land in `var/mail/mail.log`), `CONTENT_STORE => 'local'` (published
+   content goes to `content-store/` – [server, "Content store and var"](server.md#content-store-and-var)), and the dev
+   servers in `ALLOWED_ORIGINS` (`http://localhost:5175, http://localhost:5174`).
 2. The reader with the demo: `cd client && OSCT_CONTENT_DIR=fixtures/demo npm run content && npm run dev:http -- --port 5174`
    (the fixture: `OSCT_CONTENT_DIR=fixtures/content`).
 3. The API: `cd client && npm run dev:api` (127.0.0.1:8080). Make yourself an editor with the curl above against
@@ -57,7 +58,8 @@ with SQLite and the local content store:
    opens without a visit to the key's page. Open *The switch*
    and click the entity on the stage: the next scene shows. The **Code** tab lists the six plugins (compiled by the
    content build, their sources next to them): change one, **Run**, and the stage shows it. Move a node in the
-   **Entity** tab (type a scale, or press and slide), **Save**, then **Publish** to `local`.
+   **Entity** tab (type a scale, or press and slide), **Save**, then **Publish** – it goes to `local · this server`,
+   the local API's own environment.
    With the fixture: open *Studio A – models* the same way.
 7. The reader reads the published version when it is started with
    `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` (`latest.json` names the new build).
@@ -70,15 +72,41 @@ book (#148) and tour the editor's tools, with screenshots of the editor (`client
 
 On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the storage zone's credentials in the
 `staging` GitHub environment ([deploy](deploy.md)); *Import a book… → the CDN* takes the current version, publishing
-writes a new one, and the staging reader sees it on its next start.
+(to `staging · CDN`) writes a new one, and the staging reader sees it on its next start.
 
 **The demo book on staging**: the workflow *Demo book* (`.github/workflows/demo.yml`, by hand or on a push to
 `develop` that touches the demo) builds `fixtures/demo` and syncs it to the environment **`demo`** of the storage zone
 – `https://buildingfictions.b-cdn.net/demo/`. In the staging editor: *Import a book… → URL* with that base URL (the
-form takes the current version and its folder as *assets at*), then open its spreads. Publish it to `local`: a
-publish to `staging` or `production` makes it *the* book of that environment (the store is per environment, not per
-book – see "One book per environment" below), so the editor asks first. On a phone, the staging reader opens it with
+form takes the current version and its folder as *assets at*), then open its spreads. Publishing it there makes it *the*
+book of staging (the store is per environment, not per book – see "One book per environment" below), so the editor's
+publish step says so first. On a phone, the staging reader opens it with
 `https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo` ([content on the CDN](content-cdn.md)).
+
+### Publish: the instance's own environment
+
+An instance publishes to **its own environment only** (#183): a developer's machine to `local`, staging to `staging`,
+production to `production` – the CDN keeps a root folder per environment, and staging is for testing. There is no
+choice of environment: next to **Publish** the bar names the target with its backend – `staging · CDN` (a connected CDN
+has priority) or `local · this server` / `staging · this server` (the directory store of an instance without a CDN,
+[server, "One environment per instance"](server.md#one-environment-per-instance)). Wherever this server is the target,
+a short *No CDN connected* stands next to it (its help in the Info view has the whole line). **Publish** opens a step in
+the page – no browser dialog – that names the book, its build now, the target and what it replaces there (*Replaces
+build … of “Test Book” on staging*, or another book, below), says on production that every reader gets it, and where
+this server is the target: *No CDN connected – the published content is stored and served by this server only. Readers
+load from here without edge caching; heavy media goes through this server. Back up the content store.* Its button
+publishes; *Cancel* or Escape closes it. Another environment is published from its own editor (the API refuses it,
+403 `other-environment`). Importing from any environment stays open – with the comparison below.
+
+### Import: the version comparison
+
+Importing replaces a book's draft, so over a book that exists the form shows a **comparison** first and imports only
+when the person confirms there (#183): the incoming build against the build the draft is based on – its id, when it was
+built, the app and the content schema version that built it (differences in bold) –, who imported the draft's base and
+when, the draft's **edits since that import** (their number, the newest five from the change log – who, what, when; an
+AI connection's edits name it) and whether the draft as it is now is live anywhere. **Replace the draft** (or *Import
+again* when the same build comes in and nothing was edited) imports; *Cancel* goes back to the form. The comparison is
+the API's first step (409 `confirm-import`), the button sends its confirmation – when the draft changed meanwhile, the
+form shows the new comparison and says so. *The CDN* asks for the book's id in the form (no browser prompt).
 
 ### One book per environment
 
@@ -89,11 +117,11 @@ visible and safe (#143):
 - **Where a book is live.** The Books overview shows under each book *live on staging · build … · since …* (one line per
   environment that serves it) or *draft only*; next to Publish the book page shows the same in short. An environment
   serving a book that is not imported here, or whose store cannot be read, gets a line under the list.
-- **Publishing over another book asks.** Publishing a book to an environment that serves another one asks first,
-  naming both (*Staging serves “Onion Skin & Crocodile Tears”. Publish “Demo” instead? …*); production says it more
-  strictly (every reader of the app gets the other book). Only on *OK* does the editor send `replace: true` – the API
-  refuses the publish without it (409 `other-book`). Publishing the book an environment already serves is one click
-  (production keeps its usual question).
+- **Publishing over another book asks.** The publish step names both when the environment serves another book
+  (*Staging serves “Onion Skin & Crocodile Tears”. Publish “Demo” instead? …*); production says it more strictly (every
+  reader of the app gets the other book). Only its *Replace on staging* sends `replace: true` – the API refuses the
+  publish without it (409 `other-book`; when that happens because the environment changed meanwhile, the step opens
+  again with what it serves now).
 - **Switching back** is publishing the real book again (with the same question): when its draft is unchanged, its last
   version is still on the store and only `latest.json` moves back – nothing is uploaded again.
 - The MCP server never replaces a book: its publish gets the 409 and leaves the decision to a person in the editor.
@@ -185,8 +213,9 @@ is involved.
   covers (an older server), the page says *New spreads come in with an import for now* instead of offering double
   pages. **+ cover** / **+ back
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
-  the last) when the book has none; **Publish** with the environment (`local`, `staging`, `production` – production
-  asks), and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section; on a double page
+  the last) when the book has none; **Publish** to the instance's own environment, named with its backend
+  (`staging · CDN`, `local · this server` – [above](#publish-the-instances-own-environment)), through a step in the page,
+  and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section; on a double page
   the select is disabled (only a one-page spread can be a cover) – the reason is its help in the Info view.
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row

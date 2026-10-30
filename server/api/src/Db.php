@@ -17,7 +17,7 @@ final class Db
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ];
-        $sqlite = Config::get('DB_SQLITE_PATH');
+        $sqlite = Paths::sqlite();
         if ($sqlite !== '') {
             $new = !is_file($sqlite);
             $pdo = new PDO('sqlite:' . $sqlite, null, null, $options);

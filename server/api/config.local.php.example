@@ -12,7 +12,8 @@ return [
     'DB_USER' => 'osct',
     'DB_PASS' => 'osct',
     // Quick tests without Docker instead: an SQLite file, created with the schema on first use (wins over DB_*)
-    // 'DB_SQLITE_PATH' => __DIR__ . '/db/local.sqlite',
+    // in var/db/ at the top level of the checkout (server/api/db/ holds the schema only – an older path there is moved)
+    // 'DB_SQLITE_PATH' => dirname(__DIR__, 2) . '/var/db/local.sqlite',
 
     // At least 32 random characters: openssl rand -hex 32
     'SECRET' => '',
@@ -25,7 +26,10 @@ return [
     'MAIL_TRANSPORT' => 'mail',
     'MAIL_FROM' => 'no-reply@osct.example.com',
     'MAIL_FROM_NAME' => 'Onion Skin & Crocodile Tears',
-    // 'MAIL_LOG_PATH' => __DIR__ . '/db/mail.log',
+    // The mail log (MAIL_TRANSPORT log) is var/mail/mail.log, the error log var/log/error.log, published content and
+    // uploads go to content-store/ – all at the top level of the checkout, git-ignored (docs/server.md "Content store and var")
+    // 'MAIL_LOG_PATH' => dirname(__DIR__, 2) . '/var/mail/mail.log',
+    // 'CONTENT_STORE_DIR' => dirname(__DIR__, 2) . '/content-store',
 
     // Sign-in emails per address and per IP and hour (defaults 5 and 30). -1 = no limit – for local testing, where the
     // codes land in the mail log anyway (0 allows nothing); a refused request answers 429 with the seconds until the

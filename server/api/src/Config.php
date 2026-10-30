@@ -14,13 +14,14 @@ final class Config
         'DB_NAME' => '',
         'DB_USER' => '',
         'DB_PASS' => '',
+        // A relative path counts from the api folder; one inside api/db/ is read as var/db/<name> (Paths)
         'DB_SQLITE_PATH' => '',
         // Long random string: hashes the login codes and IP addresses (openssl rand -hex 32)
         'SECRET' => '',
         // The app: links in the emails go here, unless the request comes from another allowed origin
         'APP_URL' => 'http://localhost:5173',
-        // Which environment this instance is (local, staging, production): GET /health names it, and the editor's AI
-        // agent guide names the MCP server after it (osct-staging …)
+        // Which environment this instance is (local, staging, production): GET /health names it, the editor publishes to
+        // it and no other, and the editor's AI agent guide names the MCP server after it (osct-staging …)
         'ENV' => 'local',
         // Other origins that may call the API (comma separated, * wildcard), e.g. the staging site
         'ALLOWED_ORIGINS' => '',
@@ -34,6 +35,7 @@ final class Config
         'MAIL_TRANSPORT' => 'log',
         'MAIL_FROM' => 'no-reply@example.com',
         'MAIL_FROM_NAME' => 'Onion Skin & Crocodile Tears',
+        // Empty = var/mail/mail.log (Paths)
         'MAIL_LOG_PATH' => '',
         'SMTP_HOST' => '',
         'SMTP_PORT' => '587',
@@ -61,18 +63,20 @@ final class Config
         // (empty = the CDN's CONTENT_BASE_URL + /assets for the bunny store, this API's /content/assets for the local one)
         'ASSET_MAX_BYTES' => '67108864',
         'ASSET_BASE_URL' => '',
-        // Where published content versions go: local = CONTENT_STORE_DIR (served by GET /content/{env}/…), bunny =
-        // the storage zone the osct CLI syncs to (staging / production; the environment local always stays local)
+        // Where published content versions go: local = the content store's folder (served by GET /content/{env}/…), bunny =
+        // the CDN's storage zone the osct CLI syncs to (every environment but local, which stays in the folder)
         'CONTENT_STORE' => 'local',
-        'CONTENT_STORE_DIR' => __DIR__ . '/../db/content',
+        // The content store's folder (OSCT_CONTENT_STORE_DIR); empty = content-store/ at the top level of a development
+        // checkout, api/content-store in a deployed layout (Paths)
+        'CONTENT_STORE_DIR' => '',
         // The reader's content CDN of this instance – `{ "source": "cdn" }` imports its current version
         'CONTENT_BASE_URL' => '',
         'BUNNY_STORAGE_ZONE' => '',
         // Host name; a full http(s) origin only for a local test double
         'BUNNY_STORAGE_ENDPOINT' => 'storage.bunnycdn.com',
         'BUNNY_STORAGE_PASSWORD' => '',
-        // Error log of the API (db/ is never served over HTTP – read it on the server); empty = the host's log
-        'LOG_PATH' => __DIR__ . '/../db/error.log',
+        // Error log of the API; unset = var/log/error.log (Paths), set to an empty value in config.local.php = the host's log
+        'LOG_PATH' => '',
     ];
 
     /** @var array<string, string> */
@@ -86,6 +90,15 @@ final class Config
         if ($env !== false && $env !== '') return $env;
         if (isset(self::$local[$key])) return (string) self::$local[$key];
         return self::DEFAULTS[$key] ?? '';
+    }
+
+    /** The value set for a key – an environment variable or config.local.php –, null when the default applies */
+    public static function explicit(string $key): ?string
+    {
+        self::load();
+        $env = getenv('OSCT_' . $key);
+        if ($env !== false && $env !== '') return $env;
+        return isset(self::$local[$key]) ? (string) self::$local[$key] : null;
     }
 
     public static function int(string $key): int

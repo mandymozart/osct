@@ -26,6 +26,7 @@ function accountsApi(seen: Seen) {
   if (token === "osct_expired") return { status: 401, json: { error: { code: "token-expired", message: "This token has expired." } } };
   if (token === OSCT_TOKEN) {
     if (path === "/user") return { json: { user: { ...USERS["tok-editor"], language: "en" }, token: AI_TOKEN } };
+    if (path === "/editor/environments") return { json: { env: "local", environments: [{ env: "local", store: "server", publish: true, url: null, warning: null }] } };
     if (method === "POST" && path === "/editor/books/osct/publish") return { status: 403, json: { error: { code: "not-for-ai", message: "Publishing is not for an AI connection." } } };
   }
   if (path === "/user") return token && USERS[token] ? { json: { user: { ...USERS[token], language: "en" } } } : { status: 401, json: { error: { code: "unauthorized", message: "Sign in." } } };

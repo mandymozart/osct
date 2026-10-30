@@ -29,7 +29,9 @@ declare(strict_types=1);
  *
  *   The editor (docs/server.md "Editor data"; a signed-in user with role editor, else 403):
  *   GET    /editor/books                        the books: id, title, author, spreads, updatedAt, lastPublish
- *   POST   /editor/books/{id}/import            { configuration, files?, assetsBase? } or { source: "cdn" } → replace the book's rows
+ *   GET    /editor/environments                 the environments: which one this instance publishes to, CDN or this server
+ *   POST   /editor/books/{id}/import            { configuration, files?, assetsBase? } or { source: "cdn" }, then again with
+ *                                               { confirm } → replace the book's rows (409 confirm-import: the comparison)
  *   GET    /editor/books/{id}                   the tree: book, spreads with entries, each entry's target
  *   GET    /editor/books/{id}/entities          the shared entities { ref: EntityData }
  *   PUT    /editor/books/{id}/entities/{ref}    body EntityData → saves it, records a change
@@ -44,7 +46,8 @@ declare(strict_types=1);
  *   DELETE /editor/books/{id}/entries/{id}      the entry and its target go
  *   GET    /editor/books/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
  *                                               the draft as a content version (the engine's loader reads it like the CDN)
- *   POST   /editor/books/{id}/publish           { env, note? } → writes the version to the content store
+ *   POST   /editor/books/{id}/publish           { env, note?, replace? } → writes the version to the content store (env = this
+ *                                               instance's own environment, else 403 other-environment)
  *   GET    /editor/books/{id}/versions          the publish log
  *   GET    /editor/books/{id}/changes?limit=    the change log, newest first
  *   GET    /editor/books/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
@@ -58,16 +61,18 @@ declare(strict_types=1);
  * Signed-in requests send `Authorization: Bearer <session token>` – or an AI connection's token `osct_…` (ApiTokens).
  */
 
-foreach (['Version', 'Config', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Books', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
-// Errors go to our own log file (db/ is never served; read it on the server) – LOG_PATH, empty = the host's log
-$logPath = Config::get('LOG_PATH');
+// Errors go to our own log file (var/log/error.log unless LOG_PATH says otherwise; never served – read it on the server).
+// Resolved first: the moves out of the old api/db/ folder (Paths) are logged there
+$logPath = Paths::log();
 if ($logPath !== '') {
     ini_set('log_errors', '1');
     ini_set('error_log', $logPath);
 }
+Paths::prepare();
 
 // The path below the API folder: /api/auth/request → /auth/request. The folder's place under the document root is
 // the base (/api); SCRIPT_NAME is the fallback – `php -S` with a router script reports the request path there for
@@ -128,6 +133,7 @@ try {
         (bool) preg_match('#^(GET|PUT) /progress/([A-Za-z0-9_-]{1,64})$#', $route, $match) =>
             $match[1] === 'GET' ? Progress::get($match[2]) : Progress::put($match[2], Http::body()),
         $route === 'GET /editor/books' => Books::list(),
+        $route === 'GET /editor/environments' => Books::environments(),
         (bool) preg_match("#^POST /editor/books/($id)/import$#", $route, $match) => Books::import($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)$#", $route, $match) => Books::tree($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/entities$#", $route, $match) => Books::entities($match[1]),

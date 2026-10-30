@@ -55,8 +55,9 @@ RUN chmod +x /usr/local/bin/osct-entrypoint
 
 # The API as /api next to the app (no config.local.php: every setting comes from OSCT_* environment variables)
 COPY server/api /var/www/html/api
-RUN rm -f /var/www/html/api/config.local.php /var/www/html/api/config.local.php.example \
-          /var/www/html/api/db/*.sqlite /var/www/html/api/db/*.log
+RUN rm -rf /var/www/html/api/config.local.php /var/www/html/api/config.local.php.example \
+          /var/www/html/api/db/*.sqlite /var/www/html/api/db/*.log /var/www/html/api/db/content \
+          /var/www/html/api/content-store /var/www/html/api/var
 
 # The reader (index.html, assets/, the service worker, .htaccess with the SPA fallbacks) and the editor
 COPY --from=build /src/client/dist /var/www/html
@@ -64,6 +65,11 @@ COPY --from=build /src/editor/build /var/www/html/editor
 COPY client/public/.htaccess /var/www/html/.htaccess
 
 ENV OSCT_API_DIR=/var/www/html/api
+# The content store (docs/server.md "Content store and var"): published content and the Library's uploads wherever the
+# directory store is the backend – a Kamal volume in a deploy (config/deploy.<destination>.yml), so a redeploy keeps it.
+# Errors go to the container log; the mail log (MAIL_TRANSPORT=log, a test) stays in the container's temp folder.
+ENV OSCT_CONTENT_STORE_DIR=/var/lib/osct/content-store OSCT_LOG_PATH=/dev/stderr OSCT_MAIL_LOG_PATH=/tmp/osct-mail.log
+RUN mkdir -p /var/lib/osct/content-store && chown www-data:www-data /var/lib/osct/content-store
 # Only for a local check with SQLite (docs/deploy.md); a deploy uses the MariaDB accessory
 RUN mkdir -p /data
 EXPOSE 80

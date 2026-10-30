@@ -40,7 +40,8 @@ This file adds what is special to OSCT. Written after the first night shift, 202
   `npx vite --mode http --port 5174 --strictPort --host 127.0.0.1`.
 - The worker's own editor: `npx vite dev --port <518x> --strictPort --host 127.0.0.1` in its worktree's `editor/`.
 - Sign in with the local test account `editor@osct.test`: `POST /api/auth/request`, the code from the newest mail in
-  `server/api/db/mail.log` (the subject starts with it), `POST /api/auth/verify`; localStorage key
+  `var/mail/mail.log` (the subject starts with it; `server/api/db/mail.log` until the API's first start after #197
+  moved it), `POST /api/auth/verify`; localStorage key
   `osct-editor-session`. Never commit the code or token; sign out at the end.
 - Headless Edge over CDP (`--headless=new --remote-debugging-port=<93xx> --user-data-dir=<temp>`) and a small Node 22
   script: `Page.addScriptToEvaluateOnNewDocument` for the token, `Emulation.setDeviceMetricsOverride` (and touch) per

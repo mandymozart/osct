@@ -32,10 +32,13 @@ server/api/
   src/                    Version, Config, Db, Http, Auth, ApiTokens (AI connections), Passwords, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de);
                           Roles (reader / editor / admin, the tables roles + user_roles), Admin (the admin endpoints, who may call them);
                           the editor: Editor (access, checks), Books (import, tree, entities, targets, publish, logs),
-                          ContentVersion (rows → a content version), ContentStore (local directory / bunny.net storage)
+                          ContentVersion (rows → a content version), ContentStore (local directory / bunny.net storage);
+                          Paths (where the content store and var/ are, the move out of db/)
   db/schema.mysql.sql     tables (CREATE TABLE IF NOT EXISTS, later columns as ALTER TABLE … ADD COLUMN – POST /admin/migrate runs it)
-  db/schema.sqlite.sql    the same for local development / tests
-  db/content/             the local content store (not committed; CONTENT_STORE_DIR)
+  db/schema.sqlite.sql    the same for local development / tests – db/ holds the schema only
+content-store/                   (repository root, not committed) the content store: published content and the Library's
+                                 uploads where this server is the backend – [Content store and var](#content-store-and-var)
+var/                             (repository root, not committed) db/ (the SQLite file), log/error.log, mail/mail.log
 server/deploy/migrate.php        deploy: the migration from the command line (the container's entrypoint runs it)
 server/deploy/mail-test.php      one test mail with the current mail settings (in the image as /opt/osct/mail-test.php)
 server/deploy/ses-smtp-password.php   SES SMTP password from an IAM secret key (docs/deploy.md "Mail")
@@ -71,13 +74,14 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 | | | |
 |---|---|---|
 | `GET /editor/books` | | `{ books: [{ id, title, author, book, initialSpreadId, schema, assetsBase, importedHash, spreads, createdAt, updatedAt, lastPublish, live }], environments }` – `lastPublish` `{ env, build, at }` or null; `live` = the environments serving the book `[{ env, build, since }]` (empty: draft only, the tree's `book` has it too); `environments` = what each environment serves `[{ env, book, build, since }]` (`book` null when it cannot be told), `{ env, error }` when its store cannot be read – only environments that serve something |
-| `POST /editor/books/{id}/import` | `{ configuration, files?, assetsBase? }` or `{ source: "cdn" }` | `{ book, counts, draft: { build, hash } }` – replaces the book's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json`, `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `CONTENT_BASE_URL`. 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` |
+| `GET /editor/environments` | | `{ env, environments: [{ env, store, publish, url, warning }] }` – this instance's environment (`ENV`, the only one it publishes to) first, then `staging` and `production` (`local` only where `ENV` is local); `store` = `cdn` (the storage zone) or `server` (the directory store this API serves); `publish` true for the own one only; `url` = where readers load it; `warning` = the line the editor shows wherever the directory store is the publish target, else null – [One environment per instance](#one-environment-per-instance) |
+| `POST /editor/books/{id}/import` | `{ configuration, files?, assetsBase?, confirm? }` or `{ source: "cdn", confirm? }` | `{ book, counts, draft: { build, hash }, imported }` – replaces the book's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json`, `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `CONTENT_BASE_URL`; `imported` = what the draft is now based on. **Over a book that exists, two steps** ([Import with a version comparison](#import-with-a-version-comparison)): without `confirm` 409 `confirm-import` with `comparison` and `confirmation` `{ id, expiresAt }`, nothing written; with `confirm` the import; a confirmation that is expired, someone else's or outdated 409 `confirmation-void` (a new comparison with it). 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` |
 | `GET /editor/books/{id}` | | `{ book, spreads: [{ …SpreadData, entries: [{ id, category, title, page, target }] }], unassigned }` – the tree; `target` = the entry's TargetData (id, imageSrc, entity inline or `{ ref }`) or null; `unassigned` = entries whose page is in no spread |
 | `GET /editor/books/{id}/entities` | | `{ entities: { ref: EntityData } }` – the shared entities |
 | `PUT /editor/books/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in a book with plugins – "Plugin sources"), no `assets` list |
 | `PUT /editor/books/{id}/targets/{targetId}` | `{ entity }` or `{ ref }` | `{ target }` – the target's entity: inline (`entity`, null removes it) or a shared one (`ref`, 400 `unknown-entity` when there is none); records a change. 404 for an unknown target |
 | `GET /editor/books/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN with the token in its `fetchFn`. The build in the path is not checked against the current draft – an edit between the two requests is no error |
-| `POST /editor/books/{id}/publish` | `{ env, note?, replace? }` | `{ env, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env` (`local`, `staging`, `production`): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the book); a row in the publish log. An environment serves one book: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-book` with `current` `{ env, book, title, build, since }`; `replaced` `{ book, build }` names the book replaced, null when none. 400 `invalid-env`, `invalid-replace`; 502 `content-store-failed` |
+| `POST /editor/books/{id}/publish` | `{ env, note?, replace? }` | `{ env, store, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env`, which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the book); a row in the publish log. An environment serves one book: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-book` with `current` `{ env, book, title, build, since }`; `replaced` `{ book, build }` names the book replaced, null when none; `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name), `invalid-replace`; 502 `content-store-failed` |
 | `GET /editor/books/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
 | `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target); `token` = the name of the AI connection a save came through, null for the editor; `limit` default 50, at most 500 |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
@@ -183,7 +187,8 @@ secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` 
 - `smtp` sends through the `SMTP_*` account (production). It uses its own small client, so no library is needed.
 
 `ENV` (`local`): which environment this instance is – `staging` and `production` in their Kamal destinations
-(`config/deploy.<destination>.yml`). `GET /health` names it; the editor's guide to connect an AI agent names the MCP
+(`config/deploy.<destination>.yml`). `GET /health` names it; the editor publishes to it and to no other environment
+([One environment per instance](#one-environment-per-instance)); the editor's guide to connect an AI agent names the MCP
 server after it (`osct-staging`, [mcp](mcp.md#connecting-an-agent)). Lower-case letters, digits and hyphens; anything
 else counts as `local`.
 
@@ -198,15 +203,44 @@ The editor's keys:
   no limit** (`Config::limit`; 0 allows nothing), for local testing (`config.local.php.example`) – the same for
   `LOGIN_MAX_ATTEMPTS` (5 wrong codes) and `PASSWORD_MAX_FAILS_PER_EMAIL_HOUR` / `PASSWORD_MAX_FAILS_PER_IP_HOUR`
   (10 / 30). Tilman: "-1 ist besser als Limit für aus" (#83).
-- `CONTENT_STORE` (`local`): where a publish to `staging` or `production` goes – `local` = the directory below, `bunny`
-  = the storage zone. The environment `local` always stays in the directory.
-- `CONTENT_STORE_DIR` (`api/db/content`): the local store, served by `GET /content/{env}/…`; a relative path counts
-  from the api folder. The container's entrypoint creates it and makes it writable for Apache.
+- `CONTENT_STORE` (`local`): where the publishes and uploads go – `local` = the content store's folder (the directory
+  store), `bunny` = the storage zone. A connected CDN has priority: with `bunny` every environment goes there except
+  `local`, which always stays in the folder.
+- `CONTENT_STORE_DIR` (as an environment variable `OSCT_CONTENT_STORE_DIR`; empty = `content-store/` at the top level of a
+  development checkout, `api/content-store` in a deployed layout): the content store, served by `GET /content/{env}/…`;
+  a relative path counts from the api folder. The image sets `/var/lib/osct/content-store`, a Kamal volume
+  ([Content store and var](#content-store-and-var)).
 - `CONTENT_BASE_URL` (empty): this instance's content CDN – what `{ "source": "cdn" }` imports (the same value as
   the reader's build flag `VITE_CONTENT_BASE_URL`, [content-cdn](content-cdn.md)).
 - `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (`storage.bunnycdn.com`), `BUNNY_STORAGE_PASSWORD` (the zone's access
   key – a secret): the storage zone the osct CLI syncs to (`scripts/.env` has the same values). The endpoint is a
   host name; a full `http://host:port` origin is for a local test double only.
+
+## Content store and var
+
+What the API keeps besides the database is not code, so it lives outside `server/api/` (`Paths.php`):
+
+- **The content store** – the directory store's folder: published versions (`<env>/<build>/…`, `latest.json`,
+  `versions.json`) and the Library's uploads (`assets/<book>/…`) wherever this server is the backend: the environment
+  `local`, and every environment of an instance without a CDN. For such an instance it *is* the published content –
+  back it up with the database ([deploy, "Backup"](deploy.md#backup)). `CONTENT_STORE_DIR` / `OSCT_CONTENT_STORE_DIR`.
+- **var/** – `var/db/` (the SQLite file, when `DB_SQLITE_PATH` is used), `var/log/error.log` (`LOG_PATH`),
+  `var/mail/mail.log` (`MAIL_LOG_PATH`). Each setting can name another place.
+
+In a development checkout both sit at the top level (`content-store/`, `var/`, git-ignored). In a deployed layout – the
+API at `<docroot>/api`, the FTPS staging – in the API's own folder (`api/content-store`, `api/var`), where every request
+goes through `index.php` (`var/` also gets a "deny all" `.htaccess`); the upload never contains them and deletes
+nothing, so they survive every deploy. The container sets the content store to `/var/lib/osct/content-store` (a Kamal
+volume), the error log to its log and the mail log to its temp folder ([deploy](deploy.md)).
+
+`server/api/db/` holds the schema only. **The move:** on every request (a few `stat` calls) the API checks the places
+that used to be in `server/api/db/`: the content store `db/content`, `db/error.log`, and a `DB_SQLITE_PATH` or
+`MAIL_LOG_PATH` that still points into `db/` (an older `config.local.php`: `__DIR__ . '/db/local.sqlite'`) – such a
+setting is read as the same file name in `var/db/` or `var/mail/`. When the old one exists and the new place is empty
+(absent, or an empty folder), it is moved there once and the move is logged. When the new place holds something, both
+stay and the new one is used – move the rest by hand. When the move fails, the old place keeps being used (and the
+failure is logged on every request), so nothing is lost. A setting that points anywhere else is used as it is and
+nothing moves into it.
 
 ## Editor data
 
@@ -245,13 +279,47 @@ name the book (`book`), so the API can tell which book an environment serves (`C
 written before that is read through its version's `game.config.json` (`book.id`). Publishing over another book needs
 `replace: true` ([editor](editor.md) "One book per environment").
 
-**The content store** (`ContentStore`): `CONTENT_STORE=local` keeps the versions in `CONTENT_STORE_DIR` and
-`GET /api/content/{env}/{path}` serves their json files (version folders immutable, `latest.json` revalidated) – for
-development, and for a host without the CDN. `CONTENT_STORE=bunny` sends `staging` and `production` to the storage
+**The content store** (`ContentStore`): `CONTENT_STORE=local` keeps the versions in the content store's folder
+([Content store and var](#content-store-and-var)) and `GET /api/content/{env}/{path}` serves their json files (version
+folders immutable, `latest.json` revalidated) – for development, and for a host without the CDN. `CONTENT_STORE=bunny`
+sends every environment but `local` to the storage
 zone over the Storage API (`PUT https://{endpoint}/{zone}/{env}/{path}` with the `AccessKey` header and the sha256
 checksum – what `scripts/src/lib/storage.ts` does), reads `versions.json` from there, and answers 502
-`content-store-failed` when the zone refuses. The environment `local` always stays in the directory, so a staging
-host can preview a publish on itself (`VITE_CONTENT_BASE_URL=https://<host>/api/content/local`).
+`content-store-failed` when the zone refuses. The environment `local` always stays in the directory – it exists only
+on a developer's machine.
+
+### One environment per instance
+
+An instance publishes to **its own environment only** (`ENV`, #183): a local development API to `local`, staging to
+`staging`, production to `production`. The CDN keeps separate root folders per environment, and staging is for testing –
+so no editor publishes into another environment; the API refuses it (403 `other-environment`). Importing *from* any
+environment stays allowed (below). `GET /editor/environments` names the own environment and, per environment, its
+backend: **a connected CDN has priority** (`CONTENT_STORE=bunny`: `staging · CDN`); without one the directory store is
+the backend (`staging · this server`). Wherever the directory store is the publish target – `local`, or any environment
+of an instance without a CDN – the answer carries the warning the editor shows next to Publish and in its confirmation
+step: *"No CDN connected – the published content is stored and served by this server only. Readers load from here
+without edge caching; heavy media goes through this server. Back up the content store."* (`ContentStore::SERVER_WARNING`).
+`local` appears only where `ENV` is local; the book list reads what is live on the instance's environments the same way.
+
+### Import with a version comparison
+
+An import replaces the book's draft. Over a book that exists it takes **two steps**, for the editor and the MCP server
+alike (the same shape as #198's confirmations):
+
+1. **Compare.** The import without `confirm` writes nothing and answers 409 `confirm-import` with `comparison` –
+   `book` `{ id, title }`; `incoming` `{ book, title, build, hash, date, appVersion, schema, source, from }` (the build is
+   the content checksum's first 12 digits, `date` and `appVersion` the configuration's `version.timestamp` /
+   `version.version`); `draft` `{ basedOn, build, edits, editsSince, recentEdits, live }` – what the draft is based on
+   (the same fields plus `importedAt`, `importedBy`; recorded in `books.imported_json` by every import, null for a book
+   imported before that column existed), its edits since that import (the change log after it: their number and the newest ten `{ kind, ref, user,
+   token, at }`), its build now and where it is live (`current` = that environment serves the draft as it is); `same` =
+   the same build comes in – and `confirmation` `{ id, expiresAt }`.
+2. **Confirm.** The same import with `confirm: <id>` replaces the draft. The id lasts 10 minutes and is bound to the
+   person (and the AI connection), the incoming content and the draft as it was compared (its import, its last change,
+   its rows' state): anything that changed meanwhile, another person, or an expired id answer 409 `confirmation-void`
+   with a new comparison and id. An import changes what the draft is based on, so an id works once.
+
+A book that does not exist yet is imported at once.
 
 Locally: `OSCT_CONTENT_STORE=local` (the default) with `npm run dev:api`, publish to `local`, and start the reader
 with `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` to see what the editor published (its origin
@@ -262,7 +330,7 @@ must be in `ALLOWED_ORIGINS`, as for any other call).
 The files an editor uploads (`Assets.php`, after Scutoons' asset layer – `scutoons/agents/ASSETS.md` – sized for
 OSCT): models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp) and sounds (mp3, m4a, ogg, wav), at most
 `ASSET_MAX_BYTES` (64 MB). They live in the content store under the pseudo environment `assets`:
-`assets/<book>/<asset id>/v<n>.<ext>` – in `CONTENT_STORE_DIR` for the local store, served by
+`assets/<book>/<asset id>/v<n>.<ext>` – in the content store's folder for the local store, served by
 `GET /content/assets/…` with the file's type, a year's cache and `Access-Control-Allow-Origin: *` (the reader's
 engine loads them cross-origin), or in the CDN's storage zone (`CONTENT_STORE=bunny`, reached at
 `CONTENT_BASE_URL/assets/…`). `ASSET_BASE_URL` overrides where their URLs point.
@@ -351,7 +419,7 @@ its spread and the contract stays as the content build writes it. Every moved ro
 ## Logs
 
 The API writes its errors (with the reason, e.g. a failed mail or a database error) to `LOG_PATH` – locally
-`server/api/db/error.log` (`db/` is never served over HTTP), in the container `/dev/stderr` = `kamal app logs`. Readers
+`var/log/error.log` (never served over HTTP), in the container `/dev/stderr` = `kamal app logs`. Readers
 only see "Something went wrong".
 
 ## Local development
@@ -378,7 +446,7 @@ reaches an existing database with `php server/deploy/migrate.php` (or `POST /adm
 **SQLite for quick tests** – nothing to install: set `DB_SQLITE_PATH` instead (the file is created with the schema on
 first use and wins over `DB_*`).
 
-The mails (with link and code) land in `MAIL_LOG_PATH`.
+The mails (with link and code) land in `MAIL_LOG_PATH` – `var/mail/mail.log` unless it says otherwise.
 
 ### Tests
 

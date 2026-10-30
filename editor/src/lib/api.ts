@@ -137,8 +137,62 @@ export interface BookTree {
   spreads: TreeSpread[];
 }
 
+/** An environment as `GET /editor/environments` describes it: its backend, whether this instance publishes there */
+export interface EnvironmentInfo {
+  env: string;
+  /** `cdn` – the CDN's storage zone; `server` – the directory store this API serves */
+  store: "cdn" | "server";
+  /** Only the instance's own environment */
+  publish: boolean;
+  /** Where readers load it */
+  url: string | null;
+  /** Wherever the directory store is the publish target: what that means */
+  warning: string | null;
+}
+
+export interface EnvironmentsInfo {
+  env: string;
+  environments: EnvironmentInfo[];
+}
+
+/** A build an import brought in, or the one the draft is based on */
+export interface ImportedBuild {
+  build: string | null;
+  hash: string | null;
+  date: string | null;
+  appVersion: string | null;
+  schema: string | null;
+  source: "cdn" | "configuration" | null;
+  from: string | null;
+  importedAt?: string | null;
+  importedBy?: string | null;
+}
+
+/** `details.comparison` of a 409 confirm-import: what comes in against the draft */
+export interface ImportComparison {
+  book: { id: string; title: string };
+  incoming: ImportedBuild & { book: string; title: string };
+  draft: {
+    basedOn: ImportedBuild | null;
+    build: string;
+    edits: number;
+    editsSince: string | null;
+    recentEdits: { kind: string; ref: string; user: string | null; token: string | null; at: string }[];
+    live: { env: string; build: string | null; current: boolean }[];
+  };
+  same: boolean;
+}
+
+/** `details.confirmation` of a 409 confirm-import */
+export interface ImportConfirmation {
+  id: string;
+  expiresAt: string;
+}
+
 export interface PublishResult {
   env: string;
+  /** Where it went: the CDN or this server */
+  store?: "cdn" | "server";
   build: string;
   hash: string;
   publishedAt: string;
@@ -282,8 +336,22 @@ export const listBooks = () => api<{ books: BookSummary[]; environments?: Enviro
 
 export const getBook = (bookId: string) => api<BookTree>("GET", `/editor/books/${encodeURIComponent(bookId)}`);
 
-export const importBook = (bookId: string, body: { configuration: GameConfiguration; files?: unknown; assetsBase?: string } | { source: "cdn" }) =>
-  api<{ book: BookSummary }>("POST", `/editor/books/${encodeURIComponent(bookId)}/import`, body);
+/** What an import sends: a configuration, or the instance CDN's current version – `confirm` = the second step */
+export type ImportBody = ({ configuration: GameConfiguration; files?: unknown; assetsBase?: string } | { source: "cdn" }) & { confirm?: string };
+
+/**
+ * Imports into the book. Over a book that exists the API answers 409 `confirm-import` (or `confirmation-void`) with
+ * `details.comparison` (an `ImportComparison`) and `details.confirmation` – the same call with `confirm` then imports.
+ */
+export const importBook = (bookId: string, body: ImportBody) =>
+  api<{ book: BookSummary; imported?: ImportedBuild | null }>("POST", `/editor/books/${encodeURIComponent(bookId)}/import`, body);
+
+/** This instance's environments (`GET /editor/environments`): the one it publishes to, each one's backend */
+export const listEnvironments = () => api<EnvironmentsInfo>("GET", "/editor/environments");
+
+/** The draft's manifest: its build now (what a publish would write) */
+export const getDraftManifest = (bookId: string) =>
+  api<{ build: string; hash: string; schema: string; version: string }>("GET", `/editor/books/${encodeURIComponent(bookId)}/draft/latest.json`);
 
 export const putEntity = (bookId: string, ref: string, entity: EntityData) =>
   api<{ entity: EntityData }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/entities/${encodeURIComponent(ref)}`, entity);

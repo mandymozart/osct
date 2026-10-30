@@ -41,7 +41,7 @@ The server talks to one API (`OSCT_API_URL`, default `http://127.0.0.1:8080/api`
   connections"](server.md#ai-connections).
 - **A session token** – `OSCT_EDITOR_TOKEN` may also be an editor's session token (the editor app keeps it in
   `localStorage` under `osct-editor-session`; a `POST /auth/verify` or `/auth/password` answers it): the person's full
-  rights, publish to local / staging included; `whoami` says `signedIn: { with: "session" }`.
+  rights, publish to the instance's own environment (local / staging) included; `whoami` says `signedIn: { with: "session" }`.
 - **The sign-in pair** – for people without a token: without one the server starts with `whoami`, `sign_in_request { email }` and
   `sign_in_verify { requestId, code }`: the API mails a 6-digit code (locally `MAIL_TRANSPORT=log` writes it to the mail
   log), the person gives it to the session, the token is kept for the process and never shown. With the role `editor`
@@ -131,7 +131,7 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `whoami` | the user (email, roles), how the server is signed in (`signedIn`: an AI connection's token with its name, a session, or null), the service open, the API, the editor app. Call it first |
 | `sign_in_request` · `sign_in_verify` | the sign-in by mail code, for people without a token (above) |
 | `list_books` | the instance's books with their last publish |
-| `import_book { book, url \| configuration \| source: "cdn", assetsBase? }` | replaces the book's rows from a game configuration (the reader's dev server serves its own at `/src/game.config.json`) |
+| `import_book { book, url \| configuration \| source: "cdn", assetsBase?, confirm? }` | replaces the book's rows from a game configuration (the reader's dev server serves its own at `/src/game.config.json`). **Over a book that exists, two steps** (the API's, [server](server.md#import-with-a-version-comparison)): the first call imports nothing and answers `{ imported: false, comparison, confirmation, next }` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import; the agent shows it to the person and asks, and only with their yes calls again with the same arguments and `confirm: confirmation.id` (10 minutes, one use; a change meanwhile answers `void` with a new comparison). A new book is imported at once |
 | `get_book { book }` | the tree: spreads with entries and targets (entity inline or `{ ref }`), the unassigned entries |
 | `get_spread { book, spread \| page }` | one spread, every target's entity resolved (a shared one with its `ref` next to it) |
 | `get_entity { book, ref }` · `put_entity { book, ref, entity }` | a shared entity – the whole node tree (`EntityData`) |
@@ -145,7 +145,7 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `list_assets { book, kind? }` · `upload_asset { book, file, name? }` · `delete_asset { book, asset, force? }` | the library: a local file becomes an asset whose `url` nodes and targets name |
 | `list_plugins` · `get_plugin` · `put_plugin { book, plugin, source }` · `delete_plugin` | the Code tab's sources; `put_plugin` names what the source registers and warns about a module the engine would refuse |
 | `get_draft { book, part? }` | the draft as the engine loads it: manifest, configuration or files |
-| `publish { book, env: local \| staging, note? }` | writes the draft into the content store of `env`; **production is refused** – the person's button in the editor; with an AI connection's token every environment is refused (403 `not-for-ai`) |
+| `publish { book, env?, note? }` | writes the draft into the content store of the instance's own environment (the default; `GET /editor/environments` names it) – an instance publishes nowhere else, another `env` is the API's 403 `other-environment`. The answer's `store` is `cdn` or `server`; with `server` it carries the `warning` (no CDN connected) for the person. **production is refused** – the person's button in the editor; with an AI connection's token every environment is refused (403 `not-for-ai`) |
 | `list_versions` · `list_changes { book, limit? }` | the publish log, the change log |
 | `describe_content_model { book? }` | node types and names, placement, filters, components, passes, the environment, printed placement, categories, formats – from `shared/`; with a book also the declared plugins with the components, node types and passes they recorded (with their parameters) and the Code tab's sources with the types read from them |
 
@@ -176,14 +176,16 @@ plugin must register it, the publish checks (409 `unknown-components`, `unknown-
    entity: { type: "video", assets: [{ id: "shadows", assetType: "video", src }], params: { rotation: [90, 0, 0], position: [0, 0, 0.3] },
    components: [{ type: "tint", color: "#f3cc94", opacity: 0.35 }] } } }` → `p31-shadows` on `studio-b`, `open: …/editor/osct/studio-b/`.
 6. The person opens the link: the stage shows the target with the standing, tinted video; **Save placement** or the gizmo
-   fine-tune it; `publish { env: "local" }` for the reader on this machine, production in the editor.
+   fine-tune it; `publish` (the local API's own environment, `local`) for the reader on this machine, production in the
+   editor.
 
 ## Tests
 
 `cd mcp && npx tsc --noEmit && npx vitest run`: unit tests with a mocked `fetch` for every tool (`test/*.test.ts`), and
 `test/e2e.test.ts` – the real server over stdio against the real API (PHP's built-in server on a free port, a fresh
-SQLite, mails to a log, as `server/tests/api-test.php`): sign in through the mail log, import, edit, add a target with an
-uploaded file, a plugin source, publish to local; then a second server started with an AI connection's token made over
+SQLite, mails to a log, as `server/tests/api-test.php`): sign in through the mail log, import, re-import in two steps
+(the comparison, then the confirmation), edit, add a target with an uploaded file, a plugin source, publish to local
+(staging refused: 403 `other-environment`); then a second server started with an AI connection's token made over
 the API (whoami names it, a save names it in the change log, publish is refused, a revoked token is 401). Skipped with a message when `php` is not on the path. CI runs both
 (`checks.yml`, job *MCP server*).
 

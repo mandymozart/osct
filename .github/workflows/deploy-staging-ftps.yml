@@ -94,7 +94,12 @@ jobs:
           cp -r client/dist/. site/
           cp -r editor/build/. site/editor/
           cp -r server/api/. site/api/
-          rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/mail.log
+          rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/*.log
+          # The host's content store and var/ (published content, uploads, the error log) live in the API's folder there –
+          # api/content-store, api/var (docs/server.md "Content store and var") – and are never part of the upload, which
+          # deletes nothing: they survive every deploy. The first request after this one moves an older api/db/content
+          # and api/db/error.log there once.
+          rm -rf site/api/content-store site/api/var site/api/db/content
           find site -name '*.map' -delete
 
       # lftp, not FTP-Deploy-Action: its Node FTP client loses the TLS data connection on all-inkl (ECONNRESET).

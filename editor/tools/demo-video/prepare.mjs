@@ -69,6 +69,16 @@ if (args.content) {
   const filesResponse = await fetch(`${base}/files.json`);
   const files = filesResponse.ok ? await filesResponse.json() : undefined;
   const book = args.book ?? configuration.book?.id;
-  const { book: imported } = await call("POST", `/editor/books/${book}/import`, { configuration, files, assetsBase: base }, token);
+  // Over a book that exists the API answers with the version comparison first (409 confirm-import): this script's
+  // purpose is to replace the local draft, so it prints the comparison and sends the confirmation back
+  const body = { configuration, files, assetsBase: base };
+  const path = `/editor/books/${book}/import`;
+  const first = await fetch(api + path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+  const answer = await first.json();
+  if (first.status === 409 && answer.error?.code === "confirm-import") {
+    const { incoming, draft } = answer.error.comparison;
+    console.log(`replacing the draft: build ${draft.basedOn?.build ?? "?"} (+${draft.edits} edits) → ${incoming.build}`);
+  } else if (!first.ok) throw new Error(`POST ${path}: ${first.status} ${JSON.stringify(answer).slice(0, 200)}`);
+  const { book: imported } = first.ok ? answer : await call("POST", path, { ...body, confirm: answer.error.confirmation.id }, token);
   console.log("imported", imported.id, "schema", imported.schema, "assets at", imported.assetsBase);
 }
