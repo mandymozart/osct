@@ -181,8 +181,19 @@ is involved.
   spreads, the tabs – as words, or as icons in a panel too narrow for them (under 24rem, 28rem with a finger), so the
   head stays one line (#172). On a phone the head is the six tab icons alone, sharing its width (#171): ‹ › sit at the
   stage's lower corners, and the top bar's book link is the way back to the spreads. On a stage too short for them below
-  the toolbar (the sheet almost full) they move to its top right, and the toolbar keeps to one row beside them that
-  scrolls sideways – every tool stays reachable at every sheet height (#177).
+  the toolbar (the sheet almost full) they move to its top right, beside the toolbar (#177) – which is one row and
+  always leaves them that room, so every tool stays reachable at every sheet height without scrolling (#180).
+  - **The stage toolbar** (#180, `components/ToolGroup.svelte`, `lib/tool-groups.ts`) – three groups: **transform**
+    (move / rotate / scale), **pick** (entities / nodes / targets) and **shading** (wire / solid / textured /
+    rendered). Each group is one button showing its active option's icon (a small corner mark says it opens more); a
+    tap opens its options in a menu attached to it – icon, name and shortcut, each with its name as tooltip and label –
+    and a choice closes it. Where the toolbar has room the groups stay **expanded**, their options side by side:
+    decided by the toolbar's own room (the stage's width, on a phone less ‹ ›), never by the device – from the first
+    group on, each expands while the toolbar still fits one row. A 1280 px desktop shows all three expanded, a narrow
+    stage (a tablet in portrait) collapses the last, a 360 px phone all three. The menu is a WAI-ARIA menu: ↑ ↓ (← →),
+    Home / End, Enter or Space choose, Esc closes and returns the focus to the button, ↓ on the button opens it; a tap
+    outside closes it and picks nothing on the stage. With a finger its items are the touch height (44 px). **W / E /
+    R** still switch the gizmo; the Info view shows each button's tooltip.
   - **Tree** – the spread in the style of Blender's outliner: a chevron column, a type icon before every name (book,
     entry, target, group / model / video / image / text / light), guide lines per depth, zebra rows, and the **eye** in a
     column at the right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its
@@ -267,9 +278,9 @@ is involved.
   - **Selection and shading** – the selected node wears Blender's orange **outline** (the edges of its meshes, drawn
     through everything, in the object's own space – a video plane outlines as a plane), a selected target the same
     orange around its printed image, the entity under the pointer a white one. The toolbar's last group is the viewport's **shading**, after Blender's, as its four spheres side by
-    side: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
+    side (or in the group's menu where the toolbar is short of room, #180): *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
     materials, no sky) and *rendered* (the HDRI's sky and light, the default); stored on the device. The toolbar is
-    icons only, every button's label is its tooltip. The stage and the gizmo keep their own look.
+    icons only (its menus add the names), every button's label is its tooltip. The stage and the gizmo keep their own look.
     **Light nodes** (content schema 2.6) have no mesh: the stage draws a **helper** for each, after Blender's – a
     small bulb at the node's origin and lines for what the light does (short rays for a point light, the cone of a
     spot, parallel rays for a directional light), in the node's own space so the gizmo moves and turns it (−z is where

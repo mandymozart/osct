@@ -1,24 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   clampSheet, clampWidth, LIMITS, SHEET_INITIAL, SHEET_MAX, snapSheet, STAGE_MIN, stepsOnTop, TREE_OPEN_MIN, treeStartsOpen, widths, WORD_TABS_MIN,
-  wordTabs, wrapRows,
+  wordTabs,
 } from "../widths.svelte";
 
-describe("the phone's ‹ › and the stage's toolbar (#177)", () => {
-  // The toolbar's groups with a finger: gizmo and pick 3 × 44 px, shading 4 × 44 px (+ the rule before a group)
-  const groups = [136, 143, 183];
-
-  it("wraps the toolbar's groups as flex-wrap does", () => {
-    expect(wrapRows([], 300)).toBe(0);
-    expect(wrapRows(groups, 1000, 2)).toBe(1);
-    expect(wrapRows(groups, 338, 2)).toBe(2); // a 360 px phone: gizmo and pick, then shading
-    expect(wrapRows(groups, 281, 2)).toBe(2); // exactly fits the first row
-    expect(wrapRows(groups, 280, 2)).toBe(3);
-    expect(wrapRows([400], 300)).toBe(1); // an item wider than the row still takes one row
-  });
-
+describe("the phone's ‹ › and the stage's toolbar (#177, #180)", () => {
   it("keeps ‹ › at the lower corners while the stage holds the toolbar and their row, else moves them up", () => {
-    const toolbar = 2 * 44 + 2 + 6; // two rows of the touch height
+    const toolbar = 44 + 6; // one row of the touch height (#180: the groups collapse)
     expect(stepsOnTop(400, toolbar, 44, 8)).toBe(false); // the sheet at half
     expect(stepsOnTop(toolbar + 44 + 24, toolbar, 44, 8)).toBe(false);
     expect(stepsOnTop(toolbar + 44 + 23, toolbar, 44, 8)).toBe(true);

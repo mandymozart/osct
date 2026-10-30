@@ -12,6 +12,19 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Editor: the stage toolbar groups its tools** (#180): transform (move / rotate / scale), pick (entities / nodes /
+  targets) and shading (wire / solid / textured / rendered) are one button each, showing the active mode's icon; a tap
+  opens the group's options in a small menu (icon, name, shortcut), a choice closes it. Where the toolbar has room –
+  decided by its own width, not the device – the groups stay expanded as before (a desktop shows all three). The menu
+  works with the keyboard (↑ ↓, Home / End, Enter, Esc returns to the button), closes on a tap outside and has the
+  touch height with a finger; W / E / R and the Info view's help keep working.
+- **Phone: the toolbar is one row next to ‹ › at every sheet height** (#180): the groups collapse to three buttons, so
+  #177's sideways-scrolling toolbar is gone; ‹ › still move from the stage's lower corners to its top right when the
+  sheet is almost full.
+
 ## 1.37.1 – 2026-10-30
 
 ### Changed
