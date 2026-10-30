@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- The demo's aquarium has real water where the browser has WebGPU: Splash, Masaya Matsuoka's particle fluid (MIT),
+  simulated and drawn on the GPU from the scene's camera and shown inside the tank's glass; the toy fish dips in and
+  pushes the water aside, a tap pushes it deeper. Without WebGPU, or with the new *WebGPU* switch off, the rings of the
+  simulated surface stay. The Entity panel says which runs (*WebGPU ok* / *no WebGPU*) and has rows for the particles
+  (10k, 20k, 40k), the render scale and the fluid's colour (#228).
+
 ## 1.51.2 – 2026-10-30
 
 ### Fixed
@@ -28,6 +37,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - The Stage panel's *spread* section shows the whole spread (#227): its title and pages, the format, the
   post-processing in effect (the whole book's passes or the spread's own, and which) and the book's environment with
   *edit* to the Environment tab; closed, its head names the title and the format.
+
 ## 1.51.1 – 2026-10-30
 
 ### Changed

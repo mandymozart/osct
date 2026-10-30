@@ -4,6 +4,40 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – the demo aquarium's water is Splash in WebGPU, the heightfield its fallback (#228)
+
+- **Tilman decided** (#228): "The water simulation you used is shit. Use this: https://github.com/matsuoka-601/Splash
+  for the demo." Splash (MIT, Masaya Matsuoka) is adapted into `fixtures/demo/plugins/aquarium/index.ts` – its MLS-MPM
+  compute shaders (clear grid, P2G ×2, grid update, G2P) and its screen-space renderer (depth splats, the narrow-range
+  filter, thickness + gaussian, the composite); dropped: the particle/shadow mode (density grid, ray marching), the
+  cube map and floor (2 MB of PNGs), the mouse, `copyPosition` (the render passes read the particle struct), the
+  pipeline overrides (WGSL consts), the camera and lil-gui. Licence text and author in the file's header and in
+  `fixtures/demo/DEMO.md`. Bundle 28.7 → 65.1 KB (8.5 → 18.1 KB gzipped).
+- **The issue's sketch held**, no plugin API change: a WebGPU device of the plugin's own, an off-DOM canvas, the camera
+  from the water mesh's `onBeforeRender`, a `CanvasTexture` the `water` material samples in screen space on the front
+  faces of a box as large as the inside. The canvas upload happens in the same draw (the WebGPU work is submitted in
+  `onBeforeRender`, `needsUpdate` set, three uploads when the water draws), so the fluid is not a frame behind. Measured
+  on the desktop (headless Edge, NVIDIA Turing): 60 fps, ~1 ms GPU and 0.16 ms of hand-off per frame at 10k–40k. The
+  S22 (WebGPU on Android Chrome) is not measured yet – the issue's checklist keeps that item.
+- **Compositing with alpha, not refraction**: Splash refracts a background it renders itself; the scene behind is
+  three.js's, so the fluid shader writes how much of what lies behind the water hides (absorption by thickness,
+  fresnel against a procedural room, a highlight), premultiplied and gamma-encoded in the 8-bit canvas
+  (`premultiplyAlpha` keeps the bytes; the material divides and decodes). The absorption is 0.2, not Splash's 0.7: at
+  the tank's depth 0.7 hides the fish. The toy hides the water behind it by a ray–ellipsoid test in the fluid shader
+  (WebGPU knows no WebGL depth).
+- **The domain was calibrated by reading the particles back**: the resting fluid compresses to ~3.4 particles per cell
+  (rest density 3) and its surface stands ~1.1 cells past Splash's soft walls and ~1.8 below the floor's; the tank's
+  inside is mapped there (`INSIDE`, `INSIDE_END`), the particles start at rest at that density. Water level within
+  93–105 % of *water level* for 40k–10k.
+- **"The Entity panel shows which path runs" without an API change**: the `webgpu` row's spec label is changed by the
+  plugin once it knows (*WebGPU ok* / *no WebGPU*; *WebGPU* until a tank asked) – the registry keeps the spec object the
+  plugin registered (`recorded.test.ts` pins that identity) and the panel reads it when it shows the node. A row the
+  panel shows open while the label changes updates with the next selection. A proper per-node status would be an API
+  addition (e.g. a `status` on the node type's instance) – not made, per the brief.
+- **`splash` reused for the fluid**: it scales the toy's push on the way in (rising, the toy moves at its own speed –
+  the gain on the way up dragged a water column after it).
+- [ ] The S22: frame cost of the fluid with WebGPU on Android Chrome, and the canvas upload there (#228's checklist).
+
 ## 2026-10-30 – the tree's spread and entry rows select (#227)
 
 - **The spread lives in one place: the Stage panel's *spread* section.** A tap on the spread row selects the spread,
@@ -24,6 +58,7 @@ outcome in the line (or move it into a dated decision block).
   on a target row, as before.
 - `Selection.up()` spread `this` into `parentSelection`, which copies none of a class's `$state` accessors; it now
   passes a plain snapshot.
+
 ## 2026-10-30 – one desk on the stage: the Eiermann frame with two tops; Schöpfer's desk removed (#226)
 
 - **Tilman decided** (#226, on a screenshot of Schöpfer's drawers hanging open beside its frame): "only one type of

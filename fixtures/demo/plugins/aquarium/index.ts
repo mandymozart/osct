@@ -12,17 +12,758 @@ import type { PluginApi } from "osct-plugin-api";
  *   model – y up, its floor at y = 0 – so it stands on the page with `rotation: [90, 0, 0]`. When the node carries a
  *   material, only the water takes it: the glass, the floor and the fish say `userData.keepMaterial`.
  *
- * A shader study (#202): a toy fish (or a ball) dips into the water on a loop and a tap pushes it in once. The tank
- * simulates its surface as a heightfield – a damped wave equation on a small grid, on the CPU, written into a half-float
- * DataTexture after each step. Where the body cuts the surface it pushes the heightfield down by the volume it displaces
- * and gives it back as it rises, so rings run outward, bounce off the glass and settle. The water material reads the
- * heightfield when the tank hands it over (its uniforms `heightfield`, `hasHeightfield`, …): the surface's vertices
- * follow it and its slopes drive the tint, a fresnel highlight and a glint; the floor's caustics brighten where the
- * surface focuses the light. Without the simulation (or on another mesh) the water keeps its static waves.
+ * A toy fish (or a ball) dips into the water on a loop and a tap pushes it in once. The water is one of two:
  *
- * Light on a phone: a few hundred triangles of tank and fish, the water's top as fine as the grid, the caustics drawn
- * once (128² pixels), the simulation a few thousand cells per step, no render target, nothing allocated per frame.
+ * - **A WebGPU fluid inside the WebGL scene** (#228): Splash's MLS-MPM particles, simulated and rendered by a WebGPU
+ *   device of the tank's own into an off-DOM canvas, from the scene's camera (handed over in the water's
+ *   `onBeforeRender`). The canvas is a `CanvasTexture`; the water material samples it in screen space, so the fluid
+ *   shows exactly inside the tank's faces and whatever stands in front of the tank hides it. The toy is the fluid's
+ *   solid body: it pushes the particles aside.
+ * - **The heightfield** (#202), the fallback without WebGPU or with *WebGPU* off: a damped wave equation on a small grid,
+ *   on the CPU, written into a half-float DataTexture after each step. Where the body cuts the surface it pushes the
+ *   heightfield down by the volume it displaces and gives it back as it rises, so rings run outward, bounce off the
+ *   glass and settle. The water material reads it (its uniforms `heightfield`, `hasHeightfield`, …): the surface's
+ *   vertices follow it and its slopes drive the tint, a fresnel highlight and a glint; the floor's caustics brighten
+ *   where the surface focuses the light. Without the simulation (or on another mesh) the water keeps its static waves.
+ *
+ * Light on a phone: a few hundred triangles of tank and fish, the caustics drawn once (128² pixels), the heightfield a
+ * few thousand cells per step with nothing allocated per frame; the fluid's GPU time follows its particle count and
+ * render scale (parameters), it runs only in frames that draw the water, and the browser pauses it with a hidden page.
  */
+
+/* ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ * The WebGPU fluid below (the WGSL shaders and the simulation and render passes that drive them) is adapted from
+ * Splash by Masaya Matsuoka (matsuoka-601), https://github.com/matsuoka-601/Splash – MLS-MPM simulation and
+ * screen-space fluid rendering with the narrow-range filter (Truong and Yuksel, 2018). Adapted for the aquarium: the
+ * tank's box as the domain, the scene's camera, the toy as a solid body instead of the mouse, a picture with alpha over
+ * the scene instead of a cube map and a floor, no particle and shadow modes. Its licence:
+ *
+ * MIT License
+ *
+ * Copyright (c) 2025 matsuoka-601
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+type Three = PluginApi["three"];
+type Matrix4 = InstanceType<Three["Matrix4"]>;
+
+/**
+ * WebGPU objects. The plugin API's DOM library has no WebGPU types, so they are loose here; the calls follow the WebGPU
+ * specification.
+ */
+type Gpu = any;
+
+/** WebGPU's usage flags (`GPUBufferUsage`, `GPUTextureUsage` – globals the plugin's types do not know) */
+const BUFFER = { COPY_DST: 0x08, UNIFORM: 0x40, STORAGE: 0x80 };
+const TEXTURE = { TEXTURE_BINDING: 0x04, RENDER_ATTACHMENT: 0x10 };
+
+/** Cells between the domain's edge and the water's walls: the particles' soft walls stand 3 cells in (Splash) */
+const MARGIN = 3;
+/**
+ * Where the fluid's surface stands when it rests, in Splash's cells (measured): the particles settle half a cell past
+ * the soft walls and, under their weight, below the floor's; with their radius the surface is 1.1 cells outside the
+ * walls at the sides and 1.8 below the floor's. The tank's inside is mapped there – the glass and the sand meet the water.
+ */
+const INSIDE: [number, number, number] = [1.9, 1.2, 1.9];
+/** The far sides of the inside: this far before the domain's end (the wall at `MARGIN + 1`, less the same 1.1 cells) */
+const INSIDE_END = 2.6;
+/** Particles per cell where the water rests: the pressure only pushes above it */
+const REST_DENSITY = 3;
+/** Particles per cell once settled (measured: the fluid compresses a little under its own weight) */
+const SETTLED_DENSITY = 3.4;
+/** A particle's diameter (cells) – its splat in the depth and thickness maps */
+const DIAMETER = 1.2;
+/** Simulation time per frame at 60 fps, and the most one step may take (larger steps are unstable) */
+const SIM_DT = 0.32;
+const SIM_DT_MAX = 0.4;
+/** How strongly the fluid absorbs what passes through it (Splash: 0.7 – opaque at the tank's depth, so the fish would hide) */
+const FLUID_DENSITY = 0.2;
+/** The particle counts of the parameter */
+const PARTICLES: Record<string, number> = { "10k": 10_000, "20k": 20_000, "40k": 40_000 };
+
+/** Where the fluid runs: the WebGPU fluid, the heightfield, or the static waves */
+type FluidPath = "webgpu" | "heightfield" | "still";
+/** The tank's WebGPU: none in this browser, asked for, running, or failed (no adapter, a device error, the device lost) */
+type GpuStatus = "missing" | "pending" | "ready" | "failed";
+
+/**
+ * Which water runs (#228): the WebGPU fluid when the node wants it, its WebGPU fluid is ready and the water carries the
+ * `water` material (the one that composites it); else the heightfield, or the static waves with the simulation off
+ */
+const fluidPath = (state: { webgpu: boolean; gpu: GpuStatus; material: boolean; simulate: boolean }): FluidPath =>
+  state.webgpu && state.gpu === "ready" && state.material ? "webgpu" : state.simulate ? "heightfield" : "still";
+
+/**
+ * The simulation domain (#228): the tank's inside in Splash's units (cells). The scale makes `particles` fill the water
+ * up to its level once settled; the domain is the inside up to the glass top (room for splashes) with the margin of the
+ * soft walls around it. `origin` is the inside's lowest corner in the tank's units – Splash's `INSIDE`; `grid` is the
+ * cell count per axis (whole cells), `size` the walls' extent.
+ */
+interface SplashDomain {
+  scale: number;
+  size: [number, number, number];
+  grid: [number, number, number];
+  origin: [number, number, number];
+  /** The water's height in cells */
+  level: number;
+  /** The particles placed (at most `particles`) */
+  count: number;
+}
+
+const splashDomain = (inner: { x: number; y: number; z: number }, origin: [number, number, number], level: number, particles: number): SplashDomain => {
+  const scale = Math.cbrt(particles / (SETTLED_DENSITY * inner.x * inner.z * level));
+  const size: [number, number, number] = [INSIDE[0] + inner.x * scale + INSIDE_END, INSIDE[1] + inner.y * scale + MARGIN + 1, INSIDE[2] + inner.z * scale + INSIDE_END];
+  const domain = { scale, size, grid: [Math.ceil(size[0]), Math.ceil(size[1]), Math.ceil(size[2])] as [number, number, number], origin, level: level * scale, count: 0 };
+  const { across, room } = lattice(domain);
+  domain.count = Math.min(particles, across * room);
+  return domain;
+};
+
+/** The lattice of the start: its spacing (the settled density), the points per layer, the layers up to the top wall */
+const lattice = (domain: Omit<SplashDomain, "count">) => {
+  const spacing = Math.cbrt(1 / SETTLED_DENSITY);
+  const nx = Math.floor((domain.size[0] - INSIDE[0] - INSIDE_END) / spacing);
+  const nz = Math.floor((domain.size[2] - INSIDE[2] - INSIDE_END) / spacing);
+  return { spacing, nx, nz, across: nx * nz, room: Math.floor((domain.size[1] - MARGIN - 1 - INSIDE[1]) / spacing) };
+};
+
+/**
+ * The particles to start with (Splash's 80-byte struct: position, velocity, affine matrix – 20 floats each): the water
+ * as it rests – the inside filled from the floor at the settled density, layer by layer, each a little jittered (the
+ * same every time)
+ */
+const splashParticles = (domain: SplashDomain): Float32Array => {
+  const data = new Float32Array(domain.count * 20);
+  const { spacing, nx, nz } = lattice(domain);
+  for (let n = 0; n < domain.count; n++) {
+    const layer = Math.floor(n / (nx * nz));
+    const i = n % nx;
+    const k = Math.floor(n / nx) % nz;
+    const jitter = ((n * 2654435761) % 1000) / 1000;
+    data[n * 20] = INSIDE[0] + (i + 0.5) * spacing + (jitter - 0.5) * 0.1;
+    data[n * 20 + 1] = INSIDE[1] + (layer + 0.5) * spacing;
+    data[n * 20 + 2] = INSIDE[2] + (k + 0.5) * spacing + (0.5 - jitter) * 0.1;
+  }
+  return data;
+};
+
+/** A point of the tank (its units) in Splash's cells, written into `out` at `at` */
+const toCells = (domain: SplashDomain, x: number, y: number, z: number, out: Float32Array, at = 0): void => {
+  out[at] = INSIDE[0] + (x - domain.origin[0]) * domain.scale;
+  out[at + 1] = INSIDE[1] + (y - domain.origin[1]) * domain.scale;
+  out[at + 2] = INSIDE[2] + (z - domain.origin[2]) * domain.scale;
+};
+
+/** Splash's camera matrices (render uniforms): the view of the domain in cells, its projection for WebGPU's depth */
+interface SplashCamera {
+  view: Matrix4;
+  invView: Matrix4;
+  projection: Matrix4;
+  invProjection: Matrix4;
+}
+
+/**
+ * The camera hand-off (#228): Splash's view and projection from the scene's camera and the tank.
+ *
+ * Splash → tank: `INSIDE` is the inside's corner, a cell is `1 / scale` tank units. The view is the camera's
+ * inverse world matrix × the tank's world matrix × that, scaled back by `k` so its unit is Splash's cell again (the
+ * filter's depth thresholds and the particles' size are in cells). The same picture needs the projection to take the
+ * scaled depth: a perspective matrix's z row scales its constant term by `k` (near and far `k` times further) and keeps
+ * x and y. WebGL's depth runs −1…1, WebGPU's 0…1: the z row becomes half itself plus half the w row.
+ */
+const splashCamera = (three: Three, cameraInverse: Matrix4, projection: Matrix4, tankWorld: Matrix4, domain: SplashDomain, out?: SplashCamera): SplashCamera => {
+  const result = out ?? { view: new three.Matrix4(), invView: new three.Matrix4(), projection: new three.Matrix4(), invProjection: new three.Matrix4() };
+  const step = 1 / domain.scale;
+  const [ox, oy, oz] = domain.origin;
+  result.view.makeScale(step, step, step).setPosition(ox - INSIDE[0] * step, oy - INSIDE[1] * step, oz - INSIDE[2] * step);
+  result.view.premultiply(tankWorld).premultiply(cameraInverse);
+  const k = 1 / result.view.getMaxScaleOnAxis();
+  result.view.premultiply(result.invView.makeScale(k, k, k));
+  result.invView.copy(result.view).invert();
+  result.projection.copy(projection);
+  const e = result.projection.elements;
+  e[14] *= k;
+  for (let column = 0; column < 4; column++) e[column * 4 + 2] = 0.5 * e[column * 4 + 2] + 0.5 * e[column * 4 + 3];
+  result.invProjection.copy(result.projection).invert();
+  return result;
+};
+
+// ── Splash's shaders (WGSL), adapted ──
+
+/** The particle (80 bytes) and the simulation's uniforms: cells per axis, the count, the walls' extent, the step */
+const WGSL_COMMON = /* wgsl */ `
+struct Particle { position: vec3f, v: vec3f, C: mat3x3f, }
+struct Sim { grid: vec3f, count: u32, size: vec3f, dt: f32, }
+const FIXED: f32 = 1e7;
+fn encodeFixed(x: f32) -> i32 { return i32(x * FIXED); }
+fn decodeFixed(x: i32) -> f32 { return f32(x) / FIXED; }
+fn cellIndex(cell: vec3f, sim: Sim) -> i32 {
+  return i32(cell.x) * i32(sim.grid.y) * i32(sim.grid.z) + i32(cell.y) * i32(sim.grid.z) + i32(cell.z);
+}
+fn quadraticWeights(diff: vec3f) -> array<vec3f, 3> {
+  return array<vec3f, 3>(0.5 * (0.5 - diff) * (0.5 - diff), 0.75 - diff * diff, 0.5 * (0.5 + diff) * (0.5 + diff));
+}`;
+
+/** The solid body (the toy): its centre, radii and velocity in cells, the turn from the domain into its own frame */
+const WGSL_BODY = /* wgsl */ `
+struct Body { center: vec3f, solid: f32, radii: vec3f, velocity: vec3f, toBody: mat3x3f, }`;
+
+const WGSL_CLEAR = /* wgsl */ `
+struct Cell { vx: i32, vy: i32, vz: i32, mass: i32, }
+@group(0) @binding(0) var<storage, read_write> cells: array<Cell>;
+@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x < arrayLength(&cells)) { cells[id.x] = Cell(0, 0, 0, 0); }
+}`;
+
+/** Particles to grid, 1: mass and momentum (APIC) */
+const WGSL_P2G_1 = /* wgsl */ `${WGSL_COMMON}
+struct Cell { vx: atomic<i32>, vy: atomic<i32>, vz: atomic<i32>, mass: atomic<i32>, }
+@group(0) @binding(0) var<storage, read> particles: array<Particle>;
+@group(0) @binding(1) var<storage, read_write> cells: array<Cell>;
+@group(0) @binding(2) var<uniform> sim: Sim;
+@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x >= sim.count) { return; }
+  let particle = particles[id.x];
+  let base = floor(particle.position);
+  var weights = quadraticWeights(particle.position - (base + 0.5));
+  for (var gx = 0; gx < 3; gx++) { for (var gy = 0; gy < 3; gy++) { for (var gz = 0; gz < 3; gz++) {
+    let weight = weights[gx].x * weights[gy].y * weights[gz].z;
+    let cell = base + vec3f(f32(gx), f32(gy), f32(gz)) - 1.0;
+    let momentum = weight * (particle.v + particle.C * ((cell + 0.5) - particle.position));
+    let i = cellIndex(cell, sim);
+    atomicAdd(&cells[i].mass, encodeFixed(weight));
+    atomicAdd(&cells[i].vx, encodeFixed(momentum.x));
+    atomicAdd(&cells[i].vy, encodeFixed(momentum.y));
+    atomicAdd(&cells[i].vz, encodeFixed(momentum.z));
+  } } }
+}`;
+
+/** Particles to grid, 2: the pressure (Tait, γ = 1, only above the rest density) and viscous stress */
+const WGSL_P2G_2 = /* wgsl */ `${WGSL_COMMON}
+struct Cell { vx: atomic<i32>, vy: atomic<i32>, vz: atomic<i32>, mass: i32, }
+const STIFFNESS: f32 = 50.0;
+const REST_DENSITY: f32 = ${REST_DENSITY.toFixed(1)};
+const VISCOSITY: f32 = 0.1;
+@group(0) @binding(0) var<storage, read> particles: array<Particle>;
+@group(0) @binding(1) var<storage, read_write> cells: array<Cell>;
+@group(0) @binding(2) var<uniform> sim: Sim;
+@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x >= sim.count) { return; }
+  let particle = particles[id.x];
+  let base = floor(particle.position);
+  var weights = quadraticWeights(particle.position - (base + 0.5));
+  var density = 0.0;
+  for (var gx = 0; gx < 3; gx++) { for (var gy = 0; gy < 3; gy++) { for (var gz = 0; gz < 3; gz++) {
+    let cell = base + vec3f(f32(gx), f32(gy), f32(gz)) - 1.0;
+    density += decodeFixed(cells[cellIndex(cell, sim)].mass) * weights[gx].x * weights[gy].y * weights[gz].z;
+  } } }
+  let pressure = max(0.0, STIFFNESS * (density / REST_DENSITY - 1.0));
+  var stress = mat3x3f(-pressure, 0.0, 0.0, 0.0, -pressure, 0.0, 0.0, 0.0, -pressure);
+  stress += VISCOSITY * (particle.C + transpose(particle.C));
+  let term = -(1.0 / density) * 4.0 * sim.dt * stress;
+  for (var gx = 0; gx < 3; gx++) { for (var gy = 0; gy < 3; gy++) { for (var gz = 0; gz < 3; gz++) {
+    let weight = weights[gx].x * weights[gy].y * weights[gz].z;
+    let cell = base + vec3f(f32(gx), f32(gy), f32(gz)) - 1.0;
+    let momentum = (term * weight) * ((cell + 0.5) - particle.position);
+    let i = cellIndex(cell, sim);
+    atomicAdd(&cells[i].vx, encodeFixed(momentum.x));
+    atomicAdd(&cells[i].vy, encodeFixed(momentum.y));
+    atomicAdd(&cells[i].vz, encodeFixed(momentum.z));
+  } } }
+}`;
+
+/** The grid: momentum to velocity, gravity, the walls – and the body, which moves the water inside it with it */
+const WGSL_UPDATE_GRID = /* wgsl */ `${WGSL_COMMON}${WGSL_BODY}
+struct Cell { vx: i32, vy: i32, vz: i32, mass: i32, }
+const GRAVITY: f32 = 0.4;
+const PUSH: f32 = 0.5;
+@group(0) @binding(0) var<storage, read_write> cells: array<Cell>;
+@group(0) @binding(1) var<uniform> sim: Sim;
+@group(0) @binding(2) var<uniform> body: Body;
+@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x >= arrayLength(&cells) || cells[id.x].mass <= 0) { return; }
+  let gy = i32(sim.grid.y);
+  let gz = i32(sim.grid.z);
+  let x = i32(id.x) / gz / gy;
+  let y = (i32(id.x) / gz) % gy;
+  let z = i32(id.x) % gz;
+  var v = vec3f(decodeFixed(cells[id.x].vx), decodeFixed(cells[id.x].vy), decodeFixed(cells[id.x].vz)) / decodeFixed(cells[id.x].mass);
+  v.y -= GRAVITY * sim.dt;
+  if (body.solid > 0.5) {
+    let q = (body.toBody * (vec3f(f32(x), f32(y), f32(z)) + 0.5 - body.center)) / body.radii;
+    let r = length(q);
+    if (r < 1.0) {
+      let normal = normalize(transpose(body.toBody) * (q / body.radii) + vec3f(0.0, 1e-6, 0.0));
+      v = body.velocity + normal * (1.0 - r) * PUSH;
+    }
+  }
+  if (x < 2 || x > i32(ceil(sim.size.x)) - 3) { v.x = 0.0; }
+  if (y < 2 || y > i32(ceil(sim.size.y)) - 3) { v.y = 0.0; }
+  if (z < 2 || z > i32(ceil(sim.size.z)) - 3) { v.z = 0.0; }
+  cells[id.x].vx = encodeFixed(v.x);
+  cells[id.x].vy = encodeFixed(v.y);
+  cells[id.x].vz = encodeFixed(v.z);
+}`;
+
+/** Grid to particles: the velocity and its gradient, the move, the walls – and out of the body to its surface */
+const WGSL_G2P = /* wgsl */ `${WGSL_COMMON}${WGSL_BODY}
+struct Cell { vx: i32, vy: i32, vz: i32, mass: i32, }
+@group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
+@group(0) @binding(1) var<storage, read> cells: array<Cell>;
+@group(0) @binding(2) var<uniform> sim: Sim;
+@group(0) @binding(3) var<uniform> body: Body;
+@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x >= sim.count) { return; }
+  let particle = particles[id.x];
+  let base = floor(particle.position);
+  var weights = quadraticWeights(particle.position - (base + 0.5));
+  var v = vec3f(0.0);
+  var B = mat3x3f(vec3f(0.0), vec3f(0.0), vec3f(0.0));
+  for (var gx = 0; gx < 3; gx++) { for (var gy = 0; gy < 3; gy++) { for (var gz = 0; gz < 3; gz++) {
+    let weight = weights[gx].x * weights[gy].y * weights[gz].z;
+    let cell = base + vec3f(f32(gx), f32(gy), f32(gz)) - 1.0;
+    let i = cellIndex(cell, sim);
+    let w = vec3f(decodeFixed(cells[i].vx), decodeFixed(cells[i].vy), decodeFixed(cells[i].vz)) * weight;
+    let d = (cell + 0.5) - particle.position;
+    B += mat3x3f(w * d.x, w * d.y, w * d.z);
+    v += w;
+  } } }
+  var p = clamp(particle.position + v * sim.dt, vec3f(1.0), sim.size - 2.0);
+  if (body.solid > 0.5) {
+    let q = (body.toBody * (p - body.center)) / body.radii;
+    let r = length(q);
+    if (r < 1.0 && r > 1e-4) {
+      p = body.center + transpose(body.toBody) * ((q / r) * body.radii);
+      let normal = normalize(transpose(body.toBody) * (q / body.radii));
+      let into = dot(v - body.velocity, normal);
+      if (into < 0.0) { v -= into * normal; }
+    }
+  }
+  let ahead = p + v * sim.dt * 2.0;
+  let wallMin = vec3f(${MARGIN.toFixed(1)});
+  let wallMax = sim.size - ${(MARGIN + 1).toFixed(1)};
+  v += select(vec3f(0.0), wallMin - ahead, ahead < wallMin);
+  v += select(vec3f(0.0), wallMax - ahead, ahead > wallMax);
+  particles[id.x].position = p;
+  particles[id.x].v = v;
+  particles[id.x].C = B * 4.0;
+}`;
+
+/** The render uniforms: texel size, particle diameter and the camera, in cells */
+const WGSL_RENDER = /* wgsl */ `
+struct RenderUniforms {
+  texelSize: vec2f, sphereSize: f32,
+  invProjectionMatrix: mat4x4f, projectionMatrix: mat4x4f, viewMatrix: mat4x4f, invViewMatrix: mat4x4f,
+}`;
+
+/** One triangle over the whole target; the fragment shaders take their pixel from the position */
+const WGSL_SCREEN = /* wgsl */ `
+struct Screen { @builtin(position) position: vec4f, @location(0) uv: vec2f, }
+@vertex fn vs(@builtin(vertex_index) i: u32) -> Screen {
+  var corners = array(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
+  let p = corners[i];
+  return Screen(vec4f(p, 0.0, 1.0), vec2f(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5));
+}`;
+
+/** A camera-facing square per particle, as a sphere: its view depth (depth map) or its thickness (additive) */
+const WGSL_SPLATS = /* wgsl */ `${WGSL_RENDER}
+struct Particle { position: vec3f, v: vec3f, C: mat3x3f, }
+@group(0) @binding(0) var<storage, read> particles: array<Particle>;
+@group(0) @binding(1) var<uniform> uniforms: RenderUniforms;
+struct Splat { @builtin(position) position: vec4f, @location(0) uv: vec2f, @location(1) view: vec3f, }
+@vertex fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Splat {
+  var corners = array(vec2f(0.5, 0.5), vec2f(0.5, -0.5), vec2f(-0.5, -0.5), vec2f(0.5, 0.5), vec2f(-0.5, -0.5), vec2f(-0.5, 0.5));
+  let corner = corners[v];
+  let view = (uniforms.viewMatrix * vec4f(particles[i].position, 1.0)).xyz;
+  return Splat(uniforms.projectionMatrix * vec4f(view + vec3f(corner * uniforms.sphereSize, 0.0), 1.0), corner + 0.5, view);
+}
+struct DepthOut { @location(0) depth: f32, @builtin(frag_depth) fragDepth: f32, }
+@fragment fn depth(@location(0) uv: vec2f, @location(1) view: vec3f) -> DepthOut {
+  let xy = uv * 2.0 - 1.0;
+  let r2 = dot(xy, xy);
+  if (r2 > 1.0) { discard; }
+  let surface = vec4f(view + vec3f(xy, sqrt(1.0 - r2)) * uniforms.sphereSize * 0.5, 1.0);
+  let clip = uniforms.projectionMatrix * surface;
+  return DepthOut(surface.z, clip.z / clip.w);
+}
+@fragment fn thickness(@location(0) uv: vec2f) -> @location(0) vec4f {
+  let xy = uv * 2.0 - 1.0;
+  let r2 = dot(xy, xy);
+  if (r2 > 1.0) { discard; }
+  return vec4f(vec3f(0.05 * sqrt(1.0 - r2)), 1.0);
+}`;
+
+/** The narrow-range filter (Truong and Yuksel): smooths the depth map without blurring across depth gaps */
+const WGSL_NARROW_RANGE = /* wgsl */ `${WGSL_SCREEN}
+struct Blur { direction: vec2f, particleConstant: f32, }
+@group(0) @binding(0) var depthTexture: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> blur: Blur;
+const MAX_FILTER_SIZE: f32 = 50.0;
+const MU: f32 = 1.8;
+const THRESHOLD: f32 = 6.0;
+fn depthAt(p: vec2f) -> f32 {
+  let last = vec2i(textureDimensions(depthTexture)) - 1;
+  return abs(textureLoad(depthTexture, clamp(vec2i(floor(p)), vec2i(0), last), 0).r);
+}
+fn accept(sampled: f32, low: ptr<function, f32>, high: ptr<function, f32>, upper: f32) -> vec2f {
+  // (the depth to use, 1 = weighed / 0 = dropped): nearer than the range drops the pair, further counts as the bound
+  if (sampled < *low) { return vec2f(sampled, 0.0); }
+  if (sampled > *high) { return vec2f(upper, 1.0); }
+  *low = min(*low, sampled - THRESHOLD);
+  *high = max(*high, sampled + THRESHOLD);
+  return vec2f(sampled, 1.0);
+}
+@fragment fn oneD(@builtin(position) position: vec4f) -> @location(0) vec4f {
+  let depth = depthAt(position.xy);
+  if (depth >= 1e4) { return vec4f(depth, 0.0, 0.0, 1.0); }
+  let size = i32(min(MAX_FILTER_SIZE, ceil(blur.particleConstant / depth)));
+  let sigmaInv = 1.0 / (2.0 * pow(f32(size) / 2.0, 2.0));
+  let upper = depth + MU;
+  var lowA = depth - THRESHOLD; var highA = depth + THRESHOLD;
+  var lowB = depth - THRESHOLD; var highB = depth + THRESHOLD;
+  var sum = depth;
+  var wsum = 1.0;
+  for (var r = 1; r <= size; r++) {
+    let a = accept(depthAt(position.xy - f32(r) * blur.direction), &lowA, &highA, upper);
+    let b = accept(depthAt(position.xy + f32(r) * blur.direction), &lowB, &highB, upper);
+    let w = exp(-f32(r * r) * sigmaInv) * a.y * b.y;
+    sum += (a.x + b.x) * w;
+    wsum += 2.0 * w;
+  }
+  return vec4f(sum / wsum, 0.0, 0.0, 1.0);
+}
+@fragment fn twoD(@builtin(position) position: vec4f) -> @location(0) vec4f {
+  let depth = depthAt(position.xy);
+  if (depth >= 1e4) { return vec4f(depth, 0.0, 0.0, 1.0); }
+  let size = i32(min(MAX_FILTER_SIZE, ceil(blur.particleConstant / depth)));
+  let sigmaInv = 1.0 / (2.0 * pow(f32(size) / 2.0, 2.0));
+  let upper = depth + MU;
+  var low = depth - THRESHOLD; var high = depth + THRESHOLD;
+  var sum = depth;
+  var wsum = 1.0;
+  for (var r = 1; r <= 2; r++) {
+    for (var i = 0; i < 2 * r; i++) {
+      let g = exp((-f32(r * r) + f32((r - i) * (r - i))) * sigmaInv);
+      var offsets = array(vec2f(-f32(r), -f32(r - i)), vec2f(f32(r), f32(r - i)), vec2f(-f32(r - i), -f32(r)), vec2f(f32(r - i), f32(r)));
+      var d: array<vec2f, 4>;
+      for (var n = 0; n < 4; n++) { d[n] = accept(depthAt(position.xy + offsets[n]), &low, &high, upper); }
+      let pairA = g * d[0].y * d[1].y;
+      let pairB = g * d[2].y * d[3].y;
+      sum += (d[0].x + d[1].x) * pairA + (d[2].x + d[3].x) * pairB;
+      wsum += 2.0 * (pairA + pairB);
+    }
+  }
+  return vec4f(sum / wsum, 0.0, 0.0, 1.0);
+}`;
+
+/** A separable gaussian over the thickness map (half resolution) */
+const WGSL_GAUSSIAN = /* wgsl */ `${WGSL_SCREEN}
+struct Blur { direction: vec2f, particleConstant: f32, }
+@group(0) @binding(0) var thicknessTexture: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> blur: Blur;
+const SIZE: i32 = 15;
+@fragment fn fs(@builtin(position) position: vec4f) -> @location(0) vec4f {
+  let last = vec2i(textureDimensions(thicknessTexture)) - 1;
+  let at = vec2i(position.xy);
+  let thickness = textureLoad(thicknessTexture, at, 0).r;
+  if (thickness == 0.0) { return vec4f(0.0, 0.0, 0.0, 1.0); }
+  let sigmaInv = 1.0 / (2.0 * pow(f32(SIZE) / 3.0, 2.0));
+  var sum = thickness;
+  var wsum = 1.0;
+  for (var x = 1; x <= SIZE; x++) {
+    let step = vec2i(blur.direction * f32(x));
+    let w = exp(-f32(x * x) * sigmaInv);
+    sum += (textureLoad(thicknessTexture, clamp(at - step, vec2i(0), last), 0).r + textureLoad(thicknessTexture, clamp(at + step, vec2i(0), last), 0).r) * w;
+    wsum += 2.0 * w;
+  }
+  return vec4f(sum / wsum, 0.0, 0.0, 1.0);
+}`;
+
+/**
+ * The fluid over the scene: the surface's normal from the smoothed depth, a fresnel reflection of a room (a bright
+ * ceiling, the desk below), the water's colour by its thickness, a highlight. Splash refracts a picture behind the fluid;
+ * here the scene behind is three.js's, so the fluid is drawn with alpha – how much of what lies behind it hides – and the
+ * colour premultiplied, gamma-encoded (the 8-bit canvas keeps the darks; the water material decodes it). Where the toy
+ * stands in front of the water, nothing of the water behind it shows.
+ */
+const WGSL_FLUID = /* wgsl */ `${WGSL_SCREEN}${WGSL_RENDER}${WGSL_BODY}
+struct Shade { colour: vec3f, density: f32, }
+@group(0) @binding(0) var linearSampler: sampler;
+@group(0) @binding(1) var depthTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: RenderUniforms;
+@group(0) @binding(3) var thicknessTexture: texture_2d<f32>;
+@group(0) @binding(4) var<uniform> shade: Shade;
+@group(0) @binding(5) var<uniform> body: Body;
+const LIGHT = vec3f(0.35, 1.0, 0.45);
+fn viewAt(uv: vec2f, depth: f32) -> vec3f {
+  var ndc = vec4f(uv.x * 2.0 - 1.0, 1.0 - 2.0 * uv.y, 0.0, 1.0);
+  ndc.z = -uniforms.projectionMatrix[2].z + uniforms.projectionMatrix[3].z / depth;
+  let eye = uniforms.invProjectionMatrix * ndc;
+  return eye.xyz / eye.w;
+}
+fn depthAt(p: vec2i) -> f32 {
+  let last = vec2i(textureDimensions(depthTexture)) - 1;
+  return abs(textureLoad(depthTexture, clamp(p, vec2i(0), last), 0).r);
+}
+fn room(direction: vec3f) -> vec3f {
+  let up = clamp(direction.y, -1.0, 1.0);
+  return select(mix(vec3f(0.62, 0.66, 0.7), vec3f(0.22, 0.2, 0.18), -up), mix(vec3f(0.62, 0.66, 0.7), vec3f(1.0, 0.99, 0.97), up), up >= 0.0);
+}
+fn hiddenByBody(ray: vec3f, distance: f32) -> bool {
+  let origin = (uniforms.invViewMatrix * vec4f(0.0, 0.0, 0.0, 1.0)).xyz;
+  let direction = (uniforms.invViewMatrix * vec4f(ray, 0.0)).xyz;
+  let o = (body.toBody * (origin - body.center)) / body.radii;
+  let d = (body.toBody * direction) / body.radii;
+  let a = dot(d, d);
+  let b = dot(o, d);
+  let disc = b * b - a * (dot(o, o) - 1.0);
+  if (disc < 0.0) { return false; }
+  let t = (-b - sqrt(disc)) / a;
+  return t > 0.0 && t < distance;
+}
+@fragment fn fs(@builtin(position) position: vec4f, @location(0) uv: vec2f) -> @location(0) vec4f {
+  let thickness = textureSample(thicknessTexture, linearSampler, uv).r;
+  let at = vec2i(position.xy);
+  let depth = depthAt(at);
+  if (depth >= 1e4) { return vec4f(0.0); }
+  let surface = viewAt(uv, depth);
+  let texel = uniforms.texelSize;
+  var ddx = viewAt(uv + vec2f(texel.x, 0.0), depthAt(at + vec2i(1, 0))) - surface;
+  var ddy = viewAt(uv + vec2f(0.0, texel.y), depthAt(at + vec2i(0, 1))) - surface;
+  let ddx2 = surface - viewAt(uv - vec2f(texel.x, 0.0), depthAt(at - vec2i(1, 0)));
+  let ddy2 = surface - viewAt(uv - vec2f(0.0, texel.y), depthAt(at - vec2i(0, 1)));
+  ddx = select(ddx, ddx2, abs(ddx.z) > abs(ddx2.z));
+  ddy = select(ddy, ddy2, abs(ddy.z) > abs(ddy2.z));
+  let normal = -normalize(cross(ddx, ddy));
+  let ray = normalize(surface);
+  if (body.solid > 0.5 && hiddenByBody(ray, length(surface))) { return vec4f(0.0); }
+  let light = normalize((uniforms.viewMatrix * vec4f(LIGHT, 0.0)).xyz);
+  let specular = pow(max(0.0, dot(normalize(light - ray), normal)), 300.0);
+  let diffuse = max(0.0, dot(light, normal));
+  let transmittance = exp(-shade.density * 10.0 * thickness * (1.0 - shade.colour));
+  let fresnel = clamp(0.02 + 0.98 * pow(1.0 - max(dot(normal, -ray), 0.0), 5.0), 0.0, 1.0);
+  let reflection = room(normalize((uniforms.invViewMatrix * vec4f(reflect(ray, normal), 0.0)).xyz));
+  let hidden = clamp(1.0 - dot(transmittance, vec3f(1.0 / 3.0)) + 0.06, 0.0, 1.0);
+  let colour = reflection * fresnel + shade.colour * (0.55 + 0.45 * diffuse) * hidden * (1.0 - fresnel) + vec3f(specular);
+  let alpha = clamp(fresnel + hidden * (1.0 - fresnel) + specular, 0.0, 1.0);
+  let straight = clamp(colour / max(alpha, 1e-4), vec3f(0.0), vec3f(1.0));
+  return vec4f(pow(straight, vec3f(1.0 / 2.2)) * alpha, alpha);
+}`;
+
+/** The fluid of one tank: its pipelines, buffers and size-dependent targets; the tank writes the uniforms, then `frame` */
+interface Splash {
+  readonly canvas: HTMLCanvasElement;
+  /** The render uniforms (texel size, diameter, the camera – `RenderUniforms`), 68 floats */
+  readonly uniforms: Float32Array;
+  /** The body (`Body`), 24 floats */
+  readonly body: Float32Array;
+  /** The water's colour (linear) and density (`Shade`) */
+  readonly shade: Float32Array;
+  /** The canvas' size in pixels; true when it changed */
+  resize(width: number, height: number): boolean;
+  /** One step of the simulation (`dt` in Splash's time) and the picture, submitted */
+  frame(dt: number, particleConstant: number): void;
+  dispose(): void;
+}
+
+/** One WebGPU device for every tank, asked for with the first one; null without WebGPU (no adapter, an error) */
+let gpuDevice: Promise<Gpu | null> | null = null;
+const navigatorGpu = (): Gpu | null => (typeof navigator === "undefined" ? null : ((navigator as unknown as { gpu?: Gpu }).gpu ?? null));
+const requestGpu = (): Promise<Gpu | null> => {
+  gpuDevice ??= (async () => {
+    const adapter = await navigatorGpu()?.requestAdapter();
+    if (!adapter) return null;
+    const device = await adapter.requestDevice();
+    // A lost device is asked for anew by the next tank built
+    device.lost.then(() => { gpuDevice = null; });
+    return device;
+  })().catch(() => null);
+  return gpuDevice;
+};
+
+/** The fluid of one tank on `device`: pipelines compiled asynchronously (no stall), particles at rest in its domain */
+const createSplash = async (device: Gpu, domain: SplashDomain): Promise<Splash> => {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const context: Gpu = canvas.getContext("webgpu");
+  if (!context) throw new Error("no WebGPU canvas");
+  const format = navigatorGpu().getPreferredCanvasFormat();
+  context.configure({ device, format, alphaMode: "premultiplied" });
+
+  const modules = new Map<string, Gpu>();
+  const shader = (code: string) => modules.get(code) ?? modules.set(code, device.createShaderModule({ code })).get(code);
+  const computePipeline = (code: string) => device.createComputePipelineAsync({ layout: "auto", compute: { module: shader(code), entryPoint: "main" } });
+  const renderPipeline = (code: string, vertex: string, fragment: string, targetFormat: string, extra: Record<string, unknown> = {}, blend?: unknown) => device.createRenderPipelineAsync({
+    layout: "auto",
+    vertex: { module: shader(code), entryPoint: vertex },
+    fragment: { module: shader(code), entryPoint: fragment, targets: [{ format: targetFormat, ...(blend ? { blend } : {}) }] },
+    primitive: { topology: "triangle-list" },
+    ...extra,
+  });
+  const additive = { color: { operation: "add", srcFactor: "one", dstFactor: "one" }, alpha: { operation: "add", srcFactor: "one", dstFactor: "one" } };
+  const [clearGrid, p2g1, p2g2, updateGrid, g2p, depthMap, filter1d, filter2d, thicknessMap, gaussian, fluid] = await Promise.all([
+    computePipeline(WGSL_CLEAR),
+    computePipeline(WGSL_P2G_1),
+    computePipeline(WGSL_P2G_2),
+    computePipeline(WGSL_UPDATE_GRID),
+    computePipeline(WGSL_G2P),
+    renderPipeline(WGSL_SPLATS, "vs", "depth", "r32float", { depthStencil: { depthWriteEnabled: true, depthCompare: "less", format: "depth32float" } }),
+    renderPipeline(WGSL_NARROW_RANGE, "vs", "oneD", "r32float"),
+    renderPipeline(WGSL_NARROW_RANGE, "vs", "twoD", "r32float"),
+    renderPipeline(WGSL_SPLATS, "vs", "thickness", "r16float", {}, additive),
+    renderPipeline(WGSL_GAUSSIAN, "vs", "fs", "r16float"),
+    renderPipeline(WGSL_FLUID, "vs", "fs", format),
+  ]);
+
+  const buffer = (size: number, usage: number) => device.createBuffer({ size, usage });
+  const cellCount = domain.grid[0] * domain.grid[1] * domain.grid[2];
+  const particleBuffer = buffer(80 * domain.count, BUFFER.STORAGE | BUFFER.COPY_DST);
+  const cellBuffer = buffer(16 * cellCount, BUFFER.STORAGE | BUFFER.COPY_DST);
+  const simBuffer = buffer(32, BUFFER.UNIFORM | BUFFER.COPY_DST);
+  const bodyBuffer = buffer(96, BUFFER.UNIFORM | BUFFER.COPY_DST);
+  const renderBuffer = buffer(272, BUFFER.UNIFORM | BUFFER.COPY_DST);
+  const shadeBuffer = buffer(16, BUFFER.UNIFORM | BUFFER.COPY_DST);
+  const blurX = buffer(16, BUFFER.UNIFORM | BUFFER.COPY_DST);
+  const blurY = buffer(16, BUFFER.UNIFORM | BUFFER.COPY_DST);
+  device.queue.writeBuffer(particleBuffer, 0, splashParticles(domain));
+
+  const sim = new ArrayBuffer(32);
+  const simFloats = new Float32Array(sim);
+  simFloats.set([...domain.grid], 0);
+  new Uint32Array(sim)[3] = domain.count;
+  simFloats.set([...domain.size], 4);
+  const uniforms = new Float32Array(68);
+  const body = new Float32Array(24);
+  const shade = new Float32Array(4);
+  const blur = new Float32Array(4);
+
+  const group = (pipeline: Gpu, resources: unknown[]) => device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    // A buffer binds as { buffer }, a texture view or a sampler as it is
+    entries: resources.map((resource, binding) => ({ binding, resource: "mapState" in (resource as object) ? { buffer: resource } : resource })),
+  });
+  const clearGroup = group(clearGrid, [cellBuffer]);
+  const p2g1Group = group(p2g1, [particleBuffer, cellBuffer, simBuffer]);
+  const p2g2Group = group(p2g2, [particleBuffer, cellBuffer, simBuffer]);
+  const updateGroup = group(updateGrid, [cellBuffer, simBuffer, bodyBuffer]);
+  const g2pGroup = group(g2p, [particleBuffer, cellBuffer, simBuffer, bodyBuffer]);
+  const depthGroup = group(depthMap, [particleBuffer, renderBuffer]);
+  const thicknessGroup = group(thicknessMap, [particleBuffer, renderBuffer]);
+  const sampler = device.createSampler({ magFilter: "linear", minFilter: "linear" });
+
+  /** The targets at the canvas' size (the thickness at half of it) and the bind groups that read them */
+  let targets: { textures: Gpu[]; views: Record<string, Gpu>; groups: Record<string, Gpu> } | null = null;
+  const texture = (width: number, height: number, textureFormat: string) => device.createTexture({ size: [width, height, 1], format: textureFormat, usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING });
+  const resize = (width: number, height: number): boolean => {
+    if (targets && canvas.width === width && canvas.height === height) return false;
+    targets?.textures.forEach(t => t.destroy());
+    canvas.width = width;
+    canvas.height = height;
+    const half = [Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2))];
+    const textures = [
+      texture(width, height, "r32float"), texture(width, height, "r32float"), texture(width, height, "depth32float"),
+      texture(half[0], half[1], "r16float"), texture(half[0], half[1], "r16float"),
+    ];
+    const [depth, depthSwap, depthTest, thickness, thicknessSwap] = textures.map(t => t.createView());
+    targets = {
+      textures,
+      views: { depth, depthSwap, depthTest, thickness, thicknessSwap },
+      groups: {
+        filter1dX: group(filter1d, [depth, blurX]), filter1dY: group(filter1d, [depthSwap, blurY]),
+        filter2dX: group(filter2d, [depth, blurX]), filter2dY: group(filter2d, [depthSwap, blurY]),
+        gaussianX: group(gaussian, [thickness, blurX]), gaussianY: group(gaussian, [thicknessSwap, blurY]),
+        fluid: group(fluid, [sampler, depth, renderBuffer, thickness, shadeBuffer, bodyBuffer]),
+      },
+    };
+    return true;
+  };
+
+  const workgroups = (n: number) => Math.ceil(n / 64);
+  const pass = (encoder: Gpu, view: Gpu, pipeline: Gpu, bindGroup: Gpu, clear: number, vertices = 3, instances = 1, depthView?: Gpu) => {
+    const descriptor: Record<string, unknown> = { colorAttachments: [{ view, clearValue: { r: clear, g: 0, b: 0, a: clear ? 1 : 0 }, loadOp: "clear", storeOp: "store" }] };
+    if (depthView) descriptor.depthStencilAttachment = { view: depthView, depthClearValue: 1, depthLoadOp: "clear", depthStoreOp: "store" };
+    const encoderPass = encoder.beginRenderPass(descriptor);
+    encoderPass.setPipeline(pipeline);
+    encoderPass.setBindGroup(0, bindGroup);
+    encoderPass.draw(vertices, instances);
+    encoderPass.end();
+  };
+
+  const frame = (dt: number, particleConstant: number): void => {
+    if (!targets) return;
+    const { views, groups } = targets;
+    simFloats[7] = dt;
+    device.queue.writeBuffer(simBuffer, 0, sim);
+    device.queue.writeBuffer(bodyBuffer, 0, body);
+    device.queue.writeBuffer(renderBuffer, 0, uniforms);
+    device.queue.writeBuffer(shadeBuffer, 0, shade);
+    blur[0] = 1;
+    blur[1] = 0;
+    blur[2] = particleConstant;
+    device.queue.writeBuffer(blurX, 0, blur);
+    blur[0] = 0;
+    blur[1] = 1;
+    device.queue.writeBuffer(blurY, 0, blur);
+    const encoder = device.createCommandEncoder();
+    // One substep of MLS-MPM (Splash needs no more)
+    const compute = encoder.beginComputePass();
+    const dispatch = (pipeline: Gpu, bindGroup: Gpu, n: number) => {
+      compute.setPipeline(pipeline);
+      compute.setBindGroup(0, bindGroup);
+      compute.dispatchWorkgroups(workgroups(n));
+    };
+    dispatch(clearGrid, clearGroup, cellCount);
+    dispatch(p2g1, p2g1Group, domain.count);
+    dispatch(p2g2, p2g2Group, domain.count);
+    dispatch(updateGrid, updateGroup, cellCount);
+    dispatch(g2p, g2pGroup, domain.count);
+    compute.end();
+    // The screen-space fluid: depth, narrow-range filtered (two 1D rounds, one 2D), thickness blurred, the composite
+    pass(encoder, views.depth, depthMap, depthGroup, 1e6, 6, domain.count, views.depthTest);
+    for (let round = 0; round < 2; round++) {
+      pass(encoder, views.depthSwap, filter1d, groups.filter1dX, 1e6);
+      pass(encoder, views.depth, filter1d, groups.filter1dY, 1e6);
+    }
+    pass(encoder, views.depthSwap, filter2d, groups.filter2dX, 1e6);
+    pass(encoder, views.depth, filter2d, groups.filter2dY, 1e6);
+    pass(encoder, views.thickness, thicknessMap, thicknessGroup, 0, 6, domain.count);
+    pass(encoder, views.thicknessSwap, gaussian, groups.gaussianX, 0);
+    pass(encoder, views.thickness, gaussian, groups.gaussianY, 0);
+    pass(encoder, context.getCurrentTexture().createView(), fluid, groups.fluid, 0);
+    device.queue.submit([encoder.finish()]);
+  };
+
+  return {
+    canvas,
+    uniforms,
+    body,
+    shade,
+    resize,
+    frame,
+    dispose: () => {
+      targets?.textures.forEach(t => t.destroy());
+      [particleBuffer, cellBuffer, simBuffer, bodyBuffer, renderBuffer, shadeBuffer, blurX, blurY].forEach(b => b.destroy());
+      context.unconfigure();
+    },
+  };
+};
 
 /** How strongly a cell is pulled towards its neighbours' mean per step (the wave equation is stable below 2) */
 const PULL = 1.2;
@@ -170,7 +911,7 @@ export const register = (api: PluginApi): void => {
     };
   });
 
-  // ── the water: waves on the top of a mesh, a tint by depth and angle; a heightfield when a tank hands one over ──
+  // ── the water: waves on the top of a mesh, a tint by depth and angle; a heightfield or a fluid when a tank hands one over ──
   api.registerMaterial("water", {
     description: "Water: waves on the top faces, a tint that deepens with the angle and the depth, a shimmer.",
     params: {
@@ -199,6 +940,11 @@ export const register = (api: PluginApi): void => {
       fieldSize: { value: new three.Vector2(1, 1) },
       fieldTexel: { value: new three.Vector2(1 / 64, 1 / 64) },
       surfaceTop: { value: 1e9 },
+      // The WebGPU fluid (#228), set by the aquarium: its picture (premultiplied, gamma-encoded) over the viewport it was
+      // rendered for, sampled where the mesh's front faces are
+      fluidMap: { value: null as InstanceType<typeof three.Texture> | null },
+      hasFluid: { value: 0 },
+      fluidViewport: { value: new three.Vector4(0, 0, 1, 1) },
     };
     const material = new three.ShaderMaterial({
       uniforms,
@@ -211,6 +957,7 @@ export const register = (api: PluginApi): void => {
         uniform float waveSpeed;
         uniform sampler2D heightfield;
         uniform float hasHeightfield;
+        uniform float hasFluid;
         uniform vec2 fieldSize;
         uniform vec2 fieldTexel;
         uniform float surfaceTop;
@@ -241,7 +988,7 @@ export const register = (api: PluginApi): void => {
               vec2 slope = vec2(right - left, front - back) / span;
               n = normalize(vec3(-slope.x, 1.0, -slope.y));
             }
-          } else {
+          } else if (hasFluid < 0.5) {
             float t = time * waveSpeed;
             float wave = sin(p.x * 31.0 + t * 2.1) * 0.5 + sin(p.z * 41.0 - t * 1.7) * 0.3 + sin((p.x - p.z) * 19.0 + t * 1.3) * 0.2;
             p.y += top * wave * waveHeight;
@@ -265,6 +1012,9 @@ export const register = (api: PluginApi): void => {
         uniform sampler2D ripples;
         uniform float hasRipples;
         uniform float hasHeightfield;
+        uniform sampler2D fluidMap;
+        uniform float hasFluid;
+        uniform vec4 fluidViewport;
         varying vec2 vUv;
         varying vec3 vNormalView;
         varying vec3 vToCamera;
@@ -273,37 +1023,45 @@ export const register = (api: PluginApi): void => {
         varying float vDepth;
         varying float vTop;
         void main() {
-          vec3 n = normalize(vNormalView);
-          vec3 toCamera = normalize(vToCamera);
-          // Refraction-like: a grazing look goes through more water – deeper, bluer, less clear
-          float facing = abs(dot(n, toCamera));
-          float through = clamp((1.0 - facing) * 0.8 + vDepth * 0.35, 0.0, 1.0);
-          float alphaBoost = 0.0;
-          vec3 glow = vec3(0.0);
-          if (hasHeightfield > 0.5 && vTop > 0.5) {
-            vec3 side = gl_FrontFacing ? n : -n;
-            vec3 up = normalize(gl_FrontFacing ? vUpView : -vUpView);
-            vec3 light = normalize(vLightView);
-            // Relief: a patch tilted towards the light is brighter, one tilted away darker – the rings show as light and
-            // shade, measured against the flat surface
-            float relief = clamp(dot(side, light) - dot(up, light), -0.12, 0.2);
-            // Refraction-like: the view bent by a tilted patch runs a longer or shorter way through the water than through
-            // the flat surface – deeper or clearer
-            float bend = length(refract(-toCamera, side, 0.75) + toCamera) - length(refract(-toCamera, up, 0.75) + toCamera);
-            through = clamp(through + bend * 0.8 - relief * 0.3, 0.0, 0.85);
-            glow += mix(shallow, vec3(1.0), 0.5) * relief * 2.0;
-            // Fresnel: a grazing look reflects the bright room; a glint where the surface mirrors the light
-            float fresnel = pow(1.0 - clamp(dot(side, toCamera), 0.0, 1.0), 4.0);
-            float glint = gl_FrontFacing ? pow(max(dot(side, normalize(light + toCamera)), 0.0), 40.0) : 0.0;
-            glow += vec3(0.85, 0.95, 1.0) * (fresnel * 0.35 + glint * 0.9);
-            alphaBoost = fresnel * 0.3 + glint * 0.6 + abs(relief) * 0.5;
+          if (hasFluid > 0.5) {
+            // The WebGPU fluid where the mesh's front faces are: the pixel of its picture, premultiplied and gamma-encoded
+            if (!gl_FrontFacing) discard;
+            vec4 fluid = texture2D(fluidMap, (gl_FragCoord.xy - fluidViewport.xy) / fluidViewport.zw);
+            if (fluid.a < 0.004) discard;
+            gl_FragColor = vec4(pow(fluid.rgb / fluid.a, vec3(2.2)), fluid.a);
+          } else {
+            vec3 n = normalize(vNormalView);
+            vec3 toCamera = normalize(vToCamera);
+            // Refraction-like: a grazing look goes through more water – deeper, bluer, less clear
+            float facing = abs(dot(n, toCamera));
+            float through = clamp((1.0 - facing) * 0.8 + vDepth * 0.35, 0.0, 1.0);
+            float alphaBoost = 0.0;
+            vec3 glow = vec3(0.0);
+            if (hasHeightfield > 0.5 && vTop > 0.5) {
+              vec3 side = gl_FrontFacing ? n : -n;
+              vec3 up = normalize(gl_FrontFacing ? vUpView : -vUpView);
+              vec3 light = normalize(vLightView);
+              // Relief: a patch tilted towards the light is brighter, one tilted away darker – the rings show as light and
+              // shade, measured against the flat surface
+              float relief = clamp(dot(side, light) - dot(up, light), -0.12, 0.2);
+              // Refraction-like: the view bent by a tilted patch runs a longer or shorter way through the water than
+              // through the flat surface – deeper or clearer
+              float bend = length(refract(-toCamera, side, 0.75) + toCamera) - length(refract(-toCamera, up, 0.75) + toCamera);
+              through = clamp(through + bend * 0.8 - relief * 0.3, 0.0, 0.85);
+              glow += mix(shallow, vec3(1.0), 0.5) * relief * 2.0;
+              // Fresnel: a grazing look reflects the bright room; a glint where the surface mirrors the light
+              float fresnel = pow(1.0 - clamp(dot(side, toCamera), 0.0, 1.0), 4.0);
+              float glint = gl_FrontFacing ? pow(max(dot(side, normalize(light + toCamera)), 0.0), 40.0) : 0.0;
+              glow += vec3(0.85, 0.95, 1.0) * (fresnel * 0.35 + glint * 0.9);
+              alphaBoost = fresnel * 0.3 + glint * 0.6 + abs(relief) * 0.5;
+            }
+            vec3 colour = mix(shallow, deep, through) + glow;
+            float shimmer = hasRipples > 0.5
+              ? texture2D(ripples, vUv * 2.0 + vec2(time * 0.03, time * 0.02)).r
+              : 0.5 + 0.5 * sin(vUv.x * 47.0 + time * 1.3) * sin(vUv.y * 39.0 - time * 1.1);
+            colour += shimmer * 0.08;
+            gl_FragColor = vec4(colour, clamp(mix(opacity, 1.0, through * 0.5) + alphaBoost, 0.0, 1.0));
           }
-          vec3 colour = mix(shallow, deep, through) + glow;
-          float shimmer = hasRipples > 0.5
-            ? texture2D(ripples, vUv * 2.0 + vec2(time * 0.03, time * 0.02)).r
-            : 0.5 + 0.5 * sin(vUv.x * 47.0 + time * 1.3) * sin(vUv.y * 39.0 - time * 1.1);
-          colour += shimmer * 0.08;
-          gl_FragColor = vec4(colour, clamp(mix(opacity, 1.0, through * 0.5) + alphaBoost, 0.0, 1.0));
           #include <colorspace_fragment>
         }`,
     });
@@ -331,8 +1089,18 @@ export const register = (api: PluginApi): void => {
   /** How long a tap's push takes, down and back (seconds) */
   const PUSH_SECONDS = 0.9;
 
+  // The WebGPU row says whether this browser runs the fluid: known at once when it has no WebGPU, else once the first
+  // tank asked for a device (the Entity panel reads the row's label when it shows the node)
+  const browser = typeof document !== "undefined";
+  const gpuRow = {
+    kind: "boolean" as const,
+    default: true,
+    label: browser && !navigatorGpu() ? "no WebGPU" : "WebGPU",
+    description: "The water as a particle fluid on the GPU (Splash's MLS-MPM in WebGPU) that the toy pushes aside; off, the heightfield above. The row says what this browser has: WebGPU ok – on, the fluid runs; no WebGPU – the heightfield runs either way.",
+  };
+
   api.registerNodeType("aquarium", {
-    description: "A glass tank with a sandy floor, water and fish, and a toy fish (or a ball) that dips into the water and makes rings – y up, its floor at the node's origin (stand it on the page with rotation [90, 0, 0]).",
+    description: "A glass tank with a sandy floor, water and fish, and a toy fish (or a ball) that dips into the water – a WebGPU particle fluid where the browser has WebGPU, else a simulated surface with rings – y up, its floor at the node's origin (stand it on the page with rotation [90, 0, 0]).",
     src: "none",
     params: {
       width: { kind: "number", default: 0.7, min: 0.1, max: 2, step: 0.01, description: "The tank's width (x), in target widths." },
@@ -346,10 +1114,14 @@ export const register = (api: PluginApi): void => {
       body: { kind: "choice", options: ["fish", "ball", "none"], default: "fish", label: "dipping toy", description: "What dips into the water: a plastic toy fish, a ball, or nothing." },
       period: { kind: "number", default: 4, min: 0, max: 12, step: 0.5, unit: "s", label: "loop period", description: "Seconds for one dip and rise – 0: the toy waits above the water for a tap." },
       dip: { kind: "number", default: 0.02, min: 0, max: 0.12, step: 0.005, label: "dip depth", description: "How deep the toy's middle goes under the surface at the bottom of a dip (target widths); a tap pushes it deeper." },
-      simulate: { kind: "boolean", default: true, label: "simulation", description: "The surface as a simulated heightfield: rings where the toy dips. Off: the water's static waves." },
-      grid: { kind: "choice", options: ["32", "64", "96"], default: "64", label: "grid", description: "Cells of the simulation along the tank's longer side: finer rings, more work per frame." },
-      damping: { kind: "number", default: 1.2, min: 0, max: 6, step: 0.1, unit: "/s", label: "damping", description: "How fast the rings settle: the share of their motion lost per second." },
-      splash: { kind: "number", default: 4, min: 1, max: 12, step: 0.5, unit: "×", label: "splash", description: "How much water the toy pushes aside: 1 = its own volume (true to size, faint at this scale), more makes the rings taller." },
+      simulate: { kind: "boolean", default: true, label: "simulation", description: "The heightfield (without the WebGPU fluid): the surface simulated, rings where the toy dips. Off: the water's static waves." },
+      grid: { kind: "choice", options: ["32", "64", "96"], default: "64", label: "grid", description: "Cells of the heightfield along the tank's longer side: finer rings, more work per frame." },
+      damping: { kind: "number", default: 1.2, min: 0, max: 6, step: 0.1, unit: "/s", label: "damping", description: "How fast the heightfield's rings settle: the share of their motion lost per second." },
+      splash: { kind: "number", default: 4, min: 1, max: 12, step: 0.5, unit: "×", label: "splash", description: "How hard the toy pushes the water: in the heightfield the volume it displaces (1 = its own, true to size and faint at this scale – more makes the rings taller), in the fluid its push on the particles." },
+      webgpu: gpuRow,
+      particles: { kind: "choice", options: ["10k", "20k", "40k"], default: "20k", label: "particles", description: "The WebGPU fluid's particles: more make a finer surface and cost more GPU time per frame." },
+      renderScale: { kind: "choice", options: ["0.5", "0.75", "1"], default: "0.75", label: "render scale", description: "The WebGPU fluid's picture against the view's pixels: smaller is cheaper and softer." },
+      fluidColour: { kind: "color", default: "#8cdcf0", label: "fluid colour", description: "The WebGPU fluid's colour: what the water keeps of the light passing through it, the deeper the more." },
     },
   }, ({ params }) => {
     const width = Number(params.width);
@@ -387,7 +1159,7 @@ export const register = (api: PluginApi): void => {
     const stepSeconds = 1 / (STEPS_PER_SECOND * (grid / 64));
     let keepPerStep = Math.exp(-Number(params.damping) * stepSeconds);
 
-    // The floor: sand lit by the caustics, sampled twice and drifting against each other; with the simulation the
+    // The floor: sand lit by the caustics, sampled twice and drifting against each other; with the heightfield the
     // light shifts with the surface's slope and gathers where the surface bulges (a lens) – it spreads under a trough
     const floorTexture = (params.floor ?? null) as InstanceType<typeof three.Texture> | null;
     const floorUniforms = {
@@ -443,11 +1215,12 @@ export const register = (api: PluginApi): void => {
     tank.add(floor);
 
     // The water: a box whose top moves – it takes the node's material (water); without one a plain blue. With the
-    // simulation its top has a vertex per cell
-    const water = new three.Mesh(
-      own(new three.BoxGeometry(innerX, waterHeight, innerZ, simulate ? cols : 32, 1, simulate ? rows : 18)),
-      own(new three.MeshStandardMaterial({ color: "#5fb8d0", transparent: true, opacity: 0.35, depthWrite: false })),
-    );
+    // heightfield its top has a vertex per cell; with the WebGPU fluid it is the whole inside up to the glass top, the
+    // window the fluid shows through (splashes rise above the rest level)
+    const waterGeometry = own(new three.BoxGeometry(innerX, waterHeight, innerZ, simulate ? cols : 32, 1, simulate ? rows : 18));
+    const innerHeight = height - 0.004;
+    const fluidGeometry = own(new three.BoxGeometry(innerX, innerHeight, innerZ));
+    const water = new three.Mesh(waterGeometry, own(new three.MeshStandardMaterial({ color: "#5fb8d0", transparent: true, opacity: 0.35, depthWrite: false })));
     water.position.y = 0.002 + waterHeight / 2;
     water.renderOrder = 2;
     tank.add(water);
@@ -601,24 +1374,136 @@ export const register = (api: PluginApi): void => {
       field.needsUpdate = true;
     };
 
-    /** The water's material reads the heightfield when it is the water shader (another material keeps its own look) */
+    // ── the WebGPU fluid (#228): the domain, the device, the canvas and its texture, the path ──
+    const wantsGpu = params.webgpu !== false;
+    const domain = splashDomain({ x: innerX, y: innerHeight, z: innerZ }, [-innerX / 2, 0.002, -innerZ / 2], waterHeight, PARTICLES[String(params.particles)] ?? PARTICLES["20k"]);
+    const renderScale = Number(params.renderScale) || 0.75;
+    const fluidColour = new three.Color(String(params.fluidColour));
+    let gpu: GpuStatus = wantsGpu && navigatorGpu() && browser ? "pending" : "missing";
+    let fluid: Splash | null = null;
+    let fluidTexture: InstanceType<typeof three.CanvasTexture> | null = null;
+    let disposed = false;
+    if (gpu === "pending") {
+      requestGpu()
+        .then(device => {
+          if (!device) throw new Error("no WebGPU device");
+          device.lost.then(() => { gpu = "failed"; gpuRow.label = "no WebGPU"; });
+          return createSplash(device, domain);
+        })
+        .then(made => {
+          if (disposed) return made.dispose();
+          fluid = made;
+          fluidTexture = new three.CanvasTexture(made.canvas);
+          // The canvas is premultiplied already: the upload keeps its bytes, the material divides
+          fluidTexture.premultiplyAlpha = true;
+          fluidTexture.generateMipmaps = false;
+          fluidTexture.minFilter = fluidTexture.magFilter = three.LinearFilter;
+          gpu = "ready";
+          gpuRow.label = "WebGPU ok";
+        })
+        .catch(error => {
+          gpu = "failed";
+          gpuRow.label = "no WebGPU";
+          api.log("the WebGPU fluid did not start – the heightfield runs", error);
+        });
+    }
+
+    /** The water's material uniforms when it is the water shader (another material keeps its own look) */
+    const waterUniforms = () => (water.material as unknown as { uniforms?: Record<string, { value: unknown } | undefined> }).uniforms;
+    let path: FluidPath = fluidPath({ webgpu: wantsGpu, gpu, material: false, simulate });
+    /** The path now; a change swaps the water's box (the fluid's window is the whole inside) */
+    const choosePath = (): FluidPath => {
+      const next = fluidPath({ webgpu: wantsGpu, gpu, material: !!waterUniforms()?.hasFluid, simulate });
+      if (next !== path) {
+        path = next;
+        const whole = path === "webgpu";
+        water.geometry = whole ? fluidGeometry : waterGeometry;
+        water.position.y = 0.002 + (whole ? innerHeight : waterHeight) / 2;
+        floorUniforms.hasField.value = path === "heightfield" ? 1 : 0;
+      }
+      return path;
+    };
+
+    /** The water's material reads the heightfield or the fluid when it is the water shader */
     const handOver = () => {
-      const u = (water.material as unknown as { uniforms?: Record<string, { value: unknown } | undefined> }).uniforms;
+      const u = waterUniforms();
       if (!u?.heightfield || !u.hasHeightfield) return;
       u.heightfield.value = field;
-      u.hasHeightfield.value = simulate ? 1 : 0;
+      u.hasHeightfield.value = path === "heightfield" ? 1 : 0;
       (u.fieldSize?.value as InstanceType<typeof three.Vector2> | undefined)?.set(innerX, innerZ);
       (u.fieldTexel?.value as InstanceType<typeof three.Vector2> | undefined)?.set(1 / cols, 1 / rows);
       if (u.surfaceTop) u.surfaceTop.value = waterHeight / 2;
+      if (u.hasFluid && u.fluidMap) {
+        u.hasFluid.value = path === "webgpu" ? 1 : 0;
+        u.fluidMap.value = fluidTexture;
+      }
+    };
+
+    // The hand-off, every frame the water is drawn: the scene's camera and the tank into Splash's uniforms, the body, one
+    // step and the picture – once per frame (a frame may draw the scene twice, e.g. for the bloom); the viewport of
+    // every draw, so the material finds its pixel in the picture
+    let frame = 0;
+    let drawn = -1;
+    let frameDelta = 1 / 60;
+    const camera = splashCamera(three, new three.Matrix4(), new three.Matrix4(), new three.Matrix4(), domain);
+    const bufferSize = new three.Vector2();
+    const turn = new three.Matrix4();
+    water.onBeforeRender = (renderer, _scene, viewer) => {
+      if (path !== "webgpu" || !fluid || !fluidTexture) return;
+      const u = waterUniforms();
+      renderer.getCurrentViewport(u?.fluidViewport?.value as InstanceType<typeof three.Vector4>);
+      if (drawn === frame || (typeof document !== "undefined" && document.hidden)) return;
+      drawn = frame;
+      renderer.getDrawingBufferSize(bufferSize);
+      const pixelsX = Math.max(1, Math.round(bufferSize.x * renderScale));
+      const pixelsY = Math.max(1, Math.round(bufferSize.y * renderScale));
+      // A new size is a new texture (three keeps a texture's storage at its first size)
+      if (fluid.resize(pixelsX, pixelsY)) fluidTexture.dispose();
+      splashCamera(three, viewer.matrixWorldInverse, viewer.projectionMatrix, tank.matrixWorld, domain, camera);
+      const uniforms = fluid.uniforms;
+      uniforms[0] = 1 / pixelsX;
+      uniforms[1] = 1 / pixelsY;
+      uniforms[2] = DIAMETER;
+      uniforms.set(camera.invProjection.elements, 4);
+      uniforms.set(camera.projection.elements, 20);
+      uniforms.set(camera.view.elements, 36);
+      uniforms.set(camera.invView.elements, 52);
+      // The body: the toy's ellipsoid in cells, its turn, its speed in cells per Splash time
+      const dt = Math.min(SIM_DT_MAX, SIM_DT * frameDelta * 60);
+      const b = fluid.body;
+      b[3] = hasToy ? 1 : 0;
+      if (hasToy) {
+        const s = domain.scale;
+        toCells(domain, toy.position.x, toy.position.y, toy.position.z, b);
+        b[4] = shape.a * s;
+        b[5] = shape.b * s;
+        b[6] = shape.c * s;
+        const rise = (toyY(clock + 0.01) - toyY(clock - 0.01)) / 0.02;
+        // `splash` scales how hard it pushes in, as it scales the volume it displaces in the heightfield; it rises as it is
+        b[8] = 0;
+        b[9] = dt > 0 ? (rise * s * frameDelta * (rise < 0 ? splash : 1)) / dt : 0;
+        b[10] = 0;
+        // Into the body's frame: the inverse of its turn, column by column (WGSL's mat3x3f pads each to four floats)
+        const e = turn.makeRotationFromEuler(toy.rotation).transpose().elements;
+        for (let column = 0; column < 3; column++) for (let row = 0; row < 3; row++) b[12 + column * 4 + row] = e[column * 4 + row];
+      }
+      fluid.shade[0] = fluidColour.r;
+      fluid.shade[1] = fluidColour.g;
+      fluid.shade[2] = fluidColour.b;
+      fluid.shade[3] = FLUID_DENSITY;
+      fluid.frame(dt, 12 * DIAMETER * 0.05 * (pixelsY / 2) * camera.projection.elements[5]);
+      fluidTexture.needsUpdate = true;
     };
 
     let pending = 0;
     const update = (delta: number) => {
-      const frame = Math.min(delta, 0.25);
-      clock += frame;
+      const frameTime = Math.min(delta, 0.25);
+      frame++;
+      frameDelta = frameTime;
+      clock += frameTime;
       place();
-      if (simulate) {
-        pending += frame;
+      if (choosePath() === "heightfield") {
+        pending += frameTime;
         let steps = 0;
         while (pending >= stepSeconds && steps < MAX_STEPS) {
           simClock += stepSeconds;
@@ -638,12 +1523,25 @@ export const register = (api: PluginApi): void => {
         if (steps) upload();
       }
       handOver();
-      swim(frame);
+      swim(frameTime);
     };
     swim(0);
     place();
-    // The simulation, for tests and for the curious in the console: `object.userData.waves`
+    // The simulations, for tests and for the curious in the console: `object.userData.waves` (the heightfield),
+    // `object.userData.splash` (the fluid's domain, the path now, the pure hand-off and path choice)
     tank.userData.waves = waves;
+    tank.userData.splash = {
+      domain,
+      path: () => path,
+      fluidPath,
+      particles: () => splashParticles(domain),
+      cells: (x: number, y: number, z: number) => {
+        const out = new Float32Array(3);
+        toCells(domain, x, y, z, out);
+        return Array.from(out);
+      },
+      camera: (cameraInverse: Matrix4, projection: Matrix4, tankWorld: Matrix4) => splashCamera(three, cameraInverse, projection, tankWorld, domain),
+    };
 
     return {
       object: tank,
@@ -652,20 +1550,27 @@ export const register = (api: PluginApi): void => {
       onTap: () => {
         if (clock - pushedAt >= PUSH_SECONDS) pushedAt = clock;
       },
-      // The fish's speed, the sand, the loop and the damping change in place; a new size, level, school, toy, grid or
-      // simulation builds the tank anew
+      // The fish's speed, the sand, the loop, the damping and the fluid's colour change in place; a new size, level,
+      // school, toy, grid, simulation, particle count, render scale or WebGPU builds the tank anew
       tune: next => {
         if (["width", "depth", "height", "level", "fish", "grid"].some(key => Number(next[key]) !== Number(params[key]))) return false;
-        if (String(next.body) !== kind || (next.simulate !== false) !== simulate) return false;
+        if (String(next.body) !== kind || (next.simulate !== false) !== simulate || (next.webgpu !== false) !== wantsGpu) return false;
+        if (String(next.particles) !== String(params.particles) || String(next.renderScale) !== String(params.renderScale)) return false;
         fishSpeed = Number(next.fishSpeed);
         floorUniforms.sand.value.set(String(next.sand));
+        fluidColour.set(String(next.fluidColour));
         period = Number(next.period);
         dip = Number(next.dip);
         splash = Number(next.splash);
         keepPerStep = Math.exp(-Number(next.damping) * stepSeconds);
         return true;
       },
-      dispose: () => disposables.forEach(thing => thing.dispose()),
+      dispose: () => {
+        disposed = true;
+        fluid?.dispose();
+        fluidTexture?.dispose();
+        disposables.forEach(thing => thing.dispose());
+      },
     };
   });
 };

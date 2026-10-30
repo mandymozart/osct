@@ -320,6 +320,48 @@ takes 0.008 ms per frame at 32 cells, 0.04 ms at 64 and 0.14 ms at 96 (0.002 ms 
 about 1.2 ms of main-thread work of the whole stage per frame. Its pure step is tested through the real plugin
 (`editor/src/lib/plugins/__tests__/aquarium-waves.test.ts`: the built tank's `object.userData.waves`).
 
+**6 · A WebGPU fluid inside a WebGL scene (#228).** Where the browser has WebGPU, the tank's water is a particle fluid:
+**Splash** by Masaya Matsuoka (MIT, [github.com/matsuoka-601/Splash](https://github.com/matsuoka-601/Splash)) – an
+MLS-MPM simulation in WGSL compute shaders and a screen-space fluid renderer with the narrow-range filter – adapted into
+the plugin (its licence and author head that part of `index.ts`). The engine draws with three.js's `WebGLRenderer`; a
+plugin cannot change that, and needs no new API for it: the fluid runs on a WebGPU device of its own and meets the scene
+in a texture.
+
+- **The domain** is the tank's inside in Splash's units (cells): the scale makes the particle count fill the water to its
+  level once settled (3.4 particles per cell), so 10k, 20k and 40k particles fill the same water with finer cells
+  (31, 39 and 49 cells per tank unit for the demo's tank). The inside is mapped where the resting fluid's surface stands
+  – a little past Splash's soft walls –, so the water meets the glass and the sand. One step per frame, as in Splash.
+- **The camera hand-off.** The water mesh's `onBeforeRender(renderer, scene, camera)` reads the camera's
+  `matrixWorldInverse` and `projectionMatrix` and the tank's `matrixWorld`: Splash's view is camera × tank × (cells →
+  tank), scaled back so a unit is a cell again (Splash's filter thresholds and particle size are in cells); its
+  projection takes the same scale in its depth term and WebGPU's depth range 0…1. Once per frame – the bloom may draw
+  the scene twice – the step and the picture go to the GPU, into an off-DOM canvas at the drawing buffer's size times
+  *render scale*.
+- **Compositing.** The canvas is a three.js `CanvasTexture`, uploaded in the same draw (no frame behind). The `water`
+  material, given the texture by the tank (`fluidMap`, `hasFluid`, `fluidViewport`), samples it at
+  `(gl_FragCoord.xy − viewport.xy) / viewport.zw` on the front faces of a box as large as the inside: the fluid shows
+  exactly within the tank's faces, and whatever stands in front of the tank hides it by the depth test. Splash refracts
+  a picture behind the fluid; here the scene behind is three.js's, so the fluid is drawn with alpha – how much of what
+  lies behind it hides – premultiplied and gamma-encoded in the 8-bit canvas, and the material divides and decodes it
+  (`premultiplyAlpha` keeps the bytes as they are). Where the toy stands in front of the water, the fluid's shader
+  leaves the pixel to it (a ray against the toy's ellipsoid).
+- **The toy** is the fluid's solid body: the grid's cells inside it move with it, the particles inside are put back on
+  its surface; *splash* scales its push on the way in.
+- **Pause.** The fluid steps only in frames that draw the water: a lost target, a hidden node or a paused scene draws
+  nothing, and a hidden page has no frames.
+- **The fallback.** Without WebGPU (no `navigator.gpu`, no adapter, a device error or a lost device), with *WebGPU* off,
+  or with another material on the water, the heightfield of 5 runs as before. The row's label says which: *WebGPU ok* or
+  *no WebGPU* (a node type's spec is the object the Entity panel reads).
+
+Parameters: *WebGPU* (on), *particles* (10k, 20k, 40k), *render scale* (0.5, 0.75, 1), *fluid colour*; *splash*,
+*dipping toy*, *loop period* and *dip depth* apply to both. The adapted part adds 36 KB to the plugin's bundle (28.7 →
+65.1 KB, 8.5 → 18.1 KB gzipped). On the editor's stage (desktop, headless Edge on an NVIDIA GPU, 640 × 760 pixels, the
+fluid at 0.75) the stage stays at 60 fps with every count; the hand-off costs 0.16 ms of main-thread work per frame and
+the whole stage 1.9–2.3 ms against 1.9 ms with the heightfield; the GPU takes about 1 ms per frame (60 frames back to
+back, 10k to 40k, also 40k at render scale 1). The pure parts – the choice of the water, the domain, the hand-off – are
+tested through the real plugin (`aquarium-fluid.test.ts`: the built tank's `object.userData.splash`); unit tests have
+no WebGPU, so they run the fallback.
+
 ## A shader file (API 1.5)
 
 GLSL that grows past a few lines reads better as a file of its own. Upload it to the editor's **Library** – the
@@ -493,6 +535,6 @@ characters), keep it small
 `fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and eight plugins that
 together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
-own node type) and the aquarium with its material and texture. Build it with
+own node type) and the aquarium with its material, texture and WebGPU fluid. Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

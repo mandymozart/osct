@@ -17,9 +17,36 @@ plugin's material `water` (`registerMaterial`: a ShaderMaterial with waves on it
 the angle), its floor shows the procedural texture `caustics` (`registerTexture`). A shader study (#202): a plastic toy
 fish dips into the water on a loop, a tap pushes it in once; the tank simulates its surface as a heightfield (a damped
 wave equation on a 64-cell grid, on the CPU), the toy displaces its volume, rings run outward and settle, the water shader
-and the floor's caustics follow them (docs/plugins.md "A shader study"). In the editor the Entity panel shows
-*node type · aquarium* (the toy, loop, dip, simulation, grid, damping and splash among its rows) and *material · water*
-with their rows; **make it code** on any node writes a node type of its own into the Code tab.
+and the floor's caustics follow them (docs/plugins.md "A shader study"). Where the browser has WebGPU (#228) the water is
+a particle fluid instead – Splash's MLS-MPM simulation and screen-space renderer, adapted into the plugin, drawn from the
+scene's camera into a canvas the water material samples in screen space; the toy pushes the particles aside, and the
+heightfield stays as the fallback (docs/plugins.md "A WebGPU fluid inside a WebGL scene"). In the editor the Entity panel
+shows *node type · aquarium* (the toy, loop, dip, simulation, grid, damping and splash among its rows, then *WebGPU ok* or
+*no WebGPU*, particles, render scale and fluid colour) and *material · water* with their rows; **make it code** on any
+node writes a node type of its own into the Code tab.
+
+**Splash**, the fluid in `plugins/aquarium/index.ts` (its WGSL shaders and the passes that drive them, adapted: the
+tank as the domain, the scene's camera, the toy as a body, alpha over the scene), is by Masaya Matsuoka (matsuoka-601),
+https://github.com/matsuoka-601/Splash, under the MIT licence:
+
+> MIT License
+>
+> Copyright (c) 2025 matsuoka-601
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+> documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+> rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+> persons to whom the Software is furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+> Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+> WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+> COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+> OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The adapted part adds 36 KB to the plugin's bundle (65 KB, 18 KB gzipped).
 
 **The zero plane** (#189): every model stands on its page – its lowest point at the target's `z = 0`. The beacon's model
 has its origin in its middle (lifted by its lower half, `position: [0, 0, 0.9973]`), the door's floor sat 0.0188 above
