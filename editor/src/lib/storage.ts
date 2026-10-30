@@ -5,6 +5,8 @@
  * that does not parse reads as nothing stored; the caller checks the shape of what it gets.
  */
 
+import type { DeviceStorage } from "@engine/utils/device-storage";
+
 /** A key of the editor's storage – keys never change, or stored settings are lost */
 export type StorageKey = `osct-${string}`;
 
@@ -40,3 +42,9 @@ export const readStoredJson = (key: StorageKey): unknown => {
 
 /** Stores a value as JSON */
 export const writeStoredJson = (key: StorageKey, value: unknown): void => writeStored(key, JSON.stringify(value));
+
+/** The engine's switches for this device (`setDeviceStorage`) under `osct-<key>` – the keys the reader uses on this origin */
+export const deviceStorage: DeviceStorage = {
+  get: key => readStored(`osct-${key}`),
+  set: (key, value) => writeStored(`osct-${key}`, value),
+};

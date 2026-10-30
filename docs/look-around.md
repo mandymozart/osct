@@ -65,7 +65,7 @@ image's centre lies on −z, its top edge straight up; a world model's origin is
 
 - On the phone: turn both on in Info → Settings. Tuning without a rebuild over USB debugging:
   `window.osctLookAround` (e.g. `worldOpacity`, `skyStrength`, `forgetAfter`, `windowMargin`, `floorClear`).
-- Desktop (dev build, no gyroscope or book): `osctLookAroundDebug.seeBook()` places a book ahead and below,
+- Desktop (dev build – the app passes `ArSceneOptions.debug` –, no gyroscope or book): `osctLookAroundDebug.seeBook()` places a book ahead and below,
   `osctLookAroundDebug.look(alpha, beta, gamma)` tilts the view (degrees, as the phone reports them).
 
 ## Limits

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createGameStore } from "@/store/GameStore";
 import { RouteResolver } from "@/store/managers/router/helpers";
-import { GameMode, type IGame, Pages } from "@/types";
+import { ErrorCode, GameMode, type IGame, Pages } from "@/types";
 import { router } from "@/router";
 
 describe("RouteResolver", () => {
@@ -85,7 +85,7 @@ describe("RouterManager", () => {
 
   it("shows the error overlay, stores the error and keeps the mode", () => {
     game.router.navigate("/tutorial");
-    game.router.showError({ code: "test", msg: "Boom" });
+    game.router.showError({ code: ErrorCode.NETWORK_ERROR, msg: "Boom" });
 
     expect(game.state.currentRoute?.page).toBe(Pages.ERROR);
     expect(game.state.currentError?.msg).toBe("Boom");
@@ -103,7 +103,7 @@ describe("RouterManager", () => {
   });
 
   it("close() returns to the scan HUD in scan mode and clears the error, in one update", () => {
-    game.router.showError({ code: "test", msg: "Boom" });
+    game.router.showError({ code: ErrorCode.NETWORK_ERROR, msg: "Boom" });
     const listener = vi.fn();
     game.subscribe(listener);
 
@@ -117,7 +117,7 @@ describe("RouterManager", () => {
 
   it("dismissError() returns to the view under the notice", () => {
     game.router.navigate("/entries", { key: "category", value: "text" });
-    game.router.showError({ code: "test", msg: "Note", type: "info" });
+    game.router.showError({ code: ErrorCode.NETWORK_ERROR, msg: "Note", type: "info" });
     game.router.dismissError();
     expect(game.state.currentRoute).toMatchObject({ page: Pages.ENTRIES, param: { value: "text" } });
     expect(game.state.mode).toBe(GameMode.CONSULTATION);

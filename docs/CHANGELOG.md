@@ -7,6 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **One vocabulary for behaviours and plugins** (#213): the plugin runtime's variable scopes, core events, name pattern
+  and value type are the behaviour grammar's (`shared/types/behaviour.ts`) – no second list to keep equal; the editor's
+  rule editor finds a name's node with the engine's own `namedPaths`. No content schema change.
+- **The engine takes what differs from the app** (#213): where the 8th Wall engine's files are served and whether this
+  is a development build come from the reader (and the editor), the scene reports `scanning` and the reader shows its
+  own scanning indicator, and the debug switches stored on the device (lens, resolution, ask zoom, spreads kept ready)
+  go through a storage the app hands the engine – the same `osct-…` keys, so stored switches stay. Nothing changes
+  for readers.
+- **AR errors are codes** (#213): a camera without picture, a failed start, a failed AR load and any other scene
+  failure reach the reader as `camera-not-responding`, `ar-start-failed`, `ar-load-failed` and `ar-failed` instead of
+  a message it searched for words; the reactions are the same. Every error the app shows carries a code of the one
+  list (`progress-converted` and `progress-reset` joined it); the 16 codes nothing raised are gone.
+
 ## 1.50.6 – 2026-10-30
 
 ### Changed

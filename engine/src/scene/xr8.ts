@@ -3,7 +3,7 @@ import { Matrix4, Quaternion, Vector3 } from "three";
 /**
  * The 8th Wall engine (`@8thwall/engine`, MIT, image targets only – no SLAM): loader, the few types the app
  * uses, and image target data made from the target images at runtime (what 8th Wall's image-target CLI writes).
- * The engine's files are served from `assets/xr8/` (vite.config.js copies them from node_modules).
+ * The app serves the engine's files and names their folder (`base`, ending in `/`) – the reader's `assets/xr8/`.
  */
 
 export interface XrVector { x: number; y: number; z: number }
@@ -54,8 +54,20 @@ export interface XrPipelineModule {
   /** "requesting", "hasStream" (with the camera `stream`), "hasVideo", "failed" (with a `reason`) */
   onCameraStatusChange?: (args: { status: string; reason?: string; stream?: MediaStream }) => void;
   onException?: (error: unknown) => void;
-  listeners?: Array<{ event: string; process: (event: { detail: any }) => void }>;
+  listeners?: XrListener[];
 }
+
+/** What the engine's events carry (`detail`) */
+export interface XrEventDetails {
+  /** The targets' features are extracted: these targets can be found now */
+  "reality.imagescanning": { imageTargets?: Array<{ name: string }> } | undefined;
+  "reality.imagefound": XrImageDetail;
+  "reality.imageupdated": XrImageDetail;
+  "reality.imagelost": XrImageDetail;
+}
+
+/** A pipeline module's listener of one of the engine's events */
+export type XrListener = { [E in keyof XrEventDetails]: { event: E; process: (event: { detail: XrEventDetails[E] }) => void } }[keyof XrEventDetails];
 
 export interface XR8Api {
   version(): string;
@@ -97,13 +109,12 @@ declare global {
   }
 }
 
-const XR8_BASE = `${import.meta.env.BASE_URL}assets/xr8/`;
 const ENGINE_FILES = ["xr.js", "xr-tracking.js"];
 
 let loading: Promise<XR8Tracking> | null = null;
 
-/** Load the engine (script tag – it is not a module) and its image tracking chunk; retried after a failure */
-export const loadXr8 = (): Promise<XR8Tracking> => {
+/** Load the engine (script tag – it is not a module) and its image tracking chunk from `base`; retried after a failure */
+export const loadXr8 = (base: string): Promise<XR8Tracking> => {
   if (!loading) {
     loading = new Promise<XR8Api>((resolve, reject) => {
       if (window.XR8) return resolve(window.XR8);
@@ -113,7 +124,7 @@ export const loadXr8 = (): Promise<XR8Tracking> => {
         { once: true },
       );
       const script = document.createElement("script");
-      script.src = `${XR8_BASE}xr.js`;
+      script.src = `${base}xr.js`;
       script.async = true;
       script.crossOrigin = "anonymous";
       script.onerror = () => {
@@ -123,7 +134,7 @@ export const loadXr8 = (): Promise<XR8Tracking> => {
       document.head.appendChild(script);
     })
       .then(async XR8 => {
-        await XR8.loadChunk({ name: "slam", url: new URL(`${XR8_BASE}xr-tracking.js`, location.href).href });
+        await XR8.loadChunk({ name: "slam", url: new URL(`${base}xr-tracking.js`, location.href).href });
         if (!hasTracking(XR8)) throw new Error("The 8th Wall engine has no image tracking (XrController)");
         return XR8;
       })
@@ -135,9 +146,9 @@ export const loadXr8 = (): Promise<XR8Tracking> => {
   return loading;
 };
 
-/** Fetch the engine's files into the HTTP cache (idle time; nothing is evaluated) */
-export const prefetchXr8 = (): Promise<void> =>
-  Promise.all(ENGINE_FILES.map(file => fetch(`${XR8_BASE}${file}`).then(response => response.blob()))).then(
+/** Fetch the engine's files from `base` into the HTTP cache (idle time; nothing is evaluated) */
+export const prefetchXr8 = (base: string): Promise<void> =>
+  Promise.all(ENGINE_FILES.map(file => fetch(`${base}${file}`).then(response => response.blob()))).then(
     () => {},
     error => console.warn("[8th Wall] Could not prefetch the engine:", error),
   );

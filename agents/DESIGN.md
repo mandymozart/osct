@@ -145,7 +145,7 @@ engine shows no loading UI of its own.
 
 **Scanning indicator** (Tilman, 2026-09-25; it replaced MindAR's white corner brackets): a thin circle whose
 gold fades in from transparent and sweeps around (`.gold-scanning`, `#osct-scanning` in index.html). The AR
-scene toggles `.hidden` on it (shown while no target is in view); it only shows while the scene runs
+scene reports `scanning` and `<ar-bridge>` toggles `.hidden` on it (shown while no target is in view); it only shows while the scene runs
 (`body.scene-active`).
 
 ## 7. Style architecture (no CSS mess)

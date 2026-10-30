@@ -4,6 +4,38 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – engine cleanup: one behaviour vocabulary, no reader traces, AR errors as codes (#213)
+
+- **The vocabulary lives in `shared/types/behaviour.ts` only**: `plugin-runtime.ts` aliases `VAR_SCOPES`, `VarScope`,
+  `VarValue`, `EVENT_NAME_PATTERN` and `CORE_EVENTS` to the shared `BEHAVIOUR_*` definitions; `CoreEvents` (the
+  payloads) stays in the engine, and its type makes `CORE_EVENTS` a type error when the shared list and the payloads
+  name different events. Chosen so that `shared/` stays untouched – **no schema bump**, the lock is unchanged.
+  Rejected: moving the definitions into the engine (the content guard in `shared/` needs them) or re-exporting the
+  runtime's from `shared/` (a checksum change for nothing). The editor's `subtreeNames` / `pathOfName` read the
+  engine's `namedPaths` (`@engine/scene/behaviour`). The generated `plugin-api.d.ts` now spells `VarValue` /
+  `VarScope` as the shared aliases – same types.
+- **RULES #32 traces gone**: the engine reads no `import.meta.env` (the 8th Wall files' base is `ImageTracker`'s third
+  argument and `prefetchXr8(base)`; the look-around's debug handle follows `ArSceneOptions.debug`), touches no reader
+  element (the `scanning` event of `ArSceneEvents`; `<ar-bridge>` toggles `#osct-scanning` and hides it on disconnect,
+  because it stops listening before the scene's teardown) and reads no storage (`engine/src/utils/device-storage.ts`:
+  `setDeviceStorage`, the engine's keys without prefix; the reader's `LocalDeviceStorage` and the editor's
+  `deviceStorage` map them to the old `osct-<key>` names, so stored switches stay). The editor passes the same debug
+  flag and storage as the reader; it never had the scanning element. Side effect: the look-around's debug code is no
+  longer removed from production bundles at build time – it is in the AR chunk and stays off (`debug` false).
+- **Errors as codes (RULES #16)**: `ErrorInfo.code` is `ErrorCode`. The 16 members nothing raised are gone
+  (`NOT_FOUND`, `NAVIGATION_FAILED`, `TIMEOUT`, the `SPREAD_*`, `IMAGE_TARGET_NOT_FOUND`, `ENTITY_LOAD_FAILED`, the
+  `ASSET_*`, the `SCENE_*`, `FAILED_TO_UPDATE_SCENE`, `CAMERA_PERMISSION_DENIED`) – this supersedes the "keep – part
+  of a phase" list of the 2026-09-24 audit below: a code comes back with the code that raises it (the loading concept
+  review in PLAN.md, `*_NOT_READY`, would add its own). New: `PROGRESS_CONVERTED` / `PROGRESS_RESET` (the strings
+  `HistoryManager` already used), `AR_LOAD_FAILED`, `AR_START_FAILED`, `CAMERA_NOT_RESPONDING`, `AR_FAILED`
+  (`ArErrorCode`). The scene's `status` event carries an `ArError { code, message }`; the tracker and the scene throw
+  `ArSceneError`. The `CAMERA_NOT_RESPONDING` text marker in `types/scene.ts` is gone. No new i18n keys: AR errors show
+  as the camera overlay's existing texts, the progress notices keep `progress:converted` / `progress:reset`. The 8th
+  Wall pipeline's listeners are typed per event (`XrEventDetails`, `XrListener` in `xr8.ts`).
+- [ ] Open: `shared/types/behaviour.ts` still says of `BEHAVIOUR_SCOPES` and `BEHAVIOUR_CORE_EVENTS` that "a test keeps
+  them equal" with the runtime's – now they are the runtime's (the test checks identity). Reword with the next schema
+  bump that touches `shared/types/` (a comment alone would need one, RULES #10).
+
 ## 2026-10-30 – one place for the API's types and rules; the PHP's copies pinned (#210 #217)
 
 - **Where the API's types live: `shared/api/`** (#210). `editor.ts` – the answers of `/api/editor/*`, matched field by

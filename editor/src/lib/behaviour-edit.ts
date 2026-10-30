@@ -2,6 +2,7 @@ import {
   BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_TYPE, type BehaviourAction, type BehaviourRule, type BehaviourTest, type BehaviourValue, type BehaviourVerb,
   behaviourData, behaviourEvents, behaviourRules, behaviourVariables, componentProblems, type ComponentData, type EntityData,
 } from "@engine/types";
+import { namedPaths } from "@engine/scene/behaviour";
 import { parseNumber } from "#lib/values.js";
 
 /**
@@ -70,27 +71,18 @@ export const parseValue = (text: string): BehaviourValue | null => {
 /** A value as its text field shows it (null = empty) */
 export const formatValue = (value: BehaviourValue | null): string => (value === null ? "" : String(value));
 
-/** The names of the nodes under a node (itself included), in tree order, each once – what show, hide and play may name */
-export const subtreeNames = (node: EntityData): string[] => {
-  const names: string[] = [];
-  const walk = (n: EntityData) => {
-    const name = n.name?.trim();
-    if (name && !names.includes(name)) names.push(name);
-    (n.children ?? []).forEach(walk);
-  };
-  walk(node);
-  return names;
-};
+/**
+ * The names of the nodes under a node (itself included), in tree order, each once – what show, hide and play may name
+ * (the engine's `namedPaths`: an action reaches the first node of a name)
+ */
+export const subtreeNames = (node: EntityData): string[] => [...namedPaths(node).keys()];
 
-/** The path (relative to `node`) of the node a name stands for: empty = the node itself; null when no node has it */
+/** The path (relative to `node`) of the node a name stands for, as the engine finds it: empty = the node itself; null when no node has it */
 export const pathOfName = (node: EntityData, name: string): number[] | null => {
-  if (!name || node.name?.trim() === name) return [];
-  const children = node.children ?? [];
-  for (let i = 0; i < children.length; i++) {
-    const path = pathOfName(children[i], name);
-    if (path) return [i, ...path];
-  }
-  return null;
+  if (!name) return [];
+  const path = namedPaths(node).get(name);
+  if (path === undefined) return null;
+  return path ? path.split(".").map(Number) : [];
 };
 
 /** Every node of a set of trees, depth first */

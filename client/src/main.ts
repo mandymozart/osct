@@ -5,7 +5,7 @@ import "@/i18n";
 import "@/components";
 import "@/pages";
 import type { IErrorPage } from "@/pages";
-import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, ServiceWorkerService } from "@/services";
+import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, LocalDeviceStorage, ServiceWorkerService } from "@/services";
 import type {
   ErrorInfo,
   IGame,
@@ -14,6 +14,10 @@ import { hideStaticSplash, staticSplashStep, releaseStaticSplash, waitForDOMRead
 import { getConfigurationError, getTutorial, loadGameConfiguration } from "@/utils/game-config";
 import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
+import { setDeviceStorage } from "@engine/utils/device-storage";
+
+// The engine's switches for this device live in the reader's localStorage – before anything reads them
+setDeviceStorage(new LocalDeviceStorage());
 
 // Page language (screen readers, hyphenation); translate the static splash's texts (index.html ships English)
 document.documentElement.lang = i18next.resolvedLanguage ?? DEFAULT_LANGUAGE;

@@ -190,6 +190,14 @@ interface MaterialData {
 	type: string;
 	params?: Record<string, unknown>;
 }
+declare const BEHAVIOUR_SCOPES: readonly [
+	"spread",
+	"stage",
+	"session",
+	"book"
+];
+type BehaviourScope = (typeof BEHAVIOUR_SCOPES)[number];
+type BehaviourValue = string | number | boolean;
 declare const ENTITY_TYPES: readonly [
 	"group",
 	"model",
@@ -346,16 +354,13 @@ type LoadedAsset = {
  * - **The spread** is the engine's own content model of the current spread.
  *
  * Listeners are kept per plugin id so that uninstalling a plugin (the editor's Run) removes them.
+ *
+ * The vocabulary – the scopes, the core events' names, the name pattern and the value type – is the behaviour
+ * grammar's (`shared/types/behaviour.ts`): a behaviour rule and a plugin speak the same words.
  */
 /** A variable's value: a JSON scalar; `null` on a write deletes the variable */
-export type VarValue = string | number | boolean;
-declare const VAR_SCOPES: readonly [
-	"spread",
-	"stage",
-	"session",
-	"book"
-];
-export type VarScope = (typeof VAR_SCOPES)[number];
+export type VarValue = BehaviourValue;
+export type VarScope = BehaviourScope;
 declare const SCENE_STATES: readonly [
 	"running",
 	"paused",

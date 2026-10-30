@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Group } from "three";
-import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_SCOPES, type EntityData, type NodeTimeline, type Target } from "../../types/index";
+import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type EntityData, type NodeTimeline, type Target } from "../../types/index";
 import { applyBehaviour, MAX_DEPTH, namedPaths, passes } from "../behaviour";
 import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, type PluginApi, uninstallPlugin } from "../plugins";
-import { CORE_EVENTS, observeEvents, resetVars, runtimeApi, stageEnded, VAR_SCOPES } from "../plugin-runtime";
+import { CORE_EVENTS, EVENT_NAME_PATTERN, observeEvents, resetVars, runtimeApi, stageEnded, VAR_SCOPES } from "../plugin-runtime";
 
 /** The built-in behaviour component: rules on the node's events and the bus, conditions on variables, actions */
 
@@ -222,8 +222,9 @@ describe("behaviour: in the entity's node tree", () => {
       .toEqual(new Map([["root", ""], ["a", "0"], ["b", "0.0"]]));
   });
 
-  it("the shared grammar names the runtime's scopes and core events", () => {
-    expect([...BEHAVIOUR_SCOPES]).toEqual([...VAR_SCOPES]);
-    expect([...BEHAVIOUR_CORE_EVENTS].sort()).toEqual([...CORE_EVENTS].sort());
+  it("the runtime's scopes, core events and name pattern are the shared grammar's", () => {
+    expect(VAR_SCOPES).toBe(BEHAVIOUR_SCOPES);
+    expect(CORE_EVENTS).toBe(BEHAVIOUR_CORE_EVENTS);
+    expect(EVENT_NAME_PATTERN).toBe(BEHAVIOUR_NAME_PATTERN);
   });
 });

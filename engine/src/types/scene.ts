@@ -1,5 +1,6 @@
 import type { Camera, Object3D, Scene } from "three";
 import type { EntityData, PassData } from "./content";
+import type { ArError } from "./errors";
 
 /**
  * What the AR scene (three.js / 8th Wall) should be doing – the app derives it from its own state and sets it.
@@ -17,7 +18,7 @@ export enum SceneState {
  * What the AR scene is doing, reported to the app.
  * idle: no scene · loading: building the spread's scene · ready: scene loaded, camera off ·
  * starting: camera requested, targets loading · running: tracking · paused: tracking + camera video
- * paused (stream kept) · error: camera or AR failed (the message comes with it).
+ * paused (stream kept) · error: camera or AR failed (an `ArError` – its code and message – comes with it).
  */
 export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "paused" | "error";
 
@@ -27,19 +28,18 @@ export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "
  */
 export const ENTITY_UNLOCK_MS = 3000;
 
-/** Marker in the AR error message for a camera start timeout (maps to CameraPermissionStatus.NOT_RESPONDING) */
-export const CAMERA_NOT_RESPONDING = "camera not responding";
-
 export type ArSceneEvents = {
   targetFound: (targetId: string) => void;
   targetLost: (targetId: string) => void;
-  status: (status: ArStatus, error?: string) => void;
+  status: (status: ArStatus, error?: ArError) => void;
   /** A found target's AR entity was tapped (scan mode) */
   targetTapped: (targetId: string) => void;
   /** The spread's targets are loaded and tracking began */
   ready: (spreadId: string) => void;
   /** A neighbouring spread's page is in view instead of the current spread (the reader turned the page) */
   spreadSeen: (spreadId: string) => void;
+  /** Tracking runs and no target is found (true), or a target is found or tracking stopped (false) – the app's scanning indicator */
+  scanning: (scanning: boolean) => void;
 };
 
 /**

@@ -2,6 +2,7 @@
 export * from "./GameStoreService";
 export * from "./PreloaderService";
 export * from "./ProgressStorage";
+export * from "./DeviceStorage";
 export * from "./LinkService";
 export * from "./FeedbackService";
 export * from "./GraphicsService";

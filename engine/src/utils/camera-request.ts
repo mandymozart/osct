@@ -1,3 +1,5 @@
+import { readSwitch, writeSwitch } from "./device-storage";
+
 /**
  * The camera request of the 8th Wall engine, changed on the way (three-free, main chunk). The engine opens the camera
  * itself with `getUserMedia`; while the tracker runs, every camera request of the page passes through here.
@@ -19,38 +21,22 @@
  * - **Resolution**: the engine asks for exactly 960 × 720 first; a chosen resolution replaces that size (as `ideal`, so
  *   a camera without it still opens). Unset = the engine's size.
  *
- * Debug switch "lens": `browser` leaves the lens to the browser (to compare), stored on this device.
+ * Debug switch "lens": `browser` leaves the lens to the browser (to compare). The lens, the resolution and the zoom
+ * request are stored on this device – in the app's storage (`device-storage.ts`).
  */
 
 export type LensChoice = "main" | "browser";
 
-const LENS_KEY = "osct-camera-lens";
-const RESOLUTION_KEY = "osct-camera-resolution";
-const ASK_ZOOM_KEY = "osct-camera-ask-zoom";
+const LENS_KEY = "camera-lens";
+const RESOLUTION_KEY = "camera-resolution";
+const ASK_ZOOM_KEY = "camera-ask-zoom";
 /** Android's main back lens, in the old and the current Chromium label */
 const MAIN_BACK_LENS = /^camera2? 0, facing back$/;
 
-const readFlag = (key: string): string | null => {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-
-const writeFlag = (key: string, value: string | null): void => {
-  try {
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, value);
-  } catch {
-    // storage blocked: the default stays
-  }
-};
-
 /** Which back lens the camera request asks for – this device, next start */
-export const getLensChoice = (): LensChoice => (readFlag(LENS_KEY) === "browser" ? "browser" : "main");
+export const getLensChoice = (): LensChoice => (readSwitch(LENS_KEY) === "browser" ? "browser" : "main");
 
-export const setLensChoice = (choice: LensChoice): void => writeFlag(LENS_KEY, choice === "main" ? null : choice);
+export const setLensChoice = (choice: LensChoice): void => writeSwitch(LENS_KEY, choice === "main" ? null : choice);
 
 /** Camera sizes to choose from (landscape, 4:3 like the engine's own request); null = the engine's size */
 export const CAMERA_RESOLUTIONS = [null, { width: 1280, height: 960 }, { width: 1920, height: 1440 }] as const;
@@ -58,17 +44,17 @@ export type CameraResolution = (typeof CAMERA_RESOLUTIONS)[number];
 
 /** The camera size the request asks for – this device, next start */
 export const getCameraResolution = (): CameraResolution => {
-  const [width, height] = (readFlag(RESOLUTION_KEY) ?? "").split("x").map(Number);
+  const [width, height] = (readSwitch(RESOLUTION_KEY) ?? "").split("x").map(Number);
   return CAMERA_RESOLUTIONS.find(r => r?.width === width && r?.height === height) ?? null;
 };
 
 export const setCameraResolution = (resolution: CameraResolution): void =>
-  writeFlag(RESOLUTION_KEY, resolution ? `${resolution.width}x${resolution.height}` : null);
+  writeSwitch(RESOLUTION_KEY, resolution ? `${resolution.width}x${resolution.height}` : null);
 
 /** Ask for the camera's zoom when it starts (Chrome: the pan-tilt-zoom permission) – this device, next start */
-export const getAskZoom = (): boolean => readFlag(ASK_ZOOM_KEY) === "true";
+export const getAskZoom = (): boolean => readSwitch(ASK_ZOOM_KEY) === "true";
 
-export const setAskZoom = (ask: boolean): void => writeFlag(ASK_ZOOM_KEY, ask ? "true" : null);
+export const setAskZoom = (ask: boolean): void => writeSwitch(ASK_ZOOM_KEY, ask ? "true" : null);
 
 /** The main back lens among the cameras (Android labels), null when the labels do not name one */
 export const mainBackLens = (devices: MediaDeviceInfo[]): string | null =>

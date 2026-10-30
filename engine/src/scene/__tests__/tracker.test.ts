@@ -66,7 +66,7 @@ const spread = (id: string): TrackedSpread => ({
 
 describe("ImageTracker spread switches", () => {
   it("keeps the neighbours' targets loaded, so switching to one extracts nothing", async () => {
-    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
     await tracker.startCamera();
 
     await tracker.loadTargets(spread("s2"));
@@ -93,7 +93,7 @@ describe("ImageTracker spread switches", () => {
   it("reports a neighbouring spread held in view while nothing of the current spread is", async () => {
     const now = vi.spyOn(performance, "now").mockReturnValue(0);
     const onSpreadSeen = vi.fn();
-    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSpreadSeen });
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSpreadSeen }, "/assets/xr8/");
     await tracker.startCamera();
     await tracker.loadTargets(spread("s2"));
     tracker.prepareTargets([spread("s1"), spread("s3")]);
@@ -133,7 +133,7 @@ describe("ImageTracker spread switches", () => {
   it("reports every target the engine sees, of any held spread, and the last automatic switch (debug view)", async () => {
     engine.loaded = new Set(); engine.extracted = [];
     const now = vi.spyOn(performance, "now").mockReturnValue(0);
-    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSpreadSeen: () => {} });
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSpreadSeen: () => {} }, "/assets/xr8/");
     await tracker.startCamera();
     await tracker.loadTargets(spread("s2"));
     tracker.prepareTargets([spread("s3")]);
@@ -160,7 +160,7 @@ describe("ImageTracker spread switches", () => {
 
     it("adds the spreads nearest first, one batch after the other, and drops nothing", async () => {
       reset();
-      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
       await tracker.startCamera();
       await tracker.loadTargets(spread("s2"));
       tracker.growTargets([spread("s3"), spread("s1"), spread("s4"), spread("s0")]);
@@ -174,7 +174,7 @@ describe("ImageTracker spread switches", () => {
 
     it("keeps growing across a spread switch, in the new order, without unloading", async () => {
       reset();
-      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
       await tracker.startCamera();
       await tracker.loadTargets(spread("s2"));
       tracker.growTargets([spread("s3"), spread("s1"), spread("s4"), spread("s0")]);
@@ -193,7 +193,7 @@ describe("ImageTracker spread switches", () => {
 
     it("a fixed window ends the growth", async () => {
       reset();
-      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+      const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
       await tracker.startCamera();
       await tracker.loadTargets(spread("s2"));
       tracker.growTargets([spread("s3"), spread("s1"), spread("s4")]);
@@ -209,7 +209,7 @@ describe("ImageTracker spread switches", () => {
 describe("ImageTracker camera grade", () => {
   it("draws the camera picture with the grade's shader – given before the start, while it runs, and back to the engine's", async () => {
     engine.shaders = [];
-    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} });
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
     tracker.gradeCamera("graded");
     expect(engine.shaders).toEqual([]);
     await tracker.startCamera();

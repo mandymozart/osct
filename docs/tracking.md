@@ -43,6 +43,30 @@ spread can be found without the menu. ±2 holds about 5 spreads and 7–8 target
 costs about 131 × (prepare + extract) on the main thread at the start – tens of seconds of busy main thread on a
 phone, while the reader is already scanning.
 
+## What the app gives the engine
+
+The engine knows no build, page or storage of the app (RULES #32): the app passes them in.
+
+| What | How | The reader | The editor |
+|---|---|---|---|
+| Where the 8th Wall engine's files are served | `new ImageTracker(container, options, xr8Base)`, `prefetchXr8(xr8Base)` (`xr8.ts`) | `${BASE_URL}assets/xr8/` (`components/ar-bridges/ar/index.ts`) | – (mock tracker) |
+| Debug handles on `window` | `ArSceneOptions.debug` (the look-around's `osctLookAroundDebug`) | `import.meta.env.DEV` | `import.meta.env.DEV` |
+| The scanning indicator | the scene's `scanning` event: true while tracking runs and no target is found | `<ar-bridge>` toggles `.hidden` on `#osct-scanning` (and hides it when it is removed) | – (no indicator) |
+| The switches stored on this device: lens, resolution, ask zoom, spreads kept ready | `setDeviceStorage()` (`engine/src/utils/device-storage.ts`; keys `camera-lens`, `camera-resolution`, `camera-ask-zoom`, `ar-prepared-spreads`); without one they hold while the page lives | `LocalDeviceStorage` (`services/DeviceStorage.ts`): localStorage as `osct-<key>`, set first thing in `main.ts` | `deviceStorage` (`lib/storage.ts`): the same `osct-<key>` on the same origin, set by the stage |
+| Why AR failed | the `status` event's `ArError`: `{ code, message }` | below | the stage shows the message |
+
+**AR errors** are codes (`ErrorCode`, `engine/src/types/errors.ts`), never matched in a message: the tracker and the
+scene throw `ArSceneError` with its code, and anything else that breaks a start counts as a failed start.
+
+| Code | When | The reader |
+|---|---|---|
+| `camera-not-responding` | the camera started but sends no picture within 10 s | the camera overlay's *not responding* (reload / restart the browser), cleared once AR runs again |
+| `ar-start-failed` | the camera is denied or unavailable, the tracking engine could not be loaded | checks the camera permission again – the overlay shows denied / unavailable |
+| `ar-load-failed` | the AR chunk (three.js and the scene) could not be loaded – offline | the same |
+| `ar-failed` | anything else the scene could not do (building a spread) | the same |
+
+The message goes to the console and to the debug overlay ("AR: error", the camera panel).
+
 ## Seeing what the engine holds
 
 Debug overlay, expanded, under *Spreads loaded ahead*:
