@@ -12,6 +12,22 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.36.0 – 2026-10-30
+
+### Added
+- **The Stage panel taps, sets and keeps time** (#88): *vars and events* has a **tap** button per printed target – the
+  reader's tap without aiming at the entity (its `onTap`, the `animation` component's `playOn: tap`, the event
+  `targetTapped`), for a found target with AR content. The plugins' **variables** are editable in place, each with its
+  scope and type (*false / true*, a number, a text) and × to delete it, and **set** adds one by name, scope, type and
+  value – both written through the plugin API, so the plugins hear `varChanged` as from a plugin and a branch can be
+  tested by hand. The events became a **timeline**: the time since the spread opened, the event and its payload, the
+  last 100 kept, with **clear**. *reset* also empties the timeline and starts its clock again.
+- **The demo book's key is a key** (#88): a 7 KB brass key with one animation clip, `rattle`, which the `animation`
+  component plays on a tap – written as glTF by `editor/tools/key-model.mjs` (no Blender; a test checks the committed
+  file is the script's). It replaces the dragon that stood in for it.
+- The engine taps a target directly for editor tools: `SceneInspection.tap(targetId)`, the same path as the reader's
+  tap after its hit test (no content schema or plugin API change).
+
 ## 1.35.2 – 2026-10-30
 
 ### Changed

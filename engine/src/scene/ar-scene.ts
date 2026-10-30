@@ -445,14 +445,22 @@ export class ArScene implements IArScene {
       return;
     }
     const hit = this.hitTest(event.clientX, event.clientY);
-    if (hit) {
-      this.content.anchors.find(a => a.target.id === hit)?.entity?.onTap?.();
-      this.emitter.emit("targetTapped", hit);
-      emitCoreEvent("targetTapped", { targetId: hit });
-    } else {
-      void focusAtTap(event.clientX, event.clientY);
-    }
+    if (!hit || !this.tapTarget(hit)) void focusAtTap(event.clientX, event.clientY);
   };
+
+  /**
+   * A tap on a found target's entity: its hooks hear `onTap`, the app `targetTapped`, the plugins the core event of
+   * the same name. The reader's tap reaches it through the hit test, an editor tool directly (`inspect().tap`).
+   * False – nothing happens – while the scene does not run, or when the target is not found or has no entity.
+   */
+  private tapTarget(targetId: string): boolean {
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (!this.running || !anchor?.entity || !this.found.has(targetId)) return false;
+    anchor.entity.onTap?.();
+    this.emitter.emit("targetTapped", targetId);
+    emitCoreEvent("targetTapped", { targetId });
+    return true;
+  }
 
   /** The nearest found entity whose on-screen bounds (+ margin) contain the point (client px), or null */
   private hitTest(clientX: number, clientY: number): string | null {
@@ -496,6 +504,7 @@ export class ArScene implements IArScene {
       nodeObject: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.nodes?.[path.join(".")] ?? null,
       nodeTimeline: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.timelines?.[path.join(".")] ?? null,
       hitTest: (clientX, clientY) => this.hitTest(clientX, clientY),
+      tap: targetId => this.tapTarget(targetId),
     };
   }
 

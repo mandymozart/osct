@@ -358,7 +358,7 @@ npm run osct -- content status --env staging</code></pre>
 
   <h2 class="chapter" id="demo"><span class="gold">3 · The demo book</span></h2>
   <p>The demo book is a sandbox, not the book. It uses every node type, every placement, a filter and every component the content model has. Seven plugins use every part of the plugin API, a node type of their own among them. And its spreads tell a small story: a key found on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.</p>
-  <p>The files are the test fixture's small stand-ins. The "key" is a dragon, the "door" is a stack of boxes. The demo shows mechanics, not art.</p>
+  <p>Most files are the test fixture's small stand-ins – the "door" is a stack of boxes. The demo shows mechanics, not art. The key is a small brass key of its own with one animation clip.</p>
 
   <h3 class="sec" id="demo-getting-it-in">Getting it in</h3>
   <p>The demo has its own folder on the CDN, <code>buildingfictions.b-cdn.net/demo</code>, apart from the book's <code>staging</code> and <code>production</code>.</p>
@@ -405,7 +405,7 @@ npm run osct -- content status --env staging</code></pre>
   <p>The cover is a spread of the format <em>cover</em>: the stage shows the closed book. The <em>seal</em> is an image. Its two layers come from plugins: <code>tint</code> colours it towards the book's gold, <code>pulse</code> makes it breathe.</p>
 
   <h4>1–2 · The key</h4>
-  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>key</code> sets the book variable <code>hasKey</code> on the first find – it is kept with the reader's progress – and a tap sends the event <code>keyRattled</code>. <code>animation</code> would play a clip on a tap; the stand-in model has none, so it waits for a real one.</p>
+  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>key</code> sets the book variable <code>hasKey</code> on the first find – it is kept with the reader's progress – and a tap sends the event <code>keyRattled</code>. <code>animation</code> plays the model's clip <code>rattle</code> on a tap. To tap it without aiming, use <b>tap</b> in the Stage tab's <b>vars and events</b>.</p>
   <p>The <em>tally</em> is a group with a text. Its <code>tally</code> component draws "n of N pages found" and updates it on every new find, on any spread.</p>
   <figure class="shot">
     <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key spread in the editor: the whole open book on the desk, the key model selected with its orange outline and the move gizmo; the tree marks the model row; the Entity panel's breadcrumb reads key › model, then name, + node, placement, the file key.glb and three components – spin with its speed in degrees per second and its axis, key, and animation with plays on tap; the Info view describes the speed row.">

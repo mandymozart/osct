@@ -1,9 +1,10 @@
 # The key: a model that spins; its first find sets the book variable hasKey (plugins/narrative, component `key`) –
-# the door on page 3 reads it. The stand-in model has no animation clip, so the `animation` component waits for one.
+# the door on page 3 reads it. A tap plays the model's clip `rattle` (the `animation` component). The model is made by
+# editor/tools/key-model.mjs (`node editor/tools/key-model.mjs` writes key.glb).
 category: glossary
 title: The key
 page: 1
-body: "Find the key and keep it: the first find sets `hasKey` in the book scope, persisted with your progress. The door on page 3 opens only with it. A tap rattles the key (the scene event `keyRattled`). The model is the fixture's stand-in (a dragon) – replace it with a key that has an animation clip and the `animation` component plays it on a tap."
+body: "Find the key and keep it: the first find sets `hasKey` in the book scope, persisted with your progress. The door on page 3 opens only with it. A tap rattles the key: the `animation` component plays its clip `rattle`, and the scene event `keyRattled` goes to the other plugins."
 tags: [narrative, key]
 target:
   image: target.jpg
@@ -16,12 +17,12 @@ target:
     type: model
     src: key.glb
     params:
-      rotation: [90, 180, 0]
-      scale: 0.5
+      scale: 0.6
     components:
       - type: spin
         degreesPerSecond: 40
       - type: key
       - type: animation
+        clip: rattle
         playOn: tap
         loop: false

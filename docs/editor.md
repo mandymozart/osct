@@ -49,10 +49,12 @@ with SQLite and the local content store:
 5. **Import a book…** → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
    configuration), *assets at* `http://localhost:5174` → Import. The book appears with its spreads.
 6. Open *The key*: the stage shows the spread's targets with their entities, the key is found and unlocked – the
-   **Stage** tab's *vars* row shows `book · hasKey = true`, *events* the finds. Walk with › to *The door*: the door
+   **Stage** tab's *vars and events* lists `hasKey` (book, boolean, true), the timeline the finds. *tap* → *The key*
+   rattles it (the model's clip `rattle`, the event `keyRattled`). Walk with › to *The door*: the door
    lifts and turns, `stage · doorOpen = true`, the lamp on the right page shows. Switch a target off and on with the
    tree's eye (lost, found again), *Replay the first find* in the stage's right-click menu plays it again, *reset* in
-   the Stage tab starts a new game. Open *The switch*
+   the Stage tab starts a new game – on *The door* the hint shows then; *set* `hasKey` (book, true) and the door
+   opens without a visit to the key's page. Open *The switch*
    and click the entity on the stage: the next scene shows. The **Code** tab lists the six plugins (compiled by the
    content build, their sources next to them): change one, **Run**, and the stage shows it. Move a node in the
    **Entity** tab (type a scale, or press and slide), **Save**, then **Publish** to `local`.
@@ -315,11 +317,22 @@ is involved.
     change the distance, **double tap** returns to the reader's view (35 cm above the page, tilted 30°; the free orbit
     is kept on the device). Found / lost per target is the tree's eye (off reports it lost → outro, on found again →
     reveal); **Replay the first find** is in the stage's right-click menu. (The panel's view presets and found chips
-    doubled these and are gone – Tilman, 2026-10-29.) **vars** and **events**: the book's plugins' variables with
-    their scopes (`book · hasKey = true`) and the last events of the stage (found, lost, unlocked, spreadChanged, the
-    plugins' own), newest first – the narrative of a book like the demo ([plugins](plugins.md) "Across nodes and
-    pages") is driven from the tree's eyes and read here; **reset** starts a new game (every variable cleared, nothing
-    unlocked, the spread found anew).
+    doubled these and are gone – Tilman, 2026-10-29.) **vars and events** – the narrative of a book like the demo
+    ([plugins](plugins.md) "Across nodes and pages"), driven from the tree's eyes and from here (#88):
+    - **tap** – a button per printed target of the spread (its entry's title): the reader's tap without aiming at the
+      entity – the entity's `onTap` (a plugin component's, the `animation` component's `playOn: tap`) and the event
+      `targetTapped`, through the engine's own tap path (`SceneInspection.tap`). Only a found target with AR content
+      takes a tap; the others are greyed out.
+    - **vars** – the plugins' variables, a row each: the name, its scope and type (`book · boolean`), and the value as
+      the type's control – *false / true*, a ScrubNumber (committed when you let go or press Enter), a text field – and
+      × to delete it. **set** below sets one by hand: a name, the scope (spread, stage, session, book – the plugin API's
+      four), the type and the value. Both write through the plugin API (`api.vars.set` with the panel as the plugin),
+      so the plugins hear `varChanged` as from a plugin and a branch can be tested without playing up to it; the API's
+      refusal (a name that is not camelCase) shows next to *reset*. **reset** starts a new game (every variable
+      cleared, nothing unlocked, the timeline emptied, the spread found anew).
+    - **events** – the timeline, newest first: the time since the spread opened (`4.25 s`, `1:05.3`; a *reset* starts
+      it again), the event (found, lost, unlocked, tapped, spreadChanged, varChanged, sceneState once per change, the
+      plugins' own) and its payload; the last 100 are kept. **clear** empties it.
   - **Entity** – opens at the selected level (#162): its head is the **breadcrumb** *target › entity › group › node*
     (a crumb selects that level, ▾ after the target picks another target of the spread). A selected target shows the
     **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
@@ -401,7 +414,8 @@ itself renders the reader's content unchanged. Texts are English (RULES #20).
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`) and the reader's graphics options |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts` |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts`, `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
+| The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the Library's filters and picks in `library-pick.ts`, the new target's choices in `new-target.ts` |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
