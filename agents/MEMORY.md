@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – AI connections: personal access tokens and the MCP guide on the books page (#142)
+
+- **Tilman's decision** (issue comment): the key for pairing and the MCP guide "like SCUTOONS" but on the dashboard (the
+  editor's books page), not only an account page – connecting Claude is a first step of working. Built after
+  `scutoons/agents/MCP.md` §3: `api_tokens`, prefix `osct_`, SHA-256 hash, 182 days, renew = the same token moves on.
+- **Why now, before SES (#12)**: staging's sign-in mail does not arrive, so the token is made with the browser session
+  the editor already has; the MCP server then needs no mail at all.
+- **Limits** (`Auth::session()` / `Auth::refuseToken()`, 403 `not-for-ai`): a token cannot make, renew or revoke tokens,
+  set the password, delete the account or publish to **any** environment (the MCP's `publish` to local / staging works
+  only with a session). Everything else is the person's rights, role checks included; a token of an account without
+  editor or admin role is 401.
+- Open: the admin API (`/admin/*`) takes a token like a session (an admin's AI could grant roles). SCUTOONS limits admin
+  changes to proposals – decide whether OSCT refuses them to a token too.
+- Not built: the reminder mail before expiry (SCUTOONS sends one; OSCT shows *expires* in red for the last 14 days), a
+  one-file MCP download (SCUTOONS §3a) – the guide's snippet still points at a checkout of the repository.
+
 ## 2026-10-30 – The desks on a phone (#184)
 
 - **Reproduced in emulation only**: the S22 was not connected; headless Edge at 360 × 780 @3 and 390 × 844 @2 with

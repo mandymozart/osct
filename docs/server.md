@@ -29,7 +29,7 @@ server/api/
   .htaccess               everything → index.php, nothing else is served
   config.local.php        settings for local development (not committed) – from config.local.php.example; the
                           container has none, it gets OSCT_* environment variables
-  src/                    Version, Config, Db, Http, Auth, Passwords, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de);
+  src/                    Version, Config, Db, Http, Auth, ApiTokens (AI connections), Passwords, Users, Progress, Mailer, Smtp, LoginMail (mail texts en/fr/nl/de);
                           Roles (reader / editor / admin, the tables roles + user_roles), Admin (the admin endpoints, who may call them);
                           the editor: Editor (access, checks), Books (import, tree, entities, targets, publish, logs),
                           ContentVersion (rows → a content version), ContentStore (local directory / bunny.net storage)
@@ -59,6 +59,7 @@ server/db-dumps/                 the dumps it keeps (not committed)
 | `PATCH /user` | `{ options?, language? }` | `{ user }` |
 | `DELETE /user` | | 204 – user, sessions, progress, open requests |
 | `PUT /user/password` | `{ password, currentPassword? }` | `{ user }` – sets or changes the password (`user.hasPassword`) |
+| `/user/tokens` | | the [AI connections](#ai-connections)' tokens |
 | `GET /progress/{bookId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{bookId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
 | `GET /health` | | `{ status, version, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10) |
@@ -78,11 +79,12 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 | `GET /editor/books/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN with the token in its `fetchFn`. The build in the path is not checked against the current draft – an edit between the two requests is no error |
 | `POST /editor/books/{id}/publish` | `{ env, note?, replace? }` | `{ env, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env` (`local`, `staging`, `production`): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the book); a row in the publish log. An environment serves one book: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-book` with `current` `{ env, book, title, build, since }`; `replaced` `{ book, build }` names the book replaced, null when none. 400 `invalid-env`, `invalid-replace`; 502 `content-store-failed` |
 | `GET /editor/books/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
-| `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target); `limit` default 50, at most 500 |
+| `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target); `token` = the name of the AI connection a save came through, null for the editor; `limit` default 50, at most 500 |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
 
-Signed-in calls send `Authorization: Bearer <session>`. Errors: `{ "error": { "code", "message" } }`. The
-app translates the codes (`account:errors.*`).
+Signed-in calls send `Authorization: Bearer <session>` – or an AI connection's token `osct_…` ([AI
+connections](#ai-connections)). Errors: `{ "error": { "code", "message" } }`. The app translates the codes
+(`account:errors.*`).
 
 Security notes:
 - The link token, the code and the session tokens are stored only as hashes.
@@ -125,9 +127,39 @@ edit content – here an admin who edits is also made an editor); the admin API 
 SCUTOONS' `status: "success"` envelope and has no paging (a search, up to 200 rows). The config lists `EDITORS` /
 `ADMINS` have no SCUTOONS counterpart (their first admin was made with a CLI).
 
+## AI connections
+
+Personal access tokens for the [MCP server](mcp.md) (`ApiTokens.php`, after SCUTOONS' `api_tokens` –
+`scutoons/agents/MCP.md` §3): an editor or admin makes one on the editor's books page ([editor](editor.md#ai-connections))
+with the browser session they have, and hands it to Claude as `OSCT_EDITOR_TOKEN` – no sign-in mail involved.
+`Authorization: Bearer osct_…` is that user with their **current** roles: every role check decides as for a session.
+
+- Table `api_tokens` (both schema files): `id`, `user_id`, `name`, `token_hash` (SHA-256, like sessions), `token_prefix`
+  (its first 9 characters, for the list), `created_at`, `last_used_at` (written at most once a minute), `expires_at`,
+  `revoked_at`. The prefix `osct_` tells a token from a session (sessions have none). The token itself is answered once.
+- A token expires **182 days** after it was made or renewed; renewing moves the same token on. Revoked or expired: 401
+  `token-revoked` / `token-expired`; an account that has neither the editor nor the admin role any more: 401
+  `no-editor-role`.
+- **What a token never does – 403 `not-for-ai`:** make, list, renew or revoke tokens, set the password
+  (`PUT /user/password`), delete the account (`DELETE /user`) – those take the person's own session
+  (`Auth::session()`) – and **publish**, to any environment (`Auth::refuseToken()` in `Books::publish`): readers are
+  reached only by a person. Reading and saving drafts, assets and plugin sources work as for the person.
+- A save through a token records the token's name in the change log (`changes.token_name`, the `token` of
+  `GET …/changes`), so the log tells which AI made it. `GET /user` with a token answers `token` beside `user` (the list
+  shape below) – the MCP server's `whoami` shows it.
+
+| | | |
+|---|---|---|
+| `GET /user/tokens` | | `{ tokens: [{ id, name, prefix, createdAt, lastUsedAt, expiresAt, expired }] }` – the person's tokens that are not revoked, newest first; `prefix` = `osct_AbCd…` |
+| `POST /user/tokens` | `{ name }` | 201 `{ token, apiToken }` – `token` (`osct_…`) only in this answer; always for the signed-in person (nothing in the body names another user); 403 `forbidden` without the editor or admin role, 400 `invalid-name` (1–80 characters) |
+| `POST /user/tokens/{id}/renew` | | `{ apiToken }` – expires 182 days from now; 404 for another user's or a revoked token |
+| `DELETE /user/tokens/{id}` | | 204 – revoked at once (the row stays for the record); 404 for another user's token |
+
+The rule: `agents/RULES.md` #32 (the MCP server is a client of the API; readers are reached only by a person).
+
 ## Admin API
 
-The endpoints under `/admin/*` need a **signed-in admin** (Bearer token, the role `admin`) **or** the admin secret
+The endpoints under `/admin/*` need a **signed-in admin** (a session, never an AI connection's token – 403 `not-for-ai`; the role `admin`) **or** the admin secret
 in `X-Admin-Secret` – the break-glass path for the deploy and the shell (`Admin::actor()`). Neither → 401; a wrong
 secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` takes the secret only. The admin page
 ([admin](admin.md)) is their UI.

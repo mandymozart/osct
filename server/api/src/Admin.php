@@ -27,7 +27,10 @@ final class Admin
             if (strlen($secret) < 32 || !hash_equals($secret, $given)) throw new ApiError(403, 'forbidden', 'Not allowed.');
             return null;
         }
-        return Roles::require(Auth::user(), Roles::ADMIN);
+        $user = Auth::user();
+        // An AI connection's token never reaches the admin page: roles and editors are the person's own business (#142)
+        Auth::refuseToken('The admin page');
+        return Roles::require($user, Roles::ADMIN);
     }
 
     /** user_roles.granted_by for this caller: the admin's id, or `secret` */

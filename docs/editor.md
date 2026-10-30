@@ -155,7 +155,8 @@ is involved.
 - **Books** (`/editor/`): the instance's books, *Import a book…* (the CDN's current version, a `game.config.json` by
   URL or file, or a **content base URL** – a CDN folder with `latest.json`, e.g. `…/demo` – whose current version is
   taken; *assets at* = where its `/assets/content/…` paths resolve – every draft and publish points there, no
-  media is copied; for a content base it is the version's folder).
+  media is copied; for a content base it is the version's folder). Under the books: **AI connections** and the MCP
+  guide ([below](#ai-connections)).
 - **Spreads** (`/editor/<book>/`): the spreads as cards with the sheet of each as its preview (from the book's layout
   at *assets at*; without a layout the cards are text), their entries, targets and AR count; **+ double page** adds a
   double page after the last one (before the back cover), a card's **+ after** (on hover, over its sheet) one right
@@ -424,6 +425,25 @@ stay unconditional, a test checks every stylesheet); Feather icons only where a 
 chain that links the scale axes) – and in the tree, where type icons and the eye are every outliner's convention
 (Blender, Unity, Figma); each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
 itself renders the reader's content unchanged. Texts are English (RULES #20).
+
+## AI connections
+
+Connecting Claude is a first step of working here, so it sits on the books page under the covers (#142,
+`lib/AiConnections.svelte`, `lib/mcp-setup.ts`), two columns where the shelf has room, one under the other on a phone:
+
+- **AI connections** – a name ("Claude on my laptop") and **Create token**: the token `osct_…` shows once in a framed
+  box with **Copy** and the warning that it is not shown again; **Done** closes it (it is never stored in the browser).
+  The list: each token's name and prefix, *last used* (never, 5 min ago, yesterday …) and *expires* (red in its last
+  14 days and once expired), **Renew** (182 days from today – the same token works on) and **Revoke** (asks first; it
+  stops at once). Every call is the person's own session – the API refuses them to a token ([server, "AI
+  connections"](server.md#ai-connections)).
+- **Connect Claude** – the MCP guide: what the server does (Claude works in this editor as you, saves drafts, never
+  publishes), this instance's API as the **server** URL (the editor's `/api` as an absolute URL) with **Copy**, the
+  setup as segmented pills **Claude Code** (`claude mcp add osct --scope user -e OSCT_API_URL=… -e OSCT_EDITOR_TOKEN=…
+  -- node <path to osct>/mcp/bin/osct-mcp.mjs`) / **Claude Desktop** (the `mcpServers` entry of
+  `claude_desktop_config.json`) with **Copy** – a token just made is filled in, else `osct_…` – and the first steps: a
+  checkout with `npm ci` in `mcp/`, the command or the config entry, then `whoami` and `describe_content_model`
+  ([mcp](mcp.md)).
 
 ## Where the code lives
 

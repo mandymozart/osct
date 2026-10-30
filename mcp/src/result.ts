@@ -13,7 +13,11 @@ export const fail = (value: unknown): Result => ({ ...text(value), isError: true
 /** What the agent should do about an API answer, by status and code */
 export function hintFor(error: ApiError): string {
   if (error.status === 0) return "The API is not running or OSCT_API_URL is wrong.";
-  if (error.status === 401) return "Not signed in: set OSCT_EDITOR_TOKEN, or use sign_in_request and sign_in_verify (the code arrives by mail).";
+  if (error.code === "token-expired") return "The token in OSCT_EDITOR_TOKEN has expired – the person renews it on the editor's books page (AI connections); the same token works again.";
+  if (error.code === "token-revoked") return "The token in OSCT_EDITOR_TOKEN was revoked – the person makes a new one on the editor's books page (AI connections) and restarts this server with it.";
+  if (error.code === "no-editor-role") return "The token's account has no editor role any more – an admin grants it on the admin page.";
+  if (error.status === 401) return "Not signed in: set OSCT_EDITOR_TOKEN to a token made on the editor's books page (AI connections), or use sign_in_request and sign_in_verify (the code arrives by mail).";
+  if (error.code === "not-for-ai") return "An AI connection's token may not do this (publishing, tokens, the password, the account) – the person does it in the editor; give them the link.";
   if (error.status === 403) return `This account lacks the role ${String(error.details.role ?? "editor")} – an admin grants it on the admin page.`;
   if (error.code === "unknown-components") return "A node uses a component type no compiled plugin provides – the publish refuses it; the Code tab's sources reach readers through the content build only.";
   if (error.code === "asset-in-use") return "The asset is used – remove the uses first, or delete with force: true.";
