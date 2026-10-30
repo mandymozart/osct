@@ -1158,6 +1158,7 @@ try {
     $refused = [
         ['GET', '/user/tokens', null], ['POST', '/user/tokens', ['name' => 'Another']], ['POST', "/user/tokens/{$made['apiToken']['id']}/renew", null],
         ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],
+        ['GET', '/admin/users', null], ['GET', '/admin/roles', null], ['POST', '/admin/editors', ['email' => 'robot@example.com']],
     ];
     foreach ($refused as [$method, $path, $body]) {
         [$status, $data] = call($api, $method, $path, $body, $aiToken);

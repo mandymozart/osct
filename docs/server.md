@@ -159,7 +159,7 @@ The rule: `agents/RULES.md` #32 (the MCP server is a client of the API; readers 
 
 ## Admin API
 
-The endpoints under `/admin/*` need a **signed-in admin** (Bearer token, the role `admin`) **or** the admin secret
+The endpoints under `/admin/*` need a **signed-in admin** (a session, never an AI connection's token – 403 `not-for-ai`; the role `admin`) **or** the admin secret
 in `X-Admin-Secret` – the break-glass path for the deploy and the shell (`Admin::actor()`). Neither → 401; a wrong
 secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` takes the secret only. The admin page
 ([admin](admin.md)) is their UI.

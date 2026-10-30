@@ -9,7 +9,7 @@ declare(strict_types=1);
  * - Stored as a SHA-256 hash, like sessions; the token itself is answered once, when it is made. The prefix `osct_`
  *   tells it from a session token (sessions have none).
  * - It expires LIFETIME_DAYS after it was made or renewed; renewing and revoking need the person's own sign-in.
- * - What a token never does (403 `not-for-ai`): make, renew or revoke tokens, change the password or the account,
+ * - What a token never does (403 `not-for-ai`): use the admin page (`/admin/*`), make, renew or revoke tokens, change the password or the account,
  *   delete the account (`Auth::session()` refuses it) and publish to any environment (`Auth::refuseToken()`).
  * - A token whose account has neither the editor nor the admin role any more stops working (401).
  * - `last_used_at` is written at most once a minute.
