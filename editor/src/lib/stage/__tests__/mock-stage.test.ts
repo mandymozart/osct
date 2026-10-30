@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
-  CustomBlending, DirectionalLight, type LineSegments, type Mesh, type MeshBasicMaterial, NormalBlending, OneFactor, OneMinusDstAlphaFactor, Scene, type SphereGeometry, Texture,
+  Box3, type Color, CustomBlending, DirectionalLight, type Group, type LineSegments, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, NormalBlending, OneFactor,
+  OneMinusDstAlphaFactor, Scene, type SphereGeometry, Texture, Vector3,
 } from "three";
 import { MockStage } from "../mock-stage";
 
@@ -186,9 +189,9 @@ describe("mock stage: the printed images and the placement (#191)", () => {
   });
 });
 
-describe("mock stage: the desks' look (#107, #187)", () => {
-  type Look = { map: { name: string } | null };
-  type Looks = { topMaterial: Look; edgeMaterial: Look; linoleumMaterial: Look; oakMaterial: Look };
+describe("mock stage: the desk's two tops' look (#107, #226)", () => {
+  type Look = { map: { name: string } | null; color: Color };
+  type Looks = { topMaterial: Look; edgeMaterial: Look; linoleumMaterial: Look; oakEdgeMaterial: Look; oakMaterial: Look };
   const deskStage = async () => {
     const { Texture } = await import("three");
     const { stage, requested } = newStage();
@@ -196,33 +199,109 @@ describe("mock stage: the desks' look (#107, #187)", () => {
     return { stage, requested, looks: stage as unknown as Looks };
   };
 
-  it("shows the default desk's look on the first call, plywood faces and plies on the edges", async () => {
+  it("shows the default top's look on the first call, plywood faces and plies on the edges", async () => {
     const { stage, requested, looks } = await deskStage();
-    stage.setDesk("eiermann");
+    stage.setTop("plywood");
     expect(requested).toEqual(["/textures/plywood_diff_1k.jpg", "/textures/plywood_rough_1k.jpg"]);
     expect(looks.topMaterial.map).not.toBeNull();
     expect(looks.edgeMaterial.map?.name).toBe("plywood-edge");
+    expect(looks.linoleumMaterial.map).toBeNull();
   });
 
-  it("gives Schöpfer's desk linoleum and oak drawn in code – no plywood, no file", async () => {
+  it("gives the linoleum top linoleum, the plies in oak on its edges and oak underneath, drawn in code – no file", async () => {
     const { stage, requested, looks } = await deskStage();
-    stage.setDesk("schoepfer");
+    stage.setTop("linoleum");
     expect(requested).toEqual([]);
     expect(looks.linoleumMaterial.map?.name).toBe("linoleum");
     expect(looks.oakMaterial.map?.name).toBe("oak");
-    expect(looks.edgeMaterial.map).toBeNull();
+    // 13 plies per 18 mm board like the plywood top's edge, tinted to oak (warmer than the birch's grey tint)
+    expect(looks.oakEdgeMaterial.map?.name).toBe("plywood-edge");
+    const { r, b } = looks.oakEdgeMaterial.color;
+    expect(r).toBeGreaterThan(b + 0.2);
     expect(looks.topMaterial.map).toBeNull();
+    expect(looks.edgeMaterial.map).toBeNull();
   });
 
-  it("draws each texture once and keeps the Eiermann's plies apart from Schöpfer's oak", async () => {
+  it("draws each texture once: both tops' edges share the plies, the oak stays the oak", async () => {
     const { stage, looks } = await deskStage();
-    stage.setDesk("schoepfer");
+    stage.setTop("linoleum");
     const oak = looks.oakMaterial.map;
-    stage.setDesk("eiermann");
-    expect(looks.edgeMaterial.map?.name).toBe("plywood-edge");
+    const plies = looks.oakEdgeMaterial.map;
+    stage.setTop("plywood");
+    expect(looks.edgeMaterial.map).toBe(plies);
     expect(looks.oakMaterial.map).toBe(oak);
-    stage.setDesk("schoepfer");
+    stage.setTop("linoleum");
     expect(looks.oakMaterial.map).toBe(oak);
+    expect(looks.oakEdgeMaterial.map).toBe(plies);
+  });
+});
+
+describe("mock stage: switching the top switches only the top (#226)", () => {
+  // The real model (`static/models/desk-eiermann.glb`), served to the GLTF loader instead of a request
+  const loadedStage = async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const glb = readFileSync(resolve(process.cwd(), "static/models/desk-eiermann.glb"));
+    const fetched: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((request: Request | string) => {
+      fetched.push(typeof request === "string" ? request : request.url);
+      return Promise.resolve(new Response(new Uint8Array(glb), { status: 200 }));
+    }));
+    const stage = new MockStage(new Scene(), path => `http://localhost/${path}`);
+    (stage as unknown as { loader: unknown }).loader = { load: () => new Texture() } as never;
+    const table = (stage as unknown as { table: Group }).table;
+    await vi.waitFor(() => expect(table.children).toHaveLength(1));
+    return { stage, table, fetched };
+  };
+  const shown = (table: Group, name: string) => table.getObjectByName(name)!.visible;
+  const surface = (table: Group, name: string) => {
+    table.updateMatrixWorld(true);
+    return new Box3().setFromObject(table.getObjectByName(name)!).max.z;
+  };
+
+  it("loads one model – the frame and both tops – and shows the frame with the plywood top", async () => {
+    const { table, fetched } = await loadedStage();
+    expect(fetched).toEqual(["http://localhost/models/desk-eiermann.glb"]);
+    expect(shown(table, "Frame")).toBe(true);
+    expect(shown(table, "TopEiermann")).toBe(true);
+    expect(shown(table, "TopLinoleum")).toBe(false);
+  });
+
+  it("hides one top and shows the other; the frame, the size and the height stay", async () => {
+    const { stage, table, fetched } = await loadedStage();
+    const position = table.position.clone();
+    const size = (name: string) => new Box3().setFromObject(table.getObjectByName(name)!).getSize(new Vector3());
+    table.updateMatrixWorld(true);
+    expect(size("TopLinoleum").x).toBeCloseTo(size("TopEiermann").x, 6);
+    expect(size("TopLinoleum").y).toBeCloseTo(size("TopEiermann").y, 6);
+    expect(surface(table, "TopLinoleum")).toBeCloseTo(surface(table, "TopEiermann"), 6);
+    stage.setTop("linoleum");
+    expect(shown(table, "TopLinoleum")).toBe(true);
+    expect(shown(table, "TopEiermann")).toBe(false);
+    expect(shown(table, "Frame")).toBe(true);
+    stage.setTop("plywood");
+    expect(shown(table, "TopEiermann")).toBe(true);
+    expect(shown(table, "TopLinoleum")).toBe(false);
+    expect(table.position.equals(position)).toBe(true);
+    // no second request for a switch
+    expect(fetched).toHaveLength(1);
+  });
+
+  it("shows the chosen top when the model arrives after the choice", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const glb = readFileSync(resolve(process.cwd(), "static/models/desk-eiermann.glb"));
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(new Uint8Array(glb), { status: 200 }))));
+    const stage = new MockStage(new Scene(), path => `http://localhost/${path}`);
+    (stage as unknown as { loader: unknown }).loader = { load: () => new Texture() } as never;
+    stage.setTop("linoleum");
+    const table = (stage as unknown as { table: Group }).table;
+    await vi.waitFor(() => expect(table.children).toHaveLength(1));
+    expect(shown(table, "TopLinoleum")).toBe(true);
+    expect(shown(table, "TopEiermann")).toBe(false);
+    // the model's linoleum top wears the stage's own materials
+    const own = stage as unknown as { linoleumMaterial: MeshStandardMaterial; oakEdgeMaterial: MeshStandardMaterial; oakMaterial: MeshStandardMaterial };
+    const used = new Set<MeshStandardMaterial>();
+    table.getObjectByName("TopLinoleum")!.traverse(o => { if ((o as Mesh).isMesh) used.add((o as Mesh).material as MeshStandardMaterial); });
+    expect(used).toEqual(new Set([own.linoleumMaterial, own.oakEdgeMaterial, own.oakMaterial]));
   });
 });
 

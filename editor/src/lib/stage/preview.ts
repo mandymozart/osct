@@ -5,7 +5,7 @@
  * - `active`: the editor page is open – `ArScene` builds the mock tracker instead of the engine (a change while the
  *   scene exists rebuilds it). Not stored: the route decides.
  * - The settings the preview panel changes, stored on this device (`osct-preview`): the view preset or a free orbit,
- *   the sky (an HDRI), the desk, the hand-shake amount, the grid and its vertical axis, and the snapping (the toolbar's
+ *   the sky (an HDRI), the desk's top, the hand-shake amount, the grid and its vertical axis, and the snapping (the toolbar's
  *   *grid & snap* group: on / off, what it snaps to, the precision per gizmo mode – `snap.ts`).
  * - `hidden`: targets switched off in the panel – the mock reports them as lost (outro), on again as found (reveal).
  *   Not stored.
@@ -31,23 +31,35 @@ export type HdriId = (typeof HDRIS)[number]["id"];
 export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.id === value);
 
 /**
- * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; designers' furniture, so
- * the designers who use the tool feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
- * Schöpfer's desk (linoleum and oak on a black steel frame)
+ * The stage's desk (our own low-poly model – `editor/static/models/README.md`; designers' furniture, so the designers
+ * who use the tool feel at home): Egon Eiermann's table frame with one of two tops of the same size (#226) – its own
+ * screen-printed plywood top, or blue-grey linoleum on an oak-faced plywood board. The setting switches only the top.
  */
-export const DESKS = [
-  { id: "eiermann", name: "Eiermann" },
-  { id: "schoepfer", name: "Schöpfer" },
+export const DESK_NAME = "Eiermann";
+export const TOPS = [
+  { id: "plywood", name: "plywood" },
+  { id: "linoleum", name: "linoleum" },
 ] as const;
-export type DeskId = (typeof DESKS)[number]["id"];
-export const isDeskId = (value: unknown): value is DeskId => DESKS.some(d => d.id === value);
+export type TopId = (typeof TOPS)[number]["id"];
+export const isTopId = (value: unknown): value is TopId => TOPS.some(t => t.id === value);
+const DEFAULT_TOP: TopId = "plywood";
 
 /**
- * The Stage panel's *stage* section closed, in a few words: the desk, the grid and snapping while it is on –
- * "Eiermann · grid off", "Schöpfer · grid 10 mm · snap on"
+ * The top from stored settings: `top`, or the desk stored before #226 (`desk`) – the Eiermann desk is its plywood
+ * top, Schöpfer's desk (gone) the linoleum top, so nobody's stage breaks; anything else the default
  */
-export const stageSummary = (settings: Pick<PreviewSettings, "desk" | "grid" | "gridMm"> & Partial<Pick<PreviewSettings, "snap">>): string =>
-  `${DESKS.find(d => d.id === settings.desk)?.name ?? settings.desk} · ${settings.grid ? `grid ${settings.gridMm} mm` : "grid off"}${settings.snap ? " · snap on" : ""}`;
+const LEGACY_DESKS: Readonly<Record<string, TopId>> = { eiermann: "plywood", schoepfer: "linoleum" };
+export const storedTop = (stored: { top?: unknown; desk?: unknown }): TopId =>
+  isTopId(stored.top) ? stored.top
+    : typeof stored.desk === "string" && Object.hasOwn(LEGACY_DESKS, stored.desk) ? LEGACY_DESKS[stored.desk]
+      : DEFAULT_TOP;
+
+/**
+ * The Stage panel's *stage* section closed, in a few words: the desk and its top, the grid and snapping while it is
+ * on – "Eiermann · plywood · grid off", "Eiermann · linoleum · grid 10 mm · snap on"
+ */
+export const stageSummary = (settings: Pick<PreviewSettings, "top" | "grid" | "gridMm"> & Partial<Pick<PreviewSettings, "snap">>): string =>
+  `${DESK_NAME} · ${TOPS.find(t => t.id === settings.top)?.name ?? settings.top} · ${settings.grid ? `grid ${settings.gridMm} mm` : "grid off"}${settings.snap ? " · snap on" : ""}`;
 
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
 export interface PreviewOrbit {
@@ -76,8 +88,8 @@ export interface PreviewSettings {
   orbit: PreviewOrbit | null;
   /** The HDRI shown as sky and used as light (while the shading is rendered) */
   hdri: HdriId;
-  /** The desk under the book */
-  desk: DeskId;
+  /** The desk's top under the book (the frame is always the Eiermann) */
+  top: TopId;
   /** 0 = still, 1 = a hand holding a phone */
   wobble: number;
   /** A grid over the page (the stage), its spacing in mm, and the origin it and the positions are counted from */
@@ -104,7 +116,7 @@ export interface PreviewState extends PreviewSettings {
 const STORAGE_KEY = "osct-preview";
 
 const DEFAULTS: PreviewSettings = {
-  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", desk: "eiermann", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
+  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", top: DEFAULT_TOP, wobble: 0, grid: false, gridMm: 10, origin: "top-left",
   axis: true, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
 };
 
@@ -116,13 +128,13 @@ const finite = (value: unknown): value is number => typeof value === "number" &&
 const readSettings = (): PreviewSettings => {
   const parsed = readStoredJson(STORAGE_KEY);
   if (!parsed || typeof parsed !== "object") return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
-  const stored = parsed as Partial<PreviewSettings>;
+  const stored = parsed as Partial<PreviewSettings> & { desk?: unknown };
   return {
     view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
     shading: isShadingMode(stored.shading) ? stored.shading : DEFAULTS.shading,
     orbit: isOrbit(stored.orbit) ? stored.orbit : null,
     hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
-    desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
+    top: storedTop(stored),
     wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
     grid: stored.grid === true,
     gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,

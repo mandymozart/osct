@@ -27,7 +27,7 @@ describe("editor preview settings", () => {
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
     expect(stored).toEqual({
-      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", desk: "eiermann", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
+      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", top: "plywood", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
       axis: true, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
     });
     expect(getPreview().hidden).toEqual(["a"]);
@@ -79,19 +79,44 @@ describe("editor preview settings", () => {
     localStorage.setItem("osct-preview", JSON.stringify({ view: "sideways", wobble: 7, hdri: "lava", desk: "ikea", orbit: { distance: "far" }, grid: "yes", gridMm: "x", origin: "middle" }));
     vi.resetModules();
     const fresh = await import("../preview");
-    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, hdri: "wooden_studio_17", desk: "eiermann", orbit: null, active: false, grid: false, gridMm: 10, origin: "top-left" });
+    expect(fresh.getPreview()).toMatchObject({ view: "reader", wobble: 1, hdri: "wooden_studio_17", top: "plywood", orbit: null, active: false, grid: false, gridMm: 10, origin: "top-left" });
+  });
+
+  it("stores the desk's top, plywood or linoleum (#226)", async () => {
+    updatePreview({ top: "linoleum" });
+    expect(JSON.parse(localStorage.getItem("osct-preview")!)).toMatchObject({ top: "linoleum" });
+    expect(JSON.parse(localStorage.getItem("osct-preview")!)).not.toHaveProperty("desk");
+    vi.resetModules();
+    const fresh = await import("../preview");
+    expect(fresh.getPreview().top).toBe("linoleum");
+    expect(fresh.TOPS.map(t => t.id)).toEqual(["plywood", "linoleum"]);
+  });
+
+  it.each([
+    [{ desk: "schoepfer" }, "linoleum"],
+    [{ desk: "eiermann" }, "plywood"],
+    [{ desk: "toString" }, "plywood"],
+    [{ desk: "schoepfer", top: "plywood" }, "plywood"],
+    [{ top: "glass" }, "plywood"],
+  ])("maps a desk stored before #226 to its top: %j → %s, so nobody's stage breaks", async (stored, top) => {
+    localStorage.setItem("osct-preview", JSON.stringify(stored));
+    vi.resetModules();
+    const fresh = await import("../preview");
+    expect(fresh.getPreview().top).toBe(top);
+    expect(fresh.storedTop(stored)).toBe(top);
   });
 });
 
-// The Stage panel's stage section closed (#193): its head names the desk and the grid
+// The Stage panel's stage section closed (#193): its head names the desk, its top (#226) and the grid
 describe("the stage section's summary", () => {
-  it("names the desk and the grid, off or with its spacing", () => {
-    expect(stageSummary({ desk: "eiermann", grid: false, gridMm: 10 })).toBe("Eiermann · grid off");
-    expect(stageSummary({ desk: "schoepfer", grid: true, gridMm: 25 })).toBe("Schöpfer · grid 25 mm");
+  it("names the desk, its top and the grid, off or with its spacing", () => {
+    expect(stageSummary({ top: "plywood", grid: false, gridMm: 10 })).toBe("Eiermann · plywood · grid off");
+    expect(stageSummary({ top: "linoleum", grid: false, gridMm: 10 })).toBe("Eiermann · linoleum · grid off");
+    expect(stageSummary({ top: "linoleum", grid: true, gridMm: 25 })).toBe("Eiermann · linoleum · grid 25 mm");
   });
 
   it("says when snapping is on (#190)", () => {
-    expect(stageSummary({ desk: "eiermann", grid: true, gridMm: 10, snap: true })).toBe("Eiermann · grid 10 mm · snap on");
-    expect(stageSummary({ desk: "eiermann", grid: false, gridMm: 10, snap: false })).toBe("Eiermann · grid off");
+    expect(stageSummary({ top: "plywood", grid: true, gridMm: 10, snap: true })).toBe("Eiermann · plywood · grid 10 mm · snap on");
+    expect(stageSummary({ top: "plywood", grid: false, gridMm: 10, snap: false })).toBe("Eiermann · plywood · grid off");
   });
 });

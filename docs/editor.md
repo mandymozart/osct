@@ -166,19 +166,18 @@ The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same thr
 **sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's *sky*, Wooden Studio 17 by default,
 shown while the shading is rendered), the equirectangular image on a sphere around the stage and as `scene.environment`, turned with the
 stage every frame so the room stays put while the camera orbits; **a book with an environment replaces it** (#185, below) –
-the **desk**, the Stage panel's choice of two
-(Tilman: the tool is for designers, they should feel at home): a 1.8 × 0.8 m screen-printed plywood top (18 mm; Poly
-Haven's plywood texture tinted to the phenolic brown on the faces) on a steel tube frame after Egon Eiermann's table
-frame (1953, the default; its board shows cut plywood on its edges – 13 plies of birch per 18 mm board, as the trade's
-18 mm birch plywood, alternating long grain and darker cross grain, parted by glue lines, drawn in code once
-(`plywood.ts`, a 512 × 128 data texture, no image file)), or Philipp Camille Schöpfer's desk (#187, after the
-manufacturer's catalogue): a thin sandwich top – a blue-grey linoleum layer over an oak edge band, the aluminium core
-underneath, 24 mm in all – with three open oak drawers (dark inside) hanging under its front edge, pulled out towards
-the sitter, on a black powder-coated steel frame (a flat rim; at each end two square legs splayed in a narrow A, each
-with a strut up to the rim's end); its oak and linoleum are drawn in code too (`oak.ts`, `linoleum.ts`). The Eiermann
-72 cm high, Schöpfer's 75; both our own low-poly models (`editor/static/models/`, 236 and 256 triangles, built by
-`editor/tools/desk-eiermann.py` in Blender – `editor/static/models/README.md`), loaded once each with the origin at
-the top's surface, so the book lies
+the **desk** (Tilman: the tool is for designers, they should feel at home) – a steel tube frame after Egon Eiermann's
+table frame (1953), 72 cm high, with one of two tops of the same 1.8 × 0.8 m and the same surface height, the Stage
+panel's *top* (#226: switching it changes only the top – the book, the targets, the grid and the camera stay):
+**plywood**, the default – a screen-printed plywood board (18 mm; Poly Haven's plywood texture tinted to the phenolic
+brown on the faces) whose edges show cut plywood – 13 plies of birch per 18 mm board, as the trade's 18 mm birch
+plywood, alternating long grain and darker cross grain, parted by glue lines, drawn in code once (`plywood.ts`, a
+512 × 128 data texture, no image file) –, or **linoleum** – blue-grey linoleum (2 mm, its edge a thin line of its own)
+on an oak-faced 18 mm plywood board whose edges show the same 13 plies tinted to oak, the oak veneer underneath; the
+linoleum and the oak are drawn in code too (`linoleum.ts`, `oak.ts`). One low-poly model of our own
+(`editor/static/models/desk-eiermann.glb`, 256 triangles, the frame and both tops as meshes of their own, built by
+`editor/tools/desk-eiermann.py` in Blender – `editor/static/models/README.md`), loaded once, the top not chosen
+hidden, with the origin at the tops' surface, so the book lies
 on it – the open book as an object – two blocks of paper on a white hardcover board (2 mm) that overhangs the pages by 3 mm, the block's
 thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) – and the current
 spread's printed images. A spread of the format `cover` or `back` shows the **closed book** instead – the printed
@@ -490,8 +489,9 @@ is involved.
     `editor/src/lib/stage/sky.ts` (`bookEnvironment`, `showsWorld`, `stageLook` – which sky, which light); the Stage
     panel's *sky* row then names the environment's (*the environment's (world café)*), the HDRI picker stays below it
     for books without one, and the closed *stage* head adds *· the environment's sky*.
-  - **Stage** – the stage's settings: **shake**: 0 = still, 1 = a hand holding a phone. **desk**: *Eiermann* (the
-    default) or *Schöpfer*. **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is
+  - **Stage** – the stage's settings: **shake**: 0 = still, 1 = a hand holding a phone. **top**: the Eiermann desk's
+    top, *plywood* (the default) or *linoleum* (#226; a desk stored before, `desk: "eiermann"` or `"schoepfer"`,
+    becomes *plywood* or *linoleum*); the closed *stage* head names it: *Eiermann · linoleum · grid off*. **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is
     rendered); with the book's environment the row names it and the HDRI waits below for a book without one. All stored
     on the device. The camera is moved on the stage itself: **drag** orbits, **Shift + drag**,
     the **middle button** or **two fingers** pan (the looked-at point moves in the page plane), **wheel / pinch**
@@ -642,7 +642,7 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`), where its files are served, the dev flag and the reader's graphics options ([tracking](tracking.md) "What the app gives the engine") |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, the desks' cut edges), `preview.ts` (view, orbit, pan, sky, desk, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |

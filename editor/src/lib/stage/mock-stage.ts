@@ -14,7 +14,7 @@ import { linoleumTexture } from "./linoleum";
 import { oakTexture } from "./oak";
 import { plywoodEdgeTexture } from "./plywood";
 import { applyShading, ownMaterial } from "./shading";
-import type { DeskId, HdriId, ShadingMode } from "./preview";
+import type { HdriId, ShadingMode, TopId } from "./preview";
 import { stageLook, type StageLook } from "./sky";
 
 /**
@@ -26,18 +26,19 @@ const LAYER = 0.0005;
 /**
  * Colours. The Eiermann desk's top is a screen-printed plywood board (Siebdruckplatte): Poly Haven's plywood texture
  * tinted to the dark phenolic brown on the faces, roughness from its map; its cut edges show the plywood's plies
- * (`plywood.ts`, drawn in code), untinted and matt. Schöpfer's top is no plywood (#187): an aluminium sandwich with a
- * blue-grey linoleum surface (`linoleum.ts`) and an oak edge band, oak drawers too (`oak.ts`) – both drawn in code,
- * untinted, matt. The cover is a white hardcover board.
+ * (`plywood.ts`, drawn in code), untinted and matt. The linoleum top (#226, once Schöpfer's – #187) is blue-grey
+ * linoleum (`linoleum.ts`) on an oak-faced plywood board: its cut edges show the same plies tinted to oak, its underside
+ * the oak veneer (`oak.ts`) – all drawn in code, matt. The cover is a white hardcover board.
  */
 const DESK_TINT = 0x3b2416;
 const DESK_EDGE_TINT = 0xc8c8c8;
+const OAK_EDGE_TINT = 0xe8c290;
 const DESK_EDGE_ROUGHNESS = 0.8;
 const LINOLEUM_ROUGHNESS = 0.85;
 const OAK_ROUGHNESS = 0.65;
 /**
- * The plies in one stack of the edges' texture: the desk tops are 18 mm birch plywood, phenolic-faced like the Eiermann
- * top – 13 plies of about 1.4 mm. The Eiermann board is one stack (the model's UVs)
+ * The plies in one stack of the edges' texture: both tops' boards are 18 mm plywood – 13 plies of about 1.4 mm, as the
+ * trade's 18 mm birch plywood. Each board's edge is one stack (the model's UVs)
  */
 const DESK_EDGE_PLIES = 13;
 const PAGE_COLOR = 0xf3efe6;
@@ -80,13 +81,15 @@ function coverEdgeTexture(): CanvasTexture | null {
   return texture;
 }
 /**
- * The desks (the Stage panel's choice): 1.8 × 0.8 m tops, the Eiermann 72 cm high, Schöpfer's 75 – our own low-poly
- * models, built by `editor/tools/desk-eiermann.py` (`editor/static/models/README.md`). Each model's origin is the
- * centre of the top's upper surface; the materials with a drawn look become the stage's own – the Eiermann's `top`
- * (the screen-printed plywood, see below) and `edge` (its plies), Schöpfer's `linoleum` and `oak` – while `steel`,
- * `aluminium` and `drawer` stay as exported. glTF is Y up: a model is turned so its up is the page's +z.
+ * The desk (#226): the Eiermann frame, 72 cm high, with two tops of the same 1.8 × 0.8 m and the same surface height,
+ * one model with a mesh per top (`TOP_NODES`) – loaded once, the top not chosen hidden, so a switch moves nothing
+ * (our own low-poly model, built by `editor/tools/desk-eiermann.py` – `editor/static/models/README.md`). Its origin is
+ * the centre of the tops' upper surface; the materials with a drawn look become the stage's own – the plywood top's
+ * `top` (the screen-printed plywood, see below) and `edge` (its plies), the linoleum top's `linoleum`, `oak_edge` (the
+ * plies in oak) and `oak` – while `steel` stays as exported. glTF is Y up: the model is turned so its up is the page's +z.
  */
-const DESK_MODELS: Record<DeskId, string> = { eiermann: "models/desk-eiermann.glb", schoepfer: "models/desk-schoepfer.glb" };
+const DESK_MODEL = "models/desk-eiermann.glb";
+const TOP_NODES: Readonly<Record<TopId, string>> = { plywood: "TopEiermann", linoleum: "TopLinoleum" };
 /** The desk texture's files and how often it repeats across the top (the edges have their own texture and UVs) */
 const DESK_DIFFUSE = "textures/plywood_diff_1k.jpg";
 const DESK_ROUGHNESS = "textures/plywood_rough_1k.jpg";
@@ -168,26 +171,27 @@ interface DeskTextures {
  */
 export class MockStage implements StageView {
   private group = new Group();
-  /** The desk (the chosen model, once loaded): its origin is the top's surface, placed at the table height */
+  /** The desk (the model, once loaded): its origin is the tops' surface, placed at the table height */
   private table = new Group();
-  private deskId: DeskId = "eiermann";
-  /** The desks' models by id, loaded once and kept for a switch back */
-  private models = new Map<DeskId, Group>();
-  private loadingDesks = new Set<DeskId>();
+  /** The chosen top: its mesh shows, the other's is hidden */
+  private topId: TopId = "plywood";
+  private model: Group | null = null;
   private topMaterial = new MeshStandardMaterial({ color: DESK_TINT, roughness: 0.5 });
   private edgeMaterial = new MeshStandardMaterial({ color: DESK_EDGE_TINT, roughness: DESK_EDGE_ROUGHNESS });
-  /** Schöpfer's surfaces: their drawn textures are put on when the desk is first shown */
+  /** The linoleum top's surfaces: their drawn textures are put on when the top is first shown */
   private linoleumMaterial = new MeshStandardMaterial({ roughness: LINOLEUM_ROUGHNESS });
+  private oakEdgeMaterial = new MeshStandardMaterial({ color: OAK_EDGE_TINT, roughness: DESK_EDGE_ROUGHNESS });
   private oakMaterial = new MeshStandardMaterial({ roughness: OAK_ROUGHNESS });
-  /** The desks' materials that are the stage's own, by the models' material names (shared, disposed apart) */
+  /** The desk's materials that are the stage's own, by the model's material names (shared, disposed apart) */
   private deskMaterials = new Map<string, MeshStandardMaterial>([
     ["top", this.topMaterial],
     ["edge", this.edgeMaterial],
     ["linoleum", this.linoleumMaterial],
+    ["oak_edge", this.oakEdgeMaterial],
     ["oak", this.oakMaterial],
   ]);
-  /** The desk whose look the desk materials show (none before the first) */
-  private lookOf: DeskId | null = null;
+  /** The tops whose look their materials show (each put on once, when the top is first chosen) */
+  private looks = new Set<TopId>();
   private disposed = false;
   private book = new Group();
   private pages = new Group();
@@ -195,7 +199,7 @@ export class MockStage implements StageView {
   private loader = new TextureLoader();
   private layoutRun = 0;
   private desk: DeskTextures | null = null;
-  /** The drawn textures, each drawn once on first use: the Eiermann edges' plies, Schöpfer's linoleum and oak */
+  /** The drawn textures, each drawn once on first use: the boards' plies (both tops), the linoleum and the oak */
   private plies: Texture | null = null;
   private linoleum: Texture | null = null;
   private oak: Texture | null = null;
@@ -262,38 +266,27 @@ export class MockStage implements StageView {
     this.guideGroup.name = "mock-guides";
     this.group.add(this.table, this.book, this.pages, this.gridGroup, this.guideGroup, this.ghostGroup);
     scene.add(this.group);
-    this.showDesk();
+    this.loadDesk();
   }
 
-  /** The desk under the book: its model (loaded once) into the desk's group, its top in its own look */
-  setDesk(desk: DeskId): void {
-    if (this.deskId === desk && this.lookOf === desk) return;
-    this.deskId = desk;
-    this.showDesk();
-    this.applyDeskLook();
+  /** The desk's top (#226): only the top switches – the frame, the size and the height stay, so nothing else moves */
+  setTop(top: TopId): void {
+    if (this.topId === top && this.looks.has(top)) return;
+    this.topId = top;
+    this.showTop();
+    this.applyTopLook(top);
   }
 
-  private showDesk(): void {
-    const id = this.deskId;
-    [...this.table.children].forEach(child => this.table.remove(child));
-    const loaded = this.models.get(id);
-    if (loaded) {
-      this.table.add(loaded);
-      this.toBackdropLayer();
-      return;
-    }
-    if (this.loadingDesks.has(id)) return;
-    this.loadingDesks.add(id);
-    new GLTFLoader().load(this.assetUrl(DESK_MODELS[id]), gltf => {
-      this.loadingDesks.delete(id);
+  /** The desk's model, loaded once into the desk's group: the frame and both tops, the chosen one shown */
+  private loadDesk(): void {
+    new GLTFLoader().load(this.assetUrl(DESK_MODEL), gltf => {
       const model = gltf.scene;
       if (this.disposed) {
         this.clear(model);
         return;
       }
       model.rotation.x = Math.PI / 2; // glTF's +y (up) becomes the page's +z
-      // The surfaces with a drawn look become the stage's own; the frame keeps the file's steel, Schöpfer's drawers
-      // their dark inside
+      // The surfaces with a drawn look become the stage's own; the frame keeps the file's steel
       model.traverse(object => {
         if (!(object instanceof Mesh) || Array.isArray(object.material)) return;
         const material = object.material as Material;
@@ -302,30 +295,39 @@ export class MockStage implements StageView {
         material.dispose();
         object.material = own;
       });
-      this.models.set(id, model);
-      if (this.deskId === id) {
-        this.table.add(model);
-        this.toBackdropLayer();
-      }
+      this.model = model;
+      this.table.add(model);
+      this.showTop();
+      this.toBackdropLayer();
     }, undefined, error => {
-      this.loadingDesks.delete(id);
-      console.warn(`[mock-stage] the desk "${id}" could not be loaded:`, error);
+      console.warn("[mock-stage] the desk could not be loaded:", error);
     });
   }
 
+  /** Shows the chosen top's mesh and hides the other's (nothing before the model is loaded) */
+  private showTop(): void {
+    if (!this.model) return;
+    for (const [id, name] of Object.entries(TOP_NODES)) {
+      const node = this.model.getObjectByName(name);
+      if (node) node.visible = id === this.topId;
+    }
+  }
+
   /**
-   * The desk's look, its textures loaded or drawn on first use: the Eiermann's screen-printed plywood with the plies
-   * on its edges, Schöpfer's linoleum and oak (no plywood – #187)
+   * A top's look, its textures loaded or drawn on first use: the screen-printed plywood with the plies on its edges, or
+   * the linoleum with the same plies in oak on its edges and the oak veneer underneath
    */
-  private applyDeskLook(): void {
-    this.lookOf = this.deskId;
-    if (this.deskId === "schoepfer") {
+  private applyTopLook(id: TopId): void {
+    if (this.looks.has(id)) return;
+    this.looks.add(id);
+    this.plies ??= plywoodEdgeTexture({ plies: DESK_EDGE_PLIES });
+    if (id === "linoleum") {
       this.linoleum ??= linoleumTexture();
       this.oak ??= oakTexture();
       this.linoleumMaterial.map = this.linoleum;
       this.oakMaterial.map = this.oak;
-      this.linoleumMaterial.needsUpdate = true;
-      this.oakMaterial.needsUpdate = true;
+      this.oakEdgeMaterial.map = this.plies;
+      [this.linoleumMaterial, this.oakMaterial, this.oakEdgeMaterial].forEach(material => (material.needsUpdate = true));
       return;
     }
     const top = this.topMaterial;
@@ -335,7 +337,6 @@ export class MockStage implements StageView {
     top.roughnessMap = desk.roughnessMap;
     top.color.setHex(DESK_TINT);
     top.roughness = 0.5;
-    this.plies ??= plywoodEdgeTexture({ plies: DESK_EDGE_PLIES });
     edge.map = this.plies;
     edge.roughnessMap = null;
     edge.color.setHex(DESK_EDGE_TINT);
@@ -773,8 +774,7 @@ export class MockStage implements StageView {
     this.ghostTextures.forEach(texture => texture.dispose());
     this.ghostTextures.clear();
     this.clear(this.table);
-    this.models.forEach(model => this.clear(model));
-    this.models.clear();
+    this.model = null;
     this.deskMaterials.forEach(material => material.dispose());
     this.textures.forEach(texture => texture.dispose());
     this.textures = [];

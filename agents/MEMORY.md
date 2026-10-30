@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – one desk on the stage: the Eiermann frame with two tops; Schöpfer's desk removed (#226)
+
+- **Tilman decided** (#226, on a screenshot of Schöpfer's drawers hanging open beside its frame): "only one type of
+  table – the Eiermann, with two types of plates. The blue linoleum one is nice but don't use the trays. Just the top,
+  linoleum on oak, and switching the preview switches only the plate." The removal of Schöpfer's desk (#187's model,
+  its id, its build) is his decision – RULES #1 is satisfied by it.
+- **One GLB, two top meshes** (`TopEiermann`, `TopLinoleum`, plus `Frame`) rather than a frame and two top files: one
+  request, one load, a switch is `visible` on two nodes – nothing reloads and nothing can arrive out of order.
+  `desk-eiermann.glb` keeps its name.
+- **The setting is `top`: `plywood` | `linoleum`** (the UI's *top* row, a segmented control), not *Eiermann* |
+  *linoleum*: the desk is always the Eiermann, so the head reads *Eiermann · plywood* / *Eiermann · linoleum*. A stored
+  `desk` from before maps `eiermann` → `plywood`, `schoepfer` → `linoleum` (`storedTop` in `preview.ts`); the next
+  write drops the old key.
+- **The linoleum top is 20 mm**: 2 mm linoleum on an 18 mm board, so its edge shows one whole stack of 13 plies like the
+  plywood top's (13 per 18 mm, #107) with the linoleum as a thin line above; the surface and the outer size are the
+  plywood top's, only the underside is 2 mm lower (the frame's inner tubes end inside the board, unseen). Its plies are
+  the plywood top's texture tinted to oak (`oak_edge`), its underside the oak veneer (`oak.ts`).
+
 ## 2026-10-30 – the browser session in an HttpOnly cookie, CSRF token on writes (#207)
 
 - **Tilman decided** (#207, of the four options: separate admin session, HttpOnly cookie, plugin sandbox, documented
