@@ -84,6 +84,13 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     return (seen.body as any).env === "local"
       ? { json: { env: "local", store: "server", build: "abcdef012345", hash: "h", publishedAt: "now" } }
       : { status: 403, json: { error: { code: "other-environment", message: "This instance publishes to local only.", env: "local" } } };
+  if (method === "POST" && path === "/editor/import/preview") {
+    const cdn = (seen.body as any).source === "cdn";
+    const id = cdn ? "demo" : (seen.body as any).configuration?.book?.id;
+    return { json: { source: cdn ? "cdn" : "configuration", contentBase: cdn ? "https://cdn.example/demo" : null, manifest: cdn ? { url: "https://cdn.example/demo/latest.json", build: "7457f0c10df1", activatedAt: null } : null,
+      incoming: { book: id, title: id === "demo" ? "The Demo Book" : "Fresh", build: "7457f0c10df1" }, counts: { spreads: 6, entries: 13, targets: 8, entities: 2 },
+      existing: id === "demo" ? { book: { id: "demo", title: "The Demo Book" }, draft: { edits: 3 } } : null } };
+  }
   if (method === "POST" && path === "/editor/books/demo/import") {
     const confirm = (seen.body as any).confirm;
     if (confirm === "1900000000.0123456789abcdef0123456789abcdef") return { json: { book: { id: "demo" }, counts: { spreads: 2 }, imported: { build: "cdcdcdcdcdcd" } } };
@@ -113,7 +120,7 @@ describe("the content tools", () => {
   it("registers every tool of the list with a description and an input schema", () => {
     expect([...rec.tools.keys()].sort()).toEqual(
       [
-        "add_entry", "add_spread", "delete_asset", "delete_entry", "delete_spread", "describe_content_model", "get_book", "get_draft", "get_entity", "get_spread", "import_book", "list_assets",
+        "add_entry", "add_spread", "delete_asset", "delete_entry", "delete_spread", "describe_content_model", "get_book", "get_draft", "get_entity", "get_spread", "import_book", "list_assets", "preview_import",
         "list_books", "list_changes", "list_versions", "publish", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
       ].sort(),
     );
@@ -433,6 +440,22 @@ describe("the content tools", () => {
     expect(seen[1].body).toEqual({ source: "cdn" });
     expect(cdn.ok).toBe(true);
     expect((await rec.call("import_book", { book: "osct" })).ok).toBe(false);
+  });
+
+  it("preview_import: what an import would bring in, nothing imported – the book, its build and the draft it replaces (#182)", async () => {
+    const cdn = await rec.call("preview_import", { source: "cdn" });
+    expect(cdn.ok).toBe(true);
+    expect(seen[0]).toMatchObject({ method: "POST", path: "/editor/import/preview", body: { source: "cdn" } });
+    expect(cdn.data).toMatchObject({ imported: false, contentBase: "https://cdn.example/demo", incoming: { book: "demo", build: "7457f0c10df1" }, counts: { spreads: 6 }, existing: { draft: { edits: 3 } }, open: "http://localhost:5175/editor/demo/" });
+    expect(cdn.data.next).toContain("1 book, “The Demo Book” (demo), build 7457f0c10df1 – it replaces the draft");
+    expect(cdn.data.next).toContain('import_book with book: "demo"');
+    const fresh = await rec.call("preview_import", { configuration: { book: { id: "fresh" } }, assetsBase: "http://localhost:5174" });
+    expect(seen[1].body).toEqual({ configuration: { book: { id: "fresh" } }, assetsBase: "http://localhost:5174" });
+    expect(fresh.data.existing).toBeNull();
+    expect(fresh.data.open).toBeUndefined();
+    expect(fresh.data.next).toContain("a new book");
+    expect((await rec.call("preview_import", {})).ok).toBe(false);
+    expect(seen.some(s => s.path.endsWith("/import"))).toBe(false);
   });
 
   it("import_book over an existing book: first the comparison and a confirmation, nothing imported; then with confirm (#183)", async () => {

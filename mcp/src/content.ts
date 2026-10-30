@@ -198,11 +198,23 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     }),
   );
 
+  /** import_book's and preview_import's body: the CDN, a configuration fetched from `url`, or the one given */
+  const importSource = async ({ url, configuration, assetsBase, source }: { url?: string; configuration?: Json; assetsBase?: string; source?: "cdn" }): Promise<Json> => {
+    if (source === "cdn") return { source };
+    if (!url === !configuration) return { error: { code: "mcp", message: "give either url, configuration or source: cdn" } };
+    if (url) {
+      const response = await fetch(url);
+      if (!response.ok) return { error: { code: "fetch-failed", message: `${url} answered ${response.status}` } };
+      configuration = (await response.json()) as Json;
+    }
+    return { configuration, ...(assetsBase ? { assetsBase } : {}) };
+  };
+
   server.registerTool(
     "import_book",
     {
       description:
-        "Replaces a book's content rows from a game configuration (the content build's game.config.json): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the book exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new book is imported at once.",
+        "Replaces a book's content rows from a game configuration (the content build's game.config.json): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the book exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new book is imported at once. To tell the person first which book and build would come in (the CDN's book id among it), call preview_import.",
       inputSchema: z.object({
         book: BOOK,
         url: z.string().url().optional().describe("a game.config.json to fetch"),
@@ -214,17 +226,8 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
     guard(async ({ book, url, configuration, assetsBase, source, confirm }) => {
-      let body: Json;
-      if (source === "cdn") body = { source };
-      else {
-        if (!url === !configuration) return fail({ error: { code: "mcp", message: "give either url, configuration or source: cdn" } });
-        if (url) {
-          const response = await fetch(url);
-          if (!response.ok) return fail({ error: { code: "fetch-failed", message: `${url} answered ${response.status}` } });
-          configuration = (await response.json()) as Json;
-        }
-        body = { configuration, ...(assetsBase ? { assetsBase } : {}) };
-      }
+      const body = await importSource({ url, configuration, assetsBase, source });
+      if ("error" in body) return fail(body);
       try {
         const result = await api.call<Json>("POST", `/editor/books/${encodeURIComponent(book)}/import`, { ...body, ...(confirm ? { confirm } : {}) });
         return text({ ...result, open: editorHref(links, book) });
@@ -233,6 +236,33 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         if (!step) throw error;
         return text({ ...step, open: editorHref(links, book) });
       }
+    }),
+  );
+
+  server.registerTool(
+    "preview_import",
+    {
+      description:
+        "What an import would bring in, before anything is imported – read-only, takes import_book's sources: `source: \"cdn\"` (the instance CDN's current version), `url` (a game.config.json to fetch) or `configuration`. Answers the content base and its latest.json (build, when it became current), `incoming` (the one book's id and title, the build, its date, app and schema version), `counts` (spreads, entries, targets, shared entities) and `existing` – the draft of that id the import would replace (what it is based on, its edits since, where it is live), null for a new book. Tell the person which book and build comes in and, when `existing`, that its draft is replaced and its edits lost; then import_book with `book` = incoming.book and the same source.",
+      inputSchema: z.object({
+        url: z.string().url().optional().describe("a game.config.json to fetch"),
+        configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
+        assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against"),
+        source: z.enum(["cdn"]).optional().describe('"cdn" = the instance CDN\'s current version (CONTENT_BASE_URL)'),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    guard(async ({ url, configuration, assetsBase, source }) => {
+      const body = await importSource({ url, configuration, assetsBase, source });
+      if ("error" in body) return fail(body);
+      const preview = await api.call<{ incoming: { book: string; title: string; build: string | null }; existing: unknown } & Json>("POST", "/editor/import/preview", body);
+      const { book, title, build } = preview.incoming;
+      return text({
+        ...preview,
+        imported: false,
+        ...(preview.existing ? { open: editorHref(links, book) } : {}),
+        next: `Nothing was imported. Tell the person: 1 book, “${title}” (${book})${build ? `, build ${build}` : ""}${preview.existing ? " – it replaces the draft of that id here, and its edits since its import are lost (existing.draft.edits)" : " – a new book"}. Import only if they want it: import_book with book: "${book}" and the same source${preview.existing ? " (it answers the comparison first; ask again before confirming)" : ""}.`,
+      });
     }),
   );
 

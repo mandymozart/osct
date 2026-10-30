@@ -147,7 +147,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(verified.ok, JSON.stringify(verified.data)).toBe(true);
     expect(verified.data.user).toEqual({ email: "editor@example.test", roles: ["reader", "editor"] });
     expect(await names()).toEqual(
-      expect.arrayContaining(["list_books", "import_book", "get_book", "get_spread", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "add_spread", "put_spread", "delete_spread", "put_book_passes", "put_environment", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
+      expect.arrayContaining(["list_books", "preview_import", "import_book", "get_book", "get_spread", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "add_spread", "put_spread", "delete_spread", "put_book_passes", "put_environment", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
     );
     expect((await client.listPrompts()).prompts.map(p => p.name).sort()).toEqual(["add-target", "editor"]);
     const resource = await client.readResource({ uri: "osct://rules/content-model" });
@@ -172,6 +172,9 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
 
   it("re-imports in two steps: the comparison and a confirmation first, nothing replaced; then with confirm (#183)", async () => {
     const args = { book: "osct", configuration: CONFIGURATION, assetsBase: "http://localhost:5174" };
+    const preview = await call("preview_import", { configuration: CONFIGURATION, assetsBase: "http://localhost:5174" });
+    expect(preview.ok, JSON.stringify(preview.data)).toBe(true);
+    expect(preview.data).toMatchObject({ imported: false, incoming: { book: "osct", title: "Test Book", build: "abababababab" }, counts: { spreads: 2, entries: 2, targets: 2, entities: 1 }, existing: { book: { id: "osct" }, draft: { edits: 0 } } });
     const first = await call("import_book", args);
     expect(first.ok).toBe(true);
     expect(first.data.imported).toBe(false);

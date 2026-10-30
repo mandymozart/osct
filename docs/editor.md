@@ -106,7 +106,22 @@ when, the draft's **edits since that import** (their number, the newest five fro
 AI connection's edits name it) and whether the draft as it is now is live anywhere. **Replace the draft** (or *Import
 again* when the same build comes in and nothing was edited) imports; *Cancel* goes back to the form. The comparison is
 the API's first step (409 `confirm-import`), the button sends its confirmation – when the draft changed meanwhile, the
-form shows the new comparison and says so. *The CDN* asks for the book's id in the form (no browser prompt).
+form shows the new comparison and says so.
+
+### Import: what comes in
+
+Before the comparison, the form shows what an import would bring in (#182, `POST /api/editor/import/preview` –
+[server](server.md#import-preview)): *From* (the content base), the build with when it was built and became current on
+the CDN, the app and content schema version, the **one book** in it (title · id) and what it holds (spreads, entries,
+targets, shared entities), and where its media resolve (*Assets at*). The button says it: *Import 1 book: The Demo Book
+(build 7457f0c…)*. *The CDN* reads it at once (the server knows the content base), a URL once typing pauses (the browser
+reads the content base's `latest.json` or the `game.config.json`, the server checks it), a file when it is chosen; the
+import then sends exactly what was previewed. The book's id is the configuration's `book.id` – no id field and no
+browser prompt (a configuration without one is refused by the import anyway). When a draft with that id is here, the
+form says so first – *A draft of “The Demo Book” (demo) is already here – importing replaces it.*, how many of its
+edits since its import are lost (unpublished, unless the draft as it is now is live) and where it is live; the
+comparison above follows on the button. A source that cannot be read – the CDN offline, no `latest.json`, one that
+names no build – shows the error with the URL and *Try again*.
 
 ### One book per environment
 
