@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.45.0 – 2026-10-30
 
 ### Changed
 - **Post-processing names its level** (#181): the section's head reads *post-processing · the whole book* or
