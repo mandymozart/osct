@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS assets (
   id CHAR(36) NOT NULL PRIMARY KEY,
   book_id VARCHAR(64) NOT NULL,
   name VARCHAR(255) NOT NULL,          -- the file name as uploaded
-  kind VARCHAR(16) NOT NULL,           -- glb | gltf | video | image | audio (the contract's asset types)
+  kind VARCHAR(16) NOT NULL,           -- glb | gltf | video | image | audio (the contract's asset types), shader (#186)
   mime VARCHAR(64) NOT NULL,
   size BIGINT NOT NULL,
   sha256 CHAR(64) NOT NULL,

@@ -16,7 +16,11 @@ declare(strict_types=1);
  * - the same bytes uploaded twice are one asset (sha256);
  * - an image's width and height and a video's width, height and duration are read from the file on upload and replace
  *   (`VideoInfo` for the video containers) – null when the file does not tell;
- * - renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build – open (PLAN 2b).
+ * - renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build – open (PLAN 2b);
+ * - a **shader** (`.glsl`, `.frag`, `.vert`, `.wgsl`, #186) is an asset of the kind `shader`: text a plugin loads by its
+ *   URL (`api.loadText`). Its uses are the plugin sources that name the URL; a replace relinks them as it relinks rows.
+ *   A source file is checked as text (`checkText`: a text content type, UTF-8, no binary bytes) and at most
+ *   `TEXT_MAX_BYTES`. Scripts (`.ts`, `.js`) are no assets: they are plugin sources (`Plugins::upload`).
  */
 final class Assets
 {
@@ -26,13 +30,22 @@ final class Assets
         'mp4' => 'video', 'webm' => 'video', 'mov' => 'video',
         'jpg' => 'image', 'jpeg' => 'image', 'png' => 'image', 'webp' => 'image',
         'mp3' => 'audio', 'm4a' => 'audio', 'ogg' => 'audio', 'wav' => 'audio',
+        'glsl' => 'shader', 'frag' => 'shader', 'vert' => 'shader', 'wgsl' => 'shader',
     ];
     public const MIMES = [
         'glb' => 'model/gltf-binary', 'gltf' => 'model/gltf+json',
         'mp4' => 'video/mp4', 'webm' => 'video/webm', 'mov' => 'video/quicktime',
         'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp',
         'mp3' => 'audio/mpeg', 'm4a' => 'audio/mp4', 'ogg' => 'audio/ogg', 'wav' => 'audio/wav',
+        'glsl' => 'text/x-glsl; charset=utf-8', 'frag' => 'text/x-glsl; charset=utf-8', 'vert' => 'text/x-glsl; charset=utf-8', 'wgsl' => 'text/wgsl; charset=utf-8',
     ];
+    /** The kinds whose files are source code: checked as text, at most TEXT_MAX_BYTES */
+    public const TEXT_KINDS = ['shader'];
+    /** A source file (a shader, a script) larger than this is refused – a plugin source's limit */
+    public const TEXT_MAX_BYTES = Plugins::MAX_SOURCE_BYTES;
+    /** The content types a text file may be sent as besides text/* (a browser sends octet-stream for a type it does not know) */
+    private const TEXT_TYPES = ['', 'application/octet-stream', 'application/javascript', 'application/x-javascript', 'application/ecmascript',
+        'application/typescript', 'application/x-typescript', 'application/x-glsl'];
     /** The store's pseudo environment the assets live in */
     public const STORE_ENV = 'assets';
 
@@ -100,6 +113,9 @@ final class Assets
                 $rows[] = ['text' => (string) $row['data_json'], 'exact' => null];
             }
         }
+        foreach (Db::run('SELECT source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+            $rows[] = ['text' => (string) $row['source'], 'exact' => null];
+        }
         return $rows;
     }
 
@@ -115,8 +131,8 @@ final class Assets
 
     /**
      * POST /editor/books/{id}/assets – the file as the raw body, `X-File-Name: <name.ext>` → 201 { asset }, or 200 with
-     * the asset that already holds these bytes. 400 `invalid-file` (no name, unsupported type, empty), 413 `body-too-large`
-     * (ASSET_MAX_BYTES).
+     * the asset that already holds these bytes. 400 `invalid-file` (no name, unsupported type, empty, a shader that is no
+     * text), 413 `body-too-large` (ASSET_MAX_BYTES, a shader TEXT_MAX_BYTES).
      */
     public static function upload(string $bookId): never
     {
@@ -209,21 +225,53 @@ final class Assets
     /** @return array{0: string, 1: string, 2: string} name, extension, bytes */
     private static function file(?string $fallbackName = null): array
     {
-        if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > Config::int('ASSET_MAX_BYTES')) {
-            throw new ApiError(413, 'body-too-large', 'The file is larger than ASSET_MAX_BYTES.');
+        [$name, $extension] = self::fileName($fallbackName);
+        if (!isset(self::KINDS[$extension])) {
+            $script = in_array($extension, Plugins::EXTENSIONS, true) ? ' A script is a plugin source: POST …/plugins.' : '';
+            throw new ApiError(400, 'invalid-file', "\"$name\": unsupported type – one of " . implode(', ', array_keys(self::KINDS)) . ".$script");
         }
+        $text = in_array(self::KINDS[$extension], self::TEXT_KINDS, true);
+        $data = self::body($text ? self::TEXT_MAX_BYTES : Config::int('ASSET_MAX_BYTES'), $text ? self::TEXT_MAX_BYTES . ' bytes' : 'ASSET_MAX_BYTES');
+        if ($text) self::checkText($name, $extension, $data);
+        return [$name, $extension, $data];
+    }
+
+    /**
+     * The upload's file name (`X-File-Name`, URL-encoded, the base name only) and its extension in lower case
+     * @return array{0: string, 1: string}
+     */
+    public static function fileName(?string $fallbackName = null): array
+    {
         $name = trim((string) ($_SERVER['HTTP_X_FILE_NAME'] ?? ''));
         if ($name === '') $name = (string) $fallbackName;
         $name = basename(str_replace('\\', '/', rawurldecode($name)));
         if ($name === '' || $name === '.' || $name === '..') throw new ApiError(400, 'invalid-file', 'Send the file name in X-File-Name.');
-        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        if (!isset(self::KINDS[$extension])) {
-            throw new ApiError(400, 'invalid-file', "\"$name\": unsupported type – one of " . implode(', ', array_keys(self::KINDS)) . '.');
-        }
+        return [$name, strtolower(pathinfo($name, PATHINFO_EXTENSION))];
+    }
+
+    /** The upload's raw body: 400 when empty, 413 above `$max` bytes (`$limit` names it in the message) */
+    public static function body(int $max, string $limit): string
+    {
+        if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > $max) throw new ApiError(413, 'body-too-large', "The file is larger than $limit.");
         $data = (string) file_get_contents('php://input');
         if ($data === '') throw new ApiError(400, 'invalid-file', 'The file is empty.');
-        if (strlen($data) > Config::int('ASSET_MAX_BYTES')) throw new ApiError(413, 'body-too-large', 'The file is larger than ASSET_MAX_BYTES.');
-        return [$name, $extension, $data];
+        if (strlen($data) > $max) throw new ApiError(413, 'body-too-large', "The file is larger than $limit.");
+        return $data;
+    }
+
+    /**
+     * A source file (a shader, a script) is text: sent as text/* (or a type that says nothing, or JavaScript / TypeScript),
+     * UTF-8 without NUL bytes – else 400 `invalid-file`. A picture or a video renamed to `.glsl` stops here.
+     */
+    public static function checkText(string $name, string $extension, string $data): void
+    {
+        $type = strtolower(trim(explode(';', (string) ($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? ''))[0]));
+        // Windows registers .ts as an MPEG transport stream (video/mp2t, video/vnd.dlna.mpeg-tts), so a browser sends that
+        // type for a TypeScript file – the bytes decide below
+        $stream = $extension === 'ts' && str_starts_with($type, 'video/') && (str_contains($type, 'mp2t') || str_contains($type, 'mpeg-tts'));
+        $textual = str_starts_with($type, 'text/') || in_array($type, self::TEXT_TYPES, true) || $stream;
+        if (!$textual) throw new ApiError(400, 'invalid-file', "\"$name\" was sent as $type – a source file is text.");
+        if (str_contains($data, "\0") || !preg_match('//u', $data)) throw new ApiError(400, 'invalid-file', "\"$name\" is no text file (UTF-8 without binary bytes).");
     }
 
     private static function path(string $bookId, string $assetId, int $version, string $extension): string
@@ -262,7 +310,7 @@ final class Assets
 
     /**
      * Where the asset's current URL appears in the book: the book's environment (its world model or sky), targets
-     * (`imageSrc`, the inline entity), shared entities, entries.
+     * (`imageSrc`, the inline entity), shared entities, entries, plugin sources (a shader they load – #186).
      * @param array<string, mixed> $asset
      * @return array<int, array{kind: string, ref: string}>
      */
@@ -279,6 +327,10 @@ final class Assets
         }
         foreach (Db::run("SELECT id FROM entries WHERE book_id = :book AND data_json LIKE :needle ESCAPE '!' ORDER BY id", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
             $usages[] = ['kind' => 'entry', 'ref' => $row['id']];
+        }
+        // A plugin source names a file by its URL as a string (a shader it loads, a picture it shows)
+        foreach (Db::run("SELECT id FROM plugins WHERE book_id = :book AND source LIKE :needle ESCAPE '!' ORDER BY id", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
+            $usages[] = ['kind' => 'plugin', 'ref' => $row['id']];
         }
         return $usages;
     }
@@ -325,6 +377,16 @@ final class Assets
             if ($json === $row['data_json']) continue;
             Db::run('UPDATE entries SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $row['id']]);
             Books::recordChange($bookId, $user, 'entry', $row['id'], $row['data_json'], $json);
+            $count++;
+        }
+        // Plugin sources name the URL as plain text (no JSON escaping): a shader's new version reaches the code that loads it
+        $now = Editor::nowMs();
+        foreach (Db::run('SELECT id, source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+            $source = str_replace($from, $to, (string) $row['source']);
+            if ($source === $row['source']) continue;
+            Db::run('UPDATE plugins SET source = :source, updated_by = :by, updated_at = :now WHERE book_id = :book AND id = :id',
+                ['source' => $source, 'by' => $user['id'], 'now' => $now, 'book' => $bookId, 'id' => $row['id']]);
+            Books::recordChange($bookId, $user, 'plugin', $row['id'], Editor::encode($row['source']), Editor::encode($source));
             $count++;
         }
         if ($count) Books::touchBook($bookId);

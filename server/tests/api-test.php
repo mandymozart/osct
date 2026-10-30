@@ -154,10 +154,10 @@ function deleting(string $base, string $path, ?string $token, array $options = [
     return call($base, 'DELETE', $path, ['confirm' => $answer[1]['error']['confirmation']['id']] + $options, $token);
 }
 
-/** A file upload: the bytes as the body, the name in X-File-Name */
-function upload(string $base, string $method, string $path, string $bytes, string $name, string $token): array
+/** A file upload: the bytes as the body, the name in X-File-Name (sent as `$type`) */
+function upload(string $base, string $method, string $path, string $bytes, string $name, string $token, string $type = 'application/octet-stream'): array
 {
-    $headers = ['Origin: http://localhost:5173', 'Content-Type: application/octet-stream', "X-File-Name: $name", "Authorization: Bearer $token"];
+    $headers = ['Origin: http://localhost:5173', "Content-Type: $type", "X-File-Name: $name", "Authorization: Bearer $token"];
     $context = stream_context_create(['http' => ['method' => $method, 'header' => implode("\r\n", $headers), 'ignore_errors' => true, 'content' => $bytes]]);
     $response = file_get_contents($base . $path, false, $context);
     $status = (int) explode(' ', $http_response_header[0])[1];
@@ -897,7 +897,16 @@ try {
     }
     [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'unknown-node-types' && $data['error']['nodeTypes'] === ['sparkle'], 'without a declared plugin, publish → 409 unknown-node-types naming the types');
-    call($api, 'DELETE', '/editor/books/osct/plugins/sparkle', null, $editor);
+    // The source is used (#186): its delete is refused with the usages, its usages endpoint names them, force deletes
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/plugins/sparkle', null, $editor);
+    check($status === 409 && $data['error']['code'] === 'plugin-in-use' && $data['error']['usages'] === [['kind' => 'target', 'ref' => 'racoon'], ['kind' => 'entity', 'ref' => 'castle']],
+        'deleting a source whose node type the draft uses → 409 plugin-in-use with the usages');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/plugins/sparkle/usages', null, $editor);
+    check($status === 200 && count($data['usages']) === 2 && $data['registers']['nodeTypes'] === ['sparkle'], 'its usages and what it registers');
+    [, $data] = call($api, 'GET', '/editor/books/osct/plugins', null, $editor);
+    check($data['plugins'][0]['id'] === 'sparkle' && $data['plugins'][0]['usages'] === 2, 'the list counts its uses');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/plugins/sparkle?force=1', null, $editor);
+    check($status === 204, 'a forced delete → 204');
     // The import: allowed with plugins declared, refused without (and without sources)
     $withNodes = $configuration;
     $withNodes['entities']['castle'] = $sparkly;
@@ -969,7 +978,9 @@ try {
     check($status === 200, 'with a source in the Code tab, a material it may register passes');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'unknown-materials' && $data['error']['materials'] === ['lava'], 'publish: a material no compiled plugin provides → 409 unknown-materials naming it');
-    call($api, 'DELETE', '/editor/books/osct/plugins/lava', null, $editor);
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/plugins/lava', null, $editor);
+    check($status === 409 && $data['error']['usages'] === [['kind' => 'entity', 'ref' => 'castle']], 'a source whose material a node carries is in use (#186)');
+    call($api, 'DELETE', '/editor/books/osct/plugins/lava?force=1', null, $editor);
     $dry = $noPlugins;
     $dry['entities']['castle'] = $tank;
     [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $dry, 'files' => $files], $flags));
@@ -1032,6 +1043,69 @@ try {
     check(array_column($data['assets'], 'imported') === [true, true], 'gone from the list (the imported files stay)');
     $gone = @file_get_contents($v2);
     check($gone === false, 'and from the store');
+
+    echo "editor: the Library's code files – shaders as assets, scripts as plugin sources (#186)\n";
+    $shader = "// a test shader\nuniform float time;\nvoid main() { gl_FragColor = vec4(vec3(0.5 + 0.5 * sin(time)), 1.0); }\n";
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $shader, 'Pulse.frag', $editor, 'text/plain');
+    $glsl = $data['asset'] ?? null;
+    check($status === 201 && $glsl && $glsl['kind'] === 'shader' && $glsl['size'] === strlen($shader) && $glsl['width'] === null && str_ends_with($glsl['url'], '/v1.frag'), 'a shader → 201 asset of the kind shader');
+    check(file_get_contents($glsl['url']) === $shader && in_array('Content-Type: text/x-glsl; charset=utf-8', $http_response_header, true), 'served as text with open CORS');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', "@vertex fn main() {}\n", 'grid.wgsl', $editor);
+    check($status === 201 && $data['asset']['kind'] === 'shader' && $data['asset']['mime'] === 'text/wgsl; charset=utf-8', 'a WGSL file sent as octet-stream → a shader too');
+    $wgsl = $data['asset'];
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $shader, 'pulse.hlsl', $editor, 'text/plain');
+    check($status === 400 && $data['error']['code'] === 'invalid-file', 'a wrong extension → 400 invalid-file');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $shader, 'pulse.ts', $editor, 'text/plain');
+    check($status === 400 && str_contains($data['error']['message'], 'POST …/plugins'), 'a script sent as an asset → 400 pointing at the plugins');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'picture.glsl', $editor, 'image/png');
+    check($status === 400 && str_contains($data['error']['message'], 'image/png'), 'a shader sent as a picture → 400 (content type)');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'picture.glsl', $editor);
+    check($status === 400 && str_contains($data['error']['message'], 'no text file'), 'binary bytes named .glsl → 400 (content)');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', str_repeat('/', 262145), 'huge.glsl', $editor);
+    check($status === 413 && $data['error']['code'] === 'body-too-large', 'a shader above 256 KB → 413');
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets?kind=shader', null, $editor);
+    check(array_column($data['assets'], 'id') === [$wgsl['id'], $glsl['id']] && $data['assets'][1]['usages'] === 0, 'the list by kind: the two shaders, unused');
+    // A plugin source that loads the shader uses it: delete refused, replace relinks the source
+    $loader = "export const register = (api) => { void api.loadText('{$glsl['url']}'); };\n";
+    call($api, 'PUT', '/editor/books/osct/plugins/pulse', ['source' => $loader], $editor);
+    [$status, $data] = call($api, 'GET', "/editor/books/osct/assets/{$glsl['id']}/usages", null, $editor);
+    check($status === 200 && $data['usages'] === [['kind' => 'plugin', 'ref' => 'pulse']] && $data['asset']['usages'] === 1, 'usages: the plugin source that names its URL');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$glsl['id']}", null, $editor);
+    check($status === 409 && $data['error']['code'] === 'asset-in-use' && $data['error']['usages'][0]['kind'] === 'plugin', 'delete while a source loads it → 409 asset-in-use');
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$glsl['id']}/file", "$shader// v2\n", 'pulse.frag', $editor, 'text/plain');
+    check($status === 200 && $data['asset']['version'] === 2 && $data['relinked'] === 1, 'replace → version 2, the source relinked');
+    [, $data] = call($api, 'GET', '/editor/books/osct/plugins/pulse', null, $editor);
+    check(str_contains($data['plugin']['source'], str_replace('/v1.frag', '/v2.frag', $glsl['url'])) && !str_contains($data['plugin']['source'], '/v1.frag'), 'the source names the new version');
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$glsl['id']}/file", $png, 'dot.png', $editor, 'image/png');
+    check($status === 400, 'a shader replaced by a picture → 400');
+    // Scripts: a file becomes a plugin source, named after the file
+    $script = "\xEF\xBB\xBFexport const register = (api) => api.registerComponent('wobble', { description: 'x', params: {} }, () => ({}));\n";
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/plugins', $script, 'Wobble Effect.ts', $editor, 'video/mp2t');
+    check($status === 201 && $data['plugin']['id'] === 'wobble-effect' && str_starts_with($data['plugin']['source'], 'export const') && $data['plugin']['updatedBy'] === 'author@example.com',
+        'a script → 201 plugin source, its id from the name, the byte order mark dropped (Windows sends .ts as video/mp2t)');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/plugins?id=wobble3', $script, 'wobble.ts', $editor, 'video/vnd.dlna.mpeg-tts');
+    check($status === 201, 'a .ts sent as the other MPEG stream type of Windows passes too');
+    call($api, 'DELETE', '/editor/books/osct/plugins/wobble3', null, $editor);
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/plugins', $script, 'wobble-effect.js', $editor, 'text/javascript');
+    check($status === 409 && $data['error']['code'] === 'plugin-exists' && $data['error']['plugin'] === 'wobble-effect', 'the same id again → 409 plugin-exists');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/plugins?id=wobble2', $script, 'wobble-effect.js', $editor, 'text/javascript');
+    check($status === 201 && $data['plugin']['id'] === 'wobble2', '?id= names it');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/plugins', $shader, 'pulse.glsl', $editor, 'text/plain');
+    check($status === 400 && $data['error']['code'] === 'invalid-file' && str_contains($data['error']['message'], 'POST …/assets'), 'a shader sent as a script → 400 pointing at the assets');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/plugins', $script, '42.ts', $editor, 'text/plain');
+    check($status === 400 && $data['error']['code'] === 'invalid-plugin', 'a name that gives no id → 400 invalid-plugin');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/plugins', $png, 'binary.ts', $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-file', 'binary bytes named .ts → 400');
+    [$status] = upload($api, 'POST', '/editor/books/osct/plugins', str_repeat('/', 262145), 'big.ts', $editor);
+    check($status === 413, 'a script above 256 KB → 413');
+    [$status, $data] = upload($api, 'PUT', '/editor/books/osct/plugins/wobble2/file', "// v2\n$script", 'anything.ts', $editor, 'text/plain');
+    check($status === 200 && str_starts_with($data['plugin']['source'], '// v2'), 'replace a source with a file → 200');
+    [$status] = upload($api, 'PUT', '/editor/books/osct/plugins/nothere/file', $script, 'x.ts', $editor, 'text/plain');
+    check($status === 404, 'replace an unknown plugin → 404');
+    [$status] = call($api, 'DELETE', '/editor/books/osct/plugins/wobble2', null, $editor);
+    check($status === 204, 'an unused source is deleted at once');
+    foreach (['pulse', 'wobble-effect'] as $plugin) call($api, 'DELETE', "/editor/books/osct/plugins/$plugin?force=1", null, $editor);
+    foreach ([$glsl, $wgsl] as $made) call($api, 'DELETE', "/editor/books/osct/assets/{$made['id']}?force=1", null, $editor);
 
     echo "editor: a video's width, height and duration (#91)\n";
     require_once "$root/api/src/VideoInfo.php";
@@ -1537,6 +1611,12 @@ try {
     call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
     check($data['changes'][0]['token'] === null, 'a save in the editor records none');
+    // A token uploads code files as its person does (#186): a shader, a script
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', "void main() {}\n", 'ai.vert', $aiToken, 'text/plain');
+    [$status2, $data2] = upload($api, 'POST', '/editor/books/osct/plugins', "export const register = () => {};\n", 'ai-script.ts', $aiToken, 'text/plain');
+    check($status === 201 && $data['asset']['kind'] === 'shader' && $status2 === 201 && $data2['plugin']['id'] === 'ai-script', 'a token uploads a shader and a script');
+    call($api, 'DELETE', "/editor/books/osct/assets/{$data['asset']['id']}", null, $aiToken);
+    call($api, 'DELETE', '/editor/books/osct/plugins/ai-script', null, $aiToken);
 
     // A token removes like its person – only through the same two steps (#198); its confirmation is its own
     [$status] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Robot', 'page' => 1, 'id' => 'robot', 'target' => ['imageSrc' => 'https://cdn.example/robot.jpg']], $aiToken);

@@ -261,6 +261,20 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     const changes = await call("list_changes", { book: "osct", limit: 10 });
     expect(changes.data.changes.map((c: any) => c.kind)).toEqual(expect.arrayContaining(["entity", "target", "entry", "plugin"]));
     expect((await call("delete_plugin", { book: "osct", plugin: "glow" })).ok).toBe(true);
+    // The Library's code files (#186): a shader as an asset, a script file as a plugin source
+    const shaderFile = join(tmp, "pulse.frag");
+    writeFileSync(shaderFile, "void main() { gl_FragColor = vec4(1.0); }\n");
+    const shader = await call("upload_asset", { book: "osct", file: shaderFile });
+    expect(shader.data.asset).toMatchObject({ kind: "shader", name: "pulse.frag" });
+    const scriptFile = join(tmp, "Wobble.ts");
+    writeFileSync(scriptFile, "export const register = (api: any) => api.registerComponent('wobble', { description: 'w', params: {} }, () => ({}));\n");
+    const script = await call("upload_plugin", { book: "osct", file: scriptFile });
+    expect(script.data.plugin.id).toBe("wobble");
+    expect(script.data.registers.components).toEqual(["wobble"]);
+    expect((await call("upload_plugin", { book: "osct", file: scriptFile })).data.error.code).toBe("plugin-exists");
+    expect((await call("plugin_usages", { book: "osct", plugin: "wobble" })).data.usages).toEqual([]);
+    expect((await call("delete_plugin", { book: "osct", plugin: "wobble" })).ok).toBe(true);
+    expect((await call("delete_asset", { book: "osct", asset: shader.data.asset.id })).ok).toBe(true);
     const asked = await call("delete_entry", { book: "osct", entry: "p31-shadows" });
     expect(asked.data.impact).toMatchObject({ kind: "entry", entry: { id: "p31-shadows" }, counts: { entries: 1, targets: 1, entities: 1 } });
     expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.entries).toHaveLength(2);

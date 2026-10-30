@@ -555,7 +555,8 @@ export type TextureDraw = (context: TextureContext) => TextureInstance | Texture
  * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`, API 1.1): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
- * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread).
+ * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
+ * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (API 1.5, #186).
  *
  * Registrations are kept per plugin id: installing a plugin again (the editor's Run) replaces what it registered
  * before; an exception in `register` leaves the previous registration in place. The reader loads the plugins the
@@ -679,6 +680,13 @@ export interface PluginApi {
 	readonly progress: PluginProgress;
 	/** The current spread */
 	readonly spread: PluginSpread;
+	/**
+	 * A text file (API 1.5): a shader of the book's Library by its URL (the Library shows it; a replace gives a new URL and
+	 * rewrites it in the sources that name it), or a content path (`/assets/content/…`). One request per URL however often
+	 * it is asked for; rejects on an HTTP error. A layer's GLSL is a string at register time – load files where a build
+	 * runs: a material's `build`, a pass's factory, a node type's `build` (set the shader when it arrives, `needsUpdate`).
+	 */
+	loadText(url: string): Promise<string>;
 	/** To the console, prefixed with the plugin's id */
 	log(...args: unknown[]): void;
 }

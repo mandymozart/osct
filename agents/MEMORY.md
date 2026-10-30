@@ -4,6 +4,38 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Code files in the Library: scripts are plugin sources, shaders are assets (#186)
+
+- **The model**: a **script** (`.ts` / `.js`) uploaded in the Library **is** a plugin source – a row of `plugins`, the
+  Code tab's list. The Library shows those rows; there is no second copy and no asset row for a script. A **shader**
+  (`.glsl`, `.frag`, `.vert`, `.wgsl`) is an **asset of the kind `shader`** in the asset store (versions, sha256 dedupe,
+  `assets.kind` is a VARCHAR – no schema change). Two stores because the two are different things: a script is code the
+  content build compiles (it has an id, it registers types), a shader is a file a script loads.
+- **A plugin loads a shader by its URL, not its name** (`api.loadText(url)`, plugin API 1.5): the reader has no Library,
+  so a name could not be resolved there; the URL is what both fetch. The editor keeps it right: an asset's uses include
+  the plugin sources that name its URL (LIKE through `Db::contains`), delete refuses while one does, and a replace
+  rewrites the URL in those sources (a recorded change each) – so the URL-in-code stays the one reference.
+- **`api.loadText` is a promise, layers stay inline**: `register` is synchronous and a layer's `glsl` is needed then, so
+  a file is loaded where a build runs (material, pass, node type) and swapped in (`needsUpdate`). Making `register`
+  async (so a layer could load a file) was left out: it touches the engine's install, the editor's Run and the content
+  build's recording run. The recording API answers `loadText` with `""`. The API bump to 1.5 is a change in `shared/`,
+  so the content schema went to 2.18 (nothing new in the content).
+- **A script's uses** are the draft's rows that name a type it registers – `"type":"<t>"` in the JSON of the book, a
+  spread, a target, an entity or an entry (a procedural texture also as a value) – with the types read from the source
+  text, as the MCP server's `pluginTypes` reads them. A text scan, not the truth: the content build knows for sure. It
+  is enough to refuse a delete that would leave nodes without their type, so **`DELETE …/plugins/{pid}` now refuses
+  while used** (409 `plugin-in-use`, `?force=1`) – for the Code tab and the MCP too (`delete_plugin` got `force`).
+- **Upload checks**: extension (per store – a script sent to `POST …/assets` and a shader sent to `POST …/plugins` get
+  a 400 pointing at the other), at most 256 KB (`Plugins::MAX_SOURCE_BYTES`, also `Assets::TEXT_MAX_BYTES`), content type
+  `text/*`, JavaScript / TypeScript or one that says nothing (`application/octet-stream`), and `video/mp2t` for `.ts`
+  (Windows registers `.ts` as an MPEG transport stream, so browsers send that), and the bytes UTF-8 without NUL. A
+  script's id is `?id=` or its file name made an id (`Wobble Effect.ts` → `wobble-effect`); a taken id is 409
+  `plugin-exists` – the Library then says to use *Replace…* (no silent overwrite).
+- **UI**: the code files are a list of their own under the media (`CodeFiles.svelte`), not cards – a shader has no
+  picture, and a script is not an asset. The filter `code` shows it alone; the picker never shows it (nothing picks code).
+  The preview is a second, read-only Monaco (`createCodePreview`), loaded with the first preview; GLSL is highlighted as
+  `cpp` (Monaco has no GLSL), WGSL as `wgsl`. *Open in Code* goes through `plugins.focus`.
+
 ## 2026-10-30 – The environment replaces the HDRI sky box (#185)
 
 - Tilman: "Environment replaces the HDRI sky box." – once the book has an environment, the stage's sky (shading

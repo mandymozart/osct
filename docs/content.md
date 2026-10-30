@@ -276,6 +276,9 @@ lets its types pass. The engine ignores the field. What a plugin registers is us
 - `api.registerTexture(type, spec, draw)` (plugin API 1.4) – a **procedural texture**: `draw({ params, three })`
   returns a texture (a canvas or data texture) or `{ texture, update, dispose }`; a `texture` parameter takes it by its
   type.
+- `api.loadText(url)` (plugin API 1.5, schema 2.18) – a **text file** as a promise: a shader of the editor's Library by
+  its URL, or a content path (`/assets/content/…`); one request per URL. Used where a build runs (a material, a pass, a
+  node type), never for a layer's `glsl`, which is a string at register time ([plugins](plugins.md) "A shader file").
 - **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
   `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
   book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
@@ -599,6 +602,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.15 | 1.35.0 | in develop | a parameter spec's optional `label` (plugin API 1.3) – the editor's row; in the content only inside a plugin's recorded specs |
 | 2.16 | 1.36.1 | unreleased | nothing new in the content – shared/ imports its types type-only (`verbatimModuleSyntax`, #176) |
 | 2.17 | 1.41.0 | unreleased | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) – a 2.16 app refuses a recorded spec with a `texture` parameter |
+| 2.18 | 1.49.0 | unreleased | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

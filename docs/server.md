@@ -148,7 +148,8 @@ with the browser session they have, and hands it to an AI agent (any MCP client)
 - **What a token never does – 403 `not-for-ai`:** make, list, renew or revoke tokens, set the password
   (`PUT /user/password`), delete the account (`DELETE /user`) – those take the person's own session
   (`Auth::session()`) – and **publish**, to any environment (`Auth::refuseToken()` in `Books::publish`): readers are
-  reached only by a person. Reading and saving drafts, assets and plugin sources work as for the person; removing a
+  reached only by a person. Reading and saving drafts, assets and plugin sources – uploading shaders and script files
+  included – work as for the person; removing a
   spread or an entry too, but only in the two steps of a [confirmation](#confirmations) – the impact first, then the
   same request with its id.
 - A save through a token records the token's name in the change log (`changes.token_name`, the `token` of
@@ -362,7 +363,12 @@ must be in `ALLOWED_ORIGINS`, as for any other call).
 
 The files an editor uploads (`Assets.php`, after Scutoons' asset layer – `scutoons/agents/ASSETS.md` – sized for
 OSCT): models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp) and sounds (mp3, m4a, ogg, wav), at most
-`ASSET_MAX_BYTES` (64 MB). They live in the content store under the pseudo environment `assets`:
+`ASSET_MAX_BYTES` (64 MB), and **shaders** (glsl, frag, vert, wgsl – the kind `shader`, #186), at most 256 KB
+(`Assets::TEXT_MAX_BYTES`). A shader is a source file: the upload checks it is text – sent as `text/*`, as a type that
+says nothing (`application/octet-stream`, none) or as JavaScript / TypeScript, UTF-8 without NUL bytes – else 400
+`invalid-file` (a picture renamed `.glsl` stops there); it is served as `text/x-glsl` / `text/wgsl`. A plugin loads it
+by its URL (`api.loadText`, [plugins](plugins.md) "A shader file"). A script (`.ts`, `.js`) is no asset: it is a
+plugin source ("Plugin sources" – the 400 says so). They live in the content store under the pseudo environment `assets`:
 `assets/<book>/<asset id>/v<n>.<ext>` – in the content store's folder for the local store, served by
 `GET /content/assets/…` with the file's type, a year's cache and `Access-Control-Allow-Origin: *` (the reader's
 engine loads them cross-origin), or in the CDN's storage zone (`CONTENT_STORE=bunny`, reached at
@@ -383,9 +389,9 @@ the column existed stay `null` until their file is replaced.
 | Endpoint | Body | Answer |
 |---|---|---|
 | `GET /editor/books/{id}/assets[?kind=]` | | `{ assets: [{ id, name, kind, mime, size, width, height, durationMs, version, url, usages, imported, createdAt, updatedAt }] }` – `width` / `height` in pixels (images, videos), `durationMs` (videos), null when unknown; `usages` = rows of the book naming the URL; the uploads first, then the files of the import's `files.json` (`imported: true`, id `import-<hash>`, read-only: no replace, usages or delete; `url` below the assets base, `usages` counted with the content path `/assets/content/…` the rows name) |
-| `POST /editor/books/{id}/assets` | the file; `X-File-Name: name.ext` | 201 `{ asset }`, or 200 with the asset that already holds these bytes. 400 `invalid-file` (no name, unsupported type, empty), 413 `body-too-large` |
-| `PUT /editor/books/{id}/assets/{aid}/file` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked }` – a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one, and the book's environment (`worldSrc`, `skySrc`) (a change each) |
-| `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: environment | target | entity | entry, ref }], asset }` (`environment`: the book's world model or sky, `ref` = the book; `asset` as the list has it) |
+| `POST /editor/books/{id}/assets` | the file; `X-File-Name: name.ext` | 201 `{ asset }`, or 200 with the asset that already holds these bytes. 400 `invalid-file` (no name, unsupported type, empty, a shader that is no text), 413 `body-too-large` (a shader above 256 KB) |
+| `PUT /editor/books/{id}/assets/{aid}/file` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked }` – a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one, and the book's environment (`worldSrc`, `skySrc`), and every plugin source that names it (a shader it loads – the URL replaced in its text) (a change each) |
+| `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: environment | target | entity | entry | plugin, ref }], asset }` (`environment`: the book's world model or sky, `ref` = the book; `plugin`: a plugin source naming the URL, `ref` = its id; `asset` as the list has it) |
 | `DELETE /editor/books/{id}/assets/{aid}[?force=1]` | | 204; 409 `asset-in-use` with `usages` unless forced (the files of every version go) |
 
 Renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build (PLAN 2b).
@@ -417,10 +423,19 @@ without plugins); a publish whose nodes use a material no declared plugin record
 
 | Endpoint | Body | Answer |
 |---|---|---|
-| `GET /editor/books/{id}/plugins` | | `{ plugins: [{ id, size, updatedAt, updatedBy }] }` |
+| `GET /editor/books/{id}/plugins` | | `{ plugins: [{ id, size, usages, updatedAt, updatedBy }] }` – `usages`: the draft's rows that use what it registers (below) |
 | `GET /editor/books/{id}/plugins/{pid}` | | `{ plugin: { id, source, size, updatedAt, updatedBy } }`; 404 |
 | `PUT /editor/books/{id}/plugins/{pid}` | `{ source }` | `{ plugin }` – new or changed; 400 `invalid-plugin` (the id is 1–40 lower-case letters, digits or `-`; the source a string), 413 above 256 KB |
-| `DELETE /editor/books/{id}/plugins/{pid}` | | 204 |
+| `POST /editor/books/{id}/plugins[?id=]` | a script file; `X-File-Name: name.ts` or `.js` | 201 `{ plugin }` – a new source, its id `?id=` or the file's name (`Wobble Effect.ts` → `wobble-effect`), a byte order mark dropped. 400 `invalid-file` (not .ts / .js – a shader points to the assets –, empty, no text: checked like a shader), 400 `invalid-plugin` (the name gives no id), 409 `plugin-exists` (`plugin`: the id), 413 above 256 KB |
+| `PUT /editor/books/{id}/plugins/{pid}/file` | a script file (`X-File-Name` optional) | `{ plugin }` – its new source (a change recorded); 404, 400 / 413 as above |
+| `GET /editor/books/{id}/plugins/{pid}/usages` | | `{ usages: [{ kind: book | spread | target | entity | entry, ref }], registers: { components, layers, nodeTypes, passes, materials, textures } }` |
+| `DELETE /editor/books/{id}/plugins/{pid}[?force=1]` | | 204; 409 `plugin-in-use` with `usages` unless forced |
+
+**The Library's scripts** (#186) are these rows: the editor's Library lists them beside the shader assets and uploads a
+script file with `POST …/plugins`. A source is **used** where the draft names a type it registers – the types read from
+its text as the MCP server reads them (`api.registerComponent("spin", …)` and the five other functions; the content build
+is what knows for sure): a row of the book (its master passes), a spread, a target, a shared entity or an entry whose
+JSON holds `"type":"<type>"` (a component, layer, node type, pass or material) or a procedural texture's type as a value.
 
 ### Targets and entries made in the editor
 

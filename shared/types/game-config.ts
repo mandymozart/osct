@@ -57,12 +57,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   imports its types type-only, verbatimModuleSyntax – #176), and since 2.17 a node's optional `material` (a plugin's
  *   `registerMaterial`, plugin API 1.4 – a 2.16 app keeps the node's own material), and a plugin's recorded materials and
  *   textures (a 2.16 app ignores them) – but a recorded spec with a parameter of the new kind `texture` is refused by a
- *   2.16 guard (it knows no such kind): a book whose plugins take textures needs a 2.17 app. Any MINOR of the same MAJOR
- *   loads.
+ *   2.16 guard (it knows no such kind): a book whose plugins take textures needs a 2.17 app, and 2.18 adds nothing to the
+ *   content (plugin API 1.5: `api.loadText`, a declared plugin built against it carries `api: "1.5"`). Any MINOR of the
+ *   same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.17";
+export const CONTENT_SCHEMA_VERSION = "2.18";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 

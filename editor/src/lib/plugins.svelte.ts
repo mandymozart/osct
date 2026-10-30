@@ -1,6 +1,7 @@
 import { installPlugin, PluginError, type PluginModule } from "@engine/scene/plugins";
 import { getPlugins } from "@engine/content/game-config";
-import { ApiError, deletePlugin, getPlugin, listPlugins, putPlugin, type PluginSummary } from "./api";
+import { ApiError, deletePlugin, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
+import { library } from "./library.svelte";
 import { importPluginCode, transpilePlugin, type CompileError } from "./plugins/compile";
 import type { Stage } from "./stage/stage.svelte";
 
@@ -9,6 +10,8 @@ import type { Stage } from "./stage/stage.svelte";
  * API's `plugins`), the plugins the content declares (compiled by the content build, loaded by the engine with the
  * spread), and **Run** – transpile in the browser, import, install in the stage's registry under the plugin's id,
  * build the spread again. `version` counts the runs: the Entity panel's rows follow the registry through it.
+ * The Library lists the same sources as its scripts (#186): it uploads a script file as a new source, replaces one
+ * from a file, and asks the Code tab to open one (`focus`).
  */
 class Plugins {
   bookId = $state<string | null>(null);
@@ -23,6 +26,8 @@ class Plugins {
   runError = $state<(CompileError & { plugin: string }) | null>(null);
   /** The last good Run: the plugin and the component types it registered */
   lastRun = $state<{ plugin: string; types: string[] } | null>(null);
+  /** A plugin the Code tab should open (the Library's *Open in Code*); the tab clears it once open */
+  focus = $state<string | null>(null);
 
   async load(bookId: string): Promise<void> {
     this.loading = true;
@@ -58,19 +63,39 @@ class Plugins {
     this.error = null;
     try {
       const { plugin } = await putPlugin(bookId, id, source);
-      const summary: PluginSummary = { id: plugin.id, size: plugin.size, updatedAt: plugin.updatedAt, updatedBy: plugin.updatedBy };
-      this.stored = [...this.stored.filter(p => p.id !== id), summary].sort((a, b) => a.id.localeCompare(b.id));
-      return summary;
+      return this.keep(plugin);
     } catch (e) {
       this.error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
       throw e;
     }
   }
 
-  async remove(bookId: string, id: string): Promise<void> {
+  /** A script file as a new source, its id from the file's name (409 plugin-exists when that id is taken) */
+  async upload(bookId: string, file: File): Promise<PluginSummary> {
+    return this.keep(await uploadPlugin(bookId, file));
+  }
+
+  /** A script file replaces the source of `id` */
+  async replaceFile(bookId: string, id: string, file: File): Promise<PluginSummary> {
+    return this.keep(await replacePluginFile(bookId, id, file));
+  }
+
+  /** Remove a source; refused while the draft uses what it registers (409 plugin-in-use with the usages) unless forced */
+  async remove(bookId: string, id: string, force = false): Promise<void> {
     this.error = null;
-    await deletePlugin(bookId, id);
+    await deletePlugin(bookId, id, force);
     this.stored = this.stored.filter(p => p.id !== id);
+    void library.refresh();
+  }
+
+  /** A saved source into the list (its uses as counted before – a source's text does not change the draft's rows); the
+   * Library's shaders count the sources that load them, so their uses are read again */
+  private keep(plugin: PluginSource): PluginSummary {
+    const usages = this.stored.find(p => p.id === plugin.id)?.usages ?? 0;
+    const summary: PluginSummary = { id: plugin.id, size: plugin.size, usages, updatedAt: plugin.updatedAt, updatedBy: plugin.updatedBy };
+    this.stored = [...this.stored.filter(p => p.id !== plugin.id), summary].sort((a, b) => a.id.localeCompare(b.id));
+    void library.refresh();
+    return summary;
   }
 
   /**

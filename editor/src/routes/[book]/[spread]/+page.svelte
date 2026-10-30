@@ -19,7 +19,7 @@
   import EnvironmentPanel from "#lib/panels/EnvironmentPanel.svelte";
   import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
-  import { deleteEntry, putTarget, type Asset } from "#lib/api.js";
+  import { deleteEntry, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
@@ -241,7 +241,7 @@
 
   // ── targets: the form, removal, a changed image or placement ──
   let addingTarget = $state(false);
-  let entityPanel = $state<{ useAsset: (kind: Asset["kind"], src: string, assetId: string) => void }>();
+  let entityPanel = $state<{ useAsset: (kind: MediaKind, src: string, assetId: string) => void }>();
   /** The content changed under the stage (a target's image or placement, a relink): reload it and build the spread again */
   const reloadContent = async () => {
     await content.load(bookId);
@@ -313,7 +313,7 @@
   const useAsset = async (asset: Asset) => {
     openTab("entity");
     await tick();
-    entityPanel?.useAsset(asset.kind, asset.url, asset.id);
+    if (isMediaAsset(asset)) entityPanel?.useAsset(asset.kind, asset.url, asset.id);
   };
   const useAsTargetImage = async (asset: Asset) => {
     if (!selection.target) return;
@@ -655,7 +655,7 @@
     {:else if shown === "environment"}
       <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
     {:else if shown === "library"}
-      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} /></div>
+      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} onopencode={() => openTab("code")} /></div>
     {:else if shown === "code"}
       <div class="body code"><CodePanel {bookId} {stage} /></div>
     {/if}

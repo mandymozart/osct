@@ -12,6 +12,33 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.49.0 – 2026-10-30
+
+### Added
+- **Editor: code files in the Library** (#186, Tilman: "the Library needs a file view for scripts and shaders"): the
+  book's scripts and shaders in a list of their own under the media – the new filter **code** shows it alone – with
+  name, kind, size and where each is used. A click opens a file: where it is used, a read-only preview (Monaco – GLSL
+  highlighted as C, WGSL as itself) and **Open in Code** (a script), **Copy URL** (a shader), **Download**,
+  **Replace…** and **Delete** (refused while used – *Delete anyway* forces it).
+- **Editor: upload scripts and shaders in the Library** (#186), with the button or by dropping them on the panel (a drop
+  hint shows while dragging): a `.ts` / `.js` file becomes one of the book's plugin sources – the ones the Code tab
+  lists, named after the file –, a `.glsl` / `.frag` / `.vert` / `.wgsl` file a **shader** in the asset store, with
+  versions like every other file. A code file is at most 256 KB.
+- **Plugin API 1.5: `api.loadText(url)`** (#186, content schema 2.18 – nothing new in the content): a text file – a
+  shader of the Library – by its URL, one request per URL, for a material's or a pass's build ([plugins](plugins.md)
+  "A shader file").
+- **API** (#186): the asset kind `shader` (`POST …/assets` checks a shader is text: a text content type, UTF-8 without
+  binary bytes); `POST …/plugins` (a script file as a new plugin source), `PUT …/plugins/{pid}/file` (a file as its new
+  source), `GET …/plugins/{pid}/usages`, and the plugins list's `usages`. **MCP**: `upload_plugin` and `plugin_usages`,
+  `delete_plugin` takes `force`, `list_assets` / `upload_asset` know shaders.
+
+### Changed
+- **A plugin source's delete is refused while the draft uses what it registers** (#186: 409 `plugin-in-use` with the
+  usages; `?force=1`, the editor's *Delete anyway* and the MCP's `force: true` delete it anyway) – in the Code tab and
+  the Library alike.
+- **An asset's uses include the plugin sources that name its URL** (#186): delete refuses while a plugin loads the
+  file, and a replace rewrites the URL in those sources (a change each), as it relinks targets, entities and entries.
+
 ## 1.48.0 – 2026-10-30
 
 ### Changed

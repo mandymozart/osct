@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
+  import { ApiError, type Usage } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
+  import { usageText } from "#lib/library-code.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { NEW_PLUGIN_SOURCE } from "#lib/plugins/compile.js";
   import { downloadFiles, zipFiles } from "#lib/plugins/code-editor.js";
@@ -17,7 +19,8 @@
    * line; **Download** gives the source with `plugin-api.d.ts` and a tsconfig, so it type-checks the same way
    * elsewhere. Nothing run
    * here reaches readers: a publish compiles the stored plugins with the content build (#78); until then only the
-   * plugins of the content source are compiled.
+   * plugins of the content source are compiled. The Library lists the stored sources as its scripts and opens one here
+   * (`plugins.focus`); **Delete** is refused while the draft uses what the plugin registers (*Delete anyway* forces it).
    */
   let { bookId, stage }: { bookId: string; stage: Stage | null } = $props();
 
@@ -33,6 +36,8 @@
   let newId = $state("");
   let adding = $state(false);
   let confirmingDelete = $state(false);
+  /** The delete was refused: where the draft uses the plugin's types */
+  let inUse = $state<string | null>(null);
   let host = $state<HTMLElement>();
   let code = $state<CodeEditor | null>(null);
   let codeError = $state<string | null>(null);
@@ -52,10 +57,20 @@
   const dirty = $derived(source !== saved);
   const current = $derived(shown.find(p => p.id === open));
 
+  // The Library's *Open in Code*: that plugin, once the list knows it
+  $effect(() => {
+    const focus = plugins.focus;
+    if (!focus || !shown.some(p => p.id === focus)) return;
+    untrack(() => {
+      plugins.focus = null;
+      if (open !== focus) void openPlugin(focus);
+    });
+  });
+
   // The first plugin opens by itself
   $effect(() => {
     const first = shown[0]?.id;
-    if (open === null && first && !untrack(() => adding)) void openPlugin(first);
+    if (open === null && first && !plugins.focus && !untrack(() => adding)) void openPlugin(first);
   });
 
   const openPlugin = async (id: string) => {
@@ -64,6 +79,7 @@
     adding = false;
     notice = null;
     confirmingDelete = false;
+    inUse = null;
     loadingSource = true;
     try {
       const stored = storedIds.includes(id);
@@ -121,18 +137,20 @@
     if (ok) notice = `ran ${id}${plugins.lastRun?.types.length ? ` – registered ${plugins.lastRun.types.join(", ")}` : ""}`;
   };
 
-  const remove = async () => {
+  const remove = async (force = false) => {
     if (!open || !current?.stored) return;
     try {
-      await plugins.remove(bookId, open);
+      await plugins.remove(bookId, open, force);
       confirmingDelete = false;
+      inUse = null;
       notice = `${open} deleted`;
       open = null;
       source = "";
       saved = "";
       code?.open("", "");
     } catch (e) {
-      plugins.error = e instanceof Error ? e.message : String(e);
+      if (e instanceof ApiError && e.code === "plugin-in-use") inUse = usageText((e.details.usages as Usage[] | undefined) ?? []);
+      else plugins.error = e instanceof Error ? e.message : String(e);
     }
   };
 
@@ -213,8 +231,12 @@
 
 <div class="actions">
   {#if current?.stored}
-    {#if confirmingDelete}
-      <button type="button" class="text-link danger" onclick={remove}>Delete {open}</button>
+    {#if inUse !== null}
+      <span class="small danger in-use" title="Where the draft uses what the plugin registers">used by {inUse || "the draft"} –</span>
+      <button type="button" class="text-link danger" onclick={() => void remove(true)}>Delete anyway</button>
+      <button type="button" class="text-link" onclick={() => { inUse = null; confirmingDelete = false; }}>keep</button>
+    {:else if confirmingDelete}
+      <button type="button" class="text-link danger" onclick={() => void remove()}>Delete {open}</button>
       <button type="button" class="text-link" onclick={() => (confirmingDelete = false)}>keep</button>
     {:else}
       <button type="button" class="text-link" onclick={() => (confirmingDelete = true)}>Delete</button>
@@ -237,4 +259,5 @@
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .375rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
   .text-link.danger { color: var(--danger); }
+  .in-use { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

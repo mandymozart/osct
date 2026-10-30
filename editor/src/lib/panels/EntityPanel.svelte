@@ -5,7 +5,7 @@
     ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, textureTypes, type AssetData, type EntityData, type FilterType, type NodeType,
     type Target,
   } from "@engine/types";
-  import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
+  import { ApiError, isMediaAsset, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
@@ -248,7 +248,7 @@
     // The picker's head names the node as the tree does: its name, else where it sits (#170 – was "of node root")
     const which = current?.name ? `“${current.name}”` : node.length ? `node ${pathLabel}` : "the root node";
     pickFor({ subject: { for: "node", nodeType: type }, label: `the ${type} of ${which}`, current: current?.assets[0]?.src,
-      onpick: asset => useAsset(asset.kind, asset.url, asset.id) });
+      onpick: asset => { if (isMediaAsset(asset)) useAsset(asset.kind, asset.url, asset.id); } });
   };
   const pickNewNodeFile = () => {
     const type = addType;
@@ -341,7 +341,7 @@
     if (!current || !target) return;
     try {
       const asset = await library.upload(bookId, file);
-      useAsset(asset.kind, asset.url, asset.id);
+      if (isMediaAsset(asset)) useAsset(asset.kind, asset.url, asset.id);
     } catch {
       // library.error says
     }
@@ -391,7 +391,7 @@
     const kinds = addType ? nodeAssetKinds(addType) : undefined;
     if (!kinds) return [];
     const seen = new Map<string, AssetData>();
-    library.ofKinds(kinds).forEach(a => seen.set(a.url, { id: a.id, assetType: a.kind, src: a.url }));
+    library.ofKinds(kinds).filter(isMediaAsset).forEach(a => seen.set(a.url, { id: a.id, assetType: a.kind, src: a.url }));
     getAssets().filter(a => kinds.includes(a.assetType)).forEach(a => { if (!seen.has(a.src)) seen.set(a.src, a); });
     return [...seen.values()];
   });

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { EntityData, EntityType, EntryCategory, Spread } from "@engine/types";
-  import { addEntry, ApiError, type Asset } from "#lib/api.js";
+  import { addEntry, ApiError, isMediaAsset, type Asset } from "#lib/api.js";
   import { library, NODE_ASSET_KINDS } from "#lib/library.svelte.js";
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { APPEARS, CATEGORIES, categoryFor } from "#lib/new-target.js";
@@ -88,7 +88,8 @@
   };
   const entityData = (): EntityData | undefined => {
     if (!entityType) return undefined;
-    const asset = library.byUrl(entityFile);
+    const found = library.byUrl(entityFile);
+    const asset = found && isMediaAsset(found) ? found : undefined;
     const node = newNode(entityType, asset ? { id: `new-${asset.id.slice(0, 8)}`, assetType: asset.kind, src: asset.url } : undefined, asset);
     if (entityType === "text") node.text = entityText;
     return node;

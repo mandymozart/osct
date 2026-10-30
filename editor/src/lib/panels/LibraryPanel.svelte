@@ -1,7 +1,9 @@
 <script lang="ts">
   import { ApiError, type Asset } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
+  import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library, NODE_ASSET_KINDS } from "#lib/library.svelte.js";
+  import { plugins } from "#lib/plugins.svelte.js";
   import { assetPlace, formatDuration, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
   import {
     FILTER_LABELS, LIBRARY_FILTERS, matchesFilter, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryPick,
@@ -9,6 +11,7 @@
   import Icon from "#lib/components/Icon.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
   import AssetThumb from "./AssetThumb.svelte";
+  import CodeFiles from "./CodeFiles.svelte";
 
   /**
    * The book's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
@@ -21,8 +24,11 @@
    * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
    * field's *Library…* – #164): the filter starts at the kind being picked, a click on a fitting file picks it for that
    * one field and returns, an upload that fits is picked at once; *cancel* or Esc returns without one.
+   * **Code files** (#186) – scripts (the book's plugin sources) and shaders – are a list of their own under the media
+   * (`CodeFiles`, the filter *code* shows it alone): an uploaded or dropped `.ts` / `.js` becomes a plugin source named
+   * after the file, a `.glsl` / `.frag` / `.vert` / `.wgsl` a shader asset.
    */
-  let { bookId, pick = null, nodeType = null, targetId = null, onuse, onusetarget, onchanged }: {
+  let { bookId, pick = null, nodeType = null, targetId = null, onuse, onusetarget, onchanged, onopencode }: {
     bookId: string;
     /** Opened as a picker for one field */
     pick?: LibraryPick | null;
@@ -36,6 +42,8 @@
     onusetarget?: (asset: Asset) => Promise<void>;
     /** A replace changed the draft (uses relinked): the content should reload */
     onchanged?: () => Promise<void>;
+    /** Show the Code tab (a script of the code list is in `plugins.focus`) */
+    onopencode?: () => void;
   } = $props();
 
   // svelte-ignore state_referenced_locally
@@ -60,7 +68,11 @@
   });
 
   const targetImages = $derived(targetImagesOf(content.spreads));
-  const shown = $derived(library.assets.filter(asset => matchesFilter(asset, filter, targetImages) && matchesSearch(asset, search)));
+  /** The media shown (the shaders are in the code list) */
+  const shown = $derived(library.assets.filter(asset => asset.kind !== "shader" && matchesFilter(asset, filter, targetImages) && matchesSearch(asset, search)));
+  /** Scripts uploading (they become plugin sources), by file name */
+  let scriptUploads = $state<string[]>([]);
+  const uploading = $derived([...library.uploading, ...scriptUploads]);
   const fits = (asset: Asset) => !!nodeType && (NODE_ASSET_KINDS[nodeType] ?? []).includes(asset.kind);
   const pickable = (asset: Asset) => !!pick && pickFits(pick.subject, asset);
   const size = (bytes: number) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`);
@@ -73,9 +85,35 @@
     if (!(event.target as Element).closest("button, a, video")) choose(asset);
   };
 
+  /** A script file becomes a plugin source named after it (an id taken: the code list's Replace… is the way) */
+  const uploadScript = async (file: File) => {
+    scriptUploads = [...scriptUploads, file.name];
+    try {
+      const plugin = await plugins.upload(bookId, file);
+      notice = `${file.name} is the plugin ${plugin.id} – open it in the Code tab from the code list`;
+      void plugins.load(bookId);
+    } catch (e) {
+      library.error = e instanceof ApiError && e.code === "plugin-exists"
+        ? `${file.name}: the plugin ${pluginIdFrom(file.name)} exists – Replace… it in the code list`
+        : `${file.name}: ${e instanceof ApiError ? e.message : String(e)}`;
+    } finally {
+      scriptUploads = scriptUploads.filter(name => name !== file.name);
+    }
+  };
+
   const uploadFiles = async (files: FileList | File[]) => {
     notice = null;
     for (const file of Array.from(files)) {
+      const problem = codeUploadProblem(file);
+      if (problem) {
+        library.error = problem;
+        continue;
+      }
+      if (codeKindOf(file.name) === "script") {
+        if (pick) notice = `${file.name} does not fit ${pick.label}`;
+        else await uploadScript(file);
+        continue;
+      }
       try {
         const asset = await library.upload(bookId, file);
         // Picking: the first upload that fits is the pick
@@ -167,20 +205,23 @@
   <div class="row"><span class="label">search</span>
     <span class="controls">
       <input class="field grow" placeholder="name or entry" bind:value={search} aria-label="Search the library" />
-      <button type="button" class="pill framed" data-help-name="Upload" data-help="Upload a model (glb), a video, an image or a sound – or drop files on the library. While picking, an upload that fits is the pick." onclick={() => fileInput?.click()}><Icon name="plus" /> Upload</button>
+      <button type="button" class="pill framed" data-help-name="Upload" data-help="Upload a model (glb), a video, an image or a sound, a shader (glsl, frag, vert, wgsl) or a script (ts, js – it becomes a plugin source named after the file) – or drop files on the library. Code files are at most 256 KB. While picking, an upload that fits is the pick." onclick={() => fileInput?.click()}><Icon name="plus" /> Upload</button>
       <input bind:this={fileInput} type="file" accept={pick ? pickAccept(pick.subject) : ACCEPT} multiple={!pick} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files; if (f?.length) void uploadFiles(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
       <input bind:this={replaceInput} type="file" accept={ACCEPT} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void doReplace(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
     </span></div>
   <div class="row"><span class="label">view</span>
     <span class="controls"><Segmented options={LIBRARY_VIEWS} value={view} titles={{ cards: "Cards with previews", list: "A plain list" }} onchange={setView} /></span></div>
-  {#if library.uploading.length}<p class="small muted">uploading {library.uploading.join(", ")}…</p>{/if}
+  {#if dragging}<p class="drop small" aria-live="polite">drop to upload – media, shaders, scripts</p>{/if}
+  {#if uploading.length}<p class="small muted">uploading {uploading.join(", ")}…</p>{/if}
   {#if library.error}<p class="small danger">{library.error}</p>{/if}
   {#if notice}<p class="small muted">{notice}</p>{/if}
 
-  {#if library.loading && !library.assets.length}
+  {#if filter === "code"}
+    <!-- the code list alone -->
+  {:else if library.loading && !library.assets.length}
     <p class="muted small">Loading…</p>
   {:else if !shown.length}
-    <p class="muted small">{library.assets.length ? "Nothing matches." : "No files yet."}</p>
+    <p class="muted small">{library.assets.some(asset => asset.kind !== "shader") ? "Nothing matches." : "No media yet."}</p>
   {:else if view === "list"}
     <table class="list">
       <thead><tr><th>name</th><th>place</th><th>kind</th><th class="num">size</th><th class="num">uses</th></tr></thead>
@@ -216,12 +257,18 @@
       {/each}
     </ul>
   {/if}
+  {#if !pick && (filter === "all" || filter === "code")}
+    <CodeFiles {bookId} {search} all={filter === "all"} {onopencode} />
+  {/if}
 </div>
 
 <style>
   /* The library answers its own width (#159): the panel is narrow on a phone and when dragged small on a desktop (#144) */
-  .library { display: flex; flex-direction: column; gap: .125rem; min-height: 100%; container: library / inline-size; }
+  .library { position: relative; display: flex; flex-direction: column; gap: .125rem; min-height: 100%; container: library / inline-size; }
   .library.dragging { outline: 1px dashed var(--text); outline-offset: -2px; }
+  /* The drop hint lies over the panel and takes no pointer: a hint under the cursor would end the drag */
+  .drop { position: absolute; inset: .25rem; z-index: 1; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    pointer-events: none; background: var(--surface); opacity: .92; border-radius: var(--control-radius); }
   .controls .grow { flex: 1; min-width: 6rem; }
   .grid { list-style: none; margin: .375rem 0 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
   .card { display: flex; flex-direction: column; gap: .2rem; padding: .375rem; border: 1px solid var(--line); border-radius: var(--control-radius); min-width: 0; }

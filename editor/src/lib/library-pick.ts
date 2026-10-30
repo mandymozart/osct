@@ -8,6 +8,7 @@ export type AssetKind = Asset["kind"];
 /** The file extensions of each kind (the API's `Assets::KINDS`) */
 export const KIND_EXTENSIONS: Record<AssetKind, readonly string[]> = {
   glb: [".glb"], gltf: [".gltf"], video: [".mp4", ".webm", ".mov"], image: [".jpg", ".jpeg", ".png", ".webp"], audio: [".mp3", ".m4a", ".ogg", ".wav"],
+  shader: [".glsl", ".frag", ".vert", ".wgsl"],
 };
 /** The media types of a model next to its extension: a browser that knows no `.glb` may still know the type */
 const KIND_MIMES: Partial<Record<AssetKind, readonly string[]>> = { glb: ["model/gltf-binary"], gltf: ["model/gltf+json"] };
@@ -30,13 +31,13 @@ export const nodeAssetKinds = (type: string): readonly AssetKind[] | undefined =
 
 /**
  * The Library's filters (#164): target images – the pictures printed in the book – apart from the other images, so a
- * choice is among one kind.
+ * choice is among one kind; `code` – the scripts (plugin sources) and shaders (#186), listed apart from the media.
  */
-export const LIBRARY_FILTERS = ["all", "target", "image", "video", "model", "audio"] as const;
+export const LIBRARY_FILTERS = ["all", "target", "image", "video", "model", "audio", "code"] as const;
 export type LibraryFilter = (typeof LIBRARY_FILTERS)[number];
 export const FILTER_LABELS: Partial<Record<LibraryFilter, string>> = { target: "target image" };
 const FILTER_KINDS: Record<Exclude<LibraryFilter, "all" | "target">, readonly AssetKind[]> = {
-  image: ["image"], video: ["video"], model: ["glb", "gltf"], audio: ["audio"],
+  image: ["image"], video: ["video"], model: ["glb", "gltf"], audio: ["audio"], code: ["shader"],
 };
 
 type AssetRef = Pick<Asset, "kind" | "name" | "url">;

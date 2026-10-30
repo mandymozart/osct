@@ -126,6 +126,44 @@ export const createCodeEditor = (container: HTMLElement, options: CodeEditorOpti
   };
 };
 
+export interface CodePreview {
+  /** Show another file: its text in its language (`typescript`, `javascript`, `cpp` for GLSL, `wgsl`) */
+  show(value: string, language: string): void;
+  dispose(): void;
+}
+
+/**
+ * A read-only Monaco for the Library's code files (#186): the same theme as the Code tab, no editing, a model of its own
+ * (`file:///library/…`) apart from the plugins' models
+ */
+export const createCodePreview = (container: HTMLElement, value: string, language: string): CodePreview => {
+  applyTheme();
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", applyTheme);
+  const schemeObserver = new MutationObserver(applyTheme);
+  schemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-scheme"] });
+  let shown = 0;
+  const uri = () => monaco.Uri.parse(`file:///library/preview-${++shown}`);
+  let model = monaco.editor.createModel(value, language, uri());
+  const editor = monaco.editor.create(container, {
+    ...EDITOR_OPTIONS, model, theme: THEME, readOnly: true, domReadOnly: true, ariaLabel: "Code file preview (read-only)",
+  });
+  return {
+    show(next, nextLanguage) {
+      const previous = model;
+      model = monaco.editor.createModel(next, nextLanguage, uri());
+      editor.setModel(model);
+      previous.dispose();
+    },
+    dispose() {
+      media.removeEventListener("change", applyTheme);
+      schemeObserver.disconnect();
+      editor.dispose();
+      model.dispose();
+    },
+  };
+};
+
 /** The model at a plugin's path (an earlier one there is replaced) */
 const makeModel = (modelId: string, value: string): monaco.editor.ITextModel => {
   const uri = monaco.Uri.parse(pluginModelPath(modelId));
