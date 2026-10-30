@@ -404,7 +404,12 @@
   .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); }
   .add-target:hover { color: var(--text); }
   @media (pointer: coarse) {
-    /* A finger needs taller rows to hit the right one */
-    .node { height: 2rem; }
+    /* A finger: rows of the touch control height (#171); the chevron and the eye take the row's full height, the eye
+       as wide as high, the chevron a wider cell (the guides follow --cell) */
+    .tree { --cell: 1.75rem; }
+    .node { height: var(--control-height); }
+    .pick { height: 100%; }
+    button.chevron, button.eye { height: 100%; }
+    .eye { width: var(--control-height); margin-right: -.25rem; }
   }
 </style>

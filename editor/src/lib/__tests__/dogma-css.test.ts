@@ -37,3 +37,34 @@ describe("app.css follows the editor's UI rules (RULES #32, #170)", () => {
     expect(css).toMatch(/\.row, \.section\s*\{\s*flex-shrink:\s*0;/);
   });
 });
+
+/** The rules of a `@media (pointer: coarse)` block's `:root` (the touch tokens) */
+const coarseRoot = css.match(/@media \(pointer: coarse\)\s*\{\s*:root\s*\{([^}]*)\}/)?.[1] ?? "";
+const rem = (block: string, name: string) => Number(block.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`))?.[1]);
+/** A component's own CSS (its <style>), comments dropped */
+const styleOf = (file: string) => readFileSync(resolve(process.cwd(), file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+describe("a finger gets the touch control height (#171, the Scutoons dogma's 44px on touch)", () => {
+  it("raises the one control height under (pointer: coarse) to at least 2.5rem – 44px – and the top bar with it", () => {
+    expect(rem(css, "--control-height")).toBe(1.75);
+    const touch = rem(coarseRoot, "--control-height");
+    expect(touch).toBeGreaterThanOrEqual(2.5);
+    expect(touch * 16).toBeGreaterThanOrEqual(44);
+    expect(rem(coarseRoot, "--top-height")).toBeGreaterThanOrEqual(touch);
+  });
+
+  it("takes every primitive's height from the token: pills, icon buttons, fields, ScrubNumber and Segmented", () => {
+    expect(css).toMatch(/\.pill, \.icon-button, \.field\s*\{[^}]*height:\s*var\(--control-height\)/);
+    expect(styleOf("src/lib/components/ScrubNumber.svelte")).toMatch(/\.frame\s*\{[^}]*height:\s*var\(--control-height\)/);
+    // Segmented is made of .pill buttons
+    expect(styleOf("src/lib/components/Segmented.svelte")).toMatch(/class="pill"/);
+  });
+
+  it("makes the tree's rows, chevrons and eye touch-sized", () => {
+    const tree = styleOf("src/lib/panels/TreePanel.svelte");
+    const touch = tree.match(/@media \(pointer: coarse\)\s*\{([\s\S]*?)\n  \}/)?.[1] ?? "";
+    expect(touch).toMatch(/\.node\s*\{\s*height:\s*var\(--control-height\)/);
+    expect(touch).toMatch(/button\.chevron, button\.eye\s*\{\s*height:\s*100%/);
+    expect(touch).toMatch(/\.eye\s*\{\s*width:\s*var\(--control-height\)/);
+  });
+});

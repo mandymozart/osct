@@ -4,6 +4,32 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Touch height, tablet portrait, words as labels (#171, #172, #173)
+
+- **Touch control height = the dogma's 44 px** (2.75rem), not the review's 2.5rem: one token raised under
+  `@media (pointer: coarse)` in `app.css` (Scutoons does the same in tokens.css); `--top-height` 3rem with it. The
+  dogma CSS test checks the token and that the primitives, ScrubNumber and the tree's rows take it.
+- **The phone's sheet head is the six tab icons alone** (they share the row, each ≥ the control height): six at 44 px
+  fit 360 px, nine did not. ‹ › went to the stage's lower corners (framed icon buttons, phone only); × went to the
+  top bar, whose book crumb already leads to the spreads – no second way back was added. The double tap on the grip
+  still restores the default height; the drag (pointer capture, the `lostpointercapture` guard of 1.26.5) is unchanged
+  and was checked with emulated touch (grip up → half, a tab dragged down → closed, a tap opens).
+- **Tablet portrait**: the tree starts collapsed below 64rem until toggled on the device (`treeStartsOpen`), the tabs
+  turn to icons in a panel narrower than their words (`wordTabs`: 24rem, 28rem with a finger – measured), and the
+  placement rows stack their label above X / Y / Z under `@container panel (max-width: 23rem)`. The column clamping
+  order (panel against the tree's width) was left as it was.
+- **Labels are part of the contract** (`ParamText.label` in `shared/types/components.ts`, `FilterParamSpec.label`):
+  content schema 2.15 (shared/ changed – RULES #10; develop's #90 took 2.14 meanwhile) and plugin API 1.3 (MINOR
+  adds). Since #90 the content build records a plugin's specs in `registered`, so a label reaches the content there; a
+  2.14 guard ignores the unknown key, a 1.x engine the label. `paramSpecProblems` refuses a label that is not 1–24
+  characters (the recording build and the guard both check it). The fallback is
+  `paramWords` (camelCase → words), shared so any UI can use it.
+- [ ] The default stage view has a fixed vertical field of view (as the reader's camera intrinsics): on a tall, narrow
+  stage (a tablet in portrait, 327 × 984 px) the book fills the height and is cut at the sides until the author zooms
+  out. Fitting the view to the stage's width would change what the "reader's view" simulates – a decision for Tilman.
+- [ ] A touch tablet in portrait with the tree opened leaves the panel 272 px: its head (× ‹ › and five icons at 44 px)
+  scrolls sideways there – the documented fallback.
+
 ## 2026-10-30 – The plugins' recorded specs (#90) and the MCP tools for the new endpoints (#174)
 
 - One optional field per declared plugin, `registered: { components?, nodeTypes?, passes? }` (type → spec; layers are

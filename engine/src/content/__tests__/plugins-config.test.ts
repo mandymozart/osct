@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assertGameConfiguration, GameConfigurationError } from "@shared/guards/game-config";
-import { componentSpecProblems, pluginApiCompatible, pluginProblems } from "@shared/types/game-config";
+import { componentSpecProblems, PARAM_LABEL_MAX, paramLabel, paramWords, pluginApiCompatible, pluginProblems } from "@shared/types/game-config";
 
 /** Content schema 2.3: the configuration declares the book's plugins; their components pass the guard */
 
@@ -114,5 +114,25 @@ describe("plugins in the configuration", () => {
       "tint.Bad: kind must be color, number, choice, boolean or string",
       "tint.c: a choice needs options (strings) and a default among them",
     ]);
+  });
+
+  it("takes a parameter's optional label – a short text (schema 2.15, plugin API 1.3)", () => {
+    const spec = (label: unknown) => ({ description: "d", params: { degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, label, description: "d" } } });
+    expect(componentSpecProblems("spin", spec("speed"))).toEqual([]);
+    expect(componentSpecProblems("spin", spec(undefined))).toEqual([]);
+    for (const bad of [3, "", "  ", "a label far too long for the row"]) {
+      expect(componentSpecProblems("spin", spec(bad))).toEqual([`spin.degreesPerSecond: label must be a short text (1–${PARAM_LABEL_MAX} characters)`]);
+    }
+  });
+
+  it("names a parameter by its label, else by its name split into words", () => {
+    expect(paramWords("degreesPerSecond")).toBe("degrees per second");
+    expect(paramWords("playOn")).toBe("play on");
+    expect(paramWords("uvScale2")).toBe("uv scale 2");
+    expect(paramWords("HDRImage")).toBe("hdr image");
+    expect(paramWords("opacity")).toBe("opacity");
+    expect(paramLabel("degreesPerSecond", { label: "speed" })).toBe("speed");
+    expect(paramLabel("degreesPerSecond", {})).toBe("degrees per second");
+    expect(paramLabel("degreesPerSecond", { label: " " })).toBe("degrees per second");
   });
 });

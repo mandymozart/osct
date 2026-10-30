@@ -242,8 +242,9 @@ lets its types pass. The engine ignores the field. What a plugin registers is us
 
 - `api.registerComponent(type, spec, apply)` – code on a node. `spec` = `{ description, nodeTypes?, params }` with
   every parameter's `kind` (`number` with `min` / `max`, `color`, `choice` with `options`, `boolean`, `string`),
-  `default` and `description` – the editor's Entity panel shows the rows from it. `apply({ node, params, object,
-  placed, target, three })` runs when the node is built and returns hooks: `update(delta)` every frame, `onFound`,
+  `default` and `description`, and an optional `label` (plugin API 1.3, schema 2.15: the words the row shows, 1–24
+  characters; without one the name split into words) – the editor's Entity panel shows the rows from it.
+  `apply({ node, params, object, placed, target, three })` runs when the node is built and returns hooks: `update(delta)` every frame, `onFound`,
   `onLost`, `onTap`, `onPause`, `dispose`, `tune(params)` (new values in place; `false` = build the node anew).
 - `api.registerLayer(type, spec, { glsl })` – a **material layer**: GLSL on every pixel of a video, image or text
   plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
@@ -559,6 +560,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.12 | 1.27.0 | in develop | a node's optional `name` (the editor's tree shows it; the reader ignores it) |
 | 2.13 | 1.32.0 | in develop | a plugin's node type (`registerNodeType`, plugin API 1.2): its parameters in the node's `params` |
 | 2.14 | 1.34.0 | in develop | a plugin's recorded `registered` (the specs of its components, layers, node types and passes – the guard checks them) |
+| 2.15 | next | in develop | a parameter spec's optional `label` (plugin API 1.3) – the editor's row; in the content only inside a plugin's recorded specs |
 
 Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
 bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.

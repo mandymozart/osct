@@ -21,7 +21,7 @@
   import { nodeAt } from "$lib/values";
   import { selection } from "$lib/selection.svelte";
   import InfoView from "$lib/components/InfoView.svelte";
-  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, widths, type Column } from "$lib/widths.svelte";
+  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, snapSheet, treeStartsOpen, widths, wordTabs, type Column } from "$lib/widths.svelte";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -49,6 +49,7 @@
   ];
   const TREE_KEY = "osct-editor-tree";
   const NARROW = "(max-width: 47.9rem)";
+  const COARSE = "(pointer: coarse)";
 
   let container = $state<HTMLDivElement>();
   let stage = $state<Stage | null>(null);
@@ -58,10 +59,12 @@
     try { const t = localStorage.getItem(TAB_KEY) as Tab | null; return t && TABS.includes(t) ? t : "stage"; } catch { return "stage"; }
   })();
   let tab = $state<Tab | null>(firstTab);
-  /** The tree column is open (desktop; stored) */
-  let treeOpen = $state((() => { try { return localStorage.getItem(TREE_KEY) !== "closed"; } catch { return true; } })());
-  /** A phone: the tree is a tab of the sheet instead of a column */
+  /** The tree column is open (desktop; stored – until then open in a wide window only, #172) */
+  let treeOpen = $state(treeStartsOpen(window.innerWidth, (() => { try { return localStorage.getItem(TREE_KEY); } catch { return null; } })()));
+  /** A phone: the tree is a tab of the sheet instead of a column; × ‹ › leave the sheet's head (#171) */
   let narrow = $state(false);
+  /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
+  let coarse = $state(window.matchMedia(COARSE).matches);
   // The one selection of the tree, the stage and the Entity panel – a target, its entity or a node (#162)
   selection.reset();
   let loadError = $state<string | null>(null);
@@ -94,6 +97,8 @@
   /** The panel's width leaves room for the tree's own (clamped alone); the tree's then fits next to the panel */
   const panelWidth = $derived(widths.width(panelColumn, viewport, treeShown ? widths.width("tree", viewport) : 0));
   const treeWidth = $derived(widths.width("tree", viewport, panelWidth));
+  /** The tabs as icons: on a phone, and in a panel too narrow for the words, so the head stays one line (#172) */
+  const iconTabs = $derived(narrow || !wordTabs(panelWidth, coarse));
   const widthOf = (column: Column) => (column === "tree" ? treeWidth : panelWidth);
   /** The other column's width: the stage keeps its room between both */
   const otherOf = (column: Column) => (column === "tree" ? panelWidth : treeShown ? treeWidth : 0);
@@ -279,6 +284,9 @@
     narrow = media.matches;
     const onMedia = (event: MediaQueryListEvent) => (narrow = event.matches);
     media.addEventListener("change", onMedia);
+    const pointer = window.matchMedia(COARSE);
+    const onPointer = (event: MediaQueryListEvent) => (coarse = event.matches);
+    pointer.addEventListener("change", onPointer);
     (async () => {
       if (content.bookId !== bookId) {
         const error = await content.load(bookId);
@@ -304,6 +312,7 @@
     return () => {
       disposed = true;
       media.removeEventListener("change", onMedia);
+      pointer.removeEventListener("change", onPointer);
       void stage?.dispose();
       stage = null;
     };
@@ -444,22 +453,32 @@
 
   <div class="stage" bind:this={container} data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
+      <!-- Three groups that wrap whole when the stage is narrow (a phone with the touch height – #171) -->
       <div class="tools" role="toolbar" data-app-ui aria-label="Transform">
-        {#each GIZMO_MODES as mode (mode)}
-          <button type="button" class="icon-button" class:on={stage.gizmoMode === mode} aria-pressed={stage.gizmoMode === mode} title="{GIZMO_LABELS[mode]} – Ctrl snaps" aria-label={GIZMO_LABELS[mode]}
-            onclick={() => stage?.setGizmoMode(mode)}><Icon name={GIZMO_ICONS[mode]} stroke={2} /></button>
-        {/each}
-        <span class="tools-gap"></span>
-        {#each PICK_MODES as mode (mode)}
-          <button type="button" class="icon-button" class:on={stage.pickMode === mode} aria-pressed={stage.pickMode === mode} title={PICK_LABELS[mode]} aria-label={PICK_LABELS[mode]} onclick={() => stage?.setPickMode(mode)}><Icon name={PICK_ICONS[mode]} stroke={2} /></button>
-        {/each}
-        <span class="tools-gap"></span>
-        <span class="shading" role="group" aria-label="Viewport shading">
+        <span class="tool-group" role="group" aria-label="Gizmo">
+          {#each GIZMO_MODES as mode (mode)}
+            <button type="button" class="icon-button" class:on={stage.gizmoMode === mode} aria-pressed={stage.gizmoMode === mode} title="{GIZMO_LABELS[mode]} – Ctrl snaps" aria-label={GIZMO_LABELS[mode]}
+              onclick={() => stage?.setGizmoMode(mode)}><Icon name={GIZMO_ICONS[mode]} stroke={2} /></button>
+          {/each}
+        </span>
+        <span class="tool-group" role="group" aria-label="Pick mode">
+          {#each PICK_MODES as mode (mode)}
+            <button type="button" class="icon-button" class:on={stage.pickMode === mode} aria-pressed={stage.pickMode === mode} title={PICK_LABELS[mode]} aria-label={PICK_LABELS[mode]} onclick={() => stage?.setPickMode(mode)}><Icon name={PICK_ICONS[mode]} stroke={2} /></button>
+          {/each}
+        </span>
+        <span class="tool-group shading" role="group" aria-label="Viewport shading">
           {#each SHADING_MODES as mode (mode)}
             <button type="button" class="icon-button" class:on={stage.shading === mode} aria-pressed={stage.shading === mode} title={SHADING_LABELS[mode]} aria-label={SHADING_LABELS[mode]} onclick={() => updatePreview({ shading: mode })}><Icon name={SHADING_ICONS[mode]} stroke={1.75} /></button>
           {/each}
         </span>
       </div>
+      {#if narrow}
+        <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171) -->
+        <button type="button" class="icon-button framed step step-previous" data-app-ui onclick={() => step(-1)}
+          title="Previous spread" aria-label="Previous spread"><Icon name="previous" /></button>
+        <button type="button" class="icon-button framed step step-next" data-app-ui onclick={() => step(1)}
+          title="Next spread" aria-label="Next spread"><Icon name="next" /></button>
+      {/if}
       {#if stageMenu}
         <button type="button" class="menu-backdrop" aria-label="Close the menu" onclick={() => (stageMenu = null)} oncontextmenu={e => { e.preventDefault(); stageMenu = null; }}></button>
         <div class="menu" role="menu" data-app-ui style:left="{stageMenu.x}px" style:top="{stageMenu.y}px">
@@ -511,17 +530,21 @@
         aria-valuemax={Math.round(SHEET_MAX * 100)} aria-valuetext={shown === null ? "closed" : `${Math.round(sheetShare * 100)} % of the screen`}
         onkeydown={sheetKey}></div>
     {/if}
-    <div class="bar">
-      <a href="{base}/{bookId}/" class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
-      <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
-      <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
-      <span class="grow"></span>
+    <div class="bar" class:icons={iconTabs}>
+      {#if !narrow}
+        <!-- A phone has the top bar's book link for ×, and ‹ › on the stage: its head is the tabs alone (#171) -->
+        <a href="{base}/{bookId}/" class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
+        <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
+        <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
+        <span class="grow"></span>
+      {/if}
       {#each TAB_BUTTONS as b (b.tab)}
         {#if b.tab !== "tree" || narrow}
-          <!-- A phone shows the tabs as icons, so the row stays one line (the name is the tooltip and the label) -->
-          <button type="button" class="pill tab" class:icon-tab={narrow} class:on={shown === b.tab} aria-pressed={shown === b.tab}
-            aria-label={narrow ? b.label : undefined} title={narrow ? `${b.label}${b.title ? ` – ${b.title}` : ""}` : b.title}
-            onclick={() => setTab(b.tab)}>{#if narrow}<Icon name={b.icon} />{:else}{b.label}{/if}</button>
+          <!-- A phone, or a panel too narrow for the words, shows the tabs as icons, so the row stays one line (the
+               name is the tooltip and the label – #172) -->
+          <button type="button" class="pill tab" class:icon-tab={iconTabs} class:on={shown === b.tab} aria-pressed={shown === b.tab}
+            aria-label={iconTabs ? b.label : undefined} title={iconTabs ? `${b.label}${b.title ? ` – ${b.title}` : ""}` : b.title}
+            onclick={() => setTab(b.tab)}>{#if iconTabs}<Icon name={b.icon} />{:else}{b.label}{/if}</button>
         {/if}
       {/each}
     </div>
@@ -557,9 +580,15 @@
   .stage :global(canvas) { display: block; width: 100%; height: 100%; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   .tools { position: absolute; left: .5rem; top: .5rem; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
-  .tools-gap { width: 1px; height: 1.25rem; margin: 0 .25rem; background: var(--line); }
+  /* Three groups – gizmo, pick, shading – with a rule between; on a narrow stage a group wraps whole */
+  .tool-group { display: inline-flex; align-items: center; gap: .125rem; }
+  .tool-group + .tool-group { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
   /* Blender's shading spheres sit shoulder to shoulder */
-  .tools .shading { display: inline-flex; gap: 0; }
+  .tools .shading { gap: 0; }
+  /* A phone: ‹ › through the spreads at the stage's lower corners (#171) */
+  .step { position: absolute; bottom: .5rem; z-index: 1; color: var(--text); }
+  .step-previous { left: .5rem; }
+  .step-next { right: .5rem; }
   .menu-backdrop { position: fixed; inset: 0; z-index: 9; border: none; background: none; padding: 0; cursor: default; }
   .menu { position: fixed; z-index: 10; display: flex; flex-direction: column; min-width: 11rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
   .menu-head { padding: .25rem .625rem; }
@@ -576,6 +605,9 @@
   .head { flex: none; }
   .bar .tab { padding: 0 .375rem; }
   .bar .tab.on { background: var(--surface); }
+  /* One line: the tabs as icons (#172); should it still not fit, the row scrolls instead of wrapping */
+  .panel .bar.icons { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .bar .tab.icon-tab, .bar.icons .icon-button { padding: 0; width: var(--control-height); justify-content: center; flex: none; }
   /* A size container: the panels answer their own width (#159), narrow on a phone and when dragged small (#144) */
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; container: panel / inline-size; }
   .body.code { overflow: hidden; }
@@ -610,9 +642,9 @@
     .grip::after { content: ""; position: absolute; top: calc(50% - 2px); left: calc(50% - 1.25rem); width: 2.5rem; height: 4px; border-radius: 2px; background: var(--muted); opacity: .6; }
     .grip:hover::after, .grip:focus-visible::after, .grip.on::after { opacity: 1; background: var(--text); }
     .body { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
-    /* One line: the tabs are icons; should it still not fit, the row scrolls instead of wrapping */
-    .panel .bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-    .bar .tab.icon-tab { padding: 0; width: var(--control-height); justify-content: center; flex: none; }
+    /* The head is the six tab icons alone (× ‹ › moved out – #171): they share the row, each at least the control
+       height wide, so six of the touch height fit 360 px; the row scrolls rather than wraps */
+    .bar .tab.icon-tab { flex: 1 1 0; width: auto; min-width: var(--control-height); }
     /* Closed, the tab row is the bottom of the screen: above the home indicator */
     .workspace.closed .panel .bar { padding-bottom: calc(.25rem + env(safe-area-inset-bottom)); }
   }

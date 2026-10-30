@@ -5,7 +5,7 @@ export const register = (api: PluginApi): void => {
   api.registerComponent("spin", {
     description: "Turns the node around one of its own axes.",
     params: {
-      degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, unit: "°/s", description: "Speed; negative turns the other way." },
+      degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, unit: "°/s", label: "speed", description: "Speed; negative turns the other way." },
       axis: { kind: "choice", options: ["x", "y", "z"], default: "y", description: "The node's own axis it turns around." },
     },
   }, ({ object, params }) => {

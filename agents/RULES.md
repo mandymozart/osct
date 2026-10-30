@@ -311,10 +311,13 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     readers are reached only by a person (no publish to production from an agent). A new endpoint is a new tool there.
     **UI** (Tilman, 2026-10-29: "check for reference the scutoons UI dogma … reuse components as much as possible,
     save real estate"): the editor's controls follow the Scutoons dogma (`scutoons/agents/DESIGN.md`) built from
-    OSCT's own primitives – one control height, rows with a label column, numbers as `<scrub-number>` (never a native
+    OSCT's own primitives – one control height (with a finger, `pointer: coarse`, the dogma's touch height of 44 px,
+    #171), rows with a label column whose labels are words (a parameter spec's `label`, else its name split into words,
+    #173 – never a contract id), numbers as `<scrub-number>` (never a native
     slider or checkbox), small enums as segmented pressed pills, icons (Feather, `editor/icons.ts`, with a name and a
     tooltip) only where a word makes no sense – and the sheet's tabs on a phone (Tilman, 2026-10-30: "Mobile bitte
-    die tabs auch mit icons statt text"), so its head stays one line –, the drawn close cross, one sheet whose head is the tab row and whose
+    die tabs auch mit icons statt text"), so its head stays one line, and in any panel too narrow for the words (#172) –,
+    the drawn close cross, one sheet whose head is the tab row and whose
     closed state is that row alone. A control the editor needs is built once in `components/common/` or
     `components/dev-tools/` and used by both the editor and the dev tools (`<tune-inspector>`), never twice.
     **Three token variants** (Tilman, 2026-10-29: "debugging looks like debugging, the editor neutral like Figma,

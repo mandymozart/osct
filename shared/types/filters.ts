@@ -8,12 +8,13 @@
  * (`client/src/components/ar-bridges/utils/`), document it in docs/content.md.
  */
 
+/** `label` (schema 2.15): the few words the editor's row shows – see `ComponentParamSpec` */
 export type FilterParamSpec =
-  | { kind: "color"; default: string; description: string }
-  | { kind: "number"; default: number; min: number; max: number; description: string;
+  | { kind: "color"; default: string; label?: string; description: string }
+  | { kind: "number"; default: number; min: number; max: number; label?: string; description: string;
       /** Different default when a chroma key runs in luma mode (brightness has another scale) */
       lumaDefault?: number }
-  | { kind: "choice"; options: readonly string[]; default: string; description: string };
+  | { kind: "choice"; options: readonly string[]; default: string; label?: string; description: string };
 
 export interface FilterSpec {
   description: string;
@@ -26,29 +27,29 @@ export const FILTERS = {
       "Makes one color of the video transparent – a colored background (neon green is safest) or pure black/white.",
     params: {
       color: {
-        kind: "color", default: "#00ff00",
+        kind: "color", default: "#00ff00", label: "key color",
         description: "Key color (#rrggbb) that becomes transparent.",
       },
       mode: {
-        kind: "choice", options: ["auto", "chroma", "luma"], default: "auto",
+        kind: "choice", options: ["auto", "chroma", "luma"], default: "auto", label: "compare by",
         description:
           "chroma compares the color tone (for green, purple, …), luma the brightness (for black, white). " +
           "auto: luma for neutral colors (black, grey, white), chroma otherwise.",
       },
       threshold: {
-        kind: "number", default: 0.3, lumaDefault: 0.06, min: 0, max: 1,
+        kind: "number", default: 0.3, lumaDefault: 0.06, min: 0, max: 1, label: "threshold",
         description: "How close to the key color a pixel must be to disappear. Higher = more is removed.",
       },
       softness: {
-        kind: "number", default: 0.08, lumaDefault: 0.1, min: 0.001, max: 1,
+        kind: "number", default: 0.08, lumaDefault: 0.1, min: 0.001, max: 1, label: "soft edge",
         description: "Width of the soft edge between transparent and visible. Higher = softer, more see-through edges.",
       },
       spill: {
-        kind: "number", default: 0.1, min: 0.001, max: 1,
+        kind: "number", default: 0.1, min: 0.001, max: 1, label: "spill",
         description: "Removes the key color's tint on edges (chroma only). Higher = more grey on edges.",
       },
       opacity: {
-        kind: "number", default: 1, min: 0, max: 1,
+        kind: "number", default: 1, min: 0, max: 1, label: "opacity",
         description: "Opacity of the whole video after keying. 1 = fully visible.",
       },
     },

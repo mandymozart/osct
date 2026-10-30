@@ -8,7 +8,8 @@
  * The API is versioned apart from the content schema: `PLUGIN_API_VERSION` MAJOR.MINOR – a plugin built against
  * another MAJOR is not loaded (logged); MINOR adds. 1.1 added `api.events`, `api.vars`, `api.progress`, `api.spread`,
  * the component context's `children` and the hook `onUnlocked`; 1.2 `api.registerNodeType` (a node type of the
- * plugin's own, `./node-types.ts`).
+ * plugin's own, `./node-types.ts`); 1.3 a parameter's optional `label` (the words the editor's row shows,
+ * `./components.ts` – content schema 2.15).
  *
  * What a plugin registers is recorded by the content build (content schema 2.14, #90): it runs every plugin once with a
  * recording API and writes the specs into the plugin's `registered` – so the guard, the editor's API, the MCP server and
@@ -21,7 +22,7 @@ import { componentSpecProblems, type ComponentSpec } from "./components";
 import { nodeTypeSpecProblems, type NodeTypeSpec } from "./node-types";
 import type { PassSpec } from "./passes";
 
-export const PLUGIN_API_VERSION = "1.2";
+export const PLUGIN_API_VERSION = "1.3";
 
 /** What a plugin registered, as the content build recorded it (schema 2.14); a missing kind = none of it */
 export interface PluginRegistrations {

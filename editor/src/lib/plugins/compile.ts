@@ -73,7 +73,7 @@ export const register = (api: PluginApi): void => {
   api.registerComponent("spin", {
     description: "Turns the node around its own y axis.",
     params: {
-      degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, description: "Speed." },
+      degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, unit: "°/s", label: "speed", description: "Degrees a second; negative turns the other way." },
     },
   }, ({ object, params }) => {
     let speed = Number(params.degreesPerSecond);

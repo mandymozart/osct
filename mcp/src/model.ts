@@ -252,7 +252,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     plugin: {
       description:
-        "A plugin source (the Code tab) exports register(api): api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js – never import three. The spec's params have kind (number | color | choice | boolean | string), default, description; nodeTypes narrows the node types. Read the resource osct://guides/plugins.",
+        "A plugin source (the Code tab) exports register(api): api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js – never import three. The spec's params have kind (number | color | choice | boolean | string), default, description and an optional label (the few words the editor's row shows, plugin API 1.3); nodeTypes narrows the node types. Read the resource osct://guides/plugins.",
       idPattern: PLUGIN_ID_PATTERN.source,
     },
   };

@@ -18,21 +18,21 @@ export type LightKind = (typeof LIGHT_KINDS)[number];
 
 export const LIGHT_PARAMS = {
   kind: {
-    kind: "choice", options: LIGHT_KINDS, default: "point",
+    kind: "choice", options: LIGHT_KINDS, default: "point", label: "kind",
     description: "Point: in every direction from the node. Spot: a cone along the node's −z. Directional: parallel rays along the node's −z (like the sun).",
   },
-  color: { kind: "color", default: "#ffffff", description: "The light's colour." },
+  color: { kind: "color", default: "#ffffff", label: "color", description: "The light's colour." },
   intensity: {
-    kind: "number", default: 0.25, min: 0, max: 10, step: 0.05,
+    kind: "number", default: 0.25, min: 0, max: 10, step: 0.05, label: "intensity",
     description: "How bright, in the node's units: a point or spot light of 1 lights a surface one target width away fully (a white page turns white; more clips), half as far away four times as much. A directional light of 1 lights every surface fully.",
   },
   distance: {
-    kind: "number", default: 0, min: 0, max: 5, step: 0.05, unit: "target widths",
+    kind: "number", default: 0, min: 0, max: 5, step: 0.05, unit: "target widths", label: "distance",
     description: "How far a point or spot light reaches – 0 = no limit.",
   },
-  decay: { kind: "number", default: 2, min: 0, max: 4, step: 0.1, description: "How fast a point or spot light dims with the distance (2 = physical)." },
-  angle: { kind: "number", default: 30, min: 1, max: 90, step: 1, unit: "°", description: "The spot's cone: half the opening angle." },
-  penumbra: { kind: "number", default: 0.1, min: 0, max: 1, step: 0.01, description: "The spot's soft edge: 0 = hard, 1 = the whole cone fades." },
+  decay: { kind: "number", default: 2, min: 0, max: 4, step: 0.1, label: "decay", description: "How fast a point or spot light dims with the distance (2 = physical)." },
+  angle: { kind: "number", default: 30, min: 1, max: 90, step: 1, unit: "°", label: "cone angle", description: "The spot's cone: half the opening angle." },
+  penumbra: { kind: "number", default: 0.1, min: 0, max: 1, step: 0.01, label: "soft edge", description: "The spot's soft edge: 0 = hard, 1 = the whole cone fades." },
 } as const satisfies Record<string, ComponentParamSpec>;
 
 export type LightParam = keyof typeof LIGHT_PARAMS;

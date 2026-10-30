@@ -250,6 +250,8 @@
   .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; margin-top: .125rem; }
   .actions .pill { padding: 0 .5rem; height: 1.5rem; border-color: var(--line); }
+  /* A finger: the actions at the touch control height (#171) */
+  @media (pointer: coarse) { .actions .pill { height: var(--control-height); } }
   .text-link.danger { color: var(--danger); }
   .list .unit { display: none; }
   /* Narrow: the table becomes stacked rows – name and kind on one line, place, size and uses on the next; a tap opens

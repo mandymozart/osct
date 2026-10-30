@@ -138,4 +138,12 @@
   .spot { width: .75rem; height: .75rem; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: none; cursor: pointer; }
   .spot:hover { border-color: var(--text); }
   .spot.on { border-color: var(--text); background: var(--text); }
+  /* A finger (#171): each point a 1.75rem cell to hit, the drawn dot the same size as with a mouse */
+  @media (pointer: coarse) {
+    .origin { grid-template-columns: repeat(3, 1.75rem); grid-template-rows: repeat(3, 1.75rem); }
+    .spot { position: relative; width: 1.75rem; height: 1.75rem; border: none; border-radius: 0; }
+    .spot::before { content: ""; position: absolute; inset: calc(50% - .375rem); border: 1px solid var(--muted); border-radius: 50%; }
+    .spot.on { background: none; }
+    .spot.on::before { border-color: var(--text); background: var(--text); }
+  }
 </style>
