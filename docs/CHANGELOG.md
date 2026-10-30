@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.44.0 – 2026-10-30
 
 ### Added
 - **Remove a spread with everything on it** (#198): the book page's *Remove* is no longer disabled for spreads with
