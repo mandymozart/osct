@@ -12,6 +12,24 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.49.1 – 2026-10-30
+
+### Fixed
+- **Editor: Make it code on a plugin's node type keeps what its build closes over** (#199): the demo's aquarium turned
+  empty after *Make it code* because only its build was copied, without `FISH_COLOURS` from the plugin's `register`.
+  The made plugin now carries the plugin's whole source and runs it with an api that registers the copied type under
+  the new name and leaves everything else (the water, the caustics) to the original plugin. A source whose register
+  export cannot be found is refused with a message saying how to export it.
+- **Editor: a made node type that does not build** (#199) keeps the node as it was on the stage; the build's error is the
+  Run's error in the Code tab (which opens that plugin, and the Entity panel links there), and the node switches as soon
+  as a Run builds it. A Run that leaves one of the plugin's node types failing on the stage now says so in the Code tab
+  instead of reporting success, and a Run builds a node whose type failed before anew.
+- **Editor on a phone: dragging the sheet down no longer uncovers a black row** (#200): while the sheet is dragged the
+  stage keeps its size (one resize on release, #155), and the row it uncovers now continues the stage's bottom edge –
+  its colours sampled once when the drag starts.
+- **Editor on a phone: no Android tap highlight** (#201): links and buttons no longer flash the browser's blue box; a
+  pressed pill, icon button or text link shows the editor's own pressed colour, hover stays mouse-only (#178).
+
 ## 1.49.0 – 2026-10-30
 
 ### Added

@@ -385,6 +385,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   });
   staged.passes.forEach(({ spec, factory }, type) => registerPass(type, spec, factory, id));
   staged.nodeTypes.forEach((registration, type) => {
+    failures.delete(type);
     nodeTypes.set(type, registration);
     registerNodeTypeSpec(type, registration.spec);
   });
@@ -419,6 +420,12 @@ export const componentRegistration = (type: string): ComponentRegistration | und
 export const layerRegistration = (type: string): LayerRegistration | undefined => layers.get(type);
 export const nodeTypeRegistration = (type: string): NodeTypeRegistration | undefined => nodeTypes.get(type);
 
+/** The node types whose last build failed, with why (a build that works, or the type registered anew, clears it) */
+const failures = new Map<string, string>();
+
+/** Why the last build of a plugin's node type failed, undefined when it built (the editor shows it with the type's code) */
+export const nodeTypeFailure = (type: string): string | undefined => failures.get(type);
+
 /**
  * Build a node of a plugin's type: the registration's `build` with the node's parameters resolved and its file
  * loaded. Null when the type is nobody's, `build` returns nothing or throws (logged – the node renders nothing and
@@ -441,14 +448,19 @@ export const buildPluginNode = (
     instance = registration.build({ node, params: textures.values, asset: file ? asset(file.id) : undefined, target, three: THREE });
   } catch (error) {
     console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) failed on ${target.id}:`, error);
+    failures.set(node.type, error instanceof Error ? `${error.name}: ${error.message}` : String(error));
     textures.dispose();
     return null;
   }
   if (!instance || !(instance.object instanceof THREE.Object3D)) {
-    if (instance) console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) returned no three.js object on ${target.id}`);
+    if (instance) {
+      console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) returned no three.js object on ${target.id}`);
+      failures.set(node.type, "its build returned no three.js object");
+    }
     textures.dispose();
     return null;
   }
+  failures.delete(node.type);
   const built = instance;
   let applied = params;
   return {

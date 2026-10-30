@@ -16,13 +16,33 @@ import { nodeTypeRegistration } from "@engine/scene/plugins";
 /**
  * **Make it code** (#188 – Unreal's *Create Blueprint class from component*): a node of any type becomes a node type of
  * the book's own. The result is a Code tab plugin whose `registerNodeType` reproduces the node – its type's builder as a
- * readable starting point (a model's clone and clips, an image's or video's plane, a text's canvas, a light, a group; a
- * plugin type's own `build`), its values as the spec's parameters with the node's values as their defaults – and the
- * node switched to that type, placed where it was. From then on the node is the author's code. **Make material code**
- * does the same for the look of a node: a `registerMaterial` that draws what the type's material drew (a plane's picture
- * as a `ShaderMaterial`, a model's as a `MeshStandardMaterial`), and the node carries it as its `material`.
+ * readable starting point (a model's clone and clips, an image's or video's plane, a text's canvas, a light, a group),
+ * its values as the spec's parameters with the node's values as their defaults – and the node switched to that type,
+ * placed where it was. A **plugin's node type** is copied with its plugin's whole source: a build closes over what
+ * `register` and the module define around it (the aquarium's fish colours), so only the whole module is always correct.
+ * The copy runs under an api that registers the copied type under the new name and drops everything else it registers
+ * (those stay the original plugin's). From then on the node is the author's code. **Make material code** does the same
+ * for the look of a node: a `registerMaterial` that draws what the type's material drew (a plane's picture as a
+ * `ShaderMaterial`, a model's as a `MeshStandardMaterial`), and the node carries it as its `material`.
  * Nothing here runs the code: the panel saves the source and runs it like the Code tab's Run.
  */
+
+/** Make it code cannot copy a node: the message says why (shown to the author as it is) */
+export class MakeCodeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MakeCodeError";
+  }
+}
+
+/** The source of the plugin that registered a node type (the source last run, stored or declared) */
+export interface PluginSource {
+  plugin: string;
+  source: string;
+}
+
+/** The plugin that registered a node type, undefined for a built-in type */
+export const nodeTypeOwner = (type: string): string | undefined => nodeTypeRegistration(type)?.plugin;
 
 export interface MadeCode {
   /** The Code tab plugin's id (`my-model`) */
@@ -78,15 +98,18 @@ const paramsSource = (params: Record<string, ComponentParamSpec>, defaults: Reco
   return `{\n${lines.join("\n")}\n${indent}}`;
 };
 
-const header = (what: string, from: string): string => `import type { PluginApi } from "osct-plugin-api";
+/** The head of a made plugin: its type import (with `types` a copied module imported) and the start of `register` */
+const header = (what: string, from: string, options: { types?: readonly string[]; three?: boolean } = {}): string => {
+  const types = ["PluginApi", ...(options.types ?? []).filter(name => name !== "PluginApi")];
+  return `import type { ${types.join(", ")} } from "osct-plugin-api";
 
 /**
  * Made with "${what}" from ${from}.
  * From here on it is the book's own code: change the build, add parameters (rows in the Entity panel), Run, Save.
  */
 export const register = (api: PluginApi): void => {
-  const { three } = api;
-`;
+${options.three === false ? "" : "  const { three } = api;\n"}`;
+};
 
 /** The body of a built-in type's builder, as a plugin's `build` (the readable starting point), and what its spec says */
 const builtInBuilder = (node: EntityData): { src: NodeSrcKind; params: Record<string, ComponentParamSpec>; defaults: Record<string, unknown>; build: string } => {
@@ -236,43 +259,100 @@ const builtInBuilder = (node: EntityData): { src: NodeSrcKind; params: Record<st
   }
 };
 
-/** The build of a plugin's node type, as its plugin wrote it (compiled), for a copy */
-const pluginBuilder = (type: string): string | null => {
-  const build = nodeTypeRegistration(type)?.build;
-  return build ? build.toString() : null;
+/** The plugin API's type imports of a module (`import type { PluginApi } from "osct-plugin-api"`, also `import { type … }`) */
+const PLUGIN_API_IMPORT = /^[ \t]*import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*["']osct-plugin-api["'];?[ \t]*(?:\r?\n)?/gm;
+
+/** The ways a plugin module exports its register function, each renamed to a plain declaration of `name` */
+const REGISTER_EXPORTS: Array<[RegExp, (name: string) => string]> = [
+  [/^([ \t]*)export\s+const\s+register\b/m, name => `$1const ${name}`],
+  [/^([ \t]*)export\s+function\s+register\b/m, name => `$1function ${name}`],
+  [/^([ \t]*)export\s+default\s+function\b\s*(?:[A-Za-z_$][\w$]*)?\s*\(/m, name => `$1function ${name}(`],
+  [/^([ \t]*)export\s+default\s+(?!function\b|class\b)/m, name => `$1const ${name} = `],
+];
+
+/**
+ * A plugin's module as the body of a made plugin: its register function renamed to a free name (the made plugin exports
+ * its own), its type imports from the plugin API handed to the head. Null when no register export is found.
+ */
+const copiedModule = (source: string, plugin: string): { body: string; name: string; types: string[] } | null => {
+  const types: string[] = [];
+  const body = source.replace(PLUGIN_API_IMPORT, (_line, names: string) => {
+    names.split(",").map(name => name.trim().replace(/^type\s+/, "")).filter(Boolean).forEach(name => { if (!types.includes(name)) types.push(name); });
+    return "";
+  });
+  const base = `${camel(plugin)}Plugin`;
+  let name = base;
+  for (let n = 2; new RegExp(`\\b${name}\\b`).test(body); n++) name = `${base}${n}`;
+  const found = REGISTER_EXPORTS.find(([pattern]) => pattern.test(body));
+  if (!found) return null;
+  return { body: body.replace(found[0], found[1](name)).replace(/^\s*\n/, ""), name, types };
+};
+
+/**
+ * The made source for a plugin's node type: the plugin's whole module, run with an api that registers the copied type
+ * under the new name (with the node's values as the parameters' defaults) and drops every other registration.
+ */
+const copiedTypeSource = (node: EntityData, type: string, owner: PluginSource, spec: { description: string; src: NodeSrcKind; params: string }): string => {
+  const copied = copiedModule(owner.source, owner.plugin);
+  if (!copied) {
+    throw new MakeCodeError(`Make it code copies the whole plugin ${owner.plugin}, and its source exports no register(api) to copy – export it as \`export const register = (api: PluginApi): void => { … }\``);
+  }
+  const from = `the node type "${node.type}" of the plugin ${owner.plugin} – the plugin's whole source copied below`;
+  return `${header("make it code", from, { types: copied.types, three: false })}  // The copy below registers "${node.type}" as "${type}"; what else it registers stays the plugin ${owner.plugin}'s
+  const copy: PluginApi = {
+    ...api,
+    registerNodeType: (copiedType, _spec, build) => {
+      if (copiedType !== "${node.type}") return;
+      api.registerNodeType("${type}", {
+        description: ${JSON.stringify(spec.description)},
+        src: "${spec.src}",
+        params: ${spec.params},
+      }, build);
+    },
+    registerComponent: () => undefined,
+    registerLayer: () => undefined,
+    registerPass: () => undefined,
+    registerMaterial: () => undefined,
+    registerTexture: () => undefined,
+  };
+  ${copied.name}(copy);
+};
+
+// ── The plugin ${owner.plugin}, copied whole: the build of "${node.type}" below is the build of "${type}" ──
+${copied.body.replace(/\s*$/, "\n")}`;
 };
 
 /**
  * The node as a node type of the book's own: the plugin's source and the node switched to the new type. `taken` names the
- * plugin ids in use (the Code tab's and the declared ones) – the type and id are made free.
+ * plugin ids in use (the Code tab's and the declared ones) – the type and id are made free. A plugin's node type needs
+ * `owner`, the source of the plugin that registered it (a `MakeCodeError` without it, or when its register is not found).
  */
-export const nodeTypeCode = (node: EntityData, taken: Taken): MadeCode => {
+export const nodeTypeCode = (node: EntityData, taken: Taken, owner?: PluginSource): MadeCode => {
   const { type, plugin } = freeName(baseName(node, "Code"), taken, "node");
   const spec = nodeTypeSpec(node.type);
   let src: NodeSrcKind;
   let params: Record<string, ComponentParamSpec>;
   let defaults: Record<string, unknown>;
-  let build: string;
-  let from: string;
+  const description = `${node.name?.trim() || `A ${node.type}`}, made code from a ${node.type} node.`;
+  let source: string;
   if (spec) {
+    if (!owner) throw new MakeCodeError(`Make it code copies the whole plugin that registered "${node.type}", and its source could not be read`);
     src = spec.src ?? "none";
     params = spec.params;
     defaults = { ...(node.params ?? {}) };
-    const copied = pluginBuilder(node.type);
-    from = `the plugin node type "${node.type}" – its build copied (a name it took from its own file must come along)`;
-    build = copied ?? `({ three: t }) => ({ object: new t.Group() })`;
+    source = copiedTypeSource(node, type, owner, { description, src, params: paramsSource(params, defaults, "        ") });
   } else {
+    let build: string;
     ({ src, params, defaults, build } = builtInBuilder(node));
-    from = `a ${node.type} node${node.name ? ` ("${node.name}")` : ""} – the ${node.type} builder as a starting point`;
-  }
-  const description = `${node.name?.trim() || `A ${node.type}`}, made code from a ${node.type} node.`;
-  const source = `${header("make it code", from)}  api.registerNodeType("${type}", {
+    const from = `a ${node.type} node${node.name ? ` ("${node.name}")` : ""} – the ${node.type} builder as a starting point`;
+    source = `${header("make it code", from)}  api.registerNodeType("${type}", {
     description: ${JSON.stringify(description)},
     src: "${src}",
     params: ${paramsSource(params, defaults, "    ")},
   }, ${build});
 };
 `;
+  }
   // The node keeps its place: the old type's placement written out (the new type's defaults lie flat)
   const placement = resolvePlacement(node.type, node.params);
   const values: Record<string, unknown> = {};

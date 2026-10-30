@@ -196,6 +196,30 @@ export class ArView {
   }
 
   /**
+   * The colours along one row of the canvas (CSS px from its top), each the average of one of `segments` equal parts from
+   * left to right, as `#rrggbb` – drawn and read at once like `sample`; empty while the canvas has no size
+   */
+  sampleRow(y: number, segments: number): string[] {
+    const gl = this.renderer.getContext();
+    const size = this.renderer.getSize(new Vector2());
+    const dpr = this.renderer.getPixelRatio();
+    const width = Math.round(size.x * dpr);
+    const height = Math.round(size.y * dpr);
+    if (!width || !height || segments < 1) return [];
+    this.draw();
+    const row = Math.min(height - 1, Math.max(0, height - 1 - Math.floor(y * dpr)));
+    const pixels = new Uint8Array(width * 4);
+    gl.readPixels(0, row, width, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    return Array.from({ length: segments }, (_, i) => {
+      const from = Math.floor((i * width) / segments);
+      const to = Math.max(from + 1, Math.floor(((i + 1) * width) / segments));
+      const sum = [0, 0, 0];
+      for (let x = from; x < to; x++) for (let c = 0; c < 3; c++) sum[c] += pixels[x * 4 + c];
+      return `#${sum.map(v => Math.round(v / (to - from)).toString(16).padStart(2, "0")).join("")}`;
+    });
+  }
+
+  /**
    * The passes over the rendered scene (`passes` of the spread or the book), in order; an empty list frees the chain
    * and the scene renders straight to the canvas again
    */

@@ -4,6 +4,36 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-30 – Make it code copies a plugin's whole source; a made type switches once it builds (#199)
+
+- **Decision: copy the whole plugin, not the build.** The issue offered two fixes: copy the plugin's whole source, or
+  detect the build's free identifiers and refuse. Copying is the one that is always correct – a build may close over
+  anything `register` or the module defines (the aquarium's `FISH_COLOURS`, helpers, constants), and finding free
+  identifiers needs a real parser and scope analysis, and then still only refuses. The made plugin keeps the original
+  module as it is (its `register` export renamed, its `osct-plugin-api` type imports moved to the head) and calls it
+  with a copy of the api: `registerNodeType` of the copied type registers the new type (the node's values as the
+  parameters' defaults), every other registration is dropped – the textures, materials and other types stay the
+  original plugin's, which stays installed. The source copied is the one running on the stage: the source last run in
+  the Code tab, else the stored one, else the declared plugin's `index.ts` (copied next to its `plugin.js` by the
+  content build). Refused with a message only when no register export is found (`export const|function register`,
+  `export default …`) or the source cannot be read.
+- Side effect of a whole copy: listeners the original `register` subscribes (`api.events.on`) are subscribed by the
+  made plugin too. Accepted – a node type's plugin rarely listens in `register`, and the author edits the copy anyway.
+- **A made type switches the node only once it builds.** The engine records why a plugin node type's last build failed
+  (`nodeTypeFailure`, cleared by a good build or a new registration). Make it code saves the plugin and leaves the node
+  switch pending (`plugins.pending`); the Run applies it on the stage and reverts it when the build failed – the error
+  is the Run's (the Code tab's, which opens the plugin through `plugins.focus`), and the next Run of that plugin tries
+  again. A Run also reports a node type of the plugin that failed on the stage. "Run doesn't rebuild" in the issue was
+  the made code failing again on every Run; the stage's refresh builds every node anew.
+
+## 2026-10-30 – The phone's sheet: the uncovered row continues the stage (#200)
+
+- Dragged down, the sheet uncovers part of its frozen grid row. Of the issue's two fixes, painting was chosen: extending
+  the canvas under the sheet would resize it at the drag's start, and with the stage's fixed vertical field of view the
+  whole picture would shrink and jump (a second resize, the flicker #155 removed). The row shows a horizontal gradient
+  of the stage's bottom edge, sampled once at the drag's start (`ArScene.sampleRow`, one draw and one row read – twelve
+  averaged parts), as the workspace's background while dragging; the stage still resizes once, on release.
+
 ## 2026-10-30 – Code files in the Library: scripts are plugin sources, shaders are assets (#186)
 
 - **The model**: a **script** (`.ts` / `.js`) uploaded in the Library **is** a plugin source – a row of `plugins`, the
