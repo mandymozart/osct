@@ -34,6 +34,8 @@ describe("LazyArScene", () => {
     const found: string[] = [];
     lazy.on("status", status => statuses.push(status));
     lazy.on("targetFound", id => found.push(id));
+    const scanning: boolean[] = [];
+    lazy.on("scanning", on => scanning.push(on));
 
     await lazy.load("spread-1");
     await lazy.setState(SceneState.STOPPED);
@@ -51,6 +53,8 @@ describe("LazyArScene", () => {
 
     scene.listeners.get("targetFound")!("target-a");
     expect(found).toEqual(["target-a"]);
+    scene.listeners.get("scanning")!(true);
+    expect(scanning).toEqual([true]);
 
     // Once created, calls go straight to the real scene
     await lazy.load("spread-3");

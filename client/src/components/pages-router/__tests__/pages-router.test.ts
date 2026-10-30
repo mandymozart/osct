@@ -67,7 +67,7 @@ describe("pages-router", () => {
   it("shows the error overlay's page while an error is shown", () => {
     const router = mount();
     game.router.navigate("/about");
-    game.router.showError({ code: ErrorCode.NOT_FOUND, msg: "x" });
+    game.router.showError({ code: ErrorCode.NETWORK_ERROR, msg: "x" });
     expect(active(router)).toEqual(["error-page"]);
     game.router.dismissError();
     expect(active(router)).toEqual(["about-page"]);

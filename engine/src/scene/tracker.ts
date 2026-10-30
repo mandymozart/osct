@@ -1,5 +1,5 @@
 import type { PerspectiveCamera } from "three";
-import { CAMERA_NOT_RESPONDING } from "../types/index";
+import { ArSceneError, ErrorCode } from "../types/index";
 import { getTargetBudget } from "../utils/prepared-spreads";
 import { publishEngineState, EMPTY_ENGINE_STATE, registerLoadTest } from "../utils/tracker-debug";
 import { setCameraTrack } from "../utils/camera-debug";
@@ -117,7 +117,8 @@ export class ImageTracker implements IImageTracker {
   /** Counters for the load test: engine frames, frames with a current target found, current targets lost */
   private counters = { frames: 0, framesFound: 0, lost: 0 };
 
-  constructor(private container: HTMLElement, private options: ImageTrackerOptions) {}
+  /** `xr8Base`: where the app serves the 8th Wall engine's files (`xr.js`, `xr-tracking.js`), ending in `/` */
+  constructor(private container: HTMLElement, private options: ImageTrackerOptions, private xr8Base: string) {}
 
   get hasCamera(): boolean {
     return this.started;
@@ -164,7 +165,7 @@ export class ImageTracker implements IImageTracker {
 
   async startCamera(): Promise<void> {
     if (this.started) return;
-    const XR8 = await loadXr8();
+    const XR8 = await loadXr8(this.xr8Base);
     this.XR8 = XR8;
 
     const canvas = document.createElement("canvas");
@@ -176,7 +177,7 @@ export class ImageTracker implements IImageTracker {
 
     const started = new Promise<void>((resolve, reject) => {
       const timer = window.setTimeout(
-        () => reject(new Error(`${CAMERA_NOT_RESPONDING} (no picture after ${CAMERA_START_TIMEOUT_MS / 1000} s)`)),
+        () => reject(new ArSceneError(ErrorCode.CAMERA_NOT_RESPONDING, `camera not responding (no picture after ${CAMERA_START_TIMEOUT_MS / 1000} s)`)),
         CAMERA_START_TIMEOUT_MS,
       );
       this.startWaiter = {

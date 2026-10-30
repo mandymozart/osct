@@ -36,7 +36,7 @@ describe("error page", () => {
     expect(page.getAttribute("active")).not.toBe("true");
 
     const callback = vi.fn();
-    game.router.showError({ code: ErrorCode.NOT_FOUND, msg: "Nothing here", action: { text: "Retry", callback } });
+    game.router.showError({ code: ErrorCode.NETWORK_ERROR, msg: "Nothing here", action: { text: "Retry", callback } });
     expect(page.getAttribute("active")).toBe("true");
     expect(page.shadowRoot!.querySelector(".message")!.textContent).toContain("Nothing here");
     expect(page.shadowRoot!.querySelector("#action-button")).not.toBeNull();
@@ -48,7 +48,7 @@ describe("error page", () => {
   it("ignores store changes after it was disconnected", () => {
     const page = mount();
     page.remove();
-    game.router.showError({ code: ErrorCode.NOT_FOUND, msg: "Unseen" });
+    game.router.showError({ code: ErrorCode.NETWORK_ERROR, msg: "Unseen" });
     expect(page.getAttribute("active")).not.toBe("true");
   });
 
@@ -58,7 +58,7 @@ describe("error page", () => {
   it("the action button runs the error's callback", async () => {
     const page = mount();
     const callback = vi.fn();
-    game.router.showError({ code: ErrorCode.NOT_FOUND, msg: "Nothing here", action: { text: "Retry", callback } });
+    game.router.showError({ code: ErrorCode.NETWORK_ERROR, msg: "Nothing here", action: { text: "Retry", callback } });
     await settle();
     page.shadowRoot!.querySelector<HTMLElement>("#action-button")!.click();
     expect(callback).toHaveBeenCalledTimes(1);
@@ -67,7 +67,7 @@ describe("error page", () => {
   it("dismiss clears the error and returns to the view underneath", async () => {
     const page = mount();
     game.router.navigate("/about");
-    game.router.showError({ code: ErrorCode.NOT_FOUND, msg: "Nothing here" });
+    game.router.showError({ code: ErrorCode.NETWORK_ERROR, msg: "Nothing here" });
     expect(page.shadowRoot!.querySelector("#action-button")).toBeNull();
     await settle();
     page.shadowRoot!.querySelector<HTMLElement>("#dismiss-error")!.click();

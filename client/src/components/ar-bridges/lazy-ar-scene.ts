@@ -1,4 +1,4 @@
-import { type ArSceneEvents, type ArStatus, type EntityData, type IArScene, type PassData, type SceneInspection, SceneState } from "@/types";
+import { type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type IArScene, type PassData, type SceneInspection, SceneState } from "@/types";
 import { Emitter } from "@engine/utils/emitter";
 
 type ArModule = typeof import("./ar");
@@ -13,6 +13,7 @@ const SCENE_EVENTS = Object.keys({
   targetTapped: true,
   ready: true,
   spreadSeen: true,
+  scanning: true,
 } satisfies Record<keyof ArSceneEvents, true>) as Array<keyof ArSceneEvents>;
 
 /**
@@ -85,7 +86,7 @@ export class LazyArScene implements IArScene {
       await scene.setState(this.wantedState);
     } catch (error) {
       console.error("[ArScene] AR could not be loaded:", error);
-      this.emitter.emit("status", "error", error instanceof Error ? error.message : String(error));
+      this.emitter.emit("status", "error", { code: ErrorCode.AR_LOAD_FAILED, message: error instanceof Error ? error.message : String(error) });
     }
   }
 

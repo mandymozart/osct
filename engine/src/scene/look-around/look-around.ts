@@ -95,6 +95,9 @@ export class LookAround {
   /** Some of the view is above the horizon (only there the sky can be keyed) */
   private skyInView = false;
 
+  /** Put the desktop debug handle (`osctLookAroundDebug`) on `window` when the scene runs – the app's dev build (`ArSceneOptions.debug`) */
+  debugTools = false;
+
   constructor(
     private renderer: WebGLRenderer,
     cameraVideo: () => HTMLVideoElement | null,
@@ -237,11 +240,11 @@ export class LookAround {
     u.uWorldModel.value = this.assets.world ? 1 : 0;
   }
 
-  /** `window.osctLookAround` = the settings; dev builds also get `osctLookAroundDebug` (desktop: fake book / tilt) */
+  /** `window.osctLookAround` = the settings; with `debugTools` also `osctLookAroundDebug` (desktop: fake book / tilt) */
   private exposeForTuning(): void {
     const handle = window as unknown as { osctLookAround?: LookAroundSettings; osctLookAroundDebug?: object };
     handle.osctLookAround = this.settings;
-    if (!import.meta.env.DEV) return;
+    if (!this.debugTools) return;
     handle.osctLookAroundDebug = {
       seeBook: (x = 0, y = -0.6, z = -1) => {
         this.book.direction = new Vector3(x, y, z).normalize();

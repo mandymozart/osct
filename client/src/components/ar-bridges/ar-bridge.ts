@@ -1,5 +1,5 @@
 import { GameStoreService, PreloaderService } from "@/services";
-import { type ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { type ArError, type ArStatus, CameraPermissionStatus, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
 import { reportArError } from "@engine/utils/camera-debug";
@@ -9,13 +9,19 @@ import { getSceneState } from "./utils/scene-state";
 /** Delay after startup before the AR chunk and the current spread are preloaded in idle time */
 const WARM_UP_DELAY_MS = 1500;
 
+/** The scanning indicator (index.html, styles/gold-spinner.css) shown or hidden */
+const showScanning = (scanning: boolean): void => {
+  document.getElementById("osct-scanning")?.classList.toggle("hidden", !scanning);
+};
+
 /**
  * <ar-bridge>: the only link between the game store and the AR scene.
  *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (policy in scene-state.ts).
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → content preload of the
  *   spreads kept ready next to the current one (the same window the tracker holds, `prepared-spreads.ts`).
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
- * tapping an entity opens its entry. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first
+ * tapping an entity opens its entry. The scene's `scanning` shows the reader's scanning indicator (`#osct-scanning`,
+ * index.html) while tracking runs and nothing is found; an AR error's code picks the camera overlay. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first
  * scan, warmed up in idle time after startup); tests inject one via `sceneFactory`.
  */
 export class ArBridge extends HTMLElement {
@@ -44,6 +50,7 @@ export class ArBridge extends HTMLElement {
       scene.on("targetFound", id => this.handleFound(id)),
       scene.on("targetLost", id => game.targets.removeTarget(id)),
       scene.on("targetTapped", id => this.handleTap(id)),
+      scene.on("scanning", scanning => showScanning(scanning)),
       // The reader turned to a neighbouring spread (8th Wall): switch like the spread menu does
       scene.on("spreadSeen", id => {
         if (this.game.state.mode === GameMode.SCAN && id !== this.game.state.currentSpread) this.game.spreads.switchSpread(id);
@@ -92,6 +99,7 @@ export class ArBridge extends HTMLElement {
   disconnectedCallback() {
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
+    showScanning(false);
     void this.scene?.dispose();
     this.scene = null;
   }
@@ -116,8 +124,8 @@ export class ArBridge extends HTMLElement {
     void this.scene?.setState(getSceneState(this.game.state.mode, this.game.state.currentRoute));
   }
 
-  private handleStatus(status: ArStatus, error?: string) {
-    reportArError(status === "error" ? error ?? "unknown" : null);
+  private handleStatus(status: ArStatus, error?: ArError) {
+    reportArError(status === "error" ? error?.message ?? "unknown" : null);
     this.game.setArStatus(status);
     // The 3D layer shows while AR runs (main.css: body.scene-active #scene)
     document.body.classList.toggle("scene-active", status === "running");
@@ -130,7 +138,7 @@ export class ArBridge extends HTMLElement {
       console.warn("[ArBridge] AR error:", error);
       // No picture from the camera: the overlay asks to reload / restart the browser.
       // Otherwise (denied / unavailable) refresh the permission state, which shows camera-permission-page.
-      if (error?.includes(CAMERA_NOT_RESPONDING)) this.game.camera.reportNotResponding();
+      if (error?.code === ErrorCode.CAMERA_NOT_RESPONDING) this.game.camera.reportNotResponding();
       else void this.game.camera.checkPermission();
     }
     // Running again (e.g. after the camera recovered): clear a "not responding" overlay

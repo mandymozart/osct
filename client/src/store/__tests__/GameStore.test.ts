@@ -65,16 +65,16 @@ describe("GameStore", () => {
     const game = createGameStore();
     const listener = vi.fn();
     const stop = game.onError(listener);
-    const error = { code: ErrorCode.NOT_FOUND, msg: "Nothing here" };
+    const error = { code: ErrorCode.NETWORK_ERROR, msg: "Nothing here" };
     game.notifyError(error);
     expect(game.state.currentError).toEqual(error);
     expect(game.state.currentRoute?.page).toBe("error");
     expect(listener).toHaveBeenCalledWith(error);
-    expect(console.error).toHaveBeenCalledWith(`[Game] Error: Nothing here (${ErrorCode.NOT_FOUND})`);
+    expect(console.error).toHaveBeenCalledWith(`[Game] Error: Nothing here (${ErrorCode.NETWORK_ERROR})`);
 
     stop();
     stop(); // a second call removes nothing else
-    game.notifyError({ code: ErrorCode.NOT_FOUND, msg: "Again" });
+    game.notifyError({ code: ErrorCode.NETWORK_ERROR, msg: "Again" });
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
@@ -85,7 +85,7 @@ describe("GameStore", () => {
     const stopA = game.onError(a);
     game.onError(b);
     stopA();
-    game.notifyError({ code: ErrorCode.NOT_FOUND, msg: "x" });
+    game.notifyError({ code: ErrorCode.NETWORK_ERROR, msg: "x" });
     expect(a).not.toHaveBeenCalled();
     expect(b).toHaveBeenCalledTimes(1);
   });

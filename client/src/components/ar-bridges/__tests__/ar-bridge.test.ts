@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type ArSceneEvents, type ArStatus, CAMERA_NOT_RESPONDING, CameraPermissionStatus, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, ErrorCode, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { GameStoreService, PreloaderService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
+import { getArError } from "@engine/utils/camera-debug";
 import { getPreparedWindow } from "@engine/utils/prepared-spreads";
 import { targetWithVideo } from "@/test/content-fixtures";
 
@@ -140,14 +141,23 @@ describe("<ar-bridge>", () => {
 
   it("refreshes the camera permission when AR fails", () => {
     const check = vi.spyOn(game.camera, "checkPermission").mockResolvedValue(false);
-    scene.emit("status", "error", "VIDEO_FAIL");
+    scene.emit("status", "error", { code: ErrorCode.AR_START_FAILED, message: "AR could not start: Camera unavailable: VIDEO_FAIL" });
     expect(game.state.arStatus).toBe("error");
+    expect(check).toHaveBeenCalled();
+    // The debug views show the message
+    expect(getArError()).toBe("AR could not start: Camera unavailable: VIDEO_FAIL");
+  });
+
+  it("a failed AR load (offline) refreshes the camera permission too", () => {
+    const check = vi.spyOn(game.camera, "checkPermission").mockResolvedValue(false);
+    scene.emit("status", "error", { code: ErrorCode.AR_LOAD_FAILED, message: "Failed to fetch dynamically imported module" });
+    expect(game.state.cameraPermission).not.toBe(CameraPermissionStatus.NOT_RESPONDING);
     expect(check).toHaveBeenCalled();
   });
 
   it("a camera without picture: the overlay's 'not responding' state, cleared once AR runs again", () => {
     const check = vi.spyOn(game.camera, "checkPermission").mockResolvedValue(true);
-    scene.emit("status", "error", `AR could not start: ${CAMERA_NOT_RESPONDING} (no picture after 10 s)`);
+    scene.emit("status", "error", { code: ErrorCode.CAMERA_NOT_RESPONDING, message: "AR could not start: camera not responding (no picture after 10 s)" });
     expect(game.state.cameraPermission).toBe(CameraPermissionStatus.NOT_RESPONDING);
     expect(check).not.toHaveBeenCalled();
 
@@ -159,6 +169,21 @@ describe("<ar-bridge>", () => {
     const preload = vi.spyOn(PreloaderService.getInstance(), "preloadSpreads").mockResolvedValue([]);
     scene.emit("ready", spread1.id);
     expect(preload).toHaveBeenCalledWith(getPreparedWindow(spread1.id).map(spread => spread.id));
+  });
+
+  it("shows the scanning indicator while the scene scans, and hides it when removed", () => {
+    const indicator = document.createElement("div");
+    indicator.id = "osct-scanning";
+    indicator.className = "gold-scanning hidden";
+    document.body.appendChild(indicator);
+    scene.emit("scanning", true);
+    expect(indicator.classList.contains("hidden")).toBe(false);
+    scene.emit("scanning", false);
+    expect(indicator.classList.contains("hidden")).toBe(true);
+    scene.emit("scanning", true);
+    bridge.remove();
+    expect(indicator.classList.contains("hidden")).toBe(true);
+    indicator.remove();
   });
 
   it("disposes the scene and stops listening when removed", () => {

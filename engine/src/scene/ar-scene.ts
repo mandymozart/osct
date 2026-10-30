@@ -1,5 +1,7 @@
 import { Box3, Group, type Matrix4, type Quaternion, Vector3 } from "three";
-import { type ArSceneEvents, type ArStatus, type EntityData, type GraphicsSource, type IArScene, type PassData, type SceneInspection, SceneState, type Target } from "../types/index";
+import {
+  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type PassData, type SceneInspection, SceneState, type Target,
+} from "../types/index";
 import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
@@ -39,6 +41,8 @@ export interface ArSceneOptions {
    * adapter over its history, the editor its simulation – never a store (RULES #32). Without it nothing is unlocked.
    */
   progress?: ProgressReader;
+  /** The app's development build: debug handles on `window` (the look-around's `osctLookAroundDebug`) */
+  debug?: boolean;
 }
 
 /**
@@ -52,9 +56,6 @@ export interface EnvironmentPreview {
 
 /** A tap this close to an entity's on-screen bounds still hits it (small models) */
 const TAP_MARGIN_PX = 24;
-
-/** Scanning indicator (index.html, styles/gold-spinner.css): shown while no target is found */
-const scanningIndicator = () => document.getElementById("osct-scanning");
 
 /**
  * The AR scene: plain three.js + image tracking (the app's tracker, `ArSceneOptions.createTracker` – the 8th Wall
@@ -103,6 +104,8 @@ export class ArScene implements IArScene {
   private passOverride: PassData[] | null = null;
   private postProcessing = true;
   private windowCleanup: (() => void) | null = null;
+  /** Last told `scanning` state: tracking runs and no target is found */
+  private scanning = false;
 
   constructor(private container: HTMLElement, private options: ArSceneOptions) {
     setProgressReader(options.progress);
@@ -265,15 +268,23 @@ export class ArScene implements IArScene {
   private reconcile(): Promise<void> {
     this.queue = this.queue.then(() => this.step()).catch(error => {
       console.error("[ArScene]", error);
-      this.setStatus("error", error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      this.setStatus("error", { code: error instanceof ArSceneError ? error.code : ErrorCode.AR_FAILED, message });
     });
     return this.queue;
   }
 
-  private setStatus(status: ArStatus, error?: string) {
+  private setStatus(status: ArStatus, error?: ArError) {
     if (status === this._status && !error) return;
     this._status = status;
     this.emitter.emit("status", status, error);
+  }
+
+  /** Tell the app whether the scanning indicator shows: tracking runs and no target is found (`scanning` event) */
+  private setScanning(scanning: boolean): void {
+    if (scanning === this.scanning) return;
+    this.scanning = scanning;
+    this.emitter.emit("scanning", scanning);
   }
 
   private async step(): Promise<void> {
@@ -317,6 +328,7 @@ export class ArScene implements IArScene {
       this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: view.scene });
       view.resize();
       this.lookAround = new LookAround(view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
+      this.lookAround.debugTools = this.options.debug ?? false;
       if (this.environmentPreview) this.lookAround.setPreview({ orientation: this.environmentPreview.orientation });
       view.underlay = this.lookAround;
       // A simulated tracker's stage is drawn every frame (the page is always in view)
@@ -437,7 +449,7 @@ export class ArScene implements IArScene {
       this.emitter.emit("targetLost", id);
       emitCoreEvent("targetLost", { targetId: id });
     }
-    scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
+    this.setScanning(this.found.size === 0);
   }
 
   /**
@@ -532,7 +544,7 @@ export class ArScene implements IArScene {
     this.view = null;
     this.started = false;
     this.running = false;
-    scanningIndicator()?.classList.add("hidden");
+    this.setScanning(false);
     stageEnded();
     this.setStatus("idle");
   }
@@ -542,7 +554,7 @@ export class ArScene implements IArScene {
   /** Camera (if off) + tracking of the current spread's targets */
   private async startTracking(): Promise<void> {
     const { view, tracker, content } = this;
-    if (!view || !tracker || !content) throw new Error("AR could not start: no spread loaded");
+    if (!view || !tracker || !content) throw new ArSceneError(ErrorCode.AR_START_FAILED, "AR could not start: no spread loaded");
     try {
       await tracker.startCamera();
       await tracker.loadTargets(content);
@@ -551,7 +563,8 @@ export class ArScene implements IArScene {
       this.started = false;
       this.running = false;
       this.startFailed = true;
-      throw new Error(`AR could not start: ${(error as Error)?.message ?? error}`);
+      const code = error instanceof ArSceneError ? error.code : ErrorCode.AR_START_FAILED;
+      throw new ArSceneError(code, `AR could not start: ${(error as Error)?.message ?? error}`);
     }
     view.resize(); // field of view from the engine's projection
     this.started = true;
@@ -585,7 +598,7 @@ export class ArScene implements IArScene {
     this.running = true;
     this.lookAround?.start();
     this.view?.start();
-    scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
+    this.setScanning(this.found.size === 0);
     this.setStatus("running");
     emitCoreEvent("sceneState", { state: "running" });
   }
@@ -602,7 +615,7 @@ export class ArScene implements IArScene {
     // their anchors would stay visible at the old position ("stuck in space")
     this.finishAnimations();
     this.loseAll();
-    scanningIndicator()?.classList.add("hidden");
+    this.setScanning(false);
     this.setStatus(this.started ? "paused" : "ready");
     emitCoreEvent("sceneState", { state: "paused" });
   }
@@ -615,7 +628,7 @@ export class ArScene implements IArScene {
     this.loseAll();
     this.started = false;
     this.running = false;
-    scanningIndicator()?.classList.add("hidden");
+    this.setScanning(false);
     this.setStatus("ready");
     emitCoreEvent("sceneState", { state: "stopped" });
   }

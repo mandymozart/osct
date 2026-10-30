@@ -8,9 +8,11 @@ import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
 import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
+import { setDeviceStorage } from "@engine/utils/device-storage";
 import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
 import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData, type SpreadFormat } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "#lib/values.js";
+import { deviceStorage } from "#lib/storage.js";
 import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
 import { LightHelpers } from "./light-helper";
 import { applyShading, HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
@@ -131,6 +133,7 @@ export class Stage {
 
   constructor(container: HTMLElement) {
     setPreviewActive(true);
+    setDeviceStorage(deviceStorage);
     const scene = new ArScene(container, {
       createTracker: ({ container, options, scene }) => {
         const tracker = new MockTracker(container, options);
@@ -143,12 +146,13 @@ export class Stage {
         return tracker;
       },
       progress: this.progress.reader(),
+      debug: import.meta.env.DEV,
     });
     this.scene = scene;
     this.cleanups.push(
       scene.on("status", (status, error) => {
         this.status = status;
-        this.error = status === "error" ? error ?? "unknown" : null;
+        this.error = status === "error" ? error?.message ?? "unknown" : null;
         if (status === "running") {
           this.ensureGizmo();
           this.shade();
