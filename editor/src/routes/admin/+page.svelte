@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { ApiError, downloadUsersCsv, grantRole, inviteEditor, listRoles, listUsers, revokeRole, type AdminUser, type Role } from "#lib/api.js";
+  import { downloadUsersCsv, errorText, grantRole, inviteEditor, listRoles, listUsers, revokeRole, type AdminUser, type Role } from "#lib/api.js";
   import { session } from "#lib/session.svelte.js";
   import { csvDownload, type UserFilter } from "#lib/users-csv.js";
   import Segmented from "#lib/components/Segmented.svelte";
@@ -33,7 +33,7 @@
   let invite = $state("");
   let inviting = $state(false);
 
-  const fail = (e: unknown) => (error = e instanceof ApiError ? e.message : String(e));
+  const fail = (e: unknown) => (error = errorText(e));
 
   const load = async () => {
     error = null;

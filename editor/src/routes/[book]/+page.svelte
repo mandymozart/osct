@@ -3,7 +3,7 @@
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { addSpread, ApiError, deleteSpread, getBook, type BookTree } from "#lib/api.js";
+  import { addSpread, deleteSpread, errorText, getBook, type BookTree } from "#lib/api.js";
   import { followBlockedBy, removeBlockedBy } from "#lib/spread-edit.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
@@ -11,7 +11,8 @@
   import { menuTrigger } from "#lib/menu-trigger.js";
   import type { Point } from "#lib/context-menu.js";
   import { sheetForSpread, type StageLayout } from "#lib/stage/stage-layout.js";
-  import { fetchBookLayout, printBoxes, sheetUrl } from "#lib/sheet-preview.js";
+  import { fetchBookLayout, pageOf, printBoxes, sheetUrl } from "#lib/sheet-preview.js";
+  import { fileNameOf } from "#lib/library-place.js";
   import SheetPreview from "#lib/components/SheetPreview.svelte";
   import { captionOf, formatLabelOf, gridCells } from "#lib/spread-grid.js";
   import Icon from "#lib/components/Icon.svelte";
@@ -37,7 +38,7 @@
       await work();
       tree = await getBook(bookId);
     } catch (e) {
-      error = e instanceof ApiError ? e.message : String(e);
+      error = errorText(e);
     } finally {
       adding = false;
     }
@@ -79,7 +80,7 @@
     } catch (e) {
       const step = removalStep(e);
       if (step) confirming = { id: spread.id, step };
-      else error = e instanceof ApiError ? e.message : String(e);
+      else error = errorText(e);
     }
   };
   const keep = (spread: Spread) => {
@@ -98,7 +99,7 @@
     } catch (e) {
       const step = removalStep(e);
       if (step) confirming = { id: spread.id, step };
-      else removeError = e instanceof ApiError ? e.message : String(e);
+      else removeError = errorText(e);
     } finally {
       removing = false;
     }
@@ -107,9 +108,9 @@
 
   onMount(async () => {
     try {
-      tree = await getBook(bookId);
+      tree = await getBook(bookId, { fresh: true });
     } catch (e) {
-      error = e instanceof ApiError ? e.message : String(e);
+      error = errorText(e);
       return;
     }
     // The layout lives with the book's assets; without it (or without an assets base) the cards are blank pages with their prints
@@ -119,8 +120,8 @@
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
   const cells = $derived(gridCells(tree?.spreads ?? []));
   /** One page's proportions: a double page is twice as wide, so every card has the cover's height */
-  const pageRatio = $derived(layout ? layout.page.width / layout.page.height : 230 / 320);
-  const pageMm = $derived(layout?.page ?? { width: 230, height: 320 });
+  const pageMm = $derived(pageOf(layout));
+  const pageRatio = $derived(pageMm.width / pageMm.height);
 </script>
 
 <main>
@@ -133,9 +134,8 @@
       {#if !hasFormat("back")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("back")}>+ back cover</button>{/if}
     </p>
     {@const environment = environmentOf(tree.book.book)}
-    {@const fileName = (url: string) => decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() ?? url)}
     <p class="muted small environment">environment ({tree.book.book?.environment ? "this book's" : "the default"}):
-      world {environment.worldSrc ? fileName(environment.worldSrc) : "café"} · sky {environment.skySrc ? fileName(environment.skySrc) : "the world's"} ·
+      world {environment.worldSrc ? fileNameOf(environment.worldSrc) : "café"} · sky {environment.skySrc ? fileNameOf(environment.skySrc) : "the world's"} ·
       onion sky {environment.onionSky ? "on" : "off"}
       {#if tree.spreads[0]}· <a class="text-link" href={resolve(`${bookId}/${tree.spreads[0].id}/?tab=environment`)}>Edit on the stage</a>{/if}</p>
     <ul class="spreads" style:--page-ratio={pageRatio}>

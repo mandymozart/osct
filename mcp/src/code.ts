@@ -7,23 +7,14 @@ import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import type { OsctApi } from "./api.ts";
-import { pluginTypes } from "./model.ts";
 import { fail, guard, text } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import { PLUGIN_ID_PATTERN } from "../../shared/types/plugins";
+import type { PluginSource, PluginSummary, PluginUsages } from "../../shared/api/editor";
+import { ID_PATTERN, pluginTypes } from "../../shared/api/rules";
 
-const BOOK = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).describe("the book's id (list_books)");
+const BOOK = z.string().regex(ID_PATTERN).describe("the book's id (list_books)");
 const PLUGIN = z.string().regex(PLUGIN_ID_PATTERN, "1–40 lower-case letters, digits or -, starting with a letter").describe("the plugin's id, e.g. tint");
-
-interface PluginRow {
-  id: string;
-  source?: string;
-  size: number;
-  /** the draft's rows that use a type it registers (the list's) */
-  usages?: number;
-  updatedAt: string;
-  updatedBy: string | null;
-}
 
 export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLinks): void {
   const path = (book: string, plugin?: string) => `/editor/books/${encodeURIComponent(book)}/plugins${plugin ? `/${encodeURIComponent(plugin)}` : ""}`;
@@ -31,14 +22,14 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
   server.registerTool(
     "list_plugins",
     { description: "The book's plugin sources (the Code tab, the Library's scripts): id, size, usages (the draft's rows that use a type it registers), who saved it, when – without the source (get_plugin).", inputSchema: z.object({ book: BOOK }), annotations: { readOnlyHint: true, openWorldHint: false } },
-    guard(async ({ book }) => text(await api.call<{ plugins: PluginRow[] }>("GET", path(book)))),
+    guard(async ({ book }) => text(await api.call<{ plugins: PluginSummary[] }>("GET", path(book)))),
   );
 
   server.registerTool(
     "get_plugin",
     { description: "One plugin source with the component, layer, node and pass types it registers (read from the text).", inputSchema: z.object({ book: BOOK, plugin: PLUGIN }), annotations: { readOnlyHint: true, openWorldHint: false } },
     guard(async ({ book, plugin }) => {
-      const { plugin: row } = await api.call<{ plugin: PluginRow & { source: string } }>("GET", path(book, plugin));
+      const { plugin: row } = await api.call<{ plugin: PluginSource }>("GET", path(book, plugin));
       return text({ plugin: row, registers: pluginTypes(row.source) });
     }),
   );
@@ -57,7 +48,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
       if (!/export\s+(const|function|default)\s+register\b|export\s+default\b|export\s*\{[^}]*\bregister\b/.test(source)) warnings.push("the source exports no register(api) – the engine refuses such a module");
       if (/^\s*import\s+(?!type\b)/m.test(source)) warnings.push("the source imports a module – plugins import nothing but types (three.js is api.three)");
       if (Object.values(registers).every(types => types.length === 0)) warnings.push("no registerComponent / registerLayer / registerNodeType / registerPass call found");
-      const { plugin: row } = await api.call<{ plugin: PluginRow }>("PUT", path(book, plugin), { source });
+      const { plugin: row } = await api.call<{ plugin: PluginSource }>("PUT", path(book, plugin), { source });
       return text({ plugin: { ...row, source: undefined }, registers, ...(warnings.length ? { warnings } : {}), open: editorHref(links, book), next: "Open a spread in the editor → Code → the plugin → Run shows it on the stage; the content build ships it to readers." });
     }),
   );
@@ -80,8 +71,8 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
       const bytes = new Uint8Array(await readFile(file));
       const name = basename(file);
       const { plugin: row } = replace
-        ? await api.upload<{ plugin: PluginRow & { source: string } }>("PUT", `${path(book, plugin)}/file`, bytes, name)
-        : await api.upload<{ plugin: PluginRow & { source: string } }>("POST", `${path(book)}${plugin ? `?id=${encodeURIComponent(plugin)}` : ""}`, bytes, name);
+        ? await api.upload<{ plugin: PluginSource }>("PUT", `${path(book, plugin)}/file`, bytes, name)
+        : await api.upload<{ plugin: PluginSource }>("POST", `${path(book)}${plugin ? `?id=${encodeURIComponent(plugin)}` : ""}`, bytes, name);
       return text({ plugin: { ...row, source: undefined }, registers: pluginTypes(row.source), open: editorHref(links, book), next: "Open a spread in the editor → Library → code (or Code) → the plugin → Run shows it on the stage." });
     }),
   );
@@ -89,7 +80,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
   server.registerTool(
     "plugin_usages",
     { description: "Where the draft uses what a plugin source registers – the book's passes, spreads, targets, shared entities and entries that name one of its types – and those types.", inputSchema: z.object({ book: BOOK, plugin: PLUGIN }), annotations: { readOnlyHint: true, openWorldHint: false } },
-    guard(async ({ book, plugin }) => text(await api.call<{ usages: Array<{ kind: string; ref: string }>; registers: Record<string, string[]> }>("GET", `${path(book, plugin)}/usages`))),
+    guard(async ({ book, plugin }) => text(await api.call<PluginUsages>("GET", `${path(book, plugin)}/usages`))),
   );
 
   server.registerTool(

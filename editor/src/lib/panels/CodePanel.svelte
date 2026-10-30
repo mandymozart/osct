@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { ApiError, type Usage } from "#lib/api.js";
+  import { ApiError, errorText, type Usage } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { usageText } from "#lib/library-code.js";
   import { plugins } from "#lib/plugins.svelte.js";
@@ -93,7 +93,7 @@
       source = "";
       saved = "";
       code?.open(id, "");
-      notice = `The source could not be read: ${e instanceof Error ? e.message : String(e)}`;
+      notice = `The source could not be read: ${errorText(e)}`;
     } finally {
       loadingSource = false;
     }
@@ -150,7 +150,7 @@
       code?.open("", "");
     } catch (e) {
       if (e instanceof ApiError && e.code === "plugin-in-use") inUse = usageText((e.details.usages as Usage[] | undefined) ?? []);
-      else plugins.error = e instanceof Error ? e.message : String(e);
+      else plugins.error = errorText(e);
     }
   };
 
@@ -186,7 +186,7 @@
         onAction: action => void (action === "run" ? run() : save()),
       });
       code = editor;
-    }).catch(e => { codeError = `The code editor could not be loaded: ${e instanceof Error ? e.message : String(e)}`; });
+    }).catch(e => { codeError = `The code editor could not be loaded: ${errorText(e)}`; });
     return () => {
       disposed = true;
       editor?.dispose();

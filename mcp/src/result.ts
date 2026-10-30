@@ -10,6 +10,28 @@ export const text = (value: unknown): Result => ({
 
 export const fail = (value: unknown): Result => ({ ...text(value), isError: true });
 
+/**
+ * The codes `POST /editor/books/{id}/publish` refuses with (`Books::publish`, `Auth::refuseToken`, `ContentStore`) besides
+ * a missing sign-in or role – each has a hint, and the publish tool's description names them
+ */
+export const PUBLISH_REFUSALS = [
+  "not-for-ai",
+  "invalid-env",
+  "other-environment",
+  "invalid-note",
+  "invalid-replace",
+  "not-found",
+  "other-book",
+  "unknown-components",
+  "unknown-node-types",
+  "unknown-materials",
+  "content-store-failed",
+  "content-store-unconfigured",
+] as const;
+
+/** What the publish refuses about the content: a type no compiled plugin provides, and where the plugins come from */
+const UNCOMPILED = "the publish refuses it; the Code tab's sources reach readers through the content build only.";
+
 /** What the agent should do about an API answer, by status and code */
 export function hintFor(error: ApiError): string {
   if (error.status === 0) return "The API is not running or OSCT_API_URL is wrong.";
@@ -23,14 +45,22 @@ export function hintFor(error: ApiError): string {
   if (error.code === "confirm-delete") return "Nothing was removed: show the person the impact and ask – only with their yes remove again with confirm: confirmation.id (deleteFiles: true only if they asked).";
   if (error.code === "confirmation-void") return "The confirmation no longer fits (expired, or the book changed): show the person the new comparison or impact and ask again – then send the new confirmation.id.";
   if (error.status === 403) return `This account lacks the role ${String(error.details.role ?? "editor")} – an admin grants it on the admin page.`;
-  if (error.code === "unknown-components") return "A node uses a component type no compiled plugin provides – the publish refuses it; the Code tab's sources reach readers through the content build only.";
+  if (error.code === "unknown-components") return `A node uses a component type no compiled plugin provides – ${UNCOMPILED}`;
+  if (error.code === "unknown-node-types") return `A node has a type no compiled plugin provides – ${UNCOMPILED}`;
+  if (error.code === "unknown-materials") return `A node uses a material no compiled plugin provides – ${UNCOMPILED}`;
+  if (error.code === "other-book") return "The environment serves another book (current) – replacing it there is the person's decision: they publish in the editor and confirm the replacement.";
+  if (error.code === "invalid-env") return "env is the instance's own environment – leave it out to publish there.";
+  if (error.code === "invalid-note") return "note is a line of text for the publish log.";
+  if (error.code === "invalid-replace") return "replace is true or false – and replacing another book is the person's decision in the editor, never this tool's.";
+  if (error.code === "content-store-failed") return "The environment's content store could not be read or written – nothing went live; the person checks the store (or versions.json) and publishes again.";
+  if (error.code === "content-store-unconfigured") return "The instance's CDN storage is not configured – the person who runs the instance sets it up; nothing was published.";
   if (error.code === "asset-in-use") return "The asset is used – remove the uses first, or delete with force: true.";
   if (error.code === "plugin-in-use") return "The draft uses what the plugin registers – remove those uses first (plugin_usages lists them), or delete with force: true.";
   if (error.code === "plugin-exists") return "A plugin with that id exists – replace its source with replace: true, or give another plugin id.";
   if (error.code === "duplicate-id") return "Pick another id, or delete the entry first.";
-  if (error.code === "unknown-node-types") return "A node has a type no compiled plugin provides – the publish refuses it; the Code tab's sources reach readers through the content build only.";
   if (error.code === "unknown-entity") return "No shared entity with that ref – list them with get_book or save one with put_entity.";
   if (error.code === "initial-spread") return "The book opens on this spread – it cannot be removed.";
+  if (error.code === "not-found") return "Nothing with that id here – list_books, get_book and list_assets name what exists.";
   return "";
 }
 

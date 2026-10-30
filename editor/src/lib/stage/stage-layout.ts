@@ -46,6 +46,9 @@ export interface StageLayout {
   targets: Record<string, LayoutTarget>;
 }
 
+/** The page (mm) the stage assumes when the content has no layout: one page of the double page – this book's print format */
+export const DEFAULT_PAGE_MM = { width: 230, height: 320 } as const;
+
 /** The layout's folder in the content */
 export const LAYOUT_PATH = "/assets/content/layout/";
 

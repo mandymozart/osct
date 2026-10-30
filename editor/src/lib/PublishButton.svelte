@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import {
-    ApiError, getDraftManifest, listBooks, listEnvironments, publishBook,
+    ApiError, errorText, getDraftManifest, listBooks, listEnvironments, publishBook,
     type BookSummary, type EnvironmentServing, type EnvironmentsInfo, type OtherBook, type PublishResult,
   } from "#lib/api.js";
   import { liveLabels, liveShort } from "#lib/live.js";
@@ -32,7 +32,7 @@
     try {
       const [data, envs] = await Promise.all([listBooks(), listEnvironments()]);
       books = data.books;
-      environments = data.environments ?? [];
+      environments = data.environments;
       info = envs;
     } catch {
       // the publish itself still guards; the line next to the button stays empty
@@ -71,7 +71,7 @@
         await refresh();
         await open(e.details.current as OtherBook | undefined);
       } else {
-        error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
+        error = errorText(e, { code: true });
       }
     } finally {
       busy = false;

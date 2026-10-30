@@ -44,17 +44,18 @@ export const publishStep = (
   titleOf: (id: string) => string | null,
 ): PublishStep => {
   const where = targetLabel(target);
-  const other = !!serving && !serving.error && serving.book !== bookId;
-  const otherTitle = other ? (serving.book ? (titleOf(serving.book) ?? serving.book) : null) : null;
-  const replaces = !serving || serving.error
-    ? serving?.error
+  const live = serving && !("error" in serving) ? serving : undefined;
+  const other = !!live && live.book !== bookId;
+  const otherTitle = other && live.book ? (titleOf(live.book) ?? live.book) : null;
+  const replaces = !live
+    ? serving
       ? `What ${target.env} serves now cannot be read.`
       : `Nothing is published on ${target.env} yet.`
     : other
       ? replaceQuestion(target.env, title, otherTitle)
-      : serving.build && serving.build === build
+      : live.build && live.build === build
         ? `${target.env} serves this build already – it stays current.`
-        : `Replaces build ${serving.build ?? "?"} of “${title}” on ${target.env}.`;
+        : `Replaces build ${live.build ?? "?"} of “${title}” on ${target.env}.`;
   return {
     title: `Publish “${title}” to ${where}`,
     build: build ? `Build ${build} – the draft now.` : "The draft now.",

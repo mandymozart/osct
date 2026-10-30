@@ -5,14 +5,16 @@
     BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, textureTypes, type AssetData, type EntityData, type FilterType, type NodeType,
     type Target,
   } from "@engine/types";
-  import { ApiError, isMediaAsset, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
+  import { errorText, isMediaAsset, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
+  import { fileNameOf } from "#lib/library-place.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { Stage } from "#lib/stage/stage.svelte.js";
   import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
   import { withWidth } from "#lib/stage/placement.js";
+  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
   import { getPreview, subscribePreview } from "#lib/stage/preview.js";
   import {
     addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
@@ -146,7 +148,7 @@
   const pictureChoices = $derived.by(() => {
     const seen = new Map<string, string>();
     library.ofKinds(["image", "video"]).forEach(a => seen.set(a.url, a.name));
-    getAssets().filter(a => a.assetType === "image" || a.assetType === "video").forEach(a => { if (!seen.has(a.src)) seen.set(a.src, fileName(a.src)); });
+    getAssets().filter(a => a.assetType === "image" || a.assetType === "video").forEach(a => { if (!seen.has(a.src)) seen.set(a.src, fileNameOf(a.src)); });
     return [...seen.entries()].map(([src, name]) => ({ src, name }));
   });
 
@@ -161,7 +163,7 @@
     try {
       return { plugin: owner, source: await plugins.sourceOf(bookId, owner) };
     } catch (e) {
-      throw new MakeCodeError(`Make it code copies the whole plugin ${owner}, and its source could not be read – ${e instanceof Error ? e.message : String(e)}`);
+      throw new MakeCodeError(`Make it code copies the whole plugin ${owner}, and its source could not be read – ${errorText(e)}`);
     }
   };
   const makeCode = async (kind: "node" | "material") => {
@@ -187,7 +189,7 @@
       }
       saved = `made ${made.type} – the plugin ${made.plugin} in the Code tab`;
     } catch (e) {
-      error = e instanceof ApiError ? `${e.message} (${e.code})` : e instanceof MakeCodeError ? e.message : String(e);
+      error = errorText(e, { code: true });
     } finally {
       making = false;
     }
@@ -272,7 +274,7 @@
       }
       await afterSave(target.id, node, ref && entity ? `saved ${ref}` : `saved ${target.id}`);
     } catch (e) {
-      error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
+      error = errorText(e, { code: true });
     } finally {
       saving = false;
     }
@@ -316,7 +318,7 @@
   // The x / y rows are read and entered from the stage's origin (Stage panel); `print` keeps the content's frame
   let origin = $state(getPreview().origin);
   $effect(() => subscribePreview(state => (origin = state.origin)));
-  const frame = $derived({ page: stage?.pageFormat() ?? { width: 230, height: 320 }, format: stage?.format() ?? "spread" });
+  const frame = $derived({ page: stage?.pageFormat() ?? DEFAULT_PAGE_MM, format: stage?.format() ?? "spread" });
   const shown = $derived(toOrigin(origin, frame, print.surface, print.x, print.y));
   const setShown = (x: number, y: number) => (print = { ...print, ...fromOrigin(origin, frame, print.surface, x, y) });
   /** The shown place is where the book's layout prints the target (until saved), not one set in the editor */
@@ -371,7 +373,7 @@
       await putTarget(bookId, targetId, { imageSrc: url });
       await ontargetchanged?.();
     } catch (e) {
-      targetError = e instanceof ApiError ? e.message : String(e);
+      targetError = errorText(e);
     } finally {
       targetBusy = false;
     }
@@ -384,7 +386,7 @@
       await putTarget(bookId, target.id, { print: { ...print, page: target.print?.page } });
       await ontargetchanged?.();
     } catch (e) {
-      targetError = e instanceof ApiError ? e.message : String(e);
+      targetError = errorText(e);
     } finally {
       targetBusy = false;
     }
@@ -448,8 +450,7 @@
     getAssets().filter(a => kinds.includes(a.assetType)).forEach(a => { if (!seen.has(a.src)) seen.set(a.src, a); });
     return [...seen.values()];
   });
-  const fileLabel = (src: string) => library.byUrl(src)?.name ?? fileName(src);
-  const fileName = (src: string) => decodeURIComponent(src.split("/").pop() ?? src);
+  const fileLabel = (src: string) => library.byUrl(src)?.name ?? fileNameOf(src);
   const canAdd = $derived(!!addType && (!nodeAssetKinds(addType) || !!addAsset));
   const add = () => {
     if (!target || !canAdd) return;
@@ -521,7 +522,7 @@
           {#if pictureChoices.length}
             <optgroup label="files">{#each pictureChoices as picture (picture.src)}<option value={picture.src}>{picture.name}</option>{/each}</optgroup>
           {/if}
-          {#if value && !textureChoices.includes(value) && !pictureChoices.some(p => p.src === value)}<option {value}>{fileName(value)}</option>{/if}
+          {#if value && !textureChoices.includes(value) && !pictureChoices.some(p => p.src === value)}<option {value}>{fileNameOf(value)}</option>{/if}
         </select>
       {:else if row.kind === "color"}
         <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />

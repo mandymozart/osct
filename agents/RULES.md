@@ -73,7 +73,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `registerNodeType`; 2.17 a node's `material` – `registerMaterial` – and the parameter kind `texture`) – any MINOR of the
     same MAJOR loads.
     Every change in `shared/` needs a bump, comments included: `shared/content-schema.json` locks the checksum of
-    `shared/` to the schema (`npm run schema:lock` in `scripts/`; a test fails otherwise). The app version recorded
+    `shared/` to the schema (`npm run schema:lock` in `scripts/`; a test fails otherwise). `shared/api/` is no part of
+    the contract and of the lock: the instance API's answers and rules (editor, MCP server, CLI), which content never
+    holds. The app version recorded
     in the content (`version.version`) is information only. No config migrations. Progress storage: a new MAJOR
     reads the old format and tells the user (add a reader in `utils/progress-record.ts`; a test fails without
     one). The first storage format is 1 – nothing from before 1.1.x is converted.

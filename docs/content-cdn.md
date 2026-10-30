@@ -42,7 +42,7 @@ cache, browser cache or service worker can serve a stale copy of it – only `la
   - MINOR: an addition older apps ignore – a new optional field (the guard ignores unknown fields), a new node type
     (since 2.6 the guard lets an unknown node type pass; the engine renders nothing for it and keeps its children).
   - Every change in `shared/` needs a bump: `shared/content-schema.json` locks the checksum of `shared/` to the
-    schema. After the bump, run `npm run schema:lock` in `scripts/`; `scripts/test/schema.test.ts` fails until
+    schema – except `shared/api/`, the instance API's answers and rules, which content never holds. After the bump, run `npm run schema:lock` in `scripts/`; `scripts/test/schema.test.ts` fails until
     then, and the lock command refuses a changed contract under the old number.
 
 ## The osct CLI

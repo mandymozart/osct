@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { ApiError, type Asset } from "#lib/api.js";
+  import { ApiError, errorText, type Asset } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
-  import { ACCEPT, library, NODE_ASSET_KINDS } from "#lib/library.svelte.js";
+  import { ACCEPT, library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { assetPlace, formatDuration, formatSize, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
   import {
-    FILTER_LABELS, LIBRARY_FILTERS, matchesFilter, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryPick,
+    FILTER_LABELS, LIBRARY_FILTERS, matchesFilter, nodeAssetKinds, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryPick,
   } from "#lib/library-pick.js";
   import Icon from "#lib/components/Icon.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
@@ -73,7 +73,10 @@
   /** Scripts uploading (they become plugin sources), by file name */
   let scriptUploads = $state<string[]>([]);
   const uploading = $derived([...library.uploading, ...scriptUploads]);
-  const fits = (asset: Asset) => !!nodeType && (NODE_ASSET_KINDS[nodeType] ?? []).includes(asset.kind);
+  const fits = (asset: Asset) => {
+    void plugins.version;
+    return !!nodeType && (nodeAssetKinds(nodeType) ?? []).includes(asset.kind);
+  };
   const pickable = (asset: Asset) => !!pick && pickFits(pick.subject, asset);
 
   const choose = (asset: Asset) => {
@@ -94,7 +97,7 @@
     } catch (e) {
       library.error = e instanceof ApiError && e.code === "plugin-exists"
         ? `${file.name}: the plugin ${pluginIdFrom(file.name)} exists – Replace… it in the code list`
-        : `${file.name}: ${e instanceof ApiError ? e.message : String(e)}`;
+        : `${file.name}: ${errorText(e)}`;
     } finally {
       scriptUploads = scriptUploads.filter(name => name !== file.name);
     }
@@ -153,7 +156,7 @@
       notice = `${asset.name} deleted`;
     } catch (e) {
       if (e instanceof ApiError && e.code === "asset-in-use") confirming = asset.id;
-      else library.error = e instanceof ApiError ? e.message : String(e);
+      else library.error = errorText(e);
     }
   };
   const onKey = (event: KeyboardEvent) => {

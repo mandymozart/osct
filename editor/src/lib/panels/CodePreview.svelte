@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import type { CodePreview } from "#lib/plugins/monaco.js";
+  import { errorText } from "#lib/api.js";
 
   /**
    * A code file's text in a read-only Monaco (the Library's code files – #186): loaded with the first preview (Monaco's
@@ -19,7 +20,7 @@
       if (disposed || !host) return;
       made = createCodePreview(host, untrack(() => value), untrack(() => language));
       preview = made;
-    }).catch(e => { failed = `The preview could not be loaded: ${e instanceof Error ? e.message : String(e)}`; });
+    }).catch(e => { failed = `The preview could not be loaded: ${errorText(e)}`; });
     return () => {
       disposed = true;
       made?.dispose();

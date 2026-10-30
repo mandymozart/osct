@@ -2,7 +2,9 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
+import { ApiError } from "../src/api.ts";
 import { registerContentTools } from "../src/content.ts";
+import { hintFor, PUBLISH_REFUSALS } from "../src/result.ts";
 import { fakeFetch, recorder, VIDEO_ENTITY, type Seen } from "./helpers.ts";
 
 const LINKS = { editor: "http://localhost:5175/editor" };
@@ -481,5 +483,18 @@ describe("the content tools", () => {
     expect(result.ok).toBe(false);
     expect(result.data.error).toMatchObject({ status: 403, code: "forbidden", message: "Not allowed.", role: "editor" });
     expect(result.data.error.hint).toContain("editor");
+  });
+});
+
+describe("publish refusals", () => {
+  it("every code the publish can refuse with has a hint, and the publish tool's description names it", () => {
+    const rec = recorder();
+    registerContentTools(rec.server, fakeFetch(() => undefined).api(), LINKS);
+    const description = String(rec.tools.get("publish")?.config.description);
+    for (const code of PUBLISH_REFUSALS) {
+      const status = code === "not-for-ai" || code === "other-environment" ? 403 : code === "not-found" ? 404 : 409;
+      expect(hintFor(new ApiError(status, code, "refused")), code).not.toBe("");
+      expect(description, code).toContain(code);
+    }
   });
 });

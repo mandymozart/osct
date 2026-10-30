@@ -1,7 +1,8 @@
 /**
  * The content contract (shared/) and its schema version (RULES #10): `shared/content-schema.json` locks the
  * checksum of shared/ to `CONTENT_SCHEMA_VERSION`. A change in shared/ without a schema bump fails a test
- * (scripts/test/schema.test.ts); `npm run schema:lock` writes the lock after the bump.
+ * (scripts/test/schema.test.ts); `npm run schema:lock` writes the lock after the bump. `shared/api/` – the instance
+ * API's answers and rules, which content never holds – is no part of the contract.
  */
 import { createHash } from 'crypto';
 import fs from 'fs';
@@ -11,18 +12,21 @@ import { listFiles } from './files';
 
 export const SHARED_DIR = path.join(projectRoot, 'shared');
 export const SCHEMA_LOCK_FILE = path.join(SHARED_DIR, 'content-schema.json');
+/** The folder of shared/ that is no content: the API's response types and request rules */
+export const SHARED_API_DIR = 'api';
 
 export interface SchemaLock {
   /** The schema version the checksum belongs to (`CONTENT_SCHEMA_VERSION`) */
   schema: string;
-  /** SHA-256 of shared/ without this file, line endings normalised */
+  /** SHA-256 of shared/ without this file and shared/api/, line endings normalised */
   checksum: string;
 }
 
-/** Checksum of the contract: every file in shared/ except the lock itself */
+/** Checksum of the contract: every file in shared/ except the lock itself and shared/api/ */
 export function hashContract(dir = SHARED_DIR): string {
   const hash = createHash('sha256');
-  for (const file of listFiles(dir).filter(f => path.join(dir, f) !== SCHEMA_LOCK_FILE).sort()) {
+  const isContract = (file: string) => path.join(dir, file) !== SCHEMA_LOCK_FILE && !file.startsWith(`${SHARED_API_DIR}/`);
+  for (const file of listFiles(dir).filter(isContract).sort()) {
     hash.update(`${file}\n`);
     hash.update(fs.readFileSync(path.join(dir, file), 'utf8').replace(/\r\n/g, '\n'));
   }

@@ -19,7 +19,7 @@
   import EnvironmentPanel from "#lib/panels/EnvironmentPanel.svelte";
   import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
-  import { deleteEntry, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
+  import { deleteEntry, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
@@ -28,6 +28,7 @@
   import InfoView from "#lib/components/InfoView.svelte";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
   import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, sheetFill, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
+  import { readStored, writeStored } from "#lib/storage.js";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -62,11 +63,12 @@
   const firstTab = ((): Tab => {
     const asked = page.url.searchParams.get("tab") as Tab | null;
     if (asked && TABS.includes(asked)) return asked;
-    try { const t = localStorage.getItem(TAB_KEY) as Tab | null; return t && TABS.includes(t) ? t : "stage"; } catch { return "stage"; }
+    const stored = readStored(TAB_KEY) as Tab | null;
+    return stored && TABS.includes(stored) ? stored : "stage";
   })();
   let tab = $state<Tab | null>(firstTab);
   /** The tree column is open (desktop; stored – until then open in a wide window only, #172) */
-  let treeOpen = $state(treeStartsOpen(window.innerWidth, (() => { try { return localStorage.getItem(TREE_KEY); } catch { return null; } })()));
+  let treeOpen = $state(treeStartsOpen(window.innerWidth, readStored(TREE_KEY)));
   /** A phone: the tree is a tab of the sheet instead of a column; × ‹ › leave the sheet's head (#171) */
   let narrow = $state(false);
   /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
@@ -78,7 +80,7 @@
   /** An action on the page failed (a removal, a target image, a reload after a change): shown over the stage until dismissed */
   let actionError = $state<string | null>(null);
   const failed = (e: unknown): void => {
-    actionError = e instanceof Error ? e.message : String(e);
+    actionError = errorText(e);
   };
 
   /** The tab the sheet opens with when it is dragged open (the last one shown) */
@@ -86,7 +88,7 @@
   const setTab = (next: Tab) => {
     tab = tab === next ? null : next;
     if (tab) lastTab = tab;
-    try { if (tab) localStorage.setItem(TAB_KEY, tab); else localStorage.removeItem(TAB_KEY); } catch { /* storage blocked */ }
+    writeStored(TAB_KEY, tab);
   };
   /** Show a tab (no toggle – a panel's link to another) */
   const openTab = (next: Tab) => {
@@ -94,7 +96,7 @@
   };
   const setTreeOpen = (open: boolean) => {
     treeOpen = open;
-    try { localStorage.setItem(TREE_KEY, open ? "open" : "closed"); } catch { /* storage blocked */ }
+    writeStored(TREE_KEY, open ? "open" : "closed");
   };
   /** The tab the panel shows: on a desktop the tree has its own column, so a stored "tree" shows the stage */
   const shown = $derived<Tab | null>(tab === "tree" && !narrow ? "stage" : tab);
@@ -302,7 +304,7 @@
     } catch (e) {
       const step = removalStep(e);
       if (step) removal = { targetId, entryId, step };
-      else removalError = e instanceof Error ? e.message : String(e);
+      else removalError = errorText(e);
     } finally {
       removalBusy = false;
     }
@@ -373,7 +375,7 @@
       }
       await stage.open(spreadId);
     } catch (e) {
-      loadError = e instanceof Error ? e.message : String(e);
+      loadError = errorText(e);
     }
   };
 

@@ -1,4 +1,5 @@
 import type { Asset } from "./api";
+import { readStored, writeStored } from "#lib/storage.js";
 
 /** Where the content's files live below the assets base (`ContentVersion::CONTENT_PREFIX`) */
 const CONTENT_PREFIX = "/assets/content/";
@@ -61,20 +62,12 @@ export type LibraryView = (typeof LIBRARY_VIEWS)[number];
 const VIEW_KEY = "osct-editor-library-view";
 
 export function readLibraryView(): LibraryView {
-  try {
-    const stored = localStorage.getItem(VIEW_KEY);
-    return LIBRARY_VIEWS.includes(stored as LibraryView) ? (stored as LibraryView) : "cards";
-  } catch {
-    return "cards";
-  }
+  const stored = readStored(VIEW_KEY);
+  return LIBRARY_VIEWS.includes(stored as LibraryView) ? (stored as LibraryView) : "cards";
 }
 
 export function saveLibraryView(view: LibraryView): void {
-  try {
-    localStorage.setItem(VIEW_KEY, view);
-  } catch {
-    // a private window: the view is not remembered
-  }
+  writeStored(VIEW_KEY, view);
 }
 
 function pathOf(url: string): string {
@@ -84,6 +77,9 @@ function pathOf(url: string): string {
     return url;
   }
 }
+
+/** A URL's (or a path's) file name: its last part without query or fragment, decoded – as it is when it does not decode */
+export const fileNameOf = (url: string): string => safeDecode(url.split(/[?#]/)[0].split("/").pop() ?? url);
 
 function safeDecode(part: string): string {
   try {

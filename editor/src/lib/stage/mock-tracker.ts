@@ -4,7 +4,7 @@ import type { PrintSurface } from "@shared/types/game-config";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, type TriggerInfos } from "@engine/utils/trigger-protocol";
-import { fetchStageLayout, type LayoutSheet, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type StageLayout } from "./stage-layout";
+import { DEFAULT_PAGE_MM, fetchStageLayout, type LayoutSheet, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type StageLayout } from "./stage-layout";
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
@@ -16,12 +16,6 @@ export { surfaceLeft };
 export const PREVIEW_FOV = 60;
 const NEAR = 0.01;
 const FAR = 100;
-
-/**
- * The page of the book the stage shows (mm) when the content has no layout (`stage/stage-layout.ts`): one page of
- * the double page, the spread is two of them side by side. This book's print format.
- */
-export const BOOK_PAGE_MM = { width: 230, height: 320 } as const;
 
 /** The surfaces a target lies on: the pages of the open book, or the closed book's front / back cover */
 export type StageSurface = PrintSurface;
@@ -104,7 +98,7 @@ const degrees = (value: number) => (value * Math.PI) / 180;
  * right page, several in one region stacked downwards. Without details the targets lie in a row across the middle
  * of the right page. "The right page" is a cover's own surface (`front` / `back`) on a cover.
  */
-export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = {}, page: PageFormat = BOOK_PAGE_MM, layout: StageLayout | null = null, format: SpreadFormat | undefined = undefined): StageTarget[] => {
+export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = {}, page: PageFormat = DEFAULT_PAGE_MM, layout: StageLayout | null = null, format: SpreadFormat | undefined = undefined): StageTarget[] => {
   const withImage = targets.filter(target => target.imageSrc);
   const fallback = defaultSurface(format);
   // A target's own `print` (made in the editor) or the book's layout: every target has a printed place
@@ -166,7 +160,7 @@ export const layoutTargets = (targets: readonly Target[], infos: TriggerInfos = 
  * top of the page, z out of the page. A target's centre in that frame – the centre of its printed image, whose height
  * follows the image's aspect once the stage knows it (`placement.ts`), as the engine anchors at the image's centre.
  */
-export const targetCentre = (target: StageTarget, page: PageFormat = BOOK_PAGE_MM, aspect?: number | null): Vector3 => {
+export const targetCentre = (target: StageTarget, page: PageFormat = DEFAULT_PAGE_MM, aspect?: number | null): Vector3 => {
   const centre = printCentre(target, page, aspect);
   return new Vector3(centre.x / 1000, centre.y / 1000, 0);
 };
@@ -393,7 +387,7 @@ export class MockTracker implements IImageTracker {
 
   /** The page format: the book's layout, else this book's constant */
   pageFormat(): PageFormat {
-    return this.layout?.page ?? BOOK_PAGE_MM;
+    return this.layout?.page ?? DEFAULT_PAGE_MM;
   }
 
   private stageBook(): StageBook {

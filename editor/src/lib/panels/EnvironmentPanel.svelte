@@ -2,6 +2,7 @@
   import { environmentEdit, fitsSlot, type EnvironmentSlot } from "#lib/environment.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
+  import { fileNameOf } from "#lib/library-place.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
@@ -9,6 +10,7 @@
   import FileField from "#lib/components/FileField.svelte";
   import Section from "#lib/components/Section.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
+  import { errorText } from "#lib/api.js";
 
   /**
    * The book's **environment** on the stage (content schema 2.8 / 2.10): the world around the reader while scanning, its
@@ -46,7 +48,7 @@
   $effect(() => stage?.setLookUp(lookUp));
 
   /** A slot's file as a name: the library's, else the URL's last part */
-  const nameOf = (url: string): string => library.byUrl(url)?.name ?? decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() ?? url);
+  const nameOf = (url: string): string => library.byUrl(url)?.name ?? fileNameOf(url);
 
   const upload = async (slot: EnvironmentSlot, file: File) => {
     notice = null;
@@ -70,7 +72,7 @@
       await content.load(bookId);
       await stage?.refresh();
     } catch (e) {
-      edit.error = e instanceof Error ? e.message : String(e);
+      edit.error = errorText(e);
     }
     void library.refresh();
   };

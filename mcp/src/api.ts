@@ -1,6 +1,8 @@
 // The instance's API over HTTP (server/api, docs/server.md) with the editor's session token – the one way in, as the
 // editor app's `api.ts`: JSON calls, a file upload as the raw body with `X-File-Name`, every error as the API's
-// `{ code, message }` (plus its extra fields: `role`, `components`, `usages`).
+// `{ code, message }` (plus its extra fields: `role`, `components`, `usages`), read as the editor reads them
+// (shared/api/errors.ts).
+import { apiErrorFields } from "../../shared/api/errors";
 
 export class ApiError extends Error {
   constructor(
@@ -60,14 +62,8 @@ export class OsctApi {
       data = null;
     }
     if (!response.ok) {
-      const error = (data as { error?: Record<string, unknown> } | null)?.error ?? {};
-      const { code, message, ...details } = error;
-      throw new ApiError(
-        response.status,
-        typeof code === "string" ? code : "unknown",
-        typeof message === "string" ? message : `${response.status} ${response.statusText}`,
-        details,
-      );
+      const { code, message, details } = apiErrorFields(response.status, response.statusText, data);
+      throw new ApiError(response.status, code, message, details);
     }
     return data as T;
   }

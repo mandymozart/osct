@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, ApiError, downloadUsersCsv, getToken, me, onSessionEnd, setToken, signInWithPassword, uploadAsset, verifyCode } from "../api";
+import { api, ApiError, downloadUsersCsv, errorText, getBook, getToken, me, onSessionEnd, putEntity, setToken, signInWithPassword, uploadAsset, verifyCode } from "../api";
 
 /** A JSON answer as the API sends it */
 const answer = (status: number, body: unknown): Response =>
@@ -106,5 +106,76 @@ describe("api()", () => {
     await expect(downloadUsersCsv(true)).rejects.toMatchObject({ status: 401 });
     expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/users.csv?newsletter=1");
     expect(ended).toHaveBeenCalledTimes(1);
+  });
+
+  it("the CSV download's error keeps the server's details, as every call's does", async () => {
+    fetchMock.mockResolvedValueOnce(answer(403, { error: { code: "forbidden", message: "Not allowed.", role: "admin" } }));
+    await expect(downloadUsersCsv(false)).rejects.toMatchObject({ status: 403, code: "forbidden", message: "Not allowed.", details: { role: "admin" } });
+  });
+});
+
+describe("getBook – the book's tree, read once", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const tree = (title: string) => ({ book: { id: "osct", title }, spreads: [], unassigned: [] });
+  const reads = () => fetchMock.mock.calls.filter(([, init]) => (init?.method ?? "GET") === "GET").length;
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+    setToken("token-1");
+  });
+
+  afterEach(() => {
+    fetchMock.mockReset();
+    setToken(null);
+    vi.unstubAllGlobals();
+  });
+
+  it("the stage, the environment and the top bar share one read", async () => {
+    fetchMock.mockImplementation(async () => answer(200, tree("One")));
+    const [a, b, c] = await Promise.all([getBook("osct"), getBook("osct"), getBook("osct")]);
+    expect(reads()).toBe(1);
+    expect(a).toBe(b);
+    expect(b).toBe(c);
+    await getBook("osct");
+    expect(reads()).toBe(1);
+  });
+
+  it("a write to the book drops it – the next read asks the API, answered or refused", async () => {
+    fetchMock.mockImplementation(async (_url, init) => (init?.method === "PUT" ? answer(200, { ref: "x", entity: {} }) : answer(200, tree("One"))));
+    await getBook("osct");
+    await putEntity("osct", "x", { type: "group", assets: [] });
+    await getBook("osct");
+    expect(reads()).toBe(2);
+    fetchMock.mockImplementation(async (_url, init) => (init?.method === "PUT" ? answer(400, { error: { code: "invalid-entity", message: "No." } }) : answer(200, tree("Two"))));
+    await expect(putEntity("osct", "x", { type: "group", assets: [] })).rejects.toBeInstanceOf(ApiError);
+    expect((await getBook("osct")).book.title).toBe("Two");
+    expect(reads()).toBe(3);
+  });
+
+  it("a write to another book, a failed read, fresh and a new session", async () => {
+    fetchMock.mockImplementation(async (_url, init) => (init?.method === "PUT" ? answer(200, {}) : answer(200, tree("One"))));
+    await getBook("osct");
+    await putEntity("demo", "x", { type: "group", assets: [] });
+    await getBook("osct");
+    expect(reads()).toBe(1);
+    await getBook("osct", { fresh: true });
+    expect(reads()).toBe(2);
+    setToken("token-2");
+    await getBook("osct");
+    expect(reads()).toBe(3);
+    fetchMock.mockImplementationOnce(async () => answer(502, null));
+    await expect(getBook("demo")).rejects.toMatchObject({ status: 502 });
+    await getBook("demo");
+    expect(reads()).toBe(5);
+  });
+});
+
+describe("errorText – an error as a line for the page", () => {
+  it("the API's message, with its code when asked; an error's message; anything else as text", () => {
+    const refused = new ApiError(409, "other-book", "Another book is live.");
+    expect(errorText(refused)).toBe("Another book is live.");
+    expect(errorText(refused, { code: true })).toBe("Another book is live. (other-book)");
+    expect(errorText(new TypeError("Failed to fetch"), { code: true })).toBe("Failed to fetch");
+    expect(errorText("plain")).toBe("plain");
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ENTITY_TYPES, PLUGIN_API_VERSION } from "../../shared/types/game-config";
-import { checkEntity, describeContentModel, knownPluginTypes, pluginTypes, unknownComponentTypes, usesPluginTypes, type BookModel } from "../src/model.ts";
+import { checkEntity, describeContentModel, knownPluginTypes, unknownComponentTypes, usesPluginTypes, type BookModel } from "../src/model.ts";
+import { pluginTypes } from "../../shared/api/rules";
 import { RULES } from "../src/resources.ts";
 import { VIDEO_ENTITY } from "./helpers.ts";
 

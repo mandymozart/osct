@@ -1,5 +1,5 @@
 import type { GameConfiguration } from "@engine/types";
-import { ApiError, type ImportPreview } from "./api";
+import { ApiError, errorText, type ImportPreview } from "./api";
 
 /**
  * The import's preview (#182): before anything is imported, the form says what comes in – one book, which build, from
@@ -139,6 +139,5 @@ export const lossLine = (p: ImportPreview): string | null => {
 /** An error of reading or previewing as the form shows it, with the URL that failed when there is one */
 export const sourceErrorLine = (error: unknown): { message: string; url: string | null } => {
   if (error instanceof SourceError) return { message: error.message, url: error.url };
-  if (error instanceof ApiError) return { message: `${error.message} (${error.code})`, url: typeof error.details.url === "string" ? error.details.url : null };
-  return { message: error instanceof Error ? error.message : String(error), url: null };
+  return { message: errorText(error, { code: true }), url: error instanceof ApiError && typeof error.details.url === "string" ? error.details.url : null };
 };

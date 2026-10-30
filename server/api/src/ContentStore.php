@@ -18,9 +18,8 @@ final class ContentStore
     public const ENVIRONMENTS = ['staging', 'production'];
 
     /**
-     * An environment's name – the one rule of the instance's ENV, a publish's env, the content route and the osct CLI
-     * (scripts/src/lib/content-sync.ts `ENV_NAME`, which a scripts test compares with this): lower-case letters, digits
-     * and -, a letter first, at most 32
+     * An environment's name – the one rule of the instance's ENV, a publish's env, the content route, the osct CLI and the
+     * MCP server (shared/api/rules.ts `ENV_NAME`): lower-case letters, digits and -, a letter first, at most 32
      */
     public const ENV = '[a-z][a-z0-9-]{0,31}';
     public const ENV_NAME = '/^' . self::ENV . '$/';

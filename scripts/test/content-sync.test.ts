@@ -1,13 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
-import { DEMO_DIR, DEMO_MARKER, FIXTURE_DIR, FIXTURE_MARKER, projectRoot } from '../src/config';
+import { DEMO_DIR, DEMO_MARKER, FIXTURE_DIR, FIXTURE_MARKER } from '../src/config';
 import { type ContentVersion, isContentManifest } from '../../shared/types/content-manifest';
 import {
   activate,
   type ContentBuild,
   DEFAULT_PURGE,
-  ENV_NAME,
   type EnvironmentState,
   fileIndex,
   isDemoBuild,
@@ -17,6 +16,7 @@ import {
   videosMissing,
 } from '../src/lib/content-sync';
 import type { StoredFile } from '../src/lib/storage';
+import { ENV_NAME } from '../../shared/api/rules';
 
 /**
  * Content versions on the CDN: every content build is its own immutable folder, latest.json names the current one,
@@ -225,14 +225,8 @@ describe('demo book', () => {
   });
 });
 
+// The rule is the API's (shared/api/rules.ts, pinned to ContentStore::ENV by mcp/test/php-rules.test.ts)
 describe('environment names', () => {
-  it('the CLI and the API share one rule (ContentStore::ENV)', () => {
-    const php = fs.readFileSync(path.join(projectRoot, 'server', 'api', 'src', 'ContentStore.php'), 'utf8');
-    const rule = /public const ENV = '([^']+)';/.exec(php)?.[1];
-    expect(rule).toBeDefined();
-    expect(ENV_NAME.source).toBe(`^${rule}$`);
-  });
-
   it('takes staging, production, demo and an instance of its own; refuses the rest', () => {
     for (const env of ['staging', 'production', 'demo', 'white-label-2', 'a'.repeat(32)]) expect(ENV_NAME.test(env)).toBe(true);
     for (const env of ['', 'Staging', '2staging', '-x', 'a_b', 'a'.repeat(33)]) expect(ENV_NAME.test(env)).toBe(false);
