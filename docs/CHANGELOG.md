@@ -12,7 +12,7 @@ are the same for app, content build and server (`agents/RULES.md` #10, #23):
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.36.1 – 2026-10-30
 
 ### Changed
 - **Type-only imports, `verbatimModuleSyntax` on** (#176): every import that brings in only types says so
