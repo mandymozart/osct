@@ -37,7 +37,7 @@ const isNumber = (v: unknown): v is number => typeof v === "number" && Number.is
 const isString = (v: unknown): v is string => typeof v === "string";
 const isVariable = (v: unknown): v is ProgressVariable => isString(v) || isNumber(v) || typeof v === "boolean";
 
-/** Format 1 (app 1.x): the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
+/** Format 1: the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
 const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
   ...createProgressRecord(bookId),
   appVersions: Array.isArray(raw.appVersions) ? raw.appVersions.filter(isString) : [],
