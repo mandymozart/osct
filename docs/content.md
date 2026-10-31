@@ -675,7 +675,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.17 | 1.41.0 | in develop | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) – a 2.16 app refuses a recorded spec with a `texture` parameter |
 | 2.18 | 1.49.0 | in develop | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
 | 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) – a 2.18 app refuses a node that carries one |
-| 2.20 | next | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) – a 2.19 app's engine has none: a node type whose build calls it renders nothing |
+| 2.20 | 1.53.0 | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) – a 2.19 app's engine has none: a node type whose build calls it renders nothing |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.
