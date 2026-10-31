@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clampGrid, getPreview, setPreviewActive, setTargetHidden, subscribePreview, updatePreview, viewSummary } from "../preview";
+import { applyPreviewSync, clampGrid, getPreview, previewSync, setPreviewActive, setTargetHidden, subscribePreview, updatePreview, viewSummary } from "../preview";
 
 describe("editor preview settings", () => {
   beforeEach(() => {
@@ -149,5 +149,31 @@ describe("the view group's settings (#229)", () => {
     vi.resetModules();
     const fresh = await import("../preview");
     expect(fresh.getPreview()).toMatchObject({ wobble: 0.2, origin: "bottom-centre", top: "linoleum", hdri: "wooden_studio_19" });
+  });
+});
+
+describe("the preview kept in step with the stage frame (#234)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    updatePreview({ view: "reader", orbit: null, shading: "rendered", wobble: 0, hidden: [] });
+  });
+
+  it("gives the same text for the same preview, whatever order or extra the value has", () => {
+    const sync = previewSync();
+    expect(previewSync({ ...JSON.parse(sync), active: true, extra: 1 })).toBe(sync);
+    expect(JSON.parse(sync)).not.toHaveProperty("active");
+  });
+
+  it("takes what the other side sent, checked: a wrong value is the default, the same preview changes nothing", () => {
+    const seen: string[] = [];
+    const unsubscribe = subscribePreview(state => seen.push(state.shading));
+    expect(applyPreviewSync(previewSync())).toBe(false);
+    expect(applyPreviewSync(JSON.stringify({ ...JSON.parse(previewSync()), shading: "solid", hidden: ["key", 3] }))).toBe(true);
+    expect(getPreview()).toMatchObject({ shading: "solid", hidden: ["key"] });
+    expect(applyPreviewSync(JSON.stringify({ shading: "<script>", wobble: "lots" }))).toBe(true);
+    expect(getPreview()).toMatchObject({ shading: "rendered", wobble: 0 });
+    expect(applyPreviewSync("not json")).toBe(false);
+    expect(seen).toEqual(["solid", "rendered"]);
+    unsubscribe();
   });
 });

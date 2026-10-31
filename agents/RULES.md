@@ -414,5 +414,16 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     a non-HttpOnly cookie or a URL; no `Authorization` header for the person's session in a browser. A new write route
     needs nothing extra – `Auth::user()` / `Auth::session()` check the CSRF token of a cookie session – but a new browser
     client sends the header. Bearer stays for non-browser clients and for the AI connections' tokens (`osct_…`), which
-    never become a cookie. The cookie does not sandbox plugin code on the site's pages (docs/server.md "Sessions, cookies
-    and CSRF").
+    never become a cookie. The cookie alone does not separate plugin code on the site's pages from the session – in the
+    editor #35 does (docs/server.md "Sessions, cookies and CSRF").
+
+35. **Plugin code never runs in the origin that holds the session** (Tilman, 2026-10-31, #234: "Make editors safe,
+    please. Sandbox."): the editor runs every book plugin – the draft's and the Code tab's Run – in its **stage frame**
+    (`/editor/stage-frame/`, an iframe with `sandbox="allow-scripts"` and never `allow-same-origin`, its policy from
+    `frameCsp`: no path of the API but its public `content/` route, every source with its path, never `'self'`). The
+    editor's page imports no plugin module and calls no `installPlugin`; it mirrors the registry's specs
+    (`mirrorPluginRegistry`). What crosses the boundary is data, checked where it arrives (`readFrameEvent`); no message
+    from the frame makes the page call the API, and the frame gets the draft as text, never the session or the CSRF
+    token. A new place that runs book code (a preview, a thumbnail, a test bench) runs it in such a frame. docs/editor.md
+    "The stage frame". The reader is the open exception: its scene runs the published plugins in its own page
+    (`agents/MEMORY.md` 2026-10-31).

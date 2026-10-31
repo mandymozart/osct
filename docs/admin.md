@@ -1,6 +1,6 @@
 # Admin: the instance's users and roles at /editor/admin
 
-A small admin page inside the editor app (`editor/src/routes/admin/`, served at `/editor/admin` – the same build and
+A small admin page inside the editor app (`editor/src/routes/(app)/admin/`, served at `/editor/admin` – the same build and
 the same `.htaccess` fallback as the editor, so both deploys serve it without new infrastructure; the editor app owns
 everything under its base `/editor`, a root `/admin` would be a second app). **`/admin`** is the short address: the
 site's `.htaccess` redirects it to `/editor/admin/`. It is for the instance's admin – decided with Tilman on
@@ -43,12 +43,12 @@ list = any option on).
 ## Where the code lives
 
 ```
-editor/src/routes/admin/+page.svelte   the page (search, roles, CSV, invite)
-editor/src/routes/+layout.svelte       the gate: admin routes need admin, everything else editor
-editor/src/lib/api.ts                  listRoles, listUsers, grantRole, revokeRole, inviteEditor, downloadUsersCsv
-editor/src/lib/session.svelte.ts       isEditor / isAdmin from GET /user `roles`
-server/api/src/Roles.php               the roles (tables roles, user_roles), grant / revoke, the configured lists
-server/api/src/Admin.php               the admin endpoints and who may call them (admin by session or X-Admin-Secret)
+editor/src/routes/(app)/admin/+page.svelte   the page (search, roles, CSV, invite)
+editor/src/routes/(app)/+layout.svelte       the gate: admin routes need admin, everything else editor
+editor/src/lib/api.ts                        listRoles, listUsers, grantRole, revokeRole, inviteEditor, downloadUsersCsv
+editor/src/lib/session.svelte.ts             isEditor / isAdmin from GET /user `roles`
+server/api/src/Roles.php                     the roles (tables roles, user_roles), grant / revoke, the configured lists
+server/api/src/Admin.php                     the admin endpoints and who may call them (admin by session or X-Admin-Secret)
 ```
 
 The API is described in [server, "Admin API"](server.md#admin-api); the tests are the sections *roles, admin* of

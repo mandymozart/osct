@@ -7,7 +7,7 @@ import { buildEntity, type EntityInstance } from "@engine/scene/entities";
 import { installedPlugins, uninstallPlugin } from "@engine/scene/plugins";
 import { plugins } from "../plugins.svelte";
 import { nodeTypeCode } from "../plugins/make-code";
-import type { Stage } from "../stage/stage.svelte";
+import { runPluginCode } from "../stage/plugin-run";
 
 /**
  * A node made code on the stage (#199): it keeps its old type until the made code builds it – a failed build is the
@@ -17,7 +17,10 @@ import type { Stage } from "../stage/stage.svelte";
 const AQUARIUM = readFileSync(resolve(process.cwd(), "../fixtures/demo/plugins/aquarium/index.ts"), "utf8");
 const TANK: EntityData = { type: "group", assets: [], children: [{ type: "aquarium", name: "Tank", assets: [], params: { fish: 3 } }] };
 
-/** The stage's part a Run touches: overrides over the draft's trees, each change and a refresh building the target anew */
+/**
+ * The stage's part a Run touches: the frame's runner (here in the test's own realm, so the registry is the one the
+ * test reads), overrides over the draft's trees, each change and a refresh building the target anew
+ */
 class FakeStage {
   overrides = new Map<string, EntityData>();
   built = new Map<string, EntityInstance | null>();
@@ -28,10 +31,13 @@ class FakeStage {
   overrideOf(id: string): EntityData | undefined {
     return this.overrides.get(id);
   }
-  override(id: string, entity: EntityData | null): void {
+  async override(id: string, entity: EntityData | null): Promise<void> {
     if (entity) this.overrides.set(id, entity);
     else this.overrides.delete(id);
     this.build(id);
+  }
+  runPlugin(id: string, code: string) {
+    return runPluginCode(id, code, importer);
   }
   async refresh(): Promise<void> {
     this.draft.forEach((_, id) => this.build(id));
@@ -66,7 +72,7 @@ beforeEach(async () => {
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   stage = new FakeStage(new Map([["t", TANK]]));
-  expect(await plugins.run("aquarium", AQUARIUM, stage as unknown as Stage, importer)).toBe(true);
+  expect(await plugins.run("aquarium", AQUARIUM, stage)).toBe(true);
 });
 
 afterEach(() => {
@@ -88,7 +94,7 @@ describe("a node made code switches on the stage once its code builds (#199)", (
     const shown = stage.meshes("t");
     expect(shown).toBeGreaterThan(3);
     const made = makeTank();
-    expect(await plugins.run(made.plugin, made.source, stage as unknown as Stage, importer)).toBe(true);
+    expect(await plugins.run(made.plugin, made.source, stage)).toBe(true);
     expect(stage.treeOf("t")!.children![0].type).toBe(made.type);
     expect(stage.meshes("t")).toBe(shown);
     expect(plugins.pending).toBeNull();
@@ -100,7 +106,7 @@ describe("a node made code switches on the stage once its code builds (#199)", (
     const shown = stage.meshes("t");
     // The made build throws (a name it uses is gone)
     const broken = made.source.replace("FISH_COLOURS.map(", "FISH_COLOURZ.map(");
-    expect(await plugins.run(made.plugin, broken, stage as unknown as Stage, importer)).toBe(false);
+    expect(await plugins.run(made.plugin, broken, stage)).toBe(false);
     expect(plugins.runError).toMatchObject({ plugin: made.plugin, line: null });
     expect(plugins.runError!.message).toMatch(/tankCode did not build – ReferenceError: FISH_COLOURZ is not defined/);
     expect(stage.treeOf("t")!.children![0].type).toBe("aquarium");
@@ -108,7 +114,7 @@ describe("a node made code switches on the stage once its code builds (#199)", (
     expect(stage.meshes("t")).toBe(shown);
     expect(plugins.pending?.plugin).toBe(made.plugin);
     // Fixed and run: the node switches
-    expect(await plugins.run(made.plugin, made.source, stage as unknown as Stage, importer)).toBe(true);
+    expect(await plugins.run(made.plugin, made.source, stage)).toBe(true);
     expect(stage.treeOf("t")!.children![0].type).toBe(made.type);
     expect(stage.meshes("t")).toBe(shown);
     expect(plugins.pending).toBeNull();
@@ -116,13 +122,13 @@ describe("a node made code switches on the stage once its code builds (#199)", (
 
   it("a Run builds a node whose type failed before anew, and names a failed build", async () => {
     const made = makeTank();
-    expect(await plugins.run(made.plugin, made.source, stage as unknown as Stage, importer)).toBe(true);
+    expect(await plugins.run(made.plugin, made.source, stage)).toBe(true);
     const shown = stage.meshes("t");
     const broken = made.source.replace("FISH_COLOURS.map(", "FISH_COLOURZ.map(");
-    expect(await plugins.run(made.plugin, broken, stage as unknown as Stage, importer)).toBe(false);
+    expect(await plugins.run(made.plugin, broken, stage)).toBe(false);
     expect(plugins.runError!.message).toMatch(/tankCode did not build on the stage – ReferenceError/);
     expect(stage.meshes("t")).toBe(0);
-    expect(await plugins.run(made.plugin, made.source, stage as unknown as Stage, importer)).toBe(true);
+    expect(await plugins.run(made.plugin, made.source, stage)).toBe(true);
     expect(plugins.runError).toBeNull();
     expect(stage.meshes("t")).toBe(shown);
   });
@@ -130,7 +136,7 @@ describe("a node made code switches on the stage once its code builds (#199)", (
   it("drops the switch when the node is no longer the one made code", async () => {
     const made = makeTank();
     stage.override("t", { type: "group", assets: [], children: [{ type: "text", assets: [], text: "other" }] });
-    expect(await plugins.run(made.plugin, made.source, stage as unknown as Stage, importer)).toBe(true);
+    expect(await plugins.run(made.plugin, made.source, stage)).toBe(true);
     expect(plugins.pending).toBeNull();
     expect(stage.treeOf("t")!.children![0].type).toBe("text");
   });

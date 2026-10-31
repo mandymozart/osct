@@ -232,11 +232,59 @@ printed width, origin in the image's centre, the image in the x/y plane), so `Ar
 (reveal, unlock, outro), the bloom and the tap on an entity run unchanged. The three.js camera stays at the origin;
 moving the view moves the stage and the anchors together, which is why entity and page can never drift apart.
 
-The editor simulates the game around the scene (`stage/stage.svelte.ts`): which spread is open, which targets the
+The editor simulates the game around the scene (`stage/stage-core.svelte.ts`): which spread is open, which targets the
 "camera" sees, which were found for the first time (the unlock animation plays once per target, *replay* plays it
 again), and the reader's progress for the book's plugins (`stage/progress.ts` – the engine's `api.progress` and the
 `book` scope of its variables, alive while the workspace is open). Nothing of the reader's store, progress or routes
 is involved.
+
+### The stage frame: plugins in a sandbox (#234)
+
+Tilman, 2026-10-31: *"Make editors safe, please. Sandbox."* A book's plugins are code any editor of the book can write,
+and the stage runs it – the draft's plugins and the Code tab's **Run**. So the stage does not run in the editor's page:
+it runs in an **iframe sandboxed with `allow-scripts` only** – no `allow-same-origin` – at the editor's own route
+`/editor/stage-frame/` (`editor/src/routes/stage-frame/`, outside the `(app)` routes with their sign-in gate). Its
+origin is **opaque**: plugin code there has no cookie and no storage of the editor's (`document.cookie`, `localStorage`
+throw), cannot reach into the page (`parent.document` is another origin's), and a request to the API carries no
+session – an opaque origin is another site, so the browser withholds the `SameSite=Strict` cookie, and CORS refuses
+a credentialed read. The CSRF token and every API call stay in the page.
+
+- **The page's side** (`stage/stage.svelte.ts`, `Stage`): puts the frame first into the stage's container, under the
+  toolbar and the notices, and keeps the API the panels used before – the overrides (`overrides`, `treeOf`, `editTree`,
+  `removeNode`: the page's own), the selection, the gizmo's and the pick's modes, the environment, the ghost, the
+  narrative (`setVar`, `tap`, `replayUnlock`, `resetNarrative`), the eyedropper (`sampleColor`) – sent to the frame;
+  what reads the frame (`sampleColor`, `sampleBottom`, `setVar`, `tap`) answers a promise. It mirrors what the frame
+  reports: the state, the variables and the timeline, the layout of the targets (`pageFormat`, `placeOf`,
+  `printedPlace`), the model nodes' timelines (`timeline`), and the **plugin registry as specs** – the engine's
+  `pluginRegistrySnapshot` in the frame, `mirrorPluginRegistry` here, so the Inspector, *add pass*, the texture rows and
+  *make it code* read the engine's registries as before while no plugin code runs in the page.
+- **The frame's side** (`stage/frame-host.svelte.ts` with `stage/stage-core.svelte.ts`, the stage itself): reads the
+  draft from the text the page sends (the page fetched it with its session; the frame never asks the API), loads the
+  draft's plugins and runs the Code tab's modules (`stage/plugin-run.ts`), and answers the page's requests. It
+  accepts requests only from its parent at the editor's origin and posts its events only there.
+- **The protocol** (`stage/frame-protocol.ts`): requests with an id and their replies, events with a name and their
+  data. The page acts only on events whose shape it checked (`readFrameEvent`), and **no event leads to an API call**:
+  a gizmo drag reports the node's new placement and the page writes it into its own override (unsaved, like every
+  live edit), a pick selects, a key the frame forwards is one of the page's shortcuts (`FORWARDED_KEYS`: Shift, Ctrl,
+  ← →, W E R, Delete, Escape – nothing that saves or publishes). Save and Publish stay the person's click in the page.
+- **The frame's policy**: before the draft and its plugins load, the frame takes a Content Security Policy
+  (`frameCsp`, as a `<meta>` – it names the book's content bases, which only the draft knows, so no static header can
+  say it): its own scripts and the editor's static files under `/editor/`, the Library's files under
+  `/api/content/`, the book's content under `<content base>/assets/content/`, the trigger protocol at the site's root,
+  `blob:` (the Code tab's module) and `data:` – every source with its path, never `'self'`, so no request reaches the
+  rest of the API. Nothing may be framed, posted or opened; no worker. A draft whose files move to another base gets a
+  new frame (a policy cannot widen).
+- **Serving it**: the opaque frame loads the editor's module scripts and static files with `Origin: null`, so they are
+  served with `Access-Control-Allow-Origin: *` – `client/public/.htaccess` for `/editor/` and `/assets/content/`, the
+  editor's and the reader's dev servers allow `null` (`server.cors`). The Library's media already allow any origin
+  (`ContentStore::serve`); the content CDN answers CORS for the reader anyway.
+- **What it costs**: on a desktop (headless Edge, 1280 × 800) the stage renders at the same 60 fps with the same
+  main-thread time per frame as in the page (≈ 1.25 ms on *The switch*, ≈ 1.5 ms on *The key*).
+- **What it does not do**: plugin code can still send what it sees – the draft, which its author can read anyway –
+  away by navigating its own frame, and it can post stage events (a placement, a pick, a forwarded key) that change
+  the person's unsaved live state; it cannot save, publish or read anything of the session. In the editor a plugin
+  reaches only the content and the Library (`api.loadText`), no other origin. **The reader runs plugins in its own
+  page** – not sandboxed yet ([server](server.md#sessions-cookies-and-csrf) "What the cookie does not do").
 
 ## The app
 
@@ -625,11 +673,14 @@ is involved.
     `plugin-api.d.ts` (the module `osct-plugin-api`) and three's own types, so completion, hover documentation and type
     errors inline are the build's; Tab indents, Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day /
     night tokens. **Download** gives the plugin's folder as a zip (`index.ts`, `plugin-api.d.ts`, a `tsconfig.json`). **Run** transpiles the TypeScript in the browser
-    (sucrase, types erased – no type check, that is the build's half), imports the module and installs it in the
-    stage's registry under the plugin's id (a second Run replaces the first), then builds the spread again: a
+    (sucrase, types erased – no type check, that is the build's half); the stage frame imports the module and installs
+    it in the stage's registry under the plugin's id (a second Run replaces the first) – the code runs there, never in
+    the editor's page (#234, "The stage frame" above) –, then builds the spread again: a
     material layer tints the video at once, a component shows under *add component* in the Inspector. Errors
     show under the editor and as a marker on their line (a transpile error, a plugin that imports a module – plugins import
     nothing, three.js is `api.three` – an invalid spec, an exception in `register`); the previous registration stays.
+    The **log** under the editor has the plugins' lines from the stage, newest last: their `api.log` and their errors
+    there (a build that failed, an error nothing caught); every Run starts it anew.
     **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it –
     refused while the draft uses a type it registers (*used by entity castle – Delete anyway*). The Library lists the
     stored sources as its scripts and opens one here (**Open in Code**); a script file uploaded there is a source here.
@@ -708,14 +759,14 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`), where its files are served, the dev flag and the reader's graphics options ([tracking](tracking.md) "What the app gives the engine") |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, shake, origin, grid and snap, hidden targets; `viewSummary`), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the spread's timeline, variables and tap buttons in the Inspector) |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the page's side of the stage frame, #234), `frame-host.svelte.ts` and `frame-protocol.ts` (the frame's side and the messages, the frame's policy), `plugin-run.ts` (Run's half in the frame), `stage-core.svelte.ts` (the stage in the frame: the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, shake, origin, grid and snap, hidden targets; `viewSummary`), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the spread's timeline, variables and tap buttons in the Inspector) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SpreadView` and `EntryView`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry in `EntryView.svelte` (its words in `entry-view.ts`), the spread section's in `spread-view.ts` (#227) |
-| The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
+| The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
-| Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |
+| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/`, `admin/`; `stage-frame/` – the stage frame's document, outside the gate |
 | The API | `server/api/src/Books.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php` | [server](server.md) "Editor data", "Plugin sources" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |
 

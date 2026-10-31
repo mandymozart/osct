@@ -38,7 +38,7 @@ nodes and pages, four more ("Across nodes and pages" below):
 - **`api.shadertoy(source)`** (API 1.6) – a Shadertoy pass (`mainImage`) as a feedback buffer's fragment.
 - **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture: a spread or the
   book names it in `passes` like a built-in pass (content schema 2.21, "A pass: film grain" below).
-- **`api.log(…)`** – to the console, prefixed with the plugin's id.
+- **`api.log(…)`** – to the console, prefixed with the plugin's id; in the editor also the Code tab's log.
 
 A `spec` describes the parameters the author sets in the editor: every one with a `kind` (`number` with `min`
 and `max`, `color`, `choice` with `options`, `boolean`, `string`, and since API 1.4 `texture` – a picture: a Library
@@ -651,6 +651,27 @@ the edits stay while you look at another tab. Whether readers have the saved sou
 `tsconfig.json` that joins them – open the folder in any TypeScript editor and it type-checks the same way
 (`npm install --save-dev @types/three typescript` there for three's types and `npx tsc`). `plugin-api.d.ts` is
 generated from the engine (`editor/src/lib/plugins/plugin-api.d.ts`, `npm run plugin-api` in `editor/`).
+
+## Where it runs: the stage's sandbox
+
+In the editor a plugin runs in the **stage frame** – an iframe sandboxed without `allow-same-origin`, an origin of its
+own with no session ([editor](editor.md) "The stage frame", #234). For a plugin that changes nothing about the API
+above – the stage, the registries, `api.three`, the events, the variables, the progress, `api.loadText`, the feedback
+buffers and the passes all work as before. What a plugin **cannot** do there, by design:
+
+- **act as the person who has the book open** – a request to the API carries no session (`fetch("/api/user",
+  { credentials: "include" })` is refused before it leaves: the frame's policy allows no path of the API but its public
+  content route, and there the browser withholds the cookie);
+- **read the session or the editor's storage** – `document.cookie`, `localStorage` and `sessionStorage` throw;
+- **reach the editor's page** – `parent.document` belongs to another origin; the page acts only on the stage's own
+  messages, and none of them saves or publishes;
+- **load from other origins** – files come from the book's content and the Library (`api.loadText`, a texture
+  parameter, a model's file); `fetch` to another host, an `import()` from a CDN, a worker, an `<iframe>`, a form or a
+  popup are blocked;
+- **show a dialog** – `alert`, `confirm` and `prompt` do nothing in the sandbox; log with `api.log`, which the Code tab
+  shows under the editor (with the plugin's errors on the stage).
+
+The reader runs the published plugins in its own page – the same API, without this sandbox (yet).
 
 ## Shipping it: the content build
 

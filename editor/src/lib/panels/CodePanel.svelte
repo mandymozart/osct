@@ -22,7 +22,8 @@
    * plugins of the content source are compiled. The Library lists the stored sources as its scripts and opens one here
    * (`plugins.focus`); **Delete** is refused while the draft uses what the plugin registers (*Delete anyway* forces it).
    * The picker names each plugin alone, the one with unsaved edits with an asterisk (`pluginLabel`, #232); the open source
-   * is kept in `plugins.code`, so a tab switch loses no edit.
+   * is kept in `plugins.code`, so a tab switch loses no edit. The code runs in the stage frame, never in this page (#234):
+   * its `api.log` lines and its errors there come back as the **log** under the editor, newest last, empty with each Run.
    */
   let { bookId, stage }: { bookId: string; stage: Stage | null } = $props();
 
@@ -235,6 +236,11 @@
 {:else if notice}
   <p class="small muted message">{notice}</p>
 {/if}
+{#if plugins.logs.length}
+  <ol class="log small" aria-label="The plugins' log" data-help-name="Log" data-help="What the book's code says on the stage, newest last: a plugin's api.log lines and its errors (a build that failed, an error nothing caught). The stage runs the code in a sandbox of its own, so this is where its lines show. Every Run starts it anew.">
+    {#each plugins.logs as line, i (i)}<li class:danger={line.level === "error"}>{line.text}</li>{/each}
+  </ol>
+{/if}
 
 <div class="actions">
   {#if current?.stored}
@@ -263,6 +269,9 @@
   .monaco { position: absolute; inset: 0; }
   .loading { position: absolute; inset: 0; margin: 0; padding: .375rem .5rem; }
   .message { margin: .25rem 0 0; overflow-wrap: anywhere; }
+  .log { max-height: 6rem; margin: .25rem 0 0; padding: .25rem .5rem; list-style: none; overflow: auto; border: 1px solid var(--line); border-radius: var(--control-radius); font-family: ui-monospace, Consolas, monospace; }
+  .log li { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .log .danger { color: var(--danger); }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .375rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
   .text-link.danger { color: var(--danger); }

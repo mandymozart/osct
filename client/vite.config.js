@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'fs';
 import { resolve } from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defaultAllowedOrigins, defineConfig, loadEnv } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
@@ -260,6 +260,8 @@ export default defineConfig(async ({command,mode})=>{
   },
   server: {
     host: true, // Same as --host flag
+    // The editor's stage frame (#234) is an opaque origin: it loads the content's media with `Origin: null`
+    cors: { origin: [defaultAllowedOrigins, 'null'] },
     port: port,
     // Accounts API (server/): `npm run dev:api` serves it with PHP on port 8080
     proxy: { '/api': 'http://127.0.0.1:8080' },

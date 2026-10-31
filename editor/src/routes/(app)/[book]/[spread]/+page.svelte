@@ -177,7 +177,8 @@
       if (Math.abs(event.clientY - d.startY) < DRAG_PX) return;
       d.moved = true;
       sheetRow = ((event.currentTarget as HTMLElement).closest(".panel") as HTMLElement | null)?.offsetHeight ?? d.startHeight;
-      sheetBackground = sheetFill(stage?.sampleBottom(SHEET_FILL_SEGMENTS) ?? []);
+      sheetBackground = null;
+      void stage?.sampleBottom(SHEET_FILL_SEGMENTS).then(colours => { if (sheetDragging) sheetBackground = sheetFill(colours); });
       sheetDragging = true;
       (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     }
@@ -543,6 +544,7 @@
   let picking = $state<((hex: string | null) => void) | null>(null);
   let pickHex = $state<string | null>(null);
   let pickAt = $state({ x: 0, y: 0 });
+  let pickSample = 0;
   let picker = $state<HTMLDivElement>();
   const pickColour = () => new Promise<string | null>(resolve => {
     picking = resolve;
@@ -557,8 +559,11 @@
   const samplePick = (event: PointerEvent) => {
     if (!container || !stage) return;
     const rect = container.getBoundingClientRect();
-    pickAt = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    pickHex = stage.sampleColor(pickAt.x, pickAt.y);
+    const at = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    pickAt = at;
+    // The frame reads the pixel; only the latest move's answer is shown
+    const sample = ++pickSample;
+    void stage.sampleColor(at.x, at.y).then(hex => { if (picking && sample === pickSample) pickHex = hex; });
   };
 </script>
 
@@ -712,7 +717,9 @@
   .tree-body { padding: .25rem .375rem .75rem; }
   .grow { flex: 1; }
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-  .stage :global(canvas) { display: block; width: 100%; height: 100%; }
+  /* The stage frame (#234) under the toolbar and the notices; a column or sheet drag over it stays the page's */
+  .stage :global(iframe.stage-frame) { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; }
+  .workspace.dragging .stage :global(iframe.stage-frame), .workspace.sheet-dragging .stage :global(iframe.stage-frame) { pointer-events: none; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   /* Above ‹ › so a group's menu covers them; the page computes the groups' widths from these sizes */
   .tools { position: absolute; left: .5rem; top: .5rem; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }

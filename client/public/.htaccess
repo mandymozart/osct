@@ -16,3 +16,12 @@
   RewriteRule ^ editor/index.html [L]
   RewriteRule ^ index.html [L]
 </IfModule>
+
+# The editor's stage frame (docs/editor.md "The stage frame") is a sandbox with an opaque origin: it fetches the editor's
+# scripts and static files and the content served with the app with `Origin: null`. These public files may be read by
+# any origin (no credentials – the API answers for itself).
+<IfModule mod_headers.c>
+  <If "%{REQUEST_URI} =~ m#^/(editor|assets/content)/#">
+    Header set Access-Control-Allow-Origin "*"
+  </If>
+</IfModule>
