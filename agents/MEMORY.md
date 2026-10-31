@@ -4,6 +4,56 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – docs: one owner per topic (#218)
+
+- **The plugin API's reference lives in `docs/plugins.md`** only; `docs/content.md` keeps a paragraph on how the content
+  names what a plugin registers, with the pointer. What content.md held that plugins.md lacked moved with it (the
+  configuration's `plugins: [{ id, src, api, registered }]`, how the reader's check treats a plugin without `registered`,
+  `ArSceneOptions.progress`, the pass registry's file).
+- **The trigger trial lives in `docs/tracking.md`** ("The trigger trial", with the phone model and the printed-image
+  details); content.md's command table points there. The engine's `trigger-protocol.ts` comment and
+  `docs/trigger-tests/README.md` name the new place.
+- **The delivery history stays out of the docs**: how 2110 was matched (by page and appearance, the link screenshots
+  without a page), the ten targets not on the printout – already in this file (2026-10-27 "Trial content").
+- **tracking.md's options list became pointers**: the window (grow or a sliding budget) is open in #38, preloading in
+  steps in #13; the smaller options with their details are the open item in `agents/PLAN.md` phase 13.
+- **content-cdn.md** points to RULES #10 instead of repeating it; the pull zone's settings are stated as they are, and
+  the #175 repair is a titled temporary runbook. Its `content/` default stays: `scripts/src/config.ts` still falls back
+  to a local `content/` folder (`OSCT_CONTENT_DIR || 'content'`, the open item of #5 below). The dated observations
+  it held, kept here: the pull zone was checked against `buildingfictions.b-cdn.net` on 2026-10-27 and 2026-10-28 (the
+  bunny.net dashboard, Tilman's team seat); on 2026-10-28 JSON and JPEG sent `Access-Control-Allow-Origin: *` (models and
+  videos not checked) and the zone ignored query strings; on 2026-10-30 `latest.json` came with `cache-control: public,
+  max-age=0` and `cdn-cache: BYPASS` (the rule in place), while staging's edge served `versions.json` as cached on
+  2026-10-28 17:15 (`cdn-cache: HIT`, only `6448aacb4ab7`) and `latest.json` named `b6b0ebaabcfd`; the demo's looked the
+  same (`7a5254b5a4f6` at the edge, `dcd17b5e63d2` in `latest.json`). The storage's copy (`…/staging//versions.json`,
+  `cdn-cache: MISS`) listed `6448aacb4ab7`, `c396a3554496`, `2e0a4af94ca2` and `b6b0ebaabcfd`, the last as current.
+- **base-store.md** is cut down to what OSCT uses (the API, a component's subscription, what counts as a change) – the
+  generic to-do tutorial is gone. **editor.md** is ordered by page and panel – Books and import, the book page, the
+  workspace (tree, selection, Info view), the stage (desk and book, tracker and simulation, toolbar, view, snapping,
+  gizmo, picking, shading, the frame), the panels (Inspector, spread, post-processing, vars and events, Environment,
+  Library, Code) – each told once; its UI rules point to RULES #32 and DESIGN.md §9 and keep only the editor's own
+  values; quotes are gone; stale lines fixed (`EntryForm.svelte` for the removed `EntryView.svelte`, texts are edited
+  in the editor, a pass can be switched off, the plugin API's feedback buffers).
+- The links and anchors of `docs/` and the README were checked with a script (relative links, anchors as GitHub's
+  slugs, quoted section names): all resolve.
+
+## 2026-10-31 – shared/ tidied in one schema MINOR (2.24, #214)
+
+- **One schema bump for the whole tidy-up** (#19's second pass, section 5): every change in `shared/` needs one, so the
+  findings waited for each other. 2.24 changes no content shape – an older app reads a 2.24 book exactly as before.
+- **`shared/guards/primitives.ts` is a leaf** (it imports nothing): `isObject` and the camelCase name pattern live there,
+  so every module of `shared/` – and the engine's trigger protocol and the editor's frame protocol – uses one copy without
+  an import cycle (the guard imports the types, so the types could not import the guard). `guards/game-config.ts`
+  re-exports `isObject` for the reader, the engine and the content build, which import it from there.
+- **The camelCase pattern is written once** (`CAMEL_CASE_NAME`, at most 40 characters; `camelCaseName(32)` for a plugin's
+  node type, the API's column width). `COMPONENT_TYPE_PATTERN`, `MATERIAL_TYPE_PATTERN`, `TEXTURE_TYPE_PATTERN` and
+  `BEHAVIOUR_NAME_PATTERN` stay as names for their role – the engine, the MCP server and the PHP comments name them.
+- **`BEHAVIOUR_NODE_ACTIONS` stays**: unused when #19 looked, the engine's forward-compatible list uses it since #220. It
+  now also replaces the behaviour grammar's own copy of the shorthands. Removed: `isComponentType`, `PlacementData`.
+- **The change log by schema version stays** in `shared/types/game-config.ts` (RULES #22's exception for the type docs);
+  its last line ("any MINOR of the same MAJOR loads") now says RULES #10's rule – skipped with a warning, apps before
+  #220 refused some of it.
+
 ## 2026-10-31 – content editing: entries, the book, the onboarding; Markdown and variables (#223)
 
 - **Tilman** (#223): *"Simple Markdown is cool in the long run – so a basic implementation. Here too, orient on the
@@ -778,7 +828,7 @@ outcome in the line (or move it into a dated decision block).
   `versions.json` for 30 days: staging's served the copy cached on 2026-10-28 17:15, 13 minutes before `6448aacb4ab7`
   was retired. The storage's copy (read through an uncached URL form) lists all four builds, `b6b0ebaabcfd` current.
 - **Decision: no storage repair, an edge rule plus a purge** – done by a person with the account API key
-  (`docs/content-cdn.md` "Repairing a stale versions.json"). The CLI still has no account API key and gets none.
+  (`docs/content-cdn.md` "Runbook: repairing a stale versions.json"). The CLI still has no account API key and gets none.
 - **The check lives in `osct content status`** (`versionProblems` in `content-sync.ts`): storage disagreement exits 1,
   a disagreeing edge copy only warns. No API change – its publish always rewrites `versions.json`, so it cannot keep
   a stale record, and the editor never reads `versions.json`.
@@ -1313,7 +1363,7 @@ outcome in the line (or move it into a dated decision block).
   a content change. So `TriggerInfo` lives in the engine (it reads the file) and `scripts/src/protocol.ts` imports the
   type from there.
 - The osct CLI accepts only its known options (`lib/cli-args.ts`): a misspelt safety flag must never run for real.
-- [ ] Still open from #28: `PlacementData` unused (needs a schema bump, see the #19 block); `BaseStore`'s
+- [ ] Still open from #28 (`PlacementData` removed in content schema 2.24, #214): `BaseStore`'s
   `propertyListeners` cast. From #29: `loadBuild` still re-implements the pipeline, the server matrix (PHP 8.1, MySQL),
   `service-worker.ts` and the AR scene lifecycle.
 ## 2026-10-30 – Spreads added and removed on the book page (#166)
@@ -1930,7 +1980,8 @@ outcome in the line (or move it into a dated decision block).
 - Content schema 1.1 → 1.2: only comments changed in `shared/`, but the lock covers the whole folder (RULES #10).
 - [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` (the "while it is in git" CI step is gone) goes with
   the content removal; RULES #8 says so.
-- [ ] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+- [x] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+  Dropped in content schema 2.24 (#214, 2026-10-31).
 
 ## 2026-10-28 – The trigger trial runs at ±0 (#14, Tilman, 1.7.8)
 

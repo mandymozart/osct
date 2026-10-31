@@ -21,9 +21,10 @@
  */
 
 import { paramProblem, paramSpecProblems, type ComponentParamSpec } from "./components";
+import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
 
 /** A material's or a procedural texture's type: `camelCase`, letters and digits */
-export const MATERIAL_TYPE_PATTERN = /^[a-z][a-zA-Z0-9]{0,39}$/;
+export const MATERIAL_TYPE_PATTERN = CAMEL_CASE_NAME;
 
 export interface MaterialSpec {
   description: string;
@@ -77,17 +78,15 @@ export const materialTypesFor = (nodeType: string): string[] =>
     return !nodeTypes || nodeTypes.includes(nodeType);
   });
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-
 const specProblems = (what: string, type: string, spec: unknown, nodeTypes: boolean): string[] => {
   const problems: string[] = [];
   if (!MATERIAL_TYPE_PATTERN.test(type)) problems.push(`"${type}" is not a ${what} type (camelCase letters and digits, e.g. water)`);
-  if (!isRecord(spec)) return [...problems, `${type}: the spec must be an object with description and params`];
+  if (!isObject(spec)) return [...problems, `${type}: the spec must be an object with description and params`];
   if (typeof spec.description !== "string") problems.push(`${type}: description must be a string`);
   if (nodeTypes && spec.nodeTypes !== undefined && !(Array.isArray(spec.nodeTypes) && spec.nodeTypes.every(t => typeof t === "string"))) {
     problems.push(`${type}: nodeTypes must be a list of node types`);
   }
-  if (!isRecord(spec.params)) return [...problems, `${type}: params must be an object`];
+  if (!isObject(spec.params)) return [...problems, `${type}: params must be an object`];
   return [...problems, ...paramSpecProblems(type, spec.params)];
 };
 
@@ -97,9 +96,9 @@ export const materialSpecProblems = (type: string, spec: unknown): string[] => s
 /** Problems of a procedural texture's spec; a texture's own parameters cannot be textures */
 export const textureSpecProblems = (type: string, spec: unknown): string[] => {
   const problems = specProblems("texture", type, spec, false);
-  if (isRecord(spec) && isRecord(spec.params)) {
+  if (isObject(spec) && isObject(spec.params)) {
     Object.entries(spec.params).forEach(([name, param]) => {
-      if (isRecord(param) && param.kind === "texture") problems.push(`${type}.${name}: a procedural texture's parameter cannot be a texture`);
+      if (isObject(param) && param.kind === "texture") problems.push(`${type}.${name}: a procedural texture's parameter cannot be a texture`);
     });
   }
   return problems;
@@ -114,11 +113,11 @@ export interface MaterialCheckOptions {
 
 /** Problems of a node's `material` (the content build, the guard); `nodeType` checks that it applies */
 export const materialProblems = (raw: unknown, path: string, nodeType?: string, options: MaterialCheckOptions = {}): string[] => {
-  if (!isRecord(raw)) return [`${path}: expected { type, params? }`];
+  if (!isObject(raw)) return [`${path}: expected { type, params? }`];
   const { type, params, ...other } = raw;
   const problems = Object.keys(other).map(key => `${path}.${key}: a material has a type and params only`);
   if (typeof type !== "string" || !MATERIAL_TYPE_PATTERN.test(type)) return [...problems, `${path}.type: expected a material type (camelCase), got ${JSON.stringify(type)}`];
-  if (params !== undefined && !isRecord(params)) problems.push(`${path}.params: expected an object`);
+  if (params !== undefined && !isObject(params)) problems.push(`${path}.params: expected an object`);
   const spec = materialSpec(type) ?? options.specs?.get(type);
   if (!spec) {
     if (options.unknownTypes === "allow") return problems;
@@ -126,7 +125,7 @@ export const materialProblems = (raw: unknown, path: string, nodeType?: string, 
     return [...problems, `${path}.type: "${type}" is not a material ${known.length ? `of the book's plugins (${known.join(", ")})` : "– the book's plugins register none"}`];
   }
   if (nodeType && spec.nodeTypes && !spec.nodeTypes.includes(nodeType)) problems.push(`${path}: ${type} applies to ${spec.nodeTypes.join(", ")} nodes, not to a ${nodeType}`);
-  if (isRecord(params)) {
+  if (isObject(params)) {
     for (const [name, value] of Object.entries(params)) {
       const param = spec.params[name];
       if (!param) {

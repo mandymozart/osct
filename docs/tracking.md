@@ -1,4 +1,4 @@
-# Image tracking: spreads, preloading, load test
+# Image tracking: spreads, preloading, the trigger trial, load test
 
 How the 8th Wall engine (`@8thwall/engine`, `engine/src/scene/tracker.ts` + `xr8.ts`, used by the reader) gets the
 targets it can find, how a spread switch works, and how to measure how many targets a phone can hold. Without a camera
@@ -9,7 +9,7 @@ and engine – the editor's stage with the mock tracker – see [Editor](editor.
 1. **Current spread** – `ArScene.changeSpread()` swaps anchors, entities and assets (it waits for the new spread's
    models and videos), then `ImageTracker.loadTargets()` makes the spread's targets the ones reported to the app.
 2. **Window** – once the spread is tracked, `ArScene` gives the tracker the other spreads, nearest first
-   (`prepared-spreads.ts`). **Fixed** (±1 by default; ±0 / ±2 / all in the debug overlay, or the load test's target
+   (`prepared-spreads.ts` – the engine extracts in the order its queue gets them). **Fixed** (±1 by default; ±0 / ±2 / all in the debug overlay, or the load test's target
    budget): `prepareTargets()` holds exactly that window and **slides** with the current spread – spreads that fall
    out of it are unloaded (their files stay in the browser cache). **Grow** (debug overlay; the default from 1.7.0
    to 1.8.1, see issue #38): `growTargets()` adds them in idle time, three targets per batch, each batch after the
@@ -143,6 +143,71 @@ overlay. Switches:
 
 The trial panel keeps its camera row (AF, ◎, zoom step); its `md` report records the camera.
 
+## The trigger trial
+
+The checklist for a test with the printed book (or the trigger printout) is in the app: debug overlay → **trial**
+(dev server and staging; *trial* again or × closes it). A strip flush with the bottom of the screen shows every
+target as a thumbnail in a fixed order – the order of the printout, with its running number (the same numbers as the
+tester printouts of trial 2; targets not on the printout are dimmed, "not printed"). Nothing moves: a found one gets
+a green frame and a ✓, the one in view a yellow frame, the current spread's a white frame, and the strip scrolls smoothly to
+the current spread when it changes. While the trial is open the engine holds the current spread and its neighbours
+(±1, no growing window), so scanning the next image on the sheet switches the spread by itself; closing restores
+the window setting. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to
+make it taller or lower. A camera line under the bar shows the lens, resolution, focus and zoom the trial runs with –
+feedback only, the trial uses the app's camera defaults; the md report records it (the test switches are in the
+debug overlay's camera panel, "Camera" above). The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
+(debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their
+printed image, then the found ones – to forward to the designers. The runs so far, with their results per device, are in
+[trigger-tests/](trigger-tests/README.md).
+
+### The phone model in the report (#235)
+
+Browsers no longer say which phone they run on – Safari 26 freezes its user agent (an
+iPhone 12 mini and an iPhone 17 both report `iPhone OS 18_7 … Version/26.6.1`), Chrome on Android reduces it
+(`Android 10; K`). So a device row under the bar asks for the phone model, and **md** stays dimmed until it is filled
+in (tapping it then jumps to the field). The tester types the model or picks it from the *list* (iPhone 11 to 17
+with mini / Plus / Pro / Max, SE, 16e and Air; Galaxy S21 to S25; Pixel 6 to 9); a second field takes optional
+initials. Both are remembered on the device (`osct-trial-model`, `osct-trial-tester`). The field is prefilled where
+the browser can tell:
+
+- **Chromium (Android)**: `navigator.userAgentData.getHighEntropyValues(["model", "platformVersion"])` gives the
+  model code and the real Android version. A known Samsung code gets its name, the code stays
+  (`Galaxy S22 (SM-S901B)`); Pixels report their name.
+- **iPhone**: there is no model API, so the screen in points and its pixel ratio narrow the list – the matching
+  models come first in *list* (375×812 @3 = 12 mini / 13 mini / X / XS / 11 Pro, 390×844 @3 = 12 / 13 / 14 /
+  12 Pro / 13 Pro / 16e, 393×852 @3 = 14 Pro / 15 / 15 Pro / 16, 402×874 @3 = 16 Pro / 17 / 17 Pro, 440×956 @3 = 16
+  Pro Max / 17 Pro Max …, `client/src/components/dev-tools/trial-device.ts`). The strip says it is a guess; the
+  field stays empty until the tester picks or types the model. Display Zoom reports a smaller screen, which gets no
+  guess.
+
+The report's header then carries:
+
+```
+- Device: iPhone 12 mini (tester) · screen-size guess: iPhone 12 mini / 13 mini / X / XS / 11 Pro
+- Screen: 375×812 @3
+- OS: iOS 18.7 as Safari reports it – frozen: Safari 26 comes with iOS 26
+- Language: fr-FR
+- Tester: VB
+- User agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) …
+```
+
+*Device* is the model as the tester entered it, then where the prefill came from (`from the browser: SM-S901B`, a
+`screen-size guess`, or `no prefill`); *OS* is what the browser reports, with the real version where client hints
+give it (`Android 14.0.0 (from the browser)`) and a note where Safari freezes it or Chrome reduces it; *Tester* only
+when initials were given.
+
+### The printed-image details
+
+They come from the delivery mapping ([content](content.md) "Importing a delivery"):
+
+```bash
+cd scripts
+npm run protocol -- import/<delivery>.yaml   # → client/public/trigger-protocol.json
+```
+
+Run it after an import (the file is committed and served at `/trigger-protocol.json`); the panel works without
+it, then without file names and sizes.
+
 ## Load test
 
 Debug overlay → **load** (dev server or staging, camera running, scan mode).
@@ -174,26 +239,11 @@ What to look for: the step where engine fps or *Found* drops, *Lost* or re-find 
 The step before it is the budget a phone can hold. Run it on the slowest phone that has to work, and on a page with a
 small target as well as a large one.
 
-## Options for the flow (open, decide after the numbers)
+## Open decisions
 
-Direction (Tilman, 2026-10-27): preload everything eventually, in steps – targets first, then their content, then
-higher resolutions (the 1x/2x/3x and video levels of issue #13). What is fetched stays cached (service worker and browser on the device;
-the Bunny CDN's server-side cache in front of the server – to be confirmed), so a spread visited or preloaded once
-comes back sharp later.
-
-- **A target budget instead of ±n.** Hold the current spread plus the nearest spreads until a target budget (from the
-  load test) is reached. With small spreads that reaches much further than ±1 for the same engine load.
-- **Grow instead of slide** (1.7.0, no longer the default since 1.8.2): keep what is extracted and add the
-  next-nearest spreads in idle time until the whole book is held. The first load test (2026-10-27) found no cost in
-  frame rate or detection for 131 held targets, but on the S22 pages of the printout were no longer found once the
-  whole book was held – ±1 is the default again until issue #38 decides between grow and a sliding target budget.
-- **Nearest first** (done, 1.7.0): the window is passed nearest first, so the engine queues the spreads the reader is
-  most likely to turn to before the farther ones (the engine extracts in the order its queue gets them).
-- **Fewer configures.** A spread switch configures twice (current, then the new window); the second cancels and
-  re-queues what the first had not extracted yet. One configure per switch avoids that.
-- **Prepare at build time.** The grey 480×640 frames could be written by the content build (they only depend on the
-  target image): no main-thread work in the app, smaller downloads than `target.jpg`.
-- **Grouping.** Spreads are facing pages today. Larger groups (e.g. a few spreads or a chapter as one tracked group)
-  mean fewer switches; the budget then decides how many groups are held.
-- **Switch latency.** `changeSpread()` waits for the new spread's models and videos before tracking it; for a
-  spread with a large video the switch waits for that download.
+- **How many targets the engine holds** – keep ±1, grow to the whole book, or a sliding target budget from the load
+  test: open in #38.
+- **Preloading in steps** – targets first, then their content, then higher resolutions (the quality levels): open in
+  #13.
+- The smaller options – one configure per switch, image targets made by the content build, larger tracked groups than a
+  spread, a switch that does not wait for the new spread's videos – are open items in `agents/PLAN.md` (phase 13).

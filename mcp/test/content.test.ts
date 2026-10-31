@@ -334,7 +334,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the book and the onboarding (#223)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("2.23");
+    expect(model.contentSchema).toBe("2.24");
     expect(model.entryText.description).toMatch(/\*emphasis\*/);
     expect(model.entryText.description).toMatch(/\{hasKey\}/);
     expect(model.tutorial.actions).toEqual(["next", "camera", "scan"]);

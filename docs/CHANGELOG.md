@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.60.0 – 2026-10-30
+
+### Changed
+- **Content schema 2.24 – nothing new in the content** (#214): the shared content contract was tidied up. The check for
+  "is this a JSON object" and the rule for camelCase names (a component's, a pass's, a material's type, a variable's
+  name) are written once, the unused `isComponentType` and `PlacementData` are gone, and comments name the engine's
+  files where they still named the reader's. A book of 2.24 reads exactly like one of 2.23 in an older app.
+- **Documentation: one owner per topic** (#218): the plugin API's reference is in the plugin guide, the trigger trial in
+  the tracking guide; the editor's guide is ordered by page and panel, each told once; the CDN guide points to the
+  version rule instead of repeating it and keeps the edge-cache repair as a titled runbook; the BaseStore page covers
+  what the reader uses.
+
 ## 1.59.1 – 2026-10-30
 
 ### Added

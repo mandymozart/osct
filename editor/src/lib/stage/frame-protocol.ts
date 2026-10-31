@@ -2,6 +2,7 @@ import type { PluginRegistrySnapshot } from "@engine/scene/plugins";
 import type { ArStatus, EntityData } from "@engine/types";
 import type { PrintPlacement } from "@shared/types/game-config";
 import { PRINT_SURFACES } from "@shared/types/game-config";
+import { isObject } from "@shared/guards/primitives";
 import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode, type GizmoPlacement } from "./gizmo";
 import type { PickMode, StagePick } from "./pick";
 import { SHADING_MODES, type ShadingMode } from "./preview";
@@ -137,7 +138,6 @@ export interface FrameReply { osct: typeof MESSAGE_TAG; kind: "reply"; id: numbe
 
 // ── checks: what a message must look like before anyone acts on it ──
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isString = (value: unknown): value is string => typeof value === "string";
 const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 const isPath = (value: unknown): value is number[] => Array.isArray(value) && value.length <= 64 && value.every(i => Number.isInteger(i) && i >= 0);

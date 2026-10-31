@@ -16,12 +16,13 @@
  * the build; the guard lets it pass (a later type, or the plugin registers it when it loads).
  */
 
-import { ENTITY_TYPES, type AssetType } from "./game-config";
+import { ENTITY_TYPES, type AssetType, type EntityType } from "./game-config";
 import { paramProblem, paramSpecProblems, type ComponentParamSpec } from "./components";
 import { PLACEMENT_KEYS } from "./placement";
+import { camelCaseName, isObject } from "../guards/primitives";
 
 /** A plugin's node type: `camelCase`, letters and digits, at most 32 (the editor API's `entities.type` column) */
-export const NODE_TYPE_PATTERN = /^[a-z][a-zA-Z0-9]{0,31}$/;
+export const NODE_TYPE_PATTERN = camelCaseName(32);
 
 /** Which file a node type's `src` takes: a model (glb / gltf), a video, an image, or none */
 export const NODE_SRC_KINDS = ["none", "glb", "video", "image"] as const;
@@ -35,8 +36,8 @@ export const NODE_SRC_ASSET_TYPES: Record<NodeSrcKind, readonly AssetType[]> = {
   image: ["image"],
 };
 
-/** The asset types the built-in node types take (none: group, text, light) */
-const BUILT_IN_ASSET_TYPES: Record<string, readonly AssetType[]> = { model: ["glb", "gltf"], video: ["video"], image: ["image"] };
+/** The file the built-in node types take (none: group, text, light) */
+const BUILT_IN_SRC: Partial<Record<EntityType, NodeSrcKind>> = { model: "glb", video: "video", image: "image" };
 
 export interface NodeTypeSpec {
   description: string;
@@ -73,7 +74,7 @@ export const isKnownNodeType = (value: unknown): value is string =>
 
 /** The asset types a node of this type takes (empty: no file); undefined for a type nobody registered */
 export const nodeAssetTypes = (type: string): readonly AssetType[] | undefined => {
-  if ((ENTITY_TYPES as readonly string[]).includes(type)) return BUILT_IN_ASSET_TYPES[type] ?? [];
+  if ((ENTITY_TYPES as readonly string[]).includes(type)) return NODE_SRC_ASSET_TYPES[BUILT_IN_SRC[type as EntityType] ?? "none"];
   const spec = registered.get(type);
   return spec ? NODE_SRC_ASSET_TYPES[spec.src ?? "none"] : undefined;
 };
@@ -87,17 +88,17 @@ export const nodeTypeSpecProblems = (type: string, spec: unknown): string[] => {
   const s = spec as Record<string, unknown>;
   if (typeof s.description !== "string") problems.push(`${type}: description must be a string`);
   if (s.src !== undefined && !(NODE_SRC_KINDS as readonly unknown[]).includes(s.src)) problems.push(`${type}: src must be one of ${NODE_SRC_KINDS.join(", ")}`);
-  if (typeof s.params !== "object" || s.params === null || Array.isArray(s.params)) return [...problems, `${type}: params must be an object`];
-  const params = s.params as Record<string, unknown>;
+  if (!isObject(s.params)) return [...problems, `${type}: params must be an object`];
+  const params = s.params;
   (PLACEMENT_KEYS as readonly string[]).filter(key => key in params).forEach(key => problems.push(`${type}.${key}: the placement's name – a node type's parameter needs another`));
   return [...problems, ...paramSpecProblems(type, params)];
 };
 
 /** Problems of a plugin node's `params` against its spec: unknown names, wrong kinds (the placement keys are checked apart) */
 export const nodeParamProblems = (spec: NodeTypeSpec, params: unknown, path: string, type: string): string[] => {
-  if (params === undefined || params === null || typeof params !== "object" || Array.isArray(params)) return [];
+  if (!isObject(params)) return [];
   const problems: string[] = [];
-  for (const [name, value] of Object.entries(params as Record<string, unknown>)) {
+  for (const [name, value] of Object.entries(params)) {
     if ((PLACEMENT_KEYS as readonly string[]).includes(name)) continue;
     const param = spec.params[name];
     if (!param) {

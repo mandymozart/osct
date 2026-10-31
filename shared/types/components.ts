@@ -20,6 +20,7 @@
 
 import type { NodeType } from "./game-config";
 import { BEHAVIOUR_TYPE, behaviourProblems } from "./behaviour";
+import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
 
 /**
  * A parameter of a spec (a component's, a material layer's, a pass's, a light's, a plugin node type's, a material's, a
@@ -47,14 +48,13 @@ export type ComponentParamSpec = ParamText & (
 export type TextureValue = string | { type: string; [param: string]: unknown };
 
 /** A procedural texture's type: camelCase letters and digits (a file always has a dot or a slash) */
-export const TEXTURE_TYPE_PATTERN = /^[a-z][a-zA-Z0-9]{0,39}$/;
+export const TEXTURE_TYPE_PATTERN = CAMEL_CASE_NAME;
 
 const TEXTURE_VALUE_EXPECTED = "expected a texture: a file, a procedural texture's type or { type, …parameters }";
 
 export const isTextureValue = (value: unknown): value is TextureValue =>
   typeof value === "string" ||
-  (typeof value === "object" && value !== null && !Array.isArray(value) && typeof (value as { type?: unknown }).type === "string"
-    && TEXTURE_TYPE_PATTERN.test((value as { type: string }).type));
+  (isObject(value) && typeof value.type === "string" && TEXTURE_TYPE_PATTERN.test(value.type));
 
 /** What a texture value names: nothing, a file, or a procedural texture (its type and parameters) */
 export type TextureSource =
@@ -141,7 +141,7 @@ export type ComponentType = keyof typeof COMPONENTS;
 export const COMPONENT_TYPES = Object.keys(COMPONENTS) as ComponentType[];
 
 /** A component type: `camelCase`, letters and digits */
-export const COMPONENT_TYPE_PATTERN = /^[a-z][a-zA-Z0-9]{0,39}$/;
+export const COMPONENT_TYPE_PATTERN = CAMEL_CASE_NAME;
 
 /** Components a plugin registered (type → spec); the built-in ones win on a clash */
 const registered = new Map<string, ComponentSpec>();
@@ -161,8 +161,6 @@ export const componentSpec = (type: string): ComponentSpec | undefined =>
 
 /** Every component type known right now: the built-in ones, then the registered ones */
 export const componentTypes = (): string[] => [...COMPONENT_TYPES, ...[...registered.keys()].filter(type => !(type in COMPONENTS))];
-
-export const isComponentType = (value: unknown): value is string => typeof value === "string" && componentSpec(value) !== undefined;
 
 /** A component as the content holds it: its type and the parameters set (missing ones use the defaults) */
 export interface ComponentData {
@@ -208,8 +206,8 @@ export const componentSpecProblems = (type: string, spec: unknown): string[] => 
   const s = spec as Record<string, unknown>;
   if (typeof s.description !== "string") problems.push(`${type}: description must be a string`);
   if (s.nodeTypes !== undefined && !(Array.isArray(s.nodeTypes) && s.nodeTypes.every(t => typeof t === "string"))) problems.push(`${type}: nodeTypes must be a list of node types`);
-  if (typeof s.params !== "object" || s.params === null || Array.isArray(s.params)) return [...problems, `${type}: params must be an object`];
-  return [...problems, ...paramSpecProblems(type, s.params as Record<string, unknown>)];
+  if (!isObject(s.params)) return [...problems, `${type}: params must be an object`];
+  return [...problems, ...paramSpecProblems(type, s.params)];
 };
 
 /** Problems of a spec's parameters (a component's, a layer's, a pass's, a plugin node type's): names, kinds, defaults */
@@ -217,7 +215,7 @@ export const paramSpecProblems = (type: string, params: Record<string, unknown>)
   const problems: string[] = [];
   for (const [name, raw] of Object.entries(params)) {
     const at = `${type}.${name}`;
-    if (!/^[a-z][a-zA-Z0-9]{0,39}$/.test(name)) problems.push(`${at}: a parameter name is camelCase letters and digits`);
+    if (!CAMEL_CASE_NAME.test(name)) problems.push(`${at}: a parameter name is camelCase letters and digits`);
     const p = raw as Partial<Record<string, unknown>> | null;
     if (typeof p !== "object" || p === null) {
       problems.push(`${at}: expected { kind, default, description }`);
@@ -267,11 +265,11 @@ export const componentProblems = (raw: unknown, path: string, nodeType?: string,
   const problems: string[] = [];
   raw.forEach((component, i) => {
     const at = `${path}[${i}]`;
-    if (typeof component !== "object" || component === null || Array.isArray(component)) {
+    if (!isObject(component)) {
       problems.push(`${at}: expected { type, ...parameters }`);
       return;
     }
-    const { type, ...params } = component as Record<string, unknown>;
+    const { type, ...params } = component;
     const spec = typeof type === "string" ? componentSpec(type) ?? options.specs?.get(type) : undefined;
     if (!spec) {
       if (options.unknownTypes === "allow" && typeof type === "string" && COMPONENT_TYPE_PATTERN.test(type)) return;

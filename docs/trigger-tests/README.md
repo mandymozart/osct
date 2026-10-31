@@ -1,6 +1,6 @@
 # Trigger tests
 
-Runs of the trigger trial (debug overlay → **trial**, `docs/content.md` "Trigger test protocol") with the printed
+Runs of the trigger trial (debug overlay → **trial**, `docs/tracking.md` "The trigger trial") with the printed
 triggers, one file per run. From 1.7.8 to 1.9.0 the trial held the current spread only (±0); since 1.9.1 it holds ±1, so the next page is found by itself. A miss is down to the
 engine, the camera and the print, not to background work.
 

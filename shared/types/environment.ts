@@ -10,6 +10,8 @@
  * absolute URL (an uploaded asset of the editor's library). Without them the built-in `world` is drawn whole.
  */
 
+import { isObject } from "../guards/primitives";
+
 export const ENVIRONMENT_WORLDS = ["cafe"] as const;
 export type EnvironmentWorld = (typeof ENVIRONMENT_WORLDS)[number];
 
@@ -63,8 +65,8 @@ const referenceProblem = (value: unknown, path: string, what: string, extensions
  * fields the contract does not know; the reader's guard lets them pass, so a later MINOR's additions load.
  */
 export const environmentProblems = (value: unknown, path = "environment", strict = true): string[] => {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return [`${path} must be an object { world, onionSky }.`];
-  const { world, onionSky, worldSrc, skySrc } = value as Record<string, unknown>;
+  if (!isObject(value)) return [`${path} must be an object { world, onionSky }.`];
+  const { world, onionSky, worldSrc, skySrc } = value;
   const problems: string[] = [];
   if (!(ENVIRONMENT_WORLDS as readonly unknown[]).includes(world)) problems.push(`${path}.world must be one of ${ENVIRONMENT_WORLDS.join(", ")}.`);
   if (typeof onionSky !== "boolean") problems.push(`${path}.onionSky must be true or false.`);

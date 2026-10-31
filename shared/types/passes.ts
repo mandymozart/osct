@@ -16,6 +16,7 @@
  */
 
 import { type ComponentParamSpec, paramProblems } from "./components";
+import { isObject } from "../guards/primitives";
 
 export interface PassSpec {
   description: string;
@@ -109,11 +110,11 @@ export const passProblems = (raw: unknown, path: string, options: PassCheckOptio
   const problems: string[] = [];
   raw.forEach((pass, i) => {
     const at = `${path}[${i}]`;
-    if (typeof pass !== "object" || pass === null || Array.isArray(pass)) {
+    if (!isObject(pass)) {
       problems.push(`${at}: expected { type, ...parameters }`);
       return;
     }
-    const { type, enabled, ...params } = pass as Record<string, unknown>;
+    const { type, enabled, ...params } = pass;
     if (typeof type !== "string" || !type) {
       problems.push(`${at}.type: expected a pass type (${PASS_TYPES.join(", ")})`);
       return;

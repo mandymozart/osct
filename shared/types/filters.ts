@@ -1,12 +1,14 @@
 /**
  * Video filters: a video entity carries `filters: [{ type, ...parameters }]`,
  * applied in order. Each filter type is defined once here – its parameters with kind, default, range
- * and a description. The client builds the shader's uniforms from it, the content build and the
+ * and a description. The engine builds the shader's uniforms from it, the content build and the
  * config guard check the YAML against it, missing values get the defaults.
  *
- * Adding a filter: define it in FILTERS, implement its shader in the client
- * (`client/src/components/ar-bridges/utils/`), document it in docs/content.md.
+ * Adding a filter: define it in FILTERS, implement its shader in the engine
+ * (`engine/src/utils/chroma-key.ts` is the chroma key's), document it in docs/content.md.
  */
+
+import { isObject } from "../guards/primitives";
 
 /** `label` (schema 2.15): the few words the editor's row shows – see `ComponentParamSpec` */
 export type FilterParamSpec =
@@ -84,11 +86,11 @@ export const filterProblems = (raw: unknown, path: string): string[] => {
   const problems: string[] = [];
   raw.forEach((filter, i) => {
     const at = `${path}[${i}]`;
-    if (typeof filter !== "object" || filter === null || Array.isArray(filter)) {
+    if (!isObject(filter)) {
       problems.push(`${at}: expected { type, ...parameters }`);
       return;
     }
-    const { type, ...params } = filter as Record<string, unknown>;
+    const { type, ...params } = filter;
     if (!isFilterType(type)) {
       problems.push(`${at}.type: "${type}" is not one of ${FILTER_TYPES.join(", ")}`);
       return;

@@ -2,8 +2,9 @@
 
 A plugin adds something to the engine that the content alone cannot say: a shader on a video, code that moves a
 node, a reaction to a tap. It is a small TypeScript file in the book's content folder, and the editor's **Code**
-tab is where you try it. This is the short way in; the contract behind it is in [content](content.md) "Plugins",
-the editor's tab in [editor](editor.md), the decision in `agents/research/2026-10-29-code-in-the-editor.md`.
+tab is where you try it. This is the guide and the reference of the plugin API; how the content names what a plugin
+registers is in [content](content.md), the editor's tab in [editor](editor.md) "Code", the decision in
+`agents/research/2026-10-29-code-in-the-editor.md`.
 
 ## The shape
 
@@ -19,14 +20,16 @@ export const register = (api: PluginApi): void => {
 nodes and pages, four more ("Across nodes and pages" below):
 
 - **`api.registerLayer(type, spec, { glsl })`** – a **material layer**: a few lines of GLSL that run on every
-  pixel of a video or image plane after its own shading. Tint, dissolve, scan lines, a pulse.
+  pixel of a video, image or text plane (or a model's materials) after its own shading, in linear RGB. Tint, dissolve,
+  scan lines, a pulse.
 - **`api.registerComponent(type, spec, apply)`** – a **component**: code on a node. Spin it, bob it, react to
   found / lost / tap, change it every frame.
 - **`api.registerNodeType(type, spec, build)`** – a **node type** of your own: you build the three.js object (Points,
   a Sprite, a Line, a mesh with its own material), the engine places it like every node ("A node type" below).
 - **`api.registerMaterial(type, spec, build)`** (API 1.4) – a whole **material**: you build a three.js material (a
   `ShaderMaterial` with your GLSL, a `MeshStandardMaterial` with a texture), and any node with meshes carries it as
-  `material: { type, params }` – it replaces the node's own; its layers still add on top ("An aquarium" below).
+  `material: { type, params }` – it replaces the node's own; its layers still add on top ("An aquarium" below). Every
+  material is a plugin's: the build and the guard refuse one no plugin of the book registers.
 - **`api.registerTexture(type, spec, draw)`** (API 1.4) – a **procedural texture**: a canvas or a data texture your code
   draws, animated or not, that every `texture` parameter can take.
 - **`api.three`** – the app's three.js, for whatever a component builds or changes. Never `import "three"` yourself:
@@ -492,7 +495,8 @@ the helper itself in `engine/src/scene/__tests__/feedback.test.ts`.
 ## A pass: film grain (content schema 2.21)
 
 A pass runs over the whole rendered picture, after the scene and before it lies over the camera picture, in the order
-the `passes` list names – the built-in bloom, vignette and grade and yours alike. `fixtures/demo/plugins/grain` (the demo
+the `passes` list names – the built-in bloom, vignette and grade and yours alike. `api.registerPass` puts it into the
+engine's pass registry (`engine/src/scene/post/registry.ts`) with the plugin as its owner; it leaves with the plugin. `fixtures/demo/plugins/grain` (the demo
 book's *The twins*, #216):
 
 ```ts
@@ -565,7 +569,8 @@ lights when the door opened, a text counts the pages found. Four parts of `api` 
   strings, numbers or booleans; `null` deletes.
 - **`api.progress`** – read-only, from the app: `unlocked(targetId)`, `consulted(entryId)`, `completion(spreadId?)`
   (0–1, the whole book without an id), `counts(spreadId?)` → `{ unlocked, targets }`. On the editor's stage the
-  progress is the stage's own (what was found since the workspace opened); the reader passes its history.
+  progress is the stage's own (what was found since the workspace opened); the reader passes its history
+  (`ArSceneOptions.progress`).
 - **`api.spread`** – `current` (id, title, pages, format, targets) and `get(id)`.
 
 And two more things in a component: the context's **`children`** – the placement groups of the node's children, in
@@ -619,7 +624,7 @@ shows `openDoor` and `doorOpened` with the time since the spread opened; the tre
 To test a branch without playing up to it, change a variable in the panel or **set** one (name, scope, type, value):
 it is written through `api.vars.set`, so your `api.vars.on` listeners and `varChanged` fire as for a plugin's write.
 **tap** taps a found target as a reader would – your component's `onTap` and `targetTapped` – without aiming at it
-([editor](editor.md) "Stage").
+([editor](editor.md) "Vars and events").
 
 ## Behaviour and plugins
 
@@ -682,10 +687,14 @@ What runs in the Code tab stays in the editor until a **publish** compiles it: t
 that builds the book from its source – type-checks every plugin, bundles it, runs it once to learn what it
 registers (so the nodes that use it are checked), and declares it in the configuration together with what it
 registered: the specs of its components, layers, node types and passes (`registered`, content schema 2.14), and its
-materials and textures (2.17). So the
+materials and textures (2.17) – `plugins: [{ id, src, api, registered }]`, `src` the compiled module
+(`/assets/content/plugins/<id>/plugin.js`), `api` the plugin API it was built against, `registered` a map of type → spec
+per kind (`components` – layers included –, `nodeTypes`, `passes`, `materials`, `textures`). So the
 reader's check, the editor's API and the MCP server know your types and parameters without running your code – a typo
 in a node's type or a parameter out of range is caught at save time – and the editor's Inspector shows the rows of
-your component or node type before anyone presses Run. From there it travels to
+your component or node type before anyone presses Run. The reader's check refuses a type no declared plugin registers;
+a plugin declared without `registered` (an older build) is unknown until it loads, so the check lets its types pass. The
+engine ignores the field and registers from the module. From there it travels to
 the CDN with the content version and the reader loads it with the AR scene. A plugin that does not compile fails
 the build with the file and line, like a missing image. The build behind the publish is #78 (decided: it runs on
 the server); until it lands, only the plugins in the content source (`content/plugins/<id>/index.ts`, built with

@@ -31,6 +31,8 @@
  * with; `behaviourData` writes rules back in the content's shortest form.
  */
 
+import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
+
 /** The component's type */
 export const BEHAVIOUR_TYPE = "behaviour";
 
@@ -42,18 +44,18 @@ export type BehaviourNodeEvent = (typeof BEHAVIOUR_NODE_EVENTS)[number];
 export const BEHAVIOUR_ACTIONS = ["play", "pause", "stop", "show", "hide", "set", "emit"] as const;
 export type BehaviourVerb = (typeof BEHAVIOUR_ACTIONS)[number];
 
-/** The verbs that act on a node (the own node when its name is empty) */
+/** The verbs that act on a node (the own node when its name is empty) – also the shorthands, a verb alone as a string */
 export const BEHAVIOUR_NODE_ACTIONS = ["play", "pause", "stop", "show", "hide"] as const;
 
-/** The variable scopes of the engine's runtime (`engine/src/scene/plugin-runtime.ts` `VAR_SCOPES` – a test keeps them equal) */
+/** The variable scopes – the engine's runtime uses them as its own (`engine/src/scene/plugin-runtime.ts` `VAR_SCOPES`) */
 export const BEHAVIOUR_SCOPES = ["spread", "stage", "session", "book"] as const;
 export type BehaviourScope = (typeof BEHAVIOUR_SCOPES)[number];
 
-/** The engine's core events (`plugin-runtime.ts` `CORE_EVENTS` – a test keeps them equal): heard by a rule, never emitted */
+/** The engine's core events: heard by a rule, never emitted (the runtime's `CORE_EVENTS` are these) */
 export const BEHAVIOUR_CORE_EVENTS = ["targetFound", "targetLost", "targetUnlocked", "targetTapped", "spreadChanged", "sceneState", "varChanged"] as const;
 
-/** A variable's or an event's name: camelCase letters and digits (the runtime's `EVENT_NAME_PATTERN`) */
-export const BEHAVIOUR_NAME_PATTERN = /^[a-z][a-zA-Z0-9]{0,39}$/;
+/** A variable's or an event's name: camelCase letters and digits (the runtime's `EVENT_NAME_PATTERN` is this one) */
+export const BEHAVIOUR_NAME_PATTERN = CAMEL_CASE_NAME;
 
 /** A condition's keys that are not variables */
 const CONDITION_WORDS = ["any", "not"];
@@ -91,8 +93,6 @@ export const isBehaviourNodeEvent = (event: string): event is BehaviourNodeEvent
 
 const isCoreEvent = (event: string) => (BEHAVIOUR_CORE_EVENTS as readonly string[]).includes(event);
 
-const isMapping = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-
 const isScalar = (value: unknown): value is BehaviourValue =>
   typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value));
 
@@ -112,7 +112,7 @@ export const behaviourProblems = (params: Record<string, unknown>, at: string): 
 };
 
 const ruleProblems = (rule: unknown, at: string): string[] => {
-  if (!isMapping(rule)) return [`${at}: expected a rule { on, when?, do }`];
+  if (!isObject(rule)) return [`${at}: expected a rule { on, when?, do }`];
   const problems: string[] = [];
   Object.keys(rule).filter(key => !["on", "when", "do"].includes(key)).forEach(key => problems.push(`${at}.${key}: unknown field of a rule (on, when, do)`));
   if (typeof rule.on !== "string" || !BEHAVIOUR_NAME_PATTERN.test(rule.on)) {
@@ -126,10 +126,10 @@ const ruleProblems = (rule: unknown, at: string): string[] => {
 };
 
 const conditionProblems = (when: unknown, at: string): string[] => {
-  if (!isMapping(when)) return [`${at}: expected { variable: value, … } or { any: { variable: value, … } }`];
+  if (!isObject(when)) return [`${at}: expected { variable: value, … } or { any: { variable: value, … } }`];
   if ("any" in when) {
     if (Object.keys(when).length > 1) return [`${at}: any stands alone – { any: { variable: value, … } }`];
-    if (!isMapping(when.any)) return [`${at}.any: expected { variable: value, … }`];
+    if (!isObject(when.any)) return [`${at}.any: expected { variable: value, … }`];
     return testsProblems(when.any, `${at}.any`);
   }
   return testsProblems(when, at);
@@ -139,18 +139,16 @@ const testsProblems = (tests: Record<string, unknown>, at: string): string[] =>
   Object.entries(tests).flatMap(([name, value]) => {
     const problems: string[] = [];
     if (!BEHAVIOUR_NAME_PATTERN.test(name) || CONDITION_WORDS.includes(name)) problems.push(`${at}.${name}: not a variable name (camelCase letters and digits)`);
-    const tested = isMapping(value) && "not" in value && Object.keys(value).length === 1 ? value.not : value;
+    const tested = isObject(value) && "not" in value && Object.keys(value).length === 1 ? value.not : value;
     if (tested !== null && !isScalar(tested)) problems.push(`${at}.${name}: expected a value (text, number, true / false, null = not set) or { not: value }, got ${show(value)}`);
     return problems;
   });
 
-const SHORTHANDS = ["play", "pause", "stop", "show", "hide"];
-
 const actionProblems = (action: unknown, at: string): string[] => {
   if (typeof action === "string") {
-    return SHORTHANDS.includes(action) ? [] : [`${at}: expected an action – ${SHORTHANDS.join(", ")} or { play | pause | stop | show | hide | set | emit: … }, got ${show(action)}`];
+    return (BEHAVIOUR_NODE_ACTIONS as readonly string[]).includes(action) ? [] : [`${at}: expected an action – ${BEHAVIOUR_NODE_ACTIONS.join(", ")} or { play | pause | stop | show | hide | set | emit: … }, got ${show(action)}`];
   }
-  if (!isMapping(action)) return [`${at}: expected an action { play | pause | stop | show | hide | set | emit: … }`];
+  if (!isObject(action)) return [`${at}: expected an action { play | pause | stop | show | hide | set | emit: … }`];
   const verbs = Object.keys(action).filter(key => (BEHAVIOUR_ACTIONS as readonly string[]).includes(key));
   if (verbs.length !== 1) return [`${at}: an action has one of ${BEHAVIOUR_ACTIONS.join(", ")}, got ${verbs.length ? verbs.join(" and ") : "none"}`];
   const verb = verbs[0] as BehaviourVerb;
@@ -170,7 +168,7 @@ const actionProblems = (action: unknown, at: string): string[] => {
       nodeName(value === true ? undefined : value, `${at}.${verb}`);
       break;
     case "set":
-      if (!isMapping(value) || !Object.keys(value).length) {
+      if (!isObject(value) || !Object.keys(value).length) {
         problems.push(`${at}.set: expected { variable: value, … }`);
       } else {
         Object.entries(value).forEach(([name, v]) => {
@@ -197,18 +195,18 @@ export const behaviourRules = (component: Readonly<Record<string, unknown>> | un
   const rules = component?.rules;
   if (!Array.isArray(rules)) return [];
   return rules.flatMap(rule => {
-    if (!isMapping(rule) || typeof rule.on !== "string") return [];
+    if (!isObject(rule) || typeof rule.on !== "string") return [];
     const actions = (Array.isArray(rule.do) ? rule.do : rule.do === undefined ? [] : [rule.do]).flatMap(readAction);
     return [{ on: rule.on, when: readCondition(rule.when), do: actions }];
   });
 };
 
 const readCondition = (when: unknown): BehaviourCondition | null => {
-  if (!isMapping(when)) return null;
-  const any = "any" in when && isMapping(when.any);
+  if (!isObject(when)) return null;
+  const any = "any" in when && isObject(when.any);
   const tests = Object.entries(any ? (when.any as Record<string, unknown>) : when).flatMap(([name, raw]): BehaviourTest[] => {
     if (CONDITION_WORDS.includes(name)) return [];
-    const negated = isMapping(raw) && "not" in raw;
+    const negated = isObject(raw) && "not" in raw;
     const value = negated ? (raw as { not: unknown }).not : raw;
     return value === null || isScalar(value) ? [{ name, value, not: negated }] : [];
   });
@@ -221,13 +219,13 @@ const readAction = (raw: unknown): BehaviourAction[] => {
     if (raw === "pause" || raw === "stop" || raw === "show" || raw === "hide") return [{ action: raw, node: "" }];
     return [];
   }
-  if (!isMapping(raw)) return [];
+  if (!isObject(raw)) return [];
   const text = (value: unknown) => (typeof value === "string" ? value : "");
   if ("play" in raw) return [{ action: "play", clip: text(raw.play), node: text(raw.node) }];
   for (const verb of ["pause", "stop", "show", "hide"] as const) {
     if (verb in raw) return [{ action: verb, node: text(raw[verb]) }];
   }
-  if ("set" in raw && isMapping(raw.set)) {
+  if ("set" in raw && isObject(raw.set)) {
     const scope = (BEHAVIOUR_SCOPES as readonly string[]).includes(raw.scope as string) ? (raw.scope as BehaviourScope) : "spread";
     return Object.entries(raw.set).flatMap(([name, value]): BehaviourAction[] =>
       value === null || isScalar(value) ? [{ action: "set", name, value, scope }] : []);

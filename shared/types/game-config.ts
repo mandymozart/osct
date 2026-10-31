@@ -1,7 +1,8 @@
 /**
  * Game configuration contract – the shape of `game.config.json`.
  *
- * Written by the content build (`scripts/`), read by the app (`client/src/utils/game-config.ts`).
+ * Written by the content build (`scripts/`), read by the engine (`engine/src/content/game-config.ts`), which the reader
+ * and the editor load it with.
  * Defined once here (RULES #13). `*Data` = data loaded from JSON; the app maps it to its own model.
  * Runtime checks: `shared/guards/game-config.ts`.
  */
@@ -47,8 +48,11 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   type, a new enum value (asset type, category, step action, spread format). The app refuses content of a
  *   newer MAJOR at startup; it reads every MAJOR from `OLDEST_READABLE_SCHEMA_MAJOR` on as it is (so far the one
  *   MAJOR, the node tree, only added).
- * - MINOR: an addition older apps ignore – a new optional field (the book's `environment` since 2.8, its world and sky assets since 2.10), and since 2.6 a
- *   new node type (the guard lets an unknown one pass; a 2.5 app refuses it), and since 2.9 a new pass parameter
+ * - MINOR: an addition an older app of the same MAJOR still loads (RULES #10): what it does not know of a kind it knows
+ *   is skipped with a warning (`engine/src/content/forward-compatible.ts`), never refused. Apps before #220 refused
+ *   some of it (2.17, 2.19 and 2.21 below). The MINORs so far: a new optional field (the book's `environment` since 2.8,
+ *   its world and sky assets since 2.10), and since 2.6 a new node type (the guard lets an unknown one pass; a 2.5 app
+ *   refuses it), and since 2.9 a new pass parameter
  *   (the grade's `reach`: the guard ignores a parameter it does not know; a 2.8 app refuses it), and since 2.11 the
  *   content manifest's `book`, and since 2.12 a node's `name`, and since 2.13 a plugin's node type
  *   (`registerNodeType`, its parameters in the node's `params`; a 2.12 app renders nothing for it and keeps its
@@ -70,12 +74,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   (`false` = off: it keeps its place and values, the chain skips it, #233) – a 2.21 app skips the field as an unknown
  *   parameter (a 2.20 one ignores it) and runs the pass, and 2.23 changes no field but what an entry's `body` means: Markdown
  *   (paragraphs, emphasis, strong, links) with the book's variables in braces (`../text/entry-text.ts`) – plain text is
- *   valid Markdown and reads as before; an older app shows the source as it is, the stars, brackets and braces included.
- *   Any MINOR of the same MAJOR loads.
+ *   valid Markdown and reads as before; an older app shows the source as it is, the stars, brackets and braces included,
+ *   and 2.24 adds nothing to the content (shared/ tidied: one `isObject`, one camelCase name pattern, unused types
+ *   removed – #214).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.23";
+export const CONTENT_SCHEMA_VERSION = "2.24";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -180,15 +185,15 @@ export interface EntityRefData {
   ref: string;
 }
 
+/** The surfaces a target can be printed on: a page of a double page, the front or the back cover */
+export const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
+export type PrintSurface = (typeof PRINT_SURFACES)[number];
+
 /**
  * Where a target is printed: on which page and surface, and its box in mm from the surface's top left corner – the
  * editor's stage lays the target there (before the book's layout from the designed PDFs, which the content build
  * knows); the reader does not need it.
  */
-/** The surfaces a target can be printed on: a page of a double page, the front or the back cover */
-export const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
-export type PrintSurface = (typeof PRINT_SURFACES)[number];
-
 export interface PrintPlacement {
   page?: number;
   surface: PrintSurface;
