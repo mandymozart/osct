@@ -17,42 +17,45 @@ Tester package for the second trial (#36) – one PDF per paper size, how-to pag
 | 2026-10-28 | Samsung Galaxy S22 | Chromium 155 (Android) | 1.7.8 | A3 packed, 121 of 131 | 96 | 25 | 0 | 10 |
 | 2026-10-28 | Samsung Galaxy S22 (main lens) | Chrome 156 (Android) | 1.9.0 (dev) | retest of the 25 misses + p041-1 | 24 | 2 (flat logos) | 0 | – |
 | 2026-10-28 | iPhone 7 (iOS 15.8.3) | Safari 15.6 | 1.9.0 (dev) | – | cannot scan: the engine needs WebAssembly SIMD (iOS 16.4) | | | |
+| 2026-10-28 | iPhone 18 | Safari 26.6.1 | 1.9.6 (staging) | trial-2, 121 of 131 | 119 | 2 (flat logos) | 0 | 10 |
+| 2026-10-30 | iPhone 12 mini (dual wide camera) | Safari 26.6.1 | 1.43.0 (staging) | trial-2, 121 of 131 | 119 | 2 (flat logos) | 0 | 10 |
 
 Details: [2026-10-28 Galaxy S22](2026-10-28-galaxy-s22.md) (the first run, in Brave – on the ultra-wide lens),
-[2026-10-28 camera test](2026-10-28-camera.md) (main lens retest, iPhone 7, camera size).
+[2026-10-28 camera test](2026-10-28-camera.md) (main lens retest, iPhone 7, camera size),
+[2026-10-28 iPhone 18](2026-10-28-iphone-18.md), [2026-10-30 iPhone 12 mini](2026-10-30-iphone-12-mini.md).
 
 ## Not found, per device
 
 The triggers on the printout that a run did not find. ✗ not found, ✓ found, – not tested.
 
-| Page | Target | Printed size | S22 | iPhone 7 |
-|---|---|---|---|---|
-| 9 | p009-1 | 37 × 21 mm | ✗ | |
-| 13 | p013-1 | 39 × 22 mm | ✗ | |
-| 13 | p013-2 | 27 × 30 mm | ✗ | |
-| 17 | p017-1 | 21 × 30 mm | ✗ | |
-| 39 | p039-1 | 37 × 20 mm | ✗ | |
-| 41 | p041-1 | 26 × 42 mm | ✓ (retest) | |
-| 42 | p042-1 | 37 × 22 mm | ✗ | |
-| 50 | p050-1 | 39 × 25 mm | ✗ | |
-| 67 | p067-1 | 26 × 21 mm | ✗ | |
-| 95 | p095-1 | 20 × 26 mm | ✗ | |
-| 96 | p096-1 | 23 × 30 mm | ✗ | |
-| 96 | p096-2 | 25 × 25 mm | ✗ | |
-| 101 | p101-1 | 36 × 30 mm | ✗ | |
-| 105 | p105-1 | 34 × 28 mm | ✗ | |
-| 123 | p123-1 | 16 × 20 mm | ✗ (retest) | |
-| 129 | p129-1 | 26 × 26 mm | ✗ | |
-| 153 | p153-1 | 33 × 21 mm | ✗ | |
-| 163 | p163-1 | 35 × 24 mm | ✗ | |
-| 167 | p167-1 | 34 × 19 mm | ✗ | |
-| 173 | p173-1 | 36 × 24 mm | ✗ | |
-| 176 | p176-1 | 30 × 24 mm | ✗ | |
-| 186 | p186-1 | 20 × 30 mm | ✗ | |
-| 194 | p194-1 | 26 × 28 mm | ✗ | |
-| 206 | p206-2 | 22 × 39 mm | ✗ | |
-| 213 | p213-2 | 20 × 26 mm | ✗ | |
-| 215 | p215-1 | 23 × 47 mm | ✗ | |
+| Page | Target | Printed size | S22 | iPhone 7 | iPhone 18 | iPhone 12 mini |
+|---|---|---|---|---|---|---|
+| 9 | p009-1 | 37 × 21 mm | ✗ | | ✓ | ✓ |
+| 13 | p013-1 | 39 × 22 mm | ✗ | | ✓ | ✓ |
+| 13 | p013-2 | 27 × 30 mm | ✗ | | ✓ | ✓ |
+| 17 | p017-1 | 21 × 30 mm | ✗ | | ✓ | ✓ |
+| 39 | p039-1 | 37 × 20 mm | ✗ | | ✓ | ✓ |
+| 41 | p041-1 | 26 × 42 mm | ✓ (retest) | | ✓ | ✓ |
+| 42 | p042-1 | 37 × 22 mm | ✗ | | ✓ | ✓ |
+| 50 | p050-1 | 39 × 25 mm | ✗ | | ✓ | ✓ |
+| 67 | p067-1 | 26 × 21 mm | ✗ | | ✗ | ✗ |
+| 95 | p095-1 | 20 × 26 mm | ✗ | | ✓ | ✓ |
+| 96 | p096-1 | 23 × 30 mm | ✗ | | ✓ | ✓ |
+| 96 | p096-2 | 25 × 25 mm | ✗ | | ✓ | ✓ |
+| 101 | p101-1 | 36 × 30 mm | ✗ | | ✓ | ✓ |
+| 105 | p105-1 | 34 × 28 mm | ✗ | | ✓ | ✓ |
+| 123 | p123-1 | 16 × 20 mm | ✗ (retest) | | ✓ | ✓ |
+| 129 | p129-1 | 26 × 26 mm | ✗ | | ✗ | ✗ |
+| 153 | p153-1 | 33 × 21 mm | ✗ | | ✓ | ✓ |
+| 163 | p163-1 | 35 × 24 mm | ✗ | | ✓ | ✓ |
+| 167 | p167-1 | 34 × 19 mm | ✗ | | ✓ | ✓ |
+| 173 | p173-1 | 36 × 24 mm | ✗ | | ✓ | ✓ |
+| 176 | p176-1 | 30 × 24 mm | ✗ | | ✓ | ✓ |
+| 186 | p186-1 | 20 × 30 mm | ✗ | | ✓ | ✓ |
+| 194 | p194-1 | 26 × 28 mm | ✗ | | ✓ | ✓ |
+| 206 | p206-2 | 22 × 39 mm | ✗ | | ✓ | ✓ |
+| 213 | p213-2 | 20 × 26 mm | ✗ | | ✓ | ✓ |
+| 215 | p215-1 | 23 × 47 mm | ✗ | | ✓ | ✓ |
 
 ## Not on the printout
 
