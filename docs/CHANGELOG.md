@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.57.0 – 2026-10-30
 
 ### Added
 - **Switch a post-processing pass off without losing it** (#233): in the editor's post-processing section every pass is
