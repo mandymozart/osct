@@ -6,6 +6,10 @@ import { type ArStatus, Pages } from "@/types";
  * pages (entries, entry, Info) and the overlays (error, not found); the scan view only once AR has failed (its chunk
  * did not load, the camera did not start), so a failed AR chunk is answered by the notice instead of a dead camera view.
  * The onboarding (tutorial) plays without it.
+ *
+ * The same notice carries the hint that the book uses features this app version does not know yet (#220, RULES #10:
+ * content of a newer MINOR loads without them) – once per book version, at the same calm moments, with *Reload* when a
+ * new version is also ready. The hint goes first: it says what an update brings.
  */
 
 /** What the notice decides from */
@@ -33,3 +37,17 @@ export const isCalmMoment = (page: Pages | null, arStatus: ArStatus): boolean =>
 /** The notice is shown */
 export const showNewVersionNotice = ({ outdated, dismissed, page, arStatus }: NoticeState): boolean =>
   outdated && !dismissed && isCalmMoment(page, arStatus);
+
+/** What the notice says: the new version, or the hint about the book's newer features */
+export type NoticeMessage = "update" | "newer-content";
+
+/** The notice's state with the hint: `newerContent` = the book has skipped features and the hint was not closed for its version */
+export interface NoticeWithHintState extends NoticeState {
+  newerContent: boolean;
+}
+
+/** What the notice shows now, or null – the hint before the new version, either only at a calm moment */
+export const noticeMessage = (state: NoticeWithHintState): NoticeMessage | null => {
+  if (state.newerContent && isCalmMoment(state.page, state.arStatus)) return "newer-content";
+  return showNewVersionNotice(state) ? "update" : null;
+};

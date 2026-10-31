@@ -1,4 +1,4 @@
-import { getBook as getConfigBook, getConfigVersion, getPlugins, getSpreads, loadGameConfiguration } from "@engine/content/game-config";
+import { getBook as getConfigBook, getConfigVersion, getPlugins, getSkippedFeatures, getSpreads, loadGameConfiguration, type SkippedFeature } from "@engine/content/game-config";
 import type { ErrorInfo, PassData, Spread } from "@engine/types";
 import { authFetch, draftBaseUrl, getBook } from "./api";
 import { adoptRecordedSpecs } from "#lib/plugins/recorded.js";
@@ -16,6 +16,8 @@ class Content {
   bookPasses = $state<PassData[] | null>(null);
   hash = $state<string | null>(null);
   error = $state<ErrorInfo | null>(null);
+  /** What the draft has that this editor's engine does not know (a book from a newer content build – RULES #10): skipped on the stage */
+  skipped = $state<readonly SkippedFeature[]>([]);
   loading = $state(false);
 
   /** Where the book's content files live (the import's `assetsBase`), read once per book */
@@ -33,6 +35,7 @@ class Content {
       this.spreads = error ? [] : getSpreads();
       this.bookPasses = error ? null : getConfigBook().passes ?? null;
       this.hash = error ? null : getConfigVersion().hash ?? null;
+      this.skipped = error ? [] : getSkippedFeatures();
       // What the declared plugins recorded: the Inspector's rows before they load or run
       adoptRecordedSpecs(error ? [] : getPlugins());
       plugins.version += 1;

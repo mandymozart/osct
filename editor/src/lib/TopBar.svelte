@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
+  import { describeSkipped } from "@engine/content/game-config";
   import { getBook } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { isAdminPath, session } from "#lib/session.svelte.js";
@@ -10,7 +11,9 @@
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › spread` at the left,
-   * Publish (with its environment) while a book is open, then Admin, the e-mail and Sign out at the right.
+   * Publish (with its environment) while a book is open, then Admin, the e-mail and Sign out at the right. When the open
+   * book's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
+   * opens their list: the stage shows the book without them.
    */
   const bookId = $derived(page.params.book ?? null);
   const spreadId = $derived(page.params.spread ?? null);
@@ -28,6 +31,10 @@
   const spread = $derived(spreadId && content.bookId === bookId ? content.spread(spreadId) : undefined);
   /** The spread's full name, never cut: `p. 12–13 · title`, a cover by its title (else its format) */
   const spreadLabel = $derived(!spread ? spreadId : formatLabelOf(spread) ? spread.title || formatLabelOf(spread) : `p. ${captionOf(spread) || pagesOf(spread)}`);
+
+  /** The open book's features the stage skips */
+  const skipped = $derived(bookId && content.bookId === bookId ? content.skipped : []);
+  const SKIPPED_HELP = "This book was built with a newer content schema than this editor knows. The stage skips what it does not know – update the editor (a newer release) to see and edit everything.";
 </script>
 
 <header class="top" data-app-ui>
@@ -49,6 +56,12 @@
       <span class="crumb current" aria-current="page">Admin</span>
     {/if}
   </nav>
+  {#if skipped.length}
+    <details class="skipped">
+      <summary class="small danger" data-help-name="Unknown features" data-help={SKIPPED_HELP} title={SKIPPED_HELP}>{skipped.length} unknown {skipped.length === 1 ? "feature" : "features"}</summary>
+      <ul class="small" aria-label="Skipped on the stage">{#each skipped as feature (`${feature.path} ${feature.kind}`)}<li>{describeSkipped(feature)}</li>{/each}</ul>
+    </details>
+  {/if}
   {#if bookId}
     {#key bookId}<PublishButton {bookId} />{/key}
   {/if}
@@ -70,6 +83,10 @@
   .crumb[aria-current="page"] { font-weight: 600; }
   .sep { flex: none; color: var(--muted); }
   .crumb.spread { flex: none; }
+  .skipped { position: relative; flex: none; }
+  .skipped summary { cursor: pointer; white-space: nowrap; }
+  .skipped ul { position: absolute; right: 0; top: calc(100% + .375rem); z-index: 30; width: max-content; max-width: min(32rem, calc(100vw - 1rem));
+    margin: 0; padding: .5rem .75rem .5rem 1.5rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); overflow-wrap: anywhere; }
   /* On a phone the book's crumb is the way back to the spreads: a full-height touch target */
   @media (pointer: coarse) { a.crumb { line-height: var(--control-height); } }
   @media (max-width: 47.9rem) {

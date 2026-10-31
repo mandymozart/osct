@@ -4,6 +4,46 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – a MINOR never breaks an older app (#220); rules per package (#221)
+
+- **Tilman (#220)**: "a MINOR must not break. But exactly the features that are not supported then won't work – that's
+  okay, it can be shown with warnings. The app has to be updated if people want to see them." RULES #10 rewritten:
+  MAJOR = an older app cannot load the book (the shape changed), MINOR = it loads, unknowns skipped with a warning and
+  an update hint; a newer link version is information only (as `LinkService` already treated it). ORCHESTRATION's bump
+  line ("schema change bumps the app MINOR") is now RULES #23's, ORCHESTRATION points there.
+- **Where the tolerance lives**: in the engine, not in `shared/` – `engine/src/content/forward-compatible.ts`
+  (`skipUnknownFeatures`) runs in `loadGameConfiguration` before `assertGameConfiguration`, on a `structuredClone` of the
+  configuration, only for content of the app's MAJOR and a higher MINOR. `shared/guards/` is untouched, so no schema
+  bump (the guard's behaviour is not the contract), and the content build, `content sync` and the MCP server, which
+  call the guard directly, stay strict (the editor's API has its own checks in PHP). The skipping mirrors the guard's decisions (recorded plugin specs,
+  `allowUnknown` when a plugin recorded nothing or on the editor's stage) so it never drops what the guard would accept.
+- **Skipped**: unknown types in typed lists (components, filters, passes) and a node's material; behaviour actions
+  (a rule left without actions goes – running it with fewer actions would be fine, but an empty `do` is a broken rule),
+  unknown fields of a behaviour / rule / action; parameters a known spec lacks (component, pass, filter, light,
+  material, plugin node type); a recorded spec's parameter of an unknown kind (then its values are unknown parameters).
+  **Listed only**: an unknown node type (the guard already lets it pass for newer content; the engine renders nothing),
+  a plugin built against a newer plugin API MINOR. **Still refused**: broken shapes, wrong types, a new value of a
+  required enum (category, asset type, step action, spread format – a MAJOR's change), a newer MAJOR – now checked
+  *before* the guard (`versionOf` → `checkContentCompatibility`), so a newer MAJOR with a changed shape gets
+  NOT_SUPPORTED ("update the app") instead of GAME_CONFIGURATION_INVALID. A condition of a form the app does not know
+  (`when: { tries: { gt: 3 } }`) stays an error – it cannot be told from a typo, and running the rule without its
+  condition would be wrong; a later MINOR that adds condition forms should bring a skip for them.
+- **Simulating an older app**: `KnownFeatures` (schema, component / node / pass / filter types, behaviour verbs, parameter
+  kinds, plugin API, which recorded kinds the content may use) – `currentFeatures()` by default, `LoadOptions.knownFeatures`
+  in tests. The test book (engine `content/__tests__/forward-compatible.test.ts`) reads a 2.21 book as 2.19, 2.18 and
+  2.16 apps would. Apps released before this change (schema ≤ 2.21) don't skip – docs/content.md's table says where
+  they refuse.
+- **The reader's hint** rides in `<new-version-notice>` (one notice at the foot, never two stacked): `noticeMessage()` in
+  `new-version.ts` puts the hint first, both only at a calm moment; *Reload* shows only when a new version is ready. Once
+  per book version: the device remembers the build hash (`osct-newer-content-seen`) the first time the hint shows; the
+  cross closes it for the session. Texts `update:newerContent`, `update:close`.
+- **The editor**: `content.skipped` (from `getSkippedFeatures()`), a small "N unknown features" disclosure in the top bar
+  with the list; the explanation is its help (`data-help`), RULES #32.
+- **#221 (Tilman: yes)**: RULES #6/#17/#19 scoped per package; engine/'s and editor/'s conventions written down as the
+  code has them (engine: barrels only in `scene/`, `scene/post/`, `scene/look-around/`, `types/`, files named after
+  their topic; editor: no barrels, `#lib/…` with extension, PascalCase Svelte components, runes modules `*.svelte.ts`
+  with one instance). Unifying file and class names across packages stays #27.
+
 ## 2026-10-31 – the reader notices a new version (#231)
 
 - **Detection**: `UpdateService` (client/src/services/) gets the registration from `ServiceWorkerService` and calls

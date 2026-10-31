@@ -41,10 +41,14 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
    the scene is built on the first scan (RUNNING).
 5. Content is placeholder until final content arrives. Keep texts/colors/media swappable
    (config / CSS variables), never hardcoded in components.
-6. Match existing code style: custom element per file, `styles`/`template` getters,
+6. Match existing code style – **per package** (Tilman, 2026-10-31, #221): rules #6, #17 and #19 are written for the
+   reader (`client/`); `engine/` and `editor/` keep their own conventions, written down in #17 and #19 as the code has
+   them. The reader: custom element per file, `styles`/`template` getters,
    `GameStoreService.getInstance()`, subscribe via `subscribeToProperty`, keep the unsubscribe function it
    returns and call it in `disconnectedCallback`. Event listeners are added and removed with the **same
-   function reference** (a class field or one bound once) – a fresh `.bind(this)` on removal removes nothing.
+   function reference** (a class field or one bound once) – a fresh `.bind(this)` on removal removes nothing (in every
+   package). The editor: Svelte 5 components with runes (`$state`, `$derived`, `$props`), effects clean up what they
+   start (the returned function).
 7. Taxonomy: **entries are top level**; target optional per entry; AR entity optional per
    target. Never assume an entity is video-only – keep entity types extensible.
 8. Content (YAML + media) → built by `scripts/` into `client/src/game.config.json`
@@ -64,14 +68,24 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `client/package.json`, `scripts/package.json`, `server/api/src/Version.php` and `mcp/package.json` (+ `VERSION` in
     `mcp/src/user.ts`) always carry the same version (checked by tests + CI); the source is `client/package.json`.
     **Content compatibility = the content schema `MAJOR.MINOR`, nothing else**: `CONTENT_SCHEMA_VERSION`
-    (`shared/types/game-config.ts`) versions the contract in `shared/`. MAJOR = older apps cannot read it (new
-    required field, renamed or removed field, changed type, new enum value) – the app refuses content of a newer
-    MAJOR at startup and reads every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` as it is (raise it when a
-    MAJOR removes or renames something). MINOR = additions older apps ignore (new optional field, and since 2.6 a
-    new **node type**: the guard lets an unknown one pass, the engine renders nothing for it and keeps its children;
-    the content build and the editor's API still refuse it, unless a plugin of the book registers it – 2.13,
-    `registerNodeType`; 2.17 a node's `material` – `registerMaterial` – and the parameter kind `texture`) – any MINOR of the
-    same MAJOR loads.
+    (`shared/types/game-config.ts`) versions the contract in `shared/`. **A MINOR never breaks an older app** (Tilman,
+    2026-10-31, #220: "a MINOR must not break. But exactly the features that are not supported then won't work – that's
+    okay, it can be shown with warnings. The app has to be updated if people want to see them."):
+    - **MAJOR = an older app cannot load the book, because the shape changed**: a new required field, a renamed or
+      removed field, a changed type, a new value of a required field's enum (asset type, category, step action, spread
+      format). The app refuses content of a newer MAJOR at startup – before its guard reads it – and reads every older
+      MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` as it is (raise it when a MAJOR removes or renames something).
+    - **MINOR = an older app still loads the book.** What it does not know of a kind it knows – a component, a filter,
+      a pass, a material, a behaviour action, a field of a behaviour, a parameter of a known spec, a parameter kind of a
+      plugin's recorded spec – is **skipped with a warning**, never a refusal of the node, the spread or the book; a node
+      type nobody registered renders nothing and keeps its children. The engine drops it from the configuration it reads
+      (`engine/src/content/forward-compatible.ts`, before the guard) and lists it (`getSkippedFeatures()`): the reader
+      shows a quiet update hint once per book version (`<new-version-notice>`), the editor a warning in its top bar. A
+      broken shape or a wrong type for a known field stays an error. So a MINOR only adds what an older app can leave
+      out – an optional field, an entry of a typed list, a type, a parameter; `docs/content.md` ("Schema and app
+      versions") says per MINOR what an older app skips. Apps before #220 refused some of it (2.17, 2.19, 2.21 – the
+      table). Content of the app's own or an older schema is read without skipping, and the content build and the
+      editor's API stay strict: an author's unknown type is a typo there, never skipped.
     Every change in `shared/` needs a bump, comments included: `shared/content-schema.json` locks the checksum of
     `shared/` to the schema (`npm run schema:lock` in `scripts/`; a test fails otherwise). `shared/api/` is no part of
     the contract and of the lock: the instance API's answers and rules (editor, MCP server, CLI), which content never
@@ -81,7 +95,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     one). The first storage format is 1 – nothing from before 1.1.x is converted.
     The content *data* is identified by the build checksum (`version.hash`), not by the version.
     Links: plain URLs `/<route>/<value>?osct=<version>` (`services/LinkService.ts`); no content hash in links;
-    only a newer link version needs an action (reload).
+    the link's version is information only – a newer one needs no action (a new app reaches the reader through
+    `<new-version-notice>`, #231).
     **No backwards compatibility below 1.1.0 – for any feature**: no old link formats (`?code=`), no storage,
     content or config formats from before 1.1.x, no shims for old behaviour – nothing was deployed publicly
     before. (Browser/device fallbacks are not affected.)
@@ -132,7 +147,26 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     - **`utils/`**: only helpers used across several of these layers. Logic used in one place goes
       next to its owner. `utils/game-config.ts` is a primitive service (module singleton).
     - File names: `services/`, `store/` and its managers are PascalCase after the one class they export;
-      everything else (components, pages, utils, types) is kebab-case.
+      everything else (components, pages, utils, types) is kebab-case. (Where the reader's names don't match their
+      class yet, and a single convention for every package: #27.)
+    - **`engine/`** (no package of its own: the app that imports it compiles it through the `@engine` alias; its tests run
+      in `client/`'s vitest): `content/` – the content runtime (`game-config.ts`: load, guard, accessors; the forward
+      compatibility; compressed files); `scene/` – the AR scene and everything three.js / 8th Wall (entities, plugins and
+      their runtime, behaviour, materials, textures, trackers, `post/` passes, `look-around/`); `types/` – the contract
+      re-exported from `shared/` and the engine's own types (scene, errors, graphics); `utils/` – helpers without three.js
+      the apps' dev tools use too (device storage, camera requests, prepared spreads, trigger protocol). Files are
+      kebab-case, named after their topic, not their class (`assets.ts` → `AssetStore`, `view.ts` → `ArView`,
+      `tracker.ts` → `ImageTracker`); classes PascalCase, the interfaces of swappable parts `I*` (`IArScene`,
+      `IImageTracker`), errors `*Error`. Tests in `__tests__/` next to the code.
+    - **`editor/`** (SvelteKit): `src/routes/` the pages (`[book]/`, `[book]/[spread]/`, `admin/`); `src/lib/` the app's
+      parts – Svelte components PascalCase, one per file (`TopBar.svelte`, `PublishButton.svelte`); `lib/components/`
+      the shared controls built once (RULES #32: `Icon`, `ScrubNumber`, `Section`, `Segmented`, …); `lib/panels/` the
+      sheet's tabs and their views (`EntityPanel`, `TreePanel`, `CodePanel`, …); `lib/stage/` the stage around the engine
+      (mock stage and tracker, gizmo, desk, helpers – three.js); `lib/plugins/` the Code tab's compiler and editor. Logic
+      is kebab-case TypeScript beside the component that uses it (`new-version.ts` for `NewVersionBar.svelte`), pure
+      where it can be, so `lib/__tests__/` (and `stage/__tests__/`, `plugins/__tests__/`) test it without a DOM. Shared
+      state is a runes module `*.svelte.ts`: a class with `$state` fields and one exported instance in camelCase
+      (`content`, `session`, `selection`, `plugins`). Texts are English, written in the component (RULES #20).
 
 18. **Design styles** ("no CSS mess"): values come from `agents/DESIGN.md` (measured from the PDF). Colors,
     gradients, shadows, sizes only as tokens in `client/src/main.css`; controls and text effects only through
@@ -160,7 +194,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       gold label, never hand-written markup. Component styles that must beat the adopted design sheet need more
       specificity (`:host .pill`) – the sheet comes after `<style>`.
 
-19. **Imports**: every folder has an `index.ts` barrel.
+19. **Imports** – the reader (`client/`): every folder has an `index.ts` barrel.
     - Across folders import the barrel: `@/types`, `@/utils`, `@/services`, `@/styles`, `@/pages`,
       `@/components/<group>` – never a file inside another folder, never `@/types/<file>`.
     - Inside a folder (or a component group, e.g. `ar-bridges/ar` → `../utils`) import relative files;
@@ -173,6 +207,16 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       enum used only as a type): `verbatimModuleSyntax` is on in every TypeScript config (#176), so the compiler
       flags a missing one and keeps every other import as written. A type import is dropped when compiled: keep a
       separate side-effect import (`import "@/pages"`) where registration matters.
+    - **`engine/`**: barrels only where a folder is used as one piece – `scene/`, `scene/post/`, `scene/look-around/`,
+      `types/`; `content/` and `utils/` have none (one file, one topic). Inside the engine imports are relative and name
+      the barrel's file (`../types/index`, `./post/index`); the contract comes from `@shared/types/…` and
+      `@shared/guards/…`. The apps import a barrel where one exists (`@engine/types`, `@engine/scene`) and a file
+      otherwise (`@engine/content/game-config`, `@engine/utils/device-storage`); a file the barrel leaves out on purpose
+      by name (`@engine/scene/xr8-tracker` – only the reader loads the 8th Wall engine). The engine imports neither app.
+    - **`editor/`**: no barrels. Across folders `#lib/<path>` (package.json `imports`) **with the file's extension** –
+      `#lib/content.svelte.js`, `#lib/components/Icon.svelte` (SvelteKit 3); inside one folder relative (`./Icon.svelte`);
+      the engine and the contract through `@engine/…` and `@shared/…`, SvelteKit through `$app/…`. Type-only imports
+      as above (`import type`).
 
 20. **UI texts**: never hard-coded – every text shown to readers (incl. aria labels and notices) comes from
     i18next directly (`import { t } from "i18next"`, then `t("namespace:key")`; en default, fr, nl, de; one
@@ -203,8 +247,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 23. **Versions and changelog**: the version (RULES #10) only goes up, and every shipped
     change is in `docs/CHANGELOG.md`. Check before pushing: `.github/scripts/check-version.sh --strict`
     (also run by Checks – strict on `develop`, `main` and PRs into them).
-    - **What bumps:** PATCH = fixes, refactors, comments, styling, tooling; MINOR = new features compatible
-      with existing content and progress; MAJOR = progress format change (content compatibility is the content
+    - **What bumps:** PATCH = fixes, refactors, comments, styling, tooling, shipped docs (`client/public/`); MINOR = new
+      features compatible with existing content and progress, and **every content schema change** (a schema MAJOR or
+      MINOR – RULES #10 – bumps the app MINOR); MAJOR = progress format change (content compatibility is the content
       schema, RULES #10). Changes only in `agents/`, `docs/` or `*.md` need no bump.
     - **How:** `client/package.json` + lock, `scripts/package.json` + lock, `mcp/package.json` + lock (+ `VERSION` in
       `mcp/src/user.ts`), `server/api/src/Version.php` (`npm version X.Y.Z --no-git-tag-version` in client/, scripts/ and

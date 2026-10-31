@@ -133,7 +133,7 @@ Video filters are a list, applied in order; each has a `type` and optional param
 the defaults). Today there is one filter type:
 
 | `chromaKey` parameter | Values | Default | What it does |
-|---|---|---|---|
+|---|---|---|---|---|
 | `color` | `"#rrggbb"` | `"#00ff00"` | Key color that becomes transparent |
 | `mode` | `auto`, `chroma`, `luma` | `auto` | `chroma` compares the color tone (green, purple, …), `luma` the brightness (black, white); `auto` picks `luma` for black/grey/white |
 | `threshold` | 0–1 | 0.3 (luma 0.06) | How close to the key color disappears – higher removes more |
@@ -521,7 +521,7 @@ still add on top. A `texture` parameter names a procedural texture of a plugin o
 with it; the scene's own ambient light and sun stay. Its values are under `light:` (every one optional):
 
 | `light` value | Values | Default | What it does |
-|---|---|---|---|
+|---|---|---|---|---|
 | `kind` | `point`, `spot`, `directional` | `point` | A point light shines in every direction from the node; a spot in a cone, a directional light as parallel rays (the sun) – both along the node's own **−z**, so turn the node (`rotation`) to aim them. By default a light sits half a unit along its parent's +z (`position: [0, 0, 0.5]`: above the page for a root or a group, in front of a model, whose +z points towards the reader), pointing back at it |
 | `color` | `#rrggbb` | `#ffffff` | The light's colour |
 | `intensity` | 0 … 10 | `0.25` | How bright, in the node's units – whatever the target's printed size (the engine scales it to the world): a point or spot light of 1 lights a surface one target width away fully (a white page turns white; more clips, the reader has no tone mapping), half as far away four times as much; a directional light of 1 lights every surface fully |
@@ -669,36 +669,60 @@ Then look at the result in the app – see the quick start in the [README](../RE
 The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
 (`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
 every MINOR of its schema MAJOR and every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR`; content of a newer
-MAJOR is refused at startup. This table names, per schema,
-the app version that first ships it. The last row is the current schema (a test checks that it matches
-`CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
+MAJOR is refused at startup.
 
-| Schema | First app version | Status | What the schema adds |
-|---|---|---|---|
-| 1.1 | 1.7.6 | released | content on the CDN |
-| 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 |
-| 2.0 | 1.10.0 | released | the entity as a tree of nodes |
-| 2.1 | 1.10.0 | released | print placement of targets (`print`) |
-| 2.2 | 1.10.0 | released | components (animation) |
-| 2.3 | 1.10.0 | released | spread formats (cover, back) and the plugins list |
-| 2.4 | 1.11.0 | released | plugins – the book's own code, compiled by the content build (plugin API 1.0) |
-| 2.5 | 1.12.0 | released | post-processing passes |
-| 2.6 | 1.13.0 | released | light nodes: point, spot and directional lights as a node type |
-| 2.7 | 1.15.0 | released | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
-| 2.8 | 1.17.0 | released | the book's environment: the world and the onion sky |
-| 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know |
-| 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) |
-| 2.11 | 1.22.0 | in develop | the content manifest names its book (`latest.json` / `versions.json` `book`) |
-| 2.12 | 1.27.0 | in develop | a node's optional `name` (the editor's tree shows it; the reader ignores it) |
-| 2.13 | 1.32.0 | in develop | a plugin's node type (`registerNodeType`, plugin API 1.2): its parameters in the node's `params` |
-| 2.14 | 1.34.0 | in develop | a plugin's recorded `registered` (the specs of its components, layers, node types and passes – the guard checks them) |
-| 2.15 | 1.35.0 | in develop | a parameter spec's optional `label` (plugin API 1.3) – the editor's row; in the content only inside a plugin's recorded specs |
-| 2.16 | 1.36.1 | in develop | nothing new in the content – shared/ imports its types type-only (`verbatimModuleSyntax`, #176) |
-| 2.17 | 1.41.0 | in develop | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) – a 2.16 app refuses a recorded spec with a `texture` parameter |
-| 2.18 | 1.49.0 | in develop | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
-| 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) – a 2.18 app refuses a node that carries one |
-| 2.20 | 1.53.0 | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) – a 2.19 app's engine has none: a node type whose build calls it renders nothing |
-| 2.21 | 1.54.0 | in develop | a `passes` entry may name a pass a plugin of the book registers (`registerPass`), its parameters checked against the recorded spec (#216) – a 2.20 app refuses a book whose book or spread passes name one |
+**A MINOR never breaks an older app** (#220). An app reading a book of a newer MINOR loads it without what it does not
+know, and lists what it skipped (`getSkippedFeatures()`, `engine/src/content/forward-compatible.ts`):
+
+- **Skipped** (dropped with a warning in the console): a component in a node's `components`, a filter in a video's
+  `filters`, a pass in a `passes` list, a node's `material` – of a type that is neither built in nor recorded by a
+  plugin of the book; a behaviour action (a rule left without an action goes with it) and an unknown field of a
+  behaviour, a rule or an action; a parameter a known spec does not have (a component's, a pass's, a filter's, a
+  light's, a material's, a plugin node type's); a parameter of a plugin's recorded spec whose kind the app does not
+  know (and the values set for it).
+- **Kept and listed**: a node of a type nobody registered (it renders nothing, its children stay); a plugin built
+  against a newer plugin API MINOR (what it uses of that MINOR does not work – a node type whose build calls it renders
+  nothing).
+- **Still refused**: a broken shape (a list that is not a list, an action with two verbs), a wrong type for a known
+  field, a new value of a required field (a category, an asset type, a step action, a spread format) – these are a
+  MAJOR's changes – and a newer MAJOR.
+
+The reader then shows a quiet hint at a calm moment, once per book version: *This book uses features this app version
+doesn't know yet – update the app to see everything* (with *Reload* when a new version is ready). The editor shows the
+list in its top bar ("N unknown features"). Content of the app's own or an older schema is read without skipping, and
+the content build and the editor's API stay strict – an unknown type there is a typo and refused.
+
+So a MINOR may add only what an older app can leave out, and its row says what an older app shows without it (*In an
+older app*). Apps before the release of #220 (schema 2.21 and older) did not skip: their guard refused what it did not
+know – the rows say where. This table names, per schema, the app version that first ships it. The last row is the
+current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
+
+| Schema | First app version | Status | What the schema adds | In an older app |
+|---|---|---|---|---|
+| 1.1 | 1.7.6 | released | content on the CDN | – |
+| 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 | – |
+| 2.0 | 1.10.0 | released | the entity as a tree of nodes | refused (a new MAJOR: the node tree) |
+| 2.1 | 1.10.0 | released | print placement of targets (`print`) | – |
+| 2.2 | 1.10.0 | released | components (animation) | – |
+| 2.3 | 1.10.0 | released | spread formats (cover, back) and the plugins list | – |
+| 2.4 | 1.11.0 | released | plugins – the book's own code, compiled by the content build (plugin API 1.0) | – |
+| 2.5 | 1.12.0 | released | post-processing passes | – |
+| 2.6 | 1.13.0 | released | light nodes: point, spot and directional lights as a node type | a 2.5 app refuses a light node |
+| 2.7 | 1.15.0 | released | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) | – |
+| 2.8 | 1.17.0 | released | the book's environment: the world and the onion sky | – |
+| 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know | a 2.8 app refuses the grade's `reach` |
+| 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) | – |
+| 2.11 | 1.22.0 | in develop | the content manifest names its book (`latest.json` / `versions.json` `book`) | ignored |
+| 2.12 | 1.27.0 | in develop | a node's optional `name` (the editor's tree shows it; the reader ignores it) | ignored |
+| 2.13 | 1.32.0 | in develop | a plugin's node type (`registerNodeType`, plugin API 1.2): its parameters in the node's `params` | a 2.12 app renders nothing for the plugin's node and keeps its children |
+| 2.14 | 1.34.0 | in develop | a plugin's recorded `registered` (the specs of its components, layers, node types and passes – the guard checks them) | ignored |
+| 2.15 | 1.35.0 | in develop | a parameter spec's optional `label` (plugin API 1.3) – the editor's row; in the content only inside a plugin's recorded specs | ignored |
+| 2.16 | 1.36.1 | in develop | nothing new in the content – shared/ imports its types type-only (`verbatimModuleSyntax`, #176) | – |
+| 2.17 | 1.41.0 | in develop | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) | a 2.16 app refuses a recorded spec with a `texture` parameter |
+| 2.18 | 1.49.0 | in develop | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) | – |
+| 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) | a 2.18 app refuses a node that carries a behaviour |
+| 2.20 | 1.53.0 | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) | a 2.19 app's engine has no `api.feedback`: a node type whose build calls it renders nothing |
+| 2.21 | 1.54.0 | in develop | a `passes` entry may name a pass a plugin of the book registers (`registerPass`), its parameters checked against the recorded spec (#216) | a 2.20 app refuses a book whose book or spread passes name a plugin's pass |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

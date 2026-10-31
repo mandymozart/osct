@@ -1,5 +1,7 @@
 {
   "ready": "Une nouvelle version de l'application est prête.",
   "reload": "Recharger",
-  "later": "Plus tard"
+  "later": "Plus tard",
+  "newerContent": "Ce livre utilise des fonctions que cette version de l'application ne connaît pas encore – mets l'application à jour pour tout voir.",
+  "close": "Fermer"
 }
