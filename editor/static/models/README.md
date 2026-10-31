@@ -1,7 +1,7 @@
 # Models of the editor's stage
 
 The desk under the book (drawn by `editor/src/lib/stage/mock-stage.ts`): Egon Eiermann's table frame with two tops of
-the same 1.8 × 0.8 m and the same surface height – the Stage panel's *top* (`top` in `editor/src/lib/stage/preview.ts`,
+the same 1.8 × 0.8 m and the same surface height – the toolbar's *view* group's *top* (`top` in `editor/src/lib/stage/preview.ts`,
 #226) shows one and hides the other. Our own low-poly model, built by `editor/tools/desk-eiermann.py` (Blender,
 headless):
 

@@ -1,6 +1,6 @@
 """
 The editor stage's desk, built from primitives as low-poly glTF for `editor/src/lib/stage/mock-stage.ts`: a table on
-Egon Eiermann's steel tube frame (Tischgestell 1, 1953) with two tops to choose from (the Stage panel's *top*, #226) –
+Egon Eiermann's steel tube frame (Tischgestell 1, 1953) with two tops to choose from (the editor toolbar's view group's *top*, #226) –
 its own screen-printed plywood top, and a linoleum top: blue-grey linoleum on an oak-faced plywood board, the board's
 cut edges showing its plies. Both tops have the same outer size and surface height; the stage shows one of them.
 

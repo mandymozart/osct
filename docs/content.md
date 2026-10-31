@@ -295,7 +295,7 @@ cut (logged). An action that cannot run – a node or a clip that is not there �
             do: [{ hide: hint }, { emit: openDoor }]
 ```
 
-The editor's Entity panel edits the rules without YAML ([editor](editor.md)), and its Stage panel's timeline shows
+The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the spread's *vars and events* there shows
 each rule that ran. What a rule cannot do – move a node over time, draw text, count the progress – is a plugin's job;
 the demo's `door` plugin hears the rule's `openDoor` and lifts the door ([plugins](plugins.md) "Behaviour and plugins").
 Variables are not declared yet: a rule names them, a missing one is *not set* (`null`).
@@ -307,7 +307,7 @@ against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin impor
 api, registered }]`); the reader loads it with the AR scene. `registered` (content schema 2.14, optional) is what the
 run recorded – `{ components, nodeTypes, passes }` and, since 2.17, `materials` and `textures`, each a map of type →
 spec (layers are under `components`) – so the
-app's guard, the editor's API, the MCP server and the editor's Entity panel know a plugin's types and parameters without
+app's guard, the editor's API, the MCP server and the editor's Inspector know a plugin's types and parameters without
 running it: the guard checks a plugin component's or node type's parameters like a built-in one's and refuses a type
 no declared plugin registers. A plugin declared without it (an older build) is unknown until it loads; the guard then
 lets its types pass. The engine ignores the field. What a plugin registers is used in the content like `animation`:
@@ -315,7 +315,7 @@ lets its types pass. The engine ignores the field. What a plugin registers is us
 - `api.registerComponent(type, spec, apply)` – code on a node. `spec` = `{ description, nodeTypes?, params }` with
   every parameter's `kind` (`number` with `min` / `max`, `color`, `choice` with `options`, `boolean`, `string`),
   `default` and `description`, and an optional `label` (plugin API 1.3, schema 2.15: the words the row shows, 1–24
-  characters; without one the name split into words) – the editor's Entity panel shows the rows from it.
+  characters; without one the name split into words) – the editor's Inspector shows the rows from it.
   `apply({ node, params, object, placed, target, three })` runs when the node is built and returns hooks: `update(delta)` every frame, `onFound`,
   `onLost`, `onTap`, `onPause`, `dispose`, `tune(params)` (new values in place; `false` = build the node anew). A
   parameter of kind `texture` (plugin API 1.4, schema 2.17) takes a picture: `""` (none), a procedural texture's type
@@ -387,10 +387,10 @@ all of it on the stage, in the workspace's **Environment** tab (`PUT /editor/boo
 **Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
 whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
 `passes` too – **the master**: they apply to every spread without a list of its own; a spread's `passes` override
-them (`passes: []` on a spread turns them off there). The editor edits both in the Stage panel's *post-processing*
-section ([editor](editor.md)): the book's with `PUT /editor/books/{id}/passes`, a spread's own with
+them (`passes: []` on a spread turns them off there). The editor edits both in the Inspector's *post-processing*
+section while the spread is selected ([editor](editor.md)): the book's with `PUT /editor/books/{id}/passes`, a spread's own with
 `PUT …/spreads/{sid} { passes }`. Every built-in type is defined once in `shared/types/passes.ts` with its parameters,
-so the editor's Stage panel, the build and the guard read one definition; missing parameters take the defaults. A
+so the editor's Inspector, the build and the guard read one definition; missing parameters take the defaults. A
 spread without passes costs nothing – the scene renders straight to the canvas as before, the look-around world too.
 
 **The look-around world goes through the passes** ([look-around](look-around.md)): while passes run, the world around
