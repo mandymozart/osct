@@ -93,3 +93,16 @@ export const expandedGroups = (groups: readonly GroupShape[], available: number,
   }
   return expanded;
 };
+
+/**
+ * Where a toolbar group's panel puts the focus when it opens: on its first control when the keyboard opened it (↓ / ↑
+ * on the button), else on the panel itself – focusing a number field on a phone brings up the keyboard, which resizes
+ * the window and would close the panel again at once.
+ */
+export const openFocus = (byKeyboard: boolean): "first" | "panel" => (byKeyboard ? "first" : "panel");
+
+/**
+ * Whether a window resize closes an open toolbar panel: only a change of width (a turned phone, a resized window) –
+ * a phone's keyboard or its address bar only changes the height.
+ */
+export const closesOnResize = (widthAtOpen: number, width: number): boolean => width !== widthAtOpen;

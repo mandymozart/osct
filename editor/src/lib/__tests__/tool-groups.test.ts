@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeIndex, activeOption, expandedGroups, groupWidth, menuStep, toolbarWidth, type GroupShape, type ToolbarMetrics } from "../tool-groups";
+import { activeIndex, activeOption, closesOnResize, expandedGroups, groupWidth, menuStep, openFocus, toolbarWidth, type GroupShape, type ToolbarMetrics } from "../tool-groups";
 
 const shading = [
   { value: "wireframe", name: "Wire" },
@@ -80,5 +80,16 @@ describe("which groups stay expanded: decided by the toolbar's room, not the dev
 
   it("collapses everything in a room too small for anything", () => {
     expect(expandedGroups(groups, 10, finger)).toEqual([false, false, false]);
+  });
+});
+
+describe("a toolbar panel on a phone", () => {
+  it("opened by a tap focuses the panel, not a field – no keyboard pops up", () => {
+    expect(openFocus(false)).toBe("panel");
+    expect(openFocus(true)).toBe("first");
+  });
+  it("stays open when only the height changes (the keyboard, the address bar)", () => {
+    expect(closesOnResize(360, 360)).toBe(false);
+    expect(closesOnResize(360, 780)).toBe(true);
   });
 });
