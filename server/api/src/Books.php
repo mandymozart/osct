@@ -485,9 +485,9 @@ final class Books
     /**
      * PUT /editor/books/{id}/spreads/{spreadId} { title?, format?, passes? } → { spread }: a spread's title, format
      * (`spread` | `cover` | `back`, content schema 2.3) and post-processing passes (schema 2.5: a list of
-     * `{ type, …parameters }` with a built-in type – `null` removes the list, so the book's passes apply; `[]` turns
-     * them off). The pages stay – a cover is page 0, the back the page after the last; `format: cover` on a spread
-     * with other pages is refused.
+     * `{ type, …parameters }` with a built-in type or – schema 2.21 – a pass the book's plugins register (`passes`) –
+     * `null` removes the list, so the book's passes apply; `[]` turns them off). The pages stay – a cover is page 0, the
+     * back the page after the last; `format: cover` on a spread with other pages is refused.
      */
     public static function putSpread(string $bookId, string $spreadId): never
     {
@@ -515,7 +515,7 @@ final class Books
             }
             if (property_exists($body, 'passes')) {
                 if ($body->passes === null) unset($spread->passes);
-                else $spread->passes = self::passes($body->passes);
+                else $spread->passes = self::passes($body->passes, 'invalid-spread', self::pluginPasses($bookId));
                 $touched = true;
             }
             if (!$touched) throw new ApiError(400, 'invalid-spread', 'Send { title }, { format } and / or { passes }.');
@@ -568,7 +568,8 @@ final class Books
     /**
      * PUT /editor/books/{id}/passes { passes: [{ type, …parameters }] | null } → 200 { passes }: the book's post-processing
      * (content schema 2.5, `book.passes`) – the master every spread without a list of its own shows (a spread's
-     * `passes` override it, `PUT …/spreads/{sid}`). `null` removes it; the shape is checked as for a spread's.
+     * `passes` override it, `PUT …/spreads/{sid}`). `null` removes it; the shape is checked as for a spread's – a
+     * plugin's pass (schema 2.21) included.
      */
     public static function putPasses(string $bookId): never
     {
@@ -576,7 +577,7 @@ final class Books
         self::book($bookId);
         $body = Editor::body();
         if (!property_exists($body, 'passes')) throw new ApiError(400, 'invalid-passes', 'Send { passes: [{ type, …parameters }] } or { passes: null }.');
-        $passes = $body->passes === null ? null : self::passes($body->passes, 'invalid-passes');
+        $passes = $body->passes === null ? null : self::passes($body->passes, 'invalid-passes', self::pluginPasses($bookId));
         // As putEnvironment: the book's JSON read, changed and written back in one transaction, the row locked
         Db::transaction(static function () use ($bookId, $passes, $user) {
             $row = self::book($bookId, true);
@@ -831,6 +832,8 @@ final class Books
 
     /** The built-in post-processing passes of the contract (shared/types/passes.ts `PASSES`) */
     public const PASS_TYPES = ['bloom', 'vignette', 'grade'];
+    /** A plugin's pass type (schema 2.21 – shared/types/components.ts `COMPONENT_TYPE_PATTERN`, which a pass's spec is checked with) */
+    public const PLUGIN_PASS_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
     /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
     public const WORLDS = ['cafe'];
     /** The files a world model and a sky may be (shared/types/environment.ts WORLD_MODEL_EXTENSIONS, SKY_IMAGE_EXTENSIONS) */
@@ -838,17 +841,42 @@ final class Books
     public const SKY_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
     /**
-     * A `passes` list as the content holds it: every pass an object with a built-in `type` and scalar parameters (the
-     * engine and the guard check the parameters against the specs; the API keeps the shape)
+     * The plugin pass types a save of this book accepts (schema 2.21): the passes its declared plugins recorded (a list),
+     * any camelCase name while a plugin is unknown until it runs (`true` – a Code tab source, a plugin of an older build),
+     * none without plugins (`false`) – as `Editor::pluginNodeTypes`
+     * @return bool|list<string>
+     */
+    private static function pluginPasses(string $bookId): bool|array
+    {
+        return Editor::pluginTypesOfBook($bookId, 'passes');
+    }
+
+    /**
+     * A `passes` list as the content holds it: every pass an object with a built-in `type` – or one of the book's
+     * plugins (`$pluginPasses`, schema 2.21: a list = the recorded ones, `true` = any camelCase name, `false` = none) –
+     * and scalar parameters (the engine and the guard check the parameters against the specs; the API keeps the shape)
+     * @param bool|list<string> $pluginPasses
      * @return list<stdClass>
      */
-    private static function passes(mixed $value, string $code = 'invalid-spread'): array
+    private static function passes(mixed $value, string $code = 'invalid-spread', bool|array $pluginPasses = false): array
     {
         if (!is_array($value)) throw new ApiError(400, $code, 'passes must be a list of { type, …parameters }.');
         $passes = [];
         foreach ($value as $i => $pass) {
             if (!$pass instanceof stdClass || !is_string($pass->type ?? null)) throw new ApiError(400, $code, "passes[$i] needs a type.");
-            if (!in_array($pass->type, self::PASS_TYPES, true)) throw new ApiError(400, $code, "passes[$i].type must be one of " . implode(', ', self::PASS_TYPES) . '.');
+            $type = $pass->type;
+            $plugin = is_array($pluginPasses)
+                ? in_array($type, $pluginPasses, true)
+                : $pluginPasses && preg_match('/^' . self::PLUGIN_PASS_TYPE . '$/', $type) === 1;
+            if (!in_array($type, self::PASS_TYPES, true) && !$plugin) {
+                $plugins = match (true) {
+                    is_array($pluginPasses) && $pluginPasses !== [] => ' or a pass a plugin of the book registers (' . implode(', ', $pluginPasses) . ').',
+                    is_array($pluginPasses) => ' – the book\'s plugins register no pass.',
+                    $pluginPasses => ' or a plugin\'s pass (camelCase letters and digits).',
+                    default => ' – a plugin\'s pass needs a plugin in the book.',
+                };
+                throw new ApiError(400, $code, "passes[$i].type must be one of " . implode(', ', self::PASS_TYPES) . $plugins);
+            }
             foreach (get_object_vars($pass) as $name => $param) {
                 if (!is_scalar($param)) throw new ApiError(400, $code, "passes[$i].$name must be a number, a string or true / false.");
             }
@@ -954,6 +982,11 @@ final class Books
         if ($unknownMaterials) {
             throw new ApiError(409, 'unknown-materials', 'Nodes use materials no compiled plugin provides: ' . implode(', ', $unknownMaterials) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['materials' => $unknownMaterials]);
         }
+        // And for a plugin's pass (schema 2.21): the reader's guard refuses a pass type no declared plugin recorded
+        $unknownPasses = $recorded === null ? [] : array_values(array_diff(self::pluginPassTypes($version['configuration']), $recorded['passes']));
+        if ($unknownPasses) {
+            throw new ApiError(409, 'unknown-passes', 'The book\'s or a spread\'s post-processing names passes no compiled plugin provides: ' . implode(', ', $unknownPasses) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['passes' => $unknownPasses]);
+        }
         $root = $version['build'];
         $uploaded = $store->exists("$root/game.config.json");
         if (!$uploaded) {
@@ -988,6 +1021,26 @@ final class Books
             }
             return $types;
         });
+    }
+
+    /**
+     * The pass types of the book's and the spreads' `passes` that are not built in (PASS_TYPES) – a plugin's (schema 2.21), sorted
+     * @return list<string>
+     */
+    public static function pluginPassTypes(stdClass $configuration): array
+    {
+        $types = [];
+        $lists = [$configuration->book->passes ?? []];
+        foreach ((array) ($configuration->spreads ?? []) as $spread) $lists[] = $spread instanceof stdClass ? ($spread->passes ?? []) : [];
+        foreach ($lists as $list) {
+            foreach ((array) $list as $pass) {
+                $type = $pass instanceof stdClass ? ($pass->type ?? null) : null;
+                if (is_string($type) && !in_array($type, self::PASS_TYPES, true)) $types[$type] = true;
+            }
+        }
+        $list = array_map('strval', array_keys($types));
+        sort($list);
+        return $list;
     }
 
     /**

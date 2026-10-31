@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
   import {
-    BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, textureTypes, type AssetData, type EntityData, type FilterType, type NodeType,
+    BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType, type NodeType,
     type Target,
   } from "@engine/types";
   import { errorText, isMediaAsset, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
@@ -30,6 +30,7 @@
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
   import FileField from "#lib/components/FileField.svelte";
+  import TextureField from "#lib/components/TextureField.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
   import BehaviourRules from "./BehaviourRules.svelte";
   import EntryView from "./EntryView.svelte";
@@ -145,14 +146,6 @@
   /** The selected node's plugin material (#188): its spec heads its rows; the materials it may take instead */
   const materialOf = $derived.by(() => { void plugins.version; return current?.material ? materialSpec(current.material.type) ?? null : null; });
   const materialChoices = $derived.by(() => { void plugins.version; return current ? materialTypesFor(current.type) : []; });
-  /** What a texture row offers: the procedural textures of the book's plugins, the Library's pictures and videos */
-  const textureChoices = $derived.by(() => { void plugins.version; return textureTypes(); });
-  const pictureChoices = $derived.by(() => {
-    const seen = new Map<string, string>();
-    library.ofKinds(["image", "video"]).forEach(a => seen.set(a.url, a.name));
-    getAssets().filter(a => a.assetType === "image" || a.assetType === "video").forEach(a => { if (!seen.has(a.src)) seen.set(a.src, fileNameOf(a.src)); });
-    return [...seen.entries()].map(([src, name]) => ({ src, name }));
-  });
 
   // ── make it code (#188): the node, or its look, becomes the book's own code in the Code tab ──
   let making = $state(false);
@@ -514,18 +507,8 @@
       {:else if row.kind === "string"}
         <input class="field" value={String(getValue(current, row))} aria-label={row.label} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
       {:else if row.kind === "texture"}
-        {@const value = String(getValue(current, row))}
         <!-- A texture (#188): none, a procedural texture of the book's plugins, or a Library picture or video -->
-        <select class="field" aria-label={row.label} {value} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
-          <option value="">none</option>
-          {#if textureChoices.length}
-            <optgroup label="procedural">{#each textureChoices as type (type)}<option value={type}>{type}</option>{/each}</optgroup>
-          {/if}
-          {#if pictureChoices.length}
-            <optgroup label="files">{#each pictureChoices as picture (picture.src)}<option value={picture.src}>{picture.name}</option>{/each}</optgroup>
-          {/if}
-          {#if value && !textureChoices.includes(value) && !pictureChoices.some(p => p.src === value)}<option {value}>{fileNameOf(value)}</option>{/if}
-        </select>
+        <TextureField value={String(getValue(current, row))} label={row.label} onchange={v => set(row, v)} />
       {:else if row.kind === "color"}
         <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />
       {:else}

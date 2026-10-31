@@ -3,8 +3,10 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { Pass } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import type { PassData } from "../../types/index";
-import { type MaskUsage, passContext, passRegistration, type PostPass } from "./registry";
+import { passBudgetWarning, type PassData } from "../../types/index";
+import { collectFeedbacks, type OwnedFeedbacks } from "../feedback";
+import { type ResolvedTextures, resolveTextures, sameTextures } from "../textures";
+import { ENGINE_OWNER, type MaskUsage, type PassContext, passContext, passRegistration, type PassRegistration, type PostPass } from "./registry";
 
 /** Anti-aliasing of the chain's buffer – as the canvas itself has it (clamped to what the GPU offers) */
 const SAMPLES = 4;
@@ -67,7 +69,24 @@ class UnderlayPass extends Pass {
 interface Instance {
   data: PassData;
   pass: PostPass;
+  /** What built it: a pass of another registration (a plugin run again) is built anew */
+  registration: PassRegistration;
+  /** Its parameters as resolved for the factory or the last update (texture parameters as the content names them) */
+  applied: Record<string, unknown>;
+  /** Its texture parameters as three.js textures (a plugin's pass – plugin API 1.4's kind `texture`) */
+  textures: ResolvedTextures;
+  /** The feedback buffers its factory made (plugin API 1.6) – they step while it runs, they go with it */
+  feedbacks: OwnedFeedbacks | null;
 }
+
+/** The texture parameters of a resolved set as the textures a pass got (a live edit keeps them) */
+const withTextures = (registration: PassRegistration, values: Record<string, unknown>, textures: ResolvedTextures): Record<string, unknown> => {
+  const next = { ...values };
+  Object.entries(registration.spec.params).forEach(([name, param]) => { if (param.kind === "texture") next[name] = textures.values[name]; });
+  return next;
+};
+
+const describeError = (error: unknown): string => (error instanceof Error ? `${error.name}: ${error.message}` : String(error));
 
 /**
  * The post-processing chain over the view's one renderer: the scene is rendered into a buffer, the passes of the
@@ -75,6 +94,11 @@ interface Instance {
  * as the scene would. Built only while a spread names passes; `set([])` frees everything – a spread without passes
  * renders straight to the canvas as before (no cost). `enabled` off keeps the passes but renders without them (the
  * editor's viewport outside *rendered*).
+ *
+ * A plugin's pass (content schema 2.21) is built from its factory in its place in the list, like a built-in one. A pass
+ * that cannot be built – its factory throws or returns no three.js pass – is logged and skipped, the others run; one
+ * whose `render` throws is logged and switched off for the chain's life (that frame keeps the image so far). Its texture
+ * parameters arrive as textures; the feedback buffers its factory makes step only while the chain renders with passes.
  */
 export class PostChain {
   private composer: EffectComposer;
@@ -85,7 +109,11 @@ export class PostChain {
   private size = new Vector2();
   /** The AR layer's coverage alone – what a pass that reaches only the AR layer (the grade with `reach: ar`) is masked with */
   private mask: WebGLRenderTarget;
-  enabled = true;
+  private on = true;
+  /** The last phone budget warning (logged once per change, not on every live edit) */
+  private budget: string | null = null;
+  /** When the last frame rendered (procedural textures of a pass advance with it) */
+  private last: number | null = null;
 
   constructor(private renderer: WebGLRenderer, private scene: Scene, private camera: Camera) {
     const size = renderer.getSize(new Vector2());
@@ -115,6 +143,16 @@ export class PostChain {
     this.rebuild();
   }
 
+  /** Off: the passes stay, the scene renders without them (and their feedback buffers wait) */
+  get enabled(): boolean {
+    return this.on;
+  }
+
+  set enabled(enabled: boolean) {
+    this.on = enabled;
+    this.instances.forEach(i => i.feedbacks?.hold(!enabled));
+  }
+
   /** Something to run this frame */
   get active(): boolean {
     return this.enabled && this.instances.length > 0;
@@ -125,13 +163,14 @@ export class PostChain {
   }
 
   /**
-   * The passes to run, in order. A pass whose type and position stay gets its new parameters in place (`update`);
-   * everything else is built anew. An unknown type is logged and skipped (nothing registered it).
+   * The passes to run, in order. A pass whose type, registration and position stay gets its new parameters in place
+   * (`update` – unless a texture parameter names another texture); everything else is built anew. An unknown type is
+   * logged and skipped (nothing registered it), and so is a pass whose factory fails.
    */
   set(passes: readonly PassData[]): void {
     const pixelRatio = this.renderer.getPixelRatio();
     const next: Instance[] = [];
-    const kept = new Set<PostPass>();
+    const kept = new Set<Instance>();
     passes.forEach((data, i) => {
       const registration = passRegistration(data.type);
       if (!registration) {
@@ -140,23 +179,101 @@ export class PostChain {
       }
       const context = passContext(registration, data, this.size, pixelRatio);
       const current = this.instances[i];
-      if (current && current.data.type === data.type && current.pass.update) {
-        current.pass.update(context.params);
-        kept.add(current.pass);
-        next.push({ data, pass: current.pass });
+      if (current && current.data.type === data.type && current.registration === registration && current.pass.update
+        && sameTextures(registration.spec.params, context.params, current.applied) && this.tune(current, context.params)) {
+        kept.add(current);
+        next.push({ ...current, data, applied: context.params });
         return;
       }
-      next.push({ data, pass: registration.factory(context) });
+      const built = this.build(registration, data, context);
+      if (built) next.push(built);
     });
-    this.instances.forEach(instance => kept.has(instance.pass) || instance.pass.dispose());
+    this.instances.forEach(instance => kept.has(instance) || this.free(instance));
     this.instances = next;
     this.rebuild();
+    const budget = passBudgetWarning(passes);
+    if (budget && budget !== this.budget) console.warn(`[post] ${budget}`);
+    this.budget = budget;
+  }
+
+  /** New values into a pass in place; false (logged) when its `update` throws – it is built anew then */
+  private tune(instance: Instance, params: Record<string, unknown>): boolean {
+    try {
+      instance.pass.update!(withTextures(instance.registration, params, instance.textures));
+      return true;
+    } catch (error) {
+      console.error(`[post] the pass "${instance.data.type}" (${instance.registration.owner}) failed to update – built anew:`, error);
+      return false;
+    }
+  }
+
+  /** A pass from its factory with its textures and feedback buffers; null (logged) when it cannot be built */
+  private build(registration: PassRegistration, data: PassData, context: PassContext): Instance | null {
+    const textures = resolveTextures(registration.spec.params, context.params, `pass ${data.type}`);
+    let pass: PostPass;
+    let feedbacks: OwnedFeedbacks;
+    try {
+      [pass, feedbacks] = collectFeedbacks(() => registration.factory({ ...context, params: textures.values }));
+    } catch (error) {
+      console.error(`[post] the pass "${data.type}" (${registration.owner}) could not be built – skipped:`, error);
+      textures.dispose();
+      return null;
+    }
+    if (!pass || typeof pass.render !== "function") {
+      console.error(`[post] the pass "${data.type}" (${registration.owner}) returned no three.js pass – skipped`);
+      feedbacks.dispose();
+      textures.dispose();
+      return null;
+    }
+    // A plugin's pass may be an object with `render` alone (three's Pass has the rest)
+    pass.setSize ??= () => undefined;
+    pass.dispose ??= () => undefined;
+    if (registration.owner !== ENGINE_OWNER) this.guard(pass, data.type, registration.owner);
+    feedbacks.hold(!this.on);
+    return { data, pass, registration, applied: context.params, textures, feedbacks: feedbacks.count ? feedbacks : null };
+  }
+
+  /**
+   * A plugin's pass that throws while it renders is logged and switched off: that frame keeps the image so far (no swap
+   * of the buffer it did not write), the rest of the chain runs, and every later frame skips it
+   */
+  private guard(pass: PostPass, type: string, owner: string): void {
+    const render = pass.render.bind(pass);
+    const swaps = pass.needsSwap;
+    pass.render = (...args: Parameters<PostPass["render"]>) => {
+      pass.needsSwap = swaps;
+      try {
+        render(...args);
+      } catch (error) {
+        console.error(`[post] the pass "${type}" (${owner}) failed while rendering – switched off: ${describeError(error)}`);
+        pass.enabled = false;
+        pass.needsSwap = false;
+      }
+    };
+  }
+
+  private free(instance: Instance): void {
+    try {
+      instance.pass.dispose();
+    } catch (error) {
+      console.error(`[post] the pass "${instance.data.type}" (${instance.registration.owner}) failed to dispose:`, error);
+    }
+    instance.feedbacks?.dispose();
+    instance.textures.dispose();
   }
 
   private rebuild(): void {
     this.composer.passes = [this.underlayPass, this.renderPass, ...this.instances.map(i => i.pass), this.output];
     const pixelRatio = this.renderer.getPixelRatio();
-    this.instances.forEach(i => i.pass.setSize(this.size.x * pixelRatio, this.size.y * pixelRatio));
+    this.instances.forEach(i => this.resize(i, this.size.x * pixelRatio, this.size.y * pixelRatio));
+  }
+
+  private resize(instance: Instance, width: number, height: number): void {
+    try {
+      instance.pass.setSize(width, height);
+    } catch (error) {
+      console.error(`[post] the pass "${instance.data.type}" (${instance.registration.owner}) failed to resize:`, error);
+    }
   }
 
   /** The canvas size in CSS px changed */
@@ -184,7 +301,12 @@ export class PostChain {
     this.underlayPass.draw = underlay;
     this.underlayPass.enabled = !!underlay;
     this.renderPass.clear = !underlay;
-    this.composer.render();
+    // Procedural textures of the passes advance with the frames; the passes get the time since the last one
+    const now = performance.now();
+    const delta = this.last === null ? 0 : Math.min((now - this.last) / 1000, 0.1);
+    this.last = now;
+    this.instances.forEach(i => i.textures.update(delta));
+    this.composer.render(delta);
     this.underlayPass.draw = null;
   }
 
@@ -213,7 +335,7 @@ export class PostChain {
   }
 
   dispose(): void {
-    this.instances.forEach(instance => instance.pass.dispose());
+    this.instances.forEach(instance => this.free(instance));
     this.instances = [];
     this.renderPass.dispose();
     this.underlayPass.dispose();

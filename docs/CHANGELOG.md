@@ -7,6 +7,34 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.54.0 – 2026-10-30
+
+### Added
+- **Plugin passes in post-processing** (#216, Tilman: "Can I also ask to be able to add plugins to the post-processing
+  pass?"): the book and a spread name a pass a plugin of the book registers (`api.registerPass`) in their `passes`, in
+  any place among the built-in bloom, vignette and grade – its parameters checked against the spec the content build
+  recorded, like a built-in pass's. The engine builds it from the plugin's factory, on the book's chain and on a spread's
+  own; a pass whose factory throws (or returns no pass) is logged and skipped, one whose `render` throws is switched off –
+  the rest of the chain runs. Its `texture` parameters arrive as textures, a feedback buffer its factory makes steps while
+  the pass runs and goes with it.
+- **The editor's post-processing section** offers the plugins' passes under *add pass*, a row per plugin with its name –
+  a compiled plugin's as soon as the book is open, a plugin run in the Code tab at once. A plugin's pass shows its spec's
+  rows (labels, help, ranges, on / off, a `texture` row with the Library's pictures), and every pass now moves earlier or
+  later in the chain with the arrows. The stage previews it under *rendered*.
+- **The phone budget** (#86): a list of more than three passes, or more than one bloom, is a warning in the content build
+  and in the editor's section – a plugin's pass counts like a built-in one.
+- **The demo's film grain**: the plugin `grain` with the pass `filmGrain` over *The twins* (pages 7–8) – every pixel a
+  little lighter or darker, changing 24 times a second, the camera picture included; strength, size, speed, reach and a
+  pattern picture are its rows. The tutorial shows its rows.
+
+### Changed
+- Content schema **2.21**: a `passes` entry may name a plugin's pass. **A 2.20 app refuses a book that names one.**
+- The editor's API takes a plugin's pass the declared plugins recorded (any camelCase name while the book has Code tab
+  sources); **the publish refuses a pass no compiled plugin provides** (409 `unknown-passes`, with a hint in the MCP
+  server). The MCP server's `put_spread` and `put_book_passes` check a plugin's pass against its recorded spec, and
+  `describe_content_model { book }` lists the plugins' passes.
+- The content build refuses a plugin pass with a built-in pass's name, or one two plugins register.
+
 ## 1.53.0 – 2026-10-30
 
 ### Added

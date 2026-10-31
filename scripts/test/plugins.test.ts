@@ -201,6 +201,43 @@ describe('a plugin\'s node types', () => {
     expect(() => assertGameConfiguration(configuration({ type: 'sparkel' }))).toThrow(/"sparkel" is not a node type – neither built in .* nor registered by a plugin of the book \(sparkle, poster\)/);
   }, 30000);
 
+  it('a spread and the book name a plugin\'s pass (schema 2.21, #216): its parameters checked against the recorded spec', async () => {
+    const withPass = NODES.replace('};\n', '  api.registerPass("scanLines", { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } }, () => ({}) as never);\n};\n');
+    const files = (spreadPasses: string, bookPasses = '') => ({
+      ...nodeContent('    type: group\n', withPass),
+      'book.yaml': BOOK + bookPasses,
+      'spreads/a/spread.yaml': spread(1, 2) + spreadPasses,
+    });
+    const build = await loadBuild(makeContent(files('passes:\n  - type: vignette\n  - type: scanLines\n    lines: 400\n', 'passes:\n  - type: scanLines\n')));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const plugins = await build.plugins.buildPlugins();
+    const { book, spreads } = build.buildAll(plugins.map(p => p.data));
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    expect(spreads[0].passes).toEqual([{ type: 'vignette' }, { type: 'scanLines', lines: 400 }]);
+    expect(book.passes).toEqual([{ type: 'scanLines' }]);
+
+    const wrong = await loadBuild(makeContent(files('passes:\n  - type: scanLines\n    lines: 2\n  - type: scanLine\n')));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const declared = await wrong.plugins.buildPlugins();
+    wrong.buildAll(declared.map(p => p.data));
+    vi.restoreAllMocks();
+    expect(wrong.errors).toEqual([
+      'spreads/a: passes[0].lines: expected a number from 10 to 800, got 2',
+      'spreads/a: passes[1].type: "scanLine" is not one of bloom, vignette, grade or a pass of the book\'s plugins (scanLines)',
+    ]);
+  }, 60000);
+
+  it('refuses a plugin pass with a built-in pass\'s name', async () => {
+    const bloom = NODES.replace('};\n', '  api.registerPass("bloom", { description: "Mine.", params: {} }, () => ({}) as never);\n};\n');
+    const build = await loadBuild(makeContent(nodeContent('    type: group\n', bloom)));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const plugins = await build.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual(['plugins/nodes: the pass "bloom" is a built-in pass']);
+    expect(plugins[0].data.registered?.passes).toEqual({});
+  }, 30000);
+
   it('refuses an unknown parameter, a wrong value, a missing or wrong file, a file on a fileless type', async () => {
     const build = await loadBuild(makeContent(nodeContent([
       '    type: group',

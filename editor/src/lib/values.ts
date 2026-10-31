@@ -18,7 +18,6 @@ import {
   nodeTypeSpec,
   paramLabel,
   type PassData,
-  PASSES,
   type PassSpec,
   PLACEMENT_DEFAULTS,
   PLACEMENT_PARAMS,
@@ -26,6 +25,7 @@ import {
   resolvePlacement,
   type Vector3Data,
 } from "@engine/types";
+import { passSpecOf } from "#lib/plugin-passes.js";
 
 /**
  * The Inspector's values: one row per adjustable value of an entity, generated from the content contract's
@@ -147,9 +147,12 @@ const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): V
     }
   });
 
-/** The rows of a post-processing pass (`passes.{i}.{name}`), from its spec; a type the editor does not know has none */
-export const passRows = (pass: PassData, index: number): ValueRow[] => {
-  const spec: PassSpec | undefined = (PASSES as Record<string, PassSpec>)[pass.type];
+/**
+ * The rows of a post-processing pass (`passes.{i}.{name}`), from its spec – a built-in pass's or a plugin's (#216: every
+ * kind of parameter, a `texture` too); a type the editor does not know has none
+ */
+export const passRows = (pass: PassData, index: number, specOf: (type: string) => PassSpec | undefined = passSpecOf): ValueRow[] => {
+  const spec = specOf(pass.type);
   return spec ? specRows(`passes.${index}`, spec.params) : [];
 };
 
@@ -161,19 +164,20 @@ const PASS_OPTION_LABELS: Record<string, Record<string, string>> = {
 export const passOptionLabels = (pass: PassData, row: ValueRow): Record<string, string> =>
   PASS_OPTION_LABELS[`${pass.type}.${row.id.split(".")[2]}`] ?? {};
 
-/** The value a pass shows for a row: the value set, else the spec's default */
+/** The value a pass shows for a row: the value set, else the spec's default (a boolean as "true" / "false") */
 export const passValue = (pass: PassData, row: ValueRow): RowValue => {
   const name = row.id.split(".")[2];
   const value = pass[name];
-  return value === undefined ? row.default : (value as RowValue);
+  return value === undefined ? row.default : shown(row, value);
 };
 
-/** A pass with one value changed (a row's); a value equal to the default is dropped from the data */
+/** A pass with one value changed (a row's); a value equal to the default is dropped from the data, a boolean kept as one */
 export const setPassValue = (pass: PassData, row: ValueRow, value: RowValue): PassData => {
   const name = row.id.split(".")[2];
   const next = { ...pass };
-  if (sameValue(value, row.default)) delete next[name];
-  else next[name] = value;
+  const content = kept(row, pass[name], value);
+  if (content === undefined) delete next[name];
+  else next[name] = content;
   return next;
 };
 

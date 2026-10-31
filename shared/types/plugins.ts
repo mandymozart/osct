@@ -24,7 +24,7 @@
 
 import { componentSpecProblems, type ComponentSpec } from "./components";
 import { nodeTypeSpecProblems, type NodeTypeSpec } from "./node-types";
-import type { PassSpec } from "./passes";
+import { isBuiltInPassType, type PassSpec } from "./passes";
 import { materialSpecProblems, textureSpecProblems, type MaterialSpec, type TextureSpec } from "./materials";
 
 export const PLUGIN_API_VERSION = "1.6";
@@ -90,8 +90,11 @@ export const registrationProblems = (raw: unknown, path: string): string[] => {
   const checks: Record<(typeof KINDS)[number], (type: string, spec: unknown) => string[]> = {
     components: componentSpecProblems,
     nodeTypes: nodeTypeSpecProblems,
-    // A pass's spec is a component's without nodeTypes; a pass may share a component's name
-    passes: (type, spec) => componentSpecProblems(type, spec).filter(problem => !problem.endsWith("is a built-in component")),
+    // A pass's spec is a component's without nodeTypes; a pass may share a component's name, never a built-in pass's
+    passes: (type, spec) => [
+      ...componentSpecProblems(type, spec).filter(problem => !problem.endsWith("is a built-in component")),
+      ...(isBuiltInPassType(type) ? [`"${type}" is a built-in pass`] : []),
+    ],
     materials: materialSpecProblems,
     textures: textureSpecProblems,
   };

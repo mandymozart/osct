@@ -1,7 +1,8 @@
 # The demo book – a sandbox, not the book
 
 `fixtures/demo/` is the **demo book** (`demo`): every node type, placement, filter and component the content model has,
-nine plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`), and a
+ten plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`, and a
+post-processing pass, `filmGrain`), and a
 narrative across its spreads – a key tapped on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.
 
 **The behaviour** (#88): the key and the door carry `behaviour` rules – no code. The key's rule (*on tap*) plays the
@@ -55,6 +56,13 @@ flowing: a 2D fluid simulated on the GPU every frame by two feedback buffers of 
 passes of a Shadertoy shader pasted in nearly unchanged through `api.shadertoy` (docs/plugins.md "A feedback buffer"). A
 tap stirs the ink where it lands. The Inspector shows *node type · inkPainting* with *resolution* (256, 512), *pen speed*
 and *ink dissipation*.
+
+**The film grain** (pages 7–8, *The twins* – #216): the spread's `passes` name `filmGrain`, a post-processing pass of the
+book's own (`plugins/grain`, `registerPass`): every pixel a little lighter or darker, changing 24 times a second, over the
+whole picture – the camera picture included (`reach: all`). In the editor the spread's *post-processing* section shows it
+as *filmGrain* of the plugin *grain* with its rows (strength, size, speed, reach, pattern – a Library picture instead of
+the noise), and
+offers it under *add pass · grain* on every other spread. *The twins* carries no other effect, so the grain is all there is.
 
 **Credits**: "XlsBDf" by trapcode (https://www.shadertoy.com/view/XlsBDf), CC BY-NC-SA 3.0; simplex noise from
 https://www.shadertoy.com/view/XsX3zB. The page names no licence of its own, so Shadertoy's default applies – Creative

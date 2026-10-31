@@ -25,6 +25,7 @@ export const PUBLISH_REFUSALS = [
   "unknown-components",
   "unknown-node-types",
   "unknown-materials",
+  "unknown-passes",
   "content-store-failed",
   "content-store-unconfigured",
 ] as const;
@@ -48,6 +49,7 @@ export function hintFor(error: ApiError): string {
   if (error.code === "unknown-components") return `A node uses a component type no compiled plugin provides – ${UNCOMPILED}`;
   if (error.code === "unknown-node-types") return `A node has a type no compiled plugin provides – ${UNCOMPILED}`;
   if (error.code === "unknown-materials") return `A node uses a material no compiled plugin provides – ${UNCOMPILED}`;
+  if (error.code === "unknown-passes") return `The book's or a spread's post-processing names a pass no compiled plugin provides – ${UNCOMPILED}`;
   if (error.code === "other-book") return "The environment serves another book (current) – replacing it there is the person's decision: they publish in the editor and confirm the replacement.";
   if (error.code === "invalid-env") return "env is the instance's own environment – leave it out to publish there.";
   if (error.code === "invalid-note") return "note is a line of text for the publish log.";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PASS_TYPES, passProblems, resolvePass, PASSES } from "@shared/types/passes";
+import { PASS_TYPES, passBudgetWarning, passProblems, resolvePass, PASSES } from "@shared/types/passes";
 import { assertGameConfiguration } from "@shared/guards/game-config";
 import { CONTENT_SCHEMA_VERSION } from "@shared/types/game-config";
 
@@ -63,5 +63,11 @@ describe("post-processing passes (content schema 2.5)", () => {
     expect(() => assertGameConfiguration(config([{ type: "glow" }]))).toThrow(/spreads\[0\]\.passes\[0\]\.type/);
     expect(() => assertGameConfiguration(config(undefined, [{ type: "grade", contrast: 5 }]))).toThrow(/book\.passes\[0\]\.contrast/);
     expect(() => assertGameConfiguration(config([{ type: "grade", reach: "all", later: true }]))).not.toThrow();
+  });
+
+  it("the phone budget (#86): up to three passes and one bloom, a plugin's pass counting like a built-in one", () => {
+    expect(passBudgetWarning([{ type: "bloom" }, { type: "vignette" }, { type: "scanLines" }])).toBeNull();
+    expect(passBudgetWarning([{ type: "bloom" }, { type: "vignette" }, { type: "grade" }, { type: "scanLines" }])).toBe("4 passes (the phone budget is 3) – every pass is a full-screen render on the phone");
+    expect(passBudgetWarning([{ type: "bloom" }, { type: "bloom" }])).toBe("2 blooms (one fits) – every pass is a full-screen render on the phone");
   });
 });

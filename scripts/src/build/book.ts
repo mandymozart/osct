@@ -2,9 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { CONTENT_DIR } from '../config';
 import type { BookData } from '../../../shared/types/game-config';
-import { passProblems, type PassData } from '../../../shared/types/passes';
+import { passBudgetWarning, passProblems, type PassData, type PassSpec } from '../../../shared/types/passes';
 import { environmentProblems, type EnvironmentData } from '../../../shared/types/environment';
-import { buildErrors } from '../lib/errors';
+import { buildErrors, buildWarnings } from '../lib/errors';
 import { contractPart, readYaml, validate } from '../lib/content';
 
 /**
@@ -29,7 +29,19 @@ export function resolveEnvironment(environment: unknown, contentDir = CONTENT_DI
   return { environment: resolved, problems };
 }
 
-export function buildBook(): BookData {
+/**
+ * A `passes` list of the book or a spread, checked against the specs: the built-in passes and – schema 2.21 – the
+ * plugins' passes the build recorded (`pluginPasses`, type → spec); a list beyond the phone budget is a warning
+ */
+export function checkedPasses(passes: unknown, label: string, pluginPasses: ReadonlyMap<string, PassSpec> = new Map()): PassData[] {
+  const problems = passProblems(passes, 'passes', { spec: type => pluginPasses.get(type), pluginTypes: [...pluginPasses.keys()] });
+  const checked = contractPart<PassData[]>(passes, problems, label);
+  const budget = !problems.length && Array.isArray(passes) ? passBudgetWarning(checked) : null;
+  if (budget) buildWarnings.push(`${label}: ${budget}`);
+  return checked;
+}
+
+export function buildBook(pluginPasses: ReadonlyMap<string, PassSpec> = new Map()): BookData {
   const file = path.join(CONTENT_DIR, 'book.yaml');
   if (!fs.existsSync(file)) {
     buildErrors.push('book.yaml is missing');
@@ -39,7 +51,7 @@ export function buildBook(): BookData {
   if (!book) return { id: '', title: '', author: '' };
   const { passes, environment, ...fields } = book;
   const result: BookData = { ...fields, id: book.id, title: book.title, author: book.author };
-  if (passes !== undefined) result.passes = contractPart<PassData[]>(passes, passProblems(passes, 'passes'), 'book.yaml');
+  if (passes !== undefined) result.passes = checkedPasses(passes, 'book.yaml', pluginPasses);
   if (environment !== undefined) {
     const resolved = resolveEnvironment(environment);
     const problems = resolved.problems.length ? resolved.problems : environmentProblems(resolved.environment);

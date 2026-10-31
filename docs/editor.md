@@ -48,7 +48,7 @@ that note.
 ## Try it (the demo book, or the fixture's studio spreads)
 
 The **demo book** (`fixtures/demo/`, `DEMO.md`): six spreads that use every node type, placement, filter and
-component, nine plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
+component, ten plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
 lights when the door opened, a tally counts the pages found, a tap switches a scene ([plugins](plugins.md) "The demo
 book", the note `agents/research/2026-10-30-demo-book.md`). The fixture's **studio spreads**
 (`fixtures/content/FIXTURE.md`, pages 28–31) are the smaller scene of every entity type, placement and filter. Locally,
@@ -76,7 +76,7 @@ with SQLite and the local content store:
    tree's eye (lost, found again), *Replay the first find* in the stage's right-click menu plays it again, *reset* in
    the spread's *vars and events* starts a new game – on *The door* the hint shows then; *set* `hasKey` (book, true), switch the door
    off and on, and it opens without a visit to the key's page. Open *The switch*
-   and click the entity on the stage: the next scene shows. The **Code** tab lists the nine plugins (compiled by the
+   and click the entity on the stage: the next scene shows. The **Code** tab lists the ten plugins (compiled by the
    content build, their sources next to them): change one, **Run**, and the stage shows it. Move a node in the
    **Inspector** (type a scale, or press and slide), **Save**, then **Publish** – it goes to `local · this server`,
    the local API's own environment.
@@ -423,8 +423,14 @@ is involved.
     the header says what editing changes – *changes all N spreads that use the book's* (N counted from the draft's
     spreads without a list of their own, this one as the panel holds it) with **own for this spread**, or *overrides
     the book's for this spread* with **back to the book's**, which drops the override. The list has a row per
-    parameter from the contract's specs; **+ bloom / + vignette / + grade** adds one, *remove* drops one, changes show
-    live on the stage. **Save** says what it saves – *Save for the whole book*, *Save for this spread* or *Save for the
+    parameter from the pass's spec; **add pass** offers **+ bloom / + vignette / + grade** and, in a row per plugin under
+    its id, **the passes of the book's plugins** (content schema 2.21, #216 – a compiled plugin's from its recorded spec
+    as soon as the book is open, a plugin **Run** in the Code tab at once, no reload). A plugin's pass shows its type
+    with its plugin's id next to the arrows (*filmGrain* … *grain*) and its spec's rows – labels, help, ranges, on / off, a `texture`
+    row with the Library's pictures and the plugins' procedural textures (`TextureField.svelte`, shared with the
+    Inspector's rows). The arrows move a pass earlier or later in the chain, *remove* drops one, changes show live on the
+    stage; a list beyond the phone budget (three passes, one bloom – #86) says so under the passes
+    (`editor/src/lib/plugin-passes.ts`). **Save** says what it saves – *Save for the whole book*, *Save for this spread* or *Save for the
     book and this spread* – and writes what changed: the book's list
     (`PUT /editor/books/{id}/passes`, an empty one removes it) and / or the spread's (`PUT …/spreads/{id} { passes }`,
     `null` = back to the book's) –, *Back to the draft* undoes both (`editor/src/lib/passes-edit.ts`). The stage shows
@@ -724,8 +730,10 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   spreads on one stage (the mock tracker reports the current spread's targets only; a `stage` variable survives the
   switch, a `spread` variable does not), the reader's UI around the scene.
 - The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with the plugin as
-  owner, and `unregisterPassesOf` on uninstall. The content names the built-in passes (bloom, vignette, grade); the
-  build and the guard do not accept a spread naming a plugin's pass yet (#97).
+  owner, and `unregisterPassesOf` on uninstall. The content names the built-in passes and, since schema 2.21, a pass
+  a plugin of the book recorded (#216); a pass that exists only in a Code tab source saves to the draft but is refused
+  by the publish (409 `unknown-passes`) until the content build compiles its plugin (#78). A pass has no *off* of its
+  own yet – removing it is the off; *make it code* for a built-in pass is not built.
 - The phone layout of the workspace (the sheet, its touch heights – #171) was last checked in a desktop browser
   emulating a 360 px touch phone; the bunny store against
   the real zone and MariaDB against the new tables are untested (SQLite and a storage double in the API test).

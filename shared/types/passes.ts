@@ -5,7 +5,9 @@
  * every spread without a list of its own (an empty list turns them off). Like the components, every built-in type
  * is defined once here – its parameters with kind, default, range and a description – so the editor's rows, the
  * content build, the config guard and the engine read one definition. A plugin's pass (`registerPass`) brings its
- * own spec; the build and the guard accept such a type only where plugins are declared.
+ * own spec: since 2.21 a `passes` entry may name it where a declared plugin recorded it (`registered.passes`, schema
+ * 2.14) – its parameters checked against that spec like a built-in pass's – and the engine builds it from the plugin's
+ * factory in its place in the list; a 2.20 app refuses such a type.
  *
  * Adding a built-in pass: define it in PASSES, implement it in the engine (`engine/src/scene/post/`), document it in
  * docs/content.md.
@@ -70,6 +72,8 @@ export interface PassData {
 export interface PassCheckOptions {
   /** The spec of a type that is not built in (a plugin's) – `undefined` = unknown */
   spec?: (type: string) => PassSpec | undefined;
+  /** The plugin pass types known – named in the message about an unknown type */
+  pluginTypes?: readonly string[];
   /** What an unknown type is: refused (the default – nothing would render it) or allowed (a plugin registers it at load) */
   unknownTypes?: "refuse" | "allow";
   /**
@@ -100,7 +104,8 @@ export const passProblems = (raw: unknown, path: string, options: PassCheckOptio
     }
     const spec = passSpec(type, options);
     if (!spec) {
-      if (options.unknownTypes !== "allow") problems.push(`${at}.type: "${type}" is not one of ${PASS_TYPES.join(", ")}`);
+      const plugins = options.pluginTypes?.length ? ` or a pass of the book's plugins (${options.pluginTypes.join(", ")})` : "";
+      if (options.unknownTypes !== "allow") problems.push(`${at}.type: "${type}" is not one of ${PASS_TYPES.join(", ")}${plugins}`);
       return;
     }
     const known = options.unknownParams === "ignore" ? Object.fromEntries(Object.entries(params).filter(([name]) => name in spec.params)) : params;
@@ -116,4 +121,22 @@ export const resolvePass = (spec: PassSpec, pass: PassData): Record<string, unkn
     resolved[name] = pass[name] !== undefined ? pass[name] : param.default;
   }
   return resolved;
+};
+
+/**
+ * The phone budget of a chain (#86, agents/MEMORY.md 2026-10-29): every pass is at least one full-screen
+ * render-to-texture plus one full-screen shader – a plugin's pass counts like a built-in one (its feedback buffers come
+ * on top) – and the bloom is several (five blur levels at half resolution). Up to one bloom and three passes in all run on
+ * a phone; more is a warning (the content build, the editor), never an error – the S22 measurement is still open.
+ */
+export const PASS_BUDGET = { passes: 3, blooms: 1 } as const;
+
+/** What a `passes` list asks beyond the phone budget, in words; null within it */
+export const passBudgetWarning = (passes: readonly PassData[]): string | null => {
+  const blooms = passes.filter(pass => pass.type === "bloom").length;
+  const over = [
+    ...(passes.length > PASS_BUDGET.passes ? [`${passes.length} passes (the phone budget is ${PASS_BUDGET.passes})`] : []),
+    ...(blooms > PASS_BUDGET.blooms ? [`${blooms} blooms (one fits)`] : []),
+  ];
+  return over.length ? `${over.join(" and ")} – every pass is a full-screen render on the phone` : null;
 };

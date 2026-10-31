@@ -135,6 +135,16 @@ ${environment}`,
       expect(errors).toContainEqual('entries/first target: entity ref "nothing" not found in content/entities/');
     });
 
+    it('a list beyond the phone budget is a warning (#86)', async () => {
+      const build = await loadBuild(makeContent({
+        'book.yaml': BOOK,
+        'spreads/a/spread.yaml': spread(1, 2) + 'passes:\n  - type: bloom\n  - type: bloom\n  - type: vignette\n  - type: grade\n',
+      }));
+      build.buildAll();
+      expect(build.errors).toEqual([]);
+      expect(build.warnings).toEqual(['spreads/a: 4 passes (the phone budget is 3) and 2 blooms (one fits) – every pass is a full-screen render on the phone']);
+    });
+
     it('passes of a spread and the book are checked against their specs', async () => {
       const { content } = makeContent({
         'book.yaml': BOOK + 'passes:\n  - type: vignette\n    strength: 0.3\n',
@@ -211,15 +221,18 @@ describe('the test fixture', () => {
 });
 
 describe('the demo book', () => {
-  it('builds without errors: every node type, the covers, a shared entity, nine plugins (three with a node type, one with a material and a texture)', { timeout: 60000 }, async () => {
+  it('builds without errors: every node type, the covers, a shared entity, ten plugins (three with a node type, one with a material and a texture, one with a pass)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
-    const { book, spreads, entries } = build.buildAll();
+    const { book, spreads, entries } = build.buildAll(plugins.map(p => p.data));
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(book.id).toBe('demo');
-    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'narrative', 'pulse', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
+    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'narrative', 'pulse', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
+    // A plugin's pass (#216): the grain plugin's film grain on The twins, checked against its recorded spec
+    expect(Object.keys(plugins.find(p => p.data.id === 'grain')!.data.registered!.passes ?? {})).toEqual(['filmGrain']);
+    expect(spreads.find(s => s.id === 'the-twins')?.passes).toEqual([{ type: 'filmGrain', amount: 0.14 }]);
     expect(spreads.map(s => s.format ?? 'spread')).toEqual(expect.arrayContaining(['cover', 'back', 'spread']));
     const types = new Set<string>();
     const walk = (node: { type: string; children?: Array<{ type: string }> }) => { types.add(node.type); (node.children ?? []).forEach(walk as never); };

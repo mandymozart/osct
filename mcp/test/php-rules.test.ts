@@ -11,6 +11,7 @@ import { CONTENT_BUILD } from "../../shared/types/content-manifest";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
 import {
+  COMPONENT_TYPE_PATTERN,
   COMPONENT_TYPES,
   ENTITY_TYPES,
   MATERIAL_TYPE_PATTERN,
@@ -55,6 +56,7 @@ function readPhp(): Record<string, unknown> {
       'PRINT_SURFACES' => Editor::PRINT_SURFACES,
       'FORMATS' => Books::FORMATS,
       'PASS_TYPES' => Books::PASS_TYPES,
+      'PLUGIN_PASS_TYPE' => Books::PLUGIN_PASS_TYPE,
       'WORLDS' => Books::WORLDS,
       'WORLD_MODEL_EXTENSIONS' => Books::WORLD_MODEL_EXTENSIONS,
       'SKY_IMAGE_EXTENSIONS' => Books::SKY_IMAGE_EXTENSIONS,
@@ -89,12 +91,14 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(whole(php.ID)).toBe(ID_PATTERN.source);
     expect(whole(php.PLUGIN_NODE_TYPE)).toBe(NODE_TYPE_PATTERN.source);
     expect(whole(php.MATERIAL_TYPE)).toBe(MATERIAL_TYPE_PATTERN.source);
+    // A plugin's pass (schema 2.21) is named like a component: its spec is checked with componentSpecProblems
+    expect(whole(php.PLUGIN_PASS_TYPE)).toBe(COMPONENT_TYPE_PATTERN.source);
     expect(whole(php.PLUGIN_ID)).toBe(PLUGIN_ID_PATTERN.source);
     expect(php.BUILD).toBe(`/${CONTENT_BUILD.source}/`);
     expect(whole(php.ENV)).toBe(ENV_NAME.source);
   });
 
-  it("spread formats, passes and the environment (Books)", () => {
+  it("spread formats, passes (the built-in list) and the environment (Books)", () => {
     expect(php.FORMATS).toEqual([...SPREAD_FORMATS]);
     expect(php.PASS_TYPES).toEqual([...PASS_TYPES]);
     expect(php.WORLDS).toEqual([...ENVIRONMENT_WORLDS]);
