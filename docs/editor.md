@@ -425,8 +425,8 @@ is involved.
     the book's for this spread* with **back to the book's**, which drops the override. The list has a row per
     parameter from the pass's spec; **add pass** offers **+ bloom / + vignette / + grade** and, in a row per plugin under
     its id, **the passes of the book's plugins** (content schema 2.21, #216 – a compiled plugin's from its recorded spec
-    as soon as the book is open, a plugin **Run** in the Code tab at once, no reload). A plugin's pass shows as
-    *filmGrain · grain* (the type, then its plugin) with its spec's rows – labels, help, ranges, on / off, a `texture`
+    as soon as the book is open, a plugin **Run** in the Code tab at once, no reload). A plugin's pass shows its type
+    with its plugin's id next to the arrows (*filmGrain* … *grain*) and its spec's rows – labels, help, ranges, on / off, a `texture`
     row with the Library's pictures and the plugins' procedural textures (`TextureField.svelte`, shared with the
     Inspector's rows). The arrows move a pass earlier or later in the chain, *remove* drops one, changes show live on the
     stage; a list beyond the phone budget (three passes, one bloom – #86) says so under the passes

@@ -143,8 +143,9 @@
 {#each passes as { pass, rows, plugin, description }, i (i)}
   <div class="row" data-help-name={plugin ? `${pass.type} · ${plugin}` : pass.type}
     data-help={description ? (plugin ? `${description} – a pass of the plugin ${plugin}.` : description) : "A plugin's pass that no plugin of the book registers here – Run its plugin in the Code tab, or remove it."}>
-    <span class="label pass">{pass.type}{#if plugin}<span class="muted"> · {plugin}</span>{/if}</span>
+    <span class="label pass">{pass.type}</span>
     <span class="controls">
+      {#if plugin}<span class="small muted plugin" title="A pass of the plugin {plugin}">{plugin}</span>{/if}
       <button type="button" class="icon-button" aria-label="Move {pass.type} up" title="Earlier in the chain" disabled={i === 0} onclick={() => move(i, -1)}><Icon name="up" /></button>
       <button type="button" class="icon-button" aria-label="Move {pass.type} down" title="Later in the chain" disabled={i === passes.length - 1} onclick={() => move(i, 1)}><Icon name="down" /></button>
       <button type="button" class="text-link" onclick={() => remove(i)}>remove</button>
@@ -201,6 +202,7 @@
   .w :global(.scrub) { width: 100%; }
   .label.sub { padding-left: .5rem; }
   .label.pass { color: var(--text); }
+  .plugin { margin-right: auto; }
   .level { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5rem; min-height: var(--control-height); flex-shrink: 0; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }

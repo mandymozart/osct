@@ -39,7 +39,7 @@ outcome in the line (or move it into a dated decision block).
   have none – it would need a contract field (an `enabled` flag that a 2.20 guard ignores, a name a plugin's parameter
   could collide with). Removing a pass is the off for now. *Make it code* for a built-in pass (optional in the issue)
   is not built either.
-- **Demo**: `fixtures/demo/plugins/grain` – `filmGrain` (grain, size, speed, reach, pattern) on *The twins*, the spread
+- **Demo**: `fixtures/demo/plugins/grain` – `filmGrain` (strength, size, speed, reach, pattern) on *The twins*, the spread
   with the least going on. With `reach: all` a speck fades its pixel to white or black and raises the alpha by as much
   (the vignette's rule), so the camera picture is grainy too.
 - [ ] Decide whether a pass gets an on / off of its own (a contract field) or removing it stays the off (#216).

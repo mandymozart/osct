@@ -499,7 +499,7 @@ book's *The twins*, #216):
 api.registerPass("filmGrain", {
   description: "Film grain over the picture.",
   params: {
-    amount: { kind: "number", default: 0.12, min: 0, max: 0.5, step: 0.01, label: "grain", description: "How strong." },
+    amount: { kind: "number", default: 0.12, min: 0, max: 0.5, step: 0.01, label: "strength", description: "How strong." },
     reach: { kind: "choice", options: ["all", "ar"], default: "all", description: "The whole picture, or the AR layer alone." },
     pattern: { kind: "texture", default: "", description: "A picture as the grain instead of noise." },
   },

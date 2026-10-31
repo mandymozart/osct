@@ -24,7 +24,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **The phone budget** (#86): a list of more than three passes, or more than one bloom, is a warning in the content build
   and in the editor's section – a plugin's pass counts like a built-in one.
 - **The demo's film grain**: the plugin `grain` with the pass `filmGrain` over *The twins* (pages 7–8) – every pixel a
-  little lighter or darker, changing 24 times a second, the camera picture included; grain, size, speed, reach and a
+  little lighter or darker, changing 24 times a second, the camera picture included; strength, size, speed, reach and a
   pattern picture are its rows. The tutorial shows its rows.
 
 ### Changed

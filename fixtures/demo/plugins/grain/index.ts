@@ -54,7 +54,7 @@ export const register = (api: PluginApi): void => {
   api.registerPass("filmGrain", {
     description: "Film grain over the picture: every pixel a little lighter or darker, changing like film.",
     params: {
-      amount: { kind: "number", default: 0.12, min: 0, max: 0.5, step: 0.01, label: "grain", description: "How strong the grain is (0 = none)." },
+      amount: { kind: "number", default: 0.12, min: 0, max: 0.5, step: 0.01, label: "strength", description: "How strong the grain is (0 = none)." },
       size: { kind: "number", default: 1.5, min: 1, max: 6, step: 0.5, unit: "px", description: "How big one grain is, in screen points." },
       speed: { kind: "number", default: 24, min: 0, max: 60, step: 1, unit: "fps", description: "How often a second the grain changes (0 = it stands still)." },
       reach: {
