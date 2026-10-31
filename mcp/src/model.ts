@@ -35,7 +35,7 @@ import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import type { SourceTypes } from "../../shared/api/rules";
 
 export interface BookModel {
-  /** the compiled plugins the book's configuration declares (content schema 2.4), with what they recorded (2.14) */
+  /** the compiled plugins the book's configuration declares, with what they recorded */
   declared: readonly PluginData[];
   /** the Code tab's sources with the types read from them */
   sources: ({ id: string } & SourceTypes)[];
@@ -47,14 +47,14 @@ export interface KnownPluginTypes {
   components: string[];
   /** node types (`registerNodeType`), the same way */
   nodeTypes: string[];
-  /** materials (`registerMaterial`, schema 2.17), the same way */
+  /** materials (`registerMaterial`), the same way */
   materials: string[];
   /** procedural textures (`registerTexture`), the same way */
   textures: string[];
-  /** post-processing passes (`registerPass`, a `passes` entry since schema 2.21), the same way */
+  /** post-processing passes (`registerPass`, a `passes` entry), the same way */
   passes: string[];
   /**
-   * every plugin's registrations are known: each declared plugin recorded them (schema 2.14) and the book has no Code tab
+   * every plugin's registrations are known: each declared plugin recorded them and the book has no Code tab
    * source (a source's types are read from its text, which may miss one) – a type outside the lists is then a typo
    */
   complete: boolean;
@@ -80,7 +80,7 @@ export function usesPluginPasses(passes: unknown): boolean {
 }
 
 /**
- * The contract's check of a `passes` list (schema 2.21: a plugin's pass too): a pass the declared plugins recorded is
+ * The contract's check of a `passes` list (a plugin's pass too): a pass the declared plugins recorded is
  * checked against its spec like a built-in one; one a Code tab source registers (read from its text, no spec) passes,
  * listed as unverified; any other is refused – unless a declared plugin recorded nothing (what it registers is unknown
  * until it runs): then it passes, unverified, too. The publish refuses a pass no compiled plugin provides.
@@ -111,7 +111,7 @@ export interface EntityCheck {
   unknownComponents: string[];
   /** node types named like a plugin's that no known plugin registers – passed because a plugin of the book is unknown */
   unverifiedNodeTypes: string[];
-  /** material types (schema 2.17) no known plugin registers – a plugin must provide them; the publish checks */
+  /** material types no known plugin registers – a plugin must provide them; the publish checks */
   unknownMaterials: string[];
 }
 
@@ -159,7 +159,7 @@ export function checkEntity(entity: unknown, path = "entity", book?: BookModel):
   };
 }
 
-/** Every material type (schema 2.17) in the tree that the book's known plugins do not register */
+/** Every material type in the tree that the book's known plugins do not register */
 export function unknownMaterialTypes(entity: unknown, known?: KnownPluginTypes): string[] {
   const found = new Set<string>();
   const walk = (node: unknown) => {

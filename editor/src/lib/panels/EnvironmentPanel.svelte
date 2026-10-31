@@ -13,7 +13,7 @@
   import { errorText } from "#lib/api.js";
 
   /**
-   * The book's **environment** on the stage (content schema 2.8 / 2.10): the world around the reader while scanning, its
+   * The book's **environment** on the stage: the world around the reader while scanning, its
    * sky and the onion sky. While this tab is open the stage shows the engine's look-around world with the values being
    * edited, under the desk and the book, turned by the view (*look up* raises the camera from the book to the horizon).
    * Once the book has an environment (or edits start one) its world is the stage's sky in the other tabs too, while

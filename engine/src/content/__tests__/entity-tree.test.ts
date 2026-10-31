@@ -3,7 +3,7 @@ import { assertGameConfiguration, GameConfigurationError } from "@shared/guards/
 import type { EntityData } from "@shared/types/game-config";
 import { entityAssets, entityNodes } from "../game-config";
 
-/** Content schema 2.0: an entity is a tree of nodes – the helpers and the guard's recursive check */
+/** An entity is a tree of nodes – the helpers and the guard's recursive check */
 
 const tree: EntityData = {
   type: "group",

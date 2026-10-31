@@ -1,7 +1,7 @@
 import type { Texture } from "three";
 
 /**
- * The three-free part of the plugins' feedback buffers (plugin API 1.6, `feedback.ts`): the options and the handle a
+ * The three-free part of the plugins' feedback buffers (`feedback.ts`): the options and the handle a
  * plugin sees, their checks, the prelude of a pass and the Shadertoy adapter – shared by the engine and the content
  * build's recording run (`scripts/src/build/plugins.ts`), which hands out a dummy handle.
  */

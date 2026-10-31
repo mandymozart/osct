@@ -16,7 +16,7 @@ import { getBook, getEntry } from "../content/game-config";
  * Entity registry: one builder per node type creates the three.js object for a node and may return hooks for
  * found / lost / pause and a per-frame update. New types: `registerEntity("type", builder)` – no logic
  * in the content; a book's own types come from its plugins (`registerNodeType`, `plugins.ts` – the same contract: an
- * object and its hooks). `buildEntity` builds the entity's **node tree** (content schema 2.0): every node's object goes
+ * object and its hooks). `buildEntity` builds the entity's **node tree**: every node's object goes
  * into a group placed by the node's `params` (position / rotation / scale – shared/types/placement.ts; axes: x
  * right, y up the page, z out of the page, 1 unit = target width, origin in its centre) relative to its parent, the
  * root on the target's anchor. A node of a type without a builder renders nothing (logged) but keeps its children.
@@ -107,7 +107,7 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
     Object.entries(child.nodes ?? {}).forEach(([key, object]) => (nodes[key === "" ? `${i}` : `${i}.${key}`] = object));
     Object.entries(child.timelines ?? {}).forEach(([key, timeline]) => (timelines[key === "" ? `${i}` : `${i}.${key}`] = timeline));
   });
-  // The node's behaviour (built-in, schema 2.19): its rules act on the node's subtree – heard after the node's other parts
+  // The node's behaviour (built-in): its rules act on the node's subtree – heard after the node's other parts
   const behaviour = applyBehaviour({ node, target, nodes, timelines });
   if (behaviour) all.push(behaviour);
   return {
@@ -233,7 +233,7 @@ registerEntity("video", ({ entity, asset }) => {
 });
 
 /**
- * glTF model. Without an `animation` component every clip plays in a loop (as before 2.2). With one, the chosen
+ * glTF model. Without an `animation` component every clip plays in a loop. With one, the chosen
  * clip (or the first) plays when the component says (`playOn`: found / tap / never), stops when the page is lost
  * (`stopOn`), loops or holds its last frame, at `speed` – and the editor's timeline drives it directly.
  */
@@ -382,7 +382,7 @@ const scaleLight = (light: Light, values: LightValues): void => {
 };
 
 /**
- * Light (schema 2.6): a point, spot or directional light at the node's origin; spot and directional aim along the
+ * Light: a point, spot or directional light at the node's origin; spot and directional aim along the
  * node's own −z (their target is a child of the node, so turning the node turns the light). No shadows. The reveal
  * and the outro fade it with the entity (`celebration.ts` sets `userData.fade`); other values apply in place,
  * another kind builds the node anew.

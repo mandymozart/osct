@@ -575,7 +575,7 @@ try {
         ],
         'entities' => ['castle' => ['type' => 'video', 'assets' => [['id' => 'castle-0', 'assetType' => 'video', 'src' => '/assets/content/entities/castle/c.mp4']], 'params' => new stdClass(), 'filters' => [['type' => 'chromaKey', 'color' => '#00ff00']]]],
         'tutorial' => [['id' => 'step-1', 'index' => 0, 'title' => '{{title}}', 'illustration' => '/assets/content/tutorial/mark.svg', 'advance' => 3800]],
-        // What the plugin registered, recorded by the content build (schema 2.14, #90): the API tells a typo from its node type
+        // What the plugin registered, recorded by the content build (#90): the API tells a typo from its node type
         'plugins' => [['id' => 'tint', 'src' => '/assets/content/plugins/tint/plugin.js', 'api' => '1.0', 'registered' => [
             'components' => ['tint' => ['description' => 'Tints.', 'params' => ['opacity' => ['kind' => 'number', 'default' => 0.3, 'min' => 0, 'max' => 1, 'description' => 'How much.']]]],
             'nodeTypes' => ['sparkle' => ['description' => 'Points.', 'params' => ['count' => ['kind' => 'number', 'default' => 50, 'min' => 1, 'max' => 500, 'description' => 'How many.']]]],
@@ -882,7 +882,7 @@ try {
     echo "editor: node trees (content schema 2.0)
 ";
     $castle = $configuration['entities']['castle'];
-    // Content schema 2.0: the entity as a tree of nodes
+    // The entity as a tree of nodes
     $tree = ['type' => 'group', 'assets' => [], 'children' => [
         $castle,
         ['type' => 'text', 'assets' => [], 'text' => '{{entry.title}}', 'color' => '#f3cc94', 'params' => ['position' => [0, -0.5, 0.01]]],
@@ -893,7 +893,7 @@ try {
     $bad['children'][1]['color'] = 'gold';
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entities/castle', $bad, $editor);
     check($status === 400 && str_contains($data['error']['message'] ?? '', 'children[1].color'), 'a bad child → 400 with its path');
-    // Content schema 2.12: every node may carry a name (the editor's tree shows it)
+    // Every node may carry a name (the editor's tree shows it)
     $named = $tree;
     $named['name'] = 'Castle and title';
     $named['children'][1]['name'] = 'Title';
@@ -998,7 +998,7 @@ try {
     [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $typo, 'files' => $files], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'import: a node type the configuration\'s plugins did not record → 400');
     // A component no declared plugin recorded is refused at publish, although the book declares plugins; the built-in
-    // behaviour (schema 2.19, #88) is no plugin's
+    // behaviour (#88) is no plugin's
     $glowing = $configuration['entities']['castle'];
     $glowing['components'] = [['type' => 'glow'], ['type' => 'behaviour', 'rules' => [['on' => 'tap', 'do' => ['emit' => 'rattled']]]]];
     call($api, 'PUT', '/editor/books/osct/entities/castle', $glowing, $editor);
@@ -1017,7 +1017,7 @@ try {
     check($status === 200, 'import again with the recorded plugins');
 
     echo "editor: a plugin's material (#188)\n";
-    // A node's material (schema 2.17) is a plugin's: the recorded materials pass, any other is a typo; the publish checks
+    // A node's material is a plugin's: the recorded materials pass, any other is a typo; the publish checks
     $watery = $configuration;
     $watery['plugins'][0]['registered']['materials'] = ['water' => ['description' => 'Water.', 'params' => [
         'caustics' => ['kind' => 'texture', 'default' => '', 'description' => 'The caustics.'],
@@ -1057,7 +1057,7 @@ try {
     check($status === 200, 'import again with the recorded plugins');
 
     echo "editor: a plugin's pass (#216)\n";
-    // A pass the declared plugins recorded (schema 2.21) passes in a spread's and the book's list; another name is a typo
+    // A pass the declared plugins recorded passes in a spread's and the book's list; another name is a typo
     $scanning = $configuration;
     $scanning['plugins'][0]['registered']['passes'] = ['scanLines' => ['description' => 'Scan lines.', 'params' => [
         'lines' => ['kind' => 'number', 'default' => 200, 'min' => 10, 'max' => 800, 'description' => 'How many.'],

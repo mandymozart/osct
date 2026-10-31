@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { behaviourData, behaviourEvents, behaviourRules, behaviourVariables, describeActions } from "@shared/types/behaviour";
 import { componentProblems } from "@shared/types/components";
 
-/** Content schema 2.19: the built-in behaviour component – its grammar, checked by the build and the guard */
+/** The built-in behaviour component – its grammar, checked by the build and the guard */
 describe("behaviour: the content's grammar", () => {
   const key = {
     type: "behaviour",

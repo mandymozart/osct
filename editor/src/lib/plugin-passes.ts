@@ -6,7 +6,7 @@ import { PASS_TYPES, PASSES, type PassSpec, type PluginData } from "@engine/type
  * The passes the post-processing section offers and the specs its rows come from (#216): the built-in passes of the
  * contract and the passes of the book's plugins – the ones in the engine's pass registry (a declared plugin loaded on the
  * stage, a plugin run in the Code tab: its pass is offered at once, no reload) and the ones the declared plugins recorded
- * (content schema 2.14) before they loaded. Pure functions over those two sources for the tests; `livePassGroups` and
+ * before they loaded. Pure functions over those two sources for the tests; `livePassGroups` and
  * `passSpecOf` read them from the engine (the caller depends on `plugins.version` to follow a Run).
  */
 

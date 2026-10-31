@@ -94,7 +94,7 @@ export const bakeWorld = (renderer: WebGLRenderer, world: Object3D, sky: Texture
 };
 
 /**
- * The environment's assets for the look-around pass (content schema 2.10): the sky image and the world model baked
+ * The environment's assets for the look-around pass: the sky image and the world model baked
  * into a cube. `set()` loads what changed and frees what is no longer named; a newer `set()` wins over a load still
  * running. While an asset loads – or when it fails (logged) – the pass draws the built-in world's part instead.
  */

@@ -5,7 +5,7 @@
   import Segmented from "#lib/components/Segmented.svelte";
 
   /**
-   * A `behaviour` component's rules as rows (content schema 2.19, #88) – no JSON: per rule the event it hears (the
+   * A `behaviour` component's rules as rows (#88) – no JSON: per rule the event it hears (the
    * node's own as pressed pills, a named event typed with the book's events offered), its condition (a row per test:
    * variable, equals or not, value; `and` / `or` between them) and its actions (a row per action: the verb and what it
    * takes – a clip of the node's model, a node of the subtree by name, a variable with value and scope, an event). Every

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { installedPlugins, installPlugin, loadText, type PluginApi, uninstallPlugin } from "../plugins";
 
-/** Plugin API 1.5 (#186): a text file – a Library shader – by its URL, one request per URL */
+/** A text file – a Library shader – by its URL, one request per URL (#186) */
 
 const ok = (text: string) => new Response(text, { status: 200 });
 

@@ -19,8 +19,8 @@
   import TextureField from "#lib/components/TextureField.svelte";
 
   /**
-   * The **post-processing** (content schema 2.5): the passes over the rendered image in order – the built-in bloom,
-   * vignette and grade, and (schema 2.21, #216) the passes of the book's plugins, each with its rows from its spec. The
+   * The **post-processing**: the passes over the rendered image in order – the built-in bloom,
+   * vignette and grade, and (#216) the passes of the book's plugins, each with its rows from its spec. The
    * book's passes are the master every spread shows; a spread uses them until it has its **own** (an override, starting
    * as a copy of the book's; an empty list turns them off there), *back to the book's* drops the override again. The list
    * shown is the one in effect – while the spread uses the book's, editing it edits the book's (every spread without its

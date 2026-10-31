@@ -38,7 +38,7 @@
   import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
-   * The selected **node** of a target's entity (content schema 2.0: the entity is a tree; the tree panel or a tap
+   * The selected **node** of a target's entity (the entity is a tree; the tree panel or a tap
    * on the stage selects, `node` is the path from the root) – every adjustable value as rows of one control height:
    * placement (three.js names, the three axes in one row as in Blender), a text node's text and colour, a light
    * node's values, each filter's and component's parameters. Changes show live on the stage (`stage.override` with

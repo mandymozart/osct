@@ -1,7 +1,7 @@
 import type { PassData } from "@engine/types";
 
 /**
- * The post-processing panel's model (content schema 2.5): the book's passes are the master every spread shows; a
+ * The post-processing panel's model: the book's passes are the master every spread shows; a
  * spread's own list overrides them (`[]` = off there). The panel edits both at once – the book's list and the spread's
  * own (`null` = it uses the book's) – and compares them with the draft to know what Save writes. Pure, for the tests.
  */

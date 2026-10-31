@@ -60,12 +60,11 @@ final class Editor
      * An entity as the content contract describes it (`EntityData`): an object with a `type` from ENTITY_TYPES
      * and an `assets` list of objects with string `id`, `assetType` and `src`. Every other key (params, filters, …)
      * passes through untouched – the reader's guard checks the configuration in depth.
-     * `$pluginTypes` (`Editor::pluginNodeTypes`) – which node types outside ENTITY_TYPES (a plugin's, `registerNodeType`,
-     * schema 2.13) pass: a list = the node types the book's declared plugins recorded (schema 2.14 – anything else is a
-     * typo); `true` = any named like a plugin's (camelCase), because a plugin of the book is unknown until it runs (a
+     * `$pluginTypes` (`Editor::pluginNodeTypes`) – which node types outside ENTITY_TYPES (a plugin's, `registerNodeType`)
+     * pass: a list = the node types the book's declared plugins recorded (anything else is a typo); `true` = any named like a plugin's (camelCase), because a plugin of the book is unknown until it runs (a
      * declared one without recorded specs, a Code tab source – the editor's stage and the content build run the code,
      * the publish refuses one without compiled plugins); `false` = none (the book has no plugins).
-     * `$pluginMaterials` – the material types (schema 2.17) the same way: a list = the recorded ones, `true` = any camelCase name.
+     * `$pluginMaterials` – the material types the same way: a list = the recorded ones, `true` = any camelCase name.
      * @param bool|list<string> $pluginTypes
      * @param bool|list<string> $pluginMaterials
      */
@@ -102,7 +101,7 @@ final class Editor
             if ($value->type !== 'light') throw new ApiError(400, 'invalid-entity', "$path.light: only a light node has a light.");
             if (!$value->light instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path.light must be an object.");
         }
-        // A plugin's material (schema 2.17): its type and values – which types exist the publish checks (409 unknown-materials)
+        // A plugin's material: its type and values – which types exist the publish checks (409 unknown-materials)
         if (property_exists($value, 'material')) {
             $material = $value->material;
             if (!$material instanceof stdClass || !is_string($material->type ?? null) || !preg_match('/^' . self::MATERIAL_TYPE . '$/', $material->type)) {
@@ -149,7 +148,7 @@ final class Editor
     }
 
     /**
-     * The material types a save in this book accepts (schema 2.17, `Editor::entity`'s `$pluginMaterials`), as `pluginNodeTypes`
+     * The material types a save in this book accepts (`Editor::entity`'s `$pluginMaterials`), as `pluginNodeTypes`
      * @return bool|list<string>
      */
     public static function pluginMaterials(string $bookId): bool|array
@@ -158,7 +157,7 @@ final class Editor
     }
 
     /**
-     * The types of a kind (`materials`, `passes` – schema 2.21) a save in this book accepts: from the compiled plugins its
+     * The types of a kind (`materials`, `passes`) a save in this book accepts: from the compiled plugins its
      * configuration declares and its Code tab sources (`typesOf`)
      * @return bool|list<string>
      */
@@ -184,8 +183,8 @@ final class Editor
     }
 
     /**
-     * What the declared plugins registered, from their recorded `registered` (content schema 2.14,
-     * shared/types/plugins.ts `recordedRegistrations`) – null when one of them recorded nothing (an older build: what it
+     * What the declared plugins registered, from their recorded `registered`
+     * (shared/types/plugins.ts `recordedRegistrations`) – null when one of them recorded nothing (an older build: what it
      * registers is known only when it runs). No plugins: nothing registered.
      * @param array<mixed> $declared
      * @return array{components: list<string>, nodeTypes: list<string>, passes: list<string>, materials: list<string>, textures: list<string>}|null

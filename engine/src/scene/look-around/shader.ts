@@ -144,7 +144,7 @@ const CAFE_WORLD = /* glsl */ `
 `;
 
 /**
- * The book's world (content schema 2.10): the sky is the sky image where the environment names one (equirectangular,
+ * The book's world: the sky is the sky image where the environment names one (equirectangular,
  * its centre towards the book, its top edge straight up), else the café's; over it the world model's cube (baked once
  * from the reader's eye, transparent where the model has nothing) where there is one, else the café's scenery.
  */

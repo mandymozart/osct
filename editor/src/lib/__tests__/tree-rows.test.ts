@@ -128,8 +128,7 @@ describe("the shared selection", () => {
     selection.reset();
   });
 
-  // #229 (Tilman's screenshot: the spread row not highlighted, the gizmo still on the model): a node first, then the
-  // spread row – its row is the one highlighted, no node or target row stays on
+  // A node first, then the spread row (#229): its row is the one highlighted, no node or target row stays on
   it("a node, then the spread row: only the spread row is on", () => {
     const list = rows();
     selection.set(rowSelection({ kind: "node", targetId: "p003-1", path: [0] }));

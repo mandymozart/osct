@@ -37,7 +37,7 @@ describe('content build', () => {
     expect(build.spreads.buildSpreads().map(s => s.id)).toEqual(['b', 'a']);
   });
 
-  // The world and the sky as assets (content schema 2.10): paths below the content folder become content paths
+  // The world and the sky as assets: paths below the content folder become content paths
   describe('environment assets', () => {
     const withEnvironment = (environment: string, files: Record<string, string> = {}) => ({
       ...valid(),
@@ -247,7 +247,7 @@ describe('the demo book', () => {
     expect([Object.keys(aquarium.nodeTypes ?? {}), Object.keys(aquarium.materials ?? {}), Object.keys(aquarium.textures ?? {})]).toEqual([['aquarium'], ['water'], ['caustics']]);
     const tank = entries.find(e => e.id === 'aquarium')?.target?.entity as { children?: Array<{ type: string; material?: unknown }> } | undefined;
     expect(tank?.children?.[0]).toMatchObject({ type: 'aquarium', material: { type: 'water' } });
-    // The ink painting (#225): a node type whose picture is two feedback buffers (plugin API 1.6) – nothing of them recorded
+    // The ink painting (#225): a node type whose picture is two feedback buffers – nothing of them recorded
     expect(plugins.find(p => p.data.id === 'fluid')!.data.registered).toEqual({
       components: {}, passes: {}, nodeTypes: { inkPainting: expect.objectContaining({ params: expect.objectContaining({ resolution: expect.objectContaining({ options: ['256', '512'] }) }) }) },
     });

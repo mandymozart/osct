@@ -7,7 +7,7 @@ import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, PluginError, pluginMaterialsOf, pluginTexturesOf, uninstallPlugin } from "../plugins";
 import { OWNED_MATERIAL } from "../materials";
 
-/** Plugin API 1.4 (#188): a whole material and a procedural texture of a plugin's own */
+/** A whole material and a procedural texture of a plugin's own (#188) */
 
 const WATER: MaterialSpec = {
   description: "Water.",

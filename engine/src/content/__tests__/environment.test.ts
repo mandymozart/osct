@@ -3,7 +3,7 @@ import { DEFAULT_ENVIRONMENT, environmentOf, environmentProblems, referenceExten
 import { assertGameConfiguration } from "@shared/guards/game-config";
 import { effectiveGraphics } from "../../scene/look-around/look-around";
 
-// The book's environment (content schema 2.8): the content says what is drawn, the reader's switches apply on top
+// The book's environment: the content says what is drawn, the reader's switches apply on top
 describe("book environment (content schema 2.8)", () => {
   it("a book without one keeps today's look", () => {
     expect(environmentOf({})).toEqual(DEFAULT_ENVIRONMENT);
@@ -30,7 +30,7 @@ describe("book environment (content schema 2.8)", () => {
   });
 });
 
-// The world and the sky as assets (content schema 2.10): a content path or an absolute URL, by file type
+// The world and the sky as assets: a content path or an absolute URL, by file type
 describe("environment assets (content schema 2.10)", () => {
   const base = { world: "cafe", onionSky: true } as const;
 

@@ -53,14 +53,14 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * material (`utils/layers.ts`); a **pass** is a post-processing effect over the rendered AR image
  * (`post/registry.ts`); a **node type** builds a node's own three.js object (`buildPluginNode`, called by the entity
  * registry for a type without a built-in builder – the node is placed, holds children, components and layers like
- * any); a **material** (API 1.4, `materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
+ * any); a **material** (`materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
  * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
  * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
- * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`, API 1.1): `api.events` (core events of the
+ * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
- * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (API 1.5, #186).
- * A **feedback buffer** (API 1.6, `feedback.ts`) is a fragment shader the engine runs once per frame into a render target
+ * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186).
+ * A **feedback buffer** (`feedback.ts`) is a fragment shader the engine runs once per frame into a render target
  * of its own (`api.feedback`), its own previous frame as `iChannel0` – a fluid on the GPU without the renderer in the
  * plugin's hands; `api.shadertoy(source)` turns a Shadertoy pass (`mainImage`) into its fragment.
  *
@@ -135,7 +135,7 @@ export interface NodeTypeContext {
 /**
  * What a node type's `build` returns: the node's own three.js object – the engine puts it into the node's placement
  * group, next to its children – and the hooks it needs (every one optional, as a component's). When the node carries a
- * material (API 1.4) it replaces the material of every mesh of the object, except a mesh with `userData.keepMaterial =
+ * material it replaces the material of every mesh of the object, except a mesh with `userData.keepMaterial =
  * true`.
  */
 export interface NodeTypeInstance {
@@ -161,7 +161,7 @@ export interface PluginApi {
   registerComponent(type: string, spec: ComponentSpec, apply: ComponentApply): void;
   registerLayer(type: string, spec: ComponentSpec, layer: LayerDefinition): void;
   /**
-   * A node type of the plugin's own (API 1.2): `build` makes its three.js object with `api.three` (Points, a Sprite,
+   * A node type of the plugin's own: `build` makes its three.js object with `api.three` (Points, a Sprite,
    * a Line, a mesh with its own material); the engine places it like every node – placement, children, components and
    * layers come with it. The spec declares its parameters (rows in the Entity panel, values in the node's `params`)
    * and the file its `src` takes (`glb`, `video`, `image` or `none`).
@@ -174,14 +174,14 @@ export interface PluginApi {
    */
   registerPass(type: string, spec: PassSpec, factory: PassFactory): void;
   /**
-   * A whole material (API 1.4): `build` makes a three.js material – a `ShaderMaterial` with GLSL of its own, a
+   * A whole material: `build` makes a three.js material – a `ShaderMaterial` with GLSL of its own, a
    * `MeshStandardMaterial` with a procedural texture – and may return `{ material, update, tune, dispose }`. A node names
    * it as `material: { type, params }`; it replaces the material of the node's meshes (a model's, a plane's, a plugin
    * node's), the node's layers still add on top. `time` in the context is a uniform the engine advances.
    */
   registerMaterial(type: string, spec: MaterialSpec, build: MaterialBuild): void;
   /**
-   * A procedural texture (API 1.4): `draw` makes a three.js texture (a `CanvasTexture`, a `DataTexture`) and may
+   * A procedural texture: `draw` makes a three.js texture (a `CanvasTexture`, a `DataTexture`) and may
    * return `{ texture, update, dispose }` to animate it. Any spec's `texture` parameter takes it by its type – a
    * material's, a layer's, a component's, a node type's.
    */
@@ -195,14 +195,14 @@ export interface PluginApi {
   /** The current spread */
   readonly spread: PluginSpread;
   /**
-   * A text file (API 1.5): a shader of the book's Library by its URL (the Library shows it; a replace gives a new URL and
+   * A text file: a shader of the book's Library by its URL (the Library shows it; a replace gives a new URL and
    * rewrites it in the sources that name it), or a content path (`/assets/content/…`). One request per URL however often
    * it is asked for; rejects on an HTTP error. A layer's GLSL is a string at register time – load files where a build
    * runs: a material's `build`, a pass's factory, a node type's `build` (set the shader when it arrives, `needsUpdate`).
    */
   loadText(url: string): Promise<string>;
   /**
-   * A GPU feedback buffer (API 1.6): `fragment` runs once per frame into a render target the engine keeps (two, swapped
+   * A GPU feedback buffer: `fragment` runs once per frame into a render target the engine keeps (two, swapped
    * every frame, while it reads its own previous frame – the channel `"self"`, the default `iChannel0`), before the scene
    * renders, with `iTime`, `iTimeDelta`, `iFrame`, `iResolution` and `iChannel0…3` set. Show `texture` – or put `uniform`
    * into a ShaderMaterial's uniforms, it follows every swap. Made in a node's build (a node type's, a component's, a
@@ -211,7 +211,7 @@ export interface PluginApi {
    */
   feedback(options: FeedbackOptions): Feedback;
   /**
-   * A Shadertoy pass as `feedback`'s fragment (API 1.6): its `mainImage(out vec4, in vec2)` source unchanged, called with
+   * A Shadertoy pass as `feedback`'s fragment: its `mainImage(out vec4, in vec2)` source unchanged, called with
    * Shadertoy's `fragCoord`; `iTime`, `iFrame`, `iResolution`, `iChannel0…3` are the buffer's. Throws without `mainImage`.
    */
   shadertoy(source: string): string;
@@ -460,10 +460,10 @@ export const buildPluginNode = (
   if (!registration) return null;
   const params = resolveNodeParams(registration.spec, node.params);
   const file = node.assets[0];
-  // Texture parameters (API 1.4) arrive as three.js textures
+  // Texture parameters arrive as three.js textures
   const textures = resolveTextures(registration.spec.params, params, `node type ${node.type} on ${target.id}`);
   let instance: NodeTypeInstance | null | void;
-  // The feedback buffers the build makes (API 1.6) belong to the node: they pause with it and go with it
+  // The feedback buffers the build makes belong to the node: they pause with it and go with it
   let feedbacks: OwnedFeedbacks | null = null;
   try {
     [instance, feedbacks] = collectFeedbacks(() => registration.build({ node, params: textures.values, asset: file ? asset(file.id) : undefined, target, three: THREE }));
@@ -569,7 +569,7 @@ export const applyComponents = (
   context: Omit<ComponentContext, "params" | "three">,
 ): { parts: ComponentInstance[]; types: string[]; tune(node: EntityData): boolean } => {
   const applied = pluginComponentsOf(context.node);
-  // Texture parameters (API 1.4) arrive as three.js textures; each component's go with it
+  // Texture parameters arrive as three.js textures; each component's go with it
   const resolved = applied.map(({ registration, params, data }) => resolveTextures(registration.spec.params, params, `${data.type} on ${context.target.id}`));
   const parts = applied.map(({ registration, data }, i): ComponentInstance => {
     const textures = resolved[i];
@@ -577,7 +577,7 @@ export const applyComponents = (
     let feedbacks: OwnedFeedbacks | null = null;
     try {
       [part, feedbacks] = collectFeedbacks(() => registration.apply({ ...context, params: textures.values, three: THREE }) ?? {});
-      // The component's feedback buffers (API 1.6) pause with the node's object and go with it
+      // The component's feedback buffers pause with the node's object and go with it
       feedbacks.own(context.object);
     } catch (error) {
       console.error(`[plugins] ${data.type} (plugin ${registration.plugin}) failed on ${context.target.id}:`, error);

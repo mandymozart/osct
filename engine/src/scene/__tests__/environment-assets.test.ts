@@ -30,7 +30,7 @@ const fakes = () => {
 
 afterEach(() => vi.restoreAllMocks());
 
-// The environment's assets (content schema 2.10): the sky image and the world model baked into a cube for the pass
+// The environment's assets: the sky image and the world model baked into a cube for the pass
 describe("EnvironmentAssets", () => {
   it("loads nothing for a book without assets – the built-in world is drawn", async () => {
     const { assets, pending, changes } = fakes();

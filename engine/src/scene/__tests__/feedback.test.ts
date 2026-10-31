@@ -8,7 +8,7 @@ import {
   stepFeedbacks, supportedFeedbackType,
 } from "../feedback";
 
-/** Plugin API 1.6 (#225): GPU feedback buffers the engine steps once per frame, and the Shadertoy adapter */
+/** GPU feedback buffers the engine steps once per frame, and the Shadertoy adapter (#225) */
 
 const PASS = "void main() { gl_FragColor = texture(iChannel0, vUv) + vec4(0.01); }";
 

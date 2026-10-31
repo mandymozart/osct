@@ -6,7 +6,7 @@ import {
 import { noteBehaviour, runtimeApi, type PluginVars } from "./plugin-runtime";
 
 /**
- * The built-in `behaviour` component at runtime (content schema 2.19, grammar: `shared/types/behaviour.ts`): a node's
+ * The built-in `behaviour` component at runtime (grammar: `shared/types/behaviour.ts`): a node's
  * rules run on the plugin runtime's own mechanisms – the event bus and the variables (`plugin-runtime.ts`), as a
  * plugin's code would. The node's own events (`found`, `lost`, `tap`, `unlocked`) come from the entity's hooks, every
  * other event from the bus.

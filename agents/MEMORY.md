@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – issue pointers yes, version tags no, in code comments (#219)
+
+- **Tilman decided (2026-10-30): a bare `(#N)` in a code comment is a pointer to the decision or the issue** – allowed,
+  not only in `TODO: … (#N)`. **Version tags go** ("(content schema 2.x)", "(plugin API 1.x)", "since 1.x", "new in …")
+  everywhere except the `shared/` type docs, where each schema version's additions are documented. RULES #22 extended.
+- **Cleanup pass** over client/, engine/, editor/, mcp/, scripts/ and server/ (comments only, no behaviour change); the
+  plugin API stubs regenerated from the engine. Left on purpose: `shared/` (a change there needs a schema bump – #214),
+  user-facing texts (tutorial and help may name "API 1.6"), test names in `describe()`/`it()`, comments about reading
+  older data ("a tab stored before #229", older content schemas in game-config-loading.test.ts) and versions of
+  third-party software (iOS, DOMPurify).
+
 ## 2026-10-31 – plugin passes in post-processing, content schema 2.21 (#216)
 
 - **Tilman asked** (2026-10-30): "Can I also ask to be able to add plugins to the post-processing pass?" #97 had wired

@@ -73,9 +73,9 @@ interface Instance {
   registration: PassRegistration;
   /** Its parameters as resolved for the factory or the last update (texture parameters as the content names them) */
   applied: Record<string, unknown>;
-  /** Its texture parameters as three.js textures (a plugin's pass – plugin API 1.4's kind `texture`) */
+  /** Its texture parameters as three.js textures (a plugin's pass – parameters of kind `texture`) */
   textures: ResolvedTextures;
-  /** The feedback buffers its factory made (plugin API 1.6) – they step while it runs, they go with it */
+  /** The feedback buffers its factory made – they step while it runs, they go with it */
   feedbacks: OwnedFeedbacks | null;
 }
 
@@ -95,7 +95,7 @@ const describeError = (error: unknown): string => (error instanceof Error ? `${e
  * renders straight to the canvas as before (no cost). `enabled` off keeps the passes but renders without them (the
  * editor's viewport outside *rendered*).
  *
- * A plugin's pass (content schema 2.21) is built from its factory in its place in the list, like a built-in one. A pass
+ * A plugin's pass is built from its factory in its place in the list, like a built-in one. A pass
  * that cannot be built – its factory throws or returns no three.js pass – is logged and skipped, the others run; one
  * whose `render` throws is logged and switched off for the chain's life (that frame keeps the image so far). Its texture
  * parameters arrive as textures; the feedback buffers its factory makes step only while the chain renders with passes.

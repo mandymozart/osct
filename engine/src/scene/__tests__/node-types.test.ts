@@ -8,7 +8,7 @@ import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, type NodeTypeContext, PluginError, pluginNodeTypesOf, uninstallPlugin } from "../plugins";
 import type { LoadedAsset } from "../assets";
 
-/** Plugin API 1.2: a plugin's own node type – the plugin builds the object, the engine places it like every node */
+/** A plugin's own node type – the plugin builds the object, the engine places it like every node */
 
 const SPARKLE: NodeTypeSpec = {
   description: "Points around the node.",

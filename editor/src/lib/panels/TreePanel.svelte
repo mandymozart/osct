@@ -20,8 +20,8 @@
    * The spread as a tree in the style of Blender's outliner: a chevron column, a type icon before every name, guide
    * lines per depth, zebra rows, the eye in a column at the right (shown = found, off = reported lost). Rows: the
    * spread, its entries in page order, each entry's target, and the target's
-   * entity as its **node tree** (content schema 2.0: the root node and its children, as deep as the content nests
-   * them), each node by its name (schema 2.12) or its type. It reads and writes the workspace's one selection
+   * entity as its **node tree** (the root node and its children, as deep as the content nests
+   * them), each node by its name or its type. It reads and writes the workspace's one selection
    * (`selection.svelte.ts`, #162; the rows' rules in `tree-rows.ts`): every row is selectable (#227) and the Inspector
    * shows what a tap selects (#229) – on the spread row the spread (no target or node on the stage), on an entry row
    * the entry (the stage outlines its target), on a target row the target, on a node row the node. A tap anywhere on

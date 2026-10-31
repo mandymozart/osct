@@ -484,8 +484,8 @@ final class Books
 
     /**
      * PUT /editor/books/{id}/spreads/{spreadId} { title?, format?, passes? } → { spread }: a spread's title, format
-     * (`spread` | `cover` | `back`, content schema 2.3) and post-processing passes (schema 2.5: a list of
-     * `{ type, …parameters }` with a built-in type or – schema 2.21 – a pass the book's plugins register (`passes`) –
+     * (`spread` | `cover` | `back`) and post-processing passes (a list of
+     * `{ type, …parameters }` with a built-in type or a pass the book's plugins register (`passes`) –
      * `null` removes the list, so the book's passes apply; `[]` turns them off). The pages stay – a cover is page 0, the
      * back the page after the last; `format: cover` on a spread with other pages is refused.
      */
@@ -530,8 +530,8 @@ final class Books
 
     /**
      * PUT /editor/books/{id}/environment { environment: { world, onionSky, worldSrc?, skySrc? } | null } → 200
-     * { environment }: the world around the reader and the onion sky (content schema 2.8; the world model and the sky
-     * image as asset references 2.10, shared/types/environment.ts). `null` removes it – the default applies. Book-level
+     * { environment }: the world around the reader and the onion sky (the world model and the sky
+     * image as asset references, shared/types/environment.ts). `null` removes it – the default applies. Book-level
      * only; the reader's Graphics switches still apply on top.
      */
     public static function putEnvironment(string $bookId): never
@@ -567,9 +567,9 @@ final class Books
 
     /**
      * PUT /editor/books/{id}/passes { passes: [{ type, …parameters }] | null } → 200 { passes }: the book's post-processing
-     * (content schema 2.5, `book.passes`) – the master every spread without a list of its own shows (a spread's
+     * (`book.passes`) – the master every spread without a list of its own shows (a spread's
      * `passes` override it, `PUT …/spreads/{sid}`). `null` removes it; the shape is checked as for a spread's – a
-     * plugin's pass (schema 2.21) included.
+     * plugin's pass included.
      */
     public static function putPasses(string $bookId): never
     {
@@ -832,7 +832,7 @@ final class Books
 
     /** The built-in post-processing passes of the contract (shared/types/passes.ts `PASSES`) */
     public const PASS_TYPES = ['bloom', 'vignette', 'grade'];
-    /** A plugin's pass type (schema 2.21 – shared/types/components.ts `COMPONENT_TYPE_PATTERN`, which a pass's spec is checked with) */
+    /** A plugin's pass type (shared/types/components.ts `COMPONENT_TYPE_PATTERN`, which a pass's spec is checked with) */
     public const PLUGIN_PASS_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
     /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
     public const WORLDS = ['cafe'];
@@ -841,7 +841,7 @@ final class Books
     public const SKY_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
     /**
-     * The plugin pass types a save of this book accepts (schema 2.21): the passes its declared plugins recorded (a list),
+     * The plugin pass types a save of this book accepts: the passes its declared plugins recorded (a list),
      * any camelCase name while a plugin is unknown until it runs (`true` – a Code tab source, a plugin of an older build),
      * none without plugins (`false`) – as `Editor::pluginNodeTypes`
      * @return bool|list<string>
@@ -853,7 +853,7 @@ final class Books
 
     /**
      * A `passes` list as the content holds it: every pass an object with a built-in `type` – or one of the book's
-     * plugins (`$pluginPasses`, schema 2.21: a list = the recorded ones, `true` = any camelCase name, `false` = none) –
+     * plugins (`$pluginPasses`: a list = the recorded ones, `true` = any camelCase name, `false` = none) –
      * and scalar parameters (the engine and the guard check the parameters against the specs; the API keeps the shape)
      * @param bool|list<string> $pluginPasses
      * @return list<stdClass>
@@ -966,7 +966,7 @@ final class Books
         $version = ContentVersion::assemble($bookId);
         // A component type no plugin can register would make the reader refuse the whole content: a plugin written
         // in the editor reaches readers through the content source, not through a publish. What the compiled plugins
-        // register is known when they recorded it (schema 2.14; none declared: nothing) – else they may register anything
+        // register is known when they recorded it (none declared: nothing) – else they may register anything
         $recorded = Editor::recorded((array) ($version['configuration']->plugins ?? []));
         $unknown = $recorded === null ? [] : array_values(array_diff(self::unknownComponentTypes($version['configuration']), $recorded['components']));
         if ($unknown) {
@@ -977,12 +977,12 @@ final class Books
         if ($unknownNodes) {
             throw new ApiError(409, 'unknown-node-types', 'Nodes have types no compiled plugin provides: ' . implode(', ', $unknownNodes) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['nodeTypes' => $unknownNodes]);
         }
-        // The same for a plugin's material (schema 2.17): without a compiled plugin the reader keeps the node's own material
+        // The same for a plugin's material: without a compiled plugin the reader keeps the node's own material
         $unknownMaterials = $recorded === null ? [] : array_values(array_diff(self::materialTypes($version['configuration']), $recorded['materials']));
         if ($unknownMaterials) {
             throw new ApiError(409, 'unknown-materials', 'Nodes use materials no compiled plugin provides: ' . implode(', ', $unknownMaterials) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['materials' => $unknownMaterials]);
         }
-        // And for a plugin's pass (schema 2.21): the reader's guard refuses a pass type no declared plugin recorded
+        // And for a plugin's pass: the reader's guard refuses a pass type no declared plugin recorded
         $unknownPasses = $recorded === null ? [] : array_values(array_diff(self::pluginPassTypes($version['configuration']), $recorded['passes']));
         if ($unknownPasses) {
             throw new ApiError(409, 'unknown-passes', 'The book\'s or a spread\'s post-processing names passes no compiled plugin provides: ' . implode(', ', $unknownPasses) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['passes' => $unknownPasses]);
@@ -1024,7 +1024,7 @@ final class Books
     }
 
     /**
-     * The pass types of the book's and the spreads' `passes` that are not built in (PASS_TYPES) – a plugin's (schema 2.21), sorted
+     * The pass types of the book's and the spreads' `passes` that are not built in (PASS_TYPES) – a plugin's, sorted
      * @return list<string>
      */
     public static function pluginPassTypes(stdClass $configuration): array
@@ -1044,7 +1044,7 @@ final class Books
     }
 
     /**
-     * The material types of every node of the configuration (schema 2.17 – every material is a plugin's), sorted
+     * The material types of every node of the configuration (every material is a plugin's), sorted
      * @return list<string>
      */
     public static function materialTypes(stdClass $configuration): array
@@ -1054,7 +1054,7 @@ final class Books
     }
 
     /**
-     * The node types of the configuration that are not built in (Editor::ENTITY_TYPES) – a plugin's (schema 2.13), sorted
+     * The node types of the configuration that are not built in (Editor::ENTITY_TYPES) – a plugin's, sorted
      * @return list<string>
      */
     public static function unknownNodeTypes(stdClass $configuration): array
@@ -1197,7 +1197,7 @@ final class Books
         if (!$entitiesIn instanceof stdClass) $fail('entities must be an object.');
         $tutorial = $c->tutorial ?? [];
         if (!is_array($tutorial)) $fail('tutorial must be an array.');
-        // The book's compiled plugins (content schema 2.4): kept as declared – the content build is their one writer
+        // The book's compiled plugins: kept as declared – the content build is their one writer
         $plugins = $c->plugins ?? [];
         if (!is_array($plugins)) $fail('plugins must be an array.');
         foreach ($plugins as $i => $plugin) {
@@ -1205,7 +1205,7 @@ final class Books
                 || !is_string($plugin->src ?? null) || !is_string($plugin->api ?? null)) {
                 $fail("plugins[$i] needs id, src and api.");
             }
-            // What it registered (schema 2.14, optional): the specs by kind – the app's guard checks them in depth
+            // What it registered (optional): the specs by kind – the app's guard checks them in depth
             if (property_exists($plugin, 'registered')) {
                 $registered = $plugin->registered;
                 if (!$registered instanceof stdClass) $fail("plugins[$i].registered must be an object { components?, nodeTypes?, passes?, materials?, textures? }.");
@@ -1214,7 +1214,7 @@ final class Books
                 }
             }
         }
-        // A plugin's node type (schema 2.13): the ones the declared plugins recorded (2.14), any camelCase name while a
+        // A plugin's node type: the ones the declared plugins recorded, any camelCase name while a
         // plugin is unknown until it runs (a Code tab source, a declared plugin of an older build), none without plugins
         $pluginTypes = Editor::nodeTypesOf($plugins, $pluginSources);
         $pluginMaterials = Editor::typesOf($plugins, $pluginSources, 'materials');
