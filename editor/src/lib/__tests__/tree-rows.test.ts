@@ -127,4 +127,21 @@ describe("the shared selection", () => {
     expect([selection.target, selection.onTarget]).toEqual(["p003-1", true]);
     selection.reset();
   });
+
+  // #229 (Tilman's screenshot: the spread row not highlighted, the gizmo still on the model): a node first, then the
+  // spread row – its row is the one highlighted, no node or target row stays on
+  it("a node, then the spread row: only the spread row is on", () => {
+    const list = rows();
+    selection.set(rowSelection({ kind: "node", targetId: "p003-1", path: [0] }));
+    expect(list.filter(row => isRowOn(row, selection, hasTree)).map(row => kinds([row])[0])).toEqual(["node 0"]);
+    selection.set(rowSelection({ kind: "spread" }));
+    expect(list.filter(row => isRowOn(row, selection, hasTree)).map(row => kinds([row])[0])).toEqual(["spread"]);
+    expect([selection.target, selection.node, selection.level(true)]).toEqual([null, [], "none"]);
+  });
+
+  it("nothing selected is the spread: a fresh workspace highlights its row", () => {
+    selection.selectNode("p003-1", [1]);
+    selection.reset();
+    expect(rows().filter(row => isRowOn(row, selection, hasTree)).map(row => kinds([row])[0])).toEqual(["spread"]);
+  });
 });

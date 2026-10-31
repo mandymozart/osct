@@ -6,9 +6,9 @@
   /**
    * A collapsible section of a panel: a header (chevron, label, optional `aside` at the right) that opens and closes
    * its rows. The open state is kept per `id` (`sections`); `open` is the first-visit default until the author toggles
-   * it. While closed, `summary` follows the label ("stage · Eiermann · grid off"), so closed hides nothing that matters.
-   * `help` is the section's description for the Info view. `data-section` carries the id, so a link from elsewhere
-   * (the tree's spread row, #227) can scroll the section into view.
+   * it. While closed, `summary` follows the label ("post-processing · the whole book"), so closed hides nothing that
+   * matters. `help` is the section's description for the Info view. `data-section` carries the id, so a link from
+   * elsewhere can scroll the section into view.
    */
   interface Props {
     id: string;

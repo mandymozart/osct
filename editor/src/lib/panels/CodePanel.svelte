@@ -15,7 +15,7 @@
    * loaded with this tab only): TypeScript against the plugin API's types – completion and type errors inline as the
    * content build reports them; Tab indents, Ctrl+Enter runs, Ctrl+S saves. **Run** transpiles the TypeScript in
    * the browser and installs the module in the stage's registry, so a layer or component shows on the stage and in
-   * the Entity panel at once; **Save** stores the source; a Run's error shows under the editor and as a marker on its
+   * the Inspector at once; **Save** stores the source; a Run's error shows under the editor and as a marker on its
    * line; **Download** gives the source with `plugin-api.d.ts` and a tsconfig, so it type-checks the same way
    * elsewhere. Nothing run
    * here reaches readers: a publish compiles the stored plugins with the content build (#78); until then only the

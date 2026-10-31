@@ -1,6 +1,6 @@
 import { ENTRY_CATEGORIES, EntryCategory, type EntityType } from "@engine/types";
 
-/** What may appear on the page of a new target ("" = nothing yet, the Entity panel adds it later) */
+/** What may appear on the page of a new target ("" = nothing yet, the Inspector adds it later) */
 export const APPEARS: readonly (EntityType | "")[] = ["", "model", "video", "image", "text", "group", "light"];
 
 /** The entry's categories – the reader's consultation menu (Glossary, Videos, Texts, Links) */

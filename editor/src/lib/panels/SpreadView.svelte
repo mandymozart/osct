@@ -1,15 +1,9 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { errorText, putSpread } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
-  import { clampGrid } from "#lib/stage/preview.js";
-  import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel } from "#lib/stage/origin.js";
   import Segmented from "#lib/components/Segmented.svelte";
   import Section from "#lib/components/Section.svelte";
-  import {
-    getPreview, HDRIS, isHdriId, stageSummary, subscribePreview, TOPS, updatePreview, type PreviewState,
-  } from "#lib/stage/preview.js";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Icon from "#lib/components/Icon.svelte";
   import { formatElapsed } from "#lib/stage/event-log.js";
@@ -22,26 +16,23 @@
   import { passesState, spreadPages } from "#lib/spread-view.js";
 
   /**
-   * The stage's settings in collapsible sections (open state kept per section, all closed on the first visit): the
-   * **spread** – the one place that shows the spread the tree's top row selects (#227): its title, pages, format, the
-   * post-processing in effect and the book's environment – the **stage** (hand shake, the grid over the page, the origin every position is counted
-   * from, the desk's top and the sky – closed, its head names the desk, its top and the grid; with the book's environment the sky is its
-   * world, the HDRI waits for a book without one, #185), the **post-processing** (the book's
-   * passes, a spread's own as an override – its head names the level), and the **narrative** of the book's plugins:
-   * a tap button per target (the reader's tap without aiming), the variables with scope
-   * and type, editable and deletable, a form to set one by hand (both written through the plugin API), *reset* for a
-   * new game, and the stage's event timeline (time since the spread opened, event, payload) with *clear*. The camera
-   * is moved on the stage itself; found / lost per target is the tree's eye, the first find is replayed from the
-   * stage's menu. Explanations are the controls' help in the Info view.
+   * The **spread** in the Inspector (#229 – the Stage tab's until then): what the Inspector shows while the spread is
+   * selected – the tree's top row, a click on the stage that picks nothing, a fresh workspace. Collapsible sections
+   * (open state kept per section): the **spread** – its title, pages, format, the post-processing in effect and the
+   * book's environment, open on a first visit –, the **post-processing** (the book's passes, a spread's own as an
+   * override – its head names the level), and the **narrative** of the book's plugins: a tap button per target (the
+   * reader's tap without aiming), the variables with scope and type, editable and deletable, a form to set one by hand
+   * (both written through the plugin API), *reset* for a new game, and the stage's event timeline (time since the
+   * spread opened, event, payload) with *clear*. How the stage shows the spread – shake, origin, the desk's top, the
+   * sky – is the toolbar's *view* group (`ViewMenu.svelte`), the grid its *grid & snap* group. The camera is moved on
+   * the stage itself; found / lost per target is the tree's eye, the first find is replayed from the stage's menu.
+   * Explanations are the controls' help in the Info view.
    */
   let { stage, bookId, spreadId, onenvironment }: {
     stage: Stage | null; bookId: string; spreadId: string;
     /** The environment row's link: the workspace opens the Environment tab */
     onenvironment?: () => void;
   } = $props();
-
-  let preview = $state<PreviewState>(getPreview());
-  onMount(() => subscribePreview(state => (preview = state)));
 
   const spread = $derived(content.spread(spreadId));
   /** The spread's format (content schema 2.3): a double page, the front cover or the back cover – the stage follows */
@@ -61,7 +52,7 @@
   };
   const format = $derived(spread?.format ?? "spread");
 
-  /** The book's environment replaces the HDRI as the sky (#185): the picker says so and stays for books without one */
+  /** The book's environment (#185): the spread section names it */
   const environment = $derived(stageEnvironment.current);
 
   const vars = $derived(withTypes(stage?.vars ?? []));
@@ -81,8 +72,8 @@
   };
 </script>
 
-<Section id="stage.spread" label="spread" open={false} summary={spread ? `${spread.title} · ${format}` : undefined}
-  help="The spread the stage shows: its title and pages, its format (saved to the draft), the post-processing in effect and the book's environment. A tap on the tree's top row selects the spread and opens this section.">
+<Section id="stage.spread" label="spread" summary={spread ? `${spread.title} · ${format}` : undefined}
+  help="The spread the stage shows: its title and pages, its format (saved to the draft), the post-processing in effect and the book's environment. The Inspector shows the spread while it is selected – a tap on the tree's top row, a click on the stage that picks nothing – and when the workspace opens.">
   <div class="row" data-help="The spread's title in the book.">
     <span class="label">title</span>
     <span class="value">{spread?.title ?? spreadId}</span></div>
@@ -106,54 +97,6 @@
     <span class="controls">
       <span class="value">{environment ? environmentSkyLabel(environment, url => library.byUrl(url)?.name) : "none – the stage's HDRI"}</span>
       {#if onenvironment}<button type="button" class="text-link" onclick={onenvironment} data-help-name="Environment tab" data-help="Opens the Environment tab, where the book's environment is set.">edit</button>{/if}
-    </span></div>
-</Section>
-
-<Section id="stage.stage" label="stage" open={false} summary={`${stageSummary(preview)}${environment ? " · the environment's sky" : ""}`} help="How the editor shows the spread – stored in this browser, not in the content.">
-  <div class="row" data-help="Hand shake: 0 = still, 1 = a hand holding the phone. The stage wobbles like a reader's camera.">
-    <span class="label">shake</span>
-    <span class="controls"><span class="w"><ScrubNumber value={preview.wobble} min={0} max={1} step={0.05} fallback={0} strict label="Hand shake" oninput={wobble => updatePreview({ wobble })} /></span></span></div>
-
-  <div class="row" data-help="A grid over the page: on / off and its spacing in mm. Its lines run through the origin, which is drawn red.">
-    <span class="label">grid</span>
-    <span class="controls">
-      <Segmented options={["off", "on"] as const} value={preview.grid ? "on" : "off"} onchange={v => updatePreview({ grid: v === "on" })} />
-      <span class="w"><ScrubNumber value={preview.gridMm} min={1} max={500} step={1} fallback={10} strict unit="mm" label="Grid spacing" oninput={gridMm => updatePreview({ gridMm: clampGrid(gridMm) })} /></span>
-    </span></div>
-
-  <div class="row" data-help="Where the grid and every x / y in the editor count from – a point of the alignment square: a corner or an edge's centre of the page a position lies on, or the centre (the book's centre, the spine's middle, on the open book; the page's centre on a cover). x runs to the right, y downwards; left of or above the origin is negative. Saved positions stay mm from the page's top left. Now: {originHelp(preview.origin, format)}">
-    <span class="label">origin</span>
-    <span class="controls">
-      <span class="origin" role="radiogroup" aria-label="Origin">
-        {#each ORIGINS as origin (origin)}
-          <button type="button" role="radio" class="spot" class:on={preview.origin === origin} aria-checked={preview.origin === origin} aria-label={originLabel(origin, format)}
-            data-help={originHelp(origin, format)} style:grid-column={ORIGIN_SPOTS[origin].col + 1} style:grid-row={ORIGIN_SPOTS[origin].row + 1}
-            onclick={() => { if (isOriginId(origin)) updatePreview({ origin }); }}></button>
-        {/each}
-      </span>
-      <span class="small">{originLabel(preview.origin, format)}</span>
-    </span></div>
-
-  <div class="row" data-help="The top of the desk the book lies on (Eiermann's steel frame): its screen-printed plywood, or blue-grey linoleum on oak plywood. Only the top changes – the book, the targets and the camera stay where they are.">
-    <span class="label">top</span>
-    <span class="controls">
-      <Segmented options={TOPS.map(t => t.id)} value={preview.top} label="Desk top" onchange={top => updatePreview({ top })} />
-    </span></div>
-
-  {#if environment}
-  <div class="row" data-help="The sky: the book's environment (the Environment tab) – while rendered its world replaces the HDRI, and the scene's own lights light the stage, as in the reader.">
-    <span class="label">sky</span>
-    <span class="controls"><span class="small">{environmentSkyLabel(environment, url => library.byUrl(url)?.name)}</span></span></div>
-  {/if}
-  <div class="row" data-help={environment
-    ? "The studio HDRI – overridden by the book's environment, used again for a book without one (Environment tab → Use the default)."
-    : "The sky and its light: a studio HDRI, shown while the shading is rendered. A book's environment replaces it (the Environment tab)."}>
-    <span class="label">{environment ? "HDRI" : "sky"}</span>
-    <span class="controls">
-      <select class="field wide" class:overridden={!!environment} aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
-        {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
-      </select>
-      {#if environment}<span class="small muted">without an environment</span>{/if}
     </span></div>
 </Section>
 
@@ -227,8 +170,6 @@
   .w { width: 5rem; display: inline-flex; }
   .value { min-width: 0; overflow-wrap: anywhere; }
   .w :global(.scrub) { width: 100%; }
-  .wide { width: 100%; }
-  .overridden { opacity: .6; }
   .row.top { align-items: start; }
   .row.top > .label { line-height: var(--control-height); }
   .label.var { padding-left: 1rem; color: var(--text); }
@@ -239,19 +180,4 @@
   .timeline li { display: grid; grid-template-columns: 4.75rem auto minmax(0, 1fr); gap: .375rem; align-items: baseline; padding: .0625rem 0; }
   .at { font-variant-numeric: tabular-nums; text-align: right; }
   .detail { overflow-wrap: anywhere; }
-  .origin { display: inline-grid; grid-template-columns: repeat(3, .75rem); grid-template-rows: repeat(3, .75rem); gap: .125rem; padding: .125rem;
-    border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); }
-  .spot { width: .75rem; height: .75rem; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: none; cursor: pointer; }
-  @media (hover: hover) {
-    .spot:hover { border-color: var(--text); }
-  }
-  .spot.on { border-color: var(--text); background: var(--text); }
-  /* A finger: a bigger cell to hit, the drawn dot keeps its size */
-  @media (pointer: coarse) {
-    .origin { grid-template-columns: repeat(3, 1.75rem); grid-template-rows: repeat(3, 1.75rem); }
-    .spot { position: relative; width: 1.75rem; height: 1.75rem; border: none; border-radius: 0; }
-    .spot::before { content: ""; position: absolute; inset: calc(50% - .375rem); border: 1px solid var(--muted); border-radius: 50%; }
-    .spot.on { background: none; }
-    .spot.on::before { border-color: var(--text); background: var(--text); }
-  }
 </style>

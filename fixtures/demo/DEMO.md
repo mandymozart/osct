@@ -7,8 +7,8 @@ narrative across its spreads – a key tapped on one page opens a door on anothe
 **The behaviour** (#88): the key and the door carry `behaviour` rules – no code. The key's rule (*on tap*) plays the
 model's clip `rattle`, sets `hasKey` in the book scope and emits `keyRattled`; the door's rules show its `hint` child
 when the page is found and, found with `hasKey`, hide it and emit `openDoor` – which the `door` component of
-`plugins/narrative` hears to lift and turn the door (what a rule cannot do). The Entity panel edits the rules, the Stage
-panel's timeline marks each rule that ran.
+`plugins/narrative` hears to lift and turn the door (what a rule cannot do). The Inspector edits the rules, the spread's
+timeline in it marks each rule that ran.
 
 **The aquarium** (page 2, *The key*'s right page, above the tally – #188): the entry `aquarium` with a target of its own
 (`entries/aquarium/target.jpg`, drawn for the demo), whose AR content is a group holding the plugin node `aquarium` – a
@@ -20,7 +20,7 @@ wave equation on a 64-cell grid, on the CPU), the toy displaces its volume, ring
 and the floor's caustics follow them (docs/plugins.md "A shader study"). Where the browser has WebGPU (#228) the water is
 a particle fluid instead – Splash's MLS-MPM simulation and screen-space renderer, adapted into the plugin, drawn from the
 scene's camera into a canvas the water material samples in screen space; the toy pushes the particles aside, and the
-heightfield stays as the fallback (docs/plugins.md "A WebGPU fluid inside a WebGL scene"). In the editor the Entity panel
+heightfield stays as the fallback (docs/plugins.md "A WebGPU fluid inside a WebGL scene"). In the editor the Inspector
 shows *node type · aquarium* (the toy, loop, dip, simulation, grid, damping and splash among its rows, then *WebGPU ok* or
 *no WebGPU*, particles, render scale and fluid colour) and *material · water* with their rows; **make it code** on any
 node writes a node type of its own into the Code tab.
@@ -58,7 +58,7 @@ docs/plugins.md and `agents/research/2026-10-30-demo-book.md`. Most assets are t
 animation clip, `rattle`, which its behaviour plays on a tap (the `animation` component says how: once) – written by `editor/tools/key-model.mjs`
 (`node editor/tools/key-model.mjs` regenerates `entries/key/key.glb`; an editor test checks the file is the script's).
 
-In the editor, the Stage panel's *vars and events* drives the narrative by hand: **tap** taps a found target without
+In the editor, the Inspector's *vars and events* (the spread selected) drives the narrative by hand: **tap** taps a found target without
 aiming at it (the key rattles and is taken, the switch changes its scene), the variables are editable and **set** adds
 one through the plugin API (`hasKey` true in the book scope, then the door's page switched off and on, opens the door
 without the key's page), and the timeline lists every event with the time since the spread opened.

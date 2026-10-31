@@ -4,7 +4,7 @@ import { installedPlugins, installPlugin, uninstallPlugin } from "@engine/scene/
 import { nodeAssetKinds, pickFilter, pickKinds } from "../library-pick";
 import { contentTree, getValue, newNode, nodeTypeRows, setValue, valueRows } from "../values";
 
-/** A plugin's node type (#77) in the Entity panel: its parameters as rows, its file kinds in the Library picker */
+/** A plugin's node type (#77) in the Inspector: its parameters as rows, its file kinds in the Library picker */
 
 const SPARKLE: NodeTypeSpec = {
   description: "Points.",
@@ -25,7 +25,7 @@ const install = () => installPlugin("fx", {
 
 afterEach(() => installedPlugins().forEach(uninstallPlugin));
 
-describe("the Entity panel's rows of a plugin's node type", () => {
+describe("the Inspector's rows of a plugin's node type", () => {
   it("come from its spec, after the placement rows, as params.{name}", () => {
     install();
     const node = newNode("sparkle");

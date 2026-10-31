@@ -4,6 +4,38 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – no Stage tab: the spread in the Inspector, the preview settings in the toolbar (#229)
+
+- **Tilman decided** (on a screenshot, the tree's spread row and the Stage tab: "These are the same. I'd like to remove
+  Stage from the right side."). It supersedes #227's "the spread lives in one place: the Stage panel's spread section".
+  The Stage panel's removal is his decision (RULES #1); its sections moved, none was dropped.
+- **The Entity tab is the Inspector.** It shows whatever is selected – the spread, an entry, a target, its entity, a
+  node – so *Entity* no longer fit. *Inspector* over *Selected*: the word every 3D and design tool uses for that panel
+  (Unity, Godot, Xcode), a noun like the other tabs; the phone shows the sliders icon. The component keeps its name
+  (`EntityPanel.svelte`) – a rename would only churn the files #223's entry form touches; the tab's id is `inspector`
+  (`panel-tabs.ts`), a stored `stage` or `entity` maps to it.
+- **The spread's sections moved, not rebuilt**: `StagePanel.svelte` became `SpreadView.svelte` (git mv) minus its *stage*
+  section; the Inspector shows it while the spread is selected. The section ids stay `stage.spread`, `stage.passes`,
+  `stage.narrative`, so everyone's open / closed state carries over; *spread* is now open on a first visit.
+- **Nothing selected is the spread** (`settledSelection`): the fallback "a target stands in" and `selection.cleared` are
+  gone; a fresh workspace, another spread and a click on the stage that picks nothing select the spread. The Inspector's
+  `selected` is no longer bound back – the panel never writes the selection's target itself.
+- **The preview settings are the toolbar's *view* group** (`ViewMenu.svelte`, the gear) after *grid & snap*: shake,
+  origin, top, sky. *View*, not *Stage*: the toolbar already is the stage's. The grid stays *grid & snap*'s (it was in
+  both). Both one-button groups share `ToolMenu.svelte` (button, panel, keys) – #190's pattern built once. `stageSummary`
+  became `viewSummary`, the group's tooltip, without the grid (grid & snap's own tooltip says it).
+- **The selection bug in the screenshot** (spread row not highlighted, gizmo still on the model): with the demo on
+  1.51.2 – a node selected in the tree or on the stage, then the spread row – the row is highlighted and the gizmo goes,
+  so the logic was right. The screenshot's state is exactly 1.51.1's (the spread row was a plain row with no handler);
+  the editor never reloads itself on a deploy (`version.pollInterval: 0`, #160 reloads only on a missing chunk), so a
+  tab opened before 1.51.2 reached staging (22:40 UTC, the issue 23:59) keeps the old tree. What 1.51.2 still missed: a
+  click on the row's book icon or its empty cells did nothing – now a tap anywhere on a row selects it. Not verified on
+  staging (no staging sign-in for workers).
+- [ ] The demo book in the local SQLite is older than `fixtures/demo` (the key has the `key` component, no behaviour, no
+  aquarium): the tutorial's `12-behaviour.webp` (the behaviour line in the timeline) still shows the Stage tab – retake
+  it after re-importing the demo. The demo's own texts (entry bodies, the layout image) still say "Entity panel" /
+  "Stage panel" – content, changed with the next demo edit.
+
 ## 2026-10-31 – the demo aquarium's water is Splash in WebGPU, the heightfield its fallback (#228)
 
 - **Tilman decided** (#228): "The water simulation you used is shit. Use this: https://github.com/matsuoka-601/Splash

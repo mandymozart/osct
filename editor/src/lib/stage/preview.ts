@@ -4,14 +4,15 @@
  *
  * - `active`: the editor page is open – `ArScene` builds the mock tracker instead of the engine (a change while the
  *   scene exists rebuilds it). Not stored: the route decides.
- * - The settings the preview panel changes, stored on this device (`osct-preview`): the view preset or a free orbit,
- *   the sky (an HDRI), the desk's top, the hand-shake amount, the grid and its vertical axis, and the snapping (the toolbar's
- *   *grid & snap* group: on / off, what it snaps to, the precision per gizmo mode – `snap.ts`).
+ * - The settings the stage toolbar changes, stored on this device (`osct-preview`): the view preset or a free orbit,
+ *   the shading, the sky (an HDRI), the desk's top, the hand-shake amount and the origin (the *view* group, #229), the
+ *   grid and its vertical axis, and the snapping (the *grid & snap* group: on / off, what it snaps to, the precision
+ *   per gizmo mode – `snap.ts`).
  * - `hidden`: targets switched off in the panel – the mock reports them as lost (outro), on again as found (reveal).
  *   Not stored.
  */
 
-import { isOriginId, type OriginId } from "./origin";
+import { isOriginId, originLabel, type OriginFrame, type OriginId } from "./origin";
 import { clampSnap, SNAP_TARGETS, type SnapTarget } from "./snap";
 import { readStoredJson, writeStoredJson } from "#lib/storage.js";
 
@@ -55,11 +56,21 @@ export const storedTop = (stored: { top?: unknown; desk?: unknown }): TopId =>
       : DEFAULT_TOP;
 
 /**
- * The Stage panel's *stage* section closed, in a few words: the desk and its top, the grid and snapping while it is
- * on – "Eiermann · plywood · grid off", "Eiermann · linoleum · grid 10 mm · snap on"
+ * The stage toolbar's *view* group in a few words (#229 – the Stage tab's closed *stage* head until then): the desk and
+ * its top, the origin, the hand shake and the sky – "Eiermann · plywood · origin top left · no shake · sky Wooden
+ * Studio 17"; with the book's environment the sky is its world ("· the environment's sky"). The group's tooltip; the
+ * grid and snapping are the *grid & snap* group's own.
  */
-export const stageSummary = (settings: Pick<PreviewSettings, "top" | "grid" | "gridMm"> & Partial<Pick<PreviewSettings, "snap">>): string =>
-  `${DESK_NAME} · ${TOPS.find(t => t.id === settings.top)?.name ?? settings.top} · ${settings.grid ? `grid ${settings.gridMm} mm` : "grid off"}${settings.snap ? " · snap on" : ""}`;
+export const viewSummary = (
+  settings: Pick<PreviewSettings, "top" | "wobble" | "origin" | "hdri">,
+  { format = "spread", environment = false }: { format?: OriginFrame["format"]; environment?: boolean } = {},
+): string => [
+  DESK_NAME,
+  TOPS.find(t => t.id === settings.top)?.name ?? settings.top,
+  `origin ${originLabel(settings.origin, format)}`,
+  settings.wobble > 0 ? `shake ${Math.round(settings.wobble * 100) / 100}` : "no shake",
+  environment ? "the environment's sky" : `sky ${HDRIS.find(h => h.id === settings.hdri)?.name ?? settings.hdri}`,
+].join(" · ");
 
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
 export interface PreviewOrbit {

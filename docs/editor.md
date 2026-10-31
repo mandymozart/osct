@@ -67,17 +67,18 @@ with SQLite and the local content store:
 5. **Import a book…** → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
    configuration), *assets at* `http://localhost:5174` → Import. The book appears with its spreads.
 6. Open *The key*: the stage shows the spread's targets with their entities, the key is found and unlocked – the
-   **Stage** tab's *vars and events* has the timeline of the finds. *tap* → *The key* takes it: its **behaviour** rule
-   (#88, select the key and open the **Entity** tab to see it) plays the model's clip `rattle`, sets `hasKey` (book,
+   **Inspector** shows the spread (selected when the workspace opens), and its *vars and events* has the timeline of
+   the finds. *tap* → *The key* takes it: its **behaviour** rule
+   (#88, select the key to see it in the Inspector) plays the model's clip `rattle`, sets `hasKey` (book,
    boolean, true) and emits `keyRattled` – in the timeline (newest first) the rule's `behaviour` line sits under the events it caused. Walk with › to
    *The door*: its rules hide the hint and emit `openDoor`, the `door` plugin lifts and turns the door,
    `stage · doorOpen = true`, the lamp on the right page shows. Switch a target off and on with the
    tree's eye (lost, found again), *Replay the first find* in the stage's right-click menu plays it again, *reset* in
-   the Stage tab starts a new game – on *The door* the hint shows then; *set* `hasKey` (book, true), switch the door
+   the spread's *vars and events* starts a new game – on *The door* the hint shows then; *set* `hasKey` (book, true), switch the door
    off and on, and it opens without a visit to the key's page. Open *The switch*
    and click the entity on the stage: the next scene shows. The **Code** tab lists the eight plugins (compiled by the
    content build, their sources next to them): change one, **Run**, and the stage shows it. Move a node in the
-   **Entity** tab (type a scale, or press and slide), **Save**, then **Publish** – it goes to `local · this server`,
+   **Inspector** (type a scale, or press and slide), **Save**, then **Publish** – it goes to `local · this server`,
    the local API's own environment.
    With the fixture: open *Studio A – models* the same way.
 7. The reader reads the published version when it is started with
@@ -163,12 +164,12 @@ visible and safe (#143):
 ## What is on the stage
 
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws, in the same three.js scene as the entities: the
-**sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the Stage panel's *sky*, Wooden Studio 17 by default,
+**sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; the toolbar's *view* group's *sky*, Wooden Studio 17 by default,
 shown while the shading is rendered), the equirectangular image on a sphere around the stage and as `scene.environment`, turned with the
 stage every frame so the room stays put while the camera orbits; **a book with an environment replaces it** (#185, below) –
 the **desk** (Tilman: the tool is for designers, they should feel at home) – a steel tube frame after Egon Eiermann's
-table frame (1953), 72 cm high, with one of two tops of the same 1.8 × 0.8 m and the same surface height, the Stage
-panel's *top* (#226: switching it changes only the top – the book, the targets, the grid and the camera stay):
+table frame (1953), 72 cm high, with one of two tops of the same 1.8 × 0.8 m and the same surface height, the
+toolbar's *view* group's *top* (#226: switching it changes only the top – the book, the targets, the grid and the camera stay):
 **plywood**, the default – a screen-printed plywood board (18 mm; Poly Haven's plywood texture tinted to the phenolic
 brown on the faces) whose edges show cut plywood – 13 plies of birch per 18 mm board, as the trade's 18 mm birch
 plywood, alternating long grain and darker cross grain, parted by glue lines, drawn in code once (`plywood.ts`, a
@@ -198,8 +199,8 @@ nothing flickers. The printed images:
 
 The stage's **sheet image is sharpened on demand**: the layout carries a second, much sharper image per sheet
 (`imageSharp`, `sheets/<sheet>@sharp.jpg`); the stage fetches it once, when the camera comes within 50 cm of the page.
-The Stage panel sets a **grid** (on / off, spacing in mm; its lines run through the origin, which is red) and the
-**origin** (`stage/origin.ts`): one of the nine points of an alignment square – a corner or an edge's centre of the base
+The toolbar's *grid & snap* group sets a **grid** (on / off, spacing in mm; its lines run through the origin, which is
+red), its *view* group the **origin** (`stage/origin.ts`): one of the nine points of an alignment square – a corner or an edge's centre of the base
 format (per page), or the centre (the book's centre, the spine's middle, on the open book; the page's centre on a cover). The x / y rows of a
 target's placement and of a new target are shown and entered from that origin (x to the right, y downwards, so values
 left of or above it are negative); what is saved stays mm from the page's top left corner. With the grid, a thin green
@@ -272,13 +273,15 @@ is involved.
   cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after
   the last) when the book has none; **Publish** to the instance's own environment, named with its backend
   (`staging · CDN`, `local · this server` – [above](#publish-the-instances-own-environment)), through a step in the page,
-  and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Stage panel's *spread* section; on a double page
+  and next to it where the book is live (*live on staging, production* or *draft only*). A one-page spread's **format** (spread, cover, back) is chosen in the Inspector's *spread* section (the spread selected); on a double page
   the select is disabled (only a one-page spread can be a cover) – the reason is its help in the Info view.
 - **Workspace** (`/editor/<book>/<spread>/`): the **tree** at the left, the stage, and one panel at the right on a
   desktop; on a phone the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row
-  (closed = the row only) with the tree as its first tab. The bar: × back to the spreads, ‹ › (also ← →) through the
+  (closed = the row only) with the tree as its first tab. The tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what is
+  selected), **Environment**, **Library**, **Code** – no Stage tab: the spread is the Inspector's, the preview settings
+  are the toolbar's (below); a tab stored before (`stage`, `entity`) opens the Inspector, as does a first visit. The bar: × back to the spreads, ‹ › (also ← →) through the
   spreads, the tabs – as words, or as icons in a panel too narrow for them (under 24rem, 28rem with a finger), so the
-  head stays one line (#172). On a phone the head is the six tab icons alone, sharing its width (#171): ‹ › sit at the
+  head stays one line (#172). On a phone the head is the five tab icons alone, sharing its width (#171): ‹ › sit at the
   stage's lower corners, and the top bar's book link is the way back to the spreads. On a stage too short for them below
   the toolbar (the sheet almost full) they move to its top right, beside the toolbar (#177) – which is one row and
   always leaves them that room, so every tool stays reachable at every sheet height without scrolling (#180).
@@ -298,24 +301,32 @@ is involved.
     R** still switch the gizmo; the Info view shows each button's tooltip.
     The fourth group, **grid & snap** (#190, `components/GridSnapMenu.svelte`), is always one button – the grid's icon,
     a dot in its corner while snapping is on – opening a small panel attached to it: *grid* (on / off and its step in
-    mm, the same setting as the Stage panel's), *vertical axis* (on / off), *snap* (on / off), *snap to* (grid, axes,
+    mm), *vertical axis* (on / off), *snap* (on / off), *snap to* (grid, axes,
     objects, outlines – pressed pills, any combination) and the precision per gizmo mode: *move* (mm, the step while
     the grid is no snap target), *rotate* (degrees) and *scale*. All are preview settings, stored in this browser
-    (`stage/preview.ts`); the Stage panel's closed *stage* head adds *· snap on*. ↓ on the button opens it on its first
-    control, ↑ ↓ / Home / End move between its buttons (a number field keeps its own keys), Esc closes it and returns
+    (`stage/preview.ts`). ↓ on the button opens it on its first
+    control, ↑ ↓ / Home / End move between its buttons (a number field or a select keeps its own keys), Esc closes it and returns
     the focus to the button, Tab out of it or a tap outside closes it; every control has the touch height with a finger
     and its help in the Info view.
+    The fifth group, **view** (#229, `components/ViewMenu.svelte` – the Stage tab's *stage* section until then), is one
+    button the same way – the gear – with *shake*, *origin* (the 3 × 3 alignment square), *top* (plywood / linoleum) and
+    *sky* (the HDRI; with the book's environment the row names its world and the HDRI waits for a book without one):
+    how the editor shows the spread, stored in this browser, never in the content. Its tooltip names them all
+    (`viewSummary`: *Eiermann · plywood · origin top left · no shake · sky Wooden Studio 17*); the stage menu's *View
+    settings…* opens it. Both one-button groups are `components/ToolMenu.svelte` (the button, the panel, the keys), and
+    the toolbar's room counts them (`TOOL_SHAPES`).
   - **Tree** – the spread in the style of Blender's outliner: a chevron column, a type icon before every name (book,
     entry, target, group / model / video / image / text / light), guide lines per depth, zebra rows, and the **eye** in a
-    column at the right (shown = found; off = reported lost, as the Stage panel's chips). Rows: the spread, its
+    column at the right (shown = found; off = reported lost). Rows: the spread, its
     entries in page order, each entry's target ("in view" while the camera sees it) and the target's entity as its
     **node tree** – the root node (● while the stage shows it with other values than the draft's; the shared ref) and
     its children, as deep as the content nests them. **Every row selects** (#227) and a tap always shows it – the row
-    highlighted, the panel switching: the **spread** row opens the Stage tab at its *spread* section (opened and
-    scrolled into view) and clears the node selection on the stage; an **entry** row selects the entry itself – with
-    or without a target – and the Entity panel shows it (below), an entry with a target outlines that target's print on
+    highlighted, the Inspector showing it (#229); a tap anywhere on the row counts, its icon and its empty cells too
+    (the chevron and the eye keep their own): the **spread** row selects the spread – the Inspector shows its sections
+    (below) and the stage drops the target's outline and the node's gizmo; an **entry** row selects the entry itself – with
+    or without a target – and the Inspector shows it (below), an entry with a target outlines that target's print on
     the stage as a target selection does; a **target** row selects the target, a **node** row the node, both in the
-    Entity panel; a tap on the stage selects the root. Every row's help in the Info view says what its tap does.
+    Inspector; a tap on the stage selects the root. Every row's help in the Info view says what its tap does.
     **+ target** at the end of the tree opens the form for a new target on the spread:
     title, page, the printed image (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image,
     text, group or light, with its file or line), the **entry category** (where the reader's consultation menu lists
@@ -337,22 +348,25 @@ is involved.
     the column collapses to its bar (‹ ›, kept on the device; until it is toggled there, it starts collapsed in a
     window under 64rem – a tablet in portrait gives the panel its 25rem and the stage the rest, #172). With a finger
     the rows are the touch control height, the chevrons and the eye as tall as the row (#171).
-  - **Selection** (#162) – one selection for the tree, the stage and the Entity panel
+  - **Selection** (#162) – one selection for the tree, the stage and the Inspector
     (`editor/src/lib/selection.svelte.ts`, the rules in `selection.ts`, the tree's rows in `tree-rows.ts`): a
     **target** (a tap on its row, a pick of its printed image), its **entity** (the root node) or a **node**;
     selecting in one selects in the others. The tree's top rows select too (#227): the **spread** (no target, no node)
-    and an **entry** (its own selection, its target outlined on the stage when it has one). The tree highlights the
+    and an **entry** (its own selection, its target outlined on the stage when it has one). **Nothing else selected is
+    the spread** (#229, `settledSelection`): a workspace opens with it, another spread (‹ ›) starts with itself, and a
+    click on the stage that picks nothing selects it – its row highlighted, the Inspector showing it. The tree highlights the
     selected row over its whole width (its own grey and a bar at its start), the rows above a selected node lighter,
     the hovered row lighter still; the stage outlines a selected target's print (an entry's target too) and puts the
-    gizmo on a selected entity or node; the Entity panel opens at that level (below). Keys in the tree: ↑ ↓ walk
+    gizmo on a selected entity or node; the Inspector opens at that level (below). Keys in the tree: ↑ ↓ walk
     every row – the spread, the entries, the targets and the nodes –, ← → fold and unfold (← on a folded or childless
-    row steps up a level: node → parent → entity → target → entry → spread), Enter opens the row's panel.
-  - **The spread and an entry in the panel** (#227) – the spread lives in **one place**, the Stage panel's *spread*
-    section: its title, pages, format (the one control, saved to the draft), the post-processing in effect (the whole
-    book's passes or the spread's own, and which) and the book's environment (or none – the stage's HDRI – with *edit*
-    to the Environment tab). The Stage panel already held the spread's format and its passes, so a spread view in the
-    Entity panel would have shown the same control twice; the Entity panel names a selected spread with *settings*
-    to that section. A selected **entry** takes the Entity panel's place (`EntryView.svelte`, the words in
+    row steps up a level: node → parent → entity → target → entry → spread), Enter opens the Inspector.
+  - **The spread and an entry in the Inspector** (#227, #229) – the spread is shown like everything else that is
+    selected (Tilman, 2026-10-31, on the tree's spread row and the Stage tab: *"These are the same. I'd like to remove
+    Stage from the right side."*): the Inspector shows `SpreadView.svelte` – the Stage tab's sections, moved: *spread*
+    (title, pages, format – the one control, saved to the draft –, the post-processing in effect – the whole book's
+    passes or the spread's own, and which – and the book's environment, or none – the stage's HDRI – with *edit* to the
+    Environment tab; open on a first visit), *post-processing* (below) and *vars and events* (below). A selected
+    **entry** takes the Inspector's place (`EntryView.svelte`, the words in
     `entry-view.ts`), read-only: category, title, access page, author and tags (where set), the body in the reader's
     paragraphs, the image, a link's URL (a link only over http(s)) and its target with *select the target*. Content
     editing (#223) turns these rows into its form in the same place.
@@ -362,7 +376,7 @@ is involved.
     **Tab / Shift + Tab** indent it (into the node above) and outdent it (right after its parent). A node placed
     next to the root wraps the root in a new group, so both are siblings under the target. Only parent and order
     change: a moved node keeps its placement values, now relative to its new parent. Live on the stage, Save writes
-    it (`editor/src/lib/tree.ts`). Every row shows the node's **name** (content schema 2.12, the Entity panel's
+    it (`editor/src/lib/tree.ts`). Every row shows the node's **name** (content schema 2.12, the Inspector's
     *name* row) and its type as the icon; without a name the type.
   - **Column edges** – the tree's right edge and the panel's left edge are dragged to resize the columns (#144; the
     panel 16rem to 70% of the window – 25rem by default, so its tab row fits one line (#170) –, the tree 10rem to 40%, the stage keeps at least 16rem, so a 768 px tablet in
@@ -381,24 +395,26 @@ is involved.
     element with `data-help="…"` (named by `data-help-name`, else its `aria-label` or its row's label), or its `title`;
     the innermost one wins. New explanations go there, never as a hint line in a panel. On a phone (no tree column, no
     pointer) there is no Info view.
-  - **Stage panel** – collapsible sections, each with a header, the open state kept per section on the device
-    (`editor/src/lib/sections.svelte.ts`, `components/Section.svelte`): *spread* (title, pages, the format, the post-processing in effect and the environment – the spread row's place, #227), *stage* (shake, grid,
-    origin – a 3 × 3 alignment square –, desk, sky), *post-processing*
-    and *vars and events*. On a first visit all four are closed (#193); a closed header carries a short summary where
-    it helps – *stage · Eiermann · grid off*, *post-processing · the whole book* –, so closed hides nothing that
-    matters. The first section of any panel draws no divider under the tab row (`.section:first-child` in `app.css`).
+  - **The spread's sections** (the Inspector with the spread selected; the Stage panel's until #229) – collapsible
+    sections, each with a header, the open state kept per section on the device
+    (`editor/src/lib/sections.svelte.ts`, `components/Section.svelte`): *spread* (title, pages, the format, the
+    post-processing in effect and the environment – open on a first visit), *post-processing* and *vars and events*
+    (closed on a first visit, #193); a closed header carries a short summary where it helps – *spread · The door ·
+    spread*, *post-processing · the whole book* –, so closed hides nothing that matters. The preview settings the Stage
+    panel's *stage* section held (shake, origin, desk, sky) are the toolbar's *view* group (#229), the grid its *grid &
+    snap*. The first section of any panel draws no divider under the tab row (`.section:first-child` in `app.css`).
     Every row is the panel's label / control grid (`.row` in `app.css`).
   - **Environment panel** – two collapsible sections: *environment* (world, sky, onion sky – open on a first visit) and
     *preview* (look up – closed, its header naming the angle).
   - **The gizmo** – on the stage, three.js `TransformControls` on the selected node (the tree's or the stage's
     selection): **move / rotate / scale** by the toolbar at the top left or **W / E / R**, handles in the node's own
-    space, so a drag changes the node's placement **relative to its parent** – the Entity panel's rows follow live,
+    space, so a drag changes the node's placement **relative to its parent** – the Inspector's rows follow live,
     Save writes them. It snaps as the toolbar's *grid & snap* says (above, "Snapping"); **Shift** or **Ctrl** held
     turns snapping around for the drag. A click that ends a drag selects nothing. The
     tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`); the engine opens the running scene to
     such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's object by its path, the tap's
     hit test) – the reader never calls it.
-  - **Post-processing** – the Stage panel's *post-processing* section (content schema 2.5, [content guide](content.md)
+  - **Post-processing** – the spread's *post-processing* section in the Inspector (content schema 2.5, [content guide](content.md)
     "Post-processing"). **The book's passes are the master**: edited once, every spread without a list of its own
     shows them. The section's header names the level in words (#181): **post-processing · the whole book** while the
     spread on the stage uses the book's list (the default; editing it changes it for every such spread), **post-processing
@@ -435,17 +451,17 @@ is involved.
   - **Picking** – a click on the stage selects what lies under the pointer by the **pick mode** next to the gizmo's
     tools (Blender's select mode, #192), strictly: *entity* (a parcel – only an entity, its root), *node* (a point on
     the graph – only the node under the pointer, as deep as the tree goes) or *target* (the crosshair – only a printed
-    image, through an entity standing on it). A click where nothing of the mode's kind lies **clears the selection** –
-    the tree, the stage and the Entity panel (*Nothing selected*) alike; until the first selection of a workspace the
-    panel shows a target of the spread. Particles and lines count only where they are drawn (8 px around the pointer),
+    image, through an entity standing on it). A click where nothing of the mode's kind lies **selects the spread** (#229) –
+    the tree, the stage and the Inspector alike: no outline, no gizmo, the spread's sections in the Inspector; a
+    workspace opens so too (no target stands in any more). Particles and lines count only where they are drawn (8 px around the pointer),
     the editor's own outlines and a light's rays never; a light is picked by its bulb. The pure filter is
     `editor/src/lib/stage/pick.ts`. **Hover** (a mouse on a device that hovers): what a click would pick wears a
     light grey outline (a particle cloud its bounds) and the pointer cursor; with a finger there is no hover – a
     tap selects at once and shows the orange outline. A **right click** on the stage opens the menu for what lies
     there – the mode's pick, else the printed image under the pointer: on a target *Add node… / Add AR content…*,
     *Remove node / entity*, *Placement on the page…*, *Library…*, *Remove target*; on the page or the table
-    *+ target…* and *Stage settings…* (the editor's one context menu, `ContextMenu.svelte` – the keys as on the book
-    page's cards; while it is open no key reaches the stage's shortcuts). While a target's placement is edited (the Entity panel's rows) **the target
+    *+ target…*, *Replay the first find* and *View settings…* – it opens the toolbar's *view* group (the editor's one context menu, `ContextMenu.svelte` – the keys as on the book
+    page's cards; while it is open no key reaches the stage's shortcuts). While a target's placement is edited (the Inspector's rows) **the target
     itself lies at the edited place** – its printed image, its outline and its AR content move together, so it never
     shows twice (#191) – with **handles**: drag the image to move it (across the spine it changes the page), drag the
     small square at its bottom right corner to set the printed width – the fields follow, Save placement writes them;
@@ -505,19 +521,22 @@ is involved.
     roof – the world's pass leaves the frame transparent; the stage fills it with the HDRI, drawn behind the world
     (destination-alpha blending, `behindWorld` in `mock-stage.ts`) as a background only – the camera picture's stand-in,
     like the desk. A book without one keeps the HDRI as sky and light. The decision is one pure function,
-    `editor/src/lib/stage/sky.ts` (`bookEnvironment`, `showsWorld`, `stageLook` – which sky, which light); the Stage
-    panel's *sky* row then names the environment's (*the environment's (world café)*), the HDRI picker stays below it
-    for books without one, and the closed *stage* head adds *· the environment's sky*.
-  - **Stage** – the stage's settings: **shake**: 0 = still, 1 = a hand holding a phone. **top**: the Eiermann desk's
+    `editor/src/lib/stage/sky.ts` (`bookEnvironment`, `showsWorld`, `stageLook` – which sky, which light); the toolbar's
+    *view* group's *sky* row then names the environment's (*the environment's (world café)*), the HDRI picker stays
+    below it for books without one, and the group's tooltip ends *· the environment's sky*.
+  - **View** (the toolbar's *view* group, #229 – the Stage panel's *stage* section until then) – how the editor shows
+    the spread: **shake**: 0 = still, 1 = a hand holding a phone. **origin**: above. **top**: the Eiermann desk's
     top, *plywood* (the default) or *linoleum* (#226; a desk stored before, `desk: "eiermann"` or `"schoepfer"`,
-    becomes *plywood* or *linoleum*); the closed *stage* head names it: *Eiermann · linoleum · grid off*. **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is
+    becomes *plywood* or *linoleum*). **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is
     rendered); with the book's environment the row names it and the HDRI waits below for a book without one. All stored
-    on the device. The camera is moved on the stage itself: **drag** orbits, **Shift + drag**,
+    on the device; the button's tooltip names them: *Eiermann · linoleum · origin top left · no shake · sky Wooden
+    Studio 17*. The camera is moved on the stage itself: **drag** orbits, **Shift + drag**,
     the **middle button** or **two fingers** pan (the looked-at point moves in the page plane), **wheel / pinch**
     change the distance, **double tap** returns to the reader's view (35 cm above the page, tilted 30°; the free orbit
     is kept on the device). Found / lost per target is the tree's eye (off reports it lost → outro, on found again →
     reveal); **Replay the first find** is in the stage's right-click menu. (The panel's view presets and found chips
-    doubled these and are gone – Tilman, 2026-10-29.) **vars and events** – the narrative of a book like the demo
+    doubled these and are gone – Tilman, 2026-10-29.)
+  - **Vars and events** – the spread's last section in the Inspector (the spread selected): the narrative of a book like the demo
     ([plugins](plugins.md) "Across nodes and pages"), driven from the tree's eyes and from here (#88):
     - **tap** – a button per printed target of the spread (its entry's title): the reader's tap without aiming at the
       entity – the entity's `onTap` (a plugin component's, the `animation` component's `playOn: tap`, a `behaviour`'s tap rules) and the event
@@ -536,7 +555,7 @@ is involved.
       that ran (#88): the target, the node's name, the rule's number, its event and what it did (`play rattle · set
       hasKey = true (book) · emit keyRattled`) – the log's own line, not an event of the stage (plugins never hear it);
       the events its actions caused follow above it. **clear** empties it.
-  - **Entity** – opens at the selected level (#162; a selected entry or spread: above, #227): its head is the **breadcrumb** *target › entity › group › node*
+  - **Inspector** (the *Entity* tab until #229, `panels/EntityPanel.svelte`) – opens at the selected level (#162; a selected entry or the spread: above, #227, #229): its head is the **breadcrumb** *target › entity › group › node*
     (a crumb selects that level, ▾ after the target picks another target of the spread). A selected target shows the
     **target**: its printed image (thumbnail and name; **Replace image…** uploads another)
     and, behind *placement*, where it is printed – surface, x / y and width in mm (`print`, content schema 2.1;
@@ -594,7 +613,7 @@ is involved.
     night tokens. **Download** gives the plugin's folder as a zip (`index.ts`, `plugin-api.d.ts`, a `tsconfig.json`). **Run** transpiles the TypeScript in the browser
     (sucrase, types erased – no type check, that is the build's half), imports the module and installs it in the
     stage's registry under the plugin's id (a second Run replaces the first), then builds the spread again: a
-    material layer tints the video at once, a component shows under *add component* in the Entity panel. Errors
+    material layer tints the video at once, a component shows under *add component* in the Inspector. Errors
     show under the editor and as a marker on their line (a transpile error, a plugin that imports a module – plugins import
     nothing, three.js is `api.three` – an invalid spec, an exception in `register`); the previous registration stays.
     **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it –
@@ -661,11 +680,11 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`), where its files are served, the dev flag and the reader's graphics options ([tracking](tracking.md) "What the app gives the engine") |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, hidden targets), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the Stage panel's timeline, variables and tap buttons) |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, shake, origin, grid and snap, hidden targets; `viewSummary`), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the spread's timeline, variables and tap buttons in the Inspector) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, Stage, Entity, Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Icon`, `FileField`; the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry in `EntryView.svelte` (its words in `entry-view.ts`), the spread section's in `spread-view.ts` (#227) |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SpreadView` and `EntryView`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry in `EntryView.svelte` (its words in `entry-view.ts`), the spread section's in `spread-view.ts` (#227) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts` | the stored sources, Run (transpile with sucrase, import, `installPlugin` of the engine's registry, rebuild) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/` |

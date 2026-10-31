@@ -3,7 +3,7 @@ import type { SpreadFormat, Target } from "@engine/types";
 import { setPreviewActive } from "../preview";
 import type { StageBook, StageTarget } from "../mock-tracker";
 
-// The draft's spread: its format changes under the tracker as the Stage panel saves a new one
+// The draft's spread: its format changes under the tracker as the Inspector saves a new one
 const draft = vi.hoisted(() => ({ format: "spread" as SpreadFormat }));
 vi.mock("@engine/content/game-config", () => ({
   getSpread: (id: string) => ({ id, format: draft.format, firstPage: 1, lastPage: 1 }),

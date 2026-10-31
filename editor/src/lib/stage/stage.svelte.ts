@@ -37,7 +37,7 @@ const REPLAY_GAP_MS = 900;
  * editor's simulation of the game around it – which spread is open, which targets the "camera" sees, which were
  * found for the first time (the unlock animation plays once per target, *replay* plays it again), and the reader's
  * progress for the book's plugins (`StageProgress`: unlocked targets, book variables – the engine's `api.progress`).
- * The reader's store does none of this here: the editor owns its state. For the Stage panel it keeps the plugins'
+ * The reader's store does none of this here: the editor owns its state. For the Inspector it keeps the plugins'
  * variables and the stage's event timeline (`vars`, `events` – each event timed from the spread's opening), and
  * lets the author act like the book's code or a reader would: set a variable through the plugin API (`setVar`), tap
  * a found target without aiming at it (`tap`).
@@ -63,7 +63,7 @@ export interface GhostPlace {
 
 export class Stage {
   /**
-   * The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Entity panel
+   * The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Inspector
    * shows no node, Save writes no entity. Compared by reference.
    */
   static readonly REMOVED: EntityData = Object.freeze({ type: "group", assets: [] }) as EntityData;
@@ -73,7 +73,7 @@ export class Stage {
   spreadId = $state<string | null>(null);
   /** Targets the tracker reports found right now */
   found = $state<string[]>([]);
-  /** A tap on the stage picked something (the Entity panel selects it) – or nothing (null) */
+  /** A tap on the stage picked something (the Inspector selects it) – or nothing (null) */
   onPick: ((hit: StagePick | null) => void) | null = null;
   /** A right click on the stage: what lies there (null = the page or the table) and where */
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
@@ -102,13 +102,13 @@ export class Stage {
   gizmoMode = $state<GizmoMode>("translate");
   /** The simulated reader's progress: the first finds and the plugins' book variables */
   private progress = new StageProgress();
-  /** The plugins' variables with their scopes (reactive: the Stage panel lists them) */
+  /** The plugins' variables with their scopes (reactive: the Inspector lists them) */
   vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
   /** The stage's event timeline, newest first */
   events = $state<StageEvent[]>([]);
   /** When the spread on the stage opened (or the game was reset): the timeline counts from here */
   private spreadOpenedAt = performance.now();
-  /** The plugin API's variables, as the Stage panel writes them – the same checks and `varChanged` as a plugin's `set` */
+  /** The plugin API's variables, as the Inspector writes them – the same checks and `varChanged` as a plugin's `set` */
   private panelVars = runtimeApi("stage").vars;
   /** Entities shown with other values than the draft's, by target id (reactive: the panels mark them) */
   overrides = new SvelteMap<string, EntityData>();

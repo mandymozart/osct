@@ -33,6 +33,7 @@
   import LibraryPanel from "./LibraryPanel.svelte";
   import BehaviourRules from "./BehaviourRules.svelte";
   import EntryView from "./EntryView.svelte";
+  import SpreadView from "./SpreadView.svelte";
   import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
@@ -49,15 +50,17 @@
    * with meshes may carry a plugin's **material** (#188): its rows follow the node type's. **make it code** turns the
    * node into a node type of the book's own, **make code** beside the material does it for its look
    * (`plugins/make-code.ts`): the plugin is saved to the Code tab and run, the node switched to it once its code builds on
-   * the stage (until then it shows as it was, the error is the Code tab's – #199). It opens at the level
-   * of the workspace's selection (#162): a selected target shows its target fields, its entity or a node that node's
-   * rows; the breadcrumb in the head steps up. A selected **entry** (#227) shows the entry instead (`EntryView`), a
-   * selected **spread** names it and links its settings, which live in the Stage panel's spread section.
+   * the stage (until then it shows as it was, the error is the Code tab's – #199).
+   *
+   * The panel is the workspace's **Inspector** (#229): it shows whatever is selected (#162) – a selected target its
+   * target fields, its entity or a node that node's rows, the breadcrumb in the head stepping up; a selected **entry**
+   * (#227) the entry (`EntryView`); the **spread** – selected in the tree, or nothing else selected – its sections
+   * (`SpreadView`: the spread, post-processing, vars and events).
    */
-  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, ontargetchanged, oncode, onspread }: {
+  let { stage, bookId, spreadId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
-    /** The spread is selected: show its settings (the Stage panel's spread section) */
-    onspread?: () => void;
+    /** The spread's environment row: the workspace opens the Environment tab */
+    onenvironment?: () => void;
     /** Show the Code tab (a made plugin's error is there) */
     oncode?: () => void;
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
@@ -71,13 +74,10 @@
   });
 
   const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
-  // Nothing selected yet: a target stands in (the first found one with AR content); cleared on purpose, the spread or
-  // an entry selected: none
-  const target = $derived<Target | undefined>(targets.find(t => t.id === selected)
-    ?? (selection.cleared || selection.spread || selection.entry ? undefined : targets.find(t => t.entity && stage?.found.includes(t.id)) ?? targets.find(t => t.entity) ?? targets[0]));
+  /** The selected target; none while the spread is selected – nothing stands in for a selection (#229) */
+  const target = $derived<Target | undefined>(selection.spread ? undefined : targets.find(t => t.id === selected));
   /** The entry selected in the tree (#227): shown instead of its target */
   const entry = $derived(selection.entry ? content.spread(spreadId)?.entries.find(e => e.id === selection.entry) : undefined);
-  const spreadTitle = $derived(content.spread(spreadId)?.title ?? spreadId);
 
   /** The whole tree being edited (null = the target has no entity yet) */
   let entity = $state<EntityData | null>(null);
@@ -98,12 +98,6 @@
     if (editingTarget === t.id && entity) return;
     const other = editingTarget !== t.id;
     editingTarget = t.id;
-    // The tree and the stage follow the target shown here (a fallback when nothing is selected yet); a target selected
-    // elsewhere keeps the node it was selected at (a node picked on the stage)
-    if (selected !== t.id) {
-      selected = t.id;
-      node = [];
-    }
     const override = stage?.overrideOf(t.id);
     entity = override === Stage.REMOVED ? null : override ?? t.entity ?? null;
     if (other) {
@@ -323,7 +317,7 @@
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
   let print = $state<PrintPlacement>({ surface: "right", x: 40, y: 60, width: 80 });
-  // The x / y rows are read and entered from the stage's origin (Stage panel); `print` keeps the content's frame
+  // The x / y rows are read and entered from the stage's origin (the toolbar's view group); `print` keeps the content's frame
   let origin = $state(getPreview().origin);
   $effect(() => subscribePreview(state => (origin = state.origin)));
   const frame = $derived({ page: stage?.pageFormat() ?? DEFAULT_PAGE_MM, format: stage?.format() ?? "spread" });
@@ -546,12 +540,9 @@
   <LibraryPanel {bookId} pick={picking} />
 {:else if entry}
   <EntryView {entry} onselecttarget={id => selection.selectTarget(id)} />
-{:else if selection.spread}
-  <div class="section"><span class="section-label">spread · {spreadTitle}</span>
-    {#if onspread}<span class="controls"><button type="button" class="text-link" onclick={onspread}
-      data-help-name="Spread settings" data-help="Opens the Stage tab at the spread's section: its title, pages, format, post-processing and environment.">settings</button></span>{/if}</div>
 {:else if !target}
-  <p class="muted">{targets.length ? "Nothing selected." : "No target on this spread."}</p>
+  <!-- The spread: selected, or nothing else is (a target id this spread does not have shows it too) -->
+  <SpreadView {stage} {bookId} {spreadId} {onenvironment} />
 {:else}
   <div class="head">
     <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->

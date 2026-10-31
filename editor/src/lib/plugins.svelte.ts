@@ -26,7 +26,7 @@ export interface PendingSwitch {
  * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the book (the
  * API's `plugins`), the plugins the content declares (compiled by the content build, loaded by the engine with the
  * spread), and **Run** – transpile in the browser, import, install in the stage's registry under the plugin's id,
- * build the spread again. `version` counts the runs: the Entity panel's rows follow the registry through it.
+ * build the spread again. `version` counts the runs: the Inspector's rows follow the registry through it.
  * The Library lists the same sources as its scripts (#186): it uploads a script file as a new source, replaces one
  * from a file, and asks the Code tab to open one (`focus`).
  * A Run also reports a node type of the plugin that did not build on the stage (its error, as a Run's), and switches a

@@ -24,7 +24,7 @@
    * editing changes (all N spreads that use the book's, or this spread's override) with the switch to the other, and
    * Save says what it saves. Changes show live on the stage (under *rendered*), the draft stays unchanged until
    * **Save** writes what changed: the book's list (`PUT …/passes`) and / or the spread's (`PUT …/spreads/{id}`). A
-   * collapsible section of the Stage panel, closed on the first visit; the passes' descriptions are their help in the
+   * collapsible section of the Inspector's spread view, closed on the first visit; the passes' descriptions are their help in the
    * Info view.
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();

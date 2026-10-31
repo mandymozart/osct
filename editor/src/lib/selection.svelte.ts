@@ -1,23 +1,20 @@
-import { parentSelection, selectionLevel, type SelectionLevel, type SelectionState } from "./selection";
+import { parentSelection, selectionLevel, settledSelection, type SelectionLevel, type SelectionState } from "./selection";
 
 /**
  * The workspace's one selection (#162): a target, its entity or a node – or the spread or an entry from the tree's
- * top rows (#227) – read and written by the tree, the stage (picking, the gizmo, the outline) and the Entity panel:
- * selecting in one selects in the others. The rules are `selection.ts`; the workspace page resets it when it opens.
+ * top rows (#227) – read and written by the tree, the stage (picking, the gizmo, the outline) and the Inspector:
+ * selecting in one selects in the others. Nothing else selected is the spread (#229): a fresh workspace, a click on
+ * the stage that picks nothing and the tree's top row all select it – its row highlighted, no outline, no gizmo, the
+ * Inspector showing it. The rules are `selection.ts`; the workspace page resets it when it opens and on another spread.
  */
 class Selection implements SelectionState {
   target = $state<string | null>(null);
   node = $state<number[]>([]);
   onTarget = $state(true);
-  /** The spread is selected (the tree's top row): the Stage panel's spread section shows it */
-  spread = $state(false);
-  /** The selected entry's id: the Entity panel shows the entry; `target` is its target (or null) */
+  /** The spread is selected (the tree's top row, or nothing else): the Inspector shows it */
+  spread = $state(true);
+  /** The selected entry's id: the Inspector shows the entry; `target` is its target (or null) */
   entry = $state<string | null>(null);
-  /**
-   * The author cleared the selection (a click on the stage that picks nothing): the Entity panel then shows none
-   * instead of falling back to a target, until the next selection. A fresh workspace (`reset`) may fall back.
-   */
-  cleared = $state(false);
 
   /** The target itself (its target fields, the print outlined on the stage) */
   selectTarget(target: string | null): void {
@@ -39,19 +36,19 @@ class Selection implements SelectionState {
     this.set({ target, node: [], onTarget: true, entry });
   }
 
+  /** Any selection; one of nothing is the spread's */
   set(next: SelectionState): void {
-    this.target = next.target;
-    this.node = next.node;
-    this.onTarget = next.onTarget;
-    this.spread = next.spread ?? false;
-    this.entry = next.entry ?? null;
-    this.cleared = false;
+    const settled = settledSelection(next);
+    this.target = settled.target;
+    this.node = settled.node;
+    this.onTarget = settled.onTarget;
+    this.spread = settled.spread ?? false;
+    this.entry = settled.entry ?? null;
   }
 
-  /** Nothing selected, on purpose: the tree, the stage and the Entity panel all show none */
+  /** A click on the stage that picks nothing: the spread is selected (the tree, the stage and the Inspector follow) */
   clear(): void {
-    this.set({ target: null, node: [], onTarget: true });
-    this.cleared = true;
+    this.selectSpread();
   }
 
   /** One level up (the breadcrumb, ← in the tree) */
@@ -69,8 +66,9 @@ class Selection implements SelectionState {
     return selectionLevel(this, hasTree);
   }
 
+  /** A fresh workspace, another spread, the selected target removed: the spread */
   reset(): void {
-    this.set({ target: null, node: [], onTarget: true });
+    this.selectSpread();
   }
 }
 

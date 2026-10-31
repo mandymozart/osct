@@ -3,7 +3,7 @@ import type { EntityData } from "@engine/types";
 import { installedPlugins, installPlugin, uninstallPlugin } from "@engine/scene/plugins";
 import { componentRows, filterRows, helpName, lightRows, passRows, placementRows } from "../values";
 
-/** #173: the Entity panel's rows read as words – the spec's label, else the parameter's name split into words */
+/** #173: the Inspector's rows read as words – the spec's label, else the parameter's name split into words */
 
 afterEach(() => installedPlugins().forEach(uninstallPlugin));
 

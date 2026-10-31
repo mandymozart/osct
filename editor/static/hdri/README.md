@@ -1,7 +1,7 @@
 # HDRIs of the editor's stage
 
 Six studio HDRIs from [Poly Haven](https://polyhaven.com) (CC0), 1k, the stage's sky and light (`backdrop: hdri`
-in the Stage panel; `editor/src/lib/stage/preview.ts` `HDRIS`, drawn by `mock-stage.ts`):
+in the toolbar's *view* group; `editor/src/lib/stage/preview.ts` `HDRIS`, drawn by `mock-stage.ts`):
 
 | File | Source |
 |---|---|

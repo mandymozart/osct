@@ -18,26 +18,27 @@
 
   /**
    * The spread as a tree in the style of Blender's outliner: a chevron column, a type icon before every name, guide
-   * lines per depth, zebra rows, the eye in a column at the right (shown = found, off = reported lost – the Stage
-   * panel's chips do the same). Rows: the spread, its entries in page order, each entry's target, and the target's
+   * lines per depth, zebra rows, the eye in a column at the right (shown = found, off = reported lost). Rows: the
+   * spread, its entries in page order, each entry's target, and the target's
    * entity as its **node tree** (content schema 2.0: the root node and its children, as deep as the content nests
    * them), each node by its name (schema 2.12) or its type. It reads and writes the workspace's one selection
-   * (`selection.svelte.ts`, #162; the rows' rules in `tree-rows.ts`): every row is selectable (#227) – a tap on the
-   * spread row selects the spread (the workspace opens the Stage panel's spread section), on an entry row the entry (the
-   * Entity panel shows it, the stage outlines its target), on a target row the target, on a node row the node; the
-   * selected row is highlighted over its whole width, the hovered one lighter, the rows above a selected node marked.
+   * (`selection.svelte.ts`, #162; the rows' rules in `tree-rows.ts`): every row is selectable (#227) and the Inspector
+   * shows what a tap selects (#229) – on the spread row the spread (no target or node on the stage), on an entry row
+   * the entry (the stage outlines its target), on a target row the target, on a node row the node. A tap anywhere on
+   * a row selects it – its name, its icon or an empty cell; the chevron and the eye keep their own. The selected row is
+   * highlighted over its whole width, the hovered one lighter, the rows above a selected node marked.
    * Hierarchy (#163): a node row is dragged onto another row (its child) or between two rows (its sibling, the
    * order set) – with a finger by its type icon; the keys: ↑ ↓ walk all rows, ← → fold / unfold (← elsewhere steps up
    * a level), Alt + ↑ ↓ move the node among its siblings, Tab / Shift + Tab indent / outdent, Enter opens the row's
    * panel, Delete removes the node – on an entry row it asks first (#198's confirmation). An entry, target or node
    * row's menu (`ContextMenu`: a right click, a long press, or the menu key for the selected row) has the same moves
    * and the removal. Changes are live on the stage
-   * (`stage.editTree`); Save in the Entity panel writes them. Folding is per entry and per node and not stored. ● after a name: the stage shows it with other
+   * (`stage.editTree`); Save in the Inspector writes them. Folding is per entry and per node and not stored. ● after a name: the stage shows it with other
    * values than the draft's.
    */
   let { stage, spreadId, onselect, onaddtarget, onremoveentry }: {
     stage: Stage | null; spreadId: string;
-    /** A row was chosen (a tap, Enter): the workspace shows its panel – the spread's section, else the Entity panel */
+    /** A row was chosen (a tap, Enter): the workspace shows the Inspector */
     onselect?: (kind: TreeRow["kind"]) => void;
     /** "+ target": the workspace opens the form */
     onaddtarget?: () => void;
@@ -145,7 +146,7 @@
       const target = m.entry.target;
       const select: MenuItem[] = target?.imageSrc
         ? [{ label: "Select the target", icon: "target", select: () => pick({ kind: "target", targetId: target.id }),
-            help: "Selects the entry's target: the Entity panel shows its printed image and placement, the stage outlines its print." }]
+            help: "Selects the entry's target: the Inspector shows its printed image and placement, the stage outlines its print." }]
         : [];
       return [...select, { label: "Remove entry", icon: "trash", keys: "Delete", danger: true, select: () => removeEntry(m.entry), help: REMOVE_ENTRY_HELP }];
     }
@@ -338,6 +339,15 @@
     event.stopPropagation();
     event.preventDefault();
   };
+  /**
+   * A click on a row beside its name – its type icon, an empty chevron or eye cell, its guides – selects the row as a
+   * click on the name does (#229: the spread row's book icon took no click; a tree selects by its whole row)
+   */
+  const rowClick = (event: MouseEvent) => {
+    const target = event.target as Element;
+    if (target.closest("button, a, input, select")) return;
+    target.closest(".node")?.querySelector<HTMLButtonElement>(":scope > .pick")?.click();
+  };
 </script>
 
 {#snippet guides(depth: number)}
@@ -363,8 +373,8 @@
     <span class="type" class:handle={path.length > 0} title={path.length ? "Drag to move the node: onto a row = its child, between rows = its sibling" : undefined}><Icon name={nodeIcon(n)} size="1em" stroke={2} /></span>
     <button type="button" class="pick" class:muted={!shown} onclick={() => pick({ kind: "node", targetId: target.id, path })} aria-haspopup="menu" {@attach rowMenu(target, path, "node")}
       title={path.length
-        ? `${n.type} – a tap selects this node: the Entity panel shows its values, the gizmo sits on it on the stage`
-        : `${n.type} – a tap selects the entity (its root node): the Entity panel shows its values, the gizmo sits on it on the stage`}>
+        ? `${n.type} – a tap selects this node: the Inspector shows its values, the gizmo sits on it on the stage`
+        : `${n.type} – a tap selects the entity (its root node): the Inspector shows its values, the gizmo sits on it on the stage`}>
       <span class="name">{rowName(n, target, path)}</span>
       {#if !path.length && stage?.overrideOf(target.id)}<span class="dot" title="Shown with other values than the draft's">●</span>{/if}
     </button>
@@ -383,13 +393,13 @@
   <!-- The tree takes the keys and the drags of its rows (a focusable tree is a control) -->
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div class="tree" class:dragging={!!drag?.active} role="tree" aria-label="Spread tree" tabindex="0" onkeydown={onKey} bind:this={treeElement}
-    onpointerdown={dragDown} onpointermove={dragMove} onpointerup={dragUp} onpointercancel={dragUp} onlostpointercapture={dragUp} onclickcapture={dragClick}
-    data-help-name="Tree" data-help="A tap selects the spread, an entry, a target, its entity or a node: the row is highlighted and the panel follows – the spread opens the Stage tab at its section, the others the Entity panel; an entry with a target and a target are outlined on the stage, a node carries the gizmo. Drag a node onto a row to make it that node's child, between two rows to make it a sibling there (with a finger, drag its icon). Keys: ↑ ↓ walk the rows, ← → fold or step a level up and down, Alt + ↑ ↓ move a node, Tab / Shift + Tab indent / outdent, Enter opens the row's panel, Delete removes a node – on an entry it shows what goes and asks first. A row's menu – a right click, a long press, or the menu key – has the moves and the removal.">
+    onpointerdown={dragDown} onpointermove={dragMove} onpointerup={dragUp} onpointercancel={dragUp} onlostpointercapture={dragUp} onclickcapture={dragClick} onclick={rowClick}
+    data-help-name="Tree" data-help="A tap anywhere on a row selects the spread, an entry, a target, its entity or a node: the row is highlighted and the Inspector shows it; an entry with a target and a target are outlined on the stage, a node carries the gizmo, the spread clears both. Drag a node onto a row to make it that node's child, between two rows to make it a sibling there (with a finger, drag its icon). Keys: ↑ ↓ walk the rows, ← → fold or step a level up and down, Alt + ↑ ↓ move a node, Tab / Shift + Tab indent / outdent, Enter opens the row's panel, Delete removes a node – on an entry it shows what goes and asks first. A row's menu – a right click, a long press, or the menu key – has the moves and the removal.">
     <div class="node" class:on={spreadOn} role="treeitem" aria-expanded="true" aria-selected={spreadOn} aria-level={1}>
       <span class="chevron"></span>
       <span class="type"><Icon name="book" size="1em" stroke={2} /></span>
       <button type="button" class="pick" onclick={() => pick({ kind: "spread" })}
-        title="The spread – a tap selects it: the Stage tab opens at its section – title, pages, format, post-processing and environment">
+        title="The spread – a tap selects it: the Inspector shows its title, pages, format, post-processing, environment, vars and events">
         <span class="name">{spread.title}</span>
         {#if spread.title.replace(/[-–—]/g, "–") !== pages}<span class="small muted">{pages}</span>{/if}
       </button>
@@ -428,8 +438,8 @@
           <span class="type"><Icon name="target" size="1em" stroke={2} /></span>
           <button type="button" class="pick" class:muted={!shown} onclick={() => pick({ kind: "target", targetId: target.id })} aria-haspopup="menu" {@attach rowMenu(target, [], "target")}
             title={tree
-              ? "The target – a tap selects it: the Entity panel shows its printed image and placement, the stage outlines its print"
-              : "The target, no AR content yet – a tap selects it: the Entity panel shows its printed image and placement and adds a node, the stage outlines its print"}>
+              ? "The target – a tap selects it: the Inspector shows its printed image and placement, the stage outlines its print"
+              : "The target, no AR content yet – a tap selects it: the Inspector shows its printed image and placement and adds a node, the stage outlines its print"}>
             <span class="name">{target.id}</span>
             {#if stage?.found.includes(target.id)}<span class="small muted" title="In view now">in view</span>{/if}
           </button>

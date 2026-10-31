@@ -42,7 +42,7 @@ and `max`, `color`, `choice` with `options`, `boolean`, `string`, and since API 
 image or video, or a procedural texture; your code gets a three.js `Texture` or `null`, a layer's GLSL a `sampler2D`), a `default`, a `description` (the row's help in the
 editor's Info view) and, if you like, a `label` (API 1.3, 1–24 characters): the few words the row shows –
 `degreesPerSecond` with `label: "speed"` reads *speed*; without a label the row shows the name split into words
-(*degrees per second*). Add `nodeTypes` when the spec only makes sense on some nodes. The Entity panel builds its rows
+(*degrees per second*). Add `nodeTypes` when the spec only makes sense on some nodes. The Inspector builds its rows
 from it – no other code needed.
 
 ## A layer: tint (the fixture's template)
@@ -69,7 +69,7 @@ api.registerLayer("tint", {
 The GLSL is the body of a function. It gets `rgba` (the pixel so far, linear RGB), `uv` (0–1 across the plane),
 `time` (seconds since the node was built) and then the parameters **in the order of the spec**: a `number` or
 `boolean` as `float`, a `color` as `vec3`, a `choice` as `int` (the index in its options). It returns the new
-`vec4`. Used in the content, or added in the Entity panel, like any component:
+`vec4`. Used in the content, or added in the Inspector, like any component:
 
 ```yaml
 components:
@@ -137,7 +137,7 @@ api.registerNodeType("sparkle", {
 ```
 
 The spec says only what the editor and the build must know: the **parameters** (the kinds of a component's – the
-Entity panel shows their rows under *node type · sparkle*; never `position`, `rotation` or `scale`, which are the
+Inspector shows their rows under *node type · sparkle*; never `position`, `rotation` or `scale`, which are the
 placement's) and **`src`**, the file the node takes: `glb` (a model, also `.gltf`), `video`, `image`, or `none` (the
 default). The content writes the type and puts the parameters into `params`, next to the placement:
 
@@ -166,7 +166,7 @@ Code reaches the engine at the places the big engines open – here is the compa
 |---|---|---|---|---|---|---|
 | **Unreal** | Blueprint / C++ components | Actor classes, procedural mesh | Material graph + **Custom (HLSL) node** | material functions, render targets | post-process materials | **Create Blueprint class from a component / actor**, then edit |
 | **8th Wall (A-Frame / ECS)** | `registerComponent`, systems | `registerPrimitive`, `registerGeometry` | **`registerShader`** | (three.js textures in a shader) | three.js passes | – (copy the component's source) |
-| **OSCT (API 1.4)** | `registerComponent` | `registerNodeType` | `registerLayer` (GLSL on top of a node's material), **`registerMaterial`** (the whole material) | **`registerTexture`**, the parameter kind `texture` | `registerPass` | **make it code** (the Entity panel): a node becomes a `registerNodeType`, its look a `registerMaterial` |
+| **OSCT (API 1.4)** | `registerComponent` | `registerNodeType` | `registerLayer` (GLSL on top of a node's material), **`registerMaterial`** (the whole material) | **`registerTexture`**, the parameter kind `texture` | `registerPass` | **make it code** (the Inspector): a node becomes a `registerNodeType`, its look a `registerMaterial` |
 
 So: what a node **does** is a component, what it **is** a node type, how it **looks** a material (or a layer over its
 own), what it **shows** a texture, what the **picture** around it does a pass. Every one has a spec the editor shows as
@@ -225,7 +225,7 @@ api.registerMaterial("water", {
 });
 ```
 
-A node carries it next to its other fields, and the Entity panel shows it as **material · water** with its rows:
+A node carries it next to its other fields, and the Inspector shows it as **material · water** with its rows:
 
 ```yaml
 - type: aquarium
@@ -273,7 +273,7 @@ stage (desktop, 1280 × 800) the found aquarium adds about 0.2 ms of main-thread
 with its target lost) and the stage stays at 60 fps.
 
 **4 · Make it code.** Any node can become a node type of the book's own – Unreal's *Create Blueprint class from a
-component*. Select a node, Entity panel, **make it code** (in the node's head): the editor writes a Code tab plugin whose
+component*. Select a node, Inspector, **make it code** (in the node's head): the editor writes a Code tab plugin whose
 `registerNodeType` reproduces the node – its type's builder as a readable starting point (a model's copied scene and
 clips, an image's or video's plane, a text's canvas, a light, a group; a plugin type's own `build`), its values as the
 spec's parameters with the node's values as their defaults – saves it, runs it and switches the node to it, placed where
@@ -362,7 +362,7 @@ in a texture.
   nothing, and a hidden page has no frames.
 - **The fallback.** Without WebGPU (no `navigator.gpu`, no adapter, a device error or a lost device), with *WebGPU* off,
   or with another material on the water, the heightfield of 5 runs as before. The row's label says which: *WebGPU ok* or
-  *no WebGPU* (a node type's spec is the object the Entity panel reads).
+  *no WebGPU* (a node type's spec is the object the Inspector reads).
 
 Parameters: *WebGPU* (on), *particles* (10k, 20k, 40k), *render scale* (0.5, 0.75, 1), *fluid colour*; *splash*,
 *dipping toy*, *loop period* and *dip depth* apply to both. The adapted part adds 43 KB to the plugin's bundle (28.7 →
@@ -480,7 +480,7 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-Try it in the editor: tap the key (its rule sets `hasKey` – the Stage panel's *vars and events* lists it, book
+Try it in the editor: tap the key (its rule sets `hasKey` – the Inspector's *vars and events* lists it while the spread is selected, book
 scope, a boolean), walk to the door's spread with › – the door's rules emit `openDoor`, the door opens, the timeline
 shows `openDoor` and `doorOpened` with the time since the spread opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
 To test a branch without playing up to it, change a variable in the panel or **set** one (name, scope, type, value):
@@ -491,7 +491,7 @@ it is written through `api.vars.set`, so your `api.vars.on` listeners and `varCh
 ## Behaviour and plugins
 
 Not every narrative needs code. The built-in **`behaviour`** component (content schema 2.19, [content](content.md)
-"Behaviour") is a list of rules an author makes in the editor's Entity panel: *on* an event (the node's `found`,
+"Behaviour") is a list of rules an author makes in the editor's Inspector: *on* an event (the node's `found`,
 `lost`, `tap`, `unlocked`, or any event of the bus), *when* variables have values, *do* actions – play, pause or stop a
 clip, show or hide a node, set a variable, emit an event. It is no second system: the engine runs it on the same
 runtime as your code (`engine/src/scene/behaviour.ts` on `plugin-runtime.ts`). A rule's `set` is `api.vars.set` – your
@@ -511,7 +511,7 @@ Open a spread in the editor, **Code**, **+** for a new plugin (it starts with th
 of the book's. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
 `api.` and `api.three.` know every member), type errors underlined as the content build would report them, a hover
 shows a member's documentation. **Run** (Ctrl+Enter) shows it on the stage at once – a layer tints the video, a
-component appears under *add component* in the Entity panel. A Run's errors show under the editor and on their line.
+component appears under *add component* in the Inspector. A Run's errors show under the editor and on their line.
 **Save** (Ctrl+S) keeps the source in the editor's database for the next session.
 
 **Download** gives a zip with the plugin's folder: `index.ts`, `plugin-api.d.ts` (the module `osct-plugin-api`) and a
@@ -527,7 +527,7 @@ registers (so the nodes that use it are checked), and declares it in the configu
 registered: the specs of its components, layers, node types and passes (`registered`, content schema 2.14), and its
 materials and textures (2.17). So the
 reader's check, the editor's API and the MCP server know your types and parameters without running your code – a typo
-in a node's type or a parameter out of range is caught at save time – and the editor's Entity panel shows the rows of
+in a node's type or a parameter out of range is caught at save time – and the editor's Inspector shows the rows of
 your component or node type before anyone presses Run. From there it travels to
 the CDN with the content version and the reader loads it with the AR scene. A plugin that does not compile fails
 the build with the file and line, like a missing image. The build behind the publish is #78 (decided: it runs on

@@ -77,7 +77,7 @@ describe("the aquarium's water: the fluid or the heightfield (#228)", () => {
     expect(splash.fluidPath({ ...state, simulate: false })).toBe("webgpu");
   });
 
-  it("falls back to the heightfield without WebGPU – and the Entity panel's row says so", () => {
+  it("falls back to the heightfield without WebGPU – and the Inspector's row says so", () => {
     const { built, splash } = build();
     built.update!(1 / 60);
     expect(splash.path()).toBe("heightfield");

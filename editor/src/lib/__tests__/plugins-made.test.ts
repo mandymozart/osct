@@ -76,7 +76,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** The aquarium made code, pending as the Entity panel leaves it */
+/** The aquarium made code, pending as the Inspector leaves it */
 const makeTank = () => {
   const made = nodeTypeCode(TANK.children![0], { plugins: installedPlugins() }, { plugin: "aquarium", source: AQUARIUM });
   plugins.pending = { plugin: made.plugin, type: made.type, targetId: "t", path: [0], from: "aquarium", node: made.node };

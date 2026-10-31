@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clampGrid, getPreview, setPreviewActive, setTargetHidden, stageSummary, subscribePreview, updatePreview } from "../preview";
+import { clampGrid, getPreview, setPreviewActive, setTargetHidden, subscribePreview, updatePreview, viewSummary } from "../preview";
 
 describe("editor preview settings", () => {
   beforeEach(() => {
@@ -107,16 +107,47 @@ describe("editor preview settings", () => {
   });
 });
 
-// The Stage panel's stage section closed (#193): its head names the desk, its top (#226) and the grid
-describe("the stage section's summary", () => {
-  it("names the desk, its top and the grid, off or with its spacing", () => {
-    expect(stageSummary({ top: "plywood", grid: false, gridMm: 10 })).toBe("Eiermann · plywood · grid off");
-    expect(stageSummary({ top: "linoleum", grid: false, gridMm: 10 })).toBe("Eiermann · linoleum · grid off");
-    expect(stageSummary({ top: "linoleum", grid: true, gridMm: 25 })).toBe("Eiermann · linoleum · grid 25 mm");
+// The toolbar's view group (#229 – the Stage tab's stage section until then): its tooltip names the desk and its top
+// (#226), the origin, the hand shake and the sky
+describe("the view group's summary", () => {
+  const view = { top: "plywood", wobble: 0, origin: "top-left", hdri: "wooden_studio_17" } as const;
+
+  it("names the desk, its top, the origin, the shake and the HDRI", () => {
+    expect(viewSummary(view)).toBe("Eiermann · plywood · origin top left · no shake · sky Wooden Studio 17");
+    expect(viewSummary({ ...view, top: "linoleum", wobble: 0.35, origin: "bottom-right", hdri: "ferndale_studio_04" }))
+      .toBe("Eiermann · linoleum · origin bottom right · shake 0.35 · sky Ferndale Studio 04");
   });
 
-  it("says when snapping is on (#190)", () => {
-    expect(stageSummary({ top: "plywood", grid: true, gridMm: 10, snap: true })).toBe("Eiermann · plywood · grid 10 mm · snap on");
-    expect(stageSummary({ top: "plywood", grid: false, gridMm: 10, snap: false })).toBe("Eiermann · plywood · grid off");
+  it("names the centre by the spread's format: the book's on a double page, the page's on a cover", () => {
+    expect(viewSummary({ ...view, origin: "centre" })).toContain("origin book centre");
+    expect(viewSummary({ ...view, origin: "centre" }, { format: "cover" })).toContain("origin page centre");
+  });
+
+  it("says the book's environment is the sky, not the HDRI (#185)", () => {
+    expect(viewSummary(view, { environment: true })).toBe("Eiermann · plywood · origin top left · no shake · the environment's sky");
+  });
+
+  it("leaves the grid and snapping to the grid & snap group", () => {
+    expect(viewSummary(view)).not.toMatch(/grid|snap/);
+  });
+});
+
+describe("the view group's settings (#229)", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("stores shake, origin, top and sky in this browser and tells the subscribers", () => {
+    const seen: string[] = [];
+    const unsubscribe = subscribePreview(state => seen.push(viewSummary(state)));
+    updatePreview({ wobble: 0.5, origin: "centre", top: "linoleum", hdri: "wooden_studio_13" });
+    expect(JSON.parse(localStorage.getItem("osct-preview")!)).toMatchObject({ wobble: 0.5, origin: "centre", top: "linoleum", hdri: "wooden_studio_13" });
+    expect(seen.at(-1)).toBe("Eiermann · linoleum · origin book centre · shake 0.5 · sky Wooden Studio 13");
+    unsubscribe();
+  });
+
+  it("reads them back in a fresh page", async () => {
+    localStorage.setItem("osct-preview", JSON.stringify({ wobble: 0.2, origin: "bottom-centre", top: "linoleum", hdri: "wooden_studio_19" }));
+    vi.resetModules();
+    const fresh = await import("../preview");
+    expect(fresh.getPreview()).toMatchObject({ wobble: 0.2, origin: "bottom-centre", top: "linoleum", hdri: "wooden_studio_19" });
   });
 });

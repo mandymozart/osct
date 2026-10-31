@@ -1,5 +1,5 @@
 /**
- * The spread as the Stage panel's spread section shows it when the tree selects it (#227): its pages in words and the
+ * The spread as the Inspector's spread section shows it when the tree selects it (#227): its pages in words and the
  * state of its post-processing – which level is in effect (the book's passes or the spread's own) and what it holds.
  */
 

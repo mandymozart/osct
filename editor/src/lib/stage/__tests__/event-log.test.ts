@@ -3,7 +3,7 @@ import { describePayload, formatElapsed, logEvent, type StageEvent } from "../ev
 
 const state = (detail: string, at = 0): StageEvent => ({ event: "sceneState", detail, at });
 
-describe("logEvent: the Stage panel's event timeline", () => {
+describe("logEvent: the Inspector's event timeline", () => {
   it("puts the newest first and keeps at most the log's size", () => {
     let log: StageEvent[] = [];
     for (let i = 0; i < 5; i++) log = logEvent(log, { event: "targetFound", detail: `targetId: "t${i}"`, at: i * 100 }, 3);

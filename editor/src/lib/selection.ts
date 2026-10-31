@@ -3,13 +3,14 @@ import { nodeAt } from "./values";
 import { nodeLabel } from "./tree";
 
 /**
- * The editor's one selection (#162), shared by the tree, the stage and the inspector: a **target** (its printed
- * image – the Entity panel shows its target fields, the stage outlines the print), its **entity** (the root node) or
- * a **node** below it (the Entity panel at that node, the gizmo on it). A target without AR content can only be
- * selected as the target. The tree's top rows select too (#227): the **spread** (the Stage panel's spread section,
- * no target or node on the stage) and an **entry** (the Entity panel shows the entry; with a target, `target` is it,
- * so the stage outlines its print as for a selected target). The pure rules – the level, one level up, the
- * breadcrumb – live here, the tree's rows in `tree-rows.ts`; the shared state is `selection.svelte.ts`.
+ * The editor's one selection (#162), shared by the tree, the stage and the Inspector: a **target** (its printed
+ * image – the Inspector shows its target fields, the stage outlines the print), its **entity** (the root node) or
+ * a **node** below it (the Inspector at that node, the gizmo on it). A target without AR content can only be
+ * selected as the target. The tree's top rows select too (#227): the **spread** (the Inspector shows it, no target
+ * or node on the stage) and an **entry** (the Inspector shows the entry; with a target, `target` is it, so the stage
+ * outlines its print as for a selected target). Nothing selected is the spread (#229, `settledSelection`). The pure
+ * rules – the level, one level up, the breadcrumb – live here, the tree's rows in `tree-rows.ts`; the shared state is
+ * `selection.svelte.ts`.
  */
 
 export type SelectionLevel = "none" | "target" | "entity" | "node";
@@ -20,11 +21,20 @@ export interface SelectionState {
   node: number[];
   /** The target itself is selected, not a node of its entity */
   onTarget: boolean;
-  /** The spread itself is selected (the tree's top row, #227): no target, no node */
+  /** The spread itself is selected (the tree's top row, #227; nothing else selected, #229): no target, no node */
   spread?: boolean;
   /** An entry is selected (its id, #227); `target` is its target or null for an entry without one */
   entry?: string | null;
 }
+
+/**
+ * A selection as the workspace keeps it (#229): the spread when nothing else is selected – no target, no entry – so the
+ * tree highlights its row and the Inspector shows it; the spread selected names no target, node or entry
+ */
+export const settledSelection = (selection: SelectionState): SelectionState => {
+  if (selection.spread || (!selection.target && !selection.entry)) return { target: null, node: [], onTarget: true, spread: true, entry: null };
+  return { ...selection, spread: false, entry: selection.entry ?? null };
+};
 
 /** The level of a selection: a target without a tree is always selected as the target */
 export const selectionLevel = (selection: SelectionState, hasTree: boolean): SelectionLevel => {

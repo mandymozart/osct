@@ -1,5 +1,5 @@
 /**
- * The stage's event timeline as the Stage panel lists it (three-free): the newest first, at most `EVENT_LOG_SIZE`,
+ * The stage's event timeline as the Inspector lists it (three-free): the newest first, at most `EVENT_LOG_SIZE`,
  * each event with the time since the spread opened, its name and its payload.
  * A **state** event (`sceneState`) reports what the scene is, not that something happened – it is logged once per
  * change: the same state again (the scene re-asked to run on every spread open or refresh) adds nothing.
