@@ -1,17 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GameStoreService } from "@/services";
 import { Pages, type Step } from "@/types";
-import { getTutorial } from "@/utils/game-config";
+import { getBook } from "@/utils/game-config";
+import { onboardingSteps } from "@/utils";
 import { getSplashSteps } from "../splash-page";
 
 const game = GameStoreService.getInstance();
-const step = (index: number, button?: string): Step => ({ index, button } as Step);
+const step = (index: number, button?: string): Step => ({ id: `s${index}`, index, button });
 
 describe("splash", () => {
   it("is the onboarding steps before the first one with a button", () => {
     expect(getSplashSteps([step(2, "Continue"), step(0), step(1), step(3)]).map(s => s.index)).toEqual([0, 1]);
     expect(getSplashSteps([step(0), step(1)]).map(s => s.index)).toEqual([0, 1]);
-    expect(getSplashSteps(getTutorial()).every(s => !s.button)).toBe(true);
+    expect(getSplashSteps(onboardingSteps(getBook())).every(s => !s.button)).toBe(true);
   });
 
   describe("page", () => {

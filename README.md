@@ -44,7 +44,7 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
 
 ## Documentation
 
-- [Content guide](docs/content.md) – writing content (spreads, entries, entities, tutorial), the content build,
+- [Content guide](docs/content.md) – writing content (spreads, entries, entities), the content build,
   importing a delivery
 - [Content on the CDN](docs/content-cdn.md) – versions, the `osct` CLI (status, sync, purge), loading in the app
 - [Content out of git](docs/content-out-of-git.md) – the one-time removal of the content from the repository

@@ -4,6 +4,33 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – the onboarding belongs to the app: out of the database, the editor and the content (#236)
+
+- **Tilman** (#236): *"How did onboarding end up in the database? This is part of the app itself. I said that
+  specifically during planning."* – *"onboarding must definitely go into the code and our normal translation – it has no
+  business in the editor"*. Done as decided on 2026-09-28 and 2026-10-29 (#61, "onboarding steps stay out of the
+  database"); #223 had made it editable without checking this file (the lesson is in `C:\Development\ORCHESTRATION.md` §9).
+- **The app owns the steps**: `client/src/utils/onboarding.ts` – order, illustrations, actions and timing; the texts are
+  the `tutorial` namespace's (en, de, fr, nl; informal), `{{title}}` filled from the book by i18next's interpolation
+  (escaping off there – `<tutorial-content>` escapes and turns `*emphasis*` into markup, as before). The splash step
+  (`SPLASH_STEP`) lives in `utils/static-splash-html.ts`, the file vite.config.js loads without aliases, so the static
+  splash in index.html and the app show the same step. One set of steps for every book: the demo's own intro text
+  ("a sandbox …") is gone with its content steps.
+- **A compat `tutorial` until the next schema MAJOR** (RULES #10): apps of schema 2.24 and before require `tutorial` and
+  show it, and an empty list would leave them on a blank onboarding. So the content build and every draft / publish
+  write the app's English steps (`shared/compat/tutorial.ts`; the PHP's copy `Editor::COMPAT_TUTORIAL` is pinned by
+  `mcp/test/php-rules.test.ts`). It is frozen – it does not follow later changes of the app's texts – and goes with the
+  next MAJOR. The guard no longer requires `tutorial` (checks it when present) – content schema **2.25**.
+- **The database**: `books.tutorial_json` is removed by a migration (`ALTER TABLE books DROP COLUMN tutorial_json`, both
+  databases). RULES #25 forbade any DROP in the schema files; the brief asked for the column to go, so RULES #25 now has
+  one narrow exception – a removed feature's column by name, skipped once gone (`Db::migrate`, the test's
+  `loadSchema`); never a table, never rows. **For Tilman to confirm** – the alternative was to keep a dead column.
+- Removed: the editor's onboarding view and `OnboardingSteps.svelte`, the step logic of `book-texts.ts`,
+  `GET`/`PUT …/tutorial`, the MCP tools `get_tutorial` / `update_tutorial`, `STEP_TIME_MAX` / `STEPS_MAX`, the content
+  build's `steps/` reader (it warns while a source still has the folder), the engine's `getTutorial` and `Step`, the
+  fixtures' steps, the tutorial page's onboarding chapter and its screenshot. The book content source's
+  `osct-content/content/steps/` (outside git) can be deleted by hand.
+
 ## 2026-10-31 – docs: one owner per topic (#218)
 
 - **The plugin API's reference lives in `docs/plugins.md`** only; `docs/content.md` keeps a paragraph on how the content
@@ -2511,7 +2538,9 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)
 
-- [ ] Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in
+- [x] *(done 2026-10-31, #236 – see that day's entry: the steps in `client/src/utils/onboarding.ts`, the texts in the
+      `tutorial` namespace in four languages, the content and the database without them, a compat copy for older apps)*
+      Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in
       `game.config.json`) are app UI, not book content – keeping them in `content/` overloads what content
       is. Move them into the app (e.g. `client/src/` data + i18n keys for the texts, illustrations in
       `client/public/assets/illustrations/`). Touches: `buildTutorial()` in `scripts/src/index.ts`,

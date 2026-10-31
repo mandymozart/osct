@@ -76,11 +76,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   (paragraphs, emphasis, strong, links) with the book's variables in braces (`../text/entry-text.ts`) – plain text is
  *   valid Markdown and reads as before; an older app shows the source as it is, the stars, brackets and braces included,
  *   and 2.24 adds nothing to the content (shared/ tidied: one `isObject`, one camelCase name pattern, unused types
- *   removed – #214).
+ *   removed – #214), and since 2.25 the configuration's `tutorial` is optional: the reader owns its onboarding (its steps
+ *   and their texts in its translations, #236) and reads none from the content; the content build and a publish still
+ *   write the steps older apps require (`../compat/tutorial.ts`) until the next MAJOR.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.24";
+export const CONTENT_SCHEMA_VERSION = "2.25";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -233,8 +235,10 @@ export const STEP_ACTIONS = ["next", "camera", "scan"] as const;
 export type StepAction = (typeof STEP_ACTIONS)[number];
 
 /**
- * Onboarding / tutorial step. Without `button` the step advances by itself after
- * `advance` ms (or on tap). `description` may use `*emphasis*` and blank lines for paragraphs.
+ * Onboarding / tutorial step, as apps of schema 2.24 and before read it from the content (`tutorial`); since 2.25 the
+ * reader owns its onboarding and the content carries the steps only for those apps (`../compat/tutorial.ts`). Without
+ * `button` the step advances by itself after `advance` ms (or on tap). `description` may use `*emphasis*` and blank
+ * lines for paragraphs; `{{title}}`, `{{author}}` and `{{publisher}}` are the book's.
  */
 export interface StepData {
   id: string;
@@ -263,7 +267,11 @@ export interface GameConfiguration {
   spreads: readonly SpreadData[];
   entries: readonly EntryData[];
   entities: Readonly<Record<string, EntityData>>; // shared entities, referenced by `EntityRefData`
-  tutorial: readonly StepData[];
+  /**
+   * Optional (schema 2.25; required before): the onboarding for apps of schema 2.24 and before – the reader since 2.25
+   * shows its own and ignores it
+   */
+  tutorial?: readonly StepData[];
   /** The book's own code (schema 2.4, optional): compiled plugins the engine loads before the first spread */
   plugins?: readonly PluginData[];
 }

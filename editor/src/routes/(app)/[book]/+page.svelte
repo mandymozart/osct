@@ -21,15 +21,14 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import BookTexts from "#lib/BookTexts.svelte";
   import EntriesPage from "#lib/EntriesPage.svelte";
-  import OnboardingSteps from "#lib/OnboardingSteps.svelte";
 
   /**
-   * A book: its texts (title, author, publisher – #223) above three views, chosen in `?view=`: the **spreads**, each as
+   * A book: its texts (title, author, publisher – #223) above two views, chosen in `?view=`: the **spreads**, each as
    * its picture – the layout's sheet (when the content carries one) with the targets' prints over it (#153), open one to
-   * work on its stage; the **entries** in one list, each opening its form (`EntriesPage`); the **onboarding**'s steps.
+   * work on its stage; the **entries** in one list, each opening its form (`EntriesPage`).
    */
   const bookId = $derived(page.params.book!);
-  const VIEWS = ["spreads", "entries", "onboarding"] as const;
+  const VIEWS = ["spreads", "entries"] as const;
   type View = (typeof VIEWS)[number];
   const view = $derived<View>(VIEWS.find(v => v === page.url.searchParams.get("view")) ?? "spreads");
   const show = (next: View) => void goto(`${resolve(`${bookId}/`)}${next === "spreads" ? "" : `?view=${next}`}`, { replace: true });
@@ -136,7 +135,7 @@
 <main>
   {#if error}<p class="danger">{error}</p>{/if}
   {#if tree}
-    <nav class="views" aria-label="Views of the book" data-help-name="Views" data-help="The book's spreads as pictures, its entries in one list (the glossary, texts, videos and links – edited there), or the onboarding's steps.">
+    <nav class="views" aria-label="Views of the book" data-help-name="Views" data-help="The book's spreads as pictures, or its entries in one list (the glossary, texts, videos and links – edited there).">
       <Segmented options={VIEWS} value={view} label="View" onchange={show} />
     </nav>
     {#key tree.book.id}
@@ -145,8 +144,6 @@
   {/if}
   {#if tree && view === "entries"}
     <EntriesPage {bookId} assetsBase={tree.book.assetsBase || null} />
-  {:else if tree && view === "onboarding"}
-    <OnboardingSteps {bookId} />
   {:else if tree}
     <p class="muted small">{tree.book.author} · {tree.spreads.length} spreads · assets at {tree.book.assetsBase || "the draft's origin"}
       · <button type="button" class="text-link" disabled={adding} onclick={() => void addDoublePage()}

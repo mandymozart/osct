@@ -91,7 +91,6 @@ CREATE TABLE IF NOT EXISTS `books` (
   `title` VARCHAR(255) NOT NULL,
   `author` VARCHAR(255) NOT NULL,
   `book_json` TEXT NOT NULL COMMENT 'BookData',
-  `tutorial_json` MEDIUMTEXT NOT NULL COMMENT 'StepData[]',
   `initial_spread_id` VARCHAR(64) NOT NULL,
   `assets_base` VARCHAR(1024) NOT NULL DEFAULT '' COMMENT 'where /assets/content/… resolves; empty = as imported',
   `files_json` MEDIUMTEXT NOT NULL COMMENT 'files.json of the imported version',
@@ -294,3 +293,7 @@ ALTER TABLE `changes` ADD COLUMN `token_name` VARCHAR(80) NULL DEFAULT NULL;
 -- What the draft is based on (Books::import): the imported build, its date, the app and schema version that built it,
 -- where it came from, when and by whom – the import's version comparison reads it, and the change log after `at`
 ALTER TABLE `books` ADD COLUMN `imported_json` TEXT NULL DEFAULT NULL;
+
+-- The onboarding belongs to the reader (#236): the steps an import kept in `books` go. A column of a removed feature is
+-- removed by name and only that (RULES #25); the migration skips it once the column is gone
+ALTER TABLE `books` DROP COLUMN `tutorial_json`;

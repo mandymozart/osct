@@ -14,7 +14,7 @@ server/   the instance's API: /api/editor/* (docs/server.md "Editor data")
 ```
 
 The pages: **Books** (`/editor/` – the books, import, AI connections), a **book** (`/editor/<book>/` – its spreads, its
-entries, its onboarding, publishing) and the **workspace** of a spread (`/editor/<book>/<spread>/` – the tree, the stage
+entries, publishing) and the **workspace** of a spread (`/editor/<book>/<spread>/` – the tree, the stage
 and the panels). The admin page is [admin](admin.md).
 
 ## Who may use it
@@ -200,8 +200,8 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 
 ## The book page
 
-`/editor/<book>/`: three views, segmented and in the URL (`?view=` – a query, not a route): *spreads* (the default),
-*entries* and *onboarding* ([Texts](#texts-entries-the-book-and-the-onboarding)); above them the collapsible section
+`/editor/<book>/`: two views, segmented and in the URL (`?view=` – a query, not a route): *spreads* (the default) and
+*entries* ([Texts](#texts-entries-and-the-book)); above them the collapsible section
 *book* with the book's texts, the book's environment as one line with *Edit on the stage* (the first spread,
 `?tab=environment`), and **Publish** with its target and where the book is live
 ([above](#publish-the-instances-own-environment)).
@@ -241,10 +241,11 @@ cards are text), their entries, targets and AR count.
   pages are numbered back by its pages, a cover moves nothing; the spread the book opens on (`initialSpreadId`) cannot
   go – the reason is shown under the disabled item.
 
-### Texts: entries, the book and the onboarding
+### Texts: entries and the book
 
 The reading side of the book (#223): the API's routes are `docs/server.md` "Texts", what a body means is
-`docs/content.md` "The text: Markdown and variables".
+`docs/content.md` "The text: Markdown and variables". The onboarding is no part of it: it is the reader's own UI,
+translated with the app (#236, `docs/content.md` "Onboarding screens").
 
 - **An entry's form** (`EntryForm.svelte`, the logic in `entry-edit.ts`) – in the Inspector's place when the tree
   selects an entry, in the order the view had: title, category (segmented), access page (`ScrubNumber`; a page on another
@@ -269,11 +270,6 @@ The reading side of the book (#223): the API's routes are `docs/server.md` "Text
   `POST …/entries` without `target`), then opens it.
 - **The book's texts** (`BookTexts.svelte`) – the collapsible section *book* above the views (closed it names title ·
   author · publisher): title, author, publisher; Save → `PUT /editor/books/{id}`.
-- **The onboarding** (`/editor/<book>/?view=onboarding`, `OnboardingSteps.svelte`, the logic in `book-texts.ts`) – the
-  steps as collapsible sections (agents/DESIGN.md §9; closed: the first words and what moves the step on – its button and
-  action, or its time), ↑ ↓ and *remove* in the head, **+ step**; open: id, title, text, footer, illustration (a path of
-  the app, the two built-in drawings offered), button, action (next / camera / scan – it goes with a button) and the
-  timing (*default* = the app's, *set* gives a value). The whole list is saved at once (`PUT …/tutorial`).
 - Every text field is one value today; a language variant (#224) becomes a draft of the same shape per language, so a
   language switch can be added to these forms without reshaping them.
 
@@ -632,7 +628,7 @@ in `app.css`). Every row is the panel's label / control grid (`.row` in `app.css
 `panels/EntityPanel.svelte` (the *Entity* tab until #229) opens at the selected level (#162): its head is the
 **breadcrumb** *target › entity › group › node* (a crumb selects that level, ▾ after the target picks another target of
 the spread). A selected spread shows [its sections](#inspector-the-spread), a selected entry
-[its form](#texts-entries-the-book-and-the-onboarding).
+[its form](#texts-entries-and-the-book).
 
 **A target**: its printed image (thumbnail and name; **Replace image…** uploads another) and, behind *placement*, where
 it is printed – surface, x / y and width in mm (`print`, content schema 2.1; **Save placement** writes it; until then a
@@ -908,7 +904,7 @@ design tokens):
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SpreadView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the spread section's in `spread-view.ts` (#227) |
-| The book page's texts | `editor/src/lib/EntriesPage.svelte`, `BookTexts.svelte`, `OnboardingSteps.svelte`, `entries.svelte.ts`, `book-texts.ts` | [Texts](#texts-entries-the-book-and-the-onboarding) |
+| The book page's texts | `editor/src/lib/EntriesPage.svelte`, `BookTexts.svelte`, `entries.svelte.ts`, `book-texts.ts` | [Texts](#texts-entries-and-the-book) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/`, `admin/`; `stage-frame/` – the stage frame's document, outside the gate |
@@ -931,7 +927,7 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
 ## Limits of this step
 
 - Entities as node trees, files from the library (uploaded in the editor) or the content, targets with their printed
-  image and placement, the entries' texts, the book's and the onboarding. Renditions and transcoding stay with the
+  image and placement, the entries' texts and the book's. Renditions and transcoding stay with the
   content build. A target made in the editor tracks in the reader after a publish: the 8th Wall engine makes its
   image-target data from the printed image at runtime (`engine/src/scene/xr8.ts`), nothing has to be compiled. Events
   between nodes and pages are the plugin API's (`api.events`, since 1.1) and the `behaviour` component's; the book's own

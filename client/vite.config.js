@@ -4,7 +4,7 @@ import { defaultAllowedOrigins, defineConfig, loadEnv } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
-import { renderStaticSplash } from './src/utils/static-splash-html.ts';
+import { renderStaticSplash, SPLASH_STEP } from './src/utils/static-splash-html.ts';
 
 // One version for app and content build (RULES.md #10). Read from package.json because
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
@@ -137,8 +137,8 @@ function getLocalIP() {
   return candidates[0]?.address ?? 'localhost';
 }
 /**
- * Static splash: the first onboarding step as plain HTML in index.html, rendered from the game configuration
- * (book fields, step timing) so it paints before any script runs. Mark alt text and loading label are
+ * Static splash: the onboarding's first step (the app's splash) as plain HTML in index.html, with the book's fields
+ * from the game configuration, so it paints before any script runs. Mark alt text and loading label are
  * English; the app translates them once it runs.
  */
 function staticSplash(config) {
@@ -149,7 +149,7 @@ function staticSplash(config) {
       const common = read('src/i18n/locales/en/common.json');
       return html.replace('<!--osct:static-splash-->', renderStaticSplash({
         book: config.book ?? {},
-        steps: config.tutorial ?? [],
+        step: SPLASH_STEP,
         markSrc: '/assets/ui/mark-the-page/scan.png',
         markAlt: common.markAlt,
         loadingLabel: common.loadingBook,

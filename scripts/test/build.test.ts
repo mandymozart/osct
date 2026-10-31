@@ -179,30 +179,23 @@ ${environment}`,
   });
 
   describe('tutorial', () => {
-    it('sorts steps by index and leaves out empty fields', async () => {
+    it('writes the onboarding older apps require, not the content\'s – a steps folder is not read, only named (#236)', async () => {
       const build = await loadBuild(makeContent({
         ...valid(),
-        'steps/two/step.yaml': 'index: 2\ntitle: Second\nfooter: ""\n',
-        'steps/one/step.yaml': 'index: 1\ndescription: "Welcome to {{title}}"\n',
+        'steps/one/step.yaml': 'index: 1\ntitle: "{{isbn}}"\n',
       }));
       const { tutorial } = build.buildAll();
+      const { COMPAT_TUTORIAL } = await import('../../shared/compat/tutorial');
       expect(build.errors).toEqual([]);
-      expect(tutorial).toEqual([
-        { id: 'one', index: 1, description: 'Welcome to {{title}}' },
-        { id: 'two', index: 2, title: 'Second' },
-      ]);
+      expect(tutorial).toEqual(COMPAT_TUTORIAL);
+      expect(tutorial.map(step => step.id)).toEqual(['splash', 'intro', 'camera', 'done']);
+      expect(build.warnings).toEqual([expect.stringMatching(/^steps\/ is not read/)]);
     });
 
-    it('rejects unknown placeholders and ones the book does not have', async () => {
-      const build = await loadBuild(makeContent({
-        ...valid(),
-        'steps/one/step.yaml': 'index: 1\ntitle: "{{isbn}}"\nfooter: "{{publisher}}"\n',
-      }));
+    it('a content source without steps builds without a warning', async () => {
+      const build = await loadBuild(makeContent(valid()));
       build.buildAll();
-      expect(build.errors).toEqual([
-        'steps/one: title uses {{isbn}} – allowed: {{title}}, {{author}}, {{publisher}}',
-        'steps/one: footer uses {{publisher}}, but book.yaml has no publisher',
-      ]);
+      expect(build.warnings).toEqual([]);
     });
   });
 

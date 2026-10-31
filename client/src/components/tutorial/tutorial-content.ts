@@ -1,6 +1,6 @@
-import { getBook, getTutorial } from "@/utils/game-config";
+import { getBook } from "@/utils/game-config";
 import type { ITutorialContent } from "@/types";
-import { escapeHtml, paragraphs } from "@/utils";
+import { escapeHtml, onboardingSteps, paragraphs } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header";
 import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
@@ -12,7 +12,7 @@ const DEFAULT_FADE_MS = 600;
 const DEFAULT_STAGGER_MS = 250;
 
 /**
- * Replaces `{{title}}`, `{{author}}` and `{{publisher}}` in step texts with the values from `book.yaml`.
+ * Replaces `{{title}}`, `{{author}}` and `{{publisher}}` in step texts with the book's values (the splash's parts).
  * Unknown placeholders are left unchanged.
  */
 type BookField = "title" | "author" | "publisher";
@@ -24,7 +24,7 @@ export const fillBookFields = (text: string, book: Partial<Record<BookField, str
 const inline = (text: string): string => escapeHtml(fillBookFields(text)).replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
 /**
- * Onboarding step content from `content/steps`: Mark, optional illustration, title, text and footer, plus an
+ * An onboarding step (`utils/onboarding.ts` – the app's own steps, not the book's): Mark, optional illustration, title, text and footer, plus an
  * `actions` slot for the step button. Parts fade in one after another (`fadeIn` / `stagger` per step); the
  * resulting timing is exposed as `--fade-duration` / `--actions-delay` for the slotted button.
  */
@@ -61,7 +61,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
 
   private render() {
     if (!this.shadowRoot) return;
-    const step = getTutorial().find(s => s.index === this._currentStep);
+    const step = onboardingSteps(getBook()).find(s => s.index === this._currentStep);
     if (!step) return;
 
     // Fade sequence: Mark (only on steps that set `stagger`, i.e. the splash; otherwise it stays still),

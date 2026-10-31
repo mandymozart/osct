@@ -11,7 +11,7 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 | Route | Page | Mode | |
 |---|---|---|---|
 | `/` | `<splash-page>` | idle | start for returning readers: the splash (the onboarding steps before the first button), then scan mode |
-| `/tutorial` (`step`) | `<tutorial-page>` | idle | onboarding / tutorial steps from the content's `steps/` |
+| `/tutorial` (`step`) | `<tutorial-page>` | idle | the onboarding steps – the app's own (`utils/onboarding.ts`, texts in the `tutorial` namespace) |
 | `/spread` (`spreadId`) | `<spread-page>` | scan | scan mode: found indicator, spread menu |
 | `/entries` (`category`) | `<entries-page>` | consultation | entries list by category |
 | `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: meta table, text, media |

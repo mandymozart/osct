@@ -78,7 +78,6 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     return { json: { entry: { ...ENTRIES[0], ...(seen.body as object) }, spreadId: page === 99 ? null : page === 3 ? "s2" : "s1", previousSpreadId: "s1" } };
   }
   if (method === "PUT" && path === "/editor/books/osct") return { json: { book: { id: "osct", title: "Test Book", author: "Someone", ...(seen.body as object) } } };
-  if (path === "/editor/books/osct/tutorial") return { json: { tutorial: method === "PUT" ? (seen.body as any).tutorial.map((s: object, index: number) => ({ ...s, index })) : [{ id: "splash", index: 0, title: "{{title}}" }] } };
   if (method === "DELETE" && /^\/editor\/books\/osct\/(spreads\/s2|entries\/castle)$/.test(path)) return removal(seen);
   if (path === "/editor/books/osct/draft/latest.json") return { json: { build: "abcdef012345", hash: "abcdef012345" + "0".repeat(52) } };
   if (path === "/editor/books/osct/draft/abcdef012345/game.config.json") return { json: { version: { schema: "2.14" }, plugins: [{ id: "tint", src: "/p.js", api: "1.2", registered: REGISTERED }], entities: ENTITIES.entities } };
@@ -136,7 +135,7 @@ describe("the content tools", () => {
       [
         "add_entry", "add_spread", "delete_asset", "delete_entry", "delete_spread", "describe_content_model", "get_book", "get_draft", "get_entity", "get_spread", "import_book", "list_assets", "preview_import",
         "list_books", "list_changes", "list_versions", "publish", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
-        "get_entries", "update_entry", "update_book", "get_tutorial", "update_tutorial",
+        "get_entries", "update_entry", "update_book",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -316,28 +315,20 @@ describe("the content tools", () => {
     await expect(rec.call("update_entry", { book: "osct", entry: "racoon", category: "poem" })).rejects.toThrow();
   });
 
-  it("update_book and the onboarding: get_tutorial, update_tutorial with the whole list, checked first (#223)", async () => {
+  it("update_book changes the book's texts; no tool edits the onboarding – it is the app's (#223, #236)", async () => {
     const book = await rec.call("update_book", { book: "osct", title: "Onion Skin", publisher: null });
     expect(book.data.book).toMatchObject({ title: "Onion Skin", publisher: null });
     expect((await rec.call("update_book", { book: "osct" })).data.error.code).toBe("mcp");
-    const tutorial = await rec.call("get_tutorial", { book: "osct" });
-    expect(tutorial.data.tutorial[0].id).toBe("splash");
-    expect(tutorial.data.open).toBe("http://localhost:5175/editor/osct/?view=onboarding");
-    const saved = await rec.call("update_tutorial", { book: "osct", steps: [{ id: "intro", description: "Hello *{{title}}*.", button: "Continue" }, { id: "camera", button: "Grant access", action: "camera", fadeIn: 800 }] });
-    expect(saved.data.tutorial.map((s: { index: number }) => s.index)).toEqual([0, 1]);
-    const before = seen.length;
-    expect((await rec.call("update_tutorial", { book: "osct", steps: [{ id: "a" }, { id: "a" }] })).data.error.code).toBe("invalid-tutorial");
-    expect((await rec.call("update_tutorial", { book: "osct", steps: [{ id: "a", action: "scan" }] })).data.error.code).toBe("invalid-tutorial");
-    expect(seen).toHaveLength(before);
-    await expect(rec.call("update_tutorial", { book: "osct", steps: [{ id: "a", action: "dance", button: "Go" }] })).rejects.toThrow();
+    expect([...rec.tools.keys()].filter(name => /tutorial|onboarding/.test(name))).toEqual([]);
   });
 
-  it("describe_content_model explains an entry's Markdown and variables, the book and the onboarding (#223)", async () => {
+  it("describe_content_model explains an entry's Markdown and variables, the book and that the onboarding is the app's (#223, #236)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("2.24");
+    expect(model.contentSchema).toBe("2.25");
     expect(model.entryText.description).toMatch(/\*emphasis\*/);
     expect(model.entryText.description).toMatch(/\{hasKey\}/);
-    expect(model.tutorial.actions).toEqual(["next", "camera", "scan"]);
+    expect(model.tutorial).toBeUndefined();
+    expect(model.onboarding.description).toMatch(/app's own/);
   });
 
   it("delete_entry: first the impact and a confirmation, nothing removed; then with confirm (#198)", async () => {

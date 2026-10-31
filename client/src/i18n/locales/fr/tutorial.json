@@ -1,3 +1,15 @@
 {
-  "skip": "Passer"
+  "skip": "Passer",
+  "intro": {
+    "text": "Cette application te permet de découvrir des vidéos, des textes et des références clés cachés dans la publication imprimée *{{title}}*.",
+    "button": "Continuer"
+  },
+  "camera": {
+    "text": "Pour scanner le livre et afficher du contenu interactif, cette application a besoin d’accéder à ta caméra.\n\nAutorise l’accès pour continuer.",
+    "button": "Autoriser l’accès"
+  },
+  "done": {
+    "title": "Merci !",
+    "button": "Accéder au scan"
+  }
 }

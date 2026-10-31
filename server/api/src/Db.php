@@ -39,7 +39,8 @@ final class Db
 
     /**
      * Creates the missing tables and columns – safe to run again: the schema files use CREATE TABLE IF NOT EXISTS,
-     * and an `ALTER TABLE … ADD COLUMN` is skipped when the column exists.
+     * an `ALTER TABLE … ADD COLUMN` is skipped when the column exists and an `ALTER TABLE … DROP COLUMN` (a removed
+     * feature's column, RULES #25) when it does not.
      * @return int statements in the schema
      */
     public static function migrate(): int
@@ -50,6 +51,9 @@ final class Db
         foreach ($statements as $statement) {
             if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+ADD\s+COLUMN\s+`?(\w+)`?/i', $statement, $match)
                 && self::hasColumn($match[1], $match[2])) continue;
+            // A removed feature's column (RULES #25): removed once, skipped while it is gone
+            if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+DROP\s+COLUMN\s+`?(\w+)`?/i', $statement, $match)
+                && !self::hasColumn($match[1], $match[2])) continue;
             self::pdo()->exec($statement);
         }
         return count($statements);

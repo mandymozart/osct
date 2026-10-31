@@ -36,12 +36,10 @@ content/
 │       ├── entry.yaml            the entry's text and settings
 │       ├── images-022.jpg        the target image (the picture as printed)
 │       └── castle-video.mp4      AR content, entry images …
-├── entities/                     AR content used by several entries (optional)
-│   └── castle/
-│       ├── entity.yaml
-│       └── castle.glb
-└── steps/                        onboarding screens
-    └── step-1/step.yaml
+└── entities/                     AR content used by several entries (optional)
+    └── castle/
+        ├── entity.yaml
+        └── castle.glb
 ```
 
 ## Writing YAML
@@ -595,23 +593,15 @@ spreads next to the open one are kept ready too, so turning a page switches the 
 
 ## Onboarding screens
 
-`content/steps/<id>/step.yaml` – the screens a first-time reader sees, in `index` order.
+The onboarding is the app's, not the book's (#236): the splash (Mark, then the book's `title`, `author` and
+`publisher` from `book.yaml`), what the app does, the camera permission, then scan mode – the same for every book. Its
+order, illustrations, buttons and timing are in `client/src/utils/onboarding.ts`, its texts in the app's translations
+(the `tutorial` namespace, every language – docs/i18n.md), where `{{title}}`, `{{author}}` and `{{publisher}}` are the
+book's. A content source has no `steps/` folder: the build does not read one and warns while one is left.
 
-```yaml
-index: 3
-description: |-
-  To scan the book and display interactive content, this application requires access to your camera.
-button: Grant access
-action: camera              # next (default) | camera = ask for the camera | scan = start scanning
-illustration: /assets/illustrations/tutorial-step-2.svg
-# optional: title, footer, advance (ms – go on by itself),
-#   fadeIn (ms – how long each part fades in, default 600), stagger (ms – delay between the parts:
-#   Mark, illustration, title, text, footer, button; default 250 – with stagger set, Mark fades in first)
-```
-
-Step texts (`title`, `description`, `footer`) can use the book's fields: `{{title}}`, `{{author}}`,
-`{{publisher}}` – e.g. `footer: "{{publisher}}"` shows the publisher from `book.yaml`. The build reports
-unknown names and fields the book doesn't have.
+The configuration still carries a `tutorial` – the app's English steps (`shared/compat/tutorial.ts`), written by the
+content build and every editor publish – because apps of content schema 2.24 and before require it and show it. The
+reader since 2.25 ignores it; it goes with the next schema MAJOR.
 
 ## Media
 
@@ -718,6 +708,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.22 | 1.57.0 | in develop | a pass's optional `enabled` – `false` switches it off: it keeps its place and values, the chain skips it (#233) | skipped: a 1.55.0 app drops the unknown field with the update hint, an older one ignores it – either way it runs, and so shows, a pass that is off |
 | 2.23 | 1.59.0 | in develop | no new field – an entry's `body` is Markdown (paragraphs, `*emphasis*`, `**strong**`, `[links](https://…)`) with the book's variables in braces (`{hasKey}`, `{hasKey: …\|…}`, #223); plain text reads as before | the body as written: the stars, brackets and braces show as they are (`**strong**` stays `**strong**`, `{hasKey}` stays `{hasKey}`) – nothing breaks, nothing is skipped |
 | 2.24 | 1.60.0 | in develop | nothing new in the content – `shared/` tidied: one `isObject`, one camelCase name pattern, unused `isComponentType` and `PlacementData` removed (#214) | nothing changes |
+| 2.25 | next | in develop | the configuration's `tutorial` is optional: the reader's onboarding is its own (steps in code, texts in its translations, #236); the build and a publish still write the app's English steps for older apps (`shared/compat/tutorial.ts`) until the next MAJOR | nothing changes: it finds the `tutorial` it requires and shows those steps (in English, the book's fields filled in) |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.
@@ -834,7 +825,7 @@ scripts/
 ├── src/            everything in TypeScript, bundled into dist/ by `npm run build`
 │   ├── index.ts            the content build: start
 │   ├── config.ts           all folders and limits
-│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial, plugins
+│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial (for older apps), plugins
 │   ├── lib/                shared helpers: reading content, files, hash, checks, media, storage, sync
 │   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
 │   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)

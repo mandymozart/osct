@@ -58,7 +58,19 @@ function check(bool $ok, string $what): void
 function loadSchema(PDO $pdo, string $sql): void
 {
     $sql = preg_replace('/^\s*--.*$/m', '', $sql);
-    foreach (array_filter(array_map('trim', preg_split('/;\s*(\n|$)/', (string) $sql))) as $statement) $pdo->exec($statement);
+    foreach (array_filter(array_map('trim', preg_split('/;\s*(\n|$)/', (string) $sql))) as $statement) {
+        // As Db::migrate: a removed feature's column goes only where it is
+        if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+DROP\s+COLUMN\s+`?(\w+)`?/i', $statement, $match) && !hasColumn($pdo, $match[1], $match[2])) continue;
+        $pdo->exec($statement);
+    }
+}
+
+/** The table has the column (SQLite or MySQL) */
+function hasColumn(PDO $pdo, string $table, string $column): bool
+{
+    $sqlite = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
+    $rows = $pdo->query($sqlite ? "PRAGMA table_info($table)" : "SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
+    return in_array($column, array_map(fn($c) => $c['name'] ?? $c['Field'], $rows), true);
 }
 
 /** A PDO on the test database $name (null: the MySQL server without a database) */
@@ -635,6 +647,9 @@ try {
         && array_keys($draft['version']) === ['version', 'timestamp', 'hash', 'schema'], 'game.config.json carries the version block');
     $expected = json_decode(json_encode($configuration, $flags), true);
     unset($expected['version'], $draft['version']);
+    // The import ignores the configuration's onboarding; the draft carries the one older apps require (#236)
+    check(array_column($draft['tutorial'] ?? [], 'id') === ['splash', 'intro', 'camera', 'done'], 'the tutorial of the draft is the compat steps, not the imported one');
+    $expected['tutorial'] = $draft['tutorial'] ?? [];
     check($draft === $expected, 'import → draft round-trips the configuration unchanged (keys, order, extra fields, the entry without a spread)');
     check(str_contains($rawDraft, '"params":{}') && str_contains($rawDraft, '"tags":[]'), 'empty objects and lists keep their kind');
     [$status, $data] = call($api, 'GET', "/editor/books/osct/draft/{$manifest['build']}/files.json", null, $editor);
@@ -871,8 +886,9 @@ try {
         && $data['entries'][0]['target']['entity']['assets'][0]['src'] === "$base/assets/content/entries/racoon/racoon.glb"
         && $data['entries'][1]['image'] === "$base/assets/content/entries/castle/cover.jpg"
         && $data['entities']['castle']['assets'][0]['src'] === "$base/assets/content/entities/castle/c.mp4"
-        && $data['tutorial'][0]['illustration'] === "$base/assets/content/tutorial/mark.svg"
-        && $data['entries'][2]['media'] === 'https://example.com', 'content paths become URLs below the base (src, imageSrc, image, illustration); other strings stay');
+        && $data['entries'][2]['media'] === 'https://example.com', 'content paths become URLs below the base (src, imageSrc, image); other strings stay');
+    check(array_column($data['tutorial'], 'id') === ['splash', 'intro', 'camera', 'done'] && $data['tutorial'][1]['illustration'] === '/assets/illustrations/tutorial-step-1.svg',
+        'the draft carries the onboarding older apps require (the compat steps, #236), not the imported one');
     [, $data] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/files.json", null, $editor);
     check(array_keys($data) === ["$base/assets/content/entries/racoon/racoon.glb", "$base/assets/content/entries/racoon/img.jpg"], 'files.json keys rewritten, in order');
     [, $data] = call($api, 'GET', '/editor/books/osct/changes', null, $editor);
@@ -1350,29 +1366,13 @@ try {
     }
     call($api, 'PUT', '/editor/books/osct', ['title' => 'Test Book', 'publisher' => 'Building Fictions'], $editor);
 
-    [$status, $data] = call($api, 'GET', '/editor/books/osct/tutorial', null, $editor);
-    check($status === 200 && count($data['tutorial']) === 1 && $data['tutorial'][0]['title'] === '{{title}}', 'GET tutorial: the steps as imported');
-    $original = $data['tutorial'];
-    $steps = [
-        ['id' => 'intro', 'description' => "Reveal what *{{title}}* hides.", 'button' => 'Continue', 'illustration' => '/assets/illustrations/tutorial-step-1.svg', 'title' => ''],
-        ['id' => 'camera', 'description' => 'Grant access.', 'button' => 'Grant access', 'action' => 'camera', 'fadeIn' => 800, 'advance' => 0, 'index' => 7],
-    ];
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => $steps], $editor);
-    check($status === 200 && array_column($data['tutorial'], 'index') === [0, 1] && !isset($data['tutorial'][0]['title']) && !isset($data['tutorial'][0]['action'])
-        && $data['tutorial'][1]['action'] === 'camera' && $data['tutorial'][1]['fadeIn'] === 800, 'PUT tutorial: the order is the index, an empty text is left out');
-    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
-    check($log['changes'][0]['kind'] === 'tutorial' && $log['changes'][0]['before'][0]['id'] === 'step-1' && count($log['changes'][0]['after']) === 2, 'the onboarding\'s change with the steps before');
-    $badSteps = [
-        [[['id' => 'a', 'action' => 'dance', 'button' => 'Go']], 'an unknown action'], [[['id' => 'a', 'action' => 'scan']], 'an action without a button'],
-        [[['id' => 'a'], ['id' => 'a']], 'an id twice'], [[['id' => 'a', 'advance' => -1]], 'a negative time'], [[['id' => 'a b']], 'a bad id'],
-        [[['id' => 'a', 'colour' => 'red']], 'an unknown field'], [[['id' => 'a', 'button' => 7]], 'a button that is no text'],
-    ];
-    foreach ($badSteps as [$tutorial, $what]) {
-        [$status, $data] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => $tutorial], $editor);
-        check($status === 400 && $data['error']['code'] === 'invalid-tutorial', "PUT tutorial: $what → 400 invalid-tutorial");
-    }
-    [$status] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => $original], $editor);
-    check($status === 200, 'the steps as they were');
+    // The onboarding is the reader's (#236): no route of the API reads or writes it
+    [$status] = call($api, 'GET', '/editor/books/osct/tutorial', null, $editor);
+    [$status2] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => []], $editor);
+    check($status === 404 && $status2 === 404, 'GET and PUT …/tutorial → 404 (the onboarding is the app\'s)');
+    $pdo = connect('test');
+    check(!hasColumn($pdo, 'books', 'tutorial_json'), 'the books table has no tutorial_json');
+    $pdo = null;
 
     echo "editor: spread formats (content schema 2.3)\n";
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
@@ -1851,11 +1851,9 @@ try {
     // The book's texts are the draft's, not the account (#223): a token writes them like its person
     [$status] = call($api, 'PUT', '/editor/books/osct/entries/castle', ['body' => 'Written by an *AI*.'], $aiToken);
     [$status2] = call($api, 'PUT', '/editor/books/osct', ['author' => 'Someone'], $aiToken);
-    [$status3, $steps] = call($api, 'GET', '/editor/books/osct/tutorial', null, $aiToken);
-    [$status4] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => $steps['tutorial'] ?? []], $aiToken);
-    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=3', null, $editor);
-    check($status === 200 && $status2 === 200 && $status3 === 200 && $status4 === 200 && array_column($data['changes'], 'kind') === ['tutorial', 'book', 'entry']
-        && array_unique(array_column($data['changes'], 'token')) === ['Claude on my laptop'], 'a token edits an entry, the book\'s texts and the onboarding; the change log names it');
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=2', null, $editor);
+    check($status === 200 && $status2 === 200 && array_column($data['changes'], 'kind') === ['book', 'entry']
+        && array_unique(array_column($data['changes'], 'token')) === ['Claude on my laptop'], 'a token edits an entry and the book\'s texts; the change log names it');
     // A token uploads code files as its person does (#186): a shader, a script
     [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', "void main() {}\n", 'ai.vert', $aiToken, 'text/plain');
     [$status2, $data2] = upload($api, 'POST', '/editor/books/osct/plugins', "export const register = () => {};\n", 'ai-script.ts', $aiToken, 'text/plain');
@@ -2057,7 +2055,9 @@ try {
 
     echo "deploy keeps the data\n";
     foreach (glob(dirname(__DIR__) . '/api/db/schema.*.sql') as $schema) {
-        check(!preg_match('/\b(DROP|TRUNCATE)\b|^\s*DELETE\b/im', (string) file_get_contents($schema)), basename($schema) . ' only adds (no DROP / TRUNCATE / DELETE)');
+        // The one exception (RULES #25): a removed feature's column, by name – never a table, never rows
+        $sql = preg_replace('/^ALTER TABLE `?\w+`? DROP COLUMN `?\w+`?;$/m', '', (string) file_get_contents($schema));
+        check(!preg_match('/\b(DROP|TRUNCATE)\b|^\s*DELETE\b/im', $sql), basename($schema) . ' only adds (no DROP / TRUNCATE / DELETE but a removed feature\'s column)');
     }
     $context = stream_context_create(['http' => ['method' => 'POST', 'header' => 'X-Admin-Secret: ' . str_repeat('s', 40), 'ignore_errors' => true]]);
     file_get_contents("$api/admin/migrate", false, $context);
@@ -2090,6 +2090,23 @@ try {
     $assetColumns = array_map(fn($c) => $c['name'] ?? $c['Field'], $oldDb->query($mysql ? 'SHOW COLUMNS FROM assets' : 'PRAGMA table_info(assets)')->fetchAll(PDO::FETCH_ASSOC));
     $oldDb = null;
     check(in_array('duration_ms', $assetColumns, true), 'an assets table from before gets duration_ms (#91)');
+
+    echo "migrate a books table from before #236 (the onboarding's column)\n";
+    $schemaText = (string) file_get_contents($schemaFile);
+    preg_match('/CREATE TABLE IF NOT EXISTS `?books`?.*?\n\)[^;]*;/s', $schemaText, $booksTable);
+    $withSteps = preg_replace('/(\n\s*`?book_json`?[^\n]*\n)/', "$1  " . ($mysql ? '`tutorial_json` MEDIUMTEXT NOT NULL,' : 'tutorial_json TEXT NOT NULL,') . "\n", $booksTable[0], 1);
+    $stepsSettings = database('steps', $withSteps);
+    $stepsDb = connect('steps');
+    $stepsDb->exec("INSERT INTO books (id, title, author, book_json, tutorial_json, initial_spread_id, files_json, content_schema, created_at, updated_at)
+        VALUES ('old', 'Old', 'Someone', '{\"id\":\"old\",\"title\":\"Old\",\"author\":\"Someone\"}', '[]', 's1', '{}', '2.24', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
+    $stepsDb = null;
+    $stepsApi = startApi($stepsSettings + $settings);
+    file_get_contents("$stepsApi/admin/migrate", false, $context);
+    file_get_contents("$stepsApi/admin/migrate", false, $context);
+    $stepsDb = connect('steps');
+    check(!hasColumn($stepsDb, 'books', 'tutorial_json') && hasColumn($stepsDb, 'books', 'imported_json')
+        && $stepsDb->query("SELECT title FROM books WHERE id = 'old'")->fetchColumn() === 'Old', 'migrated twice: tutorial_json removed once, the book kept');
+    $stepsDb = null;
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);
     check($status === 200, 'the old user can set a password');
     [$status] = call($oldApi, 'POST', '/auth/password', ['email' => 'old@example.com', 'password' => 'a new password']);

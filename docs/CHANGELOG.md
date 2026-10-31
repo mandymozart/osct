@@ -7,6 +7,20 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **The onboarding is the app's own** (#236): the splash and the steps a first-time reader goes through are part of the
+  reader – their texts are translated with the app in all four languages (English, French, Dutch, German), the book's
+  title, author and publisher filled in. They are the same for every book and no longer come from the book's content.
+- **Content schema 2.25**: the configuration's `tutorial` is optional. The content build and the editor's publish still
+  write the app's English steps there, so older apps keep their onboarding until the next major schema.
+
+### Removed
+- The editor's *onboarding* view, the API's `GET`/`PUT /editor/books/{id}/tutorial`, the MCP tools `get_tutorial` and
+  `update_tutorial`, the content source's `steps/` folder (the build warns while one is left) and the database column
+  that held the steps (`books.tutorial_json`, removed by the migration).
+
 ## 1.60.1 – 2026-10-30
 
 ### Changed

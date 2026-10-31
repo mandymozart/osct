@@ -10,7 +10,6 @@ import {
   getSpread,
   getSpreads,
   getTarget,
-  getTutorial,
 } from "@/utils/game-config";
 
 /**
@@ -63,11 +62,6 @@ describe("game configuration", () => {
     ].filter(isLocal); // links point to external URLs
 
     expect(files.filter(src => !existsSync(publicFile(src)))).toEqual([]);
-  });
-
-  it("has a tutorial in step order", () => {
-    const indices = getTutorial().map(s => s.index);
-    expect(indices).toEqual([...indices].sort((a, b) => a - b));
   });
 
   describe("entries", () => {

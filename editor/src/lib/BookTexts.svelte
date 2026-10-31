@@ -7,8 +7,8 @@
   import Section from "#lib/components/Section.svelte";
 
   /**
-   * The book's texts on the book page (#223): its title, author and publisher – the splash and the home page show them,
-   * the onboarding's `{{title}}`, `{{author}}` and `{{publisher}}` are replaced with them. A collapsible section, closed
+   * The book's texts on the book page (#223): its title, author and publisher – the reader's splash, home page and
+   * onboarding show them. A collapsible section, closed
    * naming them; Save writes what changed (`PUT /editor/books/{id}`), *Back to the draft* drops the edits.
    */
   let { bookId, book, onsaved }: {
@@ -49,9 +49,9 @@
     }
   };
   const fields: Array<{ key: keyof BookDraft; label: string; help: string }> = [
-    { key: "title", label: "title", help: "The book's title – the splash, the home page and the onboarding's {{title}} show it." },
-    { key: "author", label: "author", help: "Who wrote the book – the splash shows it ({{author}} in a step)." },
-    { key: "publisher", label: "publisher", help: "Shown on the home page above Start and on the splash ({{publisher}}); empty: none." },
+    { key: "title", label: "title", help: "The book's title – the reader's splash, home page and onboarding show it." },
+    { key: "author", label: "author", help: "Who wrote the book – the reader's splash shows it." },
+    { key: "publisher", label: "publisher", help: "Shown on the home page above Start and on the splash; empty: none." },
   ];
 </script>
 

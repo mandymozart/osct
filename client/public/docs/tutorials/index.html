@@ -151,7 +151,7 @@
           <li><a href="#texts-entry">An entry's form</a></li>
           <li><a href="#texts-markdown">Markdown and variables</a></li>
           <li><a href="#texts-entries">The Entries page</a></li>
-          <li><a href="#texts-book">The book and the onboarding</a></li>
+          <li><a href="#texts-book">The book</a></li>
         </ol>
       </li>
     </ol>
@@ -703,7 +703,7 @@ npm run osct -- content status --env staging</code></pre>
   </div>
 
   <h2 class="chapter" id="texts"><span class="gold">5 · Editing texts</span></h2>
-  <p>The reading side of the book – the entries' texts, the book's title, author and publisher, and the onboarding – is edited in the editor too. As everywhere, nothing reaches the draft until <b>Save</b>, <b>Back to the draft</b> drops the edits, and nothing reaches readers until you <b>Publish</b>. A reload asks first while a form holds edits.</p>
+  <p>The reading side of the book – the entries' texts and the book's title, author and publisher – is edited in the editor too. As everywhere, nothing reaches the draft until <b>Save</b>, <b>Back to the draft</b> drops the edits, and nothing reaches readers until you <b>Publish</b>. A reload asks first while a form holds edits.</p>
 
   <h3 class="sec" id="texts-entry">An entry's form</h3>
   <p>Select an entry in the tree: the Inspector shows its form, in the order the reader reads it – <b>title</b>, <b>category</b>, <b>access page</b>, <b>author</b> and <b>tags</b> (words separated by commas), the <b>text</b> with its <b>preview</b>, the <b>picture</b> from the Library, a link's <b>URL</b> and the <b>target</b>. A changed row is marked with a dot. The access page decides the spread: a page on another spread moves the entry there when you save.</p>
@@ -731,12 +731,8 @@ npm run osct -- content status --env staging</code></pre>
     <figcaption>The glossary on the Entries page, <em>The key</em> open beside it.</figcaption>
   </figure>
 
-  <h3 class="sec" id="texts-book">The book and the onboarding</h3>
-  <p>The section <b>book</b> on the book's page holds its title, author and publisher – the splash and the home page show them, and <code>{{title}}</code>, <code>{{author}}</code> and <code>{{publisher}}</code> in a step are replaced with them. The view <b>onboarding</b> lists the steps a reader goes through on the first start, each a section: closed, its head names what it shows and what moves it on; ↑ ↓ move it, <em>remove</em> drops it, <b>+ step</b> adds one. Open, a step has its title, text, footer, illustration, button and the button's action – <em>next</em>, <em>camera</em> (asks for the camera) or <em>scan</em> (ends the onboarding) – and its timing; a time left at <em>default</em> is the app's. The whole list is saved at once.</p>
-  <figure class="shot">
-    <img src="/docs/tutorials/tools/23-onboarding.webp" width="1280" height="800" loading="lazy" alt="The demo book's page with the view onboarding pressed: the book section open with title The Demo Book, author OSCT, publisher Building Fictions, Back to the draft and Save; onboarding · 2 steps – step 1 closed, its head reading {{title}} · on after 3800 ms, with up, down and remove; step 2 open with id step-2, title none, the text about the sandbox, footer none, illustration /assets/illustrations/tutorial-step-1.svg, button Continue, action next pressed, and fade in, stagger and advance at default with set.">
-    <figcaption>The book's texts and the onboarding's second step.</figcaption>
-  </figure>
+  <h3 class="sec" id="texts-book">The book</h3>
+  <p>The section <b>book</b> on the book's page holds its title, author and publisher – the reader's splash, home page and onboarding show them. The onboarding itself – the steps a reader goes through on the first start – is part of the app, translated with it; it is not edited in the editor.</p>
 
   <p class="muted">The reference for every detail: the repository's <code>docs/editor.md</code> (the editor, its keys and rules) and <code>docs/server.md</code> (the API behind it).</p>
 

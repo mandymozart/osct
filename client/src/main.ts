@@ -10,8 +10,8 @@ import type {
   ErrorInfo,
   IGame,
 } from "@/types";
-import { hideStaticSplash, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
-import { getConfigurationError, getTutorial, loadGameConfiguration } from "@/utils/game-config";
+import { hideStaticSplash, onboardingSteps, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
+import { getBook, getConfigurationError, loadGameConfiguration } from "@/utils/game-config";
 import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
 import { setDeviceStorage } from "@engine/utils/device-storage";
@@ -188,7 +188,7 @@ export class BookGame extends HTMLElement {
 
   /** Onboarding step to start with: the one after the static splash's step, else the first */
   private firstOnboardingStep(): number {
-    const steps = [...getTutorial()].sort((a, b) => a.index - b.index);
+    const steps = [...onboardingSteps(getBook())].sort((a, b) => a.index - b.index);
     const shown = staticSplashStep();
     if (shown === undefined) return steps[0]?.index ?? 0;
     return steps.find(step => step.index > shown)?.index ?? shown;

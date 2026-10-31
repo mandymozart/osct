@@ -10,8 +10,9 @@
  * On load it checks that this app can read the content (content schema MAJOR – RULES #10), drops what content of a
  * newer MINOR has that this app does not know (`./forward-compatible.ts` – the list stays for `getSkippedFeatures()`),
  * checks the JSON against the contract (`assertGameConfiguration`), maps `*Data` to the app model (`Spread`, `Entry`,
- * `Target`, `Step`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the
- * loaded version, so the rest of the app never knows where the content comes from.
+ * `Target`) and builds in-memory indexes. The configuration's `tutorial` is for older apps and not read (the reader
+ * has its own onboarding, #236). Content file paths (`/assets/content/…`) become URLs of the loaded version, so the
+ * rest of the app never knows where the content comes from.
  */
 import { assertGameConfiguration, GameConfigurationError, type GuardOptions, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
@@ -30,7 +31,6 @@ import {
   type PassData,
   type PluginData,
   type Spread,
-  type Step,
   type Target,
 } from "../types/index";
 
@@ -42,7 +42,6 @@ const EMPTY_CONFIGURATION: GameConfiguration = {
   spreads: [],
   entries: [],
   entities: {},
-  tutorial: [],
 };
 
 /** Path prefix of content files in the configuration and in the app's public folder */
@@ -248,7 +247,6 @@ let spreads: Spread[] = [];
 let spreadById = new Map<string, Spread>();
 let entryById = new Map<string, Entry>();
 let targetById = new Map<string, Target>();
-let tutorial: Step[] = [];
 
 /** URL of a content file given its path in the configuration (`/assets/content/…`) */
 export const contentUrl = (path: string): string => (path.startsWith(CONTENT_PATH) && contentBase ? `${contentBase}${path}` : path);
@@ -329,7 +327,6 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles): void 
   spreadById = new Map(spreads.map(s => [s.id, s]));
   entryById = new Map(entries.map(e => [e.id, e]));
   targetById = new Map(spreads.flatMap(s => s.targets.map(t => [t.id, t] as const)));
-  tutorial = [...config.tutorial];
 };
 
 /** Version of the game configuration (content build): version, timestamp, hash, schema */
@@ -387,8 +384,6 @@ export const getAssets = (spreadId?: string): AssetData[] => {
   targets.forEach(t => entityAssets(t.entity).forEach(a => assets.set(a.id, a)));
   return [...assets.values()];
 };
-
-export const getTutorial = (): Step[] => [...tutorial];
 
 /** The plugins the content declares, their modules as URLs of the loaded version */
 export const getPlugins = (): PluginData[] => (config.plugins ?? []).map(plugin => ({ ...plugin, src: contentUrl(plugin.src) }));

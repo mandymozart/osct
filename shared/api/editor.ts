@@ -6,7 +6,7 @@
  */
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
-import type { BookData, EntityData, EntryData, PassData, SpreadData, StepData, TargetData } from "../types/game-config";
+import type { BookData, EntityData, EntryData, PassData, SpreadData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
 
 // ── Books ──────────────────────────────────────────────────────────────────────────────────────────
@@ -268,11 +268,6 @@ export interface EntrySaved {
 /** `PUT /editor/books/{id}`: the book's `book` after the change (title, author, publisher and the rest it holds) */
 export interface BookSaved {
   book: BookData;
-}
-
-/** `GET` and `PUT /editor/books/{id}/tutorial`: the onboarding's steps in their order (`index` = the place in the list) */
-export interface TutorialSaved {
-  tutorial: StepData[];
 }
 
 /** `PUT /editor/books/{id}/spreads/{spreadId}`: the spread after the change */

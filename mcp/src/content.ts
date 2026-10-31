@@ -13,7 +13,7 @@ import { checkEntity, checkPasses, describeContentModel, usesPluginPasses, usesP
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { PASS_TYPES, PRINT_SURFACES, SPREAD_FORMATS, STEP_ACTIONS } from "../../shared/types/game-config";
+import { PASS_TYPES, PRINT_SURFACES, SPREAD_FORMATS } from "../../shared/types/game-config";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
@@ -30,7 +30,6 @@ import type {
   EntryAdded,
   EntryList,
   EntrySaved,
-  TutorialSaved,
   EnvironmentSaved,
   EnvironmentsInfo,
   ImportComparison,
@@ -56,8 +55,6 @@ import {
   ID_PATTERN,
   isLinkUrl,
   pluginTypes,
-  STEP_TIME_MAX,
-  STEPS_MAX,
   TEXT_MAX_LENGTH,
 } from "../../shared/api/rules";
 
@@ -457,7 +454,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     }),
   );
 
-  // ── the book's texts: entries, the book, the onboarding (#223) ──
+  // ── the book's texts: entries and the book (#223) ──
 
   server.registerTool(
     "get_entries",
@@ -514,7 +511,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_book",
     {
       description:
-        "Changes the book's title, author or publisher – the reader's splash and home page show them, and the onboarding's {{title}}, {{author}} and {{publisher}} are replaced with them. Send what changes; publisher null (or \"\") removes it. The change is recorded.",
+        "Changes the book's title, author or publisher – the reader's splash, home page and onboarding show them (the onboarding itself is the app's, not the book's). Send what changes; publisher null (or \"\") removes it. The change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
@@ -527,48 +524,6 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       if (Object.keys(changes).length === 0) return fail({ error: { code: "mcp", message: "send title, author or publisher" } });
       const result = await api.call<BookSaved>("PUT", `/editor/books/${encodeURIComponent(book)}`, changes);
       return text({ ...result, open: editorHref(links, book) });
-    }),
-  );
-
-  const stepSchema = z.object({
-    id: ID,
-    title: z.string().max(TEXT_MAX_LENGTH).optional(),
-    description: z.string().max(BODY_MAX_LENGTH).optional().describe("*emphasis*, blank lines for paragraphs; {{title}}, {{author}}, {{publisher}} are the book's"),
-    footer: z.string().max(TEXT_MAX_LENGTH).optional(),
-    illustration: z.string().max(TEXT_MAX_LENGTH).optional().describe("a drawing as an app path, e.g. /assets/illustrations/tutorial-step-1.svg"),
-    button: z.string().max(TEXT_MAX_LENGTH).optional().describe("the button's label; none: the step moves on after `advance` or on a tap"),
-    action: z.enum(STEP_ACTIONS).optional().describe("with a button: next (default), camera (asks for the camera), scan (ends the onboarding in the scan)"),
-    fadeIn: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms each part fades in"),
-    stagger: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms between the parts fading in"),
-    advance: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms until a step without a button moves on"),
-  });
-
-  server.registerTool(
-    "get_tutorial",
-    {
-      description: "The onboarding's steps in their order: { id, index, title?, description?, footer?, illustration?, button?, action?, fadeIn?, stagger?, advance? } – the first is usually the splash (title, author, publisher of the book).",
-      inputSchema: z.object({ book: BOOK }),
-      annotations: read,
-    },
-    guard(async ({ book }) => text({ ...(await api.call<TutorialSaved>("GET", `/editor/books/${encodeURIComponent(book)}/tutorial`)), open: `${editorHref(links, book)}?view=onboarding` })),
-  );
-
-  server.registerTool(
-    "update_tutorial",
-    {
-      description:
-        "Replaces the onboarding's steps with this ordered list (read them first with get_tutorial and send the whole list back changed – a step left out is gone): the order is each step's index; an empty text is left out; an action goes with a button. Checked as the API checks it; the change is recorded.",
-      inputSchema: z.object({ book: BOOK, steps: z.array(stepSchema).max(STEPS_MAX) }),
-      annotations: write,
-    },
-    guard(async ({ book, steps }) => {
-      const ids = steps.map(s => s.id);
-      const twice = ids.find((id, i) => ids.indexOf(id) !== i);
-      if (twice) return fail({ error: { code: "invalid-tutorial", message: `the step id ${twice} is used twice (nothing was sent).` } });
-      const lonely = steps.find(s => s.action && !s.button?.trim());
-      if (lonely) return fail({ error: { code: "invalid-tutorial", message: `step ${lonely.id}: an action goes with a button (nothing was sent).` } });
-      const result = await api.call<TutorialSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/tutorial`, { tutorial: steps });
-      return text({ ...result, open: `${editorHref(links, book)}?view=onboarding` });
     }),
   );
 

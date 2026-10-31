@@ -4,7 +4,7 @@
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
-import { SPREAD_FORMATS, STEP_ACTIONS } from "../../../shared/types/game-config";
+import { SPREAD_FORMATS } from "../../../shared/types/game-config";
 
 /** `List`: an array of texts, or the texts in one comma-separated string */
 export type FieldType = "String" | "Number" | "Array" | "List" | "Boolean" | "Object";
@@ -91,23 +91,6 @@ export const schemas = {
       text: { type: "String", required: false }, // text nodes
       color: { type: "String", required: false }, // text nodes, #rrggbb
       light: { type: "Object", required: false }, // light nodes: { kind, color, intensity, … }, see shared/types/lights.ts
-    },
-  },
-
-  // content/steps/<id>/step.yaml (tutorial)
-  step: {
-    orderBy: "index",
-    fields: {
-      index: { type: "Number", required: true },
-      title: { type: "String", required: false },
-      description: { type: "String", required: false },
-      footer: { type: "String", required: false },
-      illustration: { type: "String", required: false },
-      button: { type: "String", required: false },
-      action: { type: "String", required: false, enum: STEP_ACTIONS },
-      fadeIn: { type: "Number", required: false },
-      stagger: { type: "Number", required: false },
-      advance: { type: "Number", required: false },
     },
   },
 } as const satisfies Record<string, Schema>;

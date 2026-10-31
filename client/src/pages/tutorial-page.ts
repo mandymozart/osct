@@ -1,5 +1,6 @@
 import { LoadingState, type Step } from "@/types";
-import { getTutorial } from "@/utils/game-config";
+import { getBook } from "@/utils/game-config";
+import { onboardingSteps } from "@/utils";
 import { Page } from "./page";
 import { goToScan, goToStep } from "@/components/tutorial";
 import { t } from "i18next";
@@ -14,7 +15,7 @@ export class TutorialPage extends Page {
     return ["active", "step"];
   }
 
-  private steps: Step[] = getTutorial();
+  private steps: Step[] = onboardingSteps(getBook());
   private stepIndex = 0;
   private advanceTimer: number | undefined;
   private waitForLoad: (() => void) | null = null;

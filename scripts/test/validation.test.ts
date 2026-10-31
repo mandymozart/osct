@@ -15,7 +15,6 @@ describe('content validation', () => {
 
   it('refuses anything but a mapping, and an unknown content type', () => {
     expect(() => validateContent(['title'], 'spread')).toThrow('Expected the fields of a spread');
-    expect(() => validateContent(null, 'step')).toThrow('Expected the fields of a step');
     expect(() => validateContent({}, 'chapter')).toThrow('Unknown content type: chapter');
     expect(() => validateContent({}, 'toString')).toThrow('Unknown content type: toString');
   });
@@ -35,8 +34,7 @@ describe('content validation', () => {
 
   it('checks texts against their allowed values', () => {
     expect(() => validateContent({ category: 'chapter', title: 'T', page: 1 }, 'entry')).toThrow("Field 'category' in entry must be one of:");
-    expect(validateContent({ index: 1, action: 'scan' }, 'step').action).toBe('scan');
-    expect(() => validateContent({ index: 1, action: 'jump' }, 'step')).toThrow("Field 'action' in step must be one of: next, camera, scan");
+    expect(() => validateContent({}, 'step')).toThrow('Unknown content type: step');
   });
 
   it('checks booleans, arrays and objects', () => {

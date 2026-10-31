@@ -44,7 +44,6 @@ declare(strict_types=1);
  *   PUT    /editor/books/{id}/entries/{id}      { title?, body?, author?, image?, media?, tags?, category?, page? } → an entry's fields; a new page can move it to
  *                                               another spread · GET /editor/books/{id}/entries: every entry with its fields as written
  *   PUT    /editor/books/{id}                   { title?, author?, publisher? } → the book's texts
- *   GET    /editor/books/{id}/tutorial · PUT { tutorial: [steps] } – the onboarding's steps, the whole ordered list
  *   PUT    /editor/books/{id}/spreads/{id}      { title?, format?, passes? } → a spread's title, format (spread | cover | back) and own passes
  *   POST   /editor/books/{id}/spreads           { format: spread, after?, id?, title? } → 201 a double page after `after` (default: before
  *                                               the back cover), later pages numbered on by two · { format: cover | back, title? } → 201 a cover
@@ -159,8 +158,6 @@ try {
         (bool) preg_match("#^GET /editor/books/($id)/entries$#", $route, $match) => BookTexts::entries($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/entries/($id)$#", $route, $match) => BookTexts::putEntry($match[1], $match[2]),
         (bool) preg_match("#^PUT /editor/books/($id)$#", $route, $match) => BookTexts::putBook($match[1]),
-        (bool) preg_match("#^GET /editor/books/($id)/tutorial$#", $route, $match) => BookTexts::tutorial($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/tutorial$#", $route, $match) => BookTexts::putTutorial($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/spreads/($id)$#", $route, $match) => Books::putSpread($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/books/($id)/spreads$#", $route, $match) => Books::addSpread($match[1]),
         (bool) preg_match("#^DELETE /editor/books/($id)/spreads/($id)$#", $route, $match) => Books::deleteSpread($match[1], $match[2]),

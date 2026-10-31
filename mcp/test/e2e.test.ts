@@ -231,7 +231,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(inUse.data.error.code).toBe("asset-in-use");
   });
 
-  it("writes the entry's text, the book's texts and the onboarding through the API (#223)", async () => {
+  it("writes the entry's text and the book's texts through the API (#223)", async () => {
     const edited = await call("update_entry", { book: "osct", entry: "p31-shadows", body: "The **shadows** move – {hasKey: you have the key|find the key}.", tags: ["dark"], media: "https://example.org/shadows" });
     expect(edited.ok).toBe(true);
     expect(edited.data.entry.tags).toEqual(["dark"]);
@@ -241,10 +241,6 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(refused.data.error.code).toBe("invalid-entry");
     const book = await call("update_book", { book: "osct", publisher: "Building Fictions" });
     expect(book.data.book.publisher).toBe("Building Fictions");
-    const steps = await call("get_tutorial", { book: "osct" });
-    const saved = await call("update_tutorial", { book: "osct", steps: steps.data.tutorial });
-    expect(saved.ok).toBe(true);
-    expect(saved.data.tutorial.length).toBe(steps.data.tutorial.length);
   });
 
   it("writes a plugin source and sees it in the model", async () => {

@@ -91,16 +91,16 @@ final class Books
             $book = $parts['book'];
             $params = [
                 'id' => $bookId, 'title' => $book->title, 'author' => $book->author, 'book' => Editor::encode($book),
-                'tutorial' => Editor::encode($parts['tutorial']), 'initial' => $parts['initialSpreadId'], 'base' => $assetsBase,
+                'initial' => $parts['initialSpreadId'], 'base' => $assetsBase,
                 'files' => Editor::encode($files), 'schema' => $parts['schema'], 'hash' => $parts['hash'], 'now' => $now,
                 'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported,
             ];
             if (Db::value('SELECT id FROM books WHERE id = :id', ['id' => $bookId]) !== null) {
-                Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, tutorial_json = :tutorial, initial_spread_id = :initial,
+                Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, initial_spread_id = :initial,
                          assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, updated_at = :now WHERE id = :id', $params);
             } else {
-                Db::run('INSERT INTO books (id, title, author, book_json, tutorial_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, created_at, updated_at)
-                         VALUES (:id, :title, :author, :book, :tutorial, :initial, :base, :files, :schema, :hash, :plugins, :imported, :created, :now)', $params + ['created' => $now]);
+                Db::run('INSERT INTO books (id, title, author, book_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, created_at, updated_at)
+                         VALUES (:id, :title, :author, :book, :initial, :base, :files, :schema, :hash, :plugins, :imported, :created, :now)', $params + ['created' => $now]);
             }
             foreach ($parts['spreads'] as $s) {
                 Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
@@ -1195,9 +1195,10 @@ final class Books
 
     /**
      * Checks what the rows need of a configuration and splits it into rows-to-be; every other field stays inside the
-     * objects (data_json). An entry belongs to the first spread whose pages include its page, else to none.
+     * objects (data_json). An entry belongs to the first spread whose pages include its page, else to none. A
+     * configuration's `tutorial` is ignored: the reader owns its onboarding (#236), a draft writes the compat steps.
      * `$pluginSources`: the book has Code tab sources (any node type named like a plugin's may pass – Editor::entity).
-     * @return array{book: stdClass, schema: string, hash: ?string, initialSpreadId: string, tutorial: array, plugins: array, spreads: array, entities: array, entries: array, targets: array}
+     * @return array{book: stdClass, schema: string, hash: ?string, initialSpreadId: string, plugins: array, spreads: array, entities: array, entries: array, targets: array}
      */
     private static function parse(stdClass $c, bool $pluginSources = false): array
     {
@@ -1214,8 +1215,6 @@ final class Books
         if (!is_array($c->spreads ?? null) || !is_array($c->entries ?? null)) $fail('spreads and entries must be arrays.');
         $entitiesIn = $c->entities ?? new stdClass();
         if (!$entitiesIn instanceof stdClass) $fail('entities must be an object.');
-        $tutorial = $c->tutorial ?? [];
-        if (!is_array($tutorial)) $fail('tutorial must be an array.');
         // The book's compiled plugins: kept as declared – the content build is their one writer
         $plugins = $c->plugins ?? [];
         if (!is_array($plugins)) $fail('plugins must be an array.');
@@ -1278,7 +1277,7 @@ final class Books
         }
         return [
             'book' => $book, 'schema' => $version->schema, 'hash' => is_string($version->hash ?? null) ? $version->hash : null,
-            'initialSpreadId' => $c->initialSpreadId, 'tutorial' => $tutorial, 'plugins' => $plugins,
+            'initialSpreadId' => $c->initialSpreadId, 'plugins' => $plugins,
             'spreads' => array_values($spreads), 'entities' => array_values($entities), 'entries' => array_values($entries), 'targets' => array_values($targets),
         ];
     }

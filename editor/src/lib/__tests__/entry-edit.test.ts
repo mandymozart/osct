@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EditorEntry } from "@shared/api/editor";
 import { EntryCategory } from "@shared/types/entry";
 import { draftOf, draftProblems, entryChanges, filterCounts, filterEntries, groupEntries, imageUrl, isDirty, tagsOf } from "../entry-edit";
-import { bookChanges, bookDraftOf, bookProblems, moveStep, newStep, stepDraftOf, stepsData, stepsDirty, stepsProblems, stepSummary } from "../book-texts";
+import { bookChanges, bookDraftOf, bookProblems } from "../book-texts";
 
 const { Glossary, Text, Video } = EntryCategory;
 const entry = (fields: Partial<EditorEntry> & Pick<EditorEntry, "id" | "title">): EditorEntry => ({
@@ -76,48 +76,12 @@ describe("the Entries page", () => {
   });
 });
 
-describe("the book's texts and the onboarding", () => {
+describe("the book's texts", () => {
   const book = { title: "Onion Skin", author: "Kévin Bray", publisher: "Building Fictions" };
 
   it("the book: only what changed, an emptied publisher removed, title and author needed", () => {
     expect(bookChanges(book, bookDraftOf(book))).toEqual({});
     expect(bookChanges(book, { title: " Onion Skin & Crocodile Tears ", author: "Kévin Bray", publisher: "" })).toEqual({ title: "Onion Skin & Crocodile Tears", publisher: null });
     expect(bookProblems({ title: "", author: " ", publisher: "" })).toEqual(["The title is empty.", "The author is empty."]);
-  });
-
-  const steps = [
-    { id: "splash", index: 0, title: "{{title}}", advance: 3800, stagger: 500 },
-    { id: "camera", index: 1, description: "Grant access.", button: "Grant access", action: "camera" as const },
-  ];
-
-  it("the steps: the list's order is the index, empty texts and default times left out", () => {
-    const drafts = steps.map(stepDraftOf);
-    expect(stepsData(drafts)).toEqual(steps);
-    expect(stepsDirty(steps, drafts)).toBe(false);
-    const moved = moveStep(drafts, 1, -1);
-    expect(stepsData(moved).map(s => [s.id, s.index])).toEqual([["camera", 0], ["splash", 1]]);
-    expect(stepsDirty(steps, moved)).toBe(true);
-    expect(moveStep(drafts, 0, -1)).toEqual(drafts);
-    const cleared = [{ ...drafts[0], title: " ", advance: null }, { ...drafts[1], button: "" }];
-    expect(stepsData(cleared)).toEqual([{ id: "splash", index: 0, stagger: 500 }, { id: "camera", index: 1, description: "Grant access." }]);
-  });
-
-  it("a new step gets a free id; problems keep Save off", () => {
-    const drafts = steps.map(stepDraftOf);
-    expect(newStep([...drafts, { ...drafts[0], id: "step-3" }]).id).toBe("step-4");
-    expect(stepsProblems(drafts)).toEqual([]);
-    expect(stepsProblems([{ ...drafts[0], id: "camera" }, { ...drafts[1], button: "" }, { ...drafts[0], id: "a b", fadeIn: -1 }])).toEqual([
-      "Step 2: the id camera is used twice.",
-      "Step 2: the action camera needs a button.",
-      "Step 3: the id is 1–64 letters, digits, _ or -.",
-      "Step 3: fadeIn is 0 to 600000 ms.",
-    ]);
-  });
-
-  it("a closed step says what it shows and what moves it on", () => {
-    const [splash, camera] = steps.map(stepDraftOf);
-    expect(stepSummary(splash)).toBe("{{title}} · on after 3800 ms");
-    expect(stepSummary(camera)).toBe("Grant access. · Grant access → camera");
-    expect(stepSummary({ ...splash, advance: null, title: "" })).toBe("on by a tap");
   });
 });
