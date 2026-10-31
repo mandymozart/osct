@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.56.0 – 2026-10-30
 
 ### Added
 - **The trigger trial names the phone** (#235): two iPhone reports of the second trial could not be told apart,
