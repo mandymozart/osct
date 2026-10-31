@@ -101,7 +101,7 @@ const passSchema = z.object({ type: z.string().min(1) }).catchall(z.union([z.num
 const passesSchema = z.array(passSchema);
 
 /**
- * The contract's verdict over a passes list (the built-in types and – schema 2.21 – the book's plugins' passes, every
+ * The contract's verdict over a passes list (the built-in types and the book's plugins' passes, every
  * parameter in range) as a tool error, else the warnings for the answer. The book's plugins are read only when the list
  * names a type that is not built in.
  */

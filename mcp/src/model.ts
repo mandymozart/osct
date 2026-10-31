@@ -51,7 +51,7 @@ export interface KnownPluginTypes {
   materials: string[];
   /** procedural textures (`registerTexture`), the same way */
   textures: string[];
-  /** post-processing passes (`registerPass`, a `passes` entry since schema 2.21), the same way */
+  /** post-processing passes (`registerPass`, a `passes` entry), the same way */
   passes: string[];
   /**
    * every plugin's registrations are known: each declared plugin recorded them and the book has no Code tab
@@ -80,7 +80,7 @@ export function usesPluginPasses(passes: unknown): boolean {
 }
 
 /**
- * The contract's check of a `passes` list (schema 2.21: a plugin's pass too): a pass the declared plugins recorded is
+ * The contract's check of a `passes` list (a plugin's pass too): a pass the declared plugins recorded is
  * checked against its spec like a built-in one; one a Code tab source registers (read from its text, no spec) passes,
  * listed as unverified; any other is refused – unless a declared plugin recorded nothing (what it registers is unknown
  * until it runs): then it passes, unverified, too. The publish refuses a pass no compiled plugin provides.

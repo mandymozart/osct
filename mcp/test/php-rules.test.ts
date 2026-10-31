@@ -91,7 +91,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(whole(php.ID)).toBe(ID_PATTERN.source);
     expect(whole(php.PLUGIN_NODE_TYPE)).toBe(NODE_TYPE_PATTERN.source);
     expect(whole(php.MATERIAL_TYPE)).toBe(MATERIAL_TYPE_PATTERN.source);
-    // A plugin's pass (schema 2.21) is named like a component: its spec is checked with componentSpecProblems
+    // A plugin's pass is named like a component: its spec is checked with componentSpecProblems
     expect(whole(php.PLUGIN_PASS_TYPE)).toBe(COMPONENT_TYPE_PATTERN.source);
     expect(whole(php.PLUGIN_ID)).toBe(PLUGIN_ID_PATTERN.source);
     expect(php.BUILD).toBe(`/${CONTENT_BUILD.source}/`);
