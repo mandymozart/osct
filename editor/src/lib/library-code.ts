@@ -45,6 +45,8 @@ export interface CodeFile {
   kind: CodeKind;
   /** A script shows as `<id>.ts`, a shader by its uploaded name */
   name: string;
+  /** What the list shows: the name, with an asterisk while the Code tab holds unsaved edits of the script (#232) */
+  label: string;
   size: number;
   usages: number;
   updatedAt: string;
@@ -56,11 +58,34 @@ export interface CodeFile {
   asset?: Asset;
 }
 
-/** Scripts and shaders in one list, by name */
-export const codeFiles = (scripts: readonly PluginSummary[], assets: readonly Asset[]): CodeFile[] =>
+/**
+ * A plugin's name where the editor lists it – the Code tab's picker, the Library's code list (#232): unchanged, the name
+ * alone; with unsaved edits, the name and an asterisk. Saved but not published gets no mark: every stored source is part
+ * of the draft, and the top bar already says whether readers have the draft (*draft only*, *live on …*).
+ */
+export const pluginLabel = (name: string, unsaved: boolean): string => (unsaved ? `${name}*` : name);
+
+/** The Code tab's open source as the labels need it: the plugin open, a new one being added, unsaved edits */
+export interface OpenCode {
+  open: string | null;
+  adding: boolean;
+  unsaved: boolean;
+}
+
+/** The plugin with unsaved edits in the Code tab – null for none, and for a new plugin (it has no id yet) */
+export const unsavedPlugin = (code: OpenCode): string | null => (!code.adding && code.open && code.unsaved ? code.open : null);
+
+/** The Code tab's picker: a new plugin first while it is being added, then one option per plugin */
+export const pluginOptions = (ids: readonly string[], code: OpenCode): Array<{ value: string; label: string }> => [
+  ...(code.adding ? [{ value: "", label: pluginLabel("new plugin", code.unsaved) }] : []),
+  ...ids.map(id => ({ value: id, label: pluginLabel(id, id === unsavedPlugin(code)) })),
+];
+
+/** Scripts and shaders in one list, by name; `unsaved` = the plugin the Code tab holds unsaved edits of */
+export const codeFiles = (scripts: readonly PluginSummary[], assets: readonly Asset[], unsaved: string | null = null): CodeFile[] =>
   [
-    ...scripts.map((p): CodeFile => ({ key: `script:${p.id}`, kind: "script", name: `${p.id}.ts`, size: p.size, usages: p.usages ?? 0, updatedAt: p.updatedAt, version: null, plugin: p.id })),
-    ...assets.filter(a => a.kind === "shader").map((a): CodeFile => ({ key: `shader:${a.id}`, kind: "shader", name: a.name, size: a.size, usages: a.usages, updatedAt: a.updatedAt, version: a.version, asset: a })),
+    ...scripts.map((p): CodeFile => ({ key: `script:${p.id}`, kind: "script", name: `${p.id}.ts`, label: pluginLabel(`${p.id}.ts`, p.id === unsaved), size: p.size, usages: p.usages ?? 0, updatedAt: p.updatedAt, version: null, plugin: p.id })),
+    ...assets.filter(a => a.kind === "shader").map((a): CodeFile => ({ key: `shader:${a.id}`, kind: "shader", name: a.name, label: a.name, size: a.size, usages: a.usages, updatedAt: a.updatedAt, version: a.version, asset: a })),
   ].sort((a, b) => a.name.localeCompare(b.name) || a.kind.localeCompare(b.kind));
 
 /** Every word of the query in the file's name or kind */

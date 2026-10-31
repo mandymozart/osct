@@ -5,6 +5,8 @@ import { deletePlugin, errorText, getPlugin, listPlugins, putPlugin, replacePlug
 import { library } from "./library.svelte";
 import { importPluginCode, transpilePlugin, type CompileError } from "#lib/plugins/compile.js";
 import type { Stage } from "#lib/stage/stage.svelte.js";
+import { trackUnsaved } from "#lib/unsaved.js";
+import { unsavedPlugin } from "#lib/library-code.js";
 import { nodeAt, withNode } from "./values";
 
 /** A node made code whose new type has not built yet: it shows as it was until its plugin's code builds it (#199) */
@@ -20,6 +22,40 @@ export interface PendingSwitch {
   from: string;
   /** The node switched to the new type */
   node: EntityData;
+}
+
+/**
+ * The Code tab's open source: the plugin open (or a new one being added), its text and the text as stored. It lives
+ * here, not in the tab, so a tab switch loses no edit and the Library marks the script with unsaved edits (#232).
+ */
+export class CodeBuffer {
+  open = $state<string | null>(null);
+  adding = $state(false);
+  /** The new plugin's id while it is being added */
+  newId = $state("");
+  source = $state("");
+  /** The source as stored – "" for a plugin only the content declares, so Save stores a copy of it */
+  saved = $state("");
+  /** The source as loaded or last saved: the edits are unsaved while the text differs */
+  loaded = $state("");
+
+  get unsaved(): boolean {
+    return this.source !== this.loaded;
+  }
+
+  /** The plugin with unsaved edits, null for none (a new plugin has no id yet) */
+  get unsavedId(): string | null {
+    return unsavedPlugin(this);
+  }
+
+  reset(): void {
+    this.open = null;
+    this.adding = false;
+    this.newId = "";
+    this.source = "";
+    this.saved = "";
+    this.loaded = "";
+  }
 }
 
 /**
@@ -49,6 +85,8 @@ class Plugins {
   focus = $state<string | null>(null);
   /** A node made code that switches to its type once that builds (#199) */
   pending = $state<PendingSwitch | null>(null);
+  /** The Code tab's open source, kept while the tab is closed */
+  readonly code = new CodeBuffer();
   /** The sources run here, by plugin id: what is installed, saved or not */
   private ran = new Map<string, string>();
 
@@ -60,6 +98,7 @@ class Plugins {
       if (this.bookId !== bookId) {
         this.ran.clear();
         this.pending = null;
+        this.code.reset();
       }
       this.bookId = bookId;
     } catch (e) {
@@ -212,3 +251,6 @@ class Plugins {
 }
 
 export const plugins = new Plugins();
+
+// A reload (the new-version bar) would drop the Code tab's edits, whether the tab is open or not
+trackUnsaved(() => plugins.code.unsaved);
