@@ -327,10 +327,12 @@ the plugin (its licence and author head that part of `index.ts`). The engine dra
 plugin cannot change that, and needs no new API for it: the fluid runs on a WebGPU device of its own and meets the scene
 in a texture.
 
-- **The domain** is the tank's inside in Splash's units (cells): the scale makes the particle count fill the water to its
-  level once settled (3.4 particles per cell), so 10k, 20k and 40k particles fill the same water with finer cells
-  (31, 39 and 49 cells per tank unit for the demo's tank). The inside is mapped where the resting fluid's surface stands
-  – a little past Splash's soft walls –, so the water meets the glass and the sand. One step per frame, as in Splash.
+- **The domain** is the tank's inside in Splash's units (cells), with three cells of grid around it: the scale makes
+  the particle count fill the water to its level once settled (3.9 particles per cell), so 10k, 20k and 40k particles
+  fill the same water with finer cells (29, 37 and 46 cells per tank unit for the demo's tank). The inside's walls and
+  floor are hard – the grid lets no water out through them, the particles keep 0.3 cells off them – instead of Splash's
+  soft walls, so the water fills the tank to the glass and the sand. One step per frame, as in Splash, and the grid keeps
+  99.5 % of its motion per step, so the surface settles flat between the toy's dips.
 - **The camera hand-off.** The water mesh's `onBeforeRender(renderer, scene, camera)` reads the camera's
   `matrixWorldInverse` and `projectionMatrix` and the tank's `matrixWorld`: Splash's view is camera × tank × (cells →
   tank), scaled back so a unit is a cell again (Splash's filter thresholds and particle size are in cells); its
@@ -340,11 +342,20 @@ in a texture.
 - **Compositing.** The canvas is a three.js `CanvasTexture`, uploaded in the same draw (no frame behind). The `water`
   material, given the texture by the tank (`fluidMap`, `hasFluid`, `fluidViewport`), samples it at
   `(gl_FragCoord.xy − viewport.xy) / viewport.zw` on the front faces of a box as large as the inside: the fluid shows
-  exactly within the tank's faces, and whatever stands in front of the tank hides it by the depth test. Splash refracts
-  a picture behind the fluid; here the scene behind is three.js's, so the fluid is drawn with alpha – how much of what
-  lies behind it hides – premultiplied and gamma-encoded in the 8-bit canvas, and the material divides and decodes it
-  (`premultiplyAlpha` keeps the bytes as they are). Where the toy stands in front of the water, the fluid's shader
-  leaves the pixel to it (a ray against the toy's ellipsoid).
+  only within the tank's faces, and whatever stands in front of the tank hides it by the depth test. Splash refracts a
+  picture behind the fluid; here the scene behind is three.js's, so the fluid is drawn with alpha – how much of what
+  lies behind it hides: a light tint where the water is thin, deeper where it is thick, the floor and its caustics
+  showing through – premultiplied and gamma-encoded in the 8-bit canvas, and the material divides and decodes it
+  (`premultiplyAlpha` keeps the bytes as they are).
+- **Water against glass, the free surface from Splash.** Every frame a compute pass finds the water's height over each
+  column of cells (the highest particle, averaged over the neighbouring columns). The composite follows each pixel's ray
+  through the inside: where it enters through the glass below that height, it draws flat water against the glass, as
+  deep as the ray runs under the surface – a straight waterline and square corners. Elsewhere it draws Splash's free
+  surface (normal from the narrow-range filtered depth, a fresnel reflection of the room only where the surface meets
+  the air, a highlight); a surface the ray meets only beyond the inside is no water in the tank, and the grains of the
+  surface standing above the water's height by the glass fade out. Where the free surface is thin – seen edgewise, a
+  splash – its edge fades by the blurred thickness, so the outline is soft, not frayed. Where the toy's body stands in
+  front of the water, the shader leaves the pixel to it (a ray against its ellipsoid).
 - **The toy** is the fluid's solid body: the grid's cells inside it move with it, the particles inside are put back on
   its surface; *splash* scales its push on the way in.
 - **Pause.** The fluid steps only in frames that draw the water: a lost target, a hidden node or a paused scene draws
@@ -354,11 +365,11 @@ in a texture.
   *no WebGPU* (a node type's spec is the object the Entity panel reads).
 
 Parameters: *WebGPU* (on), *particles* (10k, 20k, 40k), *render scale* (0.5, 0.75, 1), *fluid colour*; *splash*,
-*dipping toy*, *loop period* and *dip depth* apply to both. The adapted part adds 36 KB to the plugin's bundle (28.7 →
-65.1 KB, 8.5 → 18.1 KB gzipped). On the editor's stage (desktop, headless Edge on an NVIDIA GPU, 640 × 760 pixels, the
-fluid at 0.75) the stage stays at 60 fps with every count; the hand-off costs 0.16 ms of main-thread work per frame and
-the whole stage 1.9–2.3 ms against 1.9 ms with the heightfield; the GPU takes about 1 ms per frame (60 frames back to
-back, 10k to 40k, also 40k at render scale 1). The pure parts – the choice of the water, the domain, the hand-off – are
+*dipping toy*, *loop period* and *dip depth* apply to both. The adapted part adds 43 KB to the plugin's bundle (28.7 →
+72.2 KB, 8.5 → 20.1 KB gzipped). On the editor's stage (desktop, headless Edge on an NVIDIA GPU, 640 × 760 pixels, the
+fluid at 0.75) the stage stays at 60 fps with every count; the hand-off costs about 0.2 ms of main-thread work per frame
+and the whole stage 1.9 ms, as with the heightfield; the GPU takes 1–1.3 ms per frame (60 frames back to back, 10k to
+40k). The pure parts – the choice of the water, the domain, the hand-off – are
 tested through the real plugin (`aquarium-fluid.test.ts`: the built tank's `object.userData.splash`); unit tests have
 no WebGPU, so they run the fallback.
 

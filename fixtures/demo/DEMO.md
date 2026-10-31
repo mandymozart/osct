@@ -46,7 +46,7 @@ https://github.com/matsuoka-601/Splash, under the MIT licence:
 > COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 > OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-The adapted part adds 36 KB to the plugin's bundle (65 KB, 18 KB gzipped).
+The adapted part adds 43 KB to the plugin's bundle (72 KB, 20 KB gzipped).
 
 **The zero plane** (#189): every model stands on its page – its lowest point at the target's `z = 0`. The beacon's model
 has its origin in its middle (lifted by its lower half, `position: [0, 0, 0.9973]`), the door's floor sat 0.0188 above

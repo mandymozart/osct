@@ -74,27 +74,28 @@ type Gpu = any;
 const BUFFER = { COPY_DST: 0x08, UNIFORM: 0x40, STORAGE: 0x80 };
 const TEXTURE = { TEXTURE_BINDING: 0x04, RENDER_ATTACHMENT: 0x10 };
 
-/** Cells between the domain's edge and the water's walls: the particles' soft walls stand 3 cells in (Splash) */
-const MARGIN = 3;
 /**
- * Where the fluid's surface stands when it rests, in Splash's cells (measured): the particles settle half a cell past
- * the soft walls and, under their weight, below the floor's; with their radius the surface is 1.1 cells outside the
- * walls at the sides and 1.8 below the floor's. The tank's inside is mapped there – the glass and the sand meet the water.
+ * Cells between the domain's edge and the tank's inside: room for the particles' 3×3×3 stencil. The inside is the
+ * fluid's box – its walls are hard (the grid lets no water through them), so the water fills it to the glass and the floor
  */
-const INSIDE: [number, number, number] = [1.9, 1.2, 1.9];
-/** The far sides of the inside: this far before the domain's end (the wall at `MARGIN + 1`, less the same 1.1 cells) */
-const INSIDE_END = 2.6;
+const MARGIN = 3;
+/** The inside's lowest corner in Splash's cells */
+const INSIDE: [number, number, number] = [MARGIN, MARGIN, MARGIN];
+/** How far the particles' centres keep from the walls (cells): their splats reach just past, the box cuts them flat */
+const WALL_GAP = 0.3;
 /** Particles per cell where the water rests: the pressure only pushes above it */
 const REST_DENSITY = 3;
 /** Particles per cell once settled (measured: the fluid compresses a little under its own weight) */
-const SETTLED_DENSITY = 3.4;
+const SETTLED_DENSITY = 3.9;
 /** A particle's diameter (cells) – its splat in the depth and thickness maps */
-const DIAMETER = 1.2;
+const DIAMETER = 2.2;
+/** The narrow-range filter's reach per projected particle (Splash: 12; more makes the surface smoother) */
+const FILTER = 20;
 /** Simulation time per frame at 60 fps, and the most one step may take (larger steps are unstable) */
 const SIM_DT = 0.32;
 const SIM_DT_MAX = 0.4;
 /** How strongly the fluid absorbs what passes through it (Splash: 0.7 – opaque at the tank's depth, so the fish would hide) */
-const FLUID_DENSITY = 0.2;
+const FLUID_DENSITY = 0.12;
 /** The particle counts of the parameter */
 const PARTICLES: Record<string, number> = { "10k": 10_000, "20k": 20_000, "40k": 40_000 };
 
@@ -112,9 +113,9 @@ const fluidPath = (state: { webgpu: boolean; gpu: GpuStatus; material: boolean; 
 
 /**
  * The simulation domain (#228): the tank's inside in Splash's units (cells). The scale makes `particles` fill the water
- * up to its level once settled; the domain is the inside up to the glass top (room for splashes) with the margin of the
- * soft walls around it. `origin` is the inside's lowest corner in the tank's units – Splash's `INSIDE`; `grid` is the
- * cell count per axis (whole cells), `size` the walls' extent.
+ * up to its level once settled; the domain is the inside up to the glass top with `MARGIN` cells around it. `origin` is
+ * the inside's lowest corner in the tank's units – Splash's `INSIDE`; `grid` is the cell count per axis (whole cells),
+ * `size` the domain's extent (the inside ends `MARGIN` before it).
  */
 interface SplashDomain {
   scale: number;
@@ -129,19 +130,26 @@ interface SplashDomain {
 
 const splashDomain = (inner: { x: number; y: number; z: number }, origin: [number, number, number], level: number, particles: number): SplashDomain => {
   const scale = Math.cbrt(particles / (SETTLED_DENSITY * inner.x * inner.z * level));
-  const size: [number, number, number] = [INSIDE[0] + inner.x * scale + INSIDE_END, INSIDE[1] + inner.y * scale + MARGIN + 1, INSIDE[2] + inner.z * scale + INSIDE_END];
+  const size: [number, number, number] = [inner.x * scale + 2 * MARGIN, inner.y * scale + 2 * MARGIN, inner.z * scale + 2 * MARGIN];
   const domain = { scale, size, grid: [Math.ceil(size[0]), Math.ceil(size[1]), Math.ceil(size[2])] as [number, number, number], origin, level: level * scale, count: 0 };
   const { across, room } = lattice(domain);
   domain.count = Math.min(particles, across * room);
   return domain;
 };
 
-/** The lattice of the start: its spacing (the settled density), the points per layer, the layers up to the top wall */
+/**
+ * The lattice of the start at the settled density: a whole number of points across the inside (its spacing stretched
+ * to fit), the layer spacing that keeps the density, the layers up to the glass top
+ */
 const lattice = (domain: Omit<SplashDomain, "count">) => {
   const spacing = Math.cbrt(1 / SETTLED_DENSITY);
-  const nx = Math.floor((domain.size[0] - INSIDE[0] - INSIDE_END) / spacing);
-  const nz = Math.floor((domain.size[2] - INSIDE[2] - INSIDE_END) / spacing);
-  return { spacing, nx, nz, across: nx * nz, room: Math.floor((domain.size[1] - MARGIN - 1 - INSIDE[1]) / spacing) };
+  const span = (axis: number) => domain.size[axis] - 2 * MARGIN - 2 * WALL_GAP;
+  const nx = Math.max(1, Math.round(span(0) / spacing));
+  const nz = Math.max(1, Math.round(span(2) / spacing));
+  const sx = span(0) / nx;
+  const sz = span(2) / nz;
+  const sy = 1 / (SETTLED_DENSITY * sx * sz);
+  return { sx, sy, sz, nx, nz, across: nx * nz, room: Math.floor(span(1) / sy) };
 };
 
 /**
@@ -151,15 +159,15 @@ const lattice = (domain: Omit<SplashDomain, "count">) => {
  */
 const splashParticles = (domain: SplashDomain): Float32Array => {
   const data = new Float32Array(domain.count * 20);
-  const { spacing, nx, nz } = lattice(domain);
+  const { sx, sy, sz, nx, nz } = lattice(domain);
   for (let n = 0; n < domain.count; n++) {
     const layer = Math.floor(n / (nx * nz));
     const i = n % nx;
     const k = Math.floor(n / nx) % nz;
     const jitter = ((n * 2654435761) % 1000) / 1000;
-    data[n * 20] = INSIDE[0] + (i + 0.5) * spacing + (jitter - 0.5) * 0.1;
-    data[n * 20 + 1] = INSIDE[1] + (layer + 0.5) * spacing;
-    data[n * 20 + 2] = INSIDE[2] + (k + 0.5) * spacing + (0.5 - jitter) * 0.1;
+    data[n * 20] = INSIDE[0] + WALL_GAP + (i + 0.5) * sx + (jitter - 0.5) * 0.1;
+    data[n * 20 + 1] = INSIDE[1] + WALL_GAP + (layer + 0.5) * sy;
+    data[n * 20 + 2] = INSIDE[2] + WALL_GAP + (k + 0.5) * sz + (0.5 - jitter) * 0.1;
   }
   return data;
 };
@@ -293,6 +301,9 @@ const VISCOSITY: f32 = 0.1;
 const WGSL_UPDATE_GRID = /* wgsl */ `${WGSL_COMMON}${WGSL_BODY}
 struct Cell { vx: i32, vy: i32, vz: i32, mass: i32, }
 const GRAVITY: f32 = 0.4;
+/** The share of the grid's motion kept per step: the water settles to a flat surface between the toy's dips */
+const DAMPING: f32 = 0.995;
+const MARGIN: f32 = ${MARGIN.toFixed(1)};
 const PUSH: f32 = 0.5;
 @group(0) @binding(0) var<storage, read_write> cells: array<Cell>;
 @group(0) @binding(1) var<uniform> sim: Sim;
@@ -305,6 +316,7 @@ const PUSH: f32 = 0.5;
   let y = (i32(id.x) / gz) % gy;
   let z = i32(id.x) % gz;
   var v = vec3f(decodeFixed(cells[id.x].vx), decodeFixed(cells[id.x].vy), decodeFixed(cells[id.x].vz)) / decodeFixed(cells[id.x].mass);
+  v = v * DAMPING;
   v.y -= GRAVITY * sim.dt;
   if (body.solid > 0.5) {
     let q = (body.toBody * (vec3f(f32(x), f32(y), f32(z)) + 0.5 - body.center)) / body.radii;
@@ -314,9 +326,10 @@ const PUSH: f32 = 0.5;
       v = body.velocity + normal * (1.0 - r) * PUSH;
     }
   }
-  if (x < 2 || x > i32(ceil(sim.size.x)) - 3) { v.x = 0.0; }
-  if (y < 2 || y > i32(ceil(sim.size.y)) - 3) { v.y = 0.0; }
-  if (z < 2 || z > i32(ceil(sim.size.z)) - 3) { v.z = 0.0; }
+  // The inside's walls are hard: a cell beyond one lets no water out through it (it slides along)
+  let centre = vec3f(f32(x), f32(y), f32(z)) + 0.5;
+  v = select(v, max(v, vec3f(0.0)), centre < vec3f(MARGIN));
+  v = select(v, min(v, vec3f(0.0)), centre > sim.size - MARGIN);
   cells[id.x].vx = encodeFixed(v.x);
   cells[id.x].vy = encodeFixed(v.y);
   cells[id.x].vz = encodeFixed(v.z);
@@ -345,7 +358,7 @@ struct Cell { vx: i32, vy: i32, vz: i32, mass: i32, }
     B += mat3x3f(w * d.x, w * d.y, w * d.z);
     v += w;
   } } }
-  var p = clamp(particle.position + v * sim.dt, vec3f(1.0), sim.size - 2.0);
+  var p = particle.position + v * sim.dt;
   if (body.solid > 0.5) {
     let q = (body.toBody * (p - body.center)) / body.radii;
     let r = length(q);
@@ -356,14 +369,58 @@ struct Cell { vx: i32, vy: i32, vz: i32, mass: i32, }
       if (into < 0.0) { v -= into * normal; }
     }
   }
-  let ahead = p + v * sim.dt * 2.0;
-  let wallMin = vec3f(${MARGIN.toFixed(1)});
-  let wallMax = sim.size - ${(MARGIN + 1).toFixed(1)};
-  v += select(vec3f(0.0), wallMin - ahead, ahead < wallMin);
-  v += select(vec3f(0.0), wallMax - ahead, ahead > wallMax);
+  // The walls: no particle leaves the inside
+  let wallMin = vec3f(${(MARGIN + WALL_GAP).toFixed(2)});
+  let wallMax = sim.size - ${(MARGIN + WALL_GAP).toFixed(2)};
+  p = clamp(p, wallMin, wallMax);
+  // At a wall a particle keeps no speed out through it
+  v = select(v, max(v, vec3f(0.0)), p <= wallMin);
+  v = select(v, min(v, vec3f(0.0)), p >= wallMax);
   particles[id.x].position = p;
   particles[id.x].v = v;
   particles[id.x].C = B * 4.0;
+}`;
+
+/**
+ * The water's height over the floor, per column of cells: the highest particle standing on each column, averaged over
+ * the neighbouring columns (a column at a wall weighed by the part of it inside), plus most of a particle's radius – the
+ * surface. The composite draws the water against the glass up to it – a clean waterline – and trims the grains that
+ * stand above it at the glass.
+ */
+const WGSL_COLUMNS = /* wgsl */ `${WGSL_COMMON}
+const MARGIN: f32 = ${MARGIN.toFixed(1)};
+const RADIUS: f32 = ${(DIAMETER * 0.2).toFixed(2)};
+@group(0) @binding(0) var<storage, read> particles: array<Particle>;
+@group(0) @binding(1) var<storage, read_write> counts: array<atomic<u32>>; // the highest particle per column (y × 1000)
+@group(0) @binding(2) var<uniform> sim: Sim;
+@group(0) @binding(3) var<storage, read_write> heights: array<f32>;
+@compute @workgroup_size(64) fn reset(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x < arrayLength(&counts)) { atomicStore(&counts[id.x], 0u); }
+}
+@compute @workgroup_size(64) fn tally(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x >= sim.count) { return; }
+  let p = particles[id.x].position;
+  atomicMax(&counts[u32(p.x) * u32(sim.grid.z) + u32(p.z)], u32(p.y * 1000.0));
+}
+@compute @workgroup_size(64) fn average(@builtin(global_invocation_id) id: vec3u) {
+  let gz = i32(sim.grid.z);
+  if (id.x >= arrayLength(&heights)) { return; }
+  let i = i32(id.x) / gz;
+  let k = i32(id.x) % gz;
+  var water = 0.0;
+  var area = 0.0;
+  for (var di = -1; di <= 1; di++) { for (var dk = -1; dk <= 1; dk++) {
+    let ii = i + di;
+    let kk = k + dk;
+    let wx = min(f32(ii + 1), sim.size.x - MARGIN) - max(f32(ii), MARGIN);
+    let wz = min(f32(kk + 1), sim.size.z - MARGIN) - max(f32(kk), MARGIN);
+    let top = f32(atomicLoad(&counts[ii * gz + kk])) / 1000.0;
+    if (wx > 0.0 && wz > 0.0 && top > 0.0) {
+      water += top * wx * wz;
+      area += wx * wz;
+    }
+  } }
+  heights[id.x] = select(MARGIN, water / max(area, 1e-3) + RADIUS, area > 0.0);
 }`;
 
 /** The render uniforms: texel size, particle diameter and the camera, in cells */
@@ -497,21 +554,30 @@ const SIZE: i32 = 15;
 }`;
 
 /**
- * The fluid over the scene: the surface's normal from the smoothed depth, a fresnel reflection of a room (a bright
- * ceiling, the desk below), the water's colour by its thickness, a highlight. Splash refracts a picture behind the fluid;
- * here the scene behind is three.js's, so the fluid is drawn with alpha – how much of what lies behind it hides – and the
- * colour premultiplied, gamma-encoded (the 8-bit canvas keeps the darks; the water material decodes it). Where the toy
- * stands in front of the water, nothing of the water behind it shows.
+ * The fluid over the scene, per pixel along its ray through the inside: where the ray enters the glass below the water's
+ * height (the columns), flat water against the glass; elsewhere Splash's free surface – its normal from the smoothed
+ * depth, a fresnel reflection of a room (a bright ceiling, the desk below) where it meets the air, a highlight. The colour
+ * by the thickness the ray runs through. Splash refracts a picture behind the fluid; here the scene behind is three.js's,
+ * so the fluid is drawn with alpha – how much of what lies behind it hides – and the colour premultiplied, gamma-encoded
+ * (the 8-bit canvas keeps the darks; the water material decodes it). Where the toy stands in front of the water, nothing
+ * of the water behind it shows.
  */
 const WGSL_FLUID = /* wgsl */ `${WGSL_SCREEN}${WGSL_RENDER}${WGSL_BODY}
-struct Shade { colour: vec3f, density: f32, }
+struct Shade { colour: vec3f, density: f32, inside: vec3f, settled: f32, columns: vec2f, }
 @group(0) @binding(0) var linearSampler: sampler;
 @group(0) @binding(1) var depthTexture: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: RenderUniforms;
 @group(0) @binding(3) var thicknessTexture: texture_2d<f32>;
 @group(0) @binding(4) var<uniform> shade: Shade;
 @group(0) @binding(5) var<uniform> body: Body;
+@group(0) @binding(6) var<storage, read> heights: array<f32>;
 const LIGHT = vec3f(0.35, 1.0, 0.45);
+const MARGIN: f32 = ${MARGIN.toFixed(1)};
+const TINT: f32 = 0.06;
+const EDGE_LOW: f32 = 0.1;
+const EDGE_HIGH: f32 = 0.6;
+// The thickness map's value per cell a ray runs through the water (its splats overlapping), for the water at the glass
+const PATH_THICKNESS: f32 = 0.4;
 fn viewAt(uv: vec2f, depth: f32) -> vec3f {
   var ndc = vec4f(uv.x * 2.0 - 1.0, 1.0 - 2.0 * uv.y, 0.0, 1.0);
   ndc.z = -uniforms.projectionMatrix[2].z + uniforms.projectionMatrix[3].z / depth;
@@ -526,9 +592,21 @@ fn room(direction: vec3f) -> vec3f {
   let up = clamp(direction.y, -1.0, 1.0);
   return select(mix(vec3f(0.62, 0.66, 0.7), vec3f(0.22, 0.2, 0.18), -up), mix(vec3f(0.62, 0.66, 0.7), vec3f(1.0, 0.99, 0.97), up), up >= 0.0);
 }
-fn hiddenByBody(ray: vec3f, distance: f32) -> bool {
-  let origin = (uniforms.invViewMatrix * vec4f(0.0, 0.0, 0.0, 1.0)).xyz;
-  let direction = (uniforms.invViewMatrix * vec4f(ray, 0.0)).xyz;
+// The water's height (cells) over a point of the floor: the columns' heights, bilinear between their centres
+fn waterHeight(x: f32, z: f32) -> f32 {
+  let gx = i32(shade.columns.x);
+  let gz = i32(shade.columns.y);
+  let fx = clamp(x - 0.5, MARGIN, shade.inside.x - 1.0);
+  let fz = clamp(z - 0.5, MARGIN, shade.inside.z - 1.0);
+  let i = i32(floor(fx));
+  let k = i32(floor(fz));
+  let i1 = min(i + 1, gx - 1);
+  let k1 = min(k + 1, gz - 1);
+  let t = vec2f(fx - f32(i), fz - f32(k));
+  return mix(mix(heights[i * gz + k], heights[i1 * gz + k], t.x), mix(heights[i * gz + k1], heights[i1 * gz + k1], t.x), t.y);
+}
+// The toy's body in front of the water hides it (its thin fins are not tested: a fin's ellipsoid would cut holes)
+fn hiddenByBody(origin: vec3f, direction: vec3f, distance: f32) -> bool {
   let o = (body.toBody * (origin - body.center)) / body.radii;
   let d = (body.toBody * direction) / body.radii;
   let a = dot(d, d);
@@ -538,10 +616,39 @@ fn hiddenByBody(ray: vec3f, distance: f32) -> bool {
   let t = (-b - sqrt(disc)) / a;
   return t > 0.0 && t < distance;
 }
+// Water a ray runs through: what it keeps of the light by the thickness – a light tint where thin, deeper where thick –
+// drawn over the scene as a darker, saturated colour with that much alpha; a reflection and a highlight on top
+fn water(thickness: f32, fresnel: f32, reflection: vec3f, diffuse: f32, specular: f32, edge: f32) -> vec4f {
+  let transmittance = exp(-shade.density * 10.0 * thickness * (1.0 - shade.colour));
+  let absorbed = clamp(1.0 - dot(transmittance, vec3f(1.0 / 3.0)) + TINT, 0.0, 0.6);
+  let colour = reflection * fresnel + shade.colour * shade.colour * (0.6 + 0.4 * diffuse) * absorbed * (1.0 - fresnel) + vec3f(specular);
+  let cover = clamp(fresnel + absorbed * (1.0 - fresnel) + specular, 0.0, 1.0);
+  let straight = clamp(colour / max(cover, 1e-4), vec3f(0.0), vec3f(1.0));
+  let alpha = cover * edge;
+  return vec4f(pow(straight, vec3f(1.0 / 2.2)) * alpha, alpha);
+}
 @fragment fn fs(@builtin(position) position: vec4f, @location(0) uv: vec2f) -> @location(0) vec4f {
   let thickness = textureSample(thicknessTexture, linearSampler, uv).r;
   let at = vec2i(position.xy);
   let depth = depthAt(at);
+  // The pixel's ray in cells, and where it runs through the inside
+  let ray = normalize(viewAt(uv, 1.0));
+  let origin = (uniforms.invViewMatrix * vec4f(0.0, 0.0, 0.0, 1.0)).xyz;
+  let direction = (uniforms.invViewMatrix * vec4f(ray, 0.0)).xyz;
+  let a = (vec3f(MARGIN) - origin) / direction;
+  let b = (shade.inside - origin) / direction;
+  let near = max(max(min(a.x, b.x), min(a.y, b.y)), min(a.z, b.z));
+  let far = min(min(max(a.x, b.x), max(a.y, b.y)), max(a.z, b.z));
+  if (far < max(near, 0.0)) { return vec4f(0.0); }
+  // Through the glass below the waterline: flat water against the glass, as deep as the ray runs below the surface
+  let entry = origin + direction * near;
+  let level = waterHeight(entry.x, entry.z);
+  if (near > 0.0 && entry.y < shade.inside.y - 1e-3 && entry.y < level) {
+    var leave = far;
+    if (direction.y > 1e-4) { leave = min(far, near + (level - entry.y) / direction.y); }
+    return water((leave - near) * PATH_THICKNESS, 0.0, vec3f(0.0), 0.5, 0.0, 1.0);
+  }
+  // Else the free surface, Splash's: its normal from the smoothed depth
   if (depth >= 1e4) { return vec4f(0.0); }
   let surface = viewAt(uv, depth);
   let texel = uniforms.texelSize;
@@ -552,19 +659,24 @@ fn hiddenByBody(ray: vec3f, distance: f32) -> bool {
   ddx = select(ddx, ddx2, abs(ddx.z) > abs(ddx2.z));
   ddy = select(ddy, ddy2, abs(ddy.z) > abs(ddy2.z));
   let normal = -normalize(cross(ddx, ddy));
-  let ray = normalize(surface);
-  if (body.solid > 0.5 && hiddenByBody(ray, length(surface))) { return vec4f(0.0); }
+  let distance = length(surface);
+  // The splats reach a little past the walls: a surface the ray meets only beyond the inside is no water in the tank
+  if (distance > far + 0.05) { return vec4f(0.0); }
+  if (body.solid > 0.5 && hiddenByBody(origin, direction, distance)) { return vec4f(0.0); }
+  // A particle standing above the water by the glass is the surface's grain, not a wave: the waterline stays clean
+  let cell = origin + direction * distance;
+  let wall = min(min(cell.x - MARGIN, shade.inside.x - cell.x), min(cell.z - MARGIN, shade.inside.z - cell.z));
+  let grain = mix(1.0, 1.0 - smoothstep(0.2, 0.8, cell.y - waterHeight(cell.x, cell.z)), 1.0 - smoothstep(1.5, 2.5, wall));
   let light = normalize((uniforms.viewMatrix * vec4f(LIGHT, 0.0)).xyz);
-  let specular = pow(max(0.0, dot(normalize(light - ray), normal)), 300.0);
+  // Only the free surface meets the air: where the water lies against the glass it reflects nothing of the room
+  let open = smoothstep(0.35, 0.8, (uniforms.invViewMatrix * vec4f(normal, 0.0)).y);
+  let specular = open * pow(max(0.0, dot(normalize(light - ray), normal)), 300.0);
   let diffuse = max(0.0, dot(light, normal));
-  let transmittance = exp(-shade.density * 10.0 * thickness * (1.0 - shade.colour));
-  let fresnel = clamp(0.02 + 0.98 * pow(1.0 - max(dot(normal, -ray), 0.0), 5.0), 0.0, 1.0);
+  let fresnel = open * clamp(0.02 + 0.98 * pow(1.0 - max(dot(normal, -ray), 0.0), 5.0), 0.0, 1.0);
   let reflection = room(normalize((uniforms.invViewMatrix * vec4f(reflect(ray, normal), 0.0)).xyz));
-  let hidden = clamp(1.0 - dot(transmittance, vec3f(1.0 / 3.0)) + 0.06, 0.0, 1.0);
-  let colour = reflection * fresnel + shade.colour * (0.55 + 0.45 * diffuse) * hidden * (1.0 - fresnel) + vec3f(specular);
-  let alpha = clamp(fresnel + hidden * (1.0 - fresnel) + specular, 0.0, 1.0);
-  let straight = clamp(colour / max(alpha, 1e-4), vec3f(0.0), vec3f(1.0));
-  return vec4f(pow(straight, vec3f(1.0 / 2.2)) * alpha, alpha);
+  // The free surface's outline (seen edgewise, a splash) fades where the fluid is thin: soft, not frayed
+  let edge = smoothstep(EDGE_LOW, EDGE_HIGH, thickness) * grain;
+  return water(thickness, fresnel * edge, reflection, diffuse, specular * edge, edge);
 }`;
 
 /** The fluid of one tank: its pipelines, buffers and size-dependent targets; the tank writes the uniforms, then `frame` */
@@ -574,7 +686,7 @@ interface Splash {
   readonly uniforms: Float32Array;
   /** The body (`Body`), 24 floats */
   readonly body: Float32Array;
-  /** The water's colour (linear) and density (`Shade`) */
+  /** The water's colour (linear) and density, then the inside's far corner (`Shade`) */
   readonly shade: Float32Array;
   /** The canvas' size in pixels; true when it changed */
   resize(width: number, height: number): boolean;
@@ -618,6 +730,8 @@ const createSplash = async (device: Gpu, domain: SplashDomain): Promise<Splash> 
     ...extra,
   });
   const additive = { color: { operation: "add", srcFactor: "one", dstFactor: "one" }, alpha: { operation: "add", srcFactor: "one", dstFactor: "one" } };
+  const columnPipeline = (entryPoint: string) => device.createComputePipelineAsync({ layout: "auto", compute: { module: shader(WGSL_COLUMNS), entryPoint } });
+  const [clearColumns, countColumns, smoothColumns] = await Promise.all(["reset", "tally", "average"].map(columnPipeline));
   const [clearGrid, p2g1, p2g2, updateGrid, g2p, depthMap, filter1d, filter2d, thicknessMap, gaussian, fluid] = await Promise.all([
     computePipeline(WGSL_CLEAR),
     computePipeline(WGSL_P2G_1),
@@ -639,9 +753,12 @@ const createSplash = async (device: Gpu, domain: SplashDomain): Promise<Splash> 
   const simBuffer = buffer(32, BUFFER.UNIFORM | BUFFER.COPY_DST);
   const bodyBuffer = buffer(96, BUFFER.UNIFORM | BUFFER.COPY_DST);
   const renderBuffer = buffer(272, BUFFER.UNIFORM | BUFFER.COPY_DST);
-  const shadeBuffer = buffer(16, BUFFER.UNIFORM | BUFFER.COPY_DST);
+  const shadeBuffer = buffer(48, BUFFER.UNIFORM | BUFFER.COPY_DST);
   const blurX = buffer(16, BUFFER.UNIFORM | BUFFER.COPY_DST);
   const blurY = buffer(16, BUFFER.UNIFORM | BUFFER.COPY_DST);
+  const columnCount = domain.grid[0] * domain.grid[2];
+  const countBuffer = buffer(4 * columnCount, BUFFER.STORAGE);
+  const heightBuffer = buffer(4 * columnCount, BUFFER.STORAGE);
   device.queue.writeBuffer(particleBuffer, 0, splashParticles(domain));
 
   const sim = new ArrayBuffer(32);
@@ -651,7 +768,11 @@ const createSplash = async (device: Gpu, domain: SplashDomain): Promise<Splash> 
   simFloats.set([...domain.size], 4);
   const uniforms = new Float32Array(68);
   const body = new Float32Array(24);
-  const shade = new Float32Array(4);
+  // The colour and density (set by the tank), the inside's far corner, the columns across x and z
+  const shade = new Float32Array(12);
+  shade.set(domain.size.map(v => v - MARGIN), 4);
+  shade[8] = domain.grid[0];
+  shade[9] = domain.grid[2];
   const blur = new Float32Array(4);
 
   const group = (pipeline: Gpu, resources: unknown[]) => device.createBindGroup({
@@ -666,6 +787,15 @@ const createSplash = async (device: Gpu, domain: SplashDomain): Promise<Splash> 
   const g2pGroup = group(g2p, [particleBuffer, cellBuffer, simBuffer, bodyBuffer]);
   const depthGroup = group(depthMap, [particleBuffer, renderBuffer]);
   const thicknessGroup = group(thicknessMap, [particleBuffer, renderBuffer]);
+  const clearColumnsGroup = device.createBindGroup({ layout: clearColumns.getBindGroupLayout(0), entries: [{ binding: 1, resource: { buffer: countBuffer } }] });
+  const countColumnsGroup = device.createBindGroup({
+    layout: countColumns.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: particleBuffer } }, { binding: 1, resource: { buffer: countBuffer } }, { binding: 2, resource: { buffer: simBuffer } }],
+  });
+  const smoothColumnsGroup = device.createBindGroup({
+    layout: smoothColumns.getBindGroupLayout(0),
+    entries: [{ binding: 1, resource: { buffer: countBuffer } }, { binding: 2, resource: { buffer: simBuffer } }, { binding: 3, resource: { buffer: heightBuffer } }],
+  });
   const sampler = device.createSampler({ magFilter: "linear", minFilter: "linear" });
 
   /** The targets at the canvas' size (the thickness at half of it) and the bind groups that read them */
@@ -689,7 +819,7 @@ const createSplash = async (device: Gpu, domain: SplashDomain): Promise<Splash> 
         filter1dX: group(filter1d, [depth, blurX]), filter1dY: group(filter1d, [depthSwap, blurY]),
         filter2dX: group(filter2d, [depth, blurX]), filter2dY: group(filter2d, [depthSwap, blurY]),
         gaussianX: group(gaussian, [thickness, blurX]), gaussianY: group(gaussian, [thicknessSwap, blurY]),
-        fluid: group(fluid, [sampler, depth, renderBuffer, thickness, shadeBuffer, bodyBuffer]),
+        fluid: group(fluid, [sampler, depth, renderBuffer, thickness, shadeBuffer, bodyBuffer, heightBuffer]),
       },
     };
     return true;
@@ -734,6 +864,10 @@ const createSplash = async (device: Gpu, domain: SplashDomain): Promise<Splash> 
     dispatch(p2g2, p2g2Group, domain.count);
     dispatch(updateGrid, updateGroup, cellCount);
     dispatch(g2p, g2pGroup, domain.count);
+    // The water's height per column, for the waterline at the glass
+    dispatch(clearColumns, clearColumnsGroup, columnCount);
+    dispatch(countColumns, countColumnsGroup, domain.count);
+    dispatch(smoothColumns, smoothColumnsGroup, columnCount);
     compute.end();
     // The screen-space fluid: depth, narrow-range filtered (two 1D rounds, one 2D), thickness blurred, the composite
     pass(encoder, views.depth, depthMap, depthGroup, 1e6, 6, domain.count, views.depthTest);
@@ -759,7 +893,7 @@ const createSplash = async (device: Gpu, domain: SplashDomain): Promise<Splash> 
     frame,
     dispose: () => {
       targets?.textures.forEach(t => t.destroy());
-      [particleBuffer, cellBuffer, simBuffer, bodyBuffer, renderBuffer, shadeBuffer, blurX, blurY].forEach(b => b.destroy());
+      [particleBuffer, cellBuffer, simBuffer, bodyBuffer, renderBuffer, shadeBuffer, blurX, blurY, countBuffer, heightBuffer].forEach(b => b.destroy());
       context.unconfigure();
     },
   };
@@ -1491,7 +1625,7 @@ export const register = (api: PluginApi): void => {
       fluid.shade[1] = fluidColour.g;
       fluid.shade[2] = fluidColour.b;
       fluid.shade[3] = FLUID_DENSITY;
-      fluid.frame(dt, 12 * DIAMETER * 0.05 * (pixelsY / 2) * camera.projection.elements[5]);
+      fluid.frame(dt, FILTER * DIAMETER * 0.05 * (pixelsY / 2) * camera.projection.elements[5]);
       fluidTexture.needsUpdate = true;
     };
 

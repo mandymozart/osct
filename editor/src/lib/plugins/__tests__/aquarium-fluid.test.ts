@@ -114,6 +114,9 @@ describe("the simulation domain (#228)", () => {
     // The water's level in cells is the tank's level at the scale; the grid holds the walls
     expect(medium.level).toBeCloseTo((0.45 * 0.85 - 0.004) * medium.scale, 5);
     medium.grid.forEach((cells, axis) => expect(cells).toBe(Math.ceil(medium.size[axis])));
+    // The domain is the inside (to the glass top) with 3 cells of grid around it: the walls are the glass
+    expect(medium.size[0]).toBeCloseTo((0.7 - 0.008) * medium.scale + 6, 5);
+    expect(medium.size[1]).toBeCloseTo((0.45 - 0.004) * medium.scale + 6, 5);
     expect(medium.size[0] / medium.size[2]).toBeGreaterThan(1.5);
   });
 
@@ -132,10 +135,8 @@ describe("the simulation domain (#228)", () => {
     let top = 0;
     for (let n = 0; n < domain.count; n++) {
       const [x, y, z] = particles.subarray(n * 20, n * 20 + 3);
-      expect(x).toBeGreaterThan(1);
-      expect(x).toBeLessThan(domain.size[0] - 2);
-      expect(z).toBeGreaterThan(1);
-      expect(z).toBeLessThan(domain.size[2] - 2);
+      // The inside is the domain less 3 cells all round: the particles keep 0.3 cells off its walls and its floor
+      expect(Math.min(x - 3, domain.size[0] - 3 - x, z - 3, domain.size[2] - 3 - z, y - 3)).toBeGreaterThanOrEqual(0.29);
       top = Math.max(top, y);
     }
     // The top layer: the water's level above the inside's floor (in cells), within a layer
