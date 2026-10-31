@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.61.1 – 2026-10-31
+
+### Fixed
+- **The editor's stage reads the trigger infos again** (#240): since the stage runs in a sandboxed frame (1.58.0) its
+  requests come from an opaque origin, and `/trigger-protocol.json` had no `Access-Control-Allow-Origin` – the browser
+  blocked it. It is now a public file like the editor's and the content's.
+
 ## 1.61.0 – 2026-10-30
 
 ### Added
