@@ -362,7 +362,7 @@ in a texture.
   nothing, and a hidden page has no frames.
 - **The fallback.** Without WebGPU (no `navigator.gpu`, no adapter, a device error or a lost device), with *WebGPU* off,
   or with another material on the water, the heightfield of 5 runs as before. The row's label says which: *WebGPU ok* or
-  *no WebGPU* (a node type's spec is the object the Entity panel reads).
+  *no WebGPU* (a node type's spec is the object the Inspector reads).
 
 Parameters: *WebGPU* (on), *particles* (10k, 20k, 40k), *render scale* (0.5, 0.75, 1), *fluid colour*; *splash*,
 *dipping toy*, *loop period* and *dip depth* apply to both. The adapted part adds 43 KB to the plugin's bundle (28.7 →

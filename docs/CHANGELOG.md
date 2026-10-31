@@ -7,6 +7,30 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Editor: no Stage tab** (#229, Tilman: *"These are the same. I'd like to remove Stage from the right side."*): the
+  panel's tabs are **Inspector**, Environment, Library and Code (and the tree on a phone – the sheet's head has one
+  icon less). The Inspector – the Entity tab renamed, since it shows whatever is selected – shows the **spread** when
+  the spread is selected, with the Stage tab's sections moved there: *spread* (title, pages, format, passes,
+  environment with *edit*), *post-processing* and *vars and events*. A tab stored before (Stage or Entity) opens the
+  Inspector.
+- **Nothing else selected is the spread**: a workspace opens with the spread selected and shown in the Inspector, and so
+  does another spread (‹ ›) and a click on the stage that picks nothing – no target stands in any more, no *Nothing
+  selected*.
+- **The preview settings are the toolbar's view group**: shake, origin, the desk's top and the sky moved from the Stage
+  tab to a new group after *grid & snap* – the gear, a panel like grid & snap's (keyboard, 44 px with a finger), stored
+  in this browser as before; its tooltip names them all (*Eiermann · plywood · origin top left · no shake · sky Wooden
+  Studio 17*). The stage menu's *Stage settings…* is *View settings…* and opens it.
+- `docs/editor.md`, the tutorial (with fresh shots of the door after the key, the desk's top, the book's bloom, the
+  vars and events and the phone) and the help texts name the Inspector and the view group.
+
+### Fixed
+- **Selecting the spread clears the stage's selection** (#229): its row is highlighted and the outline and the gizmo
+  go, also when the click lands on the row's book icon or an empty cell – a tap anywhere on a tree row selects it now.
+- Opening the Inspector from the stage menu (*Add node…*, *Placement on the page…*) or after a new target no longer closes the panel when the Inspector was already open.
+
 ## 1.51.3 – 2026-10-30
 
 ### Added
