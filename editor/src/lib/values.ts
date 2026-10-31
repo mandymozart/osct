@@ -338,7 +338,7 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
     params.scale = uniformScale && isUniform(placement.scale) ? round(placement.scale[0]) : placement.scale.map(round);
   }
   const result: EntityData = { ...entity };
-  // The name (schema 2.12) trimmed, none when empty
+  // The name trimmed, none when empty
   const name = entity.name?.trim();
   if (name) result.name = name;
   else delete result.name;
@@ -401,7 +401,7 @@ export const contentEntity = (entity: EntityData, uniformScale: boolean): Entity
   return result;
 };
 
-// ── The entity as a tree of nodes (content schema 2.0) ──────────────────────────────────────────
+// ── The entity as a tree of nodes ───────────────────────────────────────────────────────────────
 
 /** The node at `path` (`[]` = the root, `[1, 0]` = the second child's first), undefined when the tree has none there */
 export const nodeAt = (root: EntityData | undefined, path: number[]): EntityData | undefined =>

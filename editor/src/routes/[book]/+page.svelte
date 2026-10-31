@@ -43,7 +43,7 @@
       adding = false;
     }
   };
-  /** The front or the back cover as a spread of its own (format cover / back, content schema 2.3) */
+  /** The front or the back cover as a spread of its own (format cover / back) */
   const addCover = (format: "cover" | "back") => change(() => addSpread(bookId, { format }));
   /** A double page after `after` (default: the last one before the back cover); the later pages are numbered on */
   const addDoublePage = (after?: string) => change(() => addSpread(bookId, after ? { format: "spread", after } : { format: "spread" }));

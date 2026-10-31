@@ -19,7 +19,7 @@
    * A new target on the spread (the tree's "+ target"): an entry (title, page) with its printed image, **what appears
    * on the page** (optional: a node of a type with its file, a text's line) and the **entry category** (the reader's
    * consultation menu – it follows what appears until set by hand, `categoryFor`), and where it is printed – surface,
-   * x / y from the page's top left corner and the printed width in mm (`print`, content schema 2.1). Files are chosen
+   * x / y from the page's top left corner and the printed width in mm (`print`). Files are chosen
    * in the Library as a picker (`FileField` → `LibraryPanel` with `pick`, the form kept underneath) or uploaded. The
    * API makes entry and target (`POST …/entries`); the caller reloads the content and selects the new target. The
    * reader tracks it after a publish: the 8th Wall engine makes the image-target data from the image at runtime.

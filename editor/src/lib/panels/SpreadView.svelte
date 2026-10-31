@@ -35,7 +35,7 @@
   } = $props();
 
   const spread = $derived(content.spread(spreadId));
-  /** The spread's format (content schema 2.3): a double page, the front cover or the back cover – the stage follows */
+  /** The spread's format: a double page, the front cover or the back cover – the stage follows */
   const FORMATS = ["spread", "cover", "back"] as const;
   const singlePage = $derived(!!spread && spread.firstPage === spread.lastPage);
   let formatError = $state<string | null>(null);

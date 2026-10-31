@@ -20,7 +20,7 @@ import {
 } from "@engine/types";
 
 /**
- * The specs the book's declared plugins recorded (content schema 2.14, `PluginData.registered` – written by the content
+ * The specs the book's declared plugins recorded (`PluginData.registered` – written by the content
  * build, #90) in the shared registry, so the Inspector shows a plugin component's, node type's or material's rows,
  * **+ node** lists its node types and a texture row its procedural textures (#188), before the plugin loaded on the stage
  * or ran in the Code tab. A type something registered already keeps its spec; a plugin that loads or a Run replaces a

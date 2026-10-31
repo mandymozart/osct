@@ -4,7 +4,7 @@ import { installedPlugins, installPlugin, uninstallPlugin } from "@engine/scene/
 import { componentRows, componentTypesFor, nodeTypeRows } from "../../values";
 import { adoptRecordedSpecs } from "../recorded";
 
-/** The specs the declared plugins recorded (schema 2.14, #90): the Inspector's rows before a plugin loads or runs */
+/** The specs the declared plugins recorded (#90): the Inspector's rows before a plugin loads or runs */
 
 const TINT = { description: "Tints.", nodeTypes: ["video"], params: { opacity: { kind: "number", default: 0.3, min: 0, max: 1, description: "How much." } } } as const;
 const SPARKLE = { description: "Points.", params: { count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." } } } as const;

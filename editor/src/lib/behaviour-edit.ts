@@ -6,7 +6,7 @@ import { namedPaths } from "@engine/scene/behaviour";
 import { parseNumber } from "#lib/values.js";
 
 /**
- * The Inspector's rule editor of a `behaviour` component (content schema 2.19, `shared/types/behaviour.ts`) – the
+ * The Inspector's rule editor of a `behaviour` component (`shared/types/behaviour.ts`) – the
  * logic without the UI: the rules of a node's component, a copy with one piece changed, new rules, conditions and actions
  * with sensible defaults, values typed as text, and what the pickers offer (the subtree's node names, the book's
  * variables and events). The component is written back in the content's shortest form (`behaviourData`).
