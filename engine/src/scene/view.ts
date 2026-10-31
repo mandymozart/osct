@@ -18,6 +18,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import type { PassData } from "../types/index";
 import { PostChain } from "./post/index";
+import { setFeedbackRenderer, stepFeedbacks } from "./feedback";
 
 /** Bloom: only what is brighter than white glows; rendered at half resolution */
 const BLOOM_THRESHOLD = 1.0;
@@ -129,6 +130,8 @@ export class ArView {
   constructor(private container: HTMLElement, private onResize: (camera: PerspectiveCamera) => void) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // The plugins' feedback buffers (plugin API 1.6) learn the device's precision from it
+    setFeedbackRenderer(this.renderer);
     const canvas = this.renderer.domElement;
     canvas.id = "scene";
     Object.assign(canvas.style, { position: "absolute", left: "0", top: "0" });
@@ -175,6 +178,8 @@ export class ArView {
       this.frameListeners.forEach(listener => listener(delta));
       const needed = this.needsRender();
       if (!needed && this.cleared) return;
+      // The plugins' feedback buffers step once per drawn frame, before the scene that shows them
+      if (needed) stepFeedbacks(this.renderer, delta);
       this.draw(); // the first frame with nothing visible clears the canvas
       this.cleared = !needed;
     });
@@ -340,6 +345,7 @@ export class ArView {
       this.bloom.material.dispose();
       this.bloom = null;
     }
+    setFeedbackRenderer(null);
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();

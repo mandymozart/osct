@@ -342,6 +342,13 @@ lets its types pass. The engine ignores the field. What a plugin registers is us
 - `api.loadText(url)` (plugin API 1.5, schema 2.18) – a **text file** as a promise: a shader of the editor's Library by
   its URL, or a content path (`/assets/content/…`); one request per URL. Used where a build runs (a material, a pass, a
   node type), never for a layer's `glsl`, which is a string at register time ([plugins](plugins.md) "A shader file").
+- `api.feedback({ width, height, fragment, uniforms?, channels?, type? })` (plugin API 1.6, schema 2.20) – a **GPU
+  feedback buffer**: the engine runs the fragment once per frame into a render target pair it keeps (ping-pong while the
+  pass reads its own last frame), before the scene renders, with `iTime`, `iTimeDelta`, `iFrame`, `iResolution` and
+  `iChannel0…3`; the handle's `texture` / `uniform` is the current frame. Half-float targets by default, float on request,
+  8 bits where the device renders into neither. A buffer made in a node's build pauses while the node is not in view and
+  goes with it. `api.shadertoy(source)` wraps a Shadertoy pass (`mainImage`) as its fragment. Nothing of it is in the
+  content: the build's recording run hands out a dummy ([plugins](plugins.md) "A feedback buffer").
 - **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
   `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
   book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
@@ -668,6 +675,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.17 | 1.41.0 | in develop | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) – a 2.16 app refuses a recorded spec with a `texture` parameter |
 | 2.18 | 1.49.0 | in develop | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
 | 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) – a 2.18 app refuses a node that carries one |
+| 2.20 | next | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) – a 2.19 app's engine has none: a node type whose build calls it renders nothing |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

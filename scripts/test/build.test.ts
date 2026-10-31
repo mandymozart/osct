@@ -211,7 +211,7 @@ describe('the test fixture', () => {
 });
 
 describe('the demo book', () => {
-  it('builds without errors: every node type, the covers, a shared entity, eight plugins (two with a node type, one with a material and a texture)', { timeout: 60000 }, async () => {
+  it('builds without errors: every node type, the covers, a shared entity, nine plugins (three with a node type, one with a material and a texture)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
@@ -219,12 +219,12 @@ describe('the demo book', () => {
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(book.id).toBe('demo');
-    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'narrative', 'pulse', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
+    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'narrative', 'pulse', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
     expect(spreads.map(s => s.format ?? 'spread')).toEqual(expect.arrayContaining(['cover', 'back', 'spread']));
     const types = new Set<string>();
     const walk = (node: { type: string; children?: Array<{ type: string }> }) => { types.add(node.type); (node.children ?? []).forEach(walk as never); };
     entries.forEach(e => { if (e.target?.entity && !('ref' in e.target.entity)) walk(e.target.entity); });
-    expect([...types].sort()).toEqual(['aquarium', 'group', 'image', 'model', 'text', 'video']);
+    expect([...types].sort()).toEqual(['aquarium', 'group', 'image', 'inkPainting', 'model', 'text', 'video']);
     expect(entries.some(e => e.target?.entity && 'ref' in e.target.entity)).toBe(true);
     expect(new Set(entries.map(e => e.category))).toEqual(new Set(['glossary', 'video', 'text', 'link']));
     // The shared entity carries the sparkle plugin's own node type, its parameters in params
@@ -234,6 +234,10 @@ describe('the demo book', () => {
     expect([Object.keys(aquarium.nodeTypes ?? {}), Object.keys(aquarium.materials ?? {}), Object.keys(aquarium.textures ?? {})]).toEqual([['aquarium'], ['water'], ['caustics']]);
     const tank = entries.find(e => e.id === 'aquarium')?.target?.entity as { children?: Array<{ type: string; material?: unknown }> } | undefined;
     expect(tank?.children?.[0]).toMatchObject({ type: 'aquarium', material: { type: 'water' } });
+    // The ink painting (#225): a node type whose picture is two feedback buffers (plugin API 1.6) – nothing of them recorded
+    expect(plugins.find(p => p.data.id === 'fluid')!.data.registered).toEqual({
+      components: {}, passes: {}, nodeTypes: { inkPainting: expect.objectContaining({ params: expect.objectContaining({ resolution: expect.objectContaining({ options: ['256', '512'] }) }) }) },
+    });
     // The behaviour (#88): the key takes itself on a tap, the door's rules decide when the narrative plugin opens it
     const componentsOf = (id: string) => (entries.find(e => e.id === id)?.target?.entity as { components?: Array<{ type: string; rules?: unknown[] }> } | undefined)?.components ?? [];
     expect(componentsOf('key').find(c => c.type === 'behaviour')?.rules).toEqual([

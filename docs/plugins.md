@@ -15,7 +15,7 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-`register` runs once when the plugin loads. Nine things you can do with `api` – and, for a book's logic across
+`register` runs once when the plugin loads. Eleven things you can do with `api` – and, for a book's logic across
 nodes and pages, four more ("Across nodes and pages" below):
 
 - **`api.registerLayer(type, spec, { glsl })`** – a **material layer**: a few lines of GLSL that run on every
@@ -33,6 +33,9 @@ nodes and pages, four more ("Across nodes and pages" below):
   the app has one three.js and a plugin that brings another is refused by the build.
 - **`api.loadText(url)`** (API 1.5) – a **text file** by its URL: a shader you uploaded to the editor's Library ("A
   shader file" below).
+- **`api.feedback({ width, height, fragment, … })`** (API 1.6) – a **feedback buffer**: a fragment shader the engine runs
+  every frame into a render target of its own, its last frame as input – a fluid on the GPU ("A feedback buffer" below).
+- **`api.shadertoy(source)`** (API 1.6) – a Shadertoy pass (`mainImage`) as a feedback buffer's fragment.
 - **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture; the content build
   checks and records it, but a spread or the book cannot name a plugin's pass in `passes` yet.
 - **`api.log(…)`** – to the console, prefixed with the plugin's id.
@@ -412,6 +415,80 @@ it). That is why a plugin loads a shader by its URL, not its name: the URL is th
 Library – can fetch, and the editor keeps it right. Your plugin's own `.ts` / `.js` files go the same way into the
 Library – they become plugin sources, the ones the Code tab lists ([editor](editor.md) "Library").
 
+## A feedback buffer: the GPU remembers (API 1.6)
+
+Some pictures need their own last frame: a fluid, a reaction-diffusion, ink that keeps flowing. A plugin never gets the
+renderer – the engine owns it, in the reader and on the editor's stage alike – so it asks the engine for a **feedback
+buffer**: a fragment shader the engine runs once per frame into a render target of its own, before the scene renders.
+
+```ts
+const fluid = api.feedback({
+  width: 256, height: 256,      // pixels, 1–2048
+  fragment,                     // GLSL with void main() writing gl_FragColor
+  uniforms: { speed: { value: 1 } }, // your own, kept by reference – change .value any time
+  channels: ["self"],           // iChannel0…3: "self" (the default), another buffer, a three.js texture, null
+  type: "float",                // "half" (the default), "float" or "byte"
+});
+material.uniforms.picture = fluid.uniform; // follows every frame – or read fluid.texture
+```
+
+- **Ping-pong.** A buffer that reads itself (the channel `"self"`) has two targets: each frame reads the one and writes the
+  other, then they swap – so `texture` is another object after every frame. Put **`uniform`** (`{ value: texture }`) into
+  your `ShaderMaterial`'s uniforms and it follows; a pass that does not read itself has one target and a texture that
+  stays.
+- **The uniforms the engine sets** before each frame: `iTime` (seconds the buffer ran), `iTimeDelta`, `iFrame` (frames
+  done, 0 on the first – `if (iFrame < 10)` starts it), `iResolution` (`vec3(width, height, 1)`) and `iChannel0…3`; the
+  fragment also reads `varying vec2 vUv` (0–1 across the buffer; `vUv * iResolution.xy` is the pixel's centre). It is
+  GLSL ES 3.0 as three.js compiles a `ShaderMaterial` (`texture()`, `int` uniforms, `gl_FragColor`).
+- **Order.** The engine steps the buffers in the order they were made: a pass that reads another buffer (`channels:
+  [fluid]`) and was made after it sees that buffer's new frame.
+- **Precision.** `half` by default, `float` on request; where the device cannot render into it, the next lower – float →
+  half → `byte` (8 bits, values clamped to 0–1) – with one warning in the console. `type` on the handle says what it got.
+  A simulation whose values are negative, above 1 or change in tiny steps needs `float` (or at least `half`).
+- **Pause and ownership.** A buffer made while a node builds – in a node type's or a material's `build`, a component's
+  `apply` – belongs to that node: it steps only while the node and every parent are visible in the scene (a lost
+  target's page is hidden, another spread's nodes are gone, a hidden page has no frames) and is disposed with the node.
+  One made in `register` belongs to the plugin and goes when the plugin does. `paused` stops one by hand, `reset()`
+  starts it again at frame 0, `dispose()` frees it at once.
+- **The content build** runs your `register` with a recording API: there `api.feedback` checks the options and hands
+  out a dummy handle (an empty texture that never steps). A buffer is no registration – nothing of it is recorded.
+
+**From Shadertoy.** `api.shadertoy(source)` turns a Shadertoy pass – its `mainImage(out vec4 fragColor, in vec2
+fragCoord)` – into a buffer's fragment: the source stays as it is, the adapter adds a `main` that calls `mainImage` with
+Shadertoy's `fragCoord`, and `iTime`, `iFrame`, `iResolution` and `iChannel0…3` are the buffer's. So a two-pass shader
+goes in nearly unchanged:
+
+1. Paste each pass into a string (`const BUFFER_A = \`…\``; keep its author's credit and licence with it – Shadertoy's
+   default is CC BY-NC-SA 3.0 unless the page says otherwise).
+2. *Buffer A* reads itself: `api.feedback({ width, height, fragment: api.shadertoy(BUFFER_A), type: "float" })`.
+3. *Image* reads Buffer A: `api.feedback({ width, height, fragment: api.shadertoy(IMAGE), channels: [bufferA], type: "byte" })`
+   – one 8-bit target, no ping-pong.
+4. Show the Image on a mesh: a `ShaderMaterial` with `uniforms: { picture: image.uniform }`. Shadertoy's colours are the
+   screen's, so decode them for the scene: `gl_FragColor = sRGBTransferEOTF(vec4(texture2D(picture, vUv).rgb, 1.0));` and
+   end with `#include <colorspace_fragment>` (the node's layers then work on it too).
+5. `iMouse` and Shadertoy's other inputs are not there: declare a uniform of your own (`uniform vec4 stir;`), pass it in
+   `uniforms` and set it from your hooks.
+
+**The ink painting** (`fixtures/demo/plugins/fluid`, page 6 of the demo book, #225) is exactly that: Shadertoy
+[XlsBDf](https://www.shadertoy.com/view/XlsBDf) by trapcode (CC BY-NC-SA 3.0; its simplex noise from
+[XsX3zB](https://www.shadertoy.com/view/XsX3zB)) – a 2D fluid whose Buffer A advects velocity, density and ink from its
+own last frame while a pen moved by noise stirs it, and whose Image colours the velocity's direction by the ink. The node
+type `inkPainting` builds a framed canvas standing on the page and shows the Image on it. The changes, marked `demo:` in
+the passes: the pen's clock and speed as uniforms (*pen speed*), the ink's dissipation scaled (*ink dissipation*), a
+tap's swirl, and a little friction on the velocity – without it the original's momentum builds up over a minute or two
+at 60 frames a second until the field saturates and breaks into stripes (a soak test of 400 s with a tap every few
+seconds stays calm with it). **A tap stirs where it lands**: the plugin remembers the last pointer press and, on the
+node's `onTap`, casts it through the camera the canvas was drawn with (its `onBeforeRender`) onto the canvas; the swirl
+draws the velocity towards a gentle whirl there instead of adding to it, so taps in a row stay stable. A tap that does
+not aim (the Inspector's *tap*) stirs a random spot. *resolution* (256 or 512) is the phone's lever.
+
+Its cost, measured on the desktop (headless Edge, NVIDIA RTX 2070 SUPER, both passes stepped 300 times back to back and
+synchronised): about **0.02 ms of GPU time per frame at 256²**, 0.05 ms at 512² (0.17 ms at 1024²), and 0.01 ms of
+main-thread work for the two steps. A phone's GPU is some 20–50 times slower – about 0.5–1 ms at 256² and 1–2.5 ms at
+512² by that ratio, not yet measured on one (#225). The plugin is 10 KB. Its build and stepping are tested through the
+real plugin with a renderer that records instead of drawing (`editor/src/lib/plugins/__tests__/ink-painting.test.ts`),
+the helper itself in `engine/src/scene/__tests__/feedback.test.ts`.
+
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 
 A component knows its own node. A **narrative** needs more: a key found on one page opens a door on another, a lamp
@@ -543,9 +620,9 @@ characters), keep it small
 
 ## The demo book: everything at once
 
-`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and eight plugins that
+`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and nine plugins that
 together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
-own node type) and the aquarium with its material, texture and WebGPU fluid. Build it with
+own node type), the aquarium with its material, texture and WebGPU fluid, and the ink painting on two feedback buffers. Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

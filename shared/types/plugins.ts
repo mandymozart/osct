@@ -11,7 +11,9 @@
  * plugin's own, `./node-types.ts`); 1.3 a parameter's optional `label` (the words the editor's row shows,
  * `./components.ts` – content schema 2.15); 1.4 `api.registerMaterial` and `api.registerTexture` (a whole material, a
  * procedural texture – `./materials.ts`) and the parameter kind `texture` (content schema 2.17); 1.5 `api.loadText` (a
- * text file – a shader of the Library – by its URL, content schema 2.18).
+ * text file – a shader of the Library – by its URL, content schema 2.18); 1.6 `api.feedback` (a GPU feedback buffer the
+ * engine steps every frame) and `api.shadertoy` (a Shadertoy pass as its fragment) – content schema 2.20; neither is a
+ * registration (no type, no spec), so nothing of them is recorded.
  *
  * What a plugin registers is recorded by the content build (content schema 2.14, #90): it runs every plugin once with a
  * recording API and writes the specs into the plugin's `registered` – so the guard, the editor's API, the MCP server and
@@ -25,7 +27,7 @@ import { nodeTypeSpecProblems, type NodeTypeSpec } from "./node-types";
 import type { PassSpec } from "./passes";
 import { materialSpecProblems, textureSpecProblems, type MaterialSpec, type TextureSpec } from "./materials";
 
-export const PLUGIN_API_VERSION = "1.5";
+export const PLUGIN_API_VERSION = "1.6";
 
 /** What a plugin registered, as the content build recorded it (schema 2.14); a missing kind = none of it */
 export interface PluginRegistrations {

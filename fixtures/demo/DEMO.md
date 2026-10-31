@@ -1,7 +1,7 @@
 # The demo book – a sandbox, not the book
 
 `fixtures/demo/` is the **demo book** (`demo`): every node type, placement, filter and component the content model has,
-eight plugins that use every part of the plugin API (node types of their own among them, `sparkle` and `aquarium`), and a
+nine plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`), and a
 narrative across its spreads – a key tapped on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.
 
 **The behaviour** (#88): the key and the door carry `behaviour` rules – no code. The key's rule (*on tap*) plays the
@@ -47,6 +47,21 @@ https://github.com/matsuoka-601/Splash, under the MIT licence:
 > OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 The adapted part adds 43 KB to the plugin's bundle (72 KB, 20 KB gzipped).
+
+**The ink painting** (page 6, *The switch*'s right page, under the screen – #225): the entry `ink-painting` with a target
+of its own (`entries/ink-painting/target.jpg`: a frame of the same simulation in a drawn frame), whose AR content is a
+group holding the plugin node `inkPainting` (`plugins/fluid`) – a framed canvas standing on the page whose ink keeps
+flowing: a 2D fluid simulated on the GPU every frame by two feedback buffers of plugin API 1.6 (`api.feedback`), the
+passes of a Shadertoy shader pasted in nearly unchanged through `api.shadertoy` (docs/plugins.md "A feedback buffer"). A
+tap stirs the ink where it lands. The Inspector shows *node type · inkPainting* with *resolution* (256, 512), *pen speed*
+and *ink dissipation*.
+
+**Credits**: "XlsBDf" by trapcode (https://www.shadertoy.com/view/XlsBDf), CC BY-NC-SA 3.0; simplex noise from
+https://www.shadertoy.com/view/XsX3zB. The page names no licence of its own, so Shadertoy's default applies – Creative
+Commons Attribution-NonCommercial-ShareAlike 3.0 Unported (https://creativecommons.org/licenses/by-nc-sa/3.0/). The
+plugin's adapted shaders (`plugins/fluid/index.ts`, its changes marked `demo:`) and the target picture made from them are
+under CC BY-NC-SA 3.0 as well (share-alike): credit trapcode, no commercial use. If the demo or a recording of it is used
+for promotion, re-check the NC clause first.
 
 **The zero plane** (#189): every model stands on its page – its lowest point at the target's `z = 0`. The beacon's model
 has its origin in its middle (lifted by its lower half, `position: [0, 0, 0.9973]`), the door's floor sat 0.0188 above
