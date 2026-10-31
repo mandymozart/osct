@@ -232,7 +232,7 @@ describe('the test fixture', () => {
 });
 
 describe('the demo book', () => {
-  it('builds without errors: every node type, the covers, a shared entity, ten plugins (three with a node type, one with a material and a texture, one with a pass)', { timeout: 60000 }, async () => {
+  it('builds without errors: every node type, the covers, a shared entity, eleven plugins (three with a node type, one with a material and a texture, two with a pass)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
@@ -240,10 +240,15 @@ describe('the demo book', () => {
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(book.id).toBe('demo');
-    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'narrative', 'pulse', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
+    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'narrative', 'pulse', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
     // A plugin's pass (#216): the grain plugin's film grain on The twins, checked against its recorded spec
     expect(Object.keys(plugins.find(p => p.data.id === 'grain')!.data.registered!.passes ?? {})).toEqual(['filmGrain']);
     expect(spreads.find(s => s.id === 'the-twins')?.passes).toEqual([{ type: 'filmGrain', amount: 0.14 }]);
+    // A second pass (#216, #233): the scanlines plugin's lines on The switch, switched off – there to be found and switched on
+    const scanLines = plugins.find(p => p.data.id === 'scanlines')!.data.registered!.passes ?? {};
+    expect(Object.keys(scanLines)).toEqual(['scanLines']);
+    expect(Object.keys(scanLines.scanLines.params)).toEqual(['spacing', 'amount', 'speed', 'reach']);
+    expect(spreads.find(s => s.id === 'the-switch')?.passes).toEqual([{ type: 'scanLines', enabled: false, spacing: 4 }]);
     expect(spreads.map(s => s.format ?? 'spread')).toEqual(expect.arrayContaining(['cover', 'back', 'spread']));
     const types = new Set<string>();
     const walk = (node: { type: string; children?: Array<{ type: string }> }) => { types.add(node.type); (node.children ?? []).forEach(walk as never); };

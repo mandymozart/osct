@@ -1,8 +1,8 @@
 # The demo book – a sandbox, not the book
 
 `fixtures/demo/` is the **demo book** (`demo`): every node type, placement, filter and component the content model has,
-ten plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`, and a
-post-processing pass, `filmGrain`), and a
+eleven plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`, and two
+post-processing passes, `filmGrain` and `scanLines`), and a
 narrative across its spreads – a key tapped on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.
 
 **The behaviour** (#88): the key and the door carry `behaviour` rules – no code. The key's rule (*on tap*) plays the
@@ -63,6 +63,14 @@ whole picture – the camera picture included (`reach: all`). In the editor the 
 as *filmGrain* of the plugin *grain* with its rows (strength, size, speed, reach, pattern – a Library picture instead of
 the noise), and
 offers it under *add pass · grain* on every other spread. *The twins* carries no other effect, so the grain is all there is.
+
+**The scan lines** (pages 5–6, *The switch* – #216, #233): the spread's `passes` name `scanLines`, a second pass of the
+book's own (`plugins/scanlines`, `registerPass`): dark horizontal lines across the picture like an old screen, scrolling
+slowly down. It is there **switched off** (`enabled: false`), to be discovered: the spread's *post-processing* section
+shows *scanLines* of the plugin *scanlines*, closed, with its toggle off and its rows inside (line spacing – set to 4 px –,
+strength, scroll speed, reach: `all` over the camera picture too, `ar` the AR layer alone); the toggle in its head
+switches the lines on, on the stage at once, without opening the section. Off, the stage and the reader skip it and the
+phone budget does not count it.
 
 **Credits**: "XlsBDf" by trapcode (https://www.shadertoy.com/view/XlsBDf), CC BY-NC-SA 3.0; simplex noise from
 https://www.shadertoy.com/view/XsX3zB. The page names no licence of its own, so Shadertoy's default applies – Creative

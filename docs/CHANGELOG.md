@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.59.1 – 2026-10-30
+
+### Added
+- **The demo book has scan lines to discover** (#216): a second post-processing pass of the book's own, `scanLines`
+  (`fixtures/demo/plugins/scanlines`) – dark lines across the picture like an old screen, with line spacing, strength,
+  scroll speed and reach (the whole picture or the AR layer alone). It sits on *The switch* switched off: the spread's
+  post-processing section shows it closed with its rows, and the toggle in its head turns it on. The demo now has
+  eleven plugins.
+
 ## 1.59.0 – 2026-10-30
 
 ### Added
