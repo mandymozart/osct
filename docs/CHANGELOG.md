@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.55.0 – 2026-10-30
 
 ### Changed
 - **A newer book never breaks the app** (#220): until now, a book built with a newer content schema MINOR was refused
