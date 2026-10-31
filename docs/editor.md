@@ -13,8 +13,7 @@ editor/   the editor: the engine with the mock tracker and its stage, the panels
 server/   the instance's API: /api/editor/* (docs/server.md "Editor data")
 ```
 
-The pages: **Books** (`/editor/` – the books, import, AI connections), a **book** (`/editor/<book>/` – its spreads, its
-entries, publishing) and the **workspace** of a spread (`/editor/<book>/<spread>/` – the tree, the stage
+The pages: **Books** (`/editor/` – the books, import, AI connections), a **book** (`/editor/<book>/` – its spreads and publishing) and the **workspace** of a spread (`/editor/<book>/<spread>/` – the tree, the stage
 and the panels). The admin page is [admin](admin.md).
 
 ## Who may use it
@@ -200,16 +199,16 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 
 ## The book page
 
-`/editor/<book>/`: two views, segmented and in the URL (`?view=` – a query, not a route): *spreads* (the default) and
-*entries* ([Texts](#texts-entries-and-the-book)); above them the collapsible section
-*book* with the book's texts, the book's environment as one line with *Edit on the stage* (the first spread,
-`?tab=environment`), and **Publish** with its target and where the book is live
-([above](#publish-the-instances-own-environment)).
+`/editor/<book>/`: the book's title and author, then its spreads (#237) – nothing else. The book's texts and settings
+are the Inspector's (the top bar's book crumb in a spread, [Inspector: the book](#inspector-the-book)), its entries are
+found with the [book search](#the-book-search) and edited in their spread; the environment is its tab in the workspace.
+An old link with `?view=entries` or `?view=onboarding` shows the spreads. **Publish** with its target and where the book
+is live is in the top bar ([above](#publish-the-instances-own-environment)).
 
 ### Spreads
 
-The spreads as cards with the sheet of each as its preview (from the book's layout at *assets at*; without a layout the
-cards are text), their entries, targets and AR count.
+The spreads as cards with the sheet of each as its preview (from the book's layout below its assets base – the
+Inspector's *assets* names it; without a layout the cards are text), their entries, targets and AR count.
 
 - **+ double page** adds a double page after the last one (before the back cover), a card's *Add a double page after*
   one right after that spread – a cover included, the back cover not. A new double page is empty (*New spread*, id
@@ -262,14 +261,13 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
   escaping. On the stage the variables have their current values: the page's mirror of the stage frame's `vars` (#234 –
   data from the frame, never code), read innermost scope first like `api.vars.get`. Under the preview the variables the
   text reads are listed with their value and scope (or *not set*), and every construct that does not parse is named
-  (`exprMessage`). On the Entries page there is no stage: every variable is unset, so the fallbacks show.
-- **The Entries page** (`/editor/<book>/?view=entries`, `EntriesPage.svelte`) – every entry in one list: the category
-  filter with counts, a search (title, text, author, tags, id – accents and case folded), the glossary grouped by first
-  letter as the reader groups it (other filters in the order of the pages); an entry opens its form beside the list (on a
-  phone instead of it, *‹ all entries* back). **+ entry** makes one without a target (title, category, access page –
-  `POST …/entries` without `target`), then opens it.
-- **The book's texts** (`BookTexts.svelte`) – the collapsible section *book* above the views (closed it names title ·
-  author · publisher): title, author, publisher; Save → `PUT /editor/books/{id}`.
+  (`exprMessage`).
+- **+ entry** in the tree (beside *+ target*, #237) makes an entry without a printed image on the spread – read in the
+  reader's list only, like a glossary term: title, category and access page (one of the spread's pages, `NewEntryForm`,
+  `POST …/entries` without `target`); its form opens in the Inspector. On the stage the variables have their values; an
+  entry found with the [book search](#the-book-search) opens the same way.
+- **The book's texts** (`BookTexts.svelte`) – in the Inspector while the book is selected (the top bar's book crumb,
+  [Inspector: the book](#inspector-the-book)): title, author, publisher; Save → `PUT /editor/books/{id}`.
 - Every text field is one value today; a language variant (#224) becomes a draft of the same shape per language, so a
   language switch can be added to these forms without reshaping them.
 
@@ -283,8 +281,8 @@ stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
 
 The bar: × back to the spreads, ‹ › (also ← →) through the spreads, the tabs – as words, or as icons in a panel too
 narrow for them (under 24rem, 28rem with a finger), so the head stays one line (#172). On a phone the head is the five
-tab icons alone, sharing its width (#171): ‹ › sit at the stage's lower corners, and the top bar's book link is the way
-back to the spreads. On a stage too short for them below the toolbar (the sheet almost full) they move to its top
+tab icons alone, sharing its width (#171): ‹ › sit at the stage's lower corners, and the top bar's book crumb selects
+the book, whose Inspector leads back to the spreads (*All spreads*). On a stage too short for them below the toolbar (the sheet almost full) they move to its top
 right, beside the toolbar (#177) – which is one row and always leaves them that room, so every tool stays reachable at
 every sheet height without scrolling (#180).
 
@@ -295,6 +293,23 @@ over the stage until dismissed (#208).
 Every edit shows live on the stage; a panel's **Save** writes it to the draft and **Back to the draft** drops it (the
 Inspector's entity, a target's placement, the post-processing, the environment, an entry's form); the Code tab saves its
 source.
+
+### The book search
+
+The top bar's search (#237, `BookSearch.svelte`, the logic in `book-search.ts`) finds in the whole book while a book is
+open – on the book page too, where it reads the draft on the first focus: **entries** (title and text), **spreads**
+(title, format, or a page number – its spread), **targets** (id, or the entry's title) and **named nodes** (a node's
+`name`). Accents and case do not matter, every word must be found. The hits drop down grouped by kind (at most six each,
+*· n more*), each with its spread and page (an entry's text hit with the words around it), ranked: a label that starts
+with the query, then one with a word that does, then one that holds it, then a hit only in the text; equal ranks keep
+the book's order.
+
+A pick goes to that spread and selects the item there – an entry (its form in the Inspector; with a printed target the
+stage outlines it, without one the form opens all the same), a spread, a target or a node – and opens the Inspector
+(`selection.show`; on another spread `selection.requestOn`, taken by the workspace's `enter` when that spread opens).
+Keys: **/** (outside a field) or **Ctrl+K** focuses it, ↑ ↓ walk the hits (they wrap), Enter picks (the first hit when
+none is chosen), Esc empties the field, then closes it. On a phone the bar shows a search icon; a tap lays the field
+over the whole top bar with a × to close it, the hits below at the screen's width.
 
 ### Column edges and the phone's sheet
 
@@ -352,7 +367,8 @@ stage the rest, #172). With a finger the rows are the touch control height, the 
 ### Selection
 
 One selection for the tree, the stage and the Inspector (#162, `editor/src/lib/selection.svelte.ts`, the rules in
-`selection.ts`, the tree's rows in `tree-rows.ts`): the **spread** (no target, no node), an **entry** (its own
+`selection.ts`, the tree's rows in `tree-rows.ts`): the **book** (the top bar's book crumb, #237 – nothing on the stage,
+no row in the tree), the **spread** (no target, no node), an **entry** (its own
 selection, with or without a target), a **target** (a tap on its row, a pick of its printed image), its **entity** (the
 root node) or a **node**; selecting in one selects in the others (#227). **Nothing else selected is the spread** (#229,
 `settledSelection`): a workspace opens with it, another spread (‹ ›) starts with itself, and a click on the stage that
@@ -683,6 +699,14 @@ Changes show live on the stage; **Save** writes the **whole tree** of the entity
 target refers to one (the head says `shared: <ref> (n×)`), else the target's own – and the stage rebuilds from the
 draft; **Back to the draft** drops them.
 
+### Inspector: the book
+
+A plain click on the book's crumb in the top bar selects the book (#237, `panels/BookPanel.svelte`; Ctrl- or ⌘-click
+still opens the book page): its head *book* with **All spreads** (the book page), the book's texts – title, author,
+publisher (`BookTexts.svelte`, a section open at first; Save → `PUT /editor/books/{id}`, *Back to the draft*) – and
+where its content files are read from (*assets*, the import's base; empty: the draft's origin). The crumb stays
+underlined while the book is selected. A tap in the tree or on the stage selects something else again.
+
 ### Inspector: the spread
 
 With the spread selected the Inspector shows `SpreadView.svelte` (#227, #229 – the Stage tab's sections, moved there):
@@ -904,7 +928,7 @@ design tokens):
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SpreadView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the spread section's in `spread-view.ts` (#227) |
-| The book page's texts | `editor/src/lib/EntriesPage.svelte`, `BookTexts.svelte`, `entries.svelte.ts`, `book-texts.ts` | [Texts](#texts-entries-and-the-book) |
+| The book's texts and search | `editor/src/lib/BookSearch.svelte`, `book-search.ts`, `BookTexts.svelte`, `book-texts.ts`, `panels/BookPanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-book), [The book search](#the-book-search), [Inspector: the book](#inspector-the-book) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, books, import), `[book]/`, `[book]/[spread]/`, `admin/`; `stage-frame/` – the stage frame's document, outside the gate |

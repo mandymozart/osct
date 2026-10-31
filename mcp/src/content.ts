@@ -472,7 +472,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       const { entries } = await api.call<EntryList>("GET", `/editor/books/${encodeURIComponent(book)}/entries`);
       const word = search?.toLowerCase();
       const found = entries.filter(e => (!category || e.category === category) && (!word || [e.title, e.body, e.tags.join(" ")].join(" ").toLowerCase().includes(word)));
-      return text({ entries: found, count: found.length, open: `${editorHref(links, book)}?view=entries` });
+      return text({ entries: found, count: found.length, open: editorHref(links, book) });
     }),
   );
 
@@ -503,7 +503,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         if (refused) return refused;
       }
       const result = await api.call<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`, changes);
-      return text({ ...result, ...textWarnings(changes.body), open: result.spreadId ? editorHref(links, book, result.spreadId) : `${editorHref(links, book)}?view=entries` });
+      return text({ ...result, ...textWarnings(changes.body), open: result.spreadId ? editorHref(links, book, result.spreadId) : editorHref(links, book) });
     }),
   );
 

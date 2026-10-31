@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { EditorEntry } from "@shared/api/editor";
 import { EntryCategory } from "@shared/types/entry";
-import { draftOf, draftProblems, entryChanges, filterCounts, filterEntries, groupEntries, imageUrl, isDirty, tagsOf } from "../entry-edit";
+import { draftOf, draftProblems, entryChanges, imageUrl, isDirty, tagsOf } from "../entry-edit";
 import { bookChanges, bookDraftOf, bookProblems } from "../book-texts";
 
-const { Glossary, Text, Video } = EntryCategory;
+const { Glossary } = EntryCategory;
 const entry = (fields: Partial<EditorEntry> & Pick<EditorEntry, "id" | "title">): EditorEntry => ({
   category: Glossary, page: 2, body: "", tags: [], spreadId: "spread-1", target: null, ...fields,
 });
@@ -42,37 +42,6 @@ describe("the entry form", () => {
     expect(imageUrl("/assets/content/a.jpg", "https://cdn.example/staging/abc/")).toBe("https://cdn.example/staging/abc/assets/content/a.jpg");
     expect(imageUrl("/assets/content/a.jpg", "")).toBe("/assets/content/a.jpg");
     expect(imageUrl("https://cdn.example/assets/x.jpg", "https://other.example")).toBe("https://cdn.example/assets/x.jpg");
-  });
-});
-
-describe("the Entries page", () => {
-  const list = [
-    entry({ id: "e", title: "Écaille", body: "Scale of a fish." }),
-    entry({ id: "z", title: "zebra", tags: ["stripes"] }),
-    entry({ id: "a", title: "Apple", author: "Kévin" }),
-    entry({ id: "four", title: "4th wall" }),
-    entry({ id: "t", title: "A text", category: Text, page: 9, body: "Onion skin" }),
-    entry({ id: "v", title: "Video", category: Video, page: 3 }),
-  ];
-
-  it("filters by category and searches title, text, author, tags and id – accents and case folded", () => {
-    expect(filterEntries(list, Text, "").map(e => e.id)).toEqual(["t"]);
-    expect(filterEntries(list, "all", "ecaille").map(e => e.id)).toEqual(["e"]);
-    expect(filterEntries(list, "all", "STRIPES").map(e => e.id)).toEqual(["z"]);
-    expect(filterEntries(list, "all", "kevin").map(e => e.id)).toEqual(["a"]);
-    expect(filterEntries(list, "all", "onion skin").map(e => e.id)).toEqual(["t"]);
-    expect(filterEntries(list, Glossary, "onion")).toEqual([]);
-    expect(filterCounts(list)).toEqual({ all: 6, glossary: 4, video: 1, text: 1, link: 0 });
-  });
-
-  it("groups the glossary by first letter as the reader does – no letter first, an accent folded", () => {
-    const groups = groupEntries(filterEntries(list, Glossary, ""), Glossary);
-    expect(groups.map(g => [g.letter, g.entries.map(e => e.id)])).toEqual([[null, ["four"]], ["A", ["a"]], ["E", ["e"]], ["Z", ["z"]]]);
-  });
-
-  it("lists every other filter in the order of the pages", () => {
-    expect(groupEntries(filterEntries(list, "all", ""), "all")[0].entries.map(e => e.id)).toEqual(["four", "a", "e", "z", "v", "t"]);
-    expect(groupEntries([], Text)).toEqual([]);
   });
 });
 

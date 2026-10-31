@@ -38,6 +38,7 @@
   import EntryForm from "./EntryForm.svelte";
   import { entries } from "#lib/entries.svelte.js";
   import SpreadView from "./SpreadView.svelte";
+  import BookPanel from "./BookPanel.svelte";
   import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
@@ -58,8 +59,9 @@
    *
    * The panel is the workspace's **Inspector** (#229): it shows whatever is selected (#162) – a selected target its
    * target fields, its entity or a node that node's rows, the breadcrumb in the head stepping up; a selected **entry**
-   * (#227) the entry (`EntryView`); the **spread** – selected in the tree, or nothing else selected – its sections
-   * (`SpreadView`: the spread, post-processing, vars and events).
+   * (#227) the entry (`EntryView`); the **book** (the top bar's crumb, #237) its texts and settings (`BookPanel`); the
+   * **spread** – selected in the tree, or nothing else selected – its sections (`SpreadView`: the spread,
+   * post-processing, vars and events).
    */
   let { stage, bookId, spreadId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
@@ -534,7 +536,9 @@
   {/if}
 {/snippet}
 
-{#if entry}
+{#if selection.book}
+  <BookPanel {bookId} />
+{:else if entry}
   <!-- The form stays while the Library picks its picture: its edits are its own -->
   {#if picking}<LibraryPanel {bookId} pick={picking} />{/if}
   <div class="entry-form" hidden={!!picking}>

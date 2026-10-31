@@ -9,7 +9,18 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 
 ## Unreleased
 
+### Added
+- **A search in the editor's top bar** (#237): it finds entries (title and text), spreads (title or a page number),
+  targets and named nodes in the whole book, accents and case ignored, grouped by kind with their spread and page. A pick
+  goes to that spread and selects it – an entry opens its form in the Inspector. **/** or **Ctrl+K** focuses it, ↑ ↓ and
+  Enter choose, Esc closes; on a phone a magnifier in the top bar opens it over the bar.
+- **The book in the Inspector** (#237): a tap on the book's name in the top bar selects the book – its title, author and
+  publisher are edited there, with where its files come from and a link back to all spreads.
+- **+ entry** in the tree, next to *+ target* (#237): a new entry without a printed image on the spread.
+
 ### Changed
+- **The book page shows the spreads only** (#237): its head is the book's title and author; the asset address and the
+  environment line are gone (the Inspector and the Environment tab have them). Old `?view=` links show the spreads.
 - **The onboarding is the app's own** (#236): the splash and the steps a first-time reader goes through are part of the
   reader – their texts are translated with the app in all four languages (English, French, Dutch, German), the book's
   title, author and publisher filled in. They are the same for every book and no longer come from the book's content.
@@ -17,6 +28,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   write the app's English steps there, so older apps keep their onboarding until the next major schema.
 
 ### Removed
+- The book page's *entries* view (#237) – the search finds the entries, the tree adds them.
 - The editor's *onboarding* view, the API's `GET`/`PUT /editor/books/{id}/tutorial`, the MCP tools `get_tutorial` and
   `update_tutorial`, the content source's `steps/` folder (the build warns while one is left) and the database column
   that held the steps (`books.tutorial_json`, removed by the migration).

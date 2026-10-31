@@ -4,6 +4,27 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – texts inside the editor: the book search in the top bar, the book in the Inspector (#237)
+
+- **Tilman** (#237): *"a search in the document is not wrong, but a separate page is the wrong place – it is rather part
+  of the header"*, *"that is too much info"* (the book page's head).
+- **The search lives in the top bar** (`BookSearch.svelte`, pure logic in `book-search.ts`) on every page of a book –
+  on the book page too, where it loads the draft (`content.load`) on the first focus; it searches the draft the engine
+  reads (`content.spreads`: entries with their text, targets with their resolved entities), not the API's rows – one
+  source for the stage and the search. Named nodes only: a node without a `name` is found through its target.
+- **A pick on another spread** goes through the selection: `selection.requestOn(spread, state)` before the route
+  changes, the workspace's `enter(spread)` takes it (else the spread, as before); `selection.reveal` counts the asks to
+  show the Inspector (the page opens its tab, the sheet on a phone). The entry without a target simply opens its form
+  (the Inspector shows any entry by id).
+- **The book crumb selects the book** in a workspace (a modified click still navigates); the book page is reached by
+  the panel's ×, the Inspector's *All spreads*, or the crumb outside a workspace. A `book` flag in the selection –
+  only written when true, so the snapshots of the other selections stay as they were.
+- **Removed with the entries view**: `EntriesPage.svelte`, the list helpers of `entry-edit.ts` (filter, counts, the
+  glossary by letter – Tilman's issue: the search covers it) and the tutorial page's Entries screenshot; the book page's
+  `+ double page` / `+ cover` / `+ back cover` links went with its info line (#238 brings the add tile).
+- [ ] The tutorial page's chapter 5 has no new screenshots yet (the search, the book in the Inspector, + entry): taken in
+      #236–#238's run (`C:\Users\Nutzer\AppData\Local\Temp\osct-shots\236-238\`), not converted into the page.
+
 ## 2026-10-31 – the onboarding belongs to the app: out of the database, the editor and the content (#236)
 
 - **Tilman** (#236): *"How did onboarding end up in the database? This is part of the app itself. I said that

@@ -115,3 +115,31 @@ describe("settledSelection (#229)", () => {
     expect(settledSelection({ target: null, node: [], onTarget: true, entry: "about" })).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: "about" });
   });
 });
+
+describe("the book and a selection asked for on another spread (#237)", () => {
+  it("the book crumb selects the book: no spread, target, node or entry; one level up keeps it", () => {
+    selection.selectNode("p015-1", [1]);
+    selection.selectBook();
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, book: true });
+    selection.up();
+    expect(selection.book).toBe(true);
+    selection.selectSpread();
+    expect([selection.book, selection.spread]).toEqual([false, true]);
+    expect(settledSelection({ target: "a", node: [1], onTarget: false, book: true })).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, book: true });
+  });
+
+  it("a search pick on another spread is taken when that spread opens, and shown in the Inspector", () => {
+    const before = selection.reveal;
+    selection.requestOn("s2", { target: "t2", node: [0], onTarget: false });
+    selection.enter("s1");
+    expect(selection.spread).toBe(true);
+    selection.requestOn("s2", { target: null, node: [], onTarget: true, entry: "e2" });
+    selection.enter("s2");
+    expect([selection.entry, selection.spread, selection.reveal]).toEqual(["e2", false, before + 1]);
+    selection.enter("s2");
+    expect(selection.spread).toBe(true);
+    selection.show({ target: "t1", node: [], onTarget: true });
+    expect([selection.target, selection.reveal]).toEqual(["t1", before + 2]);
+    selection.reset();
+  });
+});

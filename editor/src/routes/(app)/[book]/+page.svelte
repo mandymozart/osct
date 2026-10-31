@@ -12,31 +12,22 @@
   import type { Point } from "#lib/context-menu.js";
   import { sheetForSpread, type StageLayout } from "#lib/stage/stage-layout.js";
   import { fetchBookLayout, pageOf, printBoxes, sheetUrl } from "#lib/sheet-preview.js";
-  import { fileNameOf } from "#lib/library-place.js";
   import SheetPreview from "#lib/components/SheetPreview.svelte";
   import { captionOf, formatLabelOf, gridCells } from "#lib/spread-grid.js";
   import Icon from "#lib/components/Icon.svelte";
-  import { environmentOf } from "@shared/types/environment";
   import InfoView from "#lib/components/InfoView.svelte";
-  import Segmented from "#lib/components/Segmented.svelte";
-  import BookTexts from "#lib/BookTexts.svelte";
-  import EntriesPage from "#lib/EntriesPage.svelte";
 
   /**
-   * A book: its texts (title, author, publisher – #223) above two views, chosen in `?view=`: the **spreads**, each as
-   * its picture – the layout's sheet (when the content carries one) with the targets' prints over it (#153), open one to
-   * work on its stage; the **entries** in one list, each opening its form (`EntriesPage`).
+   * A book: its title and author, then its **spreads**, each as its picture – the layout's sheet (when the content
+   * carries one) with the targets' prints over it (#153); open one to work on its stage. The book's texts and settings
+   * are the Inspector's (the top bar's book crumb in a spread, #237), its entries are found with the top bar's search
+   * and edited in their spread – the page has no other views (an old `?view=` link shows the spreads).
    */
   const bookId = $derived(page.params.book!);
-  const VIEWS = ["spreads", "entries"] as const;
-  type View = (typeof VIEWS)[number];
-  const view = $derived<View>(VIEWS.find(v => v === page.url.searchParams.get("view")) ?? "spreads");
-  const show = (next: View) => void goto(`${resolve(`${bookId}/`)}${next === "spreads" ? "" : `?view=${next}`}`, { replace: true });
   let tree = $state<BookTree | null>(null);
   let layout = $state<StageLayout | null>(null);
   let error = $state<string | null>(null);
 
-  const hasFormat = (format: string) => !!tree?.spreads.some(s => s.format === format);
   let adding = $state(false);
   /** One change to the spreads, then the tree again (the pages may have been numbered anew) */
   const change = async (work: () => Promise<unknown>) => {
@@ -51,8 +42,6 @@
       adding = false;
     }
   };
-  /** The front or the back cover as a spread of its own (format cover / back) */
-  const addCover = (format: "cover" | "back") => change(() => addSpread(bookId, { format }));
   /** A double page after `after` (default: the last one before the back cover); the later pages are numbered on */
   const addDoublePage = (after?: string) => change(() => addSpread(bookId, after ? { format: "spread", after } : { format: "spread" }));
   type Spread = BookTree["spreads"][number];
@@ -135,27 +124,10 @@
 <main>
   {#if error}<p class="danger">{error}</p>{/if}
   {#if tree}
-    <nav class="views" aria-label="Views of the book" data-help-name="Views" data-help="The book's spreads as pictures, or its entries in one list (the glossary, texts, videos and links – edited there).">
-      <Segmented options={VIEWS} value={view} label="View" onchange={show} />
-    </nav>
-    {#key tree.book.id}
-      <BookTexts {bookId} book={tree.book.book} onsaved={() => void getBook(bookId).then(t => (tree = t))} />
-    {/key}
-  {/if}
-  {#if tree && view === "entries"}
-    <EntriesPage {bookId} assetsBase={tree.book.assetsBase || null} />
-  {:else if tree}
-    <p class="muted small">{tree.book.author} · {tree.spreads.length} spreads · assets at {tree.book.assetsBase || "the draft's origin"}
-      · <button type="button" class="text-link" disabled={adding} onclick={() => void addDoublePage()}
-        data-help="A double page after the last one (before the back cover). Its pages are numbered on from there.">+ double page</button>
-      {#if !hasFormat("cover")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("cover")}>+ cover</button>{/if}
-      {#if !hasFormat("back")}· <button type="button" class="text-link" disabled={adding} onclick={() => void addCover("back")}>+ back cover</button>{/if}
-    </p>
-    {@const environment = environmentOf(tree.book.book)}
-    <p class="muted small environment">environment ({tree.book.book?.environment ? "this book's" : "the default"}):
-      world {environment.worldSrc ? fileNameOf(environment.worldSrc) : "café"} · sky {environment.skySrc ? fileNameOf(environment.skySrc) : "the world's"} ·
-      onion sky {environment.onionSky ? "on" : "off"}
-      {#if tree.spreads[0]}· <a class="text-link" href={resolve(`${bookId}/${tree.spreads[0].id}/?tab=environment`)}>Edit on the stage</a>{/if}</p>
+    <header class="book-head">
+      <h1>{tree.book.title}</h1>
+      <p class="muted">{tree.book.author}</p>
+    </header>
     <ul class="spreads" style:--page-ratio={pageRatio}>
       {#each cells as cell, i (cell.spacer ? `spacer-${i}` : cell.spread.id)}
         {#if cell.spacer}
@@ -211,7 +183,9 @@
 
 <style>
   main { padding: 1rem 1.5rem; }
-  .views { margin-bottom: .5rem; }
+  .book-head { margin-bottom: .75rem; }
+  .book-head h1 { margin: 0; font-size: 1rem; font-weight: 600; }
+  .book-head p { margin: .125rem 0 0; }
   /* The repeated track is a pair of pages: the column count stays even, a double page never wraps */
   .spreads { --page-min: 9rem; list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0;
     grid-template-columns: repeat(auto-fill, minmax(min(var(--page-min), 50%), 1fr) minmax(min(var(--page-min), 50%), 1fr)); }

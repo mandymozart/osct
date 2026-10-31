@@ -19,6 +19,8 @@
   import EnvironmentPanel from "#lib/panels/EnvironmentPanel.svelte";
   import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
+  import NewEntryForm from "#lib/panels/NewEntryForm.svelte";
+  import { entries } from "#lib/entries.svelte.js";
   import { deleteEntry, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
@@ -68,8 +70,10 @@
   let narrow = $state(false);
   /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
   let coarse = $state(window.matchMedia(COARSE).matches);
-  // The one selection of the tree, the stage and the Inspector – a target, its entity or a node (#162), the spread to start with (#229)
-  selection.reset();
+  // The one selection of the tree, the stage and the Inspector – a target, its entity or a node (#162), the spread to start
+  // with (#229) or what the header search asked for on this spread (#237); `reveal` counts the asks to show it
+  let revealSeen = untrack(() => selection.reveal);
+  untrack(() => selection.enter(spreadId));
   /** The draft or the stage could not be loaded: the stage area shows it with a retry instead of "Building the stage…" */
   let loadError = $state<string | null>(null);
   /** An action on the page failed (a removal, a target image, a reload after a change): shown over the stage until dismissed */
@@ -248,8 +252,10 @@
 
   const EDGE_HELP = "Drag to make the column wider or narrower (← → when focused, Shift for larger steps); the width is remembered in this browser. A double-click restores the default width.";
 
-  // ── targets: the form, removal, a changed image or placement ──
+  // ── targets and entries: the forms, removal, a changed image or placement ──
   let addingTarget = $state(false);
+  /** The tree's "+ entry" (#237): an entry without a printed image on this spread */
+  let addingEntry = $state(false);
   let entityPanel = $state<{ useAsset: (kind: MediaKind, src: string, assetId: string) => void }>();
   /** The content changed under the stage (a target's image or placement, a relink): reload it and build the spread again */
   const reloadContent = async () => {
@@ -265,6 +271,13 @@
     addingTarget = false;
     await reloadContent();
     selection.selectTarget(targetId);
+    openTab("inspector");
+  };
+  const entryCreated = async (entryId: string) => {
+    addingEntry = false;
+    await reloadContent();
+    await entries.load(bookId);
+    selection.selectEntry(entryId, null);
     openTab("inspector");
   };
   /** An entry's removal waiting for the person's confirmation in the panel, with the API's impact (#198) – no browser dialog */
@@ -409,7 +422,18 @@
     const id = spreadId;
     if (id === selectedOn) return;
     selectedOn = id;
-    selection.reset();
+    selection.enter(id);
+  });
+  // The search or the book crumb asked to show the selection: the Inspector opens (the sheet too, on a phone)
+  $effect(() => {
+    const asked = selection.reveal;
+    if (asked === revealSeen) return;
+    revealSeen = asked;
+    untrack(() => {
+      addingTarget = false;
+      addingEntry = false;
+      openTab("inspector");
+    });
   });
   /** A pick on the stage: the printed image selects the target, an entity's node the node (the pick mode decides which) */
   const selectHit = (hit: StagePick) => {
@@ -591,7 +615,8 @@
       </button>
     </div>
     {#if treeOpen}
-      <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingTarget = true; }} onremoveentry={removeEntry} /></div>
+      <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
+        onaddentry={() => { addingTarget = false; addingEntry = true; if (shown === null) setTab(lastTab); }} onremoveentry={removeEntry} /></div>
       <InfoView />
       {#if treeShown}{@render edge("tree", "Tree edge")}{/if}
     {/if}
@@ -693,8 +718,11 @@
       <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
     {:else if addingTarget && spread}
       <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
+    {:else if addingEntry && spread}
+      <div class="body"><NewEntryForm {bookId} {spread} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
     {:else if shown === "tree"}
-      <div class="body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => (addingTarget = true)} onremoveentry={removeEntry} /></div>
+      <div class="body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
+        onaddentry={() => { addingTarget = false; addingEntry = true; }} onremoveentry={removeEntry} /></div>
     {:else if shown === "inspector"}
       <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
     {:else if shown === "environment"}

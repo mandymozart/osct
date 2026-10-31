@@ -36,12 +36,14 @@
    * (`stage.editTree`); Save in the Inspector writes them. Folding is per entry and per node and not stored. ● after a name: the stage shows it with other
    * values than the draft's.
    */
-  let { stage, spreadId, onselect, onaddtarget, onremoveentry }: {
+  let { stage, spreadId, onselect, onaddtarget, onaddentry, onremoveentry }: {
     stage: Stage | null; spreadId: string;
     /** A row was chosen (a tap, Enter): the workspace shows the Inspector */
     onselect?: (kind: TreeRow["kind"]) => void;
     /** "+ target": the workspace opens the form */
     onaddtarget?: () => void;
+    /** "+ entry" (an entry without a printed image, #237): the workspace opens the form */
+    onaddentry?: () => void;
     /** "Remove target" / "Remove entry", Delete on an entry row: the entry with everything on it, after the confirmation the workspace shows (#198) */
     onremoveentry?: (entryId: string, targetId: string | null) => Promise<void>;
   } = $props();
@@ -450,11 +452,17 @@
         {/if}
       {/if}
     {/each}
-    {#if onaddtarget}
+    {#if onaddtarget || onaddentry}
       <div class="node add-target">
         <span class="chevron"></span>
         <span class="type"><Icon name="plus" size="1em" /></span>
-        <button type="button" class="pick" onclick={onaddtarget} title="A tap opens the form for a new entry with a printed image on this spread"><span class="name">+ target</span></button>
+        {#if onaddtarget}
+          <button type="button" class="pick add" onclick={onaddtarget} title="A tap opens the form for a new entry with a printed image on this spread"><span class="name">+ target</span></button>
+        {/if}
+        {#if onaddentry}
+          <button type="button" class="pick add" onclick={onaddentry} data-help-name="+ entry"
+            title="A tap opens the form for a new entry without a printed image on this spread – read in the reader's list only, like a glossary term"><span class="name">+ entry</span></button>
+        {/if}
       </div>
     {/if}
   </div>
@@ -501,9 +509,10 @@
   .pick.muted { color: var(--muted); }
   .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dot { font-size: .6em; }
-  .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); }
+  .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); gap: .75rem; }
+  .add-target .pick.add { flex: none; }
   @media (hover: hover) {
-    .add-target:hover { color: var(--text); }
+    .add-target .pick.add:hover { color: var(--text); }
   }
   @media (pointer: coarse) {
     .tree { --cell: 1.75rem; }

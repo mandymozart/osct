@@ -289,7 +289,7 @@ describe("the content tools", () => {
   it("get_entries: every field, filtered by category or a word, with the Entries page's link (#223)", async () => {
     const all = await rec.call("get_entries", { book: "osct" });
     expect(all.data.count).toBe(2);
-    expect(all.data.open).toBe("http://localhost:5175/editor/osct/?view=entries");
+    expect(all.data.open).toBe("http://localhost:5175/editor/osct/");
     expect((await rec.call("get_entries", { book: "osct", category: "text" })).data.entries.map((e: { id: string }) => e.id)).toEqual(["text"]);
     expect((await rec.call("get_entries", { book: "osct", search: "BEAST" })).data.entries.map((e: { id: string }) => e.id)).toEqual(["racoon"]);
   });
@@ -300,7 +300,7 @@ describe("the content tools", () => {
     expect(seen[0]).toMatchObject({ method: "PUT", path: "/editor/books/osct/entries/racoon", body: { body: "A **beast** – {hasKey: it opens|it looks}.", author: null, tags: ["animal", "mask"] } });
     expect(result.data.open).toBe("http://localhost:5175/editor/osct/s1/");
     const moved = await rec.call("update_entry", { book: "osct", entry: "racoon", page: 99 });
-    expect(moved.data.open).toBe("http://localhost:5175/editor/osct/?view=entries");
+    expect(moved.data.open).toBe("http://localhost:5175/editor/osct/");
     const warned = await rec.call("update_entry", { book: "osct", entry: "racoon", body: "a } alone" });
     expect(warned.data.warnings[0]).toMatch(/a } without its \{/);
     const refusals = [
