@@ -41,10 +41,14 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
    the scene is built on the first scan (RUNNING).
 5. Content is placeholder until final content arrives. Keep texts/colors/media swappable
    (config / CSS variables), never hardcoded in components.
-6. Match existing code style: custom element per file, `styles`/`template` getters,
+6. Match existing code style – **per package** (Tilman, 2026-10-31, #221): rules #6, #17 and #19 are written for the
+   reader (`client/`); `engine/` and `editor/` keep their own conventions, written down in #17 and #19 as the code has
+   them. The reader: custom element per file, `styles`/`template` getters,
    `GameStoreService.getInstance()`, subscribe via `subscribeToProperty`, keep the unsubscribe function it
    returns and call it in `disconnectedCallback`. Event listeners are added and removed with the **same
-   function reference** (a class field or one bound once) – a fresh `.bind(this)` on removal removes nothing.
+   function reference** (a class field or one bound once) – a fresh `.bind(this)` on removal removes nothing (in every
+   package). The editor: Svelte 5 components with runes (`$state`, `$derived`, `$props`), effects clean up what they
+   start (the returned function).
 7. Taxonomy: **entries are top level**; target optional per entry; AR entity optional per
    target. Never assume an entity is video-only – keep entity types extensible.
 8. Content (YAML + media) → built by `scripts/` into `client/src/game.config.json`
@@ -143,7 +147,26 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     - **`utils/`**: only helpers used across several of these layers. Logic used in one place goes
       next to its owner. `utils/game-config.ts` is a primitive service (module singleton).
     - File names: `services/`, `store/` and its managers are PascalCase after the one class they export;
-      everything else (components, pages, utils, types) is kebab-case.
+      everything else (components, pages, utils, types) is kebab-case. (Where the reader's names don't match their
+      class yet, and a single convention for every package: #27.)
+    - **`engine/`** (no package of its own: the app that imports it compiles it through the `@engine` alias; its tests run
+      in `client/`'s vitest): `content/` – the content runtime (`game-config.ts`: load, guard, accessors; the forward
+      compatibility; compressed files); `scene/` – the AR scene and everything three.js / 8th Wall (entities, plugins and
+      their runtime, behaviour, materials, textures, trackers, `post/` passes, `look-around/`); `types/` – the contract
+      re-exported from `shared/` and the engine's own types (scene, errors, graphics); `utils/` – helpers without three.js
+      the apps' dev tools use too (device storage, camera requests, prepared spreads, trigger protocol). Files are
+      kebab-case, named after their topic, not their class (`assets.ts` → `AssetStore`, `view.ts` → `ArView`,
+      `tracker.ts` → `ImageTracker`); classes PascalCase, the interfaces of swappable parts `I*` (`IArScene`,
+      `IImageTracker`), errors `*Error`. Tests in `__tests__/` next to the code.
+    - **`editor/`** (SvelteKit): `src/routes/` the pages (`[book]/`, `[book]/[spread]/`, `admin/`); `src/lib/` the app's
+      parts – Svelte components PascalCase, one per file (`TopBar.svelte`, `PublishButton.svelte`); `lib/components/`
+      the shared controls built once (RULES #32: `Icon`, `ScrubNumber`, `Section`, `Segmented`, …); `lib/panels/` the
+      sheet's tabs and their views (`EntityPanel`, `TreePanel`, `CodePanel`, …); `lib/stage/` the stage around the engine
+      (mock stage and tracker, gizmo, desk, helpers – three.js); `lib/plugins/` the Code tab's compiler and editor. Logic
+      is kebab-case TypeScript beside the component that uses it (`new-version.ts` for `NewVersionBar.svelte`), pure
+      where it can be, so `lib/__tests__/` (and `stage/__tests__/`, `plugins/__tests__/`) test it without a DOM. Shared
+      state is a runes module `*.svelte.ts`: a class with `$state` fields and one exported instance in camelCase
+      (`content`, `session`, `selection`, `plugins`). Texts are English, written in the component (RULES #20).
 
 18. **Design styles** ("no CSS mess"): values come from `agents/DESIGN.md` (measured from the PDF). Colors,
     gradients, shadows, sizes only as tokens in `client/src/main.css`; controls and text effects only through
@@ -171,7 +194,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       gold label, never hand-written markup. Component styles that must beat the adopted design sheet need more
       specificity (`:host .pill`) – the sheet comes after `<style>`.
 
-19. **Imports**: every folder has an `index.ts` barrel.
+19. **Imports** – the reader (`client/`): every folder has an `index.ts` barrel.
     - Across folders import the barrel: `@/types`, `@/utils`, `@/services`, `@/styles`, `@/pages`,
       `@/components/<group>` – never a file inside another folder, never `@/types/<file>`.
     - Inside a folder (or a component group, e.g. `ar-bridges/ar` → `../utils`) import relative files;
@@ -184,6 +207,16 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       enum used only as a type): `verbatimModuleSyntax` is on in every TypeScript config (#176), so the compiler
       flags a missing one and keeps every other import as written. A type import is dropped when compiled: keep a
       separate side-effect import (`import "@/pages"`) where registration matters.
+    - **`engine/`**: barrels only where a folder is used as one piece – `scene/`, `scene/post/`, `scene/look-around/`,
+      `types/`; `content/` and `utils/` have none (one file, one topic). Inside the engine imports are relative and name
+      the barrel's file (`../types/index`, `./post/index`); the contract comes from `@shared/types/…` and
+      `@shared/guards/…`. The apps import a barrel where one exists (`@engine/types`, `@engine/scene`) and a file
+      otherwise (`@engine/content/game-config`, `@engine/utils/device-storage`); a file the barrel leaves out on purpose
+      by name (`@engine/scene/xr8-tracker` – only the reader loads the 8th Wall engine). The engine imports neither app.
+    - **`editor/`**: no barrels. Across folders `#lib/<path>` (package.json `imports`) **with the file's extension** –
+      `#lib/content.svelte.js`, `#lib/components/Icon.svelte` (SvelteKit 3); inside one folder relative (`./Icon.svelte`);
+      the engine and the contract through `@engine/…` and `@shared/…`, SvelteKit through `$app/…`. Type-only imports
+      as above (`import type`).
 
 20. **UI texts**: never hard-coded – every text shown to readers (incl. aria labels and notices) comes from
     i18next directly (`import { t } from "i18next"`, then `t("namespace:key")`; en default, fr, nl, de; one
