@@ -25,6 +25,29 @@ export const SHEET_CSS = `
   .close { font-size: 1rem; }
 `;
 
+/**
+ * The dev tools' on/off switch (#241): its word, then a track whose knob sits right and lit while on – a `<button
+ * role="switch">` with `aria-checked`, in the debug colours. Every dev-tools control that holds a state on or off is one;
+ * buttons that act (copy, reset, close) stay buttons. A panel adds `SWITCH_CSS` to its styles and renders `debugSwitch()`.
+ */
+export const SWITCH_CSS = `
+  button.switch { display: inline-flex; align-items: center; gap: .375rem; min-width: 0; padding: 0 .25rem; border-color: transparent;
+    background: none; color: inherit; }
+  button.switch .track { flex: none; position: relative; width: 1.75rem; height: .875rem; box-sizing: border-box;
+    border: .0625rem solid #0f0; border-radius: 1rem; }
+  button.switch .track::before { content: ""; position: absolute; top: .0625rem; left: .0625rem; width: .625rem; height: .625rem;
+    border-radius: 50%; background: #070; transition: transform .15s; }
+  button.switch[aria-checked="true"] .track { background: #0f0; }
+  button.switch[aria-checked="true"] .track::before { background: #000; transform: translateX(.875rem); }
+  @media (prefers-reduced-motion: reduce) { button.switch .track::before { transition: none; } }
+`;
+
+/** A switch's markup: `label` is its visible word, `action` its `data-action`, `title` the longer name for screen readers */
+export function debugSwitch(label: string, on: boolean, action: string, title = label): string {
+  const attr = (text: string) => text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  return `<button type="button" class="switch" role="switch" aria-checked="${on}" data-action="${attr(action)}" aria-label="${attr(title)}">${attr(label)}<span class="track" aria-hidden="true"></span></button>`;
+}
+
 export interface SheetOptions {
   /** The panel's name for screen readers */
   label: string;

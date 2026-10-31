@@ -6,7 +6,7 @@
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
-  import Segmented from "#lib/components/Segmented.svelte";
+  import Toggle from "#lib/components/Toggle.svelte";
   import FileField from "#lib/components/FileField.svelte";
   import Section from "#lib/components/Section.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
@@ -108,9 +108,9 @@
   data-help="Looking up, sky-like parts of the camera picture show the world's sky. It needs a camera picture, so only the reader shows it.">
   <span class="label">onion sky</span>
   <span class="controls">
-    <Segmented options={["on", "off"] as const} value={edit.edited.onionSky ? "on" : "off"}
-      titles={{ on: "Looking up, sky-like parts of the camera picture show the world's sky", off: "The camera picture's sky stays" }}
-      onchange={value => edit.set({ onionSky: value === "on" })} />
+    <Toggle on={edit.edited.onionSky} label="Onion sky"
+      title={edit.edited.onionSky ? "On: looking up, sky-like parts of the camera picture show the world's sky" : "Off: the camera picture's sky stays"}
+      onchange={onionSky => edit.set({ onionSky })} />
   </span>
 </div>
 {#if library.error}<div class="row"><span class="small danger">{library.error}</span></div>{/if}

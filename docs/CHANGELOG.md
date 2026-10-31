@@ -7,6 +7,20 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Every on/off in the editor is a switch** (#241, Tilman: *"Ich will so einen Toggle. An manchen Stellen sind keine
+  Toggles, sondern Buttons."*): the on / off pill `Toggle` (since #233 in a pass's head) replaces the remaining on/off
+  buttons and on/off segmented pairs – grid, vertical axis and snap in the *grid & snap* panel, and one switch per snap
+  target (*snap to grid*, *axes*, *objects*, *outlines*) instead of four pressed pills; the onion sky in the Environment
+  tab; a boolean variable in *vars and events* (it reads *true* / *false*); the *uniform* switch under the scale row
+  instead of the chain icon; *Also delete the files used only here* in the removal confirmation; and each role per user
+  on the admin page. `Toggle` takes an Info-view `help`, `disabled` (while a request runs) and its own `words`.
+- **The reader's dev tools have switches too** (#241): *ask zoom* in the camera panel and *QR* in the debug overlay's
+  spread tab are a track with a knob in the debug green (`debugSwitch`, `SWITCH_CSS` in `dev-tools/debug-sheet.ts`). The
+  reader's settings already were switches (`<gold-switch>`). Screenshots: `docs/screenshots/241/`.
+
 ## 1.61.1 – 2026-10-31
 
 ### Fixed

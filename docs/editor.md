@@ -483,7 +483,7 @@ names), every button's label its tooltip:
   are the touch height (44 px).
 - **grid & snap** (#190, `components/GridSnapMenu.svelte`) – always one button, the grid's icon with a dot in its corner
   while snapping is on, opening a small panel attached to it: *grid* (on / off and its step in mm), *vertical axis* (on
-  / off), *snap* (on / off), *snap to* (grid, axes, objects, outlines – pressed pills, any combination) and the
+  / off), *snap* (on / off), *snap to grid*, *axes*, *objects*, *outlines* (one switch each, any combination) and the
   precision per gizmo mode: *move* (mm, the step while the grid is no snap target), *rotate* (degrees) and *scale*
   ([Grid, origin and snapping](#grid-origin-and-snapping)).
 - **view** (#229, `components/ViewMenu.svelte` – the Stage tab's *stage* section until then) – one button the same way,
@@ -685,8 +685,8 @@ Library as the picker, with the filter set – or **Upload…**), then:
   (`TextureField.svelte`), and every filter parameter of the node. Each row is one control height and labelled in words
   (#173): its spec's `label` (*plays on*, *key color*), else its name split into words (`degreesPerSecond` → *degrees per
   second*); the Info view names it with the content's name too (*speed · degreesPerSecond*). Position, rotation and scale
-  have X, Y, Z side by side as in Blender (the chain icon at the end of the scale row links the axes: pressed = one
-  `scale` field, as Blender's lock); choices are a segmented group; colours a swatch + hex whose swatch opens the
+  have X, Y, Z side by side as in Blender (the *uniform* switch under the scale row links the axes: on = one
+  `scale` field, as Blender's lock); every on / off is the `Toggle` switch (#241); choices are a segmented group; colours a swatch + hex whose swatch opens the
   editor's **colour popover** (after Scutoons': a palette of the usual keys and the book's gold, this browser's recent
   colours, a saturation / brightness area with a hue slider, the hex, and the eyedropper that **picks from the stage** –
   the colour under the pointer in a chip, a tap takes it, Esc cancels; the sampled pixel is the rendered one, lit and

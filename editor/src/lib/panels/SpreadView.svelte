@@ -3,6 +3,7 @@
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import Segmented from "#lib/components/Segmented.svelte";
+  import Toggle from "#lib/components/Toggle.svelte";
   import Section from "#lib/components/Section.svelte";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Icon from "#lib/components/Icon.svelte";
@@ -104,7 +105,7 @@
 
 {#snippet valueControl(type: VarType, value: VarValue, label: string, commit: (value: VarValue) => void)}
   {#if type === "boolean"}
-    <Segmented options={["false", "true"] as const} value={value === true ? "true" : "false"} onchange={v => commit(v === "true")} />
+    <Toggle on={value === true} {label} words={["false", "true"]} onchange={commit} />
   {:else if type === "number"}
     <span class="w"><ScrubNumber value={Number(value)} step={numberStep(Number(value))} {label} onchange={commit} /></span>
   {:else}

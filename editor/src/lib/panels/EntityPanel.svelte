@@ -669,16 +669,15 @@
                   oninput={v => set(row, v)} />
               {/each}
             </span>
-            {#if key === "scale"}
-              <!-- The chain (Blender): pressed = one scale for x, y and z -->
-              <button type="button" class="icon-button" class:on={uniformScale} aria-pressed={uniformScale} aria-label="Uniform scale"
-                title={uniformScale ? "Uniform scale: one value for x, y and z – tap to scale per axis" : "Scale per axis – tap to link x, y and z"}
-                onclick={() => { uniformScale = !uniformScale; current && applyNode(current); }}><Icon name="link" /></button>
-            {:else}
-              <span class="link-slot"></span>
-            {/if}
           </span>
         </div>
+        {#if key === "scale"}
+          <!-- One scale for x, y and z, or one per axis – a switch like every on / off (#241; was Blender's chain icon) -->
+          <div class="row"><span class="label">uniform</span>
+            <span class="controls"><Toggle on={uniformScale} label="Uniform scale"
+              title={uniformScale ? "Uniform scale: one value for x, y and z – switch off to scale per axis" : "Scale per axis – switch on for one value for x, y and z"}
+              onchange={on => { uniformScale = on; if (current) applyNode(current); }} /></span></div>
+        {/if}
       {/if}
     {/each}
 
@@ -844,7 +843,6 @@
   .fields :global(.scrub) { width: 100%; }
   .axes { display: flex; align-items: center; gap: .25rem; min-width: 0; }
   .axes .fields { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .link-slot { flex: none; width: var(--control-height); }
   /* Narrow: the label goes above the X / Y / Z fields, so each still shows "-180°" and its reset */
   @container panel (max-width: 23rem) {
     .row.axis { grid-template-columns: minmax(0, 1fr); gap: .125rem; padding-bottom: .125rem; }
