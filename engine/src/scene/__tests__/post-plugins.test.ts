@@ -8,7 +8,7 @@ import { installedPlugins, installPlugin, uninstallPlugin } from "../plugins";
 import { deleteTextureRegistration, setTextureRegistration } from "../textures";
 import "../post/index";
 
-/** A plugin's passes in the post chain (content schema 2.21, #216): in order, skipped when they fail, their buffers and textures */
+/** A plugin's passes in the post chain (#216): in order, skipped when they fail, their buffers and textures */
 
 const SPEC: PassSpec = { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } };
 const PICTURE: PassSpec = { description: "A picture over it.", params: { picture: { kind: "texture", default: "", description: "The picture." } } };
