@@ -1,4 +1,5 @@
 import type { Spread } from "@/types";
+import type { TrialDevice } from "./trial-device";
 
 /**
  * Trigger trial: which targets of the book were found during a test with the printed book (or the trigger
@@ -31,7 +32,8 @@ export interface TrialMeta {
   bookTitle: string;
   appVersion: string;
   contentHash: string;
-  device: string;
+  /** The phone as the tester named it, with what the browser reports (trial-device.ts) */
+  device: TrialDevice;
   /** The camera at download time (lens, resolution, focus, zoom – camera-debug.ts), optional */
   camera?: string;
   date: Date;
@@ -72,6 +74,16 @@ const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\n/g, " ");
 const printed = (info?: TriggerInfo) =>
   [info?.source, info?.width && info.height ? `${info.width} × ${info.height} mm` : "", info?.position].filter(Boolean).join(" · ");
 
+/** The header's device lines: the model as entered and where its prefill came from, screen, OS, language, tester */
+export const deviceLines = (device: TrialDevice): string[] => [
+  `- Device: ${device.model.trim() || "–"} (tester) · ${device.source}`,
+  `- Screen: ${device.screen}`,
+  `- OS: ${device.os}`,
+  `- Language: ${device.language || "–"}`,
+  ...(device.tester?.trim() ? [`- Tester: ${device.tester.trim()}`] : []),
+  `- User agent: ${device.userAgent}`,
+];
+
 /** The report for the designers: the targets not found (with their printed image), then a short list of the found */
 export function trialReport(rows: TrialRow[], meta: TrialMeta): string {
   const counts = countResults(rows);
@@ -83,7 +95,7 @@ export function trialReport(rows: TrialRow[], meta: TrialMeta): string {
     "",
     `- Date: ${date} (UTC)`,
     `- App ${meta.appVersion} · content ${meta.contentHash.slice(0, 12)}`,
-    `- Device: ${meta.device}`,
+    ...deviceLines(meta.device),
     ...(meta.camera ? [`- Camera: ${meta.camera}`] : []),
     `- Targets: ${rows.length} · found ${counts.found} · not found ${counts.untested}`,
     "",

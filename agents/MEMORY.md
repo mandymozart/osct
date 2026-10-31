@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – the trial report names the phone model (#235)
+
+- **Tilman (#235)**, after two iPhone reports of trial 2 could not be told apart (#43): *"We need to get the exact
+  model, otherwise it will be easy to confuse again."* The trial strip asks the tester for the model; **md** is
+  dimmed (aria-disabled, a tap focuses the field) until it is filled in, rather than `disabled`, so a tap is never
+  silently ignored.
+- **The tester's word is the model**: the browser only prefills. On Chromium the client hints' model code (Samsung
+  codes named by a small table, `SAMSUNG_MODELS` in `trial-device.ts`, the code kept); on an iPhone the screen in
+  points @ pixel ratio orders the pick list (`IPHONE_SCREENS`, after Apple's published point sizes, checked from
+  knowledge – no download) but never fills the field: one screen size is shared by up to six models. Display Zoom
+  sizes are not in the table (no guess).
+- **Pick list + free text** is a `<select>` (*list*) that fills a text field, not a `<datalist>`: the native picker
+  is reliable on iOS and Android, the field stays editable. Fields use 16px type, or iOS zooms the page on focus.
+- Remembered under `osct-trial-model` and `osct-trial-tester` (localStorage, like the strip's height); a stored
+  model always wins over the prefill. The strip's frame is now drawn once so typing survives the redraws while
+  scanning (bar and grid are redrawn).
+- Dev tool texts stay English (RULES #20), no i18n.
+
 ## 2026-10-31 – a MINOR never breaks an older app (#220); rules per package (#221)
 
 - **Tilman (#220)**: "a MINOR must not break. But exactly the features that are not supported then won't work – that's

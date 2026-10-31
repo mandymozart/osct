@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.56.0 – 2026-10-30
+
+### Added
+- **The trigger trial names the phone** (#235): two iPhone reports of the second trial could not be told apart,
+  because Safari 26 freezes its user agent and Chrome on Android reduces it. The trial strip now asks for the phone
+  model – typed, or picked from a short list of current iPhones, Galaxy S and Pixel phones – and **md** only saves
+  the report once it is filled in. Where the browser can tell, the field is prefilled: Chrome on Android gives the
+  model code (*Galaxy S22 (SM-S901B)*) and the real Android version; on an iPhone the screen size narrows the list
+  to the models with that screen, shown as a guess for the tester to confirm. Optional initials go next to it; both
+  are remembered on the phone. The report's header gains *Device* (the model as entered and where the prefill came
+  from), *Screen*, *OS* (with a note where the browser freezes or reduces it), *Language* and *Tester*.
+
 ## 1.55.0 – 2026-10-30
 
 ### Changed

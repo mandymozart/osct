@@ -7,6 +7,12 @@ engine, the camera and the print, not to background work.
 The marked printout photos and the app's own `md` report of each run are kept outside git, next to the delivery:
 `osct-incoming-content/trials/<date>-<device>/`.
 
+A report names its phone (#235): the header has the **phone model as the tester entered it** (the trial strip asks
+for it before **md** works, prefilled from Chromium's model code or narrowed by an iPhone's screen size) and where
+the prefill came from, the screen (`375×812 @3`), the OS as the browser reports it (Safari freezes it, Chrome on
+Android reduces it – the line says so), the language, optional initials and the user agent. Reports from before
+that name only the user agent, which cannot tell iPhones apart – the iPhone 12 mini run was identified by its tester.
+
 Tester package for the second trial (#36) – one PDF per paper size, how-to page + numbered sheets (`OSCT-trial-2-A4.pdf`):
 `osct-incoming-content/trials/trial-2/` (`make-printouts.py`, `make-instructions.sh`, `make-combined.py`).
 

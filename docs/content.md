@@ -844,6 +844,40 @@ debug overlay's camera panel, `docs/tracking.md` "Camera"). The bar counts the t
 (debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their
 printed image, then the found ones – to forward to the designers.
 
+**The phone model** (#235): browsers no longer say which phone they run on – Safari 26 freezes its user agent (an
+iPhone 12 mini and an iPhone 17 both report `iPhone OS 18_7 … Version/26.6.1`), Chrome on Android reduces it
+(`Android 10; K`). So a device row under the bar asks for the phone model, and **md** stays dimmed until it is filled
+in (tapping it then jumps to the field). The tester types the model or picks it from the *list* (iPhone 11 to 17
+with mini / Plus / Pro / Max, SE, 16e and Air; Galaxy S21 to S25; Pixel 6 to 9); a second field takes optional
+initials. Both are remembered on the device (`osct-trial-model`, `osct-trial-tester`). The field is prefilled where
+the browser can tell:
+
+- **Chromium (Android)**: `navigator.userAgentData.getHighEntropyValues(["model", "platformVersion"])` gives the
+  model code and the real Android version. A known Samsung code gets its name, the code stays
+  (`Galaxy S22 (SM-S901B)`); Pixels report their name.
+- **iPhone**: there is no model API, so the screen in points and its pixel ratio narrow the list – the matching
+  models come first in *list* (375×812 @3 = 12 mini / 13 mini / X / XS / 11 Pro, 390×844 @3 = 12 / 13 / 14 /
+  12 Pro / 13 Pro / 16e, 393×852 @3 = 14 Pro / 15 / 15 Pro / 16, 402×874 @3 = 16 Pro / 17 / 17 Pro, 440×956 @3 = 16
+  Pro Max / 17 Pro Max …, `client/src/components/dev-tools/trial-device.ts`). The strip says it is a guess; the
+  field stays empty until the tester picks or types the model. Display Zoom reports a smaller screen, which gets no
+  guess.
+
+The report's header then carries:
+
+```
+- Device: iPhone 12 mini (tester) · screen-size guess: iPhone 12 mini / 13 mini / X / XS / 11 Pro
+- Screen: 375×812 @3
+- OS: iOS 18.7 as Safari reports it – frozen: Safari 26 comes with iOS 26
+- Language: fr-FR
+- Tester: VB
+- User agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) …
+```
+
+*Device* is the model as the tester entered it, then where the prefill came from (`from the browser: SM-S901B`, a
+`screen-size guess`, or `no prefill`); *OS* is what the browser reports, with the real version where client hints
+give it (`Android 14.0.0 (from the browser)`) and a note where Safari freezes it or Chrome reduces it; *Tester* only
+when initials were given.
+
 The runs so far, with their results per device, are in [trigger-tests/](trigger-tests/README.md).
 
 The printed-image details come from the delivery mapping:

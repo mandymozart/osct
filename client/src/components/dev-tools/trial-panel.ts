@@ -5,6 +5,9 @@ import {
 } from "@/components/ar-bridges";
 import { getBook, getConfigVersion, getSpreads } from "@/utils/game-config";
 import { countResults, trialReport, trialRows, type TrialRow, type TriggerInfos } from "./trial-report";
+import {
+  devicePrefill, osLine, pickList, readScreen, readUaHints, screenLine, type DevicePrefill, type ScreenSize, type UaHints,
+} from "./trial-device";
 import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 
 const escapeHtml = (text: string) =>
@@ -13,6 +16,27 @@ const escapeHtml = (text: string) =>
 /** While the trial is open the tracker holds the current spread and its neighbours (±1): scanning the next image on
  * the sheet switches the spread by itself */
 export const TRIAL_WINDOW = 1;
+
+/** Where the strip remembers the tester's phone model and initials on this device */
+export const TRIAL_MODEL_KEY = "osct-trial-model";
+export const TRIAL_TESTER_KEY = "osct-trial-tester";
+
+const readStored = (key: string): string => {
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+const writeStored = (key: string, value: string) => {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // storage blocked: the value holds while the strip is open
+  }
+};
 
 /** Book order of the printout (page, then the target's number on the page): `p038-2` → [38, 2] */
 const bookOrder = (targetId: string): [number, number] => {
@@ -51,6 +75,9 @@ export const numberedRows = (rows: TrialRow[]): Array<TrialRow & { number: numbe
  * While the panel is open the tracker holds the current spread and its neighbours (`TRIAL_WINDOW`, no grow);
  * closing restores the setting. A camera line under the bar shows the lens, resolution, focus and zoom the trial
  * runs with (camera-debug.ts) – feedback only, the trial uses the app's camera defaults; the md report records it.
+ * A device row asks for the phone model (required for **md**, prefilled from the browser's model code or narrowed by
+ * an iPhone's screen size – trial-device.ts) and, optionally, the tester's initials; both are remembered on the device
+ * (`TRIAL_MODEL_KEY`, `TRIAL_TESTER_KEY`) and go into the report's header (#235).
  */
 export class TrialPanel extends HTMLElement {
   private shadow: ShadowRoot;
@@ -65,13 +92,21 @@ export class TrialPanel extends HTMLElement {
   private scrollTarget: number | null = null;
   /** The camera last seen – the report records it even when the camera is off by the time md is tapped */
   private lastCamera: CameraInfo | null = null;
+  /** The phone model as the tester entered or confirmed it – md waits until it is filled in */
+  private model = readStored(TRIAL_MODEL_KEY);
+  private tester = readStored(TRIAL_TESTER_KEY);
+  private size: ScreenSize = readScreen();
+  private hints: UaHints = {};
+  private prefill: DevicePrefill;
 
   constructor() {
     super();
     this.game = GameStoreService.getInstance();
     this.shadow = this.attachShadow({ mode: "open" });
     // The height key predates the shared sheet – kept so testers keep their height
-    this.sheet = new BottomSheet(this, this.shadow, { label: "Trigger trial", heightKey: "osct-trial-height", defaultHeight: () => 128 });
+    this.sheet = new BottomSheet(this, this.shadow, { label: "Trigger trial", heightKey: "osct-trial-height", defaultHeight: () => 168 });
+    this.prefill = devicePrefill(navigator.userAgent, this.size, this.hints);
+    if (!this.model) this.model = this.prefill.model;
   }
 
   connectedCallback() {
@@ -85,8 +120,11 @@ export class TrialPanel extends HTMLElement {
       subscribeCamera(camera => this.renderCamera(camera)),
     );
     this.shadow.addEventListener("click", this.onClick);
+    this.shadow.addEventListener("input", this.onInput);
+    this.shadow.addEventListener("change", this.onPick);
     this.render();
     void this.loadInfos();
+    void this.loadHints();
   }
 
   disconnectedCallback() {
@@ -104,6 +142,25 @@ export class TrialPanel extends HTMLElement {
     this.render();
   }
 
+  /** The browser's model code and OS version (Chromium): the prefill of an empty model field, the real OS version */
+  private async loadHints() {
+    const hints = await readUaHints();
+    if (!Object.keys(hints).length) return;
+    this.hints = hints;
+    this.prefill = devicePrefill(navigator.userAgent, this.size, hints);
+    if (!this.model && this.prefill.model) {
+      this.model = this.prefill.model;
+      const field = this.shadow.querySelector<HTMLInputElement>('input[name="model"]');
+      if (field) field.value = this.model;
+    }
+    this.renderDevice();
+  }
+
+  /** The report can be exported once the phone model is filled in */
+  canExport(): boolean {
+    return this.model.trim().length > 0;
+  }
+
   rows(): TrialRow[] {
     return trialRows(getSpreads(), this.game.state.progress.unlocked, this.infos);
   }
@@ -113,7 +170,15 @@ export class TrialPanel extends HTMLElement {
       bookTitle: getBook().title,
       appVersion: __VITE_APP_VERSION__,
       contentHash: getConfigVersion().hash ?? "",
-      device: navigator.userAgent,
+      device: {
+        model: this.model,
+        tester: this.tester,
+        source: this.prefill.source,
+        screen: screenLine(this.size),
+        os: osLine(navigator.userAgent, this.hints),
+        language: navigator.language,
+        userAgent: navigator.userAgent,
+      },
       camera: cameraLine(getCameraInfo() ?? this.lastCamera),
       date: new Date(),
     });
@@ -133,6 +198,7 @@ export class TrialPanel extends HTMLElement {
     if (signature === this.signature) return;
     this.signature = signature;
 
+    this.drawShell();
     const grid = this.shadow.querySelector(".grid");
     const scrollTop = grid?.scrollTop ?? 0;
     const left = countResults(rows).untested;
@@ -148,6 +214,38 @@ export class TrialPanel extends HTMLElement {
       </button>`;
     };
 
+    const bar = this.shadow.querySelector(".bar");
+    if (bar) {
+      bar.innerHTML = `
+        <button data-action="previous" aria-label="Previous spread">‹</button>
+        <button data-action="next" aria-label="Next spread">›</button>
+        <span class="left">${escapeHtml(spread ? `p. ${spread.title}` : "–")} · <b>${left}</b> not found</span>
+        <button data-action="download">md</button>
+        <button class="close" data-action="close" aria-label="Close">×</button>`;
+    }
+    this.renderExport();
+    // A fresh grid each time: a running smooth scroll and its listeners go with the old one
+    const fresh = document.createElement("div");
+    fresh.className = "body grid";
+    fresh.innerHTML = shown.map(tile).join("");
+    grid?.replaceWith(fresh);
+    fresh.scrollTop = scrollTop;
+    // A new current spread: bring its row into view (the tiles never move, the view follows the reader)
+    const ownTile = fresh.querySelector<HTMLElement>(".tile.own");
+    if (ownTile && current !== this.scrolledTo) {
+      this.scrolledTo = current;
+      this.scrollTarget = Math.max(0, ownTile.offsetTop - fresh.offsetTop - 4);
+    }
+    this.scrollToTarget(fresh);
+    this.renderCamera(getCameraInfo());
+  }
+
+  /**
+   * The strip's frame, drawn once: the bar and the grid are redrawn as the trial goes on, the device row keeps its
+   * fields (and what the tester is typing), the camera row is updated on its own.
+   */
+  private drawShell() {
+    if (this.shadow.querySelector(".bar")) return;
     this.shadow.innerHTML = `
       <style>
         ${SHEET_CSS}
@@ -170,27 +268,62 @@ export class TrialPanel extends HTMLElement {
         .tile.seen { border-color: #ff0; }
         .cam { flex: none; display: flex; align-items: center; gap: .25rem; padding: 0 .25rem .25rem; color: #ccc; }
         .cam .info { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .device { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; padding: .25rem; }
+        /* 16px: iOS zooms the page into smaller fields */
+        .device input, .device select { min-width: 0; height: 1.75rem; box-sizing: border-box; padding: 0 .25rem;
+          border: .0625rem solid #0f0; border-radius: .25rem; background: #000; color: #fff; font: 1rem/1 monospace; }
+        .device input[name="model"] { flex: 1 1 8rem; }
+        .device select { flex: none; width: 4.75rem; color: #0f0; }
+        .device input[name="tester"] { flex: none; width: 5.5rem; }
+        .device input::placeholder { color: #888; }
+        .device .hint { flex-basis: 100%; color: #ccc; }
+        .device .hint.need { color: #ff0; }
+        button.off { opacity: .4; }
       </style>
-      <div class="bar">
-        <button data-action="previous" aria-label="Previous spread">‹</button>
-        <button data-action="next" aria-label="Next spread">›</button>
-        <span class="left">${escapeHtml(spread ? `p. ${spread.title}` : "–")} · <b>${left}</b> not found</span>
-        <button data-action="download">md</button>
-        <button class="close" data-action="close" aria-label="Close">×</button>
+      <div class="bar"></div>
+      <div class="device">
+        <input name="model" aria-label="Phone model" placeholder="phone model" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <select name="pick" aria-label="Pick the phone model"></select>
+        <input name="tester" aria-label="Tester's initials (optional)" placeholder="initials" maxlength="16" autocomplete="off" spellcheck="false">
+        <span class="hint"></span>
       </div>
       <div class="cam"></div>
-      <div class="body grid">${shown.map(tile).join("")}</div>
+      <div class="body grid"></div>
     `;
-    const newGrid = this.shadow.querySelector<HTMLElement>(".grid");
-    if (newGrid) newGrid.scrollTop = scrollTop;
-    // A new current spread: bring its row into view (the tiles never move, the view follows the reader)
-    const ownTile = this.shadow.querySelector<HTMLElement>(".tile.own");
-    if (newGrid && ownTile && current !== this.scrolledTo) {
-      this.scrolledTo = current;
-      this.scrollTarget = Math.max(0, ownTile.offsetTop - newGrid.offsetTop - 4);
+    const model = this.shadow.querySelector<HTMLInputElement>('input[name="model"]');
+    const tester = this.shadow.querySelector<HTMLInputElement>('input[name="tester"]');
+    if (model) model.value = this.model;
+    if (tester) tester.value = this.tester;
+    this.renderDevice();
+  }
+
+  /** The pick list (an iPhone's screen-size guess first), then the md state and the hint */
+  private renderDevice() {
+    const pick = this.shadow.querySelector<HTMLSelectElement>('select[name="pick"]');
+    if (pick) {
+      const groups = pickList(this.prefill.candidates).map(({ group, models }) =>
+        `<optgroup label="${escapeHtml(group)}">${models.map(model => `<option>${escapeHtml(model)}</option>`).join("")}</optgroup>`);
+      pick.innerHTML = `<option value="">list</option>${groups.join("")}`;
+      pick.value = "";
     }
-    if (newGrid) this.scrollToTarget(newGrid);
-    this.renderCamera(getCameraInfo());
+    this.renderExport();
+  }
+
+  /** md waits for the phone model: dimmed until it is filled in, the hint says why */
+  private renderExport() {
+    const ready = this.canExport();
+    const download = this.shadow.querySelector<HTMLElement>('[data-action="download"]');
+    if (download) {
+      download.classList.toggle("off", !ready);
+      download.setAttribute("aria-disabled", String(!ready));
+      download.title = ready ? "Download the report" : "Enter the phone model first";
+    }
+    const hint = this.shadow.querySelector<HTMLElement>(".device .hint");
+    if (hint) {
+      hint.classList.toggle("need", !ready);
+      hint.textContent = [ready ? "" : "the phone model is needed for md", this.prefill.hint].filter(Boolean).join(" · ");
+      hint.hidden = !hint.textContent;
+    }
   }
 
   /**
@@ -250,8 +383,34 @@ export class TrialPanel extends HTMLElement {
       case "next":
         return this.step(1);
       case "download":
+        if (!this.canExport()) return this.shadow.querySelector<HTMLInputElement>('input[name="model"]')?.focus();
         return this.download();
     }
+  };
+
+  /** Typing into the model or initials field: remembered on the device at once */
+  private onInput = (event: Event) => {
+    const field = event.target as HTMLInputElement;
+    if (field.name === "model") {
+      this.model = field.value;
+      writeStored(TRIAL_MODEL_KEY, field.value.trim());
+      this.renderExport();
+    } else if (field.name === "tester") {
+      this.tester = field.value;
+      writeStored(TRIAL_TESTER_KEY, field.value.trim());
+    }
+  };
+
+  /** A model from the pick list goes into the model field (still editable), the list returns to its label */
+  private onPick = (event: Event) => {
+    const pick = event.target as HTMLSelectElement;
+    if (pick.name !== "pick" || !pick.value) return;
+    const field = this.shadow.querySelector<HTMLInputElement>('input[name="model"]');
+    if (field) field.value = pick.value;
+    this.model = pick.value;
+    writeStored(TRIAL_MODEL_KEY, pick.value);
+    pick.value = "";
+    this.renderExport();
   };
 
   private download() {
