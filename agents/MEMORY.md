@@ -69,7 +69,7 @@ outcome in the line (or move it into a dated decision block).
 - **The database**: `books.tutorial_json` is removed by a migration (`ALTER TABLE books DROP COLUMN tutorial_json`, both
   databases). RULES #25 forbade any DROP in the schema files; the brief asked for the column to go, so RULES #25 now has
   one narrow exception – a removed feature's column by name, skipped once gone (`Db::migrate`, the test's
-  `loadSchema`); never a table, never rows. **For Tilman to confirm** – the alternative was to keep a dead column.
+  `loadSchema`); never a table, never rows. **Tilman confirmed (2026-10-31): "If you can remove it do it."**
 - Removed: the editor's onboarding view and `OnboardingSteps.svelte`, the step logic of `book-texts.ts`,
   `GET`/`PUT …/tutorial`, the MCP tools `get_tutorial` / `update_tutorial`, `STEP_TIME_MAX` / `STEPS_MAX`, the content
   build's `steps/` reader (it warns while a source still has the folder), the engine's `getTutorial` and `Step`, the

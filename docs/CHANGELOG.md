@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.61.0 – 2026-10-30
 
 ### Added
 - **A search in the editor's top bar** (#237): it finds entries (title and text), spreads (title or a page number),
