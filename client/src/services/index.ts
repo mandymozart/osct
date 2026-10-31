@@ -7,6 +7,7 @@ export * from "./LinkService";
 export * from "./FeedbackService";
 export * from "./GraphicsService";
 export * from "./ServiceWorkerService";
+export * from "./UpdateService";
 export * from "./InstallService";
 export * from "./ApiService";
 export * from "./UserService";

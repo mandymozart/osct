@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ServiceWorkerService } from "../ServiceWorkerService";
+import { UpdateService } from "../UpdateService";
 
 describe("ServiceWorkerService", () => {
   afterEach(() => {
@@ -7,9 +8,10 @@ describe("ServiceWorkerService", () => {
     vi.unstubAllGlobals();
   });
 
+  const registration = { update: vi.fn() };
   const stubServiceWorker = () => {
-    const register = vi.fn().mockResolvedValue({});
-    vi.stubGlobal("navigator", { ...navigator, serviceWorker: { register } });
+    const register = vi.fn().mockResolvedValue(registration);
+    vi.stubGlobal("navigator", { ...navigator, serviceWorker: { register, controller: null, addEventListener: vi.fn(), removeEventListener: vi.fn() } });
     return register;
   };
 
@@ -28,5 +30,14 @@ describe("ServiceWorkerService", () => {
     window.dispatchEvent(new Event("load"));
     expect(register).toHaveBeenCalledTimes(1);
     expect(register).toHaveBeenCalledWith("/service-worker.js", { scope: "/" });
+  });
+
+  it("hands the registration to UpdateService, which asks it for new versions while the page stays open", async () => {
+    vi.stubEnv("PROD", true);
+    stubServiceWorker();
+    const watch = vi.spyOn(UpdateService.getInstance(), "watch").mockReturnValue(() => {});
+    ServiceWorkerService.register();
+    window.dispatchEvent(new Event("load"));
+    await vi.waitFor(() => expect(watch).toHaveBeenCalledWith(registration));
   });
 });

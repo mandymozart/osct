@@ -1,4 +1,4 @@
-import { GameStoreService, PreloaderService } from "@/services";
+import { GameStoreService, PreloaderService, UpdateService } from "@/services";
 import { type ArError, type ArStatus, CameraPermissionStatus, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
@@ -21,7 +21,8 @@ const showScanning = (scanning: boolean): void => {
  *   spreads kept ready next to the current one (the same window the tracker holds, `prepared-spreads.ts`).
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
  * tapping an entity opens its entry. The scene's `scanning` shows the reader's scanning indicator (`#osct-scanning`,
- * index.html) while tracking runs and nothing is found; an AR error's code picks the camera overlay. The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first
+ * index.html) while tracking runs and nothing is found; an AR error's code picks the camera overlay, a failed AR chunk
+ * also the new-version notice (`UpdateService`). The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first
  * scan, warmed up in idle time after startup); tests inject one via `sceneFactory`.
  */
 export class ArBridge extends HTMLElement {
@@ -80,7 +81,10 @@ export class ArBridge extends HTMLElement {
     const warmUp = () => {
       const timer = window.setTimeout(() => idle(() => {
         if (!this.isConnected) return;
-        void lazy.warmUp();
+        // A deploy may have removed the AR chunk under the open page: offer the reload before the reader scans
+        void lazy.warmUp().then(loaded => {
+          if (!loaded) UpdateService.getInstance().reportStaleCode();
+        });
         const spread = this.game.state.currentSpread;
         if (spread) void PreloaderService.getInstance().preloadSpread(spread);
       }), WARM_UP_DELAY_MS);
@@ -136,6 +140,9 @@ export class ArBridge extends HTMLElement {
 
     if (status === "error") {
       console.warn("[ArBridge] AR error:", error);
+      // The AR chunk did not load – a deploy may have removed it under the open page: the new-version notice offers
+      // a reload in place of the dead camera view (the next scan tries the chunk again)
+      if (error?.code === ErrorCode.AR_LOAD_FAILED) UpdateService.getInstance().reportStaleCode();
       // No picture from the camera: the overlay asks to reload / restart the browser.
       // Otherwise (denied / unavailable) refresh the permission state, which shows camera-permission-page.
       if (error?.code === ErrorCode.CAMERA_NOT_RESPONDING) this.game.camera.reportNotResponding();

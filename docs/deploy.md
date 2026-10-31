@@ -175,6 +175,37 @@ databases have no way out to the internet. The containers have fixed limits (pro
 database, staging half of that), so one app cannot starve the others. A database already running keeps its network
 until `kamal accessory reboot db -d <destination>`.
 
+## Open readers after a deploy
+
+The reader's service worker (`client/sw/service-worker.ts`, RULES #21) serves pages from the network, so a page opened
+after a deploy runs the new code. A deploy also builds a new worker; it skips waiting and takes over every open page at
+once, and it drops the old build's precached files. But a page that is already open keeps running the old code, and the
+browser looks for a new worker only on a navigation – which an open reader (a single-page app, or the installed app left
+open on a phone) never makes. So the reader asks itself (#231, `client/src/services/UpdateService.ts`):
+
+- **Looking for a new worker**: `registration.update()` whenever the tab becomes visible (at most once a minute) and
+  every 15 minutes while it is visible. Offline the check fails quietly and the next one asks again.
+- **Telling a new version from a takeover**: when a worker takes the page over (`controllerchange`), the page asks it
+  for its build (`client/sw/build-query.ts`: a message with a port, the worker answers with its build date – the same
+  `__VITE_BUILD_DATE__` the page carries). Only another build makes the page out of date; a worker that does not answer
+  within 3 s counts as another build. That keeps the notice off the first install and off a page opened after the
+  deploy, which the old worker still controlled until the new one took over.
+- **A code file that fails to load** – the deploy removed a lazy chunk the open page had not loaded yet – makes the page
+  out of date too: Vite's `vite:preloadError`, an unhandled failed dynamic import, and the AR chunk (`<ar-bridge>`
+  reports `ar-load-failed`, and a failed warm-up). Not while the device is offline – then it is the connection.
+- **The notice** (`<new-version-notice>`): *A new version of the app is ready* with **Reload** and a cross (*Later*), in
+  the four languages (`update` namespace). Shown only at a calm moment (`components/common/new-version.ts`): the start
+  and the consultation pages (entries, entry, Info) and the overlays – never while the camera or AR loads, starts or
+  runs, and not during the onboarding. In the scan view only once AR has failed: a missing AR chunk shows the notice
+  above the spread menu instead of a dead camera view. Hidden mid-scan, it comes back when the reader leaves the scan.
+  It **never reloads by itself**; *Later* hides it until a code file fails again or another version takes over.
+
+To see it locally: two builds of the reader served one after the other from the same origin (`127.0.0.1` counts as
+secure for a service worker), the page opened on the first; after switching to the second, bring the tab back into view
+a minute later (or call `registration.update()` in the console).
+
+The editor has its own check (the reader's worker leaves its pages alone): [Editor](editor.md), "A new version under an open tab".
+
 ## Day to day
 
 ```bash

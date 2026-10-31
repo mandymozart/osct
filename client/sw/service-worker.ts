@@ -17,7 +17,8 @@
  *   with the last content it saw.
  * - Editor pages (/editor, inside this scope): not handled, their requests go to the network as without a worker
  *   (sw/editor-clients.ts).
- * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code.
+ * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code. The page asks the
+ *   worker for its build (sw/build-query.ts) and, when it is another one, offers a reload (services/UpdateService.ts).
  */
 import { clientsClaim } from "workbox-core";
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from "workbox-precaching";
@@ -28,10 +29,12 @@ import type { WorkboxPlugin } from "workbox-core/types";
 import type { RouteHandlerCallback } from "workbox-core/types";
 import { RangeRequestsPlugin } from "workbox-range-requests";
 import { EditorClients, isEditorPage } from "./editor-clients";
+import { answerBuildQuery } from "./build-query";
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision: string | null }> };
 declare const __VITE_CONTENT_HASH__: string;
 declare const __VITE_CONTENT_BASE_URL__: string;
+declare const __VITE_BUILD_DATE__: string;
 
 const CONTENT_CACHE_PREFIX = "osct-content-";
 const CONTENT_CACHE = `${CONTENT_CACHE_PREFIX}${__VITE_CONTENT_HASH__.slice(0, 16)}`; // "cdn" in a CDN build
@@ -44,6 +47,11 @@ const MANIFEST_TIMEOUT_SECONDS = 5;
 
 self.skipWaiting();
 clientsClaim();
+
+// A page asks which build this worker serves: a takeover from another build offers the reader a reload
+self.addEventListener("message", event => {
+  answerBuildQuery(event.data, event.ports, __VITE_BUILD_DATE__);
+});
 
 // Must be the first fetch listener (before every route): the editor's pages and their requests are left to the browser
 const editorClients = new EditorClients(self.clients);

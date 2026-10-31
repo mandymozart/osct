@@ -5,7 +5,7 @@ import "@/i18n";
 import "@/components";
 import "@/pages";
 import type { IErrorPage } from "@/pages";
-import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, LocalDeviceStorage, ServiceWorkerService } from "@/services";
+import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, LocalDeviceStorage, ServiceWorkerService, UpdateService } from "@/services";
 import type {
   ErrorInfo,
   IGame,
@@ -27,6 +27,9 @@ staticSplash?.querySelector("img")?.setAttribute("alt", t("common:markAlt"));
 
 // Must run early: the browser fires its install prompt once, shortly after load (see InstallService)
 InstallService.getInstance().start();
+
+// A code file that fails to load (a deploy removed it under the open page) offers a reload (<new-version-notice>)
+UpdateService.getInstance().noticeStaleChunks();
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -93,7 +96,9 @@ export class BookGame extends HTMLElement {
     <loading-page active></loading-page>
 
     <ar-bridge></ar-bridge>
-    
+
+    <new-version-notice></new-version-notice>
+
     <debug-overlay></debug-overlay>
   `;
 
@@ -171,7 +176,7 @@ export class BookGame extends HTMLElement {
       // immediately for a link, else when the splash step's duration has elapsed
       this.game.finishLoading();
       void releaseStaticSplash({ wait: !linked });
-      // PWA: installable, offline app shell and seen content (production builds only)
+      // PWA: installable, offline app shell and seen content (production builds only); new versions under the open page
       ServiceWorkerService.register();
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
