@@ -15,6 +15,7 @@ import type { EntityData } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings, messageOf } from '../lib/errors';
 import type { PluginApi } from '../../../engine/src/scene/plugins';
+import { type Feedback, feedbackProblems, type FeedbackOptions, shadertoyFragment } from '../../../engine/src/scene/feedback-spec';
 
 /**
  * The book's own code (content schema 2.4, docs/plugins.md "Shipping it: the content build"): every folder
@@ -27,6 +28,8 @@ import type { PluginApi } from '../../../engine/src/scene/plugins';
  *      registry, so the nodes that use them are checked like the built-in `animation`; the node types it registers
  *      join the node type registry, so nodes of that type pass (their parameters and file checked); its materials and
  *      procedural textures (API 1.4) join theirs, so a node's `material` and a `texture` parameter are checked;
+ *      A feedback buffer (API 1.6, `api.feedback`) is no registration: the recording run checks its options and hands
+ *      out a dummy handle (a texture that never changes), so a plugin that makes one in `register` records like any;
  *   4. declares it in `game.config.json`: `plugins: [{ id, src, api, registered }]` – `registered` (schema 2.14) the
  *      specs of the components, layers, node types, passes, materials and textures it registered, so the guard, the
  *      editor's API, the MCP server and the Entity panel know them without running the plugin.
@@ -140,6 +143,23 @@ export async function bundlePlugin(id: string, entry: string): Promise<string | 
     return null;
   }
 }
+
+/** What `api.feedback` gives the recording run: a handle that never steps, its texture an empty one */
+export const dummyFeedback = (options: Partial<FeedbackOptions> | undefined): Feedback => {
+  const texture = new THREE.Texture();
+  return {
+    texture,
+    uniform: { value: texture },
+    uniforms: { ...(options?.uniforms ?? {}) },
+    width: Number(options?.width) || 1,
+    height: Number(options?.height) || 1,
+    type: options?.type ?? 'half',
+    frame: 0,
+    paused: true,
+    reset: () => undefined,
+    dispose: () => texture.dispose(),
+  };
+};
 
 /** A recorded spec as the configuration holds it: plain JSON (a plugin's spec object may carry more than data) */
 const plain = <T>(spec: T): T => JSON.parse(JSON.stringify(spec)) as T;
@@ -255,6 +275,13 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       spread: { current: null, get: () => undefined },
       // A file is loaded where a build runs (a material, a pass, a node type) – never while recording
       loadText: () => Promise.resolve(''),
+      // A feedback buffer (API 1.6) runs on a renderer: here its options are checked and a dummy stands in
+      feedback: (options: FeedbackOptions) => {
+        const problems = feedbackProblems(options);
+        if (problems.length) buildErrors.push(`plugins/${id}: api.feedback – ${problems.join('; ')}`);
+        return dummyFeedback(options);
+      },
+      shadertoy: (source: string) => shadertoyFragment(source),
       log: () => undefined,
     };
     (register as (api: PluginApi) => void)(recording);

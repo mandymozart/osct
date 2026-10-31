@@ -255,3 +255,41 @@ describe('a plugin\'s node types', () => {
     ]);
   }, 60000);
 });
+
+/** A plugin that makes a feedback buffer in register (API 1.6): the recording run hands out a dummy */
+const FEEDBACK = `import type { PluginApi } from "osct-plugin-api";
+export const register = (api: PluginApi): void => {
+  const fragment = api.shadertoy("void mainImage(out vec4 c, in vec2 p) { c = texture(iChannel0, p / iResolution.xy); }");
+  const fluid = api.feedback({ width: 64, height: 32, fragment, type: "float" });
+  if (!fluid.texture || fluid.uniform.value !== fluid.texture || fluid.width !== 64 || fluid.frame !== 0) throw new Error("not a handle");
+  fluid.reset();
+  fluid.dispose();
+  api.registerNodeType("painting", { description: "A painting.", params: {} }, ({ three }) => ({ object: new three.Group() }));
+};
+`;
+
+describe('a plugin\'s feedback buffers (API 1.6)', () => {
+  it('the recording run checks the options, hands out a dummy handle and records the plugin as any', async () => {
+    const build = await loadBuild(makeContent(nodeContent('    type: painting\n', FEEDBACK)));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const plugins = await build.plugins.buildPlugins();
+    build.buildAll();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    expect(plugins[0].data).toMatchObject({ api: '1.6', registered: { nodeTypes: { painting: { description: 'A painting.', params: {} } } } });
+    // Nothing of the buffer is recorded: it is no registration
+    expect(Object.keys(plugins[0].data.registered ?? {})).toEqual(['components', 'nodeTypes', 'passes']);
+
+    const main = await loadBuild(makeContent(nodeContent('    type: group\n', FEEDBACK.replace('"void mainImage', '"void main() {} void mainImage'))));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await main.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(main.errors).toEqual(['plugins/nodes: register failed – a Shadertoy pass has no main() of its own – the adapter adds it']);
+
+    const size = await loadBuild(makeContent(nodeContent('    type: group\n', FEEDBACK.replace('width: 64', 'width: 0').replace(' || fluid.width !== 64', ''))));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await size.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(size.errors).toEqual(['plugins/nodes: api.feedback – width is a whole number of pixels, 1–2048']);
+  }, 60000);
+});

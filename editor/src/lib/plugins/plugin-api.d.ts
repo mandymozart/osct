@@ -543,6 +543,58 @@ export interface TextureInstance {
 }
 /** Draws a procedural texture: a texture (a `CanvasTexture`, a `DataTexture`) or a `TextureInstance` */
 export type TextureDraw = (context: TextureContext) => TextureInstance | Texture | null | void;
+declare const FEEDBACK_TYPES: readonly [
+	"half",
+	"float",
+	"byte"
+];
+export type FeedbackType = (typeof FEEDBACK_TYPES)[number];
+/** What a channel reads: the buffer's own previous frame, another buffer's current one, a texture, or nothing */
+export type FeedbackChannel = "self" | Feedback | Texture | null;
+export interface FeedbackOptions {
+	/** Pixels across and down (1…2048) */
+	width: number;
+	height: number;
+	/** GLSL ES 3.0 with `void main()` writing `gl_FragColor`; the prelude declares the `i…` uniforms and `vUv` */
+	fragment: string;
+	/** The plugin's own uniforms (`{ name: { value } }`), declared in its fragment – kept by reference, change `.value` */
+	uniforms?: Record<string, {
+		value: unknown;
+	}>;
+	/** `iChannel0…3` in order; default `["self"]` (Buffer A reading itself) */
+	channels?: FeedbackChannel[];
+	/** The target's precision: `half` (default), `float` or `byte`; falls back where the device cannot render into it */
+	type?: FeedbackType;
+	/** Sampling of the buffer's texture: `linear` (default) or `nearest` */
+	filter?: "linear" | "nearest";
+	/** Outside 0…1: `clamp` (default) or `repeat` */
+	wrap?: "clamp" | "repeat";
+}
+/** The handle `api.feedback` returns */
+export interface Feedback {
+	/** The buffer's current frame – the last step's output; with ping-pong another texture after every step */
+	readonly texture: Texture;
+	/** `{ value: texture }`, kept current by every step: put it into a ShaderMaterial's uniforms and it follows */
+	readonly uniform: {
+		value: Texture;
+	};
+	/** Every uniform of the pass (the engine's `i…` and the plugin's own) */
+	readonly uniforms: Record<string, {
+		value: unknown;
+	}>;
+	readonly width: number;
+	readonly height: number;
+	/** The precision it got (after a fallback) */
+	readonly type: FeedbackType;
+	/** Steps done (`iFrame` of the next step) */
+	readonly frame: number;
+	/** Stop stepping by hand (it also pauses by itself while its node is hidden) */
+	paused: boolean;
+	/** Start again: `iFrame` and `iTime` back to 0 (the pass's own start, e.g. `if (iFrame < 10)`, runs again) */
+	reset(): void;
+	/** Free its render targets and its material; it never steps again */
+	dispose(): void;
+}
 /**
  * The plugin API (version `PLUGIN_API_VERSION`, docs/plugins.md): a book's own code
  * extends the engine without touching it. A plugin module exports `register(api)` and calls the registries –
@@ -568,6 +620,9 @@ export type TextureDraw = (context: TextureContext) => TextureInstance | Texture
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
  * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (API 1.5, #186).
+ * A **feedback buffer** (API 1.6, `feedback.ts`) is a fragment shader the engine runs once per frame into a render target
+ * of its own (`api.feedback`), its own previous frame as `iChannel0` – a fluid on the GPU without the renderer in the
+ * plugin's hands; `api.shadertoy(source)` turns a Shadertoy pass (`mainImage`) into its fragment.
  *
  * Registrations are kept per plugin id: installing a plugin again (the editor's Run) replaces what it registered
  * before; an exception in `register` leaves the previous registration in place. The reader loads the plugins the
@@ -698,6 +753,20 @@ export interface PluginApi {
 	 * runs: a material's `build`, a pass's factory, a node type's `build` (set the shader when it arrives, `needsUpdate`).
 	 */
 	loadText(url: string): Promise<string>;
+	/**
+	 * A GPU feedback buffer (API 1.6): `fragment` runs once per frame into a render target the engine keeps (two, swapped
+	 * every frame, while it reads its own previous frame – the channel `"self"`, the default `iChannel0`), before the scene
+	 * renders, with `iTime`, `iTimeDelta`, `iFrame`, `iResolution` and `iChannel0…3` set. Show `texture` – or put `uniform`
+	 * into a ShaderMaterial's uniforms, it follows every swap. Made in a node's build (a node type's, a component's, a
+	 * material's) it belongs to the node: it pauses while the node is hidden or its page is not in view, and goes with it.
+	 * Half-float targets by default, float on request – 8 bits where the device renders into neither (a warning).
+	 */
+	feedback(options: FeedbackOptions): Feedback;
+	/**
+	 * A Shadertoy pass as `feedback`'s fragment (API 1.6): its `mainImage(out vec4, in vec2)` source unchanged, called with
+	 * Shadertoy's `fragCoord`; `iTime`, `iFrame`, `iResolution`, `iChannel0…3` are the buffer's. Throws without `mainImage`.
+	 */
+	shadertoy(source: string): string;
 	/** To the console, prefixed with the plugin's id */
 	log(...args: unknown[]): void;
 }

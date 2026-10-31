@@ -61,12 +61,14 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   2.16 guard (it knows no such kind): a book whose plugins take textures needs a 2.17 app, and 2.18 adds nothing to the
  *   content (plugin API 1.5: `api.loadText`, a declared plugin built against it carries `api: "1.5"`), and since 2.19 the
  *   built-in component `behaviour` (rules without code, `./behaviour.ts`) – a 2.18 guard refuses a node that carries one
- *   (it knows no such component, as a 2.16 guard a `texture` parameter): a book with behaviours needs a 2.19 app. Any
- *   MINOR of the same MAJOR loads.
+ *   (it knows no such component, as a 2.16 guard a `texture` parameter): a book with behaviours needs a 2.19 app, and 2.20
+ *   adds nothing to the content (plugin API 1.6: `api.feedback`, a GPU feedback buffer, and `api.shadertoy` – a declared
+ *   plugin built against it carries `api: "1.6"`; a 2.19 app's engine has no `api.feedback`, so a build that calls it
+ *   fails and its node renders nothing). Any MINOR of the same MAJOR loads.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.19";
+export const CONTENT_SCHEMA_VERSION = "2.20";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 

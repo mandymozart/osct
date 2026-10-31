@@ -4,6 +4,41 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – plugin API 1.6: GPU feedback buffers, the demo's ink painting (#225)
+
+- **The engine owns the renderer; a plugin asks for a buffer.** `api.feedback` (engine/src/scene/feedback.ts) instead of
+  raw renderer access: the engine keeps the ping-pong targets and steps every live buffer once per drawn frame in
+  `ArView`'s loop, before `draw` (not in `draw` itself – `sample()` and `resize()` draw extra frames and would step twice).
+  Creation order is step order, so an Image pass made after its Buffer A reads A's new frame. One target, no ping-pong,
+  when the pass does not read `"self"`.
+- **Ownership by build scope**: a buffer made inside a node type's / material's `build` or a component's `apply`
+  (`collectFeedbacks`) belongs to that node – live only while it and every parent are visible up to the scene (the
+  anchor is hidden when a target is lost; another spread's nodes are disposed), disposed with the node. Made in
+  `register`, it belongs to the plugin and goes on uninstall. No hook in `ArScene` was needed.
+- **Precision**: `half` by default (WebGL2 renders into it with `EXT_color_buffer_float` or `_half_float`), `float` on
+  request (also needs `OES_texture_float_linear` for linear filtering), else `byte` with one warning. The view hands the
+  renderer to the module at once (`setFeedbackRenderer`) so a buffer gets its type when made; one made earlier falls back
+  at its first step and gets new targets (why `uniform` exists: it follows).
+- **Not recorded.** A buffer has no type and no spec – it is no registration. The recording run checks the options and
+  returns a dummy; `registered`, the guard, the server (`Plugins::REGISTERS` scans `register…("type")` calls only) and the
+  MCP content model's registrations stay as they were (the MCP texts mention the two functions). Schema 2.20 only because
+  `PLUGIN_API_VERSION` lives in shared/ (as 2.18 for `loadText`).
+- **Shadertoy adapter**: `api.shadertoy(source)` appends a `main` that calls `mainImage(c, vUv * iResolution.xy)` –
+  `vUv * iResolution` is the pixel centre, Shadertoy's `fragCoord`. three.js compiles every `ShaderMaterial` as GLSL ES
+  3.0 with `gl_FragColor` defined, so no `glslVersion: GLSL3` (that would drop the `pc_fragColor` define).
+- **The shader** (XlsBDf by trapcode, Tilman: Shadertoy's default CC BY-NC-SA 3.0 applies) is not stable on its own: at
+  60 fps its velocity saturates after 50–100 s without any input and the field breaks into stripes (measured: mean |v|²
+  0.38 at 3 000 steps, 22 at 12 000). A friction of `dt * 0.01` per step keeps it calm for 400 s with a tap every few
+  seconds (0.1). The tap's swirl draws the velocity towards a whirl (`mix`) instead of adding – the first version added
+  and blew up after a few taps. Both marked `demo:` in the plugin.
+- **Placement**: page 6 (*The switch* – interaction), under the screen, x 70 y 205 width 85 mm; the target picture is a
+  CPU port of the passes run 1 500 frames in a drawn frame (made in the worker's temp folder, not in the repository).
+- **Frame cost** (desktop, RTX 2070 SUPER, 300 synced steps): 0.023 ms at 256², 0.05 ms at 512², 0.17 ms at 1024²; 0.013 ms
+  main thread. The S22 was not connected – the phone figure in docs/plugins.md is an estimate (open item below).
+- [ ] Measure the ink painting on the S22 at 256 and 512 (#225).
+- Found in passing: `scripts/test/plugins.test.ts` deletes `client/public/assets/content/plugins/tint` after its run, so
+  a demo build served from that folder loses its `tint` until it is built again.
+
 ## 2026-10-31 – no Stage tab: the spread in the Inspector, the preview settings in the toolbar (#229)
 
 - **Tilman decided** (on a screenshot, the tree's spread row and the Stage tab: "These are the same. I'd like to remove

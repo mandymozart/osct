@@ -7,6 +7,28 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.53.0 – 2026-10-30
+
+### Added
+- **Plugin API 1.6: GPU feedback buffers** (#225): `api.feedback({ width, height, fragment, uniforms, channels, type })`
+  gives a plugin a fragment shader the engine runs once per frame into a render target of its own, before the scene
+  renders – its own last frame as `iChannel0` (two targets, swapped every frame), another buffer or a texture as further
+  channels, and `iTime`, `iTimeDelta`, `iFrame`, `iResolution` set. The handle's `texture` (and `uniform`, which follows
+  every swap) is the current frame. Half-float targets by default, float on request, 8 bits with a warning where the
+  device renders into neither. A buffer made while a node builds pauses while the node is hidden or its page is not in
+  view and is disposed with the node – in the reader and on the editor's stage alike. The plugin never gets the renderer.
+- **`api.shadertoy(source)`**: a Shadertoy pass (`mainImage`) as a feedback buffer's fragment, unchanged – the adapter
+  adds the `main`. `docs/plugins.md` has the helper and a "from Shadertoy" recipe.
+- **The demo's ink painting** (page 6): the plugin `fluid` with the node type `inkPainting` – a framed canvas standing on
+  the page whose ink keeps flowing, the Shadertoy fluid *XlsBDf* by trapcode (CC BY-NC-SA 3.0) on two feedback buffers. A
+  tap stirs the ink where it lands; *resolution* (256 / 512), *pen speed* and *ink dissipation* are its rows. About
+  0.02 ms of GPU time per frame at 256² and 0.05 ms at 512² on a desktop GPU. Credits in the plugin and in `DEMO.md`; the
+  tutorial shows it.
+
+### Changed
+- Content schema **2.20** (nothing new in the content: a plugin built against API 1.6 says so; the content build's
+  recording run hands out a dummy buffer and records nothing of it).
+
 ## 1.52.0 – 2026-10-30
 
 ### Changed

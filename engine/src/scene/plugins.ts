@@ -33,6 +33,7 @@ import { dropPluginListeners, nextRun, type PluginEvents, type PluginProgress, t
 import { type PassFactory, passRegistration, registerPass, unregisterPassesOf } from "./post/registry";
 import { deleteMaterialRegistration, type MaterialBuild, materialRegistration, setMaterialRegistration } from "./materials";
 import { deleteTextureRegistration, resolveTextures, sameTextures, setTextureRegistration, type TextureDraw, textureRegistration } from "./textures";
+import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback, type FeedbackOptions, type OwnedFeedbacks, shadertoyFragment } from "./feedback";
 
 /**
  * The plugin API (version `PLUGIN_API_VERSION`, docs/plugins.md): a book's own code
@@ -59,6 +60,9 @@ import { deleteTextureRegistration, resolveTextures, sameTextures, setTextureReg
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
  * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (API 1.5, #186).
+ * A **feedback buffer** (API 1.6, `feedback.ts`) is a fragment shader the engine runs once per frame into a render target
+ * of its own (`api.feedback`), its own previous frame as `iChannel0` – a fluid on the GPU without the renderer in the
+ * plugin's hands; `api.shadertoy(source)` turns a Shadertoy pass (`mainImage`) into its fragment.
  *
  * Registrations are kept per plugin id: installing a plugin again (the editor's Run) replaces what it registered
  * before; an exception in `register` leaves the previous registration in place. The reader loads the plugins the
@@ -197,6 +201,20 @@ export interface PluginApi {
    * runs: a material's `build`, a pass's factory, a node type's `build` (set the shader when it arrives, `needsUpdate`).
    */
   loadText(url: string): Promise<string>;
+  /**
+   * A GPU feedback buffer (API 1.6): `fragment` runs once per frame into a render target the engine keeps (two, swapped
+   * every frame, while it reads its own previous frame – the channel `"self"`, the default `iChannel0`), before the scene
+   * renders, with `iTime`, `iTimeDelta`, `iFrame`, `iResolution` and `iChannel0…3` set. Show `texture` – or put `uniform`
+   * into a ShaderMaterial's uniforms, it follows every swap. Made in a node's build (a node type's, a component's, a
+   * material's) it belongs to the node: it pauses while the node is hidden or its page is not in view, and goes with it.
+   * Half-float targets by default, float on request – 8 bits where the device renders into neither (a warning).
+   */
+  feedback(options: FeedbackOptions): Feedback;
+  /**
+   * A Shadertoy pass as `feedback`'s fragment (API 1.6): its `mainImage(out vec4, in vec2)` source unchanged, called with
+   * Shadertoy's `fragCoord`; `iTime`, `iFrame`, `iResolution`, `iChannel0…3` are the buffer's. Throws without `mainImage`.
+   */
+  shadertoy(source: string): string;
   /** To the console, prefixed with the plugin's id */
   log(...args: unknown[]): void;
 }
@@ -255,6 +273,7 @@ export class PluginError extends Error {
 export const uninstallPlugin = (id: string): void => {
   dropPluginListeners(id);
   removeRegistrations(id);
+  disposePluginFeedbacks(id);
 };
 
 const removeRegistrations = (id: string): void => {
@@ -364,6 +383,8 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       staged.textures.set(type, { spec, draw });
     },
     loadText: url => loadText(url),
+    feedback: options => createFeedback(id, options),
+    shadertoy: source => shadertoyFragment(source),
     log: (...args) => console.info(`[plugin ${id}]`, ...args),
   };
   try {
@@ -442,8 +463,10 @@ export const buildPluginNode = (
   // Texture parameters (API 1.4) arrive as three.js textures
   const textures = resolveTextures(registration.spec.params, params, `node type ${node.type} on ${target.id}`);
   let instance: NodeTypeInstance | null | void;
+  // The feedback buffers the build makes (API 1.6) belong to the node: they pause with it and go with it
+  let feedbacks: OwnedFeedbacks | null = null;
   try {
-    instance = registration.build({ node, params: textures.values, asset: file ? asset(file.id) : undefined, target, three: THREE });
+    [instance, feedbacks] = collectFeedbacks(() => registration.build({ node, params: textures.values, asset: file ? asset(file.id) : undefined, target, three: THREE }));
   } catch (error) {
     console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) failed on ${target.id}:`, error);
     failures.set(node.type, error instanceof Error ? `${error.name}: ${error.message}` : String(error));
@@ -455,11 +478,14 @@ export const buildPluginNode = (
       console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) returned no three.js object on ${target.id}`);
       failures.set(node.type, "its build returned no three.js object");
     }
+    feedbacks?.dispose();
     textures.dispose();
     return null;
   }
   failures.delete(node.type);
   const built = instance;
+  const owned = feedbacks;
+  owned?.own(built.object);
   let applied = params;
   return {
     ...built,
@@ -469,6 +495,7 @@ export const buildPluginNode = (
     },
     dispose: () => {
       built.dispose?.();
+      owned?.dispose();
       textures.dispose();
     },
     tune: next => {
@@ -547,13 +574,17 @@ export const applyComponents = (
   const parts = applied.map(({ registration, data }, i): ComponentInstance => {
     const textures = resolved[i];
     let part: ComponentInstance;
+    let feedbacks: OwnedFeedbacks | null = null;
     try {
-      part = registration.apply({ ...context, params: textures.values, three: THREE }) ?? {};
+      [part, feedbacks] = collectFeedbacks(() => registration.apply({ ...context, params: textures.values, three: THREE }) ?? {});
+      // The component's feedback buffers (API 1.6) pause with the node's object and go with it
+      feedbacks.own(context.object);
     } catch (error) {
       console.error(`[plugins] ${data.type} (plugin ${registration.plugin}) failed on ${context.target.id}:`, error);
       part = {};
     }
-    if (!Object.values(textures.values).some(value => value instanceof THREE.Texture)) return part;
+    const owned = feedbacks;
+    if (!Object.values(textures.values).some(value => value instanceof THREE.Texture) && !owned?.count) return part;
     return {
       ...part,
       update: delta => {
@@ -562,6 +593,7 @@ export const applyComponents = (
       },
       dispose: () => {
         part.dispose?.();
+        owned?.dispose();
         textures.dispose();
       },
     };

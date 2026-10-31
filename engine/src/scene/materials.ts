@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Material, type Mesh, type Object3D, type Texture } from "three";
 import { type EntityData, type MaterialSpec, resolveSpecParams, type Target } from "../types/index";
 import { resolveTextures, sameTextures } from "./textures";
+import { collectFeedbacks, type OwnedFeedbacks } from "./feedback";
 
 /**
  * A node's material of a plugin (plugin API 1.4, content schema 2.17 – `api.registerMaterial`): the node's
@@ -111,8 +112,11 @@ export const applyMaterial = (node: EntityData, object: Object3D, target: Target
   const textures = resolveTextures(registration.spec.params, raw, `material ${data.type} on ${target.id}`);
   const time = { value: 0 };
   let built: Material | MaterialInstance | null | void;
+  // The feedback buffers the build makes (plugin API 1.6) pause with the node's object and go with the material
+  let feedbacks: OwnedFeedbacks | null = null;
   try {
-    built = registration.build({ node, params: textures.values, time, map: mapOf(meshes), target, three: THREE });
+    [built, feedbacks] = collectFeedbacks(() => registration.build({ node, params: textures.values, time, map: mapOf(meshes), target, three: THREE }));
+    feedbacks.own(object);
   } catch (error) {
     console.error(`[materials] ${data.type} (plugin ${registration.plugin}) failed on ${target.id}:`, error);
     textures.dispose();
@@ -121,6 +125,7 @@ export const applyMaterial = (node: EntityData, object: Object3D, target: Target
   const instance: MaterialInstance | null = built instanceof Material ? { material: built } : built && built.material instanceof Material ? built : null;
   if (!instance) {
     console.error(`[materials] ${data.type} (plugin ${registration.plugin}) returned no three.js material on ${target.id}`);
+    feedbacks?.dispose();
     textures.dispose();
     return null;
   }
@@ -138,6 +143,7 @@ export const applyMaterial = (node: EntityData, object: Object3D, target: Target
     dispose: () => {
       meshes.forEach((mesh, i) => (mesh.material = originals[i]));
       instance.dispose?.();
+      feedbacks?.dispose();
       material.dispose();
       textures.dispose();
     },
