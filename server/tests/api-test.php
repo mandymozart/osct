@@ -1864,7 +1864,8 @@ try {
     check($status === 200 && $data['books'] === [], 'the editor API reads by cookie');
     [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'nl']);
     check($status === 403 && $data['error']['code'] === 'csrf', 'a cookie write without the CSRF token → 403 csrf');
-    [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'nl'], 'x' . substr($csrf, 1));
+    // a token that differs in its first character, whatever that character is
+    [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'nl'], ($csrf[0] === 'x' ? 'y' : 'x') . substr($csrf, 1));
     check($status === 403 && $data['error']['code'] === 'csrf', 'a wrong CSRF token → 403 csrf');
     [$status, $data] = browser($jar, $cookieApi, 'PATCH', '/user', ['language' => 'nl'], $csrf);
     check($status === 200 && $data['user']['language'] === 'nl', 'with the CSRF token the write goes through');
