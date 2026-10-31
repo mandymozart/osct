@@ -541,6 +541,9 @@ passes:
   plugin's as soon as the book is open (the build recorded it), a plugin you **Run** in the Code tab at once – shows its
   rows from the spec (labels, help, ranges, a `texture` row with the Library's pictures), moves it up and down, removes
   it, and previews it on the stage under *rendered*.
+- **A second example**: `fixtures/demo/plugins/scanlines` – `scanLines`, dark lines across the picture like an old screen
+  (line spacing, strength, scroll speed, `reach: all | ar`), on the demo's *The switch* with `enabled: false`: found in
+  the section, switched on with the toggle in its head.
 
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 
@@ -697,10 +700,11 @@ characters), keep it small
 
 ## The demo book: everything at once
 
-`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and ten plugins that
+`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and eleven plugins that
 together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
 own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, and a
-film grain pass over *The twins* (`plugins/grain`). Build it with
+film grain pass over *The twins* (`plugins/grain`) and a scan-line pass on *The switch*, switched off to be found
+(`plugins/scanlines`). Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.
