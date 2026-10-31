@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.54.2 – 2026-10-30
 
 ### Fixed
 - **The editor notices a new version under an open tab** (#230): a tab opened before a deploy kept the old code –
