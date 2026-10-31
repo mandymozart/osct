@@ -9,11 +9,11 @@ import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import { ApiError, type OsctApi } from "./api.ts";
-import { checkEntity, describeContentModel, usesPluginTypes, type BookModel } from "./model.ts";
+import { checkEntity, checkPasses, describeContentModel, usesPluginPasses, usesPluginTypes, type BookModel } from "./model.ts";
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { PASS_TYPES, passProblems, PRINT_SURFACES, SPREAD_FORMATS } from "../../shared/types/game-config";
+import { PASS_TYPES, PRINT_SURFACES, SPREAD_FORMATS } from "../../shared/types/game-config";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import type {
   AssetList,
@@ -100,14 +100,26 @@ const write = { readOnlyHint: false, destructiveHint: false, idempotentHint: tru
 const passSchema = z.object({ type: z.string().min(1) }).catchall(z.union([z.number(), z.string(), z.boolean()])).describe("a pass: { type, …parameters } (describe_content_model passes)");
 const passesSchema = z.array(passSchema);
 
-/** The contract's verdict over a passes list (built-in types, every parameter in range) as a tool error, or null */
-function refusePasses(passes: unknown, path: string): Result | null {
-  const problems = passProblems(passes, path);
-  if (!problems.length) return null;
-  return fail({
-    error: { code: "invalid-passes", message: `${path} does not match the content contract (nothing was sent).`, problems },
-    hint: `describe_content_model lists the passes (${PASS_TYPES.join(", ")}) with their parameters.`,
-  });
+/**
+ * The contract's verdict over a passes list (the built-in types and – schema 2.21 – the book's plugins' passes, every
+ * parameter in range) as a tool error, else the warnings for the answer. The book's plugins are read only when the list
+ * names a type that is not built in.
+ */
+async function checkPassWrite(passes: unknown, path: string, book: () => Promise<BookModel>): Promise<{ refused: Result | null; warnings: { warnings?: string[] } }> {
+  const { problems, unverified } = checkPasses(passes, path, usesPluginPasses(passes) ? await book() : undefined);
+  if (problems.length) {
+    return {
+      refused: fail({
+        error: { code: "invalid-passes", message: `${path} does not match the content contract (nothing was sent).`, problems },
+        hint: `describe_content_model { book } lists the passes (${PASS_TYPES.join(", ")} and the book's plugins') with their parameters.`,
+      }),
+      warnings: {},
+    };
+  }
+  return {
+    refused: null,
+    warnings: unverified.length ? { warnings: [`passes no recorded plugin provides: ${unverified.join(", ")} – a compiled plugin of the book must register them, else the publish is refused (unknown-passes)`] } : {},
+  };
 }
 
 /**
@@ -448,7 +460,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_spread",
     {
       description:
-        "Changes a spread: `title`, `format` (spread | cover | back – a cover is page 0, so a spread with other pages cannot become one: add_spread makes covers), `passes` = the spread's own post-processing that replaces the book's for this spread ([{ type, …parameters }], built-in types – describe_content_model passes; [] turns post-processing off here, null gives the spread the book's passes again). Send what changes; checked against the contract; a change is recorded.",
+        "Changes a spread: `title`, `format` (spread | cover | back – a cover is page 0, so a spread with other pages cannot become one: add_spread makes covers), `passes` = the spread's own post-processing that replaces the book's for this spread ([{ type, …parameters }], the built-in types and the passes of the book's plugins – describe_content_model { book } passes; [] turns post-processing off here, null gives the spread the book's passes again). Send what changes; checked against the contract; a change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         spread: ID.describe("the spread's id (get_book)"),
@@ -460,16 +472,20 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     },
     guard(async ({ book, spread, title, format, passes }) => {
       const body: Json = {};
+      let warnings: { warnings?: string[] } = {};
       if (title !== undefined) body.title = title;
       if (format !== undefined) body.format = format;
       if (passes !== undefined) {
-        const refused = passes === null ? null : refusePasses(passes, "passes");
-        if (refused) return refused;
+        if (passes !== null) {
+          const check = await checkPassWrite(passes, "passes", () => bookModel(book));
+          if (check.refused) return check.refused;
+          warnings = check.warnings;
+        }
         body.passes = passes;
       }
       if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send title, format or passes" } });
       const result = await api.call<SpreadSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`, body);
-      return text({ ...result, open: editorHref(links, book, spread) });
+      return text({ ...result, ...warnings, open: editorHref(links, book, spread) });
     }),
   );
 
@@ -493,15 +509,15 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_book_passes",
     {
       description:
-        "Sets the book's post-processing – the master chain every spread without its own passes shows: [{ type, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade – describe_content_model passes); [] = none; null removes it. A spread's own passes (put_spread) still replace it there. Checked against the contract; a change is recorded.",
+        "Sets the book's post-processing – the master chain every spread without its own passes shows: [{ type, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade, and the passes the book's plugins register – describe_content_model { book } passes); [] = none; null removes it. A spread's own passes (put_spread) still replace it there. Checked against the contract; a change is recorded.",
       inputSchema: z.object({ book: BOOK, passes: passesSchema.nullable() }),
       annotations: write,
     },
     guard(async ({ book, passes }) => {
-      const refused = passes === null ? null : refusePasses(passes, "passes");
-      if (refused) return refused;
+      const check = passes === null ? { refused: null, warnings: {} } : await checkPassWrite(passes, "passes", () => bookModel(book));
+      if (check.refused) return check.refused;
       const result = await api.call<BookPassesSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/passes`, { passes });
-      return text({ ...result, open: editorHref(links, book) });
+      return text({ ...result, ...check.warnings, open: editorHref(links, book) });
     }),
   );
 
@@ -572,7 +588,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "publish",
     {
       description:
-        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides (the Code tab's sources reach readers through the content build only). Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's. The other refusals: 400 invalid-env, invalid-note, invalid-replace; 404 not-found (no such book); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
+        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the book's or a spread's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's. The other refusals: 400 invalid-env, invalid-note, invalid-replace; 404 not-found (no such book); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
       inputSchema: z.object({ book: BOOK, env: z.string().regex(ENV_NAME).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },

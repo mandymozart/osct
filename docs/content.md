@@ -399,6 +399,9 @@ section while the spread is selected ([editor](editor.md)): the book's with `PUT
 `PUT …/spreads/{sid} { passes }`. Every built-in type is defined once in `shared/types/passes.ts` with its parameters,
 so the editor's Inspector, the build and the guard read one definition; missing parameters take the defaults. A
 spread without passes costs nothing – the scene renders straight to the canvas as before, the look-around world too.
+A list may also name **a pass of the book's plugins** (schema 2.21, below). **The phone budget** (#86): every pass is a
+full-screen render, the bloom several – up to three passes and one bloom per list; the build warns beyond (a plugin's
+pass counts like a built-in one), the editor's section says so too. The S22 measurement behind the number is still open.
 
 **The look-around world goes through the passes** ([look-around](look-around.md)): while passes run, the world around
 the reader and its sky (the onion sky included) are drawn into the chain's image under the AR layer, so a bloom
@@ -437,8 +440,27 @@ A pass of the book's own – a shader Kévin writes – registers with the engin
 three.js and `ShaderPass`, and returns a three `Pass` over the composer's buffers. The buffer holds the AR layer as
 premultiplied colour over alpha, in linear RGB, nothing of the camera picture: a pass keeps a texel's alpha unless it
 means to shade the camera picture too. The plugin API of the code editor ([editor](editor.md)) exposes the registry
-as `api.registerPass(type, spec, factory)`: the plugin's pass runs in the engine and leaves with the plugin. The content
-build and the guard still accept only the built-in pass types, so a spread cannot name a plugin's pass yet (#97).
+as `api.registerPass(type, spec, factory)`: the plugin's pass runs in the engine and leaves with the plugin.
+
+**A plugin's pass in `passes`** (content schema 2.21, #216): the book and a spread name it like a built-in one –
+`- type: filmGrain` with its parameters. The content build records every pass a plugin registers (`registered.passes`)
+and checks the list against those specs (a type no plugin of the book registers, a value out of range or an unknown
+parameter is an error, as with a built-in pass; a plugin may not take a built-in pass's name, nor two plugins the same
+one); the guard checks it against the recorded spec too and refuses a type no declared plugin recorded – unless a
+plugin of an older build recorded nothing. The engine builds it from the plugin's factory in its place in the list:
+a pass whose factory throws (or returns no pass) is logged and skipped, one whose `render` throws is logged and switched
+off – the rest of the chain runs. Its `texture` parameters arrive as textures, a feedback buffer its factory makes
+(`api.feedback`) steps while the pass runs. The editor's API accepts a pass the declared plugins recorded (any
+camelCase name while the book has Code tab sources); **the publish refuses a pass no compiled plugin provides** (409
+`unknown-passes`). **A 2.20 app refuses a book that names one** (its guard knows no plugin pass): such a book needs a
+2.21 app. The demo book's spread *The twins* carries one (`fixtures/demo/plugins/grain`).
+
+```yaml
+# content/spreads/the-twins/spread.yaml
+passes:
+  - type: filmGrain
+    amount: 0.12
+```
 
 ```yaml
 # content/spreads/cover/spread.yaml
@@ -676,6 +698,7 @@ the app version that first ships it. The last row is the current schema (a test 
 | 2.18 | 1.49.0 | in develop | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) |
 | 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) – a 2.18 app refuses a node that carries one |
 | 2.20 | 1.53.0 | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) – a 2.19 app's engine has none: a node type whose build calls it renders nothing |
+| 2.21 | next | in develop | a `passes` entry may name a pass a plugin of the book registers (`registerPass`), its parameters checked against the recorded spec (#216) – a 2.20 app refuses a book whose book or spread passes name one |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

@@ -36,8 +36,8 @@ nodes and pages, four more ("Across nodes and pages" below):
 - **`api.feedback({ width, height, fragment, … })`** (API 1.6) – a **feedback buffer**: a fragment shader the engine runs
   every frame into a render target of its own, its last frame as input – a fluid on the GPU ("A feedback buffer" below).
 - **`api.shadertoy(source)`** (API 1.6) – a Shadertoy pass (`mainImage`) as a feedback buffer's fragment.
-- **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture; the content build
-  checks and records it, but a spread or the book cannot name a plugin's pass in `passes` yet.
+- **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture: a spread or the
+  book names it in `passes` like a built-in pass (content schema 2.21, "A pass: film grain" below).
 - **`api.log(…)`** – to the console, prefixed with the plugin's id.
 
 A `spec` describes the parameters the author sets in the editor: every one with a `kind` (`number` with `min`
@@ -489,6 +489,59 @@ main-thread work for the two steps. A phone's GPU is some 20–50 times slower �
 real plugin with a renderer that records instead of drawing (`editor/src/lib/plugins/__tests__/ink-painting.test.ts`),
 the helper itself in `engine/src/scene/__tests__/feedback.test.ts`.
 
+## A pass: film grain (content schema 2.21)
+
+A pass runs over the whole rendered picture, after the scene and before it lies over the camera picture, in the order
+the `passes` list names – the built-in bloom, vignette and grade and yours alike. `fixtures/demo/plugins/grain` (the demo
+book's *The twins*, #216):
+
+```ts
+api.registerPass("filmGrain", {
+  description: "Film grain over the picture.",
+  params: {
+    amount: { kind: "number", default: 0.12, min: 0, max: 0.5, step: 0.01, label: "grain", description: "How strong." },
+    reach: { kind: "choice", options: ["all", "ar"], default: "all", description: "The whole picture, or the AR layer alone." },
+    pattern: { kind: "texture", default: "", description: "A picture as the grain instead of noise." },
+  },
+}, ({ params, three, shaderPass, pixelRatio }) => {
+  const uniforms = { uAmount: { value: Number(params.amount) }, uTime: { value: 0 }, /* … */ };
+  const pass = shaderPass(FRAGMENT, uniforms);             // tDiffuse (the picture so far) and vUv are defined
+  const render = pass.render.bind(pass);
+  pass.render = (renderer, write, read, delta, mask) => {  // the seconds since the last frame: the grain's clock
+    uniforms.uTime.value += delta ?? 0;
+    render(renderer, write, read, delta, mask);
+  };
+  return Object.assign(pass, { update: next => { uniforms.uAmount.value = Number(next.amount); } });
+});
+```
+
+```yaml
+# content/spreads/the-twins/spread.yaml
+passes:
+  - type: filmGrain
+    amount: 0.14
+```
+
+- **The factory** gets the parameters resolved (a `texture` parameter as a three.js texture or `null`), `three`,
+  `ShaderPass`, `shaderPass(fragment, uniforms)`, the canvas `size` and `pixelRatio`, and returns a three.js `Pass`.
+  `update(params)` takes new values in place – the editor's live edit; without it the pass is built anew on every change.
+- **The picture** in `tDiffuse` is the AR layer as premultiplied colour over alpha, in linear RGB – the camera picture is
+  not in it, it lies under the canvas. Keep a texel's alpha unless you mean to shade the camera picture too: the grain
+  with `reach: all` fades a pixel towards white or black and raises its alpha by as much (`rgb (1 − v) + K v`,
+  `a (1 − v) + v`), as the vignette does, so the specks lie on the camera picture as well.
+- **A feedback buffer** (`api.feedback`, API 1.6) made in the factory belongs to the pass: it steps while the pass runs
+  (not while the editor's stage shows the scene without passes) and goes with it – trails, a smear that remembers.
+- **When it fails**: a factory that throws, or returns no pass, is logged and skipped – the other passes run; a `render`
+  that throws is logged and the pass is switched off for the rest of the spread. A type no plugin of the book registers
+  is refused by the content build (and its parameters checked against the spec, like a built-in pass's), and by the
+  publish (409 `unknown-passes`); a reader older than content schema 2.21 refuses a book that names one.
+- **The phone**: every pass is at least one full-screen render, yours counted like the built-in ones – up to three passes
+  and one bloom per list; the build and the editor's section warn beyond (#86).
+- **In the editor** the spread's *post-processing* section offers your pass under *add pass · <plugin>* – a compiled
+  plugin's as soon as the book is open (the build recorded it), a plugin you **Run** in the Code tab at once – shows its
+  rows from the spec (labels, help, ranges, a `texture` row with the Library's pictures), moves it up and down, removes
+  it, and previews it on the stage under *rendered*.
+
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 
 A component knows its own node. A **narrative** needs more: a key found on one page opens a door on another, a lamp
@@ -588,7 +641,7 @@ Open a spread in the editor, **Code**, **+** for a new plugin (it starts with th
 of the book's. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
 `api.` and `api.three.` know every member), type errors underlined as the content build would report them, a hover
 shows a member's documentation. **Run** (Ctrl+Enter) shows it on the stage at once – a layer tints the video, a
-component appears under *add component* in the Inspector. A Run's errors show under the editor and on their line.
+component appears under *add component* in the Inspector, a pass under *add pass* in the spread's post-processing. A Run's errors show under the editor and on their line.
 **Save** (Ctrl+S) keeps the source in the editor's database for the next session.
 
 **Download** gives a zip with the plugin's folder: `index.ts`, `plugin-api.d.ts` (the module `osct-plugin-api`) and a
@@ -620,9 +673,10 @@ characters), keep it small
 
 ## The demo book: everything at once
 
-`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and nine plugins that
+`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and ten plugins that
 together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
-own node type), the aquarium with its material, texture and WebGPU fluid, and the ink painting on two feedback buffers. Build it with
+own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, and a
+film grain pass over *The twins* (`plugins/grain`). Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

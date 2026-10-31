@@ -48,10 +48,12 @@ export async function loadBuild(dirs: { content: string }) {
     import('../src/lib/hash'),
     import('../src/build/plugins'),
   ]);
-  /** book → spreads → entities → entries → target limit, like the content build */
-  const buildAll = () => {
-    const b = book.buildBook();
-    const s = spreads.buildSpreads();
+  const { recordedRegistrations } = await import('../../shared/types/plugins');
+  /** book → spreads → entities → entries → target limit, like the content build; `plugins` = what buildPlugins declared */
+  const buildAll = (plugins: readonly { registered?: unknown }[] = []) => {
+    const passes = recordedRegistrations(plugins).passes;
+    const b = book.buildBook(passes);
+    const s = spreads.buildSpreads(passes);
     const builds = entries.buildEntries(s, entities.buildEntities());
     targets.checkTargetsPerSpread(s, builds);
     return { book: b, spreads: s, entries: builds.map(x => x.entry), tutorial: tutorial.buildTutorial(b) };

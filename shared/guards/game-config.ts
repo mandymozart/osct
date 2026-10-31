@@ -61,7 +61,8 @@ export interface GuardOptions {
    * all recorded what they register (schema 2.14) checked against those specs and refused when none registers them;
    * with a plugin that recorded nothing (an older build) allowed – it registers them at load. Or always allowed
    * (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run). The same for a plugin's node
-   * type: checked against the recorded specs, refused when no declared plugin registers it, allowed where unknown.
+   * type: checked against the recorded specs, refused when no declared plugin registers it, allowed where unknown – and
+   * for a plugin's pass in `passes` (schema 2.21).
    */
   unknownComponentTypes?: "declared" | "allow";
 }
@@ -105,6 +106,14 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
   const theirs = isObject(root0.version) ? parseContentSchema(root0.version.schema) : null;
   const newerContent = !!theirs && (theirs.major > ours.major || (theirs.major === ours.major && theirs.minor > ours.minor));
   const refuseUnknownNodes = declared.length > 0 && recorded.complete && !newerContent;
+  // A plugin's pass (schema 2.21): checked against the recorded spec like a built-in pass; a type no declared plugin
+  // recorded is refused (as a 2.20 guard refuses every plugin pass), unless a plugin is unknown until it runs
+  const passOptions: PassCheckOptions = {
+    ...GUARD_PASSES,
+    spec: type => recorded.passes.get(type),
+    pluginTypes: [...recorded.passes.keys()],
+    unknownTypes: allowUnknown ? "allow" : "refuse",
+  };
 
   const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
@@ -181,7 +190,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
   if (book) {
     ["id", "title", "author"].forEach(key => str(book, key, "book"));
     str(book, "publisher", "book", true);
-    if (book.passes !== undefined) passProblems(book.passes, "book.passes", GUARD_PASSES).forEach(problem => problems.push(problem));
+    if (book.passes !== undefined) passProblems(book.passes, "book.passes", passOptions).forEach(problem => problems.push(problem));
     if (book.environment !== undefined) environmentProblems(book.environment, "book.environment", false).forEach(problem => problems.push(problem));
   }
 
@@ -199,7 +208,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (spread.format !== undefined && !(SPREAD_FORMATS as readonly unknown[]).includes(spread.format)) {
       fail(`${path}.format`, `"${spread.format}" is not one of ${SPREAD_FORMATS.join(", ")}`);
     }
-    if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`, GUARD_PASSES).forEach(problem => problems.push(problem));
+    if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`, passOptions).forEach(problem => problems.push(problem));
     if (typeof spread.id === "string") {
       if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);
       spreadIds.add(spread.id);

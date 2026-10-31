@@ -63,6 +63,16 @@ export const ownPasses = (draft: PassesDraft): PassesDraft => ({ ...draft, own: 
 /** *Back to the book's*: the override goes */
 export const backToBooks = (draft: PassesDraft): PassesDraft => ({ ...draft, own: null });
 
+/** The list with the pass at `index` moved by `by` places (−1 up, +1 down); a move past an end leaves it as it is */
+export const movePass = (list: readonly PassData[], index: number, by: number): PassData[] => {
+  const to = index + by;
+  if (index < 0 || index >= list.length || to < 0 || to >= list.length) return [...list];
+  const next = [...list];
+  const [pass] = next.splice(index, 1);
+  next.splice(to, 0, pass);
+  return next;
+};
+
 /** A change to the list in effect: the spread's own, or – while it uses the book's – the book's (every spread without its own) */
 export const editInEffect = (draft: PassesDraft, change: (list: PassData[]) => PassData[]): PassesDraft =>
   draft.own === null ? { ...draft, book: change(draft.book) } : { ...draft, own: change(draft.own) };

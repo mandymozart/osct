@@ -26,7 +26,9 @@ export * from "./feedback-spec";
  * - **Pause and ownership**: a buffer created while a node builds (a node type's `build`, a component's `apply`, a
  *   material's `build`) belongs to that node: it steps only while the node's object and every parent are visible in the
  *   scene (a lost target's anchor is hidden, another spread's nodes are gone) and is disposed with the node. One made
- *   elsewhere (in `register`, later in a hook) belongs to the plugin and goes when the plugin is uninstalled. A hidden
+ *   elsewhere (in `register`, later in a hook) belongs to the plugin and goes when the plugin is uninstalled. One made in
+ *   a post-processing pass's factory (content schema 2.21) belongs to the pass: it steps while the pass runs in a chain
+ *   that renders with its passes and goes when the chain drops or rebuilds the pass (`post/chain.ts`). A hidden
  *   page has no frames at all; `paused` on the handle stops one by hand.
  *
  * The view steps every live buffer in creation order (`stepFeedbacks`, from `ArView`'s loop – the reader's and the
@@ -69,6 +71,8 @@ class FeedbackBuffer implements Feedback {
   paused = false;
   /** The node object it belongs to (null: the plugin's – it runs while the plugin is installed) */
   owner: Object3D | null = null;
+  /** Held by the engine: a post-processing pass's buffer while its chain renders without passes (not `paused`, the plugin's) */
+  held = false;
   disposed = false;
   private targets: WebGLRenderTarget[];
   private read = 0;
@@ -152,7 +156,7 @@ class FeedbackBuffer implements Feedback {
 
   /** Visible in the scene: the owner and every parent up to a scene (a node not yet placed is not) */
   live(): boolean {
-    if (this.paused || this.disposed) return false;
+    if (this.paused || this.held || this.disposed) return false;
     if (!this.owner) return true;
     let object: Object3D | null = this.owner;
     while (object) {
@@ -234,9 +238,13 @@ export const stepFeedbacks = (renderer: FeedbackRenderer, delta: number): void =
   if (stepped) renderer.setRenderTarget(previous);
 };
 
-/** The buffers made while `build` runs belong to the node built: `own` gives them its object, `dispose` frees them */
+/**
+ * The buffers made while `build` runs belong to the node built: `own` gives them its object, `dispose` frees them. A
+ * post-processing pass's (made in its factory) have no object: `hold` stops them while the chain renders without passes.
+ */
 export interface OwnedFeedbacks {
   own(object: Object3D): void;
+  hold(held: boolean): void;
   dispose(): void;
   readonly count: number;
 }
@@ -248,6 +256,7 @@ export const collectFeedbacks = <T>(build: () => T): [T, OwnedFeedbacks] => {
   scope = made;
   const owned: OwnedFeedbacks = {
     own: object => made.forEach(buffer => (buffer.owner = object)),
+    hold: held => made.forEach(buffer => (buffer.held = held)),
     dispose: () => made.forEach(buffer => buffer.dispose()),
     get count() { return made.length; },
   };

@@ -1056,6 +1056,40 @@ try {
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the recorded plugins');
 
+    echo "editor: a plugin's pass (#216)\n";
+    // A pass the declared plugins recorded (schema 2.21) passes in a spread's and the book's list; another name is a typo
+    $scanning = $configuration;
+    $scanning['plugins'][0]['registered']['passes'] = ['scanLines' => ['description' => 'Scan lines.', 'params' => [
+        'lines' => ['kind' => 'number', 'default' => 200, 'min' => 10, 'max' => 800, 'description' => 'How many.'],
+    ]]];
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $scanning, 'files' => $files], $flags));
+    check($status === 200, 'import: a plugin with a recorded pass → 200');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s1', ['passes' => [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]]], $editor);
+    check($status === 200 && $data['spread']['passes'] === [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]], 'a spread names the recorded pass, in its place, its params kept');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'scanLine']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-passes' && str_contains($data['error']['message'], 'a plugin of the book registers (scanLines)'), 'a pass no declared plugin recorded → 400 naming the plugins\' passes');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'scanLines']]], $editor);
+    check($status === 200 && $data['passes'] === [['type' => 'scanLines']], 'the book\'s master names it too');
+    [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200, 'publish: a recorded plugin pass → 200');
+    // A Code tab source may register any pass: the save passes, the publish refuses one no compiled plugin provides
+    call($api, 'PUT', '/editor/books/osct/plugins/grain', ['source' => "export const register = (api) => api.registerPass('filmGrain', { description: 'x', params: {} }, ({ shaderPass }) => shaderPass('void main() {}'));\n"], $editor);
+    [$status] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => [['type' => 'filmGrain', 'amount' => 0.1]]], $editor);
+    check($status === 200, 'with a source in the Code tab, a pass it may register passes');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => [['type' => 'Film-grain']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a pass not named like a plugin\'s → 400 even with sources');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-passes' && $data['error']['passes'] === ['filmGrain'], 'publish: a pass no compiled plugin provides → 409 unknown-passes naming it');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/plugins/grain', null, $editor);
+    check($status === 409 && $data['error']['usages'] === [['kind' => 'spread', 'ref' => 's2']], 'a source whose pass a spread names is in use');
+    call($api, 'DELETE', '/editor/books/osct/plugins/grain?force=1', null, $editor);
+    // Without plugins a plugin's pass is refused
+    importing($api, 'osct', $editor, json_encode(['configuration' => $noPlugins, 'files' => $files], $flags));
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s1', ['passes' => [['type' => 'scanLines']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-spread' && str_contains($data['error']['message'], 'needs a plugin'), 'a book without plugins: a plugin pass → 400');
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'import again with the recorded plugins');
+
     echo "editor: assets\n";
     // A 1×1 PNG and a tiny glb-like file (the API checks the type by the name, not the bytes)
     $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
@@ -1494,7 +1528,7 @@ try {
     [$status] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => null], $editor);
     check($status === 200, 'the spread back to the book’s');
     [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
-    check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'passes' && $c['ref'] === 'osct')) === 2, 'the change log has both book passes edits');
+    check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'passes' && $c['ref'] === 'osct')) === 3, 'the change log has both book passes edits (and the plugin pass edit of #216)');
 
     echo "editor: the environment's world and sky as assets (content schema 2.10)
 ";

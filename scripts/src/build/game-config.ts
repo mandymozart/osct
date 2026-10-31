@@ -1,5 +1,5 @@
 import { assertGameConfiguration, GameConfigurationError } from '../../../shared/guards/game-config';
-import { CONTENT_SCHEMA_VERSION, type GameConfiguration, type PluginData } from '../../../shared/types/game-config';
+import { CONTENT_SCHEMA_VERSION, type GameConfiguration, type PluginData, recordedRegistrations } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { copyContentToPublic } from '../lib/files';
 import { buildBook } from './book';
@@ -15,8 +15,10 @@ import { buildTutorial } from './tutorial';
  * Build the final config object; `plugins` = the compiled plugins (build/plugins.ts), declared when there are any
  */
 export function buildConfig(versionStr: string, inputHash: string, plugins: PluginData[] = []): GameConfiguration {
-  const book = buildBook();
-  const spreads = buildSpreads();
+  // The passes the plugins recorded (schema 2.21): the book and a spread may name them
+  const pluginPasses = recordedRegistrations(plugins).passes;
+  const book = buildBook(pluginPasses);
+  const spreads = buildSpreads(pluginPasses);
   const entities = buildEntities();
   const builds = buildEntries(spreads, entities);
   checkTargetsPerSpread(spreads, builds);

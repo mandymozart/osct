@@ -154,13 +154,23 @@ final class Editor
      */
     public static function pluginMaterials(string $bookId): bool|array
     {
-        $json = Db::value('SELECT plugins_json FROM books WHERE id = :id', ['id' => $bookId]);
-        $declared = self::decode(is_string($json) ? $json : null);
-        return self::typesOf(is_array($declared) ? $declared : [], Plugins::hasSources($bookId), 'materials');
+        return self::pluginTypesOfBook($bookId, 'materials');
     }
 
     /**
-     * The types of a kind (`nodeTypes`, `materials`) the declared plugins and Code tab sources may register: the recorded
+     * The types of a kind (`materials`, `passes` – schema 2.21) a save in this book accepts: from the compiled plugins its
+     * configuration declares and its Code tab sources (`typesOf`)
+     * @return bool|list<string>
+     */
+    public static function pluginTypesOfBook(string $bookId, string $kind): bool|array
+    {
+        $json = Db::value('SELECT plugins_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $declared = self::decode(is_string($json) ? $json : null);
+        return self::typesOf(is_array($declared) ? $declared : [], Plugins::hasSources($bookId), $kind);
+    }
+
+    /**
+     * The types of a kind (`nodeTypes`, `materials`, `passes`) the declared plugins and Code tab sources may register: the recorded
      * ones when every declared plugin recorded what it registers and there are no sources; `true` when a plugin is unknown
      * until it runs; `false` without plugins
      * @param array<mixed> $declared

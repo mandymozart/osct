@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ENTITY_TYPES, PLUGIN_API_VERSION } from "../../shared/types/game-config";
-import { checkEntity, describeContentModel, knownPluginTypes, unknownComponentTypes, usesPluginTypes, type BookModel } from "../src/model.ts";
+import { checkEntity, checkPasses, describeContentModel, knownPluginTypes, unknownComponentTypes, usesPluginPasses, usesPluginTypes, type BookModel } from "../src/model.ts";
 import { pluginTypes } from "../../shared/api/rules";
 import { RULES } from "../src/resources.ts";
 import { VIDEO_ENTITY } from "./helpers.ts";
@@ -64,13 +64,30 @@ describe("checkEntity with a book – its plugins' types (#90)", () => {
       nodeTypes: { sparkle: { description: "Points.", params: { count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." } } } },
       materials: { water: { description: "Water.", params: { depth: { kind: "color", default: "#0b4f6c", description: "Deep." }, caustics: { kind: "texture", default: "", description: "Light." } } } },
       textures: { caustics: { description: "Light on the floor.", params: {} } },
+      passes: { scanLines: { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } } },
     },
   } as const;
+
+  it("checks a passes list (schema 2.21): a recorded plugin pass against its spec, a source's unverified, any other refused", () => {
+    expect(usesPluginPasses([{ type: "bloom" }])).toBe(false);
+    expect(usesPluginPasses([{ type: "bloom" }, { type: "scanLines" }])).toBe(true);
+    expect(checkPasses([{ type: "vignette" }, { type: "scanLines", lines: 300 }], "passes", book())).toEqual({ problems: [], unverified: [] });
+    expect(checkPasses([{ type: "scanLines", lines: 5 }, { type: "scanLine" }], "passes", book()).problems).toEqual([
+      "passes[0].lines: expected a number from 10 to 800, got 5",
+      'passes[1].type: "scanLine" is not one of bloom, vignette, grade or a pass of the book\'s plugins (scanLines)',
+    ]);
+    const withSource = book([{ id: "grain", components: [], layers: [], nodeTypes: [], passes: ["filmGrain"], materials: [], textures: [] }]);
+    expect(checkPasses([{ type: "filmGrain", amount: 0.1 }], "passes", withSource)).toEqual({ problems: [], unverified: ["filmGrain"] });
+    // A declared plugin that recorded nothing may register any pass
+    expect(checkPasses([{ type: "glow" }], "passes", book([], [recorded, { id: "old", src: "/o.js", api: "1.0" }]))).toEqual({ problems: [], unverified: ["glow"] });
+    // Without a book only the built-in passes
+    expect(checkPasses([{ type: "scanLines" }], "passes").problems).toEqual(['passes[0].type: "scanLines" is not one of bloom, vignette, grade']);
+  });
   const book = (sources: BookModel["sources"] = [], declared: BookModel["declared"] = [recorded]): BookModel => ({ declared, sources });
 
   it("knows what the declared plugins recorded and what the sources register; complete only without sources and with every plugin recorded", () => {
-    expect(knownPluginTypes(book())).toEqual({ components: ["tint"], nodeTypes: ["sparkle"], materials: ["water"], textures: ["caustics"], complete: true });
-    expect(knownPluginTypes(book([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [], materials: [], textures: [] }]))).toEqual({ components: ["tint", "glow"], nodeTypes: ["sparkle", "beam"], materials: ["water"], textures: ["caustics"], complete: false });
+    expect(knownPluginTypes(book())).toEqual({ components: ["tint"], nodeTypes: ["sparkle"], materials: ["water"], textures: ["caustics"], passes: ["scanLines"], complete: true });
+    expect(knownPluginTypes(book([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: ["grain"], materials: [], textures: [] }]))).toEqual({ components: ["tint", "glow"], nodeTypes: ["sparkle", "beam"], materials: ["water"], textures: ["caustics"], passes: ["scanLines", "grain"], complete: false });
     expect(knownPluginTypes(book([], [recorded, { id: "old", src: "/o.js", api: "1.0" }])).complete).toBe(false);
   });
 

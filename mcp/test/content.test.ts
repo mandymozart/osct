@@ -32,7 +32,7 @@ const ENTITIES = { entities: { castle: VIDEO_ENTITY } };
 const REGISTERED = {
   components: { tint: { description: "Tints.", nodeTypes: ["video"], params: { opacity: { kind: "number", default: 0.3, min: 0, max: 1, description: "How much." } } } },
   nodeTypes: { sparkle: { description: "Points.", params: { count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." } } } },
-  passes: {},
+  passes: { scanLines: { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } } },
 };
 
 const CONFIRMATION = "1900000000.0123456789abcdef0123456789abcdef";
@@ -366,9 +366,25 @@ describe("the content tools", () => {
     const bad = await rec.call("put_spread", { book: "osct", spread: "s2", passes: [{ type: "bloom", strength: 9 }, { type: "glow" }] });
     expect(bad.ok).toBe(false);
     expect(bad.data.error.code).toBe("invalid-passes");
-    expect(bad.data.error.problems).toEqual([expect.stringMatching(/^passes\[0\]\.strength/), expect.stringMatching(/^passes\[1\]\.type: "glow"/)]);
+    expect(bad.data.error.problems).toEqual([expect.stringMatching(/^passes\[0\]\.strength/), expect.stringMatching(/^passes\[1\]\.type: "glow" is not one of bloom, vignette, grade or a pass of the book's plugins \(scanLines\)/)]);
     expect((await rec.call("put_spread", { book: "osct", spread: "s2" })).ok).toBe(false);
-    expect(seen).toHaveLength(0);
+    // Only the book's plugins were read (a type that is not built in): nothing was written
+    expect(seen.filter(s => s.method !== "GET")).toHaveLength(0);
+  });
+
+  it("put_spread and put_book_passes take a plugin's pass the book's plugins recorded (#216), checked against its spec", async () => {
+    const ok = await rec.call("put_spread", { book: "osct", spread: "s2", passes: [{ type: "vignette" }, { type: "scanLines", lines: 300 }] });
+    expect(ok.ok).toBe(true);
+    expect(ok.data.warnings).toBeUndefined();
+    expect(seen.find(s => s.method === "PUT")).toMatchObject({ path: "/editor/books/osct/spreads/s2", body: { passes: [{ type: "vignette" }, { type: "scanLines", lines: 300 }] } });
+    seen.length = 0;
+    const bad = await rec.call("put_book_passes", { book: "osct", passes: [{ type: "scanLines", lines: 9000 }] });
+    expect(bad.data.error.problems).toEqual(["passes[0].lines: expected a number from 10 to 800, got 9000"]);
+    expect(seen.filter(s => s.method !== "GET")).toHaveLength(0);
+    // Built-in passes alone: the book's plugins are not read
+    seen.length = 0;
+    await rec.call("put_book_passes", { book: "osct", passes: [{ type: "bloom" }] });
+    expect(seen.map(s => s.method)).toEqual(["PUT"]);
   });
 
   it("delete_spread: the impact first, then with confirm everything on it goes; the opening spread is refused (#198)", async () => {

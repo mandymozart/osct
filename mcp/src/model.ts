@@ -18,7 +18,10 @@ import {
   MATERIAL_TYPE_PATTERN,
   NODE_SRC_KINDS,
   NODE_TYPE_PATTERN,
+  PASS_TYPES,
+  passProblems,
   PASSES,
+  type PassSpec,
   PLACEMENT_DEFAULTS,
   PLACEMENT_PARAMS,
   PLUGIN_API_VERSION,
@@ -48,6 +51,8 @@ export interface KnownPluginTypes {
   materials: string[];
   /** procedural textures (`registerTexture`), the same way */
   textures: string[];
+  /** post-processing passes (`registerPass`, a `passes` entry since schema 2.21), the same way */
+  passes: string[];
   /**
    * every plugin's registrations are known: each declared plugin recorded them (schema 2.14) and the book has no Code tab
    * source (a source's types are read from its text, which may miss one) – a type outside the lists is then a typo
@@ -64,8 +69,39 @@ export function knownPluginTypes(book: BookModel): KnownPluginTypes {
     nodeTypes: unique([...recorded.flatMap(r => Object.keys(r.nodeTypes ?? {})), ...book.sources.flatMap(s => s.nodeTypes)]),
     materials: unique([...recorded.flatMap(r => Object.keys(r.materials ?? {})), ...book.sources.flatMap(s => s.materials)]),
     textures: unique([...recorded.flatMap(r => Object.keys(r.textures ?? {})), ...book.sources.flatMap(s => s.textures)]),
+    passes: unique([...recorded.flatMap(r => Object.keys(r.passes ?? {})), ...book.sources.flatMap(s => s.passes)]),
     complete: book.declared.every(plugin => plugin.registered) && book.sources.length === 0,
   };
+}
+
+/** A passes list names a type that is not built in – only then the book's plugins matter */
+export function usesPluginPasses(passes: unknown): boolean {
+  return Array.isArray(passes) && passes.some(pass => typeof pass?.type === "string" && !(PASS_TYPES as readonly string[]).includes(pass.type));
+}
+
+/**
+ * The contract's check of a `passes` list (schema 2.21: a plugin's pass too): a pass the declared plugins recorded is
+ * checked against its spec like a built-in one; one a Code tab source registers (read from its text, no spec) passes,
+ * listed as unverified; any other is refused – unless a declared plugin recorded nothing (what it registers is unknown
+ * until it runs): then it passes, unverified, too. The publish refuses a pass no compiled plugin provides.
+ */
+export function checkPasses(passes: unknown, path: string, book?: BookModel): { problems: string[]; unverified: string[] } {
+  const specs = new Map<string, PassSpec>(
+    (book?.declared ?? []).flatMap(plugin => Object.entries(plugin.registered?.passes ?? {})),
+  );
+  const fromSources = new Set((book?.sources ?? []).flatMap(source => source.passes));
+  const unrecorded = (book?.declared ?? []).some(plugin => !plugin.registered);
+  const known = book ? knownPluginTypes(book).passes : [];
+  const allowed = (type: string) => fromSources.has(type) || (unrecorded && COMPONENT_TYPE_PATTERN.test(type));
+  const problems = passProblems(passes, path, { spec: type => specs.get(type), pluginTypes: known })
+    .filter(problem => {
+      const type = /\.type: "([^"]*)" is not one of/.exec(problem)?.[1];
+      return type === undefined || !allowed(type);
+    });
+  const unverified = Array.isArray(passes)
+    ? [...new Set(passes.map(pass => pass?.type).filter((type): type is string => typeof type === "string" && !(PASS_TYPES as readonly string[]).includes(type) && !specs.has(type) && allowed(type)))]
+    : [];
+  return { problems, unverified };
 }
 
 /** The checks of one entity (a node tree): the guard's problems, and the plugin types it could not verify */
@@ -271,9 +307,10 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     passes: {
       description:
-        "Post-processing over the whole rendered AR image: [{ type, …params }], run in order. The book's passes (put_book_passes) are the master every spread shows; a spread's own (put_spread passes) replace them for that spread, [] turns them off there, null gives the spread the book's again. The API takes the built-in types.",
+        "Post-processing over the whole rendered AR image: [{ type, …params }], run in order. The book's passes (put_book_passes) are the master every spread shows; a spread's own (put_spread passes) replace them for that spread, [] turns them off there, null gives the spread the book's again. " +
+        "The built-in types, and (content schema 2.21) a pass a plugin of the book registers (api.registerPass) – written the same way, its parameters checked against the recorded spec. A pass no compiled plugin provides is refused by the publish (409 unknown-passes); a 2.20 reader refuses a book that names one. Up to three passes and one bloom per list fit the phone budget.",
       builtIn: PASSES,
-      ...(book ? { plugins: recordedSpecs(book, "passes") } : {}),
+      ...(book ? { plugins: recordedSpecs(book, "passes"), known: known!.passes } : {}),
     },
     environment: {
       description:

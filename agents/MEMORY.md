@@ -4,6 +4,47 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – plugin passes in post-processing, content schema 2.21 (#216)
+
+- **Tilman asked** (2026-10-30): "Can I also ask to be able to add plugins to the post-processing pass?" #97 had wired
+  `api.registerPass` and the recording, but the guard, the API (`Books::PASS_TYPES`) and the editor knew the built-in
+  three only. Now a `passes` entry may name a pass a declared plugin **recorded** (`registered.passes`, schema 2.14) – the
+  same rule as a plugin's node type, component and material: checked against the recorded spec, refused when every
+  declared plugin recorded and none has it, allowed while one recorded nothing (older build) and on the editor's stage
+  (`unknownComponentTypes: "allow"`). A 2.20 guard refuses every pass type it does not know, so a book with one needs a
+  2.21 app (the content.md row says so). `PASS_TYPES` stays the built-in list in TS and PHP (the PHP pinning test
+  unchanged); `Books::PLUGIN_PASS_TYPE` is new and pinned against `COMPONENT_TYPE_PATTERN` (a pass's spec is checked with
+  `componentSpecProblems`). A recorded pass may not take a built-in pass's name (shared `registrationProblems`, the build).
+- **API**: `Editor::pluginTypesOfBook($bookId, $kind)` – `pluginMaterials`' query moved there, so no new SQL text (the
+  MariaDB run was skipped; CI runs it). A Code tab source lets any camelCase pass through (as for node types); the
+  publish refuses a pass no declared plugin recorded – 409 `unknown-passes` with `passes`, in the MCP's `PUBLISH_REFUSALS`.
+- **MCP is stricter than the API with sources**: a source's passes are read from its text (`pluginTypes`), and a pass
+  that is neither built in, recorded nor read from a source is refused before it is sent – unless a declared plugin
+  recorded nothing. A source's pass passes with a warning (no spec to check against).
+- **Engine**: `PostChain` keeps the registration per instance, so a pass whose plugin was Run again is built anew (before,
+  `update` would have fed the old factory's pass). A factory that throws or returns no `render` is logged and skipped;
+  a plugin pass's `render` is wrapped: a throw logs, switches the pass off (`enabled = false`) and sets `needsSwap` false
+  for that frame, so the next pass reads the image so far. `update` that throws → built anew. Texture parameters are
+  resolved like a component's (`resolveTextures`), freed with the pass, procedural ones advanced per frame; the
+  composer now gets the frame's delta (a plugin pass's clock – the demo grain counts with it). **Feedback buffers made
+  in a factory** are collected (`collectFeedbacks`) and belong to the pass: a new engine-side `held` flag (not the
+  plugin's `paused`) stops them while the chain is disabled (the editor outside *rendered*); they go when the pass goes.
+- **Phone budget** (#86 still unmeasured): `PASS_BUDGET` = three passes, one bloom, from the 2026-10-29 guideline – a
+  warning in the build, the engine's console (once per change) and the editor's section, never an error.
+- **Editor**: *add pass* rows per origin – built-in, then each plugin by id (`plugin-passes.ts`: the engine registry's
+  plugin passes first, then the declared plugins' records; `plugins.version` re-reads after a Run). Pass rows come from
+  the spec for every kind; the texture select became `TextureField.svelte`, shared with the Inspector's spec rows
+  (RULES #32: built once). **Reorder** (up / down arrows) is new for every pass – editor-only, no contract change.
+- **Not built, on purpose**: an *on / off* per pass. The brief said "like the built-in ones", but the built-in passes
+  have none – it would need a contract field (an `enabled` flag that a 2.20 guard ignores, a name a plugin's parameter
+  could collide with). Removing a pass is the off for now. *Make it code* for a built-in pass (optional in the issue)
+  is not built either.
+- **Demo**: `fixtures/demo/plugins/grain` – `filmGrain` (grain, size, speed, reach, pattern) on *The twins*, the spread
+  with the least going on. With `reach: all` a speck fades its pixel to white or black and raises the alpha by as much
+  (the vignette's rule), so the camera picture is grainy too.
+- [ ] Decide whether a pass gets an on / off of its own (a contract field) or removing it stays the off (#216).
+- [ ] Measure a plugin pass (the demo grain) with the built-in chain on the S22 – part of #86.
+
 ## 2026-10-31 – plugin API 1.6: GPU feedback buffers, the demo's ink painting (#225)
 
 - **The engine owns the renderer; a plugin asks for a buffer.** `api.feedback` (engine/src/scene/feedback.ts) instead of

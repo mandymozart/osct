@@ -12,6 +12,7 @@ import {
   materialSpecProblems, registerMaterialSpec, registerTextureSpec, textureSpecProblems, type MaterialSpec, type TextureSpec,
 } from '../../../shared/types/materials';
 import type { EntityData } from '../../../shared/types/game-config';
+import { isBuiltInPassType } from '../../../shared/types/passes';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings, messageOf } from '../lib/errors';
 import type { PluginApi } from '../../../engine/src/scene/plugins';
@@ -27,7 +28,8 @@ import { type Feedback, feedbackProblems, type FeedbackOptions, shadertoyFragmen
  *   3. runs the module once with a recording API: the components and material layers it registers join the
  *      registry, so the nodes that use them are checked like the built-in `animation`; the node types it registers
  *      join the node type registry, so nodes of that type pass (their parameters and file checked); its materials and
- *      procedural textures (API 1.4) join theirs, so a node's `material` and a `texture` parameter are checked;
+ *      procedural textures (API 1.4) join theirs, so a node's `material` and a `texture` parameter are checked; its
+ *      passes are recorded, so the book's and the spreads' `passes` may name them (schema 2.21, `build/book.ts`).
  *      A feedback buffer (API 1.6, `api.feedback`) is no registration: the recording run checks its options and hands
  *      out a dummy handle (a texture that never changes), so a plugin that makes one in `register` records like any;
  *   4. declares it in `game.config.json`: `plugins: [{ id, src, api, registered }]` – `registered` (schema 2.14) the
@@ -213,14 +215,20 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         take(type, spec);
         if (types.includes(type)) layerTypes.add(type);
       },
-      // The build checks a pass's spec and factory and records it. TODO: a spread may name the pass once the guard takes plugin pass types (#97)
+      // A pass: its spec and factory checked and recorded – the book and a spread name it in `passes` (schema 2.21,
+      // checked against the recorded spec); a built-in pass's name or one another plugin took is an error
       registerPass: (type: string, spec: ComponentSpec, factory: unknown) => {
-        const problems = componentSpecProblems(type, spec);
+        const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith('is a built-in component'));
+        const key = `pass:${type}`;
+        if (isBuiltInPassType(type)) problems.push(`the pass "${type}" is a built-in pass`);
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the pass "${type}" is registered by the plugin ${taken.get(key)} too`);
         if (typeof factory !== 'function') problems.push(`the pass ${type} needs a factory`);
         if (problems.length) {
           problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
           return;
         }
+        taken.set(key, id);
+        types.push(type);
         registered.passes[type] = plain({ description: spec.description, params: spec.params });
       },
       // A node type (API 1.2): its spec joins the registry, so the nodes of that type are checked (params, src)

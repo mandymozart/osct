@@ -436,8 +436,9 @@ export interface PluginSpread {
 /**
  * The pass registry: every post-processing type the engine can run – the built-in ones (`./bloom`, `./vignette`,
  * `./grade`, registered by `./index`) and a plugin's own, registered through the plugin API's `registerPass` with
- * the plugin as the owner. The content names passes by type (`passes: [{ type, …params }]`, `shared/types/passes.ts`);
- * `PostChain` builds them from here.
+ * the plugin as the owner. The content names passes by type (`passes: [{ type, …params }]`, `shared/types/passes.ts`) –
+ * a plugin's too since content schema 2.21, where a declared plugin recorded it; `PostChain` builds them from here, in
+ * the content's order, and skips one that cannot be built (logged).
  *
  * A pass is a three.js `Pass` (`render(renderer, writeBuffer, readBuffer)` over the composer's buffers): the read
  * buffer holds the AR layer as the scene rendered it – premultiplied colour over alpha, in linear RGB, nothing of
@@ -449,7 +450,10 @@ export interface PluginSpread {
  */
 /** What a pass factory gets */
 export interface PassContext {
-	/** The pass's parameters with the spec's defaults filled in */
+	/**
+	 * The pass's parameters with the spec's defaults filled in – a `texture` parameter as a three.js texture (a Library
+	 * picture, a procedural texture of a plugin) or null for none
+	 */
 	params: Record<string, unknown>;
 	/** The app's three.js (one instance – a plugin never imports three itself) */
 	three: typeof THREE;
@@ -466,7 +470,12 @@ export interface PassContext {
 		value: unknown;
 	}>): ShaderPass;
 }
-/** A registered pass: three's `Pass`, optionally with `update` for new parameter values in place (the editor's live edit) */
+/**
+ * A registered pass: three's `Pass`, optionally with `update` for new parameter values in place (the editor's live edit).
+ * `render` gets the seconds since the last frame as its fourth argument (an animated grain counts its time with it). A
+ * feedback buffer the factory makes (`api.feedback`, plugin API 1.6) belongs to the pass: it steps while the pass runs and
+ * goes with it.
+ */
 export interface PostPass extends Pass {
 	update?(params: Record<string, unknown>): void;
 	/**

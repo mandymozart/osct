@@ -84,6 +84,42 @@ describe("plugins in the configuration", () => {
       expect(problemsOf(withNode({ type: "sparkle", params: { count: 0 } }, [recorded, older]))).toEqual(["entities.fx.params.count: expected a number from 1 to 500, got 0"]);
     });
 
+    describe("a plugin's pass in passes (schema 2.21, #216)", () => {
+      const SCAN = { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } };
+      const scanning = { ...recorded, registered: { ...recorded.registered, passes: { scanLines: SCAN } } };
+      const withPasses = (plugins: unknown[], spread: unknown[], book?: unknown[]) => {
+        const c = at2_14({ plugins });
+        return { ...c, version: { ...c.version, schema: "2.21" }, book: { ...c.book, ...(book ? { passes: book } : {}) }, spreads: [{ ...c.spreads[0], passes: spread }] };
+      };
+
+      it("checks its parameters against the recorded spec, on a spread and on the book", () => {
+        expect(problemsOf(withPasses([scanning], [{ type: "vignette" }, { type: "scanLines", lines: 400 }], [{ type: "scanLines" }]))).toEqual([]);
+        expect(problemsOf(withPasses([scanning], [{ type: "scanLines", lines: 2 }], [{ type: "scanLines", lines: 900 }]))).toEqual([
+          "book.passes[0].lines: expected a number from 10 to 800, got 900",
+          "spreads[0].passes[0].lines: expected a number from 10 to 800, got 2",
+        ]);
+        // A parameter a newer MINOR adds is left to the newer app, as with a built-in pass
+        expect(problemsOf(withPasses([scanning], [{ type: "scanLines", later: 1 }]))).toEqual([]);
+      });
+
+      it("refuses a pass type no declared plugin recorded, naming the plugins' passes – as a 2.20 app refuses every plugin pass", () => {
+        expect(problemsOf(withPasses([scanning], [{ type: "scanLine" }]))).toEqual([
+          'spreads[0].passes[0].type: "scanLine" is not one of bloom, vignette, grade or a pass of the book\'s plugins (scanLines)',
+        ]);
+        expect(problemsOf(withPasses([], [{ type: "scanLines" }]))).toEqual(['spreads[0].passes[0].type: "scanLines" is not one of bloom, vignette, grade']);
+      });
+
+      it("lets it pass while a declared plugin recorded nothing (it registers its passes at load), or on the editor's stage", () => {
+        const older = { id: "old", src: "/assets/content/plugins/old/plugin.js", api: "1.0" };
+        expect(problemsOf(withPasses([scanning, older], [{ type: "grain" }]))).toEqual([]);
+        expect(() => assertGameConfiguration(withPasses([], [{ type: "grain" }]), { unknownComponentTypes: "allow" })).not.toThrow();
+      });
+
+      it("a recorded pass may not take a built-in pass's name", () => {
+        expect(pluginProblems([{ ...recorded, registered: { passes: { bloom: SCAN } } }])).toEqual(['plugins[0].registered.passes: "bloom" is a built-in pass']);
+      });
+    });
+
     it("checks the recorded specs themselves", () => {
       expect(pluginProblems([recorded])).toEqual([]);
       expect(pluginProblems([{ ...recorded, registered: { components: { tint: { ...TINT, params: { opacity: { kind: "number", default: 2, min: 0, max: 1, description: "x" } } } }, nodeTypes: [], passes: { scan: { params: {} } } } }])).toEqual([
