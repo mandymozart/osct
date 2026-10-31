@@ -50,5 +50,7 @@ describe("the spread view", () => {
     expect(passesState(null, null)).toBe("the whole book · none");
     expect(passesState([{ type: "bloom" }], [{ type: "vignette" }])).toBe("only this spread · vignette");
     expect(passesState([{ type: "bloom" }], [])).toBe("only this spread · off");
+    // A pass switched off (#233)
+    expect(passesState([{ type: "bloom", enabled: false }, { type: "grade" }], undefined)).toBe("the whole book · bloom off, grade");
   });
 });

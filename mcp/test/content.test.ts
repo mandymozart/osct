@@ -412,6 +412,19 @@ describe("the content tools", () => {
     expect(seen).toHaveLength(0);
   });
 
+  it("put_book_passes and put_spread take a pass that is off (enabled: false, #233); enabled is a boolean", async () => {
+    const off = [{ type: "bloom", enabled: false, strength: 0.35 }, { type: "vignette" }];
+    expect((await rec.call("put_book_passes", { book: "osct", passes: off })).ok).toBe(true);
+    expect(seen[0]).toMatchObject({ method: "PUT", path: "/editor/books/osct/passes", body: { passes: off } });
+    seen.length = 0;
+    expect((await rec.call("put_spread", { book: "osct", spread: "s2", passes: off })).ok).toBe(true);
+    expect(seen.find(s => s.method === "PUT")).toMatchObject({ path: "/editor/books/osct/spreads/s2", body: { passes: off } });
+    seen.length = 0;
+    // The tool's input schema refuses another type before anything is sent
+    await expect(rec.call("put_book_passes", { book: "osct", passes: [{ type: "bloom", enabled: "no" }] })).rejects.toThrow(/enabled/);
+    expect(seen).toHaveLength(0);
+  });
+
   it("put_environment: the world, the onion sky and their assets, checked; null removes it", async () => {
     const environment = { world: "cafe", onionSky: false, worldSrc: "http://api.test/api/content/assets/osct/w/room.glb" };
     const ok = await rec.call("put_environment", { book: "osct", environment });

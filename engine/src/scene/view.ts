@@ -16,7 +16,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import type { PassData } from "../types/index";
+import { enabledPasses, type PassData } from "../types/index";
 import { PostChain } from "./post/index";
 import { setFeedbackRenderer, stepFeedbacks } from "./feedback";
 
@@ -226,10 +226,10 @@ export class ArView {
 
   /**
    * The passes over the rendered scene (`passes` of the spread or the book), in order; an empty list frees the chain
-   * and the scene renders straight to the canvas again
+   * and the scene renders straight to the canvas again – as does a list whose passes are all off (#233)
    */
   setPasses(passes: readonly PassData[]): void {
-    if (!passes.length) {
+    if (!enabledPasses(passes).length) {
       this.post?.dispose();
       this.post = null;
     } else {

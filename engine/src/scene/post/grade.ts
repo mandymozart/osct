@@ -1,5 +1,5 @@
 import { Color, type Texture } from "three";
-import { type PassData, PASSES, resolvePass } from "../../types/index";
+import { enabledPasses, type PassData, PASSES, resolvePass } from "../../types/index";
 import type { MaskUsage, PassFactory, PostPass } from "./registry";
 
 /**
@@ -74,9 +74,9 @@ export const gradePass: PassFactory = ({ params, shaderPass }) => {
 
 export const GRADE_SPEC = PASSES.grade;
 
-/** The resolved parameters of the passes that grade the whole picture (`grade` with `reach: all`), in order */
+/** The resolved parameters of the passes that grade the whole picture (`grade` with `reach: all`, not off), in order */
 export const cameraGrades = (passes: readonly PassData[]): Record<string, unknown>[] =>
-  passes.filter(pass => pass.type === "grade").map(pass => resolvePass(GRADE_SPEC, pass)).filter(reachesAll);
+  enabledPasses(passes).filter(pass => pass.type === "grade").map(pass => resolvePass(GRADE_SPEC, pass)).filter(reachesAll);
 
 const glsl = (value: number) => (Number.isInteger(value) ? value.toFixed(1) : String(Math.round(value * 1e6) / 1e6));
 

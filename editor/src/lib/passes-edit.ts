@@ -1,4 +1,5 @@
-import type { PassData } from "@engine/types";
+import { isPassEnabled, type PassData } from "@engine/types";
+import { passOptionLabels, passValue, sameValue, type ValueRow } from "./values";
 
 /**
  * The post-processing panel's model: the book's passes are the master every spread shows; a
@@ -30,13 +31,14 @@ export const effectivePasses = (draft: PassesDraft): PassData[] => draft.own ?? 
 
 /**
  * The section's head (#181): the level in words – "post-processing · the whole book" / "· only this spread" –, and
- * "· off" for an empty list of the spread's own, "· none" while the book holds none
+ * "· off" for an empty list of the spread's own, "· none" while the book holds none, "· all off" while every pass is
+ * switched off (#233)
  */
 export const passesHeading = (draft: PassesDraft): string => {
   const list = effectivePasses(draft);
   const level = draft.own === null ? "the whole book" : "only this spread";
-  const empty = list.length ? "" : draft.own === null ? " · none" : " · off";
-  return `post-processing · ${level}${empty}`;
+  const state = list.length ? (list.some(isPassEnabled) ? "" : " · all off") : draft.own === null ? " · none" : " · off";
+  return `post-processing · ${level}${state}`;
 };
 
 /**
@@ -71,6 +73,35 @@ export const movePass = (list: readonly PassData[], index: number, by: number): 
   const [pass] = next.splice(index, 1);
   next.splice(to, 0, pass);
   return next;
+};
+
+/**
+ * The pass at `index` on or off (#233): off is `enabled: false` – the pass keeps its place and values, the chain skips it;
+ * on drops the field (a pass runs unless it says otherwise)
+ */
+export const setPassEnabled = (list: readonly PassData[], index: number, on: boolean): PassData[] =>
+  list.map((pass, i) => {
+    if (i !== index) return pass;
+    const { enabled: _, ...rest } = pass;
+    return on ? (rest as PassData) : { ...rest, enabled: false };
+  });
+
+/** How many values a closed pass's head names */
+const SUMMARY_VALUES = 2;
+
+/**
+ * The line a closed pass shows after its type (#233): the values set away from the default, at most two, as
+ * "strength 0.35 · radius 0.6" – else its first parameter's value; nothing for a pass without parameters
+ */
+export const passSummary = (pass: PassData, rows: readonly ValueRow[]): string | undefined => {
+  const words = (row: ValueRow) => {
+    const value = passValue(pass, row);
+    const shown = row.kind === "choice" ? passOptionLabels(pass, row)[String(value)] ?? String(value) : row.kind === "texture" && value === "" ? "none" : String(value);
+    return `${row.label} ${shown}${row.unit && row.kind === "number" ? ` ${row.unit}` : ""}`;
+  };
+  const set = rows.filter(row => !sameValue(passValue(pass, row), row.default));
+  const named = (set.length ? set : rows.slice(0, 1)).slice(0, SUMMARY_VALUES).map(words);
+  return named.length ? named.join(" · ") : undefined;
 };
 
 /** A change to the list in effect: the spread's own, or – while it uses the book's – the book's (every spread without its own) */

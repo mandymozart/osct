@@ -1,14 +1,15 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import { trackUnsaved } from "#lib/unsaved.js";
-  import { passBudgetWarning, type PassData } from "@engine/types";
+  import { isPassEnabled, passBudgetWarning, type PassData } from "@engine/types";
   import { errorText, putBookPasses, putSpread } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
-    backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, movePass, ownPasses, passesHeading, passesSource, pendingSaves,
-    saveLabel, spreadsOnBooks, type PassesDraft, type PassesSource,
+    backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, movePass, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
+    saveLabel, setPassEnabled, spreadsOnBooks, type PassesDraft, type PassesSource,
   } from "#lib/passes-edit.js";
+  import { sections } from "#lib/sections.svelte.js";
   import { livePassGroups, passPluginOf, passSpecOf } from "#lib/plugin-passes.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { helpName, passOptionLabels, passRows, passValue, setPassValue, type ValueRow } from "#lib/values.js";
@@ -18,6 +19,7 @@
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Section from "#lib/components/Section.svelte";
   import TextureField from "#lib/components/TextureField.svelte";
+  import Toggle from "#lib/components/Toggle.svelte";
 
   /**
    * The **post-processing**: the passes over the rendered image in order – the built-in bloom,
@@ -27,7 +29,10 @@
    * shown is the one in effect – while the spread uses the book's, editing it edits the book's (every spread without its
    * own). The level is unmistakable (#181): the head names it ("post-processing · the whole book" / "· only this spread"),
    * the line under it says what editing changes (all N spreads that use the book's, or this spread's override) with the
-   * switch to the other, and Save says what it saves. A pass moves up and down in the list or goes. *add pass* offers the
+   * switch to the other, and Save says what it saves. Each pass is a collapsible section of its own (#233): closed, its
+   * head names the type and its values set ("bloom · strength 0.35"); the head's toggle switches it on and off without
+   * opening it (off keeps its place and values, the chain skips it), and it moves up and down in the list or goes. A
+   * pass added opens. *add pass* offers the
    * built-in passes and each plugin's under its id – the declared plugins' (recorded, or loaded on the stage) and a plugin
    * run in the Code tab at once (`plugins.version`). A list beyond the phone budget says so (#86). Changes show live on
    * the stage (under *rendered*), the draft stays unchanged until **Save** writes what changed: the book's list
@@ -62,13 +67,14 @@
   /** Per pass shown: its rows, the plugin it belongs to and its description (the registry follows a Run) */
   const passes = $derived.by(() => {
     void plugins.version;
-    return shown.map((pass, i) => ({
-      pass,
-      rows: passRows(pass, i),
-      plugin: passPluginOf(pass.type),
-      description: passSpecOf(pass.type)?.description,
-    }));
+    return shown.map((pass, i) => {
+      const rows = passRows(pass, i);
+      return { pass, rows, summary: passSummary(pass, rows), plugin: passPluginOf(pass.type), description: passSpecOf(pass.type)?.description };
+    });
   });
+  /** A pass's section: by its place in the list – a move or a removal carries the open state along */
+  const passSection = (index: number) => `stage.passes.${index}`;
+  const isPassOpen = (index: number) => sections.isOpen(passSection(index), false);
   const budget = $derived(passBudgetWarning(shown));
 
   // A spread switch, the draft arriving or reloading: start from the draft – unless the same spread has unsaved edits
@@ -97,9 +103,25 @@
   };
   const set = (index: number, row: ValueRow, value: number | string) =>
     apply(editInEffect(edit, list => list.map((pass, i) => (i === index ? setPassValue(pass, row, value) : pass))));
-  const add = (type: string) => apply(editInEffect(edit, list => [...list, { type }]));
-  const remove = (index: number) => apply(editInEffect(edit, list => list.filter((_, i) => i !== index)));
-  const move = (index: number, by: number) => apply(editInEffect(edit, list => movePass(list, index, by)));
+  const add = (type: string) => {
+    sections.setOpen(passSection(shown.length), true);
+    apply(editInEffect(edit, list => [...list, { type }]));
+  };
+  const remove = (index: number) => {
+    for (let i = index; i < shown.length - 1; i++) sections.setOpen(passSection(i), isPassOpen(i + 1));
+    sections.setOpen(passSection(shown.length - 1), false);
+    apply(editInEffect(edit, list => list.filter((_, i) => i !== index)));
+  };
+  const move = (index: number, by: number) => {
+    const to = index + by;
+    if (to >= 0 && to < shown.length) {
+      const open = isPassOpen(index);
+      sections.setOpen(passSection(index), isPassOpen(to));
+      sections.setOpen(passSection(to), open);
+    }
+    apply(editInEffect(edit, list => movePass(list, index, by)));
+  };
+  const switchPass = (index: number, on: boolean) => apply(editInEffect(edit, list => setPassEnabled(list, index, on)));
   const choose = (next: PassesSource) => {
     if (next !== source) apply(next === "spread" ? ownPasses(edit) : backToBooks(edit));
   };
@@ -143,16 +165,17 @@
     <button type="button" class="text-link" title="Drop this spread's override: it shows the book's passes again" onclick={() => choose("book")}>back to the book's</button>
   {/if}
 </div>
-{#each passes as { pass, rows, plugin, description }, i (i)}
-  <div class="row" data-help-name={plugin ? `${pass.type} · ${plugin}` : pass.type}
-    data-help={description ? (plugin ? `${description} – a pass of the plugin ${plugin}.` : description) : "A plugin's pass that no plugin of the book registers here – Run its plugin in the Code tab, or remove it."}>
-    <span class="label pass">{pass.type}</span>
-    <span class="controls">
+{#each passes as { pass, rows, summary, plugin, description }, i (i)}
+  {@const on = isPassEnabled(pass)}
+  <Section id={passSection(i)} label={pass.type} {summary} open={false} nested enabled={on} onenabled={next => switchPass(i, next)}
+    enabledLabel="{pass.type} on or off"
+    help={`${description ? (plugin ? `${description} – a pass of the plugin ${plugin}.` : description) : "A plugin's pass that no plugin of the book registers here – Run its plugin in the Code tab, or remove it."} On or off in its head: off keeps the pass and its values in the list, the chain skips it.`}>
+    {#snippet aside()}
       {#if plugin}<span class="small muted plugin" title="A pass of the plugin {plugin}">{plugin}</span>{/if}
       <button type="button" class="icon-button" aria-label="Move {pass.type} up" title="Earlier in the chain" disabled={i === 0} onclick={() => move(i, -1)}><Icon name="up" /></button>
       <button type="button" class="icon-button" aria-label="Move {pass.type} down" title="Later in the chain" disabled={i === passes.length - 1} onclick={() => move(i, 1)}><Icon name="down" /></button>
       <button type="button" class="text-link" onclick={() => remove(i)}>remove</button>
-    </span></div>
+    {/snippet}
   {#each rows as row (row.id)}
     <!-- The parameter's words (#173): its spec's label, else its name split into words -->
     <div class="row" class:changed={passValue(pass, row) !== (savedShown[i]?.type === pass.type ? passValue(savedShown[i], row) : row.default)} data-help-name="{pass.type} · {helpName(row)}" data-help="{row.description} – default {row.default === '' ? 'none' : row.default}">
@@ -160,8 +183,7 @@
       {#if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(passValue(pass, row))} labels={passOptionLabels(pass, row)} onchange={v => set(i, row, v)} /></span>
       {:else if row.kind === "boolean"}
-        {@const on = passValue(pass, row) === "true"}
-        <span class="controls"><button type="button" class="pill" class:on aria-pressed={on} onclick={() => set(i, row, on ? "false" : "true")}>{on ? "on" : "off"}</button></span>
+        <span class="controls"><Toggle on={passValue(pass, row) === "true"} label={row.label} onchange={value => set(i, row, value ? "true" : "false")} /></span>
       {:else if row.kind === "string"}
         <input class="field" value={String(passValue(pass, row))} aria-label={row.label} oninput={e => set(i, row, (e.currentTarget as HTMLInputElement).value)} />
       {:else if row.kind === "texture"}
@@ -174,6 +196,7 @@
       {/if}
     </div>
   {/each}
+  </Section>
 {/each}
 {#if budget}
   <div class="row" data-help-name="Phone budget" data-help="Every pass is a full-screen render on the phone, a bloom several: up to three passes and one bloom fit (#86). The content build warns too."><span class="small muted">{budget}</span></div>
@@ -204,8 +227,9 @@
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .label.sub { padding-left: .5rem; }
-  .label.pass { color: var(--text); }
-  .plugin { margin-right: auto; }
+  .plugin { max-width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* A narrow panel keeps the head's room for the pass's values: the plugin is named in the help and under add pass */
+  @container panel (max-width: 26rem) { .plugin { display: none; } }
   .level { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5rem; min-height: var(--control-height); flex-shrink: 0; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }

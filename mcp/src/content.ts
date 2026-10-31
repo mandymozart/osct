@@ -97,7 +97,8 @@ const printSchema = z
 const read = { readOnlyHint: true, openWorldHint: false };
 const write = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
-const passSchema = z.object({ type: z.string().min(1) }).catchall(z.union([z.number(), z.string(), z.boolean()])).describe("a pass: { type, …parameters } (describe_content_model passes)");
+const passSchema = z.object({ type: z.string().min(1), enabled: z.boolean().optional() }).catchall(z.union([z.number(), z.string(), z.boolean()]))
+  .describe("a pass: { type, enabled?, …parameters } – enabled: false switches it off, keeping its values (describe_content_model passes)");
 const passesSchema = z.array(passSchema);
 
 /**
@@ -460,7 +461,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_spread",
     {
       description:
-        "Changes a spread: `title`, `format` (spread | cover | back – a cover is page 0, so a spread with other pages cannot become one: add_spread makes covers), `passes` = the spread's own post-processing that replaces the book's for this spread ([{ type, …parameters }], the built-in types and the passes of the book's plugins – describe_content_model { book } passes; [] turns post-processing off here, null gives the spread the book's passes again). Send what changes; checked against the contract; a change is recorded.",
+        "Changes a spread: `title`, `format` (spread | cover | back – a cover is page 0, so a spread with other pages cannot become one: add_spread makes covers), `passes` = the spread's own post-processing that replaces the book's for this spread ([{ type, enabled?, …parameters }] – enabled: false switches one pass off and keeps its values –, the built-in types and the passes of the book's plugins – describe_content_model { book } passes; [] turns post-processing off here, null gives the spread the book's passes again). Send what changes; checked against the contract; a change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         spread: ID.describe("the spread's id (get_book)"),
@@ -509,7 +510,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_book_passes",
     {
       description:
-        "Sets the book's post-processing – the master chain every spread without its own passes shows: [{ type, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade, and the passes the book's plugins register – describe_content_model { book } passes); [] = none; null removes it. A spread's own passes (put_spread) still replace it there. Checked against the contract; a change is recorded.",
+        "Sets the book's post-processing – the master chain every spread without its own passes shows: [{ type, enabled?, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade, and the passes the book's plugins register – describe_content_model { book } passes); enabled: false switches one pass off, keeping its place and values; [] = none; null removes it. A spread's own passes (put_spread) still replace it there. Checked against the contract; a change is recorded.",
       inputSchema: z.object({ book: BOOK, passes: passesSchema.nullable() }),
       annotations: write,
     },

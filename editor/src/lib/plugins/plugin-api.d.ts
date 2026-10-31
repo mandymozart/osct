@@ -158,6 +158,8 @@ export interface PassSpec {
 }
 interface PassData {
 	type: string;
+	/** Optional (schema 2.22, #233): `false` switches the pass off – it keeps its place and values, the chain skips it */
+	enabled?: boolean;
 	[param: string]: unknown;
 }
 declare const NODE_SRC_KINDS: readonly [

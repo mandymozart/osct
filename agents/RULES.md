@@ -393,7 +393,12 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     **Explanations are help, not panel text** (Tilman, 2026-10-30, #133): what a control does is its help in the
     **Info view** (`data-help` / `data-help-name`, or its `title` – `editor/src/lib/help.svelte.ts`), never a hint line
     in a panel; panels show values, states and errors only. Long panels are collapsible sections (`Section.svelte`,
-    open state per section).
+    open state per section). **What can be switched as a whole is a section with a toggle in its head** (Tilman,
+    2026-10-31, #233: "In principle in the UI: such things can be collapsed and, where possible, toggled"): a group of
+    settings with one on / off – a pass, later a component, a rule, a material – is a collapsible `Section` with
+    `enabled` / `onenabled`, whose head carries the on / off `Toggle` (`Toggle.svelte`, also every boolean row) next to
+    its other actions; the toggle works without opening it, closed the head names the group and its values in one line,
+    and off keeps the values (the content says `enabled: false`, never a removal). `agents/DESIGN.md` §9.
 
 33. **Consent is the person's own** (Tilman, 2026-10-30, #203: "keine Einwilligung ändern per mcp. Das ist auch in der
     admin UI verboten weil user centric data"): the update options (newsletter consent) and the rest of the account –

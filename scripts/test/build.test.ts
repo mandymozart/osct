@@ -161,6 +161,17 @@ ${environment}`,
       ]);
     });
 
+    it('a pass that is off is kept with its values and not counted in the phone budget (#233)', async () => {
+      const build = await loadBuild(makeContent({
+        'book.yaml': BOOK + 'passes:\n  - type: bloom\n    enabled: false\n    strength: 0.35\n  - type: bloom\n  - type: vignette\n  - type: grade\n',
+        'spreads/a/spread.yaml': spread(1, 2) + 'passes:\n  - type: vignette\n    enabled: off\n',
+      }));
+      const { book } = build.buildAll();
+      expect(book.passes?.[0]).toEqual({ type: 'bloom', enabled: false, strength: 0.35 });
+      expect(build.warnings).toEqual([]);
+      expect(build.errors).toEqual(['spreads/a: passes[0].enabled: expected true or false, got "off"']);
+    });
+
     it('a missing book.yaml', async () => {
       const { 'book.yaml': _, ...files } = valid();
       expect(await errorsFor(files)).toContainEqual('book.yaml is missing');

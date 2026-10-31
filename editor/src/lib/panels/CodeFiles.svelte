@@ -12,7 +12,8 @@
    * on a row opens it: where it is used, a read-only preview (`CodePreview`) and its actions – **Open in Code** (a
    * script), **Copy URL** (a shader: what a plugin loads), **Download**, **Replace…** (a file of the same kind: a script's
    * new source, a shader's new version – the sources that load it relinked) and **Delete** (refused while used –
-   * *Delete anyway* forces it). Imported shaders (the content import's files) are read-only.
+   * *Delete anyway* forces it). Imported shaders (the content import's files) are read-only. A script with unsaved edits in
+   * the Code tab shows its name with an asterisk, as there (#232).
    */
   let { bookId, search = "", all = false, onopencode }: {
     bookId: string;
@@ -26,7 +27,7 @@
   // Every time the Library opens: the uses follow the draft's rows
   $effect(() => { void plugins.load(bookId); });
 
-  const files = $derived(codeFiles(plugins.stored, library.assets).filter(file => matchesCodeSearch(file, search)));
+  const files = $derived(codeFiles(plugins.stored, library.assets, plugins.code.unsavedId).filter(file => matchesCodeSearch(file, search)));
   let opened = $state<string | null>(null);
   const current = $derived(files.find(file => file.key === opened) ?? null);
   /** The opened file's text, its uses and (a script) what it registers */
@@ -152,7 +153,7 @@
       <tbody>
         {#each files as file (file.key)}
           <tr class:on={opened === file.key} onclick={() => void open(file)}>
-            <td class="name" title={file.asset?.url ?? `The plugin source ${file.plugin}`}><button type="button" class="open" aria-expanded={opened === file.key}>{file.name}</button>{#if file.version && file.version > 1} <span class="muted">v{file.version}</span>{/if}</td>
+            <td class="name" title={file.asset?.url ?? `The plugin source ${file.plugin}${file.label !== file.name ? " – unsaved edits in the Code tab" : ""}`}><button type="button" class="open" aria-expanded={opened === file.key}>{file.label}</button>{#if file.version && file.version > 1} <span class="muted">v{file.version}</span>{/if}</td>
             <td class="muted kind">{file.kind}</td>
             <td class="num muted size">{formatSize(file.size)}</td>
             <td class="num muted uses">{file.usages}<span class="unit">&nbsp;use{file.usages === 1 ? "" : "s"}</span></td>

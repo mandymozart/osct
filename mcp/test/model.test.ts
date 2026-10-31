@@ -82,6 +82,9 @@ describe("checkEntity with a book – its plugins' types (#90)", () => {
     expect(checkPasses([{ type: "glow" }], "passes", book([], [recorded, { id: "old", src: "/o.js", api: "1.0" }]))).toEqual({ problems: [], unverified: ["glow"] });
     // Without a book only the built-in passes
     expect(checkPasses([{ type: "scanLines" }], "passes").problems).toEqual(['passes[0].type: "scanLines" is not one of bloom, vignette, grade']);
+    // A pass that is off (#233), a plugin's too; enabled is true or false
+    expect(checkPasses([{ type: "bloom", enabled: false }, { type: "scanLines", enabled: false, lines: 300 }], "passes", book())).toEqual({ problems: [], unverified: [] });
+    expect(checkPasses([{ type: "bloom", enabled: "off" }], "passes").problems).toEqual(['passes[0].enabled: expected true or false, got "off"']);
   });
   const book = (sources: BookModel["sources"] = [], declared: BookModel["declared"] = [recorded]): BookModel => ({ declared, sources });
 

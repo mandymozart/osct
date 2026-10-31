@@ -32,6 +32,7 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import FileField from "#lib/components/FileField.svelte";
   import TextureField from "#lib/components/TextureField.svelte";
+  import Toggle from "#lib/components/Toggle.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
   import BehaviourRules from "./BehaviourRules.svelte";
   import EntryView from "./EntryView.svelte";
@@ -500,8 +501,7 @@
       {#if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
       {:else if row.kind === "boolean"}
-        <span class="controls"><button type="button" class="pill" class:on={getValue(current, row) === "true"} aria-pressed={getValue(current, row) === "true"}
-          onclick={() => set(row, getValue(current!, row) === "true" ? "false" : "true")}>{getValue(current, row) === "true" ? "on" : "off"}</button></span>
+        <span class="controls"><Toggle on={getValue(current, row) === "true"} label={row.label} onchange={on => set(row, on ? "true" : "false")} /></span>
       {:else if row.kind === "string" && name === "clip" && clipNames.length}
         <select class="field" aria-label="Clip" value={String(getValue(current, row))} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
           <option value="">first clip ({clipNames[0]})</option>
