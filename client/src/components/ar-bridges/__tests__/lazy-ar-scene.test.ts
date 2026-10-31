@@ -66,8 +66,13 @@ describe("LazyArScene", () => {
 
   it("warms up the AR chunk and the tracking engine without building a scene", async () => {
     const before = created.length;
-    await new LazyArScene(document.createElement("div")).warmUp();
+    expect(await new LazyArScene(document.createElement("div")).warmUp()).toBe(true);
     expect(prefetchXr8).toHaveBeenCalled();
     expect(created).toHaveLength(before);
+  });
+
+  it("a tracking engine that does not preload only logs: the AR chunk itself is there", async () => {
+    prefetchXr8.mockRejectedValueOnce(new Error("offline"));
+    expect(await new LazyArScene(document.createElement("div")).warmUp()).toBe(true);
   });
 });

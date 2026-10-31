@@ -7,6 +7,17 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.54.3 – 2026-10-30
+
+### Fixed
+- **The reader notices a new version too** (#231): an open reader – a browser tab, or the app left open on a phone –
+  never asked for a deploy and kept the old code. It now looks for a new version whenever it comes back into view and
+  every 15 minutes, and when one has taken over it shows a short notice at the foot of the screen: *A new version of
+  the app is ready* with *Reload* and a cross for *Later* – in English, French, Dutch and German. Never while the camera
+  or AR runs: the notice waits until the reader leaves the scan (the entries, an entry, Info). It never reloads by
+  itself, and a page opened after the deploy does not show it. A part of the app that fails to load after a deploy – the
+  AR code above all – shows the same notice instead of a dead camera view.
+
 ## 1.54.2 – 2026-10-30
 
 ### Fixed

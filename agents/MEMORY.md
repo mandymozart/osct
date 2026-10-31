@@ -4,6 +4,36 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – the reader notices a new version (#231)
+
+- **Detection**: `UpdateService` (client/src/services/) gets the registration from `ServiceWorkerService` and calls
+  `registration.update()` on `visibilitychange` (at most once a minute – the page load's navigation just asked) and every
+  15 minutes while visible. The worker keeps `skipWaiting` + `clientsClaim`, so a new one arrives as `controllerchange`.
+- **A takeover is not a new version by itself**: pages are network-first, so a page opened after a deploy runs the new
+  code while the old worker still controls it; the browser's navigation update check then installs the new worker,
+  which claims the page – a bare `controllerchange` would show the notice to every reader opening the app after every
+  deploy. So the page asks the new controller for its build over a `MessageChannel` (`sw/build-query.ts`, message type
+  `osct-build`) and compares it with its own. The id is `__VITE_BUILD_DATE__`: one `define` in vite.config.js, and
+  vite-plugin-pwa's worker build gets the same value (checked in `dist/`: the date in `service-worker.js` equals the
+  app chunk's). No answer in 3 s = another build (a rollback to a worker without the query). No controller after the
+  change = nothing. The first install is covered by the same comparison (same build → no notice).
+- **Calm moment** (`components/common/new-version.ts`): never while `arStatus` is loading / starting / running; the
+  scan view only with `arStatus` error (AR failed – the camera is off); not during the tutorial; the start, entries,
+  entry, Info and the overlays are calm. Consultation keeps the camera stream paused – counted as calm (the brief named
+  the list pages). The splash (`/`) is only a few seconds before the scan; the notice may show there, it is calm.
+- **Chunks**: `vite:preloadError` and unhandled rejections worded as a failed dynamic import (the editor's regex, copied –
+  reader and editor never import each other), the AR chunk through `<ar-bridge>` (`ar-load-failed`) and a failed warm-up
+  (`warmUp()` now resolves false when the chunk itself did not load; the engine's files only log). Ignored while
+  `navigator.onLine` is false: offline it is the connection, and a reload would not help. `ar-load-failed` still
+  refreshes the camera permission as before.
+- **Later** hides it until a code file fails again or another build takes over (like the editor's cross); the issue's
+  "or on the next return to the home page" is the hide-while-scanning part – the notice reappears by itself once the
+  reader leaves the scan. Placement: the foot of the screen, glass card (consultation background, glass blur, bronze
+  shadow), `.pill.primary` *Reload* and an `icon-button` ×; above the spread menu in the scan view.
+- **Checked end to end** in headless Edge at 360 px with two builds served one after the other from 127.0.0.1:5174: first
+  install → no notice; build b deployed, visibility after the gap → notice; reload while b's worker controlled the
+  page and build a was served → a's worker took over, same build → no notice; b again → notice (German).
+
 ## 2026-10-31 – the editor notices a new version (#230)
 
 - **Why**: #229 found Tilman's spread page behaving like 1.51.1 while staging ran 1.51.2 – the tab was opened before the
@@ -24,7 +54,7 @@ outcome in the line (or move it into a dated decision block).
   to reload instead of reloading once by itself.
 - **Placement**: at the foot of the window on desktop (at the top it covered the stage's toolbar), under the top bar on a
   phone (the sheet takes the foot); the primary button is `.pill.primary` (with `.framed` the frame's border would win).
-- [ ] **The reader has the same gap** (not changed here – needs a reader UI notice in four languages): its service
+- [x] **The reader has the same gap** (filed as #231, fixed there – see the entry above) (not changed here – needs a reader UI notice in four languages): its service
   worker (`client/sw/service-worker.ts`) skips waiting and claims clients, but it is registered once and the browser
   looks for a new worker only on navigations – an open reader tab (a single-page app, a PWA left open on a phone)
   never navigates, so it never notices a deploy and nothing tells the reader; it keeps the old code until it is

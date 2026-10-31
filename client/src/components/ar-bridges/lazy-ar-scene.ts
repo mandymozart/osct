@@ -62,11 +62,21 @@ export class LazyArScene implements IArScene {
     return this.emitter.on(event, listener);
   }
 
-  /** Fetch and evaluate the AR chunk and the tracking engine without building anything (no WebGL, no camera) */
-  warmUp(): Promise<void> {
-    return loadArModule()
-      .then(ar => ar.prefetchXr8())
-      .catch(error => console.warn("[ArScene] Could not preload AR:", error));
+  /**
+   * Fetch and evaluate the AR chunk and the tracking engine without building anything (no WebGL, no camera).
+   * Resolves false when the AR chunk itself could not be loaded (the engine's files only log).
+   */
+  warmUp(): Promise<boolean> {
+    return loadArModule().then(
+      ar => ar.prefetchXr8().then(() => true, error => {
+        console.warn("[ArScene] Could not preload the tracking engine:", error);
+        return true;
+      }),
+      error => {
+        console.warn("[ArScene] Could not preload AR:", error);
+        return false;
+      },
+    );
   }
 
   async load(spreadId: string): Promise<void> {

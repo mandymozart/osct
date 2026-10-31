@@ -62,7 +62,7 @@ scene throw `ArSceneError` with its code, and anything else that breaks a start 
 |---|---|---|
 | `camera-not-responding` | the camera started but sends no picture within 10 s | the camera overlay's *not responding* (reload / restart the browser), cleared once AR runs again |
 | `ar-start-failed` | the camera is denied or unavailable, the tracking engine could not be loaded | checks the camera permission again – the overlay shows denied / unavailable |
-| `ar-load-failed` | the AR chunk (three.js and the scene) could not be loaded – offline | the same |
+| `ar-load-failed` | the AR chunk (three.js and the scene) could not be loaded – offline, or a deploy removed it under the open page | the same, and online the new-version notice offers a reload ([Deploy](deploy.md) "Open readers after a deploy"); the next scan tries the chunk again |
 | `ar-failed` | anything else the scene could not do (building a spread) | the same |
 
 The message goes to the console and to the debug overlay ("AR: error", the camera panel).

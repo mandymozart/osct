@@ -175,5 +175,10 @@ export default interface Resources {
   },
   "tutorial": {
     "skip": "Skip"
+  },
+  "update": {
+    "later": "Later",
+    "ready": "A new version of the app is ready.",
+    "reload": "Reload"
   }
 }

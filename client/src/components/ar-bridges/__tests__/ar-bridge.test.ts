@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, ErrorCode, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
-import { GameStoreService, PreloaderService } from "@/services";
+import { GameStoreService, PreloaderService, UpdateService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 import { getArError } from "@engine/utils/camera-debug";
 import { getPreparedWindow } from "@engine/utils/prepared-spreads";
@@ -153,6 +153,15 @@ describe("<ar-bridge>", () => {
     scene.emit("status", "error", { code: ErrorCode.AR_LOAD_FAILED, message: "Failed to fetch dynamically imported module" });
     expect(game.state.cameraPermission).not.toBe(CameraPermissionStatus.NOT_RESPONDING);
     expect(check).toHaveBeenCalled();
+  });
+
+  it("a failed AR load offers the reload (the new-version notice) – other AR errors do not", () => {
+    vi.spyOn(game.camera, "checkPermission").mockResolvedValue(true);
+    const stale = vi.spyOn(UpdateService.getInstance(), "reportStaleCode").mockImplementation(() => {});
+    scene.emit("status", "error", { code: ErrorCode.AR_START_FAILED, message: "Camera unavailable" });
+    expect(stale).not.toHaveBeenCalled();
+    scene.emit("status", "error", { code: ErrorCode.AR_LOAD_FAILED, message: "Failed to fetch dynamically imported module" });
+    expect(stale).toHaveBeenCalledTimes(1);
   });
 
   it("a camera without picture: the overlay's 'not responding' state, cleared once AR runs again", () => {
