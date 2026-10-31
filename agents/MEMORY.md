@@ -4,6 +4,49 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – the demo aquarium's water is Splash in WebGPU, the heightfield its fallback (#228)
+
+- **Tilman decided** (#228): "The water simulation you used is shit. Use this: https://github.com/matsuoka-601/Splash
+  for the demo." Splash (MIT, Masaya Matsuoka) is adapted into `fixtures/demo/plugins/aquarium/index.ts` – its MLS-MPM
+  compute shaders (clear grid, P2G ×2, grid update, G2P) and its screen-space renderer (depth splats, the narrow-range
+  filter, thickness + gaussian, the composite); dropped: the particle/shadow mode (density grid, ray marching), the
+  cube map and floor (2 MB of PNGs), the mouse, `copyPosition` (the render passes read the particle struct), the
+  pipeline overrides (WGSL consts), the camera and lil-gui. Licence text and author in the file's header and in
+  `fixtures/demo/DEMO.md`. Bundle 28.7 → 72.2 KB (8.5 → 20.1 KB gzipped).
+- **The issue's sketch held**, no plugin API change: a WebGPU device of the plugin's own, an off-DOM canvas, the camera
+  from the water mesh's `onBeforeRender`, a `CanvasTexture` the `water` material samples in screen space on the front
+  faces of a box as large as the inside. The canvas upload happens in the same draw (the WebGPU work is submitted in
+  `onBeforeRender`, `needsUpdate` set, three uploads when the water draws), so the fluid is not a frame behind. Measured
+  on the desktop (headless Edge, NVIDIA Turing): 60 fps, 1–1.3 ms GPU and ~0.2 ms of hand-off per frame at 10k–40k. The
+  S22 (WebGPU on Android Chrome) is not measured yet – the issue's checklist keeps that item.
+- **Compositing with alpha, not refraction**: Splash refracts a background it renders itself; the scene behind is
+  three.js's, so the fluid shader writes how much of what lies behind the water hides (absorption by thickness,
+  fresnel against a procedural room, a highlight), premultiplied and gamma-encoded in the 8-bit canvas
+  (`premultiplyAlpha` keeps the bytes; the material divides and decodes). The absorption is 0.12, not Splash's 0.7
+  (at the tank's depth 0.7 hides the fish), capped so the floor's caustics always show; the fresnel reflection only
+  where the surface meets the air (a normal facing up). The toy's body hides the water behind it by a ray–ellipsoid
+  test in the fluid shader (WebGPU knows no WebGL depth); its fins are not tested – an ellipsoid for the tail cut a
+  hole beside it.
+- **Second pass after the orchestrator's review** (the first shots: a frayed outline, water standing off the glass and
+  poking past it, a wobbly top, milky): Splash's soft walls replaced by hard ones – the inside IS the domain (three
+  cells of grid around it), the grid lets no water out through a wall, particles keep 0.3 cells off it; calibrating
+  around the soft walls (the first version) could not make the water meet the glass. The grid keeps 99.5 % of its
+  motion per step (the surface settles between the dips). **Water against glass is drawn from a heightfield, not from
+  the splats**: a compute pass takes the highest particle per column of cells, averaged over its neighbours; the
+  composite draws flat water where a ray enters the glass below it (a straight waterline, square corners) and Splash's
+  free surface elsewhere – trimmed where only beyond the inside, faded where its grains stand above the column height
+  at the glass and, softly, where thin (blurred thickness). A count-based height (particles per column / density) was
+  tried first: particles pile at the hard walls, so the wall columns read far too high. Splats 2.2 cells wide, the
+  filter's reach 20 (Splash: 1.2, 12) – a smoother surface. Settled density 3.9 (read back), level 95–102 %.
+- **"The Entity panel shows which path runs" without an API change**: the `webgpu` row's spec label is changed by the
+  plugin once it knows (*WebGPU ok* / *no WebGPU*; *WebGPU* until a tank asked) – the registry keeps the spec object the
+  plugin registered (`recorded.test.ts` pins that identity) and the panel reads it when it shows the node. A row the
+  panel shows open while the label changes updates with the next selection. A proper per-node status would be an API
+  addition (e.g. a `status` on the node type's instance) – not made, per the brief.
+- **`splash` reused for the fluid**: it scales the toy's push on the way in (rising, the toy moves at its own speed –
+  the gain on the way up dragged a water column after it).
+- [ ] The S22: frame cost of the fluid with WebGPU on Android Chrome, and the canvas upload there (#228's checklist).
+
 ## 2026-10-30 – the tree's spread and entry rows select (#227)
 
 - **The spread lives in one place: the Stage panel's *spread* section.** A tap on the spread row selects the spread,
@@ -24,6 +67,7 @@ outcome in the line (or move it into a dated decision block).
   on a target row, as before.
 - `Selection.up()` spread `this` into `parentSelection`, which copies none of a class's `$state` accessors; it now
   passes a plain snapshot.
+
 ## 2026-10-30 – one desk on the stage: the Eiermann frame with two tops; Schöpfer's desk removed (#226)
 
 - **Tilman decided** (#226, on a screenshot of Schöpfer's drawers hanging open beside its frame): "only one type of
