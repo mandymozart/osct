@@ -28,7 +28,7 @@ const TREE = {
 };
 const ENTITIES = { entities: { castle: VIDEO_ENTITY } };
 
-/** What the declared plugin recorded (content schema 2.14): a layer and a node type with their parameters */
+/** What the declared plugin recorded: a layer and a node type with their parameters */
 const REGISTERED = {
   components: { tint: { description: "Tints.", nodeTypes: ["video"], params: { opacity: { kind: "number", default: 0.3, min: 0, max: 1, description: "How much." } } } },
   nodeTypes: { sparkle: { description: "Points.", params: { count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." } } } },
