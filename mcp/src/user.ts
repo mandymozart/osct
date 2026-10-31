@@ -15,7 +15,7 @@ import { fail, failure, text } from "./result.ts";
 import { appLinks, fetchUser, servicesOf, type Services, type User } from "./services.ts";
 
 /** = mcp/package.json version (RULES #10: one version with the app) */
-export const VERSION = "1.54.2";
+export const VERSION = "1.54.3";
 
 export function createUserServer(config: Config, api: OsctApi, user: User | null): McpServer {
   let services: Services | null = user ? servicesOf(user.roles) : null;
