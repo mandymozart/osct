@@ -1277,8 +1277,8 @@ try {
     check($status === 201 && $data['entry']['id'] === 'p1-shadows-light' && $data['entry']['target']['id'] === 'p1-shadows-light' && $data['spreadId'] === $tree['spreads'][0]['id'], 'POST entry → 201 with a slug id, on the page\'s spread');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'page' => 1, 'target' => ['imageSrc' => 'x.jpg']], $editor);
     check($status === 409 && $data['error']['code'] === 'duplicate-id', 'the same id again → 409');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'No target', 'page' => 1], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'without a target → 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'No target', 'page' => 1, 'target' => ['print' => null]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'a target without its image → 400');
     [, $manifest2] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
     $draft2 = json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$manifest2['build']}/game.config.json", false, $withToken), true);
     $added = array_values(array_filter($draft2['entries'], fn($e) => $e['id'] === 'p1-shadows-light'));
@@ -1289,6 +1289,90 @@ try {
     check($status === 404, 'again → 404');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check(!in_array('p1-shadows-light', array_column($tree['spreads'][0]['entries'], 'id'), true), 'gone from the tree');
+
+    echo "editor: texts – entries, the book, the onboarding (#223)\n";
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Onion', 'page' => 1, 'category' => 'glossary', 'body' => 'A *bulb*.'], $editor);
+    check($status === 201 && $data['entry']['id'] === 'p1-onion' && !isset($data['entry']['target']) && $data['spreadId'] === 's1', 'POST entry without a target → 201, read in the list only');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    $onion = array_values(array_filter($tree['spreads'][0]['entries'], fn($e) => $e['id'] === 'p1-onion'))[0] ?? null;
+    check($onion !== null && $onion['target'] === null, 'the tree lists it on its spread, without a target');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/entries', null, $editor);
+    $byId = array_column($data['entries'] ?? [], null, 'id');
+    check($status === 200 && $byId['racoon']['body'] === 'A beast.' && $byId['racoon']['spreadId'] === 's1' && $byId['racoon']['target'] === ['id' => 'racoon', 'imageSrc' => 'https://cdn.example/racoon-v2.jpg']
+        && $byId['castle']['image'] === '/assets/content/entries/castle/cover.jpg' && $byId['lost']['spreadId'] === null && $byId['p1-onion']['target'] === null,
+        'GET entries: every field as written, the spread and the target');
+    $body = "A **beast** with a [mask](https://example.org/racoon).\n\n{hasKey: It opens the door.|It looks at you.}";
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['body' => $body, 'author' => ' Kévin Bray ', 'tags' => [' animal ', 'mask', 'animal', ''], 'title' => 'Racoon '], $editor);
+    check($status === 200 && $data['entry']['body'] === $body && $data['entry']['author'] === 'Kévin Bray' && $data['entry']['tags'] === ['animal', 'mask'] && $data['entry']['title'] === 'Racoon'
+        && $data['spreadId'] === 's1' && $data['previousSpreadId'] === 's1' && !isset($data['entry']['target']), 'PUT entry: body (Markdown kept as written), author and title trimmed, tags once each');
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    check($log['changes'][0]['kind'] === 'entry' && $log['changes'][0]['ref'] === 'racoon' && $log['changes'][0]['before']['body'] === 'A beast.' && $log['changes'][0]['after']['body'] === $body,
+        'the change log has the entry before and after');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['page' => 3], $editor);
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 200 && $data['spreadId'] === 's2' && $data['previousSpreadId'] === 's1' && in_array('racoon', array_column($tree['spreads'][1]['entries'], 'id'), true)
+        && !in_array('racoon', array_column($tree['spreads'][0]['entries'], 'id'), true), 'a new page moves the entry to its spread');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['page' => 500], $editor);
+    check($status === 200 && $data['spreadId'] === null, 'a page no spread has: the entry belongs to none, as an added one');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['page' => 1, 'author' => null, 'image' => '/assets/content/entries/racoon/img.jpg'], $editor);
+    check($status === 200 && $data['spreadId'] === 's1' && !isset($data['entry']['author']) && $data['entry']['image'] === '/assets/content/entries/racoon/img.jpg',
+        'back on its page; null removes the author; a picture of the import is a Library image');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/link', ['media' => 'https://example.org/new', 'category' => 'link'], $editor);
+    check($status === 200 && $data['entry']['media'] === 'https://example.org/new', 'a link\'s URL');
+    $refusals = [
+        [['category' => 'poem'], 'an unknown category'], [['media' => 'javascript:alert(1)'], 'a link that is not http(s)'], [['media' => 'https://'], 'a link without a host'],
+        [['title' => '  '], 'an empty title'], [['image' => 'https://evil.example/x.jpg'], 'an image that is no Library picture'], [['image' => '/assets/content/entries/racoon/racoon.glb'], 'a Library file that is no picture'],
+        [['page' => 1.5], 'a page that is no whole number'], [['tags' => 'a, b'], 'tags that are no list'], [['target' => null], 'a field the PUT does not change'],
+        [['body' => ['x']], 'a body that is no text'],
+    ];
+    foreach ($refusals as [$change, $what]) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/link', $change, $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-entry', "PUT entry: $what → 400 invalid-entry");
+    }
+    [$status] = call($api, 'PUT', '/editor/books/osct/entries/ghost', ['title' => 'Ghost'], $editor);
+    check($status === 404, 'PUT a missing entry → 404');
+    [, $manifestTexts] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    $draftTexts = json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$manifestTexts['build']}/game.config.json", false, $withToken), true);
+    $draftRacoon = array_values(array_filter($draftTexts['entries'], fn($e) => $e['id'] === 'racoon'))[0];
+    check($draftRacoon['body'] === $body && $draftRacoon['tags'] === ['animal', 'mask'] && $draftRacoon['target']['id'] === 'racoon', 'the draft has the edited entry, its target kept');
+    [$status] = deleting($api, '/editor/books/osct/entries/p1-onion', $editor);
+    check($status === 200, 'an entry without a target is removed like any');
+
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct', ['title' => ' Onion Skin ', 'publisher' => null], $editor);
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 200 && $data['book']['title'] === 'Onion Skin' && $data['book']['author'] === 'Someone' && !isset($data['book']['publisher'])
+        && $tree['book']['title'] === 'Onion Skin' && !isset($tree['book']['book']['publisher']), 'PUT book: the title (in the list and the tree too), publisher null removes it');
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    check($log['changes'][0]['kind'] === 'book' && $log['changes'][0]['before']['title'] === 'Test Book' && $log['changes'][0]['before']['publisher'] === 'Building Fictions', 'the book\'s change with the book before');
+    foreach ([[['author' => ''], 'an empty author'], [['subtitle' => 'x'], 'an unknown field']] as [$change, $what]) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/osct', $change, $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-book', "PUT book: $what → 400 invalid-book");
+    }
+    call($api, 'PUT', '/editor/books/osct', ['title' => 'Test Book', 'publisher' => 'Building Fictions'], $editor);
+
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/tutorial', null, $editor);
+    check($status === 200 && count($data['tutorial']) === 1 && $data['tutorial'][0]['title'] === '{{title}}', 'GET tutorial: the steps as imported');
+    $original = $data['tutorial'];
+    $steps = [
+        ['id' => 'intro', 'description' => "Reveal what *{{title}}* hides.", 'button' => 'Continue', 'illustration' => '/assets/illustrations/tutorial-step-1.svg', 'title' => ''],
+        ['id' => 'camera', 'description' => 'Grant access.', 'button' => 'Grant access', 'action' => 'camera', 'fadeIn' => 800, 'advance' => 0, 'index' => 7],
+    ];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => $steps], $editor);
+    check($status === 200 && array_column($data['tutorial'], 'index') === [0, 1] && !isset($data['tutorial'][0]['title']) && !isset($data['tutorial'][0]['action'])
+        && $data['tutorial'][1]['action'] === 'camera' && $data['tutorial'][1]['fadeIn'] === 800, 'PUT tutorial: the order is the index, an empty text is left out');
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    check($log['changes'][0]['kind'] === 'tutorial' && $log['changes'][0]['before'][0]['id'] === 'step-1' && count($log['changes'][0]['after']) === 2, 'the onboarding\'s change with the steps before');
+    $badSteps = [
+        [[['id' => 'a', 'action' => 'dance', 'button' => 'Go']], 'an unknown action'], [[['id' => 'a', 'action' => 'scan']], 'an action without a button'],
+        [[['id' => 'a'], ['id' => 'a']], 'an id twice'], [[['id' => 'a', 'advance' => -1]], 'a negative time'], [[['id' => 'a b']], 'a bad id'],
+        [[['id' => 'a', 'colour' => 'red']], 'an unknown field'], [[['id' => 'a', 'button' => 7]], 'a button that is no text'],
+    ];
+    foreach ($badSteps as [$tutorial, $what]) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => $tutorial], $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-tutorial', "PUT tutorial: $what → 400 invalid-tutorial");
+    }
+    [$status] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => $original], $editor);
+    check($status === 200, 'the steps as they were');
 
     echo "editor: spread formats (content schema 2.3)\n";
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
@@ -1764,6 +1848,14 @@ try {
     call($api, 'PUT', '/editor/books/osct/entities/castle', $castle, $editor);
     [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
     check($data['changes'][0]['token'] === null, 'a save in the editor records none');
+    // The book's texts are the draft's, not the account (#223): a token writes them like its person
+    [$status] = call($api, 'PUT', '/editor/books/osct/entries/castle', ['body' => 'Written by an *AI*.'], $aiToken);
+    [$status2] = call($api, 'PUT', '/editor/books/osct', ['author' => 'Someone'], $aiToken);
+    [$status3, $steps] = call($api, 'GET', '/editor/books/osct/tutorial', null, $aiToken);
+    [$status4] = call($api, 'PUT', '/editor/books/osct/tutorial', ['tutorial' => $steps['tutorial'] ?? []], $aiToken);
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=3', null, $editor);
+    check($status === 200 && $status2 === 200 && $status3 === 200 && $status4 === 200 && array_column($data['changes'], 'kind') === ['tutorial', 'book', 'entry']
+        && array_unique(array_column($data['changes'], 'token')) === ['Claude on my laptop'], 'a token edits an entry, the book\'s texts and the onboarding; the change log names it');
     // A token uploads code files as its person does (#186): a shader, a script
     [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', "void main() {}\n", 'ai.vert', $aiToken, 'text/plain');
     [$status2, $data2] = upload($api, 'POST', '/editor/books/osct/plugins', "export const register = () => {};\n", 'ai-script.ts', $aiToken, 'text/plain');

@@ -7,6 +7,31 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.59.0 – 2026-10-30
+
+### Added
+- **Texts are edited in the editor** (#223). Selecting an entry in the tree shows its **form** in the Inspector: title,
+  category, access page, author, tags, the text with a **live preview**, a picture from the Library and a link's address.
+  The preview is the reader's own renderer and fills in the book's variables with their values on the stage. A new access
+  page moves the entry to its spread.
+- **The Entries page**: next to the spreads on the book's page, every entry in one list – filtered by category, searched,
+  the glossary grouped by letter as in the reader. Each opens the same form; **+ entry** makes an entry without a
+  target, such as a glossary term read only in the list.
+- **The book's title, author and publisher** are edited on the book's page, and the **onboarding's steps** in a view of
+  their own: an ordered list of steps with their texts, illustration, button, action and timing.
+- **Markdown and variables in an entry's text** (content schema 2.23): paragraphs, *emphasis*, **strong** and links,
+  and the book's variables in braces the way SCUTOONS' message boxes write them – `{hasKey}`, `{hasKey: The door
+  opens.|It is locked.}`. The reader shows them in the entry; nothing else is markup and no HTML passes through. Plain
+  texts read as before; an older app shows the signs as they are written.
+- **The API** saves an entry's fields (`PUT …/entries/{id}`), the book's texts (`PUT /editor/books/{id}`) and the
+  onboarding (`GET`/`PUT …/tutorial`), lists every entry with its fields (`GET …/entries`) and makes an entry without a
+  target. Every save is in the change log; an AI connection may write texts like its person, never publish.
+- **MCP**: `get_entries`, `update_entry`, `update_book`, `get_tutorial` and `update_tutorial`; `add_entry` makes an entry
+  without a target too; the content model explains the Markdown and the variables.
+
+### Changed
+- The reader's entry view renders the text with the shared renderer (Markdown and variables) instead of plain paragraphs.
+
 ## 1.58.0 – 2026-10-30
 
 ### Security

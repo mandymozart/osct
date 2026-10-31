@@ -13,18 +13,24 @@ import { checkEntity, checkPasses, describeContentModel, usesPluginPasses, usesP
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { PASS_TYPES, PRINT_SURFACES, SPREAD_FORMATS } from "../../shared/types/game-config";
+import { PASS_TYPES, PRINT_SURFACES, SPREAD_FORMATS, STEP_ACTIONS } from "../../shared/types/game-config";
+import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
+import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
 import type {
   AssetList,
   AssetUploaded,
   BookList,
   BookPassesSaved,
+  BookSaved,
   BookTree,
   Change,
   DraftManifest,
   EntitySaved,
   EntryAdded,
+  EntryList,
+  EntrySaved,
+  TutorialSaved,
   EnvironmentSaved,
   EnvironmentsInfo,
   ImportComparison,
@@ -42,9 +48,41 @@ import type {
   TargetSaved,
 } from "../../shared/api/editor";
 import { confirmationStep } from "../../shared/api/errors";
-import { ASSET_KINDS, ENV_NAME, ID_PATTERN, pluginTypes } from "../../shared/api/rules";
+import {
+  ASSET_KINDS,
+  BODY_MAX_LENGTH,
+  ENTRY_TAGS,
+  ENV_NAME,
+  ID_PATTERN,
+  isLinkUrl,
+  pluginTypes,
+  STEP_TIME_MAX,
+  STEPS_MAX,
+  TEXT_MAX_LENGTH,
+} from "../../shared/api/rules";
 
 type Json = Record<string, unknown>;
+
+/**
+ * An entry's body as the reader would render it: a construct that does not parse (a brace not closed, a list, a
+ * function) is refused before it is sent – the reader would show nothing in its place. A variable that is not set is no
+ * problem here: the values come while reading.
+ */
+export function checkEntryText(body: string): Result | null {
+  const problems = renderEntryText(body).problems.filter(p => p.severity === "error");
+  if (!problems.length) return null;
+  return fail({
+    error: { code: "invalid-entry-text", message: "The body's braces do not parse (nothing was sent).", problems: problems.map(p => `at ${p.start}: ${exprMessage(p)}`) },
+    hint: "Variables are {name} or {condition: text|else text}; write \\{ for a brace. describe_content_model entryText has the syntax.",
+  });
+}
+
+/** The warnings for an answer: what in the body the reader skips (a stray brace) */
+export function textWarnings(body: string | undefined): { warnings?: string[] } {
+  if (body === undefined) return {};
+  const warnings = renderEntryText(body).problems.filter(p => p.severity === "warning" && p.code !== "missing-value").map(p => `body at ${p.start}: ${exprMessage(p)}`);
+  return warnings.length ? { warnings } : {};
+}
 
 /**
  * The import's first step (409 confirm-import) or a void confirmation (409 confirmation-void) as the tool's answer:
@@ -388,12 +426,12 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "add_entry",
     {
       description:
-        "Makes a new entry with its target on the spread its `page` belongs to: title, page, category (default glossary), body, and the target – `imageSrc` (the printed image: an uploaded image asset's url), `print` (where it is printed, in mm), `entity` (its AR content as a node tree, or { ref }). The id comes from title and page (e.g. p30-shadows) unless given; 409 duplicate-id. The reader tracks the target after a publish.",
+        "Makes a new entry on the spread its `page` belongs to: title, page, category (default glossary), body (Markdown with the book's variables – describe_content_model entryText), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `print` (where it is printed, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from title and page (e.g. p30-shadows) unless given; 409 duplicate-id. The reader tracks a target after a publish.",
       inputSchema: z.object({
         book: BOOK,
         title: z.string().min(1),
         page: z.number().int(),
-        category: z.enum(["glossary", "video", "text", "link"]).optional(),
+        category: z.enum(EntryCategory).optional(),
         body: z.string().optional(),
         id: ID.optional(),
         target: z.object({
@@ -401,17 +439,136 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
           imageSrc: z.string().min(1),
           print: printSchema.optional(),
           entity: z.union([z.object({ ref: ID }), entitySchema]).optional(),
-        }),
+        }).optional().describe("none: an entry read only in the list"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     guard(async ({ book, target, ...entry }) => {
-      const entity = target.entity;
+      if (entry.body !== undefined) {
+        const refused = checkEntryText(entry.body);
+        if (refused) return refused;
+      }
+      const entity = target?.entity;
       const inline = entity && !("ref" in entity && Object.keys(entity).length === 1);
       const { refused, warnings } = inline ? await checkWrite(entity, "target.entity", () => bookModel(book)) : { refused: null, warnings: {} };
       if (refused) return refused;
-      const result = await api.call<EntryAdded>("POST", `/editor/books/${encodeURIComponent(book)}/entries`, { ...entry, target });
+      const result = await api.call<EntryAdded>("POST", `/editor/books/${encodeURIComponent(book)}/entries`, { ...entry, ...(target ? { target } : {}) });
       return text({ ...result, ...warnings, open: editorHref(links, book, result.spreadId) });
+    }),
+  );
+
+  // ── the book's texts: entries, the book, the onboarding (#223) ──
+
+  server.registerTool(
+    "get_entries",
+    {
+      description:
+        "Every entry of the book with its fields as written – title, category, page, body (Markdown with the book's variables), author, image, media (a link's URL), tags – its spread (null: its page is in none) and its target's id and image (null: read in the list only). Optionally only one category, or the entries whose title, body or tags hold a word.",
+      inputSchema: z.object({
+        book: BOOK,
+        category: z.enum(EntryCategory).optional(),
+        search: z.string().optional().describe("a word the title, body or tags hold (case does not matter)"),
+      }),
+      annotations: read,
+    },
+    guard(async ({ book, category, search }) => {
+      const { entries } = await api.call<EntryList>("GET", `/editor/books/${encodeURIComponent(book)}/entries`);
+      const word = search?.toLowerCase();
+      const found = entries.filter(e => (!category || e.category === category) && (!word || [e.title, e.body, e.tags.join(" ")].join(" ").toLowerCase().includes(word)));
+      return text({ entries: found, count: found.length, open: `${editorHref(links, book)}?view=entries` });
+    }),
+  );
+
+  server.registerTool(
+    "update_entry",
+    {
+      description:
+        "Changes an entry's fields – send only what changes: title, category, page (the access page – a page on another spread moves the entry there, a page no spread has leaves it on none), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the book's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the book's Library: an uploaded image's url or a file of the import), media (a link's http(s) URL); null removes author, image or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
+      inputSchema: z.object({
+        book: BOOK,
+        entry: ID.describe("the entry's id (get_entries, get_book)"),
+        title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
+        category: z.enum(EntryCategory).optional(),
+        page: z.number().int().optional(),
+        body: z.string().max(BODY_MAX_LENGTH).optional(),
+        author: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
+        tags: z.array(z.string().max(ENTRY_TAGS.length)).max(ENTRY_TAGS.max).optional(),
+        image: z.string().min(1).nullable().optional().describe("a Library picture's url (list_assets kind image); null removes it"),
+        media: z.string().nullable().optional().describe("an http(s) URL; null removes it"),
+      }),
+      annotations: write,
+    },
+    guard(async ({ book, entry, ...changes }) => {
+      if (Object.keys(changes).length === 0) return fail({ error: { code: "mcp", message: "send at least one field to change" } });
+      if (changes.media && !isLinkUrl(changes.media)) return fail({ error: { code: "invalid-entry", message: "media must be an http(s) URL (nothing was sent)." } });
+      if (changes.body !== undefined) {
+        const refused = checkEntryText(changes.body);
+        if (refused) return refused;
+      }
+      const result = await api.call<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`, changes);
+      return text({ ...result, ...textWarnings(changes.body), open: result.spreadId ? editorHref(links, book, result.spreadId) : `${editorHref(links, book)}?view=entries` });
+    }),
+  );
+
+  server.registerTool(
+    "update_book",
+    {
+      description:
+        "Changes the book's title, author or publisher – the reader's splash and home page show them, and the onboarding's {{title}}, {{author}} and {{publisher}} are replaced with them. Send what changes; publisher null (or \"\") removes it. The change is recorded.",
+      inputSchema: z.object({
+        book: BOOK,
+        title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
+        author: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
+        publisher: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
+      }),
+      annotations: write,
+    },
+    guard(async ({ book, ...changes }) => {
+      if (Object.keys(changes).length === 0) return fail({ error: { code: "mcp", message: "send title, author or publisher" } });
+      const result = await api.call<BookSaved>("PUT", `/editor/books/${encodeURIComponent(book)}`, changes);
+      return text({ ...result, open: editorHref(links, book) });
+    }),
+  );
+
+  const stepSchema = z.object({
+    id: ID,
+    title: z.string().max(TEXT_MAX_LENGTH).optional(),
+    description: z.string().max(BODY_MAX_LENGTH).optional().describe("*emphasis*, blank lines for paragraphs; {{title}}, {{author}}, {{publisher}} are the book's"),
+    footer: z.string().max(TEXT_MAX_LENGTH).optional(),
+    illustration: z.string().max(TEXT_MAX_LENGTH).optional().describe("a drawing as an app path, e.g. /assets/illustrations/tutorial-step-1.svg"),
+    button: z.string().max(TEXT_MAX_LENGTH).optional().describe("the button's label; none: the step moves on after `advance` or on a tap"),
+    action: z.enum(STEP_ACTIONS).optional().describe("with a button: next (default), camera (asks for the camera), scan (ends the onboarding in the scan)"),
+    fadeIn: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms each part fades in"),
+    stagger: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms between the parts fading in"),
+    advance: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms until a step without a button moves on"),
+  });
+
+  server.registerTool(
+    "get_tutorial",
+    {
+      description: "The onboarding's steps in their order: { id, index, title?, description?, footer?, illustration?, button?, action?, fadeIn?, stagger?, advance? } – the first is usually the splash (title, author, publisher of the book).",
+      inputSchema: z.object({ book: BOOK }),
+      annotations: read,
+    },
+    guard(async ({ book }) => text({ ...(await api.call<TutorialSaved>("GET", `/editor/books/${encodeURIComponent(book)}/tutorial`)), open: `${editorHref(links, book)}?view=onboarding` })),
+  );
+
+  server.registerTool(
+    "update_tutorial",
+    {
+      description:
+        "Replaces the onboarding's steps with this ordered list (read them first with get_tutorial and send the whole list back changed – a step left out is gone): the order is each step's index; an empty text is left out; an action goes with a button. Checked as the API checks it; the change is recorded.",
+      inputSchema: z.object({ book: BOOK, steps: z.array(stepSchema).max(STEPS_MAX) }),
+      annotations: write,
+    },
+    guard(async ({ book, steps }) => {
+      const ids = steps.map(s => s.id);
+      const twice = ids.find((id, i) => ids.indexOf(id) !== i);
+      if (twice) return fail({ error: { code: "invalid-tutorial", message: `the step id ${twice} is used twice (nothing was sent).` } });
+      const lonely = steps.find(s => s.action && !s.button?.trim());
+      if (lonely) return fail({ error: { code: "invalid-tutorial", message: `step ${lonely.id}: an action goes with a button (nothing was sent).` } });
+      const result = await api.call<TutorialSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/tutorial`, { tutorial: steps });
+      return text({ ...result, open: `${editorHref(links, book)}?view=onboarding` });
     }),
   );
 

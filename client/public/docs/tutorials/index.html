@@ -146,6 +146,14 @@
           <li><a href="#tools-tablet">The editor on a tablet</a></li>
         </ol>
       </li>
+      <li><a href="#texts">Editing texts</a>
+        <ol>
+          <li><a href="#texts-entry">An entry's form</a></li>
+          <li><a href="#texts-markdown">Markdown and variables</a></li>
+          <li><a href="#texts-entries">The Entries page</a></li>
+          <li><a href="#texts-book">The book and the onboarding</a></li>
+        </ol>
+      </li>
     </ol>
   </nav>
 
@@ -549,11 +557,11 @@ npm run osct -- content status --env staging</code></pre>
     <img src="/docs/tutorials/tools/01-selection.webp" width="1280" height="800" loading="lazy" alt="The door spread with the door's model selected: in the tree the model row is dark grey with a bar at its start; on the stage the boxes are outlined in orange with the move gizmo; the Inspector's breadcrumb reads door ▾ › group › model, followed by node · model with its name, + node, add as, placement and file; the Info view says group – select the entity.">
     <figcaption>The door's model selected in the tree. The stage outlines it, the breadcrumb reads <em>door › group › model</em>. Pointing at <em>group</em> in the breadcrumb: the Info view says a click selects the entity.</figcaption>
   </figure>
-  <p>Every row of the tree selects something, and a tap anywhere on the row always shows it: the row turns grey and the <b>Inspector</b> follows. The <b>spread</b> row – the book icon at the top – selects the spread: the Inspector shows its <em>spread</em> section – the title, the pages, the format, the post-processing in effect and the book's environment – then <em>post-processing</em> and <em>vars and events</em>; nothing stays selected on the stage, no outline, no gizmo. The spread is also what the Inspector shows when nothing else is selected: when the workspace opens, and after a click on the stage that picks nothing. An <b>entry</b> row selects the entry, also one without a target such as <em>About the demo</em>: the Inspector shows it as the reader reads it – category, title, access page, author and tags, the text in paragraphs, the image, a link's URL – and its target with <em>select the target</em>. An entry with a target has that target outlined on the stage. The Info view says for every row what its tap does.</p>
+  <p>Every row of the tree selects something, and a tap anywhere on the row always shows it: the row turns grey and the <b>Inspector</b> follows. The <b>spread</b> row – the book icon at the top – selects the spread: the Inspector shows its <em>spread</em> section – the title, the pages, the format, the post-processing in effect and the book's environment – then <em>post-processing</em> and <em>vars and events</em>; nothing stays selected on the stage, no outline, no gizmo. The spread is also what the Inspector shows when nothing else is selected: when the workspace opens, and after a click on the stage that picks nothing. An <b>entry</b> row selects the entry, also one without a target such as <em>About the demo</em>: the Inspector shows its form – title, category, access page, author and tags, the text with its preview, the picture, a link's URL – and its target with <em>select the target</em> (<a href="#texts">5 · Editing texts</a>). An entry with a target has that target outlined on the stage. The Info view says for every row what its tap does.</p>
   <p><kbd>Delete</kbd> on an entry row removes nothing at once: it shows what goes with the entry and asks first, as <em>Remove entry</em> in the row's menu does.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/tools/01-selection-entry.webp" width="1280" height="800" loading="lazy" alt="The key spread with the entry The key selected in the tree: its row is grey with a bar at its start; on the stage the key's printed image on the left page is outlined in orange; the Inspector shows entry · The key – category glossary, title The key, access page p. 1, tags narrative, key, the text about finding the key, and target key with select the target; the Info view says glossary · p. 1 – a tap selects the entry: the Inspector shows its text, the stage outlines its target.">
-    <figcaption>The entry <em>The key</em> selected in the tree. The Inspector shows the entry, the stage outlines its target, the Info view says what the tap did.</figcaption>
+    <img src="/docs/tutorials/tools/01-selection-entry.webp" width="1280" height="800" loading="lazy" alt="The key spread with the entry The key selected in the tree: its row is grey with a bar at its start; on the stage the key's printed image on the left page; the Inspector shows the form entry · The key – title The key, category glossary pressed, access page p. 1, author none, tags key, door (marked changed), the text in Markdown with two variables in braces (marked changed), its preview – The key in bold opens what the book keeps shut – hello, Kévin in italics, then You carry it already. – with visitor = Kévin (book) · hasKey = true (book) below, picture none with Library… and Upload…, link none, target key with select the target, and Back to the draft and Save.">
+    <figcaption>The entry <em>The key</em> selected in the tree: the Inspector shows its form, the preview fills in the stage's variables.</figcaption>
   </figure>
 
   <h3 class="sec" id="tools-hierarchy">Building a hierarchy</h3>
@@ -693,6 +701,42 @@ npm run osct -- content status --env staging</code></pre>
       <figcaption>A 768 px tablet: the tree collapsed, the tabs as icons.</figcaption>
     </figure>
   </div>
+
+  <h2 class="chapter" id="texts"><span class="gold">5 · Editing texts</span></h2>
+  <p>The reading side of the book – the entries' texts, the book's title, author and publisher, and the onboarding – is edited in the editor too. As everywhere, nothing reaches the draft until <b>Save</b>, <b>Back to the draft</b> drops the edits, and nothing reaches readers until you <b>Publish</b>. A reload asks first while a form holds edits.</p>
+
+  <h3 class="sec" id="texts-entry">An entry's form</h3>
+  <p>Select an entry in the tree: the Inspector shows its form, in the order the reader reads it – <b>title</b>, <b>category</b>, <b>access page</b>, <b>author</b> and <b>tags</b> (words separated by commas), the <b>text</b> with its <b>preview</b>, the <b>picture</b> from the Library, a link's <b>URL</b> and the <b>target</b>. A changed row is marked with a dot. The access page decides the spread: a page on another spread moves the entry there when you save.</p>
+  <p>The preview is the reader's own renderer. On the stage it fills in the variables with their current values – set them in the spread's <em>vars and events</em>, or let the book's behaviours and plugins set them by playing. Below the preview the variables the text reads are listed with their values and scopes; a brace that does not parse is named in red.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/24-entry-phone.webp" width="360" height="760" loading="lazy" alt="The entry form on a phone: title The key, category glossary, access page 1, author none, tags key, door, the text in Markdown marked as changed, its preview with The key in bold and hello, friend, then Find it on the next page as a link; visitor not set · hasKey not set – no stage here; picture none with Library… and Upload…, link none, target key, Back to the draft and Save.">
+    <figcaption>The same form on a phone, opened from the Entries page: without a stage every variable is unset, so the fallbacks show.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="texts-markdown">Markdown and variables</h3>
+  <p>A text is a small Markdown: a blank line starts a paragraph (a single line break stays one), <code>*emphasis*</code>, <code>**strong**</code> and <code>[a link](https://…)</code>. Nothing else is markup – HTML shows as text.</p>
+  <p>The book's variables go in braces, the way SCUTOONS' message boxes write them:</p>
+  <ul>
+    <li><code>{hasKey}</code> prints the variable's value – the innermost scope that has it: spread, stage, session, book.</li>
+    <li><code>{hasKey: The door opens.|It is locked.}</code> chooses a text; <code>{tries &gt; 2: Try the window.}</code> shows one only when the condition holds.</li>
+    <li>A variable that is not set shows as nothing, so <code>{visitor: {visitor}|friend}</code> is a fallback.</li>
+    <li><code>\{</code> writes a brace.</li>
+  </ul>
+  <p>The reader fills in the values when the entry opens. An older app shows the text as written, the stars and braces included.</p>
+
+  <h3 class="sec" id="texts-entries">The Entries page</h3>
+  <p>On the book's page, <b>entries</b> next to <b>spreads</b> lists every entry of the book: filter by category – the pills count them –, search titles, texts, authors and tags, and the glossary is grouped by its first letter as the reader groups it. Opening an entry shows the same form beside the list; on a phone instead of it, with <em>‹ all entries</em> to go back. <b>+ entry</b> makes an entry without a target – a glossary term only read in the list.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/22-entries.webp" width="1280" height="800" loading="lazy" alt="The demo book's page with the view entries pressed: the book section closed, the filters all 12, glossary 8 (pressed), videos 2, texts 1, links 1, the search field and + entry; the glossary grouped under A – About the demo, p. 1 – and T – The colophon, The door, The key (selected), The seal, The switch, The twins (A) and (B), each with its page and a target icon; on the right the form of The key with its text and the preview, hello, stranger, and visitor not set · hasKey not set – no stage here.">
+    <figcaption>The glossary on the Entries page, <em>The key</em> open beside it.</figcaption>
+  </figure>
+
+  <h3 class="sec" id="texts-book">The book and the onboarding</h3>
+  <p>The section <b>book</b> on the book's page holds its title, author and publisher – the splash and the home page show them, and <code>{{title}}</code>, <code>{{author}}</code> and <code>{{publisher}}</code> in a step are replaced with them. The view <b>onboarding</b> lists the steps a reader goes through on the first start, each a section: closed, its head names what it shows and what moves it on; ↑ ↓ move it, <em>remove</em> drops it, <b>+ step</b> adds one. Open, a step has its title, text, footer, illustration, button and the button's action – <em>next</em>, <em>camera</em> (asks for the camera) or <em>scan</em> (ends the onboarding) – and its timing; a time left at <em>default</em> is the app's. The whole list is saved at once.</p>
+  <figure class="shot">
+    <img src="/docs/tutorials/tools/23-onboarding.webp" width="1280" height="800" loading="lazy" alt="The demo book's page with the view onboarding pressed: the book section open with title The Demo Book, author OSCT, publisher Building Fictions, Back to the draft and Save; onboarding · 2 steps – step 1 closed, its head reading {{title}} · on after 3800 ms, with up, down and remove; step 2 open with id step-2, title none, the text about the sandbox, footer none, illustration /assets/illustrations/tutorial-step-1.svg, button Continue, action next pressed, and fade in, stagger and advance at default with set.">
+    <figcaption>The book's texts and the onboarding's second step.</figcaption>
+  </figure>
 
   <p class="muted">The reference for every detail: the repository's <code>docs/editor.md</code> (the editor, its keys and rules) and <code>docs/server.md</code> (the API behind it).</p>
 

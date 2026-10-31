@@ -1,6 +1,6 @@
 import type { EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { AssetType, PrintPlacement, SpreadFormat } from "@shared/types/game-config";
+import type { AssetType, PrintPlacement, SpreadFormat, StepData } from "@shared/types/game-config";
 import type {
   Asset,
   AssetList,
@@ -9,10 +9,13 @@ import type {
   AssetUsages,
   BookList,
   BookPassesSaved,
+  BookSaved,
   BookTree,
   DraftManifest,
   EntitySaved,
   EntryAdded,
+  EntryList,
+  EntrySaved,
   EnvironmentSaved,
   EnvironmentsInfo,
   ImportPreview,
@@ -25,6 +28,7 @@ import type {
   SpreadAdded,
   SpreadSaved,
   TargetSaved,
+  TutorialSaved,
 } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { readStored, writeStored } from "#lib/storage.js";
@@ -36,6 +40,9 @@ export type {
   BookSummary,
   BookTree,
   Confirmation,
+  EditorEntry,
+  EntryFields,
+  EntrySaved,
   EnvironmentInfo,
   EnvironmentServing,
   EnvironmentsInfo,
@@ -479,8 +486,29 @@ export const deleteAsset = (bookId: string, assetId: string, force = false) =>
 export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: string; print?: PrintPlacement | null }) =>
   api<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/targets/${encodeURIComponent(targetId)}`, body);
 
-export const addEntry = (bookId: string, body: { id?: string; title: string; page: number; category?: string; body?: string; target: { id?: string; imageSrc: string; print?: PrintPlacement; entity?: EntityData | EntityRefData } }) =>
+/** A new entry – with its target, or without one: an entry read only in the list (the Entries page, #223) */
+export const addEntry = (bookId: string, body: { id?: string; title: string; page: number; category?: string; body?: string; target?: { id?: string; imageSrc: string; print?: PrintPlacement; entity?: EntityData | EntityRefData } }) =>
   api<EntryAdded>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
+
+// ── The book's texts (#223, docs/server.md "Texts") ──────────────────────────────────────────────
+
+/** Every entry with its fields as the content holds them (an image's path unresolved), its spread and its target */
+export const getEntries = (bookId: string) => api<EntryList>("GET", `/editor/books/${encodeURIComponent(bookId)}/entries`);
+
+/** An entry's fields – only those sent change; `null` removes author, image or media. A new page can move it to another spread */
+export const putEntry = (bookId: string, entryId: string, changes: Record<string, unknown>) =>
+  api<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`, changes);
+
+/** The book's title, author and publisher (`publisher: null` removes it) */
+export const putBookTexts = (bookId: string, changes: { title?: string; author?: string; publisher?: string | null }) =>
+  api<BookSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}`, changes);
+
+/** The onboarding's steps in their order */
+export const getTutorial = (bookId: string) => api<TutorialSaved>("GET", `/editor/books/${encodeURIComponent(bookId)}/tutorial`);
+
+/** The onboarding's steps – the whole ordered list */
+export const putTutorial = (bookId: string, tutorial: StepData[]) =>
+  api<TutorialSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/tutorial`, { tutorial });
 
 /** The book's world and onion sky; `null` removes them – the default applies */
 export const putEnvironment = (bookId: string, environment: EnvironmentData | null) =>

@@ -4,6 +4,8 @@ import { Emitter } from "@engine/utils/emitter";
 type ArModule = typeof import("./ar");
 
 let arModule: Promise<ArModule> | null = null;
+/** The AR chunk once it has loaded (the scene's runtime lives in it) */
+let loadedModule: ArModule | null = null;
 
 /** Every scene event, forwarded from the real scene (a record over the event type: a new event can't be left out) */
 const SCENE_EVENTS = Object.keys({
@@ -23,13 +25,19 @@ const SCENE_EVENTS = Object.keys({
  */
 export const loadArModule = (): Promise<ArModule> => {
   if (!arModule) {
-    arModule = import("./ar").catch(error => {
+    arModule = import("./ar").then(module => (loadedModule = module)).catch(error => {
       arModule = null;
       throw error;
     });
   }
   return arModule;
 };
+
+/**
+ * The book's variables in every scope the scene's runtime keeps – spread, stage, session and book (`allVars()`, the
+ * book scope read from the reader's progress) – for the entry texts (`{hasKey}`); null while the AR chunk has not loaded
+ */
+export const sceneVariables = (): ReturnType<ArModule["allVars"]> | null => loadedModule?.allVars() ?? null;
 
 /**
  * The bridge's `IArScene`: records the requested spread and state and hands them to the real `ArScene`

@@ -18,12 +18,21 @@
   import Icon from "#lib/components/Icon.svelte";
   import { environmentOf } from "@shared/types/environment";
   import InfoView from "#lib/components/InfoView.svelte";
+  import Segmented from "#lib/components/Segmented.svelte";
+  import BookTexts from "#lib/BookTexts.svelte";
+  import EntriesPage from "#lib/EntriesPage.svelte";
+  import OnboardingSteps from "#lib/OnboardingSteps.svelte";
 
   /**
-   * A book's spreads, each as its picture: the layout's sheet (when the content carries one) with the targets' prints
-   * over it (#153). Open one to work on its stage.
+   * A book: its texts (title, author, publisher – #223) above three views, chosen in `?view=`: the **spreads**, each as
+   * its picture – the layout's sheet (when the content carries one) with the targets' prints over it (#153), open one to
+   * work on its stage; the **entries** in one list, each opening its form (`EntriesPage`); the **onboarding**'s steps.
    */
   const bookId = $derived(page.params.book!);
+  const VIEWS = ["spreads", "entries", "onboarding"] as const;
+  type View = (typeof VIEWS)[number];
+  const view = $derived<View>(VIEWS.find(v => v === page.url.searchParams.get("view")) ?? "spreads");
+  const show = (next: View) => void goto(`${resolve(`${bookId}/`)}${next === "spreads" ? "" : `?view=${next}`}`, { replace: true });
   let tree = $state<BookTree | null>(null);
   let layout = $state<StageLayout | null>(null);
   let error = $state<string | null>(null);
@@ -127,6 +136,18 @@
 <main>
   {#if error}<p class="danger">{error}</p>{/if}
   {#if tree}
+    <nav class="views" aria-label="Views of the book" data-help-name="Views" data-help="The book's spreads as pictures, its entries in one list (the glossary, texts, videos and links – edited there), or the onboarding's steps.">
+      <Segmented options={VIEWS} value={view} label="View" onchange={show} />
+    </nav>
+    {#key tree.book.id}
+      <BookTexts {bookId} book={tree.book.book} onsaved={() => void getBook(bookId).then(t => (tree = t))} />
+    {/key}
+  {/if}
+  {#if tree && view === "entries"}
+    <EntriesPage {bookId} assetsBase={tree.book.assetsBase || null} />
+  {:else if tree && view === "onboarding"}
+    <OnboardingSteps {bookId} />
+  {:else if tree}
     <p class="muted small">{tree.book.author} · {tree.spreads.length} spreads · assets at {tree.book.assetsBase || "the draft's origin"}
       · <button type="button" class="text-link" disabled={adding} onclick={() => void addDoublePage()}
         data-help="A double page after the last one (before the back cover). Its pages are numbered on from there.">+ double page</button>
@@ -193,6 +214,7 @@
 
 <style>
   main { padding: 1rem 1.5rem; }
+  .views { margin-bottom: .5rem; }
   /* The repeated track is a pair of pages: the column count stays even, a double page never wraps */
   .spreads { --page-min: 9rem; list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: 1rem 0;
     grid-template-columns: repeat(auto-fill, minmax(min(var(--page-min), 50%), 1fr) minmax(min(var(--page-min), 50%), 1fr)); }

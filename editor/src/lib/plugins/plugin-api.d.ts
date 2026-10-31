@@ -303,6 +303,10 @@ interface EntryData {
 	category: EntryCategory;
 	title: string;
 	page: number;
+	/**
+	 * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the book's variables
+	 * in braces, `{hasKey}`; `../text/entry-text.ts` renders it). Plain text reads as before.
+	 */
 	body: string;
 	author?: string;
 	image?: string;

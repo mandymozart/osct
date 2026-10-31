@@ -28,6 +28,7 @@ import {
   PLUGIN_ID_PATTERN,
   PRINT_SURFACES,
   SPREAD_FORMATS,
+  STEP_ACTIONS,
   type PluginData,
 } from "../../shared/types/game-config";
 import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
@@ -329,8 +330,23 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       },
     },
     entry: {
-      description: "An entry is top level: { id, category, title, page, body, tags, target? } – page decides the spread. add_entry makes an entry with its target.",
+      description:
+        "An entry is top level: { id, category, title, page, body, author?, image?, media?, tags, target? } – page decides the spread. add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (image: a Library picture, media: a link's http(s) URL).",
       categories: ENTRY_CATEGORIES,
+    },
+    entryText: {
+      description:
+        "An entry's body (content schema 2.23) is Markdown with the book's variables, rendered alike by the reader and the editor's preview. Markdown, only this much: a blank line starts a paragraph, a single line break stays one, *emphasis* or _emphasis_, **strong** or __strong__, [link text](https://…) (http, https and mailto – any other link stays text), a backslash escapes (\\* is a star). No headings, lists, images, code or HTML – HTML shows as text. " +
+        "Variables (the syntax of SCUTOONS' message boxes, ink's inline syntax): {hasKey} prints a variable – a bare camelCase name of the behaviour variables and the plugins' api.vars, read from the innermost scope that has it (spread, stage, session, book); {tries > 2: Try the window.} and {hasKey: The door opens.|It is locked.} choose a text; expressions have numbers, \"texts\", true / false, and or not, == != < <= > >=, + - * / mod and parentheses. A variable that is not set shows as nothing and is false – so {name: {name}|friend} is a fallback. \\{ \\} \\| write the characters. No lists ({a|b}) and no functions: they render nothing and update_entry refuses them. An older reader shows the source as written.",
+      example: "Hello {name: **{name}**|stranger}.\n\n{hasKey: The door opens.|The door is *locked*.} See [the map](https://example.org/map).",
+    },
+    book: {
+      description: "BookData: { id, title, author, publisher?, passes?, environment? }. update_book changes title, author and publisher – the reader's splash and home page show them.",
+    },
+    tutorial: {
+      description:
+        "The onboarding: StepData[] in order – { id, index, title?, description?, footer?, illustration?, button?, action?, fadeIn?, stagger?, advance? }. {{title}}, {{author}} and {{publisher}} in a step are the book's; description takes *emphasis* and blank lines. A step without a button moves on after advance ms (or a tap); action (with a button) is next, camera or scan. get_tutorial reads them, update_tutorial replaces the whole list.",
+      actions: STEP_ACTIONS,
     },
     spread: {
       description:
