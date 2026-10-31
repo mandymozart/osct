@@ -30,7 +30,7 @@ import {
 import { contentUrl } from "../content/game-config";
 import type { LoadedAsset } from "./assets";
 import { dropPluginListeners, nextRun, type PluginEvents, type PluginProgress, type PluginSpread, type PluginVars, runtimeApi } from "./plugin-runtime";
-import { type PassFactory, passRegistration, registerPass, unregisterPassesOf } from "./post/registry";
+import { type PassFactory, passRegistration, registeredPassTypes, registerPass, unregisterPassesOf } from "./post/registry";
 import { deleteMaterialRegistration, type MaterialBuild, materialRegistration, setMaterialRegistration } from "./materials";
 import { deleteTextureRegistration, resolveTextures, sameTextures, setTextureRegistration, type TextureDraw, textureRegistration } from "./textures";
 import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback, type FeedbackOptions, type OwnedFeedbacks, shadertoyFragment } from "./feedback";
@@ -67,7 +67,9 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * Registrations are kept per plugin id: installing a plugin again (the editor's Run) replaces what it registered
  * before; an exception in `register` leaves the previous registration in place. The reader loads the plugins the
  * configuration declares (`loadPlugins`), compiled by the content build; the editor also installs modules it
- * transpiled itself (`installPlugin`) – the only place unchecked code runs.
+ * transpiled itself (`installPlugin`) – unchecked code. The editor runs both in its stage frame, a sandbox with an origin
+ * of its own and no session (#234); its page runs no plugin code and mirrors the registry's specs
+ * (`pluginRegistrySnapshot` → `mirrorPluginRegistry`).
  */
 
 /** What a component's `apply` gets: the node, its parameters resolved, the node's objects, the target, three.js */
@@ -610,4 +612,105 @@ export const applyComponents = (
         ?? Object.keys(c.params).every(key => JSON.stringify(c.params[key]) === JSON.stringify(applied[i].params[key])));
     },
   };
+};
+
+/** One plugin's registrations as data – its specs by kind and type, no code */
+export interface PluginRegistrations {
+  components: Record<string, ComponentSpec>;
+  layers: Record<string, ComponentSpec>;
+  nodeTypes: Record<string, NodeTypeSpec>;
+  materials: Record<string, MaterialSpec>;
+  textures: Record<string, TextureSpec>;
+  passes: Record<string, PassSpec>;
+}
+
+/** The plugin registry as data: every installed plugin's registrations and the node types whose last build failed */
+export interface PluginRegistrySnapshot {
+  plugins: Record<string, PluginRegistrations>;
+  failures: Record<string, string>;
+}
+
+/** A spec as plain data (what survives JSON – a structured clone never meets a function) */
+const plain = <T>(spec: T): T => JSON.parse(JSON.stringify(spec)) as T;
+
+/**
+ * The registry as data, for a realm that runs no plugin code (#234): the editor's stage frame runs the plugins and
+ * sends this to the editor's page, which mirrors it (`mirrorPluginRegistry`) so its panels read the specs as before.
+ */
+export const pluginRegistrySnapshot = (): PluginRegistrySnapshot => {
+  const plugins: Record<string, PluginRegistrations> = {};
+  installed.forEach((types, id) => {
+    const entry: PluginRegistrations = { components: {}, layers: {}, nodeTypes: {}, materials: {}, textures: {}, passes: {} };
+    types.forEach(type => {
+      const component = components.get(type);
+      if (component?.plugin === id) entry.components[type] = plain(component.spec);
+      const layer = layers.get(type);
+      if (layer?.plugin === id) entry.layers[type] = plain(layer.spec);
+    });
+    (installedNodeTypes.get(id) ?? []).forEach(type => {
+      const registration = nodeTypes.get(type);
+      if (registration?.plugin === id) entry.nodeTypes[type] = plain(registration.spec);
+    });
+    (installedMaterials.get(id) ?? []).forEach(type => {
+      const registration = materialRegistration(type);
+      if (registration?.plugin === id) entry.materials[type] = plain(registration.spec);
+    });
+    (installedTextures.get(id) ?? []).forEach(type => {
+      const registration = textureRegistration(type);
+      if (registration?.plugin === id) entry.textures[type] = plain(registration.spec);
+    });
+    registeredPassTypes().forEach(type => {
+      const registration = passRegistration(type);
+      if (registration?.owner === id) entry.passes[type] = plain(registration.spec);
+    });
+    plugins[id] = entry;
+  });
+  return { plugins, failures: Object.fromEntries(failures) };
+};
+
+/** What a mirrored registration runs: nothing – the code runs in the stage frame only */
+const MIRRORED = "a mirrored registration runs no code (the stage frame runs the plugin)";
+const notHere = (): never => {
+  throw new Error(MIRRORED);
+};
+
+/** The plugins mirrored here, by id → their registrations as JSON (an unchanged one is not installed again) */
+const mirrored = new Map<string, string>();
+
+/**
+ * Mirror a registry snapshot (`pluginRegistrySnapshot` of the stage frame): every plugin of it is installed with its
+ * specs and code that never runs, a plugin no longer in it is uninstalled, and the build failures are the snapshot's.
+ * The specs pass the same checks as a plugin's own registration. Returns the problems (a plugin refused), empty when
+ * every plugin was mirrored.
+ */
+export const mirrorPluginRegistry = (snapshot: PluginRegistrySnapshot): string[] => {
+  const problems: string[] = [];
+  const wanted = new Map(Object.entries(snapshot.plugins).map(([id, registrations]) => [id, JSON.stringify(registrations)]));
+  mirrored.forEach((json, id) => {
+    if (wanted.get(id) === json) return;
+    uninstallPlugin(id);
+    mirrored.delete(id);
+  });
+  wanted.forEach((json, id) => {
+    if (mirrored.has(id)) return;
+    const registrations = snapshot.plugins[id];
+    try {
+      installPlugin(id, {
+        register: api => {
+          Object.entries(registrations.components ?? {}).forEach(([type, spec]) => api.registerComponent(type, spec, () => null));
+          Object.entries(registrations.layers ?? {}).forEach(([type, spec]) => api.registerLayer(type, spec, { glsl: "return rgba;" }));
+          Object.entries(registrations.nodeTypes ?? {}).forEach(([type, spec]) => api.registerNodeType(type, spec, () => null));
+          Object.entries(registrations.materials ?? {}).forEach(([type, spec]) => api.registerMaterial(type, spec, notHere));
+          Object.entries(registrations.textures ?? {}).forEach(([type, spec]) => api.registerTexture(type, spec, notHere));
+          Object.entries(registrations.passes ?? {}).forEach(([type, spec]) => api.registerPass(type, spec, notHere));
+        },
+      });
+      mirrored.set(id, json);
+    } catch (error) {
+      problems.push(error instanceof Error ? error.message : String(error));
+    }
+  });
+  failures.clear();
+  Object.entries(snapshot.failures ?? {}).forEach(([type, why]) => failures.set(type, String(why)));
+  return problems;
 };

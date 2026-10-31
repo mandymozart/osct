@@ -638,7 +638,9 @@ export interface Feedback {
  * Registrations are kept per plugin id: installing a plugin again (the editor's Run) replaces what it registered
  * before; an exception in `register` leaves the previous registration in place. The reader loads the plugins the
  * configuration declares (`loadPlugins`), compiled by the content build; the editor also installs modules it
- * transpiled itself (`installPlugin`) – the only place unchecked code runs.
+ * transpiled itself (`installPlugin`) – unchecked code. The editor runs both in its stage frame, a sandbox with an origin
+ * of its own and no session (#234); its page runs no plugin code and mirrors the registry's specs
+ * (`pluginRegistrySnapshot` → `mirrorPluginRegistry`).
  */
 /** What a component's `apply` gets: the node, its parameters resolved, the node's objects, the target, three.js */
 export interface ComponentContext {

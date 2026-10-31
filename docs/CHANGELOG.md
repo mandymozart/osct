@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.58.0 – 2026-10-30
+
+### Security
+- **A book's code can no longer act as the person who has the book open in the editor** (#234). The editor's stage – and
+  with it every plugin of the book and every **Run** in the Code tab – now runs in a sandbox of its own: a frame without
+  the editor's session, its cookie or its storage, that cannot reach into the editor's page and may load only the book's
+  content and the Library's files. Before, a plugin written by any editor of a book could send requests with the session
+  of whoever had the book open – an admin's included. Saving and publishing stay a click in the editor itself.
+  The reader still runs a published book's plugins in its own page.
+
+### Changed
+- The Code tab shows the plugins' **log** under the editor: their `api.log` lines and their errors on the stage, newest
+  last, cleared with every Run.
+- In the editor a plugin can no longer fetch from other hosts – files come from the book's content and the Library
+  (`api.loadText`), as the plugin guide says. The reader is unchanged.
+- The site serves the editor's files and the content it bundles to any origin (`Access-Control-Allow-Origin: *`), which
+  the sandboxed stage needs to load them.
+
 ## 1.57.1 – 2026-10-30
 
 ### Fixed

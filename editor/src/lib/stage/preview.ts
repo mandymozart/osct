@@ -136,8 +136,8 @@ export const clampGrid = (mm: number): number => Math.min(500, Math.max(1, mm));
 
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
-const readSettings = (): PreviewSettings => {
-  const parsed = readStoredJson(STORAGE_KEY);
+/** Settings from a stored (or sent) value, each one checked – a missing or wrong one is the default */
+export const parseSettings = (parsed: unknown): PreviewSettings => {
   if (!parsed || typeof parsed !== "object") return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
   const stored = parsed as Partial<PreviewSettings> & { desk?: unknown };
   return {
@@ -158,6 +158,8 @@ const readSettings = (): PreviewSettings => {
     snapScale: finite(stored.snapScale) ? clampSnap("scale", stored.snapScale) : DEFAULTS.snapScale,
   };
 };
+
+const readSettings = (): PreviewSettings => parseSettings(readStoredJson(STORAGE_KEY));
 
 const isOrbit = (value: unknown): value is PreviewOrbit => {
   if (!value || typeof value !== "object") return false;
@@ -201,6 +203,29 @@ export const updatePreview = (patch: Partial<Omit<PreviewState, "active">>): voi
 export const setTargetHidden = (targetId: string, hidden: boolean): void => {
   const without = state.hidden.filter(id => id !== targetId);
   updatePreview({ hidden: hidden ? [...without, targetId] : without });
+};
+
+/**
+ * The preview as the page and the stage frame keep it in step (#234): the settings and the hidden targets, checked
+ * and in one order – the same preview gives the same text on both sides. `active` is each side's own.
+ */
+export const previewSync = (value: unknown = state): string => {
+  const hidden = (value as { hidden?: unknown } | null)?.hidden;
+  return JSON.stringify({ ...parseSettings(value), hidden: Array.isArray(hidden) ? hidden.filter((id): id is string => typeof id === "string") : [] });
+};
+
+/** Take the preview the other side sent (`previewSync`'s text, checked again here); false when it is the one shown already or no JSON */
+export const applyPreviewSync = (sync: string): boolean => {
+  let sent: unknown;
+  try {
+    sent = JSON.parse(sync);
+  } catch {
+    return false;
+  }
+  const checked = previewSync(sent);
+  if (checked === previewSync()) return false;
+  updatePreview(JSON.parse(checked) as Partial<PreviewState>);
+  return true;
 };
 
 export const subscribePreview = (listener: (state: PreviewState) => void): (() => void) => {

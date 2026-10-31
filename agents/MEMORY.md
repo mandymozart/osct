@@ -4,6 +4,87 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234)
+
+- **Tilman**: "Make editors safe, please. Sandbox." Since #207 no script can read the session, but every book plugin –
+  the draft's and the Code tab's Run – ran in the editor's page: a plugin any editor of a book wrote could, while an
+  admin had the book open, fetch `GET /user` for the CSRF token and write with the admin's cookie.
+- **Decision: (a) – the whole stage runs in an iframe sandboxed with `allow-scripts` only** (no `allow-same-origin`),
+  the editor's own route `/editor/stage-frame/` (outside the `(app)` routes and their gate), and the page talks to it
+  over `postMessage` (`editor/src/lib/stage/frame-protocol.ts`). Why this and not the others:
+  - **Plugins cannot leave the scene.** A component gets the node's `Object3D`, a node type returns one, a material or
+    a pass is three.js built against the one renderer, a feedback buffer renders in it. Whatever is sandboxed has to hold
+    the scene – so the stage moves, not the plugins.
+  - **(c) a worker with a command protocol** would mean a new plugin API (no `api.three` objects, every call a command):
+    a plugin API MAJOR, every plugin rewritten, the demo and the book's code with them. Far too big, and it breaks what
+    content already does.
+  - **(d) an `api:` capability plugins can't reach** is impossible in one realm: plugin code reaches `fetch` (or patches
+    it), reads `GET /user` with the ambient cookie, gets at any object through `api.three`'s prototypes. Nothing in a
+    shared realm is private from it.
+  - **(b) a separate origin** (a sandbox subdomain) is (a) plus deploy config (a host name, TLS, the proxy). The opaque
+    origin of (a) already is an origin of its own – without deploy config. (b) stays the way to go further (also for
+    the reader, below).
+  - **The churn stays small**: the frame runs the existing stage unchanged in substance (`stage-core.svelte.ts`, the old
+    `Stage` class); the page keeps a `Stage` with the same API (`stage.svelte.ts`), so the panels barely changed (four
+    calls answer a promise now: `sampleColor`, `sampleBottom`, `setVar`, `tap`). The plugin registry crosses as specs
+    (`pluginRegistrySnapshot` in the frame, `mirrorPluginRegistry` in the page – `engine/src/scene/plugins.ts`), so
+    the panels keep reading the engine's registries. **No plugin API change, no content schema change.** Not a first
+    step: nothing of plugin code runs in the page any more.
+- **What the opaque origin does** (checked in the browser with a probe plugin): `self.origin` is `"null"`,
+  `document.cookie` and `localStorage` throw (`SecurityError` – sandboxed, no `allow-same-origin`), `parent.document` is
+  another origin's; a request to the API's content route – the one path of the API the policy allows – goes out
+  **without the cookie** (Chrome: `osct_session` blocked, `SchemefulSameSiteStrict` – an opaque initiator is another
+  site) and its credentialed read is refused by CORS; `fetch("/api/user")` never leaves (the policy). The CSRF token and
+  every API call stay in the page.
+- **What crosses**: the page sends the draft as text (it fetched it with its session; `content.snapshot`, the frame
+  replays it – it never asks the API), the preview (`previewSync`, checked both ways), the environment, the overrides
+  (the page's own – a removed entity as the marker `removed`), the selection, the modes, the ghost, and the Code tab's
+  transpiled module. The frame sends its state, the variables and the timeline, the registry, the layout, the models'
+  timelines, picks, the context menu, a gizmo's placement (the page writes its override), the placement handles, its
+  preview changes, the page's keys (only `FORWARDED_KEYS`), the plugins' log lines, and that the pointer came onto it
+  (the Info view). The page acts only on events `readFrameEvent` accepted; **none leads to an API call**. The frame
+  accepts requests only from its parent at the editor's origin and posts only there.
+- **The policy**: a `<meta http-equiv="Content-Security-Policy">` the frame's own code puts in before the draft and
+  its plugins load (`frameCsp`). Not a header: the policy names the book's content bases, which only the draft knows,
+  and a static header cannot say "this origin except `/api`" (CSP has no exclusions). Every source carries its path –
+  `<origin>/editor/`, `<origin>/api/content/`, `<content base>/assets/content/`, `<origin>/trigger-protocol.json` –,
+  never `'self'`. A meta cannot widen an earlier one, so a draft whose files move to another base gets a new frame.
+- **Serving it**: the opaque frame fetches the editor's module scripts and static files with `Origin: null`;
+  `client/public/.htaccess` now sends `Access-Control-Allow-Origin: *` for `/editor/` and `/assets/content/` (public
+  files; mod_headers, which the Dockerfile enables – the FTPS host needs it too). No deploy config changed. The editor's
+  and the reader's Vite servers allow `null` (`server.cors`, `preview.cors`).
+- **The routes moved into a group**: `editor/src/routes/(app)/` holds the editor (its `+layout.svelte` is the gate);
+  `stage-frame/` sits beside it with no layout of its own, so the frame never runs the session code. `resolve("/(app)")`
+  is the books page now (a route id, groups and all).
+- **Frame cost** (desktop, headless Edge 156 with SwiftShader, 1280 × 800, rAF count and the main thread's task time,
+  3 × 10 s): *The switch* (the ink painting's feedback buffers, a video) 60 fps and 1.25 ms per frame in develop's page,
+  60 fps and 1.25 ms (1.22 in the frame, 0.03 in the page) sandboxed; *The key* (the aquarium, the key) 1.45–1.50 ms
+  in develop, 1.47–1.64 ms sandboxed – the frame's per-frame snapshot of the models' timelines and the layout costs
+  well under 0.2 ms. The phone was not measured.
+- **The reader: not sandboxed in this step** – documented, no issue opened (the brief). Tilman decided on 2026-10-29
+  "no sandbox in the reader" (below, "ich finde wir schützen schon genug vor Release" – the review before a release is
+  the protection), and it is not cheap: its scene needs the camera (`getUserMedia` delegated into a sandboxed frame,
+  `allow="camera"`), the 8th Wall engine's classic script, its chunk and its wasm served for an opaque origin, and the
+  service worker's offline content, which does not reach a sandboxed frame (offline AR would break); and it would need
+  the phone budget measured on iOS and Android. **The risk stays**: published plugins run in the reader's page with the
+  reader's session – and the cookie is one for the site (#207), so an editor or admin who opens the reader in the same
+  browser exposes their session to the book's plugins there. Published plugins come from sources editors stored and
+  reach readers only through a person's publish – a smaller circle than every Code tab Run, the same kind of code.
+- **What the sandbox does not do**: plugin code can still send what it sees – the draft, which its author can read
+  anyway – away by navigating its own frame (CSP has no `navigate-to`); it can post stage events that change the
+  person's unsaved live state (a placement, a pick, Delete on the selected node). A plugin that fetched other hosts in
+  the editor no longer can (the reader is unchanged); `api.loadText` covers the content and the Library.
+- [ ] **The reader's plugins and the session** (above): Tilman's "no sandbox in the reader" (2026-10-29) predates the
+  one cookie for the site (#207), which puts an editor's or admin's session within reach of a published plugin in the
+  reader. Whether that changes it is his call: sandbox the reader's scene (camera delegation, the 8th Wall files for an
+  opaque origin, offline content), or serve the editor and its API from an origin of their own so the reader's pages
+  never hold an editor's cookie (deploy config).
+- [ ] **WebGPU in the frame** (the aquarium's fluid): the Inspector says *WebGPU ok · particles 10k* in headless Edge
+  (its software adapter) inside the sandbox – a sandboxed frame needs no permission for it; not yet seen on a real GPU.
+- [ ] **The frame on the phone** (the S22): frame cost and the sheet's drag over the stage.
+- [ ] **A header policy for the frame** would apply before any script, not only before plugin code: it needs the
+  content bases per book – a server-side page for the frame, or deploy config.
+
 ## 2026-10-31 – plugin labels mark only unsaved (#232); a toggle per pass and the UI principle (#233)
 
 - **Tilman (#232)**: "Unchanged needs no indication. Unsaved needs one. And published is clear. Unsaved with an asterisk

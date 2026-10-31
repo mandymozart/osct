@@ -135,11 +135,24 @@ a book's plugin in the editor, anything injected – can read the session and ca
   reads them), gives it a new token, sets that as the cookie and answers `{ user, csrfToken }`; the old token stops
   working at once. The client then deletes the stored token; a refused one (401) means signing in as usual; unreachable,
   it waits for the next start. The endpoint goes once those browsers have had their chance (MEMORY open item).
-- **What the cookie does not do.** It stops the session from being **read and carried off**. It does not sandbox code
-  that runs on the site's own pages: a book's plugin (the editor's Code tab, a draft's plugins, the reader's AR scene)
-  runs in the same origin and can still make requests that go with the cookie while the page is open – and read the
-  CSRF token from `GET /user` like the app does. Separating plugin code from the session needs a sandbox (an
-  opaque-origin iframe or a worker) – raised with Tilman as a follow-up of #207.
+- **What the cookie does not do – and the editor's sandbox does.** The cookie stops the session from being **read and
+  carried off**. It does not, by itself, separate code that runs on the site's own pages from the session: such code is
+  in the same origin and could make requests that go with the cookie while the page is open – and read the CSRF token
+  from `GET /user` like the app does.
+  - **The editor** (#234, Tilman 2026-10-31: *"Make editors safe, please. Sandbox."*): book plugins – the draft's and the
+    Code tab's Run – run only in the **stage frame**, an iframe sandboxed without `allow-same-origin`
+    ([editor](editor.md) "The stage frame"). Its origin is opaque, so for plugin code `document.cookie` and
+    `localStorage` throw, the page is another origin, a request to the API is a cross-site request without the
+    `SameSite=Strict` cookie (and CORS sends this API no credentials anyway), and the frame's Content Security Policy
+    lets it reach the content and the Library's files (`/api/content/…`, public) but no other path of the API. The CSRF
+    token never leaves the page; nothing the frame sends makes the page call the API. RULES #35.
+  - **The reader** is not sandboxed (Tilman, 2026-10-29: the review before a release is the protection): a published
+    book's plugins run in the reader's page, with the reader's session – and since the cookie is one for the site, with
+    the session of an editor or admin who opens the reader in the same browser. A published plugin is compiled by the content build from a source an editor stored and reaches readers only
+    through a person's publish, but it is code of the same kind. The reader's scene in a frame needs the camera
+    delegated into it, the 8th Wall engine's files served for an opaque origin and the service worker's offline content
+    (which does not reach a sandboxed frame) – an open decision (`agents/MEMORY.md` 2026-10-31); serving the editor and
+    its API from an origin of their own would also keep an editor's cookie out of the reader's pages.
 - **Same origin only.** The cookie sessions need the app and `/api` on the same origin (staging and production
   serve them so; locally the dev servers proxy `/api`). CORS (`ALLOWED_ORIGINS`) sends no credentials: another origin
   can call the API with a Bearer token only.

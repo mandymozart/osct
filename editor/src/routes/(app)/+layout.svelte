@@ -1,5 +1,5 @@
 <script lang="ts">
-  import "../app.css";
+  import "../../app.css";
   import { onMount } from "svelte";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
@@ -34,7 +34,7 @@
       <h1>No admin access</h1>
       <p>{session.user?.email} is signed in, but not an admin of this instance. An admin grants the role on this page,
         or the deployment's <code>ADMINS</code> list does at sign-in (docs/server.md "Roles").</p>
-      {#if session.isEditor}<p><a href={resolve("/")} class="pill framed">To the editor</a></p>{/if}
+      {#if session.isEditor}<p><a href={resolve("/(app)")} class="pill framed">To the editor</a></p>{/if}
     {:else}
       <h1>No editor access</h1>
       <p>{session.user?.email} is signed in, but not an editor of this instance. An admin grants the role on the

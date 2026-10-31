@@ -65,9 +65,9 @@
   let newScope = $state<VarScope>("spread");
   let newType = $state<VarType>("boolean");
   let newValue = $state<VarValue>(initialValue("boolean"));
-  /** Write a variable through the plugin API (null deletes); true when it was written */
-  const write = (name: string, value: VarValue | null, scope: VarScope): boolean => {
-    varError = stage ? stage.setVar(name, value, scope) : "the stage is not running";
+  /** Write a variable through the plugin API in the stage frame (null deletes); true when it was written */
+  const write = async (name: string, value: VarValue | null, scope: VarScope): Promise<boolean> => {
+    varError = stage ? await stage.setVar(name, value, scope) : "the stage is not running";
     return varError === null;
   };
 </script>
@@ -148,7 +148,7 @@
       </select>
       <Segmented options={VAR_TYPES} value={newType} onchange={type => { newType = type; newValue = initialValue(type); }} />
       {@render valueControl(newType, newValue, "New value", value => (newValue = value))}
-      <button type="button" class="pill" disabled={!newName.trim()} onclick={() => { if (write(newName.trim(), newValue, newScope)) newName = ""; }}>set</button>
+      <button type="button" class="pill" disabled={!newName.trim()} onclick={async () => { if (await write(newName.trim(), newValue, newScope)) newName = ""; }}>set</button>
     </span></div>
 
   <div class="row" data-help="The stage's events, newest first: the time since the spread opened, the event and its payload – found, lost, unlocked, tapped, spreadChanged, varChanged and the plugins' own; behaviour marks a rule of a behaviour component that ran (which target, the rule, its event and what it did) – the log's own line, not an event of the stage. Clear empties the list.">
